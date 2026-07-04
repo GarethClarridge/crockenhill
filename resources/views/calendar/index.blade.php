@@ -41,6 +41,8 @@
                 $orgRegion = config('organization.address.region');
                 $orgPostalCode = config('organization.address.postal_code');
                 $orgCountry = config('organization.address.country');
+                $orgLatitude = config('organization.geo.latitude');
+                $orgLongitude = config('organization.geo.longitude');
                 $primaryImage = asset('images/Primary.png');
                 $currentUrl = request()->url();
             @endphp
@@ -48,7 +50,7 @@
                 {!! json_encode([
                     '@' . 'context' => 'https://schema.org',
                     '@type' => 'ItemList',
-                    'itemListElement' => $allEvents->map(function ($event, $index) use ($orgName, $orgUrl, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $primaryImage, $currentUrl) {
+                    'itemListElement' => $allEvents->map(function ($event, $index) use ($orgName, $orgUrl, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $orgLatitude, $orgLongitude, $primaryImage, $currentUrl) {
                         $eventData = [
                             '@type' => 'ListItem',
                             'position' => $index + 1,
@@ -60,18 +62,34 @@
                                 'startDate' => $event->start_datetime->toIso8601String(),
                                 'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
                                 'eventStatus' => 'https://schema.org/EventScheduled',
-                                'location' => [
-                                    '@type' => 'Place',
-                                    'name' => $event->location ?? ($event->meeting?->location ?? 'Crockenhill Baptist Church'),
-                                    'address' => [
-                                        '@type' => 'PostalAddress',
-                                        'streetAddress' => $orgStreet,
-                                        'addressLocality' => $orgLocality,
-                                        'addressRegion' => $orgRegion,
-                                        'postalCode' => $orgPostalCode,
-                                        'addressCountry' => $orgCountry,
-                                    ],
-                                ],
+                                'location' => (function() use ($event, $orgName, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $orgLatitude, $orgLongitude) {
+                                    $rawLocation = $event->location ?? $event->meeting?->location;
+                                    $locName = $rawLocation ?? $orgName;
+                                    $isOnsite = blank($rawLocation) || strcasecmp(trim($rawLocation), $orgName) === 0;
+
+                                    $location = [
+                                        '@type' => 'Place',
+                                        'name' => $locName,
+                                    ];
+
+                                    if ($isOnsite) {
+                                        $location['address'] = [
+                                            '@type' => 'PostalAddress',
+                                            'streetAddress' => $orgStreet,
+                                            'addressLocality' => $orgLocality,
+                                            'addressRegion' => $orgRegion,
+                                            'postalCode' => $orgPostalCode,
+                                            'addressCountry' => $orgCountry,
+                                        ];
+                                        $location['geo'] = [
+                                            '@type' => 'GeoCoordinates',
+                                            'latitude' => $orgLatitude,
+                                            'longitude' => $orgLongitude,
+                                        ];
+                                    }
+
+                                    return $location;
+                                })(),
                                 'image' => $primaryImage,
                                 'organizer' => [
                                     '@type' => 'Organization',

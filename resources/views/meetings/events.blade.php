@@ -39,18 +39,34 @@
                                 'name' => $event->title,
                                 'description' => \Illuminate\Support\Str::limit(strip_tags((string) ($event->description ?? 'Church event at Crockenhill Baptist Church')), 150),
                                 'startDate' => $event->start_datetime->toIso8601String(),
-                                'location' => [
-                                    '@type' => 'Place',
-                                    'name' => $event->location ?? ($meeting->location ?? 'Crockenhill Baptist Church'),
-                                    'address' => [
-                                        '@type' => 'PostalAddress',
-                                        'streetAddress' => config('organization.address.street'),
-                                        'addressLocality' => config('organization.address.locality'),
-                                        'addressRegion' => config('organization.address.region'),
-                                        'postalCode' => config('organization.address.postal_code'),
-                                        'addressCountry' => config('organization.address.country'),
-                                    ],
-                                ],
+                                'location' => (function() use ($event, $meeting) {
+                                    $rawLocation = $event->location ?? $meeting->location;
+                                    $locName = $rawLocation ?? config('organization.name');
+                                    $isOnsite = blank($rawLocation) || strcasecmp(trim($rawLocation), config('organization.name')) === 0;
+
+                                    $location = [
+                                        '@type' => 'Place',
+                                        'name' => $locName,
+                                    ];
+
+                                    if ($isOnsite) {
+                                        $location['address'] = [
+                                            '@type' => 'PostalAddress',
+                                            'streetAddress' => config('organization.address.street'),
+                                            'addressLocality' => config('organization.address.locality'),
+                                            'addressRegion' => config('organization.address.region'),
+                                            'postalCode' => config('organization.address.postal_code'),
+                                            'addressCountry' => config('organization.address.country'),
+                                        ];
+                                        $location['geo'] = [
+                                            '@type' => 'GeoCoordinates',
+                                            'latitude' => config('organization.geo.latitude'),
+                                            'longitude' => config('organization.geo.longitude'),
+                                        ];
+                                    }
+
+                                    return $location;
+                                })(),
                                 'image' => asset('images/Primary.png'),
                                 'organizer' => [
                                     '@type' => 'Organization',

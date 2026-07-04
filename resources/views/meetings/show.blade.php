@@ -50,18 +50,33 @@
                     'image' => $headingpicture ?? asset('images/Primary.png'),
                     'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
                     'eventStatus' => 'https://schema.org/EventScheduled',
-                    'location' => [
-                        '@type' => 'Place',
-                        'name' => $meeting->location ?? config('organization.name'),
-                        'address' => [
-                            '@type' => 'PostalAddress',
-                            'streetAddress' => config('organization.address.street'),
-                            'addressLocality' => config('organization.address.locality'),
-                            'addressRegion' => config('organization.address.region'),
-                            'postalCode' => config('organization.address.postal_code'),
-                            'addressCountry' => config('organization.address.country'),
-                        ],
-                    ],
+                    'location' => (function() use ($meeting) {
+                        $locName = $meeting->location ?? config('organization.name');
+                        $isOnsite = blank($meeting->location) || strcasecmp(trim($meeting->location), config('organization.name')) === 0;
+
+                        $location = [
+                            '@type' => 'Place',
+                            'name' => $locName,
+                        ];
+
+                        if ($isOnsite) {
+                            $location['address'] = [
+                                '@type' => 'PostalAddress',
+                                'streetAddress' => config('organization.address.street'),
+                                'addressLocality' => config('organization.address.locality'),
+                                'addressRegion' => config('organization.address.region'),
+                                'postalCode' => config('organization.address.postal_code'),
+                                'addressCountry' => config('organization.address.country'),
+                            ];
+                            $location['geo'] = [
+                                '@type' => 'GeoCoordinates',
+                                'latitude' => config('organization.geo.latitude'),
+                                'longitude' => config('organization.geo.longitude'),
+                            ];
+                        }
+
+                        return $location;
+                    })(),
                     'organizer' => [
                         '@type' => 'Organization',
                         'name' => config('organization.name'),
@@ -118,18 +133,34 @@
                                 'startDate' => $event->start_datetime->toIso8601String(),
                                 'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
                                 'eventStatus' => 'https://schema.org/EventScheduled',
-                                'location' => [
-                                    '@type' => 'Place',
-                                    'name' => $event->location ?? $meeting->location ?? 'Crockenhill Baptist Church',
-                                    'address' => [
-                                        '@type' => 'PostalAddress',
-                                        'streetAddress' => config('organization.address.street'),
-                                        'addressLocality' => config('organization.address.locality'),
-                                        'addressRegion' => config('organization.address.region'),
-                                        'postalCode' => config('organization.address.postal_code'),
-                                        'addressCountry' => config('organization.address.country'),
-                                    ],
-                                ],
+                                'location' => (function() use ($event, $meeting) {
+                                    $rawLocation = $event->location ?? $meeting->location;
+                                    $locName = $rawLocation ?? config('organization.name');
+                                    $isOnsite = blank($rawLocation) || strcasecmp(trim($rawLocation), config('organization.name')) === 0;
+
+                                    $location = [
+                                        '@type' => 'Place',
+                                        'name' => $locName,
+                                    ];
+
+                                    if ($isOnsite) {
+                                        $location['address'] = [
+                                            '@type' => 'PostalAddress',
+                                            'streetAddress' => config('organization.address.street'),
+                                            'addressLocality' => config('organization.address.locality'),
+                                            'addressRegion' => config('organization.address.region'),
+                                            'postalCode' => config('organization.address.postal_code'),
+                                            'addressCountry' => config('organization.address.country'),
+                                        ];
+                                        $location['geo'] = [
+                                            '@type' => 'GeoCoordinates',
+                                            'latitude' => config('organization.geo.latitude'),
+                                            'longitude' => config('organization.geo.longitude'),
+                                        ];
+                                    }
+
+                                    return $location;
+                                })(),
                                 'image' => $headingpicture ?? asset('images/Primary.png'),
                                 'organizer' => [
                                     '@type' => 'Organization',
