@@ -103,8 +103,9 @@ service-level `needs_review` sit alongside. §4.5–4.6 assess which of these op
 ### 4.1 The retirement map — what phase 6 actually deletes (the big one)
 
 Every consumer of every heuristic-cluster class was traced (grep over `app/` + `config/`). The
-cluster is **cleanly self-contained**: nothing outside it depends on it except the four seams noted
-in 4.2. Files whose only consumers are inside the cluster (safe to delete at phase 6):
+cluster is **cleanly self-contained**: nothing outside it depends on it except the five seams noted
+in 4.2 (the fifth being the auto-trim pipeline). Files whose only consumers are inside the cluster
+(safe to delete at phase 6):
 
 **Services (11, 3,324 lines):**
 
@@ -127,10 +128,11 @@ in 4.2. Files whose only consumers are inside the cluster (safe to delete at pha
 (190), `AlignWithOos` (78).
 
 **Plus:** the heuristic branches of `ProcessingPipelineBuilder::buildLivestreamChainJobs()` /
-`buildSectionReclassificationChainJobs()`, **the auto-trim pipeline** (`buildAutoTrimVideoPipeline()`
-and `buildAutoTrimVideoPostReviewChainJobs()`, which instantiate `ClassifyServiceSections`,
-`TranscribeSpeechSegments`, `ClassifySpeechSections`, and `ReclassifyIntroOutroSections`
-unconditionally — see seam 5 in 4.2), the `Off` case of `ServiceStructureMode`,
+`buildSectionReclassificationChainJobs()`, **the auto-trim pipeline** (`buildAutoTrimVideoPipeline()`,
+which instantiates `ClassifyServiceSections`, `TranscribeSpeechSegments`, `ClassifySpeechSections`,
+and `ReclassifyIntroOutroSections` unconditionally — its post-review resume chain
+`buildAutoTrimVideoPostReviewChainJobs()` starts at `ExtractSermon` and holds none of them; see
+seam 5 in 4.2), the `Off` case of `ServiceStructureMode`,
 `scripts/section-extraction/` (1,123 lines) with `SectionExtractionScriptsTest`, and ~8,900 lines of
 heuristic-path tests (list in 4.9).
 
@@ -417,7 +419,7 @@ one typed call over a full transcript:
 
 | # | Candidate | Cost of keeping | Cost/risk of removing |
 |---|-----------|-----------------|----------------------|
-| R1 | **Heuristic classification cluster** — 11 services + 6 jobs (5,054 lines), builder branches, `scripts/section-extraction/` (1,123), ~8,900 test lines (§4.1) | Dual maintenance of every seam it touches; mode branches in builder/timeline/retry registry; CI time for ~8.9k test lines; permanent "which path ran?" ambiguity when debugging | Gated on phase 6 soak evidence (shadow report + eval + ~8 clean services). Fallback after removal is the designed one: manual review + segment confirmation. Four preparatory items (§4.2) must land first. **Recommend: yes, per the existing plan — this review adds the corrected file list.** |
+| R1 | **Heuristic classification cluster** — 11 services + 6 jobs (5,054 lines), builder branches, `scripts/section-extraction/` (1,123), ~8,900 test lines (§4.1) | Dual maintenance of every seam it touches; mode branches in builder/timeline/retry registry; CI time for ~8.9k test lines; permanent "which path ran?" ambiguity when debugging | Gated on phase 6 soak evidence (shadow report + eval + ~8 clean services). Fallback after removal is the designed one: manual review + segment confirmation. **Five** load-bearing seams (§4.2) must be handled first — the first four are small preparatory commits, but seam 5 (migrate or retire the auto-trim pipeline, which still consumes the four classification jobs un-gated) is the real gate on deleting those jobs; don't treat the first four as the whole checklist. **Recommend: yes, per the existing plan — this review adds the corrected file list.** |
 | R2 | **Staged structure-merge workflow** (~950 lines, §4.6) | A second bespoke review flow (staging, resolution action, dedicated partial) for a collision case promotion makes rarer | If operators do use it to rescue mis-merges, collapsing to "merge + needs_review + diff note" loses the pre-merge safety. Needs Q1 answered; re-measure after promotion |
 | R3 | **Canonical-conflict granular state** — 2 enums, 6 columns, dual JSON/column storage (§4.5) | Every import pays the recording ceremony; state service stays 167 lines; two sources of truth to keep consistent | Losing forensic granularity nobody currently reads. Mitigation: keep `canonical_conflict_history` in JSON as the audit trail, surface one reason string |
 | R4 | **Regex date/service extraction in `OosEmailParserService`** (~300 lines, §4.7) | Two extraction mechanisms in one 432-line parser; regex maintenance for informal date formats | LLM call adds latency/cost (pennies at nano-model rates) and needs the deterministic date/service validation kept as the gate. Thresholds already exist |
