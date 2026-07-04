@@ -25,3 +25,7 @@
 ## 2026-06-18 - Centralizing Complex Array Shapes with PHPStan Types
 **Learning:** For complex data structures reused across the processing pipeline (like `RetryPlan` and `ProcessingPhase`), defining `@phpstan-type` aliases in a central registry (e.g., `ProcessingPhaseRegistry`) and leveraging `@phpstan-import-type` in consuming services ensures documentation consistency and improves static analysis precision.
 **Action:** Use `@phpstan-type` and `@phpstan-import-type` whenever a complex array shape is shared between services to prevent documentation rot. Note that `@phpstan-import-type` must be placed in the class-level PHPDoc block.
+
+## 2026-06-20 - Documenting Preacher Resolution and Speaker Identification
+**Learning:** Documenting the "why" in preacher services involves explaining the fallback strategies (e.g., mapping empty names to 'Visiting Speaker') and the technical boundaries of speaker identification (delegating to Python scripts for embedding extraction). Precise generic collection types like `Collection<int, SpeakerProfile>` and `list<array<int, float>>` significantly clarify the data flow in identification pipelines.
+**Action:** When documenting services that rely on external scripts or complex matching logic, explicitly mention the underlying technology (e.g., Python/Resemblyzer) and the matching strategy (e.g., cosine similarity) to provide context for thresholds and error modes.

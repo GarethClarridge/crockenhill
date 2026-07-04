@@ -16,8 +16,27 @@ use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
+/**
+ * Service for speaker identification using Resemblyzer.
+ *
+ * This service leverages a Python-based implementation of Resemblyzer to
+ * extract voice embeddings (fingerprints) from audio files. These embeddings
+ * are then used to identify speakers by comparing them against known
+ * speaker profiles using cosine similarity.
+ */
 class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationInterface
 {
+    /**
+     * Extract a speaker embedding (voice fingerprint) from an audio file.
+     *
+     * Delegates to a Python script that uses Resemblyzer to process a
+     * segment of the audio file and return a high-dimensional vector
+     * representing the speaker's vocal characteristics.
+     *
+     * @param  string  $audioPath  Disk-relative path to the audio file
+     * @param  string|null  $disk  Override the storage disk (defaults to configured sermon disk)
+     * @return SpeakerEmbeddingResult The extracted embedding vector or a failure reason
+     */
     public function extractEmbedding(string $audioPath, ?string $disk = null): SpeakerEmbeddingResult
     {
         $preparedAudio = $this->prepareAudioForExtraction($audioPath, $disk);
@@ -87,6 +106,18 @@ class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationIn
         }
     }
 
+    /**
+     * Identify the speaker in an audio file by comparing it against known profiles.
+     *
+     * Extracts an embedding from the audio and calculates the cosine
+     * similarity between it and the centroid embeddings of each provided
+     * profile. The best match is returned if it exceeds configured
+     * confidence and margin thresholds.
+     *
+     * @param  string  $audioPath  Disk-relative path to the audio file
+     * @param  Collection<int, SpeakerProfile>  $profiles  Known speaker profiles to compare against
+     * @return SpeakerMatchResult The match result, including top score and matched profile
+     */
     public function identify(string $audioPath, Collection $profiles): SpeakerMatchResult
     {
         if ($profiles->isEmpty()) {
@@ -156,6 +187,16 @@ class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationIn
         );
     }
 
+    /**
+     * Update a speaker profile with a new centroid computed from approved embeddings.
+     *
+     * Recalculates the element-wise average of multiple embedding vectors
+     * to refine the speaker's vocal fingerprint.
+     *
+     * @param  SpeakerProfile  $profile  The profile to update
+     * @param  list<array<int, float>>  $approvedEmbeddings  A collection of validated embedding vectors
+     * @return SpeakerProfile The updated speaker profile
+     */
     public function updateProfile(SpeakerProfile $profile, array $approvedEmbeddings): SpeakerProfile
     {
         if (empty($approvedEmbeddings)) {
