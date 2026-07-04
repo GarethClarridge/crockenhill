@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class BritishEnglishConverter
@@ -104,7 +105,7 @@ class BritishEnglishConverter
 
             return is_array($decoded) ? $decoded : null;
         } catch (\Exception $e) {
-            \Log::warning('Failed to load external word list', ['error' => $e->getMessage()]);
+            Log::warning('Failed to load external word list', ['error' => $e->getMessage()]);
         }
 
         // Could also load from external API or package here
