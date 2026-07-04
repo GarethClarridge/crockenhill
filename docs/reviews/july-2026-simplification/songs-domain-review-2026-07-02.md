@@ -37,7 +37,7 @@ What operators get: members can find a song's lyrics and watch a recent performa
 ## 3. Complexity inventory
 
 - **~5,000 lines of domain production code** (services + models + Livewire + public read path + commands + job), **~9,250 lines of tests** — a 1.8:1 test:code ratio.
-- **Two legacy one-off/transition artefacts**: `LegacyPlayDateSongUsageImporter` (425) and `LegacySongReconciler` (419) — together 844 lines, ~19% of the service layer, both already known to the trackers (see Finding 4).
+- **Two legacy one-off/transition artefacts**: `LegacyPlayDateSongUsageImporter` (425) and `LegacySongReconciler` (419) — together 844 lines, ~19% of the service layer. Only the importer is in the trackers; the reconciler is newly identified here and is *not* tracked (see Finding 4).
 - **The song-usage eligibility query exists four times** (Finding 2).
 - **Five distinct song-matching mechanisms** across two domains (Finding 5).
 - **One misfiled subsystem**: `SongClusteringService` + the `SongCluster*` Data trio + the `media_processing_logs.song_clusters` column belong to the media-pipeline heuristic path, not the songs domain (Finding 1).
