@@ -16,6 +16,7 @@ use App\Exceptions\InvalidFileException;
 use App\Models\MediaProcessingLog;
 use App\Services\Sermon\LivestreamSegmentationService;
 use App\Traits\SanitizesLogData;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -170,6 +171,8 @@ class UnifiedMediaProcessor
      *
      * @param  string  $processingId  The unique processing identifier
      * @return ProcessingResult The result of the retry initiation
+     *
+     * @throws \Throwable
      */
     public function retry(string $processingId): ProcessingResult
     {
@@ -205,6 +208,8 @@ class UnifiedMediaProcessor
      * that never touch livestream) to eagerly build the livestream service
      * graph — which is wasteful and breaks targeted-binding tests that
      * assert livestream is not touched on read paths.
+     *
+     * @throws BindingResolutionException
      */
     private function livestreamService(): LivestreamSegmentationService
     {

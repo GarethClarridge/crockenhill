@@ -51,7 +51,7 @@ class SecurityHeaders
         // Restricts sensitive browser features that this application does not use.
         // ambient-light-sensor is deliberately absent: Chrome never shipped it as a
         // Permissions-Policy feature and logs "Unrecognized feature" on every page.
-        $response->headers->set('Permissions-Policy', 'accelerometer=(), autoplay=(self "https://www.youtube.com"), battery=(), bluetooth=(), camera=(), display-capture=(), gamepad=(), geolocation=(), gyroscope=(), idle-detection=(), interest-cohort=(), keyboard-map=(), magnetometer=(), microphone=(), payment=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), web-share=()');
+        $response->headers->set('Permissions-Policy', 'accelerometer=(), autoplay=(self "https://www.youtube.com"), battery=(), bluetooth=(), browsing-topics=(), camera=(), conversion-measurement=(), display-capture=(), document-domain=(), encrypted-media=(self "https://www.youtube.com"), gamepad=(), geolocation=(), gyroscope=(), idle-detection=(), interest-cohort=(), join-ad-interest-group=(), keyboard-map=(), magnetometer=(), microphone=(), payment=(), publickey-credentials-get=(), run-ad-auction=(), screen-wake-lock=(), serial=(), sync-xhr=(), usb=(), web-share=(), window-management=(), xr-spatial-tracking=()');
 
         // Security Header: Content Security Policy (CSP)
         // Provides an additional layer of security by restricting where resources can be loaded from.

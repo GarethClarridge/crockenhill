@@ -9,7 +9,7 @@ use Tests\TestCase;
 
 class SecurityHeadersTest extends TestCase
 {
-    private const string EXPECTED_PERMISSIONS_POLICY = 'accelerometer=(), autoplay=(self "https://www.youtube.com"), battery=(), bluetooth=(), camera=(), display-capture=(), gamepad=(), geolocation=(), gyroscope=(), idle-detection=(), interest-cohort=(), keyboard-map=(), magnetometer=(), microphone=(), payment=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), web-share=()';
+    private const string EXPECTED_PERMISSIONS_POLICY = 'accelerometer=(), autoplay=(self "https://www.youtube.com"), battery=(), bluetooth=(), browsing-topics=(), camera=(), conversion-measurement=(), display-capture=(), document-domain=(), encrypted-media=(self "https://www.youtube.com"), gamepad=(), geolocation=(), gyroscope=(), idle-detection=(), interest-cohort=(), join-ad-interest-group=(), keyboard-map=(), magnetometer=(), microphone=(), payment=(), publickey-credentials-get=(), run-ad-auction=(), screen-wake-lock=(), serial=(), sync-xhr=(), usb=(), web-share=(), window-management=(), xr-spatial-tracking=()';
 
     #[Test]
     public function it_returns_security_headers_on_web_responses(): void
