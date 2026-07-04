@@ -29,6 +29,7 @@
                     :event="$event"
                     variant="admin"
                     date-format="l, j F Y"
+                    heading-level="h2"
                 />
             @endforeach
         </div>

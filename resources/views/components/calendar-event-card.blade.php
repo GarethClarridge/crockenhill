@@ -7,7 +7,8 @@
     'showDescription' => true,
     'descriptionLimit' => 150,
     'dateFormat' => 'j M Y',
-    'timeFormat' => 'g:ia'
+    'timeFormat' => 'g:ia',
+    'headingLevel' => 'h3',
 ])
 
 @php
@@ -28,7 +29,7 @@ $cardClasses = match($variant) {
     @if($variant === 'list' || $variant === 'compact')
         <div {{ $variant === 'list' ? $attributes->merge(['class' => 'flex items-start justify-between']) : $attributes->class(['flex items-start justify-between']) }}>
             <div class="flex-1">
-                <h2 class="font-medium text-gray-900 mb-2">{{ $event->title }}</h2>
+                <{{ $headingLevel }} class="font-medium text-gray-900 mb-2">{{ $event->title }}</{{ $headingLevel }}>
 
                 <x-calendar-event-meta
                     :event="$event"
@@ -46,9 +47,9 @@ $cardClasses = match($variant) {
         </div>
     @else
         {{-- Card variant (default or admin) --}}
-        <h2 class="p-6 mx-6 mt-6 font-display text-4xl">
+        <{{ $headingLevel }} class="p-6 mx-6 mt-6 font-display text-4xl">
             {{ $event->title }}
-        </h2>
+        </{{ $headingLevel }}>
 
         <ul class="mx-6 px-6 mb-6 pb-6 prose">
             @if($showDate)

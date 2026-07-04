@@ -94,6 +94,7 @@
                             variant="admin"
                             :show-meeting-badge="false"
                             date-format="l, j F Y"
+                            heading-level="h3"
                         />
                     @endforeach
                 </div>
@@ -111,6 +112,7 @@
                             variant="compact"
                             :show-meeting-badge="false"
                             date-format="j M Y"
+                            heading-level="h3"
                         />
                     @endforeach
 
