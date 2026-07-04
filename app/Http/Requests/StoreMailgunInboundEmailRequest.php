@@ -8,6 +8,7 @@ use App\Models\InboundEmail;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rules\Unique;
 use Illuminate\Validation\Validator;
 
 class StoreMailgunInboundEmailRequest extends FormRequest
@@ -33,9 +34,15 @@ class StoreMailgunInboundEmailRequest extends FormRequest
             'timestamp' => ['required', 'string', 'max:50'],
             'token' => ['required', 'string', 'max:100'],
             'signature' => ['required', 'string', 'max:128'],
-            'from' => ['required', ...$modelRules['from']],
-            'subject' => ['required', ...$modelRules['subject']],
-            'Message-Id' => ['nullable', 'string', 'max:512'],
+            'from' => $modelRules['from'],
+            'subject' => $modelRules['subject'],
+            // The Message-Id can be in the direct POST data or nested in message-headers.
+            // If it is in the POST data, we validate it against model rules (excluding required).
+            // We also exclude the unique rule because the controller handles duplicates gracefully.
+            'Message-Id' => [
+                'nullable',
+                ...array_filter($modelRules['message_id'], fn ($rule) => $rule !== 'required' && ! ($rule instanceof Unique)),
+            ],
             'message-headers' => ['nullable', 'string', 'max:100000'],
             'body-plain' => ['nullable', 'string', 'max:500000'],
             'body-html' => ['nullable', 'string', 'max:500000'],

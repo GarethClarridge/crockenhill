@@ -10,6 +10,7 @@ use App\Enums\MeetingType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SampleSource;
 use App\Enums\SermonContentType;
+use App\Models\InboundEmail;
 use App\Models\MediaProcessingLog;
 use App\Models\Meeting;
 use App\Models\Sermon;
@@ -19,6 +20,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Enum;
+use Illuminate\Validation\Rules\Unique;
 use Tests\TestCase;
 
 class ModelValidationTest extends TestCase
@@ -120,6 +122,44 @@ class ModelValidationTest extends TestCase
     }
 
     /**
+     * Test that InboundEmail validation rules are robust and actually work.
+     */
+    public function test_inbound_email_validation_rules_are_robust(): void
+    {
+        $rules = InboundEmail::validationRules();
+
+        $this->assertArrayHasKey('message_id', $rules);
+        $this->assertContains('required', $rules['message_id']);
+        $this->assertContains('max:512', $rules['message_id']);
+
+        $this->assertArrayHasKey('from', $rules);
+        $this->assertContains('required', $rules['from']);
+        $this->assertContains('max:255', $rules['from']);
+
+        $this->assertArrayHasKey('subject', $rules);
+        $this->assertContains('required', $rules['subject']);
+        $this->assertContains('max:255', $rules['subject']);
+
+        // Functional test: unique message_id fails
+        InboundEmail::factory()->create(['message_id' => 'duplicate@example.com']);
+        $data = InboundEmail::factory()->raw(['message_id' => 'duplicate@example.com']);
+        $validator = Validator::make($data, $rules);
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('message_id', $validator->errors()->toArray());
+
+        // Functional test: missing from fails
+        $data = InboundEmail::factory()->raw(['from' => '']);
+        $validator = Validator::make($data, $rules);
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('from', $validator->errors()->toArray());
+
+        // Functional test: valid data passes
+        $data = InboundEmail::factory()->raw(['message_id' => 'unique@example.com']);
+        $validator = Validator::make($data, $rules);
+        $this->assertFalse($validator->fails(), print_r($validator->errors()->all(), true));
+    }
+
+    /**
      * Test that Meeting validation rules are robust and actually work.
      */
     public function test_meeting_validation_rules_are_robust(): void
@@ -168,6 +208,27 @@ class ModelValidationTest extends TestCase
         ]);
         $validator = Validator::make($data, $rules);
         $this->assertFalse($validator->fails(), print_r($validator->errors()->all(), true));
+    }
+
+    /**
+     * Helper to check if a validation rule contains a unique rule.
+     */
+    private function hasUniqueRule(array|string $rules, string $table, string $column): bool
+    {
+        if (is_string($rules)) {
+            $rules = explode('|', $rules);
+        }
+
+        foreach ($rules as $rule) {
+            if ($rule instanceof Unique) {
+                return true;
+            }
+            if (is_string($rule) && str_starts_with($rule, 'unique:')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
