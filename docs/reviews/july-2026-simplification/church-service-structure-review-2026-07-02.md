@@ -248,12 +248,25 @@ four classification jobs.
    let an auto-trim upload run but produce **no LLM sections** for `ExtractSermon` to use — a real
    design task, not a rename, before the four heuristic jobs can be deleted. This is the real gate on
    jobs → services deletion, above and beyond the livestream soak.
+   One more constraint makes this **not** a pre-flip preparatory commit like seams 1–4: the LLM
+   replacement only writes `service_sections` in **primary** mode. `DetectServiceStructure::handle()`
+   returns immediately when `mode=Off` and, in `Shadow`, takes `runShadow()` — which by contract
+   "never touch[es] service_sections" (`DetectServiceStructure.php:81-83,101-105,120`); only
+   `runPrimary()` calls `ServiceSectionSyncService::sync()`. So swapping auto-trim onto
+   `DetectServiceStructure` while production is still `shadow`/`off` would send its runs into
+   `ExtractSermon` with **no fresh sections**. Two safe shapes: **(a)** keep the heuristic auto-trim
+   branch until `mode=primary` is live and swap it *at* the flip (the four jobs survive until after the
+   flip regardless, so this costs nothing); or **(b)** give auto-trim a **dedicated detector path that
+   writes sections independently of the global shadow mode** — the cleaner design, since auto-trim is a
+   separate Video flow the livestream soak/mode should not gate, and the only shape that keeps auto-trim
+   working *throughout* the shadow period.
 
 **The concrete path to retiring the heuristic classifier**, restated as a sequence:
 merge the stack → set `mode=shadow` + real detector/transcriber in production → accumulate Sundays →
-`structure:shadow-report` + fill a real manifest for `structure:evaluate` → land the five
-preparatory items above (including migrating or retiring the auto-trim pipeline, seam 5) →
-flip `mode=primary` → soak (~8 services, plan's suggested gate) → delete
+`structure:shadow-report` + fill a real manifest for `structure:evaluate` → land the four small
+preparatory items (seams 1–4) → flip `mode=primary` → migrate or retire the auto-trim pipeline
+(seam 5: swap it *at* the flip, or land a mode-independent auto-trim detector path earlier per shape
+(b) above) → soak (~8 services, plan's suggested gate) → delete
 **references before referents** so every commit lands green. The job classes are still referenced by
 two retained files: `ProcessingPipelineBuilder` instantiates them in its heuristic chains
 (imports at lines 11–33) and `ProcessingPhaseRegistry` imports/anchors them (lines 9–28). So each
