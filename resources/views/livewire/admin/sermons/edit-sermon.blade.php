@@ -99,7 +99,7 @@
         <x-card heading="AI-generated content">
             <div class="space-y-4">
                 <x-textarea label="Summary" wire:model="form.summary" rows="5" maxlength="1000"
-                    hint="AI-generated summary" autogrow />
+                    hint="A brief overview shown on the public sermon page." autogrow />
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Points</label>
@@ -149,10 +149,10 @@
             <x-card heading="Display options">
                 <div class="space-y-4">
                     <x-toggle label="Show summary" wire:model="form.showSummary"
-                        hint="Display AI-generated summary on sermon page" />
+                        hint="Display the summary on the public sermon page." />
 
                     <x-toggle label="Show points" wire:model="form.showPoints"
-                        hint="Display AI-generated points on sermon page" />
+                        hint="Display the sermon outline points on the public sermon page." />
                 </div>
             </x-card>
         @endunless
