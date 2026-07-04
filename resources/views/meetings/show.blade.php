@@ -61,6 +61,11 @@
                             'postalCode' => config('organization.address.postal_code'),
                             'addressCountry' => config('organization.address.country'),
                         ],
+                        'geo' => [
+                            '@type' => 'GeoCoordinates',
+                            'latitude' => config('organization.geo.latitude'),
+                            'longitude' => config('organization.geo.longitude'),
+                        ],
                     ],
                     'organizer' => [
                         '@type' => 'Organization',
@@ -128,6 +133,11 @@
                                         'addressRegion' => config('organization.address.region'),
                                         'postalCode' => config('organization.address.postal_code'),
                                         'addressCountry' => config('organization.address.country'),
+                                    ],
+                                    'geo' => [
+                                        '@type' => 'GeoCoordinates',
+                                        'latitude' => config('organization.geo.latitude'),
+                                        'longitude' => config('organization.geo.longitude'),
                                     ],
                                 ],
                                 'image' => $headingpicture ?? asset('images/Primary.png'),

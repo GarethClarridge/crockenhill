@@ -41,6 +41,8 @@
                 $orgRegion = config('organization.address.region');
                 $orgPostalCode = config('organization.address.postal_code');
                 $orgCountry = config('organization.address.country');
+                $orgLatitude = config('organization.geo.latitude');
+                $orgLongitude = config('organization.geo.longitude');
                 $primaryImage = asset('images/Primary.png');
                 $currentUrl = request()->url();
             @endphp
@@ -48,7 +50,7 @@
                 {!! json_encode([
                     '@' . 'context' => 'https://schema.org',
                     '@type' => 'ItemList',
-                    'itemListElement' => $allEvents->map(function ($event, $index) use ($orgName, $orgUrl, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $primaryImage, $currentUrl) {
+                    'itemListElement' => $allEvents->map(function ($event, $index) use ($orgName, $orgUrl, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $orgLatitude, $orgLongitude, $primaryImage, $currentUrl) {
                         $eventData = [
                             '@type' => 'ListItem',
                             'position' => $index + 1,
@@ -70,6 +72,11 @@
                                         'addressRegion' => $orgRegion,
                                         'postalCode' => $orgPostalCode,
                                         'addressCountry' => $orgCountry,
+                                    ],
+                                    'geo' => [
+                                        '@type' => 'GeoCoordinates',
+                                        'latitude' => $orgLatitude,
+                                        'longitude' => $orgLongitude,
                                     ],
                                 ],
                                 'image' => $primaryImage,

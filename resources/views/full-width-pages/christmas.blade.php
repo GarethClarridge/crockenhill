@@ -71,6 +71,11 @@
                             'postalCode' => config('organization.address.postal_code'),
                             'addressCountry' => config('organization.address.country'),
                         ],
+                        'geo' => [
+                            '@type' => 'GeoCoordinates',
+                            'latitude' => config('organization.geo.latitude'),
+                            'longitude' => config('organization.geo.longitude'),
+                        ],
                     ],
                     'image' => asset('/images/homepage/christmas2023.webp'),
                     'organizer' => [
