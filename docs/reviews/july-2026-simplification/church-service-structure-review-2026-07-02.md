@@ -172,10 +172,19 @@ four classification jobs.
    and the heuristic reconcile path dies with the cluster. Until then this is a live correctness
    gap for the primary-mode soak: a late OOS email will degrade an LLM-anchored run.
 2. **The seam contract type lives on a class scheduled for deletion.** The `ClassifiedSection`
-   array shape — the very contract of the `sync()` seam — is a PHPStan type defined on
-   `ServiceSectionClassifier`, imported by `ServiceSectionSyncService` (line 27) and
-   `App\Data\ServiceStructure` (line 100). Move the type to `ServiceSectionSyncService` (or a small
-   Data object) first; then the classifier deletes cleanly.
+   array shape — the very contract of the `sync()` seam — is a `@phpstan-type` defined on
+   `ServiceSectionClassifier` (line 27). Two files carry a real `@phpstan-import-type ClassifiedSection
+   from ServiceSectionClassifier`: `ServiceSectionSyncService` (line 27) and the
+   `ClassifySpeechSections` job (`app/Jobs/ClassifySpeechSections.php:25`). `App\Data\ServiceStructure`
+   only *names* the shape in a docblock/`toClassifiedSections()` prose (lines 98–125) — it is not a
+   formal importer, so don't count it as a blocker. The catch: the second importer,
+   `ClassifySpeechSections`, is itself one of the jobs slated for deletion but stays alive until the
+   deletion pass. So the "move the type" prep commit must **both** relocate the type to
+   `ServiceSectionSyncService` (or a small Data object) **and** repoint `ClassifySpeechSections`'s
+   import in the same commit — otherwise PHPStan sees it importing from a class the type just left.
+   (Alternatively, defer the whole move to coincide with the job-deletion pass.) Either way this is a
+   two-file move, not the single-importer swap the phrasing above implies; then the classifier deletes
+   cleanly.
 3. **The review-flag registry lives on a heuristic class the LLM path depends on.**
    `SectionAlignmentBaselineRestorer::OOS_REVIEW_FLAGS/OOS_REVIEW_REASONS` is where the LLM path's
    soft flags (`structure_low_confidence`, `structure_micro_section`, etc.) are registered so
@@ -188,11 +197,13 @@ four classification jobs.
    143–174). Confirm during the soak that no review trigger is lost when the aligner stops running —
    then the synchronizer's only callers are the projection path and upload deletion.
 5. **The auto-trim pipeline is a second, un-gated consumer of the classification jobs.**
-   `ProcessingPipelineBuilder::buildAutoTrimVideoPipeline()` and
-   `buildAutoTrimVideoPostReviewChainJobs()` instantiate `ClassifyServiceSections`,
+   `ProcessingPipelineBuilder::buildAutoTrimVideoPipeline()` instantiates `ClassifyServiceSections`,
    `TranscribeSpeechSegments`, `ClassifySpeechSections`, and `ReclassifyIntroOutroSections`
-   directly and with **no `ServiceStructureMode` gate at all** (`ProcessingPipelineBuilder.php:99-119,
-   251-320`) — the mode-gating that phase 4 added lives only on the livestream chain. So the four
+   directly and with **no `ServiceStructureMode` gate at all** (`ProcessingPipelineBuilder.php:99-119`,
+   jobs at lines 105–108) — the mode-gating that phase 4 added lives only on the livestream chain.
+   (The auto-trim *resume* chain, `buildAutoTrimVideoPostReviewChainJobs()` at lines 251–265, starts
+   at `ExtractSermon` and holds none of these jobs, so it is **not** a consumer — the blocker is only
+   the initial auto-trim chain.) So the four
    classification jobs are not deletable while auto-trim depends on them: doing so would either break
    the auto-trim entry point (a pre-trimmed video that still needs section understanding) or silently
    drop its structure detection. Before the deletion pass, auto-trim must either be migrated onto the
