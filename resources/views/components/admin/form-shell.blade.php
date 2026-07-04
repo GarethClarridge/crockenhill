@@ -64,13 +64,22 @@
                 x-transition:leave="transition ease-in duration-200"
                 x-transition:leave-start="opacity-100 translate-y-0"
                 x-transition:leave-end="opacity-0 translate-y-8"
-                class="fixed bottom-0 left-0 right-0 z-20 w-full bg-white/90 backdrop-blur-sm border-t border-gray-200 p-4 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] sm:left-auto"
+                wire:dirty.class="bg-amber-50/95 border-amber-200 shadow-[0_-4px_15px_rgba(245,158,11,0.15)]"
+                wire:dirty.remove.class="bg-white/90 border-gray-200 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]"
+                class="fixed bottom-0 left-0 right-0 z-20 w-full bg-white/90 backdrop-blur-sm border-t border-gray-200 p-4 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] sm:left-auto transition-all duration-300"
                 x-cloak
             >
                 <x-content-wrapper class="mx-auto max-w-7xl px-6 md:px-8">
                     <div class="flex items-center justify-between gap-4">
                         <div class="hidden sm:block">
-                            <p class="text-sm font-medium text-gray-500">Unsaved changes on <span class="text-gray-900">{{ $title }}</span></p>
+                            <div wire:dirty.remove class="flex items-center gap-2">
+                                <div class="h-2 w-2 rounded-full bg-gray-300"></div>
+                                <p class="text-sm font-medium text-gray-500">Editing <span class="text-gray-900">{{ $title }}</span></p>
+                            </div>
+                            <div wire:dirty class="flex items-center gap-2" style="display:none">
+                                <div class="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></div>
+                                <p class="text-sm font-medium text-amber-800">Unsaved changes on <span class="font-bold text-amber-900">{{ $title }}</span></p>
+                            </div>
                         </div>
                         <div class="flex flex-1 sm:flex-none items-center justify-end gap-2">
                             {{ $actions }}
