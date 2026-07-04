@@ -40,8 +40,18 @@ class PublicSongCatalogService
         $normalizedRange = $this->normalizeRange($range);
         $tokens = $this->tokenize($search);
 
+        /**
+         * Performance Optimization: Only include the large lyrics_plain column when
+         * search tokens are present, as lyrics are only needed for snippet generation.
+         * This reduces memory usage and DB I/O for the main catalog listing.
+         */
+        $columns = ['songs.id', 'songs.slug', 'songs.title', 'songs.alternate_title', 'songs.ccli_number'];
+        if ($tokens->isNotEmpty()) {
+            $columns[] = 'songs.lyrics_plain';
+        }
+
         $query = Song::query()
-            ->select(['songs.id', 'songs.slug', 'songs.title', 'songs.alternate_title', 'songs.ccli_number', 'songs.lyrics_plain'])
+            ->select($columns)
             ->with([
                 'authors' => fn ($q) => $q->select(['id', 'display_name'])->orderBy('display_name'),
                 'books' => fn ($q) => $q->select(['song_books.id', 'song_books.name'])->orderBy('song_books.name'),
