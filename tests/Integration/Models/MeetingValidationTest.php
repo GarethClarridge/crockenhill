@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Models;
 
-use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
 use App\Models\Meeting;
 use App\Models\Page;

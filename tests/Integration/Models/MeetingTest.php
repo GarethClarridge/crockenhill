@@ -9,6 +9,7 @@ use App\Models\Meeting;
 use App\Models\Page;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -76,6 +77,8 @@ class MeetingTest extends TestCase
     #[Test]
     public function has_photos_returns_correct_boolean(): void
     {
+        Storage::fake('public');
+
         $meeting = Meeting::factory()->create();
         $this->assertFalse($meeting->hasPhotos());
 
