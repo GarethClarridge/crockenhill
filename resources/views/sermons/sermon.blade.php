@@ -266,7 +266,7 @@
                                 x-bind:aria-expanded="expanded"
                                 aria-controls="transcript-content">
                                 <span x-text="expanded ? 'Hide' : 'Show'">Show</span>
-                                <x-heroicon-o-chevron-down class="h-4 w-4 transition-transform duration-200" x-bind:class="expanded ? 'rotate-180' : ''" />
+                                <x-heroicon-o-chevron-down class="h-4 w-4 transition-transform duration-200" x-bind:class="expanded ? 'rotate-180' : ''" aria-hidden="true" />
                             </button>
                         </div>
                     </div>
@@ -389,7 +389,7 @@
                                 x-bind:aria-expanded="expanded"
                                 aria-controls="passage-content">
                                 <span x-text="expanded ? 'Hide' : 'Read passage'">Show passage</span>
-                                <x-heroicon-o-chevron-down class="h-4 w-4 transition-transform duration-200" x-bind:class="expanded ? 'rotate-180' : ''" />
+                                <x-heroicon-o-chevron-down class="h-4 w-4 transition-transform duration-200" x-bind:class="expanded ? 'rotate-180' : ''" aria-hidden="true" />
                             </button>
                         @endif
                     </div>
