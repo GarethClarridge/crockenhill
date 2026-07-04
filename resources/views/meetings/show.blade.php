@@ -52,7 +52,7 @@
                     'eventStatus' => 'https://schema.org/EventScheduled',
                     'location' => (function() use ($meeting) {
                         $locName = $meeting->location ?? config('organization.name');
-                        $isOnsite = blank($meeting->location) || \Illuminate\Support\Str::contains($meeting->location, ['Church', 'hall'], ignoreCase: true);
+                        $isOnsite = blank($meeting->location) || strcasecmp(trim($meeting->location), config('organization.name')) === 0;
 
                         $location = [
                             '@type' => 'Place',
@@ -134,8 +134,9 @@
                                 'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
                                 'eventStatus' => 'https://schema.org/EventScheduled',
                                 'location' => (function() use ($event, $meeting) {
-                                    $locName = $event->location ?? $meeting->location ?? 'Crockenhill Baptist Church';
-                                    $isOnsite = ! ($event->location ?? $meeting->location) || \Illuminate\Support\Str::contains($locName, ['Church', 'hall'], ignoreCase: true);
+                                    $rawLocation = $event->location ?? $meeting->location;
+                                    $locName = $rawLocation ?? config('organization.name');
+                                    $isOnsite = blank($rawLocation) || strcasecmp(trim($rawLocation), config('organization.name')) === 0;
 
                                     $location = [
                                         '@type' => 'Place',

@@ -63,8 +63,9 @@
                                 'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
                                 'eventStatus' => 'https://schema.org/EventScheduled',
                                 'location' => (function() use ($event, $orgName, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $orgLatitude, $orgLongitude) {
-                                    $locName = $event->location ?? ($event->meeting?->location ?? $orgName);
-                                    $isOnsite = ! ($event->location ?? $event->meeting?->location) || \Illuminate\Support\Str::contains($locName, ['Church', 'hall'], ignoreCase: true);
+                                    $rawLocation = $event->location ?? $event->meeting?->location;
+                                    $locName = $rawLocation ?? $orgName;
+                                    $isOnsite = blank($rawLocation) || strcasecmp(trim($rawLocation), $orgName) === 0;
 
                                     $location = [
                                         '@type' => 'Place',

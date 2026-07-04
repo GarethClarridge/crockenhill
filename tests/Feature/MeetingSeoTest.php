@@ -175,4 +175,73 @@ class MeetingSeoTest extends TestCase
         // The recurring event block should not be present
         $this->assertStringNotContainsString('"@type": "Schedule"', $content);
     }
+
+    #[Test]
+    public function meeting_json_ld_includes_church_geo_coordinates_when_onsite()
+    {
+        $page = Page::factory()->create([
+            'heading' => 'Onsite Meeting',
+            'slug' => 'onsite-meeting',
+            'area' => PageArea::Community,
+        ]);
+
+        Meeting::factory()->create([
+            'page_id' => $page->id,
+            'slug' => 'onsite-meeting',
+            'location' => null,
+            'is_recurring' => true,
+            'frequency' => MeetingFrequency::Weekly,
+        ]);
+
+        $response = $this->get('/community/onsite-meeting');
+
+        $response->assertStatus(200);
+        $event = $this->extractEventJsonLd($response->getContent());
+        $this->assertSame(config('organization.name'), $event['location']['name']);
+        $this->assertArrayHasKey('geo', $event['location']);
+        $this->assertSame(config('organization.address.street'), $event['location']['address']['streetAddress']);
+    }
+
+    #[Test]
+    public function meeting_json_ld_omits_church_geo_coordinates_for_offsite_location()
+    {
+        $page = Page::factory()->create([
+            'heading' => 'Offsite Meeting',
+            'slug' => 'offsite-meeting',
+            'area' => PageArea::Community,
+        ]);
+
+        Meeting::factory()->create([
+            'page_id' => $page->id,
+            'slug' => 'offsite-meeting',
+            'location' => 'Village Hall',
+            'is_recurring' => true,
+            'frequency' => MeetingFrequency::Weekly,
+        ]);
+
+        $response = $this->get('/community/offsite-meeting');
+
+        $response->assertStatus(200);
+        $event = $this->extractEventJsonLd($response->getContent());
+        $this->assertSame('Village Hall', $event['location']['name']);
+        $this->assertArrayNotHasKey('geo', $event['location']);
+        $this->assertArrayNotHasKey('address', $event['location']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function extractEventJsonLd(string $html): array
+    {
+        preg_match_all('#<script type="application/ld\+json">(.*?)</script>#s', $html, $matches);
+
+        foreach ($matches[1] as $block) {
+            $decoded = json_decode($block, true);
+            if (is_array($decoded) && ($decoded['@type'] ?? null) === 'Event') {
+                return $decoded;
+            }
+        }
+
+        $this->fail('No Event JSON-LD block found in response.');
+    }
 }

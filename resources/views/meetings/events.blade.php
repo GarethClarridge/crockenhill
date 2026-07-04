@@ -40,8 +40,9 @@
                                 'description' => \Illuminate\Support\Str::limit(strip_tags((string) ($event->description ?? 'Church event at Crockenhill Baptist Church')), 150),
                                 'startDate' => $event->start_datetime->toIso8601String(),
                                 'location' => (function() use ($event, $meeting) {
-                                    $locName = $event->location ?? ($meeting->location ?? config('organization.name'));
-                                    $isOnsite = ! ($event->location ?? $meeting->location) || \Illuminate\Support\Str::contains($locName, ['Church', 'hall'], ignoreCase: true);
+                                    $rawLocation = $event->location ?? $meeting->location;
+                                    $locName = $rawLocation ?? config('organization.name');
+                                    $isOnsite = blank($rawLocation) || strcasecmp(trim($rawLocation), config('organization.name')) === 0;
 
                                     $location = [
                                         '@type' => 'Place',
