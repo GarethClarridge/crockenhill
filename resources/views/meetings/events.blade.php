@@ -93,18 +93,26 @@
                                     'url' => $orgUrl,
                                     '@id' => $appUrl . '/#organization',
                                 ],
-                                'offers' => [
-                                    '@type' => 'Offer',
-                                    'url' => $currentUrl,
-                                    'price' => '0',
-                                    'priceCurrency' => 'GBP',
-                                    'availability' => 'https://schema.org/InStock',
-                                ],
                             ],
                         ];
 
                         if ($event->end_datetime) {
                             $eventData['item']['endDate'] = $event->end_datetime->toIso8601String();
+                        }
+
+                        // This listing includes recent past meetings, so only advertise an
+                        // active offer for events that have not yet finished; marking a
+                        // concluded event as InStock would be inaccurate structured data.
+                        $eventEnd = $event->end_datetime ?? $event->start_datetime;
+
+                        if ($eventEnd->isFuture()) {
+                            $eventData['item']['offers'] = [
+                                '@type' => 'Offer',
+                                'url' => $currentUrl,
+                                'price' => '0',
+                                'priceCurrency' => 'GBP',
+                                'availability' => 'https://schema.org/InStock',
+                            ];
                         }
 
                         return $eventData;
