@@ -1,6 +1,6 @@
 # Platform, Operations & Housekeeping — Simplification Review (Phase 7)
 
-Reviewed 2026-07-05, per `docs/plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md`. Medium session. No code changes; findings only.
+Reviewed 2026-07-05, per `docs/archived-plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md`. Medium session. No code changes; findings only.
 
 This phase reviews the residue no domain owns. Several items were formally parked here by earlier phases: `ExportVisualMetricsCommand` and `BootstrapSpeakerProfilesCommand` (media review §out-of-scope), `MeetingPhotoMigrationService` / `SanitizesLogData` / `config/calendar.php` dead keys / `Cache::flexible` helper (public-site review), `config/sermons.php` and the Mock* family (sermons review), the `config/service-tracking.php` merge question and the Data census (church-service review), the `play_date` legacy schema residue (songs review), and the admin `phpinfo` route (admin review). Each is dispositioned below.
 
@@ -16,7 +16,7 @@ This phase reviews the residue no domain owns. Several items were formally parke
 - **Mock* services** — 4 files, 751 lines, and their provider bindings.
 - **`app/Enums/`** — 31 files, usage census.
 - **Root agent config** — `AGENTS.md` (550 lines), `CLAUDE.md` (246), `GEMINI.md` (224), `.Jules/` (13 mission files + 12 journal files), `.agents/skills/`, `.claude/skills/`, `.codex/config.toml`, `.gemini/settings.json`, `jules-setup.sh`, `.env.jules`.
-- **Prior art**: `docs/plans/SIMPLIFICATION-PLAN.md` (Phases 9, 13, 25 directly relevant), `docs/architecture/simplification-backlog.md` (PR 1 precedent, PR 15, PR 19), and all six Phase 1–6 findings docs.
+- **Prior art**: `docs/archived-plans/SIMPLIFICATION-PLAN.md` (Phases 9, 13, 25 directly relevant), `docs/architecture/simplification-backlog.md` (PR 1 precedent, PR 15, PR 19), and all six Phase 1–6 findings docs.
 
 ## 2. What this area is for
 

@@ -1,5 +1,14 @@
 # Layer 3 — Application Error Tracking (Sentry Cloud, EU region)
 
+> **Status (2026-07-05): not started; approved direction; no dependencies.** `sentry/sentry-laravel`
+> is not yet in `composer.json`. Recommended timing: **before** the July backlog's Workstream 1
+> flips `SERVICE_STRUCTURE_MODE` to primary
+> ([JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)
+> item 1.4) — release-tagged error tracking is exactly the regression net you want live while the
+> pipeline's middle is being replaced and ~20,000 lines are deleted. Implementable as written;
+> re-confirm the resolved SDK version at install time (step 1 note). Steps 7 and part of the
+> verification are manual server/Sentry-UI actions for the maintainer, not agent work.
+
 ## Context
 
 Crockenhill already runs two observability layers, and they share a structural

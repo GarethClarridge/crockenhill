@@ -1,9 +1,9 @@
 # Church Service Structure & Sections — Simplification Review (Phase 2, July 2026)
 
 Reviewed 2026-07-02 against the doctrine and template in
-[`docs/plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md`](../../plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md).
+[`docs/archived-plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md`](../../archived-plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md).
 This domain is the home of the review's exemplar,
-[`docs/plans/LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md`](../../plans/LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md)
+[`docs/archived-plans/LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md`](../../archived-plans/LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md)
 (phases 1–5 complete, phase 6 "promote and retire" pending on maintainer go). The central output of
 this review is the **concrete retirement map** for phase 6 — including four corrections to the plan's
 own deletion list — plus findings on the parts of the domain that survive promotion.
@@ -41,7 +41,7 @@ Findings doc only; no code changes.
   `ChurchServiceRollupStatus`, `InboundEmailStatus`, `ServiceStructureMode`).
 - This domain's tests (~60 files across Unit/Integration/Feature; proportionality assessed in §4.9).
 
-Prior art checked: `docs/plans/SIMPLIFICATION-PLAN.md`,
+Prior art checked: `docs/archived-plans/SIMPLIFICATION-PLAN.md`,
 `docs/architecture/simplification-backlog.md` (church-service backlog marked complete; PR 23/24
 parked), `docs/operations/section-extraction-findings-2026-06-20.md`. Nothing below duplicates an
 open tracker item; §4.3 updates the status of backlog PR 24.

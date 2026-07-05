@@ -1,5 +1,12 @@
 # July 2026 Project Simplification Review — Phased Approach
 
+> **ARCHIVED 2026-07-05 — review complete through Phase 8.** The review produced the seven
+> findings docs in `docs/reviews/july-2026-simplification/` and the consolidated backlog at
+> [../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md),
+> which is now the single active tracker. **One piece of this document remains live: the Phase 9
+> session brief** (technical code-quality review), which is gated on the backlog's structural work
+> substantially landing — run it from the brief below when that gate clears.
+
 Created 2026-07-02. This document defines the structure for a project-wide simplification review, run as **one separate session per phase**. It is the successor to the April 2026 review series (`docs/april-2026-review/`), but sliced differently: by **functional domain** (vertical slices through services, jobs, data, UI, and tests) rather than by cross-cutting concern.
 
 The review exists because the project has grown by incremental addition and is at risk of being overcomplicated — technically *and* in its business logic. The goal is **simple and robust**. The recent LLM-first service-structure work (`docs/plans/LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md`) is the exemplar of what good looks like, and its pattern is codified below as the review doctrine.

@@ -1,5 +1,12 @@
 # Google Analytics Enhancement (2026-06-19)
 
+> **Status (2026-07-05): nearly complete.** GA1–GA4 shipped (see the 2026-06-29 reconciliation
+> below). Remaining: **GA6** — a manual GA4-admin task for the maintainer (register the four
+> event-scoped custom dimensions, mark key events as conversions), without which the GA4 data is
+> collected but not reportable — and **GA5** (server-side Measurement Protocol), which is optional
+> and not started; treat GA5 as a maintainer decision, not queued work. No agent code work remains
+> unless GA5 is green-lit.
+
 Created 2026-06-19 from an assessment of the current GA4 integration. Turns the
 "better use of Google Analytics" backlog into ordered, independently-shippable
 phases (`GA1…GA6`).

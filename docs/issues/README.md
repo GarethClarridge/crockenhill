@@ -1,110 +1,82 @@
 # Open Issues
 
 Consolidated tracker for audit findings (Mortician = dead code/assets, Pathfinder =
-broken links/SEO). Last reconciled against the codebase **2026-06-18**.
+broken links/SEO). Last reconciled against the codebase **2026-07-05**.
 
-Resolved items are listed at the bottom for provenance; the source per-issue reports
-they came from have been removed now that the work is done.
-
----
-
-## 🟡 Open
-
-### O5 · Legacy meeting images in `public/images/meetings/`
-
-**Artefacts:** `public/images/meetings/{1150,baby-talk,bible-study,buzz-club,coffee-cup,link,sunday-services}/`
-
-Meeting photos are now managed via Spatie Media Library on `app/Models/Meeting.php`.
-`app/Services/MeetingPhotoMigrationService.php` imports the legacy files and preserves
-the originals during import. Grep for `images/meetings` in `resources/views` returns
-zero matches — the frontend no longer reads these hardcoded paths.
-
-**Risk:** Low, **gated.** Confirm the migration has completed in *production* before
-deleting, since the import is what moves these into Media Library.
-
-**Action:** Verify production migration, then delete the seven folders.
+Convention: agent-generated per-issue reports get folded into this file (and, where the work is
+plan-shaped, into `docs/plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md`) and the source
+report files are then deleted — they live in git history. Resolved items are listed at the bottom
+for provenance.
 
 ---
 
-### O6 · Redundant `.jpg` heading assets in `public/images/headings/`
+## 🟠 Open — needs a fix, not yet owned by a plan
 
-**Artefacts:** `public/images/headings/large/*.jpg`, `public/images/headings/small/*.jpg`
-(as of 2026-06-18: 18 `.jpg` vs 20 `.webp` in `large/`).
+### O11 · Footer "Listen to evening sermons" links to the unfiltered archive
 
-`App\Services\Public\PageImageCacheService` resolves only `.webp`:
+`resources/views/components/layout/footer.blade.php` (~line 15): the link labelled "Listen to
+evening sermons" points at `/christ/sermons` instead of `/christ/sermons/evening`. One-line
+`href` fix; both routes exist and work. Verified still present 2026-07-05.
 
-```php
-$storagePath = "pages/headings/{$size}/{$page->slug}.webp";
-```
+**Action:** change the `href` to `/christ/sermons/evening`; keep `wire:navigate`.
 
-No `.jpg` references were found in `resources/views`. The directory itself is still
-actively used for its `.webp` assets.
+### O12 · Seeder inconsistency: "The Prodigal Son" sermon has a completed log but no audio
 
-**Risk:** Medium — a hardcoded CSS/JS `.jpg` reference that bypasses the cache service
-would break silently. None found, but human review recommended before pruning.
+`SermonSeeder` creates a `MediaProcessingLog` (processing_id `seed-prodigal-son-processing`,
+status `completed`, `audio_file_path = sermons/seed/2024-11-24.mp3`) but leaves the `Sermon`
+row's `audio_file_path` null, and the referenced file does not exist on the `public` disk. Local
+dev/seeded environments render a sermon page with a dead audio player. **Dev-only** as far as
+verified — but if the same pattern (completed log, null sermon path) exists in production it
+would indicate a completion-transition bug worth checking while in there.
 
-**Action:** Human review, then prune the `.jpg` files if confirmed unreferenced.
+**Action:** make the seeder set the sermon's `audio_file_path` and ship (or generate) a small
+seed audio file; alternatively mark the seeded log `failed` so the UI states are honest.
 
----
+### O13 · Heading-image resolution: committed assets invisible to `PageImageCacheService` (investigate before "fixing")
 
-### O7 · Dual-spelling pastor redirects (keep — not a bug)
+Two Pathfinder crawls (2026-07-05/06) report pages and `sitemap.xml` missing heading images.
+Verified mechanism: `PageImageCacheService::resolveHeadingImageUrl()` resolves (1) Spatie Media
+Library `headings` media, then (2) `Storage::disk('public')` at `pages/headings/{size}/{slug}.webp`
+— it never reads the committed `public/images/headings/` directory, which is only referenced
+*directly* via `asset()` (sitemap sermons image, sermon Blade share images, `page-card` default).
 
-`config/redirects.php` defines both `aboutus/pastor` and `about-us/pastor`, each →
-`/church/pastor`. The original Mortician report flagged these as "redundant," but they
-are two **distinct legacy inbound URLs** (with/without hyphen) intentionally pointing
-at the same target — correct redirect behaviour.
+**Do not blindly patch the service to read `public_path()`** — the intended primary source is
+Media Library, and production pages may well have `headings` media attached (in which case this
+is a local/seed-data gap, not a production bug). Investigate first:
 
-**Action:** None. Documented so it isn't "cleaned up" by mistake.
+1. In production: do `Page` rows have media in the `headings` collection (`media` table,
+   `collection_name = 'headings'`)? If yes → the fix is local seeding, not the service.
+2. If production pages genuinely resolve to `null` → decide between attaching the committed
+   images as Media Library media (one-off import, matching the meetings pattern) or adding a
+   `public_path()` fallback to the service.
+3. Sitemap half: backlog item 3.4 removes per-page sitemap images entirely — if 3.4 lands first,
+   only the on-page rendering half of this issue remains.
 
----
+## 🟡 Open — owned by the July 2026 backlog (do not fix separately)
 
-### O8 · Legacy sermon update artefacts (`UpdateSermonRecord` & `UpdateSermonRequest`)
+| Issue | Where it lives now |
+|---|---|
+| O5 · Legacy meeting photo folders `public/images/meetings/*` (gated on prod photo-migration; the `link/` folder is already gone) | Backlog item **2.6** |
+| O6 · Redundant `.jpg` heading assets (33 files; the `.webp` siblings are live — prune `.jpg` only) | Backlog item **2.1** (issue-tracker intake block) |
+| O8 · Dead `UpdateSermonRecord` job + `UpdateSermonRequest` form request (+ their test files) | Backlog item **2.1** |
+| O9 · Dead `SermonValidationService` (+ Unit/Integration tests, stale config comment) | Backlog item **2.1** |
+| O14 · Dead `public/images/podcast/*.webp` artwork + unused `PageImagePresenter::headingImageSrcset()` | Backlog item **2.1** (issue-tracker intake block) |
 
-**Artefacts:** `app/Jobs/UpdateSermonRecord.php`, `app/Http/Requests/UpdateSermonRequest.php`
+## 🟢 Investigated — keep, no action
 
-These artefacts have been superseded by the `UnifiedMediaProcessor` and Livewire-based
-admin forms. Grep search returns zero production callers in `app/`, `resources/`,
-`routes/`, or `config/`.
+- **O7 · Dual-spelling pastor redirects** — `config/redirects.php` maps both `aboutus/pastor` and
+  `about-us/pastor` to `/church/pastor`. Two distinct legacy inbound URLs, not a duplicate.
+  Documented so it isn't "cleaned up" by mistake.
+- **O15 · `MediaProcessingRequest` abstract form request** — flagged as possibly dead
+  (2026-07-06 Mortician); verdict **alive**. It is the base class for the six active media API
+  form requests and centralises authorization + processing-id shape validation. Leave alone.
 
-**Risk:** Low — isolated classes with no callers.
+## ✅ Resolved
 
-**Action:** Remove both classes and retire/migrate legacy tests that still exercise them.
-
----
-
-### O9 · Dead media validation service (`SermonValidationService`)
-
-**Artefact:** `app/Services/Processing/SermonValidationService.php`
-
-Confirmed dead class with zero production callers. Responsibilities for file
-validation and storage checks have been superseded by `MediaValidationService`
-and `TempDiskSpace` respectively.
-
-**Risk:** Low — isolated and unreferenced.
-
-**Action:** Safe to remove, along with Unit and Integration tests for the service.
-
----
-
-### O10 · Unused icon button primitive (`<x-icon-button>`)
-
-**Artefact:** `resources/views/components/icon-button.blade.php`
-
-A primitive component added in March 2026 that has zero production callers outside
-the component gallery. The rest of the UI has standardized on `<x-button variant="ghost">`
-for icon-only actions.
-
-**Risk:** Low — isolated UI component.
-
-**Action:** Safe to remove from the codebase and the component gallery.
-
----
-
-## ✅ Recently resolved (2026-06-18 unless noted)
-
-- **O1 — Dead mailable `App\Mail\LivestreamProcessingCompleted`** — removed (class, view, test, `AGENTS.md` reference).
-- **O2 — Dead mailable `App\Mail\PermissionError`** — removed (class, view, test, `AGENTS.md` reference).
-- **O3 — Dead asset directory `public/images/photos/`** — deleted (38 unreferenced files).
-- **O4 — Duplicate `/christ/sermons` sitemap entry** — `SitemapService::addPages()` now excludes the christ-area `sermons` page; covered by `SitemapTest::sitemap_does_not_duplicate_the_christ_sermons_index_page`.
-- **R1 — Broken admin delete link** on the sermon detail page — fixed earlier (2026-06-14); `sermon.blade.php` now uses `route('sermons.destroy', …)`.
-- **R2 — `contacttus` redirect typo** — already corrected to `contactus` in `config/redirects.php`.
+- **O10 — Unused `<x-icon-button>` component** — removed in commit `aa31358c4` (PR #1024).
+- **O1 — Dead mailable `App\Mail\LivestreamProcessingCompleted`** — removed (class, view, test, `AGENTS.md` reference). *(2026-06-18)*
+- **O2 — Dead mailable `App\Mail\PermissionError`** — removed (class, view, test, `AGENTS.md` reference). *(2026-06-18)*
+- **O3 — Dead asset directory `public/images/photos/`** — deleted (38 unreferenced files). *(2026-06-18)*
+- **O4 — Duplicate `/christ/sermons` sitemap entry** — `SitemapService::addPages()` now excludes the christ-area `sermons` page; covered by `SitemapTest`. *(2026-06-18)*
+- **R1 — Broken admin delete link** on the sermon detail page — fixed 2026-06-14.
+- **R2 — `contacttus` redirect typo** — corrected to `contactus` in `config/redirects.php`.
