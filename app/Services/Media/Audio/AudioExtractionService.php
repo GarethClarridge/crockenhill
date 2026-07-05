@@ -26,7 +26,17 @@ class AudioExtractionService
     public function __construct(private readonly MediaValidationService $mediaValidation) {}
 
     /**
-     * Extract audio from video file optimized for transcription
+     * Extract audio from a video file, optimized for transcription.
+     *
+     * Produces a low-bitrate mono MP3 file suitable for AI transcription services.
+     * Automatically applies fallback compression if the extracted file exceeds
+     * the maximum size limit (typically 25MB).
+     *
+     * @param  string  $videoPath  Absolute path to the source video file
+     * @param  float  $duration  Total duration of the video in seconds
+     * @return string Absolute path to the extracted audio file
+     *
+     * @throws \Exception If FFmpeg fails or the output directory is not writable
      */
     public function extractFromVideo(string $videoPath, float $duration): string
     {
@@ -83,7 +93,15 @@ class AudioExtractionService
     }
 
     /**
-     * Compress audio file for transcription service requirements
+     * Re-encode an audio file with lower quality settings to reduce file size.
+     *
+     * Used as a fallback when the initial extraction produces a file too large
+     * for transcription API limits. The original file is deleted upon success.
+     *
+     * @param  string  $inputPath  Absolute path to the source audio file
+     * @return string Absolute path to the compressed mono MP3 file
+     *
+     * @throws \Exception If FFmpeg compression fails
      */
     public function compressForTranscription(string $inputPath): string
     {
@@ -123,7 +141,11 @@ class AudioExtractionService
     }
 
     /**
-     * Validate audio file meets processing requirements
+     * Validate an uploaded audio file against configured size and type limits.
+     *
+     * @param  UploadedFile  $file  The uploaded file to validate
+     *
+     * @throws \App\Exceptions\InvalidFileException If the file is too large or an unsupported format
      */
     public function validateAudioFile(UploadedFile $file): void
     {
