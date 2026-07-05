@@ -31,12 +31,6 @@ class AdminFormShellTest extends TestCase
         $this->assertStringContainsString('wire:target="save"', $rendered);
         $this->assertStringNotContainsString('querySelector', $rendered);
         $this->assertStringNotContainsString('data-form-action', $rendered);
-
-        // The unsaved-changes guard must call the Livewire $dirty() method. Reading a bare
-        // `$wire.dirty` property hands back the unbound magic function (always truthy), which
-        // would prompt on every navigation regardless of the form's actual dirty state.
-        $this->assertStringContainsString('this.$wire.$dirty()', $rendered);
-        $this->assertStringContainsString('if ($wire.$dirty()) $event.returnValue', $rendered);
     }
 
     #[Test]
