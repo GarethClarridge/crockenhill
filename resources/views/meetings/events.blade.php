@@ -41,17 +41,20 @@
                 $orgLatitude = config('organization.geo.latitude');
                 $orgLongitude = config('organization.geo.longitude');
                 $primaryImage = asset('images/Primary.png');
+                $currentUrl = url()->current();
+                $appUrl = (string) config('app.url');
             @endphp
             <script type="application/ld+json">
                 {!! json_encode([
                     '@' . 'context' => 'https://schema.org',
                     '@type' => 'ItemList',
-                    'itemListElement' => $schemaEvents->values()->map(function ($event, $index) use ($meeting, $orgName, $orgUrl, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $orgLatitude, $orgLongitude, $primaryImage) {
+                    'itemListElement' => $schemaEvents->values()->map(function ($event, $index) use ($meeting, $orgName, $orgUrl, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $orgLatitude, $orgLongitude, $primaryImage, $currentUrl, $appUrl) {
                         $eventData = [
                             '@type' => 'ListItem',
                             'position' => $index + 1,
                             'item' => [
                                 '@type' => 'Event',
+                                '@id' => $currentUrl . '#event-' . $event->id,
                                 'name' => $event->title,
                                 'description' => \Illuminate\Support\Str::limit(strip_tags((string) ($event->description ?? "Church event at {$orgName}")), 150),
                                 'startDate' => $event->start_datetime->toIso8601String(),
@@ -88,6 +91,14 @@
                                     '@type' => 'Organization',
                                     'name' => $orgName,
                                     'url' => $orgUrl,
+                                    '@id' => $appUrl . '/#organization',
+                                ],
+                                'offers' => [
+                                    '@type' => 'Offer',
+                                    'url' => $currentUrl,
+                                    'price' => '0',
+                                    'priceCurrency' => 'GBP',
+                                    'availability' => 'https://schema.org/InStock',
                                 ],
                             ],
                         ];
