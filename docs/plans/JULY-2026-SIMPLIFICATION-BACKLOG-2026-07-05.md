@@ -81,6 +81,32 @@ Archive `simplification-backlog.md` once item 4.5 lands.
 - `vendor/bin/sail bin pint --dirty`
 - `vendor/bin/sail artisan dusk` for anything touching public routes or the upload form
 
+## Implementation protocol (read before picking up any item)
+
+Every item below carries a tag:
+
+- **[mechanical]** — executable as written *plus its cited review sections*. The text here is a
+  summary; the file-level and line-level payload lives in the cited findings doc. Read those
+  sections in full before writing anything.
+- **[design]** — the item states constraints and end-state, not construction. Write a short
+  implementation plan first (fresh session, plan mode) and get it approved before coding. Do not
+  implement design items straight from this document: several execute months from now, after the
+  soak, and the surrounding code will have drifted — a plan written just-in-time against the live
+  code beats a spec written today.
+- **[operational]** — a production config/verification action, not a code change.
+
+Rules for every item, regardless of tag:
+
+1. Read the cited review sections in full, then **verify each claim against the current code**
+   before acting — the reviews are a 2026-07 snapshot, not ground truth.
+2. Honour every "Do not start until" pre-condition verbatim; they encode the traps the reviews
+   found. A failed production-check gate **blocks** that deletion — never proceed past one.
+3. Delete tests only in the same commit as their subject — never separately, never keep them.
+4. Run the quality gates above per PR; in deletion sequences every commit must be independently
+   green (references before referents).
+5. **Stop rule:** if the code does not match the review's description of it, stop and flag the
+   discrepancy instead of improvising around it.
+
 ## Decision log
 
 Decisions taken 2026-07-05 in the Phase 8 walkthrough. Production-check gates remain even where a
@@ -127,7 +153,7 @@ Start the operational steps immediately; the code steps interleave with other wo
 
 Source: church review §4.2 seams 1–4, §7 quick wins 1–4.
 
-- **1.1a — Type/registry/doc moves (quick).** Move the `ClassifiedSection` PHPStan type from
+- **1.1a [mechanical] — Type/registry/doc moves (quick).** Move the `ClassifiedSection` PHPStan type from
   `ServiceSectionClassifier` to `ServiceSectionSyncService`, repointing both importers
   (`ServiceSectionSyncService`, `ClassifySpeechSections`) in the same commit. Move
   `OOS_REVIEW_FLAGS`/`OOS_REVIEW_REASONS` from `SectionAlignmentBaselineRestorer` into `Structure/`
@@ -135,32 +161,32 @@ Source: church review §4.2 seams 1–4, §7 quick wins 1–4.
   `UnmatchedSongReviewApplicator`. Update the exemplar plan's phase 6 deletion list with the four
   §4.1 corrections (projection services retained; merge policy/service off the list;
   `SongSectionAligner` deletable whole; the two type/registry moves).
-- **1.1b — Mode-aware reconciliation.** `ReconcileServiceSections` currently re-runs the heuristic
+- **1.1b [design] — Mode-aware reconciliation.** `ReconcileServiceSections` currently re-runs the heuristic
   aligner unconditionally on late OOS arrival (`ReconcileServiceSections.php:67`) — a live
   correctness gap for the primary-mode soak. In primary mode, reconcile by re-running
   `DetectServiceStructure` against the stored transcript artifact with the new OOS items (church
   opportunity 1: better *and* simpler — no media access, one LLM call). Also strip the now-dead
   non-primary branch and the `OosAlignmentService` type-hint from `MatchSongsFromTranscript`
   at flip time.
-- **1.1c — OOS-backed review roll-up.** `LivestreamChurchServiceProjectionService::project()`
+- **1.1c [design] — OOS-backed review roll-up.** `LivestreamChurchServiceProjectionService::project()`
   early-returns on OOS-backed services before its `needs_review` propagation, so once
   `OosAlignmentService` stops calling `ChurchServiceReviewSynchronizer`, low-confidence LLM runs on
   OOS-backed services would never reach the inbox. Add an explicit service-level roll-up on the
   early-return branch (or lift the roll-up out of the projection path) **before** the flip.
-- **1.1d — Shadow baseline redesign.** Shadow mode currently diffs the LLM proposal against the
+- **1.1d [design] — Shadow baseline redesign.** Shadow mode currently diffs the LLM proposal against the
   heuristic sections (church §4.8); once the cluster is gone there is no baseline. Re-point the
   shadow diff at the currently-bound model's stored output or a curated `structure:evaluate`
   manifest, so shadow mode survives as the permanent model-upgrade mechanism. Also default
   `structure:evaluate --detector` to the bound detector (mock in CI) so a bare run costs nothing.
 
-### 1.2 Shadow soak (operational, start now — decision D2 sets the clock)
+### 1.2 [operational] Shadow soak (start now — decision D2 sets the clock)
 
 Set `SERVICE_STRUCTURE_MODE=shadow` with the real detector/transcriber in production; accumulate
 Sundays; run `structure:shadow-report`; fill a real manifest for `structure:evaluate`. The plan's
 suggested promotion gate: clean shadow evidence, then flip, then ~8 clean primary services before
 deletion.
 
-### 1.3 Auto-trim migration (seam 5 — the real gate on deleting the classification jobs)
+### 1.3 [design] Auto-trim migration (seam 5 — the real gate on deleting the classification jobs)
 
 `buildAutoTrimVideoPipeline()` consumes four classification jobs un-gated, and the LLM path is
 livestream-only by guard and only writes sections in primary mode. Scope per church §4.2.5: replace
@@ -170,12 +196,15 @@ guards — they are not in the auto-trim chain). Preferred shape (b): a dedicate
 path that writes sections independently of the global mode, so auto-trim keeps working throughout
 the shadow period; fallback shape (a): swap at the flip.
 
-### 1.4 Flip to primary + soak
+### 1.4 [operational] Flip to primary + soak
 
 Config flip once 1.1b/1.1c and the shadow evidence are in. During the soak, no new investment in
 heuristic-path tests (media test note 3).
 
-### 1.5 Delete the church-service heuristic cluster (decision D1)
+### 1.5 [mechanical] Delete the church-service heuristic cluster (decision D1)
+
+**Do not start until:** seams 1.1a–1.1d have landed, auto-trim is migrated or retired (1.3), and
+the 1.4 soak evidence (~8 clean primary services) is in.
 
 The audited list (church §4.1): 11 services (3,324 lines: `StructuralSectionAligner`,
 `SpeechSectionClassificationService`, `SongSectionAligner`, `OosAlignmentService`,
@@ -196,7 +225,11 @@ collapse, then the scripts. **Not deletable** (corrections): `LivestreamChurchSe
 Also re-check the workbench `reclassify()` affordance and `timeline-alignment-*` partials for dead
 branches (admin review §9).
 
-### 1.6 Delete the media-side visual stack + song-cluster residue (decisions D1)
+### 1.6 [design] Delete the media-side visual stack + song-cluster residue (decision D1)
+
+**Do not start until:** 1.5 is complete, and the `AnalyzeSegments` failure gate and
+extraction-baseline times have been re-homed onto the LLM structure with a characterisation test
+on primary-mode segment boundaries (see the "not a free deletion" paragraph below).
 
 Source: media F1/R3, songs F1/G-R4. `VisualAnalysisService` (881), `PerformVisualAnalysis` (326),
 the visual/cluster half of `VideoSegmentationService` (~400) and of `AnalyzeSegments` (~350),
@@ -215,13 +248,13 @@ review.
 
 ### 1.7 Post-retirement consolidations (each its own PR; equal billing as improvements)
 
-- **1.7a — One Whisper pass per service** (media O2/F5). Slice the full-service transcript for the
+- **1.7a [design] — One Whisper pass per service** (media O2/F5). Slice the full-service transcript for the
   sermon transcript instead of re-transcribing extracted audio; delete the second transcription
   interface family. Halves transcription cost/latency; public transcript available minutes after
   upload.
-- **1.7b — One ffmpeg audio-preparation helper** (media F5) owning the transcription-target
+- **1.7b [design] — One ffmpeg audio-preparation helper** (media F5) owning the transcription-target
   profile; delete the other three compression paths and the `getVideoMetadata` double.
-- **1.7c — One song matcher** (songs F5/F6, church opportunity 4). First shed
+- **1.7c [design] — One song matcher** (songs F5/F6, church opportunity 4). First shed
   `MatchSongsFromTranscript`'s third tier (per-section extraction + Whisper) in favour of
   `ChurchServiceTranscript::sliceText()`; then consolidate title-hint regexes + fuzzy lyrics
   windowing behind one typed matching call with the canonical-key bedrock kept deterministic;
@@ -233,11 +266,11 @@ review.
   (admin R4), and `BootstrapSpeakerProfilesCommand` all stay. The transcript `speaker_name` field
   (media O4) remains a possible future consolidation *only if* the stack becomes a maintenance
   burden; it is not scheduled work. Old backlog PR 19 closes as moot (already always-on in prod).
-- **1.7e — Registry rationalisation** (media F3). Extend the anchor-job offset pattern to all four
+- **1.7e [design] — Registry rationalisation** (media F3). Extend the anchor-job offset pattern to all four
   pipelines, derive progress from chain position, normalise step names at the write site and
   delete alias lists. Easier after 1.5/1.6 shrink the chains; unlocks media O3 (new processing
   outputs = one-line chain edits).
-- **1.7f — Schema-field opportunities** (church opportunities 2/3; media O1). Per-section
+- **1.7f [design] — Schema-field opportunities** (church opportunities 2/3; media O1). Per-section
   summaries, notices extraction, automatic service summaries, chapter markers — each one schema
   field + prompt change + eval run. Queue behind operator appetite; listed so the cheapness is
   remembered.
@@ -246,7 +279,7 @@ review.
 
 ## Workstream 2 — Spent code and dead weight (independent; start immediately)
 
-### 2.1 Grep-verified dead-code batch (decision D5)
+### 2.1 [mechanical] Grep-verified dead-code batch (decision D5)
 
 One or two PRs, all verified zero-production-caller by the reviews. Media (F4/R5 + quick wins 1–5):
 `SermonValidationService` (+ stale config comment), `UpdateSermonRecord` job + ghost registry phase
@@ -265,14 +298,14 @@ methods + the `sermons_jsonld_recent_100` invalidation line, two `CalendarServic
 (R5): `ServiceSectionStatus::Skipped` (**gate: zero `service_sections.status='skipped'` rows in
 production**). All covering tests deleted in the same commits (~2,400+ test lines).
 
-### 2.2 Deterministic analysis stub (decision D5; sermons R7/F3)
+### 2.2 [mechanical] Deterministic analysis stub (decision D5; sermons R7/F3)
 
 Replace `MockSermonAnalysisService`'s 463-line non-deterministic heuristic simulator with a ~40-line
 fixture-returning stub; delete `MockSermonAnalysisServiceTest` or reduce to one shape assertion.
 De-flakes every analysis-dependent CI assertion (sermons opportunity 4). `MockServiceStructureService`
 is the template (platform F7).
 
-### 2.3 Storage-service collapse (decision D9; completes and supersedes SIMPLIFICATION-PLAN Phase 9)
+### 2.3 [mechanical] Storage-service collapse (decision D9; completes and supersedes SIMPLIFICATION-PLAN Phase 9)
 
 **Gate: run `MigrateSermonStorageCommand --dry-run` then `sermons:verify-storage` against
 production; all files accessible in canonical locations.** Then, in order: strip the `legacy`
@@ -286,7 +319,7 @@ owns the lifecycle with `MoveSermonToPrivateStorage` as its write-side companion
 **Unlocks:** the semantic-search backfill becomes a loop over `audio_file_path` (sermons
 opportunity 1); stale enclosure-metadata bugs disappear (opportunity 3).
 
-### 2.4 Legacy importer / cutover / backfill sweep (decision D10)
+### 2.4 [mechanical] Legacy importer / cutover / backfill sweep (decision D10)
 
 Each with its production check, then delete tool + companion + tests; record the git tag in the PR:
 
@@ -300,11 +333,11 @@ Each with its production check, then delete tool + companion + tests; record the
 | `LegacySongReconciler` + `reconciledSongId` thread + schema probes (songs, ~500) | Zero songs with null/blank/`legacy-song-%` canonical keys (the reconciler's own three-part predicate — songs Q2) |
 | `songs.praise_number`, `songs.alternative_title` columns + `play_date` table | After the two rows above (note: `alternate_title` is live — do not touch) |
 
-### 2.5 `HistoricVideoImporter` + `ImportHistoricVideoBatchCommand` (decision D11, ~1,500 lines)
+### 2.5 [mechanical] `HistoricVideoImporter` + `ImportHistoricVideoBatchCommand` (decision D11, ~1,500 lines)
 
 Gate: the 275 GB drive import is finished for good. Zero runtime risk — nothing else references it.
 
-### 2.6 Platform one-shot command sweep (decision D12; platform P1, ~1,480 lines + tests)
+### 2.6 [mechanical] Platform one-shot command sweep (decision D12; platform P1, ~1,480 lines + tests)
 
 `ConvertJpgToWebp`, `ImportHistoricVideoBatchCommand` (rides 2.5), `ExtractVideoFrames` +
 `ExportVisualMetricsCommand` (also die with 1.6 regardless), `ImportOpenLpDirectoryCommand`,
@@ -318,7 +351,7 @@ docblock; the weekly tech-debt rollup treats any one-shot older than a quarter a
 
 ## Workstream 3 — Public read path & presentation convergence
 
-### 3.1 One presentation convention (decision D13; public 4.1 — the central Phase 5 item)
+### 3.1 [design] One presentation convention (decision D13; public 4.1 — the central Phase 5 item)
 
 Adopt the rule: *every route's view data is one typed read-model object assembled in the controller
 or Livewire component; Blade components receive props; SEO/JSON-LD builders consume the same read
@@ -330,7 +363,7 @@ controller methods), the `app/View/Presenters/` namespace (fold `PageLinksReposi
 exception). **Unlocks:** one site-wide SEO/metadata implementation (public opportunity 1), a stable
 seam for a design-system pass (opportunity 3).
 
-### 3.2 Caching simplification + repository slim (decision D13; public 4.2, sermons F5)
+### 3.2 [design] Caching simplification + repository slim (decision D13; public 4.2, sermons F5)
 
 Choose freshness-by-TTL for listings: `Cache::flexible([300, 86400])` everywhere, deleting the
 ~150-line permutation-invalidation registry in `SermonRepository`, the framework-internal
@@ -342,7 +375,7 @@ request memoization survives profiling, one shared helper (or `Cache::memo`) rep
 hand-rolled copies. **Unlocks:** response/CDN caching becomes a config change (public opportunity
 2); operator edits visible immediately (sermons opportunity 3).
 
-### 3.3 Sermon presenter cluster collapse (decision D13; public 4.3/6.6)
+### 3.3 [design] Sermon presenter cluster collapse (decision D13; public 4.3/6.6)
 
 Present each sermon once, eagerly, into a typed `SermonView` Data object (the shape
 `SermonPresentationAssembler::forFull()` already defines); helpers become pure functions. Deletes
@@ -350,19 +383,21 @@ Present each sermon once, eagerly, into a typed `SermonView` Data object (the sh
 convention, and `clearInternalCaches()` from every consumer. 7 files → ~3, ~1,240 → ~600 lines,
 output shapes unchanged. Sanity-check the 24-item archive page before merging.
 
-### 3.4 Sitemap simplification (decision D13; public 4.6/6.3)
+### 3.4 [design] Sitemap simplification (decision D13; public 4.6/6.3)
 
 Plain sitemap — detail URLs + lastmod + static landing list; drop representative-image window
 queries, `priority`/`changefreq`; generate on the scheduler; controller becomes a file server.
 524 → ~150 lines; ~1,176 test lines shrink with it. `whereVisibleInSitemap` logic untouched.
 
-### 3.5 Meetings & calendar decisions (decision D14; public 4.5/4.7, items 6.4/6.5/6.7/6.8)
+### 3.5 [mechanical] Meetings & calendar decisions (decision D14; public 4.5/4.7, items 6.4/6.5/6.7/6.8)
 
-- **Recurrence fields** (`meeting_date`/`is_recurring`/`frequency`): if dropped, strip the
+- **Recurrence fields** (`meeting_date`/`is_recurring`/`frequency`): **do not merge a partial
+  removal** — strip the
   `ListMeetings` select/filter/sort + badges + `MeetingFormData` picker + Schedule JSON-LD
   together (public 4.5 scope warning), deriving any schedule markup from `CalendarEvent` rows.
   **Unlocks:** one scheduling source of truth (public opportunity 4).
-- **Google categorisation write-back**: sync preserves manually-categorised rows instead
+- **Google categorisation write-back** *(this bullet is [design] — it changes sync behaviour)*:
+  sync preserves manually-categorised rows instead
   (skip `meeting_slug` when `is_categorized_automatically === false`); delete
   `syncCategorizationToGoogle`/`removeCategorizationFromGoogle` + `CalendarCategorizationResult`
   (~90 lines); service account drops write scope.
@@ -371,7 +406,7 @@ queries, `priority`/`changefreq`; generate on the scheduler; controller becomes 
   old files.
 - Also: decide `/calendar/uncategorized` public exposure (public Q2 — likely make it admin-only).
 
-### 3.6 Podcast feed merge + `SermonExposurePolicy` fix (quick-win adjacent)
+### 3.6 [mechanical] Podcast feed merge + `SermonExposurePolicy` fix (quick-win adjacent)
 
 Merge the byte-identical `rss/morningFeed`/`eveningFeed` templates into one `rss/feed.blade.php`
 (sermons F8); Podcast 2.0 tags (`<podcast:person>`, chapters) become cheap follow-ups if wanted
@@ -382,7 +417,7 @@ Merge the byte-identical `rss/morningFeed`/`eveningFeed` templates into one `rss
 
 ## Workstream 4 — Admin & upload flow
 
-### 4.1 Upload consolidation (admin F1/F2/F3 — directions, no removal decision needed)
+### 4.1 [design] Upload consolidation (admin F1/F2/F3 — directions, no removal decision needed)
 
 One PR sequence: collapse `MediaUploadProgress`/`MediaUploadStatus` into Blade partials calling
 `$wire` directly (deletes the page-global event relay + singleton contract); replace the loose
@@ -394,7 +429,7 @@ authorization test covers it **and** add explicit `authorizeAdmin()` to each mut
 logging. **Unlocks (admin O1):** retry-without-reselecting, "your last upload" card, honest stall
 messaging, multi-instance mounting.
 
-### 4.2 Operator diagnostics: one durable read path (decision D4; media F2/R4, admin R1)
+### 4.2 [design] Operator diagnostics: one durable read path (decision D4; media F2/R4, admin R1)
 
 The durable pair — `SermonProcessingStep` + `processing_metadata` + queue-correlation columns —
 becomes the only operator-facing read path. Re-point the status-with-logs API and whatever replaces
@@ -404,13 +439,13 @@ agreed replacement, e.g. a plain "view technical log" admin link). Plain `Log::`
 developers, freed from machine-re-parseability. **Unlocks (media O5):** per-step durations/attempt
 counts queryable after log rotation; "slowest step this month" panels possible.
 
-### 4.3 `ProcessingReview` page retirement (decision D15; admin F6/R2)
+### 4.3 [mechanical] `ProcessingReview` page retirement (decision D15; admin F6/R2)
 
 Point the three deep links (upload `manualReviewUrl`, `ManualReviewRequired` email, inbox segment
 rows) at the workbench; solve the orphan-run case via the inbox's existing "create this service"
 affordance; delete component + view + 251-line test.
 
-### 4.4 CRUD consistency pass (admin F4/F5 quick wins + O2/O3)
+### 4.4 [mechanical] CRUD consistency pass (admin F4/F5 quick wins + O2/O3)
 
 Route-group middleware for `service-tracking.enabled` (deletes eight `abortIfDisabled()` copies);
 `use WithAdminAuthorization` inside `ManagesSectionPublication` (deletes three `method_exists`
@@ -422,7 +457,7 @@ filter/sort convention; inline or re-document `ReviewsServiceSections`; document
 durable fix). Sermon-delete duplication (`ListSermons` vs `SermonAdminController::destroy`) —
 converge on one path while touching.
 
-### 4.5 Authorization gates cleanup (carried over from old backlog PR 4)
+### 4.5 [mechanical] Authorization gates cleanup (carried over from old backlog PR 4)
 
 Replace the 7 `@can('manage-*')` blocks across 5 views with `canAccessAdmin()`-based checks;
 delete `MeetingPolicy` after removing its `MeetingController`/`UpdateMeetingRequest` callers;
@@ -432,14 +467,14 @@ remove the 3 gates + policy registrations; delete `AuthorizationGatesTest`/`Meet
 
 ## Workstream 5 — Church-service workflow state
 
-### 5.1 Canonical-conflict state collapse (decision D7; church §4.5/R3)
+### 5.1 [design] Canonical-conflict state collapse (decision D7; church §4.5/R3)
 
 Written on every import, read by nothing but the synchronizer that flattens it to `needs_review`.
 Pick column storage; shrink to `needs_review` + one human-readable reason string; keep
 `canonical_conflict_history` in JSON as the audit trail. Deletes one enum, most of another, six
 columns' ceremony, and much of the 167-line `ChurchServiceReviewStateService`.
 
-### 5.2 One-call email parsing (decision D8; church §4.7/R4, opportunity 5)
+### 5.2 [design] One-call email parsing (decision D8; church §4.7/R4, opportunity 5)
 
 Extend the existing `OpenAiOosEmailItemExtractor` pattern to one typed call returning
 `{date, service, items, confidence}`; keep the deterministic validation gate (date parses, service
@@ -458,7 +493,7 @@ Don't split while semantics are moving. After the soak: does the `Livestream` so
 full merge authority? Does cross-source song-title matching still fire? Then policy/mechanics
 split if still warranted.
 
-### 5.5 Timeline family relocation (platform F4)
+### 5.5 [mechanical] Timeline family relocation (platform F4)
 
 Move `ProcessingRunTimelineBuilder`, `ServiceRecordTimeline`, `ServiceFlowBuilder`,
 `ServiceTimelineBuilder` (~930 lines) from `app/Support/` to the church-service domain; merge the
@@ -469,7 +504,7 @@ re-proportioning waits for 1.5 (heuristic steps thin the timeline).
 
 ## Workstream 6 — Platform hygiene
 
-### 6.1 Migration squash (decision D17; platform F3/P2)
+### 6.1 [mechanical] Migration squash (decision D17; platform F3/P2)
 
 `schema:dump --prune`; delete the 3 corrective-migration test classes; strip the
 migration-requiring methods from the 8 live schema/integrity suites; **update
@@ -478,25 +513,27 @@ drop the "never --prune" message). Adopt quarterly re-squash. Consider tightenin
 (check existing covering indexes) to slow the ~100/year regrowth. **Unlocks (platform O1):** the
 nightly agent fleet stops compounding cost; fresh setup loads one dump.
 
-### 6.2 Config deletions (decision D18; platform P3/P5)
+### 6.2 [mechanical] Config deletions (decision D18; platform P3/P5)
 
 Delete the five stock files (`blade-heroicons`, `media-library`, `schedule-monitor`, `view`,
 `broadcasting`; ~590 lines) with a `config:show` spot-check each; remove the `auth.php` `api`
 guard block and the two dead `calendar.php` keys.
 
-### 6.3 Behaviour-adopting config updates (decision D19; platform P4)
+### 6.3 [mechanical] Behaviour-adopting config updates (decision D19; platform P4)
 
 Consciously adopt current defaults: `hashing.php` (`HASH_VERIFY`, `rehash_on_login`), `auth.php`
 (`passwords.users.throttle => 60` — touches live reset flows, Dusk covers them; `password_timeout`),
-`debugbar.php` (env-only control), regenerate `livewire.php` to the v4 shape re-applying
-`component_layout`/`class_namespace`; triage `blade-icons.php` drift.
+`debugbar.php` (env-only control), regenerate `livewire.php` to the v4 shape — **do not
+regenerate without first diffing the current file against stock v4 and carrying over every
+deliberate delta**, not just the two known overrides (`component_layout`, `class_namespace`);
+triage `blade-icons.php` drift.
 
-### 6.4 Config merges (decision D20; platform P6)
+### 6.4 [mechanical] Config merges (decision D20; platform P6)
 
 `sermons.php` + `opening-hours.php` + `organization.php` → one `church.php`; optionally fold
 `monitoring.php` into `health.php`. `service-tracking.php` stays separate (platform F2 ruling).
 
-### 6.5 Agent-config fixes (platform F8 quick wins)
+### 6.5 [mechanical] Agent-config fixes (platform F8 quick wins)
 
 Fix `AGENTS.md` Key Services (three named services no longer exist) + the pre-LLM pipeline
 narrative — the highest-leverage doc fix in the repo; delete the stray
@@ -534,13 +571,13 @@ Four patterns recurred across all seven domains; the conventions below get docum
    brittle UI-string assertions (`ViewComposerTest` Tailwind classes, stale
    `it_populates_footer_with_latest_sermons`).
 
-### 7.1 Duplicate-suite fold-ins (decision D16)
+### 7.1 [mechanical] Duplicate-suite fold-ins (decision D16)
 
 Diff assertions, keep the superset in the per-component home, delete the flat/legacy file. Order of
 attack: the pairs named above (~2,000+ redundant lines, admin O4). Do after Workstreams 1–2 delete
 their subjects, so nothing is folded twice.
 
-### 7.2 Conventions to adopt (document in `AGENTS.md`)
+### 7.2 [mechanical] Conventions to adopt (document in `AGENTS.md`)
 
 - A subject's deletion always deletes its tests in the same commit.
 - One suite per component/class; cross-cutting behaviour tested once at the trait level plus the
