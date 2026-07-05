@@ -1,5 +1,13 @@
 # Simplification Backlog
 
+> **Superseded (2026-07-05):** consolidated into
+> [docs/plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md).
+> Dispositions of the still-open items: PR 4 carried over (backlog item 4.5); PR 19 closed as moot
+> (speaker identification is already enabled and working in production — stack kept); PR 20 and the
+> parking-lot items parked to the Phase 9 code-quality review; PR 23 done (`Sync/` split landed,
+> 879 → 410 lines); PR 24 superseded (the classifier is on the July backlog's deletion list, item
+> 1.5). Do not add new work here; archive once item 4.5 lands.
+
 Derived from [architectural-review.md](architectural-review.md). Each item is a single PR.
 Items are ordered by priority: low-risk deletions first, then consolidation, then refactoring.
 
