@@ -281,7 +281,11 @@ class SermonProcessingLogger
      */
     public function logHealthCheck(string $checkName, array $result): void
     {
-        $status = $result['status'];
+        // This logging helper runs on failure paths and accepts a plain array, so guard
+        // against a caller passing diagnostics without a status rather than emitting an
+        // undefined-array-key warning while trying to log the problem.
+        /** @phpstan-ignore nullCoalesce.offset */
+        $status = $result['status'] ?? 'unknown';
 
         $context = [
             'health_check' => $checkName,
