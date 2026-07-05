@@ -1,13 +1,18 @@
 # July 2026 Simplification Backlog
 
 Created 2026-07-05 as the Phase 8 wrap-up of the July 2026 simplification review
-(`docs/plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md`). This document consolidates the
-seven per-domain findings docs into one prioritised implementation backlog, records the removal
-sign-offs, and supersedes the overlapping items in the older trackers. It is the successor in style
-to `docs/archived-plans/APRIL-2026-REVIEW-BACKLOG-2026-04-16.md`.
+(`docs/archived-plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md` — archived; its Phase 9
+session brief is the one part still live). This document consolidates the seven per-domain
+findings docs into one prioritised implementation backlog, records the removal sign-offs, and
+supersedes the overlapping items in the older trackers. It is the successor in style to
+`docs/archived-plans/APRIL-2026-REVIEW-BACKLOG-2026-04-16.md`.
+
+**This is the single active tracker.** See `docs/plans/README.md` for how the remaining standalone
+plans sequence around it, and `docs/issues/README.md` for the open audit-issue register (its
+plan-shaped items were folded into items 2.1 and 2.6 on 2026-07-05).
 
 Phase 9 (the technical code-quality review) remains gated on this backlog's structural work
-substantially landing.
+substantially landing; run it from the brief in the archived review plan.
 
 ## Review inputs
 
@@ -18,18 +23,18 @@ substantially landing.
 - `docs/reviews/july-2026-simplification/public-site-read-path-review-2026-07-02.md` (Phase 5)
 - `docs/reviews/july-2026-simplification/admin-livewire-review-2026-07-03.md` (Phase 6)
 - `docs/reviews/july-2026-simplification/platform-operations-review-2026-07-05.md` (Phase 7)
-- Active trackers reconciled below: `docs/plans/SIMPLIFICATION-PLAN.md`,
-  `docs/architecture/simplification-backlog.md`
+- Active trackers reconciled below: `SIMPLIFICATION-PLAN.md` (archived to `docs/archived-plans/`
+  2026-07-05), `docs/architecture/simplification-backlog.md`
 - The exemplar plan this programme extends:
-  `docs/plans/LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md` (phases 1–5 complete, phase 6
-  "promote and retire" pending)
+  `docs/archived-plans/LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md` (archived; phases 1–5
+  complete, phase 6 "promote and retire" superseded by Workstream 1 here)
 
 ## Tracker reconciliation (supersessions)
 
 This backlog is now the single active simplification tracker. Disposition of every open item in the
 two older trackers:
 
-### `docs/plans/SIMPLIFICATION-PLAN.md`
+### `docs/archived-plans/SIMPLIFICATION-PLAN.md`
 
 | Item | Disposition |
 |---|---|
@@ -39,7 +44,8 @@ two older trackers:
 | Phase 25 (legacy one-shot importers) | **Superseded by item 2.4 here** (same candidates plus newly found siblings) |
 | All other phases | Already complete |
 
-Archive `SIMPLIFICATION-PLAN.md` to `docs/archived-plans/` once items 2.3 and 2.4 land.
+`SIMPLIFICATION-PLAN.md` was archived to `docs/archived-plans/` on 2026-07-05 (items 2.3 and 2.4
+here are self-contained, so nothing waits on it).
 
 ### `docs/architecture/simplification-backlog.md`
 
@@ -139,7 +145,8 @@ removal is approved: approval means "delete once the listed check passes".
 
 ## Workstream 1 — The LLM-first retirement programme
 
-The direct continuation of `LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md` phase 6, now with
+The direct continuation of the archived
+`docs/archived-plans/LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md` phase 6, now with
 the audited deletion map (church review §4.1–4.2 corrected the plan's own list in four places) and
 extended to the media-side heuristics the plan's deletion list missed (media review F1). Total
 retirement payoff: ~5,054 lines of church-service heuristic production code + ~8,900 test lines +
@@ -158,9 +165,9 @@ Source: church review §4.2 seams 1–4, §7 quick wins 1–4.
   (`ServiceSectionSyncService`, `ClassifySpeechSections`) in the same commit. Move
   `OOS_REVIEW_FLAGS`/`OOS_REVIEW_REASONS` from `SectionAlignmentBaselineRestorer` into `Structure/`
   (the validator). Drop the dead `AlignmentTriggerCalculator` import from
-  `UnmatchedSongReviewApplicator`. Update the exemplar plan's phase 6 deletion list with the four
-  §4.1 corrections (projection services retained; merge policy/service off the list;
-  `SongSectionAligner` deletable whole; the two type/registry moves).
+  `UnmatchedSongReviewApplicator`. (The exemplar plan's phase 6 deletion list was superseded via
+  its 2026-07-05 archival header, which points here for the corrected §4.1 list — no further doc
+  update needed.)
 - **1.1b [design] — Mode-aware reconciliation.** `ReconcileServiceSections` currently re-runs the heuristic
   aligner unconditionally on late OOS arrival (`ReconcileServiceSections.php:67`) — a live
   correctness gap for the primary-mode soak. In primary mode, reconcile by re-running
@@ -298,6 +305,25 @@ methods + the `sermons_jsonld_recent_100` invalidation line, two `CalendarServic
 (R5): `ServiceSectionStatus::Skipped` (**gate: zero `service_sections.status='skipped'` rows in
 production**). All covering tests deleted in the same commits (~2,400+ test lines).
 
+**Issue-tracker intake (2026-07-05)** — grep-verified dead items folded in from
+`docs/issues/README.md` (Mortician reports; re-verify zero callers before deleting, per the
+protocol above):
+
+- `App\Http\Requests\UpdateSermonRequest` — rides the `UpdateSermonRecord` deletion; retire its
+  three test files in the same commit (`tests/Unit/UpdateSermonRequestTest.php`,
+  `tests/Unit/Security/SermonValidationSecurityTest.php`, `tests/Feature/SermonIntegrityTest.php` —
+  the latter two only where they exercise this class; keep any assertions that target
+  `Sermon::validationRules()` via the Livewire form instead).
+- `PageImagePresenter::headingImageSrcset()` — unused method; delete with its assertions in
+  `tests/Integration/Presenters/PageImagePresenterTest.php`.
+- `public/images/podcast/EveningArtwork.webp` + `MorningArtwork.webp` — `config/podcast.php`
+  deliberately uses the `.jpg` versions (podcast directories require JPEG); **do not touch the
+  `.jpg` files**.
+- `public/images/headings/{large,small}/*.jpg` + `public/images/headings/links.jpg` (33 files,
+  ~2 MB) — the `.webp` siblings are the served versions. **Caution:** the `.webp` files in these
+  directories are live (referenced directly via `asset()` in `SitemapService`, the sermon Blade
+  views, and the `page-card` default) — prune only files ending `.jpg`.
+
 ### 2.2 [mechanical] Deterministic analysis stub (decision D5; sermons R7/F3)
 
 Replace `MockSermonAnalysisService`'s 463-line non-deterministic heuristic simulator with a ~40-line
@@ -342,7 +368,11 @@ Gate: the 275 GB drive import is finished for good. Zero runtime risk — nothin
 `ConvertJpgToWebp`, `ImportHistoricVideoBatchCommand` (rides 2.5), `ExtractVideoFrames` +
 `ExportVisualMetricsCommand` (also die with 1.6 regardless), `ImportOpenLpDirectoryCommand`,
 `BackfillMediaProcessingIdentityCommand`, `FixUploadDirectories`, `MeetingMigratePhotosCommand` +
-`MeetingPhotoMigrationService`. Per-command prod confirmation (platform Q1a–f). Plus the
+`MeetingPhotoMigrationService` — **and, behind the same production-migration gate, the legacy
+meeting photo folders `public/images/meetings/{1150,baby-talk,bible-study,buzz-club,coffee-cup,sunday-services}/`**
+(issues tracker O5: meeting photos live in Spatie Media Library now; the import preserved these
+originals, so confirm the production import completed before deleting). Per-command prod
+confirmation (platform Q1a–f). Plus the
 **retirement convention**: every new one-shot command declares its deletion trigger in its
 docblock; the weekly tech-debt rollup treats any one-shot older than a quarter as default-delete
 (add to `AGENTS.md`).

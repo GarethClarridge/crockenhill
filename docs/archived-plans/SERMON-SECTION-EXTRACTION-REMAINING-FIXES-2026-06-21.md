@@ -1,5 +1,13 @@
 # Section-Extraction Findings — Remaining Work (2026-06-21)
 
+> **ARCHIVED 2026-07-05 — all work complete or superseded.** Workstream D (F15) and Part 3 (F2)
+> were implemented and merged (statuses below). Part 2 — the LLM service-structure spike, the only
+> then-outstanding item — was superseded by the LLM-first pipeline plan, whose phases 1–5 have
+> shipped; the remaining retirement work is Workstream 1 of
+> [../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md).
+> Note: several classes this document describes (`StructuralSectionAligner`,
+> `SectionAlignmentBaselineRestorer`, `SongSectionAligner`) are on that backlog's deletion list.
+
 ## Context
 
 The 2026-06-20 findings (`docs/operations/section-extraction-findings-2026-06-20.md`) were triaged into

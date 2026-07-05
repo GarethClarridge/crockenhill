@@ -1,5 +1,17 @@
 # OBS-LocalVocal Transcript Sourcing — Plan (2026-06-20)
 
+> **Status (2026-07-05): deferred — Part B is stale as drafted; do not implement it from this
+> document.** The two Whisper passes this plan saves are changing under
+> [JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md):
+> `TranscribeSpeechSegments` is deleted with the heuristic cluster (item 1.5), and item 1.7a
+> collapses transcription to **one** Whisper pass behind `ServiceTranscriptionInterface` — which
+> the LLM-first work built as exactly the seam a sidecar should plug into (a sidecar-backed
+> implementation returning `ChurchServiceTranscript`). After 1.7a lands, re-scope Part B as that
+> single adapter plus the ingest/trust-gate plumbing below (Phase 0's offset calibration and the
+> trust gate remain valid as designed). **Part A (live subtitles via the OBS plugin) is purely
+> operational, unaffected, and can be done any time.** Production currently pays for OpenAI
+> Whisper per run, so the cost saving still exists — it just shrinks to one pass.
+
 ## Recommendation
 
 Capture a **real-time local-Whisper transcript during the livestream** with
@@ -15,7 +27,7 @@ Do this **behind a fallback**, never load-bearing: when a valid sidecar is prese
 fall through to the existing Whisper path unchanged. The pipeline's most critical inputs must keep
 working when the operator forgets the sidecar, the plugin misbehaves, or the upload is a YouTube backup.
 
-This plan is **decoupled from** `docs/plans/LLM-SERVICE-SECTION-CLASSIFICATION-SPIKE-2026-06-19.md`. The spike
+This plan is **decoupled from** `docs/archived-plans/LLM-SERVICE-SECTION-CLASSIFICATION-SPIKE-2026-06-19.md`. The spike
 consumes a timestamped transcript regardless of its source; this plan only changes *where the transcript
 comes from*. They share the transcription seam but have no dependency, and ship in either order.
 

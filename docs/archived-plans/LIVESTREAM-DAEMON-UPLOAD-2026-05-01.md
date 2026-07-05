@@ -1,5 +1,15 @@
 # Livestream Daemon Upload (2026-05-01) - Analysis Proxy Video with Laptop-Side Trimming
 
+> **ARCHIVED 2026-07-05 — never started, and now stale. Do not implement from this document.**
+> The design assumes the heuristic analysis stack (`PerformVisualAnalysis`, visual song clusters,
+> OCR song matching, `TranscribeSpeechSegments`) that the July 2026 backlog deletes (Workstream 1
+> of
+> [../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md),
+> decisions D1/D4). The underlying problem — a ~5 GB 1080p browser upload over the church's slow
+> connection — remains real. If it still hurts after Workstream 1 lands, write a **fresh plan**:
+> the LLM-first pipeline needs far less from a proxy (audio adequate for one Whisper pass, plus an
+> RMS log), so the daemon becomes materially simpler than what is designed here.
+
 ## Recommendation
 
 Proceed with the laptop daemon, but do not implement the original "audio plus frame archive" design.

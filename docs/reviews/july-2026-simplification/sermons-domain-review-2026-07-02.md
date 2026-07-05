@@ -1,10 +1,10 @@
 # Sermons Domain Review — July 2026 Simplification, Phase 3
 
 Reviewed 2026-07-02, per the doctrine, ground rules, and template in
-[docs/plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md](../../plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md).
+[docs/archived-plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md](../../archived-plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md).
 Findings only — no code changes.
 
-Prior art consulted: [SIMPLIFICATION-PLAN.md](../../plans/SIMPLIFICATION-PLAN.md) Phases 9 (legacy storage), 14 (hotspot decomposition), 24, 25 (legacy importers); [APRIL-2026-REVIEW-REMAINING-WORK-2026-05-14.md](../../archived-plans/APRIL-2026-REVIEW-REMAINING-WORK-2026-05-14.md); [simplification-backlog.md](../../architecture/simplification-backlog.md) (PR 6: `SermonProcessingStep` deletion rescinded; PR 20: Sermon model slimming); [SEMANTIC-SERMON-SEARCH-AND-QA-2026-06-18.md](../../plans/SEMANTIC-SERMON-SEARCH-AND-QA-2026-06-18.md).
+Prior art consulted: [SIMPLIFICATION-PLAN.md](../../archived-plans/SIMPLIFICATION-PLAN.md) Phases 9 (legacy storage), 14 (hotspot decomposition), 24, 25 (legacy importers); [APRIL-2026-REVIEW-REMAINING-WORK-2026-05-14.md](../../archived-plans/APRIL-2026-REVIEW-REMAINING-WORK-2026-05-14.md); [simplification-backlog.md](../../architecture/simplification-backlog.md) (PR 6: `SermonProcessingStep` deletion rescinded; PR 20: Sermon model slimming); [SEMANTIC-SERMON-SEARCH-AND-QA-2026-06-18.md](../../plans/SEMANTIC-SERMON-SEARCH-AND-QA-2026-06-18.md).
 
 ## 1. Scope reviewed
 

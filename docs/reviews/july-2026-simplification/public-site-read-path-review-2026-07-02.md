@@ -1,6 +1,6 @@
 # Public Site & Read Path — Simplification Review (Phase 5)
 
-Date: 2026-07-02. Phase 5 of the July 2026 simplification review; doctrine, ground rules, and template per [`docs/plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md`](../../plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md). No code changes were made in this session.
+Date: 2026-07-02. Phase 5 of the July 2026 simplification review; doctrine, ground rules, and template per [`docs/archived-plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md`](../../archived-plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md). No code changes were made in this session.
 
 Prior art: the April public-read-side review ([`docs/april-2026-review/public-read-side-and-read-path-review-2026-04-16.md`](../../april-2026-review/public-read-side-and-read-path-review-2026-04-16.md)) and its backlog items 11/12/12A ([`docs/archived-plans/APRIL-2026-REVIEW-BACKLOG-2026-04-16.md`](../../archived-plans/APRIL-2026-REVIEW-BACKLOG-2026-04-16.md)). Section 4.0 below reconciles what was and wasn't actioned.
 
@@ -37,7 +37,7 @@ Operators get: edit-a-page-without-a-developer, automatic calendar publication (
 | `app/Data/` (read models) | 4 | ~226 | Cached view payloads (`PublicPageReadModel` etc.) |
 | Inline Blade `@php` JSON-LD | — | ~200 | Meetings/events views build Schema.org arrays inline |
 
-Eight places answer the question "where does this view's data come from", and a ninth (`app/Queries/`) serves the admin side. `docs/plans/SIMPLIFICATION-PLAN.md` Phase 22 (June 2026) deliberately created the `Presenters`/`Seo`/`Sitemap` three-way split — it *organised* the sprawl but did not reduce it, and it left `View/Presenters`, `View/Composers`, component-constructor fetching, and inline Blade JSON-LD outside the scheme.
+Eight places answer the question "where does this view's data come from", and a ninth (`app/Queries/`) serves the admin side. `docs/archived-plans/SIMPLIFICATION-PLAN.md` Phase 22 (June 2026) deliberately created the `Presenters`/`Seo`/`Sitemap` three-way split — it *organised* the sprawl but did not reduce it, and it left `View/Presenters`, `View/Composers`, component-constructor fetching, and inline Blade JSON-LD outside the scheme.
 
 ### 3.2 The sermon presentation cluster
 

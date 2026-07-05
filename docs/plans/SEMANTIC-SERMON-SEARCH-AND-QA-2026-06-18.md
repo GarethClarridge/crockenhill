@@ -1,5 +1,20 @@
 # Semantic Sermon Archive (2026-06-18) - "Ask the Archive" Retrieval & Grounded Q&A
 
+> **Status (2026-07-05): not started — deliberately queued behind the July backlog. Do not start
+> until the gates below clear, and re-plan Phase 1 first.**
+> Sequencing against
+> [JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md):
+>
+> - **Backlog item 2.3 (storage-service collapse) lands first** — it turns this plan's backfill
+>   into a simple loop over `audio_file_path` (sermons review, opportunity 1).
+> - **Backlog item 1.7a (one Whisper pass per service) changes Phase 1's shape.** 1.7a slices the
+>   timestamped full-service transcript (`ChurchServiceTranscript`, which already exists from the
+>   LLM-first work) for the sermon transcript — so for *new* sermons, timestamped transcripts fall
+>   out of 1.7a and Phase 1 reduces to the archive re-transcription backfill. Write a fresh Phase 1
+>   plan (plan mode) once 1.7a's shape is settled rather than extending
+>   `TranscriptionServiceInterface` as drafted below.
+> - The Decisions Locked and Phases 0/2–5 remain valid as written.
+
 ## Recommendation
 
 Build a **semantic retrieval layer over the existing sermon transcript corpus**, surfaced as three compounding features:
