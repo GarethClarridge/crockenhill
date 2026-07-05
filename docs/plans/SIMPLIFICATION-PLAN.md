@@ -1,5 +1,11 @@
 # Simplification Plan
 
+> **Superseded (2026-07-05):** the remaining open work in this plan has been consolidated into
+> [JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)
+> — Phase 9 → backlog item 2.3 (approved, gated on prod storage verification); Phase 25 → item 2.4
+> (approved, gated per item); Phase 14 → closed with revised direction (see the backlog's tracker
+> reconciliation). Do not add new work here; archive this file once backlog items 2.3/2.4 land.
+
 Consolidated 2026-05-22 from the prior dated plans (`SIMPLIFICATION-PLAN-2026-02-25.md` and `SIMPLIFICATION-PLAN-2026-05-22.md`). Phases that were already completed in the 2026-02-25 plan have been dropped — see [docs/archived-plans/SIMPLIFICATION-PLAN-2026-02-25.md](../archived-plans/SIMPLIFICATION-PLAN-2026-02-25.md) for the historical execution log.
 
 This file tracks only work that still appears necessary, re-audited against the current codebase on 2026-05-22 and spot-checked again on 2026-05-29.
