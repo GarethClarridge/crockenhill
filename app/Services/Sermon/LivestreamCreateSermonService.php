@@ -22,7 +22,12 @@ class LivestreamCreateSermonService
     ) {}
 
     /**
+     * Resume a livestream processing run using its longest speech segment as the sermon candidate.
+     *
      * @return array{processing_id:string,segment_id:int,start_time:float,end_time:float,duration:float}
+     *
+     * @throws \InvalidArgumentException If the processing log is not found or is in an invalid state
+     * @throws \Throwable For unexpected database or orchestration failures
      */
     public function resumeUsingLongestSpeechSegment(string $processingId): array
     {

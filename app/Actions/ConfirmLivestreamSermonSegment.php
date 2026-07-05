@@ -31,6 +31,8 @@ class ConfirmLivestreamSermonSegment
      * the post-review processing chain. Returns the dispatched batch.
      *
      * @throws SafeInvalidArgumentException When preconditions are not met
+     * @throws \Illuminate\Contracts\Container\BindingResolutionException If the orchestrator cannot be resolved
+     * @throws \Throwable For unexpected database or orchestration failures
      */
     public function execute(string $processingId, int $segmentId, User $user): void
     {
