@@ -52,11 +52,11 @@
         </h2>
       </a>
     @elseif ($sermon->title != null)
-      <div class="relative hidden group rounded-md" data-sermon-card-title-fallback>
+      <a class="relative z-10 group hidden rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 after:absolute after:inset-0" href="{{ $sermonUrl }}" wire:navigate data-sermon-card-title-fallback>
         <h2 class="font-display text-2xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
           {{$sermon->title}}
         </h2>
-      </div>
+      </a>
     @endif
     <ul class="mt-4 space-y-2 prose">
       @if ($dateString)
