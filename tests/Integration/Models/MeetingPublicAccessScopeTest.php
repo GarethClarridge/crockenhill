@@ -7,13 +7,13 @@ namespace Tests\Integration\Models;
 use App\Enums\PageArea;
 use App\Models\Meeting;
 use App\Models\Page;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MeetingPublicAccessScopeTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_includes_meetings_with_no_linked_page(): void
