@@ -1,3 +1,5 @@
+> **Archived 2026-07-05.** Implementation backlog for the March 2026 PRD (`church-service-prd.md`, also archived). Superseded by the LLM-first pipeline work and the July 2026 backlog. Do not work from this file.
+
 # Implementation Backlog: Church Service Processing
 
 **Source**: [PRD v2](church-service-prd.md)

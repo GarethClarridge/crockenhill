@@ -1,3 +1,5 @@
+> **Archived 2026-07-05.** March 2026 spec. The heuristic analysis pipeline it describes has been superseded by the LLM-first structure pipeline (`LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md`) and the July 2026 backlog's Workstream 1, which deletes much of the described stack. Vision and stakeholder decisions remain useful context; technical descriptions are stale.
+
 # PRD v2: Church Service Processing & Content Management
 
 **Date**: March 2026  

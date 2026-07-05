@@ -1,3 +1,5 @@
+> **Archived 2026-07-05.** Point-in-time review (March 2026). Its actionable items became `docs/architecture/simplification-backlog.md` (itself superseded by the July 2026 backlog). Retained because the still-open simplification-backlog item PR 4 (backlog item 4.5) references its detail. Claims about the codebase are stale — verify against current code.
+
 # Architectural Review: Crockenhill Baptist Church Website
 
 **Date**: March 2026

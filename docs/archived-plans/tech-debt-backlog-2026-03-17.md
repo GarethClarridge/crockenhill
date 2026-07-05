@@ -1,3 +1,5 @@
+> **Archived 2026-07-05.** Consolidation of the March 2026 review passes; statuses frozen 2026-03-25 and not reconciled item-by-item into the July 2026 backlog. Most delivered work landed via the June 2026 review implementation and TESTING-REMEDIATION-PLAN. **Do not work from this file**; if resurrecting an item, verify it against current code first. The March 2026 source reviews this file links to under `../reviews/` were deleted 2026-07-05 — retrieve them from git history if needed.
+
 # Tech Debt Backlog (2026-03-17)
 
 _Last updated: 2026-03-25_

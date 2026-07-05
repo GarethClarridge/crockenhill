@@ -43,7 +43,7 @@ Findings doc only; no code changes.
 
 Prior art checked: `docs/archived-plans/SIMPLIFICATION-PLAN.md`,
 `docs/architecture/simplification-backlog.md` (church-service backlog marked complete; PR 23/24
-parked), `docs/operations/section-extraction-findings-2026-06-20.md`. Nothing below duplicates an
+parked), `docs/archived-plans/section-extraction-findings-2026-06-20.md`. Nothing below duplicates an
 open tracker item; §4.3 updates the status of backlog PR 24.
 
 ## 2. What this area is for

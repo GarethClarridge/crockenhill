@@ -1,3 +1,5 @@
+> **Archived 2026-07-05.** Feature shipped — see `song-video-feature-implementation-plan.md` (completed April 2026).
+
 # Song Video Feature — Requirements
 
 > Approved: 2026-03-25

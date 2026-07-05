@@ -1,3 +1,5 @@
+> **Archived 2026-07-05.** Findings from the June 2026 section-extraction regression runs. All items were fixed or consciously parked via the (archived) SERMON-SECTION-EXTRACTION-REMAINING-FIXES-2026-06-21.md plan. Kept as reference for the behaviours the test harness (docs/operations/section-extraction-testing.md) exercises.
+
 # Section Extraction — Findings (2026-06-20)
 
 Findings from section-extraction regression testing across nine real Sunday recordings (May 2026 down to April 2023), covering content-anchor classifier behaviour, RMS/visual analysis limitations, song matching, OoS alignment, and sermon extraction.

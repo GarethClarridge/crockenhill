@@ -2,7 +2,7 @@
 
 Date: 2026-07-02. Phase 5 of the July 2026 simplification review; doctrine, ground rules, and template per [`docs/archived-plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md`](../../archived-plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md). No code changes were made in this session.
 
-Prior art: the April public-read-side review ([`docs/april-2026-review/public-read-side-and-read-path-review-2026-04-16.md`](../../april-2026-review/public-read-side-and-read-path-review-2026-04-16.md)) and its backlog items 11/12/12A ([`docs/archived-plans/APRIL-2026-REVIEW-BACKLOG-2026-04-16.md`](../../archived-plans/APRIL-2026-REVIEW-BACKLOG-2026-04-16.md)). Section 4.0 below reconciles what was and wasn't actioned.
+Prior art: the April public-read-side review (`docs/april-2026-review/public-read-side-and-read-path-review-2026-04-16.md`, deleted 2026-07-05 — in git history) and its backlog items 11/12/12A ([`docs/archived-plans/APRIL-2026-REVIEW-BACKLOG-2026-04-16.md`](../../archived-plans/APRIL-2026-REVIEW-BACKLOG-2026-04-16.md)). Section 4.0 below reconciles what was and wasn't actioned.
 
 ## 1. Scope reviewed
 

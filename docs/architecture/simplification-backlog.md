@@ -8,7 +8,7 @@
 > 879 → 410 lines); PR 24 superseded (the classifier is on the July backlog's deletion list, item
 > 1.5). Do not add new work here; archive once item 4.5 lands.
 
-Derived from [architectural-review.md](architectural-review.md). Each item is a single PR.
+Derived from [architectural-review-2026-03.md](../archived-plans/architectural-review-2026-03.md) (archived). Each item is a single PR.
 Items are ordered by priority: low-risk deletions first, then consolidation, then refactoring.
 
 > **Note**: The church service backlog is now complete. Remaining ⏸️ items are blocked on
