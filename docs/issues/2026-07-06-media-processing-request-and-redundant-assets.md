@@ -11,12 +11,12 @@ While the class itself is `abstract` and has no direct callers, it serves as the
 2.  **ID Validation:** `assertProcessingIdShape()` enforces a strict UUID format with a 400 Bad Request response, preserving backward compatibility with external uploader tools.
 
 **Sub-classes (all active):**
-*   `ProcessMediaRequest` (Handles `POST /api/sermons/{type}`)
-*   `MediaStatusRequest` (Handles `GET /api/sermons/processing/{id}/status`)
-*   `MediaStreamRequest` (Handles `GET /api/sermons/processing/{id}/stream`)
-*   `CancelMediaProcessingRequest` (Handles `DELETE /api/sermons/processing/{id}`)
-*   `ConfirmMediaSegmentRequest` (Handles `POST /api/sermons/processing/{id}/confirm`)
-*   `RetryMediaProcessingRequest` (Handles `POST /api/sermons/processing/{id}/retry`)
+*   `ProcessMediaRequest` (Handles `POST /api/media/{type}`)
+*   `MediaStatusRequest` (Handles `GET /api/media/processing/{id}/status`)
+*   `MediaStreamRequest` (Handles `GET /api/media/processing/{id}/stream`)
+*   `CancelMediaProcessingRequest` (Handles `DELETE /api/media/processing/{id}`)
+*   `ConfirmMediaSegmentRequest` (Handles `POST /api/media/processing/{id}/confirm-segment`)
+*   `RetryMediaProcessingRequest` (Handles `POST /api/media/processing/{id}/retry`)
 
 **Recommendation:** **Leave alone.** It is an active and necessary structural component of the API.
 
