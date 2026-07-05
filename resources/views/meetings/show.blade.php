@@ -184,7 +184,7 @@
                                     '@type' => 'Organization',
                                     'name' => $orgName,
                                     'url' => $orgUrl,
-                                    '@id' => $appUrl.'/#organization',
+                                    '@id' => $appUrl . '/#organization',
                                 ],
                                 'offers' => [
                                     '@type' => 'Offer',
