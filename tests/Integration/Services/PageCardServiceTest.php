@@ -104,6 +104,10 @@ class PageCardServiceTest extends TestCase
         $resultsSecond = $this->service->forHome();
         $this->assertCount($queryCountAfterFirst, DB::getQueryLog());
 
+        // Verify isolation: calling forHome should NOT cache forCommunity
+        $this->service->forCommunity();
+        $this->assertGreaterThan($queryCountAfterFirst, count(DB::getQueryLog()));
+
         $this->assertTrue($results->contains('slug', 'sunday-evenings'));
         $this->assertTrue($results->contains('slug', 'bible-study'));
         $this->assertFalse($results->contains('slug', 'unrelated-page'));
