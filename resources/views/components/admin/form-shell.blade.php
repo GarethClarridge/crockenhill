@@ -26,7 +26,7 @@
             saveAction: %s,
             save() { this.$wire.call(this.saveAction); },
             confirmDiscard(e) {
-                if (this.$wire.dirty && !confirm("You have unsaved changes. Are you sure you want to leave?")) {
+                if (this.$wire.$dirty() && !confirm("You have unsaved changes. Are you sure you want to leave?")) {
                     e.preventDefault();
                     e.stopImmediatePropagation();
                     return false;
@@ -40,7 +40,7 @@
 
 <div {{ $hotkeyAttributes }}
     @click.capture="if ($event.target.closest('a:not([href^=\'#\']):not([target=\'_blank\'])')) confirmDiscard($event)"
-    @window.beforeunload="if ($wire.dirty) $event.returnValue = 'You have unsaved changes.';"
+    @window.beforeunload="if ($wire.$dirty()) $event.returnValue = 'You have unsaved changes.';"
 >
     <x-admin.page
         :title="$title"
