@@ -281,16 +281,16 @@ class SermonProcessingLogger
      */
     public function logHealthCheck(string $checkName, array $result): void
     {
+        $status = $result['status'];
+
         $context = [
             'health_check' => $checkName,
-            /** @phpstan-ignore nullCoalesce.offset */
-            'status' => $result['status'] ?? 'unknown',
+            'status' => $status,
             'result' => $result,
             'timestamp' => now()->toISOString(),
         ];
 
-        /** @phpstan-ignore nullCoalesce.offset */
-        $logLevel = match ($result['status'] ?? 'unknown') {
+        $logLevel = match ($status) {
             'healthy' => 'info',
             'degraded' => 'warning',
             'error' => 'error',
@@ -358,15 +358,11 @@ class SermonProcessingLogger
         }
 
         // Analyze error patterns
-        $failedLogs = $logs->where('status', 'failed');
-        $errorCounts = [];
-        foreach ($failedLogs as $log) {
-            if ($log->error_message) {
-                $errorType = $this->categorizeError($log->error_message);
-                $errorCounts[$errorType] = ($errorCounts[$errorType] ?? 0) + 1;
-            }
-        }
-        $statistics['error_patterns'] = $errorCounts;
+        $statistics['error_patterns'] = $logs->where('status', 'failed')
+            ->map(fn (MediaProcessingLog $log): ?string => $log->error_message ? $this->categorizeError($log->error_message) : null)
+            ->filter()
+            ->countBy()
+            ->all();
 
         Log::info('Processing statistics generated', $this->sanitizeArrayForLog([
             'statistics' => $statistics,
@@ -542,16 +538,11 @@ class SermonProcessingLogger
             return $logs;
         }
 
-        foreach ($lines as $line) {
-            if (str_contains($line, $processingId)) {
-                $parsed = $this->parseReportLogLine($line);
-                if ($parsed !== null) {
-                    $logs->push($parsed);
-                }
-            }
-        }
-
-        return $logs;
+        return collect($lines)
+            ->filter(fn (string $line): bool => str_contains($line, $processingId))
+            ->map(fn (string $line): ?array => $this->parseReportLogLine($line))
+            ->filter()
+            ->values();
     }
 
     /**
@@ -609,21 +600,21 @@ class SermonProcessingLogger
      */
     private function buildPerformanceMetrics(Collection $logs): array
     {
-        $metrics = [];
-
-        foreach ($logs as $log) {
-            if (str_contains(strtolower($log['message']), 'performance metrics')) {
+        return $logs->filter(fn (array $log): bool => str_contains(strtolower($log['message']), 'performance metrics'))
+            ->mapWithKeys(function (array $log): array {
                 if (preg_match('/execution_time_seconds":([\d.]+)/', $log['message'], $matches)) {
                     $step = $this->extractStepFromMessage($log['message']);
-                    $metrics[$step] = [
-                        'execution_time' => (float) $matches[1],
-                        'timestamp' => $log['timestamp'],
+
+                    return [
+                        $step => [
+                            'execution_time' => (float) $matches[1],
+                            'timestamp' => $log['timestamp'],
+                        ],
                     ];
                 }
-            }
-        }
 
-        return $metrics;
+                return [];
+            })->all();
     }
 
     private function extractStepFromMessage(string $message): string
