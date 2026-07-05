@@ -21,13 +21,27 @@
     }
 
     $xData = $saveAction
-        ? sprintf('{ topVisible: true, saveAction: %s, save() { this.$wire.call(this.saveAction); } }', \Illuminate\Support\Js::from($saveAction))
+        ? sprintf('{
+            topVisible: true,
+            saveAction: %s,
+            save() { this.$wire.call(this.saveAction); },
+            confirmDiscard(e) {
+                if (this.$wire.dirty && !confirm("You have unsaved changes. Are you sure you want to leave?")) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    return false;
+                }
+            }
+        }', \Illuminate\Support\Js::from($saveAction))
         : '{ topVisible: true }';
 
     $hotkeyAttributes = $hotkeyAttributes->merge(['x-data' => $xData]);
 @endphp
 
-<div {{ $hotkeyAttributes }}>
+<div {{ $hotkeyAttributes }}
+    @click.capture="if ($event.target.closest('a:not([href^=\'#\']):not([target=\'_blank\'])')) confirmDiscard($event)"
+    @window.beforeunload="if ($wire.dirty) $event.returnValue = 'You have unsaved changes.';"
+>
     <x-admin.page
         :title="$title"
         :description="$description"
@@ -39,6 +53,11 @@
                 x-intersect:leave="topVisible = false"
                 class="flex items-center gap-2"
             >
+                @if($saveAction)
+                    <div class="hidden lg:flex items-center gap-1 px-1.5 py-1 rounded bg-gray-100 text-gray-400 text-[10px] font-medium uppercase tracking-widest border border-gray-200" title="Keyboard shortcut to save">
+                        <kbd class="font-sans" x-text="navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl'"></kbd><span>+</span><kbd class="font-sans">S</kbd>
+                    </div>
+                @endif
                 @isset($actions){{ $actions }}@endisset
             </div>
         </x-slot:actions>
@@ -82,6 +101,11 @@
                             </div>
                         </div>
                         <div class="flex flex-1 sm:flex-none items-center justify-end gap-2">
+                            @if($saveAction)
+                                <div class="hidden lg:flex items-center gap-1 px-1.5 py-1 rounded bg-white/50 text-gray-400 text-[10px] font-medium uppercase tracking-widest border border-gray-200 mr-2" title="Keyboard shortcut to save">
+                                    <kbd class="font-sans" x-text="navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl'"></kbd><span>+</span><kbd class="font-sans">S</kbd>
+                                </div>
+                            @endif
                             {{ $actions }}
                         </div>
                     </div>
