@@ -166,6 +166,62 @@ class CalendarControllerTest extends TestCase
     }
 
     #[Test]
+    public function events_for_meeting_json_ld_only_offers_events_that_have_not_finished(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 5, 12, 12, 0, 0));
+
+        $meeting = Meeting::factory()->create(['slug' => 'offer-gating-meeting']);
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'offer-gating-meeting',
+            'title' => 'Future Meeting Event',
+            'status' => 'confirmed',
+            'start_datetime' => now()->addDay(),
+            'end_datetime' => now()->addDay()->addHour(),
+        ]);
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'offer-gating-meeting',
+            'title' => 'Finished Meeting Event',
+            'status' => 'confirmed',
+            'start_datetime' => now()->subDay(),
+            'end_datetime' => now()->subDay()->addHour(),
+        ]);
+
+        $response = $this->get(route('meetings.events', $meeting));
+        $response->assertStatus(200);
+
+        $items = collect($this->extractItemListStructuredData($response->getContent())['itemListElement'])
+            ->keyBy(fn (array $element): string => $element['item']['name']);
+
+        $this->assertArrayHasKey('offers', $items['Future Meeting Event']['item']);
+        $this->assertSame(
+            'https://schema.org/InStock',
+            $items['Future Meeting Event']['item']['offers']['availability'],
+        );
+
+        $this->assertArrayNotHasKey('offers', $items['Finished Meeting Event']['item']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function extractItemListStructuredData(string $html): array
+    {
+        preg_match_all('#<script type="application/ld\+json">(.*?)</script>#s', $html, $matches);
+
+        foreach ($matches[1] as $json) {
+            $decoded = json_decode(trim($json), true);
+
+            if (($decoded['@type'] ?? null) === 'ItemList') {
+                return $decoded;
+            }
+        }
+
+        $this->fail('No ItemList JSON-LD block found in the response.');
+    }
+
+    #[Test]
     public function events_for_meeting_shows_seo_metadata_with_display_name(): void
     {
         // Without a related Page, the heading accessor falls back to Str::title(slug)

@@ -24,6 +24,24 @@
     :meta-tags="false"
 >
     @push('meta_tags')
+        {{--
+            Performance Optimization: Resolve organization config and asset values once
+            to avoid redundant helper calls across multiple Schema.org metadata blocks.
+        --}}
+        @php
+            $orgName = (string) config('organization.name');
+            $orgUrl = url('/');
+            $orgStreet = (string) config('organization.address.street');
+            $orgLocality = (string) config('organization.address.locality');
+            $orgRegion = (string) config('organization.address.region');
+            $orgPostalCode = (string) config('organization.address.postal_code');
+            $orgCountry = (string) config('organization.address.country');
+            $orgLatitude = config('organization.geo.latitude');
+            $orgLongitude = config('organization.geo.longitude');
+            $primaryImage = asset('images/Primary.png');
+            $currentUrl = url()->current();
+            $appUrl = (string) config('app.url');
+        @endphp
         <x-meta-tags
             :title="$pageTitle"
             :description="$description ?? $heading"
@@ -46,13 +64,13 @@
                     '@' . 'context' => 'https://schema.org',
                     '@type' => 'Event',
                     'name' => $heading,
-                    'description' => \Illuminate\Support\Str::limit(strip_tags($description ?? $heading), 150),
-                    'image' => $headingpicture ?? asset('images/Primary.png'),
+                    'description' => \Illuminate\Support\Str::limit(strip_tags((string) ($description ?? $heading)), 150),
+                    'image' => $headingpicture ?? $primaryImage,
                     'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
                     'eventStatus' => 'https://schema.org/EventScheduled',
-                    'location' => (function() use ($meeting) {
-                        $locName = $meeting->location ?? config('organization.name');
-                        $isOnsite = blank($meeting->location) || strcasecmp(trim($meeting->location), config('organization.name')) === 0;
+                    'location' => (function() use ($meeting, $orgName, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $orgLatitude, $orgLongitude) {
+                        $locName = $meeting->location ?? $orgName;
+                        $isOnsite = blank($meeting->location) || strcasecmp(trim($meeting->location), $orgName) === 0;
 
                         $location = [
                             '@type' => 'Place',
@@ -62,16 +80,16 @@
                         if ($isOnsite) {
                             $location['address'] = [
                                 '@type' => 'PostalAddress',
-                                'streetAddress' => config('organization.address.street'),
-                                'addressLocality' => config('organization.address.locality'),
-                                'addressRegion' => config('organization.address.region'),
-                                'postalCode' => config('organization.address.postal_code'),
-                                'addressCountry' => config('organization.address.country'),
+                                'streetAddress' => $orgStreet,
+                                'addressLocality' => $orgLocality,
+                                'addressRegion' => $orgRegion,
+                                'postalCode' => $orgPostalCode,
+                                'addressCountry' => $orgCountry,
                             ];
                             $location['geo'] = [
                                 '@type' => 'GeoCoordinates',
-                                'latitude' => config('organization.geo.latitude'),
-                                'longitude' => config('organization.geo.longitude'),
+                                'latitude' => $orgLatitude,
+                                'longitude' => $orgLongitude,
                             ];
                         }
 
@@ -79,13 +97,13 @@
                     })(),
                     'organizer' => [
                         '@type' => 'Organization',
-                        'name' => config('organization.name'),
-                        'url' => url('/'),
-                        '@id' => config('app.url').'/#organization',
+                        'name' => $orgName,
+                        'url' => $orgUrl,
+                        '@id' => $appUrl . '/#organization',
                     ],
                     'offers' => [
                         '@type' => 'Offer',
-                        'url' => url()->current(),
+                        'url' => $currentUrl,
                         'price' => '0',
                         'priceCurrency' => 'GBP',
                         'availability' => 'https://schema.org/InStock',
@@ -121,22 +139,22 @@
                 {!! json_encode([
                     '@' . 'context' => 'https://schema.org',
                     '@type' => 'ItemList',
-                    'itemListElement' => $upcomingEvents->map(function ($event, $index) use ($heading, $meeting, $headingpicture, $pageDescription) {
+                    'itemListElement' => $upcomingEvents->map(function ($event, $index) use ($heading, $meeting, $headingpicture, $pageDescription, $orgName, $orgUrl, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $orgLatitude, $orgLongitude, $primaryImage, $currentUrl, $appUrl) {
                         $eventData = [
                             '@type' => 'ListItem',
                             'position' => $index + 1,
                             'item' => [
                                 '@type' => 'Event',
-                                '@id' => request()->url() . '#event-' . $event->id,
+                                '@id' => $currentUrl . '#event-' . $event->id,
                                 'name' => $event->title,
-                                'description' => \Illuminate\Support\Str::limit(strip_tags($event->description ?? $pageDescription ?? $heading), 150),
+                                'description' => \Illuminate\Support\Str::limit(strip_tags((string) ($event->description ?? $pageDescription ?? $heading)), 150),
                                 'startDate' => $event->start_datetime->toIso8601String(),
                                 'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
                                 'eventStatus' => 'https://schema.org/EventScheduled',
-                                'location' => (function() use ($event, $meeting) {
+                                'location' => (function() use ($event, $meeting, $orgName, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $orgLatitude, $orgLongitude) {
                                     $rawLocation = $event->location ?? $meeting->location;
-                                    $locName = $rawLocation ?? config('organization.name');
-                                    $isOnsite = blank($rawLocation) || strcasecmp(trim($rawLocation), config('organization.name')) === 0;
+                                    $locName = $rawLocation ?? $orgName;
+                                    $isOnsite = blank($rawLocation) || strcasecmp(trim($rawLocation), $orgName) === 0;
 
                                     $location = [
                                         '@type' => 'Place',
@@ -146,31 +164,31 @@
                                     if ($isOnsite) {
                                         $location['address'] = [
                                             '@type' => 'PostalAddress',
-                                            'streetAddress' => config('organization.address.street'),
-                                            'addressLocality' => config('organization.address.locality'),
-                                            'addressRegion' => config('organization.address.region'),
-                                            'postalCode' => config('organization.address.postal_code'),
-                                            'addressCountry' => config('organization.address.country'),
+                                            'streetAddress' => $orgStreet,
+                                            'addressLocality' => $orgLocality,
+                                            'addressRegion' => $orgRegion,
+                                            'postalCode' => $orgPostalCode,
+                                            'addressCountry' => $orgCountry,
                                         ];
                                         $location['geo'] = [
                                             '@type' => 'GeoCoordinates',
-                                            'latitude' => config('organization.geo.latitude'),
-                                            'longitude' => config('organization.geo.longitude'),
+                                            'latitude' => $orgLatitude,
+                                            'longitude' => $orgLongitude,
                                         ];
                                     }
 
                                     return $location;
                                 })(),
-                                'image' => $headingpicture ?? asset('images/Primary.png'),
+                                'image' => $headingpicture ?? $primaryImage,
                                 'organizer' => [
                                     '@type' => 'Organization',
-                                    'name' => config('organization.name'),
-                                    'url' => url('/'),
-                                    '@id' => config('app.url').'/#organization',
+                                    'name' => $orgName,
+                                    'url' => $orgUrl,
+                                    '@id' => $appUrl . '/#organization',
                                 ],
                                 'offers' => [
                                     '@type' => 'Offer',
-                                    'url' => url()->current(),
+                                    'url' => $currentUrl,
                                     'price' => '0',
                                     'priceCurrency' => 'GBP',
                                     'availability' => 'https://schema.org/InStock',

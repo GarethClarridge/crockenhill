@@ -26,23 +26,42 @@
         />
 
         @if($schemaEvents->isNotEmpty())
+            {{--
+                Performance Optimization: Resolve organization config and asset values once
+                outside the loop to avoid redundant helper calls for every event in the list.
+            --}}
+            @php
+                $orgName = (string) config('organization.name');
+                $orgUrl = url('/');
+                $orgStreet = (string) config('organization.address.street');
+                $orgLocality = (string) config('organization.address.locality');
+                $orgRegion = (string) config('organization.address.region');
+                $orgPostalCode = (string) config('organization.address.postal_code');
+                $orgCountry = (string) config('organization.address.country');
+                $orgLatitude = config('organization.geo.latitude');
+                $orgLongitude = config('organization.geo.longitude');
+                $primaryImage = asset('images/Primary.png');
+                $currentUrl = url()->current();
+                $appUrl = (string) config('app.url');
+            @endphp
             <script type="application/ld+json">
                 {!! json_encode([
                     '@' . 'context' => 'https://schema.org',
                     '@type' => 'ItemList',
-                    'itemListElement' => $schemaEvents->values()->map(function ($event, $index) use ($meeting) {
+                    'itemListElement' => $schemaEvents->values()->map(function ($event, $index) use ($meeting, $orgName, $orgUrl, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $orgLatitude, $orgLongitude, $primaryImage, $currentUrl, $appUrl) {
                         $eventData = [
                             '@type' => 'ListItem',
                             'position' => $index + 1,
                             'item' => [
                                 '@type' => 'Event',
+                                '@id' => $currentUrl . '#event-' . $event->id,
                                 'name' => $event->title,
-                                'description' => \Illuminate\Support\Str::limit(strip_tags((string) ($event->description ?? 'Church event at Crockenhill Baptist Church')), 150),
+                                'description' => \Illuminate\Support\Str::limit(strip_tags((string) ($event->description ?? "Church event at {$orgName}")), 150),
                                 'startDate' => $event->start_datetime->toIso8601String(),
-                                'location' => (function() use ($event, $meeting) {
+                                'location' => (function() use ($event, $meeting, $orgName, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $orgLatitude, $orgLongitude) {
                                     $rawLocation = $event->location ?? $meeting->location;
-                                    $locName = $rawLocation ?? config('organization.name');
-                                    $isOnsite = blank($rawLocation) || strcasecmp(trim($rawLocation), config('organization.name')) === 0;
+                                    $locName = $rawLocation ?? $orgName;
+                                    $isOnsite = blank($rawLocation) || strcasecmp(trim($rawLocation), $orgName) === 0;
 
                                     $location = [
                                         '@type' => 'Place',
@@ -52,32 +71,48 @@
                                     if ($isOnsite) {
                                         $location['address'] = [
                                             '@type' => 'PostalAddress',
-                                            'streetAddress' => config('organization.address.street'),
-                                            'addressLocality' => config('organization.address.locality'),
-                                            'addressRegion' => config('organization.address.region'),
-                                            'postalCode' => config('organization.address.postal_code'),
-                                            'addressCountry' => config('organization.address.country'),
+                                            'streetAddress' => $orgStreet,
+                                            'addressLocality' => $orgLocality,
+                                            'addressRegion' => $orgRegion,
+                                            'postalCode' => $orgPostalCode,
+                                            'addressCountry' => $orgCountry,
                                         ];
                                         $location['geo'] = [
                                             '@type' => 'GeoCoordinates',
-                                            'latitude' => config('organization.geo.latitude'),
-                                            'longitude' => config('organization.geo.longitude'),
+                                            'latitude' => $orgLatitude,
+                                            'longitude' => $orgLongitude,
                                         ];
                                     }
 
                                     return $location;
                                 })(),
-                                'image' => asset('images/Primary.png'),
+                                'image' => $primaryImage,
                                 'organizer' => [
                                     '@type' => 'Organization',
-                                    'name' => config('organization.name'),
-                                    'url' => url('/'),
+                                    'name' => $orgName,
+                                    'url' => $orgUrl,
+                                    '@id' => $appUrl . '/#organization',
                                 ],
                             ],
                         ];
 
                         if ($event->end_datetime) {
                             $eventData['item']['endDate'] = $event->end_datetime->toIso8601String();
+                        }
+
+                        // This listing includes recent past meetings, so only advertise an
+                        // active offer for events that have not yet finished; marking a
+                        // concluded event as InStock would be inaccurate structured data.
+                        $eventEnd = $event->end_datetime ?? $event->start_datetime;
+
+                        if ($eventEnd->isFuture()) {
+                            $eventData['item']['offers'] = [
+                                '@type' => 'Offer',
+                                'url' => $currentUrl,
+                                'price' => '0',
+                                'priceCurrency' => 'GBP',
+                                'availability' => 'https://schema.org/InStock',
+                            ];
                         }
 
                         return $eventData;
