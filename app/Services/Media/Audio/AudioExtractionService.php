@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Media\Audio;
 
 use App\Enums\MediaType;
+use App\Exceptions\InvalidFileException;
 use App\Services\Processing\MediaValidationService;
 use App\Traits\SanitizesLogData;
 use FFMpeg\FFMpeg;
@@ -145,7 +146,7 @@ class AudioExtractionService
      *
      * @param  UploadedFile  $file  The uploaded file to validate
      *
-     * @throws \App\Exceptions\InvalidFileException If the file is too large or an unsupported format
+     * @throws InvalidFileException If the file is too large or an unsupported format
      */
     public function validateAudioFile(UploadedFile $file): void
     {
