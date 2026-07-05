@@ -11,12 +11,12 @@
         <a
             href="{{ route('childrens-corner.show', ['sermon' => $sermon->slug]) }}"
             wire:navigate
-            aria-label="{{ $sermon->title }}"
-            class="relative z-10 block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
+            class="relative z-10 block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 after:absolute after:inset-0"
         >
             <img
                 src="{{ $cardThumbnailUrl }}"
-                alt="Children's talk: {{ $sermon->title }}"
+                alt=""
+                role="presentation"
                 class="h-full w-full object-cover brightness-110 contrast-105 transition duration-500 ease-out group-hover:scale-105 group-hover:brightness-115"
                 loading="lazy"
             >
@@ -37,8 +37,7 @@
                 <a
                     href="{{ route('childrens-corner.show', ['sermon' => $sermon->slug]) }}"
                     wire:navigate
-                    aria-label="{{ $sermon->title }}"
-                    class="relative z-10 block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
+                    class="relative z-10 block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 after:absolute after:inset-0"
                 >
                     <h2 class="font-display text-2xl leading-tight text-gray-900 transition-colors hover:text-cbc-teal-dark">
                         {{ $sermon->title }}
@@ -93,8 +92,8 @@
                 variant="secondary"
                 size="sm"
                 inline
-                class="after:absolute after:inset-0"
-                aria-label="View children's talk: {{ $sermon->title }}"
+                tabindex="-1"
+                aria-hidden="true"
             >
                 Open talk
             </x-button>

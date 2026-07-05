@@ -67,7 +67,8 @@
         <div class="overflow-hidden rounded-xl shadow-sm border border-gray-100">
             <img
                 src="{{ $sermonView['thumbnail_url'] }}"
-                alt="Sermon: {{ $sermon->title }}"
+                alt=""
+                role="presentation"
                 class="w-full max-h-96 object-cover">
         </div>
         @endif
