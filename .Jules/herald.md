@@ -29,3 +29,7 @@
 ## 2026-06-20 - Documenting Preacher Resolution and Speaker Identification
 **Learning:** Documenting the "why" in preacher services involves explaining the fallback strategies (e.g., mapping empty names to 'Visiting Speaker') and the technical boundaries of speaker identification (delegating to Python scripts for embedding extraction). Precise generic collection types like `Collection<int, SpeakerProfile>` and `list<array<int, float>>` significantly clarify the data flow in identification pipelines.
 **Action:** When documenting services that rely on external scripts or complex matching logic, explicitly mention the underlying technology (e.g., Python/Resemblyzer) and the matching strategy (e.g., cosine similarity) to provide context for thresholds and error modes.
+
+## 2026-06-25 - Documenting Automated Fallbacks and Non-Fatal Failures
+**Learning:** Public methods in core media services (like `AudioExtractionService`) often implement automatic fallback logic (e.g., re-encoding if a file exceeds the Whisper 25MB limit). Explicitly documenting these fallbacks and the technical constraints that trigger them (e.g., specific file sizes or bitrate settings) is crucial for developers to understand the pipeline's resilience and capacity.
+**Action:** Always highlight automatic recovery paths and technical limits (bitrates, file sizes, timeouts) in service PHPDoc to clarify the "contract" between the service and the infrastructure it interacts with.

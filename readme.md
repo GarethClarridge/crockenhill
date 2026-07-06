@@ -98,12 +98,12 @@ The project has a comprehensive test suite with over 1,200 tests.
 
 ## Documentation
 
-Detailed documentation can be found in the `docs/` directory:
+Start at [docs/README.md](docs/README.md) — it maps the whole `docs/` directory. Highlights:
 
-- [Architecture Overview](docs/architecture/)
-- [Deployment Guide](docs/deployment-guide.md)
-- [Media Processing Architecture](docs/video-processing-architecture.md)
-- [SEO Setup Guide](docs/SEO_SETUP_GUIDE.md)
+- [Production operations](docs/operations/production.md) — stack, queues, deploy/rollback
+- [API reference](docs/api/media-processing.md)
+- [Design style guide](docs/design-style-guide.md)
+- [SEO setup guide](docs/operations/SEO_SETUP_GUIDE.md)
 
 ## License
 

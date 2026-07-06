@@ -13,7 +13,7 @@ fixes, R-track moves, Horizon/backup/health adoptions all present); the only sta
 P5's `laravel/ai` version, corrected below. No phase verdict changed. The single open in-scope item
 remains P1's staging smoke test.
 Implements the findings in
-[docs/reviews/project-wide-improvement-review-2026-06-03.md](../reviews/project-wide-improvement-review-2026-06-03.md).
+`project-wide-improvement-review-2026-06-03.md` (deleted 2026-07-05 — in git history).
 
 **What changed in the refresh.** The original plan was written as a forward checklist; within a week,
 its structural phases (R1–R3) had landed and invalidated the file paths, inventories, and premises of

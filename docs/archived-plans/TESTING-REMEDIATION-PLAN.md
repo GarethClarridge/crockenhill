@@ -1,6 +1,6 @@
 # Testing Remediation Plan
 
-Created 2026-06-04 from the findings in [docs/reviews/2026-06-04-testing-review.md](../reviews/2026-06-04-testing-review.md).
+Created 2026-06-04 from the findings in `2026-06-04-testing-review.md` (deleted 2026-07-05 — in git history).
 
 This plan turns each recommendation (R1–R9) in that review into an ordered, verifiable phase. Phases are numbered `T1…T9` and map 1:1 to the review's recommendation IDs. Each phase is independently shippable.
 

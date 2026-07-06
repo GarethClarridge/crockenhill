@@ -48,6 +48,9 @@ class MeetingTest extends TestCase
         $meetingWithDate = Meeting::factory()->create([
             'meeting_date' => $date,
             'start_time' => '10:30:00',
+            // Pin end_time so the factory's random value can't land before this
+            // start and trip the meetings_time_check constraint intermittently.
+            'end_time' => '11:30:00',
         ]);
         $this->assertEquals('January 15, 2023, 10:30 AM', $meetingWithDate->formatted_date_time);
 

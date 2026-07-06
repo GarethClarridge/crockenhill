@@ -7,8 +7,10 @@ namespace Tests\Integration\Services;
 use App\Enums\PageArea;
 use App\Models\Page;
 use App\Services\Public\PageCardService;
+use App\Services\Public\PageListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -24,6 +26,7 @@ class PageCardServiceTest extends TestCase
         $this->forgetPageCardCaches();
 
         $this->service = app(PageCardService::class);
+        DB::disableQueryLog();
     }
 
     #[Test]
@@ -64,8 +67,7 @@ class PageCardServiceTest extends TestCase
     #[Test]
     public function it_uses_a_surface_specific_cache_for_home_cards(): void
     {
-        $this->forgetFlexibleCache('page_card_rail_home');
-        $this->forgetFlexibleCache('page_links_community');
+        $this->forgetPageCardCaches();
 
         $this->deletePagesForSlugs([
             'sunday-evenings',
@@ -91,13 +93,26 @@ class PageCardServiceTest extends TestCase
             'admin' => 'no',
         ]);
 
-        $results = $this->service->forHome();
+        DB::enableQueryLog();
 
-        $this->assertTrue(Cache::has('page_card_rail_home'));
-        $this->assertFalse(Cache::has('page_links_community'));
+        // First call should hit the database
+        $results = $this->service->forHome();
+        $queryCountAfterFirst = count(DB::getQueryLog());
+        $this->assertGreaterThan(0, $queryCountAfterFirst);
+
+        // Second call should be served from cache
+        $resultsSecond = $this->service->forHome();
+        $this->assertCount($queryCountAfterFirst, DB::getQueryLog());
+
+        // Verify isolation: calling forHome should NOT cache forCommunity
+        $this->service->forCommunity();
+        $this->assertGreaterThan($queryCountAfterFirst, count(DB::getQueryLog()));
+
         $this->assertTrue($results->contains('slug', 'sunday-evenings'));
         $this->assertTrue($results->contains('slug', 'bible-study'));
         $this->assertFalse($results->contains('slug', 'unrelated-page'));
+
+        $this->assertEquals($results, $resultsSecond);
     }
 
     #[Test]
@@ -250,22 +265,13 @@ class PageCardServiceTest extends TestCase
         Page::query()->whereIn('slug', $slugs)->delete();
     }
 
-    private function forgetFlexibleCache(string $cacheKey): void
-    {
-        Cache::forget($cacheKey);
-        Cache::forget("illuminate:cache:flexible:created:{$cacheKey}");
-    }
-
     private function forgetPageCardCaches(): void
     {
-        foreach ([
-            'page_card_rail_home',
-            'page_card_rail_community',
-            'page_card_rail_church',
-            'page_links_church',
-            'page_links_community',
-        ] as $cacheKey) {
-            $this->forgetFlexibleCache($cacheKey);
-        }
+        /** @var PageListCache $repository */
+        $repository = app(PageListCache::class);
+
+        $repository->clearAreaCache(PageArea::Church);
+        $repository->clearAreaCache(PageArea::Community);
+        $repository->clearInternalCaches();
     }
 }

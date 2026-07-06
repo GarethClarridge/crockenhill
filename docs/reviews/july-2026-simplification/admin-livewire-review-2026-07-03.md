@@ -1,8 +1,8 @@
 # Admin & Livewire Surface Review — July 2026 Simplification Review, Phase 6
 
-Date: 2026-07-03. Medium-depth session per the plan (`docs/plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md`). No code changes made.
+Date: 2026-07-03. Medium-depth session per the plan (`docs/archived-plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md`). No code changes made.
 
-Prior art checked: the April Livewire-responsibility review (`docs/april-2026-review/livewire-view-responsibility-review-2026-04-16.md`), `docs/plans/SIMPLIFICATION-PLAN.md` (Phases 16–18 already consolidated the upload component once), and `docs/architecture/simplification-backlog.md`.
+Prior art checked: the April Livewire-responsibility review (`docs/april-2026-review/livewire-view-responsibility-review-2026-04-16.md`, deleted 2026-07-05 — in git history), `docs/archived-plans/SIMPLIFICATION-PLAN.md` (Phases 16–18 already consolidated the upload component once), and `docs/architecture/simplification-backlog.md`.
 
 ## 1. Scope reviewed
 

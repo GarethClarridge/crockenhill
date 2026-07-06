@@ -309,6 +309,18 @@ class SermonProcessingLoggerTest extends TestCase
             });
     }
 
+    #[Test]
+    public function it_logs_a_result_without_a_status_as_debug_without_erroring(): void
+    {
+        $this->logger->logHealthCheck('mystery', ['message' => 'no status key']);
+
+        Log::shouldHaveReceived('log')
+            ->once()
+            ->withArgs(function (string $level, string $message, array $context) {
+                return $level === 'debug' && $context['status'] === 'unknown';
+            });
+    }
+
     // --- generateProcessingStatistics() ---
 
     #[Test]

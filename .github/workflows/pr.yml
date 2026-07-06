@@ -48,7 +48,7 @@ jobs:
         uses: ./.github/actions/setup-laravel
 
       # Security audits run on every PR (previously nightly-only — see D2 of
-      # docs/plans/TECHNICAL-DEBT-REMEDIATION-2026-06-18.md). Placed before the
+      # docs/archived-plans/TECHNICAL-DEBT-REMEDIATION-2026-06-18.md). Placed before the
       # test run so a vulnerable dependency fails fast. Both are scoped to
       # production dependencies (the code that actually ships), so advisories in
       # dev/CI tooling (PHPUnit, puppeteer, Lighthouse CI, …) don't block feature

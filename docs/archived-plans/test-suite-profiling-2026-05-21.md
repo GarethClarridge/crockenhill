@@ -1,6 +1,6 @@
 # Test Suite Profiling Report — 2026-05-21
 
-Companion to [test-output-performance-report.md](./test-output-performance-report.md). That earlier
+Companion to `test-output-performance-report.md` (deleted 2026-07-05 — in git history). That earlier
 report identified individual slow files by reading test output; this one is grounded in a fresh
 JUnit-logged run of the entire parallel suite and surfaces a different (and larger) root cause.
 

@@ -887,4 +887,4 @@ Notes:
 
 ## Known issues
 
-See `docs/operations/section-extraction-findings-2026-06-20.md` for issues discovered from these fixtures. Interpret any publication-related finding in light of this harness’s deliberate stopping point.
+See `docs/archived-plans/section-extraction-findings-2026-06-20.md` for issues discovered from these fixtures (all since fixed or consciously parked). Interpret any publication-related finding in light of this harness’s deliberate stopping point.

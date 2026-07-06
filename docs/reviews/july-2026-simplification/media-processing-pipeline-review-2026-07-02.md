@@ -2,18 +2,18 @@
 
 Date: 2026-07-02. Phase 1 of the July 2026 simplification review, following the doctrine, ground
 rules, and template in
-[JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md](../../plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md).
+[JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md](../../archived-plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md).
 Findings only — no code changes. Removals are flagged, never decided; sign-off happens in Phase 8.
 
 Prior art checked and referenced rather than re-derived:
-[SIMPLIFICATION-PLAN.md](../../plans/SIMPLIFICATION-PLAN.md) (Phases 9, 14, 25),
+[SIMPLIFICATION-PLAN.md](../../archived-plans/SIMPLIFICATION-PLAN.md) (Phases 9, 14, 25),
 [simplification-backlog.md](../../architecture/simplification-backlog.md) (PRs 6, 16–19, 21, parking lot),
-[media-processing-architecture-and-observability-review-2026-04-16.md](../../april-2026-review/media-processing-architecture-and-observability-review-2026-04-16.md),
-[thumbnail-system-redesign-review-2026-04-01.md](../../reviews/thumbnail-system-redesign-review-2026-04-01.md),
+`media-processing-architecture-and-observability-review-2026-04-16.md` (deleted 2026-07-05 — in git history),
+`thumbnail-system-redesign-review-2026-04-01.md` (deleted 2026-07-05 — in git history),
 [TECHNICAL-DEBT-REMEDIATION-2026-06-18.md](../../archived-plans/TECHNICAL-DEBT-REMEDIATION-2026-06-18.md),
-[2026-07-01-dead-sermon-validation-service-audit.md](../../issues/2026-07-01-dead-sermon-validation-service-audit.md),
+`2026-07-01-dead-sermon-validation-service-audit.md` (folded into `docs/issues/README.md`, source deleted),
 and the exemplar plan
-[LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md](../../plans/LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md).
+[LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md](../../archived-plans/LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md).
 
 ---
 
