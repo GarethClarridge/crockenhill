@@ -119,9 +119,9 @@ class SermonApiController extends Controller
     }
 
     /**
-     * Display the specified sermon
+     * Display the specified sermon.
      *
-     * @throws NotFoundHttpException
+     * @throws NotFoundHttpException If the sermon is not found or not exposed.
      */
     public function show(Sermon $sermon, SermonExposurePolicy $exposurePolicy): SermonResource
     {

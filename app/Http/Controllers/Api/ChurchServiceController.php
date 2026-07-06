@@ -22,6 +22,7 @@ class ChurchServiceController extends Controller
 
     /**
      * @throws NotFoundHttpException
+     * @throws ValidationException
      */
     public function store(UploadChurchServiceRequest $request): JsonResponse
     {

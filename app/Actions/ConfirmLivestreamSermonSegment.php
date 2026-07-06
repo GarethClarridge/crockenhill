@@ -12,6 +12,7 @@ use App\Services\Media\Video\VideoStorageService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Traits\SanitizesLogData;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -31,6 +32,8 @@ class ConfirmLivestreamSermonSegment
      * the post-review processing chain. Returns the dispatched batch.
      *
      * @throws SafeInvalidArgumentException When preconditions are not met
+     * @throws BindingResolutionException If the orchestrator cannot be resolved
+     * @throws \Throwable For unexpected database or orchestration failures
      */
     public function execute(string $processingId, int $segmentId, User $user): void
     {
