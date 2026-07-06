@@ -34,6 +34,7 @@ class SermonSchemaTest extends TestCase
             'date' => '2024-05-19',
             'series' => 'Test Series',
             'reference' => 'John 3:16',
+            'preacher' => 'David Johnson',
         ]);
 
         $response = $this->get("/christ/sermons/2024/05/{$sermon->slug}");
@@ -42,7 +43,7 @@ class SermonSchemaTest extends TestCase
         $content = $response->getContent();
 
         // Verify keywords
-        $this->assertStringContainsString('"keywords": "Test Series"', $content);
+        $this->assertStringContainsString('"keywords": "Test Series, David Johnson, John 3:16"', $content);
 
         // Verify isPartOf (Series)
         $this->assertStringContainsString('"isPartOf": {', $content);
@@ -64,6 +65,7 @@ class SermonSchemaTest extends TestCase
             'date' => '2024-05-19',
             'series' => 'List Series',
             'reference' => 'Genesis 1:1',
+            'preacher' => 'David Johnson',
         ]);
 
         $presenter = app(SermonItemListPresenter::class);
@@ -71,7 +73,7 @@ class SermonSchemaTest extends TestCase
 
         $item = $result['itemListElement'][0]['item'];
 
-        $this->assertEquals('List Series', $item['keywords']);
+        $this->assertEquals('List Series, David Johnson, Genesis 1:1', $item['keywords']);
 
         $this->assertArrayHasKey('isPartOf', $item);
         $this->assertEquals('CreativeWorkSeries', $item['isPartOf']['@type']);
@@ -90,6 +92,7 @@ class SermonSchemaTest extends TestCase
             'title' => 'Minimal Sermon',
             'series' => null,
             'reference' => null,
+            'preacher' => 'David Johnson',
         ]);
 
         $presenter = app(SermonItemListPresenter::class);
@@ -97,7 +100,7 @@ class SermonSchemaTest extends TestCase
 
         $item = $result['itemListElement'][0]['item'];
 
-        $this->assertArrayNotHasKey('keywords', $item);
+        $this->assertEquals('David Johnson', $item['keywords']);
         $this->assertArrayNotHasKey('isPartOf', $item);
         $this->assertArrayNotHasKey('about', $item);
     }

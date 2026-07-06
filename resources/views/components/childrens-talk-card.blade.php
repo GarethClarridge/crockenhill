@@ -51,7 +51,11 @@
                 <x-heroicon-s-calendar class="h-5 w-5 shrink-0 text-cbc-teal" aria-hidden="true" />
                 <div>
                     <dt class="sr-only">Date</dt>
-                    <dd>{{ $sermon->date->format('j F Y') }}</dd>
+                    <dd>
+                        <time datetime="{{ $sermon->date->toDateString() }}">
+                            {{ $sermon->date->format('j F Y') }}
+                        </time>
+                    </dd>
                 </div>
             </div>
 
