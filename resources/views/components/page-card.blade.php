@@ -50,6 +50,7 @@
             class="w-full justify-between rounded-none text-left font-normal"
             tabindex="-1"
             aria-hidden="true"
+            aria-label="Learn about {{ $pageHeading }}"
         >
             Learn about {{ $pageHeading }}
         </x-button>

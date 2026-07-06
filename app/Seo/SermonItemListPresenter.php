@@ -60,7 +60,7 @@ class SermonItemListPresenter
         $orgId = $appUrl.'/#organization';
 
         $publisher = $this->buildPublisher($orgName, $logoUrl, $orgId);
-        $contentLocation = $this->buildContentLocation($orgName);
+        $contentLocation = $this->buildContentLocation($orgName, $orgId);
         $worksFor = $this->buildWorksFor($orgName, $orgId);
 
         return [
@@ -99,11 +99,12 @@ class SermonItemListPresenter
     /**
      * @return array<string, mixed>
      */
-    private function buildContentLocation(string $orgName): array
+    private function buildContentLocation(string $orgName, string $orgId): array
     {
         return [
             '@type' => 'Place',
             'name' => $orgName,
+            '@id' => $orgId,
         ];
     }
 
@@ -189,6 +190,7 @@ class SermonItemListPresenter
             'dateModified' => $lastModified,
             'inLanguage' => 'en-GB',
             'genre' => 'Sermon',
+            'articleSection' => 'Sermons',
             'contentLocation' => $contentLocation,
             'author' => $author,
             'publisher' => $publisher,
@@ -199,8 +201,17 @@ class SermonItemListPresenter
             'image' => $sermonView['thumbnail_url'] ?: $logoUrl,
         ];
 
+        $keywords = array_filter([
+            $sermon->series,
+            $sermonView['preacher_name'],
+            $sermonView['display_reference'],
+        ]);
+
+        if ($keywords !== []) {
+            $article['keywords'] = implode(', ', $keywords);
+        }
+
         if ($sermon->series) {
-            $article['keywords'] = $sermon->series;
             $article['isPartOf'] = [
                 '@type' => 'CreativeWorkSeries',
                 'name' => $sermon->series,
@@ -263,14 +274,16 @@ class SermonItemListPresenter
         array $sermonView,
         string $datePublished,
         string $metaDescription,
+        string $logoUrl,
         array $author,
         array $publisher,
     ): array {
         $audio = [
             '@type' => 'AudioObject',
             'name' => $sermon->title,
-            'contentUrl' => $sermonView['audio_url'],
             'description' => $metaDescription,
+            'thumbnailUrl' => $sermonView['thumbnail_url'] ?: $logoUrl,
+            'contentUrl' => $sermonView['audio_url'],
             'encodingFormat' => 'audio/mpeg',
             'uploadDate' => $datePublished,
             'author' => $author,
@@ -336,6 +349,7 @@ class SermonItemListPresenter
                 $sermonView,
                 $datePublished,
                 $metaDescription,
+                $logoUrl,
                 $author,
                 $publisher,
             );
