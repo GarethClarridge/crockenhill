@@ -134,6 +134,14 @@ class ExtractSermonTest extends TestCase
         $this->assertNotNull($log->processing_metadata);
         $this->assertArrayHasKey('audio_compression', $log->processing_metadata);
         $this->assertTrue($log->processing_metadata['audio_compression']['compression_applied']);
+
+        // The resolved plan is recorded so the cut's provenance survives log rotation.
+        $plan = $log->processing_metadata['sermon_extraction_plan'] ?? null;
+        $this->assertIsArray($plan);
+        $this->assertSame('processing_log', $plan['source']);
+        $this->assertSame('baseline', $plan['mode']);
+        $this->assertEqualsWithDelta(300.0, $plan['segments'][0]['start_time'], 0.01);
+        $this->assertEqualsWithDelta(2100.0, $plan['segments'][0]['end_time'], 0.01);
         $this->assertDatabaseHas('sermon_processing_steps', [
             'processing_id' => $log->processing_id,
             'step' => ChurchServiceProcessingTimeline::EXTRACT_SERMON,

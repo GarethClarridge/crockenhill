@@ -140,6 +140,40 @@ class DetectServiceStructureTest extends TestCase
         );
         $this->assertSame('llm_structure', $sections[0]->metadata['classification_mode']);
         $this->assertNotSame(ProcessingStatus::Failed, $log->refresh()->status);
+
+        // The accepted sermon section's bounds replace the RMS guess on the
+        // run itself, so baseline extraction and external submission agree
+        // with the validated structure.
+        $this->assertEqualsWithDelta(600.0, (float) $log->sermon_start_time, 0.01);
+        $this->assertEqualsWithDelta(2200.0, (float) $log->sermon_end_time, 0.01);
+        $this->assertSame('llm_structure', $log->processing_metadata?->toArray()['sermon_bounds']['source'] ?? null);
+    }
+
+    #[Test]
+    public function primary_mode_never_moves_manually_confirmed_sermon_bounds(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 900.0,
+            'processing_metadata' => [
+                'manual_review' => [
+                    'status' => 'confirmed',
+                    'confirmed_segment_id' => 42,
+                ],
+            ],
+        ]);
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+        MockServiceStructureService::useStructure($this->validStructure());
+
+        $this->runJob($log);
+
+        $log->refresh();
+        $this->assertEqualsWithDelta(100.0, (float) $log->sermon_start_time, 0.01);
+        $this->assertEqualsWithDelta(900.0, (float) $log->sermon_end_time, 0.01);
+        $this->assertArrayNotHasKey('sermon_bounds', $log->processing_metadata?->toArray() ?? []);
     }
 
     #[Test]

@@ -83,6 +83,8 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 throw new \Exception('Invalid sermon extraction plan: no extraction segments were resolved');
             }
 
+            $this->recordExtractionPlanAudit($extractionPlan);
+
             Log::info('Starting sermon extraction', [
                 'processing_id' => $this->processingLog->processing_id,
                 'sermon_start_time' => $firstSegment['start_time'],
@@ -431,5 +433,28 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 'email_error' => $exception->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Keep a durable record of which bounds the clip was actually cut from.
+     * The "Starting sermon extraction" log line carries the same facts but
+     * does not survive log rotation; this metadata is what lets an operator
+     * later tell an LLM-structure cut from a silent RMS-baseline fallback.
+     *
+     * @param  array{mode: string, source: string, segments: array<int, array{start_time: float, end_time: float}>, metadata: array<string, mixed>}  $extractionPlan
+     */
+    private function recordExtractionPlanAudit(array $extractionPlan): void
+    {
+        $metadata = $this->processingLog->processing_metadata?->toArray() ?? [];
+        $metadata['sermon_extraction_plan'] = [
+            'source' => $extractionPlan['source'],
+            'mode' => $extractionPlan['mode'],
+            'strategy' => $extractionPlan['metadata']['strategy'] ?? null,
+            'reason' => $extractionPlan['metadata']['reason'] ?? null,
+            'segments' => $extractionPlan['segments'],
+            'resolved_at' => now()->toIso8601String(),
+        ];
+
+        $this->processingLog->forceFill(['processing_metadata' => $metadata])->save();
     }
 }
