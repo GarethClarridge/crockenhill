@@ -62,7 +62,7 @@ class EditSermon extends Component
 
         app(SaveSermonDetails::class)->execute($this->sermon, $validated);
 
-        $this->success('Sermon updated');
+        $this->success($this->contentTypeLabel.' updated');
     }
 
     public function setVideoVisibilityOverride(string $override): void

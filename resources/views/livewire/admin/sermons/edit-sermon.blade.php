@@ -12,7 +12,7 @@
                 : route('sermons.show', ['sermon' => $sermon->slug]);
         @endphp
         <x-button :link="$publicUrl" variant="ghost" icon="eye" inline>
-            View public
+            View {{ strtolower($contentTypeLabel) }}
         </x-button>
         <x-clipboard-button :content="$publicUrl" label="Copy link" title="Copy public link to clipboard" class="text-gray-500 hover:text-gray-700" />
         <x-button link="{{ route('admin.sermons.index') }}" variant="outline" inline>

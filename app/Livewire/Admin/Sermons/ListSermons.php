@@ -103,7 +103,7 @@ class ListSermons extends Component
             ],
         );
 
-        $this->success('Sermon deleted');
+        $this->success($sermon->content_type->label().' deleted');
     }
 
     /**
