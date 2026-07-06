@@ -459,14 +459,17 @@ class SermonMetadataIntegrationService
         }
 
         // For S3 files, we need to download temporarily for MIME type checking
-        $localPath = $disk
-            ? $this->storageHelper->downloadToTemp($videoPath, $disk, 'local', 'temp/validation')
-            : $videoPath;
+        $localPath = null;
+        $isS3Download = false;
 
-        $isS3Download = $disk && $localPath !== Storage::disk($disk)->path($videoPath);
-
-        // Check if it's a valid video file (basic MIME type check)
         try {
+            $localPath = $disk
+                ? $this->storageHelper->downloadToTemp($videoPath, $disk, 'local', 'temp/validation')
+                : $videoPath;
+
+            $isS3Download = $disk && $localPath !== Storage::disk($disk)->path($videoPath);
+
+            // Check if it's a valid video file (basic MIME type check)
             $mimeType = mime_content_type($localPath);
             if ($mimeType === false) {
                 Log::warning('Could not determine MIME type for video file', [

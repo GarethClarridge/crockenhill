@@ -145,6 +145,77 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_extracts_video_using_fallback_search_logic(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+        ]);
+
+        $sermon = Sermon::factory()->create();
+        $processingId = 'fallback-test-proc';
+        MediaProcessingLog::factory()->livestream()->processing()->create([
+            'processing_id' => $processingId,
+            'video_file_path' => null, // No path in log
+        ]);
+
+        $tempPath = "temp/livestreams/{$processingId}/segments/sermon.mp4";
+        $videoContent = "\x00\x00\x00\x18ftypmp42";
+        Storage::disk('local')->put($tempPath, $videoContent);
+
+        $finalPath = $this->service->storeVideoForSermon($processingId, $sermon->id);
+
+        $this->assertSame("sermons/{$sermon->id}/video.mp4", $finalPath);
+        Storage::disk('public')->assertExists($finalPath);
+    }
+
+    #[Test]
+    public function it_extracts_video_from_sermon_disk_if_already_moved(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+        ]);
+
+        $sermon = Sermon::factory()->create();
+        $processingId = 'moved-test-proc';
+        $relativePath = 'temp/sermon-video.mp4';
+
+        MediaProcessingLog::factory()->livestream()->processing()->create([
+            'processing_id' => $processingId,
+            'video_file_path' => $relativePath,
+        ]);
+
+        $videoContent = "\x00\x00\x00\x18ftypmp42";
+        Storage::disk('public')->put($relativePath, $videoContent);
+
+        $finalPath = $this->service->storeVideoForSermon($processingId, $sermon->id);
+
+        $this->assertSame("sermons/{$sermon->id}/video.mp4", $finalPath);
+    }
+
+    #[Test]
+    public function it_throws_exception_when_no_video_is_found_during_storage(): void
+    {
+        $sermon = Sermon::factory()->create();
+        MediaProcessingLog::factory()->livestream()->processing()->create([
+            'processing_id' => 'missing-video-proc',
+            'video_file_path' => null,
+        ]);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('No sermon video found for processing ID: missing-video-proc');
+
+        $this->service->storeVideoForSermon('missing-video-proc', $sermon->id);
+    }
+
+    #[Test]
     public function it_persists_the_sermon_video_to_permanent_storage(): void
     {
         Storage::fake('local');
@@ -160,13 +231,10 @@ class SermonMetadataIntegrationServiceTest extends TestCase
             'video_file_path' => 'temp/sermon-video.mp4',
         ]);
 
-        Storage::disk('local')->put('temp/sermon-video.mp4', str_repeat('video-bytes', 128));
+        // Use valid MP4 content to satisfy integrated validateVideoFile call
+        Storage::disk('local')->put('temp/sermon-video.mp4', "\x00\x00\x00\x18ftypmp42");
 
-        $service = $this->partialMock(SermonMetadataIntegrationService::class, function ($mock): void {
-            $mock->shouldReceive('validateVideoFile')->once()->andReturnTrue();
-        });
-
-        $finalPath = $service->storeVideoForSermon($log->processing_id, $sermon->id);
+        $finalPath = $this->service->storeVideoForSermon($log->processing_id, $sermon->id);
 
         $this->assertSame("sermons/{$sermon->id}/video.mp4", $finalPath);
         Storage::disk('public')->assertExists($finalPath);
@@ -289,6 +357,81 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     }
 
     // --- validateVideoFile() (local files) ---
+
+    #[Test]
+    public function it_rejects_unsupported_mime_types(): void
+    {
+        $tempTxt = tempnam(sys_get_temp_dir(), 'test_not_video_');
+        file_put_contents($tempTxt, 'This is a text file, not a video.');
+
+        try {
+            $this->assertFalse($this->service->validateVideoFile($tempTxt));
+        } finally {
+            @unlink($tempTxt);
+        }
+    }
+
+    #[Test]
+    public function it_returns_false_when_disk_download_fails_during_validation(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('remote/video.mp4', 'some content');
+
+        $helperMock = $this->mock(\App\Services\Processing\StorageAdapterHelper::class);
+        $helperMock->shouldReceive('downloadToTemp')
+            ->once()
+            ->andThrow(new \Exception('Download failed'));
+
+        $service = $this->app->make(SermonMetadataIntegrationService::class);
+        $result = $service->validateVideoFile('remote/video.mp4', 'public');
+
+        $this->assertFalse($result);
+    }
+
+    #[Test]
+    public function it_validates_disk_based_video_with_temporary_download_and_cleanup(): void
+    {
+        Storage::fake('public');
+        $videoContent = "\x00\x00\x00\x18ftypmp42";
+        Storage::disk('public')->put('remote/video.mp4', $videoContent);
+
+        // We need a real local file for mime_content_type to work in the service
+        $tempFile = tempnam(sys_get_temp_dir(), 'val');
+        file_put_contents($tempFile, $videoContent);
+
+        $helperMock = $this->mock(\App\Services\Processing\StorageAdapterHelper::class);
+        $helperMock->shouldReceive('downloadToTemp')
+            ->once()
+            ->with('remote/video.mp4', 'public', 'local', 'temp/validation')
+            ->andReturn($tempFile);
+
+        $helperMock->shouldReceive('cleanupTempFile')
+            ->once()
+            ->with($tempFile);
+
+        $service = $this->app->make(SermonMetadataIntegrationService::class);
+        $result = $service->validateVideoFile('remote/video.mp4', 'public');
+
+        $this->assertTrue($result);
+    }
+
+    #[Test]
+    public function it_validates_supported_video_mime_types(): void
+    {
+        $tempMp4 = tempnam(sys_get_temp_dir(), 'test_video_');
+        file_put_contents($tempMp4, "\x00\x00\x00\x18ftypmp42"); // MP4 magic bytes
+
+        $tempMov = tempnam(sys_get_temp_dir(), 'test_video_');
+        file_put_contents($tempMov, "\x00\x00\x00\x14ftypqt  "); // MOV magic bytes
+
+        try {
+            $this->assertTrue($this->service->validateVideoFile($tempMp4));
+            $this->assertTrue($this->service->validateVideoFile($tempMov));
+        } finally {
+            @unlink($tempMp4);
+            @unlink($tempMov);
+        }
+    }
 
     #[Test]
     public function it_returns_false_for_nonexistent_local_video(): void
