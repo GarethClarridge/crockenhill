@@ -218,9 +218,10 @@ class OpenAiServiceStructureServiceTest extends TestCase
         // The user message must ground the model in the OoS ids and cue timings.
         $this->assertStringContainsString('id 1 | position 1 | type welcome', $prompt['user']);
         $this->assertStringContainsString('id 4 | position 4 | type sermon | title "The faithfulness of God"', $prompt['user']);
-        $this->assertStringContainsString('[0:00-0:30] Good morning everyone and a warm welcome.', $prompt['user']);
-        $this->assertStringContainsString('[7:10-7:40] Please turn with me to Joshua chapter one.', $prompt['user']);
+        $this->assertStringContainsString('[0.0-30.0] Good morning everyone and a warm welcome.', $prompt['user']);
+        $this->assertStringContainsString('[430.0-460.0] Please turn with me to Joshua chapter one.', $prompt['user']);
         $this->assertStringContainsString('Recording duration: 2400 seconds', $prompt['user']);
+        $this->assertStringContainsString('in seconds, matching start_time/end_time', $prompt['user']);
 
         // The system message must state every structural invariant the
         // deterministic gate depends on.
@@ -231,6 +232,9 @@ class OpenAiServiceStructureServiceTest extends TestCase
         $this->assertStringContainsString('shorter than 15 seconds', $prompt['system']);
         $this->assertStringContainsString('exactly ONE primary sermon', $prompt['system']);
         $this->assertStringContainsString('ONE section', $prompt['system']);
+        $this->assertStringContainsString('A section ends when its own content ends', $prompt['system']);
+        $this->assertStringContainsString('Gaps between sections are normal', $prompt['system']);
+        $this->assertStringContainsString('TWO separate sections, one per song', $prompt['system']);
         $this->assertStringContainsString('childrens_talk ONLY with structural cues', $prompt['system']);
         $this->assertStringContainsString('MUST come from the supplied cue', $prompt['system']);
         $this->assertStringContainsString('British English', $prompt['system']);

@@ -29,10 +29,15 @@ You identify the structure of a recorded church service from a timestamped trans
 planned order of service (OoS). Return typed sections in JSON matching the supplied schema.
 Rules:
 - Preserve the running order of the recording; sections must be chronological and must not overlap.
-- Cover the whole recording. Leave gaps only where there is genuine silence or no speech.
+- A section ends when its own content ends. NEVER stretch a section to meet the start of the next
+  one: announcements, transitions, music without words or silence between two items belong to no
+  section. Gaps between sections are normal and expected.
 - Do NOT invent sections: every section must correspond to content actually present in the transcript.
 - A whole Bible reading is ONE section and a whole song is ONE section, even when pauses, verse
   breaks or spoken interjections occur inside them.
+- Two different songs sung back-to-back are TWO separate sections, one per song — the one-section
+  rule applies per song, never per block of songs. Use the planned order of service to know how
+  many distinct songs to expect.
 - Do not create sections shorter than 15 seconds unless the order of service demands a discrete item.
 - Label a section childrens_talk ONLY with structural cues that it is genuinely aimed at children:
   the children are addressed or called forward, are dismissed to their groups afterwards, or the
@@ -52,8 +57,8 @@ Rules:
   confirmation. Null otherwise.
 - reading_reference: only for type=bible_reading — the passage read, e.g. "Joshua 1:1-9". Null otherwise.
 - start_time and end_time are seconds into the recording and MUST come from the supplied cue
-  timestamps — each transcript line gives its cue's start and end. Never estimate a time that no
-  cue supports.
+  timestamps — each transcript line gives its cue's start and end in raw seconds, ready to copy
+  directly into start_time/end_time. Never estimate a time that no cue supports.
 - confidence (0 to 1) reflects the section TYPE label. Be decisive when the type is unmistakable.
 - Use British English in all titles and notes.
 TEXT;
@@ -168,7 +173,7 @@ TEXT;
             }
         }
 
-        $lines[] = 'Timestamped transcript ([start-end] as minutes:seconds, then the spoken text):';
+        $lines[] = 'Timestamped transcript ([start-end] in seconds, matching start_time/end_time, then the spoken text):';
         $lines[] = $transcript->toPromptText();
 
         return [
