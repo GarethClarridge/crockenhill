@@ -57,9 +57,8 @@ class HomepageContentTest extends TestCase
 
         $response->assertStatus(200);
 
-        $content = (string) $response->getContent();
-
-        $this->assertGreaterThanOrEqual(2, substr_count($content, 'aria-label="Learn about '));
+        $response->assertSee('Learn about Sunday evenings');
+        $response->assertSee('Learn about Bible study');
     }
 
     private function ensureHomepageCtaPagesExist(): void

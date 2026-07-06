@@ -138,6 +138,8 @@ class SermonSeeder extends Seeder
         $processingLog = MediaProcessingLog::where('processing_id', 'seed-prodigal-son-processing')->first();
 
         if (! $processingLog) {
+            $audioPath = 'sermons/seed/2024-11-24.mp3';
+
             $processingLog = MediaProcessingLog::create([
                 'processing_id' => 'seed-prodigal-son-processing',
                 'processing_type' => MediaType::Livestream,
@@ -145,7 +147,7 @@ class SermonSeeder extends Seeder
                 'status' => ProcessingStatus::Completed,
                 'current_step' => 'completed',
                 'sermon_id' => null,
-                'audio_file_path' => 'sermons/seed/2024-11-24.mp3',
+                'audio_file_path' => \Illuminate\Support\Facades\Storage::disk('public')->exists($audioPath) ? $audioPath : null,
             ]);
         }
 

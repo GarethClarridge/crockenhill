@@ -59,6 +59,12 @@ class PageImageCacheService
             return Storage::disk('public')->url($storagePath);
         }
 
+        $publicPath = "images/headings/{$size}/{$page->slug}.webp";
+
+        if (file_exists(public_path($publicPath))) {
+            return asset($publicPath);
+        }
+
         return null;
     }
 
