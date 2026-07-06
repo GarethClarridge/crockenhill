@@ -56,9 +56,8 @@ return [
         'transcript_disk' => env('TRANSCRIPT_STORAGE_DISK', env('SERMON_STORAGE_DISK', env('FILESYSTEM_DISK', 'local'))),
         'temp_disk' => 'local',
         // Shared minimum free-space floor (GB) for the local temp disk — the genuine
-        // pipeline bottleneck. The upload validator and the historic importer guard read
-        // this single value via TempDiskSpace so they never disagree about how much
-        // headroom a dispatch needs.
+        // the historic importer guard read this single value via TempDiskSpace so they
+        // never disagree about how much headroom a dispatch needs.
         'temp_disk_min_free_gb' => (int) env('MEDIA_PROCESSING_TEMP_DISK_MIN_FREE_GB', 20),
         'paths' => [
             'audio' => 'sermons/audio',

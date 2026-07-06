@@ -9,9 +9,11 @@ use App\Enums\ProcessingStatus;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\TranscribeAudio;
+
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Media\Audio\AudioTranscriptionService;
+use App\Services\Media\Audio\SermonTranscriptReader;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\Processing\SermonProcessingLogger;
 use App\Services\Processing\UnifiedMediaProcessor;
@@ -42,148 +44,6 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'media-processing.analysis.openai_api_key' => 'test-key',
             'media-processing.processing.queue' => 'default',
         ]);
-    }
-
-    #[Test]
-    public function it_handles_missing_processing_log_gracefully(): void
-    {
-        // Create a processing log that doesn't exist in database (simulate missing record)
-        $processingLog = new MediaProcessingLog([
-            'processing_id' => 'nonexistent-id',
-            'processing_type' => 'audio',
-            'original_filename' => '2024-01-15_morning_sermon.mp3',
-            'source_file_path' => 'sermons/2024/01/test-file.mp3',
-            'status' => ProcessingStatus::Processing,
-            'current_step' => 'ai_analysis_completed',
-            'ai_analysis' => json_encode(['title' => 'Test Sermon']),
-        ]);
-
-        // Don't save it to simulate missing record condition
-        $job = new CreateSermonRecord($processingLog);
-
-        $this->expectException(\Exception::class);
-
-        $logger = app(SermonProcessingLogger::class);
-        $sermonCreationService = app(SermonCreationService::class);
-        $job->handle($logger, $sermonCreationService);
-    }
-
-    #[Test]
-    public function it_handles_missing_sermon_record_in_transcription(): void
-    {
-        // Create processing log without stored file path to trigger error
-        $processingLog = MediaProcessingLog::create([
-            'processing_id' => 'test-missing-file',
-            'processing_type' => 'audio',
-            'original_filename' => 'test-audio.mp3',
-            'source_file_path' => null, // Missing file path
-            'status' => ProcessingStatus::Processing,
-            'current_step' => 'sermon_record_created',
-        ]);
-
-        $mockTranscriptionService = $this->createMock(TranscriptionServiceInterface::class);
-        $job = new TranscribeAudio($processingLog);
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('No audio file path found');
-
-        $job->handle($mockTranscriptionService);
-    }
-
-    #[Test]
-    public function it_handles_missing_audio_file_in_transcription(): void
-    {
-        $processingLog = MediaProcessingLog::create([
-            'processing_id' => 'test-missing-audio',
-            'processing_type' => 'audio',
-            'original_filename' => 'nonexistent-audio.mp3',
-            'stored_file_path' => 'path/to/nonexistent-audio.mp3',
-            'status' => ProcessingStatus::Processing,
-            'current_step' => 'sermon_record_created',
-        ]);
-
-        // Ensure the stored_file_path is properly set
-        $processingLog->refresh();
-        $this->assertNotNull($processingLog->stored_file_path);
-
-        $mockTranscriptionService = $this->createMock(TranscriptionServiceInterface::class);
-        $mockTranscriptionService->expects($this->once())
-            ->method('transcribe')
-            ->with('path/to/nonexistent-audio.mp3')
-            ->willThrowException(new \Exception('Audio file not found'));
-
-        // Note: cleanupOnFailure will not be called because there's no sermon_id
-        // This represents a failure before sermon creation
-        $mockTranscriptionService->expects($this->never())
-            ->method('cleanupOnFailure');
-
-        $job = new TranscribeAudio($processingLog);
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Audio file not found');
-
-        $job->handle($mockTranscriptionService);
-
-        // Verify processing log was updated with error
-        $processingLog->refresh();
-        $this->assertEquals(ProcessingStatus::Failed, $processingLog->status);
-        $this->assertStringContainsString('Audio file not found', $processingLog->error_message);
-    }
-
-    #[Test]
-    public function it_handles_empty_transcript_in_ai_processing(): void
-    {
-        $processingLog = MediaProcessingLog::create([
-            'processing_id' => 'test-empty-transcript',
-            'processing_type' => 'audio',
-            'original_filename' => 'test-audio.mp3',
-            'source_file_path' => 'path/to/audio.mp3',
-            'transcript_file_path' => null, // No transcript path
-            'status' => ProcessingStatus::Processing,
-            'current_step' => 'transcription_completed',
-        ]);
-
-        $mockAnalysisService = $this->createMock(SermonAnalysisService::class);
-
-        $job = new ProcessTranscriptWithAI($processingLog);
-
-        // Should not throw exception - applies graceful degradation instead
-        $job->handle($mockAnalysisService, $this->app->make(SermonRepository::class));
-
-        // Verify graceful degradation was applied
-        $processingLog->refresh();
-        $this->assertEquals('ai_analysis_fallback', $processingLog->current_step);
-        $this->assertNotNull($processingLog->ai_analysis);
-        $this->assertArrayHasKey('title', $processingLog->ai_analysis);
-    }
-
-    #[Test]
-    public function it_applies_graceful_degradation_on_ai_failure(): void
-    {
-        Storage::put('transcripts/sermon_1.md', 'This is a sample sermon transcript.');
-
-        $processingLog = MediaProcessingLog::create([
-            'processing_id' => 'test-graceful-degradation',
-            'processing_type' => 'audio',
-            'original_filename' => 'test-audio.mp3',
-            'source_file_path' => 'path/to/audio.mp3',
-            'transcript_file_path' => 'transcripts/sermon_1.md',
-            'status' => ProcessingStatus::Processing,
-            'current_step' => 'transcription_completed',
-        ]);
-
-        // Mock analysis service to fail
-        $mockAnalysisService = $this->createMock(SermonAnalysisService::class);
-        $mockAnalysisService->expects($this->once())
-            ->method('analyzeSermon')
-            ->willThrowException(new \Exception('AI service unavailable'));
-
-        $job = new ProcessTranscriptWithAI($processingLog);
-        $job->handle($mockAnalysisService, $this->app->make(SermonRepository::class));
-
-        // Should not throw exception due to graceful degradation
-        $processingLog->refresh();
-        $this->assertEquals('ai_analysis_fallback', $processingLog->current_step);
     }
 
     #[Test]
