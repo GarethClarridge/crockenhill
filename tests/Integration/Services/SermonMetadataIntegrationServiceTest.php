@@ -8,6 +8,7 @@ use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Processing\SermonMetadataIntegrationService;
+use App\Services\Processing\StorageAdapterHelper;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -377,7 +378,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
         Storage::fake('public');
         Storage::disk('public')->put('remote/video.mp4', 'some content');
 
-        $helperMock = $this->mock(\App\Services\Processing\StorageAdapterHelper::class);
+        $helperMock = $this->mock(StorageAdapterHelper::class);
         $helperMock->shouldReceive('downloadToTemp')
             ->once()
             ->andThrow(new \Exception('Download failed'));
@@ -399,7 +400,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
         $tempFile = tempnam(sys_get_temp_dir(), 'val');
         file_put_contents($tempFile, $videoContent);
 
-        $helperMock = $this->mock(\App\Services\Processing\StorageAdapterHelper::class);
+        $helperMock = $this->mock(StorageAdapterHelper::class);
         $helperMock->shouldReceive('downloadToTemp')
             ->once()
             ->with('remote/video.mp4', 'public', 'local', 'temp/validation')
