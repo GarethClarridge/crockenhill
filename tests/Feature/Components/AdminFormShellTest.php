@@ -34,6 +34,41 @@ class AdminFormShellTest extends TestCase
     }
 
     #[Test]
+    public function unsaved_changes_guard_uses_the_livewire_dirty_api_when_a_save_action_exists(): void
+    {
+        $rendered = Blade::render(<<<'BLADE'
+            <x-admin.form-shell title="Edit page" save-action="save">
+                <x-slot:actions>
+                    <x-form-button variant="primary" wire:click="save">Save</x-form-button>
+                </x-slot:actions>
+
+                <p>Form body</p>
+            </x-admin.form-shell>
+            BLADE);
+
+        // Covers SPA navigation (breadcrumbs, header, in-form links) and hard unloads,
+        // using the real Livewire dirty API rather than a non-existent $wire property.
+        $this->assertStringContainsString('livewire:navigate.window', $rendered);
+        $this->assertStringContainsString('beforeunload', $rendered);
+        $this->assertStringContainsString('$wire.$dirty()', $rendered);
+    }
+
+    #[Test]
+    public function unsaved_changes_guard_is_not_registered_without_an_explicit_save_action(): void
+    {
+        $rendered = Blade::render(<<<'BLADE'
+            <x-admin.form-shell title="Read only">
+                <p>Read-only body</p>
+            </x-admin.form-shell>
+            BLADE);
+
+        // Read-only shells (e.g. the media upload form) must not attach a dirty guard.
+        $this->assertStringNotContainsString('livewire:navigate.window', $rendered);
+        $this->assertStringNotContainsString('beforeunload', $rendered);
+        $this->assertStringNotContainsString('$dirty()', $rendered);
+    }
+
+    #[Test]
     public function save_hotkey_is_not_registered_without_an_explicit_save_action(): void
     {
         $rendered = Blade::render(<<<'BLADE'

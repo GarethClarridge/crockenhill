@@ -24,23 +24,19 @@
         ? sprintf('{
             topVisible: true,
             saveAction: %s,
-            save() { this.$wire.call(this.saveAction); },
-            confirmDiscard(e) {
-                if (this.$wire.$dirty() && !confirm("You have unsaved changes. Are you sure you want to leave?")) {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    return false;
-                }
-            }
+            save() { this.$wire.call(this.saveAction); }
         }', \Illuminate\Support\Js::from($saveAction))
         : '{ topVisible: true }';
 
     $hotkeyAttributes = $hotkeyAttributes->merge(['x-data' => $xData]);
 @endphp
 
+{{-- When the form has a save action, warn before discarding unsaved (un-synced) changes.
+     livewire:navigate covers SPA navigation anywhere on the page (breadcrumbs, header,
+     in-form links); beforeunload covers hard navigations and closing the tab. --}}
 <div {{ $hotkeyAttributes }}
     @if($saveAction)
-        @click.capture="if ($event.target.closest('a:not([href^=\'#\']):not([target=\'_blank\'])')) confirmDiscard($event)"
+        x-on:livewire:navigate.window="if ($wire.$dirty() && ! confirm('You have unsaved changes. Are you sure you want to leave?')) $event.preventDefault()"
         @window.beforeunload="if ($wire.$dirty()) $event.returnValue = 'You have unsaved changes.';"
     @endif
 >
