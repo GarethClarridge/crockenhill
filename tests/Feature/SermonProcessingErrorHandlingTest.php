@@ -9,11 +9,9 @@ use App\Enums\ProcessingStatus;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\TranscribeAudio;
-use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Media\Audio\AudioTranscriptionService;
-use App\Services\Media\Audio\SermonTranscriptReader;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\Processing\SermonProcessingLogger;
 use App\Services\Processing\UnifiedMediaProcessor;
@@ -186,43 +184,6 @@ class SermonProcessingErrorHandlingTest extends TestCase
         // Should not throw exception due to graceful degradation
         $processingLog->refresh();
         $this->assertEquals('ai_analysis_fallback', $processingLog->current_step);
-    }
-
-    #[Test]
-    public function it_handles_database_constraint_violations(): void
-    {
-        // Create sermon with existing slug
-        $existingSermon = Sermon::factory()->create([
-            'slug' => 'test-sermon',
-        ]);
-
-        $sermon = Sermon::factory()->create([
-            'title' => 'Test Sermon', // Will generate same slug
-            'transcript_file_path' => 'transcripts/sermon_2.md',
-        ]);
-
-        Storage::put('transcripts/sermon_2.md', 'This is a sample sermon transcript.');
-
-        $processingLog = MediaProcessingLog::create([
-            'processing_id' => 'test-id',
-            'processing_type' => 'audio',
-            'original_filename' => 'test-audio.mp3',
-            'status' => ProcessingStatus::Processing,
-            'current_step' => 'ai_analysis_completed',
-            'sermon_id' => $sermon->id,
-        ]);
-
-        $job = new UpdateSermonRecord($sermon->id);
-        $job->handle(
-            app(MediaProcessingRunTransitionService::class),
-            app(SermonRepository::class),
-            app(SermonTranscriptReader::class),
-        );
-
-        // Should handle slug conflict by generating unique slug
-        $sermon->refresh();
-        $this->assertNotEquals('test-sermon', $sermon->slug);
-        $this->assertStringStartsWith('test-sermon-', $sermon->slug);
     }
 
     #[Test]

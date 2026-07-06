@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Http\Requests\UpdateSermonRequest;
 use App\Livewire\Admin\Sermons\EditSermon;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -12,7 +11,6 @@ use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -145,25 +143,5 @@ class SermonIntegrityTest extends TestCase
             ->set('form.preacherConfidence', -0.1)
             ->call('save')
             ->assertHasErrors(['form.preacherConfidence' => 'min']);
-    }
-
-    #[Test]
-    public function sermon_editing_rejects_negative_duration_if_form_request_were_used(): void
-    {
-        $request = new UpdateSermonRequest;
-
-        $rules = $request->rules();
-
-        $validator = Validator::make([
-            'duration' => -1,
-            'preacher_confidence' => 1.2,
-            'segment_start_time' => -1,
-            'segment_end_time' => 10,
-        ], $rules);
-
-        $this->assertTrue($validator->fails());
-        $this->assertArrayHasKey('duration', $validator->errors()->toArray());
-        $this->assertArrayHasKey('preacher_confidence', $validator->errors()->toArray());
-        $this->assertArrayHasKey('segment_start_time', $validator->errors()->toArray());
     }
 }

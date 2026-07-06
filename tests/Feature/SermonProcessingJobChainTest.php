@@ -12,13 +12,10 @@ use App\Jobs\CreateSermonRecord;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\TranscribeAudio;
-use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\Media\Audio\AudioTranscriptionService;
-use App\Services\Media\Audio\SermonTranscriptReader;
-use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\Processing\SermonProcessingLogger;
 use App\Services\Processing\UnifiedMediaProcessor;
 use App\Services\Public\SermonRepository;
@@ -332,44 +329,6 @@ class SermonProcessingJobChainTest extends TestCase
         // Assert processing log shows fallback was used
         $processingLog->refresh();
         $this->assertEquals('ai_analysis_fallback', $processingLog->current_step);
-    }
-
-    #[Test]
-    public function it_updates_sermon_record_successfully(): void
-    {
-        // Create sermon record
-        $sermon = Sermon::factory()->create([
-            'title' => 'Initial Title',
-            'slug' => 'initial-title',
-            'transcript_file_path' => 'transcripts/sermon_1.md',
-        ]);
-
-        // Store the AI analysis result on the processing log as ProcessTranscriptWithAI would have done
-        $processingLog = $this->processingLogScenario()
-            ->processing('ai_analysis_completed')
-            ->withSermon($sermon)
-            ->state([
-                'processing_id' => 'test-id',
-                'original_filename' => 'test-audio.mp3',
-                'ai_analysis' => $this->createMockSermonAnalysis()->toArray(),
-            ])
-            ->create();
-
-        // Create and execute the job — no analysis service needed
-        $this->handleUpdateSermonRecordJob(new UpdateSermonRecord($sermon->id));
-
-        // Assert sermon was updated
-        $sermon->refresh();
-        $this->assertEquals('God\'s Amazing Love', $sermon->title);
-        $this->assertEquals('gods-amazing-love', $sermon->slug);
-        $this->assertEquals('John Study', $sermon->series);
-        $this->assertEquals('John 3:16-21', $sermon->reference);
-        $this->assertIsArray($sermon->points);
-        $this->assertCount(3, $sermon->points);
-
-        // Assert processing log was marked as completed
-        $processingLog->refresh();
-        $this->assertEquals(ProcessingStatus::Completed, $processingLog->status);
     }
 
     #[Test]
@@ -702,36 +661,8 @@ class SermonProcessingJobChainTest extends TestCase
             'current_step' => 'sermon_record_created',
         ]);
 
-        // Get created sermon
+        // Verify the sermon record was created and linked to the audio file
         $sermon = Sermon::where('audio_file_path', $storedFilePath)->first();
         $this->assertNotNull($sermon);
-
-        // Store the AI analysis result on the processing log as ProcessTranscriptWithAI would have done
-        $processingLog->update([
-            'current_step' => 'ai_analysis_completed',
-            'ai_analysis' => $this->createMockSermonAnalysis()->toArray(),
-        ]);
-
-        $this->handleUpdateSermonRecordJob(new UpdateSermonRecord($sermon->id));
-
-        // Verify sermon was updated
-        $sermon->refresh();
-        $this->assertEquals('God\'s Amazing Love', $sermon->title);
-        $this->assertNotNull($sermon->series);
-        $this->assertNotNull($sermon->reference);
-        $this->assertIsArray($sermon->points);
-
-        // Verify processing log completion
-        $processingLog->refresh();
-        $this->assertEquals(ProcessingStatus::Completed, $processingLog->status);
-    }
-
-    private function handleUpdateSermonRecordJob(UpdateSermonRecord $job): void
-    {
-        $job->handle(
-            app(MediaProcessingRunTransitionService::class),
-            app(SermonRepository::class),
-            app(SermonTranscriptReader::class),
-        );
     }
 }

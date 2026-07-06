@@ -8,7 +8,6 @@ use App\Actions\GetMediaProcessingStatus;
 use App\Data\ProcessingResult;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
-use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\User;
@@ -544,7 +543,7 @@ class UnifiedMediaProcessorTest extends TestCase
             ->willReturnCallback(function ($processingLog) {
                 $sermon = Sermon::factory()->create();
 
-                return [new UpdateSermonRecord($sermon->id)];
+                return [new AudioStubJob];
             });
 
         $result = $this->processor->process('video', $file);
@@ -633,7 +632,7 @@ class UnifiedMediaProcessorTest extends TestCase
             ->willReturnCallback(function ($processingLog) {
                 $sermon = Sermon::factory()->create();
 
-                return [new UpdateSermonRecord($sermon->id)];
+                return [new AudioStubJob];
             });
 
         $this->processor->process('video', $file);
@@ -688,7 +687,7 @@ class UnifiedMediaProcessorTest extends TestCase
             ->willReturnCallback(function ($processingLog) {
                 $sermon = Sermon::factory()->create();
 
-                return [new UpdateSermonRecord($sermon->id)];
+                return [new AudioStubJob];
             });
 
         $this->processor->process('video', $file);
