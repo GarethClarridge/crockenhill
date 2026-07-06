@@ -11,7 +11,6 @@ use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -145,5 +144,4 @@ class SermonIntegrityTest extends TestCase
             ->call('save')
             ->assertHasErrors(['form.preacherConfidence' => 'min']);
     }
-
 }

@@ -15,7 +15,6 @@ use Tests\TestCase;
 
 class SermonValidationSecurityTest extends TestCase
 {
-
     #[Test]
     public function confirm_media_segment_request_rejects_overflow_id(): void
     {
