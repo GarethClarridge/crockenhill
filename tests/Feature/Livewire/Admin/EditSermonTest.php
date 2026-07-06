@@ -529,7 +529,9 @@ class EditSermonTest extends TestCase
             ->assertSee("Children's talk notes")
             ->assertDontSee('Bible reference')
             ->assertDontSee('AI-generated content')
-            ->assertDontSee('Display options');
+            ->assertDontSee('Display options')
+            ->call('save')
+            ->assertDispatched('notify', type: 'success', message: "Children's Talk updated");
     }
 
     #[Test]
