@@ -42,9 +42,12 @@ Rules:
   a second sermon into existence.
 - oos_item_id: the id of the matching order-of-service item. Use each id AT MOST ONCE across all
   sections, and use null when no item clearly matches. Match on both the OoS text and the words
-  actually spoken. Claimed ids must follow the planned order: never claim an item whose position
-  precedes an item a previous section already claimed. If the service genuinely deviated from the
-  printed order, use null instead of anchoring out of order.
+  actually spoken. Items of the SAME type (e.g. two songs) must be claimed in their planned
+  relative order; if two same-type items appear swapped, claim the one that genuinely matches and
+  use null for the other. Items of DIFFERENT types may legitimately be performed in a different
+  order from the printed list — the projection software groups songs into a block even when
+  readings and prayers are interleaved between them — so claim the genuinely matching item
+  regardless of its printed position relative to other types.
 - song_title: only for type=song — the sung title as heard in the transcript, for database
   confirmation. Null otherwise.
 - reading_reference: only for type=bible_reading — the passage read, e.g. "Joshua 1:1-9". Null otherwise.
