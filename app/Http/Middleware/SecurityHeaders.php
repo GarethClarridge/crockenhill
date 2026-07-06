@@ -37,6 +37,7 @@ class SecurityHeaders
         // Security Header: Cross-Origin Policies
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
         $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+        $response->headers->set('Cross-Origin-Embedder-Policy', 'credentialless');
 
         // Security Header: Prevent Flash/PDF from loading cross-domain data
         $response->headers->set('X-Permitted-Cross-Domain-Policies', 'none');

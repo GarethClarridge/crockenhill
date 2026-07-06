@@ -13,6 +13,7 @@ use App\Presenters\SermonViewPresenter;
 use App\Services\Sermon\SermonExposurePolicy;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class SermonApiController extends Controller
@@ -29,6 +30,8 @@ class SermonApiController extends Controller
      * Security: Strict input validation is enforced on query parameters via SermonIndexRequest
      * to provide Defense in Depth against malformed input and potential Denial of Service (DoS)
      * attacks by ensuring all inputs are bounded and correctly typed.
+     *
+     * @throws ValidationException
      */
     public function index(SermonIndexRequest $request): AnonymousResourceCollection
     {

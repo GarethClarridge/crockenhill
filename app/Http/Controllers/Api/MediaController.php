@@ -24,6 +24,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\StreamedEvent;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MediaController extends Controller
@@ -42,6 +43,7 @@ class MediaController extends Controller
      *
      * @throws UniqueConstraintViolationException If a duplicate race occurs
      * @throws InvalidFileException If the file fails initial validation
+     * @throws ValidationException
      * @throws \Exception For underlying service or storage failures
      */
     public function upload(ProcessMediaRequest $request, string $type): JsonResponse
@@ -92,6 +94,7 @@ class MediaController extends Controller
      * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      * Stack traces are sanitized to prevent information leakage.
      *
+     * @throws ValidationException
      * @throws \Exception If the status check fails
      */
     public function status(MediaStatusRequest $request, string $processingId): JsonResponse
@@ -169,6 +172,7 @@ class MediaController extends Controller
      * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      * Stack traces are sanitized to prevent information leakage.
      *
+     * @throws ValidationException
      * @throws \Exception If the cancellation fails
      */
     public function cancel(CancelMediaProcessingRequest $request, string $processingId): JsonResponse
@@ -198,6 +202,7 @@ class MediaController extends Controller
      * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      * Stack traces are sanitized to prevent information leakage.
      *
+     * @throws ValidationException
      * @throws \InvalidArgumentException If parameters are invalid
      * @throws \Exception If the confirmation fails
      */
@@ -240,6 +245,7 @@ class MediaController extends Controller
      * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      * Stack traces are sanitized to prevent information leakage.
      *
+     * @throws ValidationException
      * @throws \Throwable If the retry initiation fails
      */
     public function retry(RetryMediaProcessingRequest $request, string $processingId): JsonResponse
