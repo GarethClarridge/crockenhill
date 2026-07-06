@@ -96,6 +96,58 @@
         @endif
     </x-card>
 
+    {{-- LLM structure proposal that failed validation --}}
+    @if($structureProposal !== null && isset($structureProposal['sections']) && $structureProposal['sections'] !== [])
+        @php
+            $formatSeconds = fn ($seconds): string => sprintf('%d:%02d', intdiv((int) $seconds, 60), ((int) $seconds) % 60);
+        @endphp
+        <x-card heading="Detected Structure (failed validation)">
+            <p class="text-sm text-gray-600">
+                The structure below was detected but rejected by the validation gate, so no sections were saved.
+                It is usually largely correct — use it alongside the segments when confirming the sermon.
+            </p>
+
+            @if(! empty($structureProposal['hard_failures']))
+                <ul class="mt-3 list-disc pl-5 text-sm text-amber-800 space-y-1">
+                    @foreach($structureProposal['hard_failures'] as $failure)
+                        <li>{{ $failure['message'] ?? $failure['code'] ?? '' }}</li>
+                    @endforeach
+                </ul>
+            @endif
+
+            <div class="mt-4 overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Confidence</th>
+                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Flags</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        @foreach($structureProposal['sections'] as $section)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-3 py-2 text-sm text-gray-500">{{ $section['section_order'] ?? $loop->iteration }}</td>
+                                <td class="px-3 py-2 text-sm text-gray-900">{{ str_replace('_', ' ', $section['section_type'] ?? '') }}</td>
+                                <td class="px-3 py-2 text-sm text-gray-900">{{ $section['title'] ?? '—' }}</td>
+                                <td class="px-3 py-2 text-sm text-gray-500 whitespace-nowrap">
+                                    {{ $formatSeconds($section['start_time'] ?? 0) }}–{{ $formatSeconds($section['end_time'] ?? 0) }}
+                                </td>
+                                <td class="px-3 py-2 text-sm text-gray-500">{{ number_format((float) ($section['confidence'] ?? 0), 2) }}</td>
+                                <td class="px-3 py-2 text-sm text-gray-500">
+                                    {{ implode(', ', $section['metadata']['review_flags'] ?? []) ?: '—' }}
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </x-card>
+    @endif
+
     {{-- Segment timeline --}}
     <x-card heading="Detected Segments">
         @include('livewire.admin.church-services.partials.segment-confirmation', [
