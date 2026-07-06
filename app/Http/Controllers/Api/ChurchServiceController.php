@@ -21,8 +21,8 @@ class ChurchServiceController extends Controller
     ) {}
 
     /**
-     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
-     * @throws \Illuminate\Validation\ValidationException
+     * @throws NotFoundHttpException
+     * @throws ValidationException
      */
     public function store(UploadChurchServiceRequest $request): JsonResponse
     {
