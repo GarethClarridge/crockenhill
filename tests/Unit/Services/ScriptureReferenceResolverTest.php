@@ -113,6 +113,14 @@ class ScriptureReferenceResolverTest extends TestCase
         $this->assertFalse($this->resolver->referencesAgree('Luke 18:31-33, 35-43', 'Luke 18:31-33'));
     }
 
+    public function test_references_disagree_on_a_crossing_partial_overlap(): void
+    {
+        // The passages share 18-20 but each reads beyond it (one starts earlier,
+        // the other ends later): a genuine conflict, not a subrange subdivision.
+        $this->assertFalse($this->resolver->referencesAgree('John 3:16-20', 'John 3:18-25'));
+        $this->assertFalse($this->resolver->referencesAgree('John 3:18-25', 'John 3:16-20'));
+    }
+
     public function test_references_never_agree_when_either_side_is_unparseable(): void
     {
         $this->assertFalse($this->resolver->referencesAgree('', 'John 3:16'));

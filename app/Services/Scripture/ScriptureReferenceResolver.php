@@ -56,9 +56,12 @@ class ScriptureReferenceResolver
      * A transcript-derived reference often subdivides the planned passage
      * ("Luke 18:31-33, 35-43" heard against a planned "Luke 18:31-43"), and
      * strict string comparison flags that as a conflict. Two references agree
-     * when every passage on each side overlaps at least one passage on the
-     * other — containment is the common case, but any genuine overlap of the
-     * same text is agreement, not conflict. An unparseable side never agrees.
+     * when (a) every passage on each side overlaps at least one passage on the
+     * other, so no passage is read in isolation, and (b) wherever two passages
+     * overlap, one contains the other. Requirement (b) rejects a crossing
+     * overlap where each side reads beyond their shared verses ("Luke 18:31-43"
+     * vs "Luke 18:40-50" share 40-43 but each extends past) — a genuine
+     * conflict, not a subrange subdivision. An unparseable side never agrees.
      */
     public function referencesAgree(string $left, string $right): bool
     {
@@ -69,8 +72,42 @@ class ScriptureReferenceResolver
             return false;
         }
 
-        return $this->everySpanOverlapsOne($leftSpans, $rightSpans)
-            && $this->everySpanOverlapsOne($rightSpans, $leftSpans);
+        if (! $this->everySpanOverlapsOne($leftSpans, $rightSpans)
+            || ! $this->everySpanOverlapsOne($rightSpans, $leftSpans)) {
+            return false;
+        }
+
+        return ! $this->anyOverlapCrosses($leftSpans, $rightSpans);
+    }
+
+    /**
+     * Whether any left/right passage pair overlaps without one containing the
+     * other — i.e. the two references cross rather than one subdividing the
+     * other, so each side reads verses beyond their shared span.
+     *
+     * @param  list<array{0: int, 1: int}>  $leftSpans
+     * @param  list<array{0: int, 1: int}>  $rightSpans
+     */
+    private function anyOverlapCrosses(array $leftSpans, array $rightSpans): bool
+    {
+        foreach ($leftSpans as [$leftFrom, $leftTo]) {
+            foreach ($rightSpans as [$rightFrom, $rightTo]) {
+                $overlaps = $leftFrom <= $rightTo && $leftTo >= $rightFrom;
+
+                if (! $overlaps) {
+                    continue;
+                }
+
+                $leftContainsRight = $leftFrom <= $rightFrom && $leftTo >= $rightTo;
+                $rightContainsLeft = $rightFrom <= $leftFrom && $rightTo >= $leftTo;
+
+                if (! $leftContainsRight && ! $rightContainsLeft) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
