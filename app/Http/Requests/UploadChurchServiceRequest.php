@@ -43,7 +43,7 @@ class UploadChurchServiceRequest extends FormRequest
     {
         return [
             'file.required' => 'Please upload an OpenLP .osz file.',
-            'file.file' => 'The uploaded value must be a file.',
+            'file.file' => 'Please select a file to upload.',
             'file.mimes' => 'The uploaded file must be a valid OpenLP .osz archive.',
             'file.max' => 'The uploaded file exceeds the maximum configured size.',
         ];

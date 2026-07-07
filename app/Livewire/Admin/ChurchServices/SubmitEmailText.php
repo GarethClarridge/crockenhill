@@ -50,7 +50,7 @@ class SubmitEmailText extends Component
     {
         return [
             'bodyPlain.required' => 'Please paste the email body text.',
-            'bodyPlain.min' => 'The email body must be at least 20 characters.',
+            'bodyPlain.min' => 'Please paste at least 20 characters of email text.',
             'bodyPlain.max' => 'The email body must not exceed 50,000 characters.',
         ];
     }
