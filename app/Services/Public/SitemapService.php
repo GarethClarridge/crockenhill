@@ -432,7 +432,8 @@ class SitemapService
                         'sermons.video_quality_status',
                         'sermons.content_type',
                         'sermons.updated_at',
-                    ]),
+                    ])
+                    ->with(['preacherProfile:id,name,slug,image_path']),
             ])
             ->lazy();
 

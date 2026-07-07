@@ -77,7 +77,7 @@ class SermonCandidateConfidenceService
             ? (float) $nextLongestSegment->duration
             : 0.0;
 
-        if ($qualifyingSegments->count() === 0) {
+        if ($qualifyingSegments->isEmpty()) {
             return [
                 'is_clear' => false,
                 'reason' => 'no_qualifying_speech_block',
@@ -100,17 +100,6 @@ class SermonCandidateConfidenceService
         }
 
         $candidate = $qualifyingSegments->first();
-
-        if (! $candidate instanceof LivestreamSegment) {
-            return [
-                'is_clear' => false,
-                'reason' => 'no_qualifying_speech_block',
-                'candidate' => null,
-                'qualifying_segments_count' => 0,
-                'next_longest_duration' => 0.0,
-                'speech_segments' => $speechSegmentSummaries,
-            ];
-        }
 
         // An over-long sole candidate signals under-segmentation (F10): RMS collapsed several
         // service elements into one block. The 1.5x ratio guard cannot fire (there is no

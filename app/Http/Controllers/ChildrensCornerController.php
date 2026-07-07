@@ -53,7 +53,14 @@ class ChildrensCornerController extends Controller
     {
         abort_unless($sermon->content_type === SermonContentType::ChildrensTalk, 404);
 
-        $sermon->loadMissing('preacherProfile:id,name,slug,image_path');
+        /**
+         * Performance Optimization: Limits retrieved columns for related models to
+         * required fields to reduce memory usage and DB I/O on the single talk view.
+         */
+        $sermon->loadMissing([
+            'preacherProfile:id,name,slug,image_path',
+            'scripturePassage:id,display_reference,normalized_reference',
+        ]);
 
         $sermonView = $this->sermonViewPresenter->present($sermon);
         $speakerName = $sermonView['preacher_name'];
