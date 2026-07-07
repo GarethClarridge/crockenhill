@@ -222,7 +222,11 @@ class SermonController extends Controller
 
     public function seriesShow(string $series): View
     {
-        $series_name = str_replace('-', ' ', Str::title($series));
+        $series_name = $this->sermonRepository->resolveSeriesNameFromSlug($series);
+
+        if ($series_name === null) {
+            abort(404, 'Sermon series not found.');
+        }
 
         /**
          * Performance Optimization: Use Repository to fetch cached series listing.
