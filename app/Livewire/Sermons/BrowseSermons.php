@@ -30,6 +30,8 @@ use Livewire\WithPagination;
  * @property-read string $seoTitle
  * @property-read string $seoDescription
  * @property-read string $seoCanonical
+ * @property-read ?string $seoImage
+ * @property-read string $seoImageAlt
  */
 class BrowseSermons extends Component
 {
@@ -129,6 +131,8 @@ class BrowseSermons extends Component
             'title' => $this->seoTitle,
             'description' => $this->seoDescription,
             'canonical' => $this->seoCanonical,
+            'image' => $this->seoImage,
+            'imageAlt' => $this->seoImageAlt,
         ]);
     }
 
@@ -270,6 +274,18 @@ class BrowseSermons extends Component
     public function seoCanonical(): string
     {
         return app(SermonArchiveSeoPresenter::class)->canonical($this->activeFilters(), $this->getPage());
+    }
+
+    #[Computed]
+    public function seoImage(): ?string
+    {
+        return app(SermonArchiveSeoPresenter::class)->image($this->activeFilters());
+    }
+
+    #[Computed]
+    public function seoImageAlt(): string
+    {
+        return app(SermonArchiveSeoPresenter::class)->imageAlt($this->activeFilters(), $this->seoImage);
     }
 
     /**

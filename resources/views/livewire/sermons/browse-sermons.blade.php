@@ -1,22 +1,40 @@
 <div
     class="pb-12"
     x-init="
-        Livewire.on('sermon-filters-updated', (data) => {
-            const update = (data) => {
-                if (data.title) document.title = data.title + ' | Crockenhill Baptist Church';
-                if (data.description) {
-                    const metaDesc = document.querySelector('meta[name=\'description\']');
-                    if (metaDesc) metaDesc.setAttribute('content', data.description);
-                }
-                if (data.canonical) {
-                    const linkCanonical = document.querySelector('link[rel=\'canonical\']');
-                    if (linkCanonical) linkCanonical.setAttribute('href', data.canonical);
-                }
-            };
-            if (Array.isArray(data) && data.length > 0) {
-                update(data[0]);
-            } else {
-                update(data);
+        Livewire.on('sermon-filters-updated', (event) => {
+            const data = Array.isArray(event) ? event[0] : event;
+            if (!data) return;
+
+            if (data.title) {
+                document.title = data.title + ' | Crockenhill Baptist Church';
+            }
+
+            if (data.description) {
+                const metaDesc = document.querySelector('meta[name="description"]');
+                if (metaDesc) metaDesc.setAttribute('content', data.description);
+            }
+
+            if (data.canonical) {
+                const linkCanonical = document.querySelector('link[rel="canonical"]');
+                if (linkCanonical) linkCanonical.setAttribute('href', data.canonical);
+            }
+
+            if ('image' in data) {
+                const defaultImage = @js(asset('/images/headings/large/sermons.webp'));
+                const image = data.image || defaultImage;
+                const alt = data.imageAlt || 'Sermons at Crockenhill Baptist Church';
+
+                const ogImage = document.querySelector('meta[property="og:image"]');
+                if (ogImage) ogImage.setAttribute('content', image);
+
+                const twitterImage = document.querySelector('meta[name="twitter:image"]');
+                if (twitterImage) twitterImage.setAttribute('content', image);
+
+                const ogImageAlt = document.querySelector('meta[property="og:image:alt"]');
+                if (ogImageAlt) ogImageAlt.setAttribute('content', alt);
+
+                const twitterImageAlt = document.querySelector('meta[name="twitter:image:alt"]');
+                if (twitterImageAlt) twitterImageAlt.setAttribute('content', alt);
             }
         });
 

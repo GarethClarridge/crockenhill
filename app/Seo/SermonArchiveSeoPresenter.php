@@ -6,7 +6,9 @@ namespace App\Seo;
 
 use App\Enums\SermonService;
 use App\Models\Preacher;
+use App\Presenters\SermonViewPresenter;
 use App\Services\Public\PreacherListCache;
+use App\Services\Public\SermonRepository;
 use Illuminate\Support\Str;
 
 class SermonArchiveSeoPresenter
@@ -16,8 +18,15 @@ class SermonArchiveSeoPresenter
      */
     private array $memoizedPreacherNames = [];
 
+    /**
+     * @var array<int, ?string>
+     */
+    private array $memoizedPreacherImages = [];
+
     public function __construct(
         private readonly PreacherListCache $preacherListRepository,
+        private readonly SermonRepository $sermonRepository,
+        private readonly SermonViewPresenter $sermonViewPresenter,
     ) {}
 
     /**
@@ -114,6 +123,55 @@ class SermonArchiveSeoPresenter
     }
 
     /**
+     * Generate SEO share image based on filters.
+     *
+     * @param  array{book: string|null, chapter: int|null, preacherId: int|null, series: string|null}  $filters
+     */
+    public function image(array $filters): ?string
+    {
+        if ($filters['preacherId']) {
+            $image = $this->resolvePreacherImage($filters['preacherId']);
+            if ($image) {
+                return $image;
+            }
+        }
+
+        if ($filters['series']) {
+            $latestInSeries = $this->sermonRepository->getSermonsBySeries($filters['series'])->first();
+            if ($latestInSeries) {
+                return $this->sermonViewPresenter->thumbnailUrl($latestInSeries);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Generate alt text for the SEO share image based on filters.
+     *
+     * @param  array{book: string|null, chapter: int|null, preacherId: int|null, series: string|null}  $filters
+     */
+    public function imageAlt(array $filters, ?string $shareImage = null): string
+    {
+        if ($shareImage === null) {
+            return 'Sermons at Crockenhill Baptist Church';
+        }
+
+        if ($filters['preacherId']) {
+            $preacherName = $this->resolvePreacherName($filters['preacherId']);
+            if ($preacherName) {
+                return "Preacher: {$preacherName}";
+            }
+        }
+
+        if ($filters['series']) {
+            return "Sermon Series: {$filters['series']}";
+        }
+
+        return 'Sermons at Crockenhill Baptist Church';
+    }
+
+    /**
      * Title for a single preacher's archive page.
      */
     public function preacherTitle(Preacher $preacher): string
@@ -197,7 +255,7 @@ class SermonArchiveSeoPresenter
      */
     private function resolvePreacherName(int $preacherId): ?string
     {
-        if (isset($this->memoizedPreacherNames[$preacherId])) {
+        if (array_key_exists($preacherId, $this->memoizedPreacherNames)) {
             return $this->memoizedPreacherNames[$preacherId];
         }
 
@@ -212,5 +270,27 @@ class SermonArchiveSeoPresenter
         $preacher = Preacher::query()->find($preacherId);
 
         return $this->memoizedPreacherNames[$preacherId] = $preacher?->name;
+    }
+
+    /**
+     * Resolve a preacher image from ID, utilizing identity-based request-level memoization.
+     */
+    private function resolvePreacherImage(int $preacherId): ?string
+    {
+        if (array_key_exists($preacherId, $this->memoizedPreacherImages)) {
+            return $this->memoizedPreacherImages[$preacherId];
+        }
+
+        // Try the cached public collection first
+        $preacher = $this->preacherListRepository->forPublicList()->firstWhere('id', $preacherId);
+
+        if ($preacher) {
+            return $this->memoizedPreacherImages[$preacherId] = $preacher->profile_image_url;
+        }
+
+        // Fallback to direct lookup
+        $preacher = Preacher::query()->find($preacherId);
+
+        return $this->memoizedPreacherImages[$preacherId] = $preacher?->profile_image_url;
     }
 }

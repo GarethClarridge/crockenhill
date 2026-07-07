@@ -19,13 +19,13 @@
             :title="$heading"
             :description="$description"
             :canonical="$canonical_url"
-            :image="asset('/images/headings/large/sermons.webp')"
-            image-alt="Sermons at Crockenhill Baptist Church"
+            :image="$shareImage ?? asset('/images/headings/large/sermons.webp')"
+            :image-alt="$shareImageAlt ?? 'Sermons at Crockenhill Baptist Church'"
         />
         <x-schema.webpage
             :heading="$heading"
             :description="$description"
-            :image="asset('/images/headings/large/sermons.webp')"
+            :image="$shareImage ?? asset('/images/headings/large/sermons.webp')"
             :canonical="$canonical_url"
         />
     @endpush

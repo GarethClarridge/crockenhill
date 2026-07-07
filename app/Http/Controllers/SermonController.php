@@ -54,10 +54,14 @@ class SermonController extends Controller
 
         $page = $request->integer('page', 1);
 
+        $shareImage = $this->seoPresenter->image($filters);
+
         return view('sermons.index', [
             'heading' => $this->seoPresenter->title($filters, $page),
             'description' => $this->seoPresenter->description($filters, $page),
             'canonical_url' => $this->seoPresenter->canonical($filters, $page),
+            'shareImage' => $shareImage,
+            'shareImageAlt' => $this->seoPresenter->imageAlt($filters, $shareImage),
             'area' => 'christ',
             'links' => $this->sermonLinks('sermons'),
             'slug' => 'sermons',

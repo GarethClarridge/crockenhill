@@ -47,7 +47,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(RelatedPagePresenter::class);
         $this->app->singleton(PublicPageReadModelCache::class);
         $this->app->singleton(PublicMeetingReadModelCache::class);
-        $this->app->singleton(SermonArchiveSeoPresenter::class);
         $this->app->singleton(PageSitemapPresenter::class);
         $this->app->singleton(MeetingSitemapPresenter::class);
         $this->app->singleton(BibleCanon::class);
@@ -57,6 +56,7 @@ class AppServiceProvider extends ServiceProvider
          * so they should be shared within a single request / job lifecycle without
          * leaking state across long-running workers.
          */
+        $this->app->scoped(SermonArchiveSeoPresenter::class);
         $this->app->scoped(SermonRepository::class);
         $this->app->scoped(PageListCache::class);
         $this->app->scoped(PreacherListCache::class);
