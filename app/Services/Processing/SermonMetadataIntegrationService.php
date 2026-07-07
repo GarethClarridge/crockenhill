@@ -244,7 +244,13 @@ class SermonMetadataIntegrationService
             return null;
         }
 
-        return $sermon->segment_end_time - $sermon->segment_start_time;
+        // A concat cut spans a gap between source segments, so its true media
+        // duration is the sum of the extracted spans recorded on the processing
+        // log — not segment_end_time - segment_start_time, which would count the
+        // gap. Fall back to the continuous span for single-span/legacy runs.
+        $recorded = $sermon->livestreamProcessing?->extractedSermonMediaDuration();
+
+        return $recorded ?? ($sermon->segment_end_time - $sermon->segment_start_time);
     }
 
     /**

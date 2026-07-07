@@ -447,14 +447,13 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
      * persist these fields as the Sermon's segment times — they must describe
      * the media actually cut, whichever source won.
      *
-     * A concat plan joins several spans across a gap, so its media duration is
-     * the sum of the spans, not last-end minus first-start. Anchoring the end
-     * at start + summed duration keeps sermon_end_time - sermon_start_time — the
-     * value every downstream consumer (SermonMetadataIntegration::getSegmentDuration,
-     * StandardProcessingResponse) reads as the segment duration — equal to the
-     * clip that was actually cut. For a single-span plan the sum equals
-     * last-end minus first-start, so the end is unchanged there. The precise
-     * discontinuous spans remain available in the recorded segment list.
+     * The bounds stay the true source window — first span start to last span
+     * end — so segment_end_time remains a real livestream timestamp (it is
+     * surfaced as one by SermonMetadataIntegrationService::getLivestreamInfo).
+     * A concat plan joins several spans across a gap, so end minus start would
+     * overstate the media actually cut; the honest duration is derived from the
+     * recorded segment list via MediaProcessingLog::extractedSermonMediaDuration(),
+     * which getSegmentDuration and StandardProcessingResponse read instead.
      *
      * @param  array{mode: string, source: string, segments: array<int, array{start_time: float, end_time: float}>, metadata: array<string, mixed>}  $extractionPlan
      */
@@ -471,16 +470,11 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
         ];
 
         $segments = array_values($extractionPlan['segments']);
-        $startTime = (float) $segments[0]['start_time'];
-
-        $cutDuration = 0.0;
-        foreach ($segments as $segment) {
-            $cutDuration += max(0.0, (float) $segment['end_time'] - (float) $segment['start_time']);
-        }
+        $lastSegment = $segments[count($segments) - 1];
 
         $this->processingLog->forceFill([
-            'sermon_start_time' => $startTime,
-            'sermon_end_time' => $startTime + $cutDuration,
+            'sermon_start_time' => (float) $segments[0]['start_time'],
+            'sermon_end_time' => (float) $lastSegment['end_time'],
             'processing_metadata' => $metadata,
         ])->save();
     }

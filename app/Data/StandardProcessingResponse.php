@@ -272,9 +272,10 @@ readonly class StandardProcessingResponse
         $metadata = match ($log->processing_type) {
             MediaType::Livestream => [
                 'segments_count' => $log->segments->count(),
-                'sermon_duration' => $log->sermon_end_time && $log->sermon_start_time
-                    ? $log->sermon_end_time - $log->sermon_start_time
-                    : null,
+                'sermon_duration' => $log->extractedSermonMediaDuration()
+                    ?? ($log->sermon_end_time && $log->sermon_start_time
+                        ? $log->sermon_end_time - $log->sermon_start_time
+                        : null),
             ],
             MediaType::Video => [
                 'has_thumbnail' => $log->sermon && $log->sermon->hasThumbnail(),

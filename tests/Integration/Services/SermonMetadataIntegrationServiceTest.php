@@ -41,6 +41,37 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_derives_concat_segment_duration_from_the_recorded_span_list(): void
+    {
+        // A concat cut joins a 180s reading (120-300) and a 1200s sermon
+        // (900-2100) across a gap. segment_end_time stays the true source end
+        // (2100), so end - start would report 1980s; the true 1380s of media
+        // must come from the recorded segment list instead.
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 120.0,
+            'sermon_end_time' => 2100.0,
+            'processing_metadata' => [
+                'sermon_extraction_plan' => [
+                    'mode' => 'concat_spans',
+                    'segments' => [
+                        ['start_time' => 120.0, 'end_time' => 300.0],
+                        ['start_time' => 900.0, 'end_time' => 2100.0],
+                    ],
+                ],
+            ],
+        ]);
+
+        $sermon = Sermon::factory()->create([
+            'source_type' => SermonSourceType::Livestream,
+            'livestream_processing_id' => $log->processing_id,
+            'segment_start_time' => 120.0,
+            'segment_end_time' => 2100.0,
+        ]);
+
+        $this->assertEqualsWithDelta(1380.0, $this->service->getSegmentDuration($sermon), 0.01);
+    }
+
+    #[Test]
     public function it_returns_null_segment_duration_for_non_livestream_sermon(): void
     {
         $sermon = Sermon::factory()->create([
