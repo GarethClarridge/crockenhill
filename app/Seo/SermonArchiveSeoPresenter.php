@@ -246,6 +246,15 @@ class SermonArchiveSeoPresenter
     }
 
     /**
+     * Clear all internal memoization caches.
+     */
+    public function clearInternalCaches(): void
+    {
+        $this->memoizedPreacherNames = [];
+        $this->memoizedPreacherImages = [];
+    }
+
+    /**
      * Resolve a preacher name from ID, utilizing identity-based request-level memoization
      * and the cached public preacher collection to avoid redundant DB queries.
      *
