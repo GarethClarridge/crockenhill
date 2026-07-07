@@ -21,7 +21,7 @@
             </div>
 
             <x-textarea label="Description" wire:model="form.description" rows="3" required
-                maxlength="500" hint="Brief summary for listings and SEO" autogrow />
+                maxlength="155" hint="Brief summary for listings and SEO" autogrow />
         </div>
     </x-card>
 
