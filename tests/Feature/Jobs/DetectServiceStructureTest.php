@@ -175,6 +175,17 @@ class DetectServiceStructureTest extends TestCase
         $this->assertSame(0, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
         $this->assertSame([], $job->chained, 'The remaining chained jobs are cancelled.');
 
+        // The rejected proposal survives for the reviewer and for scoring —
+        // without creating sections or synthesising segments.
+        $proposal = $log->processing_metadata?->toArray()['service_structure_proposal'] ?? null;
+        $this->assertIsArray($proposal);
+        $this->assertFalse($proposal['passed_validation']);
+        $this->assertContains('multiple_sermons', array_column($proposal['hard_failures'], 'code'));
+        $this->assertCount(2, $proposal['sections']);
+        $this->assertSame('sermon', $proposal['sections'][0]['section_type']);
+        $this->assertArrayNotHasKey('transcript', $proposal['sections'][0]['metadata']);
+        $this->assertSame(3, LivestreamSegment::query()->where('media_processing_log_id', $log->id)->count());
+
         Mail::assertQueued(
             ManualReviewRequired::class,
             fn (ManualReviewRequired $mail): bool => $mail->processingId === $log->processing_id

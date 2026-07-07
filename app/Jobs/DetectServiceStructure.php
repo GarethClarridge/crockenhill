@@ -135,19 +135,10 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
             $diff = $this->diffAgainstAuthoritativeSections($result->structure);
 
-            $this->putShadowMetadata([
-                'generated_at' => now()->toIso8601String(),
-                'model' => $result->structure->model,
-                'passed_validation' => $result->passed(),
-                'hard_failures' => $result->hardFailures,
-                'unmatched_oos_item_ids' => $result->unmatchedOosItemIds,
-                'sections' => array_map(
-                    static fn (array $section): array => collect($section)->except('metadata')->all()
-                        + ['metadata' => collect($section['metadata'])->except('transcript')->all()],
-                    $classified
-                ),
-                'diff' => $diff,
-            ]);
+            $this->putStructureMetadata(
+                'service_structure_shadow',
+                $this->proposalPayload($result, $classified) + ['diff' => $diff]
+            );
 
             Log::info('Service structure shadow diff', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -166,7 +157,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
                 'error' => $throwable->getMessage(),
             ]);
 
-            $this->putShadowMetadata([
+            $this->putStructureMetadata('service_structure_shadow', [
                 'generated_at' => now()->toIso8601String(),
                 'error' => $throwable->getMessage(),
             ]);
@@ -193,6 +184,8 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         if (! $result->passed()) {
             $reasonMessage = 'Detected service structure failed validation: '.$result->failureSummary();
             $evaluation = $sermonConfidenceService->evaluateForProcessingLog($this->processingLog);
+
+            $this->persistFailedProposal($result, $transcript);
 
             $this->markProcessingRunForManualReview(
                 $this->processingLog,
@@ -450,12 +443,61 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * @param  array<string, mixed>  $shadow
+     * A hard validation failure discards nothing: the (often largely correct)
+     * proposal is kept in run metadata so the reviewer starts from the
+     * detected structure and the run stays scoreable. Persistence problems
+     * here must never block the manual-review routing itself.
      */
-    private function putShadowMetadata(array $shadow): void
+    private function persistFailedProposal(ValidationResult $result, ChurchServiceTranscript $transcript): void
+    {
+        try {
+            $classified = $result->structure->toClassifiedSections(
+                $this->processingLog,
+                $transcript,
+                allowSegmentSynthesis: false,
+            );
+
+            $this->putStructureMetadata('service_structure_proposal', $this->proposalPayload($result, $classified));
+        } catch (\Throwable $throwable) {
+            Log::warning('Failed to persist rejected service structure proposal, continuing to manual review', [
+                'processing_id' => $this->processingLog->processing_id,
+                'error' => $throwable->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $classified
+     * @return array<string, mixed>
+     */
+    private function proposalPayload(ValidationResult $result, array $classified): array
+    {
+        return [
+            'generated_at' => now()->toIso8601String(),
+            'model' => $result->structure->model,
+            'passed_validation' => $result->passed(),
+            'hard_failures' => $result->hardFailures,
+            'unmatched_oos_item_ids' => $result->unmatchedOosItemIds,
+            'sections' => array_map(
+                static function (array $section): array {
+                    /** @var array<string, mixed> $metadata */
+                    $metadata = $section['metadata'] ?? [];
+
+                    return collect($section)->except('metadata')->all()
+                        + ['metadata' => collect($metadata)->except('transcript')->all()];
+                },
+                $classified
+            ),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function putStructureMetadata(string $key, array $payload): void
     {
         $metadata = $this->processingLog->processing_metadata?->toArray() ?? [];
-        $metadata['service_structure_shadow'] = $shadow;
+        $metadata[$key] = $payload;
 
         $this->processingLog->forceFill(['processing_metadata' => $metadata])->save();
     }

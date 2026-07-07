@@ -79,11 +79,13 @@ class ProcessingReview extends Component
 
         $reviewMeta = $log->manualReviewMetadata();
         $sourceAvailable = $this->checkSourceAvailable($log);
+        $structureProposal = $log->processing_metadata?->toArray()['service_structure_proposal'] ?? null;
 
         return view('livewire.admin.church-services.processing-review', [
             'log' => $log,
             'segments' => $segments,
             'reviewMeta' => $reviewMeta,
+            'structureProposal' => is_array($structureProposal) ? $structureProposal : null,
             'sourceAvailable' => $sourceAvailable,
             'confirmedSegmentId' => $log->manuallyConfirmedSegmentId(),
             'requiresReview' => $log->requiresManualSermonReview(),

@@ -96,6 +96,61 @@ class ProcessingReviewTest extends TestCase
     }
 
     #[Test]
+    public function review_detail_renders_the_rejected_structure_proposal(): void
+    {
+        $this->actingAs($this->admin);
+
+        $log = $this->makeLogAwaitingReview();
+        $metadata = $log->processing_metadata?->toArray() ?? [];
+        $metadata['service_structure_proposal'] = [
+            'generated_at' => now()->toIso8601String(),
+            'model' => 'mock',
+            'passed_validation' => false,
+            'hard_failures' => [
+                ['code' => 'multiple_sermons', 'message' => 'The structure contains 2 sermon sections; a service has at most one.'],
+            ],
+            'unmatched_oos_item_ids' => [],
+            'sections' => [
+                [
+                    'section_type' => 'sermon',
+                    'section_order' => 1,
+                    'title' => 'The faithfulness of God',
+                    'start_time' => 600.0,
+                    'end_time' => 2200.0,
+                    'confidence' => 0.97,
+                    'metadata' => ['review_flags' => []],
+                ],
+                [
+                    'section_type' => 'song',
+                    'section_order' => 2,
+                    'title' => 'Praise my soul',
+                    'start_time' => 2210.0,
+                    'end_time' => 2400.0,
+                    'confidence' => 0.9,
+                    'metadata' => ['review_flags' => ['structure_low_confidence']],
+                ],
+            ],
+        ];
+        $log->forceFill(['processing_metadata' => $metadata])->save();
+
+        Livewire::test(ProcessingReview::class, ['processingLog' => $log])
+            ->assertSee('Detected Structure (failed validation)')
+            ->assertSee('The structure contains 2 sermon sections; a service has at most one.')
+            ->assertSee('The faithfulness of God')
+            ->assertSee('10:00–36:40')
+            ->assertSee('structure_low_confidence');
+    }
+
+    #[Test]
+    public function review_detail_omits_the_proposal_panel_when_none_was_recorded(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(ProcessingReview::class, ['processingLog' => $this->makeLogAwaitingReview()])
+            ->assertDontSee('Detected Structure (failed validation)');
+    }
+
+    #[Test]
     public function review_detail_shows_confirm_button_only_on_speech_segments(): void
     {
         $this->actingAs($this->admin);
