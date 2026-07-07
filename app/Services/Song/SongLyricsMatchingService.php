@@ -68,6 +68,21 @@ class SongLyricsMatchingService
             ];
         }
 
+        // The heard opening is often the first lyric line rather than the
+        // catalogued title ("What love could remember" vs "His Mercy Is
+        // More"); slightly lower confidence than an exact title match.
+        $song = Song::query()
+            ->whereIn('first_line_key', $keyVariants)
+            ->first();
+
+        if ($song instanceof Song) {
+            return [
+                'song_id' => $song->id,
+                'confidence' => 0.95,
+                'matched_title' => $song->title,
+            ];
+        }
+
         return null;
     }
 

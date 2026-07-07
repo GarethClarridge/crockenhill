@@ -168,6 +168,102 @@ class MatchSongsFromTranscriptTest extends TestCase
     }
 
     #[Test]
+    public function it_matches_a_first_line_hint_and_displays_the_catalogued_title(): void
+    {
+        // The heard "title" is the opening line, not the catalogued title.
+        $song = Song::factory()->create([
+            'title' => 'His Mercy Is More',
+            'canonical_key' => 'his mercy is more',
+            'first_line_key' => 'what love could remember no wrongs we have done',
+            'lyrics_plain' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
+            'title' => 'What love could remember',
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'What love could remember no wrongs we have done',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(OosAlignmentService::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
+        );
+
+        $section->refresh();
+
+        $match = $section->metadata['transcript_song_match'] ?? null;
+        $this->assertIsArray($match);
+        $this->assertSame($song->id, $match['song_id']);
+        $this->assertSame('title_hint_first_line', $match['match_source']);
+        $this->assertSame(0.95, (float) $match['confidence']);
+
+        // The catalogued title is displayed; the heard text stays as evidence.
+        $this->assertSame('His Mercy Is More', $section->title);
+        $this->assertSame('His Mercy Is More', $section->metadata['song_title']);
+        $this->assertSame('What love could remember no wrongs we have done', $section->metadata['song_title_hint']);
+    }
+
+    #[Test]
+    public function it_keeps_the_heard_title_when_match_confidence_is_below_the_writeback_threshold(): void
+    {
+        config(['media-processing.song_matching.title_writeback_min_confidence' => 0.99]);
+
+        Song::factory()->create([
+            'title' => 'His Mercy Is More',
+            'canonical_key' => 'his mercy is more',
+            'first_line_key' => 'what love could remember no wrongs we have done',
+            'lyrics_plain' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
+            'title' => 'What love could remember',
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'What love could remember no wrongs we have done',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(OosAlignmentService::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
+        );
+
+        $section->refresh();
+
+        // The match is recorded, but a sub-threshold confidence must not
+        // present a possibly wrong catalogue title as the display title.
+        $this->assertSame('title_hint_first_line', $section->metadata['transcript_song_match']['match_source'] ?? null);
+        $this->assertSame('What love could remember', $section->title);
+        $this->assertArrayNotHasKey('song_title', $section->metadata->toArray());
+    }
+
+    #[Test]
     public function it_updates_linked_church_service_item_song_id_on_match(): void
     {
         $song = Song::factory()->create([

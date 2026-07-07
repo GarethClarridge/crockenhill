@@ -21,6 +21,7 @@ use Illuminate\Validation\Rule;
 /**
  * @property int $id
  * @property string $canonical_key
+ * @property string|null $first_line_key
  * @property string|null $slug
  * @property string $title
  * @property string|null $alternate_title
@@ -59,6 +60,7 @@ class Song extends Model
      */
     protected $fillable = [
         'canonical_key',
+        'first_line_key',
         'slug',
         'title',
         'alternate_title',
@@ -171,6 +173,31 @@ class Song extends Model
         $normalised = (string) preg_replace('/\s+/', ' ', $normalised);
 
         return trim($normalised);
+    }
+
+    /**
+     * The canonicalised first non-empty lyrics line — the key a sung opening
+     * is heard as ("What love could remember") when it differs from the
+     * catalogued title ("His Mercy Is More"). Stored at catalog sync and
+     * consulted alongside canonical_key when matching heard titles.
+     */
+    public static function firstLineKeyFromLyrics(?string $lyricsPlain): ?string
+    {
+        if (! is_string($lyricsPlain) || trim($lyricsPlain) === '') {
+            return null;
+        }
+
+        foreach (preg_split('/\r?\n/', $lyricsPlain) ?: [] as $line) {
+            if (trim($line) === '') {
+                continue;
+            }
+
+            $key = self::canonicalizeKey($line);
+
+            return $key === '' ? null : $key;
+        }
+
+        return null;
     }
 
     /**

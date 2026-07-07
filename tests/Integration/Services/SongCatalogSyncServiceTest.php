@@ -109,6 +109,33 @@ class SongCatalogSyncServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_populates_the_first_line_key_from_lyrics_on_sync(): void
+    {
+        $lyricsXml = '<?xml version=\'1.0\' encoding=\'UTF-8\'?><song version="1.0"><lyrics>'
+            .'<verse type="v" label="1">What love could remember no wrongs we have done'."\n"
+            .'Omniscient all-knowing He counts not their sum</verse>'
+            .'</lyrics></song>';
+
+        $path = $this->createSqliteWithOneSong('His Mercy Is More', 'his mercy is more', $lyricsXml);
+
+        $this->service->sync($path, dryRun: false);
+
+        $song = Song::query()->where('canonical_key', 'his mercy is more')->firstOrFail();
+        $this->assertSame('what love could remember no wrongs we have done', $song->first_line_key);
+    }
+
+    #[Test]
+    public function it_leaves_the_first_line_key_null_when_a_song_has_no_lyrics(): void
+    {
+        $path = $this->createSqliteWithOneSong('How Great Thou Art', 'how great thou art');
+
+        $this->service->sync($path, dryRun: false);
+
+        $song = Song::query()->where('canonical_key', 'how great thou art')->firstOrFail();
+        $this->assertNull($song->first_line_key);
+    }
+
+    #[Test]
     public function it_updates_an_existing_song_on_subsequent_sync(): void
     {
         $path = $this->createSqliteWithOneSong('Be Thou My Vision', 'be thou my vision');
@@ -188,7 +215,7 @@ class SongCatalogSyncServiceTest extends TestCase
         return $path;
     }
 
-    private function createSqliteWithOneSong(string $title, string $searchTitle): string
+    private function createSqliteWithOneSong(string $title, string $searchTitle, string $lyrics = ''): string
     {
         $path = tempnam(sys_get_temp_dir(), 'songs_test_').'.db';
         $this->tempFiles[] = $path;
@@ -198,8 +225,9 @@ class SongCatalogSyncServiceTest extends TestCase
 
         $this->createSqliteSchema($pdo);
 
-        $pdo->exec("INSERT INTO songs (id, title, alternate_title, lyrics, verse_order, copyright, comments, ccli_number, search_title, last_modified)
-            VALUES (1, '$title', NULL, '', NULL, NULL, NULL, NULL, '$searchTitle', '2026-01-01 10:00:00')");
+        $statement = $pdo->prepare('INSERT INTO songs (id, title, alternate_title, lyrics, verse_order, copyright, comments, ccli_number, search_title, last_modified)
+            VALUES (1, :title, NULL, :lyrics, NULL, NULL, NULL, NULL, :search_title, \'2026-01-01 10:00:00\')');
+        $statement->execute(['title' => $title, 'lyrics' => $lyrics, 'search_title' => $searchTitle]);
 
         return $path;
     }

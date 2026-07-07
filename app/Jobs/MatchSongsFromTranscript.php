@@ -249,6 +249,15 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             return true;
         }
 
+        // A heard "title" is often the first lyric line, not the catalogued title.
+        $song = Song::query()->whereIn('first_line_key', Song::matchKeyVariants($hint))->first();
+
+        if ($song instanceof Song) {
+            $this->applyMatch($section, $song->id, $song->title, 0.95, 'title_hint_first_line');
+
+            return true;
+        }
+
         // Fallback: run the hint text through lyrics matching as a transcript.
         $result = $lyricsMatchingService->matchFromLyrics($hint);
         if ($result['song_id'] !== null) {
@@ -487,6 +496,17 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                 'confidence' => $confidence,
                 'match_source' => $matchSource,
             ];
+
+            // A confident match displays the catalogued title rather than the
+            // heard text ("What love could remember" → "His Mercy Is More").
+            // song_title_hint keeps the heard text as evidence; a shaky fuzzy
+            // match must not present a confidently wrong title.
+            $writebackThreshold = (float) config('media-processing.song_matching.title_writeback_min_confidence', 0.75);
+
+            if ($confidence >= $writebackThreshold) {
+                $metadataArray['song_title'] = $matchedTitle;
+                $section->title = $matchedTitle;
+            }
 
             // Clear the unmatched review flag now that we have a match.
             $reviewFlags = array_values(array_filter(
