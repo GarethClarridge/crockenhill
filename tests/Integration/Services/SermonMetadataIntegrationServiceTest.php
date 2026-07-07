@@ -12,6 +12,8 @@ use App\Services\Processing\StorageAdapterHelper;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Mockery\MockInterface;
+/** @method mixed shouldReceive(...$args) */
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -32,6 +34,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     #[Test]
     public function it_returns_segment_duration_for_livestream_sermon(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create([
             'source_type' => SermonSourceType::Livestream,
             'segment_start_time' => 120.0,
@@ -44,6 +47,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     #[Test]
     public function it_returns_null_segment_duration_for_non_livestream_sermon(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create([
             'source_type' => SermonSourceType::Manual,
             'segment_start_time' => 120.0,
@@ -56,6 +60,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     #[Test]
     public function it_returns_null_segment_duration_when_times_missing(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create([
             'source_type' => SermonSourceType::Livestream,
             'segment_start_time' => null,
@@ -70,6 +75,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     #[Test]
     public function it_returns_formatted_segment_duration(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make([
             'source_type' => SermonSourceType::Livestream,
             'segment_start_time' => 60.0,
@@ -84,6 +90,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     #[Test]
     public function it_returns_livestream_info_array_for_livestream_sermon(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create([
             'source_type' => SermonSourceType::Livestream,
             'segment_start_time' => 60.0,
@@ -106,6 +113,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     #[Test]
     public function it_returns_empty_array_for_non_livestream_sermon(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create([
             'source_type' => SermonSourceType::Manual,
         ]);
@@ -113,37 +121,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
         $this->assertEquals([], $this->service->getLivestreamInfo($sermon));
     }
 
-    // --- linkVideoToSermon() ---
-
-    #[Test]
-    public function it_links_video_to_sermon_record(): void
-    {
-        $sermon = Sermon::factory()->create();
-        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
-            'sermon_start_time' => 120.5,
-            'sermon_end_time' => 3600.0,
-        ]);
-
-        $this->service->linkVideoToSermon($log->processing_id, $sermon->id, 'sermons/1/video.mp4');
-
-        $sermon->refresh();
-        $this->assertEquals($log->processing_id, $sermon->livestream_processing_id);
-        $this->assertEquals('sermons/1/video.mp4', $sermon->video_file_path);
-        $this->assertEquals(SermonSourceType::Livestream, $sermon->source_type);
-    }
-
-    #[Test]
-    public function it_updates_processing_log_with_sermon_link(): void
-    {
-        $sermon = Sermon::factory()->create();
-        $log = MediaProcessingLog::factory()->livestream()->processing()->create();
-
-        $this->service->linkVideoToSermon($log->processing_id, $sermon->id, 'sermons/1/video.mp4');
-
-        $log->refresh();
-        $this->assertEquals($sermon->id, $log->sermon_id);
-        $this->assertEquals('sermons/1/video.mp4', $log->video_file_path);
-    }
+    // --- storeVideoForSermon() ---
 
     #[Test]
     public function it_extracts_video_using_fallback_search_logic(): void
@@ -156,6 +134,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
             'media-processing.storage.sermon_disk' => 'public',
         ]);
 
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create();
         $processingId = 'fallback-test-proc';
         MediaProcessingLog::factory()->livestream()->processing()->create([
@@ -184,6 +163,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
             'media-processing.storage.sermon_disk' => 'public',
         ]);
 
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create();
         $processingId = 'moved-test-proc';
         $relativePath = 'temp/sermon-video.mp4';
@@ -204,6 +184,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     #[Test]
     public function it_throws_exception_when_no_video_is_found_during_storage(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create();
         MediaProcessingLog::factory()->livestream()->processing()->create([
             'processing_id' => 'missing-video-proc',
@@ -227,7 +208,9 @@ class SermonMetadataIntegrationServiceTest extends TestCase
             'media-processing.storage.sermon_disk' => 'public',
         ]);
 
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create();
+        /** @var MediaProcessingLog $log */
         $log = MediaProcessingLog::factory()->livestream()->processing()->create([
             'video_file_path' => 'temp/sermon-video.mp4',
         ]);
@@ -241,9 +224,46 @@ class SermonMetadataIntegrationServiceTest extends TestCase
         Storage::disk('public')->assertExists($finalPath);
     }
 
+    // --- linkVideoToSermon() ---
+
+    #[Test]
+    public function it_links_video_to_sermon_record(): void
+    {
+        /** @var Sermon $sermon */
+        $sermon = Sermon::factory()->create();
+        /** @var MediaProcessingLog $log */
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'sermon_start_time' => 120.5,
+            'sermon_end_time' => 3600.0,
+        ]);
+
+        $this->service->linkVideoToSermon($log->processing_id, $sermon->id, 'sermons/1/video.mp4');
+
+        $sermon->refresh();
+        $this->assertEquals($log->processing_id, $sermon->livestream_processing_id);
+        $this->assertEquals('sermons/1/video.mp4', $sermon->video_file_path);
+        $this->assertEquals(SermonSourceType::Livestream, $sermon->source_type);
+    }
+
+    #[Test]
+    public function it_updates_processing_log_with_sermon_link(): void
+    {
+        /** @var Sermon $sermon */
+        $sermon = Sermon::factory()->create();
+        /** @var MediaProcessingLog $log */
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        $this->service->linkVideoToSermon($log->processing_id, $sermon->id, 'sermons/1/video.mp4');
+
+        $log->refresh();
+        $this->assertEquals($sermon->id, $log->sermon_id);
+        $this->assertEquals('sermons/1/video.mp4', $log->video_file_path);
+    }
+
     #[Test]
     public function it_throws_exception_for_nonexistent_processing_id(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create();
 
         $this->expectException(ModelNotFoundException::class);
@@ -254,6 +274,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     #[Test]
     public function it_throws_exception_for_nonexistent_sermon_id(): void
     {
+        /** @var MediaProcessingLog $log */
         $log = MediaProcessingLog::factory()->livestream()->processing()->create();
 
         $this->expectException(ModelNotFoundException::class);
@@ -274,6 +295,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     #[Test]
     public function it_returns_no_video_info_for_sermon_without_video(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create(['video_file_path' => null]);
 
         $info = $this->service->getVideoInfo($sermon->id);
@@ -284,6 +306,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     #[Test]
     public function it_returns_video_info_for_sermon_with_video(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create([
             'video_file_path' => 'sermons/1/video.mp4',
             'source_type' => SermonSourceType::VideoUpload,
@@ -309,6 +332,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     #[Test]
     public function it_returns_no_preview_for_sermon_without_video(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create(['video_file_path' => null]);
 
         $preview = $this->service->getVideoPreviewData($sermon->id);
@@ -322,6 +346,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
         Storage::fake('public');
         Storage::disk('public')->put('sermons/1/video.mp4', 'fake video content');
 
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create([
             'video_file_path' => 'sermons/1/video.mp4',
         ]);
@@ -378,6 +403,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
         Storage::fake('public');
         Storage::disk('public')->put('remote/video.mp4', 'some content');
 
+        /** @var mixed $helperMock */
         $helperMock = $this->mock(StorageAdapterHelper::class);
         $helperMock->shouldReceive('downloadToTemp')
             ->once()
@@ -400,6 +426,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
         $tempFile = tempnam(sys_get_temp_dir(), 'val');
         file_put_contents($tempFile, $videoContent);
 
+        /** @var mixed $helperMock */
         $helperMock = $this->mock(StorageAdapterHelper::class);
         $helperMock->shouldReceive('downloadToTemp')
             ->once()

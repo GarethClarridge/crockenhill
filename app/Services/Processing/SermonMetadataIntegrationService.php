@@ -36,6 +36,7 @@ class SermonMetadataIntegrationService
     {
         /** @var MediaProcessingLog $processing */
         $processing = MediaProcessingLog::query()->where('processing_id', $processingId)->firstOrFail();
+        /** @var Sermon $sermon */
         $sermon = Sermon::query()->findOrFail($sermonId);
 
         // Update sermon record with livestream information using data from processing log
@@ -107,6 +108,7 @@ class SermonMetadataIntegrationService
     private function extractSermonVideo(string $processingId): ?string
     {
         // First check if the processing log already has the sermon video path
+        /** @var MediaProcessingLog|null $processing */
         $processing = MediaProcessingLog::query()->where('processing_id', $processingId)->first();
 
         if ($processing && $processing->video_file_path) {
@@ -319,6 +321,7 @@ class SermonMetadataIntegrationService
      */
     public function getVideoInfo(int $sermonId): array
     {
+        /** @var Sermon|null $sermon */
         $sermon = Sermon::query()->with('livestreamProcessing.segments')->find($sermonId);
 
         if (! $sermon) {
@@ -361,6 +364,7 @@ class SermonMetadataIntegrationService
      */
     public function getVideoPreviewData(int $sermonId): array
     {
+        /** @var Sermon|null $sermon */
         $sermon = Sermon::query()->find($sermonId);
 
         if (! $sermon || ! $sermon->hasVideo()) {
