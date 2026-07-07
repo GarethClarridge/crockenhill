@@ -145,6 +145,20 @@ class ReadingReferenceExtractorTest extends TestCase
     }
 
     #[Test]
+    public function the_mock_service_preserves_a_cross_chapter_reference(): void
+    {
+        Config::set('media-processing.analysis.service', 'mock');
+
+        $extractor = new ReadingReferenceExtractor($this->resolver());
+
+        $result = $extractor->extract('Our reading is John 3:16-18, 4:1-2. Let us hear the word of the Lord.');
+
+        // The comma continuation must keep the second chapter, matching the live model path.
+        $this->assertSame('John 3:16-18, John 4:1-2', $result['reference']);
+        $this->assertSame('transcript_ai', $result['source']);
+    }
+
+    #[Test]
     public function the_mock_service_returns_none_for_an_unannounced_reading(): void
     {
         Config::set('media-processing.analysis.service', 'mock');

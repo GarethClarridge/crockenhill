@@ -98,11 +98,12 @@ class ReadingReferenceExtractor
 
     private function scanForExplicitReference(string $transcript): ?string
     {
-        // The verse expression accepts comma-separated subrange continuations
-        // ("18:31-33, 35-43") so a multi-part reading survives as one
-        // candidate, and normalizeAll keeps every subrange of it — matching
-        // the live model path above.
-        $pattern = '/(?:[A-Za-z\']+\s+){0,6}(?:chapter\s+)?\d{1,3}(?:\s*:\s*\d{1,3}(?:\s*-\s*\d{1,3})?(?:\s*,\s*\d{1,3}(?:\s*-\s*\d{1,3})?)*|\s+verses?\s+\d{1,3}(?:\s*(?:-|to|through)\s*\d{1,3})?)?/i';
+        // The verse expression accepts comma-separated continuations, each of
+        // which may reopen a chapter ("3:16-18, 4:1-2") or stay within it
+        // ("18:31-33, 35-43"), so a multi-part reading survives as one
+        // candidate and normalizeAll keeps every passage of it — matching the
+        // live model path above.
+        $pattern = '/(?:[A-Za-z\']+\s+){0,6}(?:chapter\s+)?\d{1,3}(?:\s*:\s*\d{1,3}(?:\s*-\s*\d{1,3})?(?:\s*,\s*\d{1,3}(?:\s*:\s*\d{1,3})?(?:\s*-\s*\d{1,3})?)*|\s+verses?\s+\d{1,3}(?:\s*(?:-|to|through)\s*\d{1,3})?)?/i';
 
         if (preg_match_all($pattern, $transcript, $matches) === false) {
             return null;
