@@ -12,7 +12,6 @@ use App\Services\Processing\StorageAdapterHelper;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
-/** @method mixed shouldReceive(...$args) */
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -314,7 +313,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
         $info = $this->service->getVideoInfo($sermon->id);
 
         $this->assertTrue($info['has_video']);
-        $this->assertEquals(SermonSourceType::VideoUpload, $info['source_type']);
+        $this->assertSame(SermonSourceType::VideoUpload, $info['source_type'] ?? null);
         $this->assertArrayHasKey('video_path', $info);
     }
 
@@ -353,7 +352,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
         $preview = $this->service->getVideoPreviewData($sermon->id);
 
         $this->assertTrue($preview['has_video']);
-        $this->assertEquals('mp4', $preview['format']);
+        $this->assertEquals('mp4', $preview['format'] ?? null);
         $this->assertArrayHasKey('file_size', $preview);
         $this->assertArrayHasKey('file_size_formatted', $preview);
     }
