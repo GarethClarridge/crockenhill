@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use PHPUnit\Framework\Attributes\Test;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonSeriesArchiveTest extends TestCase
@@ -33,7 +33,7 @@ class SermonSeriesArchiveTest extends TestCase
     #[Test]
     public function it_can_resolve_a_series_archive_with_mixed_casing_and_prepositions(): void
     {
-        $seriesName = "Gospel of John";
+        $seriesName = 'Gospel of John';
         $sermon = Sermon::factory()->create([
             'series' => $seriesName,
             'title' => 'In the Beginning',
