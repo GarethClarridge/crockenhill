@@ -441,6 +441,12 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
      * does not survive log rotation; this metadata is what lets an operator
      * later tell an LLM-structure cut from a silent RMS-baseline fallback.
      *
+     * The run-level sermon bounds are aligned to the same plan: the guard can
+     * replace a baseline plan with the dominant RMS candidate after any
+     * earlier write-back, and SubmitToProcessing/SermonMetadataIntegration
+     * persist these fields as the Sermon's segment times — they must describe
+     * the media actually cut, whichever source won.
+     *
      * @param  array{mode: string, source: string, segments: array<int, array{start_time: float, end_time: float}>, metadata: array<string, mixed>}  $extractionPlan
      */
     private function recordExtractionPlanAudit(array $extractionPlan): void
@@ -455,6 +461,13 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             'resolved_at' => now()->toIso8601String(),
         ];
 
-        $this->processingLog->forceFill(['processing_metadata' => $metadata])->save();
+        $segments = array_values($extractionPlan['segments']);
+        $lastSegment = $segments[count($segments) - 1];
+
+        $this->processingLog->forceFill([
+            'sermon_start_time' => (float) $segments[0]['start_time'],
+            'sermon_end_time' => (float) $lastSegment['end_time'],
+            'processing_metadata' => $metadata,
+        ])->save();
     }
 }

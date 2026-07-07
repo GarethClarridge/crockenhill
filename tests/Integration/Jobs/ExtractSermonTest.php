@@ -591,6 +591,16 @@ class ExtractSermonTest extends TestCase
         $this->assertSame('extraction_complete', $log->current_step);
         Mail::assertNothingQueued();
 
+        // The guard replaced the baseline plan with the dominant RMS segment,
+        // so the run fields must follow it — the Sermon record built from them
+        // has to describe the media actually cut, not the stale baseline.
+        $this->assertEqualsWithDelta(300.0, (float) $log->sermon_start_time, 0.01);
+        $this->assertEqualsWithDelta(1800.0, (float) $log->sermon_end_time, 0.01);
+        $this->assertSame(
+            'dominant_speech_segment',
+            $log->processing_metadata['sermon_extraction_plan']['strategy'] ?? null
+        );
+
         @unlink($videoFile);
         @unlink($extractedAudioFile);
     }
