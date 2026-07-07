@@ -98,7 +98,11 @@ class ReadingReferenceExtractor
 
     private function scanForExplicitReference(string $transcript): ?string
     {
-        $pattern = '/(?:[A-Za-z\']+\s+){0,6}(?:chapter\s+)?\d{1,3}(?:\s*:\s*\d{1,3}(?:\s*-\s*\d{1,3})?|\s+verses?\s+\d{1,3}(?:\s*(?:-|to|through)\s*\d{1,3})?)?/i';
+        // The verse expression accepts comma-separated subrange continuations
+        // ("18:31-33, 35-43") so a multi-part reading survives as one
+        // candidate, and normalizeAll keeps every subrange of it — matching
+        // the live model path above.
+        $pattern = '/(?:[A-Za-z\']+\s+){0,6}(?:chapter\s+)?\d{1,3}(?:\s*:\s*\d{1,3}(?:\s*-\s*\d{1,3})?(?:\s*,\s*\d{1,3}(?:\s*-\s*\d{1,3})?)*|\s+verses?\s+\d{1,3}(?:\s*(?:-|to|through)\s*\d{1,3})?)?/i';
 
         if (preg_match_all($pattern, $transcript, $matches) === false) {
             return null;
@@ -112,7 +116,7 @@ class ReadingReferenceExtractor
             }
 
             for ($start = 0, $count = count($words); $start < $count; $start++) {
-                $normalized = $this->resolver->normalize(implode(' ', array_slice($words, $start)));
+                $normalized = $this->resolver->normalizeAll(implode(' ', array_slice($words, $start)));
 
                 if ($normalized !== null) {
                     return $normalized;

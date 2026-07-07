@@ -131,6 +131,20 @@ class ReadingReferenceExtractorTest extends TestCase
     }
 
     #[Test]
+    public function the_mock_service_preserves_a_multi_part_reference(): void
+    {
+        Config::set('media-processing.analysis.service', 'mock');
+
+        $extractor = new ReadingReferenceExtractor($this->resolver());
+
+        $result = $extractor->extract('Our reading is Luke 18:31-33, 35-43. Please stand as we read together.');
+
+        // The scanner must keep both subranges, matching the live model path.
+        $this->assertSame('Luke 18:31-33, Luke 18:35-43', $result['reference']);
+        $this->assertSame('transcript_ai', $result['source']);
+    }
+
+    #[Test]
     public function the_mock_service_returns_none_for_an_unannounced_reading(): void
     {
         Config::set('media-processing.analysis.service', 'mock');
