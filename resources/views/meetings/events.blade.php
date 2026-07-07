@@ -18,7 +18,7 @@
             :title="$heading"
             :description="$description"
             :image="$headingpicture ?? null"
-            :image-alt="'Events for ' . ($heading ?? $meeting->slug)"
+            :image-alt="'Meetings for ' . ($heading ?? $meeting->slug)"
         />
         <x-schema.webpage
             :heading="$heading"
@@ -28,7 +28,7 @@
         @if($schemaEvents->isNotEmpty())
             {{--
                 Performance Optimization: Resolve organization config and asset values once
-                outside the loop to avoid redundant helper calls for every event in the list.
+                outside the loop to avoid redundant helper calls for every meeting in the list.
             --}}
             @php
                 $orgName = (string) config('organization.name');
@@ -56,7 +56,7 @@
                                 '@type' => 'Event',
                                 '@id' => $currentUrl . '#event-' . $event->id,
                                 'name' => $event->title,
-                                'description' => \Illuminate\Support\Str::limit(strip_tags((string) ($event->description ?? "Church event at {$orgName}")), 150),
+                                'description' => \Illuminate\Support\Str::limit(strip_tags((string) ($event->description ?? "Church meeting at {$orgName}")), 150),
                                 'startDate' => $event->start_datetime->toIso8601String(),
                                 'location' => (function() use ($event, $meeting, $orgName, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $orgLatitude, $orgLongitude) {
                                     $rawLocation = $event->location ?? $meeting->location;
@@ -101,8 +101,8 @@
                         }
 
                         // This listing includes recent past meetings, so only advertise an
-                        // active offer for events that have not yet finished; marking a
-                        // concluded event as InStock would be inaccurate structured data.
+                        // active offer for meetings that have not yet finished; marking a
+                        // concluded meeting as InStock would be inaccurate structured data.
                         $eventEnd = $event->end_datetime ?? $event->start_datetime;
 
                         if ($eventEnd->isFuture()) {
@@ -129,7 +129,7 @@
     @endif
 
     <div class="prose max-w-none mb-8">
-        <p>All meetings for <strong>{{ $meeting->heading ?? $meeting->slug }}</strong> from our calendar.</p>
+        <p>All scheduled meetings for <strong>{{ $meeting->heading ?? $meeting->slug }}</strong> from our calendar.</p>
         <p><a href="{{ route('meetings.show', $meeting) }}" wire:navigate class="text-blue-600 hover:underline">&larr; Back to {{ $meeting->heading }}</a></p>
     </div>
 
@@ -177,7 +177,7 @@
         <div class="text-center py-12">
             <x-heroicon-o-calendar class="mx-auto h-12 w-12 text-gray-400" />
             <h3 class="mt-2 text-sm font-medium text-gray-900">No meetings found</h3>
-            <p class="mt-1 text-sm text-gray-500">No meetings have been scheduled for this group yet.</p>
+            <p class="mt-1 text-sm text-gray-500">No meetings have been scheduled for this gathering yet.</p>
         </div>
     @endif
 </x-page.shell>
