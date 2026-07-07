@@ -509,8 +509,9 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             // song_title_hint keeps the heard text as evidence; a shaky fuzzy
             // match must not present a confidently wrong title.
             $writebackThreshold = (float) config('media-processing.song_matching.title_writeback_min_confidence', 0.75);
+            $writeCatalogueTitle = $confidence >= $writebackThreshold;
 
-            if ($confidence >= $writebackThreshold) {
+            if ($writeCatalogueTitle) {
                 $metadataArray['song_title'] = $matchedTitle;
                 $section->title = $matchedTitle;
             }
@@ -531,8 +532,11 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             $section->metadata = ServiceSectionMetadata::fromArray($metadataArray);
             $section->save();
 
-            // Update the linked ChurchServiceItem if one exists.
-            if ($section->church_service_item_id !== null) {
+            // Commit the catalogue song to the linked ChurchServiceItem, but
+            // only when confident: the review timeline derives a song section's
+            // displayed title from item->song, so a sub-threshold write would
+            // resurface the very catalogue title the section gate withheld.
+            if ($writeCatalogueTitle && $section->church_service_item_id !== null) {
                 $item = ChurchServiceItem::query()->find($section->church_service_item_id);
                 if ($item instanceof ChurchServiceItem) {
                     $item->forceFill([

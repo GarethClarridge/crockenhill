@@ -308,6 +308,60 @@ class MatchSongsFromTranscriptTest extends TestCase
     }
 
     #[Test]
+    public function it_does_not_write_a_sub_threshold_match_to_the_linked_church_service_item(): void
+    {
+        config(['media-processing.song_matching.title_writeback_min_confidence' => 0.99]);
+
+        Song::factory()->create([
+            'title' => 'His Mercy Is More',
+            'canonical_key' => 'his mercy is more',
+            'first_line_key' => 'what love could remember no wrongs we have done',
+            'lyrics_plain' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $item = ChurchServiceItem::factory()->create([
+            'title' => 'Song',
+            'song_id' => null,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
+            'church_service_item_id' => $item->id,
+            'title' => 'What love could remember',
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'What love could remember no wrongs we have done',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(OosAlignmentService::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
+        );
+
+        $section->refresh();
+        $item->refresh();
+
+        // The match is recorded on the section as evidence, but a sub-threshold
+        // confidence must not commit the catalogue song to the linked item —
+        // the review timeline derives the displayed title from item->song.
+        $this->assertSame('title_hint_first_line', $section->metadata['transcript_song_match']['match_source'] ?? null);
+        $this->assertNull($item->song_id);
+        $this->assertSame('Song', $item->title);
+    }
+
+    #[Test]
     public function it_updates_linked_church_service_item_song_id_on_match(): void
     {
         $song = Song::factory()->create([
