@@ -44,6 +44,12 @@ class SongMatchKeyVariantsTest extends TestCase
                 'lyricsPlain' => 'Amazing grace how sweet the sound',
                 'expected' => 'amazing grace how sweet the sound',
             ],
+            // A run-together lyrics paragraph (no line breaks) would otherwise
+            // derive a key longer than the first_line_key column — clamp it.
+            'run-together paragraph clamped to column length' => [
+                'lyricsPlain' => str_repeat('a', 400),
+                'expected' => str_repeat('a', Song::FIRST_LINE_KEY_MAX_LENGTH),
+            ],
         ];
     }
 

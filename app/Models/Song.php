@@ -56,6 +56,12 @@ class Song extends Model
     use SoftDeletes;
 
     /**
+     * Storage length of the first_line_key column; derived keys are clamped to
+     * it so a run-together lyrics paragraph cannot overflow the column on sync.
+     */
+    public const int FIRST_LINE_KEY_MAX_LENGTH = 255;
+
+    /**
      * @var list<string>
      */
     protected $fillable = [
@@ -192,7 +198,10 @@ class Song extends Model
                 continue;
             }
 
-            $key = self::canonicalizeKey($line);
+            // Clamp to the first_line_key column length: a run-together lyrics
+            // paragraph makes this "first line" the whole song, which would
+            // overflow the column on sync.
+            $key = mb_substr(self::canonicalizeKey($line), 0, self::FIRST_LINE_KEY_MAX_LENGTH);
 
             return $key === '' ? null : $key;
         }

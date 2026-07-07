@@ -307,7 +307,10 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             $matches = [];
 
             foreach ($ocrTexts as $ocrText) {
-                $result = $lyricsMatchingService->matchFromLyrics($ocrText);
+                // OCR frames are sampled across the section, so the first
+                // visible line is not necessarily the song opening — skip the
+                // first-line-key shortcut and let fuzzy matching weigh the text.
+                $result = $lyricsMatchingService->matchFromLyrics($ocrText, allowFirstLineKeyMatch: false);
                 $songId = $result['song_id'];
 
                 if ($songId !== null && ! array_key_exists($songId, $matches)) {
