@@ -19,7 +19,7 @@
         </form>
     </x-slot:actions>
 
-    @if($uncategorizedEvents->count() > 0)
+    @if($uncategorizedEvents->isNotEmpty())
         <div class="space-y-6">
             @foreach($uncategorizedEvents as $event)
                 <x-calendar-event-card

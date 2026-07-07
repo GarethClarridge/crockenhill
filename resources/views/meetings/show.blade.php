@@ -287,7 +287,7 @@
     @endif
 
     {{-- Calendar Events --}}
-    @if(isset($upcomingEvents) && $upcomingEvents->count() > 0)
+    @if(isset($upcomingEvents) && $upcomingEvents->isNotEmpty())
         <hr class="my-8">
         <x-h2>Upcoming meetings</x-h2>
 
@@ -316,7 +316,7 @@
     @endif
 
     {{-- Recent Past Events --}}
-    @if(isset($pastEvents) && $pastEvents->count() > 0)
+    @if(isset($pastEvents) && $pastEvents->isNotEmpty())
         <div class="mb-8">
             <h2 class="text-lg font-semibold text-gray-900 mb-4">Recent meetings</h2>
             <div class="space-y-2">

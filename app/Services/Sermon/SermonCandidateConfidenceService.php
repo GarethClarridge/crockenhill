@@ -77,7 +77,7 @@ class SermonCandidateConfidenceService
             ? (float) $nextLongestSegment->duration
             : 0.0;
 
-        if ($qualifyingSegments->count() === 0) {
+        if ($qualifyingSegments->isEmpty()) {
             return [
                 'is_clear' => false,
                 'reason' => 'no_qualifying_speech_block',
@@ -101,7 +101,7 @@ class SermonCandidateConfidenceService
 
         $candidate = $qualifyingSegments->first();
 
-        if (! $candidate instanceof LivestreamSegment) {
+        if ($candidate === null) {
             return [
                 'is_clear' => false,
                 'reason' => 'no_qualifying_speech_block',
