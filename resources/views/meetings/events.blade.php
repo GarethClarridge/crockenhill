@@ -177,7 +177,7 @@
         <div class="text-center py-12">
             <x-heroicon-o-calendar class="mx-auto h-12 w-12 text-gray-400" />
             <h3 class="mt-2 text-sm font-medium text-gray-900">No meetings found</h3>
-            <p class="mt-1 text-sm text-gray-500">No meetings have been scheduled for this gathering yet.</p>
+            <p class="mt-1 text-sm text-gray-500">No meetings have been scheduled for this group yet.</p>
         </div>
     @endif
 </x-page.shell>

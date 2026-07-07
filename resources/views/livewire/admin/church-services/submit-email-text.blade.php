@@ -1,5 +1,5 @@
 <x-admin.form-shell
-    title="Import Email Text"
+    title="Paste Email Text"
     description="Paste an order-of-service email into the same parsing pipeline used by inbound mail."
     save-action="submit"
 >
@@ -17,7 +17,7 @@
                 wire:click="submit"
                 icon="paper-airplane"
             >
-                Import email text
+                Paste email text
             </x-form-button>
         @endunless
     </x-slot:actions>
@@ -29,7 +29,7 @@
                     <x-heroicon-o-check-circle class="h-8 w-8 text-green-600" />
                 </div>
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Email text imported for review</h2>
+                    <h2 class="text-lg font-semibold text-gray-900">Email text pasted for review</h2>
                     <p class="mt-1 text-sm text-gray-600">The email text has been queued for processing. Check the review inbox to see the parsed result.</p>
                 </div>
                 <div class="flex justify-center gap-3">
@@ -37,7 +37,7 @@
                         View in review inbox
                     </x-button>
                     <x-form-button type="button" variant="outline" wire:click="$set('submitted', false)">
-                        Import more email text
+                        Paste more email text
                     </x-form-button>
                 </div>
             </div>
@@ -77,7 +77,7 @@
                 </div>
             </x-card>
 
-            <x-card heading="Importing">
+            <x-card heading="Pasting email">
                 <div class="space-y-3 text-sm text-gray-600">
                     <p>The email will be queued via the same pipeline as Mailgun webhook emails.</p>
                     <p>After submission you can review the parse result in the inbound email list.</p>

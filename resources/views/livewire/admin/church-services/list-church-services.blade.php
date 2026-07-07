@@ -14,7 +14,7 @@
                 Upload order of service
             </x-admin.action-menu-item>
             <x-admin.action-menu-item link="{{ route('admin.services.submit-email') }}" icon="envelope">
-                Import email text
+                Paste email text
             </x-admin.action-menu-item>
             <x-admin.action-menu-item link="{{ route('admin.services.create') }}" icon="pencil-square">
                 Create manually
