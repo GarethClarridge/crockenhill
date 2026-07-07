@@ -503,6 +503,19 @@ class ExtractSermonTest extends TestCase
         $this->assertSame('extraction_complete', $log->current_step);
         $this->assertSame('temp/concat-sermon.mp4', $log->video_file_path);
 
+        // The concat cut joins a 180s reading and a 1200s sermon (1380s of
+        // media) across a gap. The run bounds must describe that duration, not
+        // the 1980s continuous span from first-start to last-end — downstream
+        // (SubmitToProcessing, SermonMetadataIntegration, StandardProcessingResponse)
+        // read sermon_end_time - sermon_start_time as the segment duration.
+        $this->assertEqualsWithDelta(120.0, (float) $log->sermon_start_time, 0.01);
+        $this->assertEqualsWithDelta(1500.0, (float) $log->sermon_end_time, 0.01);
+        $this->assertEqualsWithDelta(
+            1380.0,
+            (float) $log->sermon_end_time - (float) $log->sermon_start_time,
+            0.01
+        );
+
         @unlink($videoFile);
         @unlink($extractedAudioFile);
         @unlink($concatVideo);
