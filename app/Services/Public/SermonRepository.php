@@ -307,19 +307,12 @@ class SermonRepository
         $slug = $baseSlug;
         $counter = 1;
 
-        // Ensure slug is unique
-        $query = Sermon::query()->where('slug', $slug);
-        if ($excludeSermonId !== null) {
-            $query->where('id', '!=', $excludeSermonId);
-        }
+        $query = Sermon::query()
+            ->when($excludeSermonId, fn (Builder $q) => $q->where('id', '!=', $excludeSermonId));
 
-        while ($query->clone()->exists()) {
+        while ($query->clone()->where('slug', $slug)->exists()) {
             $slug = $baseSlug.'-'.$counter;
             $counter++;
-            $query = Sermon::query()->where('slug', $slug);
-            if ($excludeSermonId !== null) {
-                $query->where('id', '!=', $excludeSermonId);
-            }
         }
 
         return $slug;
@@ -459,41 +452,32 @@ class SermonRepository
         $this->forgetFlexible('sermon_scripture_books_all_all');
 
         // Extract all possible values that could be cached
-        $preacherIds = array_filter(array_unique([
-            (int) $sermon->preacher_id ?: null,
-            (int) $sermon->getOriginal('preacher_id') ?: null,
-        ]));
+        $preacherIds = collect([$sermon->preacher_id, $sermon->getOriginal('preacher_id')])
+            ->map(fn ($id) => (int) $id ?: null)
+            ->filter()
+            ->unique()
+            ->all();
 
-        $seriesNames = array_filter(array_unique([
-            $sermon->series ?: null,
-            $sermon->getOriginal('series') ?: null,
-        ]));
+        $series = collect([$sermon->series, $sermon->getOriginal('series')])
+            ->filter()
+            ->unique();
 
-        $seriesSlugs = array_map(fn (string $s) => Str::slug($s), $seriesNames);
+        $seriesSlugs = $series->map(fn (string $s) => Str::slug($s))->all();
 
         $this->forgetPreacherAndSeriesCaches($preacherIds, $seriesSlugs);
 
         // Resolve all Bible books associated with this sermon (current and previous)
         // to ensure all relevant chapter caches are invalidated. We parse references
         // directly to handle new, deleted, or updated states robustly.
-        $references = array_filter(array_unique([
-            (string) $sermon->reference ?: null,
-            (string) $sermon->getOriginal('reference') ?: null,
-        ]));
-
-        $books = [];
-        foreach ($references as $ref) {
-            foreach ($this->indexService->entriesForReference($ref) as $entry) {
-                $books[] = $entry['bible_book'];
-            }
-        }
-
-        // We also check the relationship to catch current or deleted filters.
-        foreach ($sermon->scriptureFilters()->distinct()->pluck('bible_book') as $book) {
-            $books[] = (string) $book;
-        }
-
-        $books = array_unique($books);
+        $books = collect([(string) $sermon->reference ?: null, (string) $sermon->getOriginal('reference') ?: null])
+            ->filter()
+            ->unique()
+            ->flatMap(fn (string $ref) => $this->indexService->entriesForReference($ref))
+            ->pluck('bible_book')
+            ->merge($sermon->scriptureFilters()->distinct()->pluck('bible_book'))
+            ->map(fn ($book) => (string) $book)
+            ->unique()
+            ->all();
 
         $this->forgetBookAndChapterCaches($books, $preacherIds, $seriesSlugs);
     }
@@ -506,16 +490,12 @@ class SermonRepository
      */
     private function forgetPreacherAndSeriesCaches(array $preacherIds, array $seriesSlugs): void
     {
-        foreach ($preacherIds as $id) {
-            $this->forgetFlexible("sermon_scripture_books_{$id}_all");
-        }
+        collect($preacherIds)->each(fn ($id) => $this->forgetFlexible("sermon_scripture_books_{$id}_all"));
 
-        foreach ($seriesSlugs as $slug) {
+        collect($seriesSlugs)->each(function (string $slug) use ($preacherIds): void {
             $this->forgetFlexible("sermon_scripture_books_all_{$slug}");
-            foreach ($preacherIds as $id) {
-                $this->forgetFlexible("sermon_scripture_books_{$id}_{$slug}");
-            }
-        }
+            collect($preacherIds)->each(fn ($id) => $this->forgetFlexible("sermon_scripture_books_{$id}_{$slug}"));
+        });
     }
 
     /**
@@ -527,21 +507,17 @@ class SermonRepository
      */
     private function forgetBookAndChapterCaches(array $books, array $preacherIds, array $seriesSlugs): void
     {
-        foreach ($books as $book) {
+        collect($books)->each(function (string $book) use ($preacherIds, $seriesSlugs): void {
             $bookSlug = Str::slug($book);
             $this->forgetFlexible("sermon_scripture_chapters_{$bookSlug}_all_all");
 
-            foreach ($preacherIds as $id) {
-                $this->forgetFlexible("sermon_scripture_chapters_{$bookSlug}_{$id}_all");
-            }
+            collect($preacherIds)->each(fn ($id) => $this->forgetFlexible("sermon_scripture_chapters_{$bookSlug}_{$id}_all"));
 
-            foreach ($seriesSlugs as $slug) {
+            collect($seriesSlugs)->each(function (string $slug) use ($bookSlug, $preacherIds): void {
                 $this->forgetFlexible("sermon_scripture_chapters_{$bookSlug}_all_{$slug}");
-                foreach ($preacherIds as $id) {
-                    $this->forgetFlexible("sermon_scripture_chapters_{$bookSlug}_{$id}_{$slug}");
-                }
-            }
-        }
+                collect($preacherIds)->each(fn ($id) => $this->forgetFlexible("sermon_scripture_chapters_{$bookSlug}_{$id}_{$slug}"));
+            });
+        });
     }
 
     /**
@@ -571,37 +547,28 @@ class SermonRepository
             $this->clearScriptureChapterCaches($model);
 
             // Invalidate for current and original series
-            $series = array_filter(array_unique([
-                $model->series ?: null,
-                $model->getOriginal('series') ?: null,
-            ]));
-
-            foreach ($series as $s) {
-                $this->forgetFlexible('sermons_series_'.Str::slug($s));
-            }
+            collect([$model->series, $model->getOriginal('series')])
+                ->filter()
+                ->unique()
+                ->each(fn (string $s) => $this->forgetFlexible('sermons_series_'.Str::slug($s)));
 
             // Invalidate for current and original service
-            $services = array_filter(array_unique([
-                $model->service?->value ?: null,
-                $model->getOriginal('service') instanceof SermonService ? $model->getOriginal('service')->value : ($model->getOriginal('service') ?: null),
-            ]));
-
-            foreach ($services as $serviceValue) {
-                $this->forgetFlexible('sermons_service_'.$serviceValue);
-            }
+            collect([$model->service?->value, $model->getOriginal('service') instanceof SermonService ? $model->getOriginal('service')->value : $model->getOriginal('service')])
+                ->filter()
+                ->unique()
+                ->each(fn ($serviceValue) => $this->forgetFlexible('sermons_service_'.$serviceValue));
 
             // Invalidate for current and original preacher
-            $preacherIds = array_filter(array_unique([
-                (int) $model->preacher_id ?: null,
-                (int) $model->getOriginal('preacher_id') ?: null,
-            ]));
-
-            foreach ($preacherIds as $id) {
-                $preacher = Preacher::query()->find($id);
-                if ($preacher) {
-                    $this->forgetFlexible($this->preacherCacheKey($preacher));
-                }
-            }
+            collect([$model->preacher_id, $model->getOriginal('preacher_id')])
+                ->map(fn ($id) => (int) $id ?: null)
+                ->filter()
+                ->unique()
+                ->each(function (int $id): void {
+                    $preacher = Preacher::query()->find($id);
+                    if ($preacher) {
+                        $this->forgetFlexible($this->preacherCacheKey($preacher));
+                    }
+                });
         }
 
         if ($model instanceof Preacher) {
