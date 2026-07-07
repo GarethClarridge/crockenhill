@@ -68,8 +68,10 @@ class ChurchServiceTranscriptDataTest extends TestCase
     }
 
     #[Test]
-    public function prompt_text_renders_compact_minute_second_ranges(): void
+    public function prompt_text_renders_raw_second_ranges(): void
     {
+        // Raw seconds, matching the unit the response schema demands for
+        // start_time/end_time — no minutes:seconds conversion for the model.
         $transcript = ChurchServiceTranscript::fromCues([
             ['start' => 0.0, 'end' => 5.0, 'text' => 'Welcome everyone.'],
             ['start' => 65.4, 'end' => 70.0, 'text' => 'Our first hymn.'],
@@ -77,7 +79,7 @@ class ChurchServiceTranscriptDataTest extends TestCase
         ], 5600.0, ChurchServiceTranscript::SOURCE_MOCK);
 
         $this->assertSame(
-            "[0:00-0:05] Welcome everyone.\n[1:05-1:10] Our first hymn.\n[92:05-92:10] A closing word.",
+            "[0.0-5.0] Welcome everyone.\n[65.4-70.0] Our first hymn.\n[5525.0-5530.0] A closing word.",
             $transcript->toPromptText()
         );
     }
