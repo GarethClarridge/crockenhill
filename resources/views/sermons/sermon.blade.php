@@ -283,7 +283,19 @@
                         x-transition:leave-start="opacity-100 translate-y-0"
                         x-transition:leave-end="opacity-0 -translate-y-1"
                         class="p-6 max-h-96 overflow-y-auto">
-                        <div x-show="loading" class="text-sm text-gray-500">Loading transcript…</div>
+                        <div x-show="loading" class="space-y-4 animate-pulse" aria-hidden="true">
+                            <div class="space-y-2">
+                                <div class="h-4 bg-gray-100 rounded w-3/4"></div>
+                                <div class="h-4 bg-gray-100 rounded"></div>
+                                <div class="h-4 bg-gray-100 rounded w-5/6"></div>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="h-4 bg-gray-100 rounded w-2/3"></div>
+                                <div class="h-4 bg-gray-100 rounded"></div>
+                                <div class="h-4 bg-gray-100 rounded w-4/5"></div>
+                            </div>
+                        </div>
+                        <div x-show="loading" class="sr-only" role="status">Loading transcript…</div>
                         <div x-show="error" x-text="error" class="text-sm text-red-600"></div>
                         <div x-show="loaded" x-html="html" class="prose prose-gray max-w-none text-gray-700"></div>
                     </div>
