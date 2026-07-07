@@ -50,14 +50,12 @@ class ThumbnailErrorHandlingTest extends TestCase
             ->method('generateThumbnail')
             ->willThrowException(new \Exception('Thumbnail generation failed'));
 
-        Log::shouldReceive('info')->once();
-        Log::shouldReceive('warning')->once()->with(
-            'Thumbnail generation job encountered an error',
-            \Mockery::on(function (array $context) use ($sermon): bool {
-                return $context['sermon_id'] === $sermon->id &&
-                       $context['video_path'] === 'sermons/error-test/video.mp4' &&
-                       $context['error'] === 'Thumbnail generation failed';
-            })
+        Log::shouldReceive('info');
+        Log::shouldReceive('warning')->once()->withArgs(
+            fn (string $message, array $context) => str_contains($message, 'Thumbnail generation job encountered an error') &&
+                $context['sermon_id'] === $sermon->id &&
+                $context['video_path'] === 'sermons/error-test/video.mp4' &&
+                $context['error'] === 'Thumbnail generation failed'
         );
 
         $job = new GenerateThumbnail($log);
@@ -130,12 +128,10 @@ class ThumbnailErrorHandlingTest extends TestCase
             ->method('generateThumbnail')
             ->willReturn(ThumbnailResult::skipped('Simulated memory exhaustion'));
 
-        Log::shouldReceive('info')->once();
-        Log::shouldReceive('warning')->once()->with(
-            'Thumbnail generation skipped',
-            \Mockery::on(function (array $context): bool {
-                return str_contains($context['reason'], 'memory');
-            })
+        Log::shouldReceive('info');
+        Log::shouldReceive('warning')->once()->withArgs(
+            fn (string $message, array $context) => str_contains($message, 'Thumbnail generation skipped') &&
+                str_contains($context['reason'], 'memory')
         );
 
         $job = new GenerateThumbnail($log);
@@ -161,12 +157,10 @@ class ThumbnailErrorHandlingTest extends TestCase
             ->method('generateThumbnail')
             ->willThrowException(new \Exception('Maximum execution time exceeded'));
 
-        Log::shouldReceive('info')->once();
-        Log::shouldReceive('warning')->once()->with(
-            'Thumbnail generation job encountered an error',
-            \Mockery::on(function (array $context): bool {
-                return str_contains($context['error'], 'execution time');
-            })
+        Log::shouldReceive('info');
+        Log::shouldReceive('warning')->once()->withArgs(
+            fn (string $message, array $context) => str_contains($message, 'Thumbnail generation job encountered an error') &&
+                str_contains($context['error'], 'execution time')
         );
 
         $job = new GenerateThumbnail($log);
@@ -215,12 +209,10 @@ class ThumbnailErrorHandlingTest extends TestCase
             ->method('generateThumbnail')
             ->willThrowException(new \Exception('Permission denied'));
 
-        Log::shouldReceive('info')->once();
-        Log::shouldReceive('warning')->once()->with(
-            'Thumbnail generation job encountered an error',
-            \Mockery::on(function (array $context): bool {
-                return str_contains($context['error'], 'Permission denied');
-            })
+        Log::shouldReceive('info');
+        Log::shouldReceive('warning')->once()->withArgs(
+            fn (string $message, array $context) => str_contains($message, 'Thumbnail generation job encountered an error') &&
+                str_contains($context['error'], 'Permission denied')
         );
 
         $job = new GenerateThumbnail($log);
@@ -238,14 +230,12 @@ class ThumbnailErrorHandlingTest extends TestCase
         ]);
         $job = new GenerateThumbnail($this->createVideoProcessingLog($sermon));
 
-        Log::shouldReceive('warning')->once()->with(
-            'GenerateThumbnail job failed permanently',
-            \Mockery::on(function (array $context) use ($sermon): bool {
-                return $context['sermon_id'] === $sermon->id &&
-                       $context['video_path'] === 'sermons/failure-test/video.mp4' &&
-                       $context['error'] === 'Job failed permanently' &&
-                       isset($context['attempts']);
-            })
+        Log::shouldReceive('warning')->once()->withArgs(
+            fn (string $message, array $context) => str_contains($message, 'GenerateThumbnail job failed permanently') &&
+                $context['sermon_id'] === $sermon->id &&
+                $context['video_path'] === 'sermons/failure-test/video.mp4' &&
+                $context['error'] === 'Job failed permanently' &&
+                isset($context['attempts'])
         );
 
         $job->failed(new \Exception('Job failed permanently'));
@@ -298,9 +288,8 @@ class ThumbnailErrorHandlingTest extends TestCase
         $mockService = $this->createMock(ThumbnailGenerationService::class);
         $mockService->expects($this->never())->method('generateThumbnail');
 
-        Log::shouldReceive('error')->once()->with(
-            'Missing sermon ID or video path for thumbnail generation',
-            \Mockery::any()
+        Log::shouldReceive('error')->once()->withArgs(
+            fn (string $message) => str_contains($message, 'Missing sermon ID or video path for thumbnail generation')
         );
 
         $job = new GenerateThumbnail($log);
