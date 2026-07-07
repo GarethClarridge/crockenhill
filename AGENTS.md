@@ -6,7 +6,9 @@ Tool-specific addenda live alongside this file and stay short:
 
 - `CLAUDE.md` — Claude-Code-specific notes (auto-loaded by Claude Code).
 - `GEMINI.md` — Gemini-specific notes (auto-loaded by Gemini Code Assist).
-- `.Jules/agents/*.md` — Jules persona missions, domain checklists, and journals. The directory is canonically `.Jules` (capital J), never lowercase `.jules` — on case-insensitive filesystems the two collapse to one file but git tracks them as duplicate paths, causing phantom diffs. Enforced by `scripts/check-no-case-collisions.sh` in the PR quality gate.
+- `.Jules/agents/*.md` — Jules persona missions, domain checklists, and journals. Check the
+  "Autonomous fleet status & the do-not-invest list" section below — most personas are paused or
+  retired during the July 2026 simplification programme. The directory is canonically `.Jules` (capital J), never lowercase `.jules` — on case-insensitive filesystems the two collapse to one file but git tracks them as duplicate paths, causing phantom diffs. Enforced by `scripts/check-no-case-collisions.sh` in the PR quality gate.
 - `.codex/config.toml` — Codex MCP wiring.
 
 None of those files duplicate project context that lives here. If you spot drift, fix it here and trim the duplicate.
@@ -263,6 +265,99 @@ It encodes the project-specific design system (brand tokens, component selection
 - `config/media-processing.php` toggles:
   - `email.send_success_notifications` (default `false`)
   - `email.send_failure_notifications` (default `true`)
+
+
+## Autonomous fleet status & the do-not-invest list
+
+*Added 2026-07-07 (backlog decision D21). Applies to every autonomous agent — Jules personas,
+Codex, Gemini, Claude Code running unattended — and to whoever reviews their PRs. Delete this
+section when the July 2026 simplification programme completes.*
+
+The July 2026 simplification programme (`docs/plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md`)
+is the repo's priority. While it runs, the autonomous fleet is mostly stood down: by early July the
+fleet was merging ~11 PRs/day and repeatedly investing in code the backlog deletes (tests for
+`MeetingPolicy` the day before its scheduled deletion, optimisation of inline JSON-LD scheduled
+for removal). The existing review pipeline checks *correctness*; this section adds the missing
+*necessity* check.
+
+### Fleet status (2026-07-07)
+
+| Persona | Status | One-line reason |
+|---|---|---|
+| Mortician 🪦, Pathfinder 🔗 | **Active** | Issue-first diagnostics; findings feed the backlog |
+| Aria ♿, Editor 📖, Palette 🎨, Lighthouse 🔦, Sentinel 🛡️ | **Paused** | Resume weekly (not nightly) after the backlog's structural work lands, under the worth-it gate |
+| Tidy 🧹 | **Paused** | Resumption conditional on post-programme reassessment — refactoring overlaps the programme |
+| Warden 🏛️, Herald 📜, Bolt ⚡, Scribe 📝, Steward 🧪 | **Retired** | Domain saturated or self-defeating; rationale in each `.Jules/agents/*.md` |
+
+Each persona's mission file carries its own status banner; the banner in the file an agent is
+running with is authoritative for that agent.
+
+**Operator actions outside the repo (these files are only the backstop):** pause or delete the
+corresponding scheduled tasks in the Jules UI; on resume, schedule survivors weekly, not nightly;
+update the Codex review prompt to enforce the worth-it gate below.
+
+### The worth-it gate
+
+A correct change is not automatically a worthwhile change. Every autonomous PR description must
+contain two lines, and reviewers must decline PRs that lack them or can't fill them honestly:
+
+- **Who benefits:** a named group (site visitors, the operator, screen-reader users, …)
+- **What observably improves:** something a person could notice or measure
+
+A run that ends with no PR because nothing met the bar is a *successful* run — record it in the
+persona journal. Two consecutive no-op journal entries = the persona notes "Domain looks
+saturated" and the operator switches it off. PRs-merged is not the fleet's success metric;
+accepted findings are.
+
+### Do-not-invest list
+
+The backlog schedules the following for deletion or rewrite. **Do not invest in any of it** — no
+tests, no PHPDoc, no optimisation, no hardening, no refactoring, no copy or markup polish.
+Reviewers treat a PR touching this list as an automatic decline. Source of truth is the backlog
+itself (item numbers in parentheses); verify there before relying on this summary.
+
+- **Church-service heuristic cluster (1.5):** services `StructuralSectionAligner`,
+  `SpeechSectionClassificationService`, `SongSectionAligner`, `OosAlignmentService`,
+  `ServiceSectionClassifier`, `ReadingReferenceExtractor`, `SectionItemAlignmentScorer`,
+  `SectionAlignmentBaselineRestorer`, `AlignmentTriggerCalculator`, `PresentationItemClassifier`,
+  `MediaInterludeCueDetector`; jobs `ClassifySpeechSections`, `ResolveReadingReferences`,
+  `TranscribeSpeechSegments`, `ReclassifyIntroOutroSections`, `ClassifyServiceSections`,
+  `AlignWithOos`; `scripts/section-extraction/`; the heuristic branches of
+  `ProcessingPipelineBuilder`; all heuristic-path tests.
+- **Media visual stack + song clusters (1.6):** `VisualAnalysisService`, `PerformVisualAnalysis`,
+  the visual/cluster halves of `VideoSegmentationService` and `AnalyzeSegments`,
+  `ExportVisualMetricsCommand`, `ExtractVideoFrames`, `SongClusteringService`, `SongCluster` /
+  `SongClusterCollection` / `SongClusterCollectionCast`.
+- **Grep-verified dead code (2.1):** `SermonValidationService`, `UpdateSermonRecord` +
+  `UpdateSermonRequest`, `App\Data\ProcessingReport`, `SermonProcessingLogFormatter` + the
+  `sermon-processing` log channel, the dead `SermonProcessingLogger` methods, `VideoStorageService`
+  orphan methods, `PageImagePresenter::headingImageSrcset()`, `PublicSongUsageService::query()`,
+  `ServiceSectionStatus::Skipped`, the dead `SermonRepository` / `CalendarService` / `Meeting`
+  occurrence methods.
+- **One-shot tooling (2.3–2.6):** `SermonStorageMaintenanceService` and its five storage-migration
+  commands, `LegacySermonImporter`, `GenerateProdSermonPatchCommand`, `PreacherCutoverCommand`,
+  `LegacyPlayDateSongUsageImporter`, `LegacySongReconciler`, `HistoricVideoImporter`,
+  `ConvertJpgToWebp`, `ImportOpenLpDirectoryCommand`, `BackfillMediaProcessingIdentityCommand`,
+  `FixUploadDirectories`, `MeetingMigratePhotosCommand` + `MeetingPhotoMigrationService`.
+- **Public read path (3.1–3.5):** `PageShowComposer` and the three landing composers,
+  `app/View/Presenters/`, the inline Blade JSON-LD in `resources/views/meetings/show|events`,
+  `SermonRepository`'s permutation-invalidation registry, `SermonPresenterCache`, the
+  identity-store half of `SermonIdentityResolver`, sitemap `priority`/`changefreq`/representative-
+  image enrichment, the `Meeting` recurrence fields (`meeting_date`/`is_recurring`/`frequency`)
+  and their admin/JSON-LD surfaces, `syncCategorizationToGoogle`/`removeCategorizationFromGoogle`
+  + `CalendarCategorizationResult`, `CalendarAdminController` + its two Blade views.
+- **Admin & diagnostics (4.2–4.5):** `ProcessingLogService`, `ProcessingLogEntry`,
+  `ProcessingLogCollection`, `ProcessingLogsViewer`, the `ProcessingReview` page, `MeetingPolicy`
+  + the `@can('manage-*')` gates + `AuthorizationGatesTest` / `MeetingPolicyTest`.
+- **Workflow state (5.1):** the canonical-conflict enums/columns and most of
+  `ChurchServiceReviewStateService`.
+- **Stock config (6.2):** `config/blade-heroicons.php`, `config/media-library.php`,
+  `config/schedule-monitor.php`, `config/view.php`, `config/broadcasting.php`.
+- **Legacy duplicate test suites (7.1):** flat `EditSermonTest` / `ListSermonsTest`,
+  `AdminUserTest`, `AdminMeetingTest`, `AdminChurchServiceTest`, the duplicate
+  `PublicSongUsageServiceTest` / `SongLyricSnippetBuilderTest` / `PublicMeetingReadModelCacheTest`
+  files, `MockSermonAnalysisServiceTest`. More generally: no new investment in heuristic-path
+  tests while the LLM-first soak runs.
 
 
 ## Jules / Remote CI Environment

@@ -140,6 +140,7 @@ removal is approved: approval means "delete once the listed check passes".
 | D18 | Stock config deletions (platform P3) + dead keys (P5) | Accept | **Approved** |
 | D19 | Behaviour-adopting config updates: `hashing.php`, `auth.php`, `debugbar.php`, `livewire.php` regenerate (platform P4) | Accept — conscious adoption of current defaults incl. password-reset throttle | **Approved** |
 | D20 | Config merges: `sermons`+`opening-hours`+`organization` → `church.php`; `monitoring` → `health` (platform P6) | Accept | **Approved** |
+| D21 *(added 2026-07-07)* | Jules fleet stand-down for the programme: it was merging ~11 PRs/day and investing in deletion-scheduled code (PRs #1100, #1107, #1124). Pause code-writing personas; retire Warden/Herald/Bolt/Scribe/Steward; keep Mortician/Pathfinder (issue-first); survivors resume weekly under a worth-it gate; do-not-invest list + necessity check added to `AGENTS.md` and the PR-review skill | Accept | **Approved — implemented 2026-07-07** (fleet-status section in `AGENTS.md`; status banners in `.Jules/agents/*.md`; operator still to pause the Jules UI schedules) |
 
 ---
 
