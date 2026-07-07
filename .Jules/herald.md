@@ -33,3 +33,7 @@
 ## 2026-06-25 - Documenting Automated Fallbacks and Non-Fatal Failures
 **Learning:** Public methods in core media services (like `AudioExtractionService`) often implement automatic fallback logic (e.g., re-encoding if a file exceeds the Whisper 25MB limit). Explicitly documenting these fallbacks and the technical constraints that trigger them (e.g., specific file sizes or bitrate settings) is crucial for developers to understand the pipeline's resilience and capacity.
 **Action:** Always highlight automatic recovery paths and technical limits (bitrates, file sizes, timeouts) in service PHPDoc to clarify the "contract" between the service and the infrastructure it interacts with.
+
+## 2026-07-02 - Documenting Identity Resolution and Data Normalization
+**Learning:** Documenting utility-like resolver services (like `MediaProcessingIdentityResolver`) requires clear explanation of their role in bridging unstructured metadata (extracted from uploads) with structured domain models (like `Sermon` records). Precise array shapes for resolution results and descriptive parameter documentation for parsing methods ensure that callers (Queries, Jobs, Commands) understand the expected format and validation rules of the identity components.
+**Action:** Always document the specific "identity" shape (e.g., date and service) in resolver services to clarify how records are matched and retrieved. Ensure query scopes are documented with their filtering criteria and parameter types to support better developer experience in repository or query classes.
