@@ -90,6 +90,35 @@ class ScriptureReferenceResolverTest extends TestCase
         $this->assertNull($this->resolver->normalizeAll('xyzzy 99:99'));
     }
 
+    public function test_references_agree_when_one_subdivides_the_other(): void
+    {
+        // The transcript often hears the planned passage as subranges.
+        $this->assertTrue($this->resolver->referencesAgree('Luke 18:31-33, 35-43', 'Luke 18:31-43'));
+        $this->assertTrue($this->resolver->referencesAgree('Luke 18:31-43', 'Luke 18:31-33, 35-43'));
+        $this->assertTrue($this->resolver->referencesAgree('John 3:16', 'John 3:16-18'));
+        $this->assertTrue($this->resolver->referencesAgree('John 3', 'John 3:16-18'));
+        $this->assertTrue($this->resolver->referencesAgree('Jn 3:16', 'John 3:16'));
+    }
+
+    public function test_references_disagree_on_genuinely_different_passages(): void
+    {
+        $this->assertFalse($this->resolver->referencesAgree('Luke 18:31-43', 'John 3:16'));
+        $this->assertFalse($this->resolver->referencesAgree('Luke 18:1-8', 'Luke 18:31-43'));
+        $this->assertFalse($this->resolver->referencesAgree('Luke 17', 'Luke 18'));
+    }
+
+    public function test_references_disagree_when_one_side_reads_beyond_the_other(): void
+    {
+        // A heard subrange outside the planned passage is worth a review flag.
+        $this->assertFalse($this->resolver->referencesAgree('Luke 18:31-33, 35-43', 'Luke 18:31-33'));
+    }
+
+    public function test_references_never_agree_when_either_side_is_unparseable(): void
+    {
+        $this->assertFalse($this->resolver->referencesAgree('', 'John 3:16'));
+        $this->assertFalse($this->resolver->referencesAgree('John 3:16', 'xyzzy 99:99'));
+    }
+
     public function test_resolves_single_chapter_book_verse_references(): void
     {
         // "Book N" for a single-chapter book is verse N, not chapter N.

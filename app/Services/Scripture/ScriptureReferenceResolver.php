@@ -51,6 +51,71 @@ class ScriptureReferenceResolver
     }
 
     /**
+     * Whether two references name the same reading, allowing subrange forms.
+     *
+     * A transcript-derived reference often subdivides the planned passage
+     * ("Luke 18:31-33, 35-43" heard against a planned "Luke 18:31-43"), and
+     * strict string comparison flags that as a conflict. Two references agree
+     * when every passage on each side overlaps at least one passage on the
+     * other — containment is the common case, but any genuine overlap of the
+     * same text is agreement, not conflict. An unparseable side never agrees.
+     */
+    public function referencesAgree(string $left, string $right): bool
+    {
+        $leftSpans = $this->verseSpans($left);
+        $rightSpans = $this->verseSpans($right);
+
+        if ($leftSpans === [] || $rightSpans === []) {
+            return false;
+        }
+
+        return $this->everySpanOverlapsOne($leftSpans, $rightSpans)
+            && $this->everySpanOverlapsOne($rightSpans, $leftSpans);
+    }
+
+    /**
+     * Each passage as an inclusive [from, to] span in the parser's integer
+     * notation (book/chapter/verse packed into one comparable integer).
+     *
+     * @return list<array{0: int, 1: int}>
+     */
+    private function verseSpans(string $reference): array
+    {
+        return array_values(array_map(
+            static fn (BiblePassage $passage): array => [
+                $passage->from()->integerNotation(),
+                $passage->to()->integerNotation(),
+            ],
+            $this->parse($reference)
+        ));
+    }
+
+    /**
+     * @param  list<array{0: int, 1: int}>  $spans
+     * @param  list<array{0: int, 1: int}>  $others
+     */
+    private function everySpanOverlapsOne(array $spans, array $others): bool
+    {
+        foreach ($spans as [$from, $to]) {
+            $overlaps = false;
+
+            foreach ($others as [$otherFrom, $otherTo]) {
+                if ($from <= $otherTo && $to >= $otherFrom) {
+                    $overlaps = true;
+
+                    break;
+                }
+            }
+
+            if (! $overlaps) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Parse a reference into passages, returning [] when it cannot be parsed.
      *
      * @return array<int, BiblePassage>

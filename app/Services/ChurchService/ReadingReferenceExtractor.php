@@ -51,7 +51,10 @@ class ReadingReferenceExtractor
             return $this->none($raw);
         }
 
-        $normalized = $this->resolver->normalize($raw);
+        // normalizeAll keeps every passage of a multi-part reading —
+        // normalize() would truncate "Luke 18:31-33, 35-43" to its first
+        // subrange and lose the rest.
+        $normalized = $this->resolver->normalizeAll($raw);
 
         if ($normalized === null) {
             return $this->none($raw);

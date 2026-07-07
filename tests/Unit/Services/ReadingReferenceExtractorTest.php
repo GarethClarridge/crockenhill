@@ -71,6 +71,17 @@ class ReadingReferenceExtractorTest extends TestCase
     }
 
     #[Test]
+    public function it_preserves_every_subrange_of_a_multi_part_reading(): void
+    {
+        // normalize() would truncate this to its first subrange.
+        $result = $this->extractorReturning(['reference' => 'Luke 18:31-33, 35-43', 'confidence' => 0.9])
+            ->extract('And taking the twelve, he said to them, we are going up to Jerusalem.');
+
+        $this->assertSame('Luke 18:31-33, Luke 18:35-43', $result['reference']);
+        $this->assertSame('transcript_ai', $result['source']);
+    }
+
+    #[Test]
     public function it_returns_none_when_the_model_declines_for_a_benediction(): void
     {
         $result = $this->extractorReturning(['reference' => null, 'confidence' => 0.2])

@@ -147,7 +147,9 @@ class ResolveReadingReferences extends ProcessingJob implements ShouldQueue
 
         $metadata = $sectionMetadata->toArray();
         $oosReference = is_string($metadata['reading_reference'] ?? null) ? $metadata['reading_reference'] : null;
-        $oosCanonical = $oosReference !== null ? $resolver->normalize($oosReference) : null;
+        // normalizeAll keeps every passage of a multi-part reference; the
+        // single-passage normalize() would silently drop later subranges.
+        $oosCanonical = $oosReference !== null ? $resolver->normalizeAll($oosReference) : null;
 
         // This job owns these flags; clear them up-front so a rerun re-derives them idempotently
         // and the review state can be downgraded when the cause no longer applies.
@@ -203,8 +205,10 @@ class ResolveReadingReferences extends ProcessingJob implements ShouldQueue
         $metadata['reading_reference_raw'] = $result['raw'];
 
         // Only a parseable OoS reference that genuinely disagrees is a conflict — the generic
-        // "Bible Reading" title does not parse and so never flags.
-        if ($oosCanonical !== null && $oosCanonical !== $transcriptReference) {
+        // "Bible Reading" title does not parse and so never flags. A transcript reference that
+        // subdivides the planned passage ("Luke 18:31-33, 35-43" vs "Luke 18:31-43") reads the
+        // same text and is agreement, not conflict.
+        if ($oosCanonical !== null && ! $resolver->referencesAgree($oosCanonical, $transcriptReference)) {
             $reviewFlags[] = 'reading_reference_conflict';
         }
 
