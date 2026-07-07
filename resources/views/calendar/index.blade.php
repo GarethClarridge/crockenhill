@@ -128,7 +128,7 @@
         <p>Here are all upcoming events from our church calendar. Events are automatically synchronised from our Google Calendar.</p>
     </div>
 
-    @if($allEvents->count() > 0)
+    @if($allEvents->isNotEmpty())
         <div class="space-y-6">
             @foreach($allEvents->groupBy(function($event) { return $event->start_datetime->format('Y-m-d'); }) as $date => $events)
                 <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">

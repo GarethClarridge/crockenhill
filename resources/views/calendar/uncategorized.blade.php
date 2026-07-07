@@ -22,7 +22,7 @@
         <p>These events from our calendar haven't been automatically categorised into a specific meeting type. They may be special events or one-off occasions.</p>
     </div>
 
-    @if($uncategorizedEvents->count() > 0)
+    @if($uncategorizedEvents->isNotEmpty())
         <div class="space-y-4">
             @foreach($uncategorizedEvents as $event)
                 <x-calendar-event-card

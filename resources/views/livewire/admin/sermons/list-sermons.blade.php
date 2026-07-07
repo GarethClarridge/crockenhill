@@ -1,12 +1,12 @@
 <x-admin.list-shell
-    title="Sermons &amp; talks"
+    title="Sermons &amp; Talks"
     description="Manage sermon recordings and published children's talks."
     :paginator="$sermons"
     itemsName="sermon"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.services.upload-recording') }}" variant="primary" icon="cloud-arrow-up" inline>
-            Upload sermon
+            Upload recording
         </x-button>
     </x-slot:actions>
 
@@ -142,7 +142,7 @@
                 >
                     @if(!$hasFilters)
                         <x-button link="{{ route('admin.services.upload-recording') }}" variant="primary" icon="cloud-arrow-up" inline>
-                            Upload sermon
+                            Upload recording
                         </x-button>
                     @endif
                 </x-admin.empty-state>

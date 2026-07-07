@@ -56,6 +56,7 @@ class UnifiedMediaProcessor
      *
      * @throws UniqueConstraintViolationException If a duplicate race occurs
      * @throws InvalidFileException If the file fails initial validation
+     * @throws BindingResolutionException If the livestream service cannot be resolved
      * @throws \Exception For underlying service or storage failures
      */
     public function process(

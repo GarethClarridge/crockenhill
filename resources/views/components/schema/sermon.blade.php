@@ -49,6 +49,7 @@
         'dateModified' => $lastModified,
         'inLanguage' => 'en-GB',
         'genre' => 'Sermon',
+        'articleSection' => 'Sermons',
         'author' => $author,
         'publisher' => [
             '@type' => 'Organization',
@@ -75,14 +76,24 @@
         ],
     ];
 
+    $keywords = array_filter([
+        $sermon->series,
+        $preacherName,
+        $sermonView['display_reference'] ?? null,
+    ]);
+
+    if (! empty($keywords)) {
+        $schema['keywords'] = implode(', ', $keywords);
+    }
+
     if ($sermon->series) {
-        $schema['keywords'] = $sermon->series;
         $schema['isPartOf'] = [
             '@type' => 'CreativeWorkSeries',
             'name' => $sermon->series,
             'url' => $sermonView['series_url'],
             '@id' => $sermonView['series_url'] . '#series',
             'inLanguage' => 'en-GB',
+            'publisher' => $schema['publisher'],
         ];
     }
 
@@ -123,6 +134,7 @@
             'url' => $sermonView['canonical_url'],
             'contentUrl' => $sermonView['audio_url'],
             'description' => $metaDescription,
+            'thumbnailUrl' => $thumbnailUrl,
             'encodingFormat' => 'audio/mpeg',
             'uploadDate' => $datePublished,
             'inLanguage' => 'en-GB',

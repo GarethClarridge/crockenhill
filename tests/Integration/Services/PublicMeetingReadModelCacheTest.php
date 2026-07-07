@@ -14,7 +14,9 @@ use App\Services\Public\PublicMeetingReadModelCache;
 use App\Services\Public\PublicPageReadModelCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\MockObject\MockObject;
 use Tests\TestCase;
 
 class PublicMeetingReadModelCacheTest extends TestCase
@@ -23,15 +25,17 @@ class PublicMeetingReadModelCacheTest extends TestCase
 
     private PublicMeetingReadModelCache $service;
 
+    /** @var MockObject&MeetingShowPresenter */
     private MeetingShowPresenter $meetingShowPresenter;
 
+    /** @var MockObject&PublicPageReadModelCache */
     private PublicPageReadModelCache $publicPageReadModelCache;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->meetingShowPresenter = $this->createStub(MeetingShowPresenter::class);
+        $this->meetingShowPresenter = $this->createMock(MeetingShowPresenter::class);
         $this->publicPageReadModelCache = $this->createMock(PublicPageReadModelCache::class);
 
         $this->service = new PublicMeetingReadModelCache(
@@ -145,59 +149,91 @@ class PublicMeetingReadModelCacheTest extends TestCase
     #[Test]
     public function it_caches_the_result(): void
     {
-        $meeting = Meeting::factory()->create(['id' => 999, 'slug' => 'cached-meeting']);
-        $cacheKey = 'public_meeting_view_999';
+        $meeting = Meeting::factory()->create(['slug' => 'cached-meeting']);
 
-        Cache::forget($cacheKey);
-        $this->assertFalse(Cache::has($cacheKey));
+        // Expect exactly one call to the presenter, even if we call the service twice
+        $this->meetingShowPresenter->expects($this->once())
+            ->method('photos')
+            ->willReturn(collect());
 
-        $this->meetingShowPresenter->method('photos')->willReturn(collect());
+        DB::enableQueryLog();
 
+        // First call - should trigger presenter and database loads
         $this->service->get($meeting);
+        $queriesAfterFirstCall = count(DB::getQueryLog());
 
-        $this->assertTrue(Cache::has($cacheKey));
+        // Second call - should be served from cache, no second presenter call, no new queries
+        $this->service->get($meeting);
+        $this->assertCount($queriesAfterFirstCall, DB::getQueryLog());
+
+        DB::disableQueryLog();
     }
 
     #[Test]
     public function it_can_forget_by_id(): void
     {
-        $meetingId = 123;
-        $cacheKey = "public_meeting_view_{$meetingId}";
+        $meeting = Meeting::factory()->create(['id' => 123]);
 
-        Cache::forever($cacheKey, 'some-data');
-        $this->assertTrue(Cache::has($cacheKey));
+        // Expect exactly two calls: one for initial cache, one after forget()
+        $this->meetingShowPresenter->expects($this->exactly(2))
+            ->method('photos')
+            ->willReturn(collect());
 
-        $this->service->forget($meetingId);
+        // 1. Initial get (populates cache)
+        $this->service->get($meeting);
 
-        $this->assertFalse(Cache::has($cacheKey));
+        // 2. Forget
+        $this->service->forget(123);
+
+        // 3. Second get (must re-trigger presenter and queries)
+        DB::enableQueryLog();
+        $this->service->get($meeting);
+        $this->assertNotEmpty(DB::getQueryLog());
+        DB::disableQueryLog();
     }
 
     #[Test]
     public function it_can_forget_by_model(): void
     {
         $meeting = Meeting::factory()->create(['id' => 456]);
-        $cacheKey = 'public_meeting_view_456';
 
-        Cache::forever($cacheKey, 'some-data');
-        $this->assertTrue(Cache::has($cacheKey));
+        $this->meetingShowPresenter->expects($this->exactly(2))
+            ->method('photos')
+            ->willReturn(collect());
 
+        // 1. Initial get
+        $this->service->get($meeting);
+
+        // 2. Forget
         $this->service->forget($meeting);
 
-        $this->assertFalse(Cache::has($cacheKey));
+        // 3. Second get
+        DB::enableQueryLog();
+        $this->service->get($meeting);
+        $this->assertNotEmpty(DB::getQueryLog());
+        DB::disableQueryLog();
     }
 
     #[Test]
     public function it_can_forget_by_slug(): void
     {
         $meeting = Meeting::factory()->create(['id' => 789, 'slug' => 'forget-me']);
-        $cacheKey = 'public_meeting_view_789';
 
-        Cache::forever($cacheKey, 'some-data');
-        $this->assertTrue(Cache::has($cacheKey));
+        $this->meetingShowPresenter->expects($this->exactly(2))
+            ->method('photos')
+            ->willReturn(collect());
 
+        // 1. Initial get
+        $this->service->get($meeting);
+
+        // 2. Forget
         $this->service->forgetBySlug('forget-me');
 
-        $this->assertFalse(Cache::has($cacheKey));
+        // 3. Second get
+        DB::enableQueryLog();
+        $this->service->get($meeting);
+        $this->assertNotEmpty(DB::getQueryLog());
+        DB::disableQueryLog();
     }
 
     #[Test]

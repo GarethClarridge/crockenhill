@@ -350,7 +350,7 @@ class SermonProcessingLogger
 
         // Calculate average processing time for completed items
         $completedLogs = $logs->where('status', 'completed');
-        if ($completedLogs->count() > 0) {
+        if ($completedLogs->isNotEmpty()) {
             $totalTime = $completedLogs->sum(function ($log) {
                 if ($log->updated_at === null || $log->created_at === null) {
                     return 0;

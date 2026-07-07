@@ -24,6 +24,8 @@ class ServiceStructureValidator
 
     public const FLAG_BENEDICTION_SUSPECT = 'structure_benediction_suspect';
 
+    public const FLAG_OOS_CROSS_TYPE_INVERSION = 'structure_oos_cross_type_inversion';
+
     /**
      * Seconds of slack allowed at the end of the recording (transcription
      * duration and section ends can disagree by a rounding margin).
@@ -55,9 +57,9 @@ class ServiceStructureValidator
         $this->checkRecordingBounds($structure, $context, $hardFailures);
         $this->checkCoverage($structure, $context, $hardFailures);
         $this->checkSermons($structure, $hardFailures);
-        $this->checkOosAnchoring($structure, $context, $hardFailures);
+        $crossTypeInversions = $this->checkOosAnchoring($structure, $context, $hardFailures);
 
-        $annotated = $this->annotateSoftFlags($structure, $context);
+        $annotated = $this->annotateSoftFlags($structure, $context, $crossTypeInversions);
 
         return new ValidationResult(
             structure: $annotated,
@@ -237,12 +239,17 @@ class ServiceStructureValidator
 
     /**
      * @param  list<array{code: string, message: string}>  $hardFailures
+     * @return array<int, true> Indices of sections whose claimed item precedes
+     *                          an earlier-claimed item of a different type.
      */
-    private function checkOosAnchoring(ServiceStructure $structure, ValidationContext $context, array &$hardFailures): void
+    private function checkOosAnchoring(ServiceStructure $structure, ValidationContext $context, array &$hardFailures): array
     {
         $claimed = [];
-        $lastClaimedItemId = null;
-        $lastClaimedPosition = null;
+
+        /** @var array<string, array{itemId: int, position: int}> $lastClaimedByType */
+        $lastClaimedByType = [];
+        $highestClaimedPosition = null;
+        $crossTypeInversions = [];
 
         foreach ($structure->sections as $index => $section) {
             $itemId = $section->oosItemId;
@@ -271,32 +278,41 @@ class ServiceStructureValidator
 
             $claimed[] = $itemId;
 
-            // Sections are chronological, so claimed items must follow the
-            // planned order. Types alone cannot catch two same-type items
-            // (e.g. two songs) swapped by the detector, which would persist
-            // each section against the wrong service item.
+            $itemType = $context->oosItemTypes[$itemId];
+
+            // OpenLP exports group items by type (all songs in one block), so
+            // the printed positions of different types routinely disagree with
+            // the performed order. Only a same-type inversion signals a
+            // detector swap — persisting each section against the wrong
+            // service item — so only that fails hard; a cross-type inversion
+            // is a legitimate authoring style and merely earns a review flag.
             $position = $context->oosItemPositions[$itemId] ?? null;
 
             if ($position !== null) {
-                if ($lastClaimedPosition !== null && $position < $lastClaimedPosition) {
+                $lastOfType = $lastClaimedByType[$itemType->value] ?? null;
+
+                if ($lastOfType !== null && $position < $lastOfType['position']) {
                     $hardFailures[] = [
                         'code' => 'out_of_order_oos_items',
                         'message' => sprintf(
-                            'Section %d claims OoS item %d (position %d) after item %d (position %d); claimed items must follow the planned order.',
+                            'Section %d claims OoS item %d (position %d) after item %d (position %d); claimed items of the same type must follow the planned order.',
                             $index + 1,
                             $itemId,
                             $position,
-                            (int) $lastClaimedItemId,
-                            $lastClaimedPosition
+                            $lastOfType['itemId'],
+                            $lastOfType['position']
                         ),
                     ];
                 } else {
-                    $lastClaimedItemId = $itemId;
-                    $lastClaimedPosition = $position;
+                    $lastClaimedByType[$itemType->value] = ['itemId' => $itemId, 'position' => $position];
+
+                    if ($highestClaimedPosition !== null && $position < $highestClaimedPosition) {
+                        $crossTypeInversions[$index] = true;
+                    }
+
+                    $highestClaimedPosition = max($highestClaimedPosition ?? $position, $position);
                 }
             }
-
-            $itemType = $context->oosItemTypes[$itemId];
 
             // A generic OoS item (semantic type "other", e.g. "Andrew Talk.pptx")
             // may anchor any section type — that ambiguity is exactly what the
@@ -314,35 +330,43 @@ class ServiceStructureValidator
                 ];
             }
         }
+
+        return $crossTypeInversions;
     }
 
-    private function annotateSoftFlags(ServiceStructure $structure, ValidationContext $context): ServiceStructure
+    /**
+     * @param  array<int, true>  $crossTypeInversions
+     */
+    private function annotateSoftFlags(ServiceStructure $structure, ValidationContext $context, array $crossTypeInversions): ServiceStructure
     {
         $minSectionSeconds = (float) config('media-processing.service_structure.min_section_seconds', 15);
         $benedictionMaxDuration = (float) config('media-processing.reading_references.benediction_max_duration_seconds', 60);
 
-        $sections = array_map(
-            function (ServiceStructureSection $section) use ($context, $minSectionSeconds, $benedictionMaxDuration): ServiceStructureSection {
-                $flags = [];
+        $sections = [];
 
-                if ($section->confidence < ServiceSectionConfidence::HIGH_THRESHOLD) {
-                    $flags[] = self::FLAG_LOW_CONFIDENCE;
-                }
+        foreach ($structure->sections as $index => $section) {
+            $flags = [];
 
-                if ($section->duration() < $minSectionSeconds) {
-                    $flags[] = self::FLAG_MICRO_SECTION;
-                }
+            if ($section->confidence < ServiceSectionConfidence::HIGH_THRESHOLD) {
+                $flags[] = self::FLAG_LOW_CONFIDENCE;
+            }
 
-                if ($section->type === ServiceSectionType::BibleReading
-                    && $section->duration() <= $benedictionMaxDuration
-                    && $section->endTime >= $context->recordingDuration - self::BENEDICTION_END_WINDOW_SECONDS) {
-                    $flags[] = self::FLAG_BENEDICTION_SUSPECT;
-                }
+            if ($section->duration() < $minSectionSeconds) {
+                $flags[] = self::FLAG_MICRO_SECTION;
+            }
 
-                return $flags === [] ? $section : $section->withReviewFlags($flags);
-            },
-            $structure->sections
-        );
+            if ($section->type === ServiceSectionType::BibleReading
+                && $section->duration() <= $benedictionMaxDuration
+                && $section->endTime >= $context->recordingDuration - self::BENEDICTION_END_WINDOW_SECONDS) {
+                $flags[] = self::FLAG_BENEDICTION_SUSPECT;
+            }
+
+            if (isset($crossTypeInversions[$index])) {
+                $flags[] = self::FLAG_OOS_CROSS_TYPE_INVERSION;
+            }
+
+            $sections[] = $flags === [] ? $section : $section->withReviewFlags($flags);
+        }
 
         return new ServiceStructure($sections, $structure->notes, $structure->model);
     }

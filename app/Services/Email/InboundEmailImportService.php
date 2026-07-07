@@ -122,6 +122,9 @@ class InboundEmailImportService
         return $storedItems;
     }
 
+    /**
+     * @throws InvalidArgumentException
+     */
     public function import(
         InboundEmail $inboundEmail,
         OosEmailParseResult $parseResult,

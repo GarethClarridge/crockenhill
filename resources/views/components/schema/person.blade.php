@@ -9,6 +9,7 @@
         '@id' => url("/christ/sermons/preachers/{$preacher->slug}").'#person',
         'name' => $preacher->name,
         'url' => url("/christ/sermons/preachers/{$preacher->slug}"),
+        'inLanguage' => 'en-GB',
         'worksFor' => [
             '@type' => 'Organization',
             'name' => config('organization.name'),

@@ -47,7 +47,7 @@
                         aria-label="Select all pages"
                         class="rounded border-gray-300 text-cbc-teal focus:ring-cbc-teal focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
                         wire:click="$set('selected', $event.target.checked ? {{ $pages->pluck('id')->toJson() }} : [])"
-                        {{ count($selected) === $pages->count() && $pages->count() > 0 ? 'checked' : '' }} />
+                        {{ count($selected) === $pages->count() && $pages->isNotEmpty() ? 'checked' : '' }} />
                 </th>
                 @foreach($headers as $header)
                     <x-admin.sortable-header

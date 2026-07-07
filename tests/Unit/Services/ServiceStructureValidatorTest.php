@@ -242,15 +242,41 @@ class ServiceStructureValidatorTest extends TestCase
         // Two songs swapped by the detector pass the existence, duplicate and
         // type checks — only their planned positions expose the mix-up.
         $structure = ServiceStructure::fromSections([
-            $this->section('bible_reading', 0.0, 200.0, oosItemId: 3),
-            $this->section('song', 300.0, 700.0, oosItemId: 2),
-            $this->section('welcome', 800.0, 1000.0, oosItemId: 1),
-            $this->section('sermon', 1100.0, 2300.0, oosItemId: 4),
+            $this->section('welcome', 0.0, 120.0, oosItemId: 1),
+            $this->section('song', 120.0, 420.0, oosItemId: 6),
+            $this->section('song', 420.0, 720.0, oosItemId: 2),
+            $this->section('sermon', 720.0, 2300.0, oosItemId: 4),
         ]);
 
-        $result = $this->validator->validate($structure, $this->context());
+        $result = $this->validator->validate($structure, $this->contextWithSongBlock());
 
         $this->assertContains('out_of_order_oos_items', $result->failureCodes());
+    }
+
+    #[Test]
+    public function block_grouped_songs_interleaved_with_other_types_pass_with_a_soft_flag(): void
+    {
+        // OpenLP exports group songs into a block (positions 2 and 3 here), so
+        // a service that interleaves a reading between them claims positions
+        // 1, 2, 4, 3, 5 — a legitimate authoring style, not a detector swap.
+        $structure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0, oosItemId: 1),
+            $this->section('song', 120.0, 420.0, oosItemId: 2),
+            $this->section('bible_reading', 420.0, 600.0, oosItemId: 3),
+            $this->section('song', 600.0, 840.0, oosItemId: 6),
+            $this->section('sermon', 840.0, 2430.0, oosItemId: 4),
+        ]);
+
+        $result = $this->validator->validate($structure, $this->contextWithSongBlock());
+
+        $this->assertNotContains('out_of_order_oos_items', $result->failureCodes());
+        $this->assertTrue($result->passed(), $result->failureSummary());
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION,
+            $result->structure->sections[3]->reviewFlags
+        );
+        $this->assertSame([], $result->structure->sections[1]->reviewFlags, 'In-order claims are unflagged.');
+        $this->assertSame([], $result->structure->sections[4]->reviewFlags);
     }
 
     #[Test]
@@ -379,6 +405,26 @@ class ServiceStructureValidatorTest extends TestCase
                 5 => ServiceSectionType::Other,
             ],
             oosItemPositions: [1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 5],
+        );
+    }
+
+    /**
+     * Like context(), but with two songs authored as a block (positions 2 and
+     * 3) ahead of the reading — the OpenLP grouped-by-type export shape.
+     */
+    private function contextWithSongBlock(): ValidationContext
+    {
+        return new ValidationContext(
+            recordingDuration: 2430.0,
+            speechDuration: 2300.0,
+            oosItemTypes: [
+                1 => ServiceSectionType::Welcome,
+                2 => ServiceSectionType::Song,
+                6 => ServiceSectionType::Song,
+                3 => ServiceSectionType::BibleReading,
+                4 => ServiceSectionType::Sermon,
+            ],
+            oosItemPositions: [1 => 1, 2 => 2, 6 => 3, 3 => 4, 4 => 5],
         );
     }
 
