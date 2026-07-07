@@ -218,6 +218,50 @@ class MatchSongsFromTranscriptTest extends TestCase
     }
 
     #[Test]
+    public function it_does_not_pick_arbitrarily_between_songs_sharing_a_first_line(): void
+    {
+        // first_line_key is non-unique: two catalogued songs open identically.
+        // Neither may be persisted on the key alone.
+        foreach (['Amazing Grace', 'Amazing Grace (My Chains Are Gone)'] as $title) {
+            Song::factory()->create([
+                'title' => $title,
+                'canonical_key' => strtolower($title),
+                'first_line_key' => 'amazing grace how sweet the sound',
+                'lyrics_plain' => null,
+            ]);
+        }
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'Amazing grace how sweet the sound',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(OosAlignmentService::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
+        );
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::Unmatched, $section->song_match_type);
+        $this->assertArrayNotHasKey('transcript_song_match', $section->metadata->toArray());
+    }
+
+    #[Test]
     public function it_keeps_the_heard_title_when_match_confidence_is_below_the_writeback_threshold(): void
     {
         config(['media-processing.song_matching.title_writeback_min_confidence' => 0.99]);

@@ -249,10 +249,17 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             return true;
         }
 
-        // A heard "title" is often the first lyric line, not the catalogued title.
-        $song = Song::query()->whereIn('first_line_key', Song::matchKeyVariants($hint))->first();
+        // A heard "title" is often the first lyric line, not the catalogued
+        // title. first_line_key is not unique, and an ambiguous hit must not
+        // persist an arbitrary song — leave it to fuzzy lyrics matching, which
+        // can weigh the rest of the hint.
+        $firstLineMatches = Song::query()
+            ->whereIn('first_line_key', Song::matchKeyVariants($hint))
+            ->limit(2)
+            ->get();
 
-        if ($song instanceof Song) {
+        if ($firstLineMatches->count() === 1) {
+            $song = $firstLineMatches->sole();
             $this->applyMatch($section, $song->id, $song->title, 0.95, 'title_hint_first_line');
 
             return true;
