@@ -510,8 +510,8 @@ class SermonRepository
      */
     private function forgetBookAndChapterCaches(array $books, array $preacherIds, array $seriesSlugs): void
     {
-        $pOptions = collect($preacherIds)->push('all');
-        $sOptions = collect($seriesSlugs)->push('all');
+        $pOptions = collect([...array_map(fn ($id) => (string) $id, $preacherIds), 'all']);
+        $sOptions = collect([...$seriesSlugs, 'all']);
 
         collect($books)->each(function (string $book) use ($pOptions, $sOptions): void {
             $bookSlug = Str::slug($book);
