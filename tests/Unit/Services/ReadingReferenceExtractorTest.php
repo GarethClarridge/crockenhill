@@ -71,6 +71,17 @@ class ReadingReferenceExtractorTest extends TestCase
     }
 
     #[Test]
+    public function it_preserves_every_subrange_of_a_multi_part_reading(): void
+    {
+        // normalize() would truncate this to its first subrange.
+        $result = $this->extractorReturning(['reference' => 'Luke 18:31-33, 35-43', 'confidence' => 0.9])
+            ->extract('And taking the twelve, he said to them, we are going up to Jerusalem.');
+
+        $this->assertSame('Luke 18:31-33, Luke 18:35-43', $result['reference']);
+        $this->assertSame('transcript_ai', $result['source']);
+    }
+
+    #[Test]
     public function it_returns_none_when_the_model_declines_for_a_benediction(): void
     {
         $result = $this->extractorReturning(['reference' => null, 'confidence' => 0.2])
@@ -116,6 +127,34 @@ class ReadingReferenceExtractorTest extends TestCase
 
         $this->assertNotNull($result['reference']);
         $this->assertStringContainsString('Joshua', (string) $result['reference']);
+        $this->assertSame('transcript_ai', $result['source']);
+    }
+
+    #[Test]
+    public function the_mock_service_preserves_a_multi_part_reference(): void
+    {
+        Config::set('media-processing.analysis.service', 'mock');
+
+        $extractor = new ReadingReferenceExtractor($this->resolver());
+
+        $result = $extractor->extract('Our reading is Luke 18:31-33, 35-43. Please stand as we read together.');
+
+        // The scanner must keep both subranges, matching the live model path.
+        $this->assertSame('Luke 18:31-33, Luke 18:35-43', $result['reference']);
+        $this->assertSame('transcript_ai', $result['source']);
+    }
+
+    #[Test]
+    public function the_mock_service_preserves_a_cross_chapter_reference(): void
+    {
+        Config::set('media-processing.analysis.service', 'mock');
+
+        $extractor = new ReadingReferenceExtractor($this->resolver());
+
+        $result = $extractor->extract('Our reading is John 3:16-18, 4:1-2. Let us hear the word of the Lord.');
+
+        // The comma continuation must keep the second chapter, matching the live model path.
+        $this->assertSame('John 3:16-18, John 4:1-2', $result['reference']);
         $this->assertSame('transcript_ai', $result['source']);
     }
 

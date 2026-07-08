@@ -164,6 +164,32 @@ class ResolveReadingReferencesTest extends TestCase
     }
 
     #[Test]
+    public function a_transcript_subrange_of_the_planned_passage_is_not_a_conflict(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::BibleReading->value,
+            'section_order' => 1,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'transcript' => 'Our reading is from Luke chapter 18.',
+                'reading_reference' => 'Luke 18:31-43',
+            ],
+        ]);
+
+        // The model hears the planned passage as two subranges — same text, not a conflict.
+        $this->runJob($log, $this->fixedExtractor('Luke 18:31-33, 35-43'));
+
+        $section->refresh();
+
+        $this->assertSame('Luke 18:31-33, 35-43', $section->metadata['reading_reference'] ?? null);
+        $this->assertNotContains('reading_reference_conflict', $section->metadata['review_flags'] ?? []);
+        $this->assertFalse($section->needs_manual_review);
+    }
+
+    #[Test]
     public function it_suppresses_a_closing_benediction_even_when_the_model_names_a_passage(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->processing()->create();

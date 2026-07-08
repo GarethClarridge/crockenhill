@@ -153,11 +153,15 @@ class ProcessingPipelineBuilder
             // flow. ProjectLivestreamServiceStructure is retained per the
             // Phase 4 audit: it creates/links the canonical ChurchService when
             // no OoS import exists, reading the (now LLM-written) sections.
+            // ResolveReadingReferences refines the LLM-supplied
+            // reading_reference against the section transcript, exactly as it
+            // refines OoS references on the heuristic chain.
             return [
                 new AnalyzeSegments($log),
                 new TranscribeFullService($log),
                 new DetectServiceStructure($log),
                 new ProjectLivestreamServiceStructure($log),
+                new ResolveReadingReferences($log),
                 new MatchSongsFromTranscript($log),
                 new ExtractSermon($log),
                 new SubmitToProcessing($log),
@@ -281,6 +285,7 @@ class ProcessingPipelineBuilder
                 new TranscribeFullService($log),
                 new DetectServiceStructure($log),
                 new ProjectLivestreamServiceStructure($log),
+                new ResolveReadingReferences($log),
                 new MatchSongsFromTranscript($log),
                 new ExtractSermon($log),
                 new SubmitToProcessing($log),
