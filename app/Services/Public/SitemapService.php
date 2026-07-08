@@ -19,7 +19,6 @@ use App\Sitemap\PreacherSitemapPresenter;
 use App\Sitemap\SermonSitemapPresenter;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Sitemap\Sitemap;
 use Spatie\Sitemap\Tags\Url;
