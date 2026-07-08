@@ -192,19 +192,19 @@ class VideoSegmentationServiceRmsTest extends TestCase
     #[Test]
     public function it_combines_loud_and_quiet_sections_with_correct_classifications(): void
     {
-        $method = $this->getPrivateMethod('combineLoudAndQuietSections');
+        Config::set('media-processing.segmentation.adaptive_thresholds.enabled', false);
+        $this->refreshServices();
 
-        $rmsData = [];
-        for ($t = 0; $t < 200; $t += 1) {
+        $points = [];
+        for ($t = 0; $t <= 200; $t += 1) {
             $rms = ($t >= 60 && $t < 120) ? -35.0 : -50.0;
-            $rmsData[] = ['time' => (float) $t, 'rms' => $rms];
+            $points[] = ['time' => (float) $t, 'rms' => $rms];
         }
+        $logContent = $this->buildRmsLog($points);
+        Storage::disk('local')->put('temp/test_combine.log', $logContent);
 
-        $loudSections = [
-            ['start' => 60.0, 'end' => 120.0],
-        ];
-
-        $segments = $method->invoke($this->service, $loudSections, 200.0, $rmsData);
+        $result = $this->service->analyzeSegments('temp/test_combine.log');
+        $segments = $result['segments'];
 
         $this->assertCount(3, $segments);
 
@@ -225,14 +225,18 @@ class VideoSegmentationServiceRmsTest extends TestCase
     #[Test]
     public function it_handles_no_loud_sections(): void
     {
-        $method = $this->getPrivateMethod('combineLoudAndQuietSections');
+        Config::set('media-processing.segmentation.adaptive_thresholds.enabled', false);
+        $this->refreshServices();
 
-        $rmsData = [
+        $points = [
             ['time' => 0.0, 'rms' => -50.0],
             ['time' => 100.0, 'rms' => -50.0],
         ];
+        $logContent = $this->buildRmsLog($points);
+        Storage::disk('local')->put('temp/test_no_loud.log', $logContent);
 
-        $segments = $method->invoke($this->service, [], 100.0, $rmsData);
+        $result = $this->service->analyzeSegments('temp/test_no_loud.log');
+        $segments = $result['segments'];
 
         $this->assertCount(1, $segments);
         $this->assertEquals('speech', $segments[0]->classification);
@@ -243,19 +247,23 @@ class VideoSegmentationServiceRmsTest extends TestCase
     #[Test]
     public function it_handles_consecutive_loud_sections(): void
     {
-        $method = $this->getPrivateMethod('combineLoudAndQuietSections');
+        Config::set('media-processing.segmentation.adaptive_thresholds.enabled', false);
+        $this->refreshServices();
 
-        $rmsData = [];
-        for ($t = 0; $t < 300; $t += 1) {
-            $rmsData[] = ['time' => (float) $t, 'rms' => -40.0];
+        $points = [];
+        for ($t = 0; $t <= 300; $t += 1) {
+            if (($t >= 30 && $t < 90) || ($t >= 150 && $t < 210)) {
+                $rms = -30.0;
+            } else {
+                $rms = -50.0;
+            }
+            $points[] = ['time' => (float) $t, 'rms' => $rms];
         }
+        $logContent = $this->buildRmsLog($points);
+        Storage::disk('local')->put('temp/test_consecutive.log', $logContent);
 
-        $loudSections = [
-            ['start' => 30.0, 'end' => 90.0],
-            ['start' => 150.0, 'end' => 210.0],
-        ];
-
-        $segments = $method->invoke($this->service, $loudSections, 300.0, $rmsData);
+        $result = $this->service->analyzeSegments('temp/test_consecutive.log');
+        $segments = $result['segments'];
 
         $this->assertCount(5, $segments);
         $this->assertEquals('speech', $segments[0]->classification);
@@ -270,35 +278,62 @@ class VideoSegmentationServiceRmsTest extends TestCase
     #[Test]
     public function it_marks_longest_speech_segment_as_sermon_candidate(): void
     {
-        $method = $this->getPrivateMethod('identifySermonCandidate');
+        Config::set('media-processing.segmentation.adaptive_thresholds.enabled', false);
+        $this->refreshServices();
 
-        $segments = [
-            new LivestreamSegment(0.0, 60.0, 60.0, 'speech', -50.0, -40.0),
-            new LivestreamSegment(60.0, 120.0, 60.0, 'song', -35.0, -30.0),
-            new LivestreamSegment(120.0, 600.0, 480.0, 'speech', -48.0, -38.0),
-            new LivestreamSegment(600.0, 660.0, 60.0, 'song', -33.0, -28.0),
-        ];
+        $points = [];
+        for ($t = 0; $t <= 660; $t += 1) {
+            if (($t >= 60 && $t < 120) || ($t >= 600 && $t < 660)) {
+                $rms = -30.0;
+            } else {
+                $rms = -50.0;
+            }
+            $points[] = ['time' => (float) $t, 'rms' => $rms];
+        }
+        // Resulting segments should be:
+        // 0-60: speech (60s)
+        // 60-120: song (60s)
+        // 120-600: speech (480s) -> Sermon Candidate
+        // 600-660: song (60s)
+        $logContent = $this->buildRmsLog($points);
+        Storage::disk('local')->put('temp/test_sermon_candidate.log', $logContent);
 
-        $result = $method->invoke($this->service, $segments);
+        $result = $this->service->analyzeSegments('temp/test_sermon_candidate.log');
+        $segments = $result['segments'];
 
-        $this->assertTrue($result[2]->isSermonCandidate);
-        $this->assertFalse($result[0]->isSermonCandidate);
+        $this->assertCount(4, $segments);
+        $this->assertTrue($segments[2]->isSermonCandidate);
+        $this->assertFalse($segments[0]->isSermonCandidate);
     }
 
     #[Test]
     public function it_does_not_mark_sermon_candidate_when_speech_too_short(): void
     {
-        $method = $this->getPrivateMethod('identifySermonCandidate');
+        Config::set('media-processing.segmentation.adaptive_thresholds.enabled', false);
+        Config::set('media-processing.segmentation.min_sermon_duration', 300.0);
+        $this->refreshServices();
 
-        $segments = [
-            new LivestreamSegment(0.0, 60.0, 60.0, 'speech', -50.0, -40.0),
-            new LivestreamSegment(60.0, 120.0, 60.0, 'song', -35.0, -30.0),
-            new LivestreamSegment(120.0, 240.0, 120.0, 'speech', -48.0, -38.0),
-        ];
+        $points = [];
+        for ($t = 0; $t <= 240; $t += 1) {
+            if ($t >= 60 && $t < 120) {
+                $rms = -30.0;
+            } else {
+                $rms = -50.0;
+            }
+            $points[] = ['time' => (float) $t, 'rms' => $rms];
+        }
+        // Resulting segments:
+        // 0-60: speech (60s)
+        // 60-120: song (60s)
+        // 120-240: speech (120s) -> Too short for sermon
+        $logContent = $this->buildRmsLog($points);
+        Storage::disk('local')->put('temp/test_too_short.log', $logContent);
 
-        $result = $method->invoke($this->service, $segments);
+        $result = $this->service->analyzeSegments('temp/test_too_short.log');
+        $segments = $result['segments'];
 
-        foreach ($result as $segment) {
+        $this->assertNotEmpty($segments);
+        foreach ($segments as $segment) {
             $this->assertFalse($segment->isSermonCandidate);
         }
     }
@@ -306,19 +341,23 @@ class VideoSegmentationServiceRmsTest extends TestCase
     #[Test]
     public function it_returns_segments_unchanged_when_no_speech(): void
     {
-        $method = $this->getPrivateMethod('identifySermonCandidate');
+        Config::set('media-processing.segmentation.adaptive_thresholds.enabled', false);
+        $this->refreshServices();
 
-        $segments = [
-            new LivestreamSegment(0.0, 120.0, 120.0, 'song', -35.0, -30.0),
-            new LivestreamSegment(120.0, 240.0, 120.0, 'song', -33.0, -28.0),
-        ];
-
-        $result = $method->invoke($this->service, $segments);
-
-        $this->assertCount(2, $result);
-        foreach ($result as $segment) {
-            $this->assertFalse($segment->isSermonCandidate);
+        // Entire file is above threshold -> one song segment
+        $points = [];
+        for ($t = 0; $t <= 240; $t += 1) {
+            $points[] = ['time' => (float) $t, 'rms' => -30.0];
         }
+        $logContent = $this->buildRmsLog($points);
+        Storage::disk('local')->put('temp/test_no_speech.log', $logContent);
+
+        $result = $this->service->analyzeSegments('temp/test_no_speech.log');
+        $segments = $result['segments'];
+
+        $this->assertCount(1, $segments);
+        $this->assertEquals('song', $segments[0]->classification);
+        $this->assertFalse($segments[0]->isSermonCandidate);
     }
 
     // ---- determineThreshold tests ----
@@ -484,12 +523,9 @@ class VideoSegmentationServiceRmsTest extends TestCase
         return $this->buildRmsLog($points);
     }
 
-    private function getPrivateMethod(string $methodName): \ReflectionMethod
+    private function refreshServices(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod($methodName);
-        $method->setAccessible(true);
-
-        return $method;
+        $this->rmsService = new RmsAnalysisService;
+        $this->service = new VideoSegmentationService($this->rmsService, new StorageAdapterHelper);
     }
 }
