@@ -83,6 +83,8 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 throw new \Exception('Invalid sermon extraction plan: no extraction segments were resolved');
             }
 
+            $this->recordExtractionPlanAudit($extractionPlan);
+
             Log::info('Starting sermon extraction', [
                 'processing_id' => $this->processingLog->processing_id,
                 'sermon_start_time' => $firstSegment['start_time'],
@@ -431,5 +433,49 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 'email_error' => $exception->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Keep a durable record of which bounds the clip was actually cut from.
+     * The "Starting sermon extraction" log line carries the same facts but
+     * does not survive log rotation; this metadata is what lets an operator
+     * later tell an LLM-structure cut from a silent RMS-baseline fallback.
+     *
+     * The run-level sermon bounds are aligned to the same plan: the guard can
+     * replace a baseline plan with the dominant RMS candidate after any
+     * earlier write-back, and SubmitToProcessing/SermonMetadataIntegration
+     * persist these fields as the Sermon's segment times — they must describe
+     * the media actually cut, whichever source won.
+     *
+     * The bounds stay the true source window — first span start to last span
+     * end — so segment_end_time remains a real livestream timestamp (it is
+     * surfaced as one by SermonMetadataIntegrationService::getLivestreamInfo).
+     * A concat plan joins several spans across a gap, so end minus start would
+     * overstate the media actually cut; the honest duration is derived from the
+     * recorded segment list via MediaProcessingLog::extractedSermonMediaDuration(),
+     * which getSegmentDuration and StandardProcessingResponse read instead.
+     *
+     * @param  array{mode: string, source: string, segments: array<int, array{start_time: float, end_time: float}>, metadata: array<string, mixed>}  $extractionPlan
+     */
+    private function recordExtractionPlanAudit(array $extractionPlan): void
+    {
+        $metadata = $this->processingLog->processing_metadata?->toArray() ?? [];
+        $metadata['sermon_extraction_plan'] = [
+            'source' => $extractionPlan['source'],
+            'mode' => $extractionPlan['mode'],
+            'strategy' => $extractionPlan['metadata']['strategy'] ?? null,
+            'reason' => $extractionPlan['metadata']['reason'] ?? null,
+            'segments' => $extractionPlan['segments'],
+            'resolved_at' => now()->toIso8601String(),
+        ];
+
+        $segments = array_values($extractionPlan['segments']);
+        $lastSegment = $segments[count($segments) - 1];
+
+        $this->processingLog->forceFill([
+            'sermon_start_time' => (float) $segments[0]['start_time'],
+            'sermon_end_time' => (float) $lastSegment['end_time'],
+            'processing_metadata' => $metadata,
+        ])->save();
     }
 }

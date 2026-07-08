@@ -421,6 +421,33 @@ class MediaProcessingLog extends Model
         return $this->processing_metadata?->manualReview?->confirmedSegmentId;
     }
 
+    /**
+     * Duration of the extracted sermon media, in seconds.
+     *
+     * A concat plan joins several source spans across a gap, so the media that
+     * was actually cut is the sum of those spans — not sermon_end_time minus
+     * sermon_start_time, which spans the gap too. The run bounds stay the true
+     * source window (so segment_end_time remains a real livestream timestamp),
+     * and callers read the honest duration here. Returns null when no
+     * extraction plan has been recorded, leaving callers to fall back to the
+     * continuous span.
+     */
+    public function extractedSermonMediaDuration(): ?float
+    {
+        $segments = data_get($this->processing_metadata?->toArray(), 'sermon_extraction_plan.segments');
+
+        if (! is_array($segments) || $segments === []) {
+            return null;
+        }
+
+        $duration = 0.0;
+        foreach ($segments as $segment) {
+            $duration += max(0.0, (float) ($segment['end_time'] ?? 0.0) - (float) ($segment['start_time'] ?? 0.0));
+        }
+
+        return $duration > 0.0 ? $duration : null;
+    }
+
     public function requiresManualSermonReview(): bool
     {
         $manualReviewStatus = $this->processing_metadata?->manualReview?->status;

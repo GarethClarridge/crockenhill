@@ -134,6 +134,14 @@ class ExtractSermonTest extends TestCase
         $this->assertNotNull($log->processing_metadata);
         $this->assertArrayHasKey('audio_compression', $log->processing_metadata);
         $this->assertTrue($log->processing_metadata['audio_compression']['compression_applied']);
+
+        // The resolved plan is recorded so the cut's provenance survives log rotation.
+        $plan = $log->processing_metadata['sermon_extraction_plan'] ?? null;
+        $this->assertIsArray($plan);
+        $this->assertSame('processing_log', $plan['source']);
+        $this->assertSame('baseline', $plan['mode']);
+        $this->assertEqualsWithDelta(300.0, $plan['segments'][0]['start_time'], 0.01);
+        $this->assertEqualsWithDelta(2100.0, $plan['segments'][0]['end_time'], 0.01);
         $this->assertDatabaseHas('sermon_processing_steps', [
             'processing_id' => $log->processing_id,
             'step' => ChurchServiceProcessingTimeline::EXTRACT_SERMON,
@@ -495,6 +503,15 @@ class ExtractSermonTest extends TestCase
         $this->assertSame('extraction_complete', $log->current_step);
         $this->assertSame('temp/concat-sermon.mp4', $log->video_file_path);
 
+        // The concat cut joins a 180s reading and a 1200s sermon across a gap.
+        // The run bounds keep the true source window (reading start 120 →
+        // sermon end 2100) so segment_end_time stays a real livestream
+        // timestamp; the honest 1380s media duration is derived from the
+        // recorded segment list, excluding the gap.
+        $this->assertEqualsWithDelta(120.0, (float) $log->sermon_start_time, 0.01);
+        $this->assertEqualsWithDelta(2100.0, (float) $log->sermon_end_time, 0.01);
+        $this->assertEqualsWithDelta(1380.0, (float) $log->extractedSermonMediaDuration(), 0.01);
+
         @unlink($videoFile);
         @unlink($extractedAudioFile);
         @unlink($concatVideo);
@@ -582,6 +599,16 @@ class ExtractSermonTest extends TestCase
         $log->refresh();
         $this->assertSame('extraction_complete', $log->current_step);
         Mail::assertNothingQueued();
+
+        // The guard replaced the baseline plan with the dominant RMS segment,
+        // so the run fields must follow it — the Sermon record built from them
+        // has to describe the media actually cut, not the stale baseline.
+        $this->assertEqualsWithDelta(300.0, (float) $log->sermon_start_time, 0.01);
+        $this->assertEqualsWithDelta(1800.0, (float) $log->sermon_end_time, 0.01);
+        $this->assertSame(
+            'dominant_speech_segment',
+            $log->processing_metadata['sermon_extraction_plan']['strategy'] ?? null
+        );
 
         @unlink($videoFile);
         @unlink($extractedAudioFile);

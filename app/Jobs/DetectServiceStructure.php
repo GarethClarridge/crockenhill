@@ -214,10 +214,52 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
         $syncService->sync($this->processingLog, $classified);
 
+        $this->writeBackSermonBounds($classified);
+
         $this->logStepComplete(
             ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE,
             sprintf('Persisted %d LLM-detected section(s)', count($classified))
         );
+    }
+
+    /**
+     * Align the run-level sermon fields with the accepted sermon section.
+     *
+     * sermon_start_time/sermon_end_time are written early by AnalyzeSegments
+     * from the longest RMS speech segment — a coarse guess that downstream
+     * consumers (SubmitToProcessing, SermonMetadataIntegrationService) and
+     * SermonExtractionPlanResolver's baseline fallback read regardless of the
+     * validated structure. Once a structure passes the gate, its sermon bounds
+     * are authoritative, so the fallback carries them instead of the RMS guess.
+     *
+     * @param  array<int, array<string, mixed>>  $classified
+     */
+    private function writeBackSermonBounds(array $classified): void
+    {
+        // A manually confirmed segment outranks every detector; never move it.
+        if ($this->processingLog->manuallyConfirmedSegmentId() !== null) {
+            return;
+        }
+
+        $sermon = collect($classified)->firstWhere('section_type', ServiceSectionType::Sermon->value);
+
+        if ($sermon === null) {
+            return;
+        }
+
+        $metadata = $this->processingLog->processing_metadata?->toArray() ?? [];
+        $metadata['sermon_bounds'] = [
+            'source' => 'llm_structure',
+            'written_at' => now()->toIso8601String(),
+            'previous_start' => $this->processingLog->sermon_start_time,
+            'previous_end' => $this->processingLog->sermon_end_time,
+        ];
+
+        $this->processingLog->forceFill([
+            'sermon_start_time' => $sermon['start_time'],
+            'sermon_end_time' => $sermon['end_time'],
+            'processing_metadata' => $metadata,
+        ])->save();
     }
 
     /**
