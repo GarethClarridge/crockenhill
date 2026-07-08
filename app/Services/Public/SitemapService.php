@@ -19,7 +19,6 @@ use App\Sitemap\PreacherSitemapPresenter;
 use App\Sitemap\SermonSitemapPresenter;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Sitemap\Sitemap;
 use Spatie\Sitemap\Tags\Url;
@@ -373,7 +372,7 @@ class SitemapService
                 // areas share no URL space with meetings and must stay.
                 $query->where('area', '!=', PageArea::Community->value)
                     ->orWhereNotExists(function ($meetingQuery): void {
-                        $meetingQuery->select(DB::raw(1))
+                        $meetingQuery->selectRaw('1')
                             ->from('meetings')
                             ->whereColumn('meetings.slug', 'pages.slug');
                     });
