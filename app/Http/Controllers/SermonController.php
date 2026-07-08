@@ -25,6 +25,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class SermonController extends Controller
 {
@@ -76,6 +77,8 @@ class SermonController extends Controller
      * 301 to the canonical date-based URL so all inbound links, HTML canonical
      * tags, sitemap entries, and feed enclosures agree on one URL shape.
      * Children's talks redirect to their dedicated URL only when public.
+     *
+     * @throws NotFoundHttpException
      */
     public function show(
         Sermon $sermon,
@@ -98,6 +101,8 @@ class SermonController extends Controller
 
     /**
      * Render sermon view from the canonical date-based route.
+     *
+     * @throws NotFoundHttpException
      */
     private function renderSermon(Sermon $sermon, SermonPageContextService $pageContextService): View
     {
@@ -271,6 +276,9 @@ class SermonController extends Controller
         ]);
     }
 
+    /**
+     * @throws NotFoundHttpException
+     */
     public function showDated(
         int $year,
         int $month,

@@ -21,6 +21,7 @@ class StoreMailgunInboundEmailRequestTest extends TestCase
         ]);
 
         $data = [
+            'recipient' => str_repeat('a', 256),
             'timestamp' => str_repeat('a', 51),
             'token' => str_repeat('a', 101),
             'signature' => str_repeat('a', 129),
@@ -35,6 +36,7 @@ class StoreMailgunInboundEmailRequestTest extends TestCase
         $request->withValidator($validator);
 
         $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('recipient', $validator->errors()->toArray());
         $this->assertArrayHasKey('timestamp', $validator->errors()->toArray());
         $this->assertArrayHasKey('token', $validator->errors()->toArray());
         $this->assertArrayHasKey('signature', $validator->errors()->toArray());
@@ -80,6 +82,7 @@ class StoreMailgunInboundEmailRequestTest extends TestCase
         ]);
 
         $data = [
+            'recipient' => 'test@example.com',
             'timestamp' => str_repeat('a', 50),
             'token' => str_repeat('a', 100),
             'signature' => str_repeat('a', 128),

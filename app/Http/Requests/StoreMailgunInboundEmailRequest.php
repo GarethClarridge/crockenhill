@@ -31,6 +31,7 @@ class StoreMailgunInboundEmailRequest extends FormRequest
         $modelRules = InboundEmail::validationRules();
 
         return [
+            'recipient' => ['required', 'string', 'max:255'],
             'timestamp' => ['required', 'string', 'max:50'],
             'token' => ['required', 'string', 'max:100'],
             'signature' => ['required', 'string', 'max:128'],

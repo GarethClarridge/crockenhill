@@ -11,6 +11,7 @@ use App\Services\Public\PublicPageReadModelCache;
 use App\Services\Public\PublicPageVisibilityGuard;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Controller for displaying pages to the public.
@@ -27,6 +28,8 @@ class PageController extends Controller
      * Display a generic page layout.
      *
      * @param  string  $area  The area of the page.
+     *
+     * @throws NotFoundHttpException
      */
     public function showPage(string $area): Response
     {
@@ -77,6 +80,8 @@ class PageController extends Controller
      *
      * @param  string  $area  The area of the page.
      * @param  string  $slug  The slug of the page.
+     *
+     * @throws NotFoundHttpException
      */
     public function show(string $area, string $slug): Response
     {
