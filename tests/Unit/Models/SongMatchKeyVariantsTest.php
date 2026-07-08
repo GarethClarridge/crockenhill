@@ -18,6 +18,41 @@ class SongMatchKeyVariantsTest extends TestCase
         $this->assertEqualsCanonicalizing($expected, Song::matchKeyVariants($input));
     }
 
+    #[Test]
+    #[DataProvider('firstLineKeyDataProvider')]
+    public function it_derives_the_first_line_key_from_lyrics(?string $lyricsPlain, ?string $expected): void
+    {
+        $this->assertSame($expected, Song::firstLineKeyFromLyrics($lyricsPlain));
+    }
+
+    public static function firstLineKeyDataProvider(): array
+    {
+        return [
+            'null lyrics' => [
+                'lyricsPlain' => null,
+                'expected' => null,
+            ],
+            'blank lyrics' => [
+                'lyricsPlain' => "  \n\n  ",
+                'expected' => null,
+            ],
+            'first non-empty line, canonicalised' => [
+                'lyricsPlain' => "\n  What Love Could  Remember \nNo wrongs we have done",
+                'expected' => 'what love could remember',
+            ],
+            'single line' => [
+                'lyricsPlain' => 'Amazing grace how sweet the sound',
+                'expected' => 'amazing grace how sweet the sound',
+            ],
+            // A run-together lyrics paragraph (no line breaks) would otherwise
+            // derive a key longer than the first_line_key column — clamp it.
+            'run-together paragraph clamped to column length' => [
+                'lyricsPlain' => str_repeat('a', 400),
+                'expected' => str_repeat('a', Song::FIRST_LINE_KEY_MAX_LENGTH),
+            ],
+        ];
+    }
+
     public static function variantDataProvider(): array
     {
         return [

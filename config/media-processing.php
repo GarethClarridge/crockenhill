@@ -310,6 +310,10 @@ return [
         'song_opening_local_whisper_model' => env('SONG_MATCHING_LOCAL_WHISPER_MODEL', env('LOCAL_WHISPER_MODEL', 'small')),
         'song_opening_local_whisper_timeout' => (int) env('SONG_MATCHING_LOCAL_WHISPER_TIMEOUT', env('LOCAL_WHISPER_TIMEOUT', 1800)),
         'lyrics_threshold' => (float) env('SONG_MATCHING_LYRICS_THRESHOLD', 0.6),
+        // Matches at or above this confidence rewrite the section's display
+        // title to the catalogued song title; below it only the match record
+        // is stored and the heard text stays on display.
+        'title_writeback_min_confidence' => (float) env('SONG_MATCHING_TITLE_WRITEBACK_MIN_CONFIDENCE', 0.75),
         'ocr_enabled' => env('SONG_MATCHING_OCR_ENABLED', true),
         'ocr_model' => env('SONG_MATCHING_OCR_MODEL', 'gpt-5-mini'),
     ],

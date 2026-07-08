@@ -105,6 +105,45 @@ class SongLyricsMatchingServiceTest extends TestCase
         $this->assertNull($result['song_id']);
     }
 
+    // ---- First-line-key shortcut ----
+
+    #[Test]
+    public function it_matches_a_first_line_key_opening_by_default(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'His Mercy Is More',
+            'canonical_key' => 'his mercy is more',
+            'first_line_key' => 'what love could remember no wrongs we have done',
+            'lyrics_plain' => null,
+        ]);
+
+        $result = $this->service->matchFromLyrics('What love could remember no wrongs we have done');
+
+        $this->assertSame($song->id, $result['song_id']);
+        $this->assertSame(0.95, $result['confidence']);
+    }
+
+    #[Test]
+    public function it_skips_the_first_line_key_shortcut_for_untrusted_probes(): void
+    {
+        // An OCR frame sampled mid-song whose first visible line happens to be
+        // another song's opening. With the shortcut disallowed it must not be
+        // returned as a 0.95 match — fuzzy matching gets the whole text instead.
+        Song::factory()->create([
+            'title' => 'His Mercy Is More',
+            'canonical_key' => 'his mercy is more',
+            'first_line_key' => 'what love could remember no wrongs we have done',
+            'lyrics_plain' => null,
+        ]);
+
+        $result = $this->service->matchFromLyrics(
+            'What love could remember no wrongs we have done',
+            allowFirstLineKeyMatch: false
+        );
+
+        $this->assertNull($result['song_id']);
+    }
+
     // ---- Fuzzy lyrics matching ----
 
     #[Test]

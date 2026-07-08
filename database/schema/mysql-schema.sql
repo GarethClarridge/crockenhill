@@ -931,6 +931,7 @@ CREATE TABLE `songs` (
   `major_category` enum('Psalms','Approaching God','Children’s','Christ’s Lordship over all of life','The Bible','The Christian life','The church','The Father','The future','The gospel','The Holy Spirit','The Son') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `minor_category` enum('The eternal Trinity','Adoration and thanksgiving','Creator and sustainer','Morning and evening','The Lord’s Day','Beginning and ending of the year','His character','His providence','His love','His covenant','His name and praise','His birth and childhood','His life and ministry','His suffering and death','His resurrection','His ascension and reign','His priesthood and intercession','His return in glory','His person and power','His presence in the church','His work in revival','Authority and sufficiency','Enjoyment and obedience','Character and privileges','Fellowship','Gifts and ministries','The life of prayer','Evangelism and mission','Baptism','The Lord’s Supper','Invitation and warning','Crying out for God','New birth and new life','Repentance and faith','Union with Christ','Love for Christ','Freedom in Christ','Submission and trust','Assurance and hope','Peace and joy','Holiness','Humbling and restoration','Commitment and obedience','Zeal in service','Guidance','Suffering and trial','Spiritual warfare','Perseverance','Facing death','The earth and harvest','Christian citizenship','Christian marriage','Families and children','Health and healing','Work and leisure','Those in need','Government and nations','The resurrection of the body','Judgement and hell','Heaven and glory') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `canonical_key` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `first_line_key` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `slug` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   `alternate_title` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `lyrics_xml` longtext CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci,
@@ -946,6 +947,7 @@ CREATE TABLE `songs` (
   KEY `songs_ccli_number_index` (`ccli_number`),
   KEY `songs_deleted_at_index` (`deleted_at`),
   KEY `songs_title_index` (`title`),
+  KEY `songs_first_line_key_index` (`first_line_key`),
   FULLTEXT KEY `songs_lyrics_plain_fulltext` (`lyrics_plain`),
   CONSTRAINT `songs_alternate_title_check` CHECK (((`alternate_title` is null) or ((cast(`alternate_title` as char charset binary) = trim(`alternate_title`)) and (`alternate_title` <> _utf8mb4'')))),
   CONSTRAINT `songs_canonical_key_check` CHECK (((cast(`canonical_key` as char charset binary) = lower(trim(regexp_replace(`canonical_key`,_utf8mb3'[[:space:]]+',_utf8mb4' ')))) and (`canonical_key` <> _utf8mb3'') and (locate(_utf8mb3'@',`canonical_key`) = 0))),
@@ -1220,3 +1222,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_18_130000_drop_
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_19_054923_add_preacher_id_date_index_to_sermons_table',77);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_27_065159_add_index_to_songs_title',78);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_28_192314_add_index_to_speaker_samples_approved',79);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_07_190047_add_first_line_key_to_songs_table',79);

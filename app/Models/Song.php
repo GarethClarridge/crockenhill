@@ -21,6 +21,7 @@ use Illuminate\Validation\Rule;
 /**
  * @property int $id
  * @property string $canonical_key
+ * @property string|null $first_line_key
  * @property string|null $slug
  * @property string $title
  * @property string|null $alternate_title
@@ -55,10 +56,17 @@ class Song extends Model
     use SoftDeletes;
 
     /**
+     * Storage length of the first_line_key column; derived keys are clamped to
+     * it so a run-together lyrics paragraph cannot overflow the column on sync.
+     */
+    public const int FIRST_LINE_KEY_MAX_LENGTH = 255;
+
+    /**
      * @var list<string>
      */
     protected $fillable = [
         'canonical_key',
+        'first_line_key',
         'slug',
         'title',
         'alternate_title',
@@ -171,6 +179,34 @@ class Song extends Model
         $normalised = (string) preg_replace('/\s+/', ' ', $normalised);
 
         return trim($normalised);
+    }
+
+    /**
+     * The canonicalised first non-empty lyrics line — the key a sung opening
+     * is heard as ("What love could remember") when it differs from the
+     * catalogued title ("His Mercy Is More"). Stored at catalog sync and
+     * consulted alongside canonical_key when matching heard titles.
+     */
+    public static function firstLineKeyFromLyrics(?string $lyricsPlain): ?string
+    {
+        if (! is_string($lyricsPlain) || trim($lyricsPlain) === '') {
+            return null;
+        }
+
+        foreach (preg_split('/\r?\n/', $lyricsPlain) ?: [] as $line) {
+            if (trim($line) === '') {
+                continue;
+            }
+
+            // Clamp to the first_line_key column length: a run-together lyrics
+            // paragraph makes this "first line" the whole song, which would
+            // overflow the column on sync.
+            $key = mb_substr(self::canonicalizeKey($line), 0, self::FIRST_LINE_KEY_MAX_LENGTH);
+
+            return $key === '' ? null : $key;
+        }
+
+        return null;
     }
 
     /**

@@ -144,9 +144,16 @@ final class ServiceFlowBuilder
         ?string $sermonTitle,
     ): ?string {
         if ($type === ServiceSectionType::Song) {
-            // Use OoS-matched song title, then song_title_hint from metadata, then linked song
+            // Use OoS-matched song title, then the matched catalogue title
+            // written back by song matching, then the heard song_title_hint
             if ($songTitle !== null) {
                 return $songTitle;
+            }
+
+            $matched = is_string($metadata['song_title'] ?? null) ? (string) $metadata['song_title'] : null;
+
+            if (filled($matched)) {
+                return $matched;
             }
 
             $hint = is_string($metadata['song_title_hint'] ?? null) ? (string) $metadata['song_title_hint'] : null;

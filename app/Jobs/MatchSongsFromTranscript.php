@@ -249,6 +249,22 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             return true;
         }
 
+        // A heard "title" is often the first lyric line, not the catalogued
+        // title. first_line_key is not unique, and an ambiguous hit must not
+        // persist an arbitrary song — leave it to fuzzy lyrics matching, which
+        // can weigh the rest of the hint.
+        $firstLineMatches = Song::query()
+            ->whereIn('first_line_key', Song::matchKeyVariants($hint))
+            ->limit(2)
+            ->get();
+
+        if ($firstLineMatches->count() === 1) {
+            $song = $firstLineMatches->sole();
+            $this->applyMatch($section, $song->id, $song->title, 0.95, 'title_hint_first_line');
+
+            return true;
+        }
+
         // Fallback: run the hint text through lyrics matching as a transcript.
         $result = $lyricsMatchingService->matchFromLyrics($hint);
         if ($result['song_id'] !== null) {
@@ -291,7 +307,10 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             $matches = [];
 
             foreach ($ocrTexts as $ocrText) {
-                $result = $lyricsMatchingService->matchFromLyrics($ocrText);
+                // OCR frames are sampled across the section, so the first
+                // visible line is not necessarily the song opening — skip the
+                // first-line-key shortcut and let fuzzy matching weigh the text.
+                $result = $lyricsMatchingService->matchFromLyrics($ocrText, allowFirstLineKeyMatch: false);
                 $songId = $result['song_id'];
 
                 if ($songId !== null && ! array_key_exists($songId, $matches)) {
@@ -488,6 +507,18 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                 'match_source' => $matchSource,
             ];
 
+            // A confident match displays the catalogued title rather than the
+            // heard text ("What love could remember" → "His Mercy Is More").
+            // song_title_hint keeps the heard text as evidence; a shaky fuzzy
+            // match must not present a confidently wrong title.
+            $writebackThreshold = (float) config('media-processing.song_matching.title_writeback_min_confidence', 0.75);
+            $writeCatalogueTitle = $confidence >= $writebackThreshold;
+
+            if ($writeCatalogueTitle) {
+                $metadataArray['song_title'] = $matchedTitle;
+                $section->title = $matchedTitle;
+            }
+
             // Clear the unmatched review flag now that we have a match.
             $reviewFlags = array_values(array_filter(
                 $metadataArray['review_flags'] ?? [],
@@ -504,8 +535,11 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             $section->metadata = ServiceSectionMetadata::fromArray($metadataArray);
             $section->save();
 
-            // Update the linked ChurchServiceItem if one exists.
-            if ($section->church_service_item_id !== null) {
+            // Commit the catalogue song to the linked ChurchServiceItem, but
+            // only when confident: the review timeline derives a song section's
+            // displayed title from item->song, so a sub-threshold write would
+            // resurface the very catalogue title the section gate withheld.
+            if ($writeCatalogueTitle && $section->church_service_item_id !== null) {
                 $item = ChurchServiceItem::query()->find($section->church_service_item_id);
                 if ($item instanceof ChurchServiceItem) {
                     $item->forceFill([
