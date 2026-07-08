@@ -100,6 +100,15 @@ class ScriptureReferenceResolverTest extends TestCase
         $this->assertTrue($this->resolver->referencesAgree('Jn 3:16', 'John 3:16'));
     }
 
+    public function test_references_agree_when_split_at_different_points(): void
+    {
+        // Same continuous reading (John 3:1-20) subdivided at different points:
+        // "1-10" and "6-20" cross, but the overall spans are identical, so this
+        // is one reading, not a conflict.
+        $this->assertTrue($this->resolver->referencesAgree('John 3:1-10, 11-20', 'John 3:1-5, 6-20'));
+        $this->assertTrue($this->resolver->referencesAgree('John 3:1-5, 6-20', 'John 3:1-10, 11-20'));
+    }
+
     public function test_references_disagree_on_genuinely_different_passages(): void
     {
         $this->assertFalse($this->resolver->referencesAgree('Luke 18:31-43', 'John 3:16'));

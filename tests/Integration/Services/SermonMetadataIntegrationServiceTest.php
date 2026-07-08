@@ -72,6 +72,37 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_ignores_the_recorded_plan_once_the_sermon_bounds_are_edited(): void
+    {
+        // The recorded concat plan describes 120-2100, but an operator has since
+        // edited the Sermon's bounds to 200-1700 via SaveSermonDetails. The
+        // stale plan duration must not be used; the edited continuous span
+        // (1500s) is authoritative.
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 120.0,
+            'sermon_end_time' => 2100.0,
+            'processing_metadata' => [
+                'sermon_extraction_plan' => [
+                    'mode' => 'concat_spans',
+                    'segments' => [
+                        ['start_time' => 120.0, 'end_time' => 300.0],
+                        ['start_time' => 900.0, 'end_time' => 2100.0],
+                    ],
+                ],
+            ],
+        ]);
+
+        $sermon = Sermon::factory()->create([
+            'source_type' => SermonSourceType::Livestream,
+            'livestream_processing_id' => $log->processing_id,
+            'segment_start_time' => 200.0,
+            'segment_end_time' => 1700.0,
+        ]);
+
+        $this->assertEqualsWithDelta(1500.0, $this->service->getSegmentDuration($sermon), 0.01);
+    }
+
+    #[Test]
     public function it_returns_null_segment_duration_for_non_livestream_sermon(): void
     {
         $sermon = Sermon::factory()->create([

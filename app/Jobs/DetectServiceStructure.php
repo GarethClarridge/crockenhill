@@ -24,6 +24,7 @@ use App\Services\ChurchService\Structure\ValidationResult;
 use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Support\ChurchServiceProcessingTimeline;
+use App\Support\ServiceSectionConfidence;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -247,6 +248,16 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             return;
         }
 
+        // Only promote bounds the resolver would actually auto-extract from.
+        // SermonExtractionPlanResolver::findPreferredSection() excludes sections
+        // that are review-flagged or below the high-confidence threshold, so a
+        // soft-flagged sermon falls through to the baseline path for manual
+        // review. Writing its bounds into the baseline anyway would let that
+        // fallback auto-extract the very section the resolver rejected.
+        if (! $this->sermonSectionEligibleForAutoExtraction($sermon)) {
+            return;
+        }
+
         $metadata = $this->processingLog->processing_metadata?->toArray() ?? [];
         $metadata['sermon_bounds'] = [
             'source' => 'llm_structure',
@@ -260,6 +271,27 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             'sermon_end_time' => $sermon['end_time'],
             'processing_metadata' => $metadata,
         ])->save();
+    }
+
+    /**
+     * Whether the classified sermon section would be eligible for automatic
+     * extraction, mirroring SermonExtractionPlanResolver::findPreferredSection():
+     * not review-flagged, at or above the high-confidence threshold, and a
+     * positive-duration span.
+     *
+     * @param  array<string, mixed>  $sermon
+     */
+    private function sermonSectionEligibleForAutoExtraction(array $sermon): bool
+    {
+        if ((bool) ($sermon['needs_manual_review'] ?? true)) {
+            return false;
+        }
+
+        if ((float) ($sermon['confidence'] ?? 0.0) < ServiceSectionConfidence::HIGH_THRESHOLD) {
+            return false;
+        }
+
+        return (float) ($sermon['end_time'] ?? 0.0) > (float) ($sermon['start_time'] ?? 0.0);
     }
 
     /**
