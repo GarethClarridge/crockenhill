@@ -42,8 +42,8 @@ class CategorizeEventRequest extends FormRequest
             'event_id.required' => 'Please select a calendar event.',
             'event_id.integer' => 'The calendar event must be a valid ID.',
             'event_id.exists' => 'The selected calendar event does not exist.',
-            'meeting_slug.required' => 'Please select a meeting category.',
-            'meeting_slug.string' => 'The meeting must be a valid value.',
+            'meeting_slug.required' => 'Please select a meeting type.',
+            'meeting_slug.string' => 'The selected meeting is invalid.',
             'meeting_slug.exists' => 'The selected meeting does not exist.',
         ];
     }

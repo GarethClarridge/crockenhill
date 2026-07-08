@@ -45,11 +45,13 @@ class UploadChurchService extends Component
      */
     protected function messages(): array
     {
+        $maxSize = round(((int) config('service-tracking.upload.max_size_kb', 614400)) / 1024);
+
         return [
             'file.required' => 'Please upload an OpenLP .osz file.',
-            'file.file' => 'The uploaded value must be a file.',
+            'file.file' => 'The uploaded item must be a valid file.',
             'file.mimes' => 'The uploaded file must be a valid OpenLP .osz archive.',
-            'file.max' => 'The uploaded file exceeds the maximum configured size.',
+            'file.max' => "The uploaded file is too large. It must not exceed {$maxSize} MB.",
         ];
     }
 
