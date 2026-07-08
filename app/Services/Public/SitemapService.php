@@ -373,7 +373,7 @@ class SitemapService
                 // areas share no URL space with meetings and must stay.
                 $query->where('area', '!=', PageArea::Community->value)
                     ->orWhereNotExists(function ($meetingQuery): void {
-                        $meetingQuery->select(DB::raw(1))
+                        $meetingQuery->selectRaw('1')
                             ->from('meetings')
                             ->whereColumn('meetings.slug', 'pages.slug');
                     });
