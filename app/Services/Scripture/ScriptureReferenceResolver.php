@@ -57,11 +57,12 @@ class ScriptureReferenceResolver
      * ("Luke 18:31-33, 35-43" heard against a planned "Luke 18:31-43"), and
      * strict string comparison flags that as a conflict. Two references agree
      * when (a) every passage on each side overlaps at least one passage on the
-     * other, so no passage is read in isolation, and (b) wherever two passages
-     * overlap, one contains the other. Requirement (b) rejects a crossing
-     * overlap where each side reads beyond their shared verses ("Luke 18:31-43"
-     * vs "Luke 18:40-50" share 40-43 but each extends past) — a genuine
-     * conflict, not a subrange subdivision. An unparseable side never agrees.
+     * other, so no passage is read in isolation, and (b) one side's overall
+     * span contains the other's. Requirement (b) accepts the same reading split
+     * at different points ("John 3:1-10, 11-20" vs "John 3:1-5, 6-20", both
+     * cover 1-20) while rejecting a crossing overlap where each side reads
+     * beyond the other ("Luke 18:31-43" vs "Luke 18:40-50" share 40-43 but each
+     * extends past) — a genuine conflict. An unparseable side never agrees.
      */
     public function referencesAgree(string $left, string $right): bool
     {
@@ -77,7 +78,7 @@ class ScriptureReferenceResolver
             return false;
         }
 
-        return ! $this->anyOverlapCrosses($leftSpans, $rightSpans);
+        return $this->oneSpanContainsTheOther($leftSpans, $rightSpans);
     }
 
     /**
@@ -88,26 +89,43 @@ class ScriptureReferenceResolver
      * @param  list<array{0: int, 1: int}>  $leftSpans
      * @param  list<array{0: int, 1: int}>  $rightSpans
      */
-    private function anyOverlapCrosses(array $leftSpans, array $rightSpans): bool
+    /**
+     * Whether one reference's overall span [min from, max to] contains the
+     * other's. The same reading split at different points still nests; two
+     * references that each read past their shared verses (a crossing overlap)
+     * do not.
+     *
+     * @param  non-empty-list<array{0: int, 1: int}>  $leftSpans
+     * @param  non-empty-list<array{0: int, 1: int}>  $rightSpans
+     */
+    private function oneSpanContainsTheOther(array $leftSpans, array $rightSpans): bool
     {
-        foreach ($leftSpans as [$leftFrom, $leftTo]) {
-            foreach ($rightSpans as [$rightFrom, $rightTo]) {
-                $overlaps = $leftFrom <= $rightTo && $leftTo >= $rightFrom;
+        [$leftFrom, $leftTo] = $this->envelope($leftSpans);
+        [$rightFrom, $rightTo] = $this->envelope($rightSpans);
 
-                if (! $overlaps) {
-                    continue;
-                }
+        $leftContainsRight = $leftFrom <= $rightFrom && $leftTo >= $rightTo;
+        $rightContainsLeft = $rightFrom <= $leftFrom && $rightTo >= $leftTo;
 
-                $leftContainsRight = $leftFrom <= $rightFrom && $leftTo >= $rightTo;
-                $rightContainsLeft = $rightFrom <= $leftFrom && $rightTo >= $leftTo;
+        return $leftContainsRight || $rightContainsLeft;
+    }
 
-                if (! $leftContainsRight && ! $rightContainsLeft) {
-                    return true;
-                }
-            }
+    /**
+     * The [min from, max to] span covering every passage.
+     *
+     * @param  non-empty-list<array{0: int, 1: int}>  $spans
+     * @return array{0: int, 1: int}
+     */
+    private function envelope(array $spans): array
+    {
+        $from = $spans[0][0];
+        $to = $spans[0][1];
+
+        foreach ($spans as [$spanFrom, $spanTo]) {
+            $from = min($from, $spanFrom);
+            $to = max($to, $spanTo);
         }
 
-        return false;
+        return [$from, $to];
     }
 
     /**

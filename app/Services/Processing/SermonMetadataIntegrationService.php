@@ -247,10 +247,28 @@ class SermonMetadataIntegrationService
         // A concat cut spans a gap between source segments, so its true media
         // duration is the sum of the extracted spans recorded on the processing
         // log — not segment_end_time - segment_start_time, which would count the
-        // gap. Fall back to the continuous span for single-span/legacy runs.
-        $recorded = $sermon->livestreamProcessing?->extractedSermonMediaDuration();
+        // gap. Only trust the recorded duration while the plan still describes
+        // the Sermon's current bounds: an operator editing segment_start_time /
+        // segment_end_time (SaveSermonDetails) makes the plan stale, so fall
+        // back to the continuous span there and for single-span/legacy runs.
+        $recorded = $sermon->livestreamProcessing?->recordedSermonExtraction();
 
-        return $recorded ?? ($sermon->segment_end_time - $sermon->segment_start_time);
+        if ($recorded !== null
+            && $this->boundsMatch($recorded['start'], (float) $sermon->segment_start_time)
+            && $this->boundsMatch($recorded['end'], (float) $sermon->segment_end_time)) {
+            return $recorded['duration'];
+        }
+
+        return $sermon->segment_end_time - $sermon->segment_start_time;
+    }
+
+    /**
+     * Whether two segment timestamps are the same bound, tolerating the
+     * sub-millisecond drift of a decimal(10,3) round-trip.
+     */
+    private function boundsMatch(float $left, float $right): bool
+    {
+        return abs($left - $right) < 0.001;
     }
 
     /**

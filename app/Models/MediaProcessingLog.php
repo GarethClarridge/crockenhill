@@ -434,18 +434,41 @@ class MediaProcessingLog extends Model
      */
     public function extractedSermonMediaDuration(): ?float
     {
+        return $this->recordedSermonExtraction()['duration'] ?? null;
+    }
+
+    /**
+     * The recorded sermon extraction plan's overall source span and true media
+     * duration. `start`/`end` are the first span's start and the last span's
+     * end (the true source window); `duration` sums the spans, excluding any
+     * concat gap between them. Callers compare start/end against a Sermon's
+     * current bounds to detect a later manual edit that invalidates duration.
+     *
+     * @return array{start: float, end: float, duration: float}|null
+     */
+    public function recordedSermonExtraction(): ?array
+    {
         $segments = data_get($this->processing_metadata?->toArray(), 'sermon_extraction_plan.segments');
 
         if (! is_array($segments) || $segments === []) {
             return null;
         }
 
+        $segments = array_values($segments);
         $duration = 0.0;
         foreach ($segments as $segment) {
             $duration += max(0.0, (float) ($segment['end_time'] ?? 0.0) - (float) ($segment['start_time'] ?? 0.0));
         }
 
-        return $duration > 0.0 ? $duration : null;
+        if ($duration <= 0.0) {
+            return null;
+        }
+
+        return [
+            'start' => (float) ($segments[0]['start_time'] ?? 0.0),
+            'end' => (float) ($segments[count($segments) - 1]['end_time'] ?? 0.0),
+            'duration' => $duration,
+        ];
     }
 
     public function requiresManualSermonReview(): bool

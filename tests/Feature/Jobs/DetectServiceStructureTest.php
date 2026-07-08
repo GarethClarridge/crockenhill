@@ -177,6 +177,39 @@ class DetectServiceStructureTest extends TestCase
     }
 
     #[Test]
+    public function primary_mode_does_not_promote_a_review_flagged_sermon_into_the_baseline(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => 300.0,
+            'sermon_end_time' => 1800.0,
+        ]);
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        // A below-threshold sermon gets a soft structure_low_confidence flag; the
+        // resolver's findPreferredSection() excludes such sections from
+        // automatic extraction, so its bounds must not overwrite the RMS baseline.
+        MockServiceStructureService::useStructure(ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('bible_reading', 420.0, 590.0),
+            $this->section('sermon', 600.0, 2200.0, confidence: 0.5),
+            $this->section('song', 2210.0, 2400.0),
+        ], ['Fixture structure.'], 'mock'));
+
+        $this->runJob($log);
+
+        $log->refresh();
+        // Structure still persisted (soft flag, not a hard failure)...
+        $this->assertNotSame(ProcessingStatus::Failed, $log->status);
+        // ...but the run bounds keep the RMS baseline and no write-back is recorded.
+        $this->assertEqualsWithDelta(300.0, (float) $log->sermon_start_time, 0.01);
+        $this->assertEqualsWithDelta(1800.0, (float) $log->sermon_end_time, 0.01);
+        $this->assertArrayNotHasKey('sermon_bounds', $log->processing_metadata?->toArray() ?? []);
+    }
+
+    #[Test]
     public function primary_mode_routes_hard_validation_failures_to_manual_review(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');
@@ -277,13 +310,13 @@ class DetectServiceStructureTest extends TestCase
         ], ['Fixture structure.'], 'mock');
     }
 
-    private function section(string $type, float $start, float $end): ServiceStructureSection
+    private function section(string $type, float $start, float $end, float $confidence = 0.95): ServiceStructureSection
     {
         $section = ServiceStructureSection::fromArray([
             'type' => $type,
             'start_time' => $start,
             'end_time' => $end,
-            'confidence' => 0.95,
+            'confidence' => $confidence,
         ]);
 
         assert($section instanceof ServiceStructureSection);
