@@ -48,7 +48,7 @@ class ProcessingInitiator
      * @param  MediaType  $processingType  The type of processing to initiate
      * @param  string|null  $clientFileDate  Optional date provided by the client (YYYY-MM-DD)
      * @param  array{
-     *     source_file_path?: string|false,
+     *     source_file_path?: string,
      *     file_hash?: string|null,
      *     dedup_key?: string|null,
      *     file_size?: int,

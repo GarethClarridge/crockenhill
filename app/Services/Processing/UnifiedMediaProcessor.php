@@ -421,6 +421,11 @@ class UnifiedMediaProcessor
         try {
             // Store video file temporarily before processing (preserves file timestamps for metadata extraction)
             $tempPath = $file->store('temp/video-processing');
+
+            if ($tempPath === false) {
+                throw new \RuntimeException('Failed to store video file temporarily');
+            }
+
             $videoProcessingMode = VideoProcessingOptions::resolveMode($options);
 
             // Create processing log via shared initiator
