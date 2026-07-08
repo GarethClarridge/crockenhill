@@ -45,6 +45,38 @@ class StoreMailgunInboundEmailRequestTest extends TestCase
     }
 
     #[Test]
+    public function it_validates_recipient_length_and_format(): void
+    {
+        $request = new StoreMailgunInboundEmailRequest;
+
+        // Test oversized recipient
+        $data = [
+            'timestamp' => '1234567890',
+            'token' => 'token',
+            'signature' => 'signature',
+            'from' => 'sender@example.com',
+            'subject' => 'Subject',
+            'Message-Id' => '<msg-id@example.com>',
+            'recipient' => str_repeat('a', 256).'@example.com',
+        ];
+
+        $validator = Validator::make($data, $request->rules());
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('recipient', $validator->errors()->toArray());
+
+        // Test malformed recipient
+        $data['recipient'] = 'not-an-email';
+        $validator = Validator::make($data, $request->rules());
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('recipient', $validator->errors()->toArray());
+
+        // Test valid recipient
+        $data['recipient'] = 'valid@example.com';
+        $validator = Validator::make($data, $request->rules());
+        $this->assertFalse($validator->fails());
+    }
+
+    #[Test]
     public function it_validates_max_body_and_header_lengths(): void
     {
         $request = new StoreMailgunInboundEmailRequest;
@@ -68,6 +100,35 @@ class StoreMailgunInboundEmailRequestTest extends TestCase
         $this->assertArrayHasKey('message-headers', $validator->errors()->toArray());
         $this->assertArrayHasKey('body-plain', $validator->errors()->toArray());
         $this->assertArrayHasKey('body-html', $validator->errors()->toArray());
+    }
+
+    #[Test]
+    public function it_excludes_technical_keys_from_metadata(): void
+    {
+        $request = new StoreMailgunInboundEmailRequest;
+        $request->merge([
+            'timestamp' => '1234567890',
+            'token' => 'token',
+            'signature' => 'signature',
+            'from' => 'sender@example.com',
+            'subject' => 'Subject',
+            'recipient' => 'recipient@example.com',
+            'body-plain' => 'body',
+            'body-html' => 'html',
+            'other-key' => 'other-value',
+        ]);
+
+        $metadata = $request->processingMetadata();
+
+        $this->assertArrayHasKey('other-key', $metadata);
+        $this->assertArrayNotHasKey('timestamp', $metadata);
+        $this->assertArrayNotHasKey('token', $metadata);
+        $this->assertArrayNotHasKey('signature', $metadata);
+        $this->assertArrayNotHasKey('from', $metadata);
+        $this->assertArrayNotHasKey('subject', $metadata);
+        $this->assertArrayNotHasKey('recipient', $metadata);
+        $this->assertArrayNotHasKey('body-plain', $metadata);
+        $this->assertArrayNotHasKey('body-html', $metadata);
     }
 
     #[Test]

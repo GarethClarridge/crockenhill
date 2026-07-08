@@ -32,3 +32,8 @@
 **Vulnerability:** `SermonAssetController` was only enforcing access policies for Children's Talk content, leaving regular sermon assets (audio, video, thumbnails) accessible via direct URLs even if they were stored in `private/` or marked as unexposed by the `SermonExposurePolicy` (e.g., due to poor quality).
 **Learning:** Relying on frontend visibility logic (hiding links) is insufficient if the serving endpoint itself does not re-verify the exposure policy. Public-facing asset controllers must act as the final gatekeeper for all media assets.
 **Prevention:** Centralize authorization logic for asset serving that combines content-type policies, automated quality assessment results, and manual visibility overrides. Explicitly restrict "private/" storage paths to administrators to prevent accidental leakage of raw or unedited media.
+
+## 2026-07-08 - [DoS Protection for Rate Limiter Keys]
+**Vulnerability:** The 'recipient' field in inbound email webhooks was used as a rate-limiting key without length validation or metadata exclusion.
+**Learning:** Using unvalidated input as a cache key for rate limiting can lead to resource exhaustion if attackers send excessively large strings. Technical routing keys should also be kept out of stored message metadata to maintain clean data separation.
+**Prevention:** Always apply strict length (max:255) and format (e.g. email) validation to any input used as a rate-limiting key. Exclude such fields from application metadata storage.

@@ -47,6 +47,7 @@ class StoreMailgunInboundEmailRequest extends FormRequest
             'body-plain' => ['nullable', 'string', 'max:500000'],
             'body-html' => ['nullable', 'string', 'max:500000'],
             'Date' => ['nullable', 'string', 'max:128'],
+            'recipient' => ['nullable', 'email', 'max:255'],
         ];
     }
 
@@ -119,6 +120,7 @@ class StoreMailgunInboundEmailRequest extends FormRequest
             'subject',
             'body-plain',
             'body-html',
+            'recipient',
         ]);
 
         $metadata['resolved_message_id'] = $this->messageId();
