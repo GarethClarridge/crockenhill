@@ -77,6 +77,25 @@ class SermonRepository
     }
 
     /**
+     * Resolve a series name from its URL slug.
+     *
+     * Performance Optimization: Uses the cached series list to find a matching slug
+     * without additional database queries.
+     */
+    public function resolveSeriesNameFromSlug(string $slug): ?string
+    {
+        $series = $this->getSeriesForDisplay();
+
+        foreach ($series as $name) {
+            if (Str::slug($name) === $slug) {
+                return $name;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Build the base query for public sermon listings (ContentType::Sermon).
      */
     public function publicSermonQuery(): SermonBuilder

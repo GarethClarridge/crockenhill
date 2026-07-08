@@ -130,7 +130,7 @@ class PublicMeetingReadModelCacheTest extends TestCase
         // rehydrate it under the cache.serializable_classes allow-list, a path the
         // array driver used in tests skips by default.
         $meeting = Meeting::factory()->create([
-            'slug' => 'sunday-mornings',
+            'slug' => 'sunday-mornings-serialisation',
             'page_id' => null,
         ]);
 
