@@ -21,7 +21,7 @@ class StoreMailgunInboundEmailRequestTest extends TestCase
         ]);
 
         $data = [
-            'recipient' => str_repeat('a', 256),
+            'recipient' => str_repeat('a', 255).'@example.com',
             'timestamp' => str_repeat('a', 51),
             'token' => str_repeat('a', 101),
             'signature' => str_repeat('a', 129),
