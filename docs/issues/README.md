@@ -32,6 +32,22 @@ would indicate a completion-transition bug worth checking while in there.
 **Action:** make the seeder set the sermon's `audio_file_path` and ship (or generate) a small
 seed audio file; alternatively mark the seeded log `failed` so the UI states are honest.
 
+### O16 · Dead Meeting Photo Migration code
+
+The `MeetingPhotoMigrationService` and its companion Artisan command `meetings:migrate-photos` are
+spent one-shot migration tools from early 2026 (Feb-Mar) that are no longer utilized or referenced
+in the application logic, scheduler, or deploy scripts.
+
+- **Command:** `app/Console/Commands/MeetingMigratePhotosCommand.php`
+- **Service:** `app/Services/MeetingPhotoMigrationService.php`
+- **Tests:** `tests/Integration/Services/MeetingPhotoMigrationServiceTest.php`, `tests/Feature/Console/MeetingMigratePhotosCommandTest.php`
+
+**Evidence:** Grep search returns zero matches for `MeetingPhotoMigrationService` in `app/`
+outside its own file and the command. The command is not present in `bootstrap/app.php` or any
+CI/deploy scripts. Formally flagged for retirement in `platform-operations-review-2026-07-05.md`.
+
+**Action:** safe to remove; git history provides a recovery path if a re-run is ever required.
+
 ### O13 · Heading-image resolution: committed assets invisible to `PageImageCacheService` (investigate before "fixing")
 
 Two Pathfinder crawls (2026-07-05/06) report pages and `sitemap.xml` missing heading images.
