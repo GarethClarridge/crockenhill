@@ -11,6 +11,8 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ProcessingStatus;
 use App\Jobs\DetectServiceStructure;
 use App\Mail\ManualReviewRequired;
+use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
@@ -210,6 +212,157 @@ class DetectServiceStructureTest extends TestCase
     }
 
     #[Test]
+    public function primary_mode_promotes_bounds_for_a_sermon_flagged_only_with_a_cross_type_inversion(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $churchService = ChurchService::factory()->create();
+        $songItem = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'type' => 'songs',
+            'title' => 'Praise My Soul',
+            'position' => 2,
+        ]);
+        $sermonItem = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'type' => 'custom',
+            'title' => 'Sermon',
+            'position' => 1,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'church_service_id' => $churchService->id,
+            'sermon_start_time' => 300.0,
+            'sermon_end_time' => 1800.0,
+        ]);
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        // The song claims OoS position 2 before the sermon claims position 1 —
+        // a cross-type inversion (OpenLP groups items by type, so this is a
+        // legitimate authoring style). The soft flag lands on the sermon but
+        // must not demote the run to the RMS baseline: an ordering concern
+        // says nothing about the sermon's boundaries.
+        MockServiceStructureService::useStructure(ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('song', 130.0, 400.0, oosItemId: (int) $songItem->id),
+            $this->section('bible_reading', 420.0, 590.0),
+            $this->section('sermon', 600.0, 2200.0, oosItemId: (int) $sermonItem->id),
+            $this->section('song', 2210.0, 2400.0),
+        ], ['Fixture structure.'], 'mock'));
+
+        $this->runJob($log);
+
+        $log->refresh();
+        $this->assertNotSame(ProcessingStatus::Failed, $log->status);
+
+        $sermonSection = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'sermon')
+            ->firstOrFail();
+        $this->assertSame(
+            [ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION],
+            $sermonSection->metadata['review_flags']
+        );
+
+        $this->assertEqualsWithDelta(600.0, (float) $log->sermon_start_time, 0.01);
+        $this->assertEqualsWithDelta(2200.0, (float) $log->sermon_end_time, 0.01);
+        $this->assertSame('llm_structure', $log->processing_metadata?->toArray()['sermon_bounds']['source'] ?? null);
+    }
+
+    #[Test]
+    public function primary_mode_retries_detection_once_when_output_is_mechanically_impossible(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        // First attempt puts the sermon end far beyond the 2430s recording —
+        // corrupted detector output, not a semantic judgement (the 2023-02-26
+        // corpus run emitted 41410s in a 4408s recording). A single fresh
+        // attempt should recover instead of routing to manual review.
+        MockServiceStructureService::useStructureSequence(
+            ServiceStructure::fromSections([
+                $this->section('welcome', 0.0, 120.0),
+                $this->section('sermon', 600.0, 41410.0),
+            ], model: 'mock'),
+            $this->validStructure(),
+        );
+
+        $this->runJob($log);
+
+        $log->refresh();
+        $this->assertNotSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame(4, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
+
+        $retry = $log->processing_metadata?->toArray()['service_structure_retry'] ?? null;
+        $this->assertIsArray($retry);
+        $this->assertContains('timestamps_outside_recording', $retry['failure_codes']);
+    }
+
+    #[Test]
+    public function primary_mode_does_not_retry_semantic_validation_failures(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        Config::set('media-processing.email.admin_email', 'admin@example.com');
+        Mail::fake();
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        // Two sermons is a semantic failure — a retry would just burn tokens on
+        // the same judgement. The valid structure queued behind it must never
+        // be consumed.
+        MockServiceStructureService::useStructureSequence(
+            ServiceStructure::fromSections([
+                $this->section('sermon', 0.0, 1000.0),
+                $this->section('sermon', 1100.0, 2300.0),
+            ], model: 'mock'),
+            $this->validStructure(),
+        );
+
+        $this->runJob($log);
+
+        $log->refresh();
+        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame('manual_review_required', $log->current_step);
+        $this->assertArrayNotHasKey('service_structure_retry', $log->processing_metadata?->toArray() ?? []);
+    }
+
+    #[Test]
+    public function primary_mode_routes_to_manual_review_when_the_retry_also_fails(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        Config::set('media-processing.email.admin_email', 'admin@example.com');
+        Mail::fake();
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        $impossible = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('sermon', 600.0, 41410.0),
+        ], model: 'mock');
+        MockServiceStructureService::useStructureSequence($impossible, $impossible);
+
+        $this->runJob($log);
+
+        $log->refresh();
+        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame('manual_review_required', $log->current_step);
+
+        // The retry was attempted and recorded; the persisted proposal is the
+        // second attempt's, so the reviewer sees what the detector last said.
+        $metadata = $log->processing_metadata?->toArray() ?? [];
+        $this->assertArrayHasKey('service_structure_retry', $metadata);
+        $this->assertArrayHasKey('service_structure_proposal', $metadata);
+    }
+
+    #[Test]
     public function primary_mode_routes_hard_validation_failures_to_manual_review(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');
@@ -310,13 +463,14 @@ class DetectServiceStructureTest extends TestCase
         ], ['Fixture structure.'], 'mock');
     }
 
-    private function section(string $type, float $start, float $end, float $confidence = 0.95): ServiceStructureSection
+    private function section(string $type, float $start, float $end, float $confidence = 0.95, ?int $oosItemId = null): ServiceStructureSection
     {
         $section = ServiceStructureSection::fromArray([
             'type' => $type,
             'start_time' => $start,
             'end_time' => $end,
             'confidence' => $confidence,
+            'oos_item_id' => $oosItemId,
         ]);
 
         assert($section instanceof ServiceStructureSection);

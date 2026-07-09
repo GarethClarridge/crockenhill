@@ -19,6 +19,9 @@ class MockServiceStructureService implements ServiceStructureInterface
 {
     private static ?ServiceStructure $fixtureStructure = null;
 
+    /** @var list<ServiceStructure> */
+    private static array $fixtureSequence = [];
+
     /**
      * Keyword markers checked in order; the first match types the cue.
      *
@@ -43,6 +46,18 @@ class MockServiceStructureService implements ServiceStructureInterface
     public static function useStructure(?ServiceStructure $structure): void
     {
         self::$fixtureStructure = $structure;
+        self::$fixtureSequence = [];
+    }
+
+    /**
+     * Queue structures for successive detection calls (retry tests): each call
+     * consumes the next; the final one repeats once the queue is exhausted.
+     * Reset with useStructure(null) in tearDown, as for a single fixture.
+     */
+    public static function useStructureSequence(ServiceStructure ...$structures): void
+    {
+        self::$fixtureStructure = null;
+        self::$fixtureSequence = array_values($structures);
     }
 
     public function detect(
@@ -50,6 +65,12 @@ class MockServiceStructureService implements ServiceStructureInterface
         array $oosItems,
         ?string $processingId = null,
     ): ServiceStructure {
+        if (self::$fixtureSequence !== []) {
+            return count(self::$fixtureSequence) > 1
+                ? array_shift(self::$fixtureSequence)
+                : self::$fixtureSequence[0];
+        }
+
         if (self::$fixtureStructure instanceof ServiceStructure) {
             return self::$fixtureStructure;
         }
