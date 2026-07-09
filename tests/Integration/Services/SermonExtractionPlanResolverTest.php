@@ -53,6 +53,86 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     #[Test]
+    public function it_accepts_a_sermon_section_whose_only_review_flag_is_a_cross_type_inversion(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        // A cross-type OoS inversion questions item alignment, not the sermon's
+        // boundaries — it must not push extraction onto the coarser baseline path.
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'start_time' => 500.0,
+            'end_time' => 1200.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'review_flags' => ['structure_oos_cross_type_inversion'],
+            ],
+        ]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('service_sections', $plan['source']);
+        $this->assertSame(500.0, $plan['segments'][0]['start_time']);
+        $this->assertSame(1200.0, $plan['segments'][0]['end_time']);
+    }
+
+    #[Test]
+    public function it_declines_a_sermon_section_carrying_a_boundary_quality_review_flag(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'start_time' => 500.0,
+            'end_time' => 1200.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'review_flags' => ['structure_oos_cross_type_inversion', 'structure_low_confidence'],
+            ],
+        ]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('processing_log', $plan['source']);
+        $this->assertSame(100.0, $plan['segments'][0]['start_time']);
+        $this->assertSame(200.0, $plan['segments'][0]['end_time']);
+    }
+
+    #[Test]
+    public function it_declines_a_review_flagged_sermon_section_without_recorded_flags(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        // Review was requested by something other than structure flags (e.g. an
+        // operator) — stay conservative and fall back to the baseline.
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'start_time' => 500.0,
+            'end_time' => 1200.0,
+            'needs_manual_review' => true,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('processing_log', $plan['source']);
+    }
+
+    #[Test]
     public function it_merges_adjacent_bible_and_sermon_sections_into_single_span(): void
     {
         config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);

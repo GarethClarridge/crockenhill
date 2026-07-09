@@ -10,6 +10,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Support\SermonAutoExtractionPolicy;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
@@ -276,21 +277,41 @@ class SermonExtractionPlanResolver
         ];
     }
 
+    /**
+     * Review-flagged sections are not excluded wholesale: ordering flags such
+     * as a cross-type OoS inversion question item alignment, not boundaries,
+     * so SermonAutoExtractionPolicy decides which review states still qualify.
+     */
     private function findPreferredSection(MediaProcessingLog $processingLog, ServiceSectionType $type): ?ServiceSection
     {
-        $section = ServiceSection::query()
+        return ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)
             ->where('section_type', $type->value)
             ->where('status', ServiceSectionStatus::Identified->value)
-            ->where('needs_manual_review', false)
             ->where('confidence', '>=', ServiceSectionConfidence::HIGH_THRESHOLD)
             ->whereColumn('end_time', '>', 'start_time')
             ->orderBy('section_order')
             ->orderByDesc('duration')
             ->orderByDesc('id')
-            ->first();
+            ->get()
+            ->first(fn (ServiceSection $section): bool => SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(
+                (bool) $section->needs_manual_review,
+                $this->reviewFlags($section),
+            ));
+    }
 
-        return $section instanceof ServiceSection ? $section : null;
+    /**
+     * @return array<int, string>
+     */
+    private function reviewFlags(ServiceSection $section): array
+    {
+        $flags = $section->metadata['review_flags'] ?? [];
+
+        if (! is_array($flags)) {
+            return [];
+        }
+
+        return array_values(array_filter($flags, 'is_string'));
     }
 
     /**

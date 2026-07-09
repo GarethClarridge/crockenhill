@@ -24,6 +24,7 @@ use App\Services\ChurchService\Structure\ValidationResult;
 use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Support\ChurchServiceProcessingTimeline;
+use App\Support\SermonAutoExtractionPolicy;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -182,6 +183,21 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     ): void {
         [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
 
+        if (! $result->passed() && $this->detectionWorthRetrying($result)) {
+            Log::warning('Service structure output mechanically impossible; retrying detection once', [
+                'processing_id' => $this->processingLog->processing_id,
+                'failure_codes' => $result->failureCodes(),
+            ]);
+
+            $this->putStructureMetadata('service_structure_retry', [
+                'generated_at' => now()->toIso8601String(),
+                'failure_codes' => $result->failureCodes(),
+                'failure_summary' => $result->failureSummary(),
+            ]);
+
+            [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
+        }
+
         if (! $result->passed()) {
             $reasonMessage = 'Detected service structure failed validation: '.$result->failureSummary();
             $evaluation = $sermonConfidenceService->evaluateForProcessingLog($this->processingLog);
@@ -250,10 +266,11 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
         // Only promote bounds the resolver would actually auto-extract from.
         // SermonExtractionPlanResolver::findPreferredSection() excludes sections
-        // that are review-flagged or below the high-confidence threshold, so a
-        // soft-flagged sermon falls through to the baseline path for manual
-        // review. Writing its bounds into the baseline anyway would let that
-        // fallback auto-extract the very section the resolver rejected.
+        // whose review state disqualifies them (per SermonAutoExtractionPolicy)
+        // or that sit below the high-confidence threshold, so such a sermon
+        // falls through to the baseline path for manual review. Writing its
+        // bounds into the baseline anyway would let that fallback auto-extract
+        // the very section the resolver rejected.
         if (! $this->sermonSectionEligibleForAutoExtraction($sermon)) {
             return;
         }
@@ -276,14 +293,23 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     /**
      * Whether the classified sermon section would be eligible for automatic
      * extraction, mirroring SermonExtractionPlanResolver::findPreferredSection():
-     * not review-flagged, at or above the high-confidence threshold, and a
+     * a review state SermonAutoExtractionPolicy permits (ordering flags alone
+     * do not disqualify), at or above the high-confidence threshold, and a
      * positive-duration span.
      *
      * @param  array<string, mixed>  $sermon
      */
     private function sermonSectionEligibleForAutoExtraction(array $sermon): bool
     {
-        if ((bool) ($sermon['needs_manual_review'] ?? true)) {
+        $metadata = is_array($sermon['metadata'] ?? null) ? $sermon['metadata'] : [];
+        $reviewFlags = is_array($metadata['review_flags'] ?? null)
+            ? array_values(array_filter($metadata['review_flags'], 'is_string'))
+            : [];
+
+        if (! SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(
+            (bool) ($sermon['needs_manual_review'] ?? true),
+            $reviewFlags,
+        )) {
             return false;
         }
 
@@ -312,6 +338,22 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
                 'email_error' => $exception->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Whether the validation failure indicates mechanically impossible detector
+     * output rather than a semantic judgement call.
+     *
+     * A section timestamped beyond the recording cannot be a legitimate reading
+     * of the audio — it is corrupted model output (the 2023-02-26 corpus run
+     * placed a sermon end at 41410s in a 4408s recording), and one fresh
+     * detection attempt is cheap relative to a manual review. Semantic failures
+     * (multiple sermons, ordering conflicts) would just re-run the same
+     * judgement, so they go straight to the reviewer.
+     */
+    private function detectionWorthRetrying(ValidationResult $result): bool
+    {
+        return in_array('timestamps_outside_recording', $result->failureCodes(), true);
     }
 
     /**

@@ -104,6 +104,64 @@ class ScriptureOperatorServiceTest extends TestCase
         $this->assertNotNull($sermon->fresh()->scripture_passage_id);
     }
 
+    public function test_enrichment_stores_normalized_reference_when_api_display_span_differs(): void
+    {
+        // Real resolver: the guard must compare verse spans, not strings.
+        $sermon = Sermon::factory()->create([
+            'reference' => 'Joshua 4:1-5:1',
+            'scripture_passage_id' => null,
+        ]);
+
+        $client = $this->mockClientWithBudget();
+        $this->mockSanitizer();
+        // api.bible renders JOS.4.1-JOS.5.1 as "Joshua 4:1-51" (chapter colon lost).
+        $client->method('searchPassage')
+            ->willReturn(new ApiBiblePassageResult(
+                passageId: 'JOS.4.1-JOS.5.1',
+                displayReference: 'Joshua 4:1-51',
+                htmlContent: '<p>When the whole nation had finished crossing.</p>',
+                copyright: 'NIV',
+                fumsToken: 'tok',
+            ));
+        $this->app->instance(ApiBibleClient::class, $client);
+
+        app(ScriptureOperatorService::class)->runEnrichment(delayMs: 0);
+
+        $passage = ScripturePassage::query()->firstOrFail();
+        $this->assertSame('Joshua 4:1-5:1', $passage->display_reference);
+        $this->assertSame('Joshua 4:1-5:1', $sermon->fresh()->reference);
+    }
+
+    public function test_refresh_repairs_a_mangled_display_reference_and_resyncs_linked_sermons(): void
+    {
+        $passage = ScripturePassage::factory()->stale()->create([
+            'api_passage_id' => 'JOS.4.1-JOS.5.1',
+            'normalized_reference' => 'Joshua 4:1-5:1',
+            'display_reference' => 'Joshua 4:1-51',
+        ]);
+        $sermon = Sermon::factory()->create([
+            'reference' => 'Joshua 4:1-51',
+            'scripture_passage_id' => $passage->id,
+        ]);
+
+        $client = $this->mockClientWithBudget();
+        $this->mockSanitizer();
+        $client->method('fetchPassageById')
+            ->willReturn(new ApiBiblePassageResult(
+                passageId: 'JOS.4.1-JOS.5.1',
+                displayReference: 'Joshua 4:1-51',
+                htmlContent: '<p>Fresh content.</p>',
+                copyright: 'NIV',
+                fumsToken: 'tok',
+            ));
+        $this->app->instance(ApiBibleClient::class, $client);
+
+        app(ScriptureOperatorService::class)->runRefresh(delayMs: 0);
+
+        $this->assertSame('Joshua 4:1-5:1', $passage->fresh()->display_reference);
+        $this->assertSame('Joshua 4:1-5:1', $sermon->fresh()->reference);
+    }
+
     public function test_run_refresh_updates_stale_passages_through_shared_service(): void
     {
         $passage = ScripturePassage::factory()->stale()->create([
