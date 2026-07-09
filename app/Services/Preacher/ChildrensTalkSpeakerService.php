@@ -14,12 +14,30 @@ use App\Models\ServiceSection;
 use App\Models\SpeakerProfile;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
+/**
+ * Service for automating speaker identification for Children's Talk service sections.
+ *
+ * This service leverages voice fingerprinting (via SpeakerIdentificationInterface)
+ * to predict the speaker of a children's talk. It handles automatic acceptance
+ * of high-confidence matches and manages the lifecycle of manual review flags
+ * when identification is ambiguous or fails.
+ */
 class ChildrensTalkSpeakerService
 {
     public function __construct(
         private readonly SpeakerIdentificationInterface $speakerService
     ) {}
 
+    /**
+     * Predict the speaker for a children's talk section and store results in metadata.
+     *
+     * Performs speaker identification on the section's extracted audio. If a high-confidence
+     * match is found, it is automatically accepted and the section is marked as resolved.
+     * Otherwise, the section is flagged for manual administrative review with a
+     * descriptive reason (e.g., ambiguous, no match, or short audio).
+     *
+     * @param  ServiceSection  $section  The children's talk section to analyze
+     */
     public function detectAndStore(ServiceSection $section): void
     {
         if ($section->section_type !== ServiceSectionType::ChildrensTalk) {
@@ -61,6 +79,17 @@ class ChildrensTalkSpeakerService
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
     }
 
+    /**
+     * Record a manual speaker identification for a children's talk section.
+     *
+     * Updates the section metadata with the confirmed speaker (either a canonical
+     * Preacher ID or a free-text name) and clears any pending manual review flags.
+     *
+     * @param  ServiceSection  $section  The section being reviewed
+     * @param  int|null  $preacherId  Canonical Preacher ID (preferred)
+     * @param  string|null  $speakerName  Free-text speaker name (fallback)
+     * @param  int|null  $reviewedByUserId  ID of the admin user performing the review
+     */
     public function storeManualReview(
         ServiceSection $section,
         ?int $preacherId,
@@ -116,6 +145,15 @@ class ChildrensTalkSpeakerService
         $section->needs_manual_review = false;
     }
 
+    /**
+     * Whether the speaker for this section has been resolved.
+     *
+     * Resolution occurs via either successful auto-identification or manual
+     * administrative confirmation.
+     *
+     * @param  ServiceSection  $section  The section to check
+     * @return bool True if a speaker identity is permanently associated
+     */
     public function hasResolvedSpeaker(ServiceSection $section): bool
     {
         return $section->hasResolvedChildrensTalkSpeaker();
