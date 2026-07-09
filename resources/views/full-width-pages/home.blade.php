@@ -2,7 +2,7 @@
 
 @section('title', 'Crockenhill Baptist Church | Worshipping God, Strengthening believers, Proclaiming Jesus Christ')
 
-@section('meta_description', 'We are an independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all.')
+@section('meta_description', 'We are an independent evangelical Baptist church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all.')
 
 @section('canonical')
 <link rel="canonical" href="{{ url('/') }}">
@@ -11,12 +11,12 @@
 @section('meta_tags')
 <x-meta-tags
   title="Crockenhill Baptist Church"
-  description="We are an independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all."
+  description="We are an independent evangelical Baptist church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all."
   :image="asset('/images/homepage/may2024wide.webp')"
   image-alt="Crockenhill Baptist Church members outside the church building" />
 <x-schema.webpage
   heading="Crockenhill Baptist Church"
-  description="We are an independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all."
+  description="We are an independent evangelical Baptist church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all."
   :image="asset('/images/homepage/may2024wide.webp')"
   :include-breadcrumb="false"
 />
@@ -96,7 +96,7 @@
       We meet to worship God together as a church every Sunday at 10:30am.
       Services involve reading the Bible, praying, singing
       and hearing God's word preached. We also meet on Sunday evenings at
-      6pm for a service mostly focussed on prayer.
+      6:00pm for a service mostly focussed on prayer.
     </p>
     <p>
       You're more than welcome to join us - we'd love to see you! If you can't make it in person you can watch our morning services on

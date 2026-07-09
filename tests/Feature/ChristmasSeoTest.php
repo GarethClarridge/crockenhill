@@ -21,7 +21,7 @@ class ChristmasSeoTest extends TestCase
 
         // Basic SEO
         $response->assertSee('<title>Christmas | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Celebrate Christmas at Crockenhill Baptist Church. Join us for Carols by Candlelight, our Christmas morning service, and more festive events.">', false);
+        $response->assertSee('<meta name="description" content="Celebrate Christmas at Crockenhill Baptist Church. Join us for Carols by Candlelight, our Christmas Morning Service, and more festive events.">', false);
 
         // Open Graph
         $response->assertSee('<meta property="og:image" content="http://localhost/images/homepage/christmas2023.webp">', false);

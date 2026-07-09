@@ -4,7 +4,7 @@
 Church
 @stop
 
-@section('meta_description', 'Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical church in Kent.')
+@section('meta_description', 'Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical Baptist church in Kent.')
 
 @section('canonical')
 <link rel="canonical" href="{{ url('/church') }}">
@@ -13,13 +13,13 @@ Church
 @section('meta_tags')
 <x-meta-tags
     title="Church"
-    description="Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical baptist church in Kent."
+    description="Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical Baptist church in Kent."
     :image="asset('/images/homepage/may2024wide.webp')"
     image-alt="Crockenhill Baptist Church members outside the church building"
 />
 <x-schema.webpage
     heading="Church"
-    description="Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical baptist church in Kent."
+    description="Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical Baptist church in Kent."
     :image="asset('/images/homepage/may2024wide.webp')"
 />
 

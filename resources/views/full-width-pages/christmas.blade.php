@@ -2,7 +2,7 @@
 
 @section('title', 'Christmas')
 
-@section('meta_description', 'Celebrate Christmas at Crockenhill Baptist Church. Join us for Carols by Candlelight, our Christmas morning service, and more festive events.')
+@section('meta_description', 'Celebrate Christmas at Crockenhill Baptist Church. Join us for Carols by Candlelight, our Christmas Morning Service, and more festive events.')
 
 @section('canonical')
 <link rel="canonical" href="{{ url('/christmas') }}">
@@ -11,12 +11,12 @@
 @section('meta_tags')
 <x-meta-tags
     title="Christmas"
-    description="Celebrate Christmas at Crockenhill Baptist Church. Join us for Carols by Candlelight, our Christmas morning service, and more festive events."
+    description="Celebrate Christmas at Crockenhill Baptist Church. Join us for Carols by Candlelight, our Christmas Morning Service, and more festive events."
     :image="asset('/images/homepage/christmas2023.webp')"
 />
 <x-schema.webpage
     heading="Christmas"
-    description="Celebrate Christmas at Crockenhill Baptist Church. Join us for Carols by Candlelight, our Christmas morning service, and more festive events."
+    description="Celebrate Christmas at Crockenhill Baptist Church. Join us for Carols by Candlelight, our Christmas Morning Service, and more festive events."
     :image="asset('/images/homepage/christmas2023.webp')"
 />
 
