@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Models\Sermon;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class GenerateProdSermonPatchCommand extends Command
@@ -48,7 +48,7 @@ class GenerateProdSermonPatchCommand extends Command
             $prodIndex[$key] = $row;
         }
 
-        $localSermonsQuery = DB::table('sermons')
+        $localSermonsQuery = Sermon::query()
             ->select([
                 'id', 'date', 'service', 'content_type', 'audio_file_path',
                 'source_type', 'duration', 'filetype', 'title', 'slug',
@@ -75,7 +75,7 @@ class GenerateProdSermonPatchCommand extends Command
          * results when chunking.
          */
         foreach ($localSermonsQuery->lazy(200) as $local) {
-            $key = $local->date.'|'.$local->service;
+            $key = $local->date->toDateString().'|'.($local->service->value ?? '');
 
             if (isset($prodIndex[$key])) {
                 // Overlap: only update prod fields that are NULL/empty with local values
@@ -186,6 +186,14 @@ class GenerateProdSermonPatchCommand extends Command
     {
         if ($value === null) {
             return 'NULL';
+        }
+
+        if ($value instanceof \BackedEnum) {
+            $value = $value->value;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            $value = $value->format('Y-m-d H:i:s');
         }
 
         $escaped = str_replace(['\\', "'"], ['\\\\', "\\'"], (string) $value);
