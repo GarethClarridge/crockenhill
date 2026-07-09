@@ -71,6 +71,34 @@ is a local/seed-data gap, not a production bug). Investigate first:
   (2026-07-06 Mortician); verdict **alive**. It is the base class for the six active media API
   form requests and centralises authorization + processing-id shape validation. Leave alone.
 
+### 🟠 O16 · Dead configuration keys in `config/calendar.php`
+
+The following configuration keys are unreferenced in the application:
+- `uncategorized_slug` (line 49)
+- `performance.cache_duration` (line 75)
+
+Grep searches for `config('calendar.uncategorized_slug')`, `Config::get('calendar.uncategorized_slug')`, and their double-quoted equivalents returned zero matches. The same applies to the performance cache duration. These keys appear to be residue from an earlier calendar implementation.
+
+**Action:** Remove these keys from `config/calendar.php`.
+
+### 🟠 O17 · Spent migration tools: `MeetingPhotoMigrationService` and `MeetingMigratePhotosCommand`
+
+These files are residue from a one-shot photo migration to Spatie Media Library performed in early 2026:
+- `app/Services/MeetingPhotoMigrationService.php`
+- `app/Console/Commands/MeetingMigratePhotosCommand.php`
+- `tests/Feature/Console/MeetingMigratePhotosCommandTest.php`
+- `tests/Integration/Services/MeetingPhotoMigrationServiceTest.php`
+
+The migration has been completed in production, and these tools are no longer needed.
+
+**Action:** Delete these files and their tests.
+
+### 🟠 O18 · Unused `api` guard in `config/auth.php`
+
+`config/auth.php` defines an `api` guard using the `sanctum` driver. However, all API routes in `routes/api.php` use the `auth:sanctum` middleware directly, which bypasses the guard configuration in `config/auth.php`. Grep searches for `auth:api` and `guard('api')` returned no results in the application code.
+
+**Action:** Remove the `api` guard block from `config/auth.php`.
+
 ## ✅ Resolved
 
 - **O10 — Unused `<x-icon-button>` component** — removed in commit `aa31358c4` (PR #1024).
