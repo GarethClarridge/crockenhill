@@ -51,6 +51,28 @@ class ScriptureReferenceResolver
     }
 
     /**
+     * Whether two references parse and cover exactly the same overall verse
+     * span — i.e. they are formatting variants of one reference.
+     *
+     * Stricter than referencesAgree(): agreement accepts one reference nesting
+     * inside the other, which would wrongly bless a corrupted rendering that
+     * happens to parse (api.bible renders "Matthew 1:1-2:1" as "Matthew
+     * 1:1-21", a valid reference nested inside the true span). An unparseable
+     * side never matches.
+     */
+    public function referencesRenderSameSpan(string $left, string $right): bool
+    {
+        $leftSpans = $this->verseSpans($left);
+        $rightSpans = $this->verseSpans($right);
+
+        if ($leftSpans === [] || $rightSpans === []) {
+            return false;
+        }
+
+        return $this->envelope($leftSpans) === $this->envelope($rightSpans);
+    }
+
+    /**
      * Whether two references name the same reading, allowing subrange forms.
      *
      * A transcript-derived reference often subdivides the planned passage

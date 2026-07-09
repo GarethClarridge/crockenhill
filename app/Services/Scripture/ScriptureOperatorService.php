@@ -297,7 +297,7 @@ class ScriptureOperatorService
             'bible_id' => $bibleId,
             'normalized_reference' => $normalizedReference,
             'api_passage_id' => $result->passageId,
-            'display_reference' => $result->displayReference,
+            'display_reference' => $this->trustedDisplayReference($result->displayReference, $normalizedReference),
             'html_content' => $sanitizedHtml,
             'copyright' => $result->copyright,
             'fums_token' => $result->fumsToken,
@@ -363,7 +363,7 @@ class ScriptureOperatorService
 
         $refreshData = [
             'api_passage_id' => $result->passageId,
-            'display_reference' => $result->displayReference,
+            'display_reference' => $this->trustedDisplayReference($result->displayReference, $passage->normalized_reference),
             'html_content' => $sanitizedHtml,
             'copyright' => $result->copyright,
             'fums_token' => $result->fumsToken,
@@ -383,6 +383,17 @@ class ScriptureOperatorService
 
         $passage->update($refreshData);
 
+        // A changed display form means linked sermons may carry the old one as
+        // their reference (SermonIdentitySyncService canonicalises against the
+        // passage). Saving each sermon lets the identity observer re-derive it,
+        // so a refresh also repairs references stored from a corrupted display.
+        if ($passage->wasChanged('display_reference')) {
+            Sermon::query()
+                ->where('scripture_passage_id', $passage->id)
+                ->get()
+                ->each(static fn (Sermon $sermon) => $sermon->save());
+        }
+
         Log::info('scripture:refresh-passages passage refreshed', [
             'passage_id' => $passage->id,
             'reference' => $passage->normalized_reference,
@@ -390,6 +401,28 @@ class ScriptureOperatorService
         ]);
 
         return 'updated';
+    }
+
+    /**
+     * The display reference to store: api.bible's rendering when it names the
+     * same verse span as our normalized reference, otherwise the normalized
+     * reference itself. Their renderer drops the chapter colon from
+     * cross-chapter ranges ("Joshua 4:1-5:1" comes back as "Joshua 4:1-51"),
+     * and readers prefer display_reference, so a corrupted form would surface
+     * on sermons verbatim.
+     */
+    private function trustedDisplayReference(string $displayReference, string $normalizedReference): string
+    {
+        if ($this->resolver->referencesRenderSameSpan($displayReference, $normalizedReference)) {
+            return $displayReference;
+        }
+
+        Log::warning('Distrusting api.bible display reference: span differs from normalized reference', [
+            'display_reference' => $displayReference,
+            'normalized_reference' => $normalizedReference,
+        ]);
+
+        return $normalizedReference;
     }
 
     /**

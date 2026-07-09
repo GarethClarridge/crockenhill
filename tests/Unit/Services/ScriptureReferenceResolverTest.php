@@ -173,4 +173,28 @@ class ScriptureReferenceResolverTest extends TestCase
         $this->assertSame('Jude 1:3-5', $this->resolver->normalize('Jude 3–5'));
         $this->assertSame('Philemon 1:3-5', $this->resolver->normalize('Philemon 3 to 5'));
     }
+
+    public function test_same_span_accepts_formatting_variants_of_the_same_reference(): void
+    {
+        $this->assertTrue($this->resolver->referencesRenderSameSpan('Joshua 4:1-5:1', 'Joshua 4:1–5:1'));
+        $this->assertTrue($this->resolver->referencesRenderSameSpan('John 3:16', 'John 3:16'));
+    }
+
+    public function test_same_span_rejects_a_display_form_that_lost_its_chapter_colon(): void
+    {
+        // api.bible renders JOS.4.1-JOS.5.1 as "Joshua 4:1-51" — a different
+        // (here unparseable) reference, not a formatting variant.
+        $this->assertFalse($this->resolver->referencesRenderSameSpan('Joshua 4:1-5:1', 'Joshua 4:1-51'));
+
+        // The mangled form can also parse but nest inside the true span
+        // (Matthew 1 has 25 verses, so "1:1-21" is valid); nesting must not
+        // count as the same span — that is referencesAgree()'s job.
+        $this->assertFalse($this->resolver->referencesRenderSameSpan('Matthew 1:1-2:1', 'Matthew 1:1-21'));
+    }
+
+    public function test_same_span_rejects_unparseable_sides(): void
+    {
+        $this->assertFalse($this->resolver->referencesRenderSameSpan('xyzzy 1:1', 'John 3:16'));
+        $this->assertFalse($this->resolver->referencesRenderSameSpan('John 3:16', ''));
+    }
 }
