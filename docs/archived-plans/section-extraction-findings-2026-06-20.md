@@ -139,6 +139,17 @@ The exact cause is unclear — the recording may have had lower congregational v
 
 **Note:** Gemini's comparison notes do not include an entry for the 17 November 2024 service. The expected structure (five songs, Luke 15 reading, guest preacher) comes only from the review questions in the testing guide and the imported OoS; there is no Gemini ground-truth to compare against for this scenario.
 
+**Update (2026-07-09):** A second occurrence, on the 5 July 2026 recording during the
+July corpus re-run (`docs/operations/livestream-corpus-testing.md`). `PerformVisualAnalysis`
+found 5 song clusters, but all sat below the 0.7 visual-only confidence threshold and the
+baseline RMS pass found no songs, so `AnalyzeSegments` stored a single 0–4131 s speech
+segment. The maximum-candidate-duration guard suggested above now exists
+(`SermonCandidateConfidenceService` → `candidate_exceeds_maximum_duration`) and correctly
+refused to auto-extract from the block. The LLM structure detector segmented the same
+recording accurately (sermon within 28 s/1 s of ground truth), so in primary structure mode
+this failure only bites when extraction falls back to the RMS baseline. Root cause in the
+RMS/visual merge (`AnalyzeSegments::mergeVisualAndRmsSongSegments`) remains unaddressed.
+
 ---
 
 ## F11 — Heidelberg Catechism study misclassified as `childrens_talk` in a service where it is not a children's slot (Scenario F)
