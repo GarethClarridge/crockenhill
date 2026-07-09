@@ -242,12 +242,12 @@ class ModelValidationTest extends TestCase
 
         foreach ($rules as $rule) {
             if ($rule instanceof Enum) {
-                // Use reflection to check the protected "type" property of the Enum rule
-                $reflection = new \ReflectionClass($rule);
-                $property = $reflection->getProperty('type');
-                $property->setAccessible(true);
+                // Determine if this rule targets the expected enum class by testing
+                // it against a known case from that enum. This avoids brittle
+                // reflection on protected internal properties like 'type'.
+                $case = $enumClass::cases()[0] ?? null;
 
-                if ($property->getValue($rule) === $enumClass) {
+                if ($case && $rule->passes('attribute', $case)) {
                     return true;
                 }
             }

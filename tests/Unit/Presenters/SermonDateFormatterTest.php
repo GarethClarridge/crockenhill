@@ -88,7 +88,11 @@ class SermonDateFormatterTest extends TestCase
 
         $this->formatter->clearCache();
 
-        $sermon->date = Carbon::parse('2024-03-10');
-        $this->assertSame('March 10, 2024', $this->formatter->humanDate($sermon));
+        // After clearing cache, calling again with a DIFFERENT date should work.
+        // The original test was brittle because it used the same date, meaning
+        // it could pass even if the cache wasn't cleared if it just happened to
+        // re-format correctly.
+        $sermon->date = Carbon::parse('2024-03-11');
+        $this->assertSame('March 11, 2024', $this->formatter->humanDate($sermon));
     }
 }

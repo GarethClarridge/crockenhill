@@ -6,6 +6,7 @@ namespace Tests\Integration\Services;
 
 use App\Exceptions\ApiBibleBudgetExhaustedException;
 use App\Services\Scripture\ApiBibleClient;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
@@ -23,6 +24,8 @@ class ApiBibleClientTest extends TestCase
     {
         parent::setUp();
 
+        Carbon::setTestNow('2026-05-27');
+
         Config::set('services.api_bible.key', 'test-key');
         Config::set('services.api_bible.default_bible_id', 'test-bible-id');
         Config::set('services.api_bible.daily_budget', 10);
@@ -30,6 +33,13 @@ class ApiBibleClientTest extends TestCase
         $this->client = new ApiBibleClient;
 
         Cache::flush();
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     #[Test]
@@ -41,7 +51,7 @@ class ApiBibleClientTest extends TestCase
     #[Test]
     public function has_daily_budget_returns_false_when_at_limit(): void
     {
-        $key = 'api_bible_daily_calls_'.now()->format('Y-m-d');
+        $key = $this->dailyBudgetCacheKey();
         Cache::put($key, 10);
 
         $this->assertFalse($this->client->hasDailyBudget());
@@ -58,7 +68,7 @@ class ApiBibleClientTest extends TestCase
             ]),
         ]);
 
-        $key = 'api_bible_daily_calls_'.now()->format('Y-m-d');
+        $key = $this->dailyBudgetCacheKey();
 
         $this->client->searchPassage('John 3:16');
         $this->assertEquals(1, Cache::get($key));
@@ -70,7 +80,7 @@ class ApiBibleClientTest extends TestCase
     #[Test]
     public function search_passage_throws_exception_when_budget_exhausted(): void
     {
-        $key = 'api_bible_daily_calls_'.now()->format('Y-m-d');
+        $key = $this->dailyBudgetCacheKey();
         Cache::put($key, 10);
 
         $this->expectException(ApiBibleBudgetExhaustedException::class);
@@ -177,7 +187,7 @@ class ApiBibleClientTest extends TestCase
     #[Test]
     public function fetch_passage_by_id_throws_exception_when_budget_exhausted(): void
     {
-        $key = 'api_bible_daily_calls_'.now()->format('Y-m-d');
+        $key = $this->dailyBudgetCacheKey();
         Cache::put($key, 10);
 
         $this->expectException(ApiBibleBudgetExhaustedException::class);
@@ -231,7 +241,7 @@ class ApiBibleClientTest extends TestCase
 
         $this->client->searchPassage('John 3:16');
 
-        $key = 'api_bible_daily_calls_'.now()->format('Y-m-d');
+        $key = $this->dailyBudgetCacheKey();
         $this->assertEquals(1, Cache::get($key));
     }
 
@@ -257,7 +267,7 @@ class ApiBibleClientTest extends TestCase
 
         $this->assertNotNull($result);
 
-        $key = 'api_bible_daily_calls_'.now()->format('Y-m-d');
+        $key = $this->dailyBudgetCacheKey();
         $this->assertEquals(3, Cache::get($key));
     }
 
@@ -279,7 +289,7 @@ class ApiBibleClientTest extends TestCase
         }
 
         // max_retries=2 means 1 initial + 2 retries = 3 total attempts
-        $key = 'api_bible_daily_calls_'.now()->format('Y-m-d');
+        $key = $this->dailyBudgetCacheKey();
         $this->assertEquals(3, Cache::get($key));
     }
 
@@ -288,7 +298,7 @@ class ApiBibleClientTest extends TestCase
     {
         // assertDailyBudget() throws before makeRequest() is ever called,
         // so an exhausted budget must not consume any further quota.
-        $key = 'api_bible_daily_calls_'.now()->format('Y-m-d');
+        $key = $this->dailyBudgetCacheKey();
         Cache::put($key, 10); // budget = 10, at limit
 
         try {
@@ -321,7 +331,12 @@ class ApiBibleClientTest extends TestCase
 
         $this->assertNotNull($result);
 
-        $key = 'api_bible_daily_calls_'.now()->format('Y-m-d');
+        $key = $this->dailyBudgetCacheKey();
         $this->assertEquals(2, Cache::get($key));
+    }
+
+    private function dailyBudgetCacheKey(): string
+    {
+        return 'api_bible_daily_calls_'.now()->format('Y-m-d');
     }
 }
