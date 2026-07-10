@@ -103,6 +103,72 @@ class DetectServiceStructureTest extends TestCase
     }
 
     #[Test]
+    public function shadow_mode_detects_with_the_candidate_model_and_restores_the_bound_model(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'shadow');
+        Config::set('media-processing.service_structure.model', 'gpt-5');
+        Config::set('media-processing.service_structure.shadow_model', 'gpt-6-candidate');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+
+        $detector = new class($this->validStructure()) implements ServiceStructureInterface
+        {
+            public ?string $modelAtDetectTime = null;
+
+            public function __construct(private readonly ServiceStructure $structure) {}
+
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = []): ServiceStructure
+            {
+                $this->modelAtDetectTime = (string) config('media-processing.service_structure.model');
+
+                return $this->structure;
+            }
+        };
+
+        (new DetectServiceStructure($log))->handle(
+            $detector,
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+
+        $this->assertSame('gpt-6-candidate', $detector->modelAtDetectTime, 'Shadow detection must run the candidate model.');
+        $this->assertSame('gpt-5', config('media-processing.service_structure.model'), 'The bound model must be restored after the shadow run.');
+    }
+
+    #[Test]
+    public function the_shadow_diff_records_baseline_provenance(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'shadow');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        MockServiceStructureService::useStructure($this->validStructure());
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => 'sermon',
+            'section_order' => 1,
+            'start_time' => 610.0,
+            'end_time' => 2190.0,
+            'status' => 'identified',
+            'metadata' => ['classification_mode' => 'audio_only'],
+        ]);
+
+        $this->runJob($log);
+
+        $shadow = $log->refresh()->processing_metadata?->toArray()['service_structure_shadow'] ?? null;
+        $this->assertIsArray($shadow);
+        $this->assertSame(
+            ['audio_only'],
+            $shadow['diff']['baseline']['classification_modes'] ?? null,
+            'The diff must record who authored the baseline it compared against.'
+        );
+    }
+
+    #[Test]
     public function shadow_mode_swallows_failures_and_records_the_error(): void
     {
         Config::set('media-processing.service_structure.mode', 'shadow');

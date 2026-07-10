@@ -34,6 +34,22 @@ class StructureEvaluateCommandTest extends TestCase
     }
 
     #[Test]
+    public function a_bare_run_defaults_to_the_bound_detector(): void
+    {
+        // The suite binds the mock detector by default, so a bare run must
+        // resolve to it — never to a detector that costs money.
+        $this->artisan('structure:evaluate', [
+            '--manifest' => base_path('tests/Fixtures/StructureEval/manifest.json'),
+            '--report' => $this->reportPath,
+        ])->assertSuccessful();
+
+        $report = json_decode((string) file_get_contents($this->reportPath), true);
+
+        $this->assertSame('mock', $report['detector']);
+        $this->assertCount(2, $report['services']);
+    }
+
+    #[Test]
     public function it_evaluates_the_fixture_manifest_against_the_mock_detector(): void
     {
         $this->artisan('structure:evaluate', [

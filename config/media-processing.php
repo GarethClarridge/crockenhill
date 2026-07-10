@@ -257,6 +257,11 @@ return [
         // Owns the sermon-vs-children's-talk judgement, so it defaults to the
         // flagship reasoning model (same reasoning as section_classification.model).
         'model' => env('SERVICE_STRUCTURE_MODEL', 'gpt-5'),
+        // Candidate model for shadow runs. When set, shadow detection uses
+        // this model while `model` stays authoritative — the permanent
+        // model-upgrade mechanism once the heuristic baseline is retired.
+        // Null means shadow runs the bound model.
+        'shadow_model' => env('SERVICE_STRUCTURE_SHADOW_MODEL'),
         // When a validated structure has a sermon but no bible_reading section
         // within the extraction pairing window before it, retry detection once
         // with feedback naming the anomaly (the reading is usually embedded in

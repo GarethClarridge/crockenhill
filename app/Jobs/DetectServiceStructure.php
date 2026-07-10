@@ -140,7 +140,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         ServiceStructureValidator $validator,
     ): void {
         try {
-            [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
+            [$result, $transcript] = $this->detectShadowCandidate($detector, $snapService, $validator);
 
             $classified = $result->structure->toClassifiedSections(
                 $this->processingLog,
@@ -685,8 +685,13 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * Structured comparison of the LLM proposal against the authoritative
-     * heuristic service_sections — the shadow-mode evidence stream.
+     * Structured comparison of the shadow proposal against the authoritative
+     * service_sections — the shadow-mode evidence stream.
+     *
+     * The baseline is whatever wrote those sections: the heuristic cluster
+     * today, the bound model's primary output after the flip. The diff records
+     * that provenance so reports can tell the two apart; the comparison logic
+     * itself is baseline-agnostic and survives the cluster's retirement.
      *
      * @return array<string, mixed>
      */
@@ -702,6 +707,16 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         $llmTypes = array_map(static fn ($section) => $section->type->value, $structure->sections);
 
         $diff = [
+            'baseline' => [
+                'classification_modes' => $heuristicSections
+                    ->map(fn (ServiceSection $section): ?string => is_string($section->metadata['classification_mode'] ?? null)
+                        ? $section->metadata['classification_mode']
+                        : null)
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all(),
+            ],
             'heuristic_section_count' => count($heuristicTypes),
             'llm_section_count' => count($llmTypes),
             'heuristic_types' => $heuristicTypes,
@@ -756,6 +771,38 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         }
 
         return $diff;
+    }
+
+    /**
+     * Shadow detection with the configured candidate model, when one is set.
+     *
+     * The bound `model` stays authoritative; `shadow_model` lets a candidate
+     * (a prompt/model upgrade) run against the same transcript so the diff
+     * scores it against the authoritative sections. The override is restored
+     * even when detection throws — queue workers reuse the config repository
+     * across jobs.
+     *
+     * @return array{0: ValidationResult, 1: ChurchServiceTranscript}
+     */
+    private function detectShadowCandidate(
+        ServiceStructureInterface $detector,
+        SilenceSnapService $snapService,
+        ServiceStructureValidator $validator,
+    ): array {
+        $boundModel = (string) config('media-processing.service_structure.model', 'gpt-5');
+        $shadowModel = config('media-processing.service_structure.shadow_model');
+
+        if (! is_string($shadowModel) || trim($shadowModel) === '' || $shadowModel === $boundModel) {
+            return $this->detectAndValidate($detector, $snapService, $validator);
+        }
+
+        config(['media-processing.service_structure.model' => $shadowModel]);
+
+        try {
+            return $this->detectAndValidate($detector, $snapService, $validator);
+        } finally {
+            config(['media-processing.service_structure.model' => $boundModel]);
+        }
     }
 
     /**

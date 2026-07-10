@@ -45,7 +45,7 @@ class StructureEvaluateCommand extends Command
     protected $signature = 'structure:evaluate
                             {--manifest= : Path to a JSON manifest of services with expectations}
                             {--processing-id=* : Evaluate stored runs by processing id (detection summary + validation only unless the manifest carries expectations)}
-                            {--detector=openai : Structure detector to use (mock|openai)}
+                            {--detector= : Structure detector to use (mock|openai); defaults to the bound detector, so a bare run never costs money}
                             {--report= : Write the full JSON report to this path}';
 
     protected $description = 'Evaluate the LLM service-structure detector against human-reviewed expectations';
@@ -54,7 +54,12 @@ class StructureEvaluateCommand extends Command
         ServiceStructureValidator $validator,
         SilenceSnapService $snapService,
     ): int {
-        config(['media-processing.service_structure.detector' => (string) $this->option('detector')]);
+        $detectorOption = $this->option('detector');
+
+        if (is_string($detectorOption) && $detectorOption !== '') {
+            config(['media-processing.service_structure.detector' => $detectorOption]);
+        }
+
         $detector = app(ServiceStructureInterface::class);
 
         $entries = $this->collectEntries();
@@ -73,7 +78,7 @@ class StructureEvaluateCommand extends Command
 
         $report = [
             'generated_at' => now()->toIso8601String(),
-            'detector' => (string) $this->option('detector'),
+            'detector' => (string) config('media-processing.service_structure.detector', 'mock'),
             'services' => $results,
             'aggregate' => $this->aggregate($results),
         ];
