@@ -32,6 +32,23 @@ would indicate a completion-transition bug worth checking while in there.
 **Action:** make the seeder set the sermon's `audio_file_path` and ship (or generate) a small
 seed audio file; alternatively mark the seeded log `failed` so the UI states are honest.
 
+### O17 · Dead configuration keys and auth guard
+
+Several configuration keys and an authentication guard appear to be unreferenced in the
+application logic and are candidates for removal.
+
+- **Config keys:** `calendar.uncategorized_slug` and `calendar.performance.cache_duration`
+  in `config/calendar.php`.
+- **Auth guard:** `api` guard in `config/auth.php`. Protected routes use `auth:sanctum`, which
+  does not rely on this guard definition.
+
+**Evidence:** Exhaustive grep search for `config('calendar.uncategorized_slug')`,
+`config('calendar.performance.cache_duration')`, `auth('api')`, and `guard('api')` returns zero
+matches in the application code. These were also flagged in
+`platform-operations-review-2026-07-05.md`.
+
+**Action:** safe to remove; confirms adoption of framework defaults where applicable.
+
 ### O13 · Heading-image resolution: committed assets invisible to `PageImageCacheService` (investigate before "fixing")
 
 Two Pathfinder crawls (2026-07-05/06) report pages and `sitemap.xml` missing heading images.
@@ -73,7 +90,6 @@ is a local/seed-data gap, not a production bug). Investigate first:
 
 ## ✅ Resolved
 
-- **O16 — Dead Meeting Photo Migration code** — removed (command, service, tests) after confirming they were spent one-shot tools. *(2026-07-06)*
 - **O10 — Unused `<x-icon-button>` component** — removed in commit `aa31358c4` (PR #1024).
 - **O1 — Dead mailable `App\Mail\LivestreamProcessingCompleted`** — removed (class, view, test, `AGENTS.md` reference). *(2026-06-18)*
 - **O2 — Dead mailable `App\Mail\PermissionError`** — removed (class, view, test, `AGENTS.md` reference). *(2026-06-18)*
