@@ -70,6 +70,7 @@ class PageImageCacheService
 
     private function cacheKey(int $pageId): string
     {
-        return "public_page_images_{$pageId}";
+        // Version 2: Added public_path fallback for committed assets.
+        return "public_page_images_v2_{$pageId}";
     }
 }

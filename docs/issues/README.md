@@ -20,37 +20,6 @@ evening sermons" points at `/christ/sermons` instead of `/christ/sermons/evening
 
 **Action:** change the `href` to `/christ/sermons/evening`; keep `wire:navigate`.
 
-### O12 · Seeder inconsistency: "The Prodigal Son" sermon has a completed log but no audio
-
-`SermonSeeder` creates a `MediaProcessingLog` (processing_id `seed-prodigal-son-processing`,
-status `completed`, `audio_file_path = sermons/seed/2024-11-24.mp3`) but leaves the `Sermon`
-row's `audio_file_path` null, and the referenced file does not exist on the `public` disk. Local
-dev/seeded environments render a sermon page with a dead audio player. **Dev-only** as far as
-verified — but if the same pattern (completed log, null sermon path) exists in production it
-would indicate a completion-transition bug worth checking while in there.
-
-**Action:** make the seeder set the sermon's `audio_file_path` and ship (or generate) a small
-seed audio file; alternatively mark the seeded log `failed` so the UI states are honest.
-
-### O13 · Heading-image resolution: committed assets invisible to `PageImageCacheService` (investigate before "fixing")
-
-Two Pathfinder crawls (2026-07-05/06) report pages and `sitemap.xml` missing heading images.
-Verified mechanism: `PageImageCacheService::resolveHeadingImageUrl()` resolves (1) Spatie Media
-Library `headings` media, then (2) `Storage::disk('public')` at `pages/headings/{size}/{slug}.webp`
-— it never reads the committed `public/images/headings/` directory, which is only referenced
-*directly* via `asset()` (sitemap sermons image, sermon Blade share images, `page-card` default).
-
-**Do not blindly patch the service to read `public_path()`** — the intended primary source is
-Media Library, and production pages may well have `headings` media attached (in which case this
-is a local/seed-data gap, not a production bug). Investigate first:
-
-1. In production: do `Page` rows have media in the `headings` collection (`media` table,
-   `collection_name = 'headings'`)? If yes → the fix is local seeding, not the service.
-2. If production pages genuinely resolve to `null` → decide between attaching the committed
-   images as Media Library media (one-off import, matching the meetings pattern) or adding a
-   `public_path()` fallback to the service.
-3. Sitemap half: backlog item 3.4 removes per-page sitemap images entirely — if 3.4 lands first,
-   only the on-page rendering half of this issue remains.
 
 ## 🟡 Open — owned by the July 2026 backlog (do not fix separately)
 
@@ -73,6 +42,9 @@ is a local/seed-data gap, not a production bug). Investigate first:
 
 ## ✅ Resolved
 
+- **R3 — Systemic Heading Image Resolution Bug (O13)** — fixed by adding `public_path()` fallback to `PageImageCacheService` and versioning the cache key.
+- **R4 — Broken Homepage Card Assertions (O16)** — fixed in `HomepageContentTest` by asserting on button text instead of removed `aria-label`.
+- **R5 — Missing Seed Audio Asset (O12)** — hardened `SermonSeeder` to check for file existence and mark the log as `failed` if media is missing.
 - **O10 — Unused `<x-icon-button>` component** — removed in commit `aa31358c4` (PR #1024).
 - **O1 — Dead mailable `App\Mail\LivestreamProcessingCompleted`** — removed (class, view, test, `AGENTS.md` reference). *(2026-06-18)*
 - **O2 — Dead mailable `App\Mail\PermissionError`** — removed (class, view, test, `AGENTS.md` reference). *(2026-06-18)*

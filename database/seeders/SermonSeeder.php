@@ -139,17 +139,20 @@ class SermonSeeder extends Seeder
 
         if (! $processingLog) {
             $audioPath = 'sermons/seed/2024-11-24.mp3';
+            $exists = \Illuminate\Support\Facades\Storage::disk('public')->exists($audioPath);
 
             $processingLog = MediaProcessingLog::create([
                 'processing_id' => 'seed-prodigal-son-processing',
                 'processing_type' => MediaType::Livestream,
                 'original_filename' => '2024-11-24-morning-service.mp4',
-                'status' => ProcessingStatus::Completed,
-                'current_step' => 'completed',
+                'status' => $exists ? ProcessingStatus::Completed : ProcessingStatus::Failed,
+                'current_step' => $exists ? 'completed' : 'failed',
                 'sermon_id' => null,
-                'audio_file_path' => \Illuminate\Support\Facades\Storage::disk('public')->exists($audioPath) ? $audioPath : null,
+                'audio_file_path' => $exists ? $audioPath : null,
             ]);
         }
+
+        $exists = $processingLog->audio_file_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($processingLog->audio_file_path);
 
         $sermon = Sermon::updateOrCreate(
             ['slug' => 'the-prodigal-son'],
@@ -162,7 +165,7 @@ class SermonSeeder extends Seeder
                 'preacher_id' => $preacher?->id,
                 'preacher_source' => 'manual',
                 'series' => 'Parables of Jesus',
-                'audio_file_path' => null,
+                'audio_file_path' => $exists ? $processingLog->audio_file_path : null,
                 'points' => '1. The son who wandered\n2. The father who waited\n3. The grace that restores',
                 'livestream_processing_id' => 'seed-prodigal-son-processing',
             ]
