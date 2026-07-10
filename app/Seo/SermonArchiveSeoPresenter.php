@@ -129,18 +129,28 @@ class SermonArchiveSeoPresenter
      */
     public function image(array $filters): ?string
     {
-        if ($filters['preacherId']) {
-            $image = $this->resolvePreacherImage($filters['preacherId']);
-            if ($image) {
-                return $image;
+        if (! array_filter($filters)) {
+            return null;
+        }
+
+        // Try matching all filters first (most relevant)
+        $latestSermon = $this->sermonRepository->publicBrowseQuery(
+            book: $filters['book'],
+            chapter: $filters['chapter'],
+            preacherId: $filters['preacherId'],
+            series: $filters['series'],
+        )->first();
+
+        if ($latestSermon) {
+            $thumb = $this->sermonViewPresenter->thumbnailUrl($latestSermon);
+            if ($thumb) {
+                return $thumb;
             }
         }
 
-        if ($filters['series']) {
-            $latestInSeries = $this->sermonRepository->getSermonsBySeries($filters['series'])->first();
-            if ($latestInSeries) {
-                return $this->sermonViewPresenter->thumbnailUrl($latestInSeries);
-            }
+        // Fallback to preacher image if we have a preacher filter but no matching sermon thumbnail
+        if ($filters['preacherId']) {
+            return $this->resolvePreacherImage($filters['preacherId']);
         }
 
         return null;

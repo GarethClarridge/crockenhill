@@ -48,4 +48,24 @@ class SermonArchiveImageTest extends TestCase
         $response->assertSee('property="og:image" content="'.$image.'"', false);
         $response->assertSee('property="og:image:alt" content="Sermon Series: Life of David"', false);
     }
+
+    #[Test]
+    public function index_shows_correct_image_when_both_preacher_and_series_active(): void
+    {
+        $preacher1 = Preacher::factory()->create(['image_path' => 'preachers/one.jpg']);
+
+        $sermon = Sermon::factory()->create([
+            'preacher_id' => $preacher1->id,
+            'series' => 'The Gospel',
+            'thumbnail_file_path' => 'sermons/gospel.jpg',
+            'content_type' => SermonContentType::Sermon,
+            'date' => now(),
+        ]);
+
+        $response = $this->get('/christ/sermons?preacher='.$preacher1->id.'&series=The+Gospel');
+
+        $response->assertStatus(200);
+        $image = app(SermonViewPresenter::class)->thumbnailUrl($sermon);
+        $response->assertSee('property="og:image" content="'.$image.'"', false);
+    }
 }
