@@ -34,6 +34,7 @@ class StoreMailgunInboundEmailRequest extends FormRequest
             'timestamp' => ['required', 'string', 'max:50'],
             'token' => ['required', 'string', 'max:100'],
             'signature' => ['required', 'string', 'max:128'],
+            'recipient' => ['nullable', 'string', 'max:255'],
             'from' => $modelRules['from'],
             'subject' => $modelRules['subject'],
             // The Message-Id can be in the direct POST data or nested in message-headers.
@@ -115,6 +116,7 @@ class StoreMailgunInboundEmailRequest extends FormRequest
             'timestamp',
             'token',
             'signature',
+            'recipient',
             'from',
             'subject',
             'body-plain',
