@@ -200,6 +200,12 @@ class InboundEmailImportService
      * date+service slot; the normal path merges into an existing service or creates a new one.
      * The email is only marked Processed when every plan reaches a terminal outcome.
      *
+     * Pass `$onlyPlanKeys` to restrict the import to specific plans — the archive backfill uses
+     * this to import only the plans its ground truth actually corroborates, so an extra plan the
+     * parser invents for a single-service entry is never created.
+     *
+     * @param  list<string>|null  $onlyPlanKeys
+     *
      * @throws InvalidArgumentException
      */
     public function import(
@@ -208,8 +214,16 @@ class InboundEmailImportService
         ?int $reviewedByUserId = null,
         string $reviewMode = 'direct_approve',
         bool $createOnly = false,
+        ?array $onlyPlanKeys = null,
     ): OosEmailImportResult {
         $plans = $this->plansForImport($parseResult);
+
+        if ($onlyPlanKeys !== null) {
+            $plans = array_values(array_filter(
+                $plans,
+                static fn (OosEmailServicePlan $plan): bool => in_array($plan->key(), $onlyPlanKeys, true),
+            ));
+        }
 
         if ($plans === []) {
             throw new InvalidArgumentException('Inbound email parse result has no service plans to import.');

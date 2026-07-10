@@ -150,6 +150,46 @@ class ImportOosArchiveCommandTest extends TestCase
     }
 
     #[Test]
+    public function import_skips_a_plan_the_ground_truth_does_not_corroborate(): void
+    {
+        // A morning-only archive entry, but the multi-service parser also returns an evening plan.
+        // The gate only checks the primary (morning); the ungated evening plan must not be created.
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [
+                        ['type' => 'song', 'title' => 'Amazing Grace'],
+                        ['type' => 'sermon', 'title' => 'Evening Sermon'],
+                    ],
+                    confidence: 0.99,
+                    services: [
+                        ['service' => 'morning', 'date' => null, 'items' => [
+                            ['type' => 'song', 'title' => 'Amazing Grace'],
+                        ], 'confidence' => 0.99],
+                        ['service' => 'evening', 'date' => null, 'items' => [
+                            ['type' => 'sermon', 'title' => 'Evening Sermon'],
+                        ], 'confidence' => 0.99],
+                    ],
+                );
+            }
+        });
+        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $report = $this->temporaryPath('json');
+
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--import' => true,
+            '--report' => $report,
+        ])->assertExitCode(0);
+
+        $this->assertDatabaseCount('church_services', 1);
+        $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
+        $this->assertDatabaseMissing('church_services', ['service' => 'evening']);
+    }
+
+    #[Test]
     public function a_changed_source_after_import_is_reported_without_touching_the_service(): void
     {
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor

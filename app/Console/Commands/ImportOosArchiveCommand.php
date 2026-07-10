@@ -95,7 +95,12 @@ class ImportOosArchiveCommand extends Command
                 $disposition = $gateReasons === [] ? 'eligible' : 'skipped';
 
                 if ($shouldImport && $gateReasons === []) {
-                    $importResult = $importService->import($inboundEmail, $parseResult, createOnly: true);
+                    $importResult = $importService->import(
+                        $inboundEmail,
+                        $parseResult,
+                        createOnly: true,
+                        onlyPlanKeys: $this->groundTruthPlanKeys($entry, $parseResult),
+                    );
                     $disposition = $importResult->created() !== [] ? 'created' : 'skipped_existing';
                 }
 
@@ -302,6 +307,29 @@ class ImportOosArchiveCommand extends Command
         }
 
         return array_values(array_unique($reasons));
+    }
+
+    /**
+     * Keys of the parsed plans the archive ground truth corroborates: the entry's date and one
+     * of its recorded services. The gate only checks the primary plan, but the multi-service
+     * parser can invent a second plan (e.g. an evening order for a morning-only entry) — this
+     * keeps that ungated plan out of the create-only import.
+     *
+     * @return list<string>
+     */
+    private function groundTruthPlanKeys(OosArchiveEntry $entry, OosEmailParseResult $parseResult): array
+    {
+        $keys = [];
+
+        foreach ($parseResult->servicePlans as $plan) {
+            if ($plan->date === $entry->groundTruthDate
+                && $plan->service instanceof SermonService
+                && in_array($plan->service->value, $entry->servicesPresent, true)) {
+                $keys[] = $plan->key();
+            }
+        }
+
+        return array_values(array_unique($keys));
     }
 
     private function isValidDate(string $date): bool

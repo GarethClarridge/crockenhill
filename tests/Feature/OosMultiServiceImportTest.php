@@ -13,10 +13,13 @@ use App\Jobs\ProcessInboundOosEmail;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\User;
+use App\Services\ChurchService\ChurchServiceSongLinker;
 use App\Services\Email\InboundEmailImportService;
 use App\Services\Email\OosEmailParserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\TestCase;
 use Tests\Traits\WithInboundEmailTestHelpers;
 
@@ -49,6 +52,17 @@ class OosMultiServiceImportTest extends TestCase
                 ], 'confidence' => $eveningConfidence],
             ],
         ));
+    }
+
+    /**
+     * Make song linking throw so every plan's import fails — a stand-in for a transient DB/sync
+     * error inside createServiceFromPlan.
+     */
+    private function failSongLinking(): void
+    {
+        $this->mock(ChurchServiceSongLinker::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('linkForService')->andThrow(new RuntimeException('song sync exploded'));
+        });
     }
 
     private function multiServiceEmail(): InboundEmail
@@ -218,6 +232,49 @@ class OosMultiServiceImportTest extends TestCase
         $held = $outcomes->firstWhere('outcome', 'held_for_review');
         $this->assertNotNull($held, 'The unknown plan should be held for review');
         $this->assertNull($held['service'], 'An unknown plan must not inherit the email-level service');
+    }
+
+    #[Test]
+    public function the_job_re_raises_when_a_plan_fails_to_import(): void
+    {
+        $this->bindMultiServiceExtractor();
+        $this->failSongLinking();
+        $email = $this->multiServiceEmail();
+
+        $threw = false;
+        try {
+            app()->call([new ProcessInboundOosEmail($email), 'handle']);
+        } catch (RuntimeException) {
+            // Re-raising is the point: it hands the failure to the queue retry/failed path.
+            $threw = true;
+        }
+
+        $this->assertTrue($threw, 'A failed plan must re-raise so the queue can retry or fail the job.');
+
+        $email->refresh();
+        $this->assertNotSame(InboundEmailStatus::Processed, $email->status);
+        $outcomes = collect($email->processing_metadata['plan_outcomes']);
+        $this->assertTrue(
+            $outcomes->contains(fn (array $outcome): bool => $outcome['outcome'] === 'failed'),
+            'The per-plan failure should still be recorded before re-raising.',
+        );
+    }
+
+    #[Test]
+    public function approving_returns_an_error_when_a_plan_fails_to_import(): void
+    {
+        $this->bindMultiServiceExtractor();
+        $this->failSongLinking();
+        $admin = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
+        $email = $this->multiServiceEmail();
+
+        $result = app(ApproveInboundEmailImport::class)->execute($email, $admin->id);
+
+        $this->assertIsString($result);
+        $this->assertStringContainsString('failed to import', $result);
+
+        $email->refresh();
+        $this->assertNotSame(InboundEmailStatus::Processed, $email->status);
     }
 
     #[Test]

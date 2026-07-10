@@ -44,12 +44,21 @@ class ApproveInboundEmailImport
                 return 'This email still needs manual editing before it can be approved.';
             }
 
-            return $this->importService->import(
+            $result = $this->importService->import(
                 $inboundEmail,
                 $parseResult,
                 reviewedByUserId: $reviewedByUserId,
                 reviewMode: 'direct_approve',
             );
+
+            // A plan that failed to import (a DB or sync error) must not pass through the success
+            // path — that would show the admin a "processed" toast while the email is still in the
+            // inbox. Any confident orders remain imported; surface the failure so they retry.
+            if ($result->hasFailures()) {
+                return 'One or more orders failed to import. The email is still in the inbox — please try again.';
+            }
+
+            return $result;
         } catch (Throwable $exception) {
             report($exception);
 

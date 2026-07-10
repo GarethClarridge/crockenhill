@@ -12,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use RuntimeException;
 
 class ProcessInboundOosEmail implements ShouldQueue
 {
@@ -48,10 +49,22 @@ class ProcessInboundOosEmail implements ShouldQueue
             return;
         }
 
-        // Imports every confident plan and holds the rest. If any plan was held (or failed) the
-        // email is not fully resolved, so it stays Pending in the inbox with its confident
-        // orders already imported and per-plan state recorded.
+        // Imports every confident plan and holds the rest. Held plans (below the auto-import bar)
+        // are a normal outcome that leaves the email Pending in the inbox with its confident orders
+        // already imported and per-plan state recorded.
         $result = $importService->import($inboundEmail, $parseResult);
+
+        // A plan that *failed* to import (a DB or sync error) is not a hold — swallowing it would
+        // rob the queue of its retry/failed path and leave ops with no signal. The per-plan
+        // outcomes are already recorded, so re-raising here retries the whole job (create-only /
+        // merge make the already-imported plans idempotent) and surfaces a persistent failure.
+        if ($result->hasFailures()) {
+            throw new RuntimeException(sprintf(
+                'Inbound OoS email %d had %d service plan(s) fail to import.',
+                $inboundEmail->id,
+                count($result->failed()),
+            ));
+        }
 
         if (! $result->isFullyResolved()) {
             $inboundEmail->refresh();

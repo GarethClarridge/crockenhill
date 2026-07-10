@@ -84,6 +84,26 @@ readonly class OosEmailImportResult
     }
 
     /**
+     * Plans whose import threw (a DB or sync error) rather than reaching a clean outcome.
+     * A caller must treat these as errors — never as a silent hold — so the queue retry/failed
+     * path runs and admins see a failure instead of a false "processed".
+     *
+     * @return list<OosEmailImportPlanOutcome>
+     */
+    public function failed(): array
+    {
+        return array_values(array_filter(
+            $this->plans,
+            static fn (OosEmailImportPlanOutcome $plan): bool => $plan->outcome === OosEmailImportOutcome::Failed,
+        ));
+    }
+
+    public function hasFailures(): bool
+    {
+        return $this->failed() !== [];
+    }
+
+    /**
      * Every plan reached a terminal outcome (created/merged/skipped) and there was at least one.
      */
     public function isFullyResolved(): bool
