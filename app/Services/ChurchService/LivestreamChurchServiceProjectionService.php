@@ -44,13 +44,21 @@ class LivestreamChurchServiceProjectionService
             return $this->skipped('No classified sections available for projection');
         }
 
+        $churchService = $this->findMatchingService($identity['date'], $identity['service']);
+
         $itemPayloads = $this->mapper->map($sections, $processingLog->processing_id);
 
         if ($itemPayloads === []) {
-            return $this->skipped('No projectable sections after filtering');
-        }
+            // Nothing is projectable, but the sections may still carry review
+            // state (an all-OTHER or all-low-confidence run is the run most in
+            // need of a reviewer) — link and roll up before skipping.
+            if ($churchService !== null) {
+                $this->linkProcessingLogToService($processingLog, $churchService);
+                $this->reviewSynchronizer->openReviewFromSections($churchService, $sections);
+            }
 
-        $churchService = $this->findMatchingService($identity['date'], $identity['service']);
+            return $this->skipped('No projectable sections after filtering', $churchService?->id);
+        }
 
         if ($churchService !== null && $this->hasNonLivestreamItems($churchService)) {
             $this->linkProcessingLogToService($processingLog, $churchService);

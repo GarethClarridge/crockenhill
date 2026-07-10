@@ -198,6 +198,45 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     }
 
     #[Test]
+    public function test_opens_service_review_when_every_section_is_filtered_out_of_projection(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-23',
+            'service' => SermonService::Morning->value,
+            'source' => 'openlp',
+            'needs_review' => false,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'OpenLP Song',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+        ]);
+
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+
+        // An OTHER-typed section is excluded by the mapper, so nothing is
+        // projectable — but it still needs manual review, and that must reach
+        // the service inbox rather than dying at the filtering early-return.
+        [$section] = $this->createSections($log, [
+            ['type' => ServiceSectionType::Other, 'title' => 'Unclassifiable block', 'confidence' => 0.3],
+        ]);
+        $section->forceFill(['needs_manual_review' => true])->save();
+
+        $result = $this->service->project($log);
+
+        $this->assertFalse($result['projected']);
+        $this->assertStringContainsString('No projectable sections', $result['reason']);
+        $this->assertSame($churchService->id, $log->fresh()->church_service_id, 'The run still links to the matching service.');
+        $this->assertTrue(
+            $churchService->fresh()->needs_review,
+            'A flagged run must reach the inbox even when every section is filtered out of projection.'
+        );
+    }
+
+    #[Test]
     public function test_leaves_service_review_closed_when_skipping_projection_with_clean_sections(): void
     {
         $churchService = ChurchService::factory()->create([
