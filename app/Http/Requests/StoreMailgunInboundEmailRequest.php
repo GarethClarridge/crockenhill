@@ -35,7 +35,6 @@ class StoreMailgunInboundEmailRequest extends FormRequest
             'token' => ['required', 'string', 'max:100'],
             'signature' => ['required', 'string', 'max:128'],
             'from' => $modelRules['from'],
-            'recipient' => ['required', 'string', 'email', 'max:255'],
             'subject' => $modelRules['subject'],
             // The Message-Id can be in the direct POST data or nested in message-headers.
             // If it is in the POST data, we validate it against model rules (excluding required).
@@ -117,7 +116,6 @@ class StoreMailgunInboundEmailRequest extends FormRequest
             'token',
             'signature',
             'from',
-            'recipient',
             'subject',
             'body-plain',
             'body-html',
