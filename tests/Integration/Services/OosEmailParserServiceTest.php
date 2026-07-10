@@ -10,6 +10,7 @@ use App\Enums\SermonService;
 use App\Models\InboundEmail;
 use App\Services\Email\OosEmailParserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -43,7 +44,7 @@ class OosEmailParserServiceTest extends TestCase
         $parser = new OosEmailParserService($extractor);
 
         $email = InboundEmail::factory()->make([
-            'subject' => 'Order of Service - Sunday 16 March 2026 AM',
+            'subject' => 'Order of Service - Sunday 15 March 2026 AM',
             'body_plain' => "Welcome\nBefore the throne of God above\nOpening prayer\nLuke 15:1-32",
             'body_html' => '<p>HTML should not be used</p>',
             'received_at' => '2026-03-10 09:00:00',
@@ -52,7 +53,7 @@ class OosEmailParserServiceTest extends TestCase
         $result = $parser->parse($email);
 
         $this->assertSame("Welcome\nBefore the throne of God above\nOpening prayer\nLuke 15:1-32", $extractor->capturedBody);
-        $this->assertSame('2026-03-16', $result->date);
+        $this->assertSame('2026-03-15', $result->date);
         $this->assertSame(SermonService::Morning, $result->service);
         $this->assertTrue($result->shouldImport);
         $this->assertFalse($result->needsReview);
@@ -236,5 +237,168 @@ class OosEmailParserServiceTest extends TestCase
         $result = $parser->parse($email);
 
         $this->assertSame(SermonService::Evening, $result->service);
+    }
+
+    /**
+     * @return array<string, array{subject:string}>
+     */
+    public static function malformedDateSubjects(): array
+    {
+        return [
+            // "1 Timothy 2:11-15" matches the numeric-date regex as day=11/month=15,
+            // which CarbonImmutable::create() would silently overflow into 2027-03-11.
+            'month overflow from scripture reference' => ['subject' => 'Reading: 1 Timothy 2:11-15'],
+            'impossible day for month' => ['subject' => 'Meeting on 31/02'],
+            'non-leap 29 February' => ['subject' => 'Service 29/02/2025'],
+            'iso non-existent day' => ['subject' => 'Order of Service 2025-02-31'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('malformedDateSubjects')]
+    public function it_rejects_calendar_impossible_dates(string $subject): void
+    {
+        $parser = new OosEmailParserService($this->stubExtractor());
+
+        $email = InboundEmail::factory()->make([
+            'subject' => $subject,
+            'body_plain' => 'Song one',
+            'received_at' => '2026-03-10 09:00:00',
+        ]);
+
+        $result = $parser->parse($email);
+
+        $this->assertNull($result->date, $subject);
+    }
+
+    #[Test]
+    public function it_accepts_a_valid_leap_day(): void
+    {
+        $parser = new OosEmailParserService($this->stubExtractor());
+
+        $email = InboundEmail::factory()->make([
+            'subject' => 'Service 29/02/2024',
+            'body_plain' => 'Song one',
+            'received_at' => '2024-02-27 09:00:00',
+        ]);
+
+        $result = $parser->parse($email);
+
+        $this->assertSame('2024-02-29', $result->date);
+    }
+
+    #[Test]
+    public function it_holds_a_fully_specified_date_that_falls_on_the_wrong_weekday_and_is_in_the_past(): void
+    {
+        $parser = new OosEmailParserService($this->stubExtractor());
+
+        // The real "Sunday 5 June 2026" email: 5 June 2026 is actually a Friday and,
+        // against the curated corrected received date (2026-07-03), is in the past.
+        $email = InboundEmail::factory()->make([
+            'subject' => 'Order of Service - Sunday 5th June 2026 AM',
+            'body_plain' => "Welcome\nSong one",
+            'received_at' => '2026-07-03 09:00:00',
+        ]);
+
+        $result = $parser->parse($email);
+
+        // The parser extracts what the email literally says — it must not auto-correct.
+        $this->assertSame('2026-06-05', $result->date);
+        $this->assertLessThanOrEqual(0.74, $result->confidenceScore);
+        $this->assertFalse($result->shouldImport);
+        $this->assertSame('2026-07-05', $result->importMetadata['date_extraction']['suggested_date'] ?? null);
+        $this->assertNotEmpty(array_filter(
+            $result->importMetadata['warnings'],
+            static fn (string $warning): bool => str_contains(strtolower($warning), 'plausib'),
+        ));
+    }
+
+    #[Test]
+    public function it_holds_a_date_far_in_the_future(): void
+    {
+        $parser = new OosEmailParserService($this->stubExtractor());
+
+        $email = InboundEmail::factory()->make([
+            'subject' => 'Order of Service - 2026-08-30 AM',
+            'body_plain' => "Welcome\nSong one",
+            'received_at' => '2026-07-03 09:00:00',
+        ]);
+
+        $result = $parser->parse($email);
+
+        $this->assertSame('2026-08-30', $result->date);
+        $this->assertLessThanOrEqual(0.74, $result->confidenceScore);
+        $this->assertFalse($result->shouldImport);
+    }
+
+    #[Test]
+    public function it_leaves_a_normal_near_future_sunday_untouched(): void
+    {
+        $parser = new OosEmailParserService($this->stubExtractor());
+
+        // 12 July 2026 is a genuine Sunday, two days after the email arrived.
+        $email = InboundEmail::factory()->make([
+            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
+            'body_plain' => "Welcome\nSong one",
+            'received_at' => '2026-07-10 09:00:00',
+        ]);
+
+        $result = $parser->parse($email);
+
+        $this->assertSame('2026-07-12', $result->date);
+        $this->assertGreaterThanOrEqual(0.90, $result->confidenceScore);
+        $this->assertTrue($result->shouldImport);
+        $this->assertNull($result->importMetadata['date_extraction']['suggested_date'] ?? null);
+    }
+
+    /**
+     * @return array<string, array{receivedAt:string,resolvedDate:string,shouldHold:bool}>
+     */
+    public static function plausibilityWindowBoundaries(): array
+    {
+        // Window is [received calendar day, received + max_future_days (14)].
+        return [
+            'same day' => ['receivedAt' => '2026-07-05 09:00:00', 'resolvedDate' => '2026-07-05', 'shouldHold' => false],
+            'plus max future days' => ['receivedAt' => '2026-07-05 09:00:00', 'resolvedDate' => '2026-07-19', 'shouldHold' => false],
+            'one day past window' => ['receivedAt' => '2026-07-05 09:00:00', 'resolvedDate' => '2026-07-20', 'shouldHold' => true],
+            'day before received' => ['receivedAt' => '2026-07-05 09:00:00', 'resolvedDate' => '2026-07-04', 'shouldHold' => true],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('plausibilityWindowBoundaries')]
+    public function it_enforces_the_received_at_window_boundaries(string $receivedAt, string $resolvedDate, bool $shouldHold): void
+    {
+        $parser = new OosEmailParserService($this->stubExtractor());
+
+        $email = InboundEmail::factory()->make([
+            'subject' => "Order of Service - {$resolvedDate} AM",
+            'body_plain' => "Welcome\nSong one",
+            'received_at' => $receivedAt,
+        ]);
+
+        $result = $parser->parse($email);
+
+        $this->assertSame($resolvedDate, $result->date);
+
+        if ($shouldHold) {
+            $this->assertLessThanOrEqual(0.74, $result->confidenceScore, "{$resolvedDate} should hold");
+        } else {
+            $this->assertGreaterThan(0.74, $result->confidenceScore, "{$resolvedDate} should pass");
+        }
+    }
+
+    private function stubExtractor(): OosEmailItemExtractor
+    {
+        return new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Song one']],
+                    confidence: 0.95,
+                );
+            }
+        };
     }
 }

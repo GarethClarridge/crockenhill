@@ -25,6 +25,9 @@ return [
         'model' => env('OOS_EMAIL_PARSING_MODEL', 'gpt-4.1-nano'),
         'review_threshold' => 0.75,
         'auto_import_threshold' => 0.90,
+        // Plan emails are forward-looking and short-horizon: a resolved service date more
+        // than this many days after the email arrived is implausible and holds for review.
+        'max_future_days' => (int) env('OOS_EMAIL_PARSING_MAX_FUTURE_DAYS', 14),
     ],
 
     'songs' => [
