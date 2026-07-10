@@ -55,7 +55,13 @@ class RateLimitServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('mailgun-inbound', function (Request $request): array {
-            $key = (string) ($request->input('recipient') ?: $request->ip());
+            $recipient = $request->input('recipient');
+
+            // Security: Validate and bound the recipient key before using it in the rate limiter
+            // to protect against cache resource exhaustion from oversized or malformed inputs.
+            $key = (is_string($recipient) && strlen($recipient) <= 255 && filter_var($recipient, FILTER_VALIDATE_EMAIL))
+                ? $recipient
+                : $request->ip();
 
             return [
                 Limit::perMinute(120)->by($key),

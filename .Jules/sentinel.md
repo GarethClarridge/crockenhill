@@ -37,3 +37,13 @@
 **Vulnerability:** The 'recipient' field in inbound email webhooks was used as a rate-limiting key without length validation or metadata exclusion.
 **Learning:** Using unvalidated input as a cache key for rate limiting can lead to resource exhaustion if attackers send excessively large strings. Technical routing keys should also be kept out of stored message metadata to maintain clean data separation.
 **Prevention:** Always apply strict length (max:255) and format (e.g. email) validation to any input used as a rate-limiting key. Exclude such fields from application metadata storage.
+
+## 2026-07-10 - [Early Bound on Rate Limiter Keys]
+**Vulnerability:** The 'recipient' field in inbound email webhooks was used as a rate-limiting key. Form Request validation was added, but the rate limiter runs before the Form Request, leaving the cache vulnerable to oversized keys.
+**Learning:** Security bounds for rate-limiter keys must be applied directly within the  or middleware where the limiter is defined. Validating in a Form Request is too late to protect the infrastructure layer (Redis/Cache) from DoS via oversized keys.
+**Prevention:** Always validate, type-check, and length-limit any user-controlled input before using it as a key in .
+
+## 2026-07-03 - [Early Bound on Rate Limiter Keys]
+**Vulnerability:** The 'recipient' field in inbound email webhooks was used as a rate-limiting key. Form Request validation was added, but the rate limiter runs before the Form Request, leaving the cache vulnerable to oversized keys.
+**Learning:** Security bounds for rate-limiter keys must be applied directly within the `RateLimitServiceProvider` or middleware where the limiter is defined. Validating in a Form Request is too late to protect the infrastructure layer (Redis/Cache) from DoS via oversized keys.
+**Prevention:** Always validate, type-check, and length-limit any user-controlled input before using it as a key in `RateLimiter::for()`.
