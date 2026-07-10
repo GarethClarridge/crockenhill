@@ -8,7 +8,6 @@ use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
-use App\Services\ChurchService\AlignmentTriggerCalculator;
 use App\Support\ServiceSectionConfidence;
 use App\Traits\ReadsSectionMetadata;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;

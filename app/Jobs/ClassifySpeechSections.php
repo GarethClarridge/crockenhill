@@ -9,7 +9,6 @@ use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\ChurchService\ServiceSectionClassifier;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\SpeechSectionClassificationService;
 use App\Services\Song\SongTitleHintExtractor;
@@ -22,7 +21,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
 /**
- * @phpstan-import-type ClassifiedSection from ServiceSectionClassifier
+ * @phpstan-import-type ClassifiedSection from ServiceSectionSyncService
  */
 class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
 {

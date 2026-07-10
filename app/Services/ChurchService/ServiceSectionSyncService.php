@@ -24,7 +24,23 @@ use Illuminate\Support\Facades\Validator;
  * trigger appropriate asset cleanup and publication notifications while preserving
  * existing manual metadata edits where possible.
  *
- * @phpstan-import-type ClassifiedSection from ServiceSectionClassifier
+ * Owns the canonical ClassifiedSection payload shape: every producer
+ * (heuristic classifier or LLM structure mapper) must emit this exact array.
+ *
+ * @phpstan-type ClassifiedSection array{
+ *     church_service_item_id: int|null,
+ *     section_type: string,
+ *     section_order: int,
+ *     title: ?string,
+ *     start_time: float,
+ *     end_time: float,
+ *     duration: float,
+ *     confidence: float,
+ *     status: string,
+ *     needs_manual_review: bool,
+ *     source_segment_ids: array<int, int>,
+ *     metadata: array<string, mixed>
+ * }
  */
 class ServiceSectionSyncService
 {

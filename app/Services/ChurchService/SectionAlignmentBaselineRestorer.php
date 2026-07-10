@@ -6,54 +6,13 @@ namespace App\Services\ChurchService;
 
 use App\Data\ServiceSectionMetadata;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Support\ServiceSectionConfidence;
 use App\Traits\ReadsSectionMetadata;
 
 class SectionAlignmentBaselineRestorer
 {
     use ReadsSectionMetadata;
-
-    /**
-     * All review flags that OosAlignmentService owns and recalculates on every alignment pass.
-     * Cleared at the start of each run and only re-added when still applicable.
-     *
-     * @var array<int, string>
-     */
-    public const OOS_REVIEW_FLAGS = [
-        'oos_structure_mismatch',
-        'unmatched_song_section',
-        'song_alignment_inferred',
-        'song_name_reference_only',
-        'ambiguous_childrens_talk',
-        'inferred_childrens_talk',
-        'presentation_positional_fallback',
-        // LLM-first structure pipeline flags (ServiceStructureValidator /
-        // ServiceStructureSection) — registered here so alignment re-runs
-        // clear stale copies instead of pinning sections in review (F18).
-        'structure_low_confidence',
-        'structure_micro_section',
-        'structure_benediction_suspect',
-        'unknown_section_type',
-    ];
-
-    /**
-     * All review reasons that OosAlignmentService owns and recalculates on every alignment pass.
-     *
-     * @var array<int, string>
-     */
-    public const OOS_REVIEW_REASONS = [
-        'oos_structure_mismatch',
-        'unmatched_song_section',
-        'song_alignment_inferred',
-        'song_name_reference_only',
-        'ambiguous_childrens_talk',
-        'inferred_childrens_talk',
-        'presentation_positional_fallback',
-        'structure_low_confidence',
-        'structure_micro_section',
-        'structure_benediction_suspect',
-        'unknown_section_type',
-    ];
 
     /**
      * Restore a section to its pre-alignment baseline state before a new alignment run.
@@ -96,7 +55,7 @@ class SectionAlignmentBaselineRestorer
         $reviewFlags = $this->clearOosReviewFlags($this->reviewFlags($metadata));
 
         if ($reviewFlags === []) {
-            if (in_array($metadata['review_reason'] ?? null, self::OOS_REVIEW_REASONS, true)) {
+            if (in_array($metadata['review_reason'] ?? null, ServiceStructureValidator::OOS_REVIEW_REASONS, true)) {
                 unset($metadata['review_reason']);
             }
 
@@ -158,7 +117,7 @@ class SectionAlignmentBaselineRestorer
     {
         return array_values(array_filter(
             $flags,
-            static fn (string $flag): bool => ! in_array($flag, self::OOS_REVIEW_FLAGS, true)
+            static fn (string $flag): bool => ! in_array($flag, ServiceStructureValidator::OOS_REVIEW_FLAGS, true)
         ));
     }
 }
