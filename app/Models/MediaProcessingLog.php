@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 /**
@@ -539,6 +540,23 @@ class MediaProcessingLog extends Model
         $path = $metadata['service_transcript_path'] ?? null;
 
         return is_string($path) && trim($path) !== '' ? $path : null;
+    }
+
+    /**
+     * Whether the full-service transcript artifact both is recorded and still
+     * exists on the temp disk (it deliberately survives run cleanup).
+     */
+    public function hasStoredServiceTranscript(): bool
+    {
+        $transcriptPath = $this->serviceTranscriptPath();
+
+        if ($transcriptPath === null) {
+            return false;
+        }
+
+        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+
+        return Storage::disk($tempDisk)->exists($transcriptPath);
     }
 
     public function putServiceTranscriptPath(string $path): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Jobs;
 
 use App\Enums\SermonService;
+use App\Jobs\DetectServiceStructure;
 use App\Jobs\ReconcileServiceSections;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -14,6 +15,9 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\OosAlignmentService;
 use App\Services\Processing\MediaProcessingIdentityResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -174,5 +178,112 @@ class ReconcileServiceSectionsTest extends TestCase
             'section_order' => 1,
             'title' => 'Existing Section',
         ]);
+    }
+
+    #[Test]
+    public function primary_mode_redetects_structure_from_the_stored_transcript_instead_of_realigning(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        Config::set('media-processing.storage.temp_disk', 'local');
+        Storage::fake('local');
+        Bus::fake([DetectServiceStructure::class]);
+
+        [$churchService, $processingLog] = $this->reconcilableRun('2026-06-07');
+
+        $transcriptPath = 'temp/service_transcript_'.$processingLog->processing_id.'.json';
+        Storage::disk('local')->put($transcriptPath, (string) json_encode(['cues' => []]));
+        $processingLog->putServiceTranscriptPath($transcriptPath);
+
+        $alignmentService = $this->createMock(OosAlignmentService::class);
+        $alignmentService->expects($this->never())->method('alignForProcessingLog');
+
+        $job = new ReconcileServiceSections($processingLog, $churchService);
+        $job->handle(new MediaProcessingIdentityResolver, $alignmentService);
+
+        Bus::assertDispatched(
+            DetectServiceStructure::class,
+            fn (DetectServiceStructure $dispatched): bool => $dispatched->reconcile
+        );
+
+        $processingLog->refresh();
+        $this->assertSame($churchService->id, $processingLog->church_service_id);
+        $this->assertSame('completed', $processingLog->status->value);
+        $this->assertSame('completed', $processingLog->current_step);
+    }
+
+    #[Test]
+    public function primary_mode_falls_back_to_the_heuristic_aligner_when_no_transcript_artifact_survives(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        Config::set('media-processing.storage.temp_disk', 'local');
+        Storage::fake('local');
+        Bus::fake([DetectServiceStructure::class]);
+
+        [$churchService, $processingLog] = $this->reconcilableRun('2026-06-14');
+
+        $alignmentService = $this->createMock(OosAlignmentService::class);
+        $alignmentService->expects($this->once())
+            ->method('alignForProcessingLog')
+            ->willReturn(['aligned' => 1, 'review_triggers' => []]);
+
+        $job = new ReconcileServiceSections($processingLog, $churchService);
+        $job->handle(new MediaProcessingIdentityResolver, $alignmentService);
+
+        Bus::assertNotDispatched(DetectServiceStructure::class);
+    }
+
+    #[Test]
+    public function shadow_mode_keeps_the_heuristic_aligner_authoritative(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'shadow');
+        Config::set('media-processing.storage.temp_disk', 'local');
+        Storage::fake('local');
+        Bus::fake([DetectServiceStructure::class]);
+
+        [$churchService, $processingLog] = $this->reconcilableRun('2026-06-21');
+
+        $transcriptPath = 'temp/service_transcript_'.$processingLog->processing_id.'.json';
+        Storage::disk('local')->put($transcriptPath, (string) json_encode(['cues' => []]));
+        $processingLog->putServiceTranscriptPath($transcriptPath);
+
+        $alignmentService = $this->createMock(OosAlignmentService::class);
+        $alignmentService->expects($this->once())
+            ->method('alignForProcessingLog')
+            ->willReturn(['aligned' => 1, 'review_triggers' => []]);
+
+        $job = new ReconcileServiceSections($processingLog, $churchService);
+        $job->handle(new MediaProcessingIdentityResolver, $alignmentService);
+
+        Bus::assertNotDispatched(DetectServiceStructure::class);
+    }
+
+    /**
+     * A completed livestream run whose identity matches a church service that
+     * already has OoS items — the late-OOS-arrival reconciliation scenario.
+     *
+     * @return array{0: ChurchService, 1: MediaProcessingLog}
+     */
+    private function reconcilableRun(string $date): array
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => $date,
+            'service' => SermonService::Morning->value,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Opening Song',
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'current_step' => 'completed',
+            'church_service_id' => null,
+            'extracted_date' => $date,
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+
+        return [$churchService, $processingLog];
     }
 }
