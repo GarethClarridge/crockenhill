@@ -36,7 +36,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('<link rel="canonical"', false);
         $response->assertSee('<meta name="description"', false);
-        $response->assertSee('We are an independent evangelical church in Crockenhill, Kent', false);
+        $response->assertSee('We are an independent evangelical Baptist church in Crockenhill, Kent', false);
         $response->assertSee('<meta property="og:title" content="Crockenhill Baptist Church">', false);
         $response->assertSee('<meta property="og:type" content="website">', false);
         $response->assertSee('<meta property="og:site_name" content="Crockenhill Baptist Church">', false);
