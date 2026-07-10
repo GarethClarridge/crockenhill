@@ -388,6 +388,52 @@ class DetectServiceStructureTest extends TestCase
     }
 
     #[Test]
+    public function primary_mode_keeps_the_passing_structure_when_the_recheck_errors(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        // The first pass validates but buries the reading (no bible_reading near the sermon),
+        // triggering the recheck. The recheck's detector call then errors — a transient OpenAI
+        // timeout — which must not fail the already-valid run.
+        $readingless = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('prayer', 420.0, 590.0),
+            $this->section('sermon', 600.0, 2200.0),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'mock');
+        MockServiceStructureService::useStructureThenThrow(
+            $readingless,
+            new \RuntimeException('OpenAI timed out'),
+        );
+
+        $this->runJob($log);
+
+        $log->refresh();
+        $this->assertNotSame(ProcessingStatus::Failed, $log->status, 'A recheck error must not fail an already-valid run.');
+
+        $recheck = $log->processing_metadata?->toArray()['service_structure_reading_recheck'] ?? null;
+        $this->assertIsArray($recheck);
+        $this->assertSame('recheck_errored', $recheck['outcome']);
+
+        // The original validated structure stands, sermon flagged for the reviewer.
+        $sermon = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'sermon')
+            ->firstOrFail();
+        $this->assertTrue((bool) $sermon->needs_manual_review);
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
+            $sermon->metadata['review_flags'] ?? []
+        );
+        $this->assertEqualsWithDelta(600.0, (float) $log->sermon_start_time, 0.01);
+        $this->assertEqualsWithDelta(2200.0, (float) $log->sermon_end_time, 0.01);
+    }
+
+    #[Test]
     public function no_reading_recheck_runs_when_a_reading_sits_near_the_sermon(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');

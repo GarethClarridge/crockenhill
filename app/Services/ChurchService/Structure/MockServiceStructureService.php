@@ -19,7 +19,7 @@ class MockServiceStructureService implements ServiceStructureInterface
 {
     private static ?ServiceStructure $fixtureStructure = null;
 
-    /** @var list<ServiceStructure> */
+    /** @var list<ServiceStructure|\Throwable> */
     private static array $fixtureSequence = [];
 
     /**
@@ -75,6 +75,18 @@ class MockServiceStructureService implements ServiceStructureInterface
         self::$fixtureSequence = array_values($structures);
     }
 
+    /**
+     * Return the given structure on the first detection call, then throw on the next —
+     * models a transient detector error (OpenAI timeout, malformed JSON) during a retry.
+     * Reset with useStructure(null) in tearDown, as for a single fixture.
+     */
+    public static function useStructureThenThrow(ServiceStructure $structure, \Throwable $error): void
+    {
+        self::$fixtureStructure = null;
+        self::$fixtureSequence = [$structure, $error];
+        self::$lastFeedback = [];
+    }
+
     public function detect(
         ChurchServiceTranscript $transcript,
         array $oosItems,
@@ -84,9 +96,15 @@ class MockServiceStructureService implements ServiceStructureInterface
         self::$lastFeedback = $feedback;
 
         if (self::$fixtureSequence !== []) {
-            return count(self::$fixtureSequence) > 1
+            $next = count(self::$fixtureSequence) > 1
                 ? array_shift(self::$fixtureSequence)
                 : self::$fixtureSequence[0];
+
+            if ($next instanceof \Throwable) {
+                throw $next;
+            }
+
+            return $next;
         }
 
         if (self::$fixtureStructure instanceof ServiceStructure) {
