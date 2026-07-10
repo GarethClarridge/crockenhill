@@ -79,7 +79,7 @@ class TempDiskSpaceTest extends TestCase
     {
         // Set path to a non-existent directory to make disk_free_space return false
         Config::set('media-processing.storage.temp_disk', 'local');
-        Config::set('filesystems.disks.local.root', '/non-existent-directory-' . uniqid());
+        Config::set('filesystems.disks.local.root', '/non-existent-directory-'.uniqid());
 
         $this->assertTrue(TempDiskSpace::hasSpaceFor(1024));
     }
