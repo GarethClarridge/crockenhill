@@ -14,6 +14,7 @@ enum InboundEmailStatus: string
     case Processed = 'processed';
     case Failed = 'failed';
     case Rejected = 'rejected';
+    case ArchiveEval = 'archive_eval';
 
     public function label(): string
     {
@@ -22,6 +23,7 @@ enum InboundEmailStatus: string
             self::Processed => 'Processed',
             self::Failed => 'Failed',
             self::Rejected => 'Rejected',
+            self::ArchiveEval => 'Archive evaluation',
         };
     }
 }

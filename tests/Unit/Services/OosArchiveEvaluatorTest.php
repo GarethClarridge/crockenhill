@@ -1,0 +1,122 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\Services;
+
+use App\Data\OosArchiveEntry;
+use App\Data\OosEmailParseResult;
+use App\Enums\SermonService;
+use App\Services\Email\OosArchiveEvaluator;
+use Carbon\CarbonImmutable;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+
+class OosArchiveEvaluatorTest extends TestCase
+{
+    #[Test]
+    public function it_reports_per_entry_date_service_item_confidence_and_song_metrics(): void
+    {
+        $entry = $this->entry();
+        $parseResult = $this->parseResult();
+
+        $result = (new OosArchiveEvaluator)->evaluate(
+            $entry,
+            $parseResult,
+            disposition: 'eligible',
+            gateReasons: [],
+            songCanonicalKeys: ['amazing grace'],
+        );
+
+        $this->assertTrue($result['date']['matches']);
+        $this->assertSame('subject_textual', $result['date']['method']);
+        $this->assertSame(['morning', 'evening'], $result['services']['expected']);
+        $this->assertSame(['morning'], $result['services']['detected']);
+        $this->assertTrue($result['plans'][0]['exact_correct']);
+        $this->assertSame(1.0, $result['plans'][0]['ordered_item_quality']);
+        $this->assertSame(['hits' => 1, 'total' => 1, 'rate' => 1.0], $result['song_link']);
+        $this->assertTrue($result['gate_eligible']);
+    }
+
+    #[Test]
+    public function it_aggregates_metrics_only_over_the_appropriate_cohorts(): void
+    {
+        $evaluator = new OosArchiveEvaluator;
+        $correct = $evaluator->evaluate($this->entry(), $this->parseResult(), 'eligible');
+        $missedEvening = $evaluator->evaluate(
+            $this->entry(index: 2, services: ['evening']),
+            $this->parseResult(service: SermonService::Morning, date: '2026-07-19', confidence: 0.80),
+            'skipped',
+            ['service_not_in_ground_truth'],
+        );
+        $unverified = $evaluator->evaluate(
+            $this->entry(index: 3, labelQuality: 'unverified', services: []),
+            $this->parseResult(),
+            'skipped',
+            ['unverified_service_ground_truth'],
+        );
+
+        $aggregate = $evaluator->aggregate([$correct, $missedEvening, $unverified]);
+
+        $this->assertSame(['correct' => 2, 'total' => 3, 'rate' => 0.6667], $aggregate['date_accuracy']['all']);
+        $this->assertSame(0.5, $aggregate['service_metrics']['morning']['precision']);
+        $this->assertSame(1.0, $aggregate['service_metrics']['morning']['recall']);
+        $this->assertSame(0.0, $aggregate['service_metrics']['evening']['recall']);
+        $this->assertSame(['correct' => 1, 'total' => 1, 'rate' => 1.0], $aggregate['auto_import_precision']);
+        $this->assertSame(1, $aggregate['dispositions']['eligible']);
+        $this->assertSame(2, $aggregate['dispositions']['skipped']);
+        $this->assertArrayHasKey('0.90-1.00', $aggregate['confidence_calibration']);
+    }
+
+    /**
+     * @param  list<string>  $services
+     */
+    private function entry(
+        int $index = 1,
+        string $labelQuality = 'full',
+        array $services = ['morning', 'evening'],
+    ): OosArchiveEntry {
+        return new OosArchiveEntry(
+            index: $index,
+            heading: 'Sunday 12 July 2026',
+            subject: 'Details for Sunday 12 July 2026',
+            bodyPlain: 'Morning and evening',
+            headingDate: '2026-07-12',
+            correctedDate: null,
+            groundTruthDate: '2026-07-12',
+            labelQuality: $labelQuality,
+            servicesPresent: $services,
+            itemLineCounts: ['morning' => 2, 'evening' => 1],
+            itemLines: [
+                'morning' => ['Amazing Grace', 'Prayer'],
+                'evening' => ['Welcome'],
+            ],
+            flags: [],
+            syntheticMessageId: "<oos-archive-{$index}@crockenhill.local>",
+            inputHash: str_repeat('a', 64),
+            syntheticReceivedAt: CarbonImmutable::parse('2026-07-10 09:00', 'Europe/London'),
+        );
+    }
+
+    private function parseResult(
+        SermonService $service = SermonService::Morning,
+        string $date = '2026-07-12',
+        float $confidence = 0.95,
+    ): OosEmailParseResult {
+        return new OosEmailParseResult(
+            date: $date,
+            service: $service,
+            items: [
+                ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                ['position' => 2, 'type' => 'custom', 'title' => 'Prayer', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ],
+            confidenceScore: $confidence,
+            needsReview: false,
+            shouldImport: true,
+            importMetadata: [
+                'date_extraction' => ['method' => 'subject_textual'],
+                'confidence_score' => $confidence,
+            ],
+        );
+    }
+}
