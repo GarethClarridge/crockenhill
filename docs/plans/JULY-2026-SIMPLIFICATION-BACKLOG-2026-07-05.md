@@ -160,6 +160,20 @@ Start the operational steps immediately; the code steps interleave with other wo
 
 Source: church review §4.2 seams 1–4, §7 quick wins 1–4.
 
+> **Status 2026-07-10 — all four seams implemented, in review.** 1.1a = #1156 (independent),
+> 1.1b = #1157, 1.1c = #1158, 1.1d = #1159 (stacked; merge #1157 → #1158 → #1159). Corpus
+> evidence that cleared the start gate: test-files 91% / test-set-2 89% type accuracy, all three
+> bad runs caught by validators and routed to manual review. Codex review round addressed on the
+> branches: review roll-up now precedes the no-projectable-sections early-return (#1158), and
+> `structure:shadow-report` surfaces the new `diff.baseline` provenance (#1159). Two findings
+> against the *pre-existing* corpus-follow-up code split out: reading-recheck failure hardening
+> is PR #1161; whether `custom` OoS items should keep hard-chaining in `out_of_order_oos_items`
+> is an open maintainer decision (see #1161's description — the 2024-05-05 case itself is already
+> cleared by the raw-type fix, and narrowing further would flip a deliberately-pinned test).
+> Implementation notes for 1.5: the reconcile re-run never re-opens completed runs (naked
+> re-dispatch would strand them); the transcript artifact survives cleanup but the RMS log does
+> not, so reconcile re-detection loses silence snapping gracefully.
+
 - **1.1a [mechanical] — Type/registry/doc moves (quick).** Move the `ClassifiedSection` PHPStan type from
   `ServiceSectionClassifier` to `ServiceSectionSyncService`, repointing both importers
   (`ServiceSectionSyncService`, `ClassifySpeechSections`) in the same commit. Move
@@ -192,6 +206,12 @@ Set `SERVICE_STRUCTURE_MODE=shadow` with the real detector/transcriber in produc
 Sundays; run `structure:shadow-report`; fill a real manifest for `structure:evaluate`. The plan's
 suggested promotion gate: clean shadow evidence, then flip, then ~8 clean primary services before
 deletion.
+
+> **Status 2026-07-10 — awaiting the prod flip.** All three env lines are required (`detector`
+> and `transcription_service` default to `mock`): `SERVICE_STRUCTURE_MODE=shadow`,
+> `SERVICE_STRUCTURE_DETECTOR=openai`, `SERVICE_TRANSCRIPTION_SERVICE=openai`. Refresh the config
+> cache and restart Horizon while nothing is processing. ~£0.35 + one gpt-5 call per shadowed
+> service; shadow failures are swallowed and can never fail a run.
 
 ### 1.3 [design] Auto-trim migration (seam 5 — the real gate on deleting the classification jobs)
 
