@@ -85,30 +85,15 @@ $describedBy = implode(' ', $describedBy);
                 <p @if($id) id="{{ $id }}-hint" @endif class="text-sm text-gray-500">{{ $hint }}</p>
             @endif
             @if($maxlength)
-                <div class="flex items-center gap-1.5 ml-auto">
-                    <svg class="h-4 w-4 -rotate-90 transform" viewBox="0 0 20 20" aria-hidden="true">
-                        <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2.5" fill="none" class="text-gray-100" />
-                        <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2.5" fill="none"
-                            stroke-dasharray="50.27"
-                            :stroke-dashoffset="50.27 - (Math.min(count, limit) / limit) * 50.27"
-                            stroke-linecap="round"
-                            class="transition-all duration-300"
-                            :class="{
-                                'text-red-500': count >= limit,
-                                'text-amber-500': count >= (limit * 0.9) && count < limit,
-                                'text-cbc-teal': count < (limit * 0.9)
-                            }" />
-                    </svg>
-                    <p @if($id) id="{{ $id }}-counter" @endif class="text-xs tabular-nums transition-colors duration-200"
-                       :class="{
-                           'text-red-600 font-bold': limit && count >= limit,
-                           'text-amber-600 font-medium': limit && count >= (limit * 0.9) && count < limit,
-                           'text-gray-400': !limit || count < (limit * 0.9)
-                       }"
-                       aria-live="polite">
-                        <span x-text="count"></span> / {{ $maxlength }}
-                    </p>
-                </div>
+                <p @if($id) id="{{ $id }}-counter" @endif class="text-xs tabular-nums ml-auto transition-colors duration-200"
+                   :class="{
+                       'text-red-600 font-bold': limit && count >= limit,
+                       'text-amber-600 font-medium': limit && count >= (limit * 0.9) && count < limit,
+                       'text-gray-400': !limit || count < (limit * 0.9)
+                   }"
+                   aria-live="polite">
+                    <span x-text="count"></span> / {{ $maxlength }}
+                </p>
             @endif
         </div>
     @endif
