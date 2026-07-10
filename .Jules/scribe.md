@@ -25,3 +25,7 @@
 ## 2026-06-19 - [Pure Logic Service Testing]
 **Learning:** Unit testing a pure-logic service like `MediaInterludeCueDetector` that performs simple keyword matching is straightforward but essential for ensuring the robust detection of media interludes during structural section alignment.
 **Action:** Use descriptive test names that reflect the business rules (e.g., case-insensitivity, embedded phrases) and prefer `new Class` instantiation for services with no dependencies.
+
+## 2026-07-10 - [Testing Service Memoization with Query Logs]
+**Learning:** To verify that a service correctly memoizes database results within the same request (preventing redundant queries), use `DB::enableQueryLog()`, `DB::flushQueryLog()`, and `DB::getQueryLog()` to assert that subsequent calls do not trigger additional database queries.
+**Action:** Apply this pattern when testing repository-style services that implement internal request-level caching.
