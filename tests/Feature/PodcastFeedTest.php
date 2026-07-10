@@ -567,15 +567,27 @@ class PodcastFeedTest extends TestCase
     {
         $service = app(PodcastFeedService::class);
 
-        // Set some cache
-        Cache::put('podcast_feed_morning', collect([]), 3600);
-        Cache::put('podcast_feed_evening', collect([]), 3600);
+        $this->mockStorageServiceWithCallCounts(audioDeliveryUrlCalls: 4, fileSizeCalls: 4);
+
+        Sermon::factory()->create([
+            'service' => SermonService::Morning->value,
+            'audio_file_path' => 'morning.mp3',
+        ]);
+        Sermon::factory()->create([
+            'service' => SermonService::Evening->value,
+            'audio_file_path' => 'evening.mp3',
+        ]);
+
+        // Warm cache
+        $this->get('/christ/sermons/morning/feed')->assertStatus(200);
+        $this->get('/christ/sermons/evening/feed')->assertStatus(200);
 
         // Clear all
         $service->clearCache();
 
-        $this->assertNull(Cache::get('podcast_feed_morning'));
-        $this->assertNull(Cache::get('podcast_feed_evening'));
+        // Second requests should hit storage service again because cache was cleared
+        $this->get('/christ/sermons/morning/feed')->assertStatus(200);
+        $this->get('/christ/sermons/evening/feed')->assertStatus(200);
     }
 
     #[Test]
@@ -583,15 +595,30 @@ class PodcastFeedTest extends TestCase
     {
         $service = app(PodcastFeedService::class);
 
-        // Set some cache
-        Cache::put('podcast_feed_morning', collect([]), 3600);
-        Cache::put('podcast_feed_evening', collect([]), 3600);
+        // 2 calls for morning (initial + after clear), 1 for evening (cached)
+        $this->mockStorageServiceWithCallCounts(audioDeliveryUrlCalls: 3, fileSizeCalls: 3);
+
+        Sermon::factory()->create([
+            'service' => SermonService::Morning->value,
+            'audio_file_path' => 'morning.mp3',
+        ]);
+        Sermon::factory()->create([
+            'service' => SermonService::Evening->value,
+            'audio_file_path' => 'evening.mp3',
+        ]);
+
+        // Warm cache
+        $this->get('/christ/sermons/morning/feed')->assertStatus(200);
+        $this->get('/christ/sermons/evening/feed')->assertStatus(200);
 
         // Clear only morning
         $service->clearCache('morning');
 
-        $this->assertNull(Cache::get('podcast_feed_morning'));
-        $this->assertNotNull(Cache::get('podcast_feed_evening'));
+        // Morning should hit storage again
+        $this->get('/christ/sermons/morning/feed')->assertStatus(200);
+
+        // Evening should still be cached (no more storage calls expected for evening)
+        $this->get('/christ/sermons/evening/feed')->assertStatus(200);
     }
 
     #[Test]

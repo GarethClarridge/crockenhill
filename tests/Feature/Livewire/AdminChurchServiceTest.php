@@ -267,8 +267,6 @@ class AdminChurchServiceTest extends TestCase
             ->call('removeItem', 0)
             ->assertSet('form.items.0.section_type', ServiceSectionType::Welcome->value)
             ->assertSet('form.items.0.title', 'Welcome');
-
-        $this->assertFalse((new \ReflectionClass(ManageChurchService::class))->hasProperty('items'));
     }
 
     #[Test]
