@@ -36,7 +36,6 @@ class SermonMetadataIntegrationService
     {
         /** @var MediaProcessingLog $processing */
         $processing = MediaProcessingLog::query()->where('processing_id', $processingId)->firstOrFail();
-        /** @var Sermon $sermon */
         $sermon = Sermon::query()->findOrFail($sermonId);
 
         // Update sermon record with livestream information using data from processing log
@@ -108,12 +107,11 @@ class SermonMetadataIntegrationService
     private function extractSermonVideo(string $processingId): ?string
     {
         // First check if the processing log already has the sermon video path
-        /** @var MediaProcessingLog|null $processing */
         $processing = MediaProcessingLog::query()->where('processing_id', $processingId)->first();
 
         if ($processing && $processing->video_file_path) {
             // The path from ExtractSermon job is now a relative path, check temp disk first
-            $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+            $tempDisk = config('media-processing.storage.temp_disk', 'local');
             if (Storage::disk($tempDisk)->exists($processing->video_file_path)) {
                 $absolutePath = Storage::disk($tempDisk)->path($processing->video_file_path);
                 Log::debug('Found sermon video on temp disk', [
@@ -126,7 +124,7 @@ class SermonMetadataIntegrationService
             }
 
             // Fallback: check if it's already been moved to sermon disk
-            $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
+            $sermonDisk = config('media-processing.storage.sermon_disk', 'public');
             if (Storage::disk($sermonDisk)->exists($processing->video_file_path)) {
                 $absolutePath = Storage::disk($sermonDisk)->path($processing->video_file_path);
                 Log::debug('Found sermon video on sermon disk', [
@@ -147,7 +145,7 @@ class SermonMetadataIntegrationService
         }
 
         // Fallback: Look for sermon video in temp storage
-        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+        $tempDisk = config('media-processing.storage.temp_disk', 'local');
         $tempPath = "temp/livestreams/{$processingId}/segments";
 
         try {
@@ -191,7 +189,7 @@ class SermonMetadataIntegrationService
      */
     private function organizeVideoFile(string $videoPath, int $sermonId): string
     {
-        $sermonDiskName = (string) config('media-processing.storage.sermon_disk', 'public');
+        $sermonDiskName = config('media-processing.storage.sermon_disk', 'public');
 
         // Get the sermon storage disk
         $sermonDisk = Storage::disk($sermonDiskName);
@@ -263,7 +261,7 @@ class SermonMetadataIntegrationService
         $minutes = floor($duration / 60);
         $seconds = $duration % 60;
 
-        return sprintf('%dm %ds', (int) $minutes, (int) $seconds);
+        return sprintf('%dm %ds', $minutes, $seconds);
     }
 
     /**
@@ -304,7 +302,7 @@ class SermonMetadataIntegrationService
      * @param  int  $sermonId  The sermon ID
      * @return array{
      *     has_video: bool,
-     *     source_type?: \App\Enums\SermonSourceType|null,
+     *     source_type?: SermonSourceType|null,
      *     video_url?: string|null,
      *     video_path?: string|null,
      *     livestream_info?: array{
@@ -321,7 +319,6 @@ class SermonMetadataIntegrationService
      */
     public function getVideoInfo(int $sermonId): array
     {
-        /** @var Sermon|null $sermon */
         $sermon = Sermon::query()->with('livestreamProcessing.segments')->find($sermonId);
 
         if (! $sermon) {
@@ -364,14 +361,13 @@ class SermonMetadataIntegrationService
      */
     public function getVideoPreviewData(int $sermonId): array
     {
-        /** @var Sermon|null $sermon */
         $sermon = Sermon::query()->find($sermonId);
 
         if (! $sermon || ! $sermon->hasVideo()) {
             return ['has_video' => false];
         }
 
-        $sermonDisk = Storage::disk((string) config('media-processing.storage.sermon_disk', 'public'));
+        $sermonDisk = Storage::disk(config('media-processing.storage.sermon_disk', 'public'));
         $videoPath = $sermon->video_file_path;
 
         if (! is_string($videoPath) || $videoPath === '') {
@@ -462,19 +458,18 @@ class SermonMetadataIntegrationService
             return false;
         }
 
-        // For S3 files, we need to download temporarily for MIME type checking
-        $localPath = null;
+        $localPath = $videoPath;
         $isS3Download = false;
 
+        // Check if it's a valid video file (basic MIME type check)
         try {
-            $localPath = $disk
-                ? $this->storageHelper->downloadToTemp($videoPath, $disk, 'local', 'temp/validation')
-                : $videoPath;
+            if ($disk) {
+                $diskInstance = Storage::disk($disk);
+                $isS3Download = $this->storageHelper->isS3CompatibleDisk($diskInstance);
+                $localPath = $this->storageHelper->downloadToTemp($videoPath, $disk, 'local', 'temp/validation');
+            }
 
-            $isS3Download = $disk && $localPath !== Storage::disk($disk)->path($videoPath);
-
-            // Check if it's a valid video file (basic MIME type check)
-            $mimeType = mime_content_type((string) $localPath);
+            $mimeType = mime_content_type($localPath);
             if ($mimeType === false) {
                 Log::warning('Could not determine MIME type for video file', [
                     'video_path' => $videoPath,
@@ -482,7 +477,7 @@ class SermonMetadataIntegrationService
                 ]);
 
                 if ($isS3Download) {
-                    $this->storageHelper->cleanupTempFile((string) $localPath);
+                    $this->storageHelper->cleanupTempFile($localPath);
                 }
 
                 return false;
@@ -502,7 +497,7 @@ class SermonMetadataIntegrationService
             }
 
             if ($isS3Download) {
-                $this->storageHelper->cleanupTempFile((string) $localPath);
+                $this->storageHelper->cleanupTempFile($localPath);
             }
 
             return $isValid;
@@ -514,7 +509,7 @@ class SermonMetadataIntegrationService
             ]);
 
             if ($isS3Download) {
-                $this->storageHelper->cleanupTempFile((string) $localPath);
+                $this->storageHelper->cleanupTempFile($localPath);
             }
 
             return false;
