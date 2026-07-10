@@ -24,6 +24,7 @@ class LivestreamChurchServiceProjectionService
         private readonly ChurchServiceItemSyncService $itemSyncService,
         private readonly ChurchServiceCanonicalStateService $canonicalStateService,
         private readonly ChurchServiceCanonicalUpdateService $canonicalUpdateService,
+        private readonly ChurchServiceReviewSynchronizer $reviewSynchronizer,
     ) {}
 
     /**
@@ -53,6 +54,12 @@ class LivestreamChurchServiceProjectionService
 
         if ($churchService !== null && $this->hasNonLivestreamItems($churchService)) {
             $this->linkProcessingLogToService($processingLog, $churchService);
+
+            // OoS-backed services never reach projectItems()' needs_review
+            // propagation, and in primary mode no alignment pass rolls section
+            // review state up to the service — without this, a low-confidence
+            // structure run would never reach the review inbox.
+            $this->reviewSynchronizer->openReviewFromSections($churchService, $sections);
 
             return $this->skipped(
                 'Matching service contains non-livestream items; skipping projection',

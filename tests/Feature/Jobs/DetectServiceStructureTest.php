@@ -593,6 +593,43 @@ class DetectServiceStructureTest extends TestCase
     }
 
     #[Test]
+    public function a_reconcile_run_rolls_section_review_state_up_to_the_oos_backed_service(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $churchService = ChurchService::factory()->create(['needs_review' => false]);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Opening Song',
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'current_step' => 'completed',
+            'church_service_id' => $churchService->id,
+        ]);
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        // A sub-threshold sermon: the validator soft-flags it, so the synced
+        // section needs manual review — that must reach the service inbox.
+        MockServiceStructureService::useStructure(ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('bible_reading', 420.0, 590.0),
+            $this->section('sermon', 600.0, 2200.0, confidence: 0.4),
+            $this->section('song', 2210.0, 2400.0),
+        ], ['Fixture structure.'], 'mock'));
+
+        $this->runJob($log, reconcile: true);
+
+        $this->assertTrue(
+            $churchService->fresh()->needs_review,
+            'A low-confidence reconcile re-detection must reach the review inbox.'
+        );
+    }
+
+    #[Test]
     public function a_reconcile_run_keeps_existing_sections_and_run_state_on_hard_validation_failure(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');

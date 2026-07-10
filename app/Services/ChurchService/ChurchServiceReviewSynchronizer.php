@@ -52,6 +52,35 @@ class ChurchServiceReviewSynchronizer
     }
 
     /**
+     * Open service-level review when any of the run's sections still needs
+     * manual review — without rewriting review triggers and without ever
+     * closing review.
+     *
+     * The LLM structure path uses this on OoS-backed services, where
+     * projection early-returns before its own needs_review propagation and no
+     * alignment pass owns the trigger list; closing review stays with sync()
+     * and the operators.
+     *
+     * @param  EloquentCollection<int, ServiceSection>  $sections
+     */
+    public function openReviewFromSections(ChurchService $churchService, EloquentCollection $sections): void
+    {
+        if ($churchService->needs_review) {
+            return;
+        }
+
+        $needsSectionReview = $sections->contains(
+            fn (ServiceSection $section): bool => $section->needs_manual_review
+        );
+
+        if (! $needsSectionReview) {
+            return;
+        }
+
+        $churchService->forceFill(['needs_review' => true])->saveQuietly();
+    }
+
+    /**
      * @param  array<string, mixed>  $importMetadata
      */
     private function hasImportReviewSignal(ChurchService $churchService, array $importMetadata): bool

@@ -16,6 +16,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
@@ -264,12 +265,36 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
         $syncService->sync($this->processingLog, $classified);
 
+        if ($this->reconcile) {
+            $this->openServiceReviewFromSyncedSections();
+        }
+
         $this->writeBackSermonBounds($classified);
 
         $this->logStepComplete(
             ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE,
             sprintf('Persisted %d LLM-detected section(s)', count($classified))
         );
+    }
+
+    /**
+     * ProjectLivestreamServiceStructure does not run on a reconcile re-run, so
+     * roll section review state up to the linked service here (additive only —
+     * a clean re-detection never closes an open review).
+     */
+    private function openServiceReviewFromSyncedSections(): void
+    {
+        $churchService = $this->resolveChurchService();
+
+        if (! $churchService instanceof ChurchService) {
+            return;
+        }
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $this->processingLog->id)
+            ->get();
+
+        app(ChurchServiceReviewSynchronizer::class)->openReviewFromSections($churchService, $sections);
     }
 
     /**

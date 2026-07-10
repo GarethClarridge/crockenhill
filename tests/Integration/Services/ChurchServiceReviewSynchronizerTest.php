@@ -191,4 +191,74 @@ class ChurchServiceReviewSynchronizerTest extends TestCase
         $this->assertTrue($churchService->needs_review);
         $this->assertSame(ChurchServiceCanonicalConflictState::Reopened, $churchService->canonical_conflict_state);
     }
+
+    // ── additive roll-up (openReviewFromSections) ────────────────────────────
+
+    #[Test]
+    public function it_opens_review_when_a_section_needs_manual_review(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-10-19',
+            'service' => SermonService::Morning->value,
+            'needs_review' => false,
+            'import_metadata' => [
+                'review_triggers' => ['unmatched_song_sections'],
+            ],
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => MediaProcessingLog::factory()->livestream()->create()->id,
+            'needs_manual_review' => true,
+        ]);
+
+        $this->synchronizer->openReviewFromSections($churchService, new EloquentCollection([$section]));
+
+        $churchService->refresh();
+        $this->assertTrue($churchService->needs_review);
+        $this->assertSame(
+            ['unmatched_song_sections'],
+            $churchService->import_metadata?->toArray()['review_triggers'] ?? null,
+            'The additive roll-up never rewrites review triggers.'
+        );
+    }
+
+    #[Test]
+    public function it_never_closes_review_from_the_additive_roll_up(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-10-26',
+            'service' => SermonService::Morning->value,
+            'needs_review' => true,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => MediaProcessingLog::factory()->livestream()->create()->id,
+            'needs_manual_review' => false,
+        ]);
+
+        $this->synchronizer->openReviewFromSections($churchService, new EloquentCollection([$section]));
+
+        $churchService->refresh();
+        $this->assertTrue($churchService->needs_review);
+    }
+
+    #[Test]
+    public function it_leaves_review_closed_when_no_section_needs_manual_review(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-11-02',
+            'service' => SermonService::Morning->value,
+            'needs_review' => false,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => MediaProcessingLog::factory()->livestream()->create()->id,
+            'needs_manual_review' => false,
+        ]);
+
+        $this->synchronizer->openReviewFromSections($churchService, new EloquentCollection([$section]));
+
+        $churchService->refresh();
+        $this->assertFalse($churchService->needs_review);
+    }
 }
