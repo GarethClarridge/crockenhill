@@ -379,15 +379,39 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             'sermon_start' => $sermonStart,
         ]);
 
-        [$retry] = $this->detectAndValidate($detector, $snapService, $validator, [sprintf(
-            'The previous attempt found a sermon starting at %.0f seconds but no bible_reading section '
-            .'in the %.0f minutes before it. The preached passage is usually read shortly before the '
-            .'sermon and may be embedded inside another section (often a prayer, or the sermon opening). '
-            .'If a distinct Bible reading is present there, return it as its own bible_reading section '
-            .'with its reading_reference; do NOT invent one if no reading occurs.',
-            $sermonStart,
-            $windowSeconds / 60.0,
-        )]);
+        try {
+            [$retry] = $this->detectAndValidate($detector, $snapService, $validator, [sprintf(
+                'The previous attempt found a sermon starting at %.0f seconds but no bible_reading section '
+                .'in the %.0f minutes before it. The preached passage is usually read shortly before the '
+                .'sermon and may be embedded inside another section (often a prayer, or the sermon opening). '
+                .'If a distinct Bible reading is present there, return it as its own bible_reading section '
+                .'with its reading_reference; do NOT invent one if no reading occurs.',
+                $sermonStart,
+                $windowSeconds / 60.0,
+            )]);
+        } catch (\Throwable $exception) {
+            // The recheck is a best-effort recovery on an already-passing run; a transient
+            // detector error (OpenAI timeout, malformed JSON, a missing artifact) must never
+            // downgrade that pass to a job failure. Keep the validated structure, sermon flagged.
+            Log::warning('Missing-reading recheck failed; keeping the original validated structure', [
+                'processing_id' => $this->processingLog->processing_id,
+                'sermon_start' => $sermonStart,
+                'recheck_error' => $exception->getMessage(),
+            ]);
+
+            $this->putStructureMetadata('service_structure_reading_recheck', [
+                'generated_at' => now()->toIso8601String(),
+                'outcome' => 'recheck_errored',
+                'sermon_start' => $sermonStart,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return new ValidationResult(
+                structure: $this->withSermonFlagged($result->structure),
+                hardFailures: $result->hardFailures,
+                unmatchedOosItemIds: $result->unmatchedOosItemIds,
+            );
+        }
 
         if ($retry->passed() && $this->readinglessSermonStart($retry->structure) === null) {
             $this->putStructureMetadata('service_structure_reading_recheck', [
