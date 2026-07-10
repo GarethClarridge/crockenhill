@@ -232,6 +232,10 @@ class OpenAiServiceStructureServiceTest extends TestCase
         $this->assertStringContainsString('exactly ONE primary sermon', $prompt['system']);
         $this->assertStringContainsString('ONE section', $prompt['system']);
         $this->assertStringContainsString('childrens_talk ONLY with structural cues', $prompt['system']);
+        $this->assertStringContainsString('object lesson, a catechism question', $prompt['system']);
+        $this->assertStringContainsString('do NOT label it prayer or other merely because', $prompt['system']);
+        $this->assertStringContainsString('that prayer belongs INSIDE the sermon section', $prompt['system']);
+        $this->assertStringContainsString('sermon_reference', $prompt['system']);
         $this->assertStringContainsString('MUST come from the supplied cue', $prompt['system']);
         $this->assertStringContainsString('British English', $prompt['system']);
     }

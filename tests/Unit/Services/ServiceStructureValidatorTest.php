@@ -280,6 +280,50 @@ class ServiceStructureValidatorTest extends TestCase
     }
 
     #[Test]
+    public function semantic_other_items_of_different_raw_types_claimed_out_of_printed_order_pass_with_a_soft_flag(): void
+    {
+        // The 2024-05-05 corpus run: a `custom` "Reading" slide (position 6)
+        // anchored the opening Psalm and the `presentations` children's-talk
+        // PowerPoint (position 3) followed it. Both map to semantic `other`,
+        // but they were never a same-type block in the printed OoS, so the
+        // hard out_of_order_oos_items rule must not fire — the inversion is a
+        // cross-type one and earns only the soft review flag.
+        $structure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0, oosItemId: 1),
+            $this->section('bible_reading', 120.0, 300.0, oosItemId: 7),
+            $this->section('childrens_talk', 300.0, 800.0, oosItemId: 8),
+            $this->section('sermon', 800.0, 2200.0, oosItemId: 4),
+        ]);
+
+        $result = $this->validator->validate($structure, $this->contextWithSemanticOtherCollision());
+
+        $this->assertTrue($result->passed());
+        $this->assertNotContains('out_of_order_oos_items', $result->failureCodes());
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION,
+            $result->structure->sections[2]->reviewFlags
+        );
+    }
+
+    #[Test]
+    public function same_raw_type_items_claimed_out_of_printed_order_still_fail_hard(): void
+    {
+        // Two `presentations` items form a genuine same-type chain: claiming
+        // the later-printed one first still signals a detector swap.
+        $structure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0, oosItemId: 1),
+            $this->section('other', 120.0, 300.0, oosItemId: 9),
+            $this->section('childrens_talk', 300.0, 800.0, oosItemId: 8),
+            $this->section('sermon', 800.0, 2200.0, oosItemId: 4),
+        ]);
+
+        $result = $this->validator->validate($structure, $this->contextWithSemanticOtherCollision());
+
+        $this->assertFalse($result->passed());
+        $this->assertContains('out_of_order_oos_items', $result->failureCodes());
+    }
+
+    #[Test]
     public function items_claimed_in_planned_order_with_gaps_pass(): void
     {
         $structure = ServiceStructure::fromSections([
@@ -425,6 +469,32 @@ class ServiceStructureValidatorTest extends TestCase
                 4 => ServiceSectionType::Sermon,
             ],
             oosItemPositions: [1 => 1, 2 => 2, 6 => 3, 3 => 4, 4 => 5],
+        );
+    }
+
+    /**
+     * OoS items where two different raw OpenLP types (`custom` "Reading" at
+     * position 6, `presentations` PowerPoints at positions 3 and 7) collapse
+     * into the same semantic `other` bucket — the 2024-05-05 corpus shape.
+     */
+    private function contextWithSemanticOtherCollision(): ValidationContext
+    {
+        return new ValidationContext(
+            recordingDuration: 2430.0,
+            speechDuration: 2300.0,
+            oosItemTypes: [
+                1 => ServiceSectionType::Welcome,
+                8 => ServiceSectionType::Other,
+                4 => ServiceSectionType::Sermon,
+                7 => ServiceSectionType::Other,
+                9 => ServiceSectionType::Other,
+            ],
+            oosItemPositions: [1 => 1, 8 => 3, 4 => 5, 7 => 6, 9 => 7],
+            oosItemRawTypes: [
+                7 => 'custom',
+                8 => 'presentations',
+                9 => 'presentations',
+            ],
         );
     }
 

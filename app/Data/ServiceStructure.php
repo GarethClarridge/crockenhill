@@ -203,6 +203,13 @@ final readonly class ServiceStructure extends JsonData
             $metadata['reading_reference_source'] = 'llm_structure';
         }
 
+        if ($section->sermonReference !== null) {
+            // SermonExtractionPlanResolver's strongest pairing evidence: the
+            // reading whose reference overlaps this is the preached text.
+            $metadata['sermon_reference'] = $section->sermonReference;
+            $metadata['sermon_reference_source'] = 'llm_structure';
+        }
+
         if ($section->songTitle !== null) {
             $metadata['song_title'] = $section->songTitle;
             // MatchSongsFromTranscript's first-choice input: its title-hint

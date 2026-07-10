@@ -104,13 +104,35 @@ class ScriptureReferenceResolver
     }
 
     /**
-     * Whether any left/right passage pair overlaps without one containing the
-     * other — i.e. the two references cross rather than one subdividing the
-     * other, so each side reads verses beyond their shared span.
+     * Whether two references share any verses at all — the loosest comparison,
+     * for evidence ranking rather than gating.
      *
-     * @param  list<array{0: int, 1: int}>  $leftSpans
-     * @param  list<array{0: int, 1: int}>  $rightSpans
+     * A sermon usually expounds a subrange of the passage read (reading
+     * "1 Timothy 3:14-4:16", sermon on "4:7-10"), and may also read past it —
+     * a crossing overlap referencesAgree() would reject. Ranking the preached
+     * text only needs to know the two passages touch; an unparseable side
+     * never overlaps.
      */
+    public function referencesOverlap(string $left, string $right): bool
+    {
+        $leftSpans = $this->verseSpans($left);
+        $rightSpans = $this->verseSpans($right);
+
+        if ($leftSpans === [] || $rightSpans === []) {
+            return false;
+        }
+
+        foreach ($leftSpans as [$from, $to]) {
+            foreach ($rightSpans as [$otherFrom, $otherTo]) {
+                if ($from <= $otherTo && $to >= $otherFrom) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Whether one reference's overall span [min from, max to] contains the
      * other's. The same reading split at different points still nests; two

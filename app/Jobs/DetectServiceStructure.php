@@ -198,6 +198,10 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
         }
 
+        if ($result->passed()) {
+            $result = $this->recheckMissingPreachedReading($result, $detector, $snapService, $validator);
+        }
+
         if (! $result->passed()) {
             $reasonMessage = 'Detected service structure failed validation: '.$result->failureSummary();
             $evaluation = $sermonConfidenceService->evaluateForProcessingLog($this->processingLog);
@@ -341,6 +345,121 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     }
 
     /**
+     * A validated structure with a sermon but no Bible reading anywhere near
+     * it almost always means the detector buried the preached passage inside
+     * another section (the 2024-11-03 corpus run absorbed the Luke reading
+     * into the pastoral prayer) — sermon extraction would then publish audio
+     * without its reading. One feedback-guided retry names the anomaly to the
+     * detector; its result is adopted only when it validates AND recovers a
+     * reading, so reconsideration can never make a passing run worse. When
+     * the retry finds nothing the original structure stands, with the sermon
+     * flagged for the reviewer (a non-disqualifying flag — see
+     * SermonAutoExtractionPolicy).
+     */
+    private function recheckMissingPreachedReading(
+        ValidationResult $result,
+        ServiceStructureInterface $detector,
+        SilenceSnapService $snapService,
+        ServiceStructureValidator $validator,
+    ): ValidationResult {
+        if (! (bool) config('media-processing.service_structure.reading_recheck', true)) {
+            return $result;
+        }
+
+        $sermonStart = $this->readinglessSermonStart($result->structure);
+
+        if ($sermonStart === null) {
+            return $result;
+        }
+
+        $windowSeconds = $this->readingPairingWindowSeconds();
+
+        Log::info('Validated structure lacks a reading near the sermon; retrying detection with feedback', [
+            'processing_id' => $this->processingLog->processing_id,
+            'sermon_start' => $sermonStart,
+        ]);
+
+        [$retry] = $this->detectAndValidate($detector, $snapService, $validator, [sprintf(
+            'The previous attempt found a sermon starting at %.0f seconds but no bible_reading section '
+            .'in the %.0f minutes before it. The preached passage is usually read shortly before the '
+            .'sermon and may be embedded inside another section (often a prayer, or the sermon opening). '
+            .'If a distinct Bible reading is present there, return it as its own bible_reading section '
+            .'with its reading_reference; do NOT invent one if no reading occurs.',
+            $sermonStart,
+            $windowSeconds / 60.0,
+        )]);
+
+        if ($retry->passed() && $this->readinglessSermonStart($retry->structure) === null) {
+            $this->putStructureMetadata('service_structure_reading_recheck', [
+                'generated_at' => now()->toIso8601String(),
+                'outcome' => 'retry_adopted',
+                'sermon_start' => $sermonStart,
+            ]);
+
+            return $retry;
+        }
+
+        $this->putStructureMetadata('service_structure_reading_recheck', [
+            'generated_at' => now()->toIso8601String(),
+            'outcome' => 'reading_still_missing',
+            'sermon_start' => $sermonStart,
+            'retry_passed_validation' => $retry->passed(),
+        ]);
+
+        return new ValidationResult(
+            structure: $this->withSermonFlagged($result->structure),
+            hardFailures: $result->hardFailures,
+            unmatchedOosItemIds: $result->unmatchedOosItemIds,
+        );
+    }
+
+    /**
+     * The sermon's start time when the structure has a sermon but no
+     * bible_reading section ending within the pairing window before it;
+     * null when there is no sermon or a reading sits close enough.
+     */
+    private function readinglessSermonStart(ServiceStructure $structure): ?float
+    {
+        $sermons = $structure->sectionsOfType(ServiceSectionType::Sermon);
+
+        if ($sermons === []) {
+            return null;
+        }
+
+        $sermonStart = $sermons[0]->startTime;
+        $windowSeconds = $this->readingPairingWindowSeconds();
+
+        foreach ($structure->sectionsOfType(ServiceSectionType::BibleReading) as $reading) {
+            if ($reading->endTime <= $sermonStart && $sermonStart - $reading->endTime <= $windowSeconds) {
+                return null;
+            }
+        }
+
+        return $sermonStart;
+    }
+
+    /**
+     * The same window SermonExtractionPlanResolver pairs readings within —
+     * a reading further out would not reach the published audio anyway.
+     */
+    private function readingPairingWindowSeconds(): float
+    {
+        return (float) config('media-processing.section_extraction.enhanced_sermon.max_pairing_gap_seconds', 900);
+    }
+
+    private function withSermonFlagged(ServiceStructure $structure): ServiceStructure
+    {
+        $sections = array_map(
+            static fn ($section) => $section->type === ServiceSectionType::Sermon
+                ? $section->withReviewFlags([ServiceStructureValidator::FLAG_MISSING_PREACHED_READING])
+                : $section,
+            $structure->sections
+        );
+
+        return new ServiceStructure($sections, $structure->notes, $structure->model);
+    }
+
+    /**
      * Whether the validation failure indicates mechanically impossible detector
      * output rather than a semantic judgement call.
      *
@@ -357,12 +476,14 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     }
 
     /**
+     * @param  list<string>  $feedback
      * @return array{0: ValidationResult, 1: ChurchServiceTranscript}
      */
     private function detectAndValidate(
         ServiceStructureInterface $detector,
         SilenceSnapService $snapService,
         ServiceStructureValidator $validator,
+        array $feedback = [],
     ): array {
         $transcript = $this->loadTranscript();
         $oosItems = $this->loadOosItems();
@@ -370,7 +491,8 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         $structure = $detector->detect(
             $transcript,
             $this->oosItemPayloads($oosItems),
-            $this->processingLog->processing_id
+            $this->processingLog->processing_id,
+            $feedback
         );
 
         $structure = $this->snapToSilences($structure, $snapService);

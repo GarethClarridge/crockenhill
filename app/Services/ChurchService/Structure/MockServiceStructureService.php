@@ -37,6 +37,9 @@ class MockServiceStructureService implements ServiceStructureInterface
         'song' => ['hymn', 'sing', 'praise my soul'],
     ];
 
+    /** @var list<string> */
+    private static array $lastFeedback = [];
+
     /**
      * Set the structure the next detection call should return.
      *
@@ -47,6 +50,18 @@ class MockServiceStructureService implements ServiceStructureInterface
     {
         self::$fixtureStructure = $structure;
         self::$fixtureSequence = [];
+        self::$lastFeedback = [];
+    }
+
+    /**
+     * The feedback notes the most recent detection call received — lets tests
+     * assert a retry actually carried its correction to the detector.
+     *
+     * @return list<string>
+     */
+    public static function lastFeedback(): array
+    {
+        return self::$lastFeedback;
     }
 
     /**
@@ -64,7 +79,10 @@ class MockServiceStructureService implements ServiceStructureInterface
         ChurchServiceTranscript $transcript,
         array $oosItems,
         ?string $processingId = null,
+        array $feedback = [],
     ): ServiceStructure {
+        self::$lastFeedback = $feedback;
+
         if (self::$fixtureSequence !== []) {
             return count(self::$fixtureSequence) > 1
                 ? array_shift(self::$fixtureSequence)

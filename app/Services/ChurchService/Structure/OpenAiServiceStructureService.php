@@ -37,9 +37,17 @@ Rules:
 - Label a section childrens_talk ONLY with structural cues that it is genuinely aimed at children:
   the children are addressed or called forward, are dismissed to their groups afterwards, or the
   speaker addresses parents about the children. Interactive question-and-answer alone is not enough.
+  When those cues ARE present — an object lesson, a catechism question taught simply, everyday
+  illustrations pitched at children, or an order-of-service presentation whose title suggests a
+  children's slot — do NOT label it prayer or other merely because the speaker also prays or the
+  talk is informal; the whole talk is ONE childrens_talk section.
 - A service has exactly ONE primary sermon unless one is genuinely absent. When you cannot tell
   which block is the sermon, choose the best candidate and report LOW confidence rather than guess
   a second sermon into existence.
+- When the preacher immediately concludes the sermon with a short prayer responding to what was
+  preached (before any hymn, song or handover), that prayer belongs INSIDE the sermon section —
+  the sermon ends when the preacher stops speaking. A closing prayer led by a DIFFERENT speaker,
+  or one that follows a hymn or other intervening item, is its own prayer section.
 - oos_item_id: the id of the matching order-of-service item. Use each id AT MOST ONCE across all
   sections, and use null when no item clearly matches. Match on both the OoS text and the words
   actually spoken. Items of the SAME type (e.g. two songs) must be claimed in their planned
@@ -51,6 +59,8 @@ Rules:
 - song_title: only for type=song — the sung title as heard in the transcript, for database
   confirmation. Null otherwise.
 - reading_reference: only for type=bible_reading — the passage read, e.g. "Joshua 1:1-9". Null otherwise.
+- sermon_reference: only for type=sermon — the main passage the sermon expounds, when it is stated
+  or clearly identifiable from the preaching, e.g. "Philippians 2:5-11". Null otherwise or when unsure.
 - start_time and end_time are seconds into the recording and MUST come from the supplied cue
   timestamps — each transcript line gives its cue's start and end. Never estimate a time that no
   cue supports.
@@ -62,6 +72,7 @@ TEXT;
         ChurchServiceTranscript $transcript,
         array $oosItems,
         ?string $processingId = null,
+        array $feedback = [],
     ): ServiceStructure {
         if (empty(config('media-processing.analysis.openai_api_key') ?? config('openai.api_key'))) {
             throw new RuntimeException('OpenAI API key not configured for service structure detection.');
@@ -72,7 +83,7 @@ TEXT;
         }
 
         $model = (string) config('media-processing.service_structure.model', 'gpt-5');
-        $prompt = $this->buildPrompt($transcript, $oosItems);
+        $prompt = $this->buildPrompt($transcript, $oosItems, $feedback);
 
         try {
             $response = OpenAI::chat()->create(OpenAiChatPayload::forModel([
@@ -139,9 +150,10 @@ TEXT;
      * a given transcript + OoS produce.
      *
      * @param  array<int, array{id: int, position: int, type: string, title: ?string, song_id: ?int}>  $oosItems
+     * @param  list<string>  $feedback
      * @return array{system: string, user: string}
      */
-    public function buildPrompt(ChurchServiceTranscript $transcript, array $oosItems): array
+    public function buildPrompt(ChurchServiceTranscript $transcript, array $oosItems, array $feedback = []): array
     {
         $lines = [
             sprintf(
@@ -150,6 +162,14 @@ TEXT;
                 $transcript->duration / 60.0
             ),
         ];
+
+        if ($feedback !== []) {
+            $lines[] = 'Corrections from a previous detection attempt of this recording — address them:';
+
+            foreach ($feedback as $note) {
+                $lines[] = '- '.$note;
+            }
+        }
 
         if ($oosItems === []) {
             $lines[] = 'No order of service is available for this recording; every oos_item_id must be null.';
@@ -206,6 +226,7 @@ TEXT;
                                     'oos_item_id',
                                     'song_title',
                                     'reading_reference',
+                                    'sermon_reference',
                                     'notes',
                                 ],
                                 'properties' => [
@@ -229,6 +250,7 @@ TEXT;
                                     'oos_item_id' => ['type' => ['integer', 'null']],
                                     'song_title' => ['type' => ['string', 'null']],
                                     'reading_reference' => ['type' => ['string', 'null']],
+                                    'sermon_reference' => ['type' => ['string', 'null']],
                                     'notes' => [
                                         'type' => 'array',
                                         'items' => ['type' => 'string'],

@@ -122,6 +122,9 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
         $this->assertSame('Joshua 1:1-9', $reading->metadata['reading_reference']);
         $this->assertSame('llm_structure', $reading->metadata['reading_reference_source']);
 
+        $this->assertSame('Joshua 1:5-9', $sermon->metadata['sermon_reference']);
+        $this->assertSame('llm_structure', $sermon->metadata['sermon_reference_source']);
+
         $song = $sections->firstWhere('section_type', ServiceSectionType::Song);
         $this->assertSame('Praise My Soul the King of Heaven', $song->metadata['song_title']);
         $this->assertSame(
@@ -266,7 +269,7 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
         return ServiceStructure::fromSections([
             $this->section('welcome', 0.0, 120.0),
             $this->section('bible_reading', 420.0, 590.0, oosItemId: $readingItemId, readingReference: 'Joshua 1:1-9'),
-            $this->section('sermon', 600.0, 2200.0, oosItemId: $sermonItemId, confidence: $sermonConfidence),
+            $this->section('sermon', 600.0, 2200.0, oosItemId: $sermonItemId, confidence: $sermonConfidence, sermonReference: 'Joshua 1:5-9'),
             $this->section('song', 2210.0, 2400.0, songTitle: 'Praise My Soul the King of Heaven'),
         ], ['Detected cleanly.'], 'gpt-5');
     }
@@ -279,6 +282,7 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
         float $confidence = 0.95,
         ?string $readingReference = null,
         ?string $songTitle = null,
+        ?string $sermonReference = null,
     ): ServiceStructureSection {
         $section = ServiceStructureSection::fromArray([
             'type' => $type,
@@ -288,6 +292,7 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
             'oos_item_id' => $oosItemId,
             'reading_reference' => $readingReference,
             'song_title' => $songTitle,
+            'sermon_reference' => $sermonReference,
         ]);
 
         assert($section instanceof ServiceStructureSection);

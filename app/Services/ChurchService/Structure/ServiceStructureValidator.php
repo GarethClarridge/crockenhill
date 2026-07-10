@@ -27,6 +27,14 @@ class ServiceStructureValidator
     public const FLAG_OOS_CROSS_TYPE_INVERSION = 'structure_oos_cross_type_inversion';
 
     /**
+     * Applied by DetectServiceStructure when a validated structure has a
+     * sermon but no bible_reading section near it, and a feedback-guided
+     * retry could not recover one — the reading is likely embedded in
+     * another section, so the published sermon audio would lack it.
+     */
+    public const FLAG_MISSING_PREACHED_READING = 'structure_missing_preached_reading';
+
+    /**
      * Seconds of slack allowed at the end of the recording (transcription
      * duration and section ends can disagree by a rounding margin).
      */
@@ -286,10 +294,18 @@ class ServiceStructureValidator
             // detector swap — persisting each section against the wrong
             // service item — so only that fails hard; a cross-type inversion
             // is a legitimate authoring style and merely earns a review flag.
+            //
+            // "Same type" means the RAW OpenLP type: only raw types (songs,
+            // bibles) are authored as printed blocks. The semantic mapping
+            // collapses distinct raw types into one bucket (a `custom`
+            // "Reading" slide and a `presentations` children's-talk file both
+            // become `other`), and items that were never a printed block must
+            // not be chained by it (the 2024-05-05 corpus false alarm).
+            $orderingType = $context->oosItemRawTypes[$itemId] ?? $itemType->value;
             $position = $context->oosItemPositions[$itemId] ?? null;
 
             if ($position !== null) {
-                $lastOfType = $lastClaimedByType[$itemType->value] ?? null;
+                $lastOfType = $lastClaimedByType[$orderingType] ?? null;
 
                 if ($lastOfType !== null && $position < $lastOfType['position']) {
                     $hardFailures[] = [
@@ -304,7 +320,7 @@ class ServiceStructureValidator
                         ),
                     ];
                 } else {
-                    $lastClaimedByType[$itemType->value] = ['itemId' => $itemId, 'position' => $position];
+                    $lastClaimedByType[$orderingType] = ['itemId' => $itemId, 'position' => $position];
 
                     if ($highestClaimedPosition !== null && $position < $highestClaimedPosition) {
                         $crossTypeInversions[$index] = true;

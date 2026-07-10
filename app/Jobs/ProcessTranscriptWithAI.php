@@ -279,6 +279,15 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             return true;
         }
 
+        // Check for date-only titles created from date-named uploads, e.g.
+        // "Sunday 3Rd May 2026" (title-cased from "Sunday 3rd May 2026.mp4")
+        if (preg_match(
+            '/^(?:(?:sun|mon|tues|wednes|thurs|fri|satur)day\s+)?\d{1,2}(?:st|nd|rd|th)?\s+[a-z]+\s+\d{4}$/i',
+            $normalizedTitle
+        )) {
+            return true;
+        }
+
         // Check for hash-like patterns (long strings of random characters)
         // Look for 20+ contiguous lowercase letters/numbers without spaces
         if (preg_match('/[a-z0-9]{20,}/i', $normalizedTitle)) {

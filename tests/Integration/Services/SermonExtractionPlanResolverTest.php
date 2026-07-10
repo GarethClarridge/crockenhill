@@ -24,7 +24,7 @@ class SermonExtractionPlanResolverTest extends TestCase
     {
         parent::setUp();
 
-        $this->resolver = new SermonExtractionPlanResolver;
+        $this->resolver = app(SermonExtractionPlanResolver::class);
     }
 
     #[Test]
@@ -71,6 +71,35 @@ class SermonExtractionPlanResolverTest extends TestCase
             'metadata' => [
                 'confidence_level' => 'high',
                 'review_flags' => ['structure_oos_cross_type_inversion'],
+            ],
+        ]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('service_sections', $plan['source']);
+        $this->assertSame(500.0, $plan['segments'][0]['start_time']);
+        $this->assertSame(1200.0, $plan['segments'][0]['end_time']);
+    }
+
+    #[Test]
+    public function it_accepts_a_sermon_section_flagged_only_for_a_missing_preached_reading(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        // A missing preached reading questions what surrounds the sermon, not
+        // its boundaries — extraction must not demote to the RMS baseline.
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'start_time' => 500.0,
+            'end_time' => 1200.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'review_flags' => ['structure_missing_preached_reading'],
             ],
         ]);
 
@@ -348,6 +377,55 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     #[Test]
+    public function it_prefers_the_reading_matching_the_sermon_reference_over_a_longer_earlier_one(): void
+    {
+        config(['media-processing.section_extraction.enhanced_sermon.min_reading_duration_seconds' => 90]);
+
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        // The 2023-05-07 corpus run: Psalm 72 (168 s) early in the service beat
+        // the actual preached text — an adjacent 72-second Philippians reading
+        // demoted by the substantive-duration tier — so the published audio
+        // opened with the wrong passage.
+        $this->reading($log, order: 1, start: 548.0, end: 716.0, reference: 'Psalm 72');
+
+        $philippians = $this->reading($log, order: 2, start: 1106.0, end: 1178.0, reference: 'Philippians 2:5-11');
+
+        $this->sermon($log, order: 3, start: 1372.0, end: 2914.0, reference: 'Philippians 2:5-11');
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame($philippians->id, $plan['metadata']['bible_section_id']);
+        $this->assertSame(1106.0, $plan['segments'][0]['start_time']);
+    }
+
+    #[Test]
+    public function it_matches_a_sermon_reference_that_is_a_subrange_of_the_reading(): void
+    {
+        config(['media-processing.section_extraction.enhanced_sermon.min_reading_duration_seconds' => 90]);
+
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        // A sermon usually expounds part of the passage read; overlap, not
+        // equality, is the match criterion.
+        $this->reading($log, order: 1, start: 1400.0, end: 1700.0, reference: 'Psalm 113');
+
+        $preachedText = $this->reading($log, order: 2, start: 1900.0, end: 1970.0, reference: '1 Timothy 3:14-4:16');
+
+        $this->sermon($log, order: 3, start: 2000.0, end: 3500.0, reference: '1 Timothy 4:7-10');
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame($preachedText->id, $plan['metadata']['bible_section_id']);
+    }
+
+    #[Test]
     public function it_does_not_pair_a_reading_beyond_the_max_pairing_gap(): void
     {
         config(['media-processing.section_extraction.enhanced_sermon.max_pairing_gap_seconds' => 900]);
@@ -390,8 +468,14 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame('sermon_section_exceeds_maximum_duration', $plan['metadata']['reason']);
     }
 
-    private function reading(MediaProcessingLog $log, int $order, float $start, float $end, ?int $itemId = null): ServiceSection
-    {
+    private function reading(
+        MediaProcessingLog $log,
+        int $order,
+        float $start,
+        float $end,
+        ?int $itemId = null,
+        ?string $reference = null,
+    ): ServiceSection {
         return ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => $itemId,
@@ -401,11 +485,18 @@ class SermonExtractionPlanResolverTest extends TestCase
             'end_time' => $end,
             'duration' => $end - $start,
             'needs_manual_review' => false,
-        ]);
+        ] + ($reference === null ? [] : [
+            'metadata' => ['confidence_level' => 'high', 'reading_reference' => $reference],
+        ]));
     }
 
-    private function sermon(MediaProcessingLog $log, int $order, float $start, float $end): ServiceSection
-    {
+    private function sermon(
+        MediaProcessingLog $log,
+        int $order,
+        float $start,
+        float $end,
+        ?string $reference = null,
+    ): ServiceSection {
         return ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => null,
@@ -415,7 +506,9 @@ class SermonExtractionPlanResolverTest extends TestCase
             'end_time' => $end,
             'duration' => $end - $start,
             'needs_manual_review' => false,
-        ]);
+        ] + ($reference === null ? [] : [
+            'metadata' => ['confidence_level' => 'high', 'sermon_reference' => $reference],
+        ]));
     }
 
     private function biblesOosItem(): ChurchServiceItem

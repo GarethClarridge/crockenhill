@@ -244,6 +244,37 @@ class ProcessTranscriptWithAITest extends TestCase
     }
 
     #[Test]
+    public function it_replaces_date_only_titles_with_the_ai_title(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        // A livestream named "Sunday 3rd May 2026.mp4" title-cases into a
+        // date-only placeholder — not a curated title, so the AI title wins
+        // (every sermon in the 2026-07-10 test-set-2 batch kept its filename).
+        $sermon = Sermon::factory()->create(['title' => 'Sunday 3Rd May 2026']);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+        ]);
+
+        $analysis = $this->createAnalysis('A Proper Sermon Title');
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->expects($this->once())
+            ->method('analyzeSermon')
+            ->willReturn($analysis);
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        $job = new ProcessTranscriptWithAI($log);
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
+
+        $sermon->refresh();
+        $this->assertEquals('A Proper Sermon Title', $sermon->title);
+    }
+
+    #[Test]
     public function it_passes_processing_id_through_to_analysis_service(): void
     {
         Storage::fake();
