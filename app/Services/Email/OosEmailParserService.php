@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Email;
 
 use App\Contracts\OosEmailItemExtractor;
+use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailParseResult;
+use App\Data\OosEmailServicePlan;
 use App\Enums\SermonService;
 use App\Models\InboundEmail;
 use Carbon\CarbonImmutable;
@@ -19,47 +21,183 @@ class OosEmailParserService
     public function parse(InboundEmail $inboundEmail): OosEmailParseResult
     {
         $body = $this->preferredBody($inboundEmail);
+        $receivedAt = CarbonImmutable::instance($inboundEmail->received_at);
 
-        $dateResolution = $this->extractDate($inboundEmail->subject, $body, CarbonImmutable::instance($inboundEmail->received_at));
+        $dateResolution = $this->extractDate($inboundEmail->subject, $body, $receivedAt);
         $serviceResolution = $this->extractService($inboundEmail->subject, $body);
         $itemExtraction = $this->itemExtractor->extract($inboundEmail->subject, $body);
 
         $warnings = [];
 
-        if ($dateResolution['date'] === null) {
-            $warnings[] = 'Could not confidently infer the service date from the email.';
-        }
-
-        if ($serviceResolution['service'] === null) {
-            $warnings[] = 'Could not confidently infer the service type from the email.';
-        }
-
         foreach ($itemExtraction->notes as $note) {
             $warnings[] = $note;
         }
 
-        $items = $this->normaliseItems($itemExtraction->items);
-        $confidenceScore = $this->calculateConfidence(
-            $dateResolution['confidence'],
-            $serviceResolution['confidence'],
-            $itemExtraction->confidence,
-            $items,
-            $dateResolution['date'] !== null,
-            $serviceResolution['service'] !== null,
-        );
-
-        // A syntactically perfect date can still be wrong (wrong weekday, in the past, or
-        // far in the future). Validate the resolved date against the arrival window and any
-        // claimed weekday; on failure we hold for review rather than auto-correcting.
-        $plausibility = $this->validateDatePlausibility(
-            $dateResolution['date'],
+        // One email routinely carries both a morning and an evening order. Build a plan per
+        // service (or a single plan for the legacy flattened shape), each with its own date,
+        // items, confidence and plausibility hold.
+        [$servicePlans, $planWarnings] = $this->buildServicePlans(
+            $itemExtraction,
+            $dateResolution,
+            $serviceResolution,
             $inboundEmail->subject,
             $body,
-            CarbonImmutable::instance($inboundEmail->received_at),
+            $receivedAt,
         );
 
+        foreach ($planWarnings as $planWarning) {
+            $warnings[] = $planWarning;
+        }
+
+        // Legacy/primary fields describe the morning-first plan for stored-metadata
+        // compatibility and inbox display; imports iterate $servicePlans.
+        $primary = $this->primaryPlan($servicePlans);
+        $primaryDate = $primary instanceof OosEmailServicePlan ? $primary->date : null;
+        $primaryService = $primary instanceof OosEmailServicePlan ? $primary->service : null;
+        $primaryItems = $primary instanceof OosEmailServicePlan ? $primary->items : [];
+        $primaryConfidence = $primary instanceof OosEmailServicePlan ? $primary->confidence : 0.0;
+
+        if ($primaryDate === null) {
+            $warnings[] = 'Could not confidently infer the service date from the email.';
+        }
+
+        if ($primaryService === null) {
+            $warnings[] = 'Could not confidently infer the service type from the email.';
+        }
+
+        // Re-derive the primary plan's plausibility purely to surface its suggested date in
+        // the display metadata (the confidence cap itself was already applied per plan).
+        $primaryPlausibility = $this->validateDatePlausibility($primaryDate, $inboundEmail->subject, $body, $receivedAt);
+
+        return new OosEmailParseResult(
+            date: $primaryDate,
+            service: $primaryService,
+            items: $primaryItems,
+            confidenceScore: $primaryConfidence,
+            needsReview: $primary instanceof OosEmailServicePlan ? $primary->needsReview : false,
+            shouldImport: $primary instanceof OosEmailServicePlan ? $primary->shouldImport : false,
+            importMetadata: [
+                'confidence_score' => $primaryConfidence,
+                'parse_method' => 'email_llm',
+                'warnings' => array_values(array_unique($warnings)),
+                'date_extraction' => [
+                    'value' => $primaryDate,
+                    'confidence' => $dateResolution['confidence'],
+                    'method' => $dateResolution['method'],
+                    'plausible' => $primaryPlausibility['plausible'],
+                    'suggested_date' => $primaryPlausibility['suggested_date'],
+                    'implausibility_reasons' => $primaryPlausibility['reasons'],
+                ],
+                'service_extraction' => [
+                    'value' => $primaryService?->value,
+                    'confidence' => $serviceResolution['confidence'],
+                    'method' => $serviceResolution['method'],
+                ],
+                'item_extraction' => [
+                    'confidence' => round($itemExtraction->confidence, 2),
+                    'item_count' => count($primaryItems),
+                    'notes' => $itemExtraction->notes,
+                ],
+                'service_plans' => $this->servicePlansMetadata($servicePlans),
+                'source_message_id' => $inboundEmail->message_id,
+                'source_subject' => $inboundEmail->subject,
+            ],
+            servicePlans: $servicePlans,
+        );
+    }
+
+    /**
+     * @param  array{date:?string,confidence:float,method:?string}  $dateResolution
+     * @param  array{service:?SermonService,confidence:float,method:?string}  $serviceResolution
+     * @return array{0:list<OosEmailServicePlan>,1:list<string>}
+     */
+    private function buildServicePlans(
+        OosEmailItemExtractionResult $itemExtraction,
+        array $dateResolution,
+        array $serviceResolution,
+        string $subject,
+        string $body,
+        CarbonImmutable $receivedAt,
+    ): array {
+        $warnings = [];
+
+        // Legacy single-list extraction: one plan from the flattened items, corroborated by
+        // the regex-derived service and email-level date.
+        if ($itemExtraction->services === []) {
+            $plan = $this->buildPlan(
+                null,
+                null,
+                $itemExtraction->items,
+                $itemExtraction->confidence,
+                $dateResolution,
+                $serviceResolution,
+                $subject,
+                $body,
+                $receivedAt,
+                $warnings,
+            );
+
+            return [[$plan], $warnings];
+        }
+
+        $plans = [];
+
+        foreach ($itemExtraction->services as $rawPlan) {
+            $plans[] = $this->buildPlan(
+                $rawPlan['service'],
+                $rawPlan['date'],
+                $rawPlan['items'],
+                $rawPlan['confidence'],
+                $dateResolution,
+                $serviceResolution,
+                $subject,
+                $body,
+                $receivedAt,
+                $warnings,
+            );
+        }
+
+        return [$plans, $warnings];
+    }
+
+    /**
+     * @param  array<int, array{type:string,title:string}>  $rawItems
+     * @param  array{date:?string,confidence:float,method:?string}  $dateResolution
+     * @param  array{service:?SermonService,confidence:float,method:?string}  $serviceResolution
+     * @param  list<string>  $warnings
+     */
+    private function buildPlan(
+        ?string $rawService,
+        ?string $rawDate,
+        array $rawItems,
+        float $rawConfidence,
+        array $dateResolution,
+        array $serviceResolution,
+        string $subject,
+        string $body,
+        CarbonImmutable $receivedAt,
+        array &$warnings,
+    ): OosEmailServicePlan {
+        $service = $this->resolvePlanService($rawService, $serviceResolution);
+        $serviceConfidence = $service === null
+            ? 0.0
+            : ($rawService !== null ? 0.9 : $serviceResolution['confidence']);
+
+        [$date, $dateConfidence] = $this->resolvePlanDate($rawDate, $dateResolution);
+        $items = $this->normaliseItems($rawItems);
+
+        $confidence = $this->calculateConfidence(
+            $dateConfidence,
+            $serviceConfidence,
+            $rawConfidence,
+            $items,
+            $date !== null,
+            $service instanceof SermonService,
+        );
+
+        $plausibility = $this->validateDatePlausibility($date, $subject, $body, $receivedAt);
         if (! $plausibility['plausible']) {
-            $confidenceScore = round(min($confidenceScore, 0.74), 2);
+            $confidence = round(min($confidence, 0.74), 2);
 
             foreach ($plausibility['warnings'] as $warning) {
                 $warnings[] = $warning;
@@ -68,43 +206,97 @@ class OosEmailParserService
 
         $reviewThreshold = (float) config('service-tracking.email_parsing.review_threshold', 0.75);
         $autoImportThreshold = (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90);
-        $shouldImport = $confidenceScore >= $reviewThreshold
-            && $dateResolution['date'] !== null
-            && $serviceResolution['service'] instanceof SermonService;
+        $shouldImport = $confidence >= $reviewThreshold
+            && $date !== null
+            && $service instanceof SermonService
+            && $items !== [];
 
-        return new OosEmailParseResult(
-            date: $dateResolution['date'],
-            service: $serviceResolution['service'],
+        return new OosEmailServicePlan(
+            service: $service,
+            date: $date,
             items: $items,
-            confidenceScore: $confidenceScore,
-            needsReview: $shouldImport && $confidenceScore < $autoImportThreshold,
+            confidence: $confidence,
+            needsReview: $shouldImport && $confidence < $autoImportThreshold,
             shouldImport: $shouldImport,
-            importMetadata: [
-                'confidence_score' => $confidenceScore,
-                'parse_method' => 'email_llm',
-                'warnings' => array_values(array_unique($warnings)),
-                'date_extraction' => [
-                    'value' => $dateResolution['date'],
-                    'confidence' => $dateResolution['confidence'],
-                    'method' => $dateResolution['method'],
-                    'plausible' => $plausibility['plausible'],
-                    'suggested_date' => $plausibility['suggested_date'],
-                    'implausibility_reasons' => $plausibility['reasons'],
-                ],
-                'service_extraction' => [
-                    'value' => $serviceResolution['service']?->value,
-                    'confidence' => $serviceResolution['confidence'],
-                    'method' => $serviceResolution['method'],
-                ],
-                'item_extraction' => [
-                    'confidence' => round($itemExtraction->confidence, 2),
-                    'item_count' => count($items),
-                    'notes' => $itemExtraction->notes,
-                ],
-                'source_message_id' => $inboundEmail->message_id,
-                'source_subject' => $inboundEmail->subject,
-            ],
         );
+    }
+
+    /**
+     * @param  array{service:?SermonService,confidence:float,method:?string}  $serviceResolution
+     */
+    private function resolvePlanService(?string $rawService, array $serviceResolution): ?SermonService
+    {
+        if (is_string($rawService)) {
+            $mapped = match (strtolower(trim($rawService))) {
+                'morning', 'am' => SermonService::Morning,
+                'evening', 'pm' => SermonService::Evening,
+                'other', 'special', 'carols', 'christmas' => SermonService::Other,
+                default => null,
+            };
+
+            if ($mapped instanceof SermonService) {
+                return $mapped;
+            }
+        }
+
+        // "unknown"/unmapped LLM labels fall back to the regex-corroborated service.
+        return $serviceResolution['service'];
+    }
+
+    /**
+     * @param  array{date:?string,confidence:float,method:?string}  $dateResolution
+     * @return array{0:?string,1:float}
+     */
+    private function resolvePlanDate(?string $rawDate, array $dateResolution): array
+    {
+        if (is_string($rawDate) && $rawDate !== '') {
+            $candidate = $this->safeDateFromFormat('Y-m-d', $rawDate);
+
+            if ($candidate instanceof CarbonImmutable) {
+                return [$candidate->format('Y-m-d'), 0.9];
+            }
+        }
+
+        return [$dateResolution['date'], $dateResolution['confidence']];
+    }
+
+    /**
+     * Morning-first, then the first importable plan, then the first plan of any shape.
+     *
+     * @param  list<OosEmailServicePlan>  $plans
+     */
+    private function primaryPlan(array $plans): ?OosEmailServicePlan
+    {
+        foreach ($plans as $plan) {
+            if ($plan->service === SermonService::Morning) {
+                return $plan;
+            }
+        }
+
+        foreach ($plans as $plan) {
+            if ($plan->isImportable()) {
+                return $plan;
+            }
+        }
+
+        return $plans[0] ?? null;
+    }
+
+    /**
+     * @param  list<OosEmailServicePlan>  $plans
+     * @return list<array{plan_key:string,service:?string,date:?string,items:array<int,array<string,mixed>>,confidence:float,needs_review:bool,should_import:bool}>
+     */
+    private function servicePlansMetadata(array $plans): array
+    {
+        return array_map(static fn (OosEmailServicePlan $plan): array => [
+            'plan_key' => $plan->key(),
+            'service' => $plan->service?->value,
+            'date' => $plan->date,
+            'items' => $plan->items,
+            'confidence' => $plan->confidence,
+            'needs_review' => $plan->needsReview,
+            'should_import' => $plan->shouldImport,
+        ], $plans);
     }
 
     private function preferredBody(InboundEmail $inboundEmail): string

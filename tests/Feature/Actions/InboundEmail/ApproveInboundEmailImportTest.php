@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Actions\InboundEmail;
 
 use App\Actions\InboundEmail\ApproveInboundEmailImport;
+use App\Data\OosEmailImportResult;
 use App\Data\OosEmailItemExtractionResult;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
@@ -53,9 +54,11 @@ class ApproveInboundEmailImportTest extends TestCase
 
         $result = app(ApproveInboundEmailImport::class)->execute($email, $this->admin->id);
 
-        $this->assertInstanceOf(ChurchService::class, $result);
-        $this->assertSame('email', $result->source);
-        $this->assertFalse($result->needs_review);
+        $this->assertInstanceOf(OosEmailImportResult::class, $result);
+        $service = $result->firstCreatedService();
+        $this->assertInstanceOf(ChurchService::class, $service);
+        $this->assertSame('email', $service->source);
+        $this->assertFalse($service->needs_review);
 
         $email->refresh();
         $this->assertSame(InboundEmailStatus::Processed, $email->status);
@@ -82,8 +85,10 @@ class ApproveInboundEmailImportTest extends TestCase
 
         $result = app(ApproveInboundEmailImport::class)->execute($email, $this->admin->id);
 
-        $this->assertInstanceOf(ChurchService::class, $result);
-        $this->assertSame(['Welcome', 'Sermon'], $result->items()->orderBy('position')->pluck('title')->all());
+        $this->assertInstanceOf(OosEmailImportResult::class, $result);
+        $service = $result->firstCreatedService();
+        $this->assertInstanceOf(ChurchService::class, $service);
+        $this->assertSame(['Welcome', 'Sermon'], $service->items()->orderBy('position')->pluck('title')->all());
     }
 
     #[Test]

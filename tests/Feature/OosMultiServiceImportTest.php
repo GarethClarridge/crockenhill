@@ -1,0 +1,209 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature;
+
+use App\Actions\InboundEmail\ApproveInboundEmailImport;
+use App\Data\OosEmailImportResult;
+use App\Data\OosEmailItemExtractionResult;
+use App\Enums\InboundEmailStatus;
+use App\Enums\SermonService;
+use App\Jobs\ProcessInboundOosEmail;
+use App\Models\ChurchService;
+use App\Models\InboundEmail;
+use App\Models\User;
+use App\Services\Email\InboundEmailImportService;
+use App\Services\Email\OosEmailParserService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+use Tests\Traits\WithInboundEmailTestHelpers;
+
+class OosMultiServiceImportTest extends TestCase
+{
+    use RefreshDatabase;
+    use WithInboundEmailTestHelpers;
+
+    /**
+     * A morning + evening extraction result for a genuine Sunday (12 July 2026).
+     */
+    private function bindMultiServiceExtractor(float $eveningConfidence = 0.95): void
+    {
+        $this->bindExtractor(new OosEmailItemExtractionResult(
+            items: [
+                ['type' => 'welcome', 'title' => 'Welcome'],
+                ['type' => 'sermon', 'title' => 'Morning Sermon'],
+                ['type' => 'welcome', 'title' => 'Welcome'],
+                ['type' => 'sermon', 'title' => 'Evening Sermon'],
+            ],
+            confidence: 0.95,
+            services: [
+                ['service' => 'morning', 'date' => null, 'items' => [
+                    ['type' => 'welcome', 'title' => 'Welcome'],
+                    ['type' => 'sermon', 'title' => 'Morning Sermon'],
+                ], 'confidence' => 0.95],
+                ['service' => 'evening', 'date' => null, 'items' => [
+                    ['type' => 'welcome', 'title' => 'Welcome'],
+                    ['type' => 'sermon', 'title' => 'Evening Sermon'],
+                ], 'confidence' => $eveningConfidence],
+            ],
+        ));
+    }
+
+    private function multiServiceEmail(): InboundEmail
+    {
+        return InboundEmail::factory()->create([
+            'subject' => 'Order of Service - Sunday 12 July 2026',
+            'body_plain' => "Morning\nWelcome\nMorning Sermon\n\nEvening\nWelcome\nEvening Sermon",
+            'status' => InboundEmailStatus::Pending->value,
+            'received_at' => '2026-07-10 09:00:00',
+        ]);
+    }
+
+    #[Test]
+    public function the_job_imports_both_morning_and_evening_orders(): void
+    {
+        $this->bindMultiServiceExtractor();
+        $email = $this->multiServiceEmail();
+
+        app()->call([new ProcessInboundOosEmail($email), 'handle']);
+
+        $services = ChurchService::query()->orderBy('service')->get();
+
+        $this->assertCount(2, $services);
+        $this->assertEqualsCanonicalizing(
+            [SermonService::Evening, SermonService::Morning],
+            $services->pluck('service')->all(),
+        );
+        // Both plans fell back to the email-level date (12 July 2026).
+        $this->assertTrue($services->every(fn (ChurchService $service): bool => $service->date->toDateString() === '2026-07-12'));
+
+        $email->refresh();
+        $this->assertSame(InboundEmailStatus::Processed, $email->status);
+        $this->assertCount(2, $email->processing_metadata['plan_outcomes']);
+        $this->assertCount(2, $email->processing_metadata['imported_church_service_ids']);
+    }
+
+    #[Test]
+    public function approving_imports_both_orders_and_returns_per_plan_outcomes(): void
+    {
+        $this->bindMultiServiceExtractor();
+        $admin = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
+        $email = $this->multiServiceEmail();
+
+        $result = app(ApproveInboundEmailImport::class)->execute($email, $admin->id);
+
+        $this->assertInstanceOf(OosEmailImportResult::class, $result);
+        $this->assertCount(2, $result->created());
+        $this->assertSame(2, ChurchService::query()->count());
+
+        $email->refresh();
+        $this->assertSame(InboundEmailStatus::Processed, $email->status);
+    }
+
+    #[Test]
+    public function the_job_imports_the_confident_plan_and_holds_the_weak_one(): void
+    {
+        $this->bindMultiServiceExtractor(eveningConfidence: 0.20);
+        $email = $this->multiServiceEmail();
+
+        app()->call([new ProcessInboundOosEmail($email), 'handle']);
+
+        $services = ChurchService::query()->get();
+        $this->assertCount(1, $services);
+        $this->assertSame(SermonService::Morning, $services->first()->service);
+
+        $email->refresh();
+        // A held plan means the email is not fully resolved, so it stays in the inbox.
+        $this->assertSame(InboundEmailStatus::Pending, $email->status);
+
+        $outcomes = collect($email->processing_metadata['plan_outcomes']);
+        $this->assertSame('created', $outcomes->firstWhere('service', 'morning')['outcome']);
+        $this->assertSame('held_for_review', $outcomes->firstWhere('service', 'evening')['outcome']);
+    }
+
+    #[Test]
+    public function stored_parse_result_round_trips_both_service_plans(): void
+    {
+        $this->bindMultiServiceExtractor();
+        $email = $this->multiServiceEmail();
+
+        $parser = app(OosEmailParserService::class);
+        $importService = app(InboundEmailImportService::class);
+
+        $parseResult = $parser->parse($email);
+        $this->assertCount(2, $parseResult->servicePlans);
+
+        $importService->storeParseResult($email, $parseResult);
+        $email->refresh();
+
+        $restored = $importService->storedParseResult($email);
+        $this->assertNotNull($restored);
+        $this->assertFalse($restored->isLegacyFlattened);
+        $this->assertCount(2, $restored->servicePlans);
+        $this->assertEqualsCanonicalizing(
+            [SermonService::Morning, SermonService::Evening],
+            array_map(fn ($plan) => $plan->service, $restored->servicePlans),
+        );
+    }
+
+    #[Test]
+    public function a_legacy_flattened_parse_cannot_be_approved_without_reparsing(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
+
+        // A parse stored before multi-service support: a flat item list, no service_plans key.
+        $email = InboundEmail::factory()->create([
+            'status' => InboundEmailStatus::Pending->value,
+            'processing_metadata' => [
+                'parsing' => [
+                    'confidence_score' => 0.95,
+                    'resolved_date' => '2026-07-12',
+                    'resolved_service' => 'morning',
+                    'items' => [
+                        ['position' => 1, 'type' => 'custom', 'title' => 'Welcome', 'source_title' => 'Welcome', 'openlp_search_title' => null, 'metadata' => ['email_type' => 'welcome']],
+                    ],
+                    'needs_review' => false,
+                    'should_import' => true,
+                ],
+            ],
+        ]);
+
+        $result = app(ApproveInboundEmailImport::class)->execute($email, $admin->id);
+
+        $this->assertIsString($result);
+        $this->assertStringContainsString('multi-service', $result);
+        $this->assertSame(0, ChurchService::query()->count());
+    }
+
+    #[Test]
+    public function manual_completion_resolves_only_the_edited_plan(): void
+    {
+        $this->bindMultiServiceExtractor();
+        $admin = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
+        $email = $this->multiServiceEmail();
+
+        $parser = app(OosEmailParserService::class);
+        $importService = app(InboundEmailImportService::class);
+        $importService->storeParseResult($email, $parser->parse($email));
+        $email->refresh();
+
+        $morning = ChurchService::factory()->create(['date' => '2026-07-12', 'service' => 'morning']);
+        $importService->markAsProcessedFromManualReview($email, $morning, $admin->id, 'morning:2026-07-12');
+
+        $email->refresh();
+        $this->assertSame(InboundEmailStatus::Pending, $email->status, 'Evening plan still outstanding');
+        $this->assertSame(['morning:2026-07-12'], $email->processing_metadata['resolved_plan_keys']);
+
+        $evening = ChurchService::factory()->create(['date' => '2026-07-12', 'service' => 'evening']);
+        $importService->markAsProcessedFromManualReview($email, $evening, $admin->id, 'evening:2026-07-12');
+
+        $email->refresh();
+        $this->assertSame(InboundEmailStatus::Processed, $email->status);
+        $this->assertEqualsCanonicalizing(
+            ['morning:2026-07-12', 'evening:2026-07-12'],
+            $email->processing_metadata['resolved_plan_keys'],
+        );
+    }
+}

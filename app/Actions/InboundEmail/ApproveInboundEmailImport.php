@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions\InboundEmail;
 
+use App\Data\OosEmailImportResult;
 use App\Data\OosEmailParseResult;
-use App\Enums\SermonService;
-use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Services\Email\InboundEmailImportService;
 use App\Services\Email\OosEmailParserService;
@@ -20,12 +19,12 @@ class ApproveInboundEmailImport
     ) {}
 
     /**
-     * Approve an inbound email for direct import.
+     * Approve an inbound email for direct import of all of its service plans.
      *
-     * Uses the stored parse result when available, falling back to a fresh parse.
-     * Returns a ChurchService on success, or an error message string on failure.
+     * Uses the stored parse result when available, falling back to a fresh parse. Returns an
+     * OosEmailImportResult (per-plan outcomes) on success, or an error message string.
      */
-    public function execute(InboundEmail $inboundEmail, ?int $reviewedByUserId): ChurchService|string
+    public function execute(InboundEmail $inboundEmail, ?int $reviewedByUserId): OosEmailImportResult|string
     {
         try {
             $parseResult = $this->importService->storedParseResult($inboundEmail);
@@ -35,7 +34,13 @@ class ApproveInboundEmailImport
                 $this->importService->storeParseResult($inboundEmail, $parseResult);
             }
 
-            if (! $this->canApprove($parseResult)) {
+            // A parse stored before multi-service support has only a flattened item list, which
+            // could import a morning+evening blob as a single service — require a re-parse first.
+            if ($parseResult->isLegacyFlattened) {
+                return 'This email was parsed before multi-service support was added. Re-parse it before approving.';
+            }
+
+            if ($parseResult->importablePlans() === []) {
                 return 'This email still needs manual editing before it can be approved.';
             }
 
@@ -50,12 +55,5 @@ class ApproveInboundEmailImport
 
             return 'Unable to approve this inbound email right now.';
         }
-    }
-
-    private function canApprove(OosEmailParseResult $parseResult): bool
-    {
-        return is_string($parseResult->date)
-            && $parseResult->service instanceof SermonService
-            && $parseResult->items !== [];
     }
 }

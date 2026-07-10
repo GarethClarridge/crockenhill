@@ -30,6 +30,9 @@ class ManageChurchService extends Component
     public ?int $inboundEmailId = null;
 
     #[Url(except: null)]
+    public ?string $planKey = null;
+
+    #[Url(except: null)]
     public ?string $date = null;
 
     #[Url(except: null)]
@@ -49,7 +52,7 @@ class ManageChurchService extends Component
 
             $this->form->setChurchService($churchService);
         } elseif (is_int($this->inboundEmailId)) {
-            $this->form->applyPrefillData($prefillAction->execute($this->inboundEmailId));
+            $this->form->applyPrefillData($prefillAction->execute($this->inboundEmailId, $this->planKey));
         } else {
             // Orphan inbox groups link here with their resolved date/slot so
             // the missing Sunday can be created and the workbench takes over.
@@ -122,6 +125,7 @@ class ManageChurchService extends Component
                 churchService: $this->churchService,
                 userId: Auth::user()->id ?? abort(403),
                 inboundEmailId: $this->inboundEmailId,
+                planKey: $this->planKey,
             );
         } catch (\RuntimeException $exception) {
             if (str_contains($exception->getMessage(), 'ordering conflict')) {

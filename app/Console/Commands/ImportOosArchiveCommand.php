@@ -8,7 +8,6 @@ use App\Data\OosArchiveEntry;
 use App\Data\OosEmailParseResult;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
-use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\Song;
 use App\Services\Email\InboundEmailImportService;
@@ -96,13 +95,8 @@ class ImportOosArchiveCommand extends Command
                 $disposition = $gateReasons === [] ? 'eligible' : 'skipped';
 
                 if ($shouldImport && $gateReasons === []) {
-                    $existed = ChurchService::query()
-                        ->where('date', $parseResult->date)
-                        ->where('service', $parseResult->service?->value)
-                        ->exists();
-
-                    $importService->import($inboundEmail, $parseResult, createOnly: true);
-                    $disposition = $existed ? 'skipped_existing' : 'created';
+                    $importResult = $importService->import($inboundEmail, $parseResult, createOnly: true);
+                    $disposition = $importResult->created() !== [] ? 'created' : 'skipped_existing';
                 }
 
                 $result = $evaluator->evaluate(

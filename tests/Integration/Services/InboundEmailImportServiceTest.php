@@ -123,8 +123,10 @@ class InboundEmailImportServiceTest extends TestCase
             importMetadata: ['confidence_score' => 0.95],
         );
 
-        $churchService = $this->service->import($inboundEmail, $parseResult);
+        $result = $this->service->import($inboundEmail, $parseResult);
+        $churchService = $result->firstCreatedService();
 
+        $this->assertInstanceOf(ChurchService::class, $churchService);
         $this->assertDatabaseHas('church_services', [
             'date' => '2025-03-09',
             'service' => 'morning',
@@ -142,15 +144,19 @@ class InboundEmailImportServiceTest extends TestCase
         $parseResult = new OosEmailParseResult(
             date: '2025-03-09',
             service: SermonService::Morning,
-            items: [],
+            items: [
+                ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ],
             confidenceScore: 0.5,
             needsReview: true,
             shouldImport: true,
             importMetadata: [],
         );
 
-        $churchService = $this->service->import($inboundEmail, $parseResult);
+        $result = $this->service->import($inboundEmail, $parseResult);
+        $churchService = $result->firstCreatedService();
 
+        $this->assertInstanceOf(ChurchService::class, $churchService);
         $this->assertTrue((bool) $churchService->needs_review);
     }
 
@@ -163,15 +169,19 @@ class InboundEmailImportServiceTest extends TestCase
         $parseResult = new OosEmailParseResult(
             date: '2025-03-09',
             service: SermonService::Morning,
-            items: [],
+            items: [
+                ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ],
             confidenceScore: 0.5,
             needsReview: true,
             shouldImport: true,
             importMetadata: [],
         );
 
-        $churchService = $this->service->import($inboundEmail, $parseResult, reviewedByUserId: $user->id);
+        $result = $this->service->import($inboundEmail, $parseResult, reviewedByUserId: $user->id);
+        $churchService = $result->firstCreatedService();
 
+        $this->assertInstanceOf(ChurchService::class, $churchService);
         $this->assertFalse((bool) $churchService->needs_review);
     }
 
@@ -185,15 +195,19 @@ class InboundEmailImportServiceTest extends TestCase
         $parseResult = new OosEmailParseResult(
             date: '2025-03-09',
             service: SermonService::Morning,
-            items: [],
+            items: [
+                ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ],
             confidenceScore: 0.9,
             needsReview: false,
             shouldImport: true,
             importMetadata: [],
         );
 
-        $churchService = $this->service->import($inboundEmail, $parseResult);
+        $result = $this->service->import($inboundEmail, $parseResult);
+        $churchService = $result->firstResolvedService();
 
+        $this->assertInstanceOf(ChurchService::class, $churchService);
         $this->assertDatabaseCount('church_services', 1);
         $this->assertSame($existing->id, $churchService->id);
     }
@@ -222,7 +236,7 @@ class InboundEmailImportServiceTest extends TestCase
 
         $result = $this->service->import($inboundEmail, $parseResult, createOnly: true);
 
-        $this->assertSame($existing->id, $result->id);
+        $this->assertSame($existing->id, $result->firstResolvedService()?->id);
         $this->assertSame('openlp', $existing->fresh()->source);
         $this->assertSame(['original' => true], $existing->fresh()->import_metadata->toArray());
         $this->assertDatabaseCount('church_service_items', 0);

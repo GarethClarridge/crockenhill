@@ -110,6 +110,36 @@
                                     </div>
                                 </div>
 
+                                @if($preview['is_legacy_flattened'])
+                                    <p class="mt-2 text-xs text-amber-700">
+                                        Parsed before multi-service support was added — re-parse this email before approving.
+                                    </p>
+                                @elseif(count($preview['service_plans']) > 1)
+                                    <div class="mt-3 space-y-2" wire:key="inbox-email-plans-{{ $item['email']->id }}">
+                                        <p class="text-xs font-medium text-gray-500">This email contains {{ count($preview['service_plans']) }} service orders:</p>
+                                        @foreach($preview['service_plans'] as $plan)
+                                            <div class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-gray-200 bg-white px-3 py-2" wire:key="inbox-email-plan-{{ $item['email']->id }}-{{ $plan['plan_key'] }}">
+                                                <div class="min-w-0 text-xs text-gray-600">
+                                                    <span class="font-medium text-gray-800">{{ ucfirst($plan['service'] ?? 'Unknown') }}</span>
+                                                    · {{ $plan['date'] ?? 'no date' }}
+                                                    · {{ count($plan['preview_items']) }} {{ \Illuminate\Support\Str::plural('item', count($plan['preview_items'])) }}
+                                                    @if($plan['confidence'] !== null)
+                                                        · {{ round($plan['confidence'] * 100) }}% confidence
+                                                    @endif
+                                                    @if($plan['resolved'])
+                                                        · <span class="font-medium text-emerald-700">imported</span>
+                                                    @endif
+                                                </div>
+                                                @unless($plan['resolved'])
+                                                    <x-form-button size="xs" variant="outline" icon="pencil-square" wire:click="editAndApproveEmail({{ $item['email']->id }}, @js($plan['plan_key']))" loading-label="Loading editor...">
+                                                        Edit this order
+                                                    </x-form-button>
+                                                @endunless
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
+
                                 {{-- Diagnostics ported from the retired inbound-emails page: the
                                      sanitised original email and raw parser data, for judging a
                                      failed or low-confidence parse before re-parsing or rejecting --}}
