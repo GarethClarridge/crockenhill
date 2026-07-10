@@ -103,6 +103,51 @@ class StructureShadowReportCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_surfaces_baseline_provenance_per_run_and_in_the_aggregate(): void
+    {
+        // A pre-flip run diffed against heuristic sections…
+        $this->makeShadowRun([
+            'generated_at' => '2026-06-07T11:45:00+01:00',
+            'passed_validation' => true,
+            'hard_failures' => [],
+            'sections' => [],
+            'diff' => [
+                'baseline' => ['classification_modes' => ['audio_only', 'ai_transcript']],
+                'type_sequence_match' => true,
+                'sermon' => null,
+                'oos_anchoring' => null,
+            ],
+        ]);
+
+        // …and a post-flip model trial diffed against primary LLM sections.
+        $this->makeShadowRun([
+            'generated_at' => '2026-06-14T11:45:00+01:00',
+            'passed_validation' => true,
+            'hard_failures' => [],
+            'sections' => [],
+            'diff' => [
+                'baseline' => ['classification_modes' => ['llm_structure']],
+                'type_sequence_match' => true,
+                'sermon' => null,
+                'oos_anchoring' => null,
+            ],
+        ]);
+
+        $this->artisan('structure:shadow-report', ['--report' => $this->reportPath])
+            ->assertSuccessful();
+
+        $report = json_decode((string) file_get_contents($this->reportPath), true);
+
+        $this->assertSame(['classification_modes' => ['audio_only', 'ai_transcript']], $report['runs'][0]['baseline']);
+        $this->assertSame(['classification_modes' => ['llm_structure']], $report['runs'][1]['baseline']);
+        $this->assertSame(
+            ['ai_transcript+audio_only' => 1, 'llm_structure' => 1],
+            $report['aggregate']['baseline_counts'],
+            'Mixed baselines must be visible so incomparable deltas are not silently combined.'
+        );
+    }
+
+    #[Test]
     public function it_filters_by_processing_id(): void
     {
         $wanted = $this->makeShadowRun([
