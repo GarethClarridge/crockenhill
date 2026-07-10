@@ -226,21 +226,22 @@ class OosEmailParserService
      */
     private function resolvePlanService(?string $rawService, array $serviceResolution): ?SermonService
     {
-        if (is_string($rawService)) {
-            $mapped = match (strtolower(trim($rawService))) {
-                'morning', 'am' => SermonService::Morning,
-                'evening', 'pm' => SermonService::Evening,
-                'other', 'special', 'carols', 'christmas' => SermonService::Other,
-                default => null,
-            };
-
-            if ($mapped instanceof SermonService) {
-                return $mapped;
-            }
+        // No per-plan label at all (legacy single-list extraction): corroborate with the
+        // email-level regex service.
+        if ($rawService === null) {
+            return $serviceResolution['service'];
         }
 
-        // "unknown"/unmapped LLM labels fall back to the regex-corroborated service.
-        return $serviceResolution['service'];
+        // An explicit per-plan label the LLM emitted. Map it; an "unknown"/unmapped label
+        // must NOT inherit the email-level service — that regex often resolves to the first
+        // mention (e.g. morning), so an unknown second plan would silently land in the
+        // morning slot. Return null instead so the plan is held for review.
+        return match (strtolower(trim($rawService))) {
+            'morning', 'am' => SermonService::Morning,
+            'evening', 'pm' => SermonService::Evening,
+            'other', 'special', 'carols', 'christmas' => SermonService::Other,
+            default => null,
+        };
     }
 
     /**

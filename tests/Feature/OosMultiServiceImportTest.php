@@ -178,6 +178,89 @@ class OosMultiServiceImportTest extends TestCase
     }
 
     #[Test]
+    public function an_unknown_second_plan_is_held_rather_than_absorbed_into_the_morning_slot(): void
+    {
+        // Morning is mapped; the second plan is genuinely unclear ("unknown"). The email-level
+        // regex resolves to "morning" (first mention in the body), so the old fallback would
+        // have imported this second plan into the morning slot instead of holding it.
+        $this->bindExtractor(new OosEmailItemExtractionResult(
+            items: [
+                ['type' => 'welcome', 'title' => 'Welcome'],
+                ['type' => 'sermon', 'title' => 'Morning Sermon'],
+                ['type' => 'sermon', 'title' => 'Unclear Sermon'],
+            ],
+            confidence: 0.95,
+            services: [
+                ['service' => 'morning', 'date' => null, 'items' => [
+                    ['type' => 'welcome', 'title' => 'Welcome'],
+                    ['type' => 'sermon', 'title' => 'Morning Sermon'],
+                ], 'confidence' => 0.95],
+                ['service' => 'unknown', 'date' => null, 'items' => [
+                    ['type' => 'sermon', 'title' => 'Unclear Sermon'],
+                ], 'confidence' => 0.95],
+            ],
+        ));
+        $email = $this->multiServiceEmail();
+
+        app()->call([new ProcessInboundOosEmail($email), 'handle']);
+
+        // Only the morning order is imported; the unknown plan is not silently created/merged.
+        $services = ChurchService::query()->get();
+        $this->assertCount(1, $services);
+        $this->assertSame(SermonService::Morning, $services->first()->service);
+
+        $email->refresh();
+        $this->assertSame(InboundEmailStatus::Pending, $email->status);
+
+        $outcomes = collect($email->processing_metadata['plan_outcomes']);
+        $this->assertSame('created', $outcomes->firstWhere('service', 'morning')['outcome']);
+
+        $held = $outcomes->firstWhere('outcome', 'held_for_review');
+        $this->assertNotNull($held, 'The unknown plan should be held for review');
+        $this->assertNull($held['service'], 'An unknown plan must not inherit the email-level service');
+    }
+
+    #[Test]
+    public function re_parsing_from_two_plans_to_one_drops_the_stale_plan(): void
+    {
+        $this->bindMultiServiceExtractor();
+        $email = $this->multiServiceEmail();
+
+        $importService = app(InboundEmailImportService::class);
+        $importService->storeParseResult($email, app(OosEmailParserService::class)->parse($email));
+        $email->refresh();
+        $this->assertCount(2, $importService->storedParseResult($email)->servicePlans);
+
+        // The email is re-parsed and now yields only the morning order (e.g. the evening order was
+        // removed, or the model no longer sees it). The stale evening plan must not survive.
+        $this->bindExtractor(new OosEmailItemExtractionResult(
+            items: [
+                ['type' => 'welcome', 'title' => 'Welcome'],
+                ['type' => 'sermon', 'title' => 'Morning Sermon'],
+            ],
+            confidence: 0.95,
+            services: [
+                ['service' => 'morning', 'date' => null, 'items' => [
+                    ['type' => 'welcome', 'title' => 'Welcome'],
+                    ['type' => 'sermon', 'title' => 'Morning Sermon'],
+                ], 'confidence' => 0.95],
+            ],
+        ));
+
+        $reparsed = app(OosEmailParserService::class)->parse($email);
+        $this->assertCount(1, $reparsed->servicePlans);
+        $importService->storeParseResult($email, $reparsed, isReparse: true);
+        $email->refresh();
+
+        $restored = $importService->storedParseResult($email);
+        $this->assertNotNull($restored);
+        $this->assertCount(1, $restored->servicePlans, 'The stale evening plan must not survive a re-parse');
+        $this->assertSame(SermonService::Morning, $restored->servicePlans[0]->service);
+        // The flattened primary item list is replaced wholesale too — no stale evening items linger.
+        $this->assertCount(2, $restored->items);
+    }
+
+    #[Test]
     public function manual_completion_resolves_only_the_edited_plan(): void
     {
         $this->bindMultiServiceExtractor();

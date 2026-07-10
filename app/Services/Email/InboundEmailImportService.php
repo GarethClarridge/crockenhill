@@ -54,10 +54,15 @@ class InboundEmailImportService
             $metadata['failure'] = null;
         }
 
-        $inboundEmail->processing_metadata = $this->mergeProcessingMetadata(
-            $inboundEmail->processing_metadata,
-            $metadata,
-        );
+        $merged = $this->mergeProcessingMetadata($inboundEmail->processing_metadata, $metadata);
+
+        // The parse payload holds numeric lists (service_plans, items). array_replace_recursive
+        // merges those by index, so a re-parse that shrinks from two plans to one would leave the
+        // stale second plan behind — restorable and importable from the inbox. Every parse fully
+        // recomputes the payload, so replace the whole subtree rather than merging into it.
+        $merged['parsing'] = $metadata['parsing'];
+
+        $inboundEmail->processing_metadata = $merged;
         $inboundEmail->save();
     }
 
