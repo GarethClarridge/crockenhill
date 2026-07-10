@@ -44,7 +44,7 @@ class TempDiskSpace
      */
     public static function hasSpaceFor(int $requiredBytes): bool
     {
-        $freeBytes = disk_free_space(self::path());
+        $freeBytes = @disk_free_space(self::path());
 
         if ($freeBytes === false) {
             return true;

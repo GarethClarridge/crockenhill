@@ -37,20 +37,32 @@ class ProcessingInitiator
      * Generates a processing ID, extracts date/service metadata from the file,
      * and creates a MediaProcessingLog record in PENDING state.
      *
-     * For media types where date/service extraction differs from the video strategy
-     * (e.g. audio using ID3 tags), pass a pre-extracted metadata array via
-     * $preExtractedMetadata. When non-null, it replaces the video-style
-     * date/service extraction entirely and is used as the base processing metadata.
+     * Identity Extraction Hierarchy:
+     * 1. $serviceOverride: Always wins for service determination if provided.
+     * 2. $preExtractedMetadata: When non-null, replaces the standard video-style
+     *    date/service extraction entirely (used for audio with ID3 tags).
+     * 3. Extraction/Determination: Falls back to extracting date from video
+     *    metadata/filename and determining service from time/filename.
      *
-     * When the operator selects the service on the upload form, pass it via
-     * $serviceOverride. It always wins over filename/timestamp detection because
-     * the operator knows which service the recording belongs to — this avoids
-     * misclassifying a recording whose video `creation_time` reflects the export
-     * time (e.g. a morning service downloaded that evening) rather than the
-     * service time.
-     *
-     * @param  array<string, mixed>  $additionalLogData  Extra columns to merge into the log record (e.g. source_file_path, file_hash)
-     * @param  array<string, mixed>|null  $preExtractedMetadata  When non-null, replaces video-style date/service extraction
+     * @param  UploadedFile  $file  The uploaded media file
+     * @param  MediaType  $processingType  The type of processing to initiate
+     * @param  string|null  $clientFileDate  Optional date provided by the client (YYYY-MM-DD)
+     * @param  array{
+     *     source_file_path?: string,
+     *     file_hash?: string|null,
+     *     dedup_key?: string|null,
+     *     file_size?: int,
+     *     duration?: float,
+     *     processing_metadata?: array<string, mixed>
+     * }  $additionalLogData  Extra columns to merge into the log record
+     * @param  array{
+     *     id3_metadata?: array{
+     *         title: string|null,
+     *         preacher: string|null,
+     *         series: string|null,
+     *         reference: string|null
+     *     }
+     * }|null  $preExtractedMetadata  When non-null, replaces standard identity extraction
      * @param  SermonService|null  $serviceOverride  Operator-selected service; when set, overrides automatic detection
      * @return MediaProcessingLog The newly created processing log
      *

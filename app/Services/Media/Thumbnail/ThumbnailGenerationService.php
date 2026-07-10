@@ -62,12 +62,16 @@ use Intervention\Image\Laravel\Facades\Image;
  */
 class ThumbnailGenerationService
 {
+    /** Number of frames to extract as potential thumbnail candidates. */
     public const int CANDIDATE_COUNT = 5;
 
+    /** Target width for generated web-optimised thumbnails (720p). */
     public const int WEB_WIDTH = 1280;
 
+    /** Target height for generated web-optimised thumbnails (720p). */
     public const int WEB_HEIGHT = 720;
 
+    /** WebP encoding quality (0-100) for generated thumbnails. */
     public const int WEB_QUALITY = 85;
 
     private string $storageDisk;
@@ -95,6 +99,18 @@ class ThumbnailGenerationService
         $this->frameExtractionService = $frameExtractionService;
     }
 
+    /**
+     * Generate branded thumbnail candidates from a sermon video.
+     *
+     * Coordinates the complete thumbnail pipeline: quality validation, frame
+     * extraction for multiple candidates, quality scoring, and asset rendering
+     * (plain, branded overlay, and social card) for the best candidate.
+     *
+     * @param  Sermon  $sermon  The sermon record to associate with
+     * @param  string  $videoPath  Absolute path or relative storage path to source video
+     * @param  string|null  $disk  Optional disk name if videoPath is relative
+     * @return ThumbnailResult Result containing the primary thumbnail path and candidate metadata
+     */
     public function generateThumbnail(Sermon $sermon, string $videoPath, ?string $disk = null): ThumbnailResult
     {
         $tempVideoPath = null;
@@ -209,7 +225,14 @@ class ThumbnailGenerationService
     }
 
     /**
-     * @return array{path:string,composition_metadata:array<string, mixed>}|null
+     * Create a standalone branded thumbnail from a single frame.
+     *
+     * Resizes the frame, extracts the subject (foreground), and composes it onto
+     * a branded background with text.
+     *
+     * @param  Sermon  $sermon  The sermon record for branding text
+     * @param  string  $baseFramePath  Absolute path to the extracted source frame
+     * @return array{path: string, composition_metadata: CompositionMetadata}|null
      */
     public function createBrandedThumbnail(Sermon $sermon, string $baseFramePath): ?array
     {
@@ -277,6 +300,12 @@ class ThumbnailGenerationService
         }
     }
 
+    /**
+     * Create a resized, unbranded thumbnail from a single frame.
+     *
+     * @param  string  $baseFramePath  Absolute path to the source frame
+     * @return string|null Absolute path to the temporary plain thumbnail
+     */
     public function createPlainThumbnail(string $baseFramePath): ?string
     {
         try {
@@ -293,6 +322,16 @@ class ThumbnailGenerationService
         }
     }
 
+    /**
+     * Render the full set of assets for a previously extracted candidate.
+     *
+     * Used when an operator selects a specific candidate from the extracted set.
+     * Renders the overlay and social card assets for the selected option.
+     *
+     * @param  Sermon  $sermon  The sermon record
+     * @param  string  $candidateId  The ID of the candidate to render (e.g., 'candidate-1')
+     * @return ThumbnailResult Result containing the primary thumbnail path and metadata
+     */
     public function renderSelectedThumbnailCandidate(Sermon $sermon, string $candidateId): ThumbnailResult
     {
         /** @var ThumbnailCandidate|null $candidate */
@@ -599,7 +638,15 @@ class ThumbnailGenerationService
     }
 
     /**
-     * Store thumbnail in final storage location.
+     * Store a generated thumbnail in its final storage location.
+     *
+     * Moves the file from the temporary processing disk to the permanent
+     * thumbnail disk, using a standardized filename based on the sermon and variant.
+     *
+     * @param  string  $thumbnailPath  Absolute path to the temporary thumbnail file
+     * @param  Sermon  $sermon  The associated sermon record
+     * @param  string  $variant  Thumbnail variant name (e.g., 'overlay', 'card', 'plain')
+     * @return string|null The relative path on the permanent storage disk, or null on failure
      */
     public function storeThumbnail(string $thumbnailPath, Sermon $sermon, string $variant = 'overlay'): ?string
     {
@@ -635,6 +682,17 @@ class ThumbnailGenerationService
         }
     }
 
+    /**
+     * Delete existing thumbnails and generate a fresh set from the sermon video.
+     *
+     * Used to refresh thumbnails when branding themes change or to re-run
+     * generation for existing records.
+     *
+     * @param  Sermon  $sermon  The sermon record to refresh
+     * @return ThumbnailResult Fresh thumbnail generation result
+     *
+     * @throws \InvalidArgumentException If the sermon has no valid video path
+     */
     public function regenerateThumbnail(Sermon $sermon): ThumbnailResult
     {
         if (! $sermon->hasVideo()) {

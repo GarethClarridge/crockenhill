@@ -275,6 +275,12 @@ class Sermon extends Model implements Sitemapable
             'needs_preacher_review' => ['boolean'],
             'transcript_file_path' => ['nullable', 'string', 'max:255'],
             'thumbnail_file_path' => ['nullable', 'string', 'max:255'],
+            'thumbnail_generated_at' => ['nullable', 'date'],
+            'thumbnail_metadata' => ['nullable', 'array'],
+            'video_quality_status' => ['nullable', Rule::enum(SermonVideoQualityStatus::class)],
+            'video_quality_reason' => ['nullable', 'string', 'max:64'],
+            'video_visibility_override' => ['nullable', Rule::enum(SermonVideoVisibilityOverride::class)],
+            'video_quality_assessed_at' => ['nullable', 'date'],
             'meta_description' => ['nullable', 'string', 'max:255'],
             'livestream_processing_id' => [
                 'nullable',
