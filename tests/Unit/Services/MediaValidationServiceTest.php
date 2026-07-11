@@ -208,4 +208,60 @@ class MediaValidationServiceTest extends TestCase
                 "Extensions mismatch for {$type->value}");
         }
     }
+
+    // ---- validateLocalFile ----
+
+    #[Test]
+    public function validate_local_file_passes_for_valid_file(): void
+    {
+        $path = (string) tempnam(sys_get_temp_dir(), 'test');
+        try {
+            // MP4 magic bytes to satisfy mime_content_type detection
+            file_put_contents($path, "\x00\x00\x00\x18ftypmp42");
+
+            $this->expectNotToPerformAssertions();
+            $this->service->validateLocalFile(MediaType::Video, $path);
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    #[Test]
+    public function validate_local_file_throws_for_oversized_file(): void
+    {
+        $path = (string) tempnam(sys_get_temp_dir(), 'test');
+        try {
+            // Create a file larger than 100MB limit for Audio
+            $handle = fopen($path, 'wb');
+            if ($handle) {
+                fseek($handle, (100 * 1024 * 1024) + 1);
+                fwrite($handle, "\0");
+                fclose($handle);
+            }
+
+            $this->expectException(InvalidFileException::class);
+            $this->expectExceptionMessage('File size exceeds maximum limit');
+
+            $this->service->validateLocalFile(MediaType::Audio, $path);
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    #[Test]
+    public function validate_local_file_throws_for_invalid_mime_type(): void
+    {
+        $path = (string) tempnam(sys_get_temp_dir(), 'test');
+        try {
+            // Plain text content will yield text/plain, which is invalid for video
+            file_put_contents($path, 'This is a plain text file, not a video.');
+
+            $this->expectException(InvalidFileException::class);
+            $this->expectExceptionMessage('Invalid file type');
+
+            $this->service->validateLocalFile(MediaType::Video, $path);
+        } finally {
+            @unlink($path);
+        }
+    }
 }
