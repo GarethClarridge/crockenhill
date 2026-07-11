@@ -26,11 +26,14 @@ use App\Services\ChurchService\Structure\ServiceStructureValidator;
 class SermonAutoExtractionPolicy
 {
     /**
-     * Flags that mark OoS ordering/alignment concerns rather than boundary
-     * quality; these alone do not block auto-extraction.
+     * Flags that mark OoS ordering/alignment or completeness concerns rather
+     * than boundary quality; these alone do not block auto-extraction. A
+     * missing preached reading questions what surrounds the sermon, not the
+     * sermon's own boundaries — extraction of the sermon span is still right.
      */
     private const NON_DISQUALIFYING_REVIEW_FLAGS = [
         ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION,
+        ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
     ];
 
     /**

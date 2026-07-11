@@ -46,16 +46,17 @@ class ProcessInboundOosEmailTest extends TestCase
         ]);
 
         $email = InboundEmail::factory()->create([
-            'subject' => 'Order of Service - 2026-03-16 AM',
+            'subject' => 'Order of Service - 2026-03-15 AM',
             'body_plain' => "Welcome\nBefore the throne of God above\nOpening prayer\nLuke 15:1-32",
             'status' => InboundEmailStatus::Pending->value,
+            'received_at' => '2026-03-13 09:00:00',
         ]);
 
         app()->call([new ProcessInboundOosEmail($email), 'handle']);
 
         $service = ChurchService::query()->firstOrFail();
 
-        $this->assertSame('2026-03-16', $service->date->toDateString());
+        $this->assertSame('2026-03-15', $service->date->toDateString());
         $this->assertSame(SermonService::Morning, $service->service);
         $this->assertSame('email', $service->source);
         $this->assertFalse($service->needs_review);
@@ -243,12 +244,12 @@ class ProcessInboundOosEmailTest extends TestCase
     {
         return [
             'explicit evening wording' => [
-                'subject' => 'Order of Service - Sunday 16 March 2026 evening',
+                'subject' => 'Order of Service - Sunday 15 March 2026 evening',
                 'bodyPlain' => "Welcome\nThere is a higher throne\nPastoral prayer",
                 'expectedExtractionMethod' => 'subject_keyword',
             ],
             'pm time hint in body' => [
-                'subject' => 'Order of Service - Sunday 16 March 2026',
+                'subject' => 'Order of Service - Sunday 15 March 2026',
                 'bodyPlain' => "6pm service\nWelcome\nThere is a higher throne\nPastoral prayer",
                 'expectedExtractionMethod' => 'body_time_hint',
             ],

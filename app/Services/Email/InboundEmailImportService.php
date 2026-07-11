@@ -15,6 +15,7 @@ use App\Services\ChurchService\ChurchServiceItemSyncService;
 use App\Services\ChurchService\ChurchServiceSongLinker;
 use App\Services\ChurchService\ChurchServiceStructureMergeService;
 use App\Traits\SanitizesLogData;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -130,9 +131,14 @@ class InboundEmailImportService
         OosEmailParseResult $parseResult,
         ?int $reviewedByUserId = null,
         string $reviewMode = 'direct_approve',
+        bool $createOnly = false,
     ): ChurchService {
         if (! is_string($parseResult->date) || $parseResult->service === null) {
             throw new InvalidArgumentException('Inbound email parse result is missing a date or service.');
+        }
+
+        if ($createOnly) {
+            return $this->importCreateOnly($inboundEmail, $parseResult, $reviewedByUserId, $reviewMode);
         }
 
         $existingService = ChurchService::query()
@@ -161,6 +167,71 @@ class InboundEmailImportService
         return $this->importAsNewService(
             $inboundEmail, $parseResult, $importMetadata, $reviewedByUserId, $reviewMode,
         );
+    }
+
+    private function importCreateOnly(
+        InboundEmail $inboundEmail,
+        OosEmailParseResult $parseResult,
+        ?int $reviewedByUserId,
+        string $reviewMode,
+    ): ChurchService {
+        $service = $parseResult->service;
+
+        if (! $service instanceof SermonService) {
+            throw new InvalidArgumentException('Inbound email parse result is missing a service.');
+        }
+
+        try {
+            $churchService = DB::transaction(function () use ($parseResult, $service): ChurchService {
+                $existingService = ChurchService::query()
+                    ->where('date', $parseResult->date)
+                    ->where('service', $service->value)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existingService instanceof ChurchService) {
+                    return $existingService;
+                }
+
+                $churchService = new ChurchService;
+                $churchService->fill([
+                    'date' => $parseResult->date,
+                    'service' => $service->value,
+                    'source' => ChurchServiceItemSource::Email->value,
+                    'needs_review' => $parseResult->needsReview,
+                    'import_metadata' => $parseResult->importMetadata,
+                ]);
+                $churchService->save();
+
+                $syncResult = $this->itemSyncService->sync($churchService, $parseResult->items, ChurchServiceItemSource::Email);
+                $this->songLinker->linkForService($churchService);
+
+                /** @var ChurchService $freshChurchService */
+                $freshChurchService = $churchService->fresh(['items']) ?? $churchService;
+
+                return $this->canonicalUpdateService->finalize(
+                    $freshChurchService,
+                    [],
+                    ChurchServiceItemSource::Email,
+                    $syncResult,
+                );
+            });
+        } catch (UniqueConstraintViolationException $exception) {
+            $existingService = ChurchService::query()
+                ->where('date', $parseResult->date)
+                ->where('service', $service->value)
+                ->first();
+
+            if (! $existingService instanceof ChurchService) {
+                throw $exception;
+            }
+
+            $churchService = $existingService;
+        }
+
+        $this->markEmailAsProcessed($inboundEmail, $churchService, $reviewedByUserId, $reviewMode);
+
+        return $churchService;
     }
 
     /**

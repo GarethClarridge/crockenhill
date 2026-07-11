@@ -257,6 +257,12 @@ return [
         // Owns the sermon-vs-children's-talk judgement, so it defaults to the
         // flagship reasoning model (same reasoning as section_classification.model).
         'model' => env('SERVICE_STRUCTURE_MODEL', 'gpt-5'),
+        // When a validated structure has a sermon but no bible_reading section
+        // within the extraction pairing window before it, retry detection once
+        // with feedback naming the anomaly (the reading is usually embedded in
+        // another section). The retry is adopted only if it validates and
+        // recovers a reading.
+        'reading_recheck' => env('SERVICE_STRUCTURE_READING_RECHECK', true),
         // mock|openai|local — the ServiceTranscriptionInterface binding.
         'transcription_service' => env('SERVICE_TRANSCRIPTION_SERVICE', 'mock'),
         // Whisper model for the whole-recording pass. Must support verbose_json

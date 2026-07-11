@@ -199,6 +199,37 @@ class InboundEmailImportServiceTest extends TestCase
     }
 
     #[Test]
+    public function test_create_only_import_leaves_an_existing_openlp_service_untouched(): void
+    {
+        $existing = ChurchService::factory()->create([
+            'date' => '2025-03-09',
+            'service' => 'morning',
+            'source' => 'openlp',
+            'import_metadata' => ['original' => true],
+        ]);
+        $inboundEmail = InboundEmail::factory()->create(['status' => InboundEmailStatus::ArchiveEval]);
+        $parseResult = new OosEmailParseResult(
+            date: '2025-03-09',
+            service: SermonService::Morning,
+            items: [
+                ['position' => 1, 'type' => 'songs', 'title' => 'Replacement', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ],
+            confidenceScore: 0.99,
+            needsReview: false,
+            shouldImport: true,
+            importMetadata: ['confidence_score' => 0.99],
+        );
+
+        $result = $this->service->import($inboundEmail, $parseResult, createOnly: true);
+
+        $this->assertSame($existing->id, $result->id);
+        $this->assertSame('openlp', $existing->fresh()->source);
+        $this->assertSame(['original' => true], $existing->fresh()->import_metadata->toArray());
+        $this->assertDatabaseCount('church_service_items', 0);
+        $this->assertSame(InboundEmailStatus::Processed, $inboundEmail->fresh()->status);
+    }
+
+    #[Test]
     public function test_import_throws_when_parse_result_is_missing_a_date(): void
     {
         $inboundEmail = InboundEmail::factory()->create();

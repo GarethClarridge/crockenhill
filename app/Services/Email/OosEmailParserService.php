@@ -48,6 +48,24 @@ class OosEmailParserService
             $serviceResolution['service'] !== null,
         );
 
+        // A syntactically perfect date can still be wrong (wrong weekday, in the past, or
+        // far in the future). Validate the resolved date against the arrival window and any
+        // claimed weekday; on failure we hold for review rather than auto-correcting.
+        $plausibility = $this->validateDatePlausibility(
+            $dateResolution['date'],
+            $inboundEmail->subject,
+            $body,
+            CarbonImmutable::instance($inboundEmail->received_at),
+        );
+
+        if (! $plausibility['plausible']) {
+            $confidenceScore = round(min($confidenceScore, 0.74), 2);
+
+            foreach ($plausibility['warnings'] as $warning) {
+                $warnings[] = $warning;
+            }
+        }
+
         $reviewThreshold = (float) config('service-tracking.email_parsing.review_threshold', 0.75);
         $autoImportThreshold = (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90);
         $shouldImport = $confidenceScore >= $reviewThreshold
@@ -69,6 +87,9 @@ class OosEmailParserService
                     'value' => $dateResolution['date'],
                     'confidence' => $dateResolution['confidence'],
                     'method' => $dateResolution['method'],
+                    'plausible' => $plausibility['plausible'],
+                    'suggested_date' => $plausibility['suggested_date'],
+                    'implausibility_reasons' => $plausibility['reasons'],
                 ],
                 'service_extraction' => [
                     'value' => $serviceResolution['service']?->value,
@@ -364,7 +385,10 @@ class OosEmailParserService
     private function safeDate(int $year, int $month, int $day): ?CarbonImmutable
     {
         try {
-            $candidate = CarbonImmutable::create($year, $month, $day, 12, 0, 0);
+            // createSafe() throws InvalidDateException for out-of-range components
+            // (e.g. month 15, 31 February, 29 February in a non-leap year) rather than
+            // silently overflowing into an adjacent month/year like create() does.
+            $candidate = CarbonImmutable::createSafe($year, $month, $day, 12, 0, 0);
 
             return $candidate instanceof CarbonImmutable ? $candidate : null;
         } catch (\Throwable) {
@@ -377,10 +401,121 @@ class OosEmailParserService
         try {
             $candidate = CarbonImmutable::createFromFormat($format, $value);
 
-            return $candidate instanceof CarbonImmutable ? $candidate : null;
+            if (! $candidate instanceof CarbonImmutable) {
+                return null;
+            }
+
+            // createFromFormat() overflows impossible calendar dates silently
+            // ('2025-02-31' becomes '2025-03-03'), so require an exact round-trip.
+            return $candidate->format($format) === $value ? $candidate : null;
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * Sanity-check a syntactically valid resolved date against the email arrival window and
+     * any weekday claimed in the subject. Plan emails are forward-looking and short-horizon,
+     * so a resolved date in the past, far in the future, or on the wrong weekday is suspect.
+     *
+     * @return array{plausible:bool,warnings:list<string>,suggested_date:?string,reasons:list<string>,claimed_weekday:?string}
+     */
+    private function validateDatePlausibility(?string $date, string $subject, string $body, CarbonImmutable $receivedAt): array
+    {
+        $plausible = [
+            'plausible' => true,
+            'warnings' => [],
+            'suggested_date' => null,
+            'reasons' => [],
+            'claimed_weekday' => null,
+        ];
+
+        if ($date === null) {
+            return $plausible;
+        }
+
+        $resolved = $this->safeDateFromFormat('Y-m-d', $date)?->startOfDay();
+        if (! $resolved instanceof CarbonImmutable) {
+            return $plausible;
+        }
+
+        $claimedWeekday = $this->claimedWeekday($subject);
+        $plausible['claimed_weekday'] = $claimedWeekday;
+        $resolvedWeekday = strtolower($resolved->englishDayOfWeek);
+        $reasons = [];
+
+        if ($claimedWeekday !== null && $claimedWeekday !== $resolvedWeekday) {
+            $reasons[] = "the email refers to a {$claimedWeekday} but {$date} is a {$resolvedWeekday}";
+        }
+
+        $windowStart = $receivedAt->startOfDay();
+        $maxFutureDays = (int) config('service-tracking.email_parsing.max_future_days', 14);
+        $windowEnd = $windowStart->addDays($maxFutureDays);
+
+        if ($resolved->lessThan($windowStart)) {
+            $reasons[] = "{$date} is before the email was received";
+        } elseif ($resolved->greaterThan($windowEnd)) {
+            $reasons[] = "{$date} is more than {$maxFutureDays} days after the email was received";
+        }
+
+        if ($reasons === []) {
+            return $plausible;
+        }
+
+        $suggestedDate = $this->suggestPlausibleDate($resolved, $windowStart, $windowEnd, $claimedWeekday);
+        $warnings = ["Resolved service date {$date} looks implausible (".implode('; ', $reasons).').'];
+
+        if ($suggestedDate !== null) {
+            $warnings[] = "The email most likely refers to {$suggestedDate}; confirm before importing.";
+        }
+
+        return [
+            'plausible' => false,
+            'warnings' => $warnings,
+            'suggested_date' => $suggestedDate,
+            'reasons' => $reasons,
+            'claimed_weekday' => $claimedWeekday,
+        ];
+    }
+
+    private function claimedWeekday(string $subject): ?string
+    {
+        // Only trust a weekday claimed in the (short, authoritative) subject line — body text
+        // routinely names other weekdays (e.g. midweek meetings) that would cause false holds.
+        if (preg_match('/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i', $subject, $matches) === 1) {
+            return strtolower($matches[1]);
+        }
+
+        return null;
+    }
+
+    /**
+     * Offer a single corrected date within the plausibility window: the same day-of-month in a
+     * nearby month that lands on the claimed weekday (e.g. "Sunday 5 June" → 5 July). Only a
+     * unique candidate is suggested; ambiguity yields no suggestion.
+     */
+    private function suggestPlausibleDate(
+        CarbonImmutable $resolved,
+        CarbonImmutable $windowStart,
+        CarbonImmutable $windowEnd,
+        ?string $claimedWeekday,
+    ): ?string {
+        $targetDay = $resolved->day;
+        $candidates = [];
+        $cursor = $windowStart;
+
+        while ($cursor->lessThanOrEqualTo($windowEnd)) {
+            $matchesDayOfMonth = $cursor->day === $targetDay;
+            $matchesWeekday = $claimedWeekday === null || strtolower($cursor->englishDayOfWeek) === $claimedWeekday;
+
+            if ($matchesDayOfMonth && $matchesWeekday) {
+                $candidates[$cursor->format('Y-m-d')] = true;
+            }
+
+            $cursor = $cursor->addDay();
+        }
+
+        return count($candidates) === 1 ? (string) array_key_first($candidates) : null;
     }
 
     private function monthNumber(string $month): int

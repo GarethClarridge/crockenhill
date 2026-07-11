@@ -216,6 +216,12 @@ necessarily wrong**:
 - OpenLP orders of service list songs grouped by type, not in performance
   order — a pipeline result that deviates from OoS order but matches the
   recording is *correct*.
+- **Sermon-end convention** (decided after the 2026-07-10 test-set-2 batch):
+  the sermon section *includes* a short response prayer the preacher prays
+  immediately after preaching, before any hymn or handover — the sermon ends
+  when the preacher stops speaking. A closing prayer by a different speaker,
+  or after an intervening item, is its own section. Annotate truth data and
+  judge sermon-end deltas by this rule.
 
 What generally **is** wrong: type mismatches on unambiguous sections (sermon,
 children's talk), merged adjacent songs (a hymn disappears), sections absorbing

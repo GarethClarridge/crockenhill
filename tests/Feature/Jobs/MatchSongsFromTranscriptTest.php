@@ -218,6 +218,56 @@ class MatchSongsFromTranscriptTest extends TestCase
     }
 
     #[Test]
+    public function it_strips_a_hymn_book_number_suffix_from_the_displayed_title(): void
+    {
+        // Catalogue titles imported from OpenLP can carry hymn-book numbers
+        // ("#305"); they are catalogue bookkeeping, not part of the title.
+        $song = Song::factory()->create([
+            'title' => 'Jesus Shall Take The Highest Honour #305',
+            'canonical_key' => 'jesus shall take the highest honour',
+            'first_line_key' => null,
+            'lyrics_plain' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
+            'title' => 'Jesus shall take the highest honour',
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'Jesus shall take the highest honour',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(OosAlignmentService::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
+        );
+
+        $section->refresh();
+
+        $match = $section->metadata['transcript_song_match'] ?? null;
+        $this->assertIsArray($match);
+        $this->assertSame($song->id, $match['song_id']);
+
+        // Display fields lose the "#305"; the raw catalogue title stays in the
+        // match evidence.
+        $this->assertSame('Jesus Shall Take The Highest Honour', $section->title);
+        $this->assertSame('Jesus Shall Take The Highest Honour', $section->metadata['song_title']);
+        $this->assertSame('Jesus Shall Take The Highest Honour #305', $match['title']);
+    }
+
+    #[Test]
     public function it_does_not_pick_arbitrarily_between_songs_sharing_a_first_line(): void
     {
         // first_line_key is non-unique: two catalogued songs open identically.

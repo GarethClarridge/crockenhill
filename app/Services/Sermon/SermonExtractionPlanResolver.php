@@ -10,12 +10,17 @@ use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Support\SermonAutoExtractionPolicy;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 class SermonExtractionPlanResolver
 {
+    public function __construct(
+        private readonly ScriptureReferenceResolver $scriptureReferences,
+    ) {}
+
     /**
      * Resolve the optimal sermon extraction plan from a livestream recording.
      *
@@ -338,33 +343,59 @@ class SermonExtractionPlanResolver
         }
 
         $sermonStart = (float) $sermonSection->start_time;
+        $sermonReference = $this->sermonReference($sermonSection);
         $minReadingDuration = (float) config(
             'media-processing.section_extraction.enhanced_sermon.min_reading_duration_seconds',
             90
         );
 
         return $candidates
-            ->sortByDesc(fn (ServiceSection $reading): array => $this->readingEvidence($reading, $sermonStart, $minReadingDuration))
+            ->sortByDesc(fn (ServiceSection $reading): array => $this->readingEvidence($reading, $sermonStart, $sermonReference, $minReadingDuration))
             ->first();
+    }
+
+    /**
+     * The passage the structure detector identified as the sermon's text, when
+     * it emitted one — the strongest possible pairing evidence, since it names
+     * the preached reading directly.
+     */
+    private function sermonReference(ServiceSection $sermonSection): ?string
+    {
+        $reference = $sermonSection->metadata['sermon_reference'] ?? null;
+
+        return is_string($reference) && trim($reference) !== '' ? $reference : null;
     }
 
     /**
      * Evidence tuple for ranking a bible reading as the preached text, compared lexicographically
      * by sortByDesc so earlier elements dominate. Every element is "higher is better":
-     * 1. linked to a `bibles`-type OoS item (the day's scripture is marked in the order of service);
-     * 2. valid timing — ends before the sermon starts (an overlapping reading is worse);
-     * 3. a substantive duration over a short preamble (F17, a demotion not a hard exclusion);
-     * 4. proximity to the sermon; then longer duration and id as deterministic tie-breaks.
+     * 1. its reference overlaps the sermon's own detected reference (the 2023-05-07 corpus run
+     *    concatenated an early Psalm into the published audio because the true preached text,
+     *    an adjacent 72-second epistle reading, lost every lower tier);
+     * 2. linked to a `bibles`-type OoS item (the day's scripture is marked in the order of service);
+     * 3. valid timing — ends before the sermon starts (an overlapping reading is worse);
+     * 4. a substantive duration over a short preamble (F17, a demotion not a hard exclusion);
+     * 5. proximity to the sermon; then longer duration and id as deterministic tie-breaks.
      *
-     * @return array{int, int, int, float, float, int}
+     * @return array{int, int, int, int, float, float, int}
      */
-    private function readingEvidence(ServiceSection $reading, float $sermonStart, float $minReadingDuration): array
-    {
+    private function readingEvidence(
+        ServiceSection $reading,
+        float $sermonStart,
+        ?string $sermonReference,
+        float $minReadingDuration,
+    ): array {
         $gap = $sermonStart - (float) $reading->end_time;
         $item = $reading->churchServiceItem;
         $biblesLinked = $item instanceof ChurchServiceItem && $item->type === 'bibles';
 
+        $readingReference = $reading->metadata['reading_reference'] ?? null;
+        $matchesSermonReference = $sermonReference !== null
+            && is_string($readingReference)
+            && $this->scriptureReferences->referencesOverlap($readingReference, $sermonReference);
+
         return [
+            $matchesSermonReference ? 1 : 0,
             $biblesLinked ? 1 : 0,
             $gap >= 0.0 ? 1 : 0,
             (float) $reading->duration >= $minReadingDuration ? 1 : 0,

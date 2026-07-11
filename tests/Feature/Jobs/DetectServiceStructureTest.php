@@ -303,6 +303,157 @@ class DetectServiceStructureTest extends TestCase
     }
 
     #[Test]
+    public function primary_mode_rechecks_a_readingless_sermon_and_adopts_the_retry(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        // First pass validates but buries the reading inside a prayer — no
+        // bible_reading section anywhere near the sermon (the 2024-11-03
+        // corpus run absorbed the Luke reading into the pastoral prayer).
+        // One feedback-guided retry should recover the reading.
+        MockServiceStructureService::useStructureSequence(
+            ServiceStructure::fromSections([
+                $this->section('welcome', 0.0, 120.0),
+                $this->section('prayer', 420.0, 590.0),
+                $this->section('sermon', 600.0, 2200.0),
+                $this->section('song', 2210.0, 2400.0),
+            ], model: 'mock'),
+            $this->validStructure(),
+        );
+
+        $this->runJob($log);
+
+        $log->refresh();
+        $this->assertNotSame(ProcessingStatus::Failed, $log->status);
+
+        $types = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->orderBy('section_order')
+            ->pluck('section_type')
+            ->map(fn ($type) => $type->value)
+            ->all();
+        $this->assertContains('bible_reading', $types);
+
+        $recheck = $log->processing_metadata?->toArray()['service_structure_reading_recheck'] ?? null;
+        $this->assertIsArray($recheck);
+        $this->assertSame('retry_adopted', $recheck['outcome']);
+
+        $this->assertNotSame([], MockServiceStructureService::lastFeedback());
+    }
+
+    #[Test]
+    public function primary_mode_keeps_and_flags_a_readingless_structure_when_the_recheck_finds_nothing(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        $readingless = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('prayer', 420.0, 590.0),
+            $this->section('sermon', 600.0, 2200.0),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'mock');
+        MockServiceStructureService::useStructureSequence($readingless, $readingless);
+
+        $this->runJob($log);
+
+        $log->refresh();
+        $this->assertNotSame(ProcessingStatus::Failed, $log->status, 'A missing reading never fails the run.');
+
+        $recheck = $log->processing_metadata?->toArray()['service_structure_reading_recheck'] ?? null;
+        $this->assertIsArray($recheck);
+        $this->assertSame('reading_still_missing', $recheck['outcome']);
+
+        $sermon = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'sermon')
+            ->firstOrFail();
+        $this->assertTrue((bool) $sermon->needs_manual_review);
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
+            $sermon->metadata['review_flags'] ?? []
+        );
+
+        // The flag questions completeness, not the sermon's own boundaries —
+        // the validated bounds must still replace the RMS guess.
+        $this->assertEqualsWithDelta(600.0, (float) $log->sermon_start_time, 0.01);
+        $this->assertEqualsWithDelta(2200.0, (float) $log->sermon_end_time, 0.01);
+    }
+
+    #[Test]
+    public function primary_mode_keeps_the_passing_structure_when_the_recheck_errors(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        // The first pass validates but buries the reading (no bible_reading near the sermon),
+        // triggering the recheck. The recheck's detector call then errors — a transient OpenAI
+        // timeout — which must not fail the already-valid run.
+        $readingless = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('prayer', 420.0, 590.0),
+            $this->section('sermon', 600.0, 2200.0),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'mock');
+        MockServiceStructureService::useStructureThenThrow(
+            $readingless,
+            new \RuntimeException('OpenAI timed out'),
+        );
+
+        $this->runJob($log);
+
+        $log->refresh();
+        $this->assertNotSame(ProcessingStatus::Failed, $log->status, 'A recheck error must not fail an already-valid run.');
+
+        $recheck = $log->processing_metadata?->toArray()['service_structure_reading_recheck'] ?? null;
+        $this->assertIsArray($recheck);
+        $this->assertSame('recheck_errored', $recheck['outcome']);
+
+        // The original validated structure stands, sermon flagged for the reviewer.
+        $sermon = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'sermon')
+            ->firstOrFail();
+        $this->assertTrue((bool) $sermon->needs_manual_review);
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
+            $sermon->metadata['review_flags'] ?? []
+        );
+        $this->assertEqualsWithDelta(600.0, (float) $log->sermon_start_time, 0.01);
+        $this->assertEqualsWithDelta(2200.0, (float) $log->sermon_end_time, 0.01);
+    }
+
+    #[Test]
+    public function no_reading_recheck_runs_when_a_reading_sits_near_the_sermon(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+        MockServiceStructureService::useStructure($this->validStructure());
+
+        $this->runJob($log);
+
+        $log->refresh();
+        $this->assertArrayNotHasKey(
+            'service_structure_reading_recheck',
+            $log->processing_metadata?->toArray() ?? []
+        );
+        $this->assertSame([], MockServiceStructureService::lastFeedback());
+    }
+
+    #[Test]
     public function primary_mode_does_not_retry_semantic_validation_failures(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');

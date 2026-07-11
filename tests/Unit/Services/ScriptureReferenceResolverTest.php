@@ -197,4 +197,31 @@ class ScriptureReferenceResolverTest extends TestCase
         $this->assertFalse($this->resolver->referencesRenderSameSpan('xyzzy 1:1', 'John 3:16'));
         $this->assertFalse($this->resolver->referencesRenderSameSpan('John 3:16', ''));
     }
+
+    public function test_overlap_accepts_a_sermon_subrange_of_the_reading(): void
+    {
+        // A sermon usually expounds part of the passage read (the 2026-05-03
+        // corpus run read 1 Timothy 3:14-4:16 and preached 4:7-10).
+        $this->assertTrue($this->resolver->referencesOverlap('1 Timothy 3:14-4:16', '1 Timothy 4:7-10'));
+        $this->assertTrue($this->resolver->referencesOverlap('Philippians 2:5-11', 'Philippians 2:5-11'));
+    }
+
+    public function test_overlap_accepts_a_crossing_overlap(): void
+    {
+        // Evidence ranking wants ANY shared verses; only referencesAgree()
+        // rejects crossing spans.
+        $this->assertTrue($this->resolver->referencesOverlap('Luke 18:31-43', 'Luke 18:35-19:10'));
+    }
+
+    public function test_overlap_rejects_disjoint_references(): void
+    {
+        $this->assertFalse($this->resolver->referencesOverlap('Psalm 72', 'Philippians 2:5-11'));
+        $this->assertFalse($this->resolver->referencesOverlap('John 3:1-15', 'John 4:1-10'));
+    }
+
+    public function test_overlap_rejects_unparseable_sides(): void
+    {
+        $this->assertFalse($this->resolver->referencesOverlap('not a reference', 'John 3:16'));
+        $this->assertFalse($this->resolver->referencesOverlap('', 'John 3:16'));
+    }
 }

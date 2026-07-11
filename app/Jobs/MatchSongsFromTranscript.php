@@ -515,8 +515,9 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             $writeCatalogueTitle = $confidence >= $writebackThreshold;
 
             if ($writeCatalogueTitle) {
-                $metadataArray['song_title'] = $matchedTitle;
-                $section->title = $matchedTitle;
+                $displayTitle = $this->catalogueDisplayTitle($matchedTitle);
+                $metadataArray['song_title'] = $displayTitle;
+                $section->title = $displayTitle;
             }
 
             // Clear the unmatched review flag now that we have a match.
@@ -549,6 +550,19 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                 }
             }
         });
+    }
+
+    /**
+     * The catalogue title with any trailing hymn-book number removed
+     * ("Jesus Shall Take The Highest Honour #305", "Go Forth And Tell #616")
+     * — OpenLP catalogue bookkeeping, not part of the song's title. The raw
+     * title is preserved in transcript_song_match and on the catalogue row.
+     */
+    private function catalogueDisplayTitle(string $title): string
+    {
+        $stripped = trim((string) preg_replace('/\s*#\w+$/', '', trim($title)));
+
+        return $stripped === '' ? $title : $stripped;
     }
 
     /**
