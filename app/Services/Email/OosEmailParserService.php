@@ -183,7 +183,7 @@ class OosEmailParserService
             ? 0.0
             : ($rawService !== null ? 0.9 : $serviceResolution['confidence']);
 
-        [$date, $dateConfidence] = $this->resolvePlanDate($rawDate, $dateResolution);
+        [$date, $dateConfidence] = $this->resolvePlanDate($rawDate, $dateResolution, $receivedAt);
         $items = $this->normaliseItems($rawItems);
 
         $confidence = $this->calculateConfidence(
@@ -248,17 +248,52 @@ class OosEmailParserService
      * @param  array{date:?string,confidence:float,method:?string}  $dateResolution
      * @return array{0:?string,1:float}
      */
-    private function resolvePlanDate(?string $rawDate, array $dateResolution): array
+    private function resolvePlanDate(?string $rawDate, array $dateResolution, CarbonImmutable $receivedAt): array
     {
         if (is_string($rawDate) && $rawDate !== '') {
             $candidate = $this->safeDateFromFormat('Y-m-d', $rawDate);
 
             if ($candidate instanceof CarbonImmutable) {
-                return [$candidate->format('Y-m-d'), 0.9];
+                $date = $candidate->format('Y-m-d');
+
+                // An extractor-supplied plan date may carry a hallucinated year — the model
+                // defaults to its training period when the email names no year (e.g.
+                // "sunday 14th June" received June 2026 came back as 2023-06-14). Trust it
+                // only when it falls inside the received-at window; otherwise prefer the
+                // email-level extraction, whose year inference is anchored to received_at.
+                // Only the window applies here: a multi-date email's Christmas-morning plan
+                // legitimately misses the subject's claimed weekday, so the weekday check
+                // stays a per-plan review hold rather than a date-arbitration signal.
+                if ($this->withinReceivedWindow($candidate, $receivedAt)) {
+                    return [$date, 0.9];
+                }
+
+                // Fall back only when the email-level date shares the plan's month and day —
+                // then the plan clearly means the same date with a bad year. A different
+                // month-day (a multi-date email's second service) must not be rewritten to
+                // the email's first date; keep it and let the plausibility cap hold it.
+                if (is_string($dateResolution['date'])
+                    && $dateResolution['date'] !== $date
+                    && substr($dateResolution['date'], 5) === substr($date, 5)) {
+                    return [$dateResolution['date'], $dateResolution['confidence']];
+                }
+
+                // No better candidate; keep the out-of-window date and let the per-plan
+                // plausibility cap hold it for review.
+                return [$date, 0.9];
             }
         }
 
         return [$dateResolution['date'], $dateResolution['confidence']];
+    }
+
+    private function withinReceivedWindow(CarbonImmutable $resolved, CarbonImmutable $receivedAt): bool
+    {
+        $windowStart = $receivedAt->startOfDay();
+        $maxFutureDays = (int) config('service-tracking.email_parsing.max_future_days', 14);
+
+        return ! $resolved->startOfDay()->lessThan($windowStart)
+            && ! $resolved->startOfDay()->greaterThan($windowStart->addDays($maxFutureDays));
     }
 
     /**
@@ -485,7 +520,12 @@ class OosEmailParserService
      */
     private function extractNumericDate(string $text, string $source, CarbonImmutable $receivedAt): ?array
     {
-        if (preg_match('/\b(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?\b/', $text, $matches) !== 1) {
+        // A two-part hyphenated number is a Bible verse range in these emails ("Luke 2:1-7"),
+        // not a date, so the hyphen separator is only accepted with an explicit year
+        // (16-03-2026). Slash dates keep the optional year, and ISO dates are handled by the
+        // dedicated extractIsoDate() pass.
+        if (preg_match('/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/', $text, $matches) !== 1
+            && preg_match('/\b(\d{1,2})-(\d{1,2})-(\d{2,4})\b/', $text, $matches) !== 1) {
             return null;
         }
 
