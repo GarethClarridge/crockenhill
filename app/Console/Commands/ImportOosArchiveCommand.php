@@ -9,11 +9,11 @@ use App\Data\OosEmailParseResult;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
 use App\Models\InboundEmail;
-use App\Models\Song;
 use App\Services\Email\InboundEmailImportService;
 use App\Services\Email\OosArchiveEvaluator;
 use App\Services\Email\OosArchiveMarkdownParser;
 use App\Services\Email\OosEmailParserService;
+use App\Services\Song\SongTitleResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Arr;
@@ -71,7 +71,7 @@ class ImportOosArchiveCommand extends Command
         $entries = $this->filteredEntries($allEntries);
         $dryRun = (bool) $this->option('dry-run');
         $shouldImport = (bool) $this->option('import') && ! $dryRun;
-        $songCanonicalKeys = $dryRun ? [] : $this->songCanonicalKeys();
+        $songTitleResolver = $dryRun ? null : SongTitleResolver::fromDatabase();
         $results = [];
 
         foreach ($entries as $entry) {
@@ -124,7 +124,7 @@ class ImportOosArchiveCommand extends Command
                     $parseResult,
                     $disposition,
                     $gateReasons,
-                    $songCanonicalKeys,
+                    $songTitleResolver,
                     $importError,
                     $eligiblePlanKeys,
                 );
@@ -141,7 +141,7 @@ class ImportOosArchiveCommand extends Command
                     null,
                     'failed',
                     ['processing_failure'],
-                    $songCanonicalKeys,
+                    $songTitleResolver,
                     $throwable->getMessage(),
                 );
             }
@@ -414,6 +414,16 @@ class ImportOosArchiveCommand extends Command
             ['Auto-import precision', $this->percentage($aggregate['auto_import_precision']['rate'])],
             ['Song-link hit rate', $this->percentage($aggregate['song_link_hit_rate']['rate'])],
         ]);
+
+        $byType = $aggregate['song_link_hit_rate']['by_type'] ?? [];
+        if ($byType !== []) {
+            $rows = [];
+            foreach ($byType as $matchType => $count) {
+                $rows[] = [(string) $matchType, (string) $count];
+            }
+
+            $this->table(['Song match type', 'Count'], $rows);
+        }
     }
 
     /** @param array<string, mixed> $report */
@@ -457,19 +467,5 @@ class ImportOosArchiveCommand extends Command
     private function percentage(mixed $rate): string
     {
         return is_numeric($rate) ? number_format((float) $rate * 100, 1).'%' : 'n/a';
-    }
-
-    /** @return list<string> */
-    private function songCanonicalKeys(): array
-    {
-        $keys = [];
-
-        foreach (Song::query()->pluck('canonical_key') as $key) {
-            if (is_string($key)) {
-                $keys[] = $key;
-            }
-        }
-
-        return $keys;
     }
 }

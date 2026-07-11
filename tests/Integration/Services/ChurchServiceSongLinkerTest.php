@@ -280,6 +280,117 @@ class ChurchServiceSongLinkerTest extends TestCase
     }
 
     #[Test]
+    public function it_links_email_titles_via_the_library_alternate_title(): void
+    {
+        $song = Song::factory()->create([
+            'canonical_key' => 'what love could remember',
+            'title' => 'What love could remember',
+            'alternate_title' => 'His mercy is more',
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::Email->value,
+            'source_title' => "NIP 'His mercy is more'",
+            'openlp_search_title' => null,
+            'song_id' => null,
+        ]);
+
+        $metrics = $this->linker->linkAll();
+
+        $item->refresh();
+
+        $this->assertSame($song->id, $item->song_id);
+        $this->assertSame(['alternate_title' => 1], $metrics['match_types']);
+        $this->assertNull(data_get($item->metadata, 'song_link'), 'Deterministic links must not carry an audit trail.');
+    }
+
+    #[Test]
+    public function it_records_an_audit_trail_for_fuzzy_links_and_stays_idempotent(): void
+    {
+        $song = Song::factory()->create([
+            'canonical_key' => 'from the breaking of the dawn',
+            'title' => 'From The Breaking Of The Dawn',
+            'alternate_title' => null,
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::Email->value,
+            'source_title' => "NIP 'From the braking of the dawn'",
+            'openlp_search_title' => null,
+            'song_id' => null,
+        ]);
+
+        $metrics = $this->linker->linkAll();
+
+        $item->refresh();
+
+        $this->assertSame($song->id, $item->song_id);
+        $this->assertSame(['fuzzy' => 1], $metrics['match_types']);
+        $this->assertSame('fuzzy', data_get($item->metadata, 'song_link.match_type'));
+        $this->assertGreaterThanOrEqual(0.85, data_get($item->metadata, 'song_link.confidence'));
+
+        $rerunMetrics = $this->linker->linkAll();
+
+        $this->assertSame(1, $rerunMetrics['unchanged']);
+        $this->assertSame(0, $rerunMetrics['updated']);
+    }
+
+    #[Test]
+    public function it_does_not_fuzzy_link_when_disabled_by_config(): void
+    {
+        config(['service-tracking.song_linking.fuzzy_enabled' => false]);
+
+        Song::factory()->create([
+            'canonical_key' => 'from the breaking of the dawn',
+            'title' => 'From The Breaking Of The Dawn',
+            'alternate_title' => null,
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::Email->value,
+            'source_title' => "NIP 'From the braking of the dawn'",
+            'openlp_search_title' => null,
+            'song_id' => null,
+        ]);
+
+        $metrics = $this->linker->linkAll();
+
+        $this->assertNull($item->refresh()->song_id);
+        $this->assertSame(1, $metrics['unmatched']);
+    }
+
+    #[Test]
+    public function it_removes_the_audit_trail_when_a_link_clears(): void
+    {
+        $staleSong = Song::factory()->create([
+            'canonical_key' => 'stale fuzzy key@',
+            'alternate_title' => null,
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'type' => 'songs',
+            'openlp_search_title' => 'completely unrelated words here@',
+            'song_id' => $staleSong->id,
+            'metadata' => [
+                'section_type' => 'song',
+                'song_link' => ['match_type' => 'fuzzy', 'confidence' => 0.9],
+            ],
+        ]);
+
+        $metrics = $this->linker->linkAll();
+
+        $item->refresh();
+
+        $this->assertNull($item->song_id);
+        $this->assertSame(1, $metrics['cleared']);
+        $this->assertNull(data_get($item->metadata, 'song_link'));
+        $this->assertSame('song', data_get($item->metadata, 'section_type'), 'Other metadata keys must survive the clear.');
+    }
+
+    #[Test]
     public function link_for_service_only_updates_items_for_that_service(): void
     {
         $song = Song::factory()->create([

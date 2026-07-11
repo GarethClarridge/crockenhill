@@ -33,4 +33,13 @@ return [
     'songs' => [
         'sqlite_path' => env('OPENLP_SONGS_DB_PATH'),
     ],
+
+    'song_linking' => [
+        // Fuzzy title matching is the linker's last resort and the only rung that can guess
+        // wrong; links it makes carry a metadata.song_link audit trail and this kill-switch.
+        'fuzzy_enabled' => env('SONG_LINKING_FUZZY_ENABLED', true),
+        'fuzzy_threshold' => (float) env('SONG_LINKING_FUZZY_THRESHOLD', 0.90),
+        'fuzzy_margin' => (float) env('SONG_LINKING_FUZZY_MARGIN', 0.05),
+        'fuzzy_min_probe_length' => (int) env('SONG_LINKING_FUZZY_MIN_PROBE_LENGTH', 10),
+    ],
 ];

@@ -25,6 +25,59 @@ class SongMatchKeyVariantsTest extends TestCase
         $this->assertSame($expected, Song::firstLineKeyFromLyrics($lyricsPlain));
     }
 
+    #[Test]
+    #[DataProvider('matchKeyDataProvider')]
+    public function it_derives_a_punctuation_insensitive_match_key(string $input, string $expected): void
+    {
+        $this->assertSame($expected, Song::matchKey($input));
+    }
+
+    public static function matchKeyDataProvider(): array
+    {
+        return [
+            'empty string' => [
+                'input' => '',
+                'expected' => '',
+            ],
+            'punctuation only' => [
+                'input' => "'’”)(,",
+                'expected' => '',
+            ],
+            'curly quotes stripped' => [
+                'input' => '‘From the breaking of the dawn’',
+                'expected' => 'from the breaking of the dawn',
+            ],
+            'mismatched quote stripped' => [
+                'input' => "When I was lost'",
+                'expected' => 'when i was lost',
+            ],
+            'space before comma collapsed' => [
+                'input' => 'Come , let us join our cheerful songs',
+                'expected' => 'come let us join our cheerful songs',
+            ],
+            'trailing comma from first-line key' => [
+                'input' => 'all creatures of our god and king,',
+                'expected' => 'all creatures of our god and king',
+            ],
+            'digit runs stay separated' => [
+                'input' => '10,000 Reasons',
+                'expected' => '10 000 reasons',
+            ],
+            'strips OpenLP @ search text' => [
+                'input' => 'He Will Hold Me Fast@when i fear my faith will fail',
+                'expected' => 'he will hold me fast',
+            ],
+            'apostrophes vanish to match openlp-stripped keys' => [
+                'input' => 'The church’s one foundation',
+                'expected' => 'the churchs one foundation',
+            ],
+            'straight apostrophe contraction' => [
+                'input' => "Your word is good, it's ever faithful",
+                'expected' => 'your word is good its ever faithful',
+            ],
+        ];
+    }
+
     public static function firstLineKeyDataProvider(): array
     {
         return [

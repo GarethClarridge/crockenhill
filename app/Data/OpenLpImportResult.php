@@ -17,7 +17,8 @@ readonly class OpenLpImportResult
      *     unmatched:int,
      *     updated:int,
      *     unchanged:int,
-     *     cleared:int
+     *     cleared:int,
+     *     match_types:array<string,int>
      * }  $linkResult
      */
     public function __construct(
