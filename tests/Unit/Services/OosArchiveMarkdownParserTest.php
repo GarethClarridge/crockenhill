@@ -20,12 +20,25 @@ class OosArchiveMarkdownParserTest extends TestCase
         $this->parser = new OosArchiveMarkdownParser;
     }
 
+    /**
+     * The real 102-entry archive is deliberately uncommitted (private email content in
+     * storage/scratch), so the real-corpus assertions only run where it exists.
+     */
+    private function realArchiveMarkdown(): string
+    {
+        $path = dirname(__DIR__, 3).'/storage/scratch/crockenhill_orders_of_service_archive.md';
+
+        if (! is_file($path)) {
+            $this->markTestSkipped('Real OoS archive is local-only scratch data and is not present.');
+        }
+
+        return (string) file_get_contents($path);
+    }
+
     #[Test]
     public function it_splits_the_real_archive_into_truthful_cohorts_and_excludes_known_gaps(): void
     {
-        $markdown = (string) file_get_contents(
-            dirname(__DIR__, 3).'/storage/scratch/crockenhill_orders_of_service_archive.md'
-        );
+        $markdown = $this->realArchiveMarkdown();
 
         $entries = $this->parser->parse($markdown);
 
@@ -39,9 +52,7 @@ class OosArchiveMarkdownParserTest extends TestCase
     #[Test]
     public function it_applies_corrections_flags_and_ground_truth_dates_defensively(): void
     {
-        $markdown = (string) file_get_contents(
-            dirname(__DIR__, 3).'/storage/scratch/crockenhill_orders_of_service_archive.md'
-        );
+        $markdown = $this->realArchiveMarkdown();
 
         $entries = $this->parser->parse($markdown);
         $curated = $entries[0];
