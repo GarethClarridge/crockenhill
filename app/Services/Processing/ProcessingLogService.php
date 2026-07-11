@@ -105,29 +105,19 @@ class ProcessingLogService
     {
         $logs = $this->parseLogsFromFile($processingId);
 
-        $metrics = [];
-        $totalExecutionTime = 0;
-        $peakMemory = 0;
-        $stepMetrics = [];
-
-        foreach ($logs as $entry) {
-            if ($entry->executionTime !== null) {
-                $totalExecutionTime += $entry->executionTime;
-                $stepMetrics[$entry->step] = [
+        $stepMetrics = $logs->whereNotNull('executionTime')
+            ->mapWithKeys(fn (ProcessingLogEntry $entry) => [
+                $entry->step => [
                     'execution_time' => $entry->executionTime,
                     'memory_usage' => $entry->memoryUsage,
                     'timestamp' => $entry->timestamp->toISOString(),
-                ];
-            }
-
-            if ($entry->memoryUsage && $entry->memoryUsage > $peakMemory) {
-                $peakMemory = $entry->memoryUsage;
-            }
-        }
+                ],
+            ])
+            ->all();
 
         return [
-            'total_execution_time' => $totalExecutionTime,
-            'peak_memory_usage' => $peakMemory,
+            'total_execution_time' => (float) $logs->sum('executionTime'),
+            'peak_memory_usage' => (int) ($logs->max('memoryUsage') ?? 0),
             'step_metrics' => $stepMetrics,
             'total_entries' => $logs->count(),
             'error_count' => $logs->filter(fn ($entry) => $entry->level === 'error')->count(),
@@ -434,14 +424,10 @@ class ProcessingLogService
         }
 
         // Count by level
-        $summary['levels'] = $logs->groupBy('level')
-            ->map(fn ($group) => $group->count())
-            ->toArray();
+        $summary['levels'] = $logs->countBy('level')->toArray();
 
         // Count by step
-        $summary['steps'] = $logs->groupBy('step')
-            ->map(fn ($group) => $group->count())
-            ->toArray();
+        $summary['steps'] = $logs->countBy('step')->toArray();
 
         // Calculate timespan
         $timestamps = $logs->pluck('timestamp')->sort();
