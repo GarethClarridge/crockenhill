@@ -514,7 +514,10 @@ class OosEmailParserService
      */
     private function extractNumericDate(string $text, string $source, CarbonImmutable $receivedAt): ?array
     {
-        if (preg_match('/\b(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?\b/', $text, $matches) !== 1) {
+        // Slash-separated only: a hyphen separator turns every Bible verse range in these
+        // emails ("Luke 2:1-7") into a phantom day-month date, and ISO dates are handled by
+        // the dedicated extractIsoDate() pass.
+        if (preg_match('/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/', $text, $matches) !== 1) {
             return null;
         }
 

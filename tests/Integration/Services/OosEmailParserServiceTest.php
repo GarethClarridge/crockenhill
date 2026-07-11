@@ -287,6 +287,35 @@ class OosEmailParserServiceTest extends TestCase
     }
 
     #[Test]
+    public function a_bible_verse_range_is_not_mistaken_for_a_numeric_date(): void
+    {
+        // Second archive eval run: "Bible Reading: Luke 2:1-7" matched the numeric-date
+        // regex's hyphen separator as day=1/month=7 → 2025-07-01 for a Christmas email.
+        // Hyphenated verse ranges are everywhere in these emails; real numeric dates use
+        // slashes (and ISO dates have their own extractor), so "-" is not a date separator.
+        $parser = new OosEmailParserService(new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'bible_reading', 'title' => 'Luke 2:1-7']],
+                    confidence: 0.95,
+                );
+            }
+        });
+
+        $email = InboundEmail::factory()->make([
+            'subject' => 'Christmas morning order of service',
+            'body_plain' => "Christmas morning\nBible Reading: Luke 2:1-7\nO come all ye faithful",
+            'received_at' => '2025-12-23 09:00:00',
+        ]);
+
+        $result = $parser->parse($email);
+
+        $this->assertNull($result->date, 'A verse range must not resolve to a date.');
+    }
+
+    #[Test]
     public function it_treats_pm_time_hints_as_evening(): void
     {
         $parser = new OosEmailParserService(new class implements OosEmailItemExtractor
