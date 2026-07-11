@@ -119,14 +119,26 @@ class StructureShadowReportCommandTest extends TestCase
             ],
         ]);
 
-        // …and a post-flip model trial diffed against primary LLM sections.
+        // …and post-flip model trials diffed against two different bound models.
         $this->makeShadowRun([
             'generated_at' => '2026-06-14T11:45:00+01:00',
             'passed_validation' => true,
             'hard_failures' => [],
             'sections' => [],
             'diff' => [
-                'baseline' => ['classification_modes' => ['llm_structure']],
+                'baseline' => ['classification_modes' => ['llm_structure'], 'models' => ['gpt-5']],
+                'type_sequence_match' => true,
+                'sermon' => null,
+                'oos_anchoring' => null,
+            ],
+        ]);
+        $this->makeShadowRun([
+            'generated_at' => '2026-06-21T11:45:00+01:00',
+            'passed_validation' => true,
+            'hard_failures' => [],
+            'sections' => [],
+            'diff' => [
+                'baseline' => ['classification_modes' => ['llm_structure'], 'models' => ['gpt-6']],
                 'type_sequence_match' => true,
                 'sermon' => null,
                 'oos_anchoring' => null,
@@ -139,9 +151,10 @@ class StructureShadowReportCommandTest extends TestCase
         $report = json_decode((string) file_get_contents($this->reportPath), true);
 
         $this->assertSame(['classification_modes' => ['audio_only', 'ai_transcript']], $report['runs'][0]['baseline']);
-        $this->assertSame(['classification_modes' => ['llm_structure']], $report['runs'][1]['baseline']);
+        $this->assertEquals(['classification_modes' => ['llm_structure'], 'models' => ['gpt-5']], $report['runs'][1]['baseline']);
+        $this->assertEquals(['classification_modes' => ['llm_structure'], 'models' => ['gpt-6']], $report['runs'][2]['baseline']);
         $this->assertSame(
-            ['ai_transcript+audio_only' => 1, 'llm_structure' => 1],
+            ['ai_transcript+audio_only' => 1, 'llm_structure@gpt-5' => 1, 'llm_structure@gpt-6' => 1],
             $report['aggregate']['baseline_counts'],
             'Mixed baselines must be visible so incomparable deltas are not silently combined.'
         );

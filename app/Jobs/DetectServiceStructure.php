@@ -140,7 +140,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         ServiceStructureValidator $validator,
     ): void {
         try {
-            [$result, $transcript] = $this->detectShadowCandidate($detector, $snapService, $validator);
+            [$result, $transcript, $boundStructure] = $this->detectShadowCandidate($detector, $snapService, $validator);
 
             $classified = $result->structure->toClassifiedSections(
                 $this->processingLog,
@@ -148,7 +148,9 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
                 allowSegmentSynthesis: false,
             );
 
-            $diff = $this->diffAgainstAuthoritativeSections($result->structure);
+            $diff = $boundStructure instanceof ServiceStructure
+                ? $this->diffAgainstBoundStructure($result->structure, $boundStructure)
+                : $this->diffAgainstAuthoritativeSections($result->structure);
 
             $this->putStructureMetadata(
                 'service_structure_shadow',
@@ -697,47 +699,107 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
      */
     private function diffAgainstAuthoritativeSections(ServiceStructure $structure): array
     {
-        $heuristicSections = ServiceSection::query()
+        $authoritativeSections = ServiceSection::query()
             ->where('media_processing_log_id', $this->processingLog->id)
             ->orderBy('section_order')
             ->orderBy('id')
             ->get();
 
-        $heuristicTypes = $heuristicSections->pluck('section_type')->map(fn ($type) => $type->value)->all();
+        $baselineSections = array_values($authoritativeSections
+            ->map(fn (ServiceSection $section): array => [
+                'type' => $section->section_type,
+                'start_time' => (float) $section->start_time,
+                'end_time' => (float) $section->end_time,
+                'oos_item_id' => $section->church_service_item_id,
+            ])
+            ->all());
+
+        return $this->diffAgainstBaselineSections($structure, $baselineSections, [
+            'classification_modes' => array_values($authoritativeSections
+                ->map(fn (ServiceSection $section): ?string => is_string($section->metadata['classification_mode'] ?? null)
+                    ? $section->metadata['classification_mode']
+                    : null)
+                ->filter()
+                ->unique()
+                ->values()
+                ->all()),
+            'models' => array_values($authoritativeSections
+                ->map(fn (ServiceSection $section): ?string => is_string($section->metadata['model'] ?? null)
+                    ? $section->metadata['model']
+                    : null)
+                ->filter()
+                ->unique()
+                ->values()
+                ->all()),
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function diffAgainstBoundStructure(ServiceStructure $candidate, ServiceStructure $bound): array
+    {
+        $baselineSections = array_map(
+            static fn ($section): array => [
+                'type' => $section->type,
+                'start_time' => $section->startTime,
+                'end_time' => $section->endTime,
+                'oos_item_id' => $section->oosItemId,
+            ],
+            $bound->sections,
+        );
+
+        return $this->diffAgainstBaselineSections($candidate, $baselineSections, [
+            'classification_modes' => ['llm_structure'],
+            'models' => is_string($bound->model) && $bound->model !== '' ? [$bound->model] : [],
+        ]);
+    }
+
+    /**
+     * @param  list<array{type: ServiceSectionType, start_time: float, end_time: float, oos_item_id: int|null}>  $baselineSections
+     * @param  array{classification_modes: list<string>, models: list<string>}  $provenance
+     * @return array<string, mixed>
+     */
+    private function diffAgainstBaselineSections(
+        ServiceStructure $structure,
+        array $baselineSections,
+        array $provenance,
+    ): array {
+        $baselineTypes = array_map(static fn (array $section): string => $section['type']->value, $baselineSections);
         $llmTypes = array_map(static fn ($section) => $section->type->value, $structure->sections);
 
         $diff = [
-            'baseline' => [
-                'classification_modes' => $heuristicSections
-                    ->map(fn (ServiceSection $section): ?string => is_string($section->metadata['classification_mode'] ?? null)
-                        ? $section->metadata['classification_mode']
-                        : null)
-                    ->filter()
-                    ->unique()
-                    ->values()
-                    ->all(),
-            ],
-            'heuristic_section_count' => count($heuristicTypes),
+            'baseline' => $provenance,
+            'heuristic_section_count' => count($baselineTypes),
             'llm_section_count' => count($llmTypes),
-            'heuristic_types' => $heuristicTypes,
+            'heuristic_types' => $baselineTypes,
             'llm_types' => $llmTypes,
-            'type_sequence_match' => $heuristicTypes === $llmTypes,
+            'type_sequence_match' => $baselineTypes === $llmTypes,
             'sermon' => null,
             'boundary_deltas' => null,
             'oos_anchoring' => null,
         ];
 
-        $heuristicSermon = $heuristicSections->firstWhere('section_type', ServiceSectionType::Sermon);
+        $baselineSermon = null;
+
+        foreach ($baselineSections as $baselineSection) {
+            if ($baselineSection['type'] === ServiceSectionType::Sermon) {
+                $baselineSermon = $baselineSection;
+
+                break;
+            }
+        }
+
         $llmSermons = $structure->sectionsOfType(ServiceSectionType::Sermon);
 
-        if ($heuristicSermon instanceof ServiceSection && $llmSermons !== []) {
+        if (is_array($baselineSermon) && $llmSermons !== []) {
             $diff['sermon'] = [
-                'heuristic_start' => (float) $heuristicSermon->start_time,
-                'heuristic_end' => (float) $heuristicSermon->end_time,
+                'heuristic_start' => $baselineSermon['start_time'],
+                'heuristic_end' => $baselineSermon['end_time'],
                 'llm_start' => $llmSermons[0]->startTime,
                 'llm_end' => $llmSermons[0]->endTime,
-                'start_delta' => round($llmSermons[0]->startTime - (float) $heuristicSermon->start_time, 2),
-                'end_delta' => round($llmSermons[0]->endTime - (float) $heuristicSermon->end_time, 2),
+                'start_delta' => round($llmSermons[0]->startTime - $baselineSermon['start_time'], 2),
+                'end_delta' => round($llmSermons[0]->endTime - $baselineSermon['end_time'], 2),
             ];
         }
 
@@ -747,19 +809,19 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             $oosConflicts = 0;
 
             foreach ($structure->sections as $index => $section) {
-                $heuristic = $heuristicSections->get($index);
+                $baseline = $baselineSections[$index] ?? null;
 
-                if (! $heuristic instanceof ServiceSection) {
+                if (! is_array($baseline)) {
                     continue;
                 }
 
                 $boundaryDeltas[] = [
                     'type' => $section->type->value,
-                    'start_delta' => round($section->startTime - (float) $heuristic->start_time, 2),
-                    'end_delta' => round($section->endTime - (float) $heuristic->end_time, 2),
+                    'start_delta' => round($section->startTime - $baseline['start_time'], 2),
+                    'end_delta' => round($section->endTime - $baseline['end_time'], 2),
                 ];
 
-                if ($section->oosItemId === $heuristic->church_service_item_id) {
+                if ($section->oosItemId === $baseline['oos_item_id']) {
                     $oosMatches++;
                 } else {
                     $oosConflicts++;
@@ -782,7 +844,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
      * even when detection throws — queue workers reuse the config repository
      * across jobs.
      *
-     * @return array{0: ValidationResult, 1: ChurchServiceTranscript}
+     * @return array{0: ValidationResult, 1: ChurchServiceTranscript, 2: ServiceStructure|null}
      */
     private function detectShadowCandidate(
         ServiceStructureInterface $detector,
@@ -793,13 +855,24 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         $shadowModel = config('media-processing.service_structure.shadow_model');
 
         if (! is_string($shadowModel) || trim($shadowModel) === '' || $shadowModel === $boundModel) {
-            return $this->detectAndValidate($detector, $snapService, $validator);
+            [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
+
+            return [$result, $transcript, null];
         }
+
+        [$boundResult] = $this->detectAndValidate($detector, $snapService, $validator);
+        $boundStructure = ServiceStructure::fromSections(
+            $boundResult->structure->sections,
+            $boundResult->structure->notes,
+            $boundModel,
+        );
 
         config(['media-processing.service_structure.model' => $shadowModel]);
 
         try {
-            return $this->detectAndValidate($detector, $snapService, $validator);
+            [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
+
+            return [$result, $transcript, $boundStructure];
         } finally {
             config(['media-processing.service_structure.model' => $boundModel]);
         }

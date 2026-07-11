@@ -156,8 +156,17 @@ class StructureShadowReportCommand extends Command
             $modes = is_array($run['baseline']['classification_modes'] ?? null)
                 ? $run['baseline']['classification_modes']
                 : [];
+            $models = is_array($run['baseline']['models'] ?? null)
+                ? $run['baseline']['models']
+                : [];
             sort($modes);
+            sort($models);
             $key = $modes === [] ? 'unknown' : implode('+', $modes);
+
+            if ($models !== []) {
+                $key .= '@'.implode('+', $models);
+            }
+
             $baselineCounts[$key] = ($baselineCounts[$key] ?? 0) + 1;
         }
 

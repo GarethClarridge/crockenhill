@@ -112,17 +112,40 @@ class DetectServiceStructureTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
         $this->storeTranscript($log);
 
-        $detector = new class($this->validStructure()) implements ServiceStructureInterface
-        {
-            public ?string $modelAtDetectTime = null;
+        $boundStructure = $this->validStructure();
+        $candidateStructure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('bible_reading', 420.0, 590.0),
+            $this->section('sermon', 620.0, 2180.0),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'gpt-6-candidate');
 
-            public function __construct(private readonly ServiceStructure $structure) {}
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => 'sermon',
+            'section_order' => 1,
+            'start_time' => 100.0,
+            'end_time' => 200.0,
+            'status' => 'identified',
+            'metadata' => ['classification_mode' => 'audio_only'],
+        ]);
+
+        $detector = new class($boundStructure, $candidateStructure) implements ServiceStructureInterface
+        {
+            /** @var list<string> */
+            public array $modelsAtDetectTime = [];
+
+            public function __construct(
+                private readonly ServiceStructure $boundStructure,
+                private readonly ServiceStructure $candidateStructure,
+            ) {}
 
             public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = []): ServiceStructure
             {
-                $this->modelAtDetectTime = (string) config('media-processing.service_structure.model');
+                $model = (string) config('media-processing.service_structure.model');
+                $this->modelsAtDetectTime[] = $model;
 
-                return $this->structure;
+                return $model === 'gpt-6-candidate' ? $this->candidateStructure : $this->boundStructure;
             }
         };
 
@@ -134,8 +157,14 @@ class DetectServiceStructureTest extends TestCase
             app(SermonCandidateConfidenceService::class),
         );
 
-        $this->assertSame('gpt-6-candidate', $detector->modelAtDetectTime, 'Shadow detection must run the candidate model.');
+        $this->assertSame(['gpt-5', 'gpt-6-candidate'], $detector->modelsAtDetectTime);
         $this->assertSame('gpt-5', config('media-processing.service_structure.model'), 'The bound model must be restored after the shadow run.');
+
+        $shadow = $log->refresh()->processing_metadata?->toArray()['service_structure_shadow'] ?? null;
+        $this->assertIsArray($shadow);
+        $this->assertSame(['gpt-5'], $shadow['diff']['baseline']['models'] ?? null);
+        $this->assertEqualsWithDelta(20.0, $shadow['diff']['sermon']['start_delta'], 0.01);
+        $this->assertEqualsWithDelta(-20.0, $shadow['diff']['sermon']['end_delta'], 0.01);
     }
 
     #[Test]
@@ -154,7 +183,7 @@ class DetectServiceStructureTest extends TestCase
             'start_time' => 610.0,
             'end_time' => 2190.0,
             'status' => 'identified',
-            'metadata' => ['classification_mode' => 'audio_only'],
+            'metadata' => ['classification_mode' => 'audio_only', 'model' => 'heuristic-v2'],
         ]);
 
         $this->runJob($log);
@@ -166,6 +195,7 @@ class DetectServiceStructureTest extends TestCase
             $shadow['diff']['baseline']['classification_modes'] ?? null,
             'The diff must record who authored the baseline it compared against.'
         );
+        $this->assertSame(['heuristic-v2'], $shadow['diff']['baseline']['models'] ?? null);
     }
 
     #[Test]
