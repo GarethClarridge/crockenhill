@@ -55,7 +55,13 @@ class RateLimitServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('mailgun-inbound', function (Request $request): array {
-            $key = (string) ($request->input('recipient') ?: $request->ip());
+            $recipient = $request->input('recipient');
+
+            // Security: Rate-limiter keys derived from user-controlled input must be length-bounded
+            // and sanitized of control characters to prevent cache-key injection or memory DoS.
+            $rawKey = is_string($recipient) && $recipient !== '' ? $recipient : ($request->ip() ?? 'unknown');
+            $sanitizedKey = (string) preg_replace('/[\x00-\x1F\x7F]/', ' ', $rawKey);
+            $key = mb_substr(trim((string) preg_replace('/\s+/', ' ', $sanitizedKey)), 0, 255);
 
             return [
                 Limit::perMinute(120)->by($key),

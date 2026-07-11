@@ -27,6 +27,7 @@ class StoreMailgunInboundEmailRequestTest extends TestCase
             'from' => str_repeat('a', 256),
             'subject' => str_repeat('a', 256),
             'Message-Id' => str_repeat('a', 513),
+            'recipient' => str_repeat('a', 256),
             'Date' => str_repeat('a', 129),
             'body-plain' => 'body',
         ];
@@ -41,6 +42,7 @@ class StoreMailgunInboundEmailRequestTest extends TestCase
         $this->assertArrayHasKey('from', $validator->errors()->toArray());
         $this->assertArrayHasKey('subject', $validator->errors()->toArray());
         $this->assertArrayHasKey('Message-Id', $validator->errors()->toArray());
+        $this->assertArrayHasKey('recipient', $validator->errors()->toArray());
         $this->assertArrayHasKey('Date', $validator->errors()->toArray());
     }
 
@@ -86,6 +88,7 @@ class StoreMailgunInboundEmailRequestTest extends TestCase
             'from' => str_repeat('a', 255),
             'subject' => str_repeat('a', 255),
             'Message-Id' => str_repeat('a', 512),
+            'recipient' => str_repeat('a', 255),
             'Date' => str_repeat('a', 128),
             'message-headers' => str_repeat('h', 100000),
             'body-plain' => str_repeat('a', 500000),
@@ -96,5 +99,32 @@ class StoreMailgunInboundEmailRequestTest extends TestCase
         $request->withValidator($validator);
 
         $this->assertFalse($validator->fails(), print_r($validator->errors()->all(), true));
+    }
+
+    #[Test]
+    public function it_excludes_technical_routing_fields_from_metadata(): void
+    {
+        $request = new StoreMailgunInboundEmailRequest;
+        $request->merge([
+            'timestamp' => '123',
+            'token' => 'abc',
+            'signature' => 'sig',
+            'recipient' => 'oos@crockenhill.org',
+            'from' => 'sender@example.com',
+            'subject' => 'Subject',
+            'body-plain' => 'body',
+            'other-field' => 'metadata-value',
+        ]);
+
+        $metadata = $request->processingMetadata();
+
+        $this->assertArrayHasKey('other-field', $metadata);
+        $this->assertArrayNotHasKey('timestamp', $metadata);
+        $this->assertArrayNotHasKey('token', $metadata);
+        $this->assertArrayNotHasKey('signature', $metadata);
+        $this->assertArrayNotHasKey('recipient', $metadata);
+        $this->assertArrayNotHasKey('from', $metadata);
+        $this->assertArrayNotHasKey('subject', $metadata);
+        $this->assertArrayNotHasKey('body-plain', $metadata);
     }
 }
