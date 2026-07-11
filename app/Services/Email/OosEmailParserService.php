@@ -268,7 +268,13 @@ class OosEmailParserService
                     return [$date, 0.9];
                 }
 
-                if (is_string($dateResolution['date']) && $dateResolution['date'] !== $date) {
+                // Fall back only when the email-level date shares the plan's month and day —
+                // then the plan clearly means the same date with a bad year. A different
+                // month-day (a multi-date email's second service) must not be rewritten to
+                // the email's first date; keep it and let the plausibility cap hold it.
+                if (is_string($dateResolution['date'])
+                    && $dateResolution['date'] !== $date
+                    && substr($dateResolution['date'], 5) === substr($date, 5)) {
                     return [$dateResolution['date'], $dateResolution['confidence']];
                 }
 
@@ -514,10 +520,12 @@ class OosEmailParserService
      */
     private function extractNumericDate(string $text, string $source, CarbonImmutable $receivedAt): ?array
     {
-        // Slash-separated only: a hyphen separator turns every Bible verse range in these
-        // emails ("Luke 2:1-7") into a phantom day-month date, and ISO dates are handled by
-        // the dedicated extractIsoDate() pass.
-        if (preg_match('/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/', $text, $matches) !== 1) {
+        // A two-part hyphenated number is a Bible verse range in these emails ("Luke 2:1-7"),
+        // not a date, so the hyphen separator is only accepted with an explicit year
+        // (16-03-2026). Slash dates keep the optional year, and ISO dates are handled by the
+        // dedicated extractIsoDate() pass.
+        if (preg_match('/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/', $text, $matches) !== 1
+            && preg_match('/\b(\d{1,2})-(\d{1,2})-(\d{2,4})\b/', $text, $matches) !== 1) {
             return null;
         }
 

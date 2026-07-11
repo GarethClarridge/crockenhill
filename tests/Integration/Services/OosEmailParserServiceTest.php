@@ -287,6 +287,71 @@ class OosEmailParserServiceTest extends TestCase
     }
 
     #[Test]
+    public function the_fallback_only_rewrites_a_plan_date_that_shares_the_email_level_month_and_day(): void
+    {
+        // A multi-date email: the second plan's extractor date has only the year hallucinated
+        // (2023-06-21 for "14 and 21 June 2026"). Rewriting it to the email-level 14 June would
+        // import the wrong service; a plan date with a different month-day must hold instead.
+        $parser = new OosEmailParserService(new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Praise to the Lord']],
+                    confidence: 0.95,
+                    services: [
+                        ['service' => 'morning', 'date' => '2023-06-14', 'items' => [
+                            ['type' => 'song', 'title' => 'Praise to the Lord'],
+                        ], 'confidence' => 0.95],
+                        ['service' => 'evening', 'date' => '2023-06-21', 'items' => [
+                            ['type' => 'song', 'title' => 'Abide with me'],
+                        ], 'confidence' => 0.95],
+                    ],
+                );
+            }
+        });
+
+        $email = InboundEmail::factory()->make([
+            'subject' => 'Fwd: orders of service for sunday 14th June',
+            'body_plain' => "Morning order (14 June)\nPraise to the Lord\n\nNext week evening (21 June)\nAbide with me",
+            'received_at' => '2026-06-12 09:00:00',
+        ]);
+
+        $result = $parser->parse($email);
+
+        $this->assertSame('2026-06-14', $result->servicePlans[0]->date, 'Same month-day: year-hallucinated date recovers.');
+        $this->assertSame('2023-06-21', $result->servicePlans[1]->date, 'Different month-day: the plan date must not be rewritten.');
+        $this->assertLessThanOrEqual(0.74, $result->servicePlans[1]->confidence, 'The unrecovered plan holds for review.');
+    }
+
+    #[Test]
+    public function a_fully_specified_hyphen_date_still_parses(): void
+    {
+        // The verse-range fix must only reject two-part hyphenated numbers ("1-7"); a
+        // day-month-year hyphen date is a legitimate UK format with no verse-range ambiguity.
+        $parser = new OosEmailParserService(new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Song one']],
+                    confidence: 0.92,
+                );
+            }
+        });
+
+        $email = InboundEmail::factory()->make([
+            'subject' => 'OoS 16-03-2026 AM',
+            'body_plain' => 'Song one',
+            'received_at' => '2026-03-10 09:00:00',
+        ]);
+
+        $result = $parser->parse($email);
+
+        $this->assertSame('2026-03-16', $result->date);
+    }
+
+    #[Test]
     public function a_bible_verse_range_is_not_mistaken_for_a_numeric_date(): void
     {
         // Second archive eval run: "Bible Reading: Luke 2:1-7" matched the numeric-date
