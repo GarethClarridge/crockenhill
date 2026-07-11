@@ -233,6 +233,10 @@ class ModelValidationTest extends TestCase
 
     /**
      * Helper to check if a validation rule contains a Rule::enum() rule.
+     *
+     * We verify this behaviorally rather than using reflection on internal
+     * framework properties, which ensures the test remains robust across
+     * Laravel version updates.
      */
     private function hasEnumRule(array|string $rules, string $enumClass): bool
     {
@@ -242,14 +246,18 @@ class ModelValidationTest extends TestCase
 
         foreach ($rules as $rule) {
             if ($rule instanceof Enum) {
-                // Use reflection to check the protected "type" property of the Enum rule
-                $reflection = new \ReflectionClass($rule);
-                $property = $reflection->getProperty('type');
-                $property->setAccessible(true);
-
-                if ($property->getValue($rule) === $enumClass) {
-                    return true;
+                // A valid case from the expected enum must pass
+                $validValue = $enumClass::cases()[0];
+                if (! $rule->passes('attribute', $validValue)) {
+                    continue;
                 }
+
+                // An obviously invalid value must fail
+                if ($rule->passes('attribute', 'invalid-value-'.Str::random(8))) {
+                    continue;
+                }
+
+                return true;
             }
         }
 
