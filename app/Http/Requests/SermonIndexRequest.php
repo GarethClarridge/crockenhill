@@ -40,7 +40,8 @@ class SermonIndexRequest extends FormRequest
             'sort' => ['nullable', 'string', 'max:255', 'in:date,title,preacher,series,service'],
             'order' => ['nullable', 'string', 'max:255', 'in:asc,desc'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'with_thumbnail' => ['nullable', 'boolean'],
+            // Security: input length is bounded to provide Defense in Depth against DoS.
+            'with_thumbnail' => ['nullable', 'boolean', 'max:20'],
         ];
     }
 }

@@ -118,6 +118,7 @@ class LivestreamSegmentationService
         } catch (Exception $e) {
             Log::error('Failed to start livestream processing', $this->sanitizeArrayForLog([
                 'error' => $e->getMessage(),
+                'trace' => self::sanitizeStackTrace($e->getTraceAsString()),
                 'original_filename' => $videoFile->getClientOriginalName(),
             ]));
 

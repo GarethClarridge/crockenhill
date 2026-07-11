@@ -45,6 +45,7 @@ class ProcessingRunOrchestrator
      * @param  MediaProcessingLog  $processingLog  The log record for the run to start
      *
      * @throws \InvalidArgumentException If the processing pipeline profile is unrecognized
+     * @throws \Throwable If dispatching the job chain or batch fails
      */
     public function start(MediaProcessingLog $processingLog): void
     {
@@ -83,6 +84,7 @@ class ProcessingRunOrchestrator
      * @param  MediaProcessingLog  $processingLog  The log record awaiting resumption
      *
      * @throws \InvalidArgumentException If manual review is not supported for this profile
+     * @throws \Throwable If dispatching the resumed job chain fails
      */
     public function resumeAfterManualReview(MediaProcessingLog $processingLog): void
     {
@@ -110,6 +112,8 @@ class ProcessingRunOrchestrator
      * sermon-derived outputs or correct manual classification errors.
      *
      * @param  MediaProcessingLog  $processingLog  The log record to reclassify
+     *
+     * @throws \Throwable If dispatching the reclassification job chain fails
      */
     public function reclassify(MediaProcessingLog $processingLog): void
     {

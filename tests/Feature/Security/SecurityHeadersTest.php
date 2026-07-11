@@ -9,7 +9,7 @@ use Tests\TestCase;
 
 class SecurityHeadersTest extends TestCase
 {
-    private const string EXPECTED_PERMISSIONS_POLICY = 'accelerometer=(), autoplay=(self "https://www.youtube.com"), battery=(), bluetooth=(), browsing-topics=(), camera=(), conversion-measurement=(), display-capture=(), document-domain=(), encrypted-media=(self "https://www.youtube.com"), gamepad=(), geolocation=(), gyroscope=(), idle-detection=(), interest-cohort=(), join-ad-interest-group=(), keyboard-map=(), magnetometer=(), microphone=(), payment=(), publickey-credentials-get=(), run-ad-auction=(), screen-wake-lock=(), serial=(), sync-xhr=(), usb=(), web-share=(), window-management=(), xr-spatial-tracking=()';
+    private const string EXPECTED_PERMISSIONS_POLICY = 'accelerometer=(), autoplay=(self "https://www.youtube.com"), battery=(), bluetooth=(), browsing-topics=(), camera=(), compute-pressure=(), conversion-measurement=(), display-capture=(), document-domain=(), encrypted-media=(self "https://www.youtube.com"), focus-without-user-activation=(), gamepad=(), geolocation=(), gyroscope=(), hid=(), idle-detection=(), interest-cohort=(), join-ad-interest-group=(), keyboard-map=(), local-fonts=(), magnetometer=(), microphone=(), payment=(), publickey-credentials-get=(), run-ad-auction=(), screen-wake-lock=(), serial=(), shared-autofill=(), speaker-selection=(), storage-access=(), sync-script=(), sync-xhr=(), trust-token-redemption=(), usb=(), web-share=(), window-management=(), xr-spatial-tracking=()';
 
     #[Test]
     public function it_returns_security_headers_on_web_responses(): void
@@ -50,7 +50,7 @@ class SecurityHeadersTest extends TestCase
     {
         $response = $this->get('https://localhost/');
 
-        $response->assertHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+        $response->assertHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
     }
 
     #[Test]

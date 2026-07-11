@@ -27,7 +27,8 @@ class MediaStatusRequest extends MediaProcessingRequest
     public function rules(): array
     {
         return [
-            'include_logs' => ['nullable', 'boolean'],
+            // Security: input length is bounded to provide Defense in Depth against DoS.
+            'include_logs' => ['nullable', 'boolean', 'max:20'],
             'log_limit' => ['nullable', 'integer', 'min:1', 'max:100'],
         ];
     }
@@ -35,6 +36,11 @@ class MediaStatusRequest extends MediaProcessingRequest
     private function normalizeBoolean(mixed $value): mixed
     {
         if (! is_string($value)) {
+            return $value;
+        }
+
+        // Security: length check before normalization to prevent DoS on string operations.
+        if (mb_strlen($value) > 20) {
             return $value;
         }
 

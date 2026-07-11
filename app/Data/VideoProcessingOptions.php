@@ -81,7 +81,8 @@ final class VideoProcessingOptions
             || ! (bool) config('media-processing.video_auto_trim.enabled', true);
 
         return [
-            'auto_trim' => ['sometimes', 'boolean', Rule::prohibitedIf($autoTrimProhibited)],
+            // Security: input length is bounded to provide Defense in Depth against DoS.
+            'auto_trim' => ['sometimes', 'boolean', 'max:20', Rule::prohibitedIf($autoTrimProhibited)],
             'video_processing_mode' => [
                 'sometimes',
                 'string',
