@@ -26,6 +26,27 @@ use Owenoj\LaravelGetId3\GetId3;
  * church services, using file metadata (FFprobe, GetID3), filename parsing,
  * and client-provided timestamps with cascading fallbacks to ensure metadata
  * is populated even when source data is incomplete.
+ *
+ * @phpstan-type AudioInfo array{
+ *     duration: float|null,
+ *     bitrate: int|null,
+ *     format: string|null,
+ *     filesize: int|null
+ * }
+ * @phpstan-type Id3Metadata array{
+ *     title: string|null,
+ *     preacher: string|null,
+ *     series: string|null,
+ *     reference: string|null
+ * }
+ * @phpstan-type Id3MetadataExtended array{
+ *     title: string|null,
+ *     preacher: string|null,
+ *     series: string|null,
+ *     reference: string|null,
+ *     date: string|null,
+ *     duration: float|null
+ * }
  */
 class MetadataExtractionService
 {
@@ -175,7 +196,7 @@ class MetadataExtractionService
      * Extract audio stream information using GetID3.
      *
      * @param  UploadedFile  $file  The uploaded audio file
-     * @return array{duration: float|null, bitrate: int|null, format: string|null, filesize: int|null} Technical audio metadata
+     * @return AudioInfo Technical audio metadata
      */
     public function extractAudioInfo(UploadedFile $file): array
     {
@@ -217,7 +238,7 @@ class MetadataExtractionService
      * Extract audio stream information from a file path using GetID3.
      *
      * @param  string  $filePath  Path to the audio file
-     * @return array{duration: float|null, bitrate: int|null, format: string|null, filesize: int|null} Technical audio metadata
+     * @return AudioInfo Technical audio metadata
      */
     public function extractAudioInfoFromPath(string $filePath): array
     {
@@ -399,11 +420,15 @@ class MetadataExtractionService
      * Extract date from video file metadata (creation date) with fallbacks.
      *
      * Cascading date extraction strategy:
-     * 1. Video metadata creation_time tag (from FFprobe)
-     * 2. Filename parsing
-     * 3. Client-provided file date (from browser's File.lastModified API)
-     * 4. File timestamp (for non-HTTP uploads)
-     * 5. Today's date (final fallback)
+     * 1. Video metadata creation_time tag: Primary source of truth for original
+     *    capture time. Extracted via FFprobe.
+     * 2. Filename parsing: Common for church recordings (e.g., "2024-01-15_morning.mp4").
+     *    Wins over metadata if the metadata date is newer than the filename date,
+     *    suggesting the metadata reflects a download/re-encode time.
+     * 3. Client-provided file date: Fallback for browser uploads where JS
+     *    provides the File.lastModified date (YYYY-MM-DD format).
+     * 4. File timestamp: Fallback for non-HTTP uploads using the OS filemtime.
+     * 5. Today's date: Final fallback to prevent processing failure.
      *
      * @param  UploadedFile|string  $file  UploadedFile or absolute file path
      * @param  string|null  $clientProvidedDate  Date provided from client-side JavaScript (YYYY-MM-DD format, File.lastModified)
@@ -614,10 +639,10 @@ class MetadataExtractionService
     }
 
     /**
-     * Extract ID3 metadata tags from audio file (title, artist/preacher, album/series, reference)
+     * Extract ID3 metadata tags from audio file (title, artist/preacher, album/series, reference).
      *
      * @param  UploadedFile  $file  The uploaded audio file
-     * @return array{title: string|null, preacher: string|null, series: string|null, reference: string|null}
+     * @return Id3Metadata
      */
     public function extractId3Metadata(UploadedFile $file): array
     {
@@ -671,7 +696,8 @@ class MetadataExtractionService
     /**
      * Extract explicitly embedded audio metadata from a filesystem path.
      *
-     * @return array{title: string|null, preacher: string|null, series: string|null, reference: string|null, date: string|null, duration: float|null}
+     * @param  string  $filePath  Path to the audio file
+     * @return Id3MetadataExtended
      */
     public function extractId3MetadataFromPath(string $filePath): array
     {
