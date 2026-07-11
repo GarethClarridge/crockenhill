@@ -4,14 +4,24 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Data\SongTitleMatch;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
-use App\Models\Song;
+use App\Services\Song\SongTitleResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class ChurchServiceSongLinker
 {
+    /**
+     * Match types recorded on the item as metadata.song_link — the lower-confidence tiers a
+     * reviewer may want to audit. Confident deterministic links stay metadata-free.
+     */
+    private const AUDITED_MATCH_TYPES = [
+        SongTitleMatch::TYPE_FIRST_LINE,
+        SongTitleMatch::TYPE_FUZZY,
+    ];
+
     /**
      * @return array{
      *     dry_run:bool,
@@ -20,7 +30,8 @@ class ChurchServiceSongLinker
      *     unmatched:int,
      *     updated:int,
      *     unchanged:int,
-     *     cleared:int
+     *     cleared:int,
+     *     match_types:array<string,int>
      * }
      */
     public function linkAll(bool $dryRun = false): array
@@ -40,7 +51,8 @@ class ChurchServiceSongLinker
      *     unmatched:int,
      *     updated:int,
      *     unchanged:int,
-     *     cleared:int
+     *     cleared:int,
+     *     match_types:array<string,int>
      * }
      */
     public function linkForService(ChurchService $churchService, bool $dryRun = false): array
@@ -62,12 +74,13 @@ class ChurchServiceSongLinker
      *     unmatched:int,
      *     updated:int,
      *     unchanged:int,
-     *     cleared:int
+     *     cleared:int,
+     *     match_types:array<string,int>
      * }
      */
     private function linkQuery(Builder $query, bool $dryRun): array
     {
-        $lookups = $this->buildSongLookups();
+        $resolver = SongTitleResolver::fromDatabase();
 
         $metrics = [
             'dry_run' => $dryRun,
@@ -77,22 +90,17 @@ class ChurchServiceSongLinker
             'updated' => 0,
             'unchanged' => 0,
             'cleared' => 0,
+            'match_types' => [],
         ];
 
-        $query->orderBy('id')->chunkById(250, function (Collection $items) use (&$metrics, $lookups, $dryRun): void {
+        $query->orderBy('id')->chunkById(250, function (Collection $items) use (&$metrics, $resolver, $dryRun): void {
             foreach ($items as $item) {
                 $metrics['processed']++;
 
                 $searchTitle = $this->resolveSearchTitle($item);
-                if ($searchTitle === null) {
-                    $metrics['unmatched']++;
-                    $this->clearLinkIfNeeded($item, $dryRun, $metrics);
+                $match = $searchTitle === null ? null : $resolver->resolve($searchTitle);
 
-                    continue;
-                }
-
-                $songId = $this->resolveSongId($searchTitle, $lookups);
-                if ($songId === null) {
+                if ($match === null) {
                     $metrics['unmatched']++;
                     $this->clearLinkIfNeeded($item, $dryRun, $metrics);
 
@@ -100,15 +108,21 @@ class ChurchServiceSongLinker
                 }
 
                 $metrics['matched']++;
+                $metrics['match_types'][$match->matchType] = ($metrics['match_types'][$match->matchType] ?? 0) + 1;
 
-                if ($item->song_id === $songId) {
+                $auditTrail = $this->auditTrailFor($match);
+
+                // Loose comparison: the metadata JSON round-trip turns a 1.0 confidence into
+                // the integer 1, which must still count as unchanged on the next run.
+                if ($item->song_id === $match->songId && data_get($item->metadata, 'song_link') == $auditTrail) {
                     $metrics['unchanged']++;
 
                     continue;
                 }
 
                 if (! $dryRun) {
-                    $item->song_id = $songId;
+                    $item->song_id = $match->songId;
+                    $item->metadata = $this->metadataWithAuditTrail($item, $auditTrail);
                     $item->save();
                 }
 
@@ -120,104 +134,35 @@ class ChurchServiceSongLinker
     }
 
     /**
-     * Three lookup tables built in one pass: exact canonical key; Praise! number (emails
-     * prefix it, the library holds it in praise_number); and the number-stripped canonical
-     * key, because OpenLP-imported keys embed the hymn number as a suffix ("all heaven
-     * declares 477") that a plain email title can never equal. Ambiguous stripped keys
-     * (two hymns sharing a title) are dropped rather than guessed.
-     *
-     * @return array{exact:array<string,int>,number:array<string,int>,stripped:array<string,int>}
+     * @return array{match_type:string, confidence:float}|null
      */
-    private function buildSongLookups(): array
+    private function auditTrailFor(SongTitleMatch $match): ?array
     {
-        $exact = [];
-        $number = [];
-        $stripped = [];
-        $ambiguousStripped = [];
-
-        foreach (Song::query()->get(['id', 'canonical_key', 'praise_number']) as $song) {
-            $songId = (int) $song->id;
-            $exact[(string) $song->canonical_key] = $songId;
-
-            if (is_string($song->praise_number) && trim($song->praise_number) !== '') {
-                $number[Song::normalisePraiseNumber($song->praise_number)] = $songId;
-            }
-
-            $strippedKey = $this->stripTrailingNumber((string) $song->canonical_key);
-            if ($strippedKey === '' || $strippedKey === (string) $song->canonical_key) {
-                continue;
-            }
-
-            if (isset($stripped[$strippedKey]) && $stripped[$strippedKey] !== $songId) {
-                $ambiguousStripped[$strippedKey] = true;
-            }
-
-            $stripped[$strippedKey] = $songId;
-        }
-
-        foreach (array_keys($ambiguousStripped) as $ambiguousKey) {
-            unset($stripped[$ambiguousKey]);
-        }
-
-        return ['exact' => $exact, 'number' => $number, 'stripped' => $stripped];
-    }
-
-    /**
-     * @param  array{exact:array<string,int>,number:array<string,int>,stripped:array<string,int>}  $lookups
-     */
-    private function resolveSongId(string $searchTitle, array $lookups): ?int
-    {
-        $canonicalKey = Song::canonicalizeKey($searchTitle);
-        if ($canonicalKey === '') {
+        if (! in_array($match->matchType, self::AUDITED_MATCH_TYPES, true)) {
             return null;
         }
 
-        if (isset($lookups['exact'][$canonicalKey])) {
-            return $lookups['exact'][$canonicalKey];
-        }
-
-        $leadingNumber = $this->leadingPraiseNumber($searchTitle);
-        if ($leadingNumber !== null && isset($lookups['number'][$leadingNumber])) {
-            return $lookups['number'][$leadingNumber];
-        }
-
-        $strippedKey = $this->stripEmailDecoration($searchTitle);
-
-        return $strippedKey === '' ? null : ($lookups['stripped'][$strippedKey] ?? $lookups['exact'][$strippedKey] ?? null);
+        return [
+            'match_type' => $match->matchType,
+            'confidence' => $match->confidence,
+        ];
     }
 
     /**
-     * The Praise! number an email title leads with ("299 'How sweet…'"). A number running
-     * straight into more digits or punctuation ("10,000 Reasons") is part of the title.
+     * @param  array{match_type:string, confidence:float}|null  $auditTrail
+     * @return array<string, mixed>|null
      */
-    private function leadingPraiseNumber(string $title): ?string
+    private function metadataWithAuditTrail(ChurchServiceItem $item, ?array $auditTrail): ?array
     {
-        if (preg_match('/^\s*(\d{1,4}[a-z]?)(?![\d,.])\b/iu', trim($title), $matches) === 1) {
-            return Song::normalisePraiseNumber($matches[1]);
+        $metadata = $item->metadata ?? [];
+
+        if ($auditTrail === null) {
+            unset($metadata['song_link']);
+        } else {
+            $metadata['song_link'] = $auditTrail;
         }
 
-        return null;
-    }
-
-    /**
-     * Canonical key of an email title with its leading book-number decoration removed:
-     * an optional NIP/Praise marker, the number itself, and any surrounding quotes.
-     */
-    private function stripEmailDecoration(string $title): string
-    {
-        $bare = (string) preg_replace('/^\s*(?:NIP|Praise)?\s*\d{1,4}[a-z]?(?![\d,.])\s*/iu', '', $title);
-        $bare = trim($bare, " \t\"'\u{2018}\u{2019}\u{201C}\u{201D}");
-
-        return Song::canonicalizeKey($bare);
-    }
-
-    /**
-     * Canonical key of a library entry with its trailing hymn-number suffix removed
-     * ("all heaven declares 477" → "all heaven declares").
-     */
-    private function stripTrailingNumber(string $canonicalKey): string
-    {
-        return trim((string) preg_replace('/\s+\d{1,4}[a-z]?$/i', '', $canonicalKey));
+        return $metadata === [] ? null : $metadata;
     }
 
     private function resolveSearchTitle(ChurchServiceItem $item): ?string
@@ -239,11 +184,11 @@ class ChurchServiceSongLinker
     }
 
     /**
-     * @param  array{dry_run:bool,processed:int,matched:int,unmatched:int,updated:int,unchanged:int,cleared:int}  $metrics
+     * @param  array{dry_run:bool,processed:int,matched:int,unmatched:int,updated:int,unchanged:int,cleared:int,match_types:array<string,int>}  $metrics
      */
     private function clearLinkIfNeeded(ChurchServiceItem $item, bool $dryRun, array &$metrics): void
     {
-        if ($item->song_id === null) {
+        if ($item->song_id === null && data_get($item->metadata, 'song_link') === null) {
             $metrics['unchanged']++;
 
             return;
@@ -251,6 +196,7 @@ class ChurchServiceSongLinker
 
         if (! $dryRun) {
             $item->song_id = null;
+            $item->metadata = $this->metadataWithAuditTrail($item, null);
             $item->save();
         }
 

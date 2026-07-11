@@ -9,6 +9,7 @@ use App\Data\OosEmailParseResult;
 use App\Data\OosEmailServicePlan;
 use App\Enums\SermonService;
 use App\Services\Email\OosArchiveEvaluator;
+use App\Services\Song\SongTitleResolver;
 use Carbon\CarbonImmutable;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -26,7 +27,7 @@ class OosArchiveEvaluatorTest extends TestCase
             $parseResult,
             disposition: 'eligible',
             gateReasons: [],
-            songCanonicalKeys: ['amazing grace'],
+            songTitleResolver: $this->songTitleResolver(),
             eligiblePlanKeys: ['morning:2026-07-12'],
         );
 
@@ -37,8 +38,49 @@ class OosArchiveEvaluatorTest extends TestCase
         $this->assertTrue($result['plans'][0]['exact_correct']);
         $this->assertTrue($result['plans'][0]['gate_eligible']);
         $this->assertSame(1.0, $result['plans'][0]['ordered_item_quality']);
-        $this->assertSame(['hits' => 1, 'total' => 1, 'rate' => 1.0], $result['song_link']);
+        $this->assertSame(
+            ['hits' => 1, 'total' => 1, 'rate' => 1.0, 'by_type' => ['exact' => 1], 'unmatched_titles' => []],
+            $result['song_link'],
+        );
         $this->assertTrue($result['gate_eligible']);
+    }
+
+    #[Test]
+    public function it_reports_song_match_types_and_unmatched_titles_through_the_real_cascade(): void
+    {
+        $evaluator = new OosArchiveEvaluator;
+
+        $result = $evaluator->evaluate(
+            $this->entry(),
+            $this->parseResult(items: [
+                ['position' => 1, 'type' => 'songs', 'title' => "NIP 'Amazing Grace'", 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                ['position' => 2, 'type' => 'songs', 'title' => 'A Chorus Nobody Catalogued', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ]),
+            disposition: 'eligible',
+            gateReasons: [],
+            songTitleResolver: $this->songTitleResolver(),
+        );
+
+        $this->assertSame(1, $result['song_link']['hits']);
+        $this->assertSame(2, $result['song_link']['total']);
+        $this->assertSame(['stripped_number' => 1], $result['song_link']['by_type']);
+        $this->assertSame(['A Chorus Nobody Catalogued'], $result['song_link']['unmatched_titles']);
+
+        $aggregate = $evaluator->aggregate([$result, $result]);
+
+        $this->assertSame(['stripped_number' => 2], $aggregate['song_link_hit_rate']['by_type']);
+        $this->assertSame(['A Chorus Nobody Catalogued' => 2], $aggregate['song_link_hit_rate']['top_unmatched_titles']);
+    }
+
+    #[Test]
+    public function it_reports_totals_but_no_rate_without_a_resolver(): void
+    {
+        $result = (new OosArchiveEvaluator)->evaluate($this->entry(), $this->parseResult(), 'dry_run');
+
+        $this->assertSame(
+            ['hits' => 0, 'total' => 1, 'rate' => null, 'by_type' => [], 'unmatched_titles' => []],
+            $result['song_link'],
+        );
     }
 
     #[Test]
@@ -51,7 +93,6 @@ class OosArchiveEvaluatorTest extends TestCase
             $parseResult,
             disposition: 'eligible',
             gateReasons: [],
-            songCanonicalKeys: [],
             eligiblePlanKeys: ['morning:2026-07-12', 'evening:2026-07-12'],
         );
 
@@ -132,15 +173,26 @@ class OosArchiveEvaluatorTest extends TestCase
         );
     }
 
+    private function songTitleResolver(): SongTitleResolver
+    {
+        return SongTitleResolver::fromRows([
+            ['id' => 1, 'canonical_key' => 'amazing grace', 'title' => 'Amazing Grace'],
+        ], ['fuzzy_enabled' => false]);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>|null  $items
+     */
     private function parseResult(
         SermonService $service = SermonService::Morning,
         string $date = '2026-07-12',
         float $confidence = 0.95,
+        ?array $items = null,
     ): OosEmailParseResult {
         return new OosEmailParseResult(
             date: $date,
             service: $service,
-            items: [
+            items: $items ?? [
                 ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
                 ['position' => 2, 'type' => 'custom', 'title' => 'Prayer', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
             ],

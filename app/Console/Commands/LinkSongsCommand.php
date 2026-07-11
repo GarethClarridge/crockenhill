@@ -31,17 +31,21 @@ class LinkSongsCommand extends Command
             $this->warn('Dry run enabled. No database changes were written.');
         }
 
-        $this->table(
-            ['Metric', 'Value'],
-            [
-                ['Song items processed', (string) $metrics['processed']],
-                ['Matched items', (string) $metrics['matched']],
-                ['Unmatched items', (string) $metrics['unmatched']],
-                ['Links updated', (string) $metrics['updated']],
-                ['Links cleared', (string) $metrics['cleared']],
-                ['Unchanged', (string) $metrics['unchanged']],
-            ]
-        );
+        $rows = [
+            ['Song items processed', (string) $metrics['processed']],
+            ['Matched items', (string) $metrics['matched']],
+            ['Unmatched items', (string) $metrics['unmatched']],
+            ['Links updated', (string) $metrics['updated']],
+            ['Links cleared', (string) $metrics['cleared']],
+            ['Unchanged', (string) $metrics['unchanged']],
+        ];
+
+        ksort($metrics['match_types']);
+        foreach ($metrics['match_types'] as $matchType => $count) {
+            $rows[] = ["Matched via {$matchType}", (string) $count];
+        }
+
+        $this->table(['Metric', 'Value'], $rows);
 
         return self::SUCCESS;
     }

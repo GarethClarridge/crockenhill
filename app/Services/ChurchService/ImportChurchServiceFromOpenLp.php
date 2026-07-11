@@ -84,6 +84,7 @@ class ImportChurchServiceFromOpenLp
             'updated' => 0,
             'unchanged' => 0,
             'cleared' => 0,
+            'match_types' => [],
         ];
 
         if ($mergeResult->wasMerged) {
@@ -129,6 +130,7 @@ class ImportChurchServiceFromOpenLp
             'updated' => 0,
             'unchanged' => 0,
             'cleared' => 0,
+            'match_types' => [],
         ];
 
         try {

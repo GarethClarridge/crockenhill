@@ -7,13 +7,12 @@ namespace App\Services\Email;
 use App\Data\OosArchiveEntry;
 use App\Data\OosEmailParseResult;
 use App\Data\OosEmailServicePlan;
-use App\Models\Song;
+use App\Services\Song\SongTitleResolver;
 
 class OosArchiveEvaluator
 {
     /**
      * @param  list<string>  $gateReasons
-     * @param  list<string>  $songCanonicalKeys
      * @param  list<string>  $eligiblePlanKeys  plan keys the archive gate would actually import
      * @return array<string, mixed>
      */
@@ -22,7 +21,7 @@ class OosArchiveEvaluator
         ?OosEmailParseResult $parseResult,
         string $disposition = 'evaluated',
         array $gateReasons = [],
-        array $songCanonicalKeys = [],
+        ?SongTitleResolver $songTitleResolver = null,
         ?string $error = null,
         array $eligiblePlanKeys = [],
     ): array {
@@ -82,7 +81,7 @@ class OosArchiveEvaluator
             'disposition' => $disposition,
             'gate_eligible' => $parseResult !== null && $gateReasons === [],
             'gate_reasons' => $gateReasons,
-            'song_link' => $this->songLinkMetrics($allItems, $songCanonicalKeys),
+            'song_link' => $this->songLinkMetrics($allItems, $songTitleResolver),
         ];
     }
 
@@ -156,6 +155,8 @@ class OosArchiveEvaluator
         $dispositions = [];
         $songHits = 0;
         $songTotal = 0;
+        $songMatchTypes = [];
+        $unmatchedSongTitles = [];
         $blocked = [];
 
         foreach ($entries as $entry) {
@@ -178,6 +179,14 @@ class OosArchiveEvaluator
             $songHits += (int) ($entry['song_link']['hits'] ?? 0);
             $songTotal += (int) ($entry['song_link']['total'] ?? 0);
 
+            foreach ($entry['song_link']['by_type'] ?? [] as $matchType => $count) {
+                $songMatchTypes[$matchType] = ($songMatchTypes[$matchType] ?? 0) + (int) $count;
+            }
+
+            foreach ($entry['song_link']['unmatched_titles'] ?? [] as $title) {
+                $unmatchedSongTitles[$title] = ($unmatchedSongTitles[$title] ?? 0) + 1;
+            }
+
             if (($entry['date']['expected'] ?? null) === null || ($entry['flags'] ?? []) !== []) {
                 $blocked[] = [
                     'index' => $entry['index'],
@@ -189,6 +198,8 @@ class OosArchiveEvaluator
 
         ksort($methods);
         ksort($dispositions);
+        ksort($songMatchTypes);
+        arsort($unmatchedSongTitles);
 
         return [
             'date_accuracy' => [
@@ -209,6 +220,8 @@ class OosArchiveEvaluator
                 'hits' => $songHits,
                 'total' => $songTotal,
                 'rate' => $this->rate($songHits, $songTotal),
+                'by_type' => $songMatchTypes,
+                'top_unmatched_titles' => array_slice($unmatchedSongTitles, 0, 25, preserve_keys: true),
             ],
             'unresolved_or_blocked' => $blocked,
         ];
@@ -366,20 +379,45 @@ class OosArchiveEvaluator
     }
 
     /**
+     * Runs each extracted song title through the same resolver the live linker uses, so the
+     * eval measures the real cascade. A null resolver (dry-run) reports totals but no rate.
+     *
      * @param  array<int, array<string, mixed>>  $items
-     * @param  list<string>  $songCanonicalKeys
-     * @return array{hits:int,total:int,rate:?float}
+     * @return array{hits:int,total:int,rate:?float,by_type:array<string,int>,unmatched_titles:list<string>}
      */
-    private function songLinkMetrics(array $items, array $songCanonicalKeys): array
+    private function songLinkMetrics(array $items, ?SongTitleResolver $songTitleResolver): array
     {
         $songs = array_values(array_filter($items, fn (array $item): bool => ($item['type'] ?? null) === 'songs'));
-        $hits = count(array_filter($songs, fn (array $item): bool => in_array(
-            Song::canonicalizeKey((string) ($item['title'] ?? '')),
-            $songCanonicalKeys,
-            true,
-        )));
 
-        return ['hits' => $hits, 'total' => count($songs), 'rate' => $this->rate($hits, count($songs))];
+        $hits = 0;
+        $byType = [];
+        $unmatchedTitles = [];
+
+        if ($songTitleResolver !== null) {
+            foreach ($songs as $item) {
+                $title = trim((string) ($item['title'] ?? ''));
+                $match = $title === '' ? null : $songTitleResolver->resolve($title);
+
+                if ($match === null) {
+                    $unmatchedTitles[] = $title === '' ? '(blank title)' : $title;
+
+                    continue;
+                }
+
+                $hits++;
+                $byType[$match->matchType] = ($byType[$match->matchType] ?? 0) + 1;
+            }
+        }
+
+        ksort($byType);
+
+        return [
+            'hits' => $hits,
+            'total' => count($songs),
+            'rate' => $songTitleResolver === null ? null : $this->rate($hits, count($songs)),
+            'by_type' => $byType,
+            'unmatched_titles' => array_slice($unmatchedTitles, 0, 20),
+        ];
     }
 
     private function normaliseTitle(string $title): string

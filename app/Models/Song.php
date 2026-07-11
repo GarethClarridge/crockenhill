@@ -208,6 +208,22 @@ class Song extends Model
     }
 
     /**
+     * Punctuation-insensitive comparison form of {@see self::canonicalizeKey()}: apostrophes
+     * vanish ("it's" → "its", matching OpenLP's stripped search titles), every other run of
+     * non-letter/non-digit characters becomes a single space, so curly quotes, stray commas and
+     * parenthesis remnants never distinguish titles. Digit runs stay separated ("10,000" →
+     * "10 000") rather than concatenated, keeping numeric titles distinct from hymn numbers.
+     * Comparison-only — never persisted; the stored canonical_key is uniquely indexed.
+     */
+    public static function matchKey(string $value): string
+    {
+        $key = str_replace(["'", "\u{2018}", "\u{2019}"], '', self::canonicalizeKey($value));
+        $key = (string) preg_replace('/[^\p{L}\p{N}]+/u', ' ', $key);
+
+        return trim((string) preg_replace('/\s+/', ' ', $key));
+    }
+
+    /**
      * The canonicalised first non-empty lyrics line — the key a sung opening
      * is heard as ("What love could remember") when it differs from the
      * catalogued title ("His Mercy Is More"). Stored at catalog sync and
