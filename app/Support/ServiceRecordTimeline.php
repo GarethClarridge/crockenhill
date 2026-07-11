@@ -267,6 +267,9 @@ final class ServiceRecordTimeline
         $mismatchReason = isset($oosAlignment['mismatch_reason']) && is_string($oosAlignment['mismatch_reason'])
             ? $oosAlignment['mismatch_reason']
             : null;
+        $detectedSongTitle = isset($metadata['song_title']) && is_string($metadata['song_title']) && trim($metadata['song_title']) !== ''
+            ? $metadata['song_title']
+            : $plannedFields['song_title'];
 
         $presentationInference = isset($oosAlignment['presentation_inference']) && is_array($oosAlignment['presentation_inference'])
             ? $oosAlignment['presentation_inference']
@@ -286,6 +289,7 @@ final class ServiceRecordTimeline
             'review_reason' => $reviewReason,
             'mismatch_reason' => $mismatchReason,
             'song_match_type' => $section->song_match_type,
+            'song_title' => $detectedSongTitle,
             'presentation_inference' => $presentationInference,
             'publication_status' => $section->publication_status,
             'published_sermon' => $section->publishedSermon ?? null,

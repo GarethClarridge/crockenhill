@@ -186,6 +186,10 @@ final readonly class ServiceStructure extends JsonData
             'confidence_score' => $section->confidence,
             'model' => $this->model,
             'ai_notes' => $section->notes,
+            'reading_reference' => null,
+            'reading_reference_source' => null,
+            'sermon_reference' => null,
+            'sermon_reference_source' => null,
             // Always present so a re-run's sync merge replaces stale flags.
             'review_flags' => $section->reviewFlags,
         ];
