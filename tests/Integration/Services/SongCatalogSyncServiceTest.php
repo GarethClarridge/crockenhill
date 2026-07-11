@@ -109,6 +109,19 @@ class SongCatalogSyncServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_records_the_praise_number_from_a_hash_suffixed_title(): void
+    {
+        $path = $this->createSqliteWithOneSong('All Heaven Declares #477', 'all heaven declares 477');
+
+        $this->service->sync($path, dryRun: false);
+
+        $this->assertDatabaseHas('songs', [
+            'title' => 'All Heaven Declares #477',
+            'praise_number' => '477',
+        ]);
+    }
+
+    #[Test]
     public function it_populates_the_first_line_key_from_lyrics_on_sync(): void
     {
         $lyricsXml = '<?xml version=\'1.0\' encoding=\'UTF-8\'?><song version="1.0"><lyrics>'

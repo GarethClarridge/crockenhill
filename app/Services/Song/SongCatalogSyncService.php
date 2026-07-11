@@ -308,6 +308,7 @@ class SongCatalogSyncService
             'canonical_key' => $canonicalKey,
             'first_line_key' => Song::firstLineKeyFromLyrics($parsedLyrics['lyrics_plain']),
             'title' => $title,
+            'praise_number' => Song::praiseNumberFromTitle($title),
             'alternate_title' => OpenLpRowValue::stringOrNull($representative['alternate_title'] ?? null),
             'lyrics_xml' => $lyricsXml,
             'lyrics_plain' => $parsedLyrics['lyrics_plain'],

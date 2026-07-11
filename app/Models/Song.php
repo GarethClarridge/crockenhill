@@ -24,6 +24,7 @@ use Illuminate\Validation\Rule;
  * @property string|null $first_line_key
  * @property string|null $slug
  * @property string $title
+ * @property string|null $praise_number
  * @property string|null $alternate_title
  * @property string $lyrics_xml
  * @property string|null $lyrics_plain
@@ -69,6 +70,7 @@ class Song extends Model
         'first_line_key',
         'slug',
         'title',
+        'praise_number',
         'alternate_title',
         'lyrics_xml',
         'lyrics_plain',
@@ -165,6 +167,30 @@ class Song extends Model
             'id' => 'integer',
             'import_metadata' => 'array',
         ];
+    }
+
+    /**
+     * The Praise! hymn-book number embedded in an OpenLP-imported title as a "#NNN" suffix
+     * (letter variants like "#046A" included). Returned verbatim without the hash.
+     */
+    public static function praiseNumberFromTitle(?string $title): ?string
+    {
+        if (is_string($title) && preg_match('/#(\d{1,4}[a-z]?)\b/i', $title, $matches) === 1) {
+            return $matches[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * Comparison form of a Praise! number: leading zeros and case never distinguish hymns
+     * ("046A" and "46a" are the same entry).
+     */
+    public static function normalisePraiseNumber(string $number): string
+    {
+        $normalised = strtolower(ltrim(trim($number), '0'));
+
+        return $normalised === '' ? '0' : $normalised;
     }
 
     public static function canonicalizeKey(string $value): string
