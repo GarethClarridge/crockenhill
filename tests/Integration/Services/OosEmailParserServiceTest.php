@@ -215,6 +215,78 @@ class OosEmailParserServiceTest extends TestCase
     }
 
     #[Test]
+    public function an_implausible_extractor_plan_date_falls_back_to_the_email_level_extraction(): void
+    {
+        // gpt-4.1-nano defaults to its training period when the email names no year: the
+        // subject "sunday 14th June" (received June 2026) came back as 2023-06-14, overriding
+        // the email-level extraction's correct 2026-06-14 (first archive eval run, entry #3).
+        $parser = new OosEmailParserService(new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Praise to the Lord']],
+                    confidence: 0.95,
+                    services: [
+                        ['service' => 'morning', 'date' => '2023-06-14', 'items' => [
+                            ['type' => 'song', 'title' => 'Praise to the Lord'],
+                        ], 'confidence' => 0.95],
+                    ],
+                );
+            }
+        });
+
+        $email = InboundEmail::factory()->make([
+            'subject' => 'Fwd: order of services for sunday 14th June',
+            'body_plain' => "Morning order of service\nPraise to the Lord",
+            'received_at' => '2026-06-12 09:00:00',
+        ]);
+
+        $result = $parser->parse($email);
+
+        $this->assertSame('2026-06-14', $result->date);
+        $this->assertSame('2026-06-14', $result->servicePlans[0]->date);
+        $this->assertGreaterThan(0.74, $result->confidenceScore, 'A recovered date must not carry the implausibility cap.');
+        $this->assertTrue($result->shouldImport);
+    }
+
+    #[Test]
+    public function a_plausible_extractor_plan_date_is_kept_even_when_it_differs_from_the_email_level_date(): void
+    {
+        // Multi-date emails are real (Christmas weekend): the Christmas-morning plan's own
+        // date must survive even though the email-level extraction resolves the Sunday date.
+        $parser = new OosEmailParserService(new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Once in royal David\'s city']],
+                    confidence: 0.95,
+                    services: [
+                        ['service' => 'morning', 'date' => '2023-12-24', 'items' => [
+                            ['type' => 'song', 'title' => 'Once in royal David\'s city'],
+                        ], 'confidence' => 0.95],
+                        ['service' => 'other', 'date' => '2023-12-25', 'items' => [
+                            ['type' => 'song', 'title' => 'O come all ye faithful'],
+                        ], 'confidence' => 0.95],
+                    ],
+                );
+            }
+        });
+
+        $email = InboundEmail::factory()->make([
+            'subject' => 'Christmas weekend services - Sunday 24 December 2023',
+            'body_plain' => "Sunday morning\nOnce in royal David's city\n\nChristmas morning\nO come all ye faithful",
+            'received_at' => '2023-12-22 09:00:00',
+        ]);
+
+        $result = $parser->parse($email);
+
+        $this->assertSame('2023-12-24', $result->servicePlans[0]->date);
+        $this->assertSame('2023-12-25', $result->servicePlans[1]->date);
+    }
+
+    #[Test]
     public function it_treats_pm_time_hints_as_evening(): void
     {
         $parser = new OosEmailParserService(new class implements OosEmailItemExtractor

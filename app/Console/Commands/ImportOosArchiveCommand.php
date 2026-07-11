@@ -22,8 +22,8 @@ use Throwable;
 
 class ImportOosArchiveCommand extends Command
 {
-    /** Bump when the parsing pipeline changes shape (v2: multi-service plans) to invalidate cached parses. */
-    private const PARSER_VERSION = 'archive-v2';
+    /** Bump when the parsing pipeline changes shape (v3: plan-date plausibility fallback) to invalidate cached parses. */
+    private const PARSER_VERSION = 'archive-v3';
 
     /** @var list<string> */
     private const BLOCKING_FLAGS = [
