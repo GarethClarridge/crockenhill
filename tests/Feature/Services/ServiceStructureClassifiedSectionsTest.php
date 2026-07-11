@@ -185,6 +185,31 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
     }
 
     #[Test]
+    public function resync_clears_detector_references_that_are_no_longer_present(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->coveringSegments($log);
+
+        $initial = ServiceStructure::fromSections([
+            $this->section('sermon', 600.0, 2200.0, sermonReference: 'Joshua 1:5-9'),
+        ], model: 'gpt-5');
+        $withoutReference = ServiceStructure::fromSections([
+            $this->section('sermon', 600.0, 2200.0),
+        ], model: 'gpt-5');
+
+        $syncService = app(ServiceSectionSyncService::class);
+        $syncService->sync($log, $initial->toClassifiedSections($log));
+        $syncService->sync($log, $withoutReference->toClassifiedSections($log));
+
+        $sermon = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->firstOrFail();
+
+        $this->assertNull($sermon->metadata['sermon_reference'] ?? null);
+        $this->assertNull($sermon->metadata['sermon_reference_source'] ?? null);
+    }
+
+    #[Test]
     public function snap_deltas_and_transcript_excerpts_ride_in_metadata(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();

@@ -295,13 +295,12 @@ class ServiceStructureValidator
             // service item — so only that fails hard; a cross-type inversion
             // is a legitimate authoring style and merely earns a review flag.
             //
-            // "Same type" means the RAW OpenLP type: only raw types (songs,
-            // bibles) are authored as printed blocks. The semantic mapping
-            // collapses distinct raw types into one bucket (a `custom`
-            // "Reading" slide and a `presentations` children's-talk file both
-            // become `other`), and items that were never a printed block must
-            // not be chained by it (the 2024-05-05 corpus false alarm).
-            $orderingType = $context->oosItemRawTypes[$itemId] ?? $itemType->value;
+            // "Same type" means the raw OpenLP type, except `custom`: custom
+            // items are heterogeneous prayers, notices, readings and sermons,
+            // not one authored block. Chaining them creates false hard failures
+            // when those independent items are performed out of printed order.
+            $rawType = $context->oosItemRawTypes[$itemId] ?? $itemType->value;
+            $orderingType = $rawType === 'custom' ? "custom:{$itemId}" : $rawType;
             $position = $context->oosItemPositions[$itemId] ?? null;
 
             if ($position !== null) {

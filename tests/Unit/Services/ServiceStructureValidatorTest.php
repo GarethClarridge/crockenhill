@@ -324,6 +324,38 @@ class ServiceStructureValidatorTest extends TestCase
     }
 
     #[Test]
+    public function custom_items_claimed_out_of_printed_order_receive_only_a_soft_flag(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0, oosItemId: 1),
+            $this->section('prayer', 120.0, 420.0, oosItemId: 8),
+            $this->section('sermon', 420.0, 2200.0, oosItemId: 7),
+            $this->section('song', 2200.0, 2430.0, oosItemId: 2),
+        ]);
+        $context = new ValidationContext(
+            recordingDuration: 2430.0,
+            speechDuration: 2300.0,
+            oosItemTypes: [
+                1 => ServiceSectionType::Welcome,
+                2 => ServiceSectionType::Song,
+                7 => ServiceSectionType::Sermon,
+                8 => ServiceSectionType::Prayer,
+            ],
+            oosItemPositions: [1 => 1, 2 => 2, 7 => 3, 8 => 6],
+            oosItemRawTypes: [7 => 'custom', 8 => 'custom'],
+        );
+
+        $result = $this->validator->validate($structure, $context);
+
+        $this->assertTrue($result->passed(), $result->failureSummary());
+        $this->assertNotContains('out_of_order_oos_items', $result->failureCodes());
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION,
+            $result->structure->sections[2]->reviewFlags,
+        );
+    }
+
+    #[Test]
     public function items_claimed_in_planned_order_with_gaps_pass(): void
     {
         $structure = ServiceStructure::fromSections([

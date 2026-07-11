@@ -11,6 +11,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Support\ServiceRecordTimeline;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -258,6 +259,35 @@ class ServiceRecordTimelineTest extends TestCase
         $this->assertSame($item->id, $rows[0]['item_id']);
         $this->assertSame('Notices', $rows[0]['planned_title']);
         $this->assertNull($rows[0]['section_id']);
+    }
+
+    #[Test]
+    public function linked_song_sections_prefer_the_detected_display_title_over_the_catalogue_title(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $song = Song::factory()->create(['title' => 'Jesus Shall Take The Highest Honour #305']);
+        $item = ChurchServiceItem::factory()->create([
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Jesus Shall Take The Highest Honour',
+            'song_id' => $song->id,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 1,
+            'metadata' => ['song_title' => 'Jesus Shall Take The Highest Honour'],
+        ]);
+
+        $run->load(['serviceSections.churchServiceItem.song', 'serviceSections.publishedSermon']);
+        $item->load('song');
+
+        $rows = ServiceRecordTimeline::build($this->itemCollection([$item]), $run);
+
+        $this->assertSame('Jesus Shall Take The Highest Honour', $rows[0]['song_title']);
+        $this->assertSame('Jesus Shall Take The Highest Honour #305', $song->title);
     }
 
     // -------------------------------------------------------------------------
