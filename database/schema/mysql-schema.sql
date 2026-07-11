@@ -172,7 +172,7 @@ CREATE TABLE `inbound_emails` (
   `body_plain` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `body_html` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `received_at` timestamp NOT NULL,
-  `status` enum('pending','processed','failed','rejected') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `status` enum('pending','processed','failed','rejected','archive_eval') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `processing_metadata` json DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -688,7 +688,7 @@ CREATE TABLE `sermons` (
   CONSTRAINT `sermons_duration_check` CHECK (((`duration` >= 0) or (`duration` is null))),
   CONSTRAINT `sermons_preacher_confidence_check` CHECK (((`preacher_confidence` >= 0) and (`preacher_confidence` <= 1))),
   CONSTRAINT `sermons_preacher_format_check` CHECK (((cast(`preacher` as char charset binary) = trim(`preacher`)) and (`preacher` <> _utf8mb3''))),
-  CONSTRAINT `sermons_reference_format_check` CHECK (((`reference` is null) or ((cast(`reference` as char charset binary) = trim(`reference`)) and (`reference` <> _utf8mb4'')))),
+  CONSTRAINT `sermons_reference_format_check` CHECK (((`reference` is null) or ((cast(`reference` as char charset binary) = trim(`reference`)) and (`reference` <> _utf8mb3'')))),
   CONSTRAINT `sermons_series_format_check` CHECK (((`series` is null) or ((cast(`series` as char charset binary) = trim(`series`)) and (`series` <> _utf8mb3'')))),
   CONSTRAINT `sermons_slug_format_check` CHECK (regexp_like(`slug`,_utf8mb3'^[a-z0-9]+(?:-[a-z0-9]+)*$',_utf8mb4'c')),
   CONSTRAINT `sermons_timing_invariants_check` CHECK (((`segment_start_time` >= 0) and ((`segment_end_time` >= `segment_start_time`) or (`segment_end_time` is null) or (`segment_start_time` is null)))),
@@ -949,7 +949,7 @@ CREATE TABLE `songs` (
   KEY `songs_title_index` (`title`),
   KEY `songs_first_line_key_index` (`first_line_key`),
   FULLTEXT KEY `songs_lyrics_plain_fulltext` (`lyrics_plain`),
-  CONSTRAINT `songs_alternate_title_check` CHECK (((`alternate_title` is null) or ((cast(`alternate_title` as char charset binary) = trim(`alternate_title`)) and (`alternate_title` <> _utf8mb4'')))),
+  CONSTRAINT `songs_alternate_title_check` CHECK (((`alternate_title` is null) or ((cast(`alternate_title` as char charset binary) = trim(`alternate_title`)) and (`alternate_title` <> _utf8mb3'')))),
   CONSTRAINT `songs_canonical_key_check` CHECK (((cast(`canonical_key` as char charset binary) = lower(trim(regexp_replace(`canonical_key`,_utf8mb3'[[:space:]]+',_utf8mb4' ')))) and (`canonical_key` <> _utf8mb3'') and (locate(_utf8mb3'@',`canonical_key`) = 0))),
   CONSTRAINT `songs_lyrics_xml_check` CHECK ((`lyrics_xml` <> _utf8mb3'')),
   CONSTRAINT `songs_slug_format_check` CHECK (regexp_like(`slug`,_utf8mb3'^[a-z0-9]+(?:-[a-z0-9]+)*$',_utf8mb4'c')),
@@ -1221,5 +1221,6 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_18_120000_drop_
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_18_130000_drop_redundant_fk_indexes_from_media_processing_logs_and_speaker_samples',76);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_19_054923_add_preacher_id_date_index_to_sermons_table',77);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_27_065159_add_index_to_songs_title',78);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_28_192314_add_index_to_speaker_samples_approved',79);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_07_190047_add_first_line_key_to_songs_table',79);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_28_192314_add_index_to_speaker_samples_approved',78);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_07_190047_add_first_line_key_to_songs_table',78);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_10_155218_add_archive_eval_to_inbound_emails_status_enum',79);
