@@ -12,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use RuntimeException;
 
 class ProcessInboundOosEmail implements ShouldQueue
 {
@@ -35,7 +36,12 @@ class ProcessInboundOosEmail implements ShouldQueue
         $parseResult = $parser->parse($inboundEmail);
         $importService->storeParseResult($inboundEmail, $parseResult);
 
-        if (! $parseResult->shouldImport) {
+        $autoImportablePlans = array_filter(
+            $parseResult->servicePlans,
+            static fn ($plan): bool => $plan->shouldImport,
+        );
+
+        if ($autoImportablePlans === []) {
             $inboundEmail->refresh();
             $inboundEmail->status = InboundEmailStatus::Pending;
             $inboundEmail->save();
@@ -43,7 +49,31 @@ class ProcessInboundOosEmail implements ShouldQueue
             return;
         }
 
-        $importService->import($inboundEmail, $parseResult);
+        // Imports every confident plan and holds the rest. Held plans (below the auto-import bar)
+        // are a normal outcome that leaves the email Pending in the inbox with its confident orders
+        // already imported and per-plan state recorded.
+        $result = $importService->import($inboundEmail, $parseResult);
+
+        // A plan that *failed* to import (a DB or sync error) is not a hold — swallowing it would
+        // rob the queue of its retry/failed path and leave ops with no signal. The per-plan
+        // outcomes are already recorded, so re-raising here retries the whole job (create-only /
+        // merge make the already-imported plans idempotent) and surfaces a persistent failure.
+        if ($result->hasFailures()) {
+            throw new RuntimeException(sprintf(
+                'Inbound OoS email %d had %d service plan(s) fail to import.',
+                $inboundEmail->id,
+                count($result->failed()),
+            ));
+        }
+
+        if (! $result->isFullyResolved()) {
+            $inboundEmail->refresh();
+
+            if ($inboundEmail->status !== InboundEmailStatus::Processed) {
+                $inboundEmail->status = InboundEmailStatus::Pending;
+                $inboundEmail->save();
+            }
+        }
     }
 
     /**

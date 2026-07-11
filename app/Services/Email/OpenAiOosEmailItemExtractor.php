@@ -24,16 +24,19 @@ class OpenAiOosEmailItemExtractor implements OosEmailItemExtractor
                 [
                     'role' => 'system',
                     'content' => <<<'TEXT'
-You extract an ordered church service list from email text.
+You extract church service orders from email text. One email often contains BOTH a morning
+and an evening order (and occasionally a special service such as carols or Christmas).
 Return valid JSON with this shape only:
-{"items":[{"type":"welcome|prayer|notices|song|childrens_talk|bible_reading|sermon|other","title":"string"}],"confidence":0.0,"notes":["string"]}
+{"services":[{"service":"morning|evening|other|unknown","date":"YYYY-MM-DD or null","items":[{"type":"welcome|prayer|notices|song|childrens_talk|bible_reading|sermon|other","title":"string"}],"confidence":0.0}],"notes":["string"]}
 Rules:
-- Preserve the running order.
-- Do not invent items.
-- Use concise, human-readable titles.
-- Use "song" for hymns/songs.
-- Use "bible_reading" for scripture readings.
-- Confidence reflects how reliable the extracted ordered list is.
+- Emit one entry in "services" per distinct service order found. Keep morning before evening.
+- Preserve the running order of items within each service.
+- Do not invent items or merge two services into one list.
+- Use "morning" for AM/10.30 services, "evening" for PM/6pm services, "other" for specials
+  (carols, Christmas), and "unknown" only when the service time is genuinely unclear.
+- Set "date" only when a service states its own date; otherwise use null.
+- Use concise, human-readable titles. Use "song" for hymns/songs and "bible_reading" for readings.
+- Confidence reflects how reliable that service's extracted order is.
 TEXT,
                 ],
                 [
@@ -48,26 +51,42 @@ TEXT,
                     'schema' => [
                         'type' => 'object',
                         'additionalProperties' => false,
-                        'required' => ['items', 'confidence', 'notes'],
+                        'required' => ['services', 'notes'],
                         'properties' => [
-                            'items' => [
+                            'services' => [
                                 'type' => 'array',
                                 'items' => [
                                     'type' => 'object',
                                     'additionalProperties' => false,
-                                    'required' => ['type', 'title'],
+                                    'required' => ['service', 'date', 'items', 'confidence'],
                                     'properties' => [
-                                        'type' => [
+                                        'service' => [
                                             'type' => 'string',
                                         ],
-                                        'title' => [
-                                            'type' => 'string',
+                                        'date' => [
+                                            'type' => ['string', 'null'],
+                                        ],
+                                        'items' => [
+                                            'type' => 'array',
+                                            'items' => [
+                                                'type' => 'object',
+                                                'additionalProperties' => false,
+                                                'required' => ['type', 'title'],
+                                                'properties' => [
+                                                    'type' => [
+                                                        'type' => 'string',
+                                                    ],
+                                                    'title' => [
+                                                        'type' => 'string',
+                                                    ],
+                                                ],
+                                            ],
+                                        ],
+                                        'confidence' => [
+                                            'type' => 'number',
                                         ],
                                     ],
                                 ],
-                            ],
-                            'confidence' => [
-                                'type' => 'number',
                             ],
                             'notes' => [
                                 'type' => 'array',
@@ -80,7 +99,7 @@ TEXT,
                 ],
             ],
             'temperature' => 0.1,
-            'max_completion_tokens' => 1200,
+            'max_completion_tokens' => 1600,
         ], reasoningEffort: 'minimal'));
 
         $content = $response->choices[0]->message->content ?? null;
@@ -95,8 +114,22 @@ TEXT,
             throw new RuntimeException('Failed to decode OoS email parser response as JSON.');
         }
 
-        $items = $this->normaliseItems($decoded['items'] ?? []);
         $notes = $this->normaliseNotes($decoded['notes'] ?? []);
+
+        // New multi-service shape. Fall back to the legacy flat "items" shape if a model still
+        // returns it, so a schema regression degrades gracefully to a single plan.
+        if (is_array($decoded['services'] ?? null)) {
+            $services = $this->normaliseServices($decoded['services']);
+
+            return new OosEmailItemExtractionResult(
+                items: $this->flattenServiceItems($services),
+                confidence: $this->averageConfidence($services),
+                notes: $notes,
+                services: $services,
+            );
+        }
+
+        $items = $this->normaliseItems($decoded['items'] ?? []);
         $confidence = $decoded['confidence'] ?? 0.0;
 
         return new OosEmailItemExtractionResult(
@@ -104,6 +137,66 @@ TEXT,
             confidence: is_numeric($confidence) ? max(0.0, min(1.0, (float) $confidence)) : 0.0,
             notes: $notes,
         );
+    }
+
+    /**
+     * @return list<array{service:?string,date:?string,items:array<int,array{type:string,title:string}>,confidence:float}>
+     */
+    private function normaliseServices(mixed $services): array
+    {
+        if (! is_array($services)) {
+            return [];
+        }
+
+        $normalised = [];
+
+        foreach ($services as $service) {
+            if (! is_array($service)) {
+                continue;
+            }
+
+            $confidence = $service['confidence'] ?? 0.0;
+
+            $normalised[] = [
+                'service' => $this->normaliseString($service['service'] ?? null),
+                'date' => $this->normaliseString($service['date'] ?? null),
+                'items' => $this->normaliseItems($service['items'] ?? []),
+                'confidence' => is_numeric($confidence) ? max(0.0, min(1.0, (float) $confidence)) : 0.0,
+            ];
+        }
+
+        return $normalised;
+    }
+
+    /**
+     * @param  list<array{service:?string,date:?string,items:array<int,array{type:string,title:string}>,confidence:float}>  $services
+     * @return array<int, array{type:string,title:string}>
+     */
+    private function flattenServiceItems(array $services): array
+    {
+        $items = [];
+
+        foreach ($services as $service) {
+            foreach ($service['items'] as $item) {
+                $items[] = $item;
+            }
+        }
+
+        return $items;
+    }
+
+    /**
+     * @param  list<array{service:?string,date:?string,items:array<int,array{type:string,title:string}>,confidence:float}>  $services
+     */
+    private function averageConfidence(array $services): float
+    {
+        if ($services === []) {
+            return 0.0;
+        }
+
+        $total = array_sum(array_map(static fn (array $service): float => $service['confidence'], $services));
+
+        return round($total / count($services), 2);
     }
 
     /**

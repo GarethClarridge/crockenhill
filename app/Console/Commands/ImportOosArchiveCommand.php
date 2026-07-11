@@ -8,7 +8,6 @@ use App\Data\OosArchiveEntry;
 use App\Data\OosEmailParseResult;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
-use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\Song;
 use App\Services\Email\InboundEmailImportService;
@@ -23,7 +22,8 @@ use Throwable;
 
 class ImportOosArchiveCommand extends Command
 {
-    private const PARSER_VERSION = 'archive-v1';
+    /** Bump when the parsing pipeline changes shape (v2: multi-service plans) to invalidate cached parses. */
+    private const PARSER_VERSION = 'archive-v2';
 
     /** @var list<string> */
     private const BLOCKING_FLAGS = [
@@ -93,16 +93,30 @@ class ImportOosArchiveCommand extends Command
                 [$inboundEmail, $sourceUpdatedAfterImport] = $this->synchroniseEmail($entry);
                 $parseResult = $this->parseResult($entry, $inboundEmail, $emailParser, $importService);
                 $gateReasons = $this->gateReasons($entry, $parseResult, $sourceUpdatedAfterImport);
+                $eligiblePlanKeys = $this->groundTruthPlanKeys($entry, $parseResult);
                 $disposition = $gateReasons === [] ? 'eligible' : 'skipped';
+                $importError = null;
 
                 if ($shouldImport && $gateReasons === []) {
-                    $existed = ChurchService::query()
-                        ->where('date', $parseResult->date)
-                        ->where('service', $parseResult->service?->value)
-                        ->exists();
+                    $importResult = $importService->import(
+                        $inboundEmail,
+                        $parseResult,
+                        createOnly: true,
+                        onlyPlanKeys: $eligiblePlanKeys,
+                    );
 
-                    $importService->import($inboundEmail, $parseResult, createOnly: true);
-                    $disposition = $existed ? 'skipped_existing' : 'created';
+                    if ($importResult->hasFailures()) {
+                        // A plan failure inside import() is caught and recorded as a Failed
+                        // outcome, not thrown — never let it masquerade as a clean import.
+                        $disposition = 'import_failed';
+                        $importError = implode('; ', array_map(
+                            static fn ($plan): string => "{$plan->planKey}: ".($plan->message ?? 'import failed'),
+                            $importResult->failed(),
+                        ));
+                        $this->warn("Import failure for #{$entry->index}: {$importError}");
+                    } else {
+                        $disposition = $importResult->created() !== [] ? 'created' : 'skipped_existing';
+                    }
                 }
 
                 $result = $evaluator->evaluate(
@@ -111,6 +125,8 @@ class ImportOosArchiveCommand extends Command
                     $disposition,
                     $gateReasons,
                     $songCanonicalKeys,
+                    $importError,
+                    $eligiblePlanKeys,
                 );
 
                 if ($sourceUpdatedAfterImport) {
@@ -134,7 +150,7 @@ class ImportOosArchiveCommand extends Command
         $report = [
             'generated_at' => now()->toIso8601String(),
             'mode' => $dryRun ? 'dry_run' : ($shouldImport ? 'import' : 'evaluate'),
-            'pipeline_mode' => 'legacy_single_plan',
+            'pipeline_mode' => 'multi_service',
             'source_path' => $path,
             'archive_entry_count' => count($allEntries),
             'selected_entry_count' => count($entries),
@@ -308,6 +324,34 @@ class ImportOosArchiveCommand extends Command
         }
 
         return array_values(array_unique($reasons));
+    }
+
+    /**
+     * Keys of the parsed plans that pass the per-plan archive gates: corroborated by the entry's
+     * ground truth (its date and one of its recorded services), non-empty, and at or above the
+     * auto-import confidence threshold. The entry-level gate only checks the primary plan, but
+     * the multi-service parser can produce a second plan the ground truth does not support (an
+     * invented service) or does not trust enough (a corroborated plan in the review band) — this
+     * keeps both out of the create-only import.
+     *
+     * @return list<string>
+     */
+    private function groundTruthPlanKeys(OosArchiveEntry $entry, OosEmailParseResult $parseResult): array
+    {
+        $threshold = (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90);
+        $keys = [];
+
+        foreach ($parseResult->servicePlans as $plan) {
+            if ($plan->date === $entry->groundTruthDate
+                && $plan->service instanceof SermonService
+                && in_array($plan->service->value, $entry->servicesPresent, true)
+                && $plan->items !== []
+                && $plan->confidence >= $threshold) {
+                $keys[] = $plan->key();
+            }
+        }
+
+        return array_values(array_unique($keys));
     }
 
     private function isValidDate(string $date): bool

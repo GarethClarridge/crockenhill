@@ -28,7 +28,7 @@ class PrefillChurchServiceFromInboundEmail
      *
      * @return array{date?:string,service?:string,items?:array<int,array{key:string,section_type:string,title:string,song_id:int|null}>}
      */
-    public function execute(int $inboundEmailId): array
+    public function execute(int $inboundEmailId, ?string $planKey = null): array
     {
         $inboundEmail = InboundEmail::query()->find($inboundEmailId);
 
@@ -37,19 +37,23 @@ class PrefillChurchServiceFromInboundEmail
         }
 
         $parseData = $this->resolveParseData($inboundEmail);
+
+        // When a plan key is supplied, prefill from exactly that service plan so editing targets
+        // one order of a multi-service email; otherwise fall back to the primary/legacy fields.
+        $plan = $planKey !== null ? $this->planFromParseData($parseData, $planKey) : null;
         $result = [];
 
-        $resolvedDate = Arr::get($parseData, 'resolved_date');
+        $resolvedDate = $plan['date'] ?? Arr::get($parseData, 'resolved_date');
         if (is_string($resolvedDate) && $resolvedDate !== '') {
             $result['date'] = $resolvedDate;
         }
 
-        $resolvedService = Arr::get($parseData, 'resolved_service');
+        $resolvedService = $plan['service'] ?? Arr::get($parseData, 'resolved_service');
         if (is_string($resolvedService) && in_array($resolvedService, SermonService::values(), true)) {
             $result['service'] = $resolvedService;
         }
 
-        $parsedItems = Arr::get($parseData, 'items');
+        $parsedItems = $plan['items'] ?? Arr::get($parseData, 'items');
         if (is_array($parsedItems)) {
             $items = collect($parsedItems)
                 ->map(fn (mixed $item): ?array => is_array($item) ? $this->itemPayloadFromParsedItem($item) : null)
@@ -83,6 +87,27 @@ class PrefillChurchServiceFromInboundEmail
             : [];
 
         return is_array(Arr::get($metadata, 'parsing')) ? Arr::get($metadata, 'parsing') : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $parseData
+     * @return array<string, mixed>|null
+     */
+    private function planFromParseData(array $parseData, string $planKey): ?array
+    {
+        $plans = Arr::get($parseData, 'service_plans');
+
+        if (! is_array($plans)) {
+            return null;
+        }
+
+        foreach ($plans as $plan) {
+            if (is_array($plan) && ($plan['plan_key'] ?? null) === $planKey) {
+                return $plan;
+            }
+        }
+
+        return null;
     }
 
     /**

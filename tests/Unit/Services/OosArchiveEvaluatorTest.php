@@ -6,6 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Data\OosArchiveEntry;
 use App\Data\OosEmailParseResult;
+use App\Data\OosEmailServicePlan;
 use App\Enums\SermonService;
 use App\Services\Email\OosArchiveEvaluator;
 use Carbon\CarbonImmutable;
@@ -26,6 +27,7 @@ class OosArchiveEvaluatorTest extends TestCase
             disposition: 'eligible',
             gateReasons: [],
             songCanonicalKeys: ['amazing grace'],
+            eligiblePlanKeys: ['morning:2026-07-12'],
         );
 
         $this->assertTrue($result['date']['matches']);
@@ -33,16 +35,48 @@ class OosArchiveEvaluatorTest extends TestCase
         $this->assertSame(['morning', 'evening'], $result['services']['expected']);
         $this->assertSame(['morning'], $result['services']['detected']);
         $this->assertTrue($result['plans'][0]['exact_correct']);
+        $this->assertTrue($result['plans'][0]['gate_eligible']);
         $this->assertSame(1.0, $result['plans'][0]['ordered_item_quality']);
         $this->assertSame(['hits' => 1, 'total' => 1, 'rate' => 1.0], $result['song_link']);
         $this->assertTrue($result['gate_eligible']);
     }
 
     #[Test]
+    public function it_evaluates_every_service_plan_in_a_multi_service_parse(): void
+    {
+        $parseResult = $this->multiPlanParseResult();
+
+        $result = (new OosArchiveEvaluator)->evaluate(
+            $this->entry(),
+            $parseResult,
+            disposition: 'eligible',
+            gateReasons: [],
+            songCanonicalKeys: [],
+            eligiblePlanKeys: ['morning:2026-07-12', 'evening:2026-07-12'],
+        );
+
+        $this->assertSame(['morning', 'evening'], $result['services']['detected']);
+        $this->assertSame(['morning' => 2, 'evening' => 1], $result['item_counts']['detected']);
+        $this->assertCount(2, $result['plans']);
+        $this->assertTrue($result['plans'][1]['exact_correct']);
+        $this->assertTrue($result['plans'][1]['gate_eligible']);
+        $this->assertSame(1.0, $result['plans'][1]['ordered_item_quality']);
+
+        $aggregate = (new OosArchiveEvaluator)->aggregate([$result]);
+        $this->assertSame(1.0, $aggregate['service_metrics']['evening']['recall']);
+        $this->assertSame(['correct' => 2, 'total' => 2, 'rate' => 1.0], $aggregate['auto_import_precision']);
+    }
+
+    #[Test]
     public function it_aggregates_metrics_only_over_the_appropriate_cohorts(): void
     {
         $evaluator = new OosArchiveEvaluator;
-        $correct = $evaluator->evaluate($this->entry(), $this->parseResult(), 'eligible');
+        $correct = $evaluator->evaluate(
+            $this->entry(),
+            $this->parseResult(),
+            'eligible',
+            eligiblePlanKeys: ['morning:2026-07-12'],
+        );
         $missedEvening = $evaluator->evaluate(
             $this->entry(index: 2, services: ['evening']),
             $this->parseResult(service: SermonService::Morning, date: '2026-07-19', confidence: 0.80),
@@ -116,6 +150,34 @@ class OosArchiveEvaluatorTest extends TestCase
             importMetadata: [
                 'date_extraction' => ['method' => 'subject_textual'],
                 'confidence_score' => $confidence,
+            ],
+        );
+    }
+
+    private function multiPlanParseResult(): OosEmailParseResult
+    {
+        $morningItems = [
+            ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ['position' => 2, 'type' => 'custom', 'title' => 'Prayer', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+        ];
+        $eveningItems = [
+            ['position' => 1, 'type' => 'custom', 'title' => 'Welcome', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+        ];
+
+        return new OosEmailParseResult(
+            date: '2026-07-12',
+            service: SermonService::Morning,
+            items: $morningItems,
+            confidenceScore: 0.95,
+            needsReview: false,
+            shouldImport: true,
+            importMetadata: [
+                'date_extraction' => ['method' => 'subject_textual'],
+                'confidence_score' => 0.95,
+            ],
+            servicePlans: [
+                new OosEmailServicePlan(SermonService::Morning, '2026-07-12', $morningItems, 0.95, false, true),
+                new OosEmailServicePlan(SermonService::Evening, '2026-07-12', $eveningItems, 0.92, false, true),
             ],
         );
     }

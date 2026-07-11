@@ -11,8 +11,11 @@ use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Queries\AdminAttentionCounts;
 use App\Queries\ReviewInboxQuery;
+use App\Services\ChurchService\ChurchServiceSongLinker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\TestCase;
 
 class ImportOosArchiveCommandTest extends TestCase
@@ -40,7 +43,7 @@ class ImportOosArchiveCommandTest extends TestCase
         {
             public function extract(string $subject, string $body): OosEmailItemExtractionResult
             {
-                throw new \RuntimeException('Dry run must not call the extractor.');
+                throw new RuntimeException('Dry run must not call the extractor.');
             }
         });
         $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
@@ -150,6 +153,160 @@ class ImportOosArchiveCommandTest extends TestCase
     }
 
     #[Test]
+    public function import_skips_a_plan_the_ground_truth_does_not_corroborate(): void
+    {
+        // A morning-only archive entry, but the multi-service parser also returns an evening plan.
+        // The gate only checks the primary (morning); the ungated evening plan must not be created.
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [
+                        ['type' => 'song', 'title' => 'Amazing Grace'],
+                        ['type' => 'sermon', 'title' => 'Evening Sermon'],
+                    ],
+                    confidence: 0.99,
+                    services: [
+                        ['service' => 'morning', 'date' => null, 'items' => [
+                            ['type' => 'song', 'title' => 'Amazing Grace'],
+                        ], 'confidence' => 0.99],
+                        ['service' => 'evening', 'date' => null, 'items' => [
+                            ['type' => 'sermon', 'title' => 'Evening Sermon'],
+                        ], 'confidence' => 0.99],
+                    ],
+                );
+            }
+        });
+        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $report = $this->temporaryPath('json');
+
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--import' => true,
+            '--report' => $report,
+        ])->assertExitCode(0);
+
+        $this->assertDatabaseCount('church_services', 1);
+        $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
+        $this->assertDatabaseMissing('church_services', ['service' => 'evening']);
+    }
+
+    #[Test]
+    public function an_import_failure_surfaces_as_a_failed_disposition(): void
+    {
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
+                    confidence: 1.0,
+                );
+            }
+        });
+        $this->mock(ChurchServiceSongLinker::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('linkForService')->andThrow(new RuntimeException('song sync exploded'));
+        });
+        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $report = $this->temporaryPath('json');
+
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--import' => true,
+            '--report' => $report,
+        ])->assertExitCode(0);
+
+        $this->assertDatabaseCount('church_services', 0);
+        $payload = $this->readReport($report);
+        $this->assertSame('import_failed', $payload['entries'][0]['disposition']);
+        $this->assertStringContainsString('song sync exploded', (string) $payload['entries'][0]['error']);
+        $this->assertSame(InboundEmailStatus::ArchiveEval, InboundEmail::query()->firstOrFail()->status);
+    }
+
+    #[Test]
+    public function a_corroborated_plan_below_the_auto_import_threshold_is_not_created(): void
+    {
+        // Both services are in the ground truth, but the evening plan's confidence lands in the
+        // 0.75-0.89 review band. The archive gate is per-plan >= 0.90: only morning may import.
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [
+                        ['type' => 'song', 'title' => 'Amazing Grace'],
+                        ['type' => 'song', 'title' => 'Abide With Me'],
+                    ],
+                    confidence: 0.99,
+                    services: [
+                        ['service' => 'morning', 'date' => null, 'items' => [
+                            ['type' => 'song', 'title' => 'Amazing Grace'],
+                        ], 'confidence' => 0.99],
+                        ['service' => 'evening', 'date' => null, 'items' => [
+                            ['type' => 'song', 'title' => 'Abide With Me'],
+                        ], 'confidence' => 0.60],
+                    ],
+                );
+            }
+        });
+        $archive = $this->writeArchive($this->twoServiceEntry('Sunday 12 July 2026'));
+        $report = $this->temporaryPath('json');
+
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--import' => true,
+            '--report' => $report,
+        ])->assertExitCode(0);
+
+        $this->assertDatabaseCount('church_services', 1);
+        $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
+        $this->assertDatabaseMissing('church_services', ['service' => 'evening']);
+        $this->assertSame('created', $this->readReport($report)['entries'][0]['disposition']);
+    }
+
+    #[Test]
+    public function the_report_evaluates_every_service_plan_not_just_the_primary(): void
+    {
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [
+                        ['type' => 'song', 'title' => 'Amazing Grace'],
+                        ['type' => 'song', 'title' => 'Abide With Me'],
+                    ],
+                    confidence: 0.99,
+                    services: [
+                        ['service' => 'morning', 'date' => null, 'items' => [
+                            ['type' => 'song', 'title' => 'Amazing Grace'],
+                        ], 'confidence' => 0.99],
+                        ['service' => 'evening', 'date' => null, 'items' => [
+                            ['type' => 'song', 'title' => 'Abide With Me'],
+                        ], 'confidence' => 0.99],
+                    ],
+                );
+            }
+        });
+        $archive = $this->writeArchive($this->twoServiceEntry('Sunday 12 July 2026'));
+        $report = $this->temporaryPath('json');
+
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--report' => $report,
+        ])->assertExitCode(0);
+
+        $payload = $this->readReport($report);
+        $entry = $payload['entries'][0];
+        $this->assertSame(['morning', 'evening'], $entry['services']['detected']);
+        $this->assertCount(2, $entry['plans']);
+        // json_encode drops the zero fraction, so the decoded rate is int(1).
+        $this->assertEquals(1.0, $payload['aggregate']['service_metrics']['evening']['recall']);
+        $this->assertSame('multi_service', $payload['pipeline_mode']);
+    }
+
+    #[Test]
     public function a_changed_source_after_import_is_reported_without_touching_the_service(): void
     {
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
@@ -188,6 +345,26 @@ class ImportOosArchiveCommandTest extends TestCase
 #### Sunday Morning
 
 {$item}
+
+---
+
+MARKDOWN;
+    }
+
+    private function twoServiceEntry(string $heading): string
+    {
+        return <<<MARKDOWN
+### {$heading}
+
+**Source subject:** Details for {$heading}
+
+#### Sunday Morning
+
+Amazing Grace
+
+#### Sunday Evening
+
+Abide With Me
 
 ---
 

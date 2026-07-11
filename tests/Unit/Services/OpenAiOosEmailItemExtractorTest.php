@@ -63,6 +63,45 @@ class OpenAiOosEmailItemExtractorTest extends TestCase
     }
 
     #[Test]
+    public function it_extracts_multiple_service_plans_and_flattens_items(): void
+    {
+        $mockResponse = [
+            'choices' => [
+                [
+                    'message' => [
+                        'content' => json_encode([
+                            'services' => [
+                                ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
+                                    ['type' => 'welcome', 'title' => 'Welcome'],
+                                    ['type' => 'sermon', 'title' => 'Morning Sermon'],
+                                ], 'confidence' => 0.9],
+                                ['service' => 'evening', 'date' => null, 'items' => [
+                                    ['type' => 'song', 'title' => 'Evening Hymn'],
+                                ], 'confidence' => 0.8],
+                            ],
+                            'notes' => ['Two services found'],
+                        ]),
+                    ],
+                ],
+            ],
+        ];
+
+        OpenAI::fake([CreateResponse::fake($mockResponse)]);
+
+        $result = $this->extractor->extract('Order of Service - Sunday 12 July 2026', 'Body');
+
+        $this->assertCount(2, $result->services);
+        $this->assertSame('morning', $result->services[0]['service']);
+        $this->assertSame('2026-07-12', $result->services[0]['date']);
+        $this->assertNull($result->services[1]['date']);
+        // Items are flattened across services for backward compatibility.
+        $this->assertCount(3, $result->items);
+        // Overall confidence is the mean of the plan confidences.
+        $this->assertEqualsWithDelta(0.85, $result->confidence, 0.001);
+        $this->assertSame(['Two services found'], $result->notes);
+    }
+
+    #[Test]
     public function it_throws_exception_when_api_key_is_missing(): void
     {
         Config::set('openai.api_key', '');

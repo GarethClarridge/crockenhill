@@ -34,6 +34,17 @@ trait WithInboundEmailTestHelpers
                 'items' => $items,
                 'needs_review' => $needsReview,
                 'should_import' => $shouldImport,
+                'service_plans' => [
+                    [
+                        'plan_key' => "{$resolvedService}:{$resolvedDate}",
+                        'service' => $resolvedService,
+                        'date' => $resolvedDate,
+                        'items' => $items,
+                        'confidence' => $confidenceScore,
+                        'needs_review' => $needsReview,
+                        'should_import' => $shouldImport,
+                    ],
+                ],
             ],
         ];
     }

@@ -47,6 +47,7 @@ class SaveChurchServiceFromAdmin
         ?ChurchService $churchService,
         int $userId,
         ?int $inboundEmailId = null,
+        ?string $planKey = null,
     ): ChurchService {
         $beforeSnapshot = $this->canonicalStateService->snapshot($churchService);
 
@@ -108,7 +109,7 @@ class SaveChurchServiceFromAdmin
             $inboundEmail = InboundEmail::query()->find($inboundEmailId);
 
             if ($inboundEmail instanceof InboundEmail) {
-                $this->inboundEmailImportService->markAsProcessedFromManualReview($inboundEmail, $churchService, $userId);
+                $this->inboundEmailImportService->markAsProcessedFromManualReview($inboundEmail, $churchService, $userId, $planKey);
             }
         }
 

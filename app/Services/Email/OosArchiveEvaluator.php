@@ -6,6 +6,7 @@ namespace App\Services\Email;
 
 use App\Data\OosArchiveEntry;
 use App\Data\OosEmailParseResult;
+use App\Data\OosEmailServicePlan;
 use App\Models\Song;
 
 class OosArchiveEvaluator
@@ -13,6 +14,7 @@ class OosArchiveEvaluator
     /**
      * @param  list<string>  $gateReasons
      * @param  list<string>  $songCanonicalKeys
+     * @param  list<string>  $eligiblePlanKeys  plan keys the archive gate would actually import
      * @return array<string, mixed>
      */
     public function evaluate(
@@ -22,23 +24,35 @@ class OosArchiveEvaluator
         array $gateReasons = [],
         array $songCanonicalKeys = [],
         ?string $error = null,
+        array $eligiblePlanKeys = [],
     ): array {
-        $detectedService = $parseResult?->service?->value;
+        $plans = $parseResult === null ? [] : $this->plansForEvaluation($parseResult);
         $detectedDate = $parseResult?->date;
         $confidence = $parseResult?->confidenceScore;
-        $items = $parseResult === null ? [] : $parseResult->items;
         $dateMethod = $parseResult === null
             ? null
             : ($parseResult->importMetadata['date_extraction']['method'] ?? null);
-        $detectedServices = $detectedService === null ? [] : [$detectedService];
         $dateMatches = $entry->groundTruthDate !== null && $detectedDate === $entry->groundTruthDate;
-        $expectedLines = $detectedService === null ? [] : ($entry->itemLines[$detectedService] ?? []);
-        $orderedItemQuality = $entry->labelQuality === 'full'
-            ? $this->sequenceQuality($expectedLines, array_column($items, 'title'))
-            : null;
-        $serviceMatches = $detectedService !== null && in_array($detectedService, $entry->servicesPresent, true);
-        $exactCorrect = $entry->labelQuality === 'full' && $dateMatches && $serviceMatches && $items !== [];
-        $songLink = $this->songLinkMetrics($items, $songCanonicalKeys);
+
+        $detectedServices = [];
+        $detectedItemCounts = [];
+        $allItems = [];
+        $planRecords = [];
+
+        foreach ($plans as $plan) {
+            $service = $plan->service?->value;
+
+            if ($service !== null) {
+                if (! in_array($service, $detectedServices, true)) {
+                    $detectedServices[] = $service;
+                }
+
+                $detectedItemCounts[$service] = ($detectedItemCounts[$service] ?? 0) + count($plan->items);
+            }
+
+            $allItems = array_merge($allItems, $plan->items);
+            $planRecords[] = $this->planRecord($entry, $plan, $gateReasons, $eligiblePlanKeys);
+        }
 
         return [
             'index' => $entry->index,
@@ -61,23 +75,70 @@ class OosArchiveEvaluator
             ],
             'item_counts' => [
                 'expected' => $entry->itemLineCounts,
-                'detected' => $detectedService === null ? [] : [$detectedService => count($items)],
+                'detected' => $detectedItemCounts,
             ],
-            'plans' => $detectedService === null ? [] : [[
-                'service' => $detectedService,
-                'date' => $detectedDate,
-                'item_count' => count($items),
-                'confidence' => $confidence,
-                'exact_correct' => $exactCorrect,
-                'ordered_item_quality' => $orderedItemQuality,
-                'gate_eligible' => $gateReasons === [],
-                'gate_reasons' => $gateReasons,
-            ]],
+            'plans' => $planRecords,
             'confidence' => $confidence,
             'disposition' => $disposition,
             'gate_eligible' => $parseResult !== null && $gateReasons === [],
             'gate_reasons' => $gateReasons,
-            'song_link' => $songLink,
+            'song_link' => $this->songLinkMetrics($allItems, $songCanonicalKeys),
+        ];
+    }
+
+    /**
+     * Every plan the parser produced; a legacy parse result without explicit plans still
+     * evaluates as a single synthesised plan so old stored parses keep reporting.
+     *
+     * @return list<OosEmailServicePlan>
+     */
+    private function plansForEvaluation(OosEmailParseResult $parseResult): array
+    {
+        if ($parseResult->servicePlans !== []) {
+            return $parseResult->servicePlans;
+        }
+
+        if ($parseResult->service === null && $parseResult->date === null && $parseResult->items === []) {
+            return [];
+        }
+
+        return [new OosEmailServicePlan(
+            service: $parseResult->service,
+            date: $parseResult->date,
+            items: $parseResult->items,
+            confidence: $parseResult->confidenceScore,
+            needsReview: $parseResult->needsReview,
+            shouldImport: $parseResult->shouldImport,
+        )];
+    }
+
+    /**
+     * @param  list<string>  $gateReasons
+     * @param  list<string>  $eligiblePlanKeys
+     * @return array<string, mixed>
+     */
+    private function planRecord(
+        OosArchiveEntry $entry,
+        OosEmailServicePlan $plan,
+        array $gateReasons,
+        array $eligiblePlanKeys,
+    ): array {
+        $service = $plan->service?->value;
+        $dateMatches = $entry->groundTruthDate !== null && $plan->date === $entry->groundTruthDate;
+        $serviceMatches = $service !== null && in_array($service, $entry->servicesPresent, true);
+        $expectedLines = $service === null ? [] : ($entry->itemLines[$service] ?? []);
+
+        return [
+            'plan_key' => $plan->key(),
+            'service' => $service,
+            'date' => $plan->date,
+            'item_count' => count($plan->items),
+            'confidence' => $plan->confidence,
+            'exact_correct' => $entry->labelQuality === 'full' && $dateMatches && $serviceMatches && $plan->items !== [],
+            'ordered_item_quality' => $entry->labelQuality === 'full'
+                ? $this->sequenceQuality($expectedLines, array_column($plan->items, 'title'))
+                : null,
+            'gate_eligible' => $gateReasons === [] && in_array($plan->key(), $eligiblePlanKeys, true),
         ];
     }
 
@@ -244,6 +305,11 @@ class OosArchiveEvaluator
         ];
 
         foreach ($entries as $entry) {
+            // Accuracy per band is only measurable against verified ground truth.
+            if (($entry['label_quality'] ?? null) !== 'full') {
+                continue;
+            }
+
             foreach ($entry['plans'] ?? [] as $plan) {
                 $confidence = $plan['confidence'] ?? null;
                 if (! is_numeric($confidence)) {

@@ -155,9 +155,10 @@ class StructureMergeIntegrationTest extends TestCase
         );
 
         $service = app(InboundEmailImportService::class);
-        $resultService = $service->import($inboundEmail, $parseResult, reviewedByUserId: 1);
+        $importResult = $service->import($inboundEmail, $parseResult, reviewedByUserId: 1);
 
-        $fresh = $resultService->fresh();
+        $fresh = $importResult->firstResolvedService()?->fresh();
+        $this->assertNotNull($fresh);
         $importMetadata = $fresh->import_metadata?->toArray() ?? [];
 
         $this->assertNotNull($fresh->pending_structure_merge_source);
@@ -205,9 +206,10 @@ class StructureMergeIntegrationTest extends TestCase
         );
 
         $service = app(InboundEmailImportService::class);
-        $resultService = $service->import($inboundEmail, $parseResult, reviewedByUserId: 1);
+        $importResult = $service->import($inboundEmail, $parseResult, reviewedByUserId: 1);
 
-        $fresh = $resultService->fresh();
+        $fresh = $importResult->firstResolvedService()?->fresh();
+        $this->assertNotNull($fresh);
         $importMetadata = $fresh->import_metadata?->toArray() ?? [];
 
         $this->assertNull($fresh->pending_structure_merge_source);

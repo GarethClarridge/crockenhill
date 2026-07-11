@@ -34,7 +34,9 @@ class InboundEmailPreviewFactory
      *     sanitized_html: ?string,
      *     has_html_body: bool,
      *     raw_parsing_json: ?string,
-     *     reparsed_at: ?string
+     *     reparsed_at: ?string,
+     *     service_plans: array<int, array<string, mixed>>,
+     *     is_legacy_flattened: bool
      * }
      */
     public function build(InboundEmail $inboundEmail): array
@@ -52,6 +54,16 @@ class InboundEmailPreviewFactory
         ));
         $plainBody = $this->normalisePlainBody($inboundEmail->body_plain);
         $rawWarningsJson = $this->encodeJson($warnings !== [] ? $warnings : null);
+
+        $storedPlans = is_array($parsing['service_plans'] ?? null) ? $parsing['service_plans'] : null;
+        $servicePlans = $storedPlans !== null ? $this->buildServicePlanPreviews($storedPlans) : [];
+        $resolvedPlanKeys = array_values(array_filter(
+            is_array($metadata['resolved_plan_keys'] ?? null) ? $metadata['resolved_plan_keys'] : [],
+            static fn (mixed $key): bool => is_string($key),
+        ));
+        // A stored parse with a flattened item list but no service_plans predates multi-service
+        // support and cannot be approved directly — the UI must offer a re-parse instead.
+        $isLegacyFlattened = $storedPlans === null && is_array($parsing['items'] ?? null) && $parsing['items'] !== [];
 
         return [
             'preview_items' => $previewItems,
@@ -72,7 +84,59 @@ class InboundEmailPreviewFactory
             'has_html_body' => is_string($inboundEmail->body_html) && trim($inboundEmail->body_html) !== '',
             'raw_parsing_json' => $this->encodeJson($parsing !== [] ? $parsing : null),
             'reparsed_at' => is_string($metadata['reparsed_at'] ?? null) ? $metadata['reparsed_at'] : null,
+            'service_plans' => $this->markResolvedPlans($servicePlans, $resolvedPlanKeys),
+            'is_legacy_flattened' => $isLegacyFlattened,
         ];
+    }
+
+    /**
+     * @param  array<int, mixed>  $storedPlans
+     * @return array<int, array{plan_key:string,service:?string,date:?string,confidence:?float,needs_review:bool,should_import:bool,preview_items:array<int,array<string,mixed>>,can_approve:bool,resolved:bool}>
+     */
+    private function buildServicePlanPreviews(array $storedPlans): array
+    {
+        $previews = [];
+
+        foreach ($storedPlans as $plan) {
+            if (! is_array($plan)) {
+                continue;
+            }
+
+            $service = is_string($plan['service'] ?? null) ? $plan['service'] : null;
+            $date = is_string($plan['date'] ?? null) && $plan['date'] !== '' ? $plan['date'] : null;
+            $items = array_values(array_filter(
+                is_array($plan['items'] ?? null) ? $plan['items'] : [],
+                static fn (mixed $item): bool => is_array($item),
+            ));
+
+            $previews[] = [
+                'plan_key' => is_string($plan['plan_key'] ?? null) ? $plan['plan_key'] : "{$service}:{$date}",
+                'service' => $service,
+                'date' => $date,
+                'confidence' => is_numeric($plan['confidence'] ?? null) ? (float) $plan['confidence'] : null,
+                'needs_review' => (bool) ($plan['needs_review'] ?? false),
+                'should_import' => (bool) ($plan['should_import'] ?? false),
+                'preview_items' => $items,
+                'can_approve' => $this->canApprovePreview($items, $date, $service),
+                'resolved' => false,
+            ];
+        }
+
+        return $previews;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $servicePlans
+     * @param  list<string>  $resolvedPlanKeys
+     * @return array<int, array<string, mixed>>
+     */
+    private function markResolvedPlans(array $servicePlans, array $resolvedPlanKeys): array
+    {
+        return array_map(static function (array $plan) use ($resolvedPlanKeys): array {
+            $plan['resolved'] = in_array($plan['plan_key'] ?? null, $resolvedPlanKeys, true);
+
+            return $plan;
+        }, $servicePlans);
     }
 
     /**

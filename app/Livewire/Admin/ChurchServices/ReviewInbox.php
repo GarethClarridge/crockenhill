@@ -8,6 +8,7 @@ use App\Actions\InboundEmail\ApproveInboundEmailImport;
 use App\Actions\InboundEmail\RejectInboundEmail;
 use App\Actions\InboundEmail\ReparseInboundEmail;
 use App\Actions\ServiceReview\MarkServiceReviewed;
+use App\Data\OosEmailImportResult;
 use App\Enums\InboundEmailStatus;
 use App\Livewire\Admin\ChurchServices\Concerns\ManagesSectionPublication;
 use App\Livewire\Traits\WithAdminAuthorization;
@@ -69,13 +70,21 @@ class ReviewInbox extends Component
             return null;
         }
 
-        return $this->success(
-            'Inbound email approved and imported.',
-            redirectTo: route('admin.services.show', $result),
-        );
+        $createdService = $result->firstCreatedService();
+
+        if ($createdService instanceof ChurchService) {
+            return $this->success(
+                $this->importOutcomeMessage($result),
+                redirectTo: route('admin.services.show', $createdService),
+            );
+        }
+
+        // Nothing new was created (every plan was already present or held) — stay on the inbox
+        // and summarise what happened per plan.
+        return $this->success($this->importOutcomeMessage($result));
     }
 
-    public function editAndApproveEmail(int $inboundEmailId): mixed
+    public function editAndApproveEmail(int $inboundEmailId, ?string $planKey = null): mixed
     {
         $this->authorizeAdmin();
 
@@ -86,10 +95,32 @@ class ReviewInbox extends Component
             return null;
         }
 
+        $query = ['inboundEmailId' => $inboundEmail->id];
+        if (is_string($planKey) && $planKey !== '') {
+            $query['planKey'] = $planKey;
+        }
+
         return $this->redirect(
-            route('admin.services.create', ['inboundEmailId' => $inboundEmail->id]),
+            route('admin.services.create', $query),
             navigate: true,
         );
+    }
+
+    private function importOutcomeMessage(OosEmailImportResult $result): string
+    {
+        $counts = [];
+
+        foreach ($result->plans as $plan) {
+            $label = $plan->outcome->value;
+            $counts[$label] = ($counts[$label] ?? 0) + 1;
+        }
+
+        $parts = [];
+        foreach ($counts as $label => $count) {
+            $parts[] = "{$count} ".str_replace('_', ' ', $label);
+        }
+
+        return 'Inbound email processed: '.implode(', ', $parts).'.';
     }
 
     public function reparseEmail(int $inboundEmailId, ReparseInboundEmail $action): void

@@ -28,7 +28,9 @@ class InboundEmailImportRaceConditionTest extends TestCase
         $parseResult = new OosEmailParseResult(
             date: '2025-05-11',
             service: SermonService::Morning,
-            items: [],
+            items: [
+                ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ],
             confidenceScore: 0.95,
             needsReview: false,
             shouldImport: true,
