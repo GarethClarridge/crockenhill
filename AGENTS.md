@@ -323,7 +323,8 @@ itself (item numbers in parentheses); verify there before relying on this summar
   `MediaInterludeCueDetector`; jobs `ClassifySpeechSections`, `ResolveReadingReferences`,
   `TranscribeSpeechSegments`, `ReclassifyIntroOutroSections`, `ClassifyServiceSections`,
   `AlignWithOos`; `scripts/section-extraction/`; the heuristic branches of
-  `ProcessingPipelineBuilder`; all heuristic-path tests.
+  `ProcessingPipelineBuilder`; `ServiceStructureMode::Off`; `SectionExtractionScriptsTest`;
+  all heuristic-path tests.
 - **Media visual stack + song clusters (1.6):** `VisualAnalysisService`, `PerformVisualAnalysis`,
   the visual/cluster halves of `VideoSegmentationService` and `AnalyzeSegments`,
   `ExportVisualMetricsCommand`, `ExtractVideoFrames`, `SongClusteringService`, `SongCluster` /
