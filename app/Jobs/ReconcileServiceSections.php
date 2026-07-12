@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Enums\MediaType;
+use App\Enums\ServiceStructureMode;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\OosAlignmentService;
@@ -57,6 +58,24 @@ class ReconcileServiceSections implements ShouldBeUnique, ShouldQueue
 
         if (! $churchService->items()->exists()) {
             Log::info('Service section reconciliation deferred: church service has no items yet', [
+                'processing_id' => $processingLog->processing_id,
+                'church_service_id' => $churchService->id,
+            ]);
+
+            return;
+        }
+
+        // In primary mode the LLM structure owns OoS anchoring; letting the
+        // heuristic aligner rewrite it would degrade the run. Re-detect from
+        // the stored transcript artifact with the newly-arrived items instead.
+        // Legacy runs without an artifact (or non-primary modes) still take
+        // the heuristic path until the cluster retires.
+        if (ServiceStructureMode::fromConfig() === ServiceStructureMode::Primary
+            && $processingLog->hasStoredServiceTranscript()) {
+            DetectServiceStructure::dispatch($processingLog, true)
+                ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'));
+
+            Log::info('Service section reconciliation delegated to structure re-detection', [
                 'processing_id' => $processingLog->processing_id,
                 'church_service_id' => $churchService->id,
             ]);

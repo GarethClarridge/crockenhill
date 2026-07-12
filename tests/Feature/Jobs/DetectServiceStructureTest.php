@@ -564,9 +564,83 @@ class DetectServiceStructureTest extends TestCase
         );
     }
 
-    private function runJob(MediaProcessingLog $log): void
+    #[Test]
+    public function a_reconcile_run_syncs_sections_without_touching_run_state(): void
     {
-        (new DetectServiceStructure($log))->handle(
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'current_step' => 'completed',
+        ]);
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+        MockServiceStructureService::useStructure($this->validStructure());
+
+        $this->runJob($log, reconcile: true);
+
+        $log->refresh();
+        $this->assertSame(ProcessingStatus::Completed, $log->status, 'A reconcile re-run never re-opens a completed run.');
+        $this->assertSame('completed', $log->current_step);
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->orderBy('section_order')
+            ->get();
+        $this->assertSame(
+            ['welcome', 'bible_reading', 'sermon', 'song'],
+            $sections->pluck('section_type')->map(fn ($type) => $type->value)->all()
+        );
+    }
+
+    #[Test]
+    public function a_reconcile_run_keeps_existing_sections_and_run_state_on_hard_validation_failure(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        Config::set('media-processing.email.admin_email', 'admin@example.com');
+        Mail::fake();
+
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'current_step' => 'completed',
+        ]);
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        $existingSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => 'sermon',
+            'section_order' => 1,
+            'start_time' => 600.0,
+            'end_time' => 2200.0,
+        ]);
+        $existingSnapshot = $existingSection->fresh()->toArray();
+
+        // Two sermons — a hard validator failure.
+        MockServiceStructureService::useStructure(ServiceStructure::fromSections([
+            $this->section('sermon', 0.0, 1000.0),
+            $this->section('sermon', 1100.0, 2300.0),
+        ], model: 'mock'));
+
+        $this->runJob($log, reconcile: true);
+
+        $log->refresh();
+        $this->assertSame(ProcessingStatus::Completed, $log->status, 'A failed reconcile re-detection never fails the run.');
+        $this->assertSame('completed', $log->current_step);
+        $this->assertArrayNotHasKey('manual_review', $log->processing_metadata?->toArray() ?? []);
+
+        $this->assertSame(1, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
+        $this->assertSame($existingSnapshot, $existingSection->fresh()->toArray(), 'Existing sections stay authoritative.');
+
+        // The rejected proposal is still recorded for diagnosis.
+        $proposal = $log->processing_metadata?->toArray()['service_structure_proposal'] ?? null;
+        $this->assertIsArray($proposal);
+        $this->assertFalse($proposal['passed_validation']);
+
+        Mail::assertNotQueued(ManualReviewRequired::class);
+    }
+
+    private function runJob(MediaProcessingLog $log, bool $reconcile = false): void
+    {
+        (new DetectServiceStructure($log, $reconcile))->handle(
             app(ServiceStructureInterface::class),
             app(SilenceSnapService::class),
             app(ServiceStructureValidator::class),

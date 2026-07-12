@@ -44,6 +44,12 @@ use Illuminate\Support\Facades\Storage;
  * written to run metadata with a structured diff, and no failure here ever
  * fails the run. In primary mode a hard validation failure routes the run to
  * the existing manual segment-confirmation flow.
+ *
+ * A reconcile re-run (dispatched by ReconcileServiceSections when OoS items
+ * arrive after the run completed) re-detects against the stored transcript
+ * artifact with the new items, but never re-opens the completed run: run
+ * status is left untouched, and a hard validation failure keeps the existing
+ * sections authoritative instead of routing to manual review.
  */
 class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 {
@@ -56,7 +62,8 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     public int $timeout = 900;
 
     public function __construct(
-        private MediaProcessingLog $processingLog
+        private MediaProcessingLog $processingLog,
+        public readonly bool $reconcile = false,
     ) {}
 
     /**
@@ -97,7 +104,12 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             return;
         }
 
-        $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::DetectServiceStructure->value);
+        // A reconcile re-run happens after the run completed; re-marking it as
+        // processing would strand it (nothing downstream completes it again).
+        if (! $this->reconcile) {
+            $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::DetectServiceStructure->value);
+        }
+
         $this->logStepStart(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE);
 
         if ($mode === ServiceStructureMode::Shadow) {
@@ -200,6 +212,23 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
         if ($result->passed()) {
             $result = $this->recheckMissingPreachedReading($result, $detector, $snapService, $validator);
+        }
+
+        if (! $result->passed() && $this->reconcile) {
+            // The run completed with validated sections; a failed re-detection
+            // must not un-complete it. Keep the existing sections authoritative
+            // and record the rejected proposal for diagnosis.
+            $this->persistFailedProposal($result, $transcript);
+
+            $reasonMessage = 'Reconcile re-detection failed validation; existing sections retained: '.$result->failureSummary();
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE, $reasonMessage);
+
+            Log::warning('Service structure reconcile re-detection failed validation; existing sections retained', [
+                'processing_id' => $this->processingLog->processing_id,
+                'failure_codes' => $result->failureCodes(),
+            ]);
+
+            return;
         }
 
         if (! $result->passed()) {

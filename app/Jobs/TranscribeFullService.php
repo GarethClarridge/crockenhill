@@ -148,15 +148,7 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
 
     private function hasStoredTranscript(): bool
     {
-        $transcriptPath = $this->processingLog->serviceTranscriptPath();
-
-        if ($transcriptPath === null) {
-            return false;
-        }
-
-        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
-
-        return Storage::disk($tempDisk)->exists($transcriptPath);
+        return $this->processingLog->hasStoredServiceTranscript();
     }
 
     /**
