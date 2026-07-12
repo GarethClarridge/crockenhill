@@ -97,7 +97,7 @@ class SermonTest extends TestCase
     #[Test]
     public function sermon_scopes(): void
     {
-        Carbon::setTestNow('2026-05-27 10:00:00');
+        $this->travelTo(Carbon::parse('2026-05-27 10:00:00'));
 
         // Test last12Months scope
         $withinLast12Months = Sermon::factory()->withDate(Carbon::now()->subMonths(6))->create();
