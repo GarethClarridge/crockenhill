@@ -5,16 +5,13 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Enums\SermonContentType;
-use App\Enums\SermonService;
 use App\Models\ChurchServiceItem;
-use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\Song;
-use App\Models\SpeakerProfile;
 use App\Services\ChurchService\ChurchServiceSongLinker;
-use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Services\Scripture\SermonScriptureFilterIndexService;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Verifies the postcondition of every one-off backfill command against the
@@ -28,19 +25,15 @@ class BackfillAudit
     public function __construct(
         private readonly SermonScriptureFilterIndexService $scriptureFilterIndexService,
         private readonly ChurchServiceSongLinker $songLinker,
-        private readonly MediaProcessingIdentityResolver $identityResolver,
     ) {}
 
     /**
      * @return array{
      *     sermons_missing_scripture_filters: int,
      *     songs_missing_praise_numbers: int,
-     *     preachers_table_empty: bool,
      *     song_link_drift: int,
-     *     media_logs_missing_extracted_identity: int,
      *     songs_catalogue_missing: bool,
      *     speaker_profiles_missing: bool,
-     *     sermons_missing_preacher: int,
      *     sermons_missing_scripture_passage: int
      * }
      */
@@ -49,31 +42,23 @@ class BackfillAudit
         return [
             'sermons_missing_scripture_filters' => $this->sermonsMissingScriptureFilters(),
             'songs_missing_praise_numbers' => $this->songsMissingPraiseNumbers(),
-            'preachers_table_empty' => $this->preachersTableEmpty(),
             'song_link_drift' => $this->songLinkDrift(),
-            'media_logs_missing_extracted_identity' => $this->mediaLogsMissingExtractedIdentity(),
             'songs_catalogue_missing' => $this->songsCatalogueMissing(),
             'speaker_profiles_missing' => $this->speakerProfilesMissing(),
-            'sermons_missing_preacher' => $this->sermonsMissingPreacher(),
             'sermons_missing_scripture_passage' => $this->sermonsMissingScripturePassage(),
         ];
     }
 
     /**
-     * Advisory keys (sermons_missing_preacher, sermons_missing_scripture_passage)
-     * are excluded: both can carry a legitimate residue — sermons saved without a
-     * preacher selected, and references api.bible cannot resolve — so a non-zero
-     * count needs human interpretation rather than a failing exit code.
+     * The scripture-passage advisory is excluded because references api.bible
+     * cannot resolve can leave a legitimate residue.
      *
      * @param  array{
      *     sermons_missing_scripture_filters: int,
      *     songs_missing_praise_numbers: int,
-     *     preachers_table_empty: bool,
      *     song_link_drift: int,
-     *     media_logs_missing_extracted_identity: int,
      *     songs_catalogue_missing: bool,
      *     speaker_profiles_missing: bool,
-     *     sermons_missing_preacher: int,
      *     sermons_missing_scripture_passage: int
      * }|null  $report
      */
@@ -83,9 +68,7 @@ class BackfillAudit
 
         return $report['sermons_missing_scripture_filters'] > 0
             || $report['songs_missing_praise_numbers'] > 0
-            || $report['preachers_table_empty']
             || $report['song_link_drift'] > 0
-            || $report['media_logs_missing_extracted_identity'] > 0
             || $report['songs_catalogue_missing']
             || $report['speaker_profiles_missing'];
     }
@@ -127,19 +110,6 @@ class BackfillAudit
     }
 
     /**
-     * Postcondition of preachers:cutover, which creates canonical Preacher
-     * records for every legacy sermon preacher string.
-     */
-    public function preachersTableEmpty(): bool
-    {
-        if (! Sermon::query()->exists()) {
-            return false;
-        }
-
-        return ! Preacher::query()->exists();
-    }
-
-    /**
      * Postcondition of service-tracking:link-songs: a dry run of the linker
      * itself reports how many links it would write or clear, so any drift is
      * measured with the linker's own matching logic.
@@ -149,31 +119,6 @@ class BackfillAudit
         $metrics = $this->songLinker->linkAll(dryRun: true);
 
         return $metrics['updated'] + $metrics['cleared'];
-    }
-
-    /**
-     * Postcondition of media-processing:backfill-extracted-identity: counts
-     * logs whose processing_metadata holds a parseable date or service that
-     * was never copied into the dedicated columns.
-     */
-    public function mediaLogsMissingExtractedIdentity(): int
-    {
-        return MediaProcessingLog::query()
-            ->whereNotNull('processing_metadata')
-            ->where(function ($query): void {
-                $query->whereNull('extracted_date')
-                    ->orWhereNull('extracted_service');
-            })
-            ->lazyById(200)
-            ->filter(function (MediaProcessingLog $log): bool {
-                $metadata = $log->processing_metadata?->toArray() ?? [];
-                $parsedDate = $this->identityResolver->parseDate($metadata['extracted_date'] ?? null);
-                $parsedService = $this->identityResolver->parseService($metadata['extracted_service'] ?? null);
-
-                return ($log->extracted_date === null && $parsedDate !== null)
-                    || ($log->extracted_service === null && $parsedService instanceof SermonService);
-            })
-            ->count();
     }
 
     /**
@@ -206,21 +151,17 @@ class BackfillAudit
         $provider = (string) config('media-processing.speaker_identification.provider', 'null');
         $modelVersion = (string) config('media-processing.speaker_identification.model_version', 'v1.0');
 
-        return ! SpeakerProfile::query()
-            ->active()
-            ->where('provider', $provider)
-            ->where('model_version', $modelVersion)
+        return Preacher::query()
+            ->whereHas('sermons', function (Builder $query): void {
+                $query->whereNotNull('audio_file_path')
+                    ->where('audio_file_path', '!=', '');
+            }, '>=', 5)
+            ->whereDoesntHave('speakerProfiles', function (Builder $query) use ($provider, $modelVersion): void {
+                $query->where('is_active', true)
+                    ->where('provider', $provider)
+                    ->where('model_version', $modelVersion);
+            })
             ->exists();
-    }
-
-    /**
-     * Advisory drift for preachers:cutover: the cutover defaults unmatched
-     * sermons to Visiting Speaker, but sermons saved since may legitimately
-     * lack a preacher link.
-     */
-    public function sermonsMissingPreacher(): int
-    {
-        return Sermon::query()->whereNull('preacher_id')->count();
     }
 
     /**

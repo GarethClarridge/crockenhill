@@ -38,19 +38,9 @@ class AuditBackfillsCommand extends Command
                     'songs:backfill-praise-numbers',
                 ],
                 [
-                    'Preachers table empty despite sermons',
-                    $report['preachers_table_empty'] ? 'yes' : 'no',
-                    'preachers:cutover',
-                ],
-                [
                     'Song items the linker would relink or clear (drift)',
                     (string) $report['song_link_drift'],
                     'service-tracking:link-songs',
-                ],
-                [
-                    'Media logs with parseable but unextracted identity metadata',
-                    (string) $report['media_logs_missing_extracted_identity'],
-                    'media-processing:backfill-extracted-identity',
                 ],
                 [
                     'Songs catalogue empty despite song service items',
@@ -58,7 +48,7 @@ class AuditBackfillsCommand extends Command
                     'service-tracking:sync-songs',
                 ],
                 [
-                    'Speaker identification enabled but no speaker profiles',
+                    'Eligible preachers without an active speaker profile',
                     $report['speaker_profiles_missing'] ? 'yes' : 'no',
                     'speaker-profiles:bootstrap',
                 ],
@@ -71,18 +61,13 @@ class AuditBackfillsCommand extends Command
             ['Advisory check', 'Result', 'Related command'],
             [
                 [
-                    'Sermons without a linked preacher',
-                    (string) $report['sermons_missing_preacher'],
-                    'preachers:cutover',
-                ],
-                [
                     'Sermons with a reference but no cached scripture passage',
                     (string) $report['sermons_missing_scripture_passage'],
                     'sermons:enrich-scripture',
                 ],
             ]
         );
-        $this->comment('Judge advisory counts against the sermon total: a large number suggests the related command never ran; a small residue is expected (unparseable references, api.bible misses, sermons saved without a preacher).');
+        $this->comment('Judge advisory counts against the sermon total: a large number suggests the related command never ran; a small residue is expected (unparseable references, api.bible misses).');
 
         if ($hasFailures) {
             $this->error('Backfill audit found missed runs. Execute the remedy command for each failing check.');
@@ -99,12 +84,9 @@ class AuditBackfillsCommand extends Command
      * @return array{
      *     sermons_missing_scripture_filters: int,
      *     songs_missing_praise_numbers: int,
-     *     preachers_table_empty: bool,
      *     song_link_drift: int,
-     *     media_logs_missing_extracted_identity: int,
      *     songs_catalogue_missing: bool,
      *     speaker_profiles_missing: bool,
-     *     sermons_missing_preacher: int,
      *     sermons_missing_scripture_passage: int
      * }
      */
@@ -113,12 +95,9 @@ class AuditBackfillsCommand extends Command
         return [
             'sermons_missing_scripture_filters' => 0,
             'songs_missing_praise_numbers' => 0,
-            'preachers_table_empty' => false,
             'song_link_drift' => 0,
-            'media_logs_missing_extracted_identity' => 0,
             'songs_catalogue_missing' => false,
             'speaker_profiles_missing' => false,
-            'sermons_missing_preacher' => 0,
             'sermons_missing_scripture_passage' => 0,
         ];
     }

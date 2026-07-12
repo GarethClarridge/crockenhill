@@ -17,12 +17,9 @@ class AuditBackfillsCommandTest extends TestCase
         $report = [
             'sermons_missing_scripture_filters' => 0,
             'songs_missing_praise_numbers' => 0,
-            'preachers_table_empty' => false,
             'song_link_drift' => 0,
-            'media_logs_missing_extracted_identity' => 0,
             'songs_catalogue_missing' => false,
             'speaker_profiles_missing' => false,
-            'sermons_missing_preacher' => 0,
             'sermons_missing_scripture_passage' => 0,
         ];
 
@@ -42,12 +39,9 @@ class AuditBackfillsCommandTest extends TestCase
         $report = [
             'sermons_missing_scripture_filters' => 42,
             'songs_missing_praise_numbers' => 0,
-            'preachers_table_empty' => false,
             'song_link_drift' => 3,
-            'media_logs_missing_extracted_identity' => 0,
             'songs_catalogue_missing' => false,
             'speaker_profiles_missing' => true,
-            'sermons_missing_preacher' => 5,
             'sermons_missing_scripture_passage' => 120,
         ];
 
@@ -67,12 +61,9 @@ class AuditBackfillsCommandTest extends TestCase
         $report = [
             'sermons_missing_scripture_filters' => 42,
             'songs_missing_praise_numbers' => 0,
-            'preachers_table_empty' => false,
             'song_link_drift' => 0,
-            'media_logs_missing_extracted_identity' => 0,
             'songs_catalogue_missing' => false,
             'speaker_profiles_missing' => false,
-            'sermons_missing_preacher' => 0,
             'sermons_missing_scripture_passage' => 0,
         ];
 

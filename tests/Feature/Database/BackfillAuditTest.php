@@ -6,7 +6,6 @@ namespace Tests\Feature\Database;
 
 use App\Enums\SermonContentType;
 use App\Models\ChurchServiceItem;
-use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
@@ -49,29 +48,20 @@ class BackfillAuditTest extends TestCase
             'metadata' => null,
         ]);
 
-        MediaProcessingLog::factory()->create([
-            'processing_metadata' => ['extracted_date' => '2026-01-04', 'extracted_service' => 'morning'],
-            'extracted_date' => '2026-01-04',
-            'extracted_service' => 'morning',
-        ]);
-
         $audit = app(BackfillAudit::class);
         $report = $audit->report();
 
         $this->assertSame(0, $report['sermons_missing_scripture_filters']);
         $this->assertSame(0, $report['songs_missing_praise_numbers']);
-        $this->assertFalse($report['preachers_table_empty']);
         $this->assertSame(0, $report['song_link_drift']);
-        $this->assertSame(0, $report['media_logs_missing_extracted_identity']);
         $this->assertFalse($report['songs_catalogue_missing']);
         $this->assertFalse($report['speaker_profiles_missing']);
-        $this->assertSame(0, $report['sermons_missing_preacher']);
         $this->assertSame(0, $report['sermons_missing_scripture_passage']);
         $this->assertFalse($audit->hasFailures($report));
     }
 
     #[Test]
-    public function it_detects_missed_scripture_filter_praise_number_preacher_and_media_identity_backfills(): void
+    public function it_detects_missed_scripture_filter_and_praise_number_backfills(): void
     {
         Sermon::factory()->create([
             'content_type' => SermonContentType::Sermon,
@@ -95,20 +85,11 @@ class BackfillAuditTest extends TestCase
             'praise_number' => null,
         ]);
 
-        MediaProcessingLog::factory()->create([
-            'processing_metadata' => ['extracted_date' => '2026-01-04', 'extracted_service' => 'morning'],
-            'extracted_date' => null,
-            'extracted_service' => null,
-        ]);
-
         $audit = app(BackfillAudit::class);
         $report = $audit->report();
 
         $this->assertSame(1, $report['sermons_missing_scripture_filters'], 'Only the parseable reference should count.');
         $this->assertSame(1, $report['songs_missing_praise_numbers']);
-        $this->assertTrue($report['preachers_table_empty']);
-        $this->assertSame(1, $report['media_logs_missing_extracted_identity']);
-        $this->assertSame(2, $report['sermons_missing_preacher']);
         $this->assertSame(2, $report['sermons_missing_scripture_passage']);
         $this->assertTrue($audit->hasFailures($report));
     }
@@ -139,7 +120,13 @@ class BackfillAuditTest extends TestCase
             'type' => 'songs',
             'song_id' => null,
         ]);
-        Sermon::factory()->create();
+        $preacher = Preacher::factory()->create();
+        foreach (range(1, 5) as $index) {
+            Sermon::factory()->create([
+                'preacher_id' => $preacher->id,
+                'audio_file_path' => "sermons/speaker-{$index}.mp3",
+            ]);
+        }
 
         $audit = app(BackfillAudit::class);
 
@@ -154,20 +141,29 @@ class BackfillAuditTest extends TestCase
     #[Test]
     public function it_requires_an_active_speaker_profile_for_the_configured_provider_and_model(): void
     {
-        Sermon::factory()->create();
+        $preacher = Preacher::factory()->create();
+        foreach (range(1, 5) as $index) {
+            Sermon::factory()->create([
+                'preacher_id' => $preacher->id,
+                'audio_file_path' => "sermons/profile-{$index}.mp3",
+            ]);
+        }
         config()->set('media-processing.speaker_identification.enabled', true);
         config()->set('media-processing.speaker_identification.provider', 'resemblyzer');
         config()->set('media-processing.speaker_identification.model_version', 'v2.0');
 
-        SpeakerProfile::factory()->inactive()->create([
+        $inactiveProfile = SpeakerProfile::factory()->inactive()->create([
+            'preacher_id' => $preacher->id,
             'provider' => 'resemblyzer',
             'model_version' => 'v2.0',
         ]);
         SpeakerProfile::factory()->create([
+            'preacher_id' => $preacher->id,
             'provider' => 'other-provider',
             'model_version' => 'v2.0',
         ]);
         SpeakerProfile::factory()->create([
+            'preacher_id' => $preacher->id,
             'provider' => 'resemblyzer',
             'model_version' => 'v1.0',
         ]);
@@ -175,11 +171,41 @@ class BackfillAuditTest extends TestCase
         $audit = app(BackfillAudit::class);
         $this->assertTrue($audit->speakerProfilesMissing());
 
-        SpeakerProfile::factory()->create([
-            'provider' => 'resemblyzer',
-            'model_version' => 'v2.0',
-        ]);
+        $inactiveProfile->update(['is_active' => true]);
 
         $this->assertFalse($audit->speakerProfilesMissing());
+    }
+
+    #[Test]
+    public function it_flags_an_eligible_preacher_without_a_profile_even_when_another_preacher_has_one(): void
+    {
+        config()->set('media-processing.speaker_identification.enabled', true);
+        config()->set('media-processing.speaker_identification.provider', 'resemblyzer');
+        config()->set('media-processing.speaker_identification.model_version', 'v1.0');
+
+        $profiledPreacher = Preacher::factory()->create();
+        Sermon::factory()->count(5)->sequence(
+            fn ($sequence) => ['audio_file_path' => "sermons/profiled-{$sequence->index}.mp3"],
+        )->create(['preacher_id' => $profiledPreacher->id]);
+        SpeakerProfile::factory()->create([
+            'preacher_id' => $profiledPreacher->id,
+            'provider' => 'resemblyzer',
+            'model_version' => 'v1.0',
+        ]);
+
+        $unprofiledPreacher = Preacher::factory()->create();
+        Sermon::factory()->count(4)->sequence(
+            fn ($sequence) => ['audio_file_path' => "sermons/unprofiled-{$sequence->index}.mp3"],
+        )->create(['preacher_id' => $unprofiledPreacher->id]);
+
+        $audit = app(BackfillAudit::class);
+        $this->assertFalse($audit->speakerProfilesMissing(), 'Four eligible sermons are below the bootstrap threshold of five.');
+
+        Sermon::factory()->create([
+            'preacher_id' => $unprofiledPreacher->id,
+            'audio_file_path' => 'sermons/unprofiled-5.mp3',
+        ]);
+
+        $this->assertTrue($audit->speakerProfilesMissing(), 'A second eligible preacher without a profile must fail the audit.');
     }
 }
