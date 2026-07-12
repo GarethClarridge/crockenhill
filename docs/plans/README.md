@@ -1,6 +1,6 @@
 # Plans index
 
-Reconciled 2026-07-05. This directory holds only **active** plans; completed or superseded plans
+Reconciled 2026-07-12. This directory holds only **active** plans; completed or superseded plans
 move to `docs/archived-plans/` with an archival header explaining what superseded them. Open
 audit findings (Mortician dead-code reports, Pathfinder link/SEO crawls) are consolidated in
 `docs/issues/README.md`, not here.
@@ -22,6 +22,7 @@ July review found.
 | 2 | [GOOGLE-ANALYTICS-ENHANCEMENT-2026-06-19.md](GOOGLE-ANALYTICS-ENHANCEMENT-2026-06-19.md) | GA1–GA4 shipped | Remaining work is GA6, a **manual GA4-admin task for the maintainer** (register custom dimensions, mark conversions). GA5 is optional and needs a maintainer decision before anyone builds it |
 | 3 | [SEMANTIC-SERMON-SEARCH-AND-QA-2026-06-18.md](SEMANTIC-SERMON-SEARCH-AND-QA-2026-06-18.md) | Not started; gated | After backlog items 2.3 (storage collapse) and 1.7a (one Whisper pass). Re-plan its Phase 1 first — 1.7a supersedes the drafted transcription changes (see the plan's status header) |
 | 4 | [LIVESTREAM-TRANSCRIPT-REUSE-FROM-OBS-2026-06-20.md](LIVESTREAM-TRANSCRIPT-REUSE-FROM-OBS-2026-06-20.md) | Deferred; Part B stale as drafted | After backlog 1.5/1.7a; re-scope Part B as a `ServiceTranscriptionInterface` adapter (see the plan's status header). Part A (OBS live subtitles) is operational and can happen any time |
+| 5 | [NEWCOMER-UX-BACKLOG-2026-07-11.md](NEWCOMER-UX-BACKLOG-2026-07-11.md) | Approved; not started | Start with the production/data and copy fixes (O16/O20/O21), then O17 and the newcomer path. O18/N3/N4 need maintainer input; O19 waits for backlog item 3.1 |
 
 Items 1 and 2 are independent of everything and of each other. Items 3 and 4 both wait for the
 backlog's Workstream 1/2 to reshape the ground they build on — starting them earlier means
