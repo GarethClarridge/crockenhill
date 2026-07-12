@@ -8,6 +8,7 @@ use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Support\ServiceSectionConfidence;
 use App\Traits\ReadsSectionMetadata;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -208,7 +209,7 @@ class StructuralSectionAligner
         $metadata['review_flags'] = array_values(array_unique($reviewFlags));
 
         if (! array_key_exists('review_reason', $metadata)
-            || in_array($metadata['review_reason'], SectionAlignmentBaselineRestorer::OOS_REVIEW_REASONS, true)) {
+            || in_array($metadata['review_reason'], ServiceStructureValidator::OOS_REVIEW_REASONS, true)) {
             $metadata['review_reason'] = 'presentation_positional_fallback';
         }
 
@@ -620,7 +621,7 @@ class StructuralSectionAligner
                 $metadata['review_reason'] = 'ambiguous_childrens_talk';
             } else {
                 $metadata['review_flags'] = array_values(array_unique($reviewFlags));
-                if (! array_key_exists('review_reason', $metadata) || in_array($metadata['review_reason'], SectionAlignmentBaselineRestorer::OOS_REVIEW_REASONS, true)) {
+                if (! array_key_exists('review_reason', $metadata) || in_array($metadata['review_reason'], ServiceStructureValidator::OOS_REVIEW_REASONS, true)) {
                     $metadata['review_reason'] = $decision['review_flag'];
                 }
             }

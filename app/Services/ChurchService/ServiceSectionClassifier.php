@@ -24,20 +24,7 @@ use Illuminate\Support\Collection;
  * preacher identification, which provides the foundation for later refinement
  * through OoS alignment and visual analysis.
  *
- * @phpstan-type ClassifiedSection array{
- *     church_service_item_id: int|null,
- *     section_type: string,
- *     section_order: int,
- *     title: ?string,
- *     start_time: float,
- *     end_time: float,
- *     duration: float,
- *     confidence: float,
- *     status: string,
- *     needs_manual_review: bool,
- *     source_segment_ids: array<int, int>,
- *     metadata: array<string, mixed>
- * }
+ * @phpstan-import-type ClassifiedSection from ServiceSectionSyncService
  */
 class ServiceSectionClassifier
 {

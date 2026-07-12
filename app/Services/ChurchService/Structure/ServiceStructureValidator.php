@@ -35,6 +35,47 @@ class ServiceStructureValidator
     public const FLAG_MISSING_PREACHED_READING = 'structure_missing_preached_reading';
 
     /**
+     * All review flags that an alignment/structure pass owns and recalculates:
+     * cleared at the start of each run and only re-added when still applicable.
+     * Homed here (not on the heuristic restorer) so the registry survives the
+     * heuristic cluster's retirement.
+     *
+     * @var array<int, string>
+     */
+    public const OOS_REVIEW_FLAGS = [
+        'oos_structure_mismatch',
+        'unmatched_song_section',
+        'song_alignment_inferred',
+        'song_name_reference_only',
+        'ambiguous_childrens_talk',
+        'inferred_childrens_talk',
+        'presentation_positional_fallback',
+        self::FLAG_LOW_CONFIDENCE,
+        self::FLAG_MICRO_SECTION,
+        self::FLAG_BENEDICTION_SUSPECT,
+        'unknown_section_type',
+    ];
+
+    /**
+     * All review reasons that an alignment/structure pass owns and recalculates.
+     *
+     * @var array<int, string>
+     */
+    public const OOS_REVIEW_REASONS = [
+        'oos_structure_mismatch',
+        'unmatched_song_section',
+        'song_alignment_inferred',
+        'song_name_reference_only',
+        'ambiguous_childrens_talk',
+        'inferred_childrens_talk',
+        'presentation_positional_fallback',
+        self::FLAG_LOW_CONFIDENCE,
+        self::FLAG_MICRO_SECTION,
+        self::FLAG_BENEDICTION_SUSPECT,
+        'unknown_section_type',
+    ];
+
+    /**
      * Seconds of slack allowed at the end of the recording (transcription
      * duration and section ends can disagree by a rounding margin).
      */
