@@ -75,13 +75,15 @@ class ClipboardButtonTest extends TestCase
     }
 
     #[Test]
-    public function it_updates_aria_label_and_title_on_copy_state(): void
+    public function it_updates_title_and_span_content_on_copy_state(): void
     {
         $content = 'Test content';
         $rendered = Blade::render('<x-clipboard-button :content="$content" label="Copy it" copiedLabel="Success!" />', ['content' => $content]);
 
-        $this->assertStringContainsString(':aria-label="copied ? \'Success!\' : \'Copy it\'"', $rendered);
+        // Redundant aria-label on button should be gone to avoid double announcement with aria-live span
+        $this->assertStringNotContainsString(':aria-label=', $rendered);
         $this->assertStringContainsString(':title="copied ? \'Success!\' : \'Copy it to clipboard\'"', $rendered);
+        $this->assertStringContainsString('x-text="copied ? \'Success!\' : \'Copy it\'"', $rendered);
     }
 
     #[Test]
