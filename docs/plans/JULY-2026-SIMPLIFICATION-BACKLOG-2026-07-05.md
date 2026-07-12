@@ -591,6 +591,11 @@ narrative — the highest-leverage doc fix in the repo; delete the stray
 `.claude/skills/frontend-design.md`; note that `boost:install` refreshes all three guideline
 copies; add the one-shot retirement convention line.
 
+> **Status 2026-07-12 — implemented, in review.** Replaced the three removed services and the
+> pre-LLM pipeline narrative with the live orchestration and mode-aware pipeline, deleted the
+> duplicate skill file, documented the three-copy Boost refresh, and added the one-shot retirement
+> convention.
+
 ---
 
 ## Workstream 7 — Test-suite architecture roll-up (suite-wide patterns)
