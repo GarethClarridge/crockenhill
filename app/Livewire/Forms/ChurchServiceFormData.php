@@ -263,7 +263,7 @@ class ChurchServiceFormData extends Form
                 ServiceSectionType::cases()
             ))],
             'items.*.title' => ['required', 'string', 'max:255'],
-            'items.*.song_id' => ['nullable', 'integer', 'exists:songs,id'],
+            'items.*.song_id' => ['nullable', 'integer', 'min:1', 'max:9223372036854775807', 'exists:songs,id'],
         ];
     }
 
