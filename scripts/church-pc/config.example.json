@@ -1,0 +1,11 @@
+{
+    "base_url": "https://www.crockenhill.org",
+    "watch_folder": "C:\\Users\\Church\\Videos",
+    "extensions": ["mp4", "mkv", "mov"],
+    "max_age_hours": 12,
+    "min_age_minutes": 5,
+    "stability_check_seconds": 20,
+    "token_path": "church-pc-token.xml",
+    "state_path": "upload-state.json",
+    "log_path": "upload-recording.log"
+}
