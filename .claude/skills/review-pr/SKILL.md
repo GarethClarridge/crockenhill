@@ -29,6 +29,19 @@ gh pr diff {number}                                                            #
 
 Work through the diff systematically. Check for:
 
+### Necessity (check this first — it can end the review early)
+
+- **Do-not-invest list:** if the PR touches anything in `AGENTS.md` § "Autonomous fleet status &
+  the do-not-invest list" (code the July 2026 simplification backlog schedules for deletion or
+  rewrite), that is an automatic **decline** regardless of code quality. Say which backlog item
+  covers the code.
+- **Worth-it gate (autonomous PRs only):** PRs from the Jules fleet must state **Who benefits**
+  and **What observably improves** in the description. Missing or vacuous answers ("developers
+  benefit from cleaner code") are a Must fix; the author agent should close the PR rather than
+  argue for it.
+- A correct, well-tested change to code nobody should be investing in is still a decline — the
+  review pipeline's correctness checks below do not substitute for this question.
+
 ### Code quality
 - PHPStan compliance — no type errors, missing return types, or unsafe casts
 - Laravel conventions — Eloquent over raw queries, Form Requests for validation, named routes
@@ -78,6 +91,8 @@ Structure your output as:
 
 ### Must fix
 - Blocking issues that should prevent merge (bugs, security, broken tests, PHPStan errors)
+- Necessity failures: touches the do-not-invest list, or an autonomous PR without a credible
+  who-benefits / what-improves statement (recommend closing, not fixing)
 
 ### Should fix
 - Convention violations, missing test coverage, code quality issues
