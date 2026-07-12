@@ -14,6 +14,22 @@ use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use LogicException;
 
+/**
+ * Service for managing the resolution and retrieval of sermon media files
+ * across different storage patterns (legacy, standard, and private).
+ *
+ * This service centralises the logic for building public and secure delivery
+ * URLs, calculating cache-busting versions, and tracking storage statistics.
+ * It handles the abstraction between local and S3-compatible disks.
+ *
+ * @phpstan-type StorageStats array{
+ *     total_sermons: int,
+ *     patterns: array{private: int, legacy: int, storage: int, processing: int},
+ *     disks: array<string, array{count: int, size: int, missing: int}>,
+ *     total_size: int,
+ *     missing_files: int
+ * }
+ */
 class SermonStorageService
 {
     use SanitizesLogData;
@@ -48,14 +64,19 @@ class SermonStorageService
      */
     private array $memoizedThumbnailDisks = [];
 
+    /**
+     * Initialise the service by loading configuration from the global config.
+     */
     public function __construct()
     {
         $this->refreshConfig();
     }
 
     /**
-     * Clear all cached metadata and disk configuration.
-     * Use this in tests to ensure fresh configuration lookups.
+     * Clear all request-level memoization caches and cached metadata.
+     *
+     * Useful for long-running processes (like queue workers or tests) to
+     * ensure fresh configuration and state lookups for each operation.
      */
     public function clearInternalCaches(): void
     {
@@ -161,7 +182,13 @@ class SermonStorageService
     }
 
     /**
-     * Get the video URL for a sermon.
+     * Get the public video URL for a sermon.
+     *
+     * @param  Sermon  $sermon  The sermon model
+     * @return string|null The versioned public URL, or null if no video exists
+     *
+     * @throws InvalidArgumentException If the video path contains unsafe characters
+     * @throws LogicException If the video is stored in a private directory
      */
     public function getVideoUrl(Sermon $sermon): ?string
     {
@@ -180,23 +207,54 @@ class SermonStorageService
     }
 
     /**
-     * Get the thumbnail URL for a sermon.
+     * Get the primary (branded overlay) thumbnail URL for a sermon.
+     *
+     * @param  Sermon  $sermon  The sermon model
+     * @return string|null The versioned public URL, or null if no thumbnail exists
+     *
+     * @throws LogicException If the thumbnail is stored in a private directory
      */
     public function getThumbnailUrl(Sermon $sermon): ?string
     {
         return $this->resolveThumbnailUrl($sermon, $sermon->thumbnail_file_path, 'thumbnail');
     }
 
+    /**
+     * Get the social card thumbnail URL for a sermon.
+     *
+     * Social cards are branded images optimized for sharing on Twitter/Facebook.
+     *
+     * @param  Sermon  $sermon  The sermon model
+     * @return string|null The versioned public URL, or null if no card exists
+     *
+     * @throws LogicException If the thumbnail is stored in a private directory
+     */
     public function getCardThumbnailUrl(Sermon $sermon): ?string
     {
         return $this->resolveThumbnailUrl($sermon, $sermon->card_thumbnail_file_path, 'card thumbnail');
     }
 
+    /**
+     * Get the plain (unbranded frame) thumbnail URL for a sermon.
+     *
+     * @param  Sermon  $sermon  The sermon model
+     * @return string|null The versioned public URL, or null if no plain thumbnail exists
+     *
+     * @throws LogicException If the thumbnail is stored in a private directory
+     */
     public function getPlainThumbnailUrl(Sermon $sermon): ?string
     {
         return $this->resolveThumbnailUrl($sermon, $sermon->plain_thumbnail_file_path, 'plain thumbnail');
     }
 
+    /**
+     * Resolve the storage path for a specific thumbnail candidate variant.
+     *
+     * @param  Sermon  $sermon  The sermon model
+     * @param  string  $candidateId  The candidate identifier (e.g. 'candidate-1')
+     * @param  string  $variant  The variant name ('overlay', 'card', or 'plain')
+     * @return string|null The storage path, or null if not found
+     */
     public function getThumbnailCandidatePath(Sermon $sermon, string $candidateId, string $variant): ?string
     {
         $candidate = $sermon->findThumbnailCandidate($candidateId);
@@ -213,6 +271,17 @@ class SermonStorageService
         };
     }
 
+    /**
+     * Generate the administrative preview URL for a thumbnail candidate.
+     *
+     * These URLs are used in the admin panel to allow operators to review and
+     * select from the different extracted frames.
+     *
+     * @param  Sermon  $sermon  The sermon model
+     * @param  string  $candidateId  The candidate identifier
+     * @param  string  $variant  The variant name
+     * @return string|null The preview route URL, or null if the candidate path cannot be resolved
+     */
     public function getAdminThumbnailCandidatePreviewUrl(Sermon $sermon, string $candidateId, string $variant): ?string
     {
         $path = $this->getThumbnailCandidatePath($sermon, $candidateId, $variant);
@@ -229,11 +298,16 @@ class SermonStorageService
     }
 
     /**
-     * Resolve the storage disk for a thumbnail path.
+     * Resolve the storage disk for a given thumbnail path.
      *
      * Performance Optimization: Memoizes disk resolution within the request
      * to avoid redundant path validation and string checks when resolving
      * multiple thumbnail variants for the same sermon listing.
+     *
+     * @param  string  $thumbnailPath  Relative storage path
+     * @return string The resolved disk name ('local' or the configured thumbnail disk)
+     *
+     * @throws InvalidArgumentException If the path contains unsafe characters
      */
     public function resolveThumbnailDisk(string $thumbnailPath): string
     {
@@ -249,7 +323,12 @@ class SermonStorageService
     }
 
     /**
-     * Get the public URL for a sermon file.
+     * Get the versioned public URL for a sermon's audio file.
+     *
+     * @param  Sermon  $sermon  The sermon model
+     * @return string The versioned public URL
+     *
+     * @throws LogicException If the asset is stored in a private directory
      */
     public function getPublicUrl(Sermon $sermon): string
     {
@@ -259,6 +338,15 @@ class SermonStorageService
         return $this->resolvePublicUrl($info['disk'], $info['path'], $this->audioVersion($sermon));
     }
 
+    /**
+     * Get the appropriate delivery URL for sermon audio, respecting privacy boundaries.
+     *
+     * Automatically switches between a direct public URL and a guarded application
+     * route based on the file's storage location.
+     *
+     * @param  Sermon  $sermon  The sermon model
+     * @return string|null The delivery URL, or null if no audio exists
+     */
     public function getAudioDeliveryUrl(Sermon $sermon): ?string
     {
         if (! filled($sermon->audio_file_path)) {
@@ -274,6 +362,14 @@ class SermonStorageService
         return $this->getPublicUrl($sermon);
     }
 
+    /**
+     * Get the appropriate delivery URL for sermon video, respecting privacy boundaries.
+     *
+     * @param  Sermon  $sermon  The sermon model
+     * @return string|null The delivery URL, or null if no video exists
+     *
+     * @throws InvalidArgumentException If the video path contains unsafe characters
+     */
     public function getVideoDeliveryUrl(Sermon $sermon): ?string
     {
         $videoPath = $sermon->video_file_path;
@@ -291,6 +387,14 @@ class SermonStorageService
         return $this->getVideoUrl($sermon);
     }
 
+    /**
+     * Get the appropriate delivery URL for the primary thumbnail.
+     *
+     * @param  Sermon  $sermon  The sermon model
+     * @return string|null The delivery URL, or null if no thumbnail exists
+     *
+     * @throws InvalidArgumentException If the thumbnail path contains unsafe characters
+     */
     public function getThumbnailDeliveryUrl(Sermon $sermon): ?string
     {
         return $this->resolveThumbnailDeliveryUrl(
@@ -301,6 +405,14 @@ class SermonStorageService
         );
     }
 
+    /**
+     * Get the appropriate delivery URL for the social card thumbnail.
+     *
+     * @param  Sermon  $sermon  The sermon model
+     * @return string|null The delivery URL, or null if no card exists
+     *
+     * @throws InvalidArgumentException If the card path contains unsafe characters
+     */
     public function getCardThumbnailDeliveryUrl(Sermon $sermon): ?string
     {
         return $this->resolveThumbnailDeliveryUrl(
@@ -311,6 +423,14 @@ class SermonStorageService
         );
     }
 
+    /**
+     * Get the appropriate delivery URL for the plain thumbnail.
+     *
+     * @param  Sermon  $sermon  The sermon model
+     * @return string|null The delivery URL, or null if no plain thumbnail exists
+     *
+     * @throws InvalidArgumentException If the path contains unsafe characters
+     */
     public function getPlainThumbnailDeliveryUrl(Sermon $sermon): ?string
     {
         return $this->resolveThumbnailDeliveryUrl(
@@ -322,7 +442,10 @@ class SermonStorageService
     }
 
     /**
-     * Check if a sermon file exists
+     * Check if the primary audio file for a sermon exists in storage.
+     *
+     * @param  Sermon  $sermon  The sermon model
+     * @return bool True if the file exists on its resolved disk
      */
     public function fileExists(Sermon $sermon): bool
     {
@@ -353,6 +476,11 @@ class SermonStorageService
         return $this->fileMetadata($sermon)['last_modified'];
     }
 
+    /**
+     * Clear cached file metadata and request-level memoization for a sermon.
+     *
+     * @param  Sermon|null  $sermon  The sermon to clear; if null, broad caches could be cleared (none currently)
+     */
     public function clearCachedMetadata(?Sermon $sermon = null): void
     {
         if ($sermon) {
@@ -420,9 +548,9 @@ class SermonStorageService
     }
 
     /**
-     * Get storage statistics for all sermon files
+     * Get storage statistics for all sermon files.
      *
-     * @return array<string, mixed>
+     * @return StorageStats
      */
     public function getStorageStats(): array
     {
@@ -436,19 +564,14 @@ class SermonStorageService
                 }
             });
 
+        /** @var StorageStats $stats */
         return $stats;
     }
 
     /**
      * Initialize the storage statistics array.
      *
-     * @return array{
-     *     total_sermons: int,
-     *     patterns: array{private: int, legacy: int, storage: int, processing: int},
-     *     disks: array<string, array{count: int, size: int, missing: int}>,
-     *     total_size: int,
-     *     missing_files: int
-     * }
+     * @return StorageStats
      */
     private function initializeStorageStats(): array
     {
