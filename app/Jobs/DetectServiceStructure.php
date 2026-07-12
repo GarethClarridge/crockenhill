@@ -727,15 +727,17 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
         return $this->diffAgainstBaselineSections($structure, $baselineSections, [
             'classification_modes' => array_values($authoritativeSections
-                ->map(fn (ServiceSection $section): ?string => $section->metadata->classificationMode)
+                ->map(fn (ServiceSection $section): ?string => $section->metadata?->classificationMode)
                 ->filter()
                 ->unique()
                 ->values()
                 ->all()),
             'models' => array_values($authoritativeSections
-                ->map(fn (ServiceSection $section): ?string => is_string($section->metadata->raw['model'] ?? null)
-                    ? $section->metadata->raw['model']
-                    : null)
+                ->map(function (ServiceSection $section): ?string {
+                    $model = $section->metadata?->raw['model'] ?? null;
+
+                    return is_string($model) ? $model : null;
+                })
                 ->filter()
                 ->unique()
                 ->values()
