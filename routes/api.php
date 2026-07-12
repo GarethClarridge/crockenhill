@@ -34,6 +34,10 @@ Route::prefix('services')
             ->middleware('throttle:media-upload')
             ->name('openlp.store');
 
+        Route::get('next', [ChurchServiceController::class, 'next'])
+            ->middleware('throttle:api')
+            ->name('next');
+
         Route::get('{churchService}', [ChurchServiceController::class, 'show'])
             ->middleware('throttle:api')
             ->name('show');
