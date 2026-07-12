@@ -32,3 +32,8 @@
 **Pattern:** Strict Log::shouldReceive() expectations.
 **Cause:** Tests used pre-emptive Mockery expectations which are order-sensitive and fail on any unexpected log calls, causing risky test warnings in PHPUnit 13 when no other assertions were present.
 **Fix:** Switched to Log::spy() in setUp() and verified behavior using Log::shouldHaveReceived() (Arrange-Act-Assert). This decouples test assertions from log order and eliminates risky test warnings.
+
+## 2027-01-20 - Harden Sermon model integration tests
+**Pattern:** Time-sensitive scopes, hardcoded URLs, and loose enum assertions.
+**Cause:** Tests relied on `Carbon::now()` for relative date scopes, hardcoded `http://localhost` strings for URL expectations, and `assertContains` for single-value enums.
+**Fix:** Introduced `Carbon::setTestNow()` for deterministic scope testing. Replaced hardcoded environment strings with the `url()` helper. Tightened enum assertions to use `assertSame` for precision. Removed implementation-leaking `Log::info` calls and stale commented-out test code.
