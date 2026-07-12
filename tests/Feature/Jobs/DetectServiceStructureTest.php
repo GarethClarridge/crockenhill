@@ -103,6 +103,221 @@ class DetectServiceStructureTest extends TestCase
     }
 
     #[Test]
+    public function shadow_mode_compares_the_candidate_with_stored_authoritative_sections(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'shadow');
+        Config::set('media-processing.service_structure.model', 'gpt-5');
+        Config::set('media-processing.service_structure.shadow_model', 'gpt-6-candidate');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+
+        $boundStructure = $this->validStructure();
+        $candidateStructure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('bible_reading', 420.0, 590.0),
+            $this->section('sermon', 620.0, 2180.0),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'gpt-6-candidate');
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => 'sermon',
+            'section_order' => 1,
+            'start_time' => 100.0,
+            'end_time' => 200.0,
+            'status' => 'identified',
+            'metadata' => ['classification_mode' => 'llm_structure', 'model' => 'gpt-5'],
+        ]);
+
+        $detector = new class($boundStructure, $candidateStructure) implements ServiceStructureInterface
+        {
+            /** @var list<string> */
+            public array $modelsAtDetectTime = [];
+
+            public function __construct(
+                private readonly ServiceStructure $boundStructure,
+                private readonly ServiceStructure $candidateStructure,
+            ) {}
+
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = []): ServiceStructure
+            {
+                $model = (string) config('media-processing.service_structure.model');
+                $this->modelsAtDetectTime[] = $model;
+
+                return $model === 'gpt-6-candidate' ? $this->candidateStructure : $this->boundStructure;
+            }
+        };
+
+        (new DetectServiceStructure($log))->handle(
+            $detector,
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+
+        $this->assertSame(['gpt-6-candidate'], $detector->modelsAtDetectTime);
+        $this->assertSame('gpt-5', config('media-processing.service_structure.model'), 'The bound model must be restored after the shadow run.');
+
+        $shadow = $log->refresh()->processing_metadata?->toArray()['service_structure_shadow'] ?? null;
+        $this->assertIsArray($shadow);
+        $this->assertSame(['gpt-5'], $shadow['diff']['baseline']['models'] ?? null);
+        $this->assertEqualsWithDelta(520.0, $shadow['diff']['sermon']['start_delta'], 0.01);
+        $this->assertEqualsWithDelta(1980.0, $shadow['diff']['sermon']['end_delta'], 0.01);
+    }
+
+    #[Test]
+    public function shadow_mode_runs_the_bound_model_when_authoritative_sections_are_missing(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'shadow');
+        Config::set('media-processing.service_structure.model', 'gpt-5');
+        Config::set('media-processing.service_structure.shadow_model', 'gpt-6-candidate');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+
+        $invalidBoundStructure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('sermon', 600.0, 41410.0),
+        ], model: 'gpt-5');
+        $recoveredBoundStructure = $this->validStructure();
+        $candidateStructure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('bible_reading', 420.0, 590.0),
+            $this->section('sermon', 620.0, 2180.0),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'gpt-6-candidate');
+
+        $detector = new class($invalidBoundStructure, $recoveredBoundStructure, $candidateStructure) implements ServiceStructureInterface
+        {
+            /** @var list<string> */
+            public array $modelsAtDetectTime = [];
+
+            private int $boundAttempts = 0;
+
+            public function __construct(
+                private readonly ServiceStructure $invalidBoundStructure,
+                private readonly ServiceStructure $recoveredBoundStructure,
+                private readonly ServiceStructure $candidateStructure,
+            ) {}
+
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = []): ServiceStructure
+            {
+                $model = (string) config('media-processing.service_structure.model');
+                $this->modelsAtDetectTime[] = $model;
+
+                if ($model === 'gpt-6-candidate') {
+                    return $this->candidateStructure;
+                }
+
+                return $this->boundAttempts++ === 0
+                    ? $this->invalidBoundStructure
+                    : $this->recoveredBoundStructure;
+            }
+        };
+
+        (new DetectServiceStructure($log))->handle(
+            $detector,
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+
+        $this->assertSame(['gpt-5', 'gpt-5', 'gpt-6-candidate'], $detector->modelsAtDetectTime);
+        $this->assertSame('gpt-5', config('media-processing.service_structure.model'));
+
+        $shadow = $log->refresh()->processing_metadata?->toArray()['service_structure_shadow'] ?? null;
+        $this->assertIsArray($shadow);
+        $this->assertSame(['gpt-5'], $shadow['diff']['baseline']['models'] ?? null);
+        $this->assertEqualsWithDelta(20.0, $shadow['diff']['sermon']['start_delta'], 0.01);
+        $this->assertEqualsWithDelta(-20.0, $shadow['diff']['sermon']['end_delta'], 0.01);
+    }
+
+    #[Test]
+    public function shadow_mode_does_not_score_a_candidate_against_an_invalid_bound_model_baseline(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'shadow');
+        Config::set('media-processing.service_structure.model', 'gpt-5');
+        Config::set('media-processing.service_structure.shadow_model', 'gpt-6-candidate');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+
+        $invalidBoundStructure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('sermon', 600.0, 41410.0),
+        ], model: 'gpt-5');
+
+        $detector = new class($invalidBoundStructure, $this->validStructure()) implements ServiceStructureInterface
+        {
+            /** @var list<string> */
+            public array $modelsAtDetectTime = [];
+
+            public function __construct(
+                private readonly ServiceStructure $boundStructure,
+                private readonly ServiceStructure $candidateStructure,
+            ) {}
+
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = []): ServiceStructure
+            {
+                $model = (string) config('media-processing.service_structure.model');
+                $this->modelsAtDetectTime[] = $model;
+
+                return $model === 'gpt-6-candidate' ? $this->candidateStructure : $this->boundStructure;
+            }
+        };
+
+        (new DetectServiceStructure($log))->handle(
+            $detector,
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+
+        $this->assertSame(['gpt-5', 'gpt-5'], $detector->modelsAtDetectTime);
+        $this->assertSame('gpt-5', config('media-processing.service_structure.model'));
+
+        $shadow = $log->refresh()->processing_metadata?->toArray()['service_structure_shadow'] ?? null;
+        $this->assertIsArray($shadow);
+        $this->assertStringContainsString('did not produce a valid shadow baseline', $shadow['error']);
+        $this->assertArrayNotHasKey('diff', $shadow);
+    }
+
+    #[Test]
+    public function the_shadow_diff_records_baseline_provenance(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'shadow');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        MockServiceStructureService::useStructure($this->validStructure());
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => 'sermon',
+            'section_order' => 1,
+            'start_time' => 610.0,
+            'end_time' => 2190.0,
+            'status' => 'identified',
+            'metadata' => ['classification_mode' => 'audio_only', 'model' => 'heuristic-v2'],
+        ]);
+
+        $this->runJob($log);
+
+        $shadow = $log->refresh()->processing_metadata?->toArray()['service_structure_shadow'] ?? null;
+        $this->assertIsArray($shadow);
+        $this->assertSame(
+            ['audio_only'],
+            $shadow['diff']['baseline']['classification_modes'] ?? null,
+            'The diff must record who authored the baseline it compared against.'
+        );
+        $this->assertSame(['heuristic-v2'], $shadow['diff']['baseline']['models'] ?? null);
+    }
+
+    #[Test]
     public function shadow_mode_swallows_failures_and_records_the_error(): void
     {
         Config::set('media-processing.service_structure.mode', 'shadow');

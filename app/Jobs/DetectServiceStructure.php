@@ -140,7 +140,16 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         ServiceStructureValidator $validator,
     ): void {
         try {
-            [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
+            $hasAuthoritativeSections = ServiceSection::query()
+                ->where('media_processing_log_id', $this->processingLog->id)
+                ->exists();
+
+            [$result, $transcript, $boundStructure] = $this->detectShadowCandidate(
+                $detector,
+                $snapService,
+                $validator,
+                requireBoundBaseline: ! $hasAuthoritativeSections,
+            );
 
             $classified = $result->structure->toClassifiedSections(
                 $this->processingLog,
@@ -149,6 +158,10 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             );
 
             $diff = $this->diffAgainstAuthoritativeSections($result->structure);
+
+            if (! $hasAuthoritativeSections && $boundStructure instanceof ServiceStructure) {
+                $diff = $this->diffAgainstBoundStructure($result->structure, $boundStructure);
+            }
 
             $this->putStructureMetadata(
                 'service_structure_shadow',
@@ -194,26 +207,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         ServiceSectionSyncService $syncService,
         SermonCandidateConfidenceService $sermonConfidenceService,
     ): void {
-        [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
-
-        if (! $result->passed() && $this->detectionWorthRetrying($result)) {
-            Log::warning('Service structure output mechanically impossible; retrying detection once', [
-                'processing_id' => $this->processingLog->processing_id,
-                'failure_codes' => $result->failureCodes(),
-            ]);
-
-            $this->putStructureMetadata('service_structure_retry', [
-                'generated_at' => now()->toIso8601String(),
-                'failure_codes' => $result->failureCodes(),
-                'failure_summary' => $result->failureSummary(),
-            ]);
-
-            [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
-        }
-
-        if ($result->passed()) {
-            $result = $this->recheckMissingPreachedReading($result, $detector, $snapService, $validator);
-        }
+        [$result, $transcript] = $this->detectWithPrimaryRecovery($detector, $snapService, $validator);
 
         if (! $result->passed() && $this->reconcile) {
             // The run completed with validated sections; a failed re-detection
@@ -275,6 +269,40 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE,
             sprintf('Persisted %d LLM-detected section(s)', count($classified))
         );
+    }
+
+    /**
+     * Run the recovery steps required before detector output can become authoritative.
+     *
+     * @return array{0: ValidationResult, 1: ChurchServiceTranscript}
+     */
+    private function detectWithPrimaryRecovery(
+        ServiceStructureInterface $detector,
+        SilenceSnapService $snapService,
+        ServiceStructureValidator $validator,
+    ): array {
+        [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
+
+        if (! $result->passed() && $this->detectionWorthRetrying($result)) {
+            Log::warning('Service structure output mechanically impossible; retrying detection once', [
+                'processing_id' => $this->processingLog->processing_id,
+                'failure_codes' => $result->failureCodes(),
+            ]);
+
+            $this->putStructureMetadata('service_structure_retry', [
+                'generated_at' => now()->toIso8601String(),
+                'failure_codes' => $result->failureCodes(),
+                'failure_summary' => $result->failureSummary(),
+            ]);
+
+            [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
+        }
+
+        if ($result->passed()) {
+            $result = $this->recheckMissingPreachedReading($result, $detector, $snapService, $validator);
+        }
+
+        return [$result, $transcript];
     }
 
     /**
@@ -685,44 +713,119 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * Structured comparison of the LLM proposal against the authoritative
-     * heuristic service_sections — the shadow-mode evidence stream.
+     * Structured comparison of the shadow proposal against the authoritative
+     * service_sections — the shadow-mode evidence stream.
+     *
+     * The baseline is whatever wrote those sections: the heuristic cluster
+     * today, the bound model's primary output after the flip. The diff records
+     * that provenance so reports can tell the two apart; the comparison logic
+     * itself is baseline-agnostic and survives the cluster's retirement.
      *
      * @return array<string, mixed>
      */
     private function diffAgainstAuthoritativeSections(ServiceStructure $structure): array
     {
-        $heuristicSections = ServiceSection::query()
+        $authoritativeSections = ServiceSection::query()
             ->where('media_processing_log_id', $this->processingLog->id)
             ->orderBy('section_order')
             ->orderBy('id')
             ->get();
 
-        $heuristicTypes = $heuristicSections->pluck('section_type')->map(fn ($type) => $type->value)->all();
+        $baselineSections = array_values($authoritativeSections
+            ->map(fn (ServiceSection $section): array => [
+                'type' => $section->section_type,
+                'start_time' => (float) $section->start_time,
+                'end_time' => (float) $section->end_time,
+                'oos_item_id' => $section->church_service_item_id,
+            ])
+            ->all());
+
+        return $this->diffAgainstBaselineSections($structure, $baselineSections, [
+            'classification_modes' => array_values($authoritativeSections
+                ->map(fn (ServiceSection $section): ?string => $section->metadata?->classificationMode)
+                ->filter()
+                ->unique()
+                ->values()
+                ->all()),
+            'models' => array_values($authoritativeSections
+                ->map(function (ServiceSection $section): ?string {
+                    $model = $section->metadata?->raw['model'] ?? null;
+
+                    return is_string($model) ? $model : null;
+                })
+                ->filter()
+                ->unique()
+                ->values()
+                ->all()),
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function diffAgainstBoundStructure(ServiceStructure $candidate, ServiceStructure $bound): array
+    {
+        $baselineSections = array_map(
+            static fn ($section): array => [
+                'type' => $section->type,
+                'start_time' => $section->startTime,
+                'end_time' => $section->endTime,
+                'oos_item_id' => $section->oosItemId,
+            ],
+            $bound->sections,
+        );
+
+        return $this->diffAgainstBaselineSections($candidate, $baselineSections, [
+            'classification_modes' => ['llm_structure'],
+            'models' => is_string($bound->model) && $bound->model !== '' ? [$bound->model] : [],
+        ]);
+    }
+
+    /**
+     * @param  list<array{type: ServiceSectionType, start_time: float, end_time: float, oos_item_id: int|null}>  $baselineSections
+     * @param  array{classification_modes: list<string>, models: list<string>}  $provenance
+     * @return array<string, mixed>
+     */
+    private function diffAgainstBaselineSections(
+        ServiceStructure $structure,
+        array $baselineSections,
+        array $provenance,
+    ): array {
+        $baselineTypes = array_map(static fn (array $section): string => $section['type']->value, $baselineSections);
         $llmTypes = array_map(static fn ($section) => $section->type->value, $structure->sections);
 
         $diff = [
-            'heuristic_section_count' => count($heuristicTypes),
+            'baseline' => $provenance,
+            'heuristic_section_count' => count($baselineTypes),
             'llm_section_count' => count($llmTypes),
-            'heuristic_types' => $heuristicTypes,
+            'heuristic_types' => $baselineTypes,
             'llm_types' => $llmTypes,
-            'type_sequence_match' => $heuristicTypes === $llmTypes,
+            'type_sequence_match' => $baselineTypes === $llmTypes,
             'sermon' => null,
             'boundary_deltas' => null,
             'oos_anchoring' => null,
         ];
 
-        $heuristicSermon = $heuristicSections->firstWhere('section_type', ServiceSectionType::Sermon);
+        $baselineSermon = null;
+
+        foreach ($baselineSections as $baselineSection) {
+            if ($baselineSection['type'] === ServiceSectionType::Sermon) {
+                $baselineSermon = $baselineSection;
+
+                break;
+            }
+        }
+
         $llmSermons = $structure->sectionsOfType(ServiceSectionType::Sermon);
 
-        if ($heuristicSermon instanceof ServiceSection && $llmSermons !== []) {
+        if (is_array($baselineSermon) && $llmSermons !== []) {
             $diff['sermon'] = [
-                'heuristic_start' => (float) $heuristicSermon->start_time,
-                'heuristic_end' => (float) $heuristicSermon->end_time,
+                'heuristic_start' => $baselineSermon['start_time'],
+                'heuristic_end' => $baselineSermon['end_time'],
                 'llm_start' => $llmSermons[0]->startTime,
                 'llm_end' => $llmSermons[0]->endTime,
-                'start_delta' => round($llmSermons[0]->startTime - (float) $heuristicSermon->start_time, 2),
-                'end_delta' => round($llmSermons[0]->endTime - (float) $heuristicSermon->end_time, 2),
+                'start_delta' => round($llmSermons[0]->startTime - $baselineSermon['start_time'], 2),
+                'end_delta' => round($llmSermons[0]->endTime - $baselineSermon['end_time'], 2),
             ];
         }
 
@@ -732,19 +835,19 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             $oosConflicts = 0;
 
             foreach ($structure->sections as $index => $section) {
-                $heuristic = $heuristicSections->get($index);
+                $baseline = $baselineSections[$index] ?? null;
 
-                if (! $heuristic instanceof ServiceSection) {
+                if (! is_array($baseline)) {
                     continue;
                 }
 
                 $boundaryDeltas[] = [
                     'type' => $section->type->value,
-                    'start_delta' => round($section->startTime - (float) $heuristic->start_time, 2),
-                    'end_delta' => round($section->endTime - (float) $heuristic->end_time, 2),
+                    'start_delta' => round($section->startTime - $baseline['start_time'], 2),
+                    'end_delta' => round($section->endTime - $baseline['end_time'], 2),
                 ];
 
-                if ($section->oosItemId === $heuristic->church_service_item_id) {
+                if ($section->oosItemId === $baseline['oos_item_id']) {
                     $oosMatches++;
                 } else {
                     $oosConflicts++;
@@ -756,6 +859,61 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         }
 
         return $diff;
+    }
+
+    /**
+     * Shadow detection with the configured candidate model, when one is set.
+     *
+     * The bound `model` stays authoritative; `shadow_model` lets a candidate
+     * (a prompt/model upgrade) run against the same transcript so the diff
+     * scores it against the authoritative sections. The override is restored
+     * even when detection throws — queue workers reuse the config repository
+     * across jobs.
+     *
+     * @return array{0: ValidationResult, 1: ChurchServiceTranscript, 2: ServiceStructure|null}
+     */
+    private function detectShadowCandidate(
+        ServiceStructureInterface $detector,
+        SilenceSnapService $snapService,
+        ServiceStructureValidator $validator,
+        bool $requireBoundBaseline,
+    ): array {
+        $boundModel = (string) config('media-processing.service_structure.model', 'gpt-5');
+        $shadowModel = config('media-processing.service_structure.shadow_model');
+
+        if (! is_string($shadowModel) || trim($shadowModel) === '' || $shadowModel === $boundModel) {
+            [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
+
+            return [$result, $transcript, null];
+        }
+
+        $boundStructure = null;
+
+        if ($requireBoundBaseline) {
+            [$boundResult] = $this->detectWithPrimaryRecovery($detector, $snapService, $validator);
+
+            if (! $boundResult->passed()) {
+                throw new \UnexpectedValueException(
+                    'Bound service structure model did not produce a valid shadow baseline: '.$boundResult->failureSummary()
+                );
+            }
+
+            $boundStructure = ServiceStructure::fromSections(
+                $boundResult->structure->sections,
+                $boundResult->structure->notes,
+                $boundModel,
+            );
+        }
+
+        config(['media-processing.service_structure.model' => $shadowModel]);
+
+        try {
+            [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
+
+            return [$result, $transcript, $boundStructure];
+        } finally {
+            config(['media-processing.service_structure.model' => $boundModel]);
+        }
     }
 
     /**

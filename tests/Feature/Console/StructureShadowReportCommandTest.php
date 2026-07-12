@@ -103,6 +103,64 @@ class StructureShadowReportCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_surfaces_baseline_provenance_per_run_and_in_the_aggregate(): void
+    {
+        // A pre-flip run diffed against heuristic sections…
+        $this->makeShadowRun([
+            'generated_at' => '2026-06-07T11:45:00+01:00',
+            'passed_validation' => true,
+            'hard_failures' => [],
+            'sections' => [],
+            'diff' => [
+                'baseline' => ['classification_modes' => ['audio_only', 'ai_transcript']],
+                'type_sequence_match' => true,
+                'sermon' => null,
+                'oos_anchoring' => null,
+            ],
+        ]);
+
+        // …and post-flip model trials diffed against two different bound models.
+        $this->makeShadowRun([
+            'generated_at' => '2026-06-14T11:45:00+01:00',
+            'passed_validation' => true,
+            'hard_failures' => [],
+            'sections' => [],
+            'diff' => [
+                'baseline' => ['classification_modes' => ['llm_structure'], 'models' => ['gpt-5']],
+                'type_sequence_match' => true,
+                'sermon' => null,
+                'oos_anchoring' => null,
+            ],
+        ]);
+        $this->makeShadowRun([
+            'generated_at' => '2026-06-21T11:45:00+01:00',
+            'passed_validation' => true,
+            'hard_failures' => [],
+            'sections' => [],
+            'diff' => [
+                'baseline' => ['classification_modes' => ['llm_structure'], 'models' => ['gpt-6']],
+                'type_sequence_match' => true,
+                'sermon' => null,
+                'oos_anchoring' => null,
+            ],
+        ]);
+
+        $this->artisan('structure:shadow-report', ['--report' => $this->reportPath])
+            ->assertSuccessful();
+
+        $report = json_decode((string) file_get_contents($this->reportPath), true);
+
+        $this->assertSame(['classification_modes' => ['audio_only', 'ai_transcript']], $report['runs'][0]['baseline']);
+        $this->assertEquals(['classification_modes' => ['llm_structure'], 'models' => ['gpt-5']], $report['runs'][1]['baseline']);
+        $this->assertEquals(['classification_modes' => ['llm_structure'], 'models' => ['gpt-6']], $report['runs'][2]['baseline']);
+        $this->assertSame(
+            ['ai_transcript+audio_only' => 1, 'llm_structure@gpt-5' => 1, 'llm_structure@gpt-6' => 1],
+            $report['aggregate']['baseline_counts'],
+            'Mixed baselines must be visible so incomparable deltas are not silently combined.'
+        );
+    }
+
+    #[Test]
     public function it_filters_by_processing_id(): void
     {
         $wanted = $this->makeShadowRun([

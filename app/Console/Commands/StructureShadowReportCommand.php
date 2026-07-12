@@ -100,6 +100,10 @@ class StructureShadowReportCommand extends Command
             'processing_id' => $log->processing_id,
             'generated_at' => $shadow['generated_at'] ?? null,
             'error' => null,
+            // Who authored the sections this run was diffed against (heuristic
+            // cluster pre-flip, the bound model's primary output post-flip) —
+            // deltas across different baselines are not comparable.
+            'baseline' => is_array($diff['baseline'] ?? null) ? $diff['baseline'] : null,
             'passed_validation' => (bool) ($shadow['passed_validation'] ?? false),
             'hard_failure_codes' => array_values(array_unique(array_column(
                 is_array($shadow['hard_failures'] ?? null) ? $shadow['hard_failures'] : [],
@@ -146,9 +150,34 @@ class StructureShadowReportCommand extends Command
         $agreements = array_sum(array_column($anchoring, 'agreements'));
         $disagreements = array_sum(array_column($anchoring, 'disagreements'));
 
+        $baselineCounts = [];
+
+        foreach ($clean as $run) {
+            $modes = is_array($run['baseline']['classification_modes'] ?? null)
+                ? $run['baseline']['classification_modes']
+                : [];
+            $models = is_array($run['baseline']['models'] ?? null)
+                ? $run['baseline']['models']
+                : [];
+            sort($modes);
+            sort($models);
+            $key = $modes === [] ? 'unknown' : implode('+', $modes);
+
+            if ($models !== []) {
+                $key .= '@'.implode('+', $models);
+            }
+
+            $baselineCounts[$key] = ($baselineCounts[$key] ?? 0) + 1;
+        }
+
+        ksort($baselineCounts);
+
         return [
             'run_count' => count($runs),
             'error_count' => count($runs) - count($clean),
+            // More than one key here means the aggregate mixes runs scored
+            // against different baselines — read the deltas per group.
+            'baseline_counts' => $baselineCounts,
             'passed_validation_rate' => $rate(count(array_filter($clean, static fn (array $run): bool => (bool) $run['passed_validation'])), count($clean)),
             'type_sequence_match_rate' => $rate(count(array_filter($clean, static fn (array $run): bool => (bool) ($run['type_sequence_match'] ?? false))), count($clean)),
             'sermon' => [
