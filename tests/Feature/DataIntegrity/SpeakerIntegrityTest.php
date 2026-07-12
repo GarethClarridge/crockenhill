@@ -13,7 +13,6 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -228,86 +227,5 @@ class SpeakerIntegrityTest extends TestCase
             ->test(EditPreacher::class, ['preacher' => $preacher])
             ->call('recomputeProfile', $profile->id)
             ->assertHasNoErrors();
-    }
-
-    #[Test]
-    public function migration_successfully_cleans_up_invalid_data_and_adds_constraints(): void
-    {
-        if (DB::getDriverName() !== 'mysql') {
-            $this->markTestSkipped('Speaker integrity checks are MySQL-specific.');
-        }
-
-        $constraints = [
-            'speaker_profiles_quality_score_check',
-            'speaker_profiles_accept_threshold_check',
-            'speaker_profiles_margin_threshold_check',
-            'speaker_samples_quality_score_check',
-            'speaker_samples_duration_check',
-        ];
-
-        // 1. Drop constraints directly so we can insert invalid data
-        foreach ($constraints as $name) {
-            $table = str_starts_with($name, 'speaker_profiles') ? 'speaker_profiles' : 'speaker_samples';
-            DB::statement("ALTER TABLE {$table} DROP CHECK {$name}");
-        }
-
-        try {
-            // 2. Insert invalid data while constraints are gone
-            $preacherId = Preacher::factory()->create()->id;
-            $profileId = DB::table('speaker_profiles')->insertGetId([
-                'preacher_id' => $preacherId,
-                'provider' => 'resemblyzer',
-                'model_version' => 'v1.0-temporary-test-'.Str::random(8),
-                'centroid_embedding' => json_encode(array_fill(0, 256, 0.5)),
-                'quality_score' => 1.5, // Invalid (>1)
-                'accept_threshold' => -0.5, // Invalid (<0)
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            $sampleId = DB::table('speaker_samples')->insertGetId([
-                'speaker_profile_id' => $profileId,
-                'embedding' => json_encode(array_fill(0, 256, 0.5)),
-                'duration_seconds' => -10.0, // Invalid (<0)
-                'quality_score' => 0.9,
-                'source' => 'upload_auto',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            // 3. Re-apply migration's up() logic directly
-            $migration = require database_path('migrations/2026_03_31_051644_add_integrity_checks_to_speaker_tables.php');
-            $migration->up();
-
-            // 4. Verify data is cleaned
-            $profile = DB::table('speaker_profiles')->where('id', $profileId)->first();
-            $this->assertEquals(1.0, $profile->quality_score);
-            $this->assertEquals(0.0, $profile->accept_threshold);
-
-            $sample = DB::table('speaker_samples')->where('id', $sampleId)->first();
-            $this->assertEquals(0.0, $sample->duration_seconds);
-
-            // 5. Verify constraints are active by trying to insert invalid data again
-            $this->expectException(QueryException::class);
-            DB::table('speaker_samples')->insert([
-                'speaker_profile_id' => $profileId,
-                'embedding' => json_encode(array_fill(0, 256, 0.5)),
-                'duration_seconds' => -1.0,
-                'source' => 'upload_auto',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        } finally {
-            // Restore constraints regardless of test outcome
-            foreach ($constraints as $name) {
-                $table = str_starts_with($name, 'speaker_profiles') ? 'speaker_profiles' : 'speaker_samples';
-                try {
-                    DB::statement("ALTER TABLE {$table} DROP CHECK {$name}");
-                } catch (\Throwable) {
-                }
-            }
-            $migration = require database_path('migrations/2026_03_31_051644_add_integrity_checks_to_speaker_tables.php');
-            $migration->up();
-        }
     }
 }

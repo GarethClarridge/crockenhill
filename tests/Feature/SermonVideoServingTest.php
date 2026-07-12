@@ -106,7 +106,7 @@ class SermonVideoServingTest extends TestCase
     #[Test]
     public function guest_cannot_access_childrens_talk_video_when_not_public(): void
     {
-        Config::set('sermons.childrens_talks.public', false);
+        Config::set('church.sermons.childrens_talks.public', false);
 
         $sermon = Sermon::factory()->create([
             'slug' => 'childrens-talk',
@@ -124,7 +124,7 @@ class SermonVideoServingTest extends TestCase
     #[Test]
     public function verified_user_can_access_childrens_talk_video_when_not_public(): void
     {
-        Config::set('sermons.childrens_talks.public', false);
+        Config::set('church.sermons.childrens_talks.public', false);
         $user = User::factory()->create(['email_verified_at' => now()]);
 
         $sermon = Sermon::factory()->create([
@@ -144,7 +144,7 @@ class SermonVideoServingTest extends TestCase
     #[Test]
     public function unverified_user_cannot_access_childrens_talk_video_when_not_public(): void
     {
-        Config::set('sermons.childrens_talks.public', false);
+        Config::set('church.sermons.childrens_talks.public', false);
         $user = User::factory()->create(['email_verified_at' => null]);
 
         $sermon = Sermon::factory()->create([
@@ -163,7 +163,7 @@ class SermonVideoServingTest extends TestCase
     #[Test]
     public function guest_can_access_childrens_talk_video_when_public(): void
     {
-        Config::set('sermons.childrens_talks.public', true);
+        Config::set('church.sermons.childrens_talks.public', true);
 
         $sermon = Sermon::factory()->create([
             'slug' => 'childrens-talk',

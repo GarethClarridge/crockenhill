@@ -24,7 +24,7 @@
         'jobTitle' => 'Preacher',
         'worksFor' => [
             '@type' => 'Organization',
-            'name' => config('organization.name'),
+            'name' => config('church.name'),
             'url' => config('app.url'),
             '@id' => config('app.url').'/#organization',
         ],
@@ -53,7 +53,7 @@
         'author' => $author,
         'publisher' => [
             '@type' => 'Organization',
-            'name' => config('organization.name'),
+            'name' => config('church.name'),
             'url' => config('app.url'),
             '@id' => config('app.url').'/#organization',
             'logo' => [

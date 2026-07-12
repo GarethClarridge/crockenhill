@@ -166,4 +166,10 @@ return [
      * check must not read as a failure there.
      */
     'treat_skipped_as_failure' => false,
+
+    'route_canaries' => [
+        'enabled' => env('MONITORING_CANARIES_ENABLED', true),
+        'base_url' => env('MONITORING_CANARY_BASE_URL', env('APP_URL', 'http://localhost')),
+        'timeout' => (int) env('MONITORING_CANARY_TIMEOUT', 20),
+    ],
 ];

@@ -19,7 +19,7 @@ class SeriesItemListPresenter
     {
         $appUrl = (string) config('app.url');
         $orgId = $appUrl.'/#organization';
-        $orgName = (string) config('organization.name');
+        $orgName = (string) config('church.name');
         $logoUrl = asset('images/Primary.png');
 
         return [

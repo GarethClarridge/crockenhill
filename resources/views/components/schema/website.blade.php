@@ -3,13 +3,13 @@
     $schema = [
         '@' . 'context' => 'https://schema.org',
         '@type' => 'WebSite',
-        'name' => config('organization.name'),
+        'name' => config('church.name'),
         'alternateName' => 'Crockenhill Baptist',
         '@id' => config('app.url').'/#website',
         'url' => config('app.url'),
         'publisher' => [
             '@type' => 'Organization',
-            'name' => config('organization.name'),
+            'name' => config('church.name'),
             '@id' => config('app.url').'/#organization',
             'logo' => [
                 '@type' => 'ImageObject',

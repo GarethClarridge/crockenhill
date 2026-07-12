@@ -59,7 +59,7 @@ class SermonItemListPresenterTest extends TestCase
         // Check for author enrichment
         $this->assertEquals('Preacher', $item['author']['jobTitle']);
         $this->assertArrayHasKey('worksFor', $item['author']);
-        $this->assertEquals(config('organization.name'), $item['author']['worksFor']['name']);
+        $this->assertEquals(config('church.name'), $item['author']['worksFor']['name']);
 
         $logoSize = getimagesize(public_path('images/Primary.png'));
         if ($logoSize === false) {

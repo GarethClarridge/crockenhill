@@ -11,6 +11,8 @@ fi
 
 missing=()
 
+shopt -s nullglob
+
 for migration in database/migrations/*.php; do
   name="$(basename "$migration" .php)"
 
@@ -23,7 +25,7 @@ if [[ ${#missing[@]} -gt 0 ]]; then
   printf "Schema dump is stale. Missing migrations:\n"
   printf "  %s\n" "${missing[@]}"
   echo
-  echo "Fix: vendor/bin/sail artisan schema:dump  (never --prune)"
+  echo "Fix: vendor/bin/sail artisan schema:dump --prune"
   exit 1
 fi
 

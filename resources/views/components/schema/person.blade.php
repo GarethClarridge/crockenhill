@@ -12,7 +12,7 @@
         'inLanguage' => 'en-GB',
         'worksFor' => [
             '@type' => 'Organization',
-            'name' => config('organization.name'),
+            'name' => config('church.name'),
             '@id' => config('app.url').'/#organization',
         ],
     ];

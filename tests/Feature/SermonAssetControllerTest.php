@@ -41,7 +41,7 @@ class SermonAssetControllerTest extends TestCase
     public function authenticated_user_can_access_non_public_childrens_talk_thumbnail(): void
     {
         Storage::fake('public');
-        config(['sermons.childrens_talks.public' => false]);
+        config(['church.sermons.childrens_talks.public' => false]);
 
         $user = User::factory()->create();
         $sermon = Sermon::factory()->create([
@@ -278,7 +278,7 @@ class SermonAssetControllerTest extends TestCase
     #[Test]
     public function guest_is_redirected_when_accessing_non_public_childrens_talk_audio(): void
     {
-        config(['sermons.childrens_talks.public' => false]);
+        config(['church.sermons.childrens_talks.public' => false]);
 
         $sermon = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -293,7 +293,7 @@ class SermonAssetControllerTest extends TestCase
     #[Test]
     public function guest_is_redirected_when_accessing_non_public_childrens_talk_thumbnail(): void
     {
-        config(['sermons.childrens_talks.public' => false]);
+        config(['church.sermons.childrens_talks.public' => false]);
 
         $sermon = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -308,7 +308,7 @@ class SermonAssetControllerTest extends TestCase
     #[Test]
     public function guest_is_redirected_when_accessing_non_public_childrens_talk_video(): void
     {
-        config(['sermons.childrens_talks.public' => false]);
+        config(['church.sermons.childrens_talks.public' => false]);
 
         $sermon = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -323,7 +323,7 @@ class SermonAssetControllerTest extends TestCase
     #[Test]
     public function guest_is_redirected_when_accessing_non_public_childrens_talk_card_thumbnail(): void
     {
-        config(['sermons.childrens_talks.public' => false]);
+        config(['church.sermons.childrens_talks.public' => false]);
 
         $sermon = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -341,7 +341,7 @@ class SermonAssetControllerTest extends TestCase
     public function authenticated_user_can_access_non_public_childrens_talk_audio(): void
     {
         Storage::fake('public');
-        config(['sermons.childrens_talks.public' => false]);
+        config(['church.sermons.childrens_talks.public' => false]);
 
         $user = User::factory()->create();
         $sermon = Sermon::factory()->create([
@@ -361,7 +361,7 @@ class SermonAssetControllerTest extends TestCase
     public function guest_can_access_public_childrens_talk_audio(): void
     {
         Storage::fake('public');
-        config(['sermons.childrens_talks.public' => true]);
+        config(['church.sermons.childrens_talks.public' => true]);
 
         $sermon = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -380,7 +380,7 @@ class SermonAssetControllerTest extends TestCase
     public function guest_can_access_public_childrens_talk_video(): void
     {
         Storage::fake('public');
-        config(['sermons.childrens_talks.public' => true]);
+        config(['church.sermons.childrens_talks.public' => true]);
 
         $sermon = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -505,7 +505,7 @@ class SermonAssetControllerTest extends TestCase
     #[Test]
     public function transcript_endpoint_redirects_unauthenticated_user_for_non_public_childrens_talk(): void
     {
-        config(['sermons.childrens_talks.public' => false]);
+        config(['church.sermons.childrens_talks.public' => false]);
 
         $sermon = Sermon::factory()->create([
             'slug' => 'private-ct-transcript',

@@ -117,7 +117,7 @@ class RouteCanaryRegistryTest extends TestCase
             ]);
 
         // Ineligible sermon: children's talk (depending on config, usually hidden from sitemap)
-        config(['sermons.childrens_talks.public' => false]);
+        config(['church.sermons.childrens_talks.public' => false]);
         Sermon::factory()->create([
             'slug' => 'kids-talk',
             'content_type' => SermonContentType::ChildrensTalk,

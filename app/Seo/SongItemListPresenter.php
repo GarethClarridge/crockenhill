@@ -15,7 +15,7 @@ class SongItemListPresenter
      */
     public function toItemList(Collection $songs): array
     {
-        $orgName = (string) config('organization.name');
+        $orgName = (string) config('church.name');
         $logoUrl = asset('images/Primary.png');
         $appUrl = (string) config('app.url');
         $orgId = $appUrl.'/#organization';

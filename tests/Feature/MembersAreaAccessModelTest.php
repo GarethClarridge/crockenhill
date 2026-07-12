@@ -24,7 +24,7 @@ class MembersAreaAccessModelTest extends TestCase
     public function self_registered_unverified_user_cannot_access_members_or_songs_routes(): void
     {
         Notification::fake();
-        config()->set('sermons.childrens_talks.public', false);
+        config()->set('church.sermons.childrens_talks.public', false);
 
         $song = Song::factory()->create([
             'title' => 'Members Song',
@@ -110,7 +110,7 @@ class MembersAreaAccessModelTest extends TestCase
     #[Test]
     public function guests_cannot_access_account_only_surfaces_when_childrens_corner_is_private(): void
     {
-        config()->set('sermons.childrens_talks.public', false);
+        config()->set('church.sermons.childrens_talks.public', false);
 
         $song = Song::factory()->create([
             'title' => 'Guest Blocked Song',

@@ -1,7 +1,7 @@
 {{-- Organization Schema.org JSON-LD markup for SEO --}}
 @php
     $openingHours = [];
-    foreach (config('organization.opening_hours', []) as $day => $slots) {
+    foreach (config('church.opening_hours', []) as $day => $slots) {
         $schemaDay = "https://schema.org/".ucfirst($day);
         foreach ($slots as $slot) {
             $openingHours[] = [
@@ -16,8 +16,8 @@
     $schema = [
         '@' . 'context' => 'https://schema.org',
         '@type' => 'Church',
-        'name' => config('organization.name'),
-        'taxID' => config('organization.charity_number'),
+        'name' => config('church.name'),
+        'taxID' => config('church.charity_number'),
         '@id' => config('app.url').'/#organization',
         'url' => config('app.url'),
         'logo' => [
@@ -26,29 +26,29 @@
             'width' => 444,
             'height' => 481,
         ],
-        'description' => config('organization.description'),
+        'description' => config('church.description'),
         'address' => [
             '@type' => 'PostalAddress',
-            'streetAddress' => config('organization.address.street'),
-            'addressLocality' => config('organization.address.locality'),
-            'addressRegion' => config('organization.address.region'),
-            'postalCode' => config('organization.address.postal_code'),
-            'addressCountry' => config('organization.address.country'),
+            'streetAddress' => config('church.address.street'),
+            'addressLocality' => config('church.address.locality'),
+            'addressRegion' => config('church.address.region'),
+            'postalCode' => config('church.address.postal_code'),
+            'addressCountry' => config('church.address.country'),
         ],
         'geo' => [
             '@type' => 'GeoCoordinates',
-            'latitude' => config('organization.geo.latitude'),
-            'longitude' => config('organization.geo.longitude'),
+            'latitude' => config('church.geo.latitude'),
+            'longitude' => config('church.geo.longitude'),
         ],
-        'telephone' => config('organization.phone'),
-        'email' => config('organization.email_admin'),
+        'telephone' => config('church.phone'),
+        'email' => config('church.email_admin'),
         'contactPoint' => [
             '@type' => 'ContactPoint',
-            'telephone' => config('organization.phone'),
+            'telephone' => config('church.phone'),
             'contactType' => 'administrative',
-            'email' => config('organization.email_admin'),
+            'email' => config('church.email_admin'),
         ],
-        'sameAs' => array_values(config('organization.social')),
+        'sameAs' => array_values(config('church.social')),
     ];
 
     if (!empty($openingHours)) {

@@ -197,9 +197,9 @@ class MeetingSeoTest extends TestCase
 
         $response->assertStatus(200);
         $event = $this->extractEventJsonLd($response->getContent());
-        $this->assertSame(config('organization.name'), $event['location']['name']);
+        $this->assertSame(config('church.name'), $event['location']['name']);
         $this->assertArrayHasKey('geo', $event['location']);
-        $this->assertSame(config('organization.address.street'), $event['location']['address']['streetAddress']);
+        $this->assertSame(config('church.address.street'), $event['location']['address']['streetAddress']);
     }
 
     #[Test]

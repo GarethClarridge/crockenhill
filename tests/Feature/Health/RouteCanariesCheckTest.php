@@ -28,8 +28,8 @@ class RouteCanariesCheckTest extends TestCase
         parent::setUp();
 
         config([
-            'monitoring.enabled' => true,
-            'monitoring.base_url' => 'http://canary.test',
+            'health.route_canaries.enabled' => true,
+            'health.route_canaries.base_url' => 'http://canary.test',
         ]);
     }
 
@@ -95,7 +95,7 @@ class RouteCanariesCheckTest extends TestCase
     #[Test]
     public function it_reports_ok_without_probing_when_monitoring_is_disabled(): void
     {
-        config(['monitoring.enabled' => false]);
+        config(['health.route_canaries.enabled' => false]);
         Http::fake();
 
         $result = RouteCanariesCheck::new()->run();
