@@ -109,10 +109,10 @@ $clearLabel = 'Clear ' . ($label ?: ($attributes->get('placeholder') ?: 'input')
                 <div class="relative h-5 w-5 shrink-0">
                     <x-heroicon-o-eye
                         x-show="!showPassword"
-                        x-transition:enter="transition ease-out duration-300"
+                        x-transition:enter="transition ease-out duration-300 motion-reduce:transition-none"
                         x-transition:enter-start="opacity-0 scale-90"
                         x-transition:enter-end="opacity-100 scale-100"
-                        x-transition:leave="transition ease-in duration-200"
+                        x-transition:leave="transition ease-in duration-200 motion-reduce:transition-none"
                         x-transition:leave-start="opacity-100 scale-100"
                         x-transition:leave-end="opacity-0 scale-90"
                         class="absolute inset-0 h-5 w-5"
@@ -120,10 +120,10 @@ $clearLabel = 'Clear ' . ($label ?: ($attributes->get('placeholder') ?: 'input')
                     />
                     <x-heroicon-o-eye-slash
                         x-show="showPassword"
-                        x-transition:enter="transition ease-out duration-300"
+                        x-transition:enter="transition ease-out duration-300 motion-reduce:transition-none"
                         x-transition:enter-start="opacity-0 scale-90"
                         x-transition:enter-end="opacity-100 scale-100"
-                        x-transition:leave="transition ease-in duration-200"
+                        x-transition:leave="transition ease-in duration-200 motion-reduce:transition-none"
                         x-transition:leave-start="opacity-100 scale-100"
                         x-transition:leave-end="opacity-0 scale-90"
                         class="absolute inset-0 h-5 w-5"

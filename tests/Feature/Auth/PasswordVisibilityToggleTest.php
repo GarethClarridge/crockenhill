@@ -19,6 +19,7 @@ class PasswordVisibilityToggleTest extends TestCase
         $response->assertSee(':type="showPassword ? \'text\' : \'password\'"', false);
         $response->assertSee('Show password');
         $response->assertSee('Hide password');
+        $response->assertSee('motion-reduce:transition-none');
         $response->assertSee('svg');
     }
 
