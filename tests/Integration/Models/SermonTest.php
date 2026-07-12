@@ -14,7 +14,6 @@ use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -31,25 +30,14 @@ class SermonTest extends TestCase
     }
 
     #[Test]
-    public function sermon_relationships()
+    public function sermon_relationships(): void
     {
-        // $serviceModel = \App\Models\Service::factory()->create(); // Not a direct relationship anymore
         $sermon = Sermon::factory()->create([
             'service' => 'morning', // Example enum value
         ]);
 
         $this->assertInstanceOf(SermonService::class, $sermon->service);
-        $this->assertContains($sermon->service, [
-            SermonService::Morning,
-            SermonService::Evening,
-        ]);
-        // $this->assertEquals($serviceModel->id, $sermon->service->id); // This was incorrect
-
-        // PlayDate related assertions are removed as PlayDate feature is removed.
-        // $this->assertInstanceOf(\Illuminate\Database\Eloquent\Collection::class, $sermon->playDates);
-        // $this->assertCount(2, $sermon->playDates);
-        // $this->assertTrue($sermon->playDates->contains($playDate1));
-        // $this->assertTrue($sermon->playDates->contains($playDate2));
+        $this->assertSame(SermonService::Morning, $sermon->service);
     }
 
     #[Test]
@@ -73,26 +61,21 @@ class SermonTest extends TestCase
         $this->assertNotNull($audioUrl);
         $this->assertStringContainsString($testFilename, $audioUrl);
 
-        // seriesUrl is a presentation concern owned by SermonViewPresenter.
-        $expectedSeriesUrl = 'http://localhost/christ/sermons/series/'.Str::slug('My Sermon Series');
+        $expectedSeriesUrl = url('/christ/sermons/series/'.Str::slug('My Sermon Series'));
         $this->assertEquals($expectedSeriesUrl, $sermonViewPresenter->seriesUrl($sermon));
 
-        $expectedPreacherUrl = 'http://localhost/christ/sermons/preachers/'.Str::slug('John Doe');
+        $expectedPreacherUrl = url('/christ/sermons/preachers/'.Str::slug('John Doe'));
         $this->assertEquals($expectedPreacherUrl, $sermonViewPresenter->preacherUrl($sermon));
     }
 
     #[Test]
-    public function sermon_mutators_and_casts()
+    public function sermon_mutators_and_casts(): void
     {
         // Test 'points' attribute casting to array when explicitly set with valid JSON
         $pointsArray = ['Point 1: Introduction', 'Point 2: Main Body', 'Point 3: Conclusion'];
-        // $pointsJson = json_encode($pointsArray); // No longer needed
 
         $sermonCreated = Sermon::factory()->create(['points' => $pointsArray]); // Pass array directly
         $sermonFetched = Sermon::find($sermonCreated->id);
-
-        Log::info('SermonTest - Raw points from DB for Sermon ID '.$sermonFetched->id.': '.print_r($sermonFetched->getAttributes()['points'], true));
-        Log::info('SermonTest - Casted points type for Sermon ID '.$sermonFetched->id.': '.gettype($sermonFetched->points));
 
         $this->assertIsArray($sermonFetched->points);
         $this->assertEquals($pointsArray, $sermonFetched->points);
@@ -112,8 +95,10 @@ class SermonTest extends TestCase
     }
 
     #[Test]
-    public function sermon_scopes()
+    public function sermon_scopes(): void
     {
+        $this->travelTo(Carbon::parse('2026-05-27 10:00:00'));
+
         // Test last12Months scope
         $withinLast12Months = Sermon::factory()->withDate(Carbon::now()->subMonths(6))->create();
         $olderThan12Months = Sermon::factory()->withDate(Carbon::now()->subMonths(15))->create();
@@ -225,34 +210,6 @@ class SermonTest extends TestCase
         $this->assertSame(route('childrens-corner.show', $childrensTalk), $policy->publicUrl($childrensTalk));
         $this->assertSame(route('childrens-corner.show', $childrensTalk), $policy->canonicalUrl($childrensTalk));
     }
-
-    // /**
-    //  * @test
-    //  */
-    // public function testHasPlayDate()
-    // {
-    //     $sermon = Sermon::factory()->create();
-    //     $playDate = Carbon::create(2023, 5, 10);
-    //     $otherDate = Carbon::create(2023, 5, 11);
-
-    //     // Create a play date for the sermon
-    //     // PlayDate::factory()->create([  // PlayDate is removed
-    //     //     'sermon_id' => $sermon->id,
-    //     //     'played_on' => $playDate,
-    //     // ]);
-
-    //     // Test with string date
-    //     // $this->assertTrue($sermon->hasPlayDate($playDate->toDateString()));
-    //     // $this->assertFalse($sermon->hasPlayDate($otherDate->toDateString()));
-
-    //     // Test with Carbon instance
-    //     // $this->assertTrue($sermon->hasPlayDate($playDate));
-    //     // $this->assertFalse($sermon->hasPlayDate($otherDate));
-
-    //     // Test for a sermon with no play dates at all
-    //     // $sermonWithoutPlayDates = Sermon::factory()->create();
-    //     // $this->assertFalse($sermonWithoutPlayDates->hasPlayDate($playDate));
-    // }
 
     #[Test]
     public function scope_where_visible_in_sitemap_excludes_childrens_talks_when_not_public(): void
