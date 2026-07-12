@@ -27,12 +27,19 @@ class NextChurchServiceRequest extends FormRequest
     }
 
     /**
+     * Get the validation rules that apply to the request.
+     *
+     * Security: Strict input validation is enforced on query parameters to provide
+     * Defense in Depth against malformed input and potential Denial of Service (DoS)
+     * attacks by ensuring all inputs are bounded and correctly typed.
+     *
      * @return array<string, array<int, mixed>>
      */
     public function rules(): array
     {
         return [
-            'service' => ['nullable', Rule::enum(SermonService::class)],
+            // Security: input length is bounded to provide Defense in Depth against DoS.
+            'service' => ['nullable', 'string', 'max:20', Rule::enum(SermonService::class)],
         ];
     }
 }
