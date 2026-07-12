@@ -30,7 +30,7 @@ $defaultClasses = $hideLabel
 $classes = $baseClasses . ' ' . $defaultClasses;
 
 $ariaLabel = $attributes->get('aria-label', $label);
-$title = $attributes->get('title', $label . ' to clipboard');
+$title = $attributes->get('title', $ariaLabel . ' to clipboard');
 
 $iconComponent = 'heroicon-o-' . $icon;
 $copiedIconComponent = 'heroicon-o-' . $copiedIcon;
@@ -60,8 +60,7 @@ $resolvedIconSize = $iconSizeClasses[$hideLabel ? 'xs' : $size] ?? $iconSizeClas
             @endif
         });
     "
-    {{ $attributes->merge(['class' => $classes]) }}
-    :aria-label="copied ? {{ \Illuminate\Support\Js::from($copiedLabel) }} : {{ \Illuminate\Support\Js::from($ariaLabel) }}"
+    {{ $attributes->except('aria-label')->merge(['class' => $classes]) }}
     :title="copied ? {{ \Illuminate\Support\Js::from($copiedLabel) }} : {{ \Illuminate\Support\Js::from($title) }}"
     x-cloak
 >
@@ -94,7 +93,7 @@ $resolvedIconSize = $iconSizeClasses[$hideLabel ? 'xs' : $size] ?? $iconSizeClas
     </div>
 
     <span @if($hideLabel) class="sr-only" @endif
-          x-text="copied ? {{ \Illuminate\Support\Js::from($copiedLabel) }} : {{ \Illuminate\Support\Js::from($label) }}"
+          x-text="copied ? {{ \Illuminate\Support\Js::from($copiedLabel) }} : {{ \Illuminate\Support\Js::from($ariaLabel) }}"
           aria-live="polite">
     </span>
 </button>
