@@ -44,14 +44,14 @@ class SecurityHeaders
         // Security Header: HSTS (Strict-Transport-Security)
         // Only added if the request is secure to avoid breaking local development environments
         if ($request->isSecure()) {
-            $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+            $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
         }
 
         // Security Header: Permissions Policy
         // Restricts sensitive browser features that this application does not use.
         // ambient-light-sensor is deliberately absent: Chrome never shipped it as a
         // Permissions-Policy feature and logs "Unrecognized feature" on every page.
-        $response->headers->set('Permissions-Policy', 'accelerometer=(), autoplay=(self "https://www.youtube.com"), battery=(), bluetooth=(), browsing-topics=(), camera=(), conversion-measurement=(), display-capture=(), document-domain=(), encrypted-media=(self "https://www.youtube.com"), gamepad=(), geolocation=(), gyroscope=(), idle-detection=(), interest-cohort=(), join-ad-interest-group=(), keyboard-map=(), magnetometer=(), microphone=(), payment=(), publickey-credentials-get=(), run-ad-auction=(), screen-wake-lock=(), serial=(), sync-xhr=(), usb=(), web-share=(), window-management=(), xr-spatial-tracking=()');
+        $response->headers->set('Permissions-Policy', 'accelerometer=(), autoplay=(self "https://www.youtube.com"), battery=(), bluetooth=(), browsing-topics=(), camera=(), compute-pressure=(), conversion-measurement=(), display-capture=(), document-domain=(), encrypted-media=(self "https://www.youtube.com"), focus-without-user-activation=(), gamepad=(), geolocation=(), gyroscope=(), hid=(), idle-detection=(), interest-cohort=(), join-ad-interest-group=(), keyboard-map=(), local-fonts=(), magnetometer=(), microphone=(), payment=(), publickey-credentials-get=(), run-ad-auction=(), screen-wake-lock=(), serial=(), shared-autofill=(), speaker-selection=(), storage-access=(), sync-script=(), sync-xhr=(), trust-token-redemption=(), usb=(), web-share=(), window-management=(), xr-spatial-tracking=()');
 
         // Security Header: Content Security Policy (CSP)
         // Provides an additional layer of security by restricting where resources can be loaded from.
