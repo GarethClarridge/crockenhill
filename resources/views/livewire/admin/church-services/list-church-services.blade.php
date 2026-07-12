@@ -6,7 +6,7 @@
         <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
             Song catalogue
         </x-button>
-        <x-admin.action-menu label="Add">
+        <x-admin.action-menu label="Add service">
             <x-admin.action-menu-item link="{{ route('admin.services.upload-recording') }}" icon="film">
                 Upload recording
             </x-admin.action-menu-item>
