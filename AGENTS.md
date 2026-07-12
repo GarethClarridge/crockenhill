@@ -334,6 +334,9 @@ itself (item numbers in parentheses); verify there before relying on this summar
   orphan methods, `PageImagePresenter::headingImageSrcset()`, `PublicSongUsageService::query()`,
   `ServiceSectionStatus::Skipped`, the dead `SermonRepository` / `CalendarService` / `Meeting`
   occurrence methods.
+- **Deterministic analysis stub (2.2):** `MockSermonAnalysisService` and
+  `MockSermonAnalysisServiceTest`; the implementation is scheduled to become a small
+  fixture-returning stub, so do not harden or extend its current heuristic simulator.
 - **One-shot tooling (2.3–2.6):** `SermonStorageMaintenanceService` and its five storage-migration
   commands, `LegacySermonImporter`, `GenerateProdSermonPatchCommand`, `PreacherCutoverCommand`,
   `LegacyPlayDateSongUsageImporter`, `LegacySongReconciler`, `HistoricVideoImporter`,
