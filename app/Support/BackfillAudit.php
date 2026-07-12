@@ -203,7 +203,14 @@ class BackfillAudit
             return false;
         }
 
-        return ! SpeakerProfile::query()->exists();
+        $provider = (string) config('media-processing.speaker_identification.provider', 'null');
+        $modelVersion = (string) config('media-processing.speaker_identification.model_version', 'v1.0');
+
+        return ! SpeakerProfile::query()
+            ->active()
+            ->where('provider', $provider)
+            ->where('model_version', $modelVersion)
+            ->exists();
     }
 
     /**

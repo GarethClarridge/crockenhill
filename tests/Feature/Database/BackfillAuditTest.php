@@ -12,6 +12,7 @@ use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
 use App\Models\Song;
+use App\Models\SpeakerProfile;
 use App\Support\BackfillAudit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -148,5 +149,37 @@ class BackfillAuditTest extends TestCase
 
         config()->set('media-processing.speaker_identification.enabled', true);
         $this->assertTrue($audit->speakerProfilesMissing());
+    }
+
+    #[Test]
+    public function it_requires_an_active_speaker_profile_for_the_configured_provider_and_model(): void
+    {
+        Sermon::factory()->create();
+        config()->set('media-processing.speaker_identification.enabled', true);
+        config()->set('media-processing.speaker_identification.provider', 'resemblyzer');
+        config()->set('media-processing.speaker_identification.model_version', 'v2.0');
+
+        SpeakerProfile::factory()->inactive()->create([
+            'provider' => 'resemblyzer',
+            'model_version' => 'v2.0',
+        ]);
+        SpeakerProfile::factory()->create([
+            'provider' => 'other-provider',
+            'model_version' => 'v2.0',
+        ]);
+        SpeakerProfile::factory()->create([
+            'provider' => 'resemblyzer',
+            'model_version' => 'v1.0',
+        ]);
+
+        $audit = app(BackfillAudit::class);
+        $this->assertTrue($audit->speakerProfilesMissing());
+
+        SpeakerProfile::factory()->create([
+            'provider' => 'resemblyzer',
+            'model_version' => 'v2.0',
+        ]);
+
+        $this->assertFalse($audit->speakerProfilesMissing());
     }
 }
