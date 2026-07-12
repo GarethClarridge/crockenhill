@@ -24,7 +24,7 @@ The `<laravel-boost-guidelines>` block below contains a fuller summary of the MC
 ## Notes specific to running Claude Code here
 
 - The `tee`-pipe test-failure diagnosis trick is in AGENTS.md under "Diagnosing test failures without re-running" — use it whenever the parallel suite truncates before the summary.
-- After major Laravel-ecosystem package upgrades, re-run `vendor/bin/sail artisan boost:install` to refresh the guidelines block below and update the bundled skills (Livewire, Tailwind, etc.) to match the new versions.
+- After major Laravel-ecosystem package upgrades, re-run `vendor/bin/sail artisan boost:install` to refresh the generated guideline blocks in `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` together, and update the bundled skills (Livewire, Tailwind, etc.) to match the new versions.
 
 ===
 
