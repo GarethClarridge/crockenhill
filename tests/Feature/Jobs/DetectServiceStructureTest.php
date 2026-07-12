@@ -103,7 +103,7 @@ class DetectServiceStructureTest extends TestCase
     }
 
     #[Test]
-    public function shadow_mode_detects_with_the_candidate_model_and_restores_the_bound_model(): void
+    public function shadow_mode_compares_the_candidate_with_stored_authoritative_sections(): void
     {
         Config::set('media-processing.service_structure.mode', 'shadow');
         Config::set('media-processing.service_structure.model', 'gpt-5');
@@ -127,7 +127,7 @@ class DetectServiceStructureTest extends TestCase
             'start_time' => 100.0,
             'end_time' => 200.0,
             'status' => 'identified',
-            'metadata' => ['classification_mode' => 'audio_only'],
+            'metadata' => ['classification_mode' => 'llm_structure', 'model' => 'gpt-5'],
         ]);
 
         $detector = new class($boundStructure, $candidateStructure) implements ServiceStructureInterface
@@ -157,8 +157,63 @@ class DetectServiceStructureTest extends TestCase
             app(SermonCandidateConfidenceService::class),
         );
 
-        $this->assertSame(['gpt-5', 'gpt-6-candidate'], $detector->modelsAtDetectTime);
+        $this->assertSame(['gpt-6-candidate'], $detector->modelsAtDetectTime);
         $this->assertSame('gpt-5', config('media-processing.service_structure.model'), 'The bound model must be restored after the shadow run.');
+
+        $shadow = $log->refresh()->processing_metadata?->toArray()['service_structure_shadow'] ?? null;
+        $this->assertIsArray($shadow);
+        $this->assertSame(['gpt-5'], $shadow['diff']['baseline']['models'] ?? null);
+        $this->assertEqualsWithDelta(520.0, $shadow['diff']['sermon']['start_delta'], 0.01);
+        $this->assertEqualsWithDelta(1980.0, $shadow['diff']['sermon']['end_delta'], 0.01);
+    }
+
+    #[Test]
+    public function shadow_mode_runs_the_bound_model_when_authoritative_sections_are_missing(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'shadow');
+        Config::set('media-processing.service_structure.model', 'gpt-5');
+        Config::set('media-processing.service_structure.shadow_model', 'gpt-6-candidate');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+
+        $boundStructure = $this->validStructure();
+        $candidateStructure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('bible_reading', 420.0, 590.0),
+            $this->section('sermon', 620.0, 2180.0),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'gpt-6-candidate');
+
+        $detector = new class($boundStructure, $candidateStructure) implements ServiceStructureInterface
+        {
+            /** @var list<string> */
+            public array $modelsAtDetectTime = [];
+
+            public function __construct(
+                private readonly ServiceStructure $boundStructure,
+                private readonly ServiceStructure $candidateStructure,
+            ) {}
+
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = []): ServiceStructure
+            {
+                $model = (string) config('media-processing.service_structure.model');
+                $this->modelsAtDetectTime[] = $model;
+
+                return $model === 'gpt-6-candidate' ? $this->candidateStructure : $this->boundStructure;
+            }
+        };
+
+        (new DetectServiceStructure($log))->handle(
+            $detector,
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+
+        $this->assertSame(['gpt-5', 'gpt-6-candidate'], $detector->modelsAtDetectTime);
+        $this->assertSame('gpt-5', config('media-processing.service_structure.model'));
 
         $shadow = $log->refresh()->processing_metadata?->toArray()['service_structure_shadow'] ?? null;
         $this->assertIsArray($shadow);

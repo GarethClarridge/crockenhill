@@ -140,7 +140,16 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         ServiceStructureValidator $validator,
     ): void {
         try {
-            [$result, $transcript, $boundStructure] = $this->detectShadowCandidate($detector, $snapService, $validator);
+            $hasAuthoritativeSections = ServiceSection::query()
+                ->where('media_processing_log_id', $this->processingLog->id)
+                ->exists();
+
+            [$result, $transcript, $boundStructure] = $this->detectShadowCandidate(
+                $detector,
+                $snapService,
+                $validator,
+                requireBoundBaseline: ! $hasAuthoritativeSections,
+            );
 
             $classified = $result->structure->toClassifiedSections(
                 $this->processingLog,
@@ -148,9 +157,11 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
                 allowSegmentSynthesis: false,
             );
 
-            $diff = $boundStructure instanceof ServiceStructure
-                ? $this->diffAgainstBoundStructure($result->structure, $boundStructure)
-                : $this->diffAgainstAuthoritativeSections($result->structure);
+            $diff = $this->diffAgainstAuthoritativeSections($result->structure);
+
+            if (! $hasAuthoritativeSections && $boundStructure instanceof ServiceStructure) {
+                $diff = $this->diffAgainstBoundStructure($result->structure, $boundStructure);
+            }
 
             $this->putStructureMetadata(
                 'service_structure_shadow',
@@ -716,16 +727,14 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
         return $this->diffAgainstBaselineSections($structure, $baselineSections, [
             'classification_modes' => array_values($authoritativeSections
-                ->map(fn (ServiceSection $section): ?string => is_string($section->metadata['classification_mode'] ?? null)
-                    ? $section->metadata['classification_mode']
-                    : null)
+                ->map(fn (ServiceSection $section): ?string => $section->metadata->classificationMode)
                 ->filter()
                 ->unique()
                 ->values()
                 ->all()),
             'models' => array_values($authoritativeSections
-                ->map(fn (ServiceSection $section): ?string => is_string($section->metadata['model'] ?? null)
-                    ? $section->metadata['model']
+                ->map(fn (ServiceSection $section): ?string => is_string($section->metadata->raw['model'] ?? null)
+                    ? $section->metadata->raw['model']
                     : null)
                 ->filter()
                 ->unique()
@@ -850,6 +859,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         ServiceStructureInterface $detector,
         SilenceSnapService $snapService,
         ServiceStructureValidator $validator,
+        bool $requireBoundBaseline,
     ): array {
         $boundModel = (string) config('media-processing.service_structure.model', 'gpt-5');
         $shadowModel = config('media-processing.service_structure.shadow_model');
@@ -860,12 +870,16 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             return [$result, $transcript, null];
         }
 
-        [$boundResult] = $this->detectAndValidate($detector, $snapService, $validator);
-        $boundStructure = ServiceStructure::fromSections(
-            $boundResult->structure->sections,
-            $boundResult->structure->notes,
-            $boundModel,
-        );
+        $boundStructure = null;
+
+        if ($requireBoundBaseline) {
+            [$boundResult] = $this->detectAndValidate($detector, $snapService, $validator);
+            $boundStructure = ServiceStructure::fromSections(
+                $boundResult->structure->sections,
+                $boundResult->structure->notes,
+                $boundModel,
+            );
+        }
 
         config(['media-processing.service_structure.model' => $shadowModel]);
 
