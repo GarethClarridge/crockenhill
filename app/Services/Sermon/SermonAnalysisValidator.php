@@ -8,6 +8,7 @@ use App\Data\SermonAnalysis;
 use App\Services\BritishEnglishConverter;
 use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Traits\SanitizesLogData;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -83,20 +84,13 @@ class SermonAnalysisValidator
         }
 
         // Validate points (must be array of strings)
-        $points = [];
-        if (filled($analysisData['points'] ?? null) && is_array($analysisData['points'])) {
-            foreach ($analysisData['points'] as $point) {
-                if (filled($point) && is_string($point)) {
-                    $cleanPoint = $this->britishEnglishConverter->convert(trim($point));
-                    $points[] = $cleanPoint;
-                }
-            }
-        }
-
-        // Ensure we have at least some points
-        if (empty($points)) {
-            $points = ['Main Message']; // Fallback point
-        }
+        /** @var list<string> $points */
+        $points = Collection::make(is_array($analysisData['points'] ?? null) ? $analysisData['points'] : [])
+            ->filter(fn (mixed $point): bool => filled($point) && is_string($point))
+            ->map(fn (string $point): string => $this->britishEnglishConverter->convert(trim($point)))
+            ->values()
+            ->whenEmpty(fn (Collection $c): Collection => $c->push('Main Message'))
+            ->all();
 
         // Validate and clean summary
         $summary = $this->validateAndCleanSummary((string) ($analysisData['summary'] ?? ''));
@@ -190,15 +184,12 @@ class SermonAnalysisValidator
      */
     private function referenceIncludesChapter(string $canonicalReference): bool
     {
-        foreach (explode(',', $canonicalReference) as $passage) {
-            $withoutBookOrdinal = preg_replace('/^\s*[1-3]\s+/', '', trim($passage));
+        return collect(explode(',', $canonicalReference))
+            ->every(function (string $passage): bool {
+                $withoutBookOrdinal = preg_replace('/^\s*[1-3]\s+/', '', trim($passage));
 
-            if (! preg_match('/\d/', (string) $withoutBookOrdinal)) {
-                return false;
-            }
-        }
-
-        return true;
+                return (bool) preg_match('/\d/', (string) $withoutBookOrdinal);
+            });
     }
 
     /**
@@ -231,20 +222,22 @@ class SermonAnalysisValidator
 
         // Limit to approximately 200 words
         $words = explode(' ', $summary);
-        if (count($words) > 200) {
-            $words = array_slice($words, 0, 200);
-            $summary = implode(' ', $words);
 
-            // Try to end on a complete sentence
-            $lastPeriod = strrpos($summary, '.');
-            $lastExclamation = strrpos($summary, '!');
-            $lastQuestion = strrpos($summary, '?');
+        if (count($words) <= 200) {
+            return $summary;
+        }
 
-            $lastSentenceEnd = max($lastPeriod, $lastExclamation, $lastQuestion);
+        $summary = implode(' ', array_slice($words, 0, 200));
 
-            if ($lastSentenceEnd !== false && $lastSentenceEnd > strlen($summary) * 0.8) {
-                $summary = substr($summary, 0, $lastSentenceEnd + 1);
-            }
+        // Try to end on a complete sentence
+        $lastPeriod = strrpos($summary, '.');
+        $lastExclamation = strrpos($summary, '!');
+        $lastQuestion = strrpos($summary, '?');
+
+        $lastSentenceEnd = max($lastPeriod, $lastExclamation, $lastQuestion);
+
+        if ($lastSentenceEnd !== false && $lastSentenceEnd > strlen($summary) * 0.8) {
+            $summary = substr($summary, 0, $lastSentenceEnd + 1);
         }
 
         return $summary;
