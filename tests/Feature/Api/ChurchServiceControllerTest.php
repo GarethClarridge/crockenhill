@@ -483,6 +483,142 @@ class ChurchServiceControllerTest extends TestCase
         $this->assertDatabaseCount('church_services', 1);
     }
 
+    #[Test]
+    public function test_next_returns_nearest_upcoming_service_with_ordered_items(): void
+    {
+        ChurchService::factory()->create([
+            'date' => now()->subDays(7)->toDateString(),
+            'service' => SermonService::Morning,
+        ]);
+
+        $nearest = ChurchService::factory()->create([
+            'date' => now()->addDays(3)->toDateString(),
+            'service' => SermonService::Morning,
+        ]);
+
+        ChurchService::factory()->create([
+            'date' => now()->addDays(10)->toDateString(),
+            'service' => SermonService::Morning,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $nearest->id,
+            'position' => 2,
+            'title' => 'Second Item',
+        ]);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $nearest->id,
+            'position' => 1,
+            'title' => 'First Item',
+        ]);
+
+        $this->withToken($this->serviceTokenFor($this->admin))
+            ->getJson('/api/services/next')
+            ->assertOk()
+            ->assertJsonPath('data.id', $nearest->id)
+            ->assertJsonPath('data.items.0.title', 'First Item')
+            ->assertJsonPath('data.items.1.title', 'Second Item');
+    }
+
+    #[Test]
+    public function test_next_treats_today_as_upcoming(): void
+    {
+        $today = ChurchService::factory()->create([
+            'date' => now()->toDateString(),
+            'service' => SermonService::Morning,
+        ]);
+
+        $this->withToken($this->serviceTokenFor($this->admin))
+            ->getJson('/api/services/next')
+            ->assertOk()
+            ->assertJsonPath('data.id', $today->id);
+    }
+
+    #[Test]
+    public function test_next_prefers_morning_over_evening_on_the_same_date(): void
+    {
+        $date = now()->addDays(2)->toDateString();
+
+        ChurchService::factory()->create([
+            'date' => $date,
+            'service' => SermonService::Evening,
+        ]);
+
+        $morning = ChurchService::factory()->create([
+            'date' => $date,
+            'service' => SermonService::Morning,
+        ]);
+
+        $this->withToken($this->serviceTokenFor($this->admin))
+            ->getJson('/api/services/next')
+            ->assertOk()
+            ->assertJsonPath('data.id', $morning->id)
+            ->assertJsonPath('data.service', SermonService::Morning->value);
+    }
+
+    #[Test]
+    public function test_next_can_filter_by_service(): void
+    {
+        ChurchService::factory()->create([
+            'date' => now()->addDay()->toDateString(),
+            'service' => SermonService::Morning,
+        ]);
+
+        $evening = ChurchService::factory()->create([
+            'date' => now()->addDays(3)->toDateString(),
+            'service' => SermonService::Evening,
+        ]);
+
+        $this->withToken($this->serviceTokenFor($this->admin))
+            ->getJson('/api/services/next?service=evening')
+            ->assertOk()
+            ->assertJsonPath('data.id', $evening->id);
+    }
+
+    #[Test]
+    public function test_next_returns_404_when_no_upcoming_service_exists(): void
+    {
+        ChurchService::factory()->create([
+            'date' => now()->subDays(7)->toDateString(),
+            'service' => SermonService::Morning,
+        ]);
+
+        $this->withToken($this->serviceTokenFor($this->admin))
+            ->getJson('/api/services/next')
+            ->assertNotFound();
+    }
+
+    #[Test]
+    public function test_next_rejects_an_invalid_service_filter(): void
+    {
+        ChurchService::factory()->create([
+            'date' => now()->addDay()->toDateString(),
+            'service' => SermonService::Morning,
+        ]);
+
+        $this->withToken($this->serviceTokenFor($this->admin))
+            ->getJson('/api/services/next?service=afternoon')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['service']);
+    }
+
+    #[Test]
+    public function test_next_requires_authentication(): void
+    {
+        $this->getJson('/api/services/next')
+            ->assertUnauthorized();
+    }
+
+    #[Test]
+    public function test_next_requires_service_upload_ability(): void
+    {
+        $token = $this->admin->createToken('missing-ability', ['media:process'])->plainTextToken;
+
+        $this->withToken($token)
+            ->getJson('/api/services/next')
+            ->assertForbidden();
+    }
+
     private function serviceTokenFor(User $user): string
     {
         return $user->createToken('service-token', [ApiTokenAbility::ServiceUpload->value])->plainTextToken;

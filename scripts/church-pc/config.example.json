@@ -10,6 +10,11 @@
         "state_path": "recording-upload-state.json",
         "log_path": "upload-recording.log"
     },
+    "openlp_assembly": {
+        "openlp_api_url": "http://localhost:4316",
+        "openlp_auth_token": null,
+        "log_path": "build-openlp-service.log"
+    },
     "service_files": {
         "watch_folder": "C:\\Users\\Church\\Documents\\OpenLP Services",
         "max_age_hours": 12,

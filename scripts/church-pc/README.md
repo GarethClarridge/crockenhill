@@ -10,6 +10,7 @@ hold a checkout of, or credentials for, this repository.
 |---|---|---|
 | `Upload-Recording.ps1` | C1 | Watch the OBS output folder; upload finished recordings to `POST /api/media/livestream`; confirm processing started. |
 | `Upload-ServiceFile.ps1` | C4 | Watch OpenLP's service-file folder; upload saved `.osz` files to `POST /api/services/openlp` so live edits flow back to the canonical service record. |
+| `Build-OpenLpService.ps1` | C2 | Fetch the next service from `GET /api/services/next` and assemble it in OpenLP via its local web-remote API (songs auto-added; everything else printed as a checklist). |
 | `ChurchPcCommon.psm1` | — | Shared helpers (logging, token storage, upload state, stability checks, curl upload). Not run directly. |
 
 If a script fails, the manual workflow is unchanged: use the admin upload form.
@@ -79,6 +80,22 @@ If a script fails, the manual workflow is unchanged: use the admin upload form.
 
    Run them as the same account used in step 5 (DPAPI decryption is per-account).
 
+8. **Create the "Build today's service" shortcut** (C2, Sunday-morning prep).
+   Add a desktop shortcut with target:
+
+   ```
+   pwsh -NoProfile -File C:\ChurchAutomation\Build-OpenLpService.ps1
+   ```
+
+   The operator opens OpenLP, clicks the shortcut, and reviews the assembled
+   service. Requires OpenLP 3.x with its API/web remote active (default port
+   4316; set `openlp_assembly.openlp_api_url` if changed). If OpenLP's
+   optional API authentication is enabled, put the token in
+   `openlp_assembly.openlp_auth_token`. For an evening service, pass
+   `-Service evening`. Only songs are auto-added — OpenLP's API can only add
+   items that already exist in a library — so readings, notices and any
+   unmatched songs are printed as an ordered checklist to insert by hand.
+
 ## How the scripts decide what to upload
 
 Common gates (both scripts):
@@ -115,6 +132,11 @@ Service-file-specific (`Upload-ServiceFile.ps1`):
 - `403 Unauthorized action` — the token's user is not an admin.
 - `404` from the service-file upload — service tracking is disabled server-side
   (`service-tracking.enabled`).
+- `Cannot reach OpenLP` from the assembly script — OpenLP is not running, or
+  its API/web remote is disabled, or the port differs from
+  `openlp_assembly.openlp_api_url`.
+- Assembly script reports "No upcoming service found" — the mid-week email has
+  not been imported yet (check the review inbox), or you need `-Service evening`.
 - Recording accepted but no progress — check the admin media dashboard; the
   `processing_id` for every upload is in the log and in
   `recording-upload-state.json`.
