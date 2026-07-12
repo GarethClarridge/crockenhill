@@ -876,6 +876,13 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
         if ($requireBoundBaseline) {
             [$boundResult] = $this->detectAndValidate($detector, $snapService, $validator);
+
+            if (! $boundResult->passed()) {
+                throw new \UnexpectedValueException(
+                    'Bound service structure model did not produce a valid shadow baseline: '.$boundResult->failureSummary()
+                );
+            }
+
             $boundStructure = ServiceStructure::fromSections(
                 $boundResult->structure->sections,
                 $boundResult->structure->notes,
