@@ -207,26 +207,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         ServiceSectionSyncService $syncService,
         SermonCandidateConfidenceService $sermonConfidenceService,
     ): void {
-        [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
-
-        if (! $result->passed() && $this->detectionWorthRetrying($result)) {
-            Log::warning('Service structure output mechanically impossible; retrying detection once', [
-                'processing_id' => $this->processingLog->processing_id,
-                'failure_codes' => $result->failureCodes(),
-            ]);
-
-            $this->putStructureMetadata('service_structure_retry', [
-                'generated_at' => now()->toIso8601String(),
-                'failure_codes' => $result->failureCodes(),
-                'failure_summary' => $result->failureSummary(),
-            ]);
-
-            [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
-        }
-
-        if ($result->passed()) {
-            $result = $this->recheckMissingPreachedReading($result, $detector, $snapService, $validator);
-        }
+        [$result, $transcript] = $this->detectWithPrimaryRecovery($detector, $snapService, $validator);
 
         if (! $result->passed() && $this->reconcile) {
             // The run completed with validated sections; a failed re-detection
@@ -288,6 +269,40 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE,
             sprintf('Persisted %d LLM-detected section(s)', count($classified))
         );
+    }
+
+    /**
+     * Run the recovery steps required before detector output can become authoritative.
+     *
+     * @return array{0: ValidationResult, 1: ChurchServiceTranscript}
+     */
+    private function detectWithPrimaryRecovery(
+        ServiceStructureInterface $detector,
+        SilenceSnapService $snapService,
+        ServiceStructureValidator $validator,
+    ): array {
+        [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
+
+        if (! $result->passed() && $this->detectionWorthRetrying($result)) {
+            Log::warning('Service structure output mechanically impossible; retrying detection once', [
+                'processing_id' => $this->processingLog->processing_id,
+                'failure_codes' => $result->failureCodes(),
+            ]);
+
+            $this->putStructureMetadata('service_structure_retry', [
+                'generated_at' => now()->toIso8601String(),
+                'failure_codes' => $result->failureCodes(),
+                'failure_summary' => $result->failureSummary(),
+            ]);
+
+            [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
+        }
+
+        if ($result->passed()) {
+            $result = $this->recheckMissingPreachedReading($result, $detector, $snapService, $validator);
+        }
+
+        return [$result, $transcript];
     }
 
     /**
@@ -875,7 +890,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         $boundStructure = null;
 
         if ($requireBoundBaseline) {
-            [$boundResult] = $this->detectAndValidate($detector, $snapService, $validator);
+            [$boundResult] = $this->detectWithPrimaryRecovery($detector, $snapService, $validator);
 
             if (! $boundResult->passed()) {
                 throw new \UnexpectedValueException(

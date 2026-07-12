@@ -177,7 +177,11 @@ class DetectServiceStructureTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
         $this->storeTranscript($log);
 
-        $boundStructure = $this->validStructure();
+        $invalidBoundStructure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('sermon', 600.0, 41410.0),
+        ], model: 'gpt-5');
+        $recoveredBoundStructure = $this->validStructure();
         $candidateStructure = ServiceStructure::fromSections([
             $this->section('welcome', 0.0, 120.0),
             $this->section('bible_reading', 420.0, 590.0),
@@ -185,13 +189,16 @@ class DetectServiceStructureTest extends TestCase
             $this->section('song', 2210.0, 2400.0),
         ], model: 'gpt-6-candidate');
 
-        $detector = new class($boundStructure, $candidateStructure) implements ServiceStructureInterface
+        $detector = new class($invalidBoundStructure, $recoveredBoundStructure, $candidateStructure) implements ServiceStructureInterface
         {
             /** @var list<string> */
             public array $modelsAtDetectTime = [];
 
+            private int $boundAttempts = 0;
+
             public function __construct(
-                private readonly ServiceStructure $boundStructure,
+                private readonly ServiceStructure $invalidBoundStructure,
+                private readonly ServiceStructure $recoveredBoundStructure,
                 private readonly ServiceStructure $candidateStructure,
             ) {}
 
@@ -200,7 +207,13 @@ class DetectServiceStructureTest extends TestCase
                 $model = (string) config('media-processing.service_structure.model');
                 $this->modelsAtDetectTime[] = $model;
 
-                return $model === 'gpt-6-candidate' ? $this->candidateStructure : $this->boundStructure;
+                if ($model === 'gpt-6-candidate') {
+                    return $this->candidateStructure;
+                }
+
+                return $this->boundAttempts++ === 0
+                    ? $this->invalidBoundStructure
+                    : $this->recoveredBoundStructure;
             }
         };
 
@@ -212,7 +225,7 @@ class DetectServiceStructureTest extends TestCase
             app(SermonCandidateConfidenceService::class),
         );
 
-        $this->assertSame(['gpt-5', 'gpt-6-candidate'], $detector->modelsAtDetectTime);
+        $this->assertSame(['gpt-5', 'gpt-5', 'gpt-6-candidate'], $detector->modelsAtDetectTime);
         $this->assertSame('gpt-5', config('media-processing.service_structure.model'));
 
         $shadow = $log->refresh()->processing_metadata?->toArray()['service_structure_shadow'] ?? null;
@@ -264,7 +277,7 @@ class DetectServiceStructureTest extends TestCase
             app(SermonCandidateConfidenceService::class),
         );
 
-        $this->assertSame(['gpt-5'], $detector->modelsAtDetectTime);
+        $this->assertSame(['gpt-5', 'gpt-5'], $detector->modelsAtDetectTime);
         $this->assertSame('gpt-5', config('media-processing.service_structure.model'));
 
         $shadow = $log->refresh()->processing_metadata?->toArray()['service_structure_shadow'] ?? null;
