@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\MediaType;
 use App\Enums\ServiceSectionType;
 use Database\Factories\ChurchServiceItemFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -144,7 +145,13 @@ class ChurchServiceItem extends Model
             'source_title' => ['nullable', 'string', 'max:255'],
             'openlp_search_title' => ['nullable', 'string', 'max:255'],
             'song_id' => ['nullable', 'integer', 'min:1', 'max:9223372036854775807', 'exists:songs,id'],
-            'livestream_processing_id' => ['nullable', 'uuid'],
+            'metadata' => ['nullable', 'array'],
+            'livestream_processing_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists('media_processing_logs', 'processing_id')
+                    ->where('processing_type', MediaType::Livestream->value),
+            ],
             'livestream_service_section_id' => ['nullable', 'integer', 'min:1', 'max:9223372036854775807', 'exists:service_sections,id'],
         ];
     }
