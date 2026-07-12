@@ -24,6 +24,7 @@ class LivestreamChurchServiceProjectionService
         private readonly ChurchServiceItemSyncService $itemSyncService,
         private readonly ChurchServiceCanonicalStateService $canonicalStateService,
         private readonly ChurchServiceCanonicalUpdateService $canonicalUpdateService,
+        private readonly ChurchServiceReviewSynchronizer $reviewSynchronizer,
     ) {}
 
     /**
@@ -43,16 +44,30 @@ class LivestreamChurchServiceProjectionService
             return $this->skipped('No classified sections available for projection');
         }
 
+        $churchService = $this->findMatchingService($identity['date'], $identity['service']);
+
         $itemPayloads = $this->mapper->map($sections, $processingLog->processing_id);
 
         if ($itemPayloads === []) {
-            return $this->skipped('No projectable sections after filtering');
-        }
+            // Nothing is projectable, but the sections may still carry review
+            // state (an all-OTHER or all-low-confidence run is the run most in
+            // need of a reviewer) — link and roll up before skipping.
+            if ($churchService !== null) {
+                $this->linkProcessingLogToService($processingLog, $churchService);
+                $this->reviewSynchronizer->openReviewFromSections($churchService, $sections);
+            }
 
-        $churchService = $this->findMatchingService($identity['date'], $identity['service']);
+            return $this->skipped('No projectable sections after filtering', $churchService?->id);
+        }
 
         if ($churchService !== null && $this->hasNonLivestreamItems($churchService)) {
             $this->linkProcessingLogToService($processingLog, $churchService);
+
+            // OoS-backed services never reach projectItems()' needs_review
+            // propagation, and in primary mode no alignment pass rolls section
+            // review state up to the service — without this, a low-confidence
+            // structure run would never reach the review inbox.
+            $this->reviewSynchronizer->openReviewFromSections($churchService, $sections);
 
             return $this->skipped(
                 'Matching service contains non-livestream items; skipping projection',
