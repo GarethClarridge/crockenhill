@@ -6,7 +6,6 @@ namespace App\Presenters;
 
 use App\Models\Page;
 use App\Services\Public\PageImageCacheService;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class PageImagePresenter
 {
@@ -22,30 +21,6 @@ class PageImagePresenter
             || $urls['tablet'] !== null
             || $urls['mobile'] !== null
             || $urls['small'] !== null;
-    }
-
-    public function headingImageSrcset(Page $page): ?string
-    {
-        /** @var Media|null $media */
-        $media = $page->getFirstMedia('headings');
-
-        if (! $media instanceof Media) {
-            return null;
-        }
-
-        $srcset = [];
-
-        if ($media->hasGeneratedConversion('mobile')) {
-            $srcset[] = $media->getUrl('mobile').' 640w';
-        }
-        if ($media->hasGeneratedConversion('tablet')) {
-            $srcset[] = $media->getUrl('tablet').' 1024w';
-        }
-        if ($media->hasGeneratedConversion('desktop')) {
-            $srcset[] = $media->getUrl('desktop').' 1920w';
-        }
-
-        return $srcset !== [] ? implode(', ', $srcset) : null;
     }
 
     public function headingImageUrl(Page $page): ?string

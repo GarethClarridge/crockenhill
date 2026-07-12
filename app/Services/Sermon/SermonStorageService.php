@@ -9,7 +9,6 @@ use App\Support\Path;
 use App\Traits\SanitizesLogData;
 use Exception;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use LogicException;
@@ -497,54 +496,6 @@ class SermonStorageService
         }
 
         // Logic for clearing broad caches if needed (none currently)
-    }
-
-    /**
-     * Move a sermon file to a different disk
-     */
-    public function moveFile(Sermon $sermon, string $targetDisk): bool
-    {
-        $info = $this->getSermonFileInfo($sermon);
-
-        // Don't move if already on target disk
-        if ($info['disk'] === $targetDisk) {
-            return true;
-        }
-
-        // Check if source file exists
-        if (! Storage::disk($info['disk'])->exists($info['path'])) {
-            return false;
-        }
-
-        try {
-            // Read content from source disk
-            $content = Storage::disk($info['disk'])->get($info['path']);
-
-            if (! is_string($content)) {
-                return false;
-            }
-
-            // Write to target disk
-            Storage::disk($targetDisk)->put($info['path'], $content);
-
-            // Verify the file was written successfully
-            if (! Storage::disk($targetDisk)->exists($info['path'])) {
-                return false;
-            }
-
-            return true;
-        } catch (Exception $e) {
-            Log::error('Failed to move sermon file', $this->sanitizeArrayForLog([
-                'sermon_id' => $sermon->id,
-                'from_disk' => $info['disk'],
-                'to_disk' => $targetDisk,
-                'path' => $info['path'],
-                'error' => $e->getMessage(),
-                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]));
-
-            return false;
-        }
     }
 
     /**

@@ -351,15 +351,6 @@ class ProcessingPhaseRegistry
                 ],
             ],
             [
-                'key' => 'update_sermon_record',
-                'progress' => 87,
-                'job_offset' => 6,
-                'steps' => [
-                    'updating_sermon_record',
-                    'updating_sermon_record_failed',
-                ],
-            ],
-            [
                 'key' => 'send_notification',
                 'progress' => 92,
                 'job_offset' => 6,

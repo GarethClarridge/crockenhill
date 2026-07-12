@@ -127,52 +127,6 @@ class SermonStorageServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_moves_file_between_disks(): void
-    {
-        // Setup disks
-        Storage::fake('source_disk');
-        Storage::fake('target_disk');
-
-        // Configure sermon to use source disk
-        Config::set('media-processing.storage.sermon_disk', 'source_disk');
-        $this->service->clearInternalCaches();
-
-        $sermon = Sermon::factory()->create([
-            'audio_file_path' => 'sermons/move-me.mp3',
-        ]);
-
-        // Create file in source
-        Storage::disk('source_disk')->put('sermons/move-me.mp3', 'test content');
-
-        // Move to target
-        $result = $this->service->moveFile($sermon, 'target_disk');
-
-        $this->assertTrue($result);
-
-        // Check target
-        Storage::disk('target_disk')->assertExists('sermons/move-me.mp3');
-        $this->assertEquals('test content', Storage::disk('target_disk')->get('sermons/move-me.mp3'));
-
-        // Service doesn't delete source by default (commented out in code), verify this assumption
-        Storage::disk('source_disk')->assertExists('sermons/move-me.mp3');
-    }
-
-    #[Test]
-    public function it_fails_to_move_nonexistent_file(): void
-    {
-        Storage::fake('source_disk');
-        Storage::fake('target_disk');
-        Config::set('media-processing.storage.sermon_disk', 'source_disk');
-        $this->service->clearInternalCaches();
-
-        $sermon = Sermon::factory()->create(['audio_file_path' => 'sermons/gone.mp3']);
-
-        $result = $this->service->moveFile($sermon, 'target_disk');
-
-        $this->assertFalse($result);
-    }
-
-    #[Test]
     public function it_returns_video_url_for_sermon_with_video_path(): void
     {
         $sermon = Sermon::factory()->create([

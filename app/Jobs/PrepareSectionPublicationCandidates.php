@@ -9,7 +9,6 @@ use App\Data\ServiceSectionMetadata;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionPublicationStatus;
-use App\Enums\ServiceSectionStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
@@ -120,9 +119,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             $this->extractCandidateMediaIfNeeded($section, $handler, $videoExtractor, $storageHelper);
             $handler->afterExtraction($section);
 
-            $eligibleByStatus = $section->status === ServiceSectionStatus::Identified && ! $section->needs_manual_review;
-
-            if (! $eligibleByStatus) {
+            if ($section->needs_manual_review) {
                 if (
                     $section->publication_status === ServiceSectionPublicationStatus::Published
                     || $section->publication_status === ServiceSectionPublicationStatus::Approved

@@ -36,7 +36,7 @@ class TargetedSchemaGuardrailsTest extends TestCase
     {
         $this->assertSame('smallint unsigned', $this->columnType('livestream_segments', 'segment_index'));
         $this->assertSame(
-            "enum('identified','skipped')",
+            "enum('identified')",
             $this->columnType('service_sections', 'status')
         );
         $this->assertSame(

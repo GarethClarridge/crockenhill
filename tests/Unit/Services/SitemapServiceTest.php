@@ -118,9 +118,7 @@ class SitemapServiceTest extends TestCase
         $exposurePolicy->method('childrensTalksArePublic')->willReturn(false);
 
         $sermonRepository = $this->createStub(SermonRepository::class);
-        $sermonRepository->method('getLatestSermons')->willReturn(collect());
         $sermonRepository->method('getSermonsByService')->willReturn(collect());
-        $sermonRepository->method('getAllSermons')->willReturn(collect());
         $sermonRepository->method('getExistingSeries')->willReturn([]);
         $sermonRepository->method('getSeriesForDisplay')->willReturn([]);
         $sermonRepository->method('getScriptureBooks')->willReturn(collect(['Genesis', 'John']));

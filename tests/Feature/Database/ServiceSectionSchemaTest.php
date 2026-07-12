@@ -211,20 +211,15 @@ class ServiceSectionSchemaTest extends TestCase
     }
 
     #[Test]
-    public function skipped_sections_cannot_enter_the_publication_lifecycle(): void
+    public function removed_skipped_status_is_rejected_by_the_database(): void
     {
-        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create();
 
         $this->expectException(QueryException::class);
 
-        ServiceSection::factory()->create([
-            'media_processing_log_id' => $processingLog->id,
-            'status' => ServiceSectionStatus::Skipped->value,
-            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
-            'extracted_video_path' => 'sermons/sections/12/video.mp4',
-            'extracted_audio_path' => 'sermons/audio/section-12.mp3',
-            'extracted_at' => now(),
-        ]);
+        DB::table('service_sections')
+            ->where('id', $section->id)
+            ->update(['status' => 'skipped']);
     }
 
     #[Test]

@@ -115,7 +115,7 @@ class SermonCreationService
         throw SermonRichnessDowngradeException::forExisting(
             $existing,
             $service,
-            $this->incomingMediaType($processingLog, $options),
+            $this->incomingMediaType($processingLog),
         );
     }
 
@@ -134,14 +134,14 @@ class SermonCreationService
 
     private function detectIncomingRichness(MediaProcessingLog $processingLog, SermonCreationOptions $options): SermonRichnessLevel
     {
-        return match ($this->incomingMediaType($processingLog, $options)) {
+        return match ($this->incomingMediaType($processingLog)) {
             MediaType::Livestream => SermonRichnessLevel::Livestream,
             MediaType::Video => SermonRichnessLevel::Video,
             MediaType::Audio => SermonRichnessLevel::Audio,
         };
     }
 
-    private function incomingMediaType(MediaProcessingLog $processingLog, SermonCreationOptions $options): MediaType
+    private function incomingMediaType(MediaProcessingLog $processingLog): MediaType
     {
         return $processingLog->processing_type;
     }
@@ -240,7 +240,7 @@ class SermonCreationService
     ): Sermon {
         $updates = [];
 
-        $incoming = $this->incomingMediaType($processingLog, $options);
+        $incoming = $this->incomingMediaType($processingLog);
 
         if ($incoming === MediaType::Audio || $incoming === MediaType::Livestream) {
             $updates['audio_file_path'] = $options->audioFilePath;

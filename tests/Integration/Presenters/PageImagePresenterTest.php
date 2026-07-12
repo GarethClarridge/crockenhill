@@ -15,15 +15,6 @@ class PageImagePresenterTest extends TestCase
 {
     use RefreshDatabase;
 
-    private PageImagePresenter $presenter;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->presenter = app(PageImagePresenter::class);
-    }
-
     #[Test]
     public function has_image_returns_false_when_no_urls_are_available(): void
     {
@@ -60,15 +51,6 @@ class PageImagePresenterTest extends TestCase
         $presenter = new PageImagePresenter($cacheService);
 
         $this->assertTrue($presenter->hasImage($page));
-    }
-
-    #[Test]
-    public function heading_image_srcset_returns_null_when_page_has_no_media(): void
-    {
-        /** @var Page $page */
-        $page = Page::factory()->create();
-
-        $this->assertNull($this->presenter->headingImageSrcset($page));
     }
 
     #[Test]

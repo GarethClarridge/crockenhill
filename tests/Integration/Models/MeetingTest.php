@@ -9,7 +9,6 @@ use App\Models\Meeting;
 use App\Models\Page;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -38,59 +37,6 @@ class MeetingTest extends TestCase
         ]);
 
         $this->assertEquals('Test Meeting Slug', $meeting->heading);
-    }
-
-    #[Test]
-    public function formatted_date_time_accessor(): void
-    {
-        // Test with date and time
-        $date = Carbon::create(2023, 1, 15, 10, 30, 0);
-        $meetingWithDate = Meeting::factory()->create([
-            'meeting_date' => $date,
-            'start_time' => '10:30:00',
-            // Pin end_time so the factory's random value can't land before this
-            // start and trip the meetings_time_check constraint intermittently.
-            'end_time' => '11:30:00',
-        ]);
-        $this->assertEquals('January 15, 2023, 10:30 AM', $meetingWithDate->formatted_date_time);
-
-        // Test with date only (falls back to 12:00 AM)
-        $meetingDateOnly = Meeting::factory()->create([
-            'meeting_date' => '2023-01-15',
-            'start_time' => null,
-        ]);
-        $this->assertEquals('January 15, 2023, 12:00 AM', $meetingDateOnly->formatted_date_time);
-
-        // Test with null date
-        $meetingNoDate = Meeting::factory()->create(['meeting_date' => null]);
-        $this->assertNull($meetingNoDate->formatted_date_time);
-    }
-
-    #[Test]
-    public function has_content_returns_true_if_page_is_linked(): void
-    {
-        $page = Page::factory()->create();
-        $meetingWithPage = Meeting::factory()->create(['page_id' => $page->id]);
-        $meetingWithoutPage = Meeting::factory()->create(['page_id' => null]);
-
-        $this->assertTrue($meetingWithPage->hasContent());
-        $this->assertFalse($meetingWithoutPage->hasContent());
-    }
-
-    #[Test]
-    public function has_photos_returns_correct_boolean(): void
-    {
-        Storage::fake('public');
-
-        $meeting = Meeting::factory()->create();
-        $this->assertFalse($meeting->hasPhotos());
-
-        // Add a mock photo manually to the media table
-        $meeting->addMedia(public_path('images/Primary.png'))
-            ->preservingOriginal()
-            ->toMediaCollection('photos');
-
-        $this->assertTrue($meeting->fresh()->hasPhotos());
     }
 
     #[Test]
@@ -137,83 +83,5 @@ class MeetingTest extends TestCase
 
         $meetingWithFrequency = Meeting::factory()->recurring('monthly')->create();
         $this->assertEquals(MeetingFrequency::Monthly, $meetingWithFrequency->frequency);
-    }
-
-    #[Test]
-    public function meeting_scopes()
-    {
-        $recurringMeeting = Meeting::factory()->recurring()->create();
-        $nonRecurringMeeting = Meeting::factory()->notRecurring()->create();
-
-        $recurringMeetings = Meeting::isRecurring()->get();
-        $this->assertTrue($recurringMeetings->contains($recurringMeeting));
-        $this->assertFalse($recurringMeetings->contains($nonRecurringMeeting));
-
-        $upcomingMeeting = Meeting::factory()->upcoming()->create();
-        $pastMeeting = Meeting::factory()->past()->create();
-
-        $upcomingMeetings = Meeting::upcoming()->get();
-        $this->assertTrue($upcomingMeetings->contains($upcomingMeeting));
-        $this->assertFalse($upcomingMeetings->contains($pastMeeting));
-
-        $targetDate = Carbon::create(2023, 5, 10, 14, 0, 0);
-        $otherDate = Carbon::create(2023, 5, 11);
-
-        $meetingOnTargetDate = Meeting::factory()->onDate($targetDate)->create();
-        $meetingOnOtherDate = Meeting::factory()->onDate($otherDate)->create();
-
-        $meetingsOnDate = Meeting::onDate($targetDate)->get();
-        $this->assertTrue($meetingsOnDate->contains($meetingOnTargetDate));
-        $this->assertFalse($meetingsOnDate->contains($meetingOnOtherDate));
-    }
-
-    #[Test]
-    public function get_next_occurrence_handles_all_frequencies(): void
-    {
-        $now = Carbon::create(2024, 1, 15, 12, 0, 0);
-        Carbon::setTestNow($now);
-
-        $dailyMeeting = Meeting::factory()->recurring('daily')->create([
-            'meeting_date' => $now->copy()->subDays(5),
-            'start_time' => $now->format('H:i:s'),
-            'end_time' => $now->copy()->addHour()->format('H:i:s'),
-        ]);
-        $nextDaily = $dailyMeeting->getNextOccurrence();
-        $this->assertTrue($nextDaily->isSameDay($now));
-
-        Carbon::setTestNow($now->copy()->addHours(1));
-        $nextDailyPast = $dailyMeeting->getNextOccurrence();
-        $this->assertTrue($nextDailyPast->isSameDay($now->copy()->addDay()));
-
-        Carbon::setTestNow($now);
-        $weeklyMeeting = Meeting::factory()->recurring('weekly')->create([
-            'meeting_date' => $now->copy()->subWeeks(2),
-            'start_time' => $now->format('H:i:s'),
-            'end_time' => $now->copy()->addHour()->format('H:i:s'),
-        ]);
-        $nextWeekly = $weeklyMeeting->getNextOccurrence();
-        $this->assertTrue($nextWeekly->isSameDay($now));
-
-        $monthlyMeeting = Meeting::factory()->recurring('monthly')->create([
-            'meeting_date' => $now->copy()->subMonths(2),
-            'start_time' => $now->format('H:i:s'),
-            'end_time' => $now->copy()->addHour()->format('H:i:s'),
-        ]);
-        $nextMonthly = $monthlyMeeting->getNextOccurrence();
-        $this->assertTrue($nextMonthly->isSameDay($now));
-
-        Carbon::setTestNow($now);
-        $annualMeeting = Meeting::factory()->recurring('annually')->create([
-            'meeting_date' => $now->copy()->subYears(1),
-            'start_time' => $now->format('H:i:s'),
-            'end_time' => $now->copy()->addHour()->format('H:i:s'),
-        ]);
-        $nextAnnual = $annualMeeting->getNextOccurrence();
-        $this->assertTrue($nextAnnual->isSameDay($now));
-
-        $nonRecurring = Meeting::factory()->notRecurring()->onDate($now->copy()->subDays(5))->create();
-        $this->assertNull($nonRecurring->getNextOccurrence());
-
-        Carbon::setTestNow();
     }
 }

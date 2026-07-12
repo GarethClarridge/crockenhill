@@ -48,7 +48,6 @@ class ProcessingPhaseRegistryTest extends TestCase
             'create_sermon_record',
             'transcribe_audio',
             'analyze_transcript',
-            'update_sermon_record',
             'send_notification',
             'notification_complete',
             'cleanup',
@@ -66,7 +65,6 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame(53, $registry->progressForStep('transcribe_speech_segments', MediaType::Livestream));
         $this->assertSame(54, $registry->progressForStep('classify_speech_sections', MediaType::Livestream));
         $this->assertSame(55, $registry->progressForStep('align_with_oos', MediaType::Livestream));
-        $this->assertSame(87, $registry->progressForStep('updating_sermon_record'));
         $this->assertSame(92, $registry->progressForStep('sending_notification'));
         $this->assertSame(93, $registry->progressForStep('notification_sent'));
     }
@@ -76,7 +74,6 @@ class ProcessingPhaseRegistryTest extends TestCase
     {
         $registry = app(ProcessingPhaseRegistry::class);
 
-        $this->assertSame(87, $registry->progressForStep('updating_sermon_record', MediaType::Audio));
         $this->assertSame(89, $registry->progressForStep('generating_thumbnail', MediaType::Video));
         $this->assertSame(90, $registry->progressForStep('generating_thumbnail', MediaType::Livestream));
         $this->assertSame(88, $registry->progressForStep('assessing_video_quality', MediaType::Video));
