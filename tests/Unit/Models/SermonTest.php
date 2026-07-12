@@ -170,7 +170,7 @@ class SermonTest extends TestCase
                 ['slug' => $rules['slug']]
             );
 
-            $this->assertFalse($validator->errors()->has('slug.regex'), "Slug '{$slug}' should pass regex.");
+            $this->assertFalse($validator->fails(), "Slug '{$slug}' should be valid.");
         }
     }
 }
