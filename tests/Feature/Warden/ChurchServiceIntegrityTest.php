@@ -34,14 +34,14 @@ class ChurchServiceIntegrityTest extends TestCase
         $rules = ChurchServiceItem::validationRules();
 
         // Integer bounding
-        $this->assertTrue(Validator::make(['song_id' => 4294967296], ['song_id' => $rules['song_id']])->fails());
+        $this->assertTrue(Validator::make(['song_id' => 9223372036854775808], ['song_id' => $rules['song_id']])->fails());
         $this->assertTrue(Validator::make(['livestream_service_section_id' => 9223372036854775808], ['livestream_service_section_id' => $rules['livestream_service_section_id']])->fails());
 
         // String length overflow
         $longString = str_repeat('a', 256);
         $this->assertTrue(Validator::make(['source_title' => $longString], ['source_title' => $rules['source_title']])->fails());
         $this->assertTrue(Validator::make(['openlp_search_title' => $longString], ['openlp_search_title' => $rules['openlp_search_title']])->fails());
-        $this->assertTrue(Validator::make(['type' => $longString], ['type' => $rules['type']])->fails());
+        $this->assertTrue(Validator::make(['type' => str_repeat('a', 51)], ['type' => $rules['type']])->fails());
 
         // Non-existent processing ID
         $this->assertTrue(Validator::make(['livestream_processing_id' => (string) Str::uuid()], ['livestream_processing_id' => $rules['livestream_processing_id']])->fails());
@@ -58,6 +58,7 @@ class ChurchServiceIntegrityTest extends TestCase
 
         // File size bigint bound
         $this->assertTrue(Validator::make(['file_size' => -1], ['file_size' => $rules['file_size']])->fails());
+        $this->assertTrue(Validator::make(['file_size' => 9223372036854775808], ['file_size' => $rules['file_size']])->fails());
 
         // Stored file path
         $longString = str_repeat('a', 256);

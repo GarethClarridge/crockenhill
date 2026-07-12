@@ -139,7 +139,7 @@ class ChurchServiceItem extends Model
             'church_service_id' => ['required', 'integer', 'min:1', 'max:9223372036854775807', 'exists:church_services,id'],
             'position' => ['required', 'integer', 'min:1', 'max:4294967295'],
             'title' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'string', 'max:255'],
+            'type' => ['required', 'string', 'max:50'],
             'section_type' => ['nullable', Rule::enum(ServiceSectionType::class)],
             'source' => ['nullable', Rule::enum(ChurchServiceItemSource::class)],
             'source_title' => ['nullable', 'string', 'max:255'],
