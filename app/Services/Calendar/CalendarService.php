@@ -24,25 +24,6 @@ class CalendarService
     /**
      * @return Collection<int, CalendarEvent>
      */
-    public function getEventsForMeeting(string $meetingSlug, ?Carbon $startDate = null, ?Carbon $endDate = null): Collection
-    {
-        $query = $this->meetingEventsQuery($meetingSlug)
-            ->orderBy('start_datetime');
-
-        if ($startDate) {
-            $query->where('start_datetime', '>=', $startDate);
-        }
-
-        if ($endDate) {
-            $query->where('start_datetime', '<=', $endDate);
-        }
-
-        return $query->get();
-    }
-
-    /**
-     * @return Collection<int, CalendarEvent>
-     */
     public function getUpcomingEventsForMeeting(string $meetingSlug, ?Carbon $from = null): Collection
     {
         return $this->meetingEventsQuery($meetingSlug)
@@ -61,24 +42,6 @@ class CalendarService
             ->orderByDesc('start_datetime')
             ->limit($limit)
             ->get();
-    }
-
-    /**
-     * @return Collection<int, CalendarEvent>
-     */
-    public function getAllUpcomingEvents(?Carbon $startDate = null, ?Carbon $endDate = null): Collection
-    {
-        $query = CalendarEvent::query()
-            ->forCard()
-            ->confirmed()
-            ->where('start_datetime', '>=', $startDate ?? now())
-            ->orderBy('start_datetime');
-
-        if ($endDate) {
-            $query->where('start_datetime', '<=', $endDate);
-        }
-
-        return $query->get();
     }
 
     /**

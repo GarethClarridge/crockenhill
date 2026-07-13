@@ -77,26 +77,6 @@ class VideoStorageServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_cleans_up_expired_files(): void
-    {
-        Config::set('media-processing.temp_file_retention_hours', 24);
-
-        $recentFile = 'livestream/temp/recent.mp4';
-        $expiredFile = 'livestream/temp/expired.mp4';
-        Storage::disk('local_temp')->put($recentFile, 'recent');
-        Storage::disk('local_temp')->put($expiredFile, 'content');
-
-        touch(Storage::disk('local_temp')->path($expiredFile), now()->subHours(48)->timestamp);
-        touch(Storage::disk('local_temp')->path($recentFile), now()->subHours(1)->timestamp);
-
-        $deletedCount = $this->service->cleanupExpiredFiles();
-
-        $this->assertEquals(1, $deletedCount);
-        Storage::disk('local_temp')->assertMissing($expiredFile);
-        Storage::disk('local_temp')->assertExists($recentFile);
-    }
-
-    #[Test]
     public function it_gets_storage_stats_correctly(): void
     {
         Storage::fake('local_temp');
@@ -176,17 +156,6 @@ class VideoStorageServiceTest extends TestCase
         // validateStorageSpace uses disk_free_space which is hard to mock without overcomplicating.
         // It should return true if an exception occurs.
         $this->assertTrue($this->service->validateStorageSpace(1024));
-    }
-
-    #[Test]
-    public function it_implements_interface_methods(): void
-    {
-        $file = UploadedFile::fake()->create('test.mp4', 1024);
-        $result = $this->service->storeTemporary($file);
-        $this->assertArrayHasKey('temp_path', $result);
-
-        // We don't fully test moveToPermanent and cleanup here as they delegate to already tested methods
-        $this->service->cleanup('some-id');
     }
 
     #[Test]

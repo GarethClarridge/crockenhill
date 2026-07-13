@@ -83,7 +83,7 @@ class SermonAnalysisServiceTest extends TestCase
             CreateResponse::fake($mockResponse),
         ]);
 
-        $result = $this->service->analyzeSermon($transcript);
+        $result = $this->service->analyzeSermon($transcript, processingId: 'test-processing-id');
 
         $this->assertInstanceOf(SermonAnalysis::class, $result);
         $this->assertEquals('The Grace of God', $result->title);
@@ -109,7 +109,7 @@ class SermonAnalysisServiceTest extends TestCase
 
         $this->expectException(\Exception::class);
 
-        $this->service->analyzeSermon($transcript);
+        $this->service->analyzeSermon($transcript, processingId: 'test-processing-id');
     }
 
     #[Test]
@@ -123,7 +123,7 @@ class SermonAnalysisServiceTest extends TestCase
 
         $this->expectException(\Exception::class);
 
-        $this->service->analyzeSermon($transcript);
+        $this->service->analyzeSermon($transcript, processingId: 'test-processing-id');
     }
 
     #[Test]
@@ -137,7 +137,7 @@ class SermonAnalysisServiceTest extends TestCase
 
         $this->expectException(\Exception::class);
 
-        $this->service->analyzeSermon($transcript);
+        $this->service->analyzeSermon($transcript, processingId: 'test-processing-id');
 
         OpenAI::assertSent(Chat::class, 1);
     }
@@ -172,7 +172,7 @@ class SermonAnalysisServiceTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessageMatches('/AI title exceeds/');
 
-        $this->service->analyzeSermon($transcript);
+        $this->service->analyzeSermon($transcript, processingId: 'test-processing-id');
     }
 
     #[Test]
@@ -186,121 +186,6 @@ class SermonAnalysisServiceTest extends TestCase
 
         $this->expectException(\Exception::class);
 
-        $this->service->analyzeSermon($transcript);
-    }
-
-    #[Test]
-    public function it_generates_a_title_from_transcript(): void
-    {
-        $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
-
-        OpenAI::fake([
-            CreateResponse::fake([
-                'choices' => [
-                    [
-                        'message' => [
-                            'content' => json_encode([
-                                'title' => 'Generated Title',
-                                'series' => null,
-                                'reference' => null,
-                                'points' => ['Point'],
-                                'summary' => 'Summary',
-                            ]),
-                        ],
-                    ],
-                ],
-            ]),
-        ]);
-
-        $title = $this->service->generateTitle($transcript);
-
-        $this->assertEquals('Generated Title', $title);
-    }
-
-    #[Test]
-    public function it_identifies_series_from_transcript(): void
-    {
-        $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
-        $existingSeries = ['Grace Series', 'John Series'];
-
-        OpenAI::fake([
-            CreateResponse::fake([
-                'choices' => [
-                    [
-                        'message' => [
-                            'content' => json_encode([
-                                'title' => 'Sermon Title',
-                                'series' => 'Grace Series',
-                                'reference' => null,
-                                'points' => ['Point'],
-                                'summary' => 'Summary',
-                            ]),
-                        ],
-                    ],
-                ],
-            ]),
-        ]);
-
-        $series = $this->service->identifySeries($transcript, $existingSeries);
-
-        $this->assertEquals('Grace Series', $series);
-    }
-
-    #[Test]
-    public function it_extracts_bible_passage_from_transcript(): void
-    {
-        $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
-
-        OpenAI::fake([
-            CreateResponse::fake([
-                'choices' => [
-                    [
-                        'message' => [
-                            'content' => json_encode([
-                                'title' => 'Sermon Title',
-                                'series' => null,
-                                'reference' => 'John 3:16',
-                                'points' => ['Point'],
-                                'summary' => 'Summary',
-                            ]),
-                        ],
-                    ],
-                ],
-            ]),
-        ]);
-
-        $reference = $this->service->extractBiblePassage($transcript);
-
-        $this->assertEquals('John 3:16', $reference);
-    }
-
-    #[Test]
-    public function it_extracts_sermon_points_from_transcript(): void
-    {
-        $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
-
-        OpenAI::fake([
-            CreateResponse::fake([
-                'choices' => [
-                    [
-                        'message' => [
-                            'content' => json_encode([
-                                'title' => 'Sermon Title',
-                                'series' => null,
-                                'reference' => null,
-                                'points' => ['Point 1', 'Point 2'],
-                                'summary' => 'Summary',
-                            ]),
-                        ],
-                    ],
-                ],
-            ]),
-        ]);
-
-        $points = $this->service->extractSermonPoints($transcript);
-
-        $this->assertCount(2, $points);
-        $this->assertEquals('Point 1', $points[0]);
-        $this->assertEquals('Point 2', $points[1]);
+        $this->service->analyzeSermon($transcript, processingId: 'test-processing-id');
     }
 }

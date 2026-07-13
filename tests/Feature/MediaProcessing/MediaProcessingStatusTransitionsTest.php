@@ -271,8 +271,6 @@ class MediaProcessingStatusTransitionsTest extends TestCase
             'audio initiated from livestream' => [MediaType::Audio,     ProcessingStatus::Processing, 'initiated_from_livestream',          10],
             'audio initiated from livestream with source id' => [MediaType::Audio,     ProcessingStatus::Processing, 'initiated_from_livestream:ls-123',   10],
             'livestream restarting from beginning' => [MediaType::Livestream, ProcessingStatus::Processing, 'restarting_from_beginning',          10],
-            'audio updating sermon record' => [MediaType::Audio,     ProcessingStatus::Processing, 'updating_sermon_record',             87],
-            'video updating sermon record' => [MediaType::Video,     ProcessingStatus::Processing, 'updating_sermon_record',             87],
             'audio sending notification' => [MediaType::Audio,     ProcessingStatus::Processing, 'sending_notification',               92],
             'audio notification sent' => [MediaType::Audio,     ProcessingStatus::Processing, 'notification_sent',                  93],
             'audio notification skipped' => [MediaType::Audio,     ProcessingStatus::Processing, 'notification_skipped',               93],

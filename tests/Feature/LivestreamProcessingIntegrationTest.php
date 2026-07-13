@@ -33,7 +33,6 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Media\Video\VideoSegmentationService;
 use App\Services\Media\Video\VideoStorageService;
-use App\Services\Processing\SermonProcessingLogger;
 use App\Services\Sermon\LivestreamSegmentationService;
 use Illuminate\Bus\PendingBatch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -322,45 +321,6 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $this->assertEquals(SermonSourceType::Livestream, $sermon->source_type);
         $this->assertNotNull($sermon->video_file_path);
 
-    }
-
-    public function test_logging_integration()
-    {
-        $logger = app(SermonProcessingLogger::class);
-        $processingId = 'test-logging-integration';
-
-        // Create a processing record with segments
-        $processing = MediaProcessingLog::factory()->create([
-            'processing_id' => $processingId,
-            'status' => 'completed',
-            'original_filename' => 'test-video.mp4',
-            'file_size' => 500000000,
-            'duration' => 1800.0,
-            'sermon_id' => null,
-            'completed_at' => now(),
-        ]);
-
-        $processing = MediaProcessingLog::where('processing_id', $processingId)->first();
-        LivestreamSegment::factory()
-            ->count(3)
-            ->sequence(fn ($sequence) => ['segment_index' => $sequence->index + 1])
-            ->create([
-                'media_processing_log_id' => $processing->id,
-            ]);
-
-        // Generate processing report
-        $report = $logger->generateProcessingReport($processingId);
-
-        $this->assertEquals($processingId, $report->getStatus() !== 'unknown' ? $processingId : $processingId);
-        $this->assertEquals('completed', $report->getStatus());
-        $this->assertEquals(3, $report->getSegmentCount());
-        $this->assertFalse($report->hasErrors());
-
-        $reportData = $report->toArray();
-        $this->assertEquals('test-video.mp4', $reportData['original_filename']);
-        $this->assertEquals(476.84, $reportData['file_size_mb']); // ~500MB
-        $this->assertEquals(1800.0, $reportData['duration_seconds']);
-        $this->assertEquals('not_started', $reportData['sermon_processing_status']);
     }
 
     private function createMockRmsLog(): string

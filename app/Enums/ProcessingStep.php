@@ -86,7 +86,6 @@ enum ProcessingStep: string
     // -------------------------------------------------------------------------
     case GeneratingThumbnail = 'generating_thumbnail';
     case PreparingSectionPublicationCandidates = 'preparing_section_publication_candidates';
-    case UpdatingSermonRecord = 'updating_sermon_record';
     case Cleanup = 'cleanup';
 
     // -------------------------------------------------------------------------
@@ -107,7 +106,6 @@ enum ProcessingStep: string
     case CreatingSermonRecordFailed = 'creating_sermon_record_failed';
     case TranscribingAudioFailed = 'transcribing_audio_failed';
     case AnalyzingTranscriptFailed = 'analyzing_transcript_failed';
-    case UpdatingSermonRecordFailed = 'updating_sermon_record_failed';
     case ManualReviewRequired = 'manual_review_required';
     case ManualReviewConfirmed = 'manual_review_confirmed';
     case Cancelled = 'cancelled';
