@@ -38,7 +38,7 @@ class SermonStorageMaintenanceServiceTest extends TestCase
     #[Test]
     public function it_migrates_storage_copies_legacy_sermons_through_shared_service(): void
     {
-        Sermon::factory()->create([
+        $sermon = Sermon::factory()->create([
             'audio_file_path' => 'legacy-sermon',
             'filetype' => 'mp3',
         ]);
@@ -53,6 +53,68 @@ class SermonStorageMaintenanceServiceTest extends TestCase
 
         $this->assertSame(1, $result['summary']['migrated']);
         Storage::disk('do_spaces')->assertExists('legacy/sermons/legacy-sermon.mp3');
+        $this->assertSame('legacy/sermons/legacy-sermon.mp3', $sermon->refresh()->audio_file_path);
+    }
+
+    #[Test]
+    public function it_canonicalises_a_legacy_path_when_the_target_file_already_exists(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'audio_file_path' => 'legacy-sermon',
+            'filetype' => 'mp3',
+        ]);
+        Storage::disk('do_spaces')->put('legacy/sermons/legacy-sermon.mp3', 'legacy-content');
+
+        $dryRunResult = $this->service->migrateStorage(
+            targetDisk: 'do_spaces',
+            patterns: ['legacy'],
+            dryRun: true,
+            batchSize: 10,
+        );
+
+        $this->assertSame(1, $dryRunResult['summary']['migrated']);
+        $this->assertSame('legacy-sermon', $sermon->refresh()->audio_file_path);
+
+        $result = $this->service->migrateStorage(
+            targetDisk: 'do_spaces',
+            patterns: ['legacy'],
+            dryRun: false,
+            batchSize: 10,
+        );
+
+        $this->assertSame(1, $result['summary']['migrated']);
+        $this->assertSame('legacy/sermons/legacy-sermon.mp3', $sermon->refresh()->audio_file_path);
+    }
+
+    #[Test]
+    public function it_canonicalises_every_legacy_path_across_multiple_batches(): void
+    {
+        $sermons = Sermon::factory()->count(3)->sequence(
+            ['audio_file_path' => 'legacy-one', 'filetype' => 'mp3'],
+            ['audio_file_path' => 'legacy-two', 'filetype' => 'mp3'],
+            ['audio_file_path' => 'legacy-three', 'filetype' => 'mp3'],
+        )->create();
+
+        foreach (['legacy-one', 'legacy-two', 'legacy-three'] as $filename) {
+            Storage::disk('do_spaces')->put("legacy/sermons/{$filename}.mp3", 'legacy-content');
+        }
+
+        $result = $this->service->migrateStorage(
+            targetDisk: 'do_spaces',
+            patterns: ['legacy'],
+            dryRun: false,
+            batchSize: 1,
+        );
+
+        $this->assertSame(3, $result['summary']['migrated']);
+        $this->assertSame(
+            [
+                'legacy/sermons/legacy-one.mp3',
+                'legacy/sermons/legacy-two.mp3',
+                'legacy/sermons/legacy-three.mp3',
+            ],
+            $sermons->map(fn (Sermon $sermon): ?string => $sermon->refresh()->audio_file_path)->all(),
+        );
     }
 
     #[Test]

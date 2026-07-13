@@ -26,7 +26,7 @@ class MigrateSermonStorageCommandTest extends TestCase
 
     public function test_it_migrates_legacy_sermons_via_shared_storage_service(): void
     {
-        Sermon::factory()->create([
+        $sermon = Sermon::factory()->create([
             'audio_file_path' => 'legacy-sermon',
             'filetype' => 'mp3',
         ]);
@@ -37,5 +37,6 @@ class MigrateSermonStorageCommandTest extends TestCase
             ->assertSuccessful();
 
         Storage::disk('do_spaces')->assertExists('legacy/sermons/legacy-sermon.mp3');
+        $this->assertSame('legacy/sermons/legacy-sermon.mp3', $sermon->refresh()->audio_file_path);
     }
 }

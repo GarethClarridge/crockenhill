@@ -6,6 +6,7 @@ namespace App\Services\Sermon;
 
 use App\Models\Sermon;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 /**
  * @phpstan-type MigrationSummary array{examined:int,migrated:int,skipped:int,missing:int,failed:int}
@@ -60,7 +61,7 @@ class SermonStorageMaintenanceService
                 default => Sermon::query()->whereRaw('1 = 0'),
             };
 
-            foreach ($query->lazy($batchSize) as $sermon) {
+            foreach ($query->lazyById($batchSize) as $sermon) {
                 $summary['examined']++;
                 $migration = $this->migrateSermonRecord($sermon, $targetDisk, $dryRun);
                 $summary[$migration['summary_key']]++;
@@ -321,15 +322,42 @@ class SermonStorageMaintenanceService
     private function migrateSermonRecord(Sermon $sermon, string $targetDisk, bool $dryRun): array
     {
         $fileInfo = $this->sermonStorageService->getSermonFileInfo($sermon);
-        $sourceDisk = $fileInfo['type'] === 'legacy'
+        $isLegacy = $fileInfo['type'] === 'legacy';
+        $sourceDisk = $isLegacy
             ? 'public_images'
             : $fileInfo['disk'];
-        $sourcePath = $fileInfo['type'] === 'legacy'
+        $sourcePath = $isLegacy
             ? $fileInfo['original_path']
             : $fileInfo['path'];
         $targetPath = $fileInfo['path'];
 
         if (Storage::disk($targetDisk)->exists($targetPath)) {
+            if ($isLegacy && $dryRun) {
+                return [
+                    'status' => 'dry-run',
+                    'summary_key' => 'migrated',
+                    'label' => "#{$sermon->id} would canonicalise {$sermon->audio_file_path} -> {$targetPath}",
+                ];
+            }
+
+            if ($isLegacy) {
+                try {
+                    $this->canonicaliseLegacyPath($sermon, $targetPath);
+                } catch (\Throwable $exception) {
+                    return [
+                        'status' => 'error',
+                        'summary_key' => 'failed',
+                        'label' => "#{$sermon->id} failed: {$exception->getMessage()}",
+                    ];
+                }
+
+                return [
+                    'status' => 'ok',
+                    'summary_key' => 'migrated',
+                    'label' => "#{$sermon->id} canonicalised {$targetPath}",
+                ];
+            }
+
             return [
                 'status' => 'skip',
                 'summary_key' => 'skipped',
@@ -356,6 +384,10 @@ class SermonStorageMaintenanceService
         try {
             $this->copyFile($sourceDisk, $sourcePath, $targetDisk, $targetPath);
 
+            if ($isLegacy) {
+                $this->canonicaliseLegacyPath($sermon, $targetPath);
+            }
+
             return [
                 'status' => 'ok',
                 'summary_key' => 'migrated',
@@ -367,6 +399,20 @@ class SermonStorageMaintenanceService
                 'summary_key' => 'failed',
                 'label' => "#{$sermon->id} failed: {$exception->getMessage()}",
             ];
+        }
+    }
+
+    private function canonicaliseLegacyPath(Sermon $sermon, string $targetPath): void
+    {
+        $originalPath = $sermon->audio_file_path;
+
+        $updated = Sermon::query()
+            ->whereKey($sermon->getKey())
+            ->where('audio_file_path', $originalPath)
+            ->update(['audio_file_path' => $targetPath]);
+
+        if ($updated !== 1) {
+            throw new RuntimeException("Sermon #{$sermon->id} changed while its storage path was being canonicalised.");
         }
     }
 
@@ -435,13 +481,13 @@ class SermonStorageMaintenanceService
         $content = Storage::disk($sourceDisk)->get($sourcePath);
 
         if (! is_string($content)) {
-            throw new \RuntimeException("Unable to read {$sourcePath} from {$sourceDisk}");
+            throw new RuntimeException("Unable to read {$sourcePath} from {$sourceDisk}");
         }
 
         $written = Storage::disk($targetDisk)->put($targetPath, $content);
 
         if ($written !== true) {
-            throw new \RuntimeException("Unable to write {$targetPath} to {$targetDisk}");
+            throw new RuntimeException("Unable to write {$targetPath} to {$targetDisk}");
         }
 
         $this->verifyCopiedFile($sourceDisk, $sourcePath, $targetDisk, $targetPath);
@@ -480,7 +526,7 @@ class SermonStorageMaintenanceService
             }
         }
 
-        throw new \RuntimeException("Verification failed for {$targetPath}");
+        throw new RuntimeException("Verification failed for {$targetPath}");
     }
 
     private function isEventuallyConsistentDisk(string $disk): bool
