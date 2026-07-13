@@ -35,7 +35,7 @@ class SermonExposurePolicy
          * Performance Optimization: Resolve and store configuration values in the constructor
          * to avoid redundant config() lookups during high-frequency request cycles.
          */
-        $this->childrensTalksArePublic = (bool) config('sermons.childrens_talks.public', false);
+        $this->childrensTalksArePublic = (bool) config('church.sermons.childrens_talks.public', false);
         $this->enforceVideoQuality = (bool) config('media-processing.video_quality.enforce_public_visibility', true);
         $this->hideNeedsReviewVideo = (bool) config('media-processing.video_quality.hide_needs_review', false);
     }
@@ -49,7 +49,7 @@ class SermonExposurePolicy
     public function childrensTalksArePublic(): bool
     {
         if (app()->environment('testing')) {
-            return (bool) config('sermons.childrens_talks.public', false);
+            return (bool) config('church.sermons.childrens_talks.public', false);
         }
 
         return $this->childrensTalksArePublic;

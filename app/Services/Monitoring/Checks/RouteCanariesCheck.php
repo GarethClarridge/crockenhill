@@ -23,7 +23,7 @@ class RouteCanariesCheck extends Check
 {
     public function run(): Result
     {
-        if (! config('monitoring.enabled', true)) {
+        if (! config('health.route_canaries.enabled', true)) {
             return Result::make()
                 ->ok('Route canary monitoring is disabled.')
                 ->shortSummary('Disabled');

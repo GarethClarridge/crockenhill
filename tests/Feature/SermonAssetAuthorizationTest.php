@@ -30,7 +30,7 @@ class SermonAssetAuthorizationTest extends TestCase
     #[Test]
     public function guest_is_redirected_when_accessing_private_childrens_talk_audio(): void
     {
-        Config::set('sermons.childrens_talks.public', false);
+        Config::set('church.sermons.childrens_talks.public', false);
 
         $talk = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -46,7 +46,7 @@ class SermonAssetAuthorizationTest extends TestCase
     #[Test]
     public function guest_is_redirected_when_accessing_private_childrens_talk_video(): void
     {
-        Config::set('sermons.childrens_talks.public', false);
+        Config::set('church.sermons.childrens_talks.public', false);
 
         $talk = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -62,7 +62,7 @@ class SermonAssetAuthorizationTest extends TestCase
     #[Test]
     public function guest_is_redirected_when_accessing_private_childrens_talk_thumbnail(): void
     {
-        Config::set('sermons.childrens_talks.public', false);
+        Config::set('church.sermons.childrens_talks.public', false);
 
         $talk = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -78,7 +78,7 @@ class SermonAssetAuthorizationTest extends TestCase
     #[Test]
     public function guest_is_redirected_when_accessing_private_childrens_talk_card_thumbnail(): void
     {
-        Config::set('sermons.childrens_talks.public', false);
+        Config::set('church.sermons.childrens_talks.public', false);
 
         $talk = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -96,7 +96,7 @@ class SermonAssetAuthorizationTest extends TestCase
     #[Test]
     public function guest_can_access_childrens_talk_audio_when_public(): void
     {
-        Config::set('sermons.childrens_talks.public', true);
+        Config::set('church.sermons.childrens_talks.public', true);
 
         $talk = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -112,7 +112,7 @@ class SermonAssetAuthorizationTest extends TestCase
     #[Test]
     public function guest_can_access_childrens_talk_thumbnail_when_public(): void
     {
-        Config::set('sermons.childrens_talks.public', true);
+        Config::set('church.sermons.childrens_talks.public', true);
 
         $talk = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -128,7 +128,7 @@ class SermonAssetAuthorizationTest extends TestCase
     #[Test]
     public function guest_can_access_childrens_talk_video_when_public(): void
     {
-        Config::set('sermons.childrens_talks.public', true);
+        Config::set('church.sermons.childrens_talks.public', true);
 
         $talk = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -146,7 +146,7 @@ class SermonAssetAuthorizationTest extends TestCase
     #[Test]
     public function authenticated_user_can_access_private_childrens_talk_audio(): void
     {
-        Config::set('sermons.childrens_talks.public', false);
+        Config::set('church.sermons.childrens_talks.public', false);
         $user = User::factory()->create();
 
         $talk = Sermon::factory()->create([
@@ -163,7 +163,7 @@ class SermonAssetAuthorizationTest extends TestCase
     #[Test]
     public function authenticated_user_can_access_private_childrens_talk_video(): void
     {
-        Config::set('sermons.childrens_talks.public', false);
+        Config::set('church.sermons.childrens_talks.public', false);
         $user = User::factory()->create();
 
         $talk = Sermon::factory()->create([
@@ -183,7 +183,7 @@ class SermonAssetAuthorizationTest extends TestCase
     public function guest_can_always_access_regular_sermon_audio(): void
     {
         // Public talk setting shouldn't affect regular sermons
-        Config::set('sermons.childrens_talks.public', false);
+        Config::set('church.sermons.childrens_talks.public', false);
 
         $sermon = Sermon::factory()->create([
             'content_type' => SermonContentType::Sermon,

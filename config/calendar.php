@@ -40,16 +40,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Uncategorized Slug
-    |--------------------------------------------------------------------------
-    |
-    | The meeting slug to use for events that don't match any pattern.
-    |
-    */
-    'uncategorized_slug' => 'uncategorized',
-
-    /*
-    |--------------------------------------------------------------------------
     | Sync Window
     |--------------------------------------------------------------------------
     |
@@ -72,7 +62,6 @@ return [
     */
     'performance' => [
         'eager_load_limit' => 100,   // Limit for eager loading calendar events
-        'cache_duration' => 3600,    // Cache duration in seconds (1 hour)
     ],
 
     /*

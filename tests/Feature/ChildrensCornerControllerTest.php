@@ -37,7 +37,7 @@ class ChildrensCornerControllerTest extends TestCase
     #[Test]
     public function index_redirects_unauthenticated_guests_when_not_public(): void
     {
-        config(['sermons.childrens_talks.public' => false]);
+        config(['church.sermons.childrens_talks.public' => false]);
 
         $response = $this->get('/christ/childrens-corner');
         $response->assertRedirect(route('login'));
@@ -46,7 +46,7 @@ class ChildrensCornerControllerTest extends TestCase
     #[Test]
     public function show_redirects_unauthenticated_guests_when_not_public(): void
     {
-        config(['sermons.childrens_talks.public' => false]);
+        config(['church.sermons.childrens_talks.public' => false]);
 
         $talk = Sermon::factory()->create([
             'slug' => 'a-talk-for-children',
@@ -62,7 +62,7 @@ class ChildrensCornerControllerTest extends TestCase
     #[Test]
     public function authenticated_user_can_access_index(): void
     {
-        config(['sermons.childrens_talks.public' => false]);
+        config(['church.sermons.childrens_talks.public' => false]);
 
         $user = User::factory()->create();
         $response = $this->actingAs($user)->get('/christ/childrens-corner');
@@ -73,7 +73,7 @@ class ChildrensCornerControllerTest extends TestCase
     #[Test]
     public function authenticated_user_can_view_a_talk(): void
     {
-        config(['sermons.childrens_talks.public' => false]);
+        config(['church.sermons.childrens_talks.public' => false]);
 
         $user = User::factory()->create();
         $talk = Sermon::factory()->create([
@@ -90,7 +90,7 @@ class ChildrensCornerControllerTest extends TestCase
     #[Test]
     public function unverified_user_is_redirected_to_verification_notice(): void
     {
-        config(['sermons.childrens_talks.public' => false]);
+        config(['church.sermons.childrens_talks.public' => false]);
 
         $user = User::factory()->create(['email_verified_at' => null]);
 
@@ -108,7 +108,7 @@ class ChildrensCornerControllerTest extends TestCase
     #[Test]
     public function index_is_publicly_accessible_when_childrens_talks_are_public(): void
     {
-        config(['sermons.childrens_talks.public' => true]);
+        config(['church.sermons.childrens_talks.public' => true]);
 
         $response = $this->get('/christ/childrens-corner');
         $response->assertStatus(200);
@@ -117,7 +117,7 @@ class ChildrensCornerControllerTest extends TestCase
     #[Test]
     public function index_lists_childrens_talks(): void
     {
-        config(['sermons.childrens_talks.public' => true]);
+        config(['church.sermons.childrens_talks.public' => true]);
 
         Sermon::factory()->create([
             'title' => 'Noah And The Ark',
@@ -134,7 +134,7 @@ class ChildrensCornerControllerTest extends TestCase
     #[Test]
     public function show_returns_404_for_regular_sermon(): void
     {
-        config(['sermons.childrens_talks.public' => true]);
+        config(['church.sermons.childrens_talks.public' => true]);
 
         $sermon = Sermon::factory()->create([
             'slug' => 'regular-sermon',
@@ -148,7 +148,7 @@ class ChildrensCornerControllerTest extends TestCase
     #[Test]
     public function show_returns_404_for_nonexistent_slug(): void
     {
-        config(['sermons.childrens_talks.public' => true]);
+        config(['church.sermons.childrens_talks.public' => true]);
 
         $response = $this->get('/christ/childrens-corner/no-such-talk');
         $response->assertStatus(404);

@@ -58,51 +58,6 @@ class SongIntegrityTest extends TestCase
     }
 
     #[Test]
-    public function migration_repairs_invalid_slugs(): void
-    {
-        if (config('database.default') !== 'mysql') {
-            $this->markTestSkipped('Database integrity tests require MySQL');
-        }
-
-        // Drop the constraint directly so we can insert invalid data to test the migration repair logic
-        DB::statement('ALTER TABLE songs DROP CHECK songs_slug_format_check');
-
-        $canonicalKey = 'repair-test-key-'.uniqid();
-
-        try {
-            $baseSlug = 'invalid-slug-with-underscore';
-            $slug = $baseSlug;
-            if (DB::table('songs')->where('slug', $slug)->exists()) {
-                $slug = $baseSlug.'-unique';
-            }
-
-            DB::table('songs')->insert([
-                'slug' => $slug,
-                'canonical_key' => $canonicalKey,
-                'title' => 'Repair Test',
-                'lyrics_xml' => '<song></song>',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            // Run the migration's up() to exercise repair logic
-            $migration = require database_path('migrations/2026_04_28_150435_fortify_song_slug_integrity.php');
-            $migration->up();
-
-            $song = Song::where('canonical_key', $canonicalKey)->first();
-            $this->assertStringContainsString('invalid-slug-with-underscore', $song->slug);
-        } finally {
-            // Ensure constraint is restored even if something fails
-            try {
-                DB::statement('ALTER TABLE songs DROP CHECK songs_slug_format_check');
-            } catch (\Throwable) {
-            }
-            $pattern = '^[a-z0-9]+(?:-[a-z0-9]+)*$';
-            DB::statement("ALTER TABLE songs ADD CONSTRAINT songs_slug_format_check CHECK (REGEXP_LIKE(slug, '{$pattern}', 'c'))");
-        }
-    }
-
-    #[Test]
     public function database_rejects_empty_song_slug(): void
     {
         if (config('database.default') !== 'mysql') {

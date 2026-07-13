@@ -231,7 +231,7 @@ class ChildrensCornerPagesTest extends TestCase
     #[Test]
     public function guests_can_access_childrens_corner_when_public_release_is_enabled(): void
     {
-        config(['sermons.childrens_talks.public' => true]);
+        config(['church.sermons.childrens_talks.public' => true]);
 
         $talk = Sermon::factory()->create([
             'title' => 'Public Little Listeners',
@@ -305,7 +305,7 @@ class ChildrensCornerPagesTest extends TestCase
     #[Test]
     public function public_childrens_talks_redirect_from_sermon_routes_to_childrens_corner(): void
     {
-        config(['sermons.childrens_talks.public' => true]);
+        config(['church.sermons.childrens_talks.public' => true]);
 
         $talk = Sermon::factory()->create([
             'slug' => 'redirect-childrens-talk',
@@ -344,7 +344,7 @@ class ChildrensCornerPagesTest extends TestCase
     #[Test]
     public function header_navigation_shows_childrens_corner_link_to_guests_when_public_release_is_enabled(): void
     {
-        config(['sermons.childrens_talks.public' => true]);
+        config(['church.sermons.childrens_talks.public' => true]);
 
         $this->get('/christ')
             ->assertStatus(200)

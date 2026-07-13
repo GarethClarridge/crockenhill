@@ -22,7 +22,7 @@ class RouteCanaryProber
      */
     public function probe(array $canaries): array
     {
-        $baseUrl = rtrim((string) config('monitoring.base_url'), '/');
+        $baseUrl = rtrim((string) config('health.route_canaries.base_url'), '/');
 
         $failures = [];
 
@@ -42,7 +42,7 @@ class RouteCanaryProber
      */
     private function check(string $baseUrl, RouteCanary $canary): ?string
     {
-        $timeout = (int) config('monitoring.timeout', 20);
+        $timeout = (int) config('health.route_canaries.timeout', 20);
 
         for ($hit = 1; $hit <= $canary->hits; $hit++) {
             try {

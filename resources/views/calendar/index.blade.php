@@ -34,15 +34,15 @@
                 outside the loop to avoid redundant helper calls for every event in the list.
             --}}
             @php
-                $orgName = config('organization.name');
+                $orgName = config('church.name');
                 $orgUrl = url('/');
-                $orgStreet = config('organization.address.street');
-                $orgLocality = config('organization.address.locality');
-                $orgRegion = config('organization.address.region');
-                $orgPostalCode = config('organization.address.postal_code');
-                $orgCountry = config('organization.address.country');
-                $orgLatitude = config('organization.geo.latitude');
-                $orgLongitude = config('organization.geo.longitude');
+                $orgStreet = config('church.address.street');
+                $orgLocality = config('church.address.locality');
+                $orgRegion = config('church.address.region');
+                $orgPostalCode = config('church.address.postal_code');
+                $orgCountry = config('church.address.country');
+                $orgLatitude = config('church.geo.latitude');
+                $orgLongitude = config('church.geo.longitude');
                 $primaryImage = asset('images/Primary.png');
                 $currentUrl = request()->url();
             @endphp
