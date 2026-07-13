@@ -347,6 +347,10 @@ protocol above):
 
 ### 2.2 [mechanical] Deterministic analysis stub (decision D5; sermons R7/F3)
 
+**Complete (2026-07-12):** Replaced the heuristic simulator with a deterministic 33-line fixture
+stub that preserves the supplied transcript, and reduced its test suite to one exact shape
+assertion. The change removed 649 net lines and the full 6,143-test suite passed.
+
 Replace `MockSermonAnalysisService`'s 463-line non-deterministic heuristic simulator with a ~40-line
 fixture-returning stub; delete `MockSermonAnalysisServiceTest` or reduce to one shape assertion.
 De-flakes every analysis-dependent CI assertion (sermons opportunity 4). `MockServiceStructureService`
