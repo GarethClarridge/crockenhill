@@ -574,29 +574,6 @@ class VideoExtractionService
     }
 
     /**
-     * Alias for extractOptimizedAudio for backward compatibility
-     *
-     * @deprecated Use extractOptimizedAudio instead
-     *
-     * @return array{
-     *     audio_path: string,
-     *     full_path: string,
-     *     original_size: int,
-     *     final_size: int,
-     *     compression_applied: bool,
-     *     compression_ratio: float,
-     *     valid_for_transcription: bool
-     * }
-     */
-    public function extractOptimizedAudioFromSegment(
-        string $inputVideoPath,
-        object $segment,
-        ?string $outputFilename = null
-    ): array {
-        return $this->extractOptimizedAudio($inputVideoPath, $segment, $outputFilename);
-    }
-
-    /**
      * @param  array<int, string>  $clipRelativePaths
      */
     private function buildConcatListContent(array $clipRelativePaths, string $disk): string

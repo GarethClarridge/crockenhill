@@ -21,31 +21,6 @@ class PublicSongUsageService
     public const RANGE_THIS_YEAR = 'year';
 
     /**
-     * @return Builder<Song>
-     */
-    public function query(string $range = self::RANGE_ALL): Builder
-    {
-        $normalizedRange = $this->normalizeRange($range);
-
-        /**
-         * Performance Optimization: Limits retrieved columns for the song list,
-         * excluding large longText columns like lyrics_xml and lyrics_plain to reduce memory usage.
-         * Eager loads 'authors' with restricted columns to prevent N+1 queries during listing.
-         */
-        return Song::query()
-            ->select(['songs.id', 'songs.slug', 'songs.title', 'songs.ccli_number'])
-            ->with([
-                'authors' => fn ($query) => $query->select(['id', 'display_name'])->orderBy('display_name'),
-            ])
-            ->selectSub($this->qualifyingUsageItemsQueryForSongList($normalizedRange)->selectRaw('COUNT(*)'), 'usage_count')
-            ->selectSub($this->qualifyingUsageItemsQueryForSongList($normalizedRange)->selectRaw('MAX(church_services.date)'), 'last_sung_date')
-            ->whereExists($this->qualifyingUsageItemsQueryForSongList($normalizedRange)->selectRaw('1'))
-            ->orderByDesc('usage_count')
-            ->orderByDesc('last_sung_date')
-            ->orderBy('songs.title');
-    }
-
-    /**
      * @return array{usage_count: int, last_sung_date: string|null}
      */
     public function statsForSong(Song $song, string $range = self::RANGE_ALL): array
@@ -88,15 +63,6 @@ class PublicSongUsageService
         return $range === self::RANGE_THIS_YEAR
             ? self::RANGE_THIS_YEAR
             : self::RANGE_ALL;
-    }
-
-    /**
-     * @return Builder<ChurchServiceItem>
-     */
-    private function qualifyingUsageItemsQueryForSongList(string $range): Builder
-    {
-        return $this->baseQualifyingUsageItemsQuery($range)
-            ->whereColumn('church_service_items.song_id', 'songs.id');
     }
 
     /**

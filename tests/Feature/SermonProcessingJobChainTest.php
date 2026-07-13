@@ -351,7 +351,7 @@ class SermonProcessingJobChainTest extends TestCase
         ]);
 
         $processingLog = $this->processingLogScenario()
-            ->processing('updating_sermon_record')
+            ->processing('analyzing_transcript')
             ->withSermon($sermon)
             ->state([
                 'processing_id' => 'test-id',
@@ -378,7 +378,7 @@ class SermonProcessingJobChainTest extends TestCase
         $sermon = Sermon::factory()->create(['title' => 'Test Sermon']);
 
         $processingLog = $this->processingLogScenario()
-            ->processing('updating_sermon_record')
+            ->processing('analyzing_transcript')
             ->withSermon($sermon)
             ->state([
                 'processing_id' => 'skip-test-id',
@@ -422,7 +422,7 @@ class SermonProcessingJobChainTest extends TestCase
             'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
             'status' => ProcessingStatus::Processing,
-            'current_step' => 'updating_sermon_record',
+            'current_step' => 'analyzing_transcript',
             'sermon_id' => $sermon->id,
         ]);
 
@@ -447,7 +447,7 @@ class SermonProcessingJobChainTest extends TestCase
             'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
             'status' => ProcessingStatus::Processing,
-            'current_step' => 'updating_sermon_record',
+            'current_step' => 'analyzing_transcript',
             'sermon_id' => $sermon->id,
         ]);
 
@@ -458,7 +458,7 @@ class SermonProcessingJobChainTest extends TestCase
             'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
             'status' => ProcessingStatus::Processing,
-            'current_step' => 'updating_sermon_record',
+            'current_step' => 'analyzing_transcript',
             'sermon_id' => 99999, // Non-existent sermon ID
         ]);
         $job = new SendCompletionNotification($failureProcessingLog);

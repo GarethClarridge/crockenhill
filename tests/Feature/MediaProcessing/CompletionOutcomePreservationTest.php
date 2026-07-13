@@ -71,7 +71,7 @@ class CompletionOutcomePreservationTest extends TestCase
             'sermon_id' => $sermon->id,
             'source_file_path' => 'temp/completed-sermon.mp3',
             'status' => ProcessingStatus::Processing,
-            'current_step' => 'updating_sermon_record',
+            'current_step' => 'analyzing_transcript',
             'error_message' => null,
         ]);
 

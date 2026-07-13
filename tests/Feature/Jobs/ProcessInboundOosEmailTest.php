@@ -156,13 +156,9 @@ class ProcessInboundOosEmailTest extends TestCase
             fn ($item): bool => $item->song_id === $song->id && $item->type === 'songs'
         ));
 
-        $queryResults = $songUsage->query()->get();
-        $songResult = $queryResults->sole('id', $song->id);
         $songStats = $songUsage->statsForSong($song);
         $songHistory = $songUsage->usageHistoryForSong($song);
 
-        $this->assertSame(1, (int) $songResult->usage_count);
-        $this->assertSame($service->date->toDateString(), $songResult->last_sung_date);
         $this->assertSame(1, $songStats['usage_count']);
         $this->assertSame($service->date->toDateString(), $songStats['last_sung_date']);
         $this->assertCount(1, $songHistory);

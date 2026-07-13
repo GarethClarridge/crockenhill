@@ -12,7 +12,6 @@ use App\Models\SermonScriptureFilter;
 use App\Services\Public\SermonRepository;
 use App\Support\BibleCanon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
@@ -206,51 +205,6 @@ class SermonRepositoryTest extends TestCase
 
         $this->assertCount(1, $result);
         $this->assertEquals(SermonService::Morning, $result->first()->service);
-    }
-
-    // ── Latest & Grouped Sermons ─────────────────────────────────────────────
-
-    #[Test]
-    public function it_returns_latest_sermons_grouped_by_date(): void
-    {
-        $today = Carbon::today();
-
-        for ($i = 0; $i < 7; $i++) {
-            Sermon::factory()->create([
-                'date' => $today->copy()->subDays($i),
-                'content_type' => SermonContentType::Sermon,
-                'reference' => null,
-            ]);
-        }
-
-        $result = $this->repository->getLatestSermons();
-
-        $this->assertCount(6, $result);
-        $this->assertEquals($today->format('Y-m-d'), $result->keys()->first());
-    }
-
-    #[Test]
-    public function it_filters_out_childrens_talks_from_latest_sermons(): void
-    {
-        $today = Carbon::today();
-
-        Sermon::factory()->create([
-            'title' => 'Main Sermon',
-            'content_type' => SermonContentType::Sermon,
-            'date' => $today,
-            'reference' => null,
-        ]);
-        Sermon::factory()->create([
-            'title' => "Children's Talk",
-            'content_type' => SermonContentType::ChildrensTalk,
-            'date' => $today,
-            'reference' => null,
-        ]);
-
-        $result = $this->repository->getLatestSermons();
-
-        $this->assertCount(1, $result);
-        $this->assertEquals('Main Sermon', $result->first()->first()->title);
     }
 
     #[Test]
@@ -515,33 +469,6 @@ class SermonRepositoryTest extends TestCase
     }
 
     #[Test]
-    public function it_caches_json_ld_results(): void
-    {
-        $sermon = Sermon::factory()->create(['content_type' => SermonContentType::Sermon, 'reference' => null]);
-        $first = $this->repository->getRecentSermonsForJsonLd();
-
-        Sermon::query()->where('id', $sermon->id)->update(['title' => 'Injected Title']);
-
-        $cached = $this->repository->getRecentSermonsForJsonLd();
-        $this->assertNotEquals('Injected Title', $cached->first()->title, 'Cache should serve stale JSON-LD data before invalidation');
-
-        $this->repository->clearListingCaches();
-
-        $fresh = $this->repository->getRecentSermonsForJsonLd();
-        $this->assertEquals('Injected Title', $fresh->first()->title, 'Cache should return fresh data after clearListingCaches()');
-    }
-
-    #[Test]
-    public function it_respects_limit_for_json_ld(): void
-    {
-        Sermon::factory()->count(5)->create(['content_type' => SermonContentType::Sermon, 'reference' => null]);
-
-        $result = $this->repository->getRecentSermonsForJsonLd(limit: 3);
-
-        $this->assertLessThanOrEqual(3, $result->count());
-    }
-
-    #[Test]
     public function it_nullifies_whitespace_only_book_in_archive_filters(): void
     {
         $bibleCanon = Mockery::mock(BibleCanon::class);
@@ -558,18 +485,6 @@ class SermonRepositoryTest extends TestCase
 
         $this->assertNull($result['book']);
         $this->assertNull($result['series']);
-    }
-
-    #[Test]
-    public function it_returns_all_sermons_grouped_by_date(): void
-    {
-        Sermon::factory()->create(['date' => '2024-01-01', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
-        Sermon::factory()->create(['date' => '2024-01-02', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
-
-        $result = $this->repository->getAllSermons();
-
-        $this->assertTrue($result->has('2024-01-02'));
-        $this->assertTrue($result->has('2024-01-01'));
     }
 
     #[Test]

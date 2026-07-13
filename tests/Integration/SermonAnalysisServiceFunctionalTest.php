@@ -78,7 +78,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Transcript validation failed');
 
-        $this->service->analyzeSermon($shortTranscript);
+        $this->service->analyzeSermon($shortTranscript, processingId: 'test-processing-id');
     }
 
     #[Test]
@@ -89,7 +89,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Transcript validation failed');
 
-        $this->service->analyzeSermon($fewWordsTranscript);
+        $this->service->analyzeSermon($fewWordsTranscript, processingId: 'test-processing-id');
     }
 
     #[Test]
@@ -123,7 +123,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
             ]),
         ]);
 
-        $this->service->analyzeSermon($transcript);
+        $this->service->analyzeSermon($transcript, processingId: 'test-processing-id');
 
         OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
             $prompt = $parameters['messages'][1]['content'];
@@ -310,7 +310,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
 
         $this->expectException(Exception::class);
 
-        $this->service->analyzeSermon($transcript);
+        $this->service->analyzeSermon($transcript, processingId: 'test-processing-id');
     }
 
     #[Test]
@@ -372,7 +372,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
 
         try {
             // Should not throw and prompt should still be built
-            $this->service->analyzeSermon($transcript);
+            $this->service->analyzeSermon($transcript, processingId: 'test-processing-id');
 
             OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
                 return str_contains($parameters['messages'][1]['content'], 'None available');
@@ -381,24 +381,6 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
             // Restore the original connection
             config(['database.default' => $originalConnection]);
         }
-    }
-
-    #[Test]
-    public function it_validates_individual_method_calls_with_invalid_transcript(): void
-    {
-        $invalidTranscript = 'short';
-
-        $this->expectException(Exception::class);
-        $this->service->generateTitle($invalidTranscript);
-
-        $this->expectException(Exception::class);
-        $this->service->identifySeries($invalidTranscript, []);
-
-        $this->expectException(Exception::class);
-        $this->service->extractBiblePassage($invalidTranscript);
-
-        $this->expectException(Exception::class);
-        $this->service->extractSermonPoints($invalidTranscript);
     }
 
     #[Test]

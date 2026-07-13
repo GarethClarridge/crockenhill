@@ -351,17 +351,11 @@ class StandardProcessingResponseTest extends TestCase
     #[Test]
     public function from_processing_log_uses_media_specific_progress_for_shared_steps(): void
     {
-        $videoLog = MediaProcessingLog::factory()->video()->create([
-            'status' => ProcessingStatus::Processing,
-            'current_step' => 'updating_sermon_record',
-        ]);
-
         $thumbnailLog = MediaProcessingLog::factory()->video()->create([
             'status' => ProcessingStatus::Processing,
             'current_step' => 'generating_thumbnail',
         ]);
 
-        $this->assertEquals(87, StandardProcessingResponse::fromProcessingLog($videoLog)->progressPercentage);
         $this->assertEquals(89, StandardProcessingResponse::fromProcessingLog($thumbnailLog)->progressPercentage);
     }
 

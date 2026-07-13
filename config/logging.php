@@ -1,7 +1,5 @@
 <?php
 
-use App\Logging\SermonProcessingLogFormatter;
-
 return [
 
     /*
@@ -54,14 +52,6 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => 7,
-        ],
-
-        'sermon-processing' => [
-            'driver' => 'daily',
-            'path' => storage_path('logs/sermon-processing.log'),
-            'level' => 'debug',
-            'days' => 30,
-            'tap' => [SermonProcessingLogFormatter::class],
         ],
 
         'performance' => [

@@ -309,6 +309,10 @@ review.
 
 ### 2.1 [mechanical] Grep-verified dead-code batch (decision D5)
 
+**Complete (2026-07-12):** Implemented in full, including the issue-tracker intake. Both production
+gates passed: `LOG_CHANNEL=stack`, and zero `service_sections.status='skipped'` rows. The custom
+logging channel/formatter and `ServiceSectionStatus::Skipped` schema path were removed.
+
 One or two PRs, all verified zero-production-caller by the reviews. Media (F4/R5 + quick wins 1–5):
 `SermonValidationService` (+ stale config comment), `UpdateSermonRecord` job + ghost registry phase
 + 2 orphaned `ProcessingStep` cases (+ the seven fixture files listed in media quick win 2), the
@@ -346,6 +350,10 @@ protocol above):
   views, and the `page-card` default) — prune only files ending `.jpg`.
 
 ### 2.2 [mechanical] Deterministic analysis stub (decision D5; sermons R7/F3)
+
+**Complete (2026-07-12):** Replaced the heuristic simulator with a deterministic 33-line fixture
+stub that preserves the supplied transcript, and reduced its test suite to one exact shape
+assertion. The change removed 649 net lines and the full 6,143-test suite passed.
 
 Replace `MockSermonAnalysisService`'s 463-line non-deterministic heuristic simulator with a ~40-line
 fixture-returning stub; delete `MockSermonAnalysisServiceTest` or reduce to one shape assertion.
@@ -689,12 +697,12 @@ Hard dependency chains, restated:
 ## Production checks checklist (run before the gated deletions)
 
 - [ ] Enable `SERVICE_STRUCTURE_MODE=shadow` in production (confirmed still `off` as of 2026-07-05 — decision D2; top of the delivery order)
-- [ ] Production `LOG_CHANNEL` ≠ `sermon-processing` (gates 2.1's channel deletion)
+- [x] Production `LOG_CHANNEL` ≠ `sermon-processing` — confirmed `stack` 2026-07-12 (gates 2.1's channel deletion)
 - [ ] `sermons:verify-storage` clean against production (gates 2.3)
 - [ ] `SELECT COUNT(*) FROM sermons WHERE preacher_id IS NULL` = 0 (gates PreacherCutover deletion)
 - [ ] No children's talks on non-`private/` paths (gates `MoveChildrensTalksToPrivateStorage` deletion)
 - [ ] `Song::withTrashed()` null/blank/`legacy-song-%` canonical-key count = 0 (gates reconciler deletion)
-- [ ] `service_sections.status = 'skipped'` count = 0 (gates enum-case removal)
+- [x] `service_sections.status = 'skipped'` count = 0 — confirmed 2026-07-12 (gates enum-case removal)
 - [ ] Per-command confirmations for the eight platform one-shots (platform Q1a–f)
 - [x] Speaker-identification: confirmed enabled and working in production (2026-07-05) — stack kept, decision D3
 

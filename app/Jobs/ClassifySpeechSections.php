@@ -140,10 +140,6 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
 
     private function shouldClassify(ServiceSection $section): bool
     {
-        if ($section->status !== ServiceSectionStatus::Identified) {
-            return false;
-        }
-
         if (in_array($section->section_type, [ServiceSectionType::Song, ServiceSectionType::Sermon], true)) {
             return false;
         }

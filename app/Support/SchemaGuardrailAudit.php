@@ -229,9 +229,6 @@ class SchemaGuardrailAudit
                             ->orWhereNull('extracted_audio_path')
                             ->orWhereNull('extracted_at');
                     });
-                })->orWhere(function ($query): void {
-                    $query->where('status', ServiceSectionStatus::Skipped->value)
-                        ->where('publication_status', '!=', ServiceSectionPublicationStatus::NotApplicable->value);
                 });
             })
             ->count();
