@@ -37,3 +37,8 @@
 **Pattern:** Time-sensitive scopes, hardcoded URLs, and loose enum assertions.
 **Cause:** Tests relied on `Carbon::now()` for relative date scopes, hardcoded `http://localhost` strings for URL expectations, and `assertContains` for single-value enums.
 **Fix:** Introduced `Carbon::setTestNow()` for deterministic scope testing. Replaced hardcoded environment strings with the `url()` helper. Tightened enum assertions to use `assertSame` for precision. Removed implementation-leaking `Log::info` calls and stale commented-out test code.
+
+## 2027-02-12 - Harden Sermon unit tests and remove DB overhead
+**Pattern:** DatabaseTransactions and model factories in Unit tests.
+**Cause:** `tests/Unit/Models/SermonTest.php` was hitting the database for attribute and validation testing, making it slow and brittle to DB state.
+**Fix:** Removed `DatabaseTransactions` trait. Replaced `Sermon::factory()->make()` with direct instantiation (`new Sermon()`). Refactored validation tests to filter out database-dependent rules (`exists`, `Unique`) from the rule set, allowing format and bounds constraints to be verified without a database connection.
