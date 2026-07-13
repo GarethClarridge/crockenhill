@@ -34,13 +34,17 @@ abstract class MediaProcessingRequest extends FormRequest
      * handle 400 for a malformed processingId. Preserving that contract here
      * means only body-field validation failures surface as 422.
      *
+     * Security: A fast-fail length check is enforced before the regex to provide
+     * Defense in Depth against potential ReDoS and resource exhaustion on
+     * untrusted route parameters.
+     *
      * @throws HttpException If the processing ID format is invalid.
      */
     protected function assertProcessingIdShape(): void
     {
         $processingId = $this->route('processingId');
 
-        if (! is_string($processingId) || preg_match('/^[0-9a-fA-F-]{36}$/', $processingId) !== 1) {
+        if (! is_string($processingId) || strlen($processingId) !== 36 || preg_match('/^[0-9a-fA-F-]{36}$/', $processingId) !== 1) {
             throw new HttpException(400, 'Invalid processing ID format.');
         }
     }

@@ -32,7 +32,8 @@ class NextChurchServiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'service' => ['nullable', Rule::enum(SermonService::class)],
+            // Security: input is bounded and correctly typed before processing by the Enum rule.
+            'service' => ['nullable', 'string', 'max:255', Rule::enum(SermonService::class)],
         ];
     }
 }
