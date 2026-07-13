@@ -92,6 +92,31 @@ class SermonStorageMaintenanceServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_verifies_only_sermons_with_audio_on_their_canonical_disk(): void
+    {
+        Sermon::factory()->create([
+            'audio_file_path' => 'sermons/public.mp3',
+        ]);
+        Sermon::factory()->create([
+            'audio_file_path' => 'private/sermons/childrens-talk.mp3',
+        ]);
+        Sermon::factory()->create([
+            'audio_file_path' => null,
+        ]);
+
+        Storage::disk('public')->put('sermons/public.mp3', 'public audio');
+        Storage::disk('local')->put('private/sermons/childrens-talk.mp3', 'private audio');
+
+        $result = $this->service->verifyStorage('public');
+
+        $this->assertSame(2, $this->service->countVerifiableSermons());
+        $this->assertSame(2, $result['summary']['accessible']);
+        $this->assertSame(0, $result['summary']['missing']);
+        $this->assertSame(0, $result['storage_stats']['missing_files']);
+        $this->assertSame(1, $result['storage_stats']['patterns']['private']);
+    }
+
+    #[Test]
     public function it_migrates_local_files_to_target_disk(): void
     {
         Storage::disk('public')->put('sermons/file1.mp3', 'content1');

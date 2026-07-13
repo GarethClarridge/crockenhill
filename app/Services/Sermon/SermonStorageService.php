@@ -547,6 +547,10 @@ class SermonStorageService
      */
     private function updateStatsForSermon(array &$stats, Sermon $sermon): void
     {
+        if (! filled($sermon->audio_file_path)) {
+            return;
+        }
+
         $info = $this->getSermonFileInfo($sermon);
         $stats['patterns'][$info['type']]++;
 

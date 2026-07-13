@@ -267,18 +267,21 @@ class SermonStorageMaintenanceService
         $missing = [];
 
         Sermon::query()
+            ->whereNotNull('audio_file_path')
+            ->where('audio_file_path', '!=', '')
             ->select(['id', 'title', 'audio_file_path', 'filetype'])
             ->chunk(100, function ($sermons) use ($disk, &$accessible, &$totalSize, &$missing, $progress): void {
                 foreach ($sermons as $sermon) {
                     $fileInfo = $this->sermonStorageService->getSermonFileInfo($sermon);
+                    $verificationDisk = $fileInfo['type'] === 'private' ? $fileInfo['disk'] : $disk;
 
-                    if (Storage::disk($disk)->exists($fileInfo['path'])) {
+                    if (Storage::disk($verificationDisk)->exists($fileInfo['path'])) {
                         $accessible++;
-                        $totalSize += (int) Storage::disk($disk)->size($fileInfo['path']);
+                        $totalSize += (int) Storage::disk($verificationDisk)->size($fileInfo['path']);
                         if ($progress !== null) {
                             $progress([
                                 'status' => 'ok',
-                                'label' => "#{$sermon->id} {$fileInfo['path']} verified on {$disk}",
+                                'label' => "#{$sermon->id} {$fileInfo['path']} verified on {$verificationDisk}",
                             ]);
                         }
 
@@ -295,7 +298,7 @@ class SermonStorageMaintenanceService
                     if ($progress !== null) {
                         $progress([
                             'status' => 'missing',
-                            'label' => "#{$sermon->id} {$fileInfo['path']} missing on {$disk}",
+                            'label' => "#{$sermon->id} {$fileInfo['path']} missing on {$verificationDisk}",
                         ]);
                     }
                 }
@@ -421,7 +424,10 @@ class SermonStorageMaintenanceService
 
     public function countVerifiableSermons(): int
     {
-        return Sermon::query()->count();
+        return Sermon::query()
+            ->whereNotNull('audio_file_path')
+            ->where('audio_file_path', '!=', '')
+            ->count();
     }
 
     private function copyFile(string $sourceDisk, string $sourcePath, string $targetDisk, string $targetPath): void
