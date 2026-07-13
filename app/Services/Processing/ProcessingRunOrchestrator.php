@@ -27,6 +27,14 @@ use Illuminate\Support\Facades\Log;
  */
 class ProcessingRunOrchestrator
 {
+    /**
+     * Orchestrates the execution and lifecycle of media processing pipelines.
+     *
+     * This orchestrator is responsible for mapping processing log profiles to their
+     * corresponding job chains, managing the transitions between parallel and
+     * sequential phases, and implementing the surgical retry logic that allows
+     * failed runs to resume from their last successful state.
+     */
     public function __construct(
         private readonly ProcessingPipelineBuilder $pipelineBuilder,
         private readonly ProcessingPhaseRegistry $phaseRegistry,
@@ -38,14 +46,15 @@ class ProcessingRunOrchestrator
     /**
      * Start a new media processing run.
      *
-     * Dispatches the appropriate job pipeline based on the log's profile.
-     * Audio and direct video runs use linear chains, while livestream runs
-     * start with a parallel processing phase before chaining.
+     * Resolves the appropriate job pipeline (audio, video, auto-trim, or
+     * livestream) from the ProcessingPipelineBuilder and dispatches it to the
+     * queue. For livestream runs, this initiates a parallel analysis phase
+     * (RMS/Visual) that must complete before the sequential chain begins.
      *
      * @param  MediaProcessingLog  $processingLog  The log record for the run to start
      *
      * @throws \InvalidArgumentException If the processing pipeline profile is unrecognized
-     * @throws \Throwable If dispatching the job chain or batch fails
+     * @throws \Throwable If dispatching the job chain or batch fails (typically DB or Queue connection issues)
      */
     public function start(MediaProcessingLog $processingLog): void
     {
@@ -78,8 +87,10 @@ class ProcessingRunOrchestrator
     /**
      * Resume a processing run that was paused for manual sermon segment confirmation.
      *
-     * Only applicable to 'livestream' and 'video_auto_trim' profiles which
-     * utilize the segmentation-based pipeline.
+     * Dispatches a shortened "post-review" chain that skips upstream analysis
+     * and jumps directly to sermon extraction and publication. Only applicable
+     * to profiles using the segmentation-based pipeline ('livestream' and
+     * 'video_auto_trim').
      *
      * @param  MediaProcessingLog  $processingLog  The log record awaiting resumption
      *
@@ -108,8 +119,10 @@ class ProcessingRunOrchestrator
     /**
      * Re-run the classification and structural analysis for an existing livestream run.
      *
-     * Used when the original source media is still available to refresh
-     * sermon-derived outputs or correct manual classification errors.
+     * Dispatches a "reclassification" chain that re-evaluates service sections
+     * and sermon boundaries without re-running the heavy RMS/parallel phase.
+     * Used to refresh sermon-derived outputs or correct manual classification
+     * errors when the source media is still available.
      *
      * @param  MediaProcessingLog  $processingLog  The log record to reclassify
      *
@@ -128,14 +141,17 @@ class ProcessingRunOrchestrator
     /**
      * Attempt to retry a failed or cancelled processing run.
      *
-     * Consults the PhaseRegistry to determine a surgical retry plan (either
-     * resuming from a specific job offset, targeted reset, or full restart)
-     * based on the run's last successful state.
+     * Consults the ProcessingPhaseRegistry to determine a surgical retry plan.
+     * The strategy depends on the run's last successful step:
+     * - 'dispatch_chain': Resumes the sequential chain from a specific job offset.
+     * - 'restart_livestream': Resets all segments and restarts the full pipeline.
+     * - 'manual_review': Transitions the run to a manual intervention state.
+     *
+     * It uses ProcessingPhaseResetService to perform targeted cleanup (e.g.,
+     * deleting partial segments) before re-dispatching to ensure a clean state.
      *
      * @param  MediaProcessingLog  $processingLog  The failed or cancelled log
      * @return ProcessingResult The outcome of the retry initiation attempt
-     *
-     * @throws \Throwable For unexpected orchestration failures
      */
     public function retry(MediaProcessingLog $processingLog): ProcessingResult
     {
