@@ -20,12 +20,12 @@ use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
 use App\Livewire\Admin\ChurchServices\ListSongs;
 use App\Livewire\Admin\ChurchServices\ManageChurchService;
-use App\Livewire\Admin\ChurchServices\ProcessingReview;
 use App\Livewire\Admin\ChurchServices\ReviewInbox;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\ChurchServices\ShowSong;
 use App\Livewire\Admin\ChurchServices\SubmitEmailText;
 use App\Livewire\Admin\ChurchServices\UploadChurchService;
+use App\Livewire\Admin\MediaUpload;
 use App\Livewire\Admin\Meetings\CreateMeeting;
 use App\Livewire\Admin\Meetings\EditMeeting;
 use App\Livewire\Admin\Meetings\ListMeetings;
@@ -40,7 +40,6 @@ use App\Livewire\Admin\Sermons\ListSermons;
 use App\Livewire\Admin\Users\CreateUser;
 use App\Livewire\Admin\Users\EditUser;
 use App\Livewire\Admin\Users\ListUsers;
-use App\Livewire\MediaUpload;
 use Illuminate\Support\Facades\Route;
 use Spatie\Health\Http\Controllers\HealthCheckResultsController;
 
@@ -207,7 +206,6 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->name('services.section-publications.preview-audio');
     Route::get('/services/section-publications/{serviceSection}/preview/video', [ServiceSectionCandidateMediaController::class, 'serveVideo'])
         ->name('services.section-publications.preview-video');
-    Route::get('/services/processing/{processingLog}/review', ProcessingReview::class)->name('services.processing.review');
     Route::get('/services/{churchService}/edit', ManageChurchService::class)->name('services.edit');
     Route::get('/services/{churchService}', ShowChurchService::class)->name('services.show');
 

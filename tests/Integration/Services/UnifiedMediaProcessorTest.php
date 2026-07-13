@@ -14,7 +14,6 @@ use App\Models\User;
 use App\Services\Processing\MediaValidationService;
 use App\Services\Processing\MetadataExtractionService;
 use App\Services\Processing\ProcessingInitiator;
-use App\Services\Processing\ProcessingLogService;
 use App\Services\Processing\ProcessingPipelineBuilder;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Processing\UnifiedMediaProcessor;
@@ -39,8 +38,6 @@ class UnifiedMediaProcessorTest extends TestCase
 
     private ProcessingPipelineBuilder $pipelineBuilder;
 
-    private ProcessingLogService $processingLogService;
-
     private ProcessingInitiator $processingInitiator;
 
     private MetadataExtractionService $metadataService;
@@ -53,14 +50,12 @@ class UnifiedMediaProcessorTest extends TestCase
 
         $this->livestreamService = $this->createMock(LivestreamSegmentationService::class);
         $this->pipelineBuilder = $this->createStub(ProcessingPipelineBuilder::class);
-        $this->processingLogService = $this->createStub(ProcessingLogService::class);
         $this->processingInitiator = $this->createMock(ProcessingInitiator::class);
         $this->metadataService = $this->createStub(MetadataExtractionService::class);
         $this->mediaValidation = $this->createStub(MediaValidationService::class);
 
         $this->app->instance(LivestreamSegmentationService::class, $this->livestreamService);
         $this->app->instance(ProcessingPipelineBuilder::class, $this->pipelineBuilder);
-        $this->app->instance(ProcessingLogService::class, $this->processingLogService);
         $this->app->forgetInstance(ProcessingRunOrchestrator::class);
 
         $this->processor = new UnifiedMediaProcessor(
@@ -289,8 +284,8 @@ class UnifiedMediaProcessorTest extends TestCase
         $response = $this->processor->getStatusWithLogs($log->processing_id, false);
 
         $this->assertTrue($response->found);
-        $this->assertNull($response->recentLogs);
-        $this->assertNull($response->performanceMetrics);
+        $this->assertArrayNotHasKey('processing_steps', $response->additionalData);
+        $this->assertArrayNotHasKey('processing_metadata', $response->additionalData);
     }
 
     #[Test]

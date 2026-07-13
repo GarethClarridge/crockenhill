@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Livewire\MediaUpload;
+use App\Livewire\Admin\MediaUpload;
 use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;

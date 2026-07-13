@@ -4,13 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\View\Components;
 
-use App\Actions\GetMediaProcessingStatus;
-use App\Data\StandardProcessingResponse;
-use App\Livewire\ProcessingLogsViewer;
 use Illuminate\Foundation\Testing\Concerns\InteractsWithViews;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\ViewErrorBag;
-use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -132,20 +128,5 @@ class FormAccessibilityTest extends TestCase
         $this->blade('<x-textarea wire:model="field" />')->assertSee($expectedFocusClasses, false);
         $this->blade('<x-select wire:model="field" :options="[]" />')->assertSee($expectedFocusClasses, false);
         $this->blade('<x-checkbox wire:model="field" />')->assertSee($expectedFocusClasses, false);
-    }
-
-    #[Test]
-    public function processing_logs_auto_refresh_checkbox_renders_visible_keyboard_focus_colour_and_offset(): void
-    {
-        $this->mock(GetMediaProcessingStatus::class, function ($mock): void {
-            $mock
-                ->shouldReceive('getWithLogs')
-                ->once()
-                ->with('processing-123', 20)
-                ->andReturn(StandardProcessingResponse::notFound());
-        });
-
-        Livewire::test(ProcessingLogsViewer::class, ['processingId' => 'processing-123'])
-            ->assertSeeHtml('class="rounded border-gray-300 text-cbc-teal focus:ring-cbc-teal focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"');
     }
 }

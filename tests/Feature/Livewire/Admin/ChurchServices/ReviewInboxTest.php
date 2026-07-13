@@ -539,12 +539,11 @@ class ReviewInboxTest extends TestCase
         ]);
 
         Livewire::test(ReviewInbox::class)
-            ->assertSeeHtml(route('admin.services.show', $service).'#processing-run-'.$run->id)
-            ->assertDontSeeHtml(route('admin.services.processing.review', $run));
+            ->assertSeeHtml(route('admin.services.show', $service).'#processing-run-'.$run->id);
     }
 
     #[Test]
-    public function segment_links_fall_back_to_the_standalone_page_for_orphan_runs(): void
+    public function segment_links_offer_to_create_a_service_for_orphan_runs(): void
     {
         $run = MediaProcessingLog::factory()->livestream()->manualReviewRequired()->create([
             'extracted_date' => '2026-06-07',
@@ -552,7 +551,11 @@ class ReviewInboxTest extends TestCase
         ]);
 
         Livewire::test(ReviewInbox::class)
-            ->assertSeeHtml(route('admin.services.processing.review', $run));
+            ->assertSeeHtml(str_replace('&', '&amp;', route('admin.services.create', [
+                'date' => '2026-06-07',
+                'service' => 'morning',
+            ])))
+            ->assertSee('Create this service');
     }
 
     #[Test]
@@ -582,8 +585,7 @@ class ReviewInboxTest extends TestCase
         ]);
 
         Livewire::test(ReviewInbox::class)
-            ->assertSeeHtml(route('admin.services.show', $service).'#processing-run-'.$run->id)
-            ->assertDontSeeHtml(route('admin.services.processing.review', $run));
+            ->assertSeeHtml(route('admin.services.show', $service).'#processing-run-'.$run->id);
     }
 
     #[Test]

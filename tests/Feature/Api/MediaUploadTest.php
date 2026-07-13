@@ -380,7 +380,7 @@ class MediaUploadTest extends TestCase
             ->getJson("/api/media/processing/{$processingId}/status");
 
         $response->assertOk()
-            ->assertJsonMissingPath('recent_logs');
+            ->assertJsonMissingPath('processing_steps');
     }
 
     #[Test]

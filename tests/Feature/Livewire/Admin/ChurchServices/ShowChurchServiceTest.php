@@ -536,8 +536,7 @@ class ShowChurchServiceTest extends TestCase
             ->test(ShowChurchService::class, ['churchService' => $service])
             ->assertSee('Confirm the sermon segment')
             ->assertSee('This is the sermon')
-            ->assertSeeHtml('confirmRunSegment('.$run->id.', '.$speechSegment->id.')')
-            ->assertDontSee(route('admin.services.processing.review', $run), false);
+            ->assertSeeHtml('confirmRunSegment('.$run->id.', '.$speechSegment->id.')');
     }
 
     #[Test]

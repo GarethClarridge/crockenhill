@@ -271,19 +271,25 @@
                                             @endif
                                         </p>
                                     </div>
-                                    {{-- Prefer the workbench when the run matched a service (it renders every
-                                         segmentation-pipeline run); the standalone page stays for orphan runs --}}
-                                    <x-button
-                                        link="{{ $group['service'] instanceof \App\Models\ChurchService
+                                    @php
+                                        $segmentLink = $group['service'] instanceof \App\Models\ChurchService
                                             ? route('admin.services.show', $group['service']).'#processing-run-'.$run->id
-                                            : route('admin.services.processing.review', $run) }}"
+                                            : ($run->extracted_date !== null && $run->extracted_service !== null
+                                                ? route('admin.services.create', ['date' => $run->extracted_date->toDateString(), 'service' => $run->extracted_service->value])
+                                                : route('admin.services.inbox', ['filter' => 'segments']));
+                                        $segmentLinkLabel = $group['service'] instanceof \App\Models\ChurchService
+                                            ? 'Choose segment'
+                                            : 'Create this service';
+                                    @endphp
+                                    <x-button
+                                        link="{{ $segmentLink }}"
                                         variant="primary"
                                         size="xs"
                                         icon="arrow-right"
                                         iconPosition="trailing"
                                         inline
                                     >
-                                        Choose segment
+                                        {{ $segmentLinkLabel }}
                                     </x-button>
                                 </div>
                             @elseif($item['kind'] === 'merge')

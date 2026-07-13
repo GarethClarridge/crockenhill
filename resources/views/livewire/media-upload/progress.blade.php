@@ -1,5 +1,5 @@
 <div>
-    @if($isUploading && $status === 'uploading')
+    @if($isUploading && $status === \App\Enums\UploadState::Uploading)
         <div class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
             <div class="mb-3 flex items-center justify-between">
                 <h3 class="text-sm font-semibold text-blue-900">
@@ -9,8 +9,8 @@
                     variant="ghost"
                     size="xs"
                     class="text-red-600 hover:bg-red-50"
-                    wire:click="requestCancelUpload"
-                    wire:target="requestCancelUpload"
+                    wire:click="cancelUpload"
+                    wire:target="cancelUpload"
                 >
                     Cancel
                 </x-form-button>
