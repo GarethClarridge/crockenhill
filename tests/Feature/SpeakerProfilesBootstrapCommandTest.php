@@ -105,7 +105,7 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
         $this->assertEquals(2, SpeakerSample::where('speaker_profile_id', $profile->id)->count());
     }
 
-    public function test_bootstrap_resolves_legacy_sermon_paths_via_storage_service(): void
+    public function test_bootstrap_resolves_canonical_sermon_paths_via_storage_service(): void
     {
         config([
             'media-processing.speaker_identification.provider' => 'resemblyzer',
@@ -117,10 +117,8 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
             'slug' => 'mark-drury-bootstrap-legacy',
         ]);
 
-        // Legacy sermon: bare filename without '/', plus a filetype
         Sermon::factory()->count(2)->withPreacher($preacher)->create([
-            'audio_file_path' => 'my-sermon',
-            'filetype' => 'mp3',
+            'audio_file_path' => 'legacy/sermons/my-sermon.mp3',
         ]);
 
         $embedding = array_fill(0, 256, 0.1);

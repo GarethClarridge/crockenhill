@@ -235,6 +235,6 @@ class BootstrapSpeakerProfilesCommand extends Command
             ->where('audio_file_path', '!=', '')
             ->orderByDesc('date')
             ->limit($maxSermons)
-            ->get(['id', 'audio_file_path', 'filetype', 'date']);
+            ->get(['id', 'audio_file_path', 'date']);
     }
 }

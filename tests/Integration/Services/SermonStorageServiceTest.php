@@ -26,23 +26,8 @@ class SermonStorageServiceTest extends TestCase
         Storage::fake('do_spaces');
 
         Config::set('media-processing.storage.sermon_disk', 'public');
-        Config::set('media-processing.storage.legacy_disk', 'public');
 
         $this->service = new SermonStorageService;
-    }
-
-    #[Test]
-    public function it_identifies_legacy_storage_pattern(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'audio_file_path' => 'old-sermon',
-            'filetype' => 'mp3',
-        ]);
-
-        $info = $this->service->getSermonFileInfo($sermon);
-
-        $this->assertEquals('legacy', $info['type']);
-        $this->assertEquals('legacy/sermons/old-sermon.mp3', $info['path']);
     }
 
     #[Test]
@@ -441,42 +426,5 @@ class SermonStorageServiceTest extends TestCase
             '/admin/sermons/candidate-plain-only-sermon/thumbnails/candidate-1/plain',
             (string) $this->service->getAdminThumbnailCandidatePreviewUrl($sermon, 'candidate-1', 'plain'),
         );
-    }
-
-    #[Test]
-    public function it_calculates_storage_stats_correctly(): void
-    {
-        // Clear any existing sermons
-        Sermon::query()->delete();
-
-        // Create a mix of sermons with different patterns and disks
-        Sermon::factory()->create([
-            'audio_file_path' => 'legacy-sermon',
-            'filetype' => 'mp3',
-        ]);
-        Storage::disk('public')->put('legacy/sermons/legacy-sermon.mp3', 'abc'); // 3 bytes
-
-        Sermon::factory()->create([
-            'audio_file_path' => 'sermons/new-sermon.mp3',
-            'filetype' => 'mp3',
-        ]);
-        Storage::disk('public')->put('sermons/new-sermon.mp3', 'defgh'); // 5 bytes
-
-        Sermon::factory()->create([
-            'audio_file_path' => 'sermons/missing.mp3',
-        ]);
-
-        $stats = $this->service->getStorageStats();
-
-        $this->assertEquals(3, $stats['total_sermons']);
-        $this->assertEquals(1, $stats['patterns']['legacy']);
-        $this->assertEquals(2, $stats['patterns']['storage']);
-        $this->assertEquals(8, $stats['total_size']);
-        $this->assertEquals(1, $stats['missing_files']);
-
-        $this->assertArrayHasKey('public', $stats['disks']);
-        $this->assertEquals(3, $stats['disks']['public']['count']);
-        $this->assertEquals(8, $stats['disks']['public']['size']);
-        $this->assertEquals(1, $stats['disks']['public']['missing']);
     }
 }

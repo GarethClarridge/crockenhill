@@ -362,6 +362,32 @@ is the template (platform F7).
 
 ### 2.3 [mechanical] Storage-service collapse (decision D9; completes and supersedes SIMPLIFICATION-PLAN Phase 9)
 
+**Complete (2026-07-13):** The production gates passed, runtime storage resolution was collapsed
+to its two canonical rules, and the spent maintenance service, five commands, and dedicated tests
+were removed.
+
+**Production gate results (2026-07-13):**
+
+- The initial migration dry run examined 740 candidates: 737 already on the target, with three
+  missing legacy files (`#109 478b.mp3`, `#192 641a.mp3`, `#194 642a.mp3`). Exhaustive searches
+  found no copy on `do_spaces`, `public`, `local`, or `public_images`. The operator explicitly
+  accepted these as metadata-only sermons; their rows were retained with `audio_file_path = null`.
+- Commit `741049b68` fixed the verifier to exclude metadata-only sermons and check private audio on
+  its canonical local disk. It was deployed before verification continued.
+- Verification then exposed 659 files present on `do_spaces` whose database rows still held bare
+  legacy identifiers. Commit `81e87a43b` fixed the migration to canonicalise verified targets,
+  use ID-based batching, and reject concurrent row changes. Its dry run reported 659/659 ready;
+  the production run canonicalised all 659 with zero missing or failed rows.
+- Final verification reported 698/698 referenced audio files accessible (5.63 GB), zero legacy
+  paths, 698 canonical storage paths, and zero missing files across 702 sermon records. The four
+  remaining records without audio are intentional metadata-only sermons.
+- The shared 2.3/2.4 children's-talk dry run reported `No Children's Talk sermons require
+  migration.` The backfill command was therefore removed with this item, completing 2.4's R6 row.
+
+**Code change:** stripped the legacy/filetype/config branches from `SermonStorageService`, reduced
+file resolution to private-local versus `sermon_disk`, and deleted
+`SermonStorageMaintenanceService`, its five commands, and their dedicated tests.
+
 **Gate: run `MigrateSermonStorageCommand --dry-run` then `sermons:verify-storage` against
 production; all files accessible in canonical locations.** Then, in order: strip the `legacy`
 pattern branch + `filetype` runtime dependency + dangling `legacy_disk` config read from
@@ -383,7 +409,7 @@ Each with its production check, then delete tool + companion + tests; record the
 | `LegacySermonImporter` + `ImportLegacySermonBatchCommand` (sermons R3, ~1,520 lines) | Tape digitisation finished for good |
 | `GenerateProdSermonPatchCommand` (R4, 669) | Prod patch applied; local→prod merges never again |
 | `PreacherCutoverCommand` + service (R5, 387) | `SELECT COUNT(*) FROM sermons WHERE preacher_id IS NULL` = 0 |
-| `MoveChildrensTalksToPrivateStorage` (R6, 64 — rides 2.3) | No children's talk on non-`private/` path |
+| ~~`MoveChildrensTalksToPrivateStorage` (R6, 64 — rides 2.3)~~ **Complete 2026-07-13** | Production dry run confirmed no children's talk required migration; removed with 2.3 |
 | `LegacyPlayDateSongUsageImporter` + command (songs, ~700) | play_date backfill confirmed complete |
 | `LegacySongReconciler` + `reconciledSongId` thread + schema probes (songs, ~500) | Zero songs with null/blank/`legacy-song-%` canonical keys (the reconciler's own three-part predicate — songs Q2) |
 | `songs.praise_number`, `songs.alternative_title` columns + `play_date` table | After the two rows above (note: `alternate_title` is live — do not touch) |
@@ -698,9 +724,11 @@ Hard dependency chains, restated:
 
 - [ ] Enable `SERVICE_STRUCTURE_MODE=shadow` in production (confirmed still `off` as of 2026-07-05 — decision D2; top of the delivery order)
 - [x] Production `LOG_CHANNEL` ≠ `sermon-processing` — confirmed `stack` 2026-07-12 (gates 2.1's channel deletion)
-- [ ] `sermons:verify-storage` clean against production (gates 2.3)
+- [x] `sermons:verify-storage` clean against production — 698/698 files accessible, zero legacy
+      paths, zero missing files (confirmed 2026-07-13; gates 2.3)
 - [ ] `SELECT COUNT(*) FROM sermons WHERE preacher_id IS NULL` = 0 (gates PreacherCutover deletion)
-- [ ] No children's talks on non-`private/` paths (gates `MoveChildrensTalksToPrivateStorage` deletion)
+- [x] No children's talks on non-`private/` paths — dry run confirmed none require migration
+      (2026-07-13; gates `MoveChildrensTalksToPrivateStorage` deletion)
 - [ ] `Song::withTrashed()` null/blank/`legacy-song-%` canonical-key count = 0 (gates reconciler deletion)
 - [x] `service_sections.status = 'skipped'` count = 0 — confirmed 2026-07-12 (gates enum-case removal)
 - [ ] Per-command confirmations for the eight platform one-shots (platform Q1a–f)
@@ -721,7 +749,7 @@ Hard dependency chains, restated:
 - [ ] The heuristic structure path (church services + media visual stack + song clusters) is
       deleted; the LLM path is primary with shadow/eval as the permanent regression mechanism.
 - [ ] No spent one-shot tool remains runnable; new one-shots carry deletion triggers.
-- [ ] One storage service owns the sermon file lifecycle; no legacy path branching at runtime.
+- [x] One storage service owns the sermon file lifecycle; no legacy path branching at runtime.
 - [ ] One presentation convention on the public read path; composers/inline JSON-LD/dead read
       methods gone.
 - [ ] Listing freshness is TTL-based; no hand-maintained cache-key registry.

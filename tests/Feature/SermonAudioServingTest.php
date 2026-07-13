@@ -26,7 +26,6 @@ class SermonAudioServingTest extends TestCase
 
         // Set default disks
         Config::set('media-processing.storage.sermon_disk', 'public');
-        Config::set('media-processing.storage.legacy_disk', 'public');
     }
 
     #[Test]

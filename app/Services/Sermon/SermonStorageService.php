@@ -14,28 +14,15 @@ use InvalidArgumentException;
 use LogicException;
 
 /**
- * Service for managing the resolution and retrieval of sermon media files
- * across different storage patterns (legacy, standard, and private).
+ * Service for managing the resolution and retrieval of sermon media files.
  *
  * This service centralises the logic for building public and secure delivery
- * URLs, calculating cache-busting versions, and tracking storage statistics.
- * It handles the abstraction between local and S3-compatible disks.
- *
- * @phpstan-type StorageStats array{
- *     total_sermons: int,
- *     patterns: array{private: int, legacy: int, storage: int, processing: int},
- *     disks: array<string, array{count: int, size: int, missing: int}>,
- *     total_size: int,
- *     missing_files: int
- * }
+ * URLs and calculating cache-busting versions across local and
+ * S3-compatible disks.
  */
 class SermonStorageService
 {
     use SanitizesLogData;
-
-    private const STATS_CHUNK_SIZE = 100;
-
-    private string $legacyDisk;
 
     private string $sermonDisk;
 
@@ -54,7 +41,7 @@ class SermonStorageService
     private array $memoizedDiskUrls = [];
 
     /**
-     * @var array<string, array{type: string, disk: string, path: string, original_path: string}>
+     * @var array<string, array{type: 'private'|'storage', disk: string, path: string}>
      */
     private array $memoizedFileInfo = [];
 
@@ -92,7 +79,6 @@ class SermonStorageService
      */
     private function refreshConfig(): void
     {
-        $this->legacyDisk = (string) config('media-processing.storage.legacy_disk', 'public');
         $this->sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
         $this->thumbnailDisk = (string) config('thumbnail-generation.storage.disk', 'public');
         $this->cdnEndpoint = config('filesystems.disks.do_spaces.cdn_endpoint');
@@ -105,7 +91,7 @@ class SermonStorageService
      * to avoid redundant path validation and storage pattern logic when resolving
      * multiple URLs (e.g., audio, public, delivery) for the same sermon.
      *
-     * @return array{type: string, disk: string, path: string, original_path: string}
+     * @return array{type: 'private'|'storage', disk: string, path: string}
      */
     public function getSermonFileInfo(Sermon $sermon): array
     {
@@ -119,15 +105,13 @@ class SermonStorageService
     {
         $audioPath = $sermon->audio_file_path ?? '';
 
-        // Key by ID (if persisted) or object hash (if unsaved), plus path and filetype
-        // to ensure uniqueness and handle state changes within the request.
-        return ($sermon->id ?? 'u'.spl_object_id($sermon))."_{$audioPath}_{$sermon->filetype}";
+        return ($sermon->id ?? 'u'.spl_object_id($sermon))."_{$audioPath}";
     }
 
     /**
-     * Resolve file information for a sermon based on its storage pattern.
+     * Resolve file information for a sermon based on its canonical path.
      *
-     * @return array{type: string, disk: string, path: string, original_path: string}
+     * @return array{type: 'private'|'storage', disk: string, path: string}
      */
     private function resolveFileInfo(Sermon $sermon): array
     {
@@ -140,43 +124,13 @@ class SermonStorageService
                 'type' => 'private',
                 'disk' => 'local',
                 'path' => $audioPath,
-                'original_path' => $audioPath,
             ];
         }
 
-        // Determine which storage pattern this sermon uses
-        if ($sermon->filetype && ! str_contains($audioPath, '/')) {
-            // Legacy pattern
-            // Check if filename already has extension to avoid double extensions
-            $filename = $audioPath;
-            if (! str_ends_with($filename, ".{$sermon->filetype}")) {
-                $filename .= ".{$sermon->filetype}";
-            }
-
-            return [
-                'type' => 'legacy',
-                'disk' => $this->legacyDisk,
-                'path' => "legacy/sermons/{$filename}",
-                'original_path' => "media/sermons/{$filename}",
-            ];
-        }
-
-        if (str_contains($audioPath, '/')) {
-            // Newer Laravel storage pattern
-            return [
-                'type' => 'storage',
-                'disk' => $this->sermonDisk,
-                'path' => $audioPath,
-                'original_path' => $audioPath,
-            ];
-        }
-
-        // Current media processing pattern
         return [
-            'type' => 'processing',
+            'type' => 'storage',
             'disk' => $this->sermonDisk,
             'path' => $audioPath,
-            'original_path' => $audioPath,
         ];
     }
 
@@ -496,83 +450,6 @@ class SermonStorageService
         }
 
         // Logic for clearing broad caches if needed (none currently)
-    }
-
-    /**
-     * Get storage statistics for all sermon files.
-     *
-     * @return StorageStats
-     */
-    public function getStorageStats(): array
-    {
-        $stats = $this->initializeStorageStats();
-
-        Sermon::query()
-            ->select(['id', 'audio_file_path', 'filetype'])
-            ->chunk(self::STATS_CHUNK_SIZE, function ($sermons) use (&$stats) {
-                foreach ($sermons as $sermon) {
-                    $this->updateStatsForSermon($stats, $sermon);
-                }
-            });
-
-        /** @var StorageStats $stats */
-        return $stats;
-    }
-
-    /**
-     * Initialize the storage statistics array.
-     *
-     * @return StorageStats
-     */
-    private function initializeStorageStats(): array
-    {
-        return [
-            'total_sermons' => Sermon::query()->count(),
-            'patterns' => [
-                'private' => 0,
-                'legacy' => 0,
-                'storage' => 0,
-                'processing' => 0,
-            ],
-            'disks' => [],
-            'total_size' => 0,
-            'missing_files' => 0,
-        ];
-    }
-
-    /**
-     * Update storage statistics for a single sermon.
-     *
-     * @param  array<string, mixed>  $stats
-     */
-    private function updateStatsForSermon(array &$stats, Sermon $sermon): void
-    {
-        if (! filled($sermon->audio_file_path)) {
-            return;
-        }
-
-        $info = $this->getSermonFileInfo($sermon);
-        $stats['patterns'][$info['type']]++;
-
-        $disk = $info['disk'];
-        if (! isset($stats['disks'][$disk])) {
-            $stats['disks'][$disk] = [
-                'count' => 0,
-                'size' => 0,
-                'missing' => 0,
-            ];
-        }
-
-        $stats['disks'][$disk]['count']++;
-
-        try {
-            $size = Storage::disk($disk)->size($info['path']);
-            $stats['disks'][$disk]['size'] += $size;
-            $stats['total_size'] += $size;
-        } catch (Exception $e) {
-            $stats['disks'][$disk]['missing']++;
-            $stats['missing_files']++;
-        }
     }
 
     private function appendVersion(string $url, string $version): string
