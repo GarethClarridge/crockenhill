@@ -1,10 +1,10 @@
 @extends('layouts.main')
 
 @section('content')
-<x-admin.shell heading="Categorise Calendar Events">
+<x-admin.shell heading="Categorise calendar events">
 
 <x-admin.page
-    title="Uncategorised Events"
+    title="Uncategorised events"
     description="These events couldn't be automatically categorised. Please assign them to the appropriate meeting type."
 >
     <x-slot:actions>
@@ -43,7 +43,7 @@
                             />
 
                             <x-form-button type="submit" variant="primary" size="sm">
-                                Categorise
+                                Categorise event
                             </x-form-button>
                         </form>
                     </div>

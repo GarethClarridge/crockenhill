@@ -1,6 +1,6 @@
 <x-admin.form-shell
     :title="$isEditing ? 'Edit service' : 'Create service'"
-    :description="$isEditing ? 'Update the canonical order of service for this date and slot.' : 'Create a service manually when email or OpenLP is not available.'"
+    :description="$isEditing ? 'Update the canonical order of service for this date and slot' : 'Create a service manually when email or OpenLP is not available'"
     save-action="save"
 >
     <x-slot:actions>

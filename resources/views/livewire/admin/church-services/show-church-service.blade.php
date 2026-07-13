@@ -1,6 +1,6 @@
 <x-admin.page
     :title="$churchService->date->format('j M Y').' '.$churchService->service->label()"
-    description="Review the planned service, processing runs, and publication state."
+    description="Review the planned service, processing runs, and publication state"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.services.inbox') }}" variant="outline" icon="inbox" inline>
