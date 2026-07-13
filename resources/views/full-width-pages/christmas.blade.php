@@ -64,22 +64,22 @@
                         $isOffsite = isset($event['location']);
                         $location = [
                             '@type' => 'Place',
-                            'name' => $event['location'] ?? config('organization.name'),
+                            'name' => $event['location'] ?? config('church.name'),
                         ];
 
                         if (! $isOffsite) {
                             $location['address'] = [
                                 '@type' => 'PostalAddress',
-                                'streetAddress' => config('organization.address.street'),
-                                'addressLocality' => config('organization.address.locality'),
-                                'addressRegion' => config('organization.address.region'),
-                                'postalCode' => config('organization.address.postal_code'),
-                                'addressCountry' => config('organization.address.country'),
+                                'streetAddress' => config('church.address.street'),
+                                'addressLocality' => config('church.address.locality'),
+                                'addressRegion' => config('church.address.region'),
+                                'postalCode' => config('church.address.postal_code'),
+                                'addressCountry' => config('church.address.country'),
                             ];
                             $location['geo'] = [
                                 '@type' => 'GeoCoordinates',
-                                'latitude' => config('organization.geo.latitude'),
-                                'longitude' => config('organization.geo.longitude'),
+                                'latitude' => config('church.geo.latitude'),
+                                'longitude' => config('church.geo.longitude'),
                             ];
                         }
 
@@ -88,7 +88,7 @@
                     'image' => asset('/images/homepage/christmas2023.webp'),
                     'organizer' => [
                         '@type' => 'Organization',
-                        'name' => config('organization.name'),
+                        'name' => config('church.name'),
                         'url' => url('/'),
                     ],
                 ],

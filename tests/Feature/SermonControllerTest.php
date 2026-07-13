@@ -141,7 +141,7 @@ class SermonControllerTest extends TestCase
     #[Test]
     public function slug_only_route_returns_404_for_non_public_childrens_talk(): void
     {
-        config(['sermons.childrens_talks.public' => false]);
+        config(['church.sermons.childrens_talks.public' => false]);
 
         Sermon::factory()->create([
             'slug' => 'hidden-childrens-talk',

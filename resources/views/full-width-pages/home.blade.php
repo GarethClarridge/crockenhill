@@ -100,7 +100,7 @@
     </p>
     <p>
       You're more than welcome to join us - we'd love to see you! If you can't make it in person you can watch our morning services on
-      <a class="inline" href="{{ config('organization.social.youtube') }}">
+      <a class="inline" href="{{ config('church.social.youtube') }}">
         our YouTube channel
       </a> at 10:30am on Sundays.
     </p>

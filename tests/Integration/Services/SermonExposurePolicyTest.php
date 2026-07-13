@@ -33,10 +33,10 @@ class SermonExposurePolicyTest extends TestCase
     #[Test]
     public function childrens_talks_are_public_returns_config_value(): void
     {
-        Config::set('sermons.childrens_talks.public', true);
+        Config::set('church.sermons.childrens_talks.public', true);
         $this->assertTrue($this->policy->childrensTalksArePublic());
 
-        Config::set('sermons.childrens_talks.public', false);
+        Config::set('church.sermons.childrens_talks.public', false);
         $this->assertFalse($this->policy->childrensTalksArePublic());
     }
 
@@ -48,14 +48,14 @@ class SermonExposurePolicyTest extends TestCase
         $unverifiedUser = User::factory()->create(['is_admin' => false, 'email_verified_at' => null]);
 
         // When public is true, everyone can access
-        Config::set('sermons.childrens_talks.public', true);
+        Config::set('church.sermons.childrens_talks.public', true);
         $this->assertTrue($this->policy->canAccessChildrensCorner(null));
         $this->assertTrue($this->policy->canAccessChildrensCorner($verifiedUser));
         $this->assertTrue($this->policy->canAccessChildrensCorner($unverifiedUser));
         $this->assertTrue($this->policy->canAccessChildrensCorner($verifiedAdmin));
 
         // When public is false, only authenticated + verified users can access
-        Config::set('sermons.childrens_talks.public', false);
+        Config::set('church.sermons.childrens_talks.public', false);
         $this->assertFalse($this->policy->canAccessChildrensCorner(null));
         $this->assertTrue($this->policy->canAccessChildrensCorner($verifiedUser));
         $this->assertFalse($this->policy->canAccessChildrensCorner($unverifiedUser));
@@ -68,11 +68,11 @@ class SermonExposurePolicyTest extends TestCase
         $sermon = Sermon::factory()->create(['content_type' => SermonContentType::Sermon]);
         $childrensTalk = Sermon::factory()->create(['content_type' => SermonContentType::ChildrensTalk]);
 
-        Config::set('sermons.childrens_talks.public', true);
+        Config::set('church.sermons.childrens_talks.public', true);
         $this->assertFalse($this->policy->shouldRedirectGenericSermonRoute($sermon));
         $this->assertTrue($this->policy->shouldRedirectGenericSermonRoute($childrensTalk));
 
-        Config::set('sermons.childrens_talks.public', false);
+        Config::set('church.sermons.childrens_talks.public', false);
         $this->assertFalse($this->policy->shouldRedirectGenericSermonRoute($sermon));
         $this->assertFalse($this->policy->shouldRedirectGenericSermonRoute($childrensTalk));
     }
@@ -94,11 +94,11 @@ class SermonExposurePolicyTest extends TestCase
         $childrensTalk = Sermon::factory()->create(['content_type' => SermonContentType::ChildrensTalk]);
 
         // Sermons are always included
-        Config::set('sermons.childrens_talks.public', true);
+        Config::set('church.sermons.childrens_talks.public', true);
         $this->assertTrue($this->policy->shouldIncludeInSitemap($sermon));
         $this->assertTrue($this->policy->shouldIncludeInSitemap($childrensTalk));
 
-        Config::set('sermons.childrens_talks.public', false);
+        Config::set('church.sermons.childrens_talks.public', false);
         $this->assertTrue($this->policy->shouldIncludeInSitemap($sermon));
         $this->assertFalse($this->policy->shouldIncludeInSitemap($childrensTalk));
     }

@@ -61,7 +61,7 @@ class BibleRequestForm extends Component
 
         RateLimiter::hit($this->throttleKey(), 3600);
 
-        Mail::to(config('organization.email_public'))
+        Mail::to(config('church.email_public'))
             ->send(new BibleRequest($validated));
 
         $this->reset(['name', 'address', 'email', 'phone', 'note']);

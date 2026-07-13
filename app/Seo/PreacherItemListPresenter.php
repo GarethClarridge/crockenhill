@@ -17,7 +17,7 @@ class PreacherItemListPresenter
      */
     public function toItemList(Collection $preachers): array
     {
-        $orgName = (string) config('organization.name');
+        $orgName = (string) config('church.name');
         $appUrl = (string) config('app.url');
         $orgId = $appUrl.'/#organization';
 

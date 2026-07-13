@@ -214,7 +214,7 @@ class SermonTest extends TestCase
     #[Test]
     public function scope_where_visible_in_sitemap_excludes_childrens_talks_when_not_public(): void
     {
-        Config::set('sermons.childrens_talks.public', false);
+        Config::set('church.sermons.childrens_talks.public', false);
 
         $sermon = Sermon::factory()->create(['content_type' => SermonContentType::Sermon]);
         $childrensTalk = Sermon::factory()->create(['content_type' => SermonContentType::ChildrensTalk]);
@@ -229,7 +229,7 @@ class SermonTest extends TestCase
     #[Test]
     public function scope_where_visible_in_sitemap_includes_all_content_when_childrens_talks_are_public(): void
     {
-        Config::set('sermons.childrens_talks.public', true);
+        Config::set('church.sermons.childrens_talks.public', true);
 
         $sermon = Sermon::factory()->create(['content_type' => SermonContentType::Sermon]);
         $childrensTalk = Sermon::factory()->create(['content_type' => SermonContentType::ChildrensTalk]);

@@ -54,7 +54,7 @@ class SermonItemListPresenter
         /** @var Collection<int, Sermon> $flatSermons */
         $flatSermons = $sermons->flatten(1);
 
-        $orgName = (string) config('organization.name');
+        $orgName = (string) config('church.name');
         $logoUrl = asset('images/Primary.png');
         $appUrl = (string) config('app.url');
         $orgId = $appUrl.'/#organization';

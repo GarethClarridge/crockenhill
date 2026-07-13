@@ -72,7 +72,7 @@ class SermonBuilder extends Builder
         $this->whereNotNull($this->qualifyColumn('slug'))
             ->where($this->qualifyColumn('slug'), '!=', '');
 
-        if ((bool) config('sermons.childrens_talks.public', false)) {
+        if ((bool) config('church.sermons.childrens_talks.public', false)) {
             return $this;
         }
 

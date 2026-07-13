@@ -155,7 +155,7 @@ class SitemapTest extends TestCase
     #[Test]
     public function sitemap_uses_childrens_corner_urls_when_public_release_is_enabled(): void
     {
-        config(['sermons.childrens_talks.public' => true]);
+        config(['church.sermons.childrens_talks.public' => true]);
 
         Sermon::factory()->create([
             'slug' => 'public-childrens-talk',

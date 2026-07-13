@@ -19,7 +19,7 @@ class RouteCanaryProberTest extends TestCase
     {
         parent::setUp();
         $this->prober = new RouteCanaryProber;
-        Config::set('monitoring.base_url', 'http://canary.test');
+        Config::set('health.route_canaries.base_url', 'http://canary.test');
     }
 
     #[Test]
@@ -131,7 +131,7 @@ class RouteCanaryProberTest extends TestCase
     #[Test]
     public function it_uses_correct_user_agent_and_timeout(): void
     {
-        Config::set('monitoring.timeout', 45);
+        Config::set('health.route_canaries.timeout', 45);
         Http::fake();
 
         $canary = new RouteCanary('/', 200, 1, '');
@@ -149,13 +149,13 @@ class RouteCanaryProberTest extends TestCase
     public function it_handles_base_url_with_or_without_trailing_slash(): void
     {
         // Case 1: with trailing slash
-        Config::set('monitoring.base_url', 'http://canary.test/');
+        Config::set('health.route_canaries.base_url', 'http://canary.test/');
         Http::fake(['http://canary.test/' => Http::response('OK', 200)]);
         $this->prober->probe([new RouteCanary('/', 200, 1, '')]);
         Http::assertSent(fn ($request) => $request->url() === 'http://canary.test/');
 
         // Case 2: without trailing slash
-        Config::set('monitoring.base_url', 'http://canary.test');
+        Config::set('health.route_canaries.base_url', 'http://canary.test');
         Http::fake(['http://canary.test/' => Http::response('OK', 200)]);
         $this->prober->probe([new RouteCanary('/', 200, 1, '')]);
         Http::assertSent(fn ($request) => $request->url() === 'http://canary.test/');
