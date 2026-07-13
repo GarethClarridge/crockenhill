@@ -290,44 +290,6 @@ class VideoStorageService
     }
 
     /**
-     * Delete temporary files that have exceeded their retention period.
-     *
-     * @return int The number of files successfully deleted
-     */
-    public function cleanupExpiredFiles(): int
-    {
-        $deletedCount = 0;
-        $retentionHours = config('media-processing.temp_file_retention_hours');
-        $cutoffTime = now()->subHours($retentionHours);
-
-        try {
-            $tempDirectory = 'livestream/temp';
-            $files = Storage::disk($this->tempDisk)->files($tempDirectory);
-
-            foreach ($files as $file) {
-                $fileTime = Storage::disk($this->tempDisk)->lastModified($file);
-
-                if ($fileTime < $cutoffTime->timestamp) {
-                    Storage::disk($this->tempDisk)->delete($file);
-                    $deletedCount++;
-                }
-            }
-
-            Log::info('Expired temporary files cleaned up', [
-                'deleted_count' => $deletedCount,
-                'retention_hours' => $retentionHours,
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to cleanup expired files', [
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        return $deletedCount;
-    }
-
-    /**
      * Retrieve aggregate statistics for video and audio storage disks.
      *
      * @return array{
@@ -471,17 +433,6 @@ class VideoStorageService
     }
 
     /**
-     * Get the public URL for an audio file.
-     *
-     * @param  string  $audioPath  The storage path to the audio
-     * @return string The full public URL
-     */
-    public function getAudioUrl(string $audioPath): string
-    {
-        return Storage::disk($this->permanentDisk)->url($audioPath);
-    }
-
-    /**
      * Check if a video file exists in permanent storage.
      *
      * @param  string  $videoPath  The storage path to check
@@ -518,46 +469,6 @@ class VideoStorageService
     public function audioExists(string $audioPath): bool
     {
         return Storage::disk($this->permanentDisk)->exists($audioPath);
-    }
-
-    // Interface implementation methods
-
-    /**
-     * Store uploaded file temporarily for processing.
-     *
-     * Interface implementation delegating to storeUploadedVideo.
-     *
-     * @param  UploadedFile  $file  The uploaded file
-     * @return array{
-     *     temp_path: string,
-     *     full_path: string,
-     *     original_filename: string,
-     *     file_size: int,
-     *     mime_type: string|null
-     * }
-     */
-    public function storeTemporary(UploadedFile $file): array
-    {
-        return $this->storeUploadedVideo($file);
-    }
-
-    /**
-     * Move processed file to permanent storage.
-     *
-     * Interface implementation delegating to moveToSermonStorage.
-     *
-     * @param  array<string, mixed>  $uploadResult
-     * @return string The resulting permanent video path
-     */
-    public function moveToPermanent(array $uploadResult): string
-    {
-        // Extract processing ID or create a slug from the uploaded file
-        $processingId = $uploadResult['processing_id'] ?? Str::uuid();
-        $sermonSlug = $uploadResult['sermon_slug'] ?? 'sermon-'.$processingId;
-
-        $result = $this->moveToSermonStorage($uploadResult['temp_path'], $sermonSlug);
-
-        return $result['video_path'];
     }
 
     /**

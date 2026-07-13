@@ -772,7 +772,7 @@ CREATE TABLE `service_sections` (
   `start_time` double NOT NULL,
   `end_time` double NOT NULL,
   `duration` double NOT NULL,
-  `status` enum('identified','skipped') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` enum('identified') COLLATE utf8mb4_unicode_ci NOT NULL,
   `needs_manual_review` tinyint(1) NOT NULL DEFAULT '0',
   `source_segment_ids` json NOT NULL,
   `metadata` json DEFAULT NULL,
@@ -812,7 +812,6 @@ CREATE TABLE `service_sections` (
   CONSTRAINT `service_sections_confidence_range_check` CHECK (((`confidence` is null) or ((`confidence` >= 0.000) and (`confidence` <= 1.000)))),
   CONSTRAINT `service_sections_publication_link_check` CHECK ((((`publication_status` = _utf8mb4'published') and (`published_at` is not null)) or ((`publication_status` <> _utf8mb4'published') and (`published_sermon_id` is null) and (`published_at` is null)))),
   CONSTRAINT `service_sections_publication_media_check` CHECK ((((`publication_status` in (_utf8mb4'approved',_utf8mb4'published')) and (`extracted_video_path` is not null) and (`extracted_at` is not null) and ((`section_type` = _utf8mb4'song') or (`extracted_audio_path` is not null))) or (`publication_status` in (_utf8mb4'not_applicable',_utf8mb4'pending_approval',_utf8mb4'rejected')))),
-  CONSTRAINT `service_sections_status_publication_check` CHECK (((`status` <> _utf8mb4'skipped') or (`publication_status` = _utf8mb4'not_applicable'))),
   CONSTRAINT `service_sections_timing_invariants_check` CHECK (((`start_time` >= 0) and (`end_time` > `start_time`) and (`duration` >= 0) and (abs(((`end_time` - `start_time`) - `duration`)) <= 0.050)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1224,3 +1223,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_27_065159_add_i
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_28_192314_add_index_to_speaker_samples_approved',78);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_07_190047_add_first_line_key_to_songs_table',78);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_10_155218_add_archive_eval_to_inbound_emails_status_enum',79);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_12_221655_remove_skipped_from_service_sections_status',80);

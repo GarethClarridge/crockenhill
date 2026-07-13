@@ -27,47 +27,6 @@ class SermonRepositoryCacheInvalidationTest extends TestCase
     }
 
     #[Test]
-    public function it_clears_global_listing_caches(): void
-    {
-        Sermon::query()->delete();
-        Sermon::factory()->create([
-            'title' => 'Original Title',
-            'series' => 'Original Series',
-        ]);
-
-        // Warm global caches
-        $this->repository->getLatestSermons();
-        $this->repository->getAllSermons();
-        $this->repository->getSeriesForDisplay();
-        $this->repository->getRecentSermonsForJsonLd(100);
-
-        // Update DB directly to bypass observers
-        $updatedTitle = 'Updated Title';
-        $updatedSeries = 'Updated Series';
-        Sermon::query()->update([
-            'title' => $updatedTitle,
-            'series' => $updatedSeries,
-        ]);
-        $this->repository->clearInternalCaches();
-
-        // Verify stale data is returned from cache
-        $this->assertEquals('Original Title', $this->repository->getLatestSermons()->flatten()->first()->title);
-        $this->assertEquals('Original Title', $this->repository->getAllSermons()->flatten()->first()->title);
-        $this->assertContains('Original Series', $this->repository->getSeriesForDisplay());
-        $this->assertEquals('Original Title', $this->repository->getRecentSermonsForJsonLd(100)->first()->title);
-
-        $this->repository->clearListingCaches();
-        $this->repository->clearInternalCaches();
-
-        // Verify fresh data is returned after cache clear
-        $this->assertEquals($updatedTitle, $this->repository->getLatestSermons()->flatten()->first()->title);
-        $this->assertEquals($updatedTitle, $this->repository->getAllSermons()->flatten()->first()->title);
-        $this->assertContains($updatedSeries, $this->repository->getSeriesForDisplay());
-        $this->assertEquals($updatedTitle, $this->repository->getRecentSermonsForJsonLd(100)->first()->title);
-        $this->assertNotContains('Original Series', $this->repository->getSeriesForDisplay());
-    }
-
-    #[Test]
     public function it_clears_model_specific_caches_for_a_sermon(): void
     {
         Sermon::query()->delete();

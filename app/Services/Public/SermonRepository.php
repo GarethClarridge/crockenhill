@@ -133,63 +133,6 @@ class SermonRepository
     }
 
     /**
-     * Get the latest sermons grouped by date.
-     *
-     * Performance Optimization: Implements request-level memoization to avoid redundant
-     * flexible cache lookups and hits within a single request cycle.
-     *
-     * @return Collection<string, Collection<int, Sermon>>
-     */
-    public function getLatestSermons(): Collection
-    {
-        return $this->rememberFlexible('latest_sermons', [86400, 172800], function (): Collection {
-            $distinctDates = Sermon::query()
-                ->whereSermon()
-                ->select('date')
-                ->distinct()
-                ->orderBy('date', 'desc')
-                ->limit(6)
-                ->pluck('date');
-
-            if ($distinctDates->isEmpty()) {
-                return collect();
-            }
-
-            return $this->publicSermonQuery()
-                ->whereIn('date', $distinctDates)
-                ->orderBy('date', 'desc')
-                ->orderBy('service', 'asc')
-                ->get()
-                ->groupBy(fn ($sermon) => $sermon->date->format('Y-m-d'));
-        });
-    }
-
-    /**
-     * Get all sermons grouped by date.
-     *
-     * Performance Optimization: Implements request-level memoization to avoid redundant
-     * flexible cache lookups and hits within a single request cycle.
-     *
-     * @return Collection<string, Collection<int, Sermon>>
-     */
-    public function getAllSermons(): Collection
-    {
-        return $this->rememberFlexible('all_sermons', [86400, 172800], function (): Collection {
-            /** @var Collection<string, Collection<int, Sermon>> $grouped */
-            $grouped = $this->publicSermonQuery()
-                ->orderBy('date', 'desc')
-                ->orderBy('service', 'asc')
-                ->get()
-                ->toBase()
-                ->groupBy(function (Sermon $sermon): string {
-                    return $sermon->date->format('Y-m-d');
-                });
-
-            return $grouped;
-        });
-    }
-
-    /**
      * Get sermons for a specific series.
      *
      * Performance Optimization: Implements request-level memoization to avoid redundant
@@ -274,26 +217,6 @@ class SermonRepository
         }
 
         return compact('book', 'chapter', 'preacherId', 'series');
-    }
-
-    /**
-     * Get the most recent sermons for archive-level JSON-LD generation.
-     *
-     * Why: `ItemList` schema doesn't require the full archive; loading every sermon
-     * with relations on every request is wasteful at 700+ rows.
-     *
-     * Performance Optimization: Implements request-level memoization to avoid redundant
-     * flexible cache lookups and hits within a single request cycle.
-     *
-     * @return Collection<int, Sermon>
-     */
-    public function getRecentSermonsForJsonLd(int $limit = 100): Collection
-    {
-        return $this->rememberFlexible("sermons_jsonld_recent_{$limit}", [86400, 172800], function () use ($limit): Collection {
-            return $this->publicBrowseQuery()
-                ->limit($limit)
-                ->get();
-        });
     }
 
     /**
@@ -556,11 +479,8 @@ class SermonRepository
      */
     public function clearListingCaches(Sermon|Preacher|null $model = null): void
     {
-        $this->forgetFlexible('latest_sermons');
-        $this->forgetFlexible('all_sermons');
         $this->forgetFlexible('sermon_series');
         $this->forgetFlexible('sermon_scripture_books_all_all');
-        $this->forgetFlexible('sermons_jsonld_recent_100');
 
         $this->clearInternalCaches();
 

@@ -7,7 +7,6 @@ namespace Tests\Feature;
 use App\Enums\ProcessingStatus;
 use App\Jobs\ExtractSermon;
 use App\Models\MediaProcessingLog;
-use App\Services\Media\Video\VideoExtractionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Queue;
@@ -91,15 +90,6 @@ class LivestreamAudioCompressionTest extends TestCase
         $this->assertTrue($processingLog->processing_metadata['audio_compression']['compression_applied']);
         $this->assertEquals(2.54, $processingLog->processing_metadata['audio_compression']['compression_ratio']);
         $this->assertTrue($processingLog->processing_metadata['audio_compression']['valid_for_transcription']);
-    }
-
-    public function test_video_storage_service_extract_optimized_audio_method_exists(): void
-    {
-        // The extractOptimizedAudioFromSegment method was moved to VideoExtractionService
-        // as part of the architectural cleanup
-        $extractionService = app(VideoExtractionService::class);
-
-        $this->assertTrue(method_exists($extractionService, 'extractOptimizedAudioFromSegment'));
     }
 
     public function test_audio_extraction_config_values_are_reasonable(): void

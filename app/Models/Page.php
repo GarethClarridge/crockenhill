@@ -225,14 +225,6 @@ class Page extends Model implements HasMedia, Sitemapable
     }
 
     /**
-     * Check if the page has an associated meeting.
-     */
-    public function hasMeeting(): bool
-    {
-        return $this->meeting()->exists();
-    }
-
-    /**
      * Get the SEO meta description for the page.
      * Truncates the description field to 155 characters (plus ellipsis if truncated).
      *

@@ -69,7 +69,10 @@ class SermonAnalysisService implements SermonAnalysisInterface
     public function analyzeSermon(string $transcript, array $existingSeries = [], ?string $processingId = null): SermonAnalysis
     {
         $startTime = microtime(true);
-        $processingId ??= 'unknown';
+
+        if ($processingId === null) {
+            throw new Exception('A processing ID is required for sermon analysis.');
+        }
 
         $this->logger->logProcessingStep(
             $processingId,
@@ -127,19 +130,14 @@ class SermonAnalysisService implements SermonAnalysisInterface
      */
     private function performAiAnalysis(string $transcript, array $existingSeries, string $processingId): array
     {
-        $apiStartTime = microtime(true);
-
         try {
-            return $this->runAnalysisAttempt($transcript, $existingSeries, $processingId, 1, $apiStartTime);
+            return $this->runAnalysis($transcript, $existingSeries, $processingId);
         } catch (Exception|\TypeError $e) {
-            $this->handleAnalysisAttemptError($e, $processingId, 1, $apiStartTime);
-
             $this->logger->logProcessingStep(
                 $processingId,
                 'ai_analysis',
                 'failed',
                 [
-                    'total_attempts' => 1,
                     'final_error' => $this->sanitizeForLog($e->getMessage()),
                 ]
             );
@@ -151,26 +149,27 @@ class SermonAnalysisService implements SermonAnalysisInterface
     }
 
     /**
-     * Execute a single AI analysis attempt.
+     * Execute the AI analysis.
      *
      * @param  array<int, string>  $existingSeries
      * @return SermonAnalysisResult
      *
      * @throws Exception|\TypeError|ErrorException|TransporterException
      */
-    private function runAnalysisAttempt(string $transcript, array $existingSeries, string $processingId, int $attempt, float $apiStartTime): array
+    private function runAnalysis(string $transcript, array $existingSeries, string $processingId): array
     {
+        $apiStartTime = microtime(true);
         $model = (string) config('media-processing.analysis.model', 'gpt-5-mini');
 
         $this->logger->logProcessingStep(
             $processingId,
-            'ai_analysis_attempt',
+            'ai_analysis',
             'started',
-            ['attempt' => $attempt, 'model' => $model]
+            ['model' => $model]
         );
 
         $prompt = $this->promptBuilder->buildAnalysisPrompt($transcript, $existingSeries);
-        $response = $this->executeAiRequest($prompt, $model, $processingId, $attempt);
+        $response = $this->executeAiRequest($prompt, $model, $processingId);
 
         $apiTime = microtime(true) - $apiStartTime;
 
@@ -181,7 +180,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
             $apiTime,
             200,
             null,
-            ['attempt' => $attempt, 'model' => $model, 'max_completion_tokens' => 1500]
+            ['model' => $model, 'max_completion_tokens' => 4000]
         );
 
         $analysisData = $this->parseAiResponse($response, $processingId);
@@ -192,7 +191,6 @@ class SermonAnalysisService implements SermonAnalysisInterface
                 'title' => $validatedData['title'],
                 'length' => strlen($validatedData['title']),
                 'max' => SermonAnalysis::MAX_TITLE_CHARACTERS,
-                'attempt' => $attempt,
             ]));
 
             throw new Exception(sprintf(
@@ -204,10 +202,9 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
         $this->logger->logProcessingStep(
             $processingId,
-            'ai_analysis_attempt',
+            'ai_analysis',
             'completed',
             [
-                'attempt' => $attempt,
                 'title' => $validatedData['title'],
                 'series' => $validatedData['series'] ?? 'None',
                 'reference' => $validatedData['reference'] ?? 'None',
@@ -217,67 +214,6 @@ class SermonAnalysisService implements SermonAnalysisInterface
         );
 
         return $validatedData;
-    }
-
-    /**
-     * Handle and log errors from an AI analysis attempt.
-     */
-    private function handleAnalysisAttemptError(Exception|\TypeError $e, string $processingId, int $attempt, float $apiStartTime): void
-    {
-        $apiTime = microtime(true) - $apiStartTime;
-
-        if ($e instanceof ErrorException) {
-            Log::error('OpenAI API ErrorException details', $this->sanitizeArrayForLog([
-                'processing_id' => $processingId,
-                'attempt' => $attempt,
-                'error_code' => $e->getCode(),
-                'error_message' => $e->getMessage(),
-                'api_time_ms' => round($apiTime * 1000, 2),
-                'exception_class' => get_class($e),
-                'status_code' => $e->getStatusCode(),
-            ]));
-
-            $this->logger->logApiCall(
-                $processingId,
-                'OpenAI',
-                'chat/completions',
-                $apiTime,
-                $e->getStatusCode(),
-                $e->getMessage(),
-                ['attempt' => $attempt]
-            );
-
-            return;
-        }
-
-        if ($e instanceof TransporterException) {
-            $this->logger->logApiCall(
-                $processingId,
-                'OpenAI',
-                'chat/completions',
-                $apiTime,
-                0,
-                $e->getMessage(),
-                ['attempt' => $attempt, 'error_type' => 'network']
-            );
-
-            return;
-        }
-
-        if ($e instanceof \TypeError) {
-            OpenAIResponseLogger::logResponse($processingId, $attempt, null, 'TypeError');
-            OpenAIResponseLogger::logTransportError($processingId, $attempt, $e->getMessage(), null, null);
-
-            $this->logger->logError($processingId, 'ai_analysis_attempt', $e, [
-                'attempt' => $attempt,
-                'error_type' => 'response_parsing',
-                'api_time_ms' => round($apiTime * 1000, 2),
-            ]);
-
-            return;
-        }
-
-        $this->logger->logError($processingId, 'ai_analysis_attempt', $e, ['attempt' => $attempt]);
     }
 
     /**
@@ -320,7 +256,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
      *
      * @throws Exception|ErrorException|\TypeError
      */
-    private function executeAiRequest(string $prompt, string $model, string $processingId, int $attempt): CreateResponse
+    private function executeAiRequest(string $prompt, string $model, string $processingId): CreateResponse
     {
         try {
             return OpenAI::chat()->create(OpenAiChatPayload::forModel([
@@ -343,32 +279,21 @@ class SermonAnalysisService implements SermonAnalysisInterface
         } catch (ErrorException $e) {
             throw $e;
         } catch (\TypeError $e) {
-            // Handle malformed API response (e.g., non-JSON response body)
+            OpenAIResponseLogger::logResponse($processingId, 1, null, 'TypeError');
+            OpenAIResponseLogger::logTransportError($processingId, 1, $e->getMessage(), null, null);
+
             Log::error('OpenAI API response parsing failed (malformed response)', $this->sanitizeArrayForLog([
                 'processing_id' => $processingId,
-                'attempt' => $attempt,
                 'error' => $e->getMessage(),
                 'model' => $model,
                 'exception_file' => $e->getFile(),
                 'exception_line' => $e->getLine(),
             ]));
 
-            // Log details about response body (from stack context)
-            $trace = $e->getTrace();
-            foreach ($trace as $frame) {
-                if (str_contains($frame['file'] ?? '', 'Chat.php') && ($frame['line'] ?? 0) === 35) {
-                    // This is where CreateResponse::from() is called
-                    // The first argument would have been $response->data()
-                    Log::warning('OpenAI SDK response type mismatch detected at Chat.php:35 - response body is string not array');
-                    break;
-                }
-            }
-
             throw new Exception('OpenAI API response malformed.');
         } catch (Exception $e) {
             Log::error('OpenAI API call failed', $this->sanitizeArrayForLog([
                 'processing_id' => $processingId,
-                'attempt' => $attempt,
                 'error' => $e->getMessage(),
                 'model' => $model,
             ]));
@@ -391,114 +316,5 @@ class SermonAnalysisService implements SermonAnalysisInterface
         ]));
 
         return $series;
-    }
-
-    /**
-     * Generate sermon title from transcript (public method for individual use)
-     *
-     * @param  string  $transcript  The sermon transcript
-     * @return string Generated title
-     *
-     * @throws Exception When title generation fails
-     */
-    public function generateTitle(string $transcript): string
-    {
-        if (! $this->validator->validateTranscript($transcript)) {
-            throw new Exception('Invalid transcript for title generation');
-        }
-
-        try {
-            $analysis = $this->analyzeSermon($transcript);
-
-            return $analysis->title;
-        } catch (Exception $e) {
-            Log::warning('Failed to generate title via full analysis, using fallback', $this->sanitizeArrayForLog([
-                'error' => $e->getMessage(),
-            ]));
-
-            return $this->promptBuilder->generateFallbackTitle($transcript);
-        }
-    }
-
-    /**
-     * Identify series from transcript and existing series list
-     *
-     * @param  string  $transcript  The sermon transcript
-     * @param  array<int, string>  $existingSeries  Array of existing series names
-     * @return string|null Matched series name or null
-     *
-     * @throws Exception When series identification fails
-     */
-    public function identifySeries(string $transcript, array $existingSeries): ?string
-    {
-        if (! $this->validator->validateTranscript($transcript)) {
-            throw new Exception('Invalid transcript for series identification');
-        }
-
-        try {
-            $analysis = $this->analyzeSermon($transcript, $existingSeries);
-
-            return $analysis->series;
-        } catch (Exception $e) {
-            Log::warning('Failed to identify series via full analysis', $this->sanitizeArrayForLog([
-                'error' => $e->getMessage(),
-            ]));
-
-            return null;
-        }
-    }
-
-    /**
-     * Extract main Bible passage from transcript
-     *
-     * @param  string  $transcript  The sermon transcript
-     * @return string|null Identified Bible passage or null
-     *
-     * @throws Exception When passage extraction fails
-     */
-    public function extractBiblePassage(string $transcript): ?string
-    {
-        if (! $this->validator->validateTranscript($transcript)) {
-            throw new Exception('Invalid transcript for Bible passage extraction');
-        }
-
-        try {
-            $analysis = $this->analyzeSermon($transcript);
-
-            return $analysis->reference;
-        } catch (Exception $e) {
-            Log::warning('Failed to extract Bible passage via full analysis', $this->sanitizeArrayForLog([
-                'error' => $e->getMessage(),
-            ]));
-
-            return null;
-        }
-    }
-
-    /**
-     * Extract sermon points/headings from transcript
-     *
-     * @param  string  $transcript  The sermon transcript
-     * @return array<int, string> Array of sermon points
-     *
-     * @throws Exception When point extraction fails
-     */
-    public function extractSermonPoints(string $transcript): array
-    {
-        if (! $this->validator->validateTranscript($transcript)) {
-            throw new Exception('Invalid transcript for sermon points extraction');
-        }
-
-        try {
-            $analysis = $this->analyzeSermon($transcript);
-
-            return $analysis->points;
-        } catch (Exception $e) {
-            Log::warning('Failed to extract sermon points via full analysis, using fallback', $this->sanitizeArrayForLog([
-                'error' => $e->getMessage(),
-            ]));
-
-            return ['Main Message'];
-        }
     }
 }
