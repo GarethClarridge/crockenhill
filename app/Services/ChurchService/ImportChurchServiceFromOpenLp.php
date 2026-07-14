@@ -28,6 +28,9 @@ class ImportChurchServiceFromOpenLp
         private readonly ChurchServiceStructureMergeService $mergeService,
     ) {}
 
+    /**
+     * @throws ModelNotFoundException
+     */
     public function import(UploadedFile $uploadedFile): OpenLpImportResult
     {
         $parsed = $this->parser->parse($uploadedFile);

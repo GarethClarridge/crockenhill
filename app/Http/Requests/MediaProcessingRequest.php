@@ -40,7 +40,9 @@ abstract class MediaProcessingRequest extends FormRequest
     {
         $processingId = $this->route('processingId');
 
-        if (! is_string($processingId) || preg_match('/^[0-9a-fA-F-]{36}$/', $processingId) !== 1) {
+        // Security: Fast-fail length check before regex provides Defense in Depth
+        // against ReDoS and resource exhaustion on malformed inputs.
+        if (! is_string($processingId) || strlen($processingId) !== 36 || preg_match('/^[0-9a-fA-F-]{36}$/', $processingId) !== 1) {
             throw new HttpException(400, 'Invalid processing ID format.');
         }
     }

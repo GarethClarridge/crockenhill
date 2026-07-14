@@ -94,7 +94,7 @@ class CalendarAdminController extends Controller
                 "Uncategorised: {$report['uncategorized_events']}"
             );
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Sync failed: '.$e->getMessage());
+            return redirect()->back()->with('error', 'Sync failed due to an internal error.');
         }
     }
 }
