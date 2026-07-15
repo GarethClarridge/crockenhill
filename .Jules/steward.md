@@ -37,3 +37,8 @@
 **Pattern:** Time-sensitive scopes, hardcoded URLs, and loose enum assertions.
 **Cause:** Tests relied on `Carbon::now()` for relative date scopes, hardcoded `http://localhost` strings for URL expectations, and `assertContains` for single-value enums.
 **Fix:** Introduced `Carbon::setTestNow()` for deterministic scope testing. Replaced hardcoded environment strings with the `url()` helper. Tightened enum assertions to use `assertSame` for precision. Removed implementation-leaking `Log::info` calls and stale commented-out test code.
+
+## 2027-02-14 - Harden model unit tests by removing DB dependency
+**Pattern:** DatabaseTransactions on unit tests.
+**Cause:** Validation tests for `unique` and `exists` rules triggered database hits, forcing the use of `DatabaseTransactions` even for non-DB logic like regex or integer bounds.
+**Fix:** Removed `DatabaseTransactions` and introduced a `filterDatabaseRules` helper to strip `exists:` and `unique:` rules. This allows pure unit testing of model validation logic in isolation, significantly improving test speed and reliability.
