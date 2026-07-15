@@ -41,3 +41,7 @@
 ## 2026-07-05 - Clarifying Extraction Precedence and Data Shapes
 **Learning:** Documentation for entry-point methods (like `ProcessingInitiator::initiateProcessing`) must explicitly define the "Identity Extraction Hierarchy" to clarify how overlapping inputs (overrides, metadata, determination) are resolved. Precise PHPStan array shapes for mixed-data parameters (like `additionalLogData` and `preExtractedMetadata`) are essential for catching type mismatches early, such as when a service-level storage path may return `false` on failure while the DB expects a `string`.
 **Action:** Always include a hierarchy or precedence list in PHPDoc for methods with multiple source-data inputs. Use explicit array shapes for all "bag of data" parameters to satisfy static analysis and improve discoverability of expected keys.
+
+## 2026-07-07 - Documenting Interface Contracts for API Clarity
+**Learning:** Interface contracts in `app/Contracts/` define the API surface and boundary between services. Providing class-level PHPDoc that explains the "why" and "purpose" of the interface, along with detailed method documentation, significantly improves developer experience when navigating service implementations.
+**Action:** Prioritize documenting interface contracts as they are the source of truth for service expectations. Ensure parameter and return descriptions clarify the domain context (e.g., OoS email components) rather than just technical types.
