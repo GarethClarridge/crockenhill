@@ -1,6 +1,6 @@
 <x-admin.form-shell
-    title="Import Email Text"
-    description="Paste an order-of-service email into the same parsing pipeline used by inbound mail."
+    title="Import email text"
+    description="Paste an order-of-service email into the same parsing pipeline used by inbound mail"
     save-action="submit"
 >
     <x-slot:actions>

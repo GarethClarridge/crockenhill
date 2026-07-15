@@ -1,5 +1,5 @@
 <x-admin.form-shell
-    title="Edit Calendar Event"
+    title="Edit calendar event"
     save-action="save"
 >
     <x-slot:actions>
