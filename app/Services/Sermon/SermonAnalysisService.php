@@ -130,9 +130,14 @@ class SermonAnalysisService implements SermonAnalysisInterface
      */
     private function performAiAnalysis(string $transcript, array $existingSeries, string $processingId): array
     {
+        $apiStartTime = microtime(true);
+        $model = (string) config('media-processing.analysis.model', 'gpt-5-mini');
+
         try {
             return $this->runAnalysis($transcript, $existingSeries, $processingId);
         } catch (Exception|\TypeError $e) {
+            $this->logAnalysisFailure($e, $processingId, $apiStartTime, $model);
+
             $this->logger->logProcessingStep(
                 $processingId,
                 'ai_analysis',
@@ -146,6 +151,38 @@ class SermonAnalysisService implements SermonAnalysisInterface
                 ? new Exception('OpenAI API response malformed.', 0, $e)
                 : $e;
         }
+    }
+
+    private function logAnalysisFailure(
+        Exception|\TypeError $exception,
+        string $processingId,
+        float $apiStartTime,
+        string $model,
+    ): void {
+        $apiTime = microtime(true) - $apiStartTime;
+
+        if ($exception instanceof ErrorException) {
+            $this->logger->logApiCall(
+                $processingId,
+                'OpenAI',
+                'chat/completions',
+                $apiTime,
+                $exception->getStatusCode(),
+                $exception->getMessage(),
+                [
+                    'model' => $model,
+                    'error_type' => $exception->getErrorType(),
+                ],
+            );
+
+            return;
+        }
+
+        $this->logger->logError($processingId, 'ai_analysis', $exception, [
+            'api_time_ms' => round($apiTime * 1000, 2),
+            'model' => $model,
+            'error_type' => class_basename($exception),
+        ]);
     }
 
     /**
@@ -187,7 +224,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
         $validatedData = $this->validator->validateAndCleanAnalysisData($analysisData, $transcript);
 
         if ($this->validator->isTitleTooLong($validatedData['title'])) {
-            Log::info('AI-generated title exceeds character limit, retrying', $this->sanitizeArrayForLog([
+            Log::info('AI-generated title exceeds character limit; rejecting result', $this->sanitizeArrayForLog([
                 'title' => $validatedData['title'],
                 'length' => strlen($validatedData['title']),
                 'max' => SermonAnalysis::MAX_TITLE_CHARACTERS,

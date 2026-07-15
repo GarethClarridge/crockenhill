@@ -5,6 +5,7 @@
         maxFileSizeLabel: @js($maxFileSize ?? 'N/A')
     })"
     x-init="init()"
+    x-on:media-upload-cancel.window="cancelUpload"
 >
     <x-admin.form-shell title="Upload recording" description="Audio, sermon video, or full livestream — processing starts automatically.">
         <x-slot:actions>
@@ -22,7 +23,10 @@
         </x-slot:actions>
 
         {{-- Upload Form --}}
-        @if(! in_array($status, [\App\Enums\UploadState::Processing, \App\Enums\UploadState::Completed], true))
+        @if(
+            in_array($status, [\App\Enums\UploadState::Idle, \App\Enums\UploadState::Uploading], true)
+            || ($status === \App\Enums\UploadState::Failed && $processingId === null && $tempFilePath === null)
+        )
             <x-card heading="Recording">
                 <div class="space-y-6">
                     {{-- Media Type Selection --}}
@@ -162,7 +166,6 @@
                         </div>
 
                         @include('livewire.media-upload.progress', [
-                            'isUploading' => $status === \App\Enums\UploadState::Uploading,
                             'currentFileName' => $originalFileName ?? ($mediaFile ? $mediaFile->getClientOriginalName() : 'file'),
                         ])
 

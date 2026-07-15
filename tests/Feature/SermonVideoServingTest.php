@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\SermonContentType;
+use App\Jobs\MoveSermonToPrivateStorage;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -24,6 +26,7 @@ class SermonVideoServingTest extends TestCase
 
         Storage::fake('public');
         Storage::fake('local');
+        Queue::fake([MoveSermonToPrivateStorage::class]);
 
         Config::set('media-processing.storage.sermon_disk', 'public');
     }

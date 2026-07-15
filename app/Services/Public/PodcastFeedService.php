@@ -34,11 +34,17 @@ class PodcastFeedService
 
         if ($cacheConfig['enabled']) {
             /** @var Collection<int, PodcastFeedItemReadModel> */
-            return Cache::flexible(
+            $feed = Cache::flexible(
                 $cacheKey,
                 [$cacheConfig['ttl'], $cacheConfig['stale_ttl']],
                 fn () => $this->fetchSermons($serviceType)
             );
+
+            if ($feed->contains(fn (PodcastFeedItemReadModel $item): bool => $item->enclosureLength === 0)) {
+                $this->forgetFlexibleCacheKey($cacheKey);
+            }
+
+            return $feed;
         }
 
         return $this->fetchSermons($serviceType);
@@ -154,13 +160,18 @@ class PodcastFeedService
             : ['podcast_feed_morning', 'podcast_feed_evening'];
 
         foreach ($keys as $key) {
-            Cache::forget($key);
-            Cache::forget("illuminate:cache:flexible:created:{$key}");
+            $this->forgetFlexibleCacheKey($key);
         }
 
         // The presenter is a scoped singleton that memoizes per-identity, so clearing
         // the cache while the same presenter survives across the cache boundary would
         // leak the prior preacher name. Flush its internal caches alongside the feed.
         $this->sermonViewPresenter->clearInternalCaches();
+    }
+
+    private function forgetFlexibleCacheKey(string $cacheKey): void
+    {
+        Cache::forget($cacheKey);
+        Cache::forget("illuminate:cache:flexible:created:{$cacheKey}");
     }
 }

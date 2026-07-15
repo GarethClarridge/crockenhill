@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Mail;
 
 use App\Models\MediaProcessingLog;
-use App\Queries\ChurchServiceProcessingRunQuery;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -51,8 +50,7 @@ class ManualReviewRequired extends Mailable
         $log = MediaProcessingLog::query()->where('processing_id', $this->processingId)->first();
 
         if ($log !== null) {
-            return app(ChurchServiceProcessingRunQuery::class)->matchedServiceUrl($log)
-                ?? route('admin.services.inbox', ['filter' => 'segments']);
+            return route('admin.recordings.sermon-segment', $log->processing_id);
         }
 
         return route('admin.services.inbox', ['filter' => 'segments']);

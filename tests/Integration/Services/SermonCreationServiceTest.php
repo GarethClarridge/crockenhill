@@ -11,6 +11,7 @@ use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\TitleGenerationStrategy;
 use App\Exceptions\SermonRichnessDowngradeException;
+use App\Jobs\MoveSermonToPrivateStorage;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
@@ -19,6 +20,7 @@ use App\Services\Public\SermonRepository;
 use App\Services\Sermon\SermonCreationService;
 use App\Services\Sermon\SermonFilenameParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -31,6 +33,7 @@ class SermonCreationServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Queue::fake([MoveSermonToPrivateStorage::class]);
         $this->service = new SermonCreationService(
             new PreacherResolutionService,
             app(SermonRepository::class),

@@ -98,12 +98,12 @@ class PodcastFeedServiceTest extends TestCase
             'audio_file_path' => 'sermons/sermon.mp3',
             'content_type' => SermonContentType::Sermon,
         ]);
-        Sermon::factory()->create([
+        Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
             'service' => 'morning',
             'title' => "Children's Talk",
             'audio_file_path' => 'sermons/childrens-talk.mp3',
             'content_type' => SermonContentType::ChildrensTalk,
-        ]);
+        ]));
 
         $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturn(1024);
@@ -245,6 +245,30 @@ class PodcastFeedServiceTest extends TestCase
         $this->assertCount($queryCountAfterFirstCall, DB::getQueryLog());
 
         DB::disableQueryLog();
+    }
+
+    #[Test]
+    public function it_retries_incomplete_enclosure_metadata_instead_of_caching_it(): void
+    {
+        config(['podcast.cache' => ['enabled' => true, 'ttl' => 3600, 'stale_ttl' => 7200]]);
+        Sermon::factory()->create([
+            'service' => 'morning',
+            'audio_file_path' => 'sermons/test.mp3',
+        ]);
+
+        $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
+        $this->storageService->method('getFileSize')->willReturnOnConsecutiveCalls(null, 1024);
+
+        $firstFeed = $this->service->getSermonsForFeed(SermonService::Morning);
+
+        $this->assertSame(0, $firstFeed->sole()->enclosureLength);
+        $this->assertFalse(Cache::has('podcast_feed_morning'));
+        $this->assertFalse(Cache::has('illuminate:cache:flexible:created:podcast_feed_morning'));
+
+        $secondFeed = $this->service->getSermonsForFeed(SermonService::Morning);
+
+        $this->assertSame(1024, $secondFeed->sole()->enclosureLength);
+        $this->assertTrue(Cache::has('podcast_feed_morning'));
     }
 
     #[Test]

@@ -25,6 +25,7 @@ class SermonPrivateStorageMoveTest extends TestCase
 
         Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
+            'audio_file_path' => 'sermons/childrens-talk.mp3',
         ]);
 
         Queue::assertPushed(MoveSermonToPrivateStorage::class);
@@ -42,7 +43,10 @@ class SermonPrivateStorageMoveTest extends TestCase
         Queue::fake(); // reset — no job dispatched during create of a Sermon type
         Queue::assertNotPushed(MoveSermonToPrivateStorage::class);
 
-        $sermon->update(['content_type' => SermonContentType::ChildrensTalk]);
+        $sermon->update([
+            'content_type' => SermonContentType::ChildrensTalk,
+            'audio_file_path' => 'sermons/childrens-talk.mp3',
+        ]);
 
         Queue::assertPushed(MoveSermonToPrivateStorage::class);
     }

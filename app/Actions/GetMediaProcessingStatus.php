@@ -83,7 +83,7 @@ class GetMediaProcessingStatus
                 'started_at' => $step->started_at?->toISOString(),
                 'completed_at' => $step->completed_at?->toISOString(),
                 'duration_seconds' => $step->started_at !== null && $step->completed_at !== null
-                    ? $step->completed_at->diffInSeconds($step->started_at)
+                    ? $step->started_at->diffInSeconds($step->completed_at)
                     : null,
             ])
             ->all();

@@ -55,7 +55,7 @@
                         @if($this->statusUrl)
                             <div class="mt-3">
                                 <x-button :link="$this->statusUrl" variant="warning" size="sm" icon="chevron-right" iconPosition="trailing">
-                                    Review service
+                                    Choose segment
                                 </x-button>
                             </div>
                         @endif

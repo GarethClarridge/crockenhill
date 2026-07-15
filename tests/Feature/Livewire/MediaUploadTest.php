@@ -135,7 +135,10 @@ class MediaUploadTest extends TestCase
             ->set('mediaType', 'audio')
             ->set('mediaFile', $invalidFile)
             ->call('uploadComplete')
-            ->assertHasErrors(['mediaFile']);
+            ->assertHasErrors(['mediaFile'])
+            ->assertSet('processingId', null)
+            ->assertSet('tempFilePath', null)
+            ->assertSeeHtml('id="media-file"');
     }
 
     #[Test]
@@ -328,6 +331,20 @@ class MediaUploadTest extends TestCase
     }
 
     #[Test]
+    public function terminal_processing_states_do_not_render_a_second_file_picker(): void
+    {
+        $this->actingAs($this->admin);
+
+        foreach ([UploadState::Failed, UploadState::Cancelled, UploadState::ManualReview] as $status) {
+            Livewire::test(MediaUpload::class)
+                ->set('mediaType', 'audio')
+                ->set('processingId', 'existing-processing-run')
+                ->set('status', $status)
+                ->assertDontSeeHtml('id="media-file"');
+        }
+    }
+
+    #[Test]
     public function it_handles_processing_cancellation_without_treating_it_as_failure(): void
     {
         $this->actingAs($this->admin);
@@ -410,9 +427,10 @@ class MediaUploadTest extends TestCase
             ->assertSet('status', UploadState::ManualReview)
             ->assertSet('currentStep', 'Manual review required')
             ->assertSet('progressPercentage', 100)
-            ->assertSee('Manual Review Required');
+            ->assertSee('Manual Review Required')
+            ->assertSee('Choose segment');
 
-        $this->assertSame(route('admin.services.show', $service), $component->get('statusUrl'));
+        $this->assertSame(route('admin.recordings.sermon-segment', $log->processing_id), $component->get('statusUrl'));
     }
 
     #[Test]

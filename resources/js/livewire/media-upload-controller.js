@@ -14,6 +14,10 @@ export const mediaUploadController = (config = {}) => {
         lastProgressUpdate: 0,
         progressThrottleMs: PROGRESS_THROTTLE_MS,
         processingTriggered: false,
+        uploadCancelled: false,
+        uploadInProgress: false,
+        uploadProgressValue: 0,
+        currentFileName: null,
         listeners: [],
 
         init() {
@@ -40,6 +44,28 @@ export const mediaUploadController = (config = {}) => {
             this.listeners = [];
         },
 
+        setUploadProgressVisibility(isVisible) {
+            const progress = this.$root.querySelector('[data-upload-progress]');
+
+            if (progress) {
+                progress.hidden = ! isVisible;
+            }
+        },
+
+        updateUploadProgressDisplay(progress) {
+            const progressBar = this.$root.querySelector('[data-upload-progress-bar]');
+            const progressValue = this.$root.querySelector('[data-upload-progress-value]');
+
+            if (progressBar) {
+                progressBar.style.width = `${progress}%`;
+                progressBar.setAttribute('aria-valuenow', String(progress));
+            }
+
+            if (progressValue) {
+                progressValue.textContent = String(progress);
+            }
+        },
+
         registerUploadListeners() {
             this.registerListener('livewire-upload-start', (event) => {
                 if (! hasMediaFileDetail(event, this.componentId)) {
@@ -47,13 +73,20 @@ export const mediaUploadController = (config = {}) => {
                 }
 
                 this.processingTriggered = false;
-                this.$wire.set('status', 'uploading');
+                this.uploadCancelled = false;
+                this.uploadInProgress = true;
+                this.uploadProgressValue = 0;
+                this.setUploadProgressVisibility(true);
+                this.updateUploadProgressDisplay(0);
             });
 
             this.registerListener('livewire-upload-progress', (event) => {
                 if (! hasMediaFileDetail(event, this.componentId)) {
                     return;
                 }
+
+                this.uploadProgressValue = Math.round(event.detail.progress);
+                this.updateUploadProgressDisplay(this.uploadProgressValue);
 
                 if (this.$wire.status !== 'uploading') {
                     return;
@@ -66,7 +99,7 @@ export const mediaUploadController = (config = {}) => {
                 }
 
                 this.lastProgressUpdate = now;
-                this.$wire.call('updateUploadProgress', Math.round(event.detail.progress));
+                this.$wire.call('updateUploadProgress', this.uploadProgressValue);
             });
 
             this.registerListener('livewire-upload-finish', (event) => {
@@ -74,11 +107,13 @@ export const mediaUploadController = (config = {}) => {
                     return;
                 }
 
-                if (this.processingTriggered) {
+                if (this.uploadCancelled || this.processingTriggered) {
                     return;
                 }
 
                 this.processingTriggered = true;
+                this.uploadInProgress = false;
+                this.setUploadProgressVisibility(false);
                 this.$wire.call('uploadComplete');
             });
 
@@ -88,11 +123,13 @@ export const mediaUploadController = (config = {}) => {
                 }
 
                 this.processingTriggered = false;
+                this.uploadInProgress = false;
+                this.setUploadProgressVisibility(false);
                 this.$wire.call('handleUploadError', `Upload failed: ${event.detail.error || 'Unknown error'}`);
             });
 
             this.registerListener('beforeunload', (event) => {
-                if (this.$wire.status !== 'uploading') {
+                if (! this.uploadInProgress) {
                     return;
                 }
 
@@ -118,8 +155,24 @@ export const mediaUploadController = (config = {}) => {
             }
 
             const modifiedDate = new Date(file.lastModified);
+            this.currentFileName = file.name;
+            const fileName = this.$root.querySelector('[data-upload-file-name]');
+
+            if (fileName) {
+                fileName.textContent = file.name;
+            }
             this.fileModifiedDate = modifiedDate.toISOString().split('T')[0];
             this.$wire.set('fileModifiedDate', this.fileModifiedDate);
+        },
+
+        cancelUpload() {
+            this.uploadCancelled = true;
+            this.processingTriggered = false;
+            this.uploadInProgress = false;
+            this.setUploadProgressVisibility(false);
+            this.$wire.$cancelUpload('mediaFile', () => {
+                this.$wire.call('cancelUpload');
+            });
         },
 
         handleDrop(event) {
@@ -135,6 +188,7 @@ export const mediaUploadController = (config = {}) => {
             }
 
             const modifiedDate = new Date(file.lastModified);
+            this.currentFileName = file.name;
             this.fileModifiedDate = modifiedDate.toISOString().split('T')[0];
             this.$wire.set('fileModifiedDate', this.fileModifiedDate);
             this.$wire.upload('mediaFile', file, () => {}, () => {}, (progress) => {});

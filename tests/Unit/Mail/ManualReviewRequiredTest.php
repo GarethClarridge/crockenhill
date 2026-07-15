@@ -81,13 +81,13 @@ class ManualReviewRequiredTest extends TestCase
         $this->assertEquals(0, $content->with['segmentCount']);
     }
 
-    public function test_content_links_matched_runs_to_the_service_workbench(): void
+    public function test_content_links_matched_runs_to_the_dedicated_segment_review(): void
     {
         $service = ChurchService::factory()->create([
             'date' => '2026-06-07',
             'service' => SermonService::Morning,
         ]);
-        MediaProcessingLog::factory()->livestream()->manualReviewRequired()->create([
+        $log = MediaProcessingLog::factory()->livestream()->manualReviewRequired()->create([
             'processing_id' => 'proc-matched',
             'extracted_date' => $service->date,
             'extracted_service' => $service->service,
@@ -95,12 +95,12 @@ class ManualReviewRequiredTest extends TestCase
 
         $content = (new ManualReviewRequired('proc-matched', 'Review'))->content();
 
-        $this->assertSame(route('admin.services.show', $service), $content->with['reviewUrl']);
+        $this->assertSame(route('admin.recordings.sermon-segment', $log->processing_id), $content->with['reviewUrl']);
     }
 
-    public function test_content_links_orphan_runs_to_the_segments_inbox(): void
+    public function test_content_links_orphan_runs_to_the_dedicated_segment_review(): void
     {
-        MediaProcessingLog::factory()->livestream()->manualReviewRequired()->create([
+        $log = MediaProcessingLog::factory()->livestream()->manualReviewRequired()->create([
             'processing_id' => 'proc-orphan',
             'extracted_date' => '2026-06-07',
             'extracted_service' => SermonService::Morning,
@@ -108,6 +108,6 @@ class ManualReviewRequiredTest extends TestCase
 
         $content = (new ManualReviewRequired('proc-orphan', 'Review'))->content();
 
-        $this->assertSame(route('admin.services.inbox', ['filter' => 'segments']), $content->with['reviewUrl']);
+        $this->assertSame(route('admin.recordings.sermon-segment', $log->processing_id), $content->with['reviewUrl']);
     }
 }

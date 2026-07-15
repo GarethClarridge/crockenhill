@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Enums\ServiceSectionSongMatchType;
+use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Services\Public\PublicSongUsageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -100,5 +104,65 @@ class PublicSongUsageServiceTest extends TestCase
 
         $this->assertSame(0, $this->service->statsForSong($song)['usage_count']);
         $this->assertCount(0, $this->service->usageHistoryForSong($song));
+    }
+
+    #[Test]
+    public function it_includes_confirmed_completed_livestream_usage_in_stats_and_history(): void
+    {
+        $song = Song::factory()->create();
+        $churchService = ChurchService::factory()->create(['date' => '2025-03-09']);
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'song_id' => $song->id,
+            'type' => 'songs',
+            'title' => 'Confirmed livestream song',
+        ]);
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+        ]);
+
+        $this->assertSame(1, $this->service->statsForSong($song)['usage_count']);
+        $this->assertSame([$item->id], $this->service->usageHistoryForSong($song)->modelKeys());
+    }
+
+    #[Test]
+    #[DataProvider('eligibleProcessingLogStates')]
+    public function it_keeps_order_of_service_usage_eligible_for_non_completed_livestream_logs(
+        string $processingType,
+        string $status,
+    ): void {
+        $song = Song::factory()->create();
+        $churchService = ChurchService::factory()->create(['date' => '2025-03-09']);
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'song_id' => $song->id,
+            'type' => 'songs',
+        ]);
+
+        MediaProcessingLog::factory()->create([
+            'church_service_id' => $churchService->id,
+            'processing_type' => $processingType,
+            'status' => $status,
+        ]);
+
+        $this->assertSame(1, $this->service->statsForSong($song)['usage_count']);
+        $this->assertSame([$item->id], $this->service->usageHistoryForSong($song)->modelKeys());
+    }
+
+    /** @return array<string, array{string, string}> */
+    public static function eligibleProcessingLogStates(): array
+    {
+        return [
+            'failed livestream' => ['livestream', 'failed'],
+            'pending livestream' => ['livestream', 'pending'],
+            'processing livestream' => ['livestream', 'processing'],
+            'completed audio' => ['audio', 'completed'],
+        ];
     }
 }

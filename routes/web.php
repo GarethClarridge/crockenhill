@@ -37,6 +37,7 @@ use App\Livewire\Admin\Preachers\EditPreacher;
 use App\Livewire\Admin\Preachers\ListPreachers;
 use App\Livewire\Admin\Sermons\EditSermon;
 use App\Livewire\Admin\Sermons\ListSermons;
+use App\Livewire\Admin\SermonSegmentReview;
 use App\Livewire\Admin\Users\CreateUser;
 use App\Livewire\Admin\Users\EditUser;
 use App\Livewire\Admin\Users\ListUsers;
@@ -119,6 +120,10 @@ Route::group(['prefix' => 'christ/sermons'], function () {
         ->middleware('throttle:media-thumbnail')
         ->name('sermons.thumbnail');
 
+    Route::get('/{sermon:slug}/thumbnail/plain', [SermonAssetController::class, 'servePlainThumbnail'])
+        ->middleware('throttle:media-thumbnail')
+        ->name('sermons.thumbnail.plain');
+
     Route::get('/{sermon:slug}/thumbnail/card', [SermonAssetController::class, 'serveCardThumbnail'])
         ->middleware('throttle:media-thumbnail')
         ->name('sermons.thumbnail.card');
@@ -193,6 +198,8 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/services/create', ManageChurchService::class)->name('services.create');
     Route::get('/services/upload', UploadChurchService::class)->name('services.upload');
     Route::get('/services/upload-recording', MediaUpload::class)->name('services.upload-recording');
+    Route::get('/recordings/{processingLog:processing_id}/sermon-segment', SermonSegmentReview::class)
+        ->name('recordings.sermon-segment');
     Route::get('/services/submit-email', SubmitEmailText::class)->name('services.submit-email');
     // Retired queue pages (P3.4/P5): triage moved to the review inbox, editing
     // to the service workbench. URLs 302 so bookmarks keep working.

@@ -390,7 +390,7 @@ class SermonStorageService
             $sermon,
             $sermon->plain_thumbnail_file_path,
             'plain thumbnail',
-            'sermons.thumbnail'
+            'sermons.thumbnail.plain'
         );
     }
 
@@ -533,22 +533,42 @@ class SermonStorageService
      */
     private function fileMetadata(Sermon $sermon): array
     {
-        /** @var array{last_modified: ?int, size: ?int} */
-        return Cache::rememberForever($this->fileMetadataCacheKey($sermon), function () use ($sermon): array {
-            $info = $this->getSermonFileInfo($sermon);
+        $cacheKey = $this->fileMetadataCacheKey($sermon);
+        $cachedMetadata = Cache::get($cacheKey);
 
-            try {
-                return [
-                    'last_modified' => (int) Storage::disk($info['disk'])->lastModified($info['path']),
-                    'size' => (int) Storage::disk($info['disk'])->size($info['path']),
-                ];
-            } catch (Exception) {
-                return [
-                    'last_modified' => null,
-                    'size' => null,
-                ];
-            }
-        });
+        if (is_array($cachedMetadata)
+            && array_key_exists('last_modified', $cachedMetadata)
+            && array_key_exists('size', $cachedMetadata)) {
+            /** @var array{last_modified: ?int, size: ?int} $cachedMetadata */
+            return $cachedMetadata;
+        }
+
+        if ($cachedMetadata !== null) {
+            Cache::forget($cacheKey);
+        }
+
+        try {
+            /** @var array{last_modified: ?int, size: ?int} $metadata */
+            $metadata = Cache::remember(
+                $cacheKey,
+                (int) config('media-processing.storage.metadata_cache_ttl', 3600),
+                function () use ($sermon): array {
+                    $info = $this->getSermonFileInfo($sermon);
+
+                    return [
+                        'last_modified' => (int) Storage::disk($info['disk'])->lastModified($info['path']),
+                        'size' => (int) Storage::disk($info['disk'])->size($info['path']),
+                    ];
+                },
+            );
+        } catch (Exception) {
+            return [
+                'last_modified' => null,
+                'size' => null,
+            ];
+        }
+
+        return $metadata;
     }
 
     private function fileMetadataCacheKey(Sermon $sermon): string

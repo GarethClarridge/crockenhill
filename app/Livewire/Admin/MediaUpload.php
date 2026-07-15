@@ -159,7 +159,7 @@ class MediaUpload extends Component
     {
         $this->authorizeAdmin();
 
-        if ($this->status !== UploadState::Uploading) {
+        if ($this->processingId !== null || $this->tempFilePath !== null || $this->status === UploadState::Processing) {
             return;
         }
 
@@ -380,10 +380,11 @@ class MediaUpload extends Component
             return null;
         }
 
-        return $this->runQuery->matchedServiceUrl($log)
-            ?? ($this->status === UploadState::ManualReview
-                ? route('admin.services.inbox', ['filter' => 'segments'])
-                : null);
+        if ($this->status === UploadState::ManualReview) {
+            return route('admin.recordings.sermon-segment', $log->processing_id);
+        }
+
+        return $this->runQuery->matchedServiceUrl($log);
     }
 
     private function defaultServiceForType(string $mediaType): string

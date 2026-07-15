@@ -33,7 +33,7 @@ class MediaUploadControllerTest extends TestCase
     {
         $source = $this->controllerSource();
 
-        $this->assertStringContainsString('if (this.processingTriggered) {', $source);
+        $this->assertStringContainsString('if (this.uploadCancelled || this.processingTriggered) {', $source);
         $this->assertStringContainsString('this.processingTriggered = true;', $source);
     }
 
@@ -44,5 +44,18 @@ class MediaUploadControllerTest extends TestCase
 
         $this->assertStringContainsString("this.registerListener('livewire-upload-start'", $source);
         $this->assertStringContainsString('this.processingTriggered = false;', $source);
+        $this->assertStringContainsString('this.uploadCancelled = false;', $source);
+        $this->assertStringContainsString('this.uploadInProgress = true;', $source);
+    }
+
+    #[Test]
+    public function cancel_aborts_the_browser_upload_before_resetting_server_state(): void
+    {
+        $source = $this->controllerSource();
+
+        $this->assertStringContainsString('this.uploadCancelled = true;', $source);
+        $this->assertStringContainsString('this.uploadInProgress = false;', $source);
+        $this->assertStringContainsString("this.\$wire.\$cancelUpload('mediaFile', () => {", $source);
+        $this->assertStringContainsString("this.\$wire.call('cancelUpload');", $source);
     }
 }

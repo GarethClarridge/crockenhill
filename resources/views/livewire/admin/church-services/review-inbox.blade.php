@@ -271,25 +271,15 @@
                                             @endif
                                         </p>
                                     </div>
-                                    @php
-                                        $segmentLink = $group['service'] instanceof \App\Models\ChurchService
-                                            ? route('admin.services.show', $group['service']).'#processing-run-'.$run->id
-                                            : ($run->extracted_date !== null && $run->extracted_service !== null
-                                                ? route('admin.services.create', ['date' => $run->extracted_date->toDateString(), 'service' => $run->extracted_service->value])
-                                                : route('admin.services.inbox', ['filter' => 'segments']));
-                                        $segmentLinkLabel = $group['service'] instanceof \App\Models\ChurchService
-                                            ? 'Choose segment'
-                                            : 'Create this service';
-                                    @endphp
                                     <x-button
-                                        link="{{ $segmentLink }}"
+                                        link="{{ route('admin.recordings.sermon-segment', $run->processing_id) }}"
                                         variant="primary"
                                         size="xs"
                                         icon="arrow-right"
                                         iconPosition="trailing"
                                         inline
                                     >
-                                        {{ $segmentLinkLabel }}
+                                        Choose segment
                                     </x-button>
                                 </div>
                             @elseif($item['kind'] === 'merge')

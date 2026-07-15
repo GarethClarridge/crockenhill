@@ -61,6 +61,7 @@ class GetMediaProcessingStatusTest extends TestCase
         $this->assertSame($processingId, $response->processingId);
         $this->assertCount(2, $response->additionalData['processing_steps']);
         $this->assertSame('transcription', $response->additionalData['processing_steps'][0]['step']);
+        $this->assertSame(60.0, $response->additionalData['processing_steps'][1]['duration_seconds']);
         $this->assertSame('media-processing', $response->additionalData['queue_name']);
         $this->assertSame('job-123', $response->additionalData['job_id']);
         $this->assertSame(2, $response->additionalData['attempt_count']);
