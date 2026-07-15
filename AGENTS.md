@@ -418,7 +418,7 @@ The setup script creates:
 
 Beyond the Boost-managed skills installed under `.claude/skills/` and `.agents/skills/`, this repo ships a **project-specific** skill:
 
-- `frontend-design` (`.claude/skills/frontend-design/SKILL.md`) — Crockenhill's design system. Activate it for any visual/UI decision. It overrides the generic Tailwind/Livewire skill advice.
+- `frontend-design` (`.agents/skills/frontend-design/SKILL.md`) — Crockenhill's cross-tool design system. Claude discovers it through `.claude/skills/frontend-design/SKILL.md`. Activate it for any visual/UI decision; it overrides generic Tailwind/Livewire advice.
 
 Skill usage rules:
 - If a task matches a skill, open the `SKILL.md` and follow it.

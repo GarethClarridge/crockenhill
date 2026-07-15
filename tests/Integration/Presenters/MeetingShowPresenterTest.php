@@ -6,7 +6,6 @@ namespace Tests\Integration\Presenters;
 
 use App\Models\Meeting;
 use App\Presenters\MeetingShowPresenter;
-use App\Presenters\PageLayoutPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\Attributes\Test;
@@ -22,9 +21,7 @@ class MeetingShowPresenterTest extends TestCase
     {
         parent::setUp();
 
-        $this->presenter = new MeetingShowPresenter(
-            $this->createStub(PageLayoutPresenter::class),
-        );
+        $this->presenter = new MeetingShowPresenter;
     }
 
     #[Test]

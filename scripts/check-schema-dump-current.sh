@@ -25,7 +25,12 @@ if [[ ${#missing[@]} -gt 0 ]]; then
   printf "Schema dump is stale. Missing migrations:\n"
   printf "  %s\n" "${missing[@]}"
   echo
-  echo "Fix: vendor/bin/sail artisan schema:dump --prune"
+  echo "Routine fix:"
+  echo "  vendor/bin/sail artisan migrate"
+  echo "  vendor/bin/sail artisan schema:dump"
+  echo
+  echo "The --prune option is reserved for a deliberate quarterly squash after every"
+  echo "included migration has been verified on every long-lived environment."
   exit 1
 fi
 

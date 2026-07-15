@@ -9,7 +9,7 @@ REDIS_SERVICE="${REDIS_SERVICE:-redis}"
 # it works before TLS/DNS and without leaving the host.
 WEB_URL="${WEB_URL:-http://localhost/up}"
 # Canaries must exercise the real public edge (Caddy vhost, TLS, redirects) — the
-# same origin the continuous checker uses (config('monitoring.base_url') => APP_URL).
+# same origin supplied by APP_URL/CANARY_BASE_URL in the deploy workflow.
 # Requesting http://localhost here never matches the crockenhill.org vhost, so Caddy
 # returns redirects instead of the app and every non-redirect canary fails. The
 # deploy workflow passes the real APP_URL; this default keeps a standalone run honest.
