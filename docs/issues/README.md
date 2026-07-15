@@ -11,7 +11,20 @@ for provenance.
 
 ---
 
-## 🔴 Open — July simplification implementation review (2026-07-13)
+## 🟠 July simplification implementation review — production audit pending (2026-07-13)
+
+**Status updated 2026-07-15:** the repository and runtime fixes for O22–O31 and O33–O37 are
+implemented in `929663ec9` and `1d3988f62`. The quality gate passed with 5,914 parallel PHPUnit
+tests (18,205 assertions), 47 Dusk tests (78 assertions), PHPStan at 0 errors, Pint, the production
+frontend build, and the schema/symlink/case-collision guards.
+
+O32 remains an operational production gate, not a repository-code task. This checkout has no
+production SSH host/key; those values exist only as GitHub Actions environment secrets, so this
+session cannot truthfully record counts for audio, video, transcripts, or thumbnail variants.
+O25's one-off existing-data audit is covered by that same all-asset audit. The preventative O25/O26
+runtime work is complete: every protected children's-talk locator now moves through verified,
+compare-and-set private storage with retryable cleanup and change-triggered observer coverage.
+Do not close O32 until the read-only production counts have actually been captured.
 
 Review scope: `e72da7c4f^..614c21765`, covering suggested delivery-order items 1 and
 3–6. No issue was found in the deterministic mock-analysis stub (`0281bd5f0`), the canonical-path
