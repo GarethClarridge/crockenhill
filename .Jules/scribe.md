@@ -29,3 +29,7 @@
 ## 2026-07-10 - [Testing Service Memoization with Query Logs]
 **Learning:** To verify that a service correctly memoizes database results within the same request (preventing redundant queries), use `DB::enableQueryLog()`, `DB::flushQueryLog()`, and `DB::getQueryLog()` to assert that subsequent calls do not trigger additional database queries.
 **Action:** Apply this pattern when testing repository-style services that implement internal request-level caching.
+
+## 2026-11-20 - [Unit Testing Static validationRules()]
+**Learning:** To unit test a model's static `validationRules()` method without hitting the database, use `collect($rules)->filter(...)` to remove `Unique` or `Exists` rule objects before passing them to `Validator::make()`. To verify the configuration of these database-dependent rules (like an ignored ID), cast the rule object to a string (e.g. `(string) $uniqueRule`) and assert against the resulting string representation (e.g. `contains '"123",id'`).
+**Action:** Use this pattern to maintain pure unit tests for models while still verifying complex rule generation logic.
