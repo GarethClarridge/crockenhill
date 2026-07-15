@@ -36,7 +36,9 @@ class ProcessMediaRequest extends MediaProcessingRequest
 
         return [
             ...$fileRules,
-            'type' => [$this->route('type') ? 'nullable' : 'required', 'max:20', Rule::enum(MediaType::class)],
+            // Security: string type constraint is enforced before the enum rule to ensure
+            // the input is correctly typed early in the validation lifecycle.
+            'type' => [$this->route('type') ? 'nullable' : 'required', 'string', 'max:20', Rule::enum(MediaType::class)],
             ...VideoProcessingOptions::validationRules($mediaType),
         ];
     }
