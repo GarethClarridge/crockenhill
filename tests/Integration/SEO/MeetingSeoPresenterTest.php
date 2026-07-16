@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Integration\Seo;
+namespace Tests\Integration\SEO;
 
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
