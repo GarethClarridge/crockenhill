@@ -446,11 +446,17 @@ class SermonCreationServiceTest extends TestCase
             ],
         ]);
 
-        $options = SermonCreationOptions::fromAudioUpload($log, []);
-        $options->id3Title = 'Preach the Word';
-        $options->id3Preacher = 'Bryan Martin';
-        $options->id3Series = "The Pastor's Role";
-        $options->id3Reference = '2 Timothy 3:14-4:5';
+        $options = new SermonCreationOptions(
+            audioFilePath: $log->source_file_path,
+            originalFilename: $log->original_filename,
+            sourceType: SermonSourceType::AudioUpload,
+            service: $log->extracted_service,
+            date: $log->extracted_date->toDateString(),
+            id3Title: 'Preach the Word',
+            id3Preacher: 'Bryan Martin',
+            id3Series: "The Pastor's Role",
+            id3Reference: '2 Timothy 3:14-4:5',
+        );
 
         $sermon = $this->service->createSermon($log, $options);
 

@@ -13,7 +13,7 @@ use App\Enums\TitleGenerationStrategy;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 
-class SermonCreationOptions
+final readonly class SermonCreationOptions
 {
     /**
      * @param  array{
