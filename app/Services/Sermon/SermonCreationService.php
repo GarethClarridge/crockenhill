@@ -7,6 +7,7 @@ namespace App\Services\Sermon;
 use App\Data\SermonCreationOptions;
 use App\Enums\MediaType;
 use App\Enums\PreacherSource;
+use App\Enums\SermonContentType;
 use App\Enums\SermonRichnessLevel;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
@@ -17,8 +18,9 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Services\Preacher\PreacherResolutionService;
-use App\Services\Public\SermonRepository;
 use App\Traits\SanitizesLogData;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -39,7 +41,6 @@ class SermonCreationService
 
     public function __construct(
         private readonly PreacherResolutionService $preacherResolutionService,
-        private readonly SermonRepository $sermonRepository,
         private readonly SermonFilenameParser $filenameParser,
     ) {}
 
@@ -72,7 +73,7 @@ class SermonCreationService
         $sermonDate = $options->date ?? $this->extractDate($processingLog, $options->originalFilename);
         $service = $options->service ?? $this->extractServiceType($processingLog, $options->originalFilename);
 
-        $existing = $this->sermonRepository->findByDateAndServiceAndContentType(
+        $existing = $this->findByDateAndServiceAndContentType(
             $sermonDate,
             $service,
             $options->contentType,
@@ -98,6 +99,37 @@ class SermonCreationService
                 $incomingLevel,
             ),
         };
+    }
+
+    private function findByDateAndServiceAndContentType(
+        Carbon|string $date,
+        SermonService $service,
+        SermonContentType $contentType,
+    ): ?Sermon {
+        $dateString = $date instanceof Carbon ? $date->toDateString() : $date;
+
+        return Sermon::query()
+            ->where('date', $dateString)
+            ->where('service', $service)
+            ->where('content_type', $contentType)
+            ->first();
+    }
+
+    private function generateUniqueSlug(string $title, ?int $excludeSermonId = null): string
+    {
+        $baseSlug = Str::slug($title);
+        $slug = $baseSlug;
+        $counter = 1;
+
+        $query = Sermon::query()
+            ->when($excludeSermonId, fn (Builder $builder): Builder => $builder->where('id', '!=', $excludeSermonId));
+
+        while ($query->clone()->where('slug', $slug)->exists()) {
+            $slug = "{$baseSlug}-{$counter}";
+            $counter++;
+        }
+
+        return $slug;
     }
 
     /**
@@ -420,7 +452,7 @@ class SermonCreationService
             ]
         );
 
-        $slug = $this->sermonRepository->generateUniqueSlug($title);
+        $slug = $this->generateUniqueSlug($title);
 
         [
             'preacher_name' => $preacherName,

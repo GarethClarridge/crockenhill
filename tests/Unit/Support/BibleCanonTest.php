@@ -73,6 +73,40 @@ class BibleCanonTest extends TestCase
     }
 
     #[Test]
+    public function it_normalizes_valid_archive_filters(): void
+    {
+        $this->assertSame([
+            'book' => 'John',
+            'chapter' => 3,
+            'preacherId' => 123,
+            'series' => 'Series Name',
+        ], $this->bibleCanon->normalizeArchiveFilters('  John  ', 3, 123, '  Series Name  '));
+    }
+
+    #[Test]
+    public function it_rejects_invalid_archive_books_and_chapters(): void
+    {
+        $invalidBook = $this->bibleCanon->normalizeArchiveFilters('InvalidBook', 1, null, null);
+        $invalidChapter = $this->bibleCanon->normalizeArchiveFilters('John', 22, null, null);
+        $zeroChapter = $this->bibleCanon->normalizeArchiveFilters('John', 0, null, null);
+
+        $this->assertNull($invalidBook['book']);
+        $this->assertNull($invalidBook['chapter']);
+        $this->assertSame('John', $invalidChapter['book']);
+        $this->assertNull($invalidChapter['chapter']);
+        $this->assertNull($zeroChapter['chapter']);
+    }
+
+    #[Test]
+    public function it_normalizes_whitespace_only_archive_filters_to_null(): void
+    {
+        $filters = $this->bibleCanon->normalizeArchiveFilters('   ', null, null, '   ');
+
+        $this->assertNull($filters['book']);
+        $this->assertNull($filters['series']);
+    }
+
+    #[Test]
     public function it_expands_single_chapter_passages(): void
     {
         $passage = (new BiblePassageParser)->parse('John 3:16-21')[0];

@@ -7,7 +7,6 @@ namespace Tests\Feature;
 use App\Models\Preacher;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
-use App\Services\Public\PreacherListCache;
 use App\Services\Public\SermonRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -18,6 +17,13 @@ use Tests\TestCase;
 class PreacherPublicCacheTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Cache::flush();
+    }
 
     #[Test]
     public function preacher_public_list_is_cached_when_visiting_index(): void
@@ -32,7 +38,6 @@ class PreacherPublicCacheTest extends TestCase
         $this->assertNotEmpty(DB::getQueryLog(), 'Expected the first request to trigger database queries.');
 
         // 2. Second hit - should NOT trigger preacher queries
-        app(PreacherListCache::class)->clearInternalCaches();
         DB::flushQueryLog();
         $this->get('/christ/sermons/preachers')->assertOk();
 
@@ -40,86 +45,6 @@ class PreacherPublicCacheTest extends TestCase
         $preacherQueries = $queries->filter(fn ($q) => str_contains($q['query'], 'preachers'));
 
         $this->assertEmpty($preacherQueries, 'Expected the second request to be served from cache without queries to preachers table.');
-    }
-
-    #[Test]
-    public function preacher_public_list_cache_is_invalidated_when_preacher_is_created(): void
-    {
-        Preacher::factory()->create(['is_active' => true]);
-        $this->get('/christ/sermons/preachers')->assertOk();
-
-        DB::enableQueryLog();
-        app(PreacherListCache::class)->clearInternalCaches();
-
-        Preacher::factory()->create(['is_active' => true]);
-
-        DB::flushQueryLog();
-        $this->get('/christ/sermons/preachers')->assertOk();
-
-        $queries = collect(DB::getQueryLog());
-        $preacherQueries = $queries->filter(fn ($q) => str_contains($q['query'], 'preachers'));
-
-        $this->assertNotEmpty($preacherQueries, 'Expected a new query to preachers table after a preacher was created.');
-    }
-
-    #[Test]
-    public function preacher_public_list_cache_is_invalidated_when_preacher_is_updated(): void
-    {
-        $preacher = Preacher::factory()->create(['is_active' => true]);
-        $this->get('/christ/sermons/preachers')->assertOk();
-
-        DB::enableQueryLog();
-        app(PreacherListCache::class)->clearInternalCaches();
-
-        $preacher->update(['name' => 'Updated Name']);
-
-        DB::flushQueryLog();
-        $this->get('/christ/sermons/preachers')->assertOk();
-
-        $queries = collect(DB::getQueryLog());
-        $preacherQueries = $queries->filter(fn ($q) => str_contains($q['query'], 'preachers'));
-
-        $this->assertNotEmpty($preacherQueries, 'Expected a new query to preachers table after a preacher was updated.');
-    }
-
-    #[Test]
-    public function preacher_public_list_cache_is_invalidated_when_preacher_is_deleted(): void
-    {
-        $preacher = Preacher::factory()->create(['is_active' => true]);
-        $this->get('/christ/sermons/preachers')->assertOk();
-
-        DB::enableQueryLog();
-        app(PreacherListCache::class)->clearInternalCaches();
-
-        $preacher->delete();
-
-        DB::flushQueryLog();
-        $this->get('/christ/sermons/preachers')->assertOk();
-
-        $queries = collect(DB::getQueryLog());
-        $preacherQueries = $queries->filter(fn ($q) => str_contains($q['query'], 'preachers'));
-
-        $this->assertNotEmpty($preacherQueries, 'Expected a new query to preachers table after a preacher was deleted.');
-    }
-
-    #[Test]
-    public function preacher_public_list_cache_is_invalidated_when_sermon_is_created(): void
-    {
-        Preacher::factory()->create(['is_active' => true]);
-        $this->get('/christ/sermons/preachers')->assertOk();
-
-        DB::enableQueryLog();
-        app(PreacherListCache::class)->clearInternalCaches();
-
-        Sermon::factory()->create();
-
-        DB::flushQueryLog();
-        $this->get('/christ/sermons/preachers')->assertOk();
-
-        $queries = collect(DB::getQueryLog());
-        $preacherQueries = $queries->filter(fn ($q) => str_contains($q['query'], 'preachers'));
-
-        $this->assertNotEmpty($preacherQueries, 'Expected a new query to preachers table after a sermon was created.');
     }
 
     #[Test]
@@ -131,9 +56,8 @@ class PreacherPublicCacheTest extends TestCase
         // next request, so Sermon (and its eager-loaded ScripturePassage) must be
         // allow-listed or the preacher page 500s with __PHP_Incomplete_Class.
         //
-        // An HTTP double-hit can't reproduce this here: SermonRepository memoizes
-        // the collection in-process, so the second in-test request never reads the
-        // cache back. Round-trip the cached collection directly instead.
+        // The array test driver does not serialise cached values, so round-trip the
+        // cached collection directly instead.
         $preacher = Preacher::factory()->create(['is_active' => true]);
         $passage = ScripturePassage::factory()->create();
         Sermon::factory()->withPreacher($preacher)->create([

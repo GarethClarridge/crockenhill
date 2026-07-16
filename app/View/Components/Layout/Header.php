@@ -32,8 +32,9 @@ class Header extends Component
         $user = Auth::user();
 
         $this->user = $user;
-        $this->pages = Cache::rememberForever(
+        $this->pages = Cache::flexible(
             'nav_pages',
+            [300, 86400],
             fn (): Collection => Page::query()->isNavigation()
                 ->public()
                 ->select(['id', 'slug', 'heading', 'area'])

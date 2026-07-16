@@ -9,6 +9,7 @@ use App\Enums\SermonService;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Services\Sermon\SermonStorageService;
+use App\Support\FlexibleCache;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -56,7 +57,7 @@ class PodcastFeedService
                     'sermon_ids' => $zeroLengthSermonIds->all(),
                 ]);
 
-                $this->forgetFlexibleCacheKey($cacheKey);
+                FlexibleCache::forget($cacheKey);
             }
 
             return $feed;
@@ -163,30 +164,5 @@ class PodcastFeedService
             'explicit' => (string) config('podcast.explicit'),
             'podcast_guid' => $feedConfig['podcast_guid'],
         ];
-    }
-
-    /**
-     * Clear feed cache, including the flexible cache created-timestamp key.
-     */
-    public function clearCache(?string $serviceType = null): void
-    {
-        $keys = $serviceType
-            ? ["podcast_feed_{$serviceType}"]
-            : ['podcast_feed_morning', 'podcast_feed_evening'];
-
-        foreach ($keys as $key) {
-            $this->forgetFlexibleCacheKey($key);
-        }
-
-        // The presenter is a scoped singleton that memoizes per-identity, so clearing
-        // the cache while the same presenter survives across the cache boundary would
-        // leak the prior preacher name. Flush its internal caches alongside the feed.
-        $this->sermonViewPresenter->clearInternalCaches();
-    }
-
-    private function forgetFlexibleCacheKey(string $cacheKey): void
-    {
-        Cache::forget($cacheKey);
-        Cache::forget("illuminate:cache:flexible:created:{$cacheKey}");
     }
 }

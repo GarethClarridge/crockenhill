@@ -57,6 +57,19 @@ class SermonSeriesListingTest extends TestCase
         $response->assertDontSee('Children Series');
     }
 
+    public function test_new_series_page_resolves_while_the_series_list_cache_is_fresh(): void
+    {
+        Sermon::factory()->inSeries('Existing Series')->create();
+
+        $this->get('/christ/sermons/series')->assertOk();
+
+        Sermon::factory()->inSeries('New Series')->create();
+
+        $this->get('/christ/sermons/series/new-series')
+            ->assertOk()
+            ->assertSee('New Series');
+    }
+
     public function test_sermon_serieses_page_includes_item_list_structured_data(): void
     {
         Sermon::query()->delete();

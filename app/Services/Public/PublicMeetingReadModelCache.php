@@ -8,6 +8,7 @@ use App\Data\PublicMeetingReadModel;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Presenters\MeetingShowPresenter;
+use App\Support\FlexibleCache;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -22,7 +23,7 @@ class PublicMeetingReadModelCache
     public function get(Meeting $meeting): PublicMeetingReadModel
     {
         /** @var PublicMeetingReadModel */
-        return Cache::rememberForever($this->cacheKey($meeting->id), function () use ($meeting): PublicMeetingReadModel {
+        return Cache::flexible($this->cacheKey($meeting->id), [300, 86400], function () use ($meeting): PublicMeetingReadModel {
             $meeting->loadMissing(['page.media', 'media']);
 
             $pageReadModel = $meeting->page === null
@@ -54,7 +55,7 @@ class PublicMeetingReadModelCache
     {
         $meetingId = $meeting instanceof Meeting ? $meeting->id : $meeting;
 
-        Cache::forget($this->cacheKey($meetingId));
+        FlexibleCache::forget($this->cacheKey($meetingId));
     }
 
     public function forgetBySlug(?string $meetingSlug): void

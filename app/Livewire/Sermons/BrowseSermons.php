@@ -47,10 +47,9 @@ class BrowseSermons extends Component
     #[Url(as: 'series', except: null)]
     public ?string $seriesFilter = null;
 
-    public function mount(BibleCanon $bibleCanon, SermonRepository $sermonRepository): void
+    public function mount(BibleCanon $bibleCanon): void
     {
-        $normalized = $sermonRepository->normalizeArchiveFilters(
-            $bibleCanon,
+        $normalized = $bibleCanon->normalizeArchiveFilters(
             $this->bookFilter,
             $this->chapterFilter,
             $this->preacherFilter,

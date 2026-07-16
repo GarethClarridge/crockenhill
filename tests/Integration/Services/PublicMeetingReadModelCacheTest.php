@@ -170,6 +170,33 @@ class PublicMeetingReadModelCacheTest extends TestCase
     }
 
     #[Test]
+    public function it_refreshes_upcoming_events_after_the_fresh_window_passes(): void
+    {
+        $meeting = Meeting::factory()->create(['slug' => 'time-sensitive-meeting']);
+        $event = CalendarEvent::factory()->forMeeting($meeting)->create([
+            'title' => 'Soon-finished event',
+            'start_datetime' => now()->addMinute(),
+            'end_datetime' => now()->addHours(2),
+            'status' => 'confirmed',
+        ]);
+
+        $this->meetingShowPresenter->method('photos')->willReturn(collect());
+
+        $initial = $this->service->get($meeting);
+        $this->assertTrue($initial->upcomingEvents->contains($event));
+
+        $this->travel(301)->seconds();
+
+        $stale = $this->service->get($meeting);
+        $this->assertTrue($stale->upcomingEvents->contains($event));
+
+        \Illuminate\Support\defer()->invoke();
+
+        $refreshed = $this->service->get($meeting);
+        $this->assertFalse($refreshed->upcomingEvents->contains($event));
+    }
+
+    #[Test]
     public function it_can_forget_by_id(): void
     {
         $meeting = Meeting::factory()->create(['id' => 123]);

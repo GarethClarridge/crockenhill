@@ -73,8 +73,8 @@ return [
     */
     'cache' => [
         'enabled' => env('PODCAST_CACHE_ENABLED', true),
-        'ttl' => env('PODCAST_CACHE_TTL', 3600),
-        'stale_ttl' => env('PODCAST_CACHE_STALE_TTL', 7200),
+        'ttl' => env('PODCAST_CACHE_TTL', 300),
+        'stale_ttl' => env('PODCAST_CACHE_STALE_TTL', 86400),
     ],
 
     /*

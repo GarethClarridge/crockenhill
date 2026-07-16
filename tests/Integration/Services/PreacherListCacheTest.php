@@ -25,6 +25,7 @@ class PreacherListCacheTest extends TestCase
         parent::setUp();
 
         $this->repository = app(PreacherListCache::class);
+        Cache::flush();
     }
 
     #[Test]
@@ -44,8 +45,7 @@ class PreacherListCacheTest extends TestCase
 
         $this->assertNotEmpty(DB::getQueryLog(), 'Expected the first call to trigger a database query.');
 
-        // 2. Second call (with internal cache cleared) - should NOT trigger DB query
-        $this->repository->clearInternalCaches();
+        // 2. Second call should NOT trigger a DB query.
         DB::flushQueryLog();
         $this->repository->forAdminList();
         $this->assertEmpty(DB::getQueryLog(), 'Expected the second call to be served from the cache without database queries.');
@@ -87,8 +87,7 @@ class PreacherListCacheTest extends TestCase
 
         $this->assertNotEmpty(DB::getQueryLog(), 'Expected the first call to trigger a database query.');
 
-        // 2. Second call (with internal cache cleared) - should NOT trigger DB query
-        $this->repository->clearInternalCaches();
+        // 2. Second call should NOT trigger a DB query.
         DB::flushQueryLog();
         $this->repository->forPublicList();
         $this->assertEmpty(DB::getQueryLog(), 'Expected the second call to be served from the cache without database queries.');

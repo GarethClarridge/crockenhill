@@ -10,10 +10,7 @@ use App\Models\Builders\SermonBuilder;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
-use App\Services\Scripture\SermonScriptureFilterIndexService;
-use App\Support\BibleCanon;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -21,16 +18,6 @@ use Illuminate\Support\Str;
 
 class SermonRepository
 {
-    /** @var array<string, mixed> */
-    private array $memoizedPresents = [];
-
-    /** @var array<string, true> */
-    private array $computed = [];
-
-    public function __construct(
-        private readonly SermonScriptureFilterIndexService $indexService,
-    ) {}
-
     /**
      * Build the base query for public sermon listings and browse pages.
      *
@@ -83,9 +70,13 @@ class SermonRepository
      */
     public function resolveSeriesNameFromSlug(string $slug): ?string
     {
-        $series = $this->getSeriesForDisplay();
+        foreach ($this->getSeriesForDisplay() as $name) {
+            if (Str::slug($name) === $slug) {
+                return $name;
+            }
+        }
 
-        foreach ($series as $name) {
+        foreach ($this->getExistingSeries() as $name) {
             if (Str::slug($name) === $slug) {
                 return $name;
             }
@@ -134,14 +125,11 @@ class SermonRepository
     /**
      * Get sermons for a specific series.
      *
-     * Performance Optimization: Implements request-level memoization to avoid redundant
-     * flexible cache lookups and hits within a single request cycle.
-     *
      * @return Collection<int, Sermon>
      */
     public function getSermonsBySeries(string $seriesName): Collection
     {
-        return $this->rememberFlexible('sermons_series_'.Str::slug($seriesName), [86400, 172800], function () use ($seriesName): Collection {
+        return Cache::flexible('sermons_series_'.Str::slug($seriesName), [300, 86400], function () use ($seriesName): Collection {
             return $this->publicSermonQuery()
                 ->where('series', $seriesName)
                 ->orderBy('date', 'desc')
@@ -152,15 +140,14 @@ class SermonRepository
     /**
      * Get sermons for a specific preacher.
      *
-     * Performance Optimization: Caches the preacher's sermon listing for 24 hours using flexible
-     * cache to reduce redundant DB queries when viewing preacher profiles. Implements
-     * request-level memoization to avoid redundant cache hits within a single request.
+     * Performance Optimization: Caches the preacher's sermon listing using flexible
+     * cache to reduce redundant DB queries when viewing preacher profiles.
      *
      * @return Collection<int, Sermon>
      */
     public function getSermonsByPreacher(Preacher $preacher): Collection
     {
-        return $this->rememberFlexible($this->preacherCacheKey($preacher), [86400, 172800], function () use ($preacher): Collection {
+        return Cache::flexible($this->preacherCacheKey($preacher), [300, 86400], function () use ($preacher): Collection {
             return $this->publicSermonQuery()
                 ->where('preacher_id', $preacher->id)
                 ->orderBy('date', 'desc')
@@ -171,92 +158,16 @@ class SermonRepository
     /**
      * Get sermons for a specific service.
      *
-     * Performance Optimization: Implements request-level memoization to avoid redundant
-     * flexible cache lookups and hits within a single request cycle.
-     *
      * @return Collection<int, Sermon>
      */
     public function getSermonsByService(SermonService $service): Collection
     {
-        return $this->rememberFlexible("sermons_service_{$service->value}", [86400, 172800], function () use ($service): Collection {
+        return Cache::flexible("sermons_service_{$service->value}", [300, 86400], function () use ($service): Collection {
             return $this->publicSermonQuery()
                 ->where('service', $service)
                 ->orderBy('date', 'desc')
                 ->get();
         });
-    }
-
-    /**
-     * Normalize and validate raw sermon archive filter inputs against the Bible canon.
-     *
-     * Returns sanitized values; invalid book names and out-of-range chapters become null.
-     *
-     * @return array{book: string|null, chapter: int|null, preacherId: int|null, series: string|null}
-     */
-    public function normalizeArchiveFilters(
-        BibleCanon $bibleCanon,
-        string|int|null $book,
-        string|int|null $chapter,
-        string|int|null $preacherId,
-        string|int|null $series,
-    ): array {
-        $book = filled($book) ? trim((string) $book) : null;
-        $series = filled($series) ? trim((string) $series) : null;
-        $preacherId = filter_var($preacherId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
-        $chapter = filter_var($chapter, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
-
-        if ($book !== null && ! $bibleCanon->hasBook($book)) {
-            $book = null;
-        }
-
-        if ($book === null) {
-            $chapter = null;
-        } elseif ($chapter !== null && $chapter > $bibleCanon->chaptersInBook($book)) {
-            $chapter = null;
-        }
-
-        return compact('book', 'chapter', 'preacherId', 'series');
-    }
-
-    /**
-     * Look up an existing Sermon record by date, service, and content type.
-     *
-     * Content type is part of the match key because the sermons table holds
-     * both main sermons and children's talks for the same `(date, service)`
-     * pair, distinguished only by `content_type`.
-     */
-    public function findByDateAndServiceAndContentType(
-        Carbon|string $date,
-        SermonService $service,
-        SermonContentType $contentType,
-    ): ?Sermon {
-        $dateString = $date instanceof Carbon ? $date->toDateString() : $date;
-
-        return Sermon::query()
-            ->where('date', $dateString)
-            ->where('service', $service)
-            ->where('content_type', $contentType)
-            ->first();
-    }
-
-    /**
-     * Generate a unique URL slug for the sermon, optionally excluding a specific sermon ID.
-     */
-    public function generateUniqueSlug(string $title, ?int $excludeSermonId = null): string
-    {
-        $baseSlug = Str::slug($title);
-        $slug = $baseSlug;
-        $counter = 1;
-
-        $query = Sermon::query()
-            ->when($excludeSermonId, fn (Builder $q) => $q->where('id', '!=', $excludeSermonId));
-
-        while ($query->clone()->where('slug', $slug)->exists()) {
-            $slug = $baseSlug.'-'.$counter;
-            $counter++;
-        }
-
-        return $slug;
     }
 
     /**
@@ -304,7 +215,7 @@ class SermonRepository
      */
     public function getSeriesForDisplay(): array
     {
-        return $this->rememberFlexible('sermon_series', [86400, 172800], function (): array {
+        return Cache::flexible('sermon_series', [300, 86400], function (): array {
             return $this->getExistingSeries();
         });
     }
@@ -324,7 +235,7 @@ class SermonRepository
 
         $cacheKey = 'sermon_scripture_books_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
 
-        return $this->rememberFlexible($cacheKey, [86400, 172800], function () use ($preacherId, $series): Collection {
+        return Cache::flexible($cacheKey, [300, 86400], function () use ($preacherId, $series): Collection {
             $query = SermonScriptureFilter::query();
 
             if ($preacherId === null && $series === null) {
@@ -359,7 +270,7 @@ class SermonRepository
 
         $cacheKey = 'sermon_scripture_chapters_'.Str::slug($book).'_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
 
-        return $this->rememberFlexible($cacheKey, [86400, 172800], function () use ($book, $preacherId, $series): Collection {
+        return Cache::flexible($cacheKey, [300, 86400], function () use ($book, $preacherId, $series): Collection {
             $query = SermonScriptureFilter::query()->where('bible_book', $book);
 
             if ($preacherId === null && $series === null) {
@@ -378,181 +289,5 @@ class SermonRepository
                 ->orderBy('bible_chapter')
                 ->pluck('bible_chapter');
         });
-    }
-
-    /**
-     * Clear the cached scripture book and chapter lists for a specific sermon.
-     *
-     * Performance Optimization: Invalidates caches for both current and original values
-     * to ensure filter options stay in sync when a sermon's preacher, series, or
-     * scripture reference is modified.
-     */
-    public function clearScriptureChapterCaches(Sermon $sermon): void
-    {
-        // Always clear the global (no-filter) book list
-        $this->forgetFlexible('sermon_scripture_books_all_all');
-
-        // Extract all possible values that could be cached
-        $preacherIds = collect([$sermon->preacher_id, $sermon->getOriginal('preacher_id')])
-            ->map(fn ($id) => (int) $id)
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        $seriesSlugs = collect([$sermon->series, $sermon->getOriginal('series')])
-            ->filter()
-            ->map(fn (string $s) => Str::slug($s))
-            ->unique()
-            ->values()
-            ->all();
-
-        $this->forgetPreacherAndSeriesCaches($preacherIds, $seriesSlugs);
-
-        // Resolve all Bible books associated with this sermon (current and previous)
-        // to ensure all relevant chapter caches are invalidated. We parse references
-        // directly to handle new, deleted, or updated states robustly.
-        $books = collect([(string) $sermon->reference ?: null, (string) $sermon->getOriginal('reference') ?: null])
-            ->filter()
-            ->unique()
-            ->flatMap(fn (string $ref) => $this->indexService->entriesForReference($ref))
-            ->pluck('bible_book')
-            ->merge($sermon->scriptureFilters()->distinct()->pluck('bible_book'))
-            ->map(fn ($book) => (string) $book)
-            ->unique()
-            ->values()
-            ->all();
-
-        $this->forgetBookAndChapterCaches($books, $preacherIds, $seriesSlugs);
-    }
-
-    /**
-     * Clear scripture book list caches for all combinations of preacher and series.
-     *
-     * @param  array<int, int>  $preacherIds
-     * @param  array<int, string>  $seriesSlugs
-     */
-    private function forgetPreacherAndSeriesCaches(array $preacherIds, array $seriesSlugs): void
-    {
-        collect($preacherIds)->each(fn ($id) => $this->forgetFlexible("sermon_scripture_books_{$id}_all"));
-
-        collect($seriesSlugs)->each(function (string $slug) use ($preacherIds): void {
-            $this->forgetFlexible("sermon_scripture_books_all_{$slug}");
-            collect($preacherIds)->each(fn ($id) => $this->forgetFlexible("sermon_scripture_books_{$id}_{$slug}"));
-        });
-    }
-
-    /**
-     * Clear scripture chapter list caches for all combinations of Bible book, preacher, and series.
-     *
-     * @param  array<int, string>  $books
-     * @param  array<int, int>  $preacherIds
-     * @param  array<int, string>  $seriesSlugs
-     */
-    private function forgetBookAndChapterCaches(array $books, array $preacherIds, array $seriesSlugs): void
-    {
-        $pOptions = collect([...array_map(fn ($id) => (string) $id, $preacherIds), 'all']);
-        $sOptions = collect([...$seriesSlugs, 'all']);
-
-        collect($books)->each(function (string $book) use ($pOptions, $sOptions): void {
-            $bookSlug = Str::slug($book);
-
-            $pOptions->crossJoin($sOptions)->each(function ($pair) use ($bookSlug): void {
-                $this->forgetFlexible("sermon_scripture_chapters_{$bookSlug}_{$pair[0]}_{$pair[1]}");
-            });
-        });
-    }
-
-    /**
-     * Clear all internal memoization caches.
-     * Useful for long-running processes or tests.
-     */
-    public function clearInternalCaches(): void
-    {
-        $this->memoizedPresents = [];
-        $this->computed = [];
-    }
-
-    /**
-     * Clear all cached sermon listings.
-     */
-    public function clearListingCaches(Sermon|Preacher|null $model = null): void
-    {
-        $this->forgetFlexible('sermon_series');
-        $this->forgetFlexible('sermon_scripture_books_all_all');
-
-        $this->clearInternalCaches();
-
-        if ($model instanceof Sermon) {
-            $this->clearScriptureChapterCaches($model);
-
-            // Invalidate for current and original series
-            collect([$model->series, $model->getOriginal('series')])
-                ->filter()
-                ->map(fn (string $s) => Str::slug($s))
-                ->unique()
-                ->values()
-                ->each(fn (string $slug) => $this->forgetFlexible('sermons_series_'.$slug));
-
-            // Invalidate for current and original service
-            collect([$model->service, $model->getOriginal('service')])
-                ->map(fn ($s) => $s instanceof SermonService ? $s->value : $s)
-                ->filter()
-                ->unique()
-                ->values()
-                ->each(fn ($serviceValue) => $this->forgetFlexible('sermons_service_'.$serviceValue));
-
-            // Invalidate for current and original preacher
-            collect([$model->preacher_id, $model->getOriginal('preacher_id')])
-                ->map(fn ($id) => (int) $id)
-                ->filter()
-                ->unique()
-                ->values()
-                ->each(function (int $id): void {
-                    $preacher = Preacher::query()->find($id);
-                    if ($preacher) {
-                        $this->forgetFlexible($this->preacherCacheKey($preacher));
-                    }
-                });
-        }
-
-        if ($model instanceof Preacher) {
-            $this->forgetFlexible($this->preacherCacheKey($model));
-        }
-    }
-
-    /**
-     * Clear a flexible cache key including its metadata key.
-     */
-    private function forgetFlexible(string $key): void
-    {
-        Cache::forget($key);
-        Cache::forget("illuminate:cache:flexible:created:{$key}");
-    }
-
-    /**
-     * Get a value from the request-level memoization cache, or resolve it
-     * through a flexible cache.
-     *
-     * @template T
-     *
-     * @param  array{int, int}  $ttl  Array of [flexible_seconds, stale_seconds]
-     * @param  \Closure(): T  $callback
-     * @return T
-     */
-    private function rememberFlexible(string $cacheKey, array $ttl, \Closure $callback): mixed
-    {
-        if (isset($this->computed[$cacheKey])) {
-            /** @var T */
-            return $this->memoizedPresents[$cacheKey];
-        }
-
-        /** @var T $value */
-        $value = Cache::flexible($cacheKey, $ttl, $callback);
-
-        $this->computed[$cacheKey] = true;
-        $this->memoizedPresents[$cacheKey] = $value;
-
-        return $value;
     }
 }
