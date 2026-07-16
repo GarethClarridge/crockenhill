@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Models;
 
-use App\Enums\MeetingFrequency;
 use App\Models\Meeting;
 use App\Models\Page;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -67,21 +65,5 @@ class MeetingTest extends TestCase
         $this->assertNull($meeting->location);
         $this->assertNull($meeting->leaders_phone);
         $this->assertNull($meeting->leaders_email);
-    }
-
-    #[Test]
-    public function meeting_mutators_and_casts()
-    {
-        $meetingWithDate = Meeting::factory()->onDate(Carbon::now())->create();
-        $this->assertInstanceOf(Carbon::class, $meetingWithDate->meeting_date);
-
-        $recurringMeeting = Meeting::factory()->recurring()->create();
-        $this->assertTrue($recurringMeeting->is_recurring);
-
-        $nonRecurringMeeting = Meeting::factory()->notRecurring()->create();
-        $this->assertFalse($nonRecurringMeeting->is_recurring);
-
-        $meetingWithFrequency = Meeting::factory()->recurring('monthly')->create();
-        $this->assertEquals(MeetingFrequency::Monthly, $meetingWithFrequency->frequency);
     }
 }

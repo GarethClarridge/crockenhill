@@ -61,12 +61,10 @@ class ClearFiltersTest extends TestCase
             ->test(ListMeetings::class)
             ->set('search', 'Meeting Search')
             ->set('typeFilter', 'regular')
-            ->set('recurringFilter', true)
             ->assertSet('hasFilters', true)
             ->call('resetFilters')
             ->assertSet('search', '')
             ->assertSet('typeFilter', null)
-            ->assertSet('recurringFilter', null)
             ->assertSet('hasFilters', false);
     }
 

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire;
 
-use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
 use App\Livewire\Admin\Meetings\CreateMeeting;
 use App\Livewire\Admin\Meetings\EditMeeting;
@@ -78,9 +77,6 @@ class AdminMeetingTest extends TestCase
             ->set('form.pictures', true)
             ->set('form.leadersPhone', '0123456789')
             ->set('form.leadersEmail', 'leader@example.com')
-            ->set('form.meetingDate', '2026-03-11')
-            ->set('form.isRecurring', true)
-            ->set('form.frequency', MeetingFrequency::Weekly->value)
             ->set('form.pageId', $page->id)
             ->call('save')
             ->assertRedirect(route('admin.meetings.index'));
@@ -89,49 +85,9 @@ class AdminMeetingTest extends TestCase
 
         $this->assertSame($page->id, $meeting->page_id);
         $this->assertSame(MeetingType::Adults, $meeting->type);
-        $this->assertSame(MeetingFrequency::Weekly, $meeting->frequency);
         $this->assertSame('19:30', $meeting->start_time?->format('H:i'));
         $this->assertSame('21:00', $meeting->end_time?->format('H:i'));
-        $this->assertSame('2026-03-11', $meeting->meeting_date?->format('Y-m-d'));
         $this->assertTrue($meeting->pictures);
-    }
-
-    #[Test]
-    public function create_meeting_requires_frequency_when_recurring_is_enabled(): void
-    {
-        $this->actingAs($this->admin);
-
-        Livewire::test(CreateMeeting::class)
-            ->set('form.slug', 'weekly-prayer')
-            ->set('form.type', MeetingType::Adults->value)
-            ->set('form.day', 'Thursday')
-            ->set('form.who', 'Adults')
-            ->set('form.isRecurring', true)
-            ->set('form.frequency', null)
-            ->call('save')
-            ->assertHasErrors(['form.frequency' => ['required_if']]);
-    }
-
-    #[Test]
-    public function save_clears_frequency_when_recurring_is_toggled_off(): void
-    {
-        $this->actingAs($this->admin);
-
-        Livewire::test(CreateMeeting::class)
-            ->set('form.slug', 'weekly-prayer')
-            ->set('form.type', MeetingType::Adults->value)
-            ->set('form.day', 'Thursday')
-            ->set('form.who', 'Adults')
-            ->set('form.isRecurring', true)
-            ->set('form.frequency', MeetingFrequency::Weekly->value)
-            ->set('form.isRecurring', false)
-            ->call('save')
-            ->assertRedirect(route('admin.meetings.index'));
-
-        $meeting = Meeting::query()->where('slug', 'weekly-prayer')->firstOrFail();
-
-        $this->assertFalse($meeting->is_recurring);
-        $this->assertNull($meeting->frequency);
     }
 
     #[Test]
@@ -152,9 +108,6 @@ class AdminMeetingTest extends TestCase
             'pictures' => true,
             'leaders_phone' => '0123400000',
             'leaders_email' => 'old@example.com',
-            'meeting_date' => '2026-05-20',
-            'is_recurring' => true,
-            'frequency' => MeetingFrequency::Monthly->value,
         ]);
 
         Livewire::test(EditMeeting::class, ['meeting' => $meeting])
@@ -168,9 +121,6 @@ class AdminMeetingTest extends TestCase
             ->assertSet('form.pictures', true)
             ->assertSet('form.leadersPhone', '0123400000')
             ->assertSet('form.leadersEmail', 'old@example.com')
-            ->assertSet('form.meetingDate', '2026-05-20')
-            ->assertSet('form.isRecurring', true)
-            ->assertSet('form.frequency', MeetingFrequency::Monthly->value)
             ->assertSet('form.pageId', $page->id);
     }
 
@@ -185,9 +135,6 @@ class AdminMeetingTest extends TestCase
             'page_id' => $oldPage->id,
             'slug' => 'old-slug',
             'type' => MeetingType::Adults->value,
-            'meeting_date' => '2026-03-01',
-            'is_recurring' => true,
-            'frequency' => MeetingFrequency::Weekly->value,
         ]);
 
         Livewire::test(EditMeeting::class, ['meeting' => $meeting])
@@ -201,8 +148,6 @@ class AdminMeetingTest extends TestCase
             ->set('form.pictures', false)
             ->set('form.leadersPhone', '0987654321')
             ->set('form.leadersEmail', 'new@example.com')
-            ->set('form.meetingDate', '2026-04-04')
-            ->set('form.isRecurring', false)
             ->set('form.pageId', $newPage->id)
             ->call('save')
             ->assertDispatched('notify', type: 'success', message: 'Meeting updated');
@@ -219,9 +164,6 @@ class AdminMeetingTest extends TestCase
         $this->assertFalse($meeting->pictures);
         $this->assertSame('0987654321', $meeting->leaders_phone);
         $this->assertSame('new@example.com', $meeting->leaders_email);
-        $this->assertSame('2026-04-04', $meeting->meeting_date?->format('Y-m-d'));
-        $this->assertFalse($meeting->is_recurring);
-        $this->assertNull($meeting->frequency);
         $this->assertSame($newPage->id, $meeting->page_id);
     }
 

@@ -41,18 +41,6 @@
             <x-input label="Location" wire:model="form.location"
                 placeholder="e.g., Church Hall, Online" />
 
-            <x-toggle label="Recurring Meeting" wire:model.live="form.isRecurring" />
-
-            @if($form->isRecurring)
-                <x-select
-                    label="Frequency"
-                    wire:model="form.frequency"
-                    :options="$frequencies"
-                    required />
-            @endif
-
-            <x-input type="date" label="Meeting Date" wire:model="form.meetingDate"
-                :hint="$form->isRecurring ? 'Date of first occurrence' : 'Date of meeting'" />
         </div>
     </x-card>
 

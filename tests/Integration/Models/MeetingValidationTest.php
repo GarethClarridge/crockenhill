@@ -66,13 +66,10 @@ class MeetingValidationTest extends TestCase
             'slug' => 'test-meeting',
             'type' => 'invalid-type',
             'who' => 'Everyone',
-            'frequency' => 'invalid-frequency',
-            'is_recurring' => true,
         ], $rules);
 
         $this->assertTrue($validator->fails());
         $this->assertArrayHasKey('type', $validator->errors()->toArray());
-        $this->assertArrayHasKey('frequency', $validator->errors()->toArray());
     }
 
     #[Test]
@@ -86,7 +83,6 @@ class MeetingValidationTest extends TestCase
             'who' => 'Everyone',
             'start_time' => 'invalid-time',
             'end_time' => 'invalid-time',
-            'meeting_date' => 'invalid-date',
         ];
 
         $validator = Validator::make($data, $rules);
@@ -94,7 +90,6 @@ class MeetingValidationTest extends TestCase
         $this->assertTrue($validator->fails());
         $this->assertArrayHasKey('start_time', $validator->errors()->toArray());
         $this->assertArrayHasKey('end_time', $validator->errors()->toArray());
-        $this->assertArrayHasKey('meeting_date', $validator->errors()->toArray());
 
         // Valid formats
         $validData = [
@@ -103,7 +98,6 @@ class MeetingValidationTest extends TestCase
             'who' => 'Everyone',
             'start_time' => '10:00',
             'end_time' => '11:00',
-            'meeting_date' => '2023-01-01',
         ];
         $validator = Validator::make($validData, $rules);
         $this->assertFalse($validator->fails(), $validator->errors()->first());
@@ -208,33 +202,6 @@ class MeetingValidationTest extends TestCase
 
         // Valid trimmed text
         $validator = Validator::make(['who' => 'Everyone'], ['who' => $rules['who']]);
-        $this->assertFalse($validator->fails());
-    }
-
-    #[Test]
-    public function it_requires_frequency_if_recurring_is_true(): void
-    {
-        $rules = Meeting::validationRules();
-
-        // recurring=true, frequency=null -> should fail
-        $validator = Validator::make([
-            'is_recurring' => true,
-            'frequency' => null,
-        ], [
-            'is_recurring' => $rules['is_recurring'],
-            'frequency' => $rules['frequency'],
-        ]);
-        $this->assertTrue($validator->fails());
-        $this->assertEquals('The frequency field is required when is recurring is true.', $validator->errors()->first('frequency'));
-
-        // recurring=false, frequency=null -> should pass
-        $validator = Validator::make([
-            'is_recurring' => false,
-            'frequency' => null,
-        ], [
-            'is_recurring' => $rules['is_recurring'],
-            'frequency' => $rules['frequency'],
-        ]);
         $this->assertFalse($validator->fails());
     }
 }

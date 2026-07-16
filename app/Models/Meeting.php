@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
 use App\Enums\PageArea;
 use App\Rules\TrimmedText;
@@ -37,9 +36,6 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @property bool $pictures
  * @property ?string $leaders_phone
  * @property ?string $leaders_email
- * @property ?Carbon $meeting_date
- * @property bool $is_recurring
- * @property ?MeetingFrequency $frequency
  * @property ?Carbon $created_at
  * @property ?Carbon $updated_at
  * @property-read string $heading
@@ -77,9 +73,6 @@ class Meeting extends Model implements HasMedia
         'pictures',
         'leaders_phone',
         'leaders_email',
-        'meeting_date',
-        'is_recurring',
-        'frequency',
     ];
 
     /**
@@ -93,12 +86,9 @@ class Meeting extends Model implements HasMedia
             'id' => 'integer',
             'page_id' => 'integer',
             'pictures' => 'boolean',
-            'meeting_date' => 'datetime',
-            'is_recurring' => 'boolean',
             'start_time' => 'datetime:H:i:s',
             'end_time' => 'datetime:H:i:s',
             'type' => MeetingType::class,
-            'frequency' => MeetingFrequency::class,
         ];
     }
 
@@ -182,9 +172,6 @@ class Meeting extends Model implements HasMedia
             'pictures' => ['boolean'],
             'leaders_phone' => ['nullable', 'string', 'max:255', new TrimmedText],
             'leaders_email' => ['nullable', 'email', 'max:255', new TrimmedText],
-            'meeting_date' => ['nullable', 'date_format:Y-m-d'],
-            'is_recurring' => ['boolean'],
-            'frequency' => ['nullable', 'required_if:is_recurring,true', Rule::enum(MeetingFrequency::class)],
             'page_id' => $pageIdRule,
         ];
     }
