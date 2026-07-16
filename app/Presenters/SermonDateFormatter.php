@@ -10,24 +10,10 @@ use App\Support\SermonContentFormatter;
 /**
  * Formats a sermon's date and duration for display.
  *
- * Extracted from SermonViewPresenter so the date/duration cluster lives behind a
- * single-responsibility collaborator. Duration formatting delegates to the pure
- * SermonContentFormatter; date formatting is memoized by the sermon's date
- * timestamp so that multiple sermons sharing a date in a listing format it once.
- *
- * The presenter owns one instance per request and delegates its public
- * date/duration accessors here, so this collaborator is the single home for the
- * date memo (cleared via clearCache() when the presenter clears its caches).
+ * Duration formatting delegates to the pure SermonContentFormatter.
  */
 class SermonDateFormatter
 {
-    /**
-     * Memoized date strings keyed by the sermon's date timestamp.
-     *
-     * @var array<int, array{human: string, iso: string, short: string}>
-     */
-    private array $memoizedDates = [];
-
     /**
      * Get the human-friendly formatted duration of the sermon (e.g. "1h 30m").
      */
@@ -47,18 +33,11 @@ class SermonDateFormatter
     /**
      * Get various formatted date strings for the sermon.
      *
-     * Performance Optimization: Memoizes date formatting results by timestamp
-     * to avoid redundant object calls and string formatting across multiple
-     * sermons sharing the same date in a listing. Returns human-friendly,
-     * ISO 8601, and short display formats.
-     *
      * @return array{human: string, iso: string, short: string}
      */
     public function formattedDates(Sermon $sermon): array
     {
-        $timestamp = $sermon->date->getTimestamp();
-
-        return $this->memoizedDates[$timestamp] ??= [
+        return [
             'human' => $sermon->date->format('F j, Y'),
             'iso' => $sermon->date->toDateString(),
             'short' => $sermon->date->format('j F Y'),
@@ -71,17 +50,6 @@ class SermonDateFormatter
     public function humanDate(Sermon $sermon): string
     {
         return $this->formattedDates($sermon)['human'];
-    }
-
-    /**
-     * Clear the memoized date cache.
-     *
-     * Called by the presenter's clearInternalCaches() so a single reset covers
-     * every cache the presenter and its collaborators hold.
-     */
-    public function clearCache(): void
-    {
-        $this->memoizedDates = [];
     }
 
     /**

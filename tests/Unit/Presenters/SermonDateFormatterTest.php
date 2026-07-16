@@ -65,30 +65,4 @@ class SermonDateFormatterTest extends TestCase
 
         $this->assertSame('March 10, 2024', $this->formatter->humanDate($sermon));
     }
-
-    #[Test]
-    public function it_memoizes_formatted_dates_by_timestamp(): void
-    {
-        $sermon = Sermon::factory()->make(['date' => Carbon::parse('2024-03-10')]);
-
-        $first = $this->formatter->formattedDates($sermon);
-
-        // Same timestamp resolves to the cached array, so a later mutation to a
-        // sermon sharing the timestamp is not re-read.
-        $second = $this->formatter->formattedDates($sermon);
-
-        $this->assertSame($first, $second);
-    }
-
-    #[Test]
-    public function it_clears_the_date_cache(): void
-    {
-        $sermon = Sermon::factory()->make(['date' => Carbon::parse('2024-03-10')]);
-        $this->formatter->formattedDates($sermon);
-
-        $this->formatter->clearCache();
-
-        $sermon->date = Carbon::parse('2024-03-10');
-        $this->assertSame('March 10, 2024', $this->formatter->humanDate($sermon));
-    }
 }

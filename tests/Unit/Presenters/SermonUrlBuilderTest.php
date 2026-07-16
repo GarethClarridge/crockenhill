@@ -6,7 +6,6 @@ namespace Tests\Unit\Presenters;
 
 use App\Models\Sermon;
 use App\Presenters\SermonUrlBuilder;
-use App\Presenters\SermonViewPresenter;
 use App\Services\Sermon\SermonExposurePolicy;
 use App\Services\Sermon\SermonStorageService;
 use Mockery;
@@ -20,8 +19,6 @@ class SermonUrlBuilderTest extends TestCase
 
     private SermonExposurePolicy&MockInterface $exposurePolicy;
 
-    private SermonViewPresenter&MockInterface $presenter;
-
     private SermonUrlBuilder $builder;
 
     protected function setUp(): void
@@ -30,7 +27,6 @@ class SermonUrlBuilderTest extends TestCase
 
         $this->storageService = Mockery::mock(SermonStorageService::class);
         $this->exposurePolicy = Mockery::mock(SermonExposurePolicy::class);
-        $this->presenter = Mockery::mock(SermonViewPresenter::class);
         $this->builder = new SermonUrlBuilder($this->storageService, $this->exposurePolicy);
     }
 
@@ -40,7 +36,7 @@ class SermonUrlBuilderTest extends TestCase
         $sermon = Sermon::factory()->make(['audio_file_path' => 'sermons/audio.mp3']);
         $this->storageService->shouldReceive('getAudioDeliveryUrl')->with($sermon)->andReturn('https://cdn.example.com/audio.mp3');
 
-        $this->assertSame('https://cdn.example.com/audio.mp3', $this->builder->audioUrl($this->presenter, $sermon));
+        $this->assertSame('https://cdn.example.com/audio.mp3', $this->builder->audioUrl($sermon));
     }
 
     #[Test]
@@ -48,7 +44,7 @@ class SermonUrlBuilderTest extends TestCase
     {
         $sermon = Sermon::factory()->make(['audio_file_path' => null]);
 
-        $this->assertNull($this->builder->audioUrl($this->presenter, $sermon));
+        $this->assertNull($this->builder->audioUrl($sermon));
     }
 
     #[Test]
@@ -58,7 +54,7 @@ class SermonUrlBuilderTest extends TestCase
         $this->exposurePolicy->shouldReceive('shouldExposeVideo')->with($sermon)->andReturn(true);
         $this->storageService->shouldReceive('getVideoDeliveryUrl')->with($sermon)->andReturn('https://cdn.example.com/video.mp4');
 
-        $this->assertSame('https://cdn.example.com/video.mp4', $this->builder->videoUrl($this->presenter, $sermon));
+        $this->assertSame('https://cdn.example.com/video.mp4', $this->builder->videoUrl($sermon));
     }
 
     #[Test]
@@ -67,7 +63,7 @@ class SermonUrlBuilderTest extends TestCase
         $sermon = Sermon::factory()->make();
         $this->exposurePolicy->shouldReceive('shouldExposeVideo')->with($sermon)->andReturn(false);
 
-        $this->assertNull($this->builder->videoUrl($this->presenter, $sermon));
+        $this->assertNull($this->builder->videoUrl($sermon));
     }
 
     #[Test]
@@ -77,11 +73,11 @@ class SermonUrlBuilderTest extends TestCase
         $this->exposurePolicy->shouldReceive('shouldExposeThumbnail')->with($sermon)->andReturn(true);
         $this->storageService->shouldReceive('getThumbnailDeliveryUrl')->with($sermon)->andReturn('https://cdn.example.com/thumb.webp');
 
-        $this->assertSame('https://cdn.example.com/thumb.webp', $this->builder->thumbnailUrl($this->presenter, $sermon));
+        $this->assertSame('https://cdn.example.com/thumb.webp', $this->builder->thumbnailUrl($sermon));
     }
 
     #[Test]
-    public function it_falls_back_to_the_primary_thumbnail_via_the_presenter_when_metadata_is_unloaded(): void
+    public function it_falls_back_to_the_primary_thumbnail_when_metadata_is_unloaded(): void
     {
         // A sermon whose thumbnail_metadata column was not selected (listing query)
         // but which has a primary thumbnail.
@@ -89,11 +85,11 @@ class SermonUrlBuilderTest extends TestCase
         $sermon->offsetUnset('thumbnail_metadata');
 
         $this->exposurePolicy->shouldReceive('shouldExposeThumbnail')->with($sermon)->andReturn(true);
-        $this->presenter->shouldReceive('thumbnailUrl')->with($sermon)->andReturn('https://cdn.example.com/thumb.webp');
+        $this->storageService->shouldReceive('getThumbnailDeliveryUrl')->with($sermon)->andReturn('https://cdn.example.com/thumb.webp');
 
         $this->assertSame(
             'https://cdn.example.com/thumb.webp',
-            $this->builder->plainThumbnailUrl($this->presenter, $sermon),
+            $this->builder->plainThumbnailUrl($sermon),
         );
     }
 
@@ -105,7 +101,7 @@ class SermonUrlBuilderTest extends TestCase
 
         $this->assertSame(
             route('sermons.transcript', ['sermon' => 'a-sermon']),
-            $this->builder->transcriptUrl($this->presenter, $sermon),
+            $this->builder->transcriptUrl($sermon),
         );
     }
 }

@@ -257,11 +257,11 @@ the line target is met by deletion alone.
 - `app/Presenters/SermonDateFormatter.php` (~70) — stateless; drop `clearCache()`/memo. Still
   delegates to `App\Support\SermonContentFormatter`.
 - `app/Livewire/Admin/Sermons/ListSermons.php` (~L174) — remove the `preWarmForAdminList()` call
-  and its "Performance Optimization" comment. Safe: `SermonRepository::basePublicSermonQuery()`
-  eager-loads `preacherProfile:id,name,slug,image_path` + `scripturePassage`, and
+  and its "Performance Optimization" comment. Safe: the component's own query eagerly loads
+  `preacherProfile:id,name,slug,image_path` + `scripturePassage`, and
   `Preacher::profileImageUrl` is a cached Attribute — no query regression.
-- `app/Seo/SermonItemListPresenter.php` — drop its `clearInternalCaches()` call (and its own
-  hand-rolled memo if trivially removable).
+- `app/Seo/SermonItemListPresenter.php` — delete its own `clearInternalCaches()` method and
+  hand-rolled author memo; resolve authors eagerly without internal state.
 - `app/Providers/AppServiceProvider.php` (~L68) — drop the now-stateless presenter's `scoped()`
   binding; remove its row from `tests/Feature/SingletonRegistrationTest.php`.
 - `app/Services/Sermon/SermonStorageService.php` — remove its `clearInternalCaches` interaction
@@ -276,10 +276,11 @@ commit).
 - Merge `tests/Unit/Presenters/SermonViewPresenterTest.php` (278 lines) and
   `tests/Integration/Presenters/SermonViewPresenterTest.php` (739 lines) into one Integration
   file: delete every memo/reset/passback behaviour test; **keep every output-shape assertion
-  verbatim** (shapes are unchanged — these are the regression net).
-- Keep/adapt an N+1 guard asserting query count on a 24-sermon `presentCollection` — this is the
+  verbatim** by moving the exact key-set assertions from the deleted
+  `SermonPresentationAssemblerTest` into it (shapes are unchanged — these are the regression net).
+- Add an N+1 guard asserting query count on a 24-sermon `presentCollection` — this is the
   backlog's mandated sanity check on the archive page. Also verify manually with Debugbar on
-  `/sermons` before merge.
+  `/christ/sermons` before merge.
 
 ---
 
@@ -518,9 +519,10 @@ Facts confirmed against the working tree; supersede the reviews where they diffe
   SermonCard:26, ChildrensTalkCard:26, SermonItemListPresenter:314, sermon-card.blade.php:8;
   `presentForApi()` — SermonApiController:140; `presentCollection()` — BrowseSermons:238,
   ChildrensCornerController:32, SermonController:182/235/263; `preWarmForAdminList()` —
-  ListSermons:174 (only caller). `clearInternalCaches` callers: PodcastFeedService:184,
-  SermonStorageService, SermonItemListPresenter, tests. Output is arrays with `array{...}`
-  docblocks — no DTOs.
+  ListSermons:174 (only caller). `SermonViewPresenter::clearInternalCaches()` has no production
+  callers; the same-named methods on `SermonStorageService` and `SermonItemListPresenter` clear
+  those classes' own independent memo stores. Output is arrays with `array{...}` docblocks — no
+  DTOs.
 - **Sitemap**: `SitemapService` 524 lines; window queries at 175–252 (`getRepresentativeSermonsForStaticUrls`),
   `addBooks` 291–312, `addSeries` 454–476; `whereVisibleInSitemap` in `SermonBuilder:68–80`
   (also used by `RouteCanaryRegistry:101`). `SitemapController` uses `Cache::flexible('sitemap')`
