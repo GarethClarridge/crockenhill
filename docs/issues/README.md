@@ -269,6 +269,36 @@ investing in that seam separately.
 - The full parallel suite was not independently completed: this session was denied Docker access
   for that command. Do not treat the focused green runs as closing the behavioural findings above.
 
+### Follow-up review of the O22–O37 fixes (2026-07-16)
+
+A second review pass over `e72da7c4f..881e5d034` confirmed every repository-side fix and found
+five further defects, all resolved in the follow-up commits on this branch:
+
+1. **Retired per-run review URL 404'd.** `614c21765` deleted
+   `admin/services/processing/{processingLog}/review` without a redirect, so manual-review
+   emails sent before that deploy dead-ended, contrary to the retired-URL 302 convention.
+   Restored as a redirect to `admin.recordings.sermon-segment`.
+2. **Legacy poisoned metadata cache entries survived the O34 fix.** A pre-fix
+   `rememberForever` null/null entry passed the new shape check and was served forever for a
+   never-updated sermon. Null values are now rejected as legacy failures and re-read.
+3. **The podcast feed's zero-enclosure self-heal was silent.** A genuinely missing audio file
+   defeats the feed cache on every request; that now logs a warning naming the sermon ids.
+4. **One bad asset blocked the private-storage mover's remaining moves.** Failures are now
+   collected per asset so every other asset is still protected before the job rethrows, and a
+   stale *unreferenced* private target from a crashed attempt is replaced instead of failing
+   verification on every retry (referenced targets are still preserved).
+5. **Source-deletion reference checks loaded the sermons table once per deletion.** One
+   snapshot per cleanup run now answers all of them.
+
+### O38 · [P3/operational] Confirm all stored password hashes are bcrypt before trusting `HASH_VERIFY=true`
+
+`bb9323683` adopted the framework default `HASH_VERIFY=true` (was `false`) and added
+`rehash_on_login`. With verify on, `Hash::check()` **throws** for a stored hash that is not the
+configured algorithm instead of returning false, so any legacy non-bcrypt hash row would now 500 a
+login attempt. Run `SELECT COUNT(*) FROM users WHERE password NOT LIKE '$2y$%'` in production; if
+non-zero, decide per-row remediation before relying on the new default. This checkout has no
+production access, so the check is recorded here rather than executed.
+
 ## 🟠 Open — needs a fix, not yet owned by a plan
 
 ### O11 · Footer "Listen to evening sermons" links to the unfiltered archive
