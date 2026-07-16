@@ -60,10 +60,13 @@ class MetadataExtractionService
      * Extract comprehensive sermon metadata from an uploaded file.
      *
      * Combines filename parsing, file modification timestamps, and ID3 tag
-     * extraction to build a complete SermonMetadata DTO.
+     * extraction to build a complete SermonMetadata DTO. Used as the primary
+     * entry point for web-based uploads to ensure consistent identity detection.
      *
      * @param  UploadedFile  $file  The uploaded audio or video file
      * @return SermonMetadata The extracted metadata record
+     *
+     * @throws \Exception If file operations or metadata tools fail unexpectedly.
      */
     public function extractFromUploadedFile(UploadedFile $file): SermonMetadata
     {
@@ -195,8 +198,13 @@ class MetadataExtractionService
     /**
      * Extract audio stream information using GetID3.
      *
+     * Attempts to read technical streams (duration, bitrate) to assist in
+     * storage and playback optimization decisions.
+     *
      * @param  UploadedFile  $file  The uploaded audio file
      * @return AudioInfo Technical audio metadata
+     *
+     * @phpstan-return AudioInfo
      */
     public function extractAudioInfo(UploadedFile $file): array
     {
@@ -237,8 +245,13 @@ class MetadataExtractionService
     /**
      * Extract audio stream information from a file path using GetID3.
      *
+     * Identical to extractAudioInfo but operates on local paths for background
+     * jobs or imported files.
+     *
      * @param  string  $filePath  Path to the audio file
      * @return AudioInfo Technical audio metadata
+     *
+     * @phpstan-return AudioInfo
      */
     public function extractAudioInfoFromPath(string $filePath): array
     {
@@ -525,6 +538,12 @@ class MetadataExtractionService
 
     /**
      * Extract creation date from video metadata using FFprobe.
+     *
+     * Accesses the 'creation_time' global tag. FFmpeg-based tools often
+     * overwrite this, so the orchestrator prefers filename dates if they
+     * appear older than this metadata.
+     *
+     * @throws \Exception If FFprobe binaries are missing or the file is unreadable.
      */
     private function extractDateFromVideoMetadata(string $filePath): ?Carbon
     {
@@ -643,6 +662,8 @@ class MetadataExtractionService
      *
      * @param  UploadedFile  $file  The uploaded audio file
      * @return Id3Metadata
+     *
+     * @phpstan-return Id3Metadata
      */
     public function extractId3Metadata(UploadedFile $file): array
     {
@@ -698,6 +719,8 @@ class MetadataExtractionService
      *
      * @param  string  $filePath  Path to the audio file
      * @return Id3MetadataExtended
+     *
+     * @phpstan-return Id3MetadataExtended
      */
     public function extractId3MetadataFromPath(string $filePath): array
     {
