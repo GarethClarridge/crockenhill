@@ -113,126 +113,50 @@ class GoogleCalendarSyncService
     public function syncSingleEvent(Event $googleEvent): CalendarEvent
     {
         $meetingSlug = $this->determineMeetingSlug($googleEvent);
+        /** @phpstan-ignore-next-line */
+        $existingEvent = CalendarEvent::query()->where('google_event_id', $googleEvent->id)->first();
 
         // Access extended properties from the underlying Google Calendar event
         $extendedProperties = $googleEvent->googleEvent->getExtendedProperties();
         $speaker = null;
-        $hasManualSlug = false;
 
         /** @phpstan-ignore-next-line */
         if ($extendedProperties) {
             $speaker = $extendedProperties['private']['speaker_name'] ?? null;
-            $hasManualSlug = isset($extendedProperties['private']['meeting_slug']);
+        }
+
+        $attributes = [
+            'meeting_slug' => $meetingSlug,
+            /** @phpstan-ignore-next-line */
+            'title' => $googleEvent->name,
+            /** @phpstan-ignore-next-line */
+            'description' => $googleEvent->description,
+            'speaker' => $speaker,
+            /** @phpstan-ignore-next-line */
+            'location' => $googleEvent->location,
+            /** @phpstan-ignore-next-line */
+            'start_datetime' => $googleEvent->startDateTime,
+            /** @phpstan-ignore-next-line */
+            'end_datetime' => $googleEvent->endDateTime,
+            'status' => $googleEvent->status ?? 'confirmed',
+            'is_categorized_automatically' => true,
+        ];
+
+        if ($existingEvent?->is_categorized_automatically === false) {
+            unset($attributes['meeting_slug'], $attributes['is_categorized_automatically']);
         }
 
         $calendarEvent = CalendarEvent::query()->updateOrCreate(
             /** @phpstan-ignore-next-line */
             ['google_event_id' => $googleEvent->id],
-            [
-                'meeting_slug' => $meetingSlug,
-                /** @phpstan-ignore-next-line */
-                'title' => $googleEvent->name,
-                /** @phpstan-ignore-next-line */
-                'description' => $googleEvent->description,
-                'speaker' => $speaker,
-                /** @phpstan-ignore-next-line */
-                'location' => $googleEvent->location,
-                /** @phpstan-ignore-next-line */
-                'start_datetime' => $googleEvent->startDateTime,
-                /** @phpstan-ignore-next-line */
-                'end_datetime' => $googleEvent->endDateTime,
-                'status' => $googleEvent->status ?? 'confirmed',
-                'is_categorized_automatically' => ! $hasManualSlug,
-            ]
+            $attributes
         );
 
         return $calendarEvent;
     }
 
-    /**
-     * Push a manual meeting_slug categorization to the Google Calendar event's extended properties.
-     *
-     * Returns true when the Google write succeeded, false when it failed gracefully.
-     */
-    public function syncCategorizationToGoogle(string $googleEventId, string $meetingSlug): bool
-    {
-        try {
-            $googleEvent = Event::find($googleEventId);
-            /** @phpstan-ignore-next-line */
-            if (! $googleEvent) {
-                return false;
-            }
-
-            /** @phpstan-ignore-next-line */
-            $extendedProperties = $googleEvent->googleEvent->getExtendedProperties() ?? [];
-            if (! isset($extendedProperties['private'])) {
-                $extendedProperties['private'] = [];
-            }
-            $extendedProperties['private']['meeting_slug'] = $meetingSlug;
-
-            $googleEvent->googleEvent->setExtendedProperties($extendedProperties);
-            $googleEvent->save();
-
-            return true;
-        } catch (\Exception $e) {
-            Log::warning('Failed to update Google Calendar extended property', $this->sanitizeArrayForLog([
-                'google_event_id' => $googleEventId,
-                'error' => $e->getMessage(),
-            ]));
-
-            return false;
-        }
-    }
-
-    /**
-     * Clear a manual meeting_slug categorization from the Google Calendar event's extended properties.
-     *
-     * Returns true when the Google write succeeded, false when it failed gracefully.
-     */
-    public function removeCategorizationFromGoogle(string $googleEventId): bool
-    {
-        try {
-            $googleEvent = Event::find($googleEventId);
-            /** @phpstan-ignore-next-line */
-            if (! $googleEvent) {
-                return false;
-            }
-
-            /** @phpstan-ignore-next-line */
-            $extendedProperties = $googleEvent->googleEvent->getExtendedProperties() ?? [];
-            if (isset($extendedProperties['private']['meeting_slug'])) {
-                unset($extendedProperties['private']['meeting_slug']);
-            }
-
-            $googleEvent->googleEvent->setExtendedProperties($extendedProperties);
-            $googleEvent->save();
-
-            return true;
-        } catch (\Exception $e) {
-            Log::warning('Failed to clear Google Calendar extended property', $this->sanitizeArrayForLog([
-                'google_event_id' => $googleEventId,
-                'error' => $e->getMessage(),
-            ]));
-
-            return false;
-        }
-    }
-
     private function determineMeetingSlug(Event $googleEvent): ?string
     {
-        // Access extended properties from the underlying Google Calendar event
-        $extendedProperties = $googleEvent->googleEvent->getExtendedProperties();
-        $extendedSlug = null;
-
-        /** @phpstan-ignore-next-line */
-        if ($extendedProperties && isset($extendedProperties['private']['meeting_slug'])) {
-            $extendedSlug = $extendedProperties['private']['meeting_slug'];
-        }
-
-        if (is_string($extendedSlug) && $this->isKnownMeetingSlug($extendedSlug)) {
-            return $extendedSlug;
-        }
-
         /** @phpstan-ignore-next-line */
         $title = strtolower($googleEvent->name);
         $patterns = config('calendar.meeting_patterns');

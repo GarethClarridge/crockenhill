@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
-use App\Data\CalendarCategorizationResult;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Services\Calendar\CalendarService;
-use App\Services\Calendar\GoogleCalendarSyncService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\MockObject\MockObject;
 use Tests\TestCase;
 
 class CalendarServiceTest extends TestCase
@@ -21,15 +18,10 @@ class CalendarServiceTest extends TestCase
 
     private CalendarService $service;
 
-    /** @var MockObject&GoogleCalendarSyncService */
-    private MockObject $googleSync;
-
     protected function setUp(): void
     {
         parent::setUp();
-        config(['google-calendar.calendar_id' => 'test-calendar-id']);
-        $this->googleSync = $this->createMock(GoogleCalendarSyncService::class);
-        $this->service = new CalendarService($this->googleSync);
+        $this->service = new CalendarService;
     }
 
     #[Test]
@@ -132,47 +124,15 @@ class CalendarServiceTest extends TestCase
             'google_event_id' => 'google-event-abc',
         ]);
 
-        $this->googleSync
-            ->expects($this->once())
-            ->method('syncCategorizationToGoogle')
-            ->with('google-event-abc', 'sunday-morning')
-            ->willReturn(true);
-
         $result = $this->service->manuallyCategorizeEvent($event->id, 'sunday-morning');
 
-        $this->assertInstanceOf(CalendarCategorizationResult::class, $result);
-        $this->assertEquals('sunday-morning', $result->event->meeting_slug);
-        $this->assertFalse($result->event->is_categorized_automatically);
-        $this->assertTrue($result->googleSynced);
+        $this->assertSame($event->id, $result->id);
+        $this->assertEquals('sunday-morning', $result->meeting_slug);
+        $this->assertFalse($result->is_categorized_automatically);
 
         $event->refresh();
         $this->assertEquals('sunday-morning', $event->meeting_slug);
         $this->assertFalse($event->is_categorized_automatically);
-    }
-
-    #[Test]
-    public function it_categorizes_event_updating_db_even_if_google_fails(): void
-    {
-        Meeting::factory()->create(['slug' => 'sunday-morning']);
-
-        $event = CalendarEvent::factory()->create([
-            'meeting_slug' => null,
-            'google_event_id' => 'google-event-xyz',
-        ]);
-
-        $this->googleSync
-            ->method('syncCategorizationToGoogle')
-            ->willReturn(false);
-
-        $result = $this->service->manuallyCategorizeEvent($event->id, 'sunday-morning');
-
-        $this->assertInstanceOf(CalendarCategorizationResult::class, $result);
-        $this->assertEquals('sunday-morning', $result->event->meeting_slug);
-        $this->assertFalse($result->event->is_categorized_automatically);
-        $this->assertFalse($result->googleSynced);
-
-        $event->refresh();
-        $this->assertEquals('sunday-morning', $event->meeting_slug);
     }
 
     #[Test]
@@ -186,45 +146,14 @@ class CalendarServiceTest extends TestCase
             'google_event_id' => 'google-event-abc',
         ]);
 
-        $this->googleSync
-            ->expects($this->once())
-            ->method('removeCategorizationFromGoogle')
-            ->with('google-event-abc')
-            ->willReturn(true);
-
         $result = $this->service->manuallyUnCategorizeEvent($event->id);
 
-        $this->assertInstanceOf(CalendarCategorizationResult::class, $result);
-        $this->assertNull($result->event->meeting_slug);
-        $this->assertFalse($result->event->is_categorized_automatically);
-        $this->assertTrue($result->googleSynced);
+        $this->assertSame($event->id, $result->id);
+        $this->assertNull($result->meeting_slug);
+        $this->assertFalse($result->is_categorized_automatically);
 
         $event->refresh();
         $this->assertNull($event->meeting_slug);
         $this->assertFalse($event->is_categorized_automatically);
-    }
-
-    #[Test]
-    public function it_uncategorizes_event_updating_db_even_if_google_fails(): void
-    {
-        Meeting::factory()->create(['slug' => 'sunday-morning']);
-
-        $event = CalendarEvent::factory()->create([
-            'meeting_slug' => 'sunday-morning',
-            'google_event_id' => 'google-event-xyz',
-        ]);
-
-        $this->googleSync
-            ->method('removeCategorizationFromGoogle')
-            ->willReturn(false);
-
-        $result = $this->service->manuallyUnCategorizeEvent($event->id);
-
-        $this->assertInstanceOf(CalendarCategorizationResult::class, $result);
-        $this->assertNull($result->event->meeting_slug);
-        $this->assertFalse($result->googleSynced);
-
-        $event->refresh();
-        $this->assertNull($event->meeting_slug);
     }
 }

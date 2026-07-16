@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Calendar;
 
-use App\Data\CalendarCategorizationResult;
 use App\Models\CalendarEvent;
 use App\Traits\SanitizesLogData;
 use Carbon\Carbon;
@@ -16,10 +15,6 @@ use Illuminate\Support\Facades\Log;
 class CalendarService
 {
     use SanitizesLogData;
-
-    public function __construct(
-        private readonly GoogleCalendarSyncService $googleSync,
-    ) {}
 
     /**
      * @return Collection<int, CalendarEvent>
@@ -47,7 +42,7 @@ class CalendarService
     /**
      * @throws ModelNotFoundException
      */
-    public function manuallyCategorizeEvent(int $eventId, string $meetingSlug): CalendarCategorizationResult
+    public function manuallyCategorizeEvent(int $eventId, string $meetingSlug): CalendarEvent
     {
         $event = CalendarEvent::query()->findOrFail($eventId);
 
@@ -63,15 +58,13 @@ class CalendarService
             'meeting_slug' => $meetingSlug,
         ]));
 
-        $googleSynced = $this->googleSync->syncCategorizationToGoogle($event->google_event_id, $meetingSlug);
-
-        return new CalendarCategorizationResult($event, $googleSynced);
+        return $event;
     }
 
     /**
      * @throws ModelNotFoundException
      */
-    public function manuallyUnCategorizeEvent(int $eventId): CalendarCategorizationResult
+    public function manuallyUnCategorizeEvent(int $eventId): CalendarEvent
     {
         $event = CalendarEvent::query()->findOrFail($eventId);
 
@@ -86,9 +79,7 @@ class CalendarService
             'event_title' => $event->title,
         ]));
 
-        $googleSynced = $this->googleSync->removeCategorizationFromGoogle($event->google_event_id);
-
-        return new CalendarCategorizationResult($event, $googleSynced);
+        return $event;
     }
 
     /**

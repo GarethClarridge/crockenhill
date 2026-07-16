@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire\Admin\CalendarEvents;
 
-use App\Data\CalendarCategorizationResult;
 use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
@@ -147,7 +146,7 @@ class ListCalendarEventsTest extends TestCase
             $mock->shouldReceive('manuallyCategorizeEvent')
                 ->once()
                 ->with($event->id, 'new-meeting')
-                ->andReturn(new CalendarCategorizationResult($event, false));
+                ->andReturn($event);
         });
 
         Livewire::test(ListCalendarEvents::class)

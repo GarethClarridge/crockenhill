@@ -31,7 +31,6 @@ use App\Models\Sermon;
 use App\Models\SpeakerProfile;
 use App\Models\User;
 use App\Services\Calendar\CalendarService;
-use App\Services\Calendar\GoogleCalendarSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Livewire\Livewire;
@@ -48,10 +47,6 @@ class AuditLoggingTest extends TestCase
     {
         parent::setUp();
         $this->admin = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
-
-        $this->mock(GoogleCalendarSyncService::class, function ($mock) {
-            $mock->shouldReceive('syncCategorizationToGoogle')->andReturn(true);
-        });
     }
 
     #[Test]
@@ -276,11 +271,6 @@ class AuditLoggingTest extends TestCase
     public function it_logs_calendar_event_categorization_via_service(): void
     {
         Log::spy();
-
-        // Mock GoogleCalendarSyncService to avoid calling Google Calendar API
-        $this->mock(GoogleCalendarSyncService::class, function ($mock) {
-            $mock->shouldReceive('syncCategorizationToGoogle')->andReturn(true);
-        });
 
         Meeting::factory()->create(['slug' => 'service-slug']);
         $event = CalendarEvent::factory()->create(['title' => 'Service Event']);
