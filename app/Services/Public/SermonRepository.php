@@ -70,9 +70,13 @@ class SermonRepository
      */
     public function resolveSeriesNameFromSlug(string $slug): ?string
     {
-        $series = $this->getSeriesForDisplay();
+        foreach ($this->getSeriesForDisplay() as $name) {
+            if (Str::slug($name) === $slug) {
+                return $name;
+            }
+        }
 
-        foreach ($series as $name) {
+        foreach ($this->getExistingSeries() as $name) {
             if (Str::slug($name) === $slug) {
                 return $name;
             }
