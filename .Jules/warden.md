@@ -11,6 +11,10 @@
 2.  Model-level normalization (e.g., Eloquent Attribute mutators) to gracefully handle and fix data before it reaches the database.
 3.  Defensive testing that asserts both DB rejection and validation-level handling.
 
+## 2026-07-16 - Admin Sorting Columns Must Be Indexed
+**Learning:** Columns used in `ALLOWED_SORT_COLUMNS` for administrative Livewire list components (like `meetings.updated_at`) are used as default order-by targets. Without an index, these listings perform full table scans on every page load, impacting responsiveness as the database grows.
+**Action:** Audit all administrative list components for sorting columns and ensure they have corresponding database indexes. Prioritise default sort columns.
+
 ## 2026-06-21 - Centralized Model Validation Synchronization
 **Learning:** Validation rules for models (e.g., Meeting) were incomplete and duplicated between the model and Livewire form objects. Centralizing these in a static `validationRules()` method on the model and consuming them in form objects ensures consistency and reduces technical debt.
 **Action:** When fortifying model validation, always check corresponding Livewire forms or Form Requests and refactor them to use the model's `validationRules()`. Ensure rules that reference other fields (e.g. `after_or_equal:start_time`) are correctly mapped to their form property equivalents (e.g. `after_or_equal:startTime`).
