@@ -19,6 +19,7 @@ use App\Models\Sermon;
 use App\Services\Preacher\PreacherResolutionService;
 use App\Services\Public\SermonRepository;
 use App\Traits\SanitizesLogData;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -747,7 +748,7 @@ class SermonCreationService
         }
 
         $serviceLabel = $service->label();
-        $dateLabel = \Illuminate\Support\Carbon::parse($date)->format('F j, Y');
+        $dateLabel = Carbon::parse($date)->format('F j, Y');
 
         return "{$serviceLabel} Sermon - {$dateLabel}";
     }
