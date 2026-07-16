@@ -328,18 +328,19 @@ status `completed`, `audio_file_path = sermons/seed/2024-11-24.mp3`) but leaves 
 row's `audio_file_path` null, and the referenced file does not exist on the `public` disk. Local
 dev/seeded environments render a sermon page with a dead audio player. **Dev-only** as far as
 verified — but if the same pattern (completed log, null sermon path) exists in production it
-would indicate a completion-transition bug worth checking while in there.
+would indicate a completion-transition bug worth checking while in there. **Pathfinder confirmed missing file 2026-07-14.**
 
 **Action:** make the seeder set the sermon's `audio_file_path` and ship (or generate) a small
 seed audio file; alternatively mark the seeded log `failed` so the UI states are honest.
 
 ### O13 · Heading-image resolution: committed assets invisible to `PageImageCacheService` (investigate before "fixing")
 
-Two Pathfinder crawls (2026-07-05/06) report pages and `sitemap.xml` missing heading images.
+Two Pathfinder crawls (2026-07-05/06) and a follow-up audit (2026-07-14) report pages and `sitemap.xml` missing heading images.
 Verified mechanism: `PageImageCacheService::resolveHeadingImageUrl()` resolves (1) Spatie Media
 Library `headings` media, then (2) `Storage::disk('public')` at `pages/headings/{size}/{slug}.webp`
 — it never reads the committed `public/images/headings/` directory, which is only referenced
 *directly* via `asset()` (sitemap sermons image, sermon Blade share images, `page-card` default).
+Confirmed 14+ affected pages in 2026-07-14 audit; see `docs/reports/pathfinder-findings-2026-07-14.md`.
 
 **Do not blindly patch the service to read `public_path()`** — the intended primary source is
 Media Library, and production pages may well have `headings` media attached (in which case this

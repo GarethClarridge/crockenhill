@@ -332,8 +332,8 @@ class CalendarAdminControllerTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHas('error');
         $errorMessage = session('error');
-        $this->assertStringContainsString('Sync failed', $errorMessage);
-        $this->assertStringContainsString('Google API unavailable', $errorMessage);
+        $this->assertStringContainsString('Sync failed due to an internal error.', $errorMessage);
+        $this->assertStringNotContainsString('Google API unavailable', $errorMessage);
     }
 
     #[Test]

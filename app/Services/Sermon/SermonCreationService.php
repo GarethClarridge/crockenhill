@@ -22,6 +22,17 @@ use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
+/**
+ * @phpstan-type TitleGenerationContext array{
+ *     filename: string,
+ *     ai_analysis?: array{title: string, series: string|null, reference: string|null, points: list<string>, summary: string|null, transcript: string}|null,
+ *     custom_title?: string|null,
+ *     id3_title?: string|null,
+ *     processing_log?: \App\Models\MediaProcessingLog|null,
+ *     date?: string,
+ *     service?: \App\Enums\SermonService
+ * }
+ */
 class SermonCreationService
 {
     use SanitizesLogData;
@@ -37,9 +48,15 @@ class SermonCreationService
      *
      * This method manages the lifecycle of sermon records when new media is processed.
      * It uses a richness hierarchy (Livestream > Video > Audio) to decide whether to:
-     * - Enrich: Incoming pipeline is richer than the existing record (e.g., adding video to an audio-only sermon).
-     * - Replace: Incoming and existing have same richness (e.g., re-uploading audio).
-     * - Reject: Refuse to downgrade (e.g., uploading audio for a sermon that already has video).
+     *
+     * - **Enrich**: Incoming pipeline is richer than the existing record (e.g., adding
+     *   video to an audio-only sermon). Preserves manual edits and identity-shaping fields.
+     * - **Replace**: Incoming and existing have same richness (e.g., re-uploading audio).
+     *   Refreshes mutable media and AI-derived fields while preserving manual edits.
+     * - **Reject**: Refuse to downgrade (e.g., uploading audio for a sermon that
+     *   already has video).
+     *
+     * Match criteria for existing records: (date, service, content_type).
      *
      * @param  MediaProcessingLog  $processingLog  The log of the current processing run
      * @param  SermonCreationOptions  $options  Consolidated options and metadata for creation
@@ -525,6 +542,14 @@ class SermonCreationService
 
     /**
      * Extract sermon date using cascading strategy.
+     *
+     * Precedence:
+     * 1. Extracted date from processing log (metadata/FFprobe).
+     * 2. Filename parsing patterns.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log record for the run
+     * @param  string  $filename  The original filename
+     * @return string ISO date string (YYYY-MM-DD)
      */
     public function extractDate(
         MediaProcessingLog $processingLog,
@@ -556,6 +581,14 @@ class SermonCreationService
 
     /**
      * Extract service type using cascading strategy.
+     *
+     * Precedence:
+     * 1. Extracted service from processing log (operator override or detection).
+     * 2. Filename keyword/pattern matching.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log record for the run
+     * @param  string  $filename  The original filename
+     * @return SermonService The identified service type
      */
     public function extractServiceType(
         MediaProcessingLog $processingLog,
@@ -587,17 +620,14 @@ class SermonCreationService
     /**
      * Generate sermon title using specified strategy.
      *
-     * @param  TitleGenerationStrategy  $strategy  The strategy to use (AI, Filename, Custom)
-     * @param  array{
-     *     ai_analysis?: array{title: string, series: string|null, reference: string|null, points: list<string>, summary: string|null, transcript: string}|null,
-     *     filename: string,
-     *     custom_title?: string|null,
-     *     id3_title?: string|null,
-     *     processing_log?: MediaProcessingLog|null,
-     *     date?: string,
-     *     service?: SermonService
-     * }  $context  Data context for title generation
-     * @return string The generated and truncated title
+     * Strategy-specific priorities:
+     * - **AiWithFallback**: ID3 title > AI-generated title > Filename processing.
+     * - **FilenameOnly**: Filename cleaning -> Defaults (Service + Date).
+     * - **Custom**: Explicitly provided title -> FilenameOnly fallback.
+     *
+     * @param  TitleGenerationStrategy  $strategy  The strategy to use
+     * @param  TitleGenerationContext  $context  Data context for title generation
+     * @return string The generated and truncated title (max 100 chars)
      */
     public function generateTitle(
         TitleGenerationStrategy $strategy,
