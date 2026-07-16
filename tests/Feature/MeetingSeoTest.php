@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\MeetingFrequency;
 use App\Enums\PageArea;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
@@ -34,14 +33,12 @@ class MeetingSeoTest extends TestCase
             'area' => PageArea::Community,
         ]);
 
-        $meeting = Meeting::factory()->create([
+        Meeting::factory()->create([
             'page_id' => $page->id,
             'slug' => 'buzz-club',
             'day' => 'Friday',
             'start_time' => '18:00:00',
             'end_time' => '20:00:00',
-            'is_recurring' => true,
-            'frequency' => MeetingFrequency::Weekly,
         ]);
 
         $response = $this->get('/community/buzz-club');
@@ -98,11 +95,9 @@ class MeetingSeoTest extends TestCase
         $meeting = Meeting::factory()->create([
             'page_id' => $page->id,
             'slug' => 'test-meeting',
-            'is_recurring' => true,
-            'frequency' => MeetingFrequency::Weekly,
         ]);
 
-        $event = CalendarEvent::factory()->create([
+        CalendarEvent::factory()->create([
             'meeting_slug' => $meeting->slug,
             'title' => 'Upcoming Test Event',
             'description' => 'This is an upcoming event.',
@@ -118,65 +113,6 @@ class MeetingSeoTest extends TestCase
     }
 
     #[Test]
-    public function meeting_page_contains_recurring_event_json_ld()
-    {
-        $page = Page::factory()->create([
-            'heading' => 'Buzz Club',
-            'slug' => 'buzz-club',
-            'description' => 'A fun club for kids.',
-            'area' => PageArea::Community,
-        ]);
-
-        $meeting = Meeting::factory()->create([
-            'page_id' => $page->id,
-            'slug' => 'buzz-club',
-            'day' => 'Friday',
-            'start_time' => '18:00:00',
-            'end_time' => '19:30:00',
-            'is_recurring' => true,
-            'frequency' => MeetingFrequency::Weekly,
-        ]);
-
-        $response = $this->get('/community/buzz-club');
-
-        $response->assertStatus(200);
-
-        $content = $response->getContent();
-        $this->assertStringContainsString('"@type": "Event"', $content);
-        $this->assertStringContainsString('"name": "Buzz Club"', $content);
-        $this->assertStringContainsString('"@type": "Schedule"', $content);
-        $this->assertStringContainsString('"repeatFrequency": "P1W"', $content);
-        $this->assertStringContainsString('"byDay": "https://schema.org/Friday"', $content);
-        $this->assertStringContainsString('"startTime": "18:00:00"', $content);
-        $this->assertStringContainsString('"endTime": "19:30:00"', $content);
-    }
-
-    #[Test]
-    public function meeting_page_does_not_contain_recurring_event_json_ld_for_non_recurring_meetings()
-    {
-        $page = Page::factory()->create([
-            'heading' => 'One-off Event',
-            'slug' => 'one-off',
-            'area' => PageArea::Community,
-        ]);
-
-        $meeting = Meeting::factory()->create([
-            'page_id' => $page->id,
-            'slug' => 'one-off',
-            'is_recurring' => false,
-            'frequency' => null,
-        ]);
-
-        $response = $this->get('/community/one-off');
-
-        $response->assertStatus(200);
-
-        $content = $response->getContent();
-        // The recurring event block should not be present
-        $this->assertStringNotContainsString('"@type": "Schedule"', $content);
-    }
-
-    #[Test]
     public function meeting_json_ld_includes_church_geo_coordinates_when_onsite()
     {
         $page = Page::factory()->create([
@@ -185,12 +121,17 @@ class MeetingSeoTest extends TestCase
             'area' => PageArea::Community,
         ]);
 
-        Meeting::factory()->create([
+        $meeting = Meeting::factory()->create([
             'page_id' => $page->id,
             'slug' => 'onsite-meeting',
             'location' => null,
-            'is_recurring' => true,
-            'frequency' => MeetingFrequency::Weekly,
+        ]);
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => $meeting->slug,
+            'location' => null,
+            'start_datetime' => now()->addDay(),
+            'status' => 'confirmed',
         ]);
 
         $response = $this->get('/community/onsite-meeting');
@@ -211,12 +152,17 @@ class MeetingSeoTest extends TestCase
             'area' => PageArea::Community,
         ]);
 
-        Meeting::factory()->create([
+        $meeting = Meeting::factory()->create([
             'page_id' => $page->id,
             'slug' => 'offsite-meeting',
             'location' => 'Village Hall',
-            'is_recurring' => true,
-            'frequency' => MeetingFrequency::Weekly,
+        ]);
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => $meeting->slug,
+            'location' => null,
+            'start_datetime' => now()->addDay(),
+            'status' => 'confirmed',
         ]);
 
         $response = $this->get('/community/offsite-meeting');
@@ -237,8 +183,8 @@ class MeetingSeoTest extends TestCase
 
         foreach ($matches[1] as $block) {
             $decoded = json_decode($block, true);
-            if (is_array($decoded) && ($decoded['@type'] ?? null) === 'Event') {
-                return $decoded;
+            if (is_array($decoded) && ($decoded['@type'] ?? null) === 'ItemList') {
+                return $decoded['itemListElement'][0]['item'];
             }
         }
 

@@ -6,9 +6,12 @@ namespace Tests\Integration\Services;
 
 use App\Models\Sermon;
 use App\Services\Sermon\SermonStorageService;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -109,6 +112,75 @@ class SermonStorageServiceTest extends TestCase
         ]);
 
         $this->assertNull($this->service->getFileSize($sermon));
+    }
+
+    #[Test]
+    public function it_does_not_cache_transient_metadata_failures_and_expires_successes(): void
+    {
+        Config::set('media-processing.storage.metadata_cache_ttl', 1);
+        Cache::flush();
+
+        $sermon = Sermon::factory()->create([
+            'audio_file_path' => 'sermons/transient.mp3',
+        ]);
+        $disk = Mockery::mock(FilesystemAdapter::class);
+        $lastModifiedCalls = 0;
+        $sizeCalls = 0;
+
+        $disk->shouldReceive('lastModified')
+            ->times(3)
+            ->andReturnUsing(static function () use (&$lastModifiedCalls): int {
+                $lastModifiedCalls++;
+
+                if ($lastModifiedCalls === 1) {
+                    throw new \RuntimeException('Temporary storage failure');
+                }
+
+                return $lastModifiedCalls === 2 ? 100 : 200;
+            });
+        $disk->shouldReceive('size')
+            ->twice()
+            ->andReturnUsing(static function () use (&$sizeCalls): int {
+                $sizeCalls++;
+
+                return $sizeCalls === 1 ? 5 : 7;
+            });
+        Storage::shouldReceive('disk')->with('public')->times(5)->andReturn($disk);
+
+        $this->assertNull($this->service->getFileSize($sermon));
+        $this->assertSame(5, $this->service->getFileSize($sermon));
+        $this->assertSame(5, $this->service->getFileSize($sermon));
+
+        $this->travel(2)->seconds();
+
+        $this->assertSame(7, $this->service->getFileSize($sermon));
+    }
+
+    #[Test]
+    public function it_discards_a_legacy_forever_cached_metadata_failure_and_rereads_storage(): void
+    {
+        Cache::flush();
+
+        $sermon = Sermon::factory()->create([
+            'audio_file_path' => 'sermons/poisoned.mp3',
+        ]);
+
+        // Before metadata caching gained a TTL, a storage failure was cached
+        // forever as null values. Seed that exact legacy shape.
+        $legacyKey = 'sermon_file_metadata_'.sha1(implode('|', [
+            $sermon->id,
+            $sermon->audio_file_path,
+            $sermon->updated_at->getTimestamp(),
+        ]));
+        Cache::forever($legacyKey, ['last_modified' => null, 'size' => null]);
+
+        $disk = Mockery::mock(FilesystemAdapter::class);
+        $disk->shouldReceive('lastModified')->once()->andReturn(100);
+        $disk->shouldReceive('size')->once()->andReturn(42);
+        Storage::shouldReceive('disk')->with('public')->twice()->andReturn($disk);
+
+        $this->assertSame(42, $this->service->getFileSize($sermon));
+        $this->assertSame(['last_modified' => 100, 'size' => 42], Cache::get($legacyKey));
     }
 
     #[Test]
@@ -319,7 +391,7 @@ class SermonStorageServiceTest extends TestCase
         ]);
 
         $this->assertSame(
-            route('sermons.thumbnail', ['sermon' => $sermon->slug]),
+            route('sermons.thumbnail.plain', ['sermon' => $sermon->slug]),
             $this->service->getPlainThumbnailDeliveryUrl($sermon),
         );
     }

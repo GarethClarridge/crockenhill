@@ -17,6 +17,7 @@ use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -98,12 +99,12 @@ class PodcastFeedServiceTest extends TestCase
             'audio_file_path' => 'sermons/sermon.mp3',
             'content_type' => SermonContentType::Sermon,
         ]);
-        Sermon::factory()->create([
+        Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
             'service' => 'morning',
             'title' => "Children's Talk",
             'audio_file_path' => 'sermons/childrens-talk.mp3',
             'content_type' => SermonContentType::ChildrensTalk,
-        ]);
+        ]));
 
         $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturn(1024);
@@ -248,62 +249,32 @@ class PodcastFeedServiceTest extends TestCase
     }
 
     #[Test]
-    public function clear_cache_removes_specific_service_type(): void
+    public function it_retries_incomplete_enclosure_metadata_instead_of_caching_it(): void
     {
         config(['podcast.cache' => ['enabled' => true, 'ttl' => 3600, 'stale_ttl' => 7200]]);
-        Sermon::factory()->create(['service' => 'morning', 'audio_file_path' => 'test.mp3']);
-        Sermon::factory()->create(['service' => 'evening', 'audio_file_path' => 'test.mp3']);
+        $sermon = Sermon::factory()->create([
+            'service' => 'morning',
+            'audio_file_path' => 'sermons/test.mp3',
+        ]);
 
         $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
-        $this->storageService->method('getFileSize')->willReturn(1024);
+        $this->storageService->method('getFileSize')->willReturnOnConsecutiveCalls(null, 1024);
 
-        DB::enableQueryLog();
+        Log::shouldReceive('warning')
+            ->once()
+            ->with('Podcast feed contains zero-length enclosures; feed cache invalidated', [
+                'feed' => 'podcast_feed_morning',
+                'sermon_ids' => [$sermon->id],
+            ]);
 
-        // Populate both caches
-        $this->service->getSermonsForFeed(SermonService::Morning);
-        $this->service->getSermonsForFeed(SermonService::Evening);
-        $initialQueryCount = count(DB::getQueryLog());
+        $firstFeed = $this->service->getSermonsForFeed(SermonService::Morning);
 
-        // Clear only morning
-        $this->service->clearCache('morning');
+        $this->assertSame(0, $firstFeed->sole()->enclosureLength);
+        $this->assertFalse(Cache::has('podcast_feed_morning'));
+        $secondFeed = $this->service->getSermonsForFeed(SermonService::Morning);
 
-        // Morning should hit DB again
-        $this->service->getSermonsForFeed(SermonService::Morning);
-        $this->assertCount($initialQueryCount + 1, DB::getQueryLog());
-
-        // Evening should still be cached
-        $this->service->getSermonsForFeed(SermonService::Evening);
-        $this->assertCount($initialQueryCount + 1, DB::getQueryLog());
-
-        DB::disableQueryLog();
-    }
-
-    #[Test]
-    public function clear_cache_removes_all_feeds_when_no_type_specified(): void
-    {
-        config(['podcast.cache' => ['enabled' => true, 'ttl' => 3600, 'stale_ttl' => 7200]]);
-        Sermon::factory()->create(['service' => 'morning', 'audio_file_path' => 'test.mp3']);
-        Sermon::factory()->create(['service' => 'evening', 'audio_file_path' => 'test.mp3']);
-
-        $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
-        $this->storageService->method('getFileSize')->willReturn(1024);
-
-        DB::enableQueryLog();
-
-        // Populate both caches
-        $this->service->getSermonsForFeed(SermonService::Morning);
-        $this->service->getSermonsForFeed(SermonService::Evening);
-        $initialQueryCount = count(DB::getQueryLog());
-
-        // Clear all
-        $this->service->clearCache();
-
-        // Both should hit DB again
-        $this->service->getSermonsForFeed(SermonService::Morning);
-        $this->service->getSermonsForFeed(SermonService::Evening);
-        $this->assertCount($initialQueryCount + 2, DB::getQueryLog());
-
-        DB::disableQueryLog();
+        $this->assertSame(1024, $secondFeed->sole()->enclosureLength);
+        $this->assertTrue(Cache::has('podcast_feed_morning'));
     }
 
     #[Test]

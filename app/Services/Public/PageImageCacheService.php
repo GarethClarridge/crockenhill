@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Public;
 
 use App\Models\Page;
+use App\Support\FlexibleCache;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -16,7 +17,7 @@ class PageImageCacheService
      */
     public function get(Page $page): array
     {
-        return Cache::rememberForever($this->cacheKey($page->id), function () use ($page): array {
+        return Cache::flexible($this->cacheKey($page->id), [300, 86400], function () use ($page): array {
             $page->loadMissing('media');
 
             /** @var Media|null $media */
@@ -35,7 +36,7 @@ class PageImageCacheService
     {
         $pageId = $page instanceof Page ? $page->id : $page;
 
-        Cache::forget($this->cacheKey($pageId));
+        FlexibleCache::forget($this->cacheKey($pageId));
     }
 
     /**

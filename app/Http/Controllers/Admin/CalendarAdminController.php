@@ -36,8 +36,8 @@ class CalendarAdminController extends Controller
         return view('admin.calendar.uncategorized', [
             'uncategorizedEvents' => $uncategorizedEvents,
             'meetings' => $meetings,
-            'heading' => 'Categorise Calendar Events',
-            'description' => 'Review uncategorised calendar events.',
+            'heading' => 'Categorise calendar events',
+            'description' => 'Review uncategorised calendar events',
             'content' => '',
             'links' => collect(),
         ]);
@@ -76,8 +76,8 @@ class CalendarAdminController extends Controller
         return view('admin.calendar.patterns', [
             'patterns' => $patterns,
             'meetings' => $meetings,
-            'heading' => 'Calendar Patterns',
-            'description' => 'Calendar pattern mappings for meetings.',
+            'heading' => 'Calendar patterns',
+            'description' => 'Calendar pattern mappings for meetings',
             'content' => '',
             'links' => collect(),
         ]);
@@ -94,7 +94,7 @@ class CalendarAdminController extends Controller
                 "Uncategorised: {$report['uncategorized_events']}"
             );
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Sync failed: '.$e->getMessage());
+            return redirect()->back()->with('error', 'Sync failed due to an internal error.');
         }
     }
 }

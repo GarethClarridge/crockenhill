@@ -9,12 +9,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Number;
 
 /**
- * Service for centralized logging, performance monitoring, and statistical
- * analysis across the media processing pipeline.
+ * Centralized structured logging for the media processing pipeline.
  *
- * Provides a unified API for recording pipeline lifecycle events, API
- * performance metrics, file operations, and health checks, with
- * support for automated log sanitization.
+ * Records pipeline lifecycle events, API performance, file operations,
+ * warnings, and errors with automated log sanitization.
  */
 class SermonProcessingLogger
 {

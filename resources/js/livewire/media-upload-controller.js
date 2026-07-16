@@ -1,18 +1,7 @@
-// Singleton-only by contract: this controller assumes one media upload instance per page.
-// Event names like `media-upload:cancel-upload` are page-global; the payload `id` is checked
-// against this.componentId so that if the assumption is ever broken, cross-talk only causes
-// extra no-op handler invocations rather than incorrect behavior. To support multiple
-// instances safely, encode the instance scope into the event name itself
-// (e.g. `media-upload:{componentId}:cancel-upload`) and update both ends.
-const STALL_TIMEOUT_MS = 5 * 60 * 1000;
 const PROGRESS_THROTTLE_MS = 500; // 2 updates per second
 
 const hasMediaFileDetail = (event, componentId) => {
     return event?.detail?.id === componentId && event?.detail?.property === 'mediaFile';
-};
-
-const findLivewireComponent = (componentId) => {
-    return window.Livewire?.find(componentId) ?? null;
 };
 
 export const mediaUploadController = (config = {}) => {
@@ -25,8 +14,10 @@ export const mediaUploadController = (config = {}) => {
         lastProgressUpdate: 0,
         progressThrottleMs: PROGRESS_THROTTLE_MS,
         processingTriggered: false,
-        uploadTimeout: null,
-        lastActivityTime: Date.now(),
+        uploadCancelled: false,
+        uploadInProgress: false,
+        uploadProgressValue: 0,
+        currentFileName: null,
         listeners: [],
 
         init() {
@@ -38,7 +29,6 @@ export const mediaUploadController = (config = {}) => {
         },
 
         destroy() {
-            this.clearUploadTimeout();
             this.removeUploadListeners();
         },
 
@@ -54,52 +44,40 @@ export const mediaUploadController = (config = {}) => {
             this.listeners = [];
         },
 
-        clearUploadTimeout() {
-            if (this.uploadTimeout) {
-                clearTimeout(this.uploadTimeout);
-                this.uploadTimeout = null;
+        setUploadProgressVisibility(isVisible) {
+            const progress = this.$root.querySelector('[data-upload-progress]');
+
+            if (progress) {
+                progress.hidden = ! isVisible;
             }
         },
 
-        resetUploadTimeout() {
-            this.clearUploadTimeout();
-            this.lastActivityTime = Date.now();
+        updateUploadProgressDisplay(progress) {
+            const progressBar = this.$root.querySelector('[data-upload-progress-bar]');
+            const progressValue = this.$root.querySelector('[data-upload-progress-value]');
 
-            this.uploadTimeout = setTimeout(() => {
-                if (! this.$wire.isUploading) {
-                    return;
-                }
+            if (progressBar) {
+                progressBar.style.width = `${progress}%`;
+                progressBar.setAttribute('aria-valuenow', String(progress));
+            }
 
-                // Upload progress events can pause for long periods on large files or slow links.
-                // Keep waiting and let the user decide whether to cancel manually.
-                this.resetUploadTimeout();
-            }, STALL_TIMEOUT_MS);
+            if (progressValue) {
+                progressValue.textContent = String(progress);
+            }
         },
 
         registerUploadListeners() {
-            this.registerListener('media-upload:cancel-upload', (event) => {
-                if (event.detail?.id && event.detail.id !== this.componentId) {
-                    return;
-                }
-
-                this.clearUploadTimeout();
-                this.processingTriggered = false;
-
-                const component = findLivewireComponent(this.componentId);
-                if (component) {
-                    component.cancelUpload('mediaFile');
-                }
-            });
-
             this.registerListener('livewire-upload-start', (event) => {
                 if (! hasMediaFileDetail(event, this.componentId)) {
                     return;
                 }
 
                 this.processingTriggered = false;
-                this.$wire.set('isUploading', true);
-                this.$wire.set('status', 'uploading');
-                this.resetUploadTimeout();
+                this.uploadCancelled = false;
+                this.uploadInProgress = true;
+                this.uploadProgressValue = 0;
+                this.setUploadProgressVisibility(true);
+                this.updateUploadProgressDisplay(0);
             });
 
             this.registerListener('livewire-upload-progress', (event) => {
@@ -107,11 +85,13 @@ export const mediaUploadController = (config = {}) => {
                     return;
                 }
 
-                if (! this.$wire.isUploading) {
+                this.uploadProgressValue = Math.round(event.detail.progress);
+                this.updateUploadProgressDisplay(this.uploadProgressValue);
+
+                if (this.$wire.status !== 'uploading') {
                     return;
                 }
 
-                this.resetUploadTimeout();
                 const now = Date.now();
 
                 if (now - this.lastProgressUpdate < this.progressThrottleMs) {
@@ -119,7 +99,7 @@ export const mediaUploadController = (config = {}) => {
                 }
 
                 this.lastProgressUpdate = now;
-                this.$wire.call('updateUploadProgress', Math.round(event.detail.progress));
+                this.$wire.call('updateUploadProgress', this.uploadProgressValue);
             });
 
             this.registerListener('livewire-upload-finish', (event) => {
@@ -127,12 +107,13 @@ export const mediaUploadController = (config = {}) => {
                     return;
                 }
 
-                if (this.processingTriggered) {
+                if (this.uploadCancelled || this.processingTriggered) {
                     return;
                 }
 
                 this.processingTriggered = true;
-                this.clearUploadTimeout();
+                this.uploadInProgress = false;
+                this.setUploadProgressVisibility(false);
                 this.$wire.call('uploadComplete');
             });
 
@@ -142,12 +123,13 @@ export const mediaUploadController = (config = {}) => {
                 }
 
                 this.processingTriggered = false;
-                this.clearUploadTimeout();
+                this.uploadInProgress = false;
+                this.setUploadProgressVisibility(false);
                 this.$wire.call('handleUploadError', `Upload failed: ${event.detail.error || 'Unknown error'}`);
             });
 
             this.registerListener('beforeunload', (event) => {
-                if (! this.$wire.isUploading) {
+                if (! this.uploadInProgress) {
                     return;
                 }
 
@@ -173,8 +155,24 @@ export const mediaUploadController = (config = {}) => {
             }
 
             const modifiedDate = new Date(file.lastModified);
+            this.currentFileName = file.name;
+            const fileName = this.$root.querySelector('[data-upload-file-name]');
+
+            if (fileName) {
+                fileName.textContent = file.name;
+            }
             this.fileModifiedDate = modifiedDate.toISOString().split('T')[0];
             this.$wire.set('fileModifiedDate', this.fileModifiedDate);
+        },
+
+        cancelUpload() {
+            this.uploadCancelled = true;
+            this.processingTriggered = false;
+            this.uploadInProgress = false;
+            this.setUploadProgressVisibility(false);
+            this.$wire.$cancelUpload('mediaFile', () => {
+                this.$wire.call('cancelUpload');
+            });
         },
 
         handleDrop(event) {
@@ -190,21 +188,12 @@ export const mediaUploadController = (config = {}) => {
             }
 
             const modifiedDate = new Date(file.lastModified);
+            this.currentFileName = file.name;
             this.fileModifiedDate = modifiedDate.toISOString().split('T')[0];
             this.$wire.set('fileModifiedDate', this.fileModifiedDate);
             this.$wire.upload('mediaFile', file, () => {}, () => {}, (progress) => {});
         },
 
-        cancelUpload() {
-            this.clearUploadTimeout();
-            this.processingTriggered = false;
-            this.$wire.call('cancelUpload');
-
-            const component = findLivewireComponent(this.componentId);
-            if (component) {
-                component.cancelUpload('mediaFile');
-            }
-        },
     };
 };
 

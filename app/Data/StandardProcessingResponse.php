@@ -17,11 +17,7 @@ use Carbon\Carbon;
  */
 readonly class StandardProcessingResponse
 {
-    /**
-     * @param  array<string, mixed>  $additionalData
-     * @param  array<string, mixed>|null  $performanceMetrics
-     * @param  array<string, mixed>|null  $errorHistory
-     */
+    /** @param  array<string, mixed>  $additionalData */
     public function __construct(
         public bool $found,
         public ?string $processingId = null,
@@ -34,10 +30,7 @@ readonly class StandardProcessingResponse
         public ?Carbon $startedAt = null,
         public ?Carbon $updatedAt = null,
         public ?string $estimatedCompletion = null,
-        public array $additionalData = [],
-        public ?ProcessingLogCollection $recentLogs = null,
-        public ?array $performanceMetrics = null,
-        public ?array $errorHistory = null
+        public array $additionalData = []
     ) {}
 
     /**
@@ -71,48 +64,6 @@ readonly class StandardProcessingResponse
             updatedAt: $updatedAt,
             estimatedCompletion: $estimatedCompletion,
             additionalData: $additionalData
-        );
-    }
-
-    /**
-     * Create a successful found response with logs and metrics
-     *
-     * @param  array<string, mixed>  $additionalData
-     * @param  array<string, mixed>|null  $metrics
-     * @param  array<string, mixed>|null  $errorHistory
-     */
-    public static function withLogs(
-        string $processingId,
-        string $status,
-        ?string $currentStep = null,
-        int $progressPercentage = 0,
-        ?string $errorMessage = null,
-        ?int $sermonId = null,
-        ?string $sermonUrl = null,
-        ?Carbon $startedAt = null,
-        ?Carbon $updatedAt = null,
-        ?string $estimatedCompletion = null,
-        array $additionalData = [],
-        ?ProcessingLogCollection $logs = null,
-        ?array $metrics = null,
-        ?array $errorHistory = null
-    ): self {
-        return new self(
-            found: true,
-            processingId: $processingId,
-            status: $status,
-            currentStep: $currentStep,
-            progressPercentage: $progressPercentage,
-            errorMessage: $errorMessage,
-            sermonId: $sermonId,
-            sermonUrl: $sermonUrl,
-            startedAt: $startedAt,
-            updatedAt: $updatedAt,
-            estimatedCompletion: $estimatedCompletion,
-            additionalData: $additionalData,
-            recentLogs: $logs,
-            performanceMetrics: $metrics,
-            errorHistory: $errorHistory
         );
     }
 
@@ -206,21 +157,6 @@ readonly class StandardProcessingResponse
 
         if ($this->sermonUrl) {
             $response['sermon_url'] = $this->sermonUrl;
-        }
-
-        // Include logs if present
-        if ($this->recentLogs) {
-            $response['recent_logs'] = $this->recentLogs->toArray();
-        }
-
-        // Include performance metrics if present
-        if ($this->performanceMetrics) {
-            $response['performance_metrics'] = $this->performanceMetrics;
-        }
-
-        // Include error history if present
-        if ($this->errorHistory) {
-            $response['error_history'] = $this->errorHistory;
         }
 
         // Merge any additional data

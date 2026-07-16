@@ -9,8 +9,10 @@ use App\Enums\SermonService;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Services\Sermon\SermonStorageService;
+use App\Support\FlexibleCache;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class PodcastFeedService
 {
@@ -34,11 +36,31 @@ class PodcastFeedService
 
         if ($cacheConfig['enabled']) {
             /** @var Collection<int, PodcastFeedItemReadModel> */
-            return Cache::flexible(
+            $feed = Cache::flexible(
                 $cacheKey,
                 [$cacheConfig['ttl'], $cacheConfig['stale_ttl']],
                 fn () => $this->fetchSermons($serviceType)
             );
+
+            $zeroLengthSermonIds = $feed
+                ->filter(fn (PodcastFeedItemReadModel $item): bool => $item->enclosureLength === 0)
+                ->map(fn (PodcastFeedItemReadModel $item): int => $item->sermonId)
+                ->values();
+
+            if ($zeroLengthSermonIds->isNotEmpty()) {
+                // A zero enclosure length is either a transient storage failure
+                // (heals on the next request) or an audio file that is genuinely
+                // missing — the latter defeats this cache on every request until
+                // the sermon is fixed, so make it visible.
+                Log::warning('Podcast feed contains zero-length enclosures; feed cache invalidated', [
+                    'feed' => $cacheKey,
+                    'sermon_ids' => $zeroLengthSermonIds->all(),
+                ]);
+
+                FlexibleCache::forget($cacheKey);
+            }
+
+            return $feed;
         }
 
         return $this->fetchSermons($serviceType);
@@ -142,25 +164,5 @@ class PodcastFeedService
             'explicit' => (string) config('podcast.explicit'),
             'podcast_guid' => $feedConfig['podcast_guid'],
         ];
-    }
-
-    /**
-     * Clear feed cache, including the flexible cache created-timestamp key.
-     */
-    public function clearCache(?string $serviceType = null): void
-    {
-        $keys = $serviceType
-            ? ["podcast_feed_{$serviceType}"]
-            : ['podcast_feed_morning', 'podcast_feed_evening'];
-
-        foreach ($keys as $key) {
-            Cache::forget($key);
-            Cache::forget("illuminate:cache:flexible:created:{$key}");
-        }
-
-        // The presenter is a scoped singleton that memoizes per-identity, so clearing
-        // the cache while the same presenter survives across the cache boundary would
-        // leak the prior preacher name. Flush its internal caches alongside the feed.
-        $this->sermonViewPresenter->clearInternalCaches();
     }
 }

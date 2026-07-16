@@ -44,8 +44,7 @@ class SermonController extends Controller
      */
     public function index(Request $request, BibleCanon $bibleCanon): View
     {
-        $filters = $this->sermonRepository->normalizeArchiveFilters(
-            $bibleCanon,
+        $filters = $bibleCanon->normalizeArchiveFilters(
             $request->query('book'),
             $request->query('chapter'),
             $request->query('preacher'),

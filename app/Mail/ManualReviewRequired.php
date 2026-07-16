@@ -50,7 +50,7 @@ class ManualReviewRequired extends Mailable
         $log = MediaProcessingLog::query()->where('processing_id', $this->processingId)->first();
 
         if ($log !== null) {
-            return route('admin.services.processing.review', $log);
+            return route('admin.recordings.sermon-segment', $log->processing_id);
         }
 
         return route('admin.services.inbox', ['filter' => 'segments']);

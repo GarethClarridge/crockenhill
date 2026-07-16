@@ -5,15 +5,12 @@ declare(strict_types=1);
 namespace Tests\Unit\Models;
 
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonTest extends TestCase
 {
-    use DatabaseTransactions;
-
     #[Test]
     public function it_trims_title_attribute(): void
     {
@@ -129,17 +126,27 @@ class SermonTest extends TestCase
 
         $validator = Validator::make(
             ['preacher_id' => 9223372036854775808], // Above bigint max
-            ['preacher_id' => $rules['preacher_id']]
+            ['preacher_id' => $this->filterDatabaseRules($rules['preacher_id'])]
         );
 
         $this->assertTrue($validator->fails());
         $this->assertArrayHasKey('preacher_id', $validator->errors()->toArray());
     }
 
+    private function filterDatabaseRules(array $rules): array
+    {
+        return array_filter($rules, function ($rule) {
+            $ruleString = (string) $rule;
+
+            return ! str_starts_with($ruleString, 'exists:') && ! str_starts_with($ruleString, 'unique:');
+        });
+    }
+
     #[Test]
     public function it_validates_slug_format(): void
     {
         $rules = Sermon::validationRules();
+        $filteredRules = $this->filterDatabaseRules($rules['slug']);
 
         $invalidSlugs = [
             'Invalid Slug',
@@ -152,7 +159,7 @@ class SermonTest extends TestCase
         foreach ($invalidSlugs as $slug) {
             $validator = Validator::make(
                 ['slug' => $slug],
-                ['slug' => $rules['slug']]
+                ['slug' => $filteredRules]
             );
 
             $this->assertTrue($validator->fails(), "Slug '{$slug}' should be invalid.");
@@ -167,7 +174,7 @@ class SermonTest extends TestCase
         foreach ($validSlugs as $slug) {
             $validator = Validator::make(
                 ['slug' => $slug],
-                ['slug' => $rules['slug']]
+                ['slug' => $filteredRules]
             );
 
             $this->assertFalse($validator->fails(), "Slug '{$slug}' should be valid.");

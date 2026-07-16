@@ -7,7 +7,6 @@ namespace Tests\Integration\Services;
 use App\Enums\PageArea;
 use App\Models\Page;
 use App\Services\Public\PageCardService;
-use App\Services\Public\PageListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -267,11 +266,6 @@ class PageCardServiceTest extends TestCase
 
     private function forgetPageCardCaches(): void
     {
-        /** @var PageListCache $repository */
-        $repository = app(PageListCache::class);
-
-        $repository->clearAreaCache(PageArea::Church);
-        $repository->clearAreaCache(PageArea::Community);
-        $repository->clearInternalCaches();
+        Cache::flush();
     }
 }

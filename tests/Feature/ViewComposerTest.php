@@ -20,7 +20,7 @@ class ViewComposerTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
-    public function it_populates_footer_with_latest_sermons(): void
+    public function it_renders_the_footer_sermon_links(): void
     {
         Sermon::factory()->create([
             'service' => SermonService::Morning,

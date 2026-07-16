@@ -162,6 +162,42 @@ class SermonAssetController extends Controller
         return $this->serveStoredThumbnail($sermon->thumbnail_file_path);
     }
 
+    public function servePlainThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
+    {
+        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'plain_thumbnail');
+        if ($authorizationResponse instanceof RedirectResponse) {
+            return $authorizationResponse;
+        }
+
+        $plainThumbnailPath = $sermon->plain_thumbnail_file_path;
+
+        if (! $plainThumbnailPath) {
+            abort(404, 'Plain thumbnail not found.');
+        }
+
+        if (Path::isUnsafe($plainThumbnailPath)) {
+            abort(404, 'Invalid thumbnail file path.');
+        }
+
+        $disk = str_starts_with($plainThumbnailPath, 'private/')
+            ? 'local'
+            : config('thumbnail-generation.storage.disk', 'public');
+
+        if (! Storage::disk($disk)->exists($plainThumbnailPath)) {
+            abort(404, 'Thumbnail file not found.');
+        }
+
+        if (! str_starts_with($plainThumbnailPath, 'private/')) {
+            $plainThumbnailUrl = $this->storageService->getPlainThumbnailUrl($sermon);
+
+            if ($plainThumbnailUrl !== null) {
+                return redirect()->to($plainThumbnailUrl);
+            }
+        }
+
+        return $this->serveStoredThumbnail($plainThumbnailPath);
+    }
+
     /**
      * Serve the thumbnail variant intended for compact UI cards.
      */
@@ -263,6 +299,7 @@ class SermonAssetController extends Controller
             'audio' => $sermon->audio_file_path,
             'video' => $sermon->video_file_path,
             'thumbnail' => $sermon->thumbnail_file_path,
+            'plain_thumbnail' => $sermon->plain_thumbnail_file_path,
             'card_thumbnail' => $sermon->card_thumbnail_file_path,
             'transcript' => $sermon->transcript_file_path,
             default => null,
@@ -280,7 +317,7 @@ class SermonAssetController extends Controller
         // These apply to all sermons, including Children's Talks (Defense in Depth).
         $exposed = match ($assetType) {
             'video' => $this->exposurePolicy->shouldExposeVideo($sermon),
-            'thumbnail', 'card_thumbnail' => $this->exposurePolicy->shouldExposeThumbnail($sermon),
+            'thumbnail', 'plain_thumbnail', 'card_thumbnail' => $this->exposurePolicy->shouldExposeThumbnail($sermon),
             default => true,
         };
 

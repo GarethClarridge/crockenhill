@@ -30,6 +30,6 @@
 **Learning:** To verify that a service correctly memoizes database results within the same request (preventing redundant queries), use `DB::enableQueryLog()`, `DB::flushQueryLog()`, and `DB::getQueryLog()` to assert that subsequent calls do not trigger additional database queries.
 **Action:** Apply this pattern when testing repository-style services that implement internal request-level caching.
 
-## 2025-07-15 - [Model Validation Unit Testing]
-**Learning:** Testing model validation rules in isolation (Unit) without database dependencies (unique, exists) requires filtering the rule array. This allows for fast, isolated verification of basic format and type rules.
-**Action:** Use a helper to strip 'unique' and 'exists' rules when using Validator::make() on model validation rules in unit tests.
+## 2026-07-15 - Unit Testing Model Validation Rules
+**Learning:** To unit test model `validationRules()` without a database connection, use `Validator::make()` but filter out database-dependent rules (e.g., `exists`, `unique`) from the rule array. Filtering must account for both string-based rules (e.g., `'exists:table,column'`) and object-based rules (e.g., `Rule::unique()`). To verify rule configuration, cast the rule to a string (e.g., `unique:users,email,"123",id`) before filtering.
+**Action:** Use a `filterDatabaseRules` helper in unit tests to strip DB-dependent rules before passing them to the Validator. Assert the configuration of `unique` rules by casting the rule object to a string.

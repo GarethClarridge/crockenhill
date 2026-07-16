@@ -11,7 +11,6 @@ use App\Services\Media\Video\VideoStorageService;
 use App\Services\Preacher\NullSpeakerIdentificationService;
 use App\Services\Preacher\ResemblyzerSpeakerIdentificationService;
 use App\Services\Processing\ProcessingInitiator;
-use App\Services\Processing\ProcessingLogService;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Processing\UnifiedMediaProcessor;
 use App\Services\Sermon\LivestreamSegmentationService;
@@ -37,8 +36,6 @@ class MediaProcessingServiceProvider extends ServiceProvider
                 $app->make(ProcessingRunOrchestrator::class),
             );
         });
-        $this->app->bind(ProcessingLogService::class);
-
         // Register the unified processor
         $this->app->bind(UnifiedMediaProcessor::class);
 

@@ -88,27 +88,23 @@ PROMPT;
      */
     public function generateFallbackTitle(string $transcript): string
     {
-        // Try to extract a meaningful phrase from the beginning
-        $words = explode(' ', trim($transcript));
-
         // Skip common sermon openings
         $skipWords = ['good', 'morning', 'evening', 'welcome', 'today', 'we', 'are', 'going', 'to', 'look', 'at'];
-        $meaningfulWords = [];
 
-        foreach ($words as $word) {
-            $cleanWord = strtolower(trim($word, '.,!?;:'));
-            if (! in_array($cleanWord, $skipWords) && strlen($cleanWord) > 2) {
-                $meaningfulWords[] = $word;
-                if (count($meaningfulWords) >= 4) {
-                    break;
-                }
-            }
-        }
+        // Extract meaningful words from the beginning
+        $meaningfulWords = str($transcript)
+            ->trim()
+            ->explode(' ')
+            ->filter(function (string $word) use ($skipWords): bool {
+                $cleanWord = strtolower(trim($word, '.,!?;:'));
 
-        if (count($meaningfulWords) >= 2) {
-            $title = implode(' ', array_slice($meaningfulWords, 0, 6));
+                return ! in_array($cleanWord, $skipWords) && strlen($cleanWord) > 2;
+            })
+            ->take(4)
+            ->values();
 
-            return $this->validator->validateAndCleanTitle($title);
+        if ($meaningfulWords->count() >= 2) {
+            return $this->validator->validateAndCleanTitle($meaningfulWords->implode(' '));
         }
 
         // Final fallback

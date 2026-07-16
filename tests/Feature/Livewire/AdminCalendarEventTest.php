@@ -88,7 +88,7 @@ class AdminCalendarEventTest extends TestCase
 
         Livewire::test(ListCalendarEvents::class)
             ->assertStatus(200)
-            ->assertSee('Calendar Events');
+            ->assertSee('Calendar events');
     }
 
     #[Test]

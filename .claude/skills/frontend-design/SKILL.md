@@ -1,1 +1,1 @@
-../frontend-design.md
+../../../.agents/skills/frontend-design/SKILL.md

@@ -38,6 +38,9 @@ jobs:
       - name: Guard against case-only path collisions
         run: ./scripts/check-no-case-collisions.sh
 
+      - name: Guard tracked skill symlinks
+        run: ./scripts/check-skill-symlinks.sh
+
       - name: Guard bootstrap middleware safety
         run: ./scripts/check-bootstrap-safety.sh
 
@@ -105,6 +108,7 @@ jobs:
             echo "### PR Quality Gate"
             echo ""
             echo "- Case-collision guard"
+            echo "- Skill-symlink guard"
             echo "- Bootstrap safety guard"
             echo "- Deploy view-cache safety guard"
             echo "- Frontend build"

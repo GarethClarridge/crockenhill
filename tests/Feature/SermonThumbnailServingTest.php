@@ -132,6 +132,45 @@ class SermonThumbnailServingTest extends TestCase
         $response->assertRedirect(app(SermonStorageService::class)->getCardThumbnailUrl($sermon));
     }
 
+    public function test_private_plain_thumbnail_route_serves_plain_variant_bytes(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'private-plain-thumbnail',
+            'thumbnail_file_path' => 'private/sermons/thumbnails/primary.webp',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'private/sermons/thumbnails/plain.webp',
+            ],
+        ]);
+
+        Storage::disk('local')->put($sermon->thumbnail_file_path, 'primary image content');
+        Storage::disk('local')->put($sermon->plain_thumbnail_file_path, 'plain image content');
+
+        $admin = User::factory()->crockenhillAdmin()->create();
+        $response = $this->actingAs($admin)->get(route('sermons.thumbnail.plain', $sermon));
+
+        $response->assertOk();
+        $this->assertSame(
+            'plain image content',
+            file_get_contents($response->baseResponse->getFile()->getPathname()),
+        );
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+    }
+
+    public function test_public_plain_thumbnail_route_redirects_to_plain_variant_url(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'public-plain-thumbnail',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'sermons/thumbnails/plain.webp',
+            ],
+        ]);
+        Storage::disk('public')->put($sermon->plain_thumbnail_file_path, 'plain image content');
+
+        $response = $this->get(route('sermons.thumbnail.plain', $sermon));
+
+        $response->assertRedirect(app(SermonStorageService::class)->getPlainThumbnailUrl($sermon));
+    }
+
     public function test_card_thumbnail_falls_back_to_plain_variant_when_card_path_is_not_set(): void
     {
         $sermon = Sermon::factory()->create([

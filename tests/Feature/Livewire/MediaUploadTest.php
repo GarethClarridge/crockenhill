@@ -7,6 +7,7 @@ namespace Tests\Feature\Livewire;
 use App\Data\ProcessingResult;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
+use App\Enums\UploadState;
 use App\Jobs\AlignWithOos;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
@@ -27,7 +28,8 @@ use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\TranscribeSpeechSegments;
-use App\Livewire\MediaUpload;
+use App\Livewire\Admin\MediaUpload;
+use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\Media\Video\VideoSegmentationService;
@@ -119,8 +121,8 @@ class MediaUploadTest extends TestCase
             ->set('mediaType', 'audio')
             ->set('mediaFile', null)
             ->call('uploadComplete')
-            ->assertSet('status', 'failed')
-            ->assertSet('errorMessage', 'File upload completed but file is missing');
+            ->assertSet('status', UploadState::Failed)
+            ->assertSet('statusMessageOverride', 'File upload completed but file is missing');
     }
 
     #[Test]
@@ -133,7 +135,10 @@ class MediaUploadTest extends TestCase
             ->set('mediaType', 'audio')
             ->set('mediaFile', $invalidFile)
             ->call('uploadComplete')
-            ->assertHasErrors(['mediaFile']);
+            ->assertHasErrors(['mediaFile'])
+            ->assertSet('processingId', null)
+            ->assertSet('tempFilePath', null)
+            ->assertSeeHtml('id="media-file"');
     }
 
     #[Test]
@@ -160,13 +165,13 @@ class MediaUploadTest extends TestCase
             ->set('mediaFile', $file)
             ->call('uploadComplete');
 
-        if ($test->get('status') === 'failed') {
-            $this->fail($test->get('errorMessage'));
+        if ($test->get('status') === UploadState::Failed) {
+            $this->fail($test->get('statusMessage'));
         }
 
-        $test->assertSet('status', 'processing')
+        $test->assertSet('status', UploadState::Processing)
             ->assertSet('processingId', $expectedId)
-            ->assertSet('successMessage', 'Upload complete. Processing has started.');
+            ->assertSet('statusMessageOverride', 'Upload complete. Processing has started.');
     }
 
     #[Test]
@@ -202,7 +207,7 @@ class MediaUploadTest extends TestCase
             ->set('mediaFile', $file)
             ->call('uploadComplete')
             ->assertSet('processingId', $expectedId)
-            ->assertSet('status', 'processing');
+            ->assertSet('status', UploadState::Processing);
     }
 
     #[Test]
@@ -248,7 +253,7 @@ class MediaUploadTest extends TestCase
             ->set('mediaFile', $file)
             ->call('uploadComplete')
             ->assertSet('processingId', $expectedId)
-            ->assertSet('status', 'processing');
+            ->assertSet('status', UploadState::Processing);
     }
 
     #[Test]
@@ -284,8 +289,8 @@ class MediaUploadTest extends TestCase
             ->set('mediaType', 'audio')
             ->set('mediaFile', $file)
             ->call('uploadComplete')
-            ->assertSet('status', 'failed')
-            ->assertSet('errorMessage', 'System error');
+            ->assertSet('status', UploadState::Failed)
+            ->assertSet('statusMessageOverride', 'System error');
     }
 
     #[Test]
@@ -311,7 +316,7 @@ class MediaUploadTest extends TestCase
             ->call('uploadComplete')
             ->call('uploadComplete')
             ->assertSet('processingId', $expectedId)
-            ->assertSet('status', 'processing');
+            ->assertSet('status', UploadState::Processing);
     }
 
     #[Test]
@@ -320,28 +325,23 @@ class MediaUploadTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(MediaUpload::class)
-            ->set('isUploading', true)
+            ->set('status', UploadState::Uploading)
             ->call('cancelUpload')
-            ->assertSet('isUploading', false)
-            ->assertSet('uploadCancelled', true)
-            ->assertSet('status', 'idle');
+            ->assertSet('status', UploadState::Idle);
     }
 
     #[Test]
-    public function it_cancels_upload_when_cancel_upload_event_is_dispatched(): void
+    public function terminal_processing_states_do_not_render_a_second_file_picker(): void
     {
         $this->actingAs($this->admin);
 
-        $component = Livewire::test(MediaUpload::class)
-            ->set('isUploading', true)
-            ->set('status', 'uploading');
-
-        $formId = $component->instance()->getId();
-
-        $component->dispatch('media-upload:cancel-upload', id: $formId)
-            ->assertSet('isUploading', false)
-            ->assertSet('uploadCancelled', true)
-            ->assertSet('status', 'idle');
+        foreach ([UploadState::Failed, UploadState::Cancelled, UploadState::ManualReview] as $status) {
+            Livewire::test(MediaUpload::class)
+                ->set('mediaType', 'audio')
+                ->set('processingId', 'existing-processing-run')
+                ->set('status', $status)
+                ->assertDontSeeHtml('id="media-file"');
+        }
     }
 
     #[Test]
@@ -362,12 +362,11 @@ class MediaUploadTest extends TestCase
 
         Livewire::test(MediaUpload::class)
             ->set('processingId', 'proc-123')
-            ->set('status', 'processing')
+            ->set('status', UploadState::Processing)
             ->call('cancelProcessing')
-            ->assertSet('status', 'cancelled')
+            ->assertSet('status', UploadState::Cancelled)
             ->assertSet('currentStep', 'Processing cancelled')
-            ->assertSet('errorMessage', null)
-            ->assertSet('cancelledMessage', 'Processing was cancelled by user.');
+            ->assertSet('statusMessageOverride', 'Processing was cancelled by user.');
     }
 
     #[Test]
@@ -388,13 +387,12 @@ class MediaUploadTest extends TestCase
 
         Livewire::test(MediaUpload::class)
             ->set('processingId', 'proc-456')
-            ->set('status', 'processing')
+            ->set('status', UploadState::Processing)
             ->call('checkProcessingStatus')
-            ->assertSet('status', 'cancelled')
+            ->assertSet('status', UploadState::Cancelled)
             ->assertSet('currentStep', 'Processing cancelled')
             ->assertSet('progressPercentage', 0)
-            ->assertSet('errorMessage', null)
-            ->assertSet('cancelledMessage', 'Processing was cancelled.');
+            ->assertSee('Processing was cancelled.');
     }
 
     #[Test]
@@ -408,22 +406,31 @@ class MediaUploadTest extends TestCase
 
         $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+        ]);
+
         $log = MediaProcessingLog::factory()->livestream()->create([
             'processing_id' => 'proc-manual-review',
             'owner_user_id' => $this->admin->id,
             'status' => ProcessingStatus::Failed,
             'current_step' => 'manual_review_required',
+            'extracted_date' => $service->date,
+            'extracted_service' => $service->service,
         ]);
 
-        Livewire::test(MediaUpload::class)
+        $component = Livewire::test(MediaUpload::class)
             ->set('processingId', 'proc-manual-review')
-            ->set('status', 'processing')
+            ->set('status', UploadState::Processing)
             ->call('checkProcessingStatus')
-            ->assertSet('status', 'failed')
+            ->assertSet('status', UploadState::ManualReview)
             ->assertSet('currentStep', 'Manual review required')
             ->assertSet('progressPercentage', 100)
-            ->assertSet('manualReviewUrl', route('admin.services.processing.review', $log))
-            ->assertSet('errorMessage', null);
+            ->assertSee('Manual Review Required')
+            ->assertSee('Choose segment');
+
+        $this->assertSame(route('admin.recordings.sermon-segment', $log->processing_id), $component->get('statusUrl'));
     }
 
     #[Test]
@@ -473,8 +480,8 @@ class MediaUploadTest extends TestCase
             ->set('mediaType', 'livestream')
             ->set('mediaFile', $file)
             ->call('uploadComplete')
-            ->assertSet('status', 'processing')
-            ->assertSet('errorMessage', null);
+            ->assertSet('status', UploadState::Processing)
+            ->assertSet('statusMessageOverride', 'Upload complete. Processing has started.');
 
         $pendingBatch = null;
 
@@ -519,114 +526,5 @@ class MediaUploadTest extends TestCase
             SendCompletionNotification::class,
             CleanupTemporaryFiles::class,
         ]);
-    }
-
-    #[Test]
-    public function it_ignores_cancel_upload_event_with_mismatched_form_id(): void
-    {
-        $this->actingAs($this->admin);
-
-        $component = Livewire::test(MediaUpload::class)
-            ->set('mediaFile', UploadedFile::fake()->create('sermon.mp3', 1024))
-            ->set('isUploading', true);
-
-        $originalState = $component->instance()->isUploading;
-
-        // Dispatch event with different form ID
-        $component->dispatch('media-upload:cancel-upload', id: 'different-form-id')
-            ->assertSet('isUploading', $originalState); // State unchanged when ID doesn't match
-    }
-
-    #[Test]
-    public function it_processes_cancel_upload_event_only_for_matching_form_id(): void
-    {
-        $this->actingAs($this->admin);
-
-        $component = Livewire::test(MediaUpload::class)
-            ->set('mediaFile', UploadedFile::fake()->create('sermon.mp3', 1024))
-            ->set('isUploading', true);
-
-        $formId = $component->instance()->getId();
-
-        // Dispatch event with matching form ID
-        $component->dispatch('media-upload:cancel-upload', id: $formId)
-            ->assertSet('isUploading', false); // Upload cancelled when ID matches
-    }
-
-    #[Test]
-    public function it_ignores_cancel_processing_event_with_mismatched_form_id(): void
-    {
-        $this->actingAs($this->admin);
-
-        $component = Livewire::test(MediaUpload::class)
-            ->set('processingId', 'test-processing-123')
-            ->set('status', 'processing')
-            ->set('currentStep', 'Transcribing');
-
-        $originalStep = $component->instance()->currentStep;
-
-        // Dispatch event with different form ID - should be ignored
-        $component->dispatch('media-upload:cancel-processing', id: 'different-form-id')
-            ->assertSet('currentStep', $originalStep); // State unchanged when ID doesn't match
-    }
-
-    #[Test]
-    public function it_ignores_retry_upload_event_with_mismatched_form_id(): void
-    {
-        $this->actingAs($this->admin);
-
-        $component = Livewire::test(MediaUpload::class)
-            ->set('processingId', 'test-processing-123')
-            ->set('status', 'failed')
-            ->set('errorMessage', 'Upload failed');
-
-        $originalStatus = $component->instance()->status;
-
-        // Dispatch event with different form ID - should be ignored
-        $component->dispatch('media-upload:retry-upload', id: 'different-form-id')
-            ->assertSet('status', $originalStatus); // State unchanged when ID doesn't match
-    }
-
-    #[Test]
-    public function it_processes_retry_upload_event_only_for_matching_form_id(): void
-    {
-        $this->actingAs($this->admin);
-
-        $component = Livewire::test(MediaUpload::class)
-            ->set('processingId', 'test-processing-123')
-            ->set('status', 'failed')
-            ->set('errorMessage', 'Upload failed');
-
-        $formId = $component->instance()->getId();
-
-        $component->dispatch('media-upload:retry-upload', id: $formId)
-            ->assertSet('status', 'idle')
-            ->assertSet('showUploadForm', true)
-            ->assertSet('showProcessingStatus', false);
-    }
-
-    #[Test]
-    public function it_processes_cancel_processing_event_only_for_matching_form_id(): void
-    {
-        $this->actingAs($this->admin);
-
-        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
-        $mockProcessor->expects($this->once())
-            ->method('cancel')
-            ->with('test-processing-123')
-            ->willReturn(['success' => true, 'message' => 'Processing cancelled successfully']);
-
-        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
-
-        $component = Livewire::test(MediaUpload::class)
-            ->set('processingId', 'test-processing-123')
-            ->set('status', 'processing');
-
-        $formId = $component->instance()->getId();
-
-        $component->dispatch('media-upload:cancel-processing', id: $formId)
-            ->assertSet('status', 'cancelled')
-            ->assertSet('currentStep', 'Processing cancelled')
-            ->assertSet('cancelledMessage', 'Processing was cancelled by user.');
     }
 }

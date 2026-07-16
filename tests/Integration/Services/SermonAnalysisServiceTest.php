@@ -21,7 +21,9 @@ use OpenAI\Exceptions\TransporterException;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Resources\Chat;
 use OpenAI\Responses\Chat\CreateResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\MockObject\MockObject;
 use Tests\TestCase;
 
 class SermonAnalysisServiceTest extends TestCase
@@ -41,8 +43,6 @@ class SermonAnalysisServiceTest extends TestCase
         config([
             'media-processing.analysis.service' => 'openai',
             'media-processing.analysis.openai_api_key' => 'test-key',
-            'media-processing.analysis.retry_delay_base' => 0,
-            'media-processing.analysis.max_retries' => 3,
         ]);
 
         $logger = app(SermonProcessingLogger::class);
@@ -143,6 +143,67 @@ class SermonAnalysisServiceTest extends TestCase
     }
 
     #[Test]
+    #[DataProvider('httpFailures')]
+    public function it_logs_http_failure_diagnostics_without_service_level_retry_scaffolding(
+        int $status,
+        string $message,
+        string $errorType,
+    ): void {
+        $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
+        $logger = $this->createMock(SermonProcessingLogger::class);
+        $service = $this->makeServiceWithLogger($logger);
+
+        $logger->expects($this->once())
+            ->method('logApiCall')
+            ->with(
+                'test-processing-id',
+                'OpenAI',
+                'chat/completions',
+                $this->greaterThanOrEqual(0.0),
+                $status,
+                $message,
+                $this->callback(fn (array $context): bool => $context['model'] === 'gpt-5-mini'
+                    && $context['error_type'] === $errorType),
+            );
+
+        OpenAI::fake([
+            new ErrorException(
+                ['message' => $message, 'type' => $errorType, 'code' => null],
+                new Response($status),
+            ),
+        ]);
+
+        $this->expectException(ErrorException::class);
+
+        $service->analyzeSermon($transcript, processingId: 'test-processing-id');
+    }
+
+    #[Test]
+    public function it_logs_wrapped_failure_diagnostics_without_exposing_request_context(): void
+    {
+        $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
+        $logger = $this->createMock(SermonProcessingLogger::class);
+        $service = $this->makeServiceWithLogger($logger);
+
+        $logger->expects($this->once())
+            ->method('logError')
+            ->with(
+                'test-processing-id',
+                'ai_analysis',
+                $this->isInstanceOf(\Exception::class),
+                $this->callback(fn (array $context): bool => $context['model'] === 'gpt-5-mini'
+                    && $context['error_type'] === 'Exception'
+                    && is_float($context['api_time_ms'])),
+            );
+
+        OpenAI::fake([new \RuntimeException('request failed for api_key=super-secret')]);
+
+        $this->expectExceptionMessage('OpenAI API call failed.');
+
+        $service->analyzeSermon($transcript, processingId: 'test-processing-id');
+    }
+
+    #[Test]
     public function it_throws_when_ai_generates_a_title_exceeding_the_character_limit(): void
     {
         $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
@@ -187,5 +248,24 @@ class SermonAnalysisServiceTest extends TestCase
         $this->expectException(\Exception::class);
 
         $this->service->analyzeSermon($transcript, processingId: 'test-processing-id');
+    }
+
+    private function makeServiceWithLogger(SermonProcessingLogger&MockObject $logger): SermonAnalysisService
+    {
+        return new SermonAnalysisService(
+            $logger,
+            app(SermonRepository::class),
+            $this->validator,
+            $this->promptBuilder,
+        );
+    }
+
+    /** @return array<string, array{int, string, string}> */
+    public static function httpFailures(): array
+    {
+        return [
+            'authentication failure' => [401, 'Unauthorized', 'authentication_error'],
+            'server failure' => [500, 'Internal Server Error', 'server_error'],
+        ];
     }
 }

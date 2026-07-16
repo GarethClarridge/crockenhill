@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\SermonContentType;
+use App\Jobs\MoveSermonToPrivateStorage;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\Media\Audio\SermonTranscriptReader;
 use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -18,6 +20,13 @@ use Tests\TestCase;
 class SermonAssetControllerTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Queue::fake([MoveSermonToPrivateStorage::class]);
+    }
 
     #[Test]
     public function it_serves_audio_file_for_local_storage(): void

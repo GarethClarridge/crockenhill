@@ -25,6 +25,28 @@ class PageListCacheTest extends TestCase
     }
 
     #[Test]
+    public function get_all_links_for_area_selects_only_required_columns(): void
+    {
+        $createdPage = Page::factory()->create([
+            'area' => PageArea::Community,
+            'admin' => 'no',
+            'body' => 'Body content that should not be cached.',
+            'markdown' => 'Markdown content that should not be cached.',
+        ]);
+
+        $page = $this->repository
+            ->getAllLinksForArea(PageArea::Community)
+            ->firstWhere('id', $createdPage->id);
+
+        $this->assertInstanceOf(Page::class, $page);
+
+        $attributes = $page->getAttributes();
+
+        $this->assertArrayNotHasKey('body', $attributes);
+        $this->assertArrayNotHasKey('markdown', $attributes);
+    }
+
+    #[Test]
     public function get_all_links_for_area_does_not_eager_load_media_into_cache(): void
     {
         // Spatie's Media model is not on the cache.serializable_classes allow-list,

@@ -1,8 +1,8 @@
 # Open Issues
 
 Consolidated tracker for audit findings (Mortician = dead code/assets, Pathfinder =
-broken links/SEO, public UX review = visitor journeys). Last reconciled against the codebase and
-production **2026-07-12**.
+broken links/SEO, public UX review = visitor journeys). Last reconciled against the codebase
+**2026-07-13** and production **2026-07-12**.
 
 Convention: agent-generated per-issue reports get folded into this file (and, where the work is
 plan-shaped, into `docs/plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md`) and the source
@@ -10,6 +10,306 @@ report files are then deleted — they live in git history. Resolved items are l
 for provenance.
 
 ---
+
+## 🟠 July simplification implementation review — production audit pending (2026-07-13)
+
+**Status updated 2026-07-15:** the repository and runtime fixes for O22–O31 and O33–O37 are
+implemented in `929663ec9` and `1d3988f62`. The quality gate passed with 5,914 parallel PHPUnit
+tests (18,205 assertions), 47 Dusk tests (78 assertions), PHPStan at 0 errors, Pint, the production
+frontend build, and the schema/symlink/case-collision guards.
+
+O32 remains an operational production gate, not a repository-code task. This checkout has no
+production SSH host/key; those values exist only as GitHub Actions environment secrets, so this
+session cannot truthfully record counts for audio, video, transcripts, or thumbnail variants.
+O25's one-off existing-data audit is covered by that same all-asset audit. The preventative O25/O26
+runtime work is complete: every protected children's-talk locator now moves through verified,
+compare-and-set private storage with retryable cleanup and change-triggered observer coverage.
+Do not close O32 until the read-only production counts have actually been captured.
+
+Review scope: `e72da7c4f^..614c21765`, covering suggested delivery-order items 1 and
+3–6. No issue was found in the deterministic mock-analysis stub (`0281bd5f0`), the canonical-path
+migration itself (`81e87a43b`), or the unrelated Vite patch in the range. The findings below
+distinguish regressions from completion/gate gaps: a mechanical item is not complete when it deletes
+its recovery tooling before the documented production invariant has actually been proved.
+
+Priority convention: **P1** blocks the next deployment or can lose/expose data; **P2** is a concrete
+behavioural or operability defect for the next follow-up; **P3** is incomplete cleanup or stale
+guidance that should ride the nearest owning change.
+
+### O22 · [P2] The required `frontend-design` skill is now a dangling symlink
+
+Commit `e72da7c4f` deleted `.claude/skills/frontend-design.md`, but the tracked
+`.claude/skills/frontend-design/SKILL.md` symlink still targets `../frontend-design.md`. `test -e`
+therefore fails, while `AGENTS.md` and `CLAUDE.md` still require agents to load that skill before UI
+work. The deleted file was not a redundant copy: it was the symlink's content target.
+
+**Suggested fix:** restore the skill as a real cross-tool skill, preferably at
+`.agents/skills/frontend-design/SKILL.md`, repoint the Claude discovery symlink, and update the path
+in `AGENTS.md`. Add a lightweight quality-gate check that every tracked skill symlink resolves to a
+readable file.
+
+### O23 · [P2] The schema-drift check tells future migrations to delete themselves
+
+Commit `bb9323683` changed `scripts/check-schema-dump-current.sh:28` to prescribe
+`schema:dump --prune` whenever a migration is absent from the dump. Following that routine advice
+after creating and locally applying a migration records it in the developer's dump and deletes its
+PHP file; if it has not been applied, `--prune` still deletes it. Existing production databases do
+not load a fresh-install dump, so they are then left with no migration that can add the new column
+or table.
+
+**Suggested fix:** make the routine remediation `vendor/bin/sail artisan migrate` followed by
+`vendor/bin/sail artisan schema:dump`, without `--prune`, so the local dump is current and the
+migration remains deployable. State explicitly that `--prune` is reserved for a deliberate
+quarterly squash after every included migration has been verified on every long-lived environment.
+Add a regression test around the script's failure guidance.
+
+### O24 · [P2] Two July migrations were pruned without recorded production evidence
+
+Commit `bb9323683` removed
+`2026_07_07_190047_add_first_line_key_to_songs_table.php` and
+`2026_07_10_155218_add_archive_eval_to_inbound_emails_status_enum.php`. Their effects and migration
+rows are now represented in version-controlled migration history only by
+`database/schema/mysql-schema.sql`, while live code queries `songs.first_line_key` and writes the
+`archive_eval` enum value. The reviewed change records no production `migrate:status` or schema
+evidence for those two recent migrations; fresh-database CI cannot detect an existing database that
+missed them.
+
+**Suggested fix:** verify both migration rows and the resulting column/index/enum immediately
+(before the next deployment if this squash has not deployed yet). If either is absent, restore its
+original migration file from git until all long-lived environments have applied it. Record this
+check as a mandatory gate for future squashes.
+
+### O25 · [P1] The retired children's-talk backfill leaves later media publicly addressable
+
+Item 2.3/2.4 is marked complete after a dry run claimed no children's talk used a non-`private/`
+path, but the retired command audited audio only. The retained
+`MoveSermonToPrivateStorage` job does not move `video_file_path` or `transcript_file_path`, and
+`SermonObserver:21-25` dispatches it only on creation or a content-type change. Same-type
+reprocessing can later replace audio/video/transcript paths and `GenerateThumbnail:140-146` can add
+public thumbnail paths without another dispatch. The configured production transcript and sermon
+disks can both be public Spaces, so possession of the origin/CDN URL bypasses the guarded Laravel
+route for members-only material.
+
+**Suggested fix:** immediately audit every children's-talk audio, video, transcript, primary,
+plain, card and candidate-thumbnail path in production. Extend the mover to video and transcripts,
+and dispatch whenever any protected media path changes to a non-private value. Add tests that cover
+same-type reprocessing, late thumbnail generation, and the absence of every protected asset from
+public storage after the move.
+
+### O26 · [P1] The retained private-storage mover can delete the only good copy
+
+`MoveSermonToPrivateStorage:66-80` ignores `writeStream()`'s boolean result, deletes the public
+source, and only then updates the database. The same sequence is repeated for primary, plain, card
+and candidate thumbnails. The local disk does not set `throw => true`, so a failed write returns
+`false`; a database failure after deletion leaves the row pointing at a missing source, and a retry
+cannot recover because that source no longer exists.
+
+**Suggested fix:** make each move an idempotent two-phase operation: copy and close the stream,
+verify the target, compare-and-set the database path, then persist or dispatch source deletion as a
+separately retryable cleanup step. Recover correctly when a verified target already exists but the
+row still names the source; do not let a normal retry skip a failed public-source deletion merely
+because the row now starts `private/`. Test write, verification, database-update and cleanup-retry
+failures for every asset shape.
+
+### O27 · [P1] The upload Cancel button no longer cancels the browser upload
+
+Commit `614c21765` changed the button at
+`resources/views/livewire/media-upload/progress.blade.php:12` to a server-side
+`wire:click="cancelUpload"`. That method only resets PHP state; the refactor removed the JavaScript
+call to Livewire's client-side `$cancelUpload('mediaFile')`. The outstanding transfer therefore
+continues, and `resources/js/livewire/media-upload-controller.js:72-83` still calls
+`uploadComplete` when its finish event arrives, with no cancelled guard.
+
+**Suggested fix:** invoke Livewire's client upload cancellation for `mediaFile`, reset server state
+from its cancellation callback, and reinstate an explicit cancelled guard before automatic
+processing. Add a Dusk regression using a throttled upload that proves transferred bytes stop and
+processing never starts.
+
+### O28 · [P2] Terminal processing states expose a second, unusable file picker
+
+`resources/views/livewire/media-upload/form.blade.php:25` shows the upload form for every state
+except `Processing` and `Completed`, including `Failed`, `Cancelled` and `ManualReview`. Those
+states can retain the previous `processingId`. Selecting a file changes the state to `Uploading`,
+but `MediaUpload::uploadComplete():116-118` then silently returns because that old ID is still set.
+The explicit **Upload Another File** action would have cleared it, so the page presents two paths
+that behave differently.
+
+**Suggested fix:** render the picker only for `Idle`/`Uploading` (and a pre-processing validation
+failure with no `processingId`), or make every new selection atomically reset the old run first.
+Cover failed, cancelled, manual-review and validation-failure states in Dusk.
+
+### O29 · [P2] Retiring `ProcessingReview` strands two supported manual-review cases
+
+The replacement inbox has no working action for a manual-review run with no resolved date/service:
+`review-inbox.blade.php:274-293` labels its link **Create this service** but points straight back to
+the same filtered inbox. A second supported configuration is also broken: the upload page remains
+available when `service-tracking.enabled=false`, yet both `MediaUpload::statusUrl` and
+`ManualReviewRequired` link to the service inbox, whose component deliberately aborts with 404 in
+that configuration. The focused `ProcessingReview` surface that previously handled segments has
+been deleted.
+
+**Suggested fix:** provide one authorised segment-confirmation/association action that carries the
+`processingId` and works before a service identity exists. Keep a minimal fallback when service
+tracking is disabled, or explicitly disable workflows that can pause for review in that mode.
+Test unattributed runs and the disabled-tracking configuration end to end.
+
+### O30 · [P2] Durable diagnostics report completed-step durations as negative numbers
+
+`GetMediaProcessingStatus:85-87` calls
+`$completedAt->diffInSeconds($startedAt)`. Installed Carbon uses a signed difference by default, so
+a normally ordered step produces a negative duration. The integration fixture creates a one-minute
+completed step but never asserts its `duration_seconds` value.
+
+**Suggested fix:** calculate from start to completion (or explicitly request an absolute
+difference) and assert that the existing fixture returns positive `60`.
+
+### O31 · [P2] Flattening sermon-analysis retries also removed live failure diagnostics
+
+Commit `356caaa89` correctly removed the service-level retry loop, but
+`SermonAnalysisService:133-148` now records only a generic failed step. Its `ErrorException` path at
+lines 279–280 rethrows before recording HTTP status and API duration; the deleted
+`handleAnalysisAttemptError()` used the still-live `logApiCall()` to preserve HTTP status/duration
+for `ErrorException`, and `logError()` for wrapped/generic failures. Those demonstrably live details
+are now lost. (The deleted transport/TypeError branches are not relied on here: those exceptions
+were already caught or wrapped inside `executeAiRequest()`.)
+
+**Suggested fix:** preserve one structured API/error log from the flattened catch, including HTTP
+status, duration and sanitised context, without restoring attempt counters or service-level retry
+scaffolding. Add focused 401/500 and wrapped/generic-failure assertions.
+
+### O32 · [P2] The storage-collapse production gate verified audio, not "all files"
+
+The completion evidence in the July backlog records 698/698 accessible `audio_file_path` values,
+then closes the broader **all files accessible** gate and deletes the maintenance/verifier tooling.
+Runtime storage also owns video, transcripts and primary/plain/card/candidate thumbnails. A
+reference to one of those assets on the wrong disk would not have appeared in the recorded
+verification.
+
+**Suggested fix:** run a read-only, path-aware production audit across every referenced sermon
+asset field and thumbnail candidate, and record counts by asset kind. Run the old audio verifier
+from the pre-deletion release/tag if useful; do not restore do-not-invest tooling to the repository.
+If the audit finds a non-audio problem, obtain explicit remediation approval and use scoped tooling
+with a declared deletion trigger.
+
+**Self-service path (added 2026-07-16):** `audit:sermon-assets` is a read-only artisan command
+covering every referenced asset field and thumbnail candidate (existence on the expected disk plus
+children's-talk private placement, which also closes the O25 one-off audit). Dispatch
+`production-audit.yml` (`gh workflow run production-audit.yml`) once this branch is on `master`;
+runs use the `production-audit` environment and wait for maintainer approval. The workflow output is
+public, so it prints counts only — run the command with `--details` on the server to identify
+affected sermons.
+
+### O33 · [P2] Private plain-thumbnail URLs serve the wrong asset
+
+`SermonStorageService::getPlainThumbnailDeliveryUrl():387-394` routes a private plain thumbnail to
+`sermons.thumbnail`, but `SermonAssetController::serveThumbnail():142-162` reads
+`thumbnail_file_path`, not `plain_thumbnail_file_path`. A consumer of the private plain-thumbnail
+delivery URL therefore gets the branded primary image or a 404 when only the plain variant exists.
+
+**Suggested fix:** add a guarded plain-thumbnail route/action, or a tightly validated thumbnail
+variant parameter, and assert that the response bytes come from the plain path.
+
+### O34 · [P2] A transient storage failure is cached as missing enclosure metadata forever
+
+Item 2.3 claims stale enclosure-metadata failures disappear, but
+`SermonStorageService::fileMetadata():534-551` uses `Cache::rememberForever()` and converts any
+storage exception into null size/mtime values. `PodcastFeedService:73-78` then publishes enclosure
+length `0`. One temporary Spaces failure persists until a sermon update or an unrelated cache
+flush.
+
+**Suggested fix:** do not cache failure results. Give successful metadata a bounded TTL; a short
+retry/backoff window for transient storage errors is optional. Test both metadata recovery after the
+disk becomes available and recovery/invalidation of `PodcastFeedService`'s separate flexible feed
+cache.
+
+### O35 · [P2] Dead-code deletion removed live public song-usage policy coverage
+
+Commit `356caaa89` deleted the public `query()` method and its tests, but the same qualification
+policy still powers `statsForSong()` and `usageHistoryForSong()` at
+`PublicSongUsageService:71-116`. The surviving suite covers only an unmatched completed
+livestream; it no longer proves that a confirmed match counts or that failed, pending, processing
+and non-livestream logs leave order-of-service usage eligible.
+
+**Suggested fix:** port those policy cases from the deleted `query()` tests into the single
+surviving canonical `tests/Integration/Services/PublicSongUsageServiceTest.php` suite, asserting
+against both live methods and covering both count and history output. Do not recreate either legacy
+duplicate suite.
+
+### O36 · [P3] Item 2.1 left more test-pinned dead surface and retry residue
+
+Repo-wide caller checks found no production callers for multiple surviving
+`VideoStorageService` wrappers (`extract*`, `moveToSermonStorage`, `getStorageStats`, permanent
+upload, URL/existence helpers and the no-op `cleanup`). Separately,
+`config/media-processing.php:133-134` still exposes `ANALYSIS_MAX_RETRIES` and
+`ANALYSIS_RETRY_DELAY_BASE` with no production reader, while the one-shot analysis path logs that
+an overlong title is "retrying" immediately before it throws.
+
+**Suggested fix:** repeat the zero-production-caller audit, delete confirmed orphan methods with
+their preservative tests and unused dependencies, remove the two dead config keys/test setup, and
+change the title message to say the result is being rejected.
+
+### O37 · [P3] Mechanical cleanup left stale paths, contracts and test scaffolding
+
+Examples found in the reviewed range:
+
+- `scripts/post-deploy-smoke.sh:12` still names deleted `monitoring.base_url`;
+- `bootstrap/app.php:31` points to deleted `config/schedule-monitor.php`;
+- `CreatesSlugViolatingSermons:14-20` points to a pruned migration rather than the dump/constraint;
+- `MeetingShowPresenterTest:25-27` injects a dependency removed from the constructor; and
+- `SermonProcessingLogger:11-17` still advertises statistical analysis and health checks that were
+  deleted.
+
+PHP currently tolerates the presenter's extra constructor argument, so the test stays green while
+documenting a false contract.
+
+**Suggested fix:** correct the operational comments to the live config/default sources, reference
+the schema dump or named constraint, remove the false test dependency, and narrow the logger
+contract. Fold any presenter work scheduled for deletion into backlog item 3.1 rather than
+investing in that seam separately.
+
+### Review verification
+
+- Three focused Sail runs passed (27, 59 and 69 tests respectively; their overlapping coverage is
+  not summed), including analysis/dead-code, storage/security, upload/status and review-inbox paths.
+- `vendor/bin/sail composer phpstan` completed with **0 errors**.
+- The dangling skill was reproduced with `test -e`; Carbon's installed signed-difference contract
+  and Livewire's installed `$cancelUpload` client API were checked against local vendor source.
+- The full parallel suite was not independently completed: this session was denied Docker access
+  for that command. Do not treat the focused green runs as closing the behavioural findings above.
+
+### Follow-up review of the O22–O37 fixes (2026-07-16)
+
+A second review pass over `e72da7c4f..881e5d034` confirmed every repository-side fix and found
+five further defects, all resolved in the follow-up commits on this branch:
+
+1. **Retired per-run review URL 404'd.** `614c21765` deleted
+   `admin/services/processing/{processingLog}/review` without a redirect, so manual-review
+   emails sent before that deploy dead-ended, contrary to the retired-URL 302 convention.
+   Restored as a redirect to `admin.recordings.sermon-segment`.
+2. **Legacy poisoned metadata cache entries survived the O34 fix.** A pre-fix
+   `rememberForever` null/null entry passed the new shape check and was served forever for a
+   never-updated sermon. Null values are now rejected as legacy failures and re-read.
+3. **The podcast feed's zero-enclosure self-heal was silent.** A genuinely missing audio file
+   defeats the feed cache on every request; that now logs a warning naming the sermon ids.
+4. **One bad asset blocked the private-storage mover's remaining moves.** Failures are now
+   collected per asset so every other asset is still protected before the job rethrows, and a
+   stale *unreferenced* private target from a crashed attempt is replaced instead of failing
+   verification on every retry (referenced targets are still preserved).
+5. **Source-deletion reference checks loaded the sermons table once per deletion.** One
+   snapshot per cleanup run now answers all of them.
+
+### O38 · [P3/operational] Confirm all stored password hashes are bcrypt before trusting `HASH_VERIFY=true`
+
+`bb9323683` adopted the framework default `HASH_VERIFY=true` (was `false`) and added
+`rehash_on_login`. With verify on, `Hash::check()` **throws** for a stored hash that is not the
+configured algorithm instead of returning false, so any legacy non-bcrypt hash row would now 500 a
+login attempt. Run `SELECT COUNT(*) FROM users WHERE password NOT LIKE '$2y$%'` in production; if
+non-zero, decide per-row remediation before relying on the new default. This checkout has no
+production access, so the check is recorded here rather than executed.
+
+**Self-service path (added 2026-07-16):** `audit:password-hashes` counts stored hashes by algorithm
+(never printing hash material or user ids) and fails when any non-`$2y$` row exists. Dispatch it via
+`production-audit.yml` as described under O32.
 
 ## 🟠 Open — needs a fix, not yet owned by a plan
 
@@ -28,18 +328,19 @@ status `completed`, `audio_file_path = sermons/seed/2024-11-24.mp3`) but leaves 
 row's `audio_file_path` null, and the referenced file does not exist on the `public` disk. Local
 dev/seeded environments render a sermon page with a dead audio player. **Dev-only** as far as
 verified — but if the same pattern (completed log, null sermon path) exists in production it
-would indicate a completion-transition bug worth checking while in there.
+would indicate a completion-transition bug worth checking while in there. **Pathfinder confirmed missing file 2026-07-14.**
 
 **Action:** make the seeder set the sermon's `audio_file_path` and ship (or generate) a small
 seed audio file; alternatively mark the seeded log `failed` so the UI states are honest.
 
 ### O13 · Heading-image resolution: committed assets invisible to `PageImageCacheService` (investigate before "fixing")
 
-Two Pathfinder crawls (2026-07-05/06) report pages and `sitemap.xml` missing heading images.
+Two Pathfinder crawls (2026-07-05/06) and a follow-up audit (2026-07-14) report pages and `sitemap.xml` missing heading images.
 Verified mechanism: `PageImageCacheService::resolveHeadingImageUrl()` resolves (1) Spatie Media
 Library `headings` media, then (2) `Storage::disk('public')` at `pages/headings/{size}/{slug}.webp`
 — it never reads the committed `public/images/headings/` directory, which is only referenced
 *directly* via `asset()` (sitemap sermons image, sermon Blade share images, `page-card` default).
+Confirmed 14+ affected pages in 2026-07-14 audit; see `docs/reports/pathfinder-findings-2026-07-14.md`.
 
 **Do not blindly patch the service to read `public_path()`** — the intended primary source is
 Media Library, and production pages may well have `headings` media attached (in which case this

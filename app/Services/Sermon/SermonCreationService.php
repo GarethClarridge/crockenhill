@@ -7,6 +7,7 @@ namespace App\Services\Sermon;
 use App\Data\SermonCreationOptions;
 use App\Enums\MediaType;
 use App\Enums\PreacherSource;
+use App\Enums\SermonContentType;
 use App\Enums\SermonRichnessLevel;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
@@ -17,18 +18,29 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Services\Preacher\PreacherResolutionService;
-use App\Services\Public\SermonRepository;
 use App\Traits\SanitizesLogData;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
+/**
+ * @phpstan-type TitleGenerationContext array{
+ *     filename: string,
+ *     ai_analysis?: array{title: string, series: string|null, reference: string|null, points: list<string>, summary: string|null, transcript: string}|null,
+ *     custom_title?: string|null,
+ *     id3_title?: string|null,
+ *     processing_log?: \App\Models\MediaProcessingLog|null,
+ *     date?: string,
+ *     service?: \App\Enums\SermonService
+ * }
+ */
 class SermonCreationService
 {
     use SanitizesLogData;
 
     public function __construct(
         private readonly PreacherResolutionService $preacherResolutionService,
-        private readonly SermonRepository $sermonRepository,
         private readonly SermonFilenameParser $filenameParser,
     ) {}
 
@@ -37,9 +49,15 @@ class SermonCreationService
      *
      * This method manages the lifecycle of sermon records when new media is processed.
      * It uses a richness hierarchy (Livestream > Video > Audio) to decide whether to:
-     * - Enrich: Incoming pipeline is richer than the existing record (e.g., adding video to an audio-only sermon).
-     * - Replace: Incoming and existing have same richness (e.g., re-uploading audio).
-     * - Reject: Refuse to downgrade (e.g., uploading audio for a sermon that already has video).
+     *
+     * - **Enrich**: Incoming pipeline is richer than the existing record (e.g., adding
+     *   video to an audio-only sermon). Preserves manual edits and identity-shaping fields.
+     * - **Replace**: Incoming and existing have same richness (e.g., re-uploading audio).
+     *   Refreshes mutable media and AI-derived fields while preserving manual edits.
+     * - **Reject**: Refuse to downgrade (e.g., uploading audio for a sermon that
+     *   already has video).
+     *
+     * Match criteria for existing records: (date, service, content_type).
      *
      * @param  MediaProcessingLog  $processingLog  The log of the current processing run
      * @param  SermonCreationOptions  $options  Consolidated options and metadata for creation
@@ -55,7 +73,7 @@ class SermonCreationService
         $sermonDate = $options->date ?? $this->extractDate($processingLog, $options->originalFilename);
         $service = $options->service ?? $this->extractServiceType($processingLog, $options->originalFilename);
 
-        $existing = $this->sermonRepository->findByDateAndServiceAndContentType(
+        $existing = $this->findByDateAndServiceAndContentType(
             $sermonDate,
             $service,
             $options->contentType,
@@ -81,6 +99,37 @@ class SermonCreationService
                 $incomingLevel,
             ),
         };
+    }
+
+    private function findByDateAndServiceAndContentType(
+        Carbon|string $date,
+        SermonService $service,
+        SermonContentType $contentType,
+    ): ?Sermon {
+        $dateString = $date instanceof Carbon ? $date->toDateString() : $date;
+
+        return Sermon::query()
+            ->where('date', $dateString)
+            ->where('service', $service)
+            ->where('content_type', $contentType)
+            ->first();
+    }
+
+    private function generateUniqueSlug(string $title, ?int $excludeSermonId = null): string
+    {
+        $baseSlug = Str::slug($title);
+        $slug = $baseSlug;
+        $counter = 1;
+
+        $query = Sermon::query()
+            ->when($excludeSermonId, fn (Builder $builder): Builder => $builder->where('id', '!=', $excludeSermonId));
+
+        while ($query->clone()->where('slug', $slug)->exists()) {
+            $slug = "{$baseSlug}-{$counter}";
+            $counter++;
+        }
+
+        return $slug;
     }
 
     /**
@@ -403,7 +452,7 @@ class SermonCreationService
             ]
         );
 
-        $slug = $this->sermonRepository->generateUniqueSlug($title);
+        $slug = $this->generateUniqueSlug($title);
 
         [
             'preacher_name' => $preacherName,
@@ -525,6 +574,14 @@ class SermonCreationService
 
     /**
      * Extract sermon date using cascading strategy.
+     *
+     * Precedence:
+     * 1. Extracted date from processing log (metadata/FFprobe).
+     * 2. Filename parsing patterns.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log record for the run
+     * @param  string  $filename  The original filename
+     * @return string ISO date string (YYYY-MM-DD)
      */
     public function extractDate(
         MediaProcessingLog $processingLog,
@@ -556,6 +613,14 @@ class SermonCreationService
 
     /**
      * Extract service type using cascading strategy.
+     *
+     * Precedence:
+     * 1. Extracted service from processing log (operator override or detection).
+     * 2. Filename keyword/pattern matching.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log record for the run
+     * @param  string  $filename  The original filename
+     * @return SermonService The identified service type
      */
     public function extractServiceType(
         MediaProcessingLog $processingLog,
@@ -587,17 +652,14 @@ class SermonCreationService
     /**
      * Generate sermon title using specified strategy.
      *
-     * @param  TitleGenerationStrategy  $strategy  The strategy to use (AI, Filename, Custom)
-     * @param  array{
-     *     ai_analysis?: array{title: string, series: string|null, reference: string|null, points: list<string>, summary: string|null, transcript: string}|null,
-     *     filename: string,
-     *     custom_title?: string|null,
-     *     id3_title?: string|null,
-     *     processing_log?: MediaProcessingLog|null,
-     *     date?: string,
-     *     service?: SermonService
-     * }  $context  Data context for title generation
-     * @return string The generated and truncated title
+     * Strategy-specific priorities:
+     * - **AiWithFallback**: ID3 title > AI-generated title > Filename processing.
+     * - **FilenameOnly**: Filename cleaning -> Defaults (Service + Date).
+     * - **Custom**: Explicitly provided title -> FilenameOnly fallback.
+     *
+     * @param  TitleGenerationStrategy  $strategy  The strategy to use
+     * @param  TitleGenerationContext  $context  Data context for title generation
+     * @return string The generated and truncated title (max 100 chars)
      */
     public function generateTitle(
         TitleGenerationStrategy $strategy,

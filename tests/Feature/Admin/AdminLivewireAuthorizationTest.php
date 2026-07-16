@@ -6,7 +6,6 @@ namespace Tests\Feature\Admin;
 
 use App\Models\CalendarEvent;
 use App\Models\ChurchService;
-use App\Models\MediaProcessingLog;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
@@ -167,7 +166,6 @@ class AdminLivewireAuthorizationTest extends TestCase
         $sermon = Sermon::factory()->create();
         $churchService = ChurchService::factory()->create();
         $song = Song::factory()->create();
-        $processingLog = MediaProcessingLog::factory()->manualReviewRequired()->create();
         $preacher = Preacher::factory()->create();
         $calendarEvent = CalendarEvent::factory()->upcoming()->create();
         $user = User::factory()->create();
@@ -189,7 +187,6 @@ class AdminLivewireAuthorizationTest extends TestCase
             ['admin.services.submit-email', []],
             ['admin.services.songs.index', []],
             ['admin.services.songs.show', ['song' => $song]],
-            ['admin.services.processing.review', ['processingLog' => $processingLog]],
             ['admin.services.edit', ['churchService' => $churchService]],
             ['admin.services.show', ['churchService' => $churchService]],
             ['admin.preachers.index', []],

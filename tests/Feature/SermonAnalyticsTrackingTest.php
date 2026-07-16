@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\SermonContentType;
+use App\Jobs\MoveSermonToPrivateStorage;
 use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -20,6 +22,13 @@ use Tests\TestCase;
 class SermonAnalyticsTrackingTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Queue::fake([MoveSermonToPrivateStorage::class]);
+    }
 
     #[Test]
     public function sermon_page_annotates_audio_player_and_download_for_analytics(): void

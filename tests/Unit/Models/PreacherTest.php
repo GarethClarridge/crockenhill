@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Unit\Models;
 
 use App\Models\Preacher;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
@@ -13,8 +12,6 @@ use Tests\TestCase;
 
 class PreacherTest extends TestCase
 {
-    use DatabaseTransactions;
-
     #[Test]
     public function it_trims_name_attribute(): void
     {
@@ -81,7 +78,7 @@ class PreacherTest extends TestCase
     }
 
     /**
-     * @param array<string, array<int, mixed>> $rules
+     * @param  array<string, array<int, mixed>>  $rules
      * @return array<string, array<int, mixed>>
      */
     private function filterRules(array $rules): array

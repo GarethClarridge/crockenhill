@@ -5,15 +5,12 @@ declare(strict_types=1);
 namespace Tests\Unit\Models;
 
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class UserTest extends TestCase
 {
-    use DatabaseTransactions;
-
     #[Test]
     public function it_trims_name_attribute(): void
     {
@@ -29,45 +26,98 @@ class UserTest extends TestCase
     {
         /** @var User $user */
         $user = User::factory()->make();
-        $user->email = '  JOHN@Example.Com  ';
+        $user->email = '  JOE@Example.COM  ';
 
-        $this->assertEquals('john@example.com', $user->email);
+        $this->assertEquals('joe@example.com', $user->email);
     }
 
     #[Test]
-    public function it_validates_basic_rules(): void
+    public function it_can_access_admin_only_if_admin_and_verified(): void
     {
-        $rules = $this->filterRules(User::validationRules());
+        // Not admin, not verified
+        $user = User::factory()->make([
+            'is_admin' => false,
+            'email_verified_at' => null,
+        ]);
+        $this->assertFalse($user->canAccessAdmin());
 
-        $validator = Validator::make([
-            'name' => 'John Doe',
-            'email' => 'john@example.com',
-        ], $rules);
+        // Admin, not verified
+        $user->is_admin = true;
+        $this->assertFalse($user->canAccessAdmin());
 
-        $this->assertFalse($validator->fails(), 'Validation should pass with valid data');
+        // Not admin, verified
+        $user->is_admin = false;
+        $user->email_verified_at = now();
+        $this->assertFalse($user->canAccessAdmin());
 
-        $validator = Validator::make([
-            'name' => '',
-            'email' => 'not-an-email',
-        ], $rules);
+        // Admin and verified
+        $user->is_admin = true;
+        $this->assertTrue($user->canAccessAdmin());
+    }
 
+    #[Test]
+    public function it_validates_required_name(): void
+    {
+        $rules = User::validationRules();
+        $filteredRules = $this->filterDatabaseRules($rules['name']);
+
+        $validator = Validator::make(['name' => ''], ['name' => $filteredRules]);
         $this->assertTrue($validator->fails());
         $this->assertArrayHasKey('name', $validator->errors()->toArray());
+    }
+
+    #[Test]
+    public function it_validates_email_format(): void
+    {
+        $rules = User::validationRules();
+        $filteredRules = $this->filterDatabaseRules($rules['email']);
+
+        $validator = Validator::make(['email' => 'not-an-email'], ['email' => $filteredRules]);
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('email', $validator->errors()->toArray());
+
+        $validator = Validator::make(['email' => 'test@example.com'], ['email' => $filteredRules]);
+        $this->assertFalse($validator->fails());
+    }
+
+    #[Test]
+    public function it_validates_email_lowercase(): void
+    {
+        $rules = User::validationRules();
+        $filteredRules = $this->filterDatabaseRules($rules['email']);
+
+        $validator = Validator::make(['email' => 'UPPER@example.com'], ['email' => $filteredRules]);
+        $this->assertTrue($validator->fails());
         $this->assertArrayHasKey('email', $validator->errors()->toArray());
     }
 
-    /**
-     * @param array<string, array<int, mixed>> $rules
-     * @return array<string, array<int, mixed>>
-     */
-    private function filterRules(array $rules): array
+    #[Test]
+    public function unique_email_rule_ignores_current_user_id(): void
     {
-        return array_map(function ($fieldRules) {
-            return array_filter($fieldRules, function ($rule) {
-                $ruleString = (string) $rule;
+        $user = User::factory()->make(['id' => 123]);
+        $rules = User::validationRules($user);
 
-                return ! str_starts_with($ruleString, 'unique') && ! str_starts_with($ruleString, 'exists');
-            });
-        }, $rules);
+        $emailRules = $rules['email'];
+        $uniqueRuleFound = false;
+
+        foreach ($emailRules as $rule) {
+            $ruleString = (string) $rule;
+            if (str_starts_with($ruleString, 'unique:users,email')) {
+                $uniqueRuleFound = true;
+                $this->assertStringContainsString('"123"', $ruleString);
+                $this->assertStringContainsString('id', $ruleString);
+            }
+        }
+
+        $this->assertTrue($uniqueRuleFound, 'Unique rule for email was not found.');
+    }
+
+    private function filterDatabaseRules(array $rules): array
+    {
+        return array_filter($rules, function ($rule) {
+            $ruleString = (string) $rule;
+
+            return ! str_starts_with($ruleString, 'exists:') && ! str_starts_with($ruleString, 'unique:');
+        });
     }
 }

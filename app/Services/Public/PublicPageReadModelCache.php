@@ -7,6 +7,7 @@ namespace App\Services\Public;
 use App\Data\PublicPageReadModel;
 use App\Models\Page;
 use App\Presenters\PageLayoutPresenter;
+use App\Support\FlexibleCache;
 use Illuminate\Support\Facades\Cache;
 
 class PublicPageReadModelCache
@@ -19,7 +20,7 @@ class PublicPageReadModelCache
     public function get(Page $page): PublicPageReadModel
     {
         /** @var PublicPageReadModel */
-        return Cache::rememberForever($this->cacheKey($page->id), function () use ($page): PublicPageReadModel {
+        return Cache::flexible($this->cacheKey($page->id), [300, 86400], function () use ($page): PublicPageReadModel {
             $images = $this->pageImageCacheService->get($page);
 
             return new PublicPageReadModel(
@@ -40,7 +41,7 @@ class PublicPageReadModelCache
     {
         $pageId = $page instanceof Page ? $page->id : $page;
 
-        Cache::forget($this->cacheKey($pageId));
+        FlexibleCache::forget($this->cacheKey($pageId));
     }
 
     private function cacheKey(int $pageId): string

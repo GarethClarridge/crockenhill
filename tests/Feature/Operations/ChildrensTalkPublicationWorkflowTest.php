@@ -132,7 +132,9 @@ class ChildrensTalkPublicationWorkflowTest extends TestCase
         $this->assertNull($section->unpublished_expires_at);
         $this->assertSame(SermonContentType::ChildrensTalk, $sermon->content_type);
         $this->assertSame($preacher->id, $sermon->preacher_id);
-        Storage::disk('public')->assertExists('sermons/sections/'.$section->id.'/video.mp4');
+        $this->assertSame('private/sermons/sections/'.$section->id.'/video.mp4', $sermon->video_file_path);
+        Storage::disk('local')->assertExists('private/sermons/sections/'.$section->id.'/video.mp4');
+        Storage::disk('public')->assertMissing('sermons/sections/'.$section->id.'/video.mp4');
     }
 
     /**

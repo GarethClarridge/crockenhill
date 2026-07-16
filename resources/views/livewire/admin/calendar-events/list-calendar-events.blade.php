@@ -1,5 +1,5 @@
 <x-admin.list-shell
-    title="Calendar Events"
+    title="Calendar events"
     description="Manage and categorise calendar events"
 >
     <x-slot:actions>

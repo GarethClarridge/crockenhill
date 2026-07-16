@@ -271,12 +271,8 @@
                                             @endif
                                         </p>
                                     </div>
-                                    {{-- Prefer the workbench when the run matched a service (it renders every
-                                         segmentation-pipeline run); the standalone page stays for orphan runs --}}
                                     <x-button
-                                        link="{{ $group['service'] instanceof \App\Models\ChurchService
-                                            ? route('admin.services.show', $group['service']).'#processing-run-'.$run->id
-                                            : route('admin.services.processing.review', $run) }}"
+                                        link="{{ route('admin.recordings.sermon-segment', $run->processing_id) }}"
                                         variant="primary"
                                         size="xs"
                                         icon="arrow-right"

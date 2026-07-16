@@ -23,3 +23,8 @@
 **Pattern:** Every public page missing its heading image in sitemap and views despite files existing in `public/images/headings/`.
 **Cause:** `PageImageCacheService` only checks `Storage::disk('public')` (mapping to `storage/app/public/pages/headings/`) but committed assets are in `public/images/headings/`.
 **Action:** Verify against both storage disk and public path in future diagnostics.
+
+## 2026-07-14 - Heading Image Resolution Gap
+**Pattern:** Committed heading images in `public/images/headings/` are ignored by `PageImageCacheService`.
+**Cause:** Service is hardcoded to check `Storage::disk('public')` (`storage/app/public/pages/headings/`) and Media Library, but omits the committed assets directory.
+**Action:** Verify if production pages use Media Library or rely on committed assets; update service with `public_path()` fallback if the latter.

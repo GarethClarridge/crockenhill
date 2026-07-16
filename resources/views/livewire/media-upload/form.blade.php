@@ -5,6 +5,7 @@
         maxFileSizeLabel: @js($maxFileSize ?? 'N/A')
     })"
     x-init="init()"
+    x-on:media-upload-cancel.window="cancelUpload"
 >
     <x-admin.form-shell title="Upload recording" description="Audio, sermon video, or full livestream — processing starts automatically.">
         <x-slot:actions>
@@ -22,7 +23,10 @@
         </x-slot:actions>
 
         {{-- Upload Form --}}
-        @if($showUploadForm && !in_array($status, ['processing', 'completed']))
+        @if(
+            in_array($status, [\App\Enums\UploadState::Idle, \App\Enums\UploadState::Uploading], true)
+            || ($status === \App\Enums\UploadState::Failed && $processingId === null && $tempFilePath === null)
+        )
             <x-card heading="Recording">
                 <div class="space-y-6">
                     {{-- Media Type Selection --}}
@@ -161,14 +165,9 @@
                             @enderror
                         </div>
 
-                        <livewire:media-upload-progress
-                            :is-uploading="$isUploading"
-                            :status="$status"
-                            :upload-progress="$uploadProgress"
-                            :current-file-name="$originalFileName ?? ($mediaFile ? $mediaFile->getClientOriginalName() : 'file')"
-                            :form-component-id="$this->getId()"
-                            :key="'media-upload-progress-'.$this->getId()"
-                        />
+                        @include('livewire.media-upload.progress', [
+                            'currentFileName' => $originalFileName ?? ($mediaFile ? $mediaFile->getClientOriginalName() : 'file'),
+                        ])
 
                         <p class="text-sm text-gray-500">
                             Processing starts automatically after the upload finishes.
@@ -179,11 +178,11 @@
         @endif
 
         {{-- Processing Status --}}
-        @if($showProcessingStatus)
+        @if(! in_array($status, [\App\Enums\UploadState::Idle, \App\Enums\UploadState::Uploading], true))
             <div
                 x-data="{
                     source: null,
-                    terminalStatuses: ['completed', 'failed', 'cancelled'],
+                    terminalStatuses: ['completed', 'failed', 'cancelled', 'manual_review'],
                     init() {
                         if (! @js($processingId)) return;
                         this.source = new EventSource('/api/media/processing/' + @js($processingId) + '/stream');
@@ -215,19 +214,7 @@
                     },
                 }"
             >
-                <livewire:media-upload-status
-                    :processing-id="$processingId"
-                    :status="$status"
-                    :current-step="$currentStep"
-                    :progress-percentage="$progressPercentage"
-                    :success-message="$successMessage"
-                    :error-message="$errorMessage"
-                    :cancelled-message="$cancelledMessage"
-                    :manual-review-message="$manualReviewMessage"
-                    :manual-review-url="$manualReviewUrl"
-                    :form-component-id="$this->getId()"
-                    :key="'media-upload-status-'.$this->getId()"
-                />
+                @include('livewire.media-upload.status')
             </div>
         @endif
 

@@ -1,15 +1,15 @@
 @extends('layouts.main')
 
 @section('content')
-<x-admin.shell heading="Calendar Patterns">
+<x-admin.shell heading="Calendar patterns">
 
 <x-admin.page
-    title="Categorisation Patterns"
+    title="Categorisation patterns"
     description="These patterns are used to automatically categorise calendar events based on their titles. Patterns are defined in the system configuration. Please contact the site administrator to make changes."
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.calendar.uncategorized') }}" variant="outline" inline>
-            &larr; Uncategorised Events
+            &larr; Uncategorised events
         </x-button>
     </x-slot:actions>
 

@@ -11,13 +11,11 @@ use Illuminate\Support\Facades\DB;
  * Helpers for reproducing the production state where a sermon carries a blank
  * slug.
  *
- * The `sermons_slug_format_check` CHECK constraint was added inside a try/catch
- * that silently skips when pre-existing rows already violate it
- * (database/migrations/2026_04_15_102525_add_slug_check_constraints_to_tables.php),
- * so production runs constraint-free and still holds malformed-slug rows. A
- * fresh test database always gets the constraint, so the only way to recreate
- * the bad row is to drop the constraint, write the row, and leave it dropped
- * for the rest of the (RefreshDatabase-isolated) test.
+ * The historical migration that introduced `sermons_slug_format_check`
+ * tolerated pre-existing invalid rows. The canonical constraint now lives in
+ * database/schema/mysql-schema.sql, while production can still hold the older
+ * constraint-free state. A fresh test database always gets the constraint, so
+ * the test drops it before recreating the malformed row.
  */
 trait CreatesSlugViolatingSermons
 {
