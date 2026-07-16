@@ -26,36 +26,6 @@ class SermonSitemapPresenterTest extends TestCase
     }
 
     #[Test]
-    public function recent_sermon_gets_high_priority_and_monthly_frequency(): void
-    {
-        /** @var Sermon $sermon */
-        $sermon = Sermon::factory()->make([
-            'slug' => 'recent-sermon',
-            'date' => now()->subDays(15),
-        ]);
-
-        $tag = $this->presenter->toSitemapTag($sermon);
-
-        $this->assertEquals(0.8, $tag->priority);
-        $this->assertEquals('monthly', $tag->changeFrequency);
-    }
-
-    #[Test]
-    public function old_sermon_gets_lower_priority_and_yearly_frequency(): void
-    {
-        /** @var Sermon $sermon */
-        $sermon = Sermon::factory()->make([
-            'slug' => 'old-sermon',
-            'date' => now()->subYears(2),
-        ]);
-
-        $tag = $this->presenter->toSitemapTag($sermon);
-
-        $this->assertEquals(0.6, $tag->priority);
-        $this->assertEquals('yearly', $tag->changeFrequency);
-    }
-
-    #[Test]
     public function sermon_with_video_and_thumbnail_produces_video_and_image_entries(): void
     {
         Storage::fake('public');

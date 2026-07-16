@@ -20,9 +20,6 @@ use App\Services\Public\PublicPageReadModelCache;
 use App\Services\Public\SermonRepository;
 use App\Services\Sermon\SermonExposurePolicy;
 use App\Services\Sermon\SermonStorageService;
-use App\Sitemap\MeetingSitemapPresenter;
-use App\Sitemap\PageSitemapPresenter;
-use App\Sitemap\PreacherSitemapPresenter;
 use App\Sitemap\SermonSitemapPresenter;
 use App\Support\BibleCanon;
 use App\Support\ParallelTestingProcessLimiter;
@@ -47,8 +44,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PublicPageReadModelCache::class);
         $this->app->singleton(PublicMeetingReadModelCache::class);
         $this->app->singleton(SermonArchiveSeoPresenter::class);
-        $this->app->singleton(PageSitemapPresenter::class);
-        $this->app->singleton(MeetingSitemapPresenter::class);
         $this->app->singleton(BibleCanon::class);
 
         /**
@@ -66,7 +61,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(TranscriptStorageService::class);
         $this->app->scoped(SermonItemListPresenter::class);
         $this->app->scoped(SermonSitemapPresenter::class);
-        $this->app->scoped(PreacherSitemapPresenter::class);
 
         $this->registerDeterministicFakerForVisualRegression();
     }

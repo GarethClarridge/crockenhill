@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Sitemap\PreacherSitemapPresenter;
 use App\Support\Path;
 use Database\Factories\PreacherFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,8 +15,6 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
-use Spatie\Sitemap\Contracts\Sitemapable;
-use Spatie\Sitemap\Tags\Url;
 
 /**
  * App\Models\Preacher
@@ -40,7 +37,7 @@ use Spatie\Sitemap\Tags\Url;
  *
  * @mixin \Eloquent
  */
-class Preacher extends Model implements Sitemapable
+class Preacher extends Model
 {
     /** @use HasFactory<PreacherFactory> */
     use HasFactory;
@@ -171,15 +168,5 @@ class Preacher extends Model implements Sitemapable
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
-    }
-
-    /**
-     * Convert the preacher to a sitemap tag.
-     *
-     * @return Url|string|array<string, mixed>
-     */
-    public function toSitemapTag(): Url|string|array
-    {
-        return app(PreacherSitemapPresenter::class)->toSitemapTag($this);
     }
 }

@@ -8,7 +8,6 @@ use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
 use App\Enums\PageArea;
 use App\Rules\TrimmedText;
-use App\Sitemap\MeetingSitemapPresenter;
 use Database\Factories\MeetingFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -22,8 +21,6 @@ use Illuminate\Validation\Rule;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use Spatie\Sitemap\Contracts\Sitemapable;
-use Spatie\Sitemap\Tags\Url;
 
 /**
  * App\Models\Meeting
@@ -56,7 +53,7 @@ use Spatie\Sitemap\Tags\Url;
  *
  * @mixin \Eloquent
  */
-class Meeting extends Model implements HasMedia, Sitemapable
+class Meeting extends Model implements HasMedia
 {
     /** @use HasFactory<MeetingFactory> */
     use HasFactory;
@@ -245,16 +242,6 @@ class Meeting extends Model implements HasMedia, Sitemapable
     public function calendarEvents(): HasMany
     {
         return $this->hasMany(CalendarEvent::class, 'meeting_slug', 'slug');
-    }
-
-    /**
-     * Convert the meeting to a sitemap tag.
-     *
-     * @return Url|string|array<string, mixed>
-     */
-    public function toSitemapTag(): Url|string|array
-    {
-        return app(MeetingSitemapPresenter::class)->toSitemapTag($this);
     }
 
     /**

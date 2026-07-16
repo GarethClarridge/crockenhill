@@ -38,7 +38,7 @@ class RouteCanaryRegistry
             // Static + listing pages: assert the shared layout actually rendered.
             new RouteCanary('/', 200, 1, self::HTML_MARKER),
             new RouteCanary('/christ/sermons', 200, 1, self::HTML_MARKER),
-            // XML sitemap iterates every public model via toSitemapTag().
+            // XML sitemap exercises the complete public exposure query path.
             new RouteCanary('/sitemap.xml', 200, 1, '<urlset'),
             // The auth guard must redirect guests to login, not render or 500.
             new RouteCanary('/church/members', 302, 1, ''),
