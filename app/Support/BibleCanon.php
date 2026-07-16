@@ -78,6 +78,33 @@ class BibleCanon
     }
 
     /**
+     * @return array{book: string|null, chapter: int|null, preacherId: int|null, series: string|null}
+     */
+    public function normalizeArchiveFilters(
+        string|int|null $book,
+        string|int|null $chapter,
+        string|int|null $preacherId,
+        string|int|null $series,
+    ): array {
+        $book = filled($book) ? trim((string) $book) : null;
+        $series = filled($series) ? trim((string) $series) : null;
+        $preacherId = filter_var($preacherId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
+        $chapter = filter_var($chapter, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
+
+        if ($book !== null && ! $this->hasBook($book)) {
+            $book = null;
+        }
+
+        if ($book === null) {
+            $chapter = null;
+        } elseif ($chapter !== null && $chapter > $this->chaptersInBook($book)) {
+            $chapter = null;
+        }
+
+        return compact('book', 'chapter', 'preacherId', 'series');
+    }
+
+    /**
      * @param  Collection<int, string>  $enabledBooks
      * @return array<int, array{id: string, name: string, disabled: bool}>
      */

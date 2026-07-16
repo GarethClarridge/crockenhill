@@ -16,9 +16,9 @@ use App\Observers\ChurchServiceObserver;
 use App\Observers\MediaLibraryCacheObserver;
 use App\Observers\PreacherAliasObserver;
 use App\Observers\PreacherObserver;
+use App\Observers\PublicReadModelCacheObserver;
 use App\Observers\SermonIdentityObserver;
 use App\Observers\SermonObserver;
-use App\Observers\SitemapCacheObserver;
 use Illuminate\Support\ServiceProvider;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -36,11 +36,9 @@ class ModelObserverServiceProvider extends ServiceProvider
         Media::observe(MediaLibraryCacheObserver::class);
         Sermon::observe(SermonIdentityObserver::class);
         Sermon::observe(SermonObserver::class);
-        Sermon::observe(SitemapCacheObserver::class);
-        Page::observe(SitemapCacheObserver::class);
-        Meeting::observe(SitemapCacheObserver::class);
+        Page::observe(PublicReadModelCacheObserver::class);
+        Meeting::observe(PublicReadModelCacheObserver::class);
         Preacher::observe(PreacherObserver::class);
-        Preacher::observe(SitemapCacheObserver::class);
         PreacherAlias::observe(PreacherAliasObserver::class);
     }
 }

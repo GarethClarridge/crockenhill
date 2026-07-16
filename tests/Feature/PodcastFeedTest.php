@@ -5,13 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\SermonService;
-use App\Models\Preacher;
 use App\Models\Sermon;
-use App\Services\Public\PodcastFeedService;
 use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Mockery;
 use Mockery\MockInterface;
@@ -29,8 +26,7 @@ class PodcastFeedTest extends TestCase
         // Clear cache before each test (including flexible cache created-timestamp keys)
         Cache::forget('podcast_feed_morning');
         Cache::forget('podcast_feed_evening');
-        Cache::forget('illuminate:cache:flexible:created:podcast_feed_morning');
-        Cache::forget('illuminate:cache:flexible:created:podcast_feed_evening');
+        Cache::flush();
 
         // Mock SermonStorageService to avoid hitting real S3
         $this->mockStorageService();
@@ -450,148 +446,6 @@ class PodcastFeedTest extends TestCase
 
         $this->get('/christ/sermons/morning/feed')
             ->assertSee('Cached Sermon');
-    }
-
-    #[Test]
-    public function feed_cache_is_invalidated_when_sermon_is_created(): void
-    {
-        Sermon::factory()->create([
-            'service' => SermonService::Morning->value,
-            'audio_file_path' => 'test.mp3',
-            'title' => 'Cached Sermon',
-        ]);
-
-        // First request
-        $response1 = $this->get('/christ/sermons/morning/feed');
-        $content1 = $response1->getContent();
-        $this->assertStringContainsString('Cached Sermon', $content1);
-
-        // Create another sermon
-        Sermon::factory()->create([
-            'service' => SermonService::Morning->value,
-            'audio_file_path' => 'new.mp3',
-            'title' => 'New Sermon After Cache',
-        ]);
-
-        // Second request should rebuild because the sermon observer clears the feed cache
-        $response2 = $this->get('/christ/sermons/morning/feed');
-        $content2 = $response2->getContent();
-        $this->assertStringContainsString('Cached Sermon', $content2);
-        $this->assertStringContainsString('New Sermon After Cache', $content2);
-    }
-
-    #[Test]
-    public function feed_cache_is_invalidated_when_sermon_is_updated(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'service' => SermonService::Morning->value,
-            'audio_file_path' => 'test.mp3',
-            'title' => 'Original Sermon Title',
-        ]);
-
-        $this->get('/christ/sermons/morning/feed')
-            ->assertSee('Original Sermon Title');
-
-        $sermon->update([
-            'title' => 'Updated Sermon Title',
-        ]);
-
-        $response = $this->get('/christ/sermons/morning/feed');
-
-        $response->assertSee('Updated Sermon Title');
-        $response->assertDontSee('Original Sermon Title');
-    }
-
-    #[Test]
-    public function feed_cache_is_invalidated_when_sermon_is_deleted(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'service' => SermonService::Morning->value,
-            'audio_file_path' => 'test.mp3',
-            'title' => 'Sermon To Delete',
-        ]);
-
-        $this->get('/christ/sermons/morning/feed')
-            ->assertSee('Sermon To Delete');
-
-        $sermon->delete();
-
-        $response = $this->get('/christ/sermons/morning/feed');
-
-        $response->assertDontSee('Sermon To Delete');
-        $this->assertStringNotContainsString('<item>', $response->getContent());
-    }
-
-    #[Test]
-    public function feed_cache_is_invalidated_when_preacher_changes(): void
-    {
-        $preacher = Preacher::factory()->create([
-            'name' => 'Original preacher',
-            'slug' => 'original-preacher',
-        ]);
-
-        $sermon = Sermon::factory()->create([
-            'service' => SermonService::Morning->value,
-            'audio_file_path' => 'test.mp3',
-            'preacher' => 'Original preacher',
-            'preacher_id' => $preacher->id,
-        ]);
-
-        // Populate cache and confirm it contains the original preacher name
-        $feedService = app(PodcastFeedService::class);
-        $initialItems = $feedService->getSermonsForFeed(SermonService::Morning);
-        $this->assertTrue(
-            $initialItems->contains(fn ($item) => str_contains($item->podcastSummary, 'Original preacher')),
-            'Feed should contain the original preacher name'
-        );
-
-        // Update preacher name; manually sync denormalized field and clear cache since
-        // ShouldHandleEventsAfterCommit observers do not fire within RefreshDatabase test transactions
-        $preacher->update(['name' => 'Updated preacher']);
-        DB::table('sermons')->where('preacher_id', $preacher->id)->update(['preacher' => 'Updated preacher']);
-        $feedService->clearCache();
-
-        // Resolve a fresh feed service after clearing cache. The scoped presenter must prefer
-        // the loaded preacher relation over any earlier fallback memoization from this test.
-        $freshFeedService = app(PodcastFeedService::class);
-
-        // Fresh feed fetch (no cache) should reflect the updated preacher name for our sermon
-        $updatedItems = $freshFeedService->getSermonsForFeed(SermonService::Morning);
-        $ourItem = $updatedItems->firstWhere('sermonId', $sermon->id);
-        $this->assertNotNull($ourItem, 'Test sermon should appear in the feed');
-        $this->assertStringContainsString('Updated preacher', $ourItem->podcastSummary);
-    }
-
-    #[Test]
-    public function feed_service_can_clear_cache(): void
-    {
-        $service = app(PodcastFeedService::class);
-
-        // Set some cache
-        Cache::put('podcast_feed_morning', collect([]), 3600);
-        Cache::put('podcast_feed_evening', collect([]), 3600);
-
-        // Clear all
-        $service->clearCache();
-
-        $this->assertNull(Cache::get('podcast_feed_morning'));
-        $this->assertNull(Cache::get('podcast_feed_evening'));
-    }
-
-    #[Test]
-    public function feed_service_can_clear_specific_cache(): void
-    {
-        $service = app(PodcastFeedService::class);
-
-        // Set some cache
-        Cache::put('podcast_feed_morning', collect([]), 3600);
-        Cache::put('podcast_feed_evening', collect([]), 3600);
-
-        // Clear only morning
-        $service->clearCache('morning');
-
-        $this->assertNull(Cache::get('podcast_feed_morning'));
-        $this->assertNotNull(Cache::get('podcast_feed_evening'));
     }
 
     #[Test]

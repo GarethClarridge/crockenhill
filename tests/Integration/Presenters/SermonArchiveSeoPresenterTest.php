@@ -9,6 +9,7 @@ use App\Models\Preacher;
 use App\Seo\SermonArchiveSeoPresenter;
 use App\Services\Public\PreacherListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -94,7 +95,7 @@ class SermonArchiveSeoPresenterTest extends TestCase
     #[Test]
     public function title_joins_multiple_filters(): void
     {
-        $preacher = Preacher::factory()->create(['name' => 'Mark Drury']);
+        $preacher = Preacher::factory()->create(['name' => 'Archive Test Preacher']);
 
         $filters = [
             'book' => 'Romans',
@@ -103,7 +104,7 @@ class SermonArchiveSeoPresenterTest extends TestCase
             'series' => 'The Gospel',
         ];
 
-        $this->assertSame('Romans 8 | Mark Drury | The Gospel | Sermons', $this->presenter->title($filters));
+        $this->assertSame('Romans 8 | Archive Test Preacher | The Gospel | Sermons', $this->presenter->title($filters));
     }
 
     #[Test]
@@ -225,7 +226,7 @@ class SermonArchiveSeoPresenterTest extends TestCase
 
         // PreacherListCache is a scoped singleton, we need to ensure the cache is clear
         // or just let it load since we are in an integration test.
-        app(PreacherListCache::class)->clearInternalCaches();
+        Cache::flush();
 
         $filters = [
             'book' => null,
@@ -243,7 +244,7 @@ class SermonArchiveSeoPresenterTest extends TestCase
     {
         $preacher = Preacher::factory()->inactive()->create(['name' => 'Inactive Preacher']);
 
-        app(PreacherListCache::class)->clearInternalCaches();
+        Cache::flush();
 
         $filters = [
             'book' => null,

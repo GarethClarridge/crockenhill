@@ -8,16 +8,27 @@ use App\Enums\SermonContentType;
 use App\Jobs\MoveSermonToPrivateStorage;
 use App\Models\Sermon;
 use App\Services\Scripture\SermonScriptureFilterIndexService;
+use App\Services\Sermon\SermonStorageService;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
 class SermonObserver implements ShouldHandleEventsAfterCommit
 {
     public function __construct(
         private readonly SermonScriptureFilterIndexService $scriptureFilterIndexService,
+        private readonly SermonStorageService $sermonStorageService,
     ) {}
 
     public function saved(Sermon $sermon): void
     {
+        if ($sermon->wasRecentlyCreated || $sermon->wasChanged([
+            'audio_file_path',
+            'video_file_path',
+            'transcript_file_path',
+            'thumbnail_file_path',
+        ])) {
+            $this->sermonStorageService->clearCachedMetadata($sermon);
+        }
+
         $isChildrensTalk = $sermon->content_type === SermonContentType::ChildrensTalk;
         $protectedMediaChanged = $sermon->wasRecentlyCreated || $sermon->wasChanged([
             'content_type',

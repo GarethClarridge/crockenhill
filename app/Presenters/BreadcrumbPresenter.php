@@ -6,7 +6,6 @@ namespace App\Presenters;
 
 use App\Models\Sermon;
 use App\Seo\SermonArchiveSeoPresenter;
-use App\Services\Public\SermonRepository;
 use App\Support\BibleCanon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -15,7 +14,6 @@ class BreadcrumbPresenter
 {
     public function __construct(
         private readonly Request $request,
-        private readonly SermonRepository $sermonRepository,
         private readonly BibleCanon $bibleCanon,
         private readonly SermonArchiveSeoPresenter $seoPresenter,
     ) {}
@@ -153,8 +151,7 @@ class BreadcrumbPresenter
      */
     private function buildSermonFilterItems(): array
     {
-        $filters = $this->sermonRepository->normalizeArchiveFilters(
-            $this->bibleCanon,
+        $filters = $this->bibleCanon->normalizeArchiveFilters(
             $this->request->query('book'),
             $this->request->query('chapter'),
             $this->request->query('preacher'),

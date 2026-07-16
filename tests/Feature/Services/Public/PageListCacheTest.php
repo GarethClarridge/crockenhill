@@ -22,12 +22,13 @@ class PageListCacheTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Page::query()->delete();
         $this->service = app(PageListCache::class);
         Cache::flush();
     }
 
     #[Test]
-    public function get_all_links_for_area_returns_correct_pages_and_memoizes(): void
+    public function get_all_links_for_area_returns_correct_pages_and_caches_them(): void
     {
         $area = PageArea::Church;
         $page1 = Page::factory()->create(['area' => $area, 'admin' => 'no']);
@@ -43,7 +44,7 @@ class PageListCacheTest extends TestCase
         $this->assertFalse($results->contains($privatePage));
         $this->assertFalse($results->contains($otherAreaPage));
 
-        // Test Memoization
+        // Test flexible caching.
         DB::enableQueryLog();
         $this->service->getAllLinksForArea($area);
         $this->assertEmpty(DB::getQueryLog());
@@ -51,7 +52,7 @@ class PageListCacheTest extends TestCase
     }
 
     #[Test]
-    public function get_links_for_area_slugs_returns_ordered_pages_and_memoizes(): void
+    public function get_links_for_area_slugs_returns_ordered_pages_and_caches_them(): void
     {
         $area = PageArea::Church;
         $pageA = Page::factory()->create(['area' => $area, 'slug' => 'slug-a', 'admin' => 'no']);
@@ -67,7 +68,7 @@ class PageListCacheTest extends TestCase
         $this->assertEquals('slug-c', $results[0]->slug);
         $this->assertEquals('slug-a', $results[1]->slug);
 
-        // Test Memoization
+        // Test flexible caching.
         DB::enableQueryLog();
         $this->service->getLinksForAreaSlugs($area, $slugs, $cacheKey);
         $this->assertEmpty(DB::getQueryLog());
@@ -75,7 +76,7 @@ class PageListCacheTest extends TestCase
     }
 
     #[Test]
-    public function get_links_by_slugs_returns_ordered_pages_across_areas_and_memoizes(): void
+    public function get_links_by_slugs_returns_ordered_pages_across_areas_and_caches_them(): void
     {
         $page1 = Page::factory()->create(['area' => PageArea::Church, 'slug' => 'slug-1', 'admin' => 'no']);
         $page2 = Page::factory()->create(['area' => PageArea::Community, 'slug' => 'slug-2', 'admin' => 'no']);
@@ -91,7 +92,7 @@ class PageListCacheTest extends TestCase
         $this->assertEquals('slug-1', $results[1]->slug);
         $this->assertFalse($results->contains($memberPage));
 
-        // Test Memoization
+        // Test flexible caching.
         DB::enableQueryLog();
         $this->service->getLinksBySlugs($slugs, $cacheKey);
         $this->assertEmpty(DB::getQueryLog());
@@ -99,22 +100,18 @@ class PageListCacheTest extends TestCase
     }
 
     #[Test]
-    public function clear_internal_caches_resets_memoization(): void
+    public function flushing_the_cache_forces_a_fresh_query(): void
     {
         $area = PageArea::Church;
         Page::factory()->create(['area' => $area, 'admin' => 'no']);
 
         $this->service->getAllLinksForArea($area);
 
-        // Verify memoization works
+        // Verify caching works.
         DB::enableQueryLog();
         $this->service->getAllLinksForArea($area);
         $this->assertEmpty(DB::getQueryLog());
 
-        // Clear internal memoization
-        $this->service->clearInternalCaches();
-
-        // Clear Laravel cache to ensure it hits DB
         Cache::flush();
 
         $this->service->getAllLinksForArea($area);
@@ -123,31 +120,7 @@ class PageListCacheTest extends TestCase
     }
 
     #[Test]
-    public function clear_area_cache_clears_laravel_cache_and_internal_memoization(): void
-    {
-        $area = PageArea::Church;
-        Page::factory()->create(['area' => $area, 'admin' => 'no']);
-
-        $this->service->getAllLinksForArea($area);
-
-        // Populate Cache by clearing internal only
-        $this->service->clearInternalCaches();
-        $this->service->getAllLinksForArea($area); // Hits Cache
-
-        DB::enableQueryLog();
-
-        // 1. Clear Area Cache
-        $this->service->clearAreaCache($area);
-
-        // 2. Next call should hit DB because Cache was cleared
-        $this->service->getAllLinksForArea($area);
-        $this->assertNotEmpty(DB::getQueryLog());
-
-        DB::disableQueryLog();
-    }
-
-    #[Test]
-    public function internal_memoization_is_scoped_by_cache_key(): void
+    public function flexible_cache_entries_are_scoped_by_cache_key(): void
     {
         $page1 = Page::factory()->create(['area' => PageArea::Church, 'slug' => 'slug-1', 'admin' => 'no']);
 
