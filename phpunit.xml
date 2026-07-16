@@ -51,8 +51,6 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="TRANSCRIPTION_MAX_RETRIES" value="1"/>
         <env name="TRANSCRIPTION_RETRY_DELAY_BASE" value="0"/>
-        <env name="ANALYSIS_MAX_RETRIES" value="1"/>
-        <env name="ANALYSIS_RETRY_DELAY_BASE" value="0"/>
         <env name="OPENAI_API_KEY" value="testy-test-key"/>
         <env name="OPENAI_BASE_URL" value="http://127.0.0.1:1/v1"/>
 

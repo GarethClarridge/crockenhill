@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Security;
 
-use App\Enums\MeetingFrequency;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -55,9 +54,6 @@ class JsonLdConsistencyTest extends TestCase
     {
         $meeting = Meeting::factory()->create([
             'slug' => 'test-meeting-with-quotes-'.mt_rand(),
-            'is_recurring' => true,
-            'frequency' => MeetingFrequency::Weekly,
-            'day' => 'Sunday',
         ]);
 
         CalendarEvent::factory()->create([

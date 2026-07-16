@@ -6,10 +6,12 @@ namespace Tests\Feature;
 
 use App\Enums\SermonContentType;
 use App\Enums\SermonVideoQualityStatus;
+use App\Jobs\MoveSermonToPrivateStorage;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -23,6 +25,7 @@ class ChildrensCornerPagesTest extends TestCase
         parent::setUp();
 
         Storage::fake('local');
+        Queue::fake([MoveSermonToPrivateStorage::class]);
     }
 
     #[Test]

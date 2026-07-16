@@ -6,10 +6,9 @@ namespace Tests\Integration\Services;
 
 use App\Actions\GetMediaProcessingStatus;
 use App\Enums\ProcessingStatus;
+use App\Models\SermonProcessingStep;
 use App\Models\User;
-use App\Services\Processing\ProcessingLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -20,29 +19,8 @@ class GetMediaProcessingStatusTest extends TestCase
     use BuildsTestScenarios;
     use RefreshDatabase;
 
-    private string $logFile;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->logFile = storage_path('logs/get-media-processing-status-'.Str::uuid().'.log');
-        File::put($this->logFile, '');
-
-        $this->app->bind(ProcessingLogService::class, fn (): ProcessingLogService => new ProcessingLogService($this->logFile));
-    }
-
-    protected function tearDown(): void
-    {
-        if (File::exists($this->logFile)) {
-            File::delete($this->logFile);
-        }
-
-        parent::tearDown();
-    }
-
     #[Test]
-    public function it_returns_processing_status_with_recent_logs_and_metrics(): void
+    public function it_returns_durable_processing_diagnostics(): void
     {
         $admin = $this->actingAsVerifiedAdmin();
         $processingId = Str::uuid()->toString();
@@ -52,13 +30,28 @@ class GetMediaProcessingStatusTest extends TestCase
             ->state([
                 'processing_id' => $processingId,
                 'original_filename' => 'sermon.mp3',
+                'processing_metadata' => ['video_processing_mode' => 'full_video'],
+                'queue_name' => 'media-processing',
+                'job_id' => 'job-123',
+                'attempt_count' => 2,
             ])
             ->create();
 
-        File::put($this->logFile, implode("\n", [
-            '[2026-03-17 10:00:00] local.INFO: Processing step: ingestion - started {"processing_id":"'.$processingId.'","step":"ingestion","status":"started","execution_time":1.5,"memory_usage":1048576}',
-            '[2026-03-17 10:00:05] local.ERROR: Processing step: transcription - failed {"processing_id":"'.$processingId.'","step":"transcription","status":"failed","execution_time":2.75,"memory_usage":2097152,"error_message":"API timeout"}',
-        ]));
+        SermonProcessingStep::query()->create([
+            'processing_id' => $processingId,
+            'step' => 'ingestion',
+            'status' => ProcessingStatus::Completed,
+            'message' => 'Ingested',
+            'started_at' => now()->subMinutes(2),
+            'completed_at' => now()->subMinute(),
+        ]);
+        SermonProcessingStep::query()->create([
+            'processing_id' => $processingId,
+            'step' => 'transcription',
+            'status' => ProcessingStatus::Started,
+            'message' => 'Transcribing',
+            'started_at' => now(),
+        ]);
 
         $this->actingAs($admin);
 
@@ -66,14 +59,13 @@ class GetMediaProcessingStatusTest extends TestCase
 
         $this->assertTrue($response->found);
         $this->assertSame($processingId, $response->processingId);
-        $this->assertNotNull($response->recentLogs);
-        $this->assertCount(2, $response->recentLogs->entries);
-        $this->assertSame('transcription', $response->recentLogs->entries->first()->step);
-        $this->assertSame('error', $response->recentLogs->entries->first()->level);
-        $this->assertSame('API timeout', $response->recentLogs->entries->first()->errorMessage);
-        $this->assertNotNull($response->performanceMetrics);
-        $this->assertSame(4.25, $response->performanceMetrics['total_execution_time']);
-        $this->assertSame(2097152, $response->performanceMetrics['peak_memory_usage']);
+        $this->assertCount(2, $response->additionalData['processing_steps']);
+        $this->assertSame('transcription', $response->additionalData['processing_steps'][0]['step']);
+        $this->assertSame(60.0, $response->additionalData['processing_steps'][1]['duration_seconds']);
+        $this->assertSame('media-processing', $response->additionalData['queue_name']);
+        $this->assertSame('job-123', $response->additionalData['job_id']);
+        $this->assertSame(2, $response->additionalData['attempt_count']);
+        $this->assertSame(['video_processing_mode' => 'full_video'], $response->additionalData['processing_metadata']);
     }
 
     #[Test]
@@ -98,8 +90,8 @@ class GetMediaProcessingStatusTest extends TestCase
         $this->assertSame($processingId, $response->processingId);
         $this->assertSame('processing', $response->status);
         $this->assertSame('audio_transcription', $response->currentStep);
-        $this->assertNull($response->recentLogs);
-        $this->assertNull($response->performanceMetrics);
+        $this->assertArrayNotHasKey('processing_steps', $response->additionalData);
+        $this->assertArrayNotHasKey('processing_metadata', $response->additionalData);
     }
 
     #[Test]

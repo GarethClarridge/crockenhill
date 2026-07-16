@@ -18,33 +18,14 @@ class MediaUploadControllerTest extends TestCase
         return $source;
     }
 
-    private function timeoutHandlerSource(): string
+    public function upload_controller_has_no_self_rearming_stall_timer_or_page_global_cancel_relay(): void
     {
         $source = $this->controllerSource();
 
-        preg_match('/resetUploadTimeout\(\)\s*\{(.*?)\n\s*\},\n\n\s*registerUploadListeners\(\)/s', $source, $matches);
-
-        $this->assertArrayHasKey(1, $matches, 'Could not locate resetUploadTimeout() implementation.');
-
-        return $matches[1];
-    }
-
-    #[Test]
-    public function stalled_upload_timeout_does_not_force_a_failure_message(): void
-    {
-        $timeoutHandler = $this->timeoutHandlerSource();
-
-        $this->assertStringNotContainsString('Upload stalled. Please check your connection and try again.', $timeoutHandler);
-        $this->assertStringNotContainsString("this.\$wire.call('handleUploadError'", $timeoutHandler);
-    }
-
-    #[Test]
-    public function stalled_upload_timeout_does_not_auto_cancel_the_livewire_upload(): void
-    {
-        $timeoutHandler = $this->timeoutHandlerSource();
-
-        $this->assertStringNotContainsString("component.cancelUpload('mediaFile');", $timeoutHandler);
-        $this->assertStringContainsString('this.resetUploadTimeout();', $timeoutHandler);
+        $this->assertStringNotContainsString('STALL_TIMEOUT_MS', $source);
+        $this->assertStringNotContainsString('resetUploadTimeout', $source);
+        $this->assertStringNotContainsString('media-upload:cancel-upload', $source);
+        $this->assertStringNotContainsString('findLivewireComponent', $source);
     }
 
     #[Test]
@@ -52,7 +33,7 @@ class MediaUploadControllerTest extends TestCase
     {
         $source = $this->controllerSource();
 
-        $this->assertStringContainsString('if (this.processingTriggered) {', $source);
+        $this->assertStringContainsString('if (this.uploadCancelled || this.processingTriggered) {', $source);
         $this->assertStringContainsString('this.processingTriggered = true;', $source);
     }
 
@@ -63,5 +44,18 @@ class MediaUploadControllerTest extends TestCase
 
         $this->assertStringContainsString("this.registerListener('livewire-upload-start'", $source);
         $this->assertStringContainsString('this.processingTriggered = false;', $source);
+        $this->assertStringContainsString('this.uploadCancelled = false;', $source);
+        $this->assertStringContainsString('this.uploadInProgress = true;', $source);
+    }
+
+    #[Test]
+    public function cancel_aborts_the_browser_upload_before_resetting_server_state(): void
+    {
+        $source = $this->controllerSource();
+
+        $this->assertStringContainsString('this.uploadCancelled = true;', $source);
+        $this->assertStringContainsString('this.uploadInProgress = false;', $source);
+        $this->assertStringContainsString("this.\$wire.\$cancelUpload('mediaFile', () => {", $source);
+        $this->assertStringContainsString("this.\$wire.call('cancelUpload');", $source);
     }
 }

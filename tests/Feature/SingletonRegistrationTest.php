@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Presenters\SermonViewPresenter;
 use App\Seo\SermonItemListPresenter;
 use App\Services\Media\Audio\SermonTranscriptReader;
 use App\Services\Media\Audio\TranscriptStorageService;
@@ -23,7 +22,6 @@ class SingletonRegistrationTest extends TestCase
             SermonStorageService::class,
             SermonTranscriptReader::class,
             TranscriptStorageService::class,
-            SermonViewPresenter::class,
             SermonItemListPresenter::class,
         ];
 

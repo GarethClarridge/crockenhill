@@ -10,7 +10,6 @@ use App\Providers\MediaProcessingServiceProvider;
 use App\Providers\ModelObserverServiceProvider;
 use App\Providers\RateLimitServiceProvider;
 use App\Providers\UrlServiceProvider;
-use App\Providers\ViewServiceProvider;
 
 return [
     AppServiceProvider::class,
@@ -18,7 +17,6 @@ return [
     ChurchServiceDomainServiceProvider::class,
     UrlServiceProvider::class,
     AuthServiceProvider::class,
-    ViewServiceProvider::class,
     ModelObserverServiceProvider::class,
     RateLimitServiceProvider::class,
     MediaProcessingServiceProvider::class,

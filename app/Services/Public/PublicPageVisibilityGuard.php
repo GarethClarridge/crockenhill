@@ -39,7 +39,7 @@ class PublicPageVisibilityGuard
 
         $user = Auth::user();
 
-        if ($page->admin === 'yes' && ($user === null || ! $user->canAccessAdmin())) {
+        if ($page->isAdminOnly() && ($user === null || ! $user->canAccessAdmin())) {
             abort(403, 'Unauthorized action.');
         }
 

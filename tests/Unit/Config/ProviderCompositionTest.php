@@ -9,7 +9,6 @@ use App\Providers\ChurchServiceDomainServiceProvider;
 use App\Providers\ModelObserverServiceProvider;
 use App\Providers\RateLimitServiceProvider;
 use App\Providers\UrlServiceProvider;
-use App\Providers\ViewServiceProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -24,7 +23,6 @@ class ProviderCompositionTest extends TestCase
         $this->assertContains(AiServiceProvider::class, $providers);
         $this->assertContains(ChurchServiceDomainServiceProvider::class, $providers);
         $this->assertContains(UrlServiceProvider::class, $providers);
-        $this->assertContains(ViewServiceProvider::class, $providers);
         $this->assertContains(ModelObserverServiceProvider::class, $providers);
         $this->assertContains(RateLimitServiceProvider::class, $providers);
     }

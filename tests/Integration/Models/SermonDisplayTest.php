@@ -27,7 +27,6 @@ class SermonDisplayTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->presenter->clearInternalCaches();
         parent::tearDown();
     }
 

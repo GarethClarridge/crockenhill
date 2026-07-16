@@ -80,21 +80,24 @@ class StandardProcessingResponseTest extends TestCase
     }
 
     #[Test]
-    public function with_logs_includes_logs_and_metrics(): void
+    public function diagnostics_are_serialized_as_additional_data(): void
     {
-        $response = StandardProcessingResponse::withLogs(
+        $response = StandardProcessingResponse::found(
             processingId: 'test-456',
             status: 'processing',
             currentStep: 'extraction',
             progressPercentage: 50,
-            metrics: ['total_execution_time' => 12.5],
-            errorHistory: [['step' => 'validation', 'error' => 'File too small']],
+            additionalData: [
+                'processing_steps' => [['step' => 'extraction', 'status' => 'processing']],
+                'processing_metadata' => ['trim_requested' => true],
+                'queue_name' => 'media-processing',
+            ],
         );
 
         $this->assertTrue($response->found);
-        $this->assertEquals(['total_execution_time' => 12.5], $response->performanceMetrics);
-        $this->assertEquals([['step' => 'validation', 'error' => 'File too small']], $response->errorHistory);
-        $this->assertNull($response->recentLogs);
+        $this->assertSame('extraction', $response->additionalData['processing_steps'][0]['step']);
+        $this->assertTrue($response->additionalData['processing_metadata']['trim_requested']);
+        $this->assertSame('media-processing', $response->additionalData['queue_name']);
     }
 
     #[Test]
@@ -245,9 +248,8 @@ class StandardProcessingResponseTest extends TestCase
         $this->assertArrayNotHasKey('sermon_id', $array);
         $this->assertArrayNotHasKey('sermon_url', $array);
         $this->assertArrayNotHasKey('estimated_completion', $array);
-        $this->assertArrayNotHasKey('recent_logs', $array);
-        $this->assertArrayNotHasKey('performance_metrics', $array);
-        $this->assertArrayNotHasKey('error_history', $array);
+        $this->assertArrayNotHasKey('processing_steps', $array);
+        $this->assertArrayNotHasKey('processing_metadata', $array);
     }
 
     #[Test]

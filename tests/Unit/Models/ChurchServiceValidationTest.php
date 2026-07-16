@@ -15,10 +15,19 @@ use Tests\TestCase;
 
 class ChurchServiceValidationTest extends TestCase
 {
+    private function filterDatabaseRules(array $rules): array
+    {
+        return array_filter($rules, function ($rule) {
+            $ruleString = (string) $rule;
+
+            return ! str_starts_with($ruleString, 'exists:') && ! str_starts_with($ruleString, 'unique:');
+        });
+    }
+
     #[Test]
     public function it_validates_required_fields(): void
     {
-        $rules = ChurchService::validationRules();
+        $rules = array_map(fn ($r) => $this->filterDatabaseRules($r), ChurchService::validationRules());
         $validator = Validator::make([], $rules);
 
         $this->assertTrue($validator->fails());
@@ -32,7 +41,7 @@ class ChurchServiceValidationTest extends TestCase
     #[Test]
     public function it_validates_enum_values(): void
     {
-        $rules = ChurchService::validationRules();
+        $rules = array_map(fn ($r) => $this->filterDatabaseRules($r), ChurchService::validationRules());
 
         $data = [
             'date' => '2023-01-01',
@@ -55,7 +64,7 @@ class ChurchServiceValidationTest extends TestCase
     #[Test]
     public function it_passes_with_valid_data(): void
     {
-        $rules = ChurchService::validationRules();
+        $rules = array_map(fn ($r) => $this->filterDatabaseRules($r), ChurchService::validationRules());
 
         $data = [
             'date' => '2023-01-01',
@@ -75,7 +84,7 @@ class ChurchServiceValidationTest extends TestCase
     #[Test]
     public function it_validates_boolean_fields(): void
     {
-        $rules = ChurchService::validationRules();
+        $rules = array_map(fn ($r) => $this->filterDatabaseRules($r), ChurchService::validationRules());
 
         $data = [
             'date' => '2023-01-01',
@@ -95,7 +104,7 @@ class ChurchServiceValidationTest extends TestCase
     #[Test]
     public function it_allows_valid_canonical_conflict_reason(): void
     {
-        $rules = ChurchService::validationRules();
+        $rules = array_map(fn ($r) => $this->filterDatabaseRules($r), ChurchService::validationRules());
 
         $data = [
             'date' => '2023-01-01',

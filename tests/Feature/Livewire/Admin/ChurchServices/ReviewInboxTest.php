@@ -341,6 +341,17 @@ class ReviewInboxTest extends TestCase
     }
 
     #[Test]
+    public function the_retired_per_run_review_url_redirects_to_the_segment_page(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'processing_type' => MediaType::Livestream,
+        ]);
+
+        $this->get("/admin/services/processing/{$log->id}/review")
+            ->assertRedirect(route('admin.recordings.sermon-segment', $log->processing_id));
+    }
+
+    #[Test]
     public function approve_blocks_when_extracted_media_is_missing(): void
     {
         Queue::fake();
@@ -526,7 +537,7 @@ class ReviewInboxTest extends TestCase
     }
 
     #[Test]
-    public function segment_links_prefer_the_workbench_when_the_run_matches_a_service(): void
+    public function segment_links_use_the_dedicated_review_when_the_run_matches_a_service(): void
     {
         $service = ChurchService::factory()->create([
             'date' => '2026-06-07',
@@ -539,12 +550,11 @@ class ReviewInboxTest extends TestCase
         ]);
 
         Livewire::test(ReviewInbox::class)
-            ->assertSeeHtml(route('admin.services.show', $service).'#processing-run-'.$run->id)
-            ->assertDontSeeHtml(route('admin.services.processing.review', $run));
+            ->assertSeeHtml(route('admin.recordings.sermon-segment', $run->processing_id));
     }
 
     #[Test]
-    public function segment_links_fall_back_to_the_standalone_page_for_orphan_runs(): void
+    public function segment_links_use_the_dedicated_review_for_orphan_runs(): void
     {
         $run = MediaProcessingLog::factory()->livestream()->manualReviewRequired()->create([
             'extracted_date' => '2026-06-07',
@@ -552,11 +562,12 @@ class ReviewInboxTest extends TestCase
         ]);
 
         Livewire::test(ReviewInbox::class)
-            ->assertSeeHtml(route('admin.services.processing.review', $run));
+            ->assertSeeHtml(route('admin.recordings.sermon-segment', $run->processing_id))
+            ->assertSee('Choose segment');
     }
 
     #[Test]
-    public function segment_links_for_auto_trim_video_runs_prefer_the_workbench(): void
+    public function segment_links_for_auto_trim_video_runs_use_the_dedicated_review(): void
     {
         $service = ChurchService::factory()->create([
             'date' => '2026-06-07',
@@ -582,8 +593,7 @@ class ReviewInboxTest extends TestCase
         ]);
 
         Livewire::test(ReviewInbox::class)
-            ->assertSeeHtml(route('admin.services.show', $service).'#processing-run-'.$run->id)
-            ->assertDontSeeHtml(route('admin.services.processing.review', $run));
+            ->assertSeeHtml(route('admin.recordings.sermon-segment', $run->processing_id));
     }
 
     #[Test]

@@ -5,21 +5,36 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Data\ThumbnailMetadata;
+use App\Enums\SermonContentType;
 use App\Models\Sermon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
+use Throwable;
 
 class MoveSermonToPrivateStorage implements ShouldQueue
 {
-    use InteractsWithQueue, Queueable, SerializesModels;
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
 
     public int $tries = 3;
 
     public int $timeout = 120;
+
+    /** @var array<int, int> */
+    public array $backoff = [10, 60, 300];
+
+    /** @var array<int, true> */
+    private static array $sermonsBeingMoved = [];
+
+    /** @var array<string, array{disk: string, source: string, target: string}> */
+    private array $pendingSourceDeletions = [];
 
     public function __construct(
         private readonly int $sermonId,
@@ -35,222 +50,470 @@ class MoveSermonToPrivateStorage implements ShouldQueue
             return;
         }
 
-        $this->moveAudioIfNeeded($sermon);
-        $this->moveThumbnailIfNeeded($sermon);
-        $this->movePlainThumbnailIfNeeded($sermon);
-        $this->moveCardThumbnailIfNeeded($sermon);
-        $this->moveCandidateFilesIfNeeded($sermon);
-    }
-
-    private function moveAudioIfNeeded(Sermon $sermon): void
-    {
-        $path = $sermon->audio_file_path;
-
-        if (! $path || str_starts_with($path, 'private/')) {
+        if ($sermon->content_type !== SermonContentType::ChildrensTalk) {
             return;
         }
 
-        $sourceDisk = config('media-processing.storage.sermon_disk', 'public');
-        $targetPath = 'private/'.$path;
+        self::$sermonsBeingMoved[$this->sermonId] = true;
+        $this->pendingSourceDeletions = [];
 
-        if (! Storage::disk($sourceDisk)->exists($path)) {
-            Log::warning('MoveSermonToPrivateStorage: audio file not found on source disk', [
-                'sermon_id' => $this->sermonId,
-                'disk' => $sourceDisk,
-                'path' => $path,
-            ]);
+        /** @var array<int, Throwable> $moveFailures */
+        $moveFailures = [];
 
-            return;
-        }
+        try {
+            $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
+            $transcriptDisk = (string) config('media-processing.storage.transcript_disk', $sermonDisk);
+            $thumbnailDisk = (string) config('thumbnail-generation.storage.disk', 'public');
 
-        $stream = Storage::disk($sourceDisk)->readStream($path);
+            // One failed asset must not leave the others public: attempt every
+            // move, collect the failures, and rethrow after cleanup so retries
+            // still happen for whatever could not be protected this run.
+            $moveOperations = [
+                fn () => $this->moveDirectAsset('audio_file_path', $sermonDisk),
+                fn () => $this->moveDirectAsset('video_file_path', $sermonDisk),
+                fn () => $this->moveDirectAsset('transcript_file_path', $transcriptDisk),
+                fn () => $this->moveDirectAsset('thumbnail_file_path', $thumbnailDisk),
+                fn () => $this->moveMetadataAsset('plain_thumbnail_path', $thumbnailDisk),
+                fn () => $this->moveMetadataAsset('card_thumbnail_path', $thumbnailDisk),
+                fn () => $this->moveMetadataAsset('overlay_thumbnail_path', $thumbnailDisk),
+            ];
 
-        if (! is_resource($stream)) {
-            Log::warning('MoveSermonToPrivateStorage: could not open audio stream', [
-                'sermon_id' => $this->sermonId,
-                'path' => $path,
-            ]);
+            foreach ($moveOperations as $moveOperation) {
+                try {
+                    $moveOperation();
+                } catch (Throwable $exception) {
+                    $moveFailures[] = $exception;
+                }
+            }
 
-            return;
-        }
-
-        Storage::disk('local')->writeStream($targetPath, $stream);
-        Storage::disk($sourceDisk)->delete($path);
-
-        $sermon->update(['audio_file_path' => $targetPath]);
-
-        Log::info('MoveSermonToPrivateStorage: audio moved', [
-            'sermon_id' => $this->sermonId,
-            'from' => $path,
-            'to' => $targetPath,
-        ]);
-    }
-
-    private function moveThumbnailIfNeeded(Sermon $sermon): void
-    {
-        $path = $sermon->thumbnail_file_path;
-
-        if (! $path || str_starts_with($path, 'private/')) {
-            return;
-        }
-
-        $sourceDisk = config('thumbnail-generation.storage.disk', 'public');
-        $targetPath = 'private/'.$path;
-
-        if (! Storage::disk($sourceDisk)->exists($path)) {
-            return;
-        }
-
-        $stream = Storage::disk($sourceDisk)->readStream($path);
-
-        if (! is_resource($stream)) {
-            return;
-        }
-
-        Storage::disk('local')->writeStream($targetPath, $stream);
-        Storage::disk($sourceDisk)->delete($path);
-
-        $sermon->update(['thumbnail_file_path' => $targetPath]);
-
-        Log::info('MoveSermonToPrivateStorage: thumbnail moved', [
-            'sermon_id' => $this->sermonId,
-            'from' => $path,
-            'to' => $targetPath,
-        ]);
-    }
-
-    private function movePlainThumbnailIfNeeded(Sermon $sermon): void
-    {
-        $metadata = $sermon->thumbnail_metadata;
-
-        if (! $metadata instanceof ThumbnailMetadata) {
-            return;
-        }
-
-        $path = $metadata->plainThumbnailPath;
-
-        if (! is_string($path) || $path === '' || str_starts_with($path, 'private/')) {
-            return;
-        }
-
-        $sourceDisk = config('thumbnail-generation.storage.disk', 'public');
-        $targetPath = 'private/'.$path;
-
-        if (! Storage::disk($sourceDisk)->exists($path)) {
-            return;
-        }
-
-        $stream = Storage::disk($sourceDisk)->readStream($path);
-
-        if (! is_resource($stream)) {
-            return;
-        }
-
-        Storage::disk('local')->writeStream($targetPath, $stream);
-        Storage::disk($sourceDisk)->delete($path);
-
-        $updated = array_merge($metadata->toArray(), ['plain_thumbnail_path' => $targetPath]);
-        $sermon->update(['thumbnail_metadata' => $updated]);
-
-        Log::info('MoveSermonToPrivateStorage: plain thumbnail moved', [
-            'sermon_id' => $this->sermonId,
-            'from' => $path,
-            'to' => $targetPath,
-        ]);
-    }
-
-    private function moveCardThumbnailIfNeeded(Sermon $sermon): void
-    {
-        $metadata = $sermon->thumbnail_metadata;
-
-        if (! $metadata instanceof ThumbnailMetadata) {
-            return;
-        }
-
-        $path = $metadata->cardThumbnailPath;
-
-        if (! is_string($path) || $path === '' || str_starts_with($path, 'private/')) {
-            return;
-        }
-
-        $sourceDisk = config('thumbnail-generation.storage.disk', 'public');
-        $targetPath = 'private/'.$path;
-
-        if (! Storage::disk($sourceDisk)->exists($path)) {
-            return;
-        }
-
-        $stream = Storage::disk($sourceDisk)->readStream($path);
-
-        if (! is_resource($stream)) {
-            return;
-        }
-
-        Storage::disk('local')->writeStream($targetPath, $stream);
-        Storage::disk($sourceDisk)->delete($path);
-
-        $updated = array_merge($metadata->toArray(), ['card_thumbnail_path' => $targetPath]);
-        $sermon->update(['thumbnail_metadata' => $updated]);
-
-        Log::info('MoveSermonToPrivateStorage: card thumbnail moved', [
-            'sermon_id' => $this->sermonId,
-            'from' => $path,
-            'to' => $targetPath,
-        ]);
-    }
-
-    private function moveCandidateFilesIfNeeded(Sermon $sermon): void
-    {
-        $metadata = $sermon->thumbnail_metadata;
-
-        if ($metadata === null || $metadata->thumbnailCandidates === []) {
-            return;
-        }
-
-        $candidates = $metadata->thumbnailCandidates;
-        $sourceDisk = config('thumbnail-generation.storage.disk', 'public');
-        $changed = false;
-        $pathKeys = ['plain_path', 'card_path', 'overlay_path'];
-
-        foreach ($candidates as $index => $candidate) {
-            foreach ($pathKeys as $key) {
-                $path = $candidate[$key] ?? null;
-
-                if (! is_string($path) || $path === '' || str_starts_with($path, 'private/')) {
-                    continue;
+            $moveFailures = [...$moveFailures, ...$this->moveCandidateAssets($thumbnailDisk)];
+        } finally {
+            try {
+                $this->deleteScheduledSources();
+            } catch (Throwable $cleanupException) {
+                if ($moveFailures === []) {
+                    throw $cleanupException;
                 }
 
-                $targetPath = 'private/'.$path;
-
-                if (! Storage::disk($sourceDisk)->exists($path)) {
-                    continue;
-                }
-
-                $stream = Storage::disk($sourceDisk)->readStream($path);
-
-                if (! is_resource($stream)) {
-                    continue;
-                }
-
-                Storage::disk('local')->writeStream($targetPath, $stream);
-                Storage::disk($sourceDisk)->delete($path);
-
-                $candidates[$index][$key] = $targetPath;
-                $changed = true;
-
-                Log::info('MoveSermonToPrivateStorage: candidate file moved', [
+                Log::error('MoveSermonToPrivateStorage: cleanup failed after asset move failure', [
                     'sermon_id' => $this->sermonId,
-                    'candidate_id' => $candidate['id'],
-                    'key' => $key,
-                    'from' => $path,
-                    'to' => $targetPath,
+                    'exception' => $cleanupException,
                 ]);
+            } finally {
+                unset(self::$sermonsBeingMoved[$this->sermonId]);
             }
         }
 
-        if ($changed) {
-            $updated = array_merge($metadata->toArray(), ['thumbnail_candidates' => $candidates]);
-            $sermon->update(['thumbnail_metadata' => $updated]);
+        if ($moveFailures === []) {
+            return;
         }
+
+        foreach (array_slice($moveFailures, 1) as $additionalFailure) {
+            Log::error('MoveSermonToPrivateStorage: additional asset move failure', [
+                'sermon_id' => $this->sermonId,
+                'exception' => $additionalFailure,
+            ]);
+        }
+
+        throw $moveFailures[0];
+    }
+
+    public static function isMovingSermon(int $sermonId): bool
+    {
+        return isset(self::$sermonsBeingMoved[$sermonId]);
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        Log::error('MoveSermonToPrivateStorage failed', [
+            'sermon_id' => $this->sermonId,
+            'exception' => $exception,
+        ]);
+    }
+
+    private function moveDirectAsset(string $field, string $sourceDisk): void
+    {
+        $sermon = Sermon::query()->findOrFail($this->sermonId);
+        $path = $sermon->getAttribute($field);
+
+        if (! is_string($path) || $path === '') {
+            return;
+        }
+
+        [$sourcePath, $targetPath] = $this->sourceAndTargetPaths($path);
+
+        if ($path === $sourcePath) {
+            $this->copyAndVerify($sourceDisk, $sourcePath, $targetPath);
+            $this->compareAndSetDirectPath($field, $sourcePath, $targetPath);
+        } else {
+            $this->verifyCommittedTarget($targetPath);
+        }
+
+        $this->scheduleSourceDeletion($sourceDisk, $sourcePath, $targetPath);
+    }
+
+    private function moveMetadataAsset(string $key, string $sourceDisk): void
+    {
+        $metadata = Sermon::query()->findOrFail($this->sermonId)->thumbnail_metadata;
+
+        if (! $metadata instanceof ThumbnailMetadata) {
+            return;
+        }
+
+        $path = match ($key) {
+            'plain_thumbnail_path' => $metadata->plainThumbnailPath,
+            'card_thumbnail_path' => $metadata->cardThumbnailPath,
+            'overlay_thumbnail_path' => $metadata->overlayThumbnailPath,
+            default => null,
+        };
+
+        if (! is_string($path) || $path === '') {
+            return;
+        }
+
+        [$sourcePath, $targetPath] = $this->sourceAndTargetPaths($path);
+
+        if ($path === $sourcePath) {
+            $this->copyAndVerify($sourceDisk, $sourcePath, $targetPath);
+            $this->compareAndSetMetadataPath($key, $sourcePath, $targetPath);
+        } else {
+            $this->verifyCommittedTarget($targetPath);
+        }
+
+        $this->scheduleSourceDeletion($sourceDisk, $sourcePath, $targetPath);
+    }
+
+    /** @return array<int, Throwable> */
+    private function moveCandidateAssets(string $sourceDisk): array
+    {
+        $metadata = Sermon::query()->findOrFail($this->sermonId)->thumbnail_metadata;
+
+        if (! $metadata instanceof ThumbnailMetadata) {
+            return [];
+        }
+
+        $failures = [];
+
+        foreach ($metadata->thumbnailCandidates as $candidate) {
+            $candidateId = $candidate['id'];
+
+            foreach (['plain_path', 'card_path', 'overlay_path'] as $key) {
+                $path = $candidate[$key] ?? null;
+
+                if (! is_string($path) || $path === '') {
+                    continue;
+                }
+
+                try {
+                    $this->moveCandidatePath($candidateId, $key, $path, $sourceDisk);
+                } catch (Throwable $exception) {
+                    $failures[] = $exception;
+                }
+            }
+        }
+
+        return $failures;
+    }
+
+    private function moveCandidatePath(string $candidateId, string $key, string $path, string $sourceDisk): void
+    {
+        [$sourcePath, $targetPath] = $this->sourceAndTargetPaths($path);
+
+        if ($path === $sourcePath) {
+            $this->copyAndVerify($sourceDisk, $sourcePath, $targetPath);
+            $this->compareAndSetCandidatePath($candidateId, $key, $sourcePath, $targetPath);
+        } else {
+            $this->verifyCommittedTarget($targetPath);
+        }
+
+        $this->scheduleSourceDeletion($sourceDisk, $sourcePath, $targetPath);
+    }
+
+    /** @return array{string, string} */
+    private function sourceAndTargetPaths(string $path): array
+    {
+        if (str_starts_with($path, 'private/')) {
+            return [substr($path, strlen('private/')), $path];
+        }
+
+        return [$path, 'private/'.$path];
+    }
+
+    private function copyAndVerify(string $sourceDisk, string $sourcePath, string $targetPath): void
+    {
+        $source = Storage::disk($sourceDisk);
+        $target = Storage::disk('local');
+
+        if (! $source->exists($sourcePath)) {
+            throw new RuntimeException("Private-media source is missing: [{$sourceDisk}] {$sourcePath}");
+        }
+
+        if ($target->exists($targetPath)) {
+            if ($source->size($sourcePath) === $target->size($targetPath)) {
+                return;
+            }
+
+            // A mismatched pre-existing target that another sermon row already
+            // references may be its only private copy — never delete it. An
+            // unreferenced one is a stale partial from an earlier crashed
+            // attempt; replace it so retries can heal instead of failing forever.
+            if ($this->isPathReferenced($targetPath)) {
+                throw new RuntimeException("Private-media target verification failed: {$targetPath}");
+            }
+
+            Log::warning('MoveSermonToPrivateStorage: replacing stale unreferenced target', [
+                'sermon_id' => $this->sermonId,
+                'target' => $targetPath,
+            ]);
+
+            $target->delete($targetPath);
+        }
+
+        $stream = $source->readStream($sourcePath);
+
+        if (! is_resource($stream)) {
+            throw new RuntimeException("Unable to read private-media source: [{$sourceDisk}] {$sourcePath}");
+        }
+
+        try {
+            $written = $target->writeStream($targetPath, $stream);
+        } finally {
+            fclose($stream);
+        }
+
+        if ($written !== true) {
+            $target->delete($targetPath);
+
+            throw new RuntimeException("Unable to write private-media target: {$targetPath}");
+        }
+
+        if (! $target->exists($targetPath) || $source->size($sourcePath) !== $target->size($targetPath)) {
+            $target->delete($targetPath);
+
+            throw new RuntimeException("Private-media target verification failed: {$targetPath}");
+        }
+    }
+
+    private function verifyCommittedTarget(string $targetPath): void
+    {
+        if (! Storage::disk('local')->exists($targetPath)) {
+            throw new RuntimeException("Committed private-media target is missing: {$targetPath}");
+        }
+    }
+
+    private function compareAndSetDirectPath(string $field, string $sourcePath, string $targetPath): void
+    {
+        DB::transaction(function () use ($field, $sourcePath, $targetPath): void {
+            $sermon = Sermon::query()->lockForUpdate()->findOrFail($this->sermonId);
+            $currentPath = $sermon->getAttribute($field);
+
+            if ($currentPath === $targetPath) {
+                return;
+            }
+
+            if ($currentPath !== $sourcePath) {
+                throw new RuntimeException("Private-media path changed concurrently: {$field}");
+            }
+
+            $sermon->update([$field => $targetPath]);
+        });
+    }
+
+    private function compareAndSetMetadataPath(string $key, string $sourcePath, string $targetPath): void
+    {
+        DB::transaction(function () use ($key, $sourcePath, $targetPath): void {
+            $sermon = Sermon::query()->lockForUpdate()->findOrFail($this->sermonId);
+            $metadata = $sermon->thumbnail_metadata;
+
+            if (! $metadata instanceof ThumbnailMetadata) {
+                throw new RuntimeException('Thumbnail metadata changed concurrently.');
+            }
+
+            $data = $metadata->toArray();
+            $currentPath = $data[$key] ?? null;
+
+            if ($currentPath === $targetPath) {
+                return;
+            }
+
+            if ($currentPath !== $sourcePath) {
+                throw new RuntimeException("Thumbnail metadata changed concurrently: {$key}");
+            }
+
+            $data[$key] = $targetPath;
+            $sermon->update(['thumbnail_metadata' => $data]);
+        });
+    }
+
+    private function compareAndSetCandidatePath(
+        string $candidateId,
+        string $key,
+        string $sourcePath,
+        string $targetPath,
+    ): void {
+        DB::transaction(function () use ($candidateId, $key, $sourcePath, $targetPath): void {
+            $sermon = Sermon::query()->lockForUpdate()->findOrFail($this->sermonId);
+            $metadata = $sermon->thumbnail_metadata;
+
+            if (! $metadata instanceof ThumbnailMetadata) {
+                throw new RuntimeException('Thumbnail metadata changed concurrently.');
+            }
+
+            $data = $metadata->toArray();
+            $candidates = $data['thumbnail_candidates'] ?? [];
+
+            foreach ($candidates as $index => $candidate) {
+                if (($candidate['id'] ?? null) !== $candidateId) {
+                    continue;
+                }
+
+                $currentPath = $candidate[$key] ?? null;
+
+                if ($currentPath === $targetPath) {
+                    return;
+                }
+
+                if ($currentPath !== $sourcePath) {
+                    throw new RuntimeException("Thumbnail candidate changed concurrently: {$candidateId}.{$key}");
+                }
+
+                $candidates[$index][$key] = $targetPath;
+                $data['thumbnail_candidates'] = $candidates;
+                $sermon->update(['thumbnail_metadata' => $data]);
+
+                return;
+            }
+
+            throw new RuntimeException("Thumbnail candidate disappeared concurrently: {$candidateId}");
+        });
+    }
+
+    /**
+     * @param  array{disk_paths: array<string, true>, paths: array<string, true>}  $referencedAssets
+     */
+    private function deleteSourceAfterCommit(
+        string $sourceDisk,
+        string $sourcePath,
+        string $targetPath,
+        array $referencedAssets,
+    ): void {
+        $source = Storage::disk($sourceDisk);
+
+        if (! $source->exists($sourcePath)) {
+            return;
+        }
+
+        $target = Storage::disk('local');
+
+        if (! $target->exists($targetPath) || $source->size($sourcePath) !== $target->size($targetPath)) {
+            throw new RuntimeException("Refusing to delete an unverified private-media source: {$sourcePath}");
+        }
+
+        if (isset($referencedAssets['disk_paths'][$sourceDisk.'|'.$sourcePath])) {
+            Log::warning('MoveSermonToPrivateStorage: retained referenced source', [
+                'sermon_id' => $this->sermonId,
+                'disk' => $sourceDisk,
+                'path' => $sourcePath,
+            ]);
+
+            return;
+        }
+
+        if ($source->delete($sourcePath) !== true) {
+            throw new RuntimeException("Unable to delete public private-media source: [{$sourceDisk}] {$sourcePath}");
+        }
+
+        if (Storage::disk($sourceDisk)->exists($sourcePath)) {
+            throw new RuntimeException("Unable to delete public private-media source: [{$sourceDisk}] {$sourcePath}");
+        }
+
+        Log::info('MoveSermonToPrivateStorage: asset moved', [
+            'sermon_id' => $this->sermonId,
+            'disk' => $sourceDisk,
+            'from' => $sourcePath,
+            'to' => $targetPath,
+        ]);
+    }
+
+    private function scheduleSourceDeletion(string $sourceDisk, string $sourcePath, string $targetPath): void
+    {
+        $key = $sourceDisk.'|'.$sourcePath;
+
+        $this->pendingSourceDeletions[$key] = [
+            'disk' => $sourceDisk,
+            'source' => $sourcePath,
+            'target' => $targetPath,
+        ];
+    }
+
+    private function deleteScheduledSources(): void
+    {
+        if ($this->pendingSourceDeletions === []) {
+            return;
+        }
+
+        // All path commits have happened by now, so one snapshot answers every
+        // deletion's "is this source still referenced elsewhere" question.
+        $referencedAssets = $this->referencedAssetIndex();
+
+        foreach ($this->pendingSourceDeletions as $deletion) {
+            $this->deleteSourceAfterCommit(
+                $deletion['disk'],
+                $deletion['source'],
+                $deletion['target'],
+                $referencedAssets,
+            );
+        }
+    }
+
+    private function isPathReferenced(string $path): bool
+    {
+        return isset($this->referencedAssetIndex()['paths'][$path]);
+    }
+
+    /**
+     * Every disk+path pair referenced by any sermon row, plus a disk-agnostic
+     * path set for private-target ownership checks.
+     *
+     * @return array{disk_paths: array<string, true>, paths: array<string, true>}
+     */
+    private function referencedAssetIndex(): array
+    {
+        $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
+        $transcriptDisk = (string) config('media-processing.storage.transcript_disk', $sermonDisk);
+        $thumbnailDisk = (string) config('thumbnail-generation.storage.disk', 'public');
+
+        $index = ['disk_paths' => [], 'paths' => []];
+
+        Sermon::query()
+            ->get(['audio_file_path', 'video_file_path', 'transcript_file_path', 'thumbnail_file_path', 'thumbnail_metadata'])
+            ->each(function (Sermon $sermon) use (&$index, $sermonDisk, $transcriptDisk, $thumbnailDisk): void {
+                $assets = [
+                    [$sermonDisk, $sermon->audio_file_path],
+                    [$sermonDisk, $sermon->video_file_path],
+                    [$transcriptDisk, $sermon->transcript_file_path],
+                    [$thumbnailDisk, $sermon->thumbnail_file_path],
+                    [$thumbnailDisk, $sermon->plain_thumbnail_file_path],
+                    [$thumbnailDisk, $sermon->card_thumbnail_file_path],
+                    [$thumbnailDisk, $sermon->thumbnail_metadata?->overlayThumbnailPath],
+                ];
+
+                foreach ($sermon->thumbnail_candidates as $candidate) {
+                    foreach (['plain_path', 'card_path', 'overlay_path'] as $key) {
+                        $assets[] = [$thumbnailDisk, $candidate[$key] ?? null];
+                    }
+                }
+
+                foreach ($assets as [$disk, $path]) {
+                    if (! is_string($path) || $path === '') {
+                        continue;
+                    }
+
+                    $index['disk_paths'][$disk.'|'.$path] = true;
+                    $index['paths'][$path] = true;
+                }
+            });
+
+        return $index;
     }
 }

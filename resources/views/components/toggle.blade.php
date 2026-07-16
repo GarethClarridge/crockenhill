@@ -28,6 +28,8 @@
                 :aria-checked="$wire['{{ $modelName }}']"
                 @click="$wire['{{ $modelName }}'] = !$wire['{{ $modelName }}']"
                 wire:loading.attr="disabled"
+                wire:loading.attr="aria-disabled"
+                aria-disabled="false"
                 wire:target="{{ $modelName }}"
                 {{ $attributes->merge(['class' => 'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed']) }}
                 :class="$wire['{{ $modelName }}'] ? 'bg-cbc-teal' : 'bg-gray-200'">

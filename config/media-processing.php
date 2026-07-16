@@ -55,6 +55,7 @@ return [
         // TRANSCRIPT_STORAGE_DISK is the canonical key; falls back to sermon disk, then filesystem disk.
         'transcript_disk' => env('TRANSCRIPT_STORAGE_DISK', env('SERMON_STORAGE_DISK', env('FILESYSTEM_DISK', 'local'))),
         'temp_disk' => 'local',
+        'metadata_cache_ttl' => (int) env('SERMON_METADATA_CACHE_TTL', 3600),
         // Shared minimum free-space floor (GB) for the local temp disk — the genuine
         // pipeline bottleneck. The upload validator and the historic importer guard read
         // this single value via TempDiskSpace so they never disagree about how much
@@ -130,8 +131,6 @@ return [
         // Dedicated knob (was the shared OPENAI_MODEL) so sermon analysis can diverge from the
         // lower-stakes email parser; defaults to a reasoning model for better public summaries.
         'model' => env('ANALYSIS_MODEL', 'gpt-5-mini'),
-        'max_retries' => env('ANALYSIS_MAX_RETRIES', 3),
-        'retry_delay_base' => env('ANALYSIS_RETRY_DELAY_BASE', 2),
         'debug_http_responses' => env('OPENAI_DEBUG_HTTP_RESPONSES', false),
     ],
 

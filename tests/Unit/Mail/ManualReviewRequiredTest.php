@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Mail;
 
+use App\Enums\SermonService;
 use App\Mail\ManualReviewRequired;
+use App\Models\ChurchService;
+use App\Models\MediaProcessingLog;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ManualReviewRequiredTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_constructor_stores_all_properties(): void
     {
         $segments = [['start' => 0, 'end' => 300], ['start' => 300, 'end' => 600]];
@@ -73,5 +79,35 @@ class ManualReviewRequiredTest extends TestCase
         $content = $mail->content();
 
         $this->assertEquals(0, $content->with['segmentCount']);
+    }
+
+    public function test_content_links_matched_runs_to_the_dedicated_segment_review(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+        ]);
+        $log = MediaProcessingLog::factory()->livestream()->manualReviewRequired()->create([
+            'processing_id' => 'proc-matched',
+            'extracted_date' => $service->date,
+            'extracted_service' => $service->service,
+        ]);
+
+        $content = (new ManualReviewRequired('proc-matched', 'Review'))->content();
+
+        $this->assertSame(route('admin.recordings.sermon-segment', $log->processing_id), $content->with['reviewUrl']);
+    }
+
+    public function test_content_links_orphan_runs_to_the_dedicated_segment_review(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->manualReviewRequired()->create([
+            'processing_id' => 'proc-orphan',
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => SermonService::Morning,
+        ]);
+
+        $content = (new ManualReviewRequired('proc-orphan', 'Review'))->content();
+
+        $this->assertSame(route('admin.recordings.sermon-segment', $log->processing_id), $content->with['reviewUrl']);
     }
 }

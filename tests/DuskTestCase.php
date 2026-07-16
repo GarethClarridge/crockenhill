@@ -25,16 +25,17 @@ abstract class DuskTestCase extends BaseTestCase
      * from one test can hide data created by the next. Flushing the served
      * app's store here keeps each test isolated from prior runs.
      *
-     * Local dev uses redis; CI uses file. Skip the redis flush when redis
-     * isn't the configured default — otherwise Predis tries to connect to
-     * 127.0.0.1:6379 and the whole suite blows up before any browser work.
+     * Local dev uses redis and CI uses file. Flush only the configured Dusk
+     * store so each environment clears the cache used by its served app.
      */
     protected function setUp(): void
     {
         parent::setUp();
 
-        if (config('cache.default') === 'redis') {
-            Cache::store('redis')->flush();
+        $cacheStore = config('cache.default');
+
+        if (in_array($cacheStore, ['file', 'redis'], true)) {
+            Cache::store($cacheStore)->flush();
         }
     }
 

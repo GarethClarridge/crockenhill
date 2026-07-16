@@ -165,14 +165,6 @@ class ListSermons extends Component
 
         $sermons = $query->paginate(20);
 
-        /**
-         * Performance Optimization: Pre-warm the internal memoization caches of the
-         * presenter before Blade iterates over the collection. This avoids redundant
-         * container lookups and logic when rendering preacher names and scripture
-         * references for each row.
-         */
-        $this->sermonViewPresenter->preWarmForAdminList($sermons->getCollection());
-
         $headers = [
             ['key' => 'title', 'label' => 'Title', 'sortable' => true],
             ['key' => 'date', 'label' => 'Date', 'sortable' => true],

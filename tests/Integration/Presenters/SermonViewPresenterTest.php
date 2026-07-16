@@ -12,6 +12,7 @@ use App\Models\Preacher;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
+use App\Services\Public\SermonRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
@@ -160,6 +161,93 @@ class SermonViewPresenterTest extends TestCase
         $this->assertSame('Transcript body', $presented['transcript']);
         $this->assertStringContainsString('/storage/sermons/test.mp4', $presented['video_url'] ?? '');
         $this->assertSame('PT1H', $presented['duration_iso8601']);
+    }
+
+    #[Test]
+    public function present_for_api_produces_the_expected_key_set(): void
+    {
+        $sermon = Sermon::factory()->create();
+
+        $this->assertSame([
+            'audio_url',
+            'display_reference',
+            'duration_iso8601',
+            'formatted_duration',
+            'human_date',
+            'preacher_image_url',
+            'preacher_name',
+            'preacher_url',
+            'series_url',
+            'thumbnail_url',
+            'video_url',
+        ], array_keys($this->presenter->presentForApi($sermon)));
+    }
+
+    #[Test]
+    public function present_for_list_produces_the_expected_key_set(): void
+    {
+        $sermon = Sermon::factory()->create();
+
+        $this->assertSame([
+            'audio_url',
+            'canonical_url',
+            'card_thumbnail_url',
+            'date_iso',
+            'date_string',
+            'display_reference',
+            'duration_iso8601',
+            'formatted_duration',
+            'has_transcript',
+            'human_date',
+            'plain_thumbnail_url',
+            'preacher_image_url',
+            'preacher_name',
+            'preacher_url',
+            'public_url',
+            'series_url',
+            'service_label',
+            'thumbnail_url',
+            'transcript_url',
+            'video_url',
+        ], array_keys($this->presenter->presentForList($sermon)));
+    }
+
+    #[Test]
+    public function present_adds_transcript_and_outline_to_the_list_shape(): void
+    {
+        $sermon = Sermon::factory()->create();
+
+        $full = $this->presenter->present($sermon);
+        $extraKeys = array_diff(array_keys($full), array_keys($this->presenter->presentForList($sermon)));
+
+        $this->assertSame(['transcript', 'plain_text_outline'], array_values($extraKeys));
+    }
+
+    #[Test]
+    public function presenting_a_24_sermon_archive_collection_executes_no_additional_queries(): void
+    {
+        $preacher = Preacher::factory()->create();
+        $passage = ScripturePassage::factory()->create();
+
+        Sermon::factory()->count(24)->create([
+            'preacher_id' => $preacher->id,
+            'scripture_passage_id' => $passage->id,
+        ]);
+
+        $sermons = app(SermonRepository::class)
+            ->publicBrowseQuery()
+            ->limit(24)
+            ->get();
+
+        $queryCount = 0;
+        DB::listen(function () use (&$queryCount): void {
+            $queryCount++;
+        });
+
+        $presented = $this->presenter->presentCollection($sermons);
+
+        $this->assertCount(24, $presented);
+        $this->assertSame(0, $queryCount);
     }
 
     #[Test]
@@ -315,7 +403,7 @@ class SermonViewPresenterTest extends TestCase
         $this->assertSame(route('sermons.video', ['sermon' => $sermon->slug]), $presented['video_url']);
         $this->assertSame(route('sermons.thumbnail', ['sermon' => $sermon->slug]), $presented['thumbnail_url']);
         $this->assertSame(route('sermons.thumbnail.card', ['sermon' => $sermon->slug]), $presented['card_thumbnail_url']);
-        $this->assertSame(route('sermons.thumbnail', ['sermon' => $sermon->slug]), $this->presenter->plainThumbnailUrl($sermon));
+        $this->assertSame(route('sermons.thumbnail.plain', ['sermon' => $sermon->slug]), $this->presenter->plainThumbnailUrl($sermon));
     }
 
     #[Test]
@@ -594,7 +682,6 @@ class SermonViewPresenterTest extends TestCase
         $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id]);
         DB::table('sermons')->where('id', $sermon->id)->update(['preacher' => 'Legacy Name']);
 
-        $this->presenter->clearInternalCaches();
         $first = $this->presenter->displayPreacherName($sermon->fresh());
         $this->assertSame('Legacy Name', $first);
 
@@ -606,7 +693,7 @@ class SermonViewPresenterTest extends TestCase
     }
 
     #[Test]
-    public function preacher_image_url_prefers_loaded_relation_over_cached_unloaded_null(): void
+    public function preacher_image_url_prefers_loaded_relation_over_unloaded_null(): void
     {
         $preacher = Preacher::factory()->create([
             'name' => 'Pastor Jane',
@@ -614,7 +701,6 @@ class SermonViewPresenterTest extends TestCase
         ]);
         $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id]);
 
-        $this->presenter->clearInternalCaches();
         $this->assertNull($this->presenter->preacherImageUrl($sermon->fresh()));
 
         $loaded = $sermon->fresh();
@@ -639,7 +725,6 @@ class SermonViewPresenterTest extends TestCase
         ]);
         DB::table('sermons')->where('id', $sermon->id)->update(['reference' => 'Romans']);
 
-        $this->presenter->clearInternalCaches();
         $first = $this->presenter->displayReference($sermon->fresh());
         $this->assertSame('Romans', $first);
 
@@ -658,7 +743,6 @@ class SermonViewPresenterTest extends TestCase
         $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id]);
 
         // Without relation: no way to determine the image URL, so returns null
-        $this->presenter->clearInternalCaches();
         $first = $this->presenter->preacherImageUrl($sermon->fresh());
         $this->assertNull($first);
 
@@ -669,71 +753,5 @@ class SermonViewPresenterTest extends TestCase
 
         $this->assertNotNull($second);
         $this->assertStringContainsString('jane.jpg', $second);
-    }
-
-    #[Test]
-    public function clear_internal_caches_causes_recomputation_on_next_call(): void
-    {
-        // Use a sermon with a known duration so the null-caching path is exercised
-        $sermon = Sermon::factory()->create([
-            'duration' => null,
-            'reference' => 'Romans 8:28',
-            'audio_file_path' => null,
-        ]);
-
-        // Prime all caches — null is a valid cached result here
-        $this->assertNull($this->presenter->formattedDuration($sermon));
-        $this->assertNull($this->presenter->durationIso8601($sermon));
-        $this->assertNull($this->presenter->audioUrl($sermon));
-        $this->assertSame('Romans 8:28', $this->presenter->displayReference($sermon));
-
-        // Now mutate the model directly (bypassing cache) and clear caches
-        $sermon->duration = 3600; // 1 hour
-        $sermon->reference = 'John 3:16';
-
-        $this->presenter->clearInternalCaches();
-
-        // Re-computation must reflect the mutated values, not the old cached nulls
-        $this->assertSame('1h 0m', $this->presenter->formattedDuration($sermon));
-        $this->assertSame('PT1H', $this->presenter->durationIso8601($sermon));
-        $this->assertSame('John 3:16', $this->presenter->displayReference($sermon));
-    }
-
-    #[Test]
-    public function pre_warm_for_admin_list_populates_caches_behaviorally(): void
-    {
-        $preacher = Preacher::factory()->create(['name' => 'Original Name']);
-        $passage = ScripturePassage::factory()->create(['display_reference' => 'Original Ref']);
-
-        $sermon = Sermon::factory()->create([
-            'preacher_id' => $preacher->id,
-            'scripture_passage_id' => $passage->id,
-            'date' => now()->toDateString(),
-            'service' => SermonService::Morning,
-        ]);
-        $sermon->load(['preacherProfile', 'scripturePassage']);
-
-        // 1. Pre-warm the presenter with the sermon collection
-        $this->presenter->preWarmForAdminList(collect([$sermon]));
-
-        // 2. Mutate related data in memory. If the presenter cached these during
-        // pre-warm, it will NOT consult the profile/passage relations again.
-        $sermon->preacherProfile->name = 'New Name';
-        $sermon->scripturePassage->display_reference = 'New Ref';
-
-        // 3. Subsequent calls must hit the cache and return the original (pre-warmed) values.
-        // This confirms pre-warm did its job without inspecting private properties.
-        $this->assertSame('Original Name', $this->presenter->displayPreacherName($sermon));
-        $this->assertSame('Original Ref', $this->presenter->displayReference($sermon));
-
-        // These don't depend on external mutable state, but we check them to ensure
-        // pre-warm didn't break basic presentation.
-        $this->assertSame('March 15, 2025', $this->presenter->formattedDates($sermon)['human']);
-        $this->assertSame('Morning', $this->presenter->serviceLabel($sermon));
-
-        // 4. Clear caches and verify it now picks up the mutated values.
-        $this->presenter->clearInternalCaches();
-        $this->assertSame('New Name', $this->presenter->displayPreacherName($sermon));
-        $this->assertSame('New Ref', $this->presenter->displayReference($sermon));
     }
 }

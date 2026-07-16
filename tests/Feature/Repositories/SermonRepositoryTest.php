@@ -10,10 +10,8 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
 use App\Services\Public\SermonRepository;
-use App\Support\BibleCanon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
-use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -33,65 +31,6 @@ class SermonRepositoryTest extends TestCase
 
         $this->repository = app(SermonRepository::class);
         Cache::flush();
-        $this->repository->clearInternalCaches();
-    }
-
-    // ── Archive Filter Normalization ─────────────────────────────────────────
-
-    #[Test]
-    public function it_normalizes_archive_filters_with_valid_data(): void
-    {
-        $bibleCanon = Mockery::mock(BibleCanon::class);
-        $bibleCanon->shouldReceive('hasBook')->with('John')->andReturn(true);
-        $bibleCanon->shouldReceive('chaptersInBook')->with('John')->andReturn(21);
-
-        $result = $this->repository->normalizeArchiveFilters(
-            $bibleCanon,
-            '  John  ',
-            3,
-            123,
-            '  Series Name  '
-        );
-
-        $this->assertEquals([
-            'book' => 'John',
-            'chapter' => 3,
-            'preacherId' => 123,
-            'series' => 'Series Name',
-        ], $result);
-    }
-
-    #[Test]
-    public function it_nullifies_invalid_book_and_corresponding_chapter(): void
-    {
-        $bibleCanon = Mockery::mock(BibleCanon::class);
-        $bibleCanon->shouldReceive('hasBook')->with('InvalidBook')->andReturn(false);
-
-        $result = $this->repository->normalizeArchiveFilters(
-            $bibleCanon,
-            'InvalidBook',
-            1,
-            null,
-            null
-        );
-
-        $this->assertNull($result['book']);
-        $this->assertNull($result['chapter']);
-    }
-
-    #[Test]
-    public function it_nullifies_out_of_range_chapter(): void
-    {
-        $bibleCanon = Mockery::mock(BibleCanon::class);
-        $bibleCanon->shouldReceive('hasBook')->with('John')->andReturn(true);
-        $bibleCanon->shouldReceive('chaptersInBook')->with('John')->andReturn(21);
-
-        $result = $this->repository->normalizeArchiveFilters($bibleCanon, 'John', 22, null, null);
-        $this->assertSame('John', $result['book']);
-        $this->assertNull($result['chapter']);
-
-        $result = $this->repository->normalizeArchiveFilters($bibleCanon, 'John', 0, null, null);
-        $this->assertNull($result['chapter']);
     }
 
     // ── Series Retrieval ─────────────────────────────────────────────────────
@@ -207,77 +146,6 @@ class SermonRepositoryTest extends TestCase
         $this->assertEquals(SermonService::Morning, $result->first()->service);
     }
 
-    #[Test]
-    public function it_can_find_a_sermon_by_date_service_and_content_type(): void
-    {
-        $date = '2024-03-15';
-        $sermon = Sermon::factory()->create([
-            'date' => $date,
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
-            'reference' => null,
-        ]);
-
-        $childrensTalk = Sermon::factory()->create([
-            'date' => $date,
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::ChildrensTalk,
-            'reference' => null,
-        ]);
-
-        $foundSermon = $this->repository->findByDateAndServiceAndContentType(
-            $date,
-            SermonService::Morning,
-            SermonContentType::Sermon
-        );
-
-        $foundTalk = $this->repository->findByDateAndServiceAndContentType(
-            $date,
-            SermonService::Morning,
-            SermonContentType::ChildrensTalk
-        );
-
-        $this->assertEquals($sermon->id, $foundSermon->id);
-        $this->assertEquals($childrensTalk->id, $foundTalk->id);
-
-        $this->assertNull($this->repository->findByDateAndServiceAndContentType(
-            $date,
-            SermonService::Evening,
-            SermonContentType::Sermon
-        ));
-
-        $this->assertNull($this->repository->findByDateAndServiceAndContentType(
-            '2024-03-16',
-            SermonService::Morning,
-            SermonContentType::Sermon
-        ));
-    }
-
-    // ── Slug Generation ──────────────────────────────────────────────────────
-
-    #[Test]
-    public function it_generates_unique_slugs(): void
-    {
-        Sermon::factory()->create(['slug' => 'test-sermon', 'reference' => null]);
-
-        $slug = $this->repository->generateUniqueSlug('Test Sermon');
-        $this->assertSame('test-sermon-1', $slug);
-
-        Sermon::factory()->create(['slug' => 'test-sermon-1', 'reference' => null]);
-        $slug = $this->repository->generateUniqueSlug('Test Sermon');
-        $this->assertSame('test-sermon-2', $slug);
-    }
-
-    #[Test]
-    public function it_excludes_current_sermon_from_slug_uniqueness(): void
-    {
-        $sermon = Sermon::factory()->create(['slug' => 'test-sermon', 'reference' => null]);
-
-        $slug = $this->repository->generateUniqueSlug('Test Sermon', $sermon->id);
-
-        $this->assertEquals('test-sermon', $slug);
-    }
-
     // ── Scripture Metadata Retrieval ─────────────────────────────────────────
 
     #[Test]
@@ -348,40 +216,6 @@ class SermonRepositoryTest extends TestCase
     // ── Caching & Invalidation ───────────────────────────────────────────────
 
     #[Test]
-    public function it_memoizes_series_sermons_at_the_request_level(): void
-    {
-        Sermon::factory()->create(['series' => 'Study in Romans', 'reference' => null]);
-
-        $first = $this->repository->getSermonsBySeries('Study in Romans');
-        $second = $this->repository->getSermonsBySeries('Study in Romans');
-
-        $this->assertSame($first, $second, 'Successive calls must return the same collection instance (memoized)');
-    }
-
-    #[Test]
-    public function it_memoizes_service_sermons_at_the_request_level(): void
-    {
-        Sermon::factory()->create(['service' => SermonService::Morning, 'reference' => null]);
-
-        $first = $this->repository->getSermonsByService(SermonService::Morning);
-        $second = $this->repository->getSermonsByService(SermonService::Morning);
-
-        $this->assertSame($first, $second, 'Successive calls must return the same collection instance (memoized)');
-    }
-
-    #[Test]
-    public function it_memoizes_preacher_sermons_at_the_request_level(): void
-    {
-        $preacher = Preacher::factory()->create();
-        Sermon::factory()->create(['preacher_id' => $preacher->id, 'reference' => null]);
-
-        $first = $this->repository->getSermonsByPreacher($preacher);
-        $second = $this->repository->getSermonsByPreacher($preacher);
-
-        $this->assertSame($first, $second, 'Successive calls must return the same collection instance (memoized)');
-    }
-
-    #[Test]
     public function it_caches_preacher_sermon_listing(): void
     {
         $preacher = Preacher::factory()->create();
@@ -395,96 +229,6 @@ class SermonRepositoryTest extends TestCase
         $cached = $this->repository->getSermonsByPreacher($preacher);
         $this->assertEquals($first->first()->title, $cached->first()->title, 'Cache should serve the stale result before invalidation');
         $this->assertNotEquals('Updated Title', $cached->first()->title);
-    }
-
-    #[Test]
-    public function it_invalidates_caches_when_sermon_is_modified(): void
-    {
-        $preacher = Preacher::factory()->create();
-        $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id, 'title' => 'Before Clear', 'reference' => null]);
-
-        $this->repository->getSermonsByPreacher($preacher);
-
-        // Bypass observers so only explicit clearListingCaches() drives the invalidation.
-        Sermon::query()->where('id', $sermon->id)->update(['title' => 'After Clear']);
-
-        $this->repository->clearListingCaches($sermon);
-
-        $fresh = $this->repository->getSermonsByPreacher($preacher);
-        $this->assertEquals('After Clear', $fresh->first()->title, 'Cache should return fresh data after clearListingCaches()');
-    }
-
-    #[Test]
-    public function it_invalidates_service_cache_when_sermon_service_changes(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'service' => SermonService::Morning,
-            'title' => 'Original Morning Sermon',
-            'reference' => null,
-        ]);
-
-        $this->repository->getSermonsByService(SermonService::Morning);
-
-        // Change service and title directly in DB
-        Sermon::query()->where('id', $sermon->id)->update([
-            'service' => SermonService::Evening,
-            'title' => 'Moved to Evening',
-        ]);
-
-        // Manually trigger invalidation as if via observer
-        $this->repository->clearListingCaches($sermon);
-
-        $morningSermons = $this->repository->getSermonsByService(SermonService::Morning);
-        $eveningSermons = $this->repository->getSermonsByService(SermonService::Evening);
-
-        $this->assertEmpty($morningSermons);
-        $this->assertCount(1, $eveningSermons);
-        $this->assertEquals('Moved to Evening', $eveningSermons->first()->title);
-    }
-
-    #[Test]
-    public function it_invalidates_series_cache_when_sermon_series_changes(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'series' => 'Old Series',
-            'title' => 'Sermon 1',
-            'reference' => null,
-        ]);
-
-        $this->repository->getSermonsBySeries('Old Series');
-
-        // Change series directly in DB
-        Sermon::query()->where('id', $sermon->id)->update([
-            'series' => 'New Series',
-        ]);
-
-        // Manually trigger invalidation
-        $this->repository->clearListingCaches($sermon);
-
-        $oldSeriesSermons = $this->repository->getSermonsBySeries('Old Series');
-        $newSeriesSermons = $this->repository->getSermonsBySeries('New Series');
-
-        $this->assertEmpty($oldSeriesSermons);
-        $this->assertCount(1, $newSeriesSermons);
-    }
-
-    #[Test]
-    public function it_nullifies_whitespace_only_book_in_archive_filters(): void
-    {
-        $bibleCanon = Mockery::mock(BibleCanon::class);
-        // Whitespace-only book is normalised to null before hasBook is ever called.
-        $bibleCanon->shouldNotReceive('hasBook');
-
-        $result = $this->repository->normalizeArchiveFilters(
-            $bibleCanon,
-            '   ',
-            null,
-            null,
-            '   '
-        );
-
-        $this->assertNull($result['book']);
-        $this->assertNull($result['series']);
     }
 
     #[Test]

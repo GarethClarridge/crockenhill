@@ -34,6 +34,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Guard tracked skill symlinks
+        run: ./scripts/check-skill-symlinks.sh
+
       - name: Guard bootstrap middleware safety
         run: ./scripts/check-bootstrap-safety.sh
 
@@ -89,6 +92,7 @@ jobs:
           {
             echo "### Master Validation"
             echo ""
+            echo "- Skill-symlink guard"
             echo "- Bootstrap safety guard"
             echo "- Deploy view-cache safety guard"
             echo "- Frontend build"

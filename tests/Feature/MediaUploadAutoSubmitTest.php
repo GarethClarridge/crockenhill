@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Livewire\MediaUpload;
+use App\Enums\UploadState;
+use App\Livewire\Admin\MediaUpload;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -42,9 +43,7 @@ class MediaUploadAutoSubmitTest extends TestCase
         $this->actingAs($this->user);
 
         Livewire::test(MediaUpload::class)
-            ->assertSet('status', 'idle')
-            ->assertSet('isUploading', false)
-            ->assertSet('uploadCancelled', false)
+            ->assertSet('status', UploadState::Idle)
             ->assertSet('uploadProgress', 0);
     }
 
@@ -55,20 +54,19 @@ class MediaUploadAutoSubmitTest extends TestCase
 
         Livewire::test(MediaUpload::class)
             ->set('mediaType', 'audio')
-            ->set('isUploading', true)
+            ->set('status', UploadState::Uploading)
             ->call('updateUploadProgress', 50)
             ->assertSet('uploadProgress', 50);
     }
 
     #[Test]
-    public function it_ignores_progress_updates_when_upload_is_cancelled(): void
+    public function it_ignores_progress_updates_when_upload_is_not_active(): void
     {
         $this->actingAs($this->user);
 
         Livewire::test(MediaUpload::class)
             ->set('mediaType', 'audio')
-            ->set('isUploading', true)
-            ->set('uploadCancelled', true)
+            ->set('status', UploadState::Processing)
             ->call('updateUploadProgress', 50)
             ->assertSet('uploadProgress', 0);
     }
@@ -80,16 +78,13 @@ class MediaUploadAutoSubmitTest extends TestCase
 
         Livewire::test(MediaUpload::class)
             ->set('mediaType', 'audio')
-            ->set('isUploading', true)
-            ->set('status', 'uploading')
+            ->set('status', UploadState::Uploading)
             ->set('uploadProgress', 50)
             ->call('cancelUpload')
-            ->assertSet('isUploading', false)
-            ->assertSet('uploadCancelled', true)
-            ->assertSet('status', 'idle')
+            ->assertSet('status', UploadState::Idle)
             ->assertSet('uploadProgress', 0)
             ->assertSet('mediaFile', null)
-            ->assertSet('errorMessage', null);
+            ->assertSet('statusMessageOverride', null);
     }
 
     #[Test]
@@ -99,23 +94,22 @@ class MediaUploadAutoSubmitTest extends TestCase
 
         Livewire::test(MediaUpload::class)
             ->set('mediaType', 'audio')
-            ->set('isUploading', false)
+            ->set('status', UploadState::Idle)
             ->call('cancelUpload')
-            ->assertSet('isUploading', false)
-            ->assertSet('uploadCancelled', false);
+            ->assertSet('status', UploadState::Idle);
     }
 
     #[Test]
-    public function it_prevents_upload_complete_when_cancelled(): void
+    public function it_prevents_upload_complete_when_terminal(): void
     {
         $this->actingAs($this->user);
 
         Livewire::test(MediaUpload::class)
             ->set('mediaType', 'audio')
-            ->set('uploadCancelled', true)
+            ->set('status', UploadState::Failed)
             ->set('mediaFile', null) // No file, so uploadComplete will exit early
             ->call('uploadComplete')
-            ->assertSet('showProcessingStatus', false); // Should not start processing
+            ->assertSet('status', UploadState::Failed); // Should not start processing
     }
 
     #[Test]
@@ -125,11 +119,10 @@ class MediaUploadAutoSubmitTest extends TestCase
 
         Livewire::test(MediaUpload::class)
             ->set('mediaType', 'audio')
-            ->set('isUploading', true)
             ->set('mediaFile', null)
             ->call('uploadComplete')
-            ->assertSet('status', 'failed')
-            ->assertSet('errorMessage', 'File upload completed but file is missing');
+            ->assertSet('status', UploadState::Failed)
+            ->assertSee('File upload completed but file is missing');
     }
 
     #[Test]
@@ -139,17 +132,15 @@ class MediaUploadAutoSubmitTest extends TestCase
 
         Livewire::test(MediaUpload::class)
             ->set('mediaType', 'audio')
-            ->set('isUploading', true)
+            ->set('status', UploadState::Uploading)
             ->set('uploadProgress', 75)
             ->set('tempFilePath', 'temp/livewire-upload/test.mp3')
             ->call('retryUpload')
-            ->assertSet('isUploading', false)
-            ->assertSet('uploadCancelled', false)
+            ->assertSet('status', UploadState::Idle)
             ->assertSet('uploadProgress', 0)
             ->assertSet('tempFilePath', null)
             ->assertSet('mediaFile', null)
-            ->assertSet('showUploadForm', true)
-            ->assertSet('showProcessingStatus', false);
+            ->assertSet('statusMessageOverride', null);
     }
 
     #[Test]
@@ -183,7 +174,7 @@ class MediaUploadAutoSubmitTest extends TestCase
 
         Livewire::test(MediaUpload::class)
             ->set('mediaType', 'livestream')
-            ->set('isUploading', true)
+            ->set('status', UploadState::Uploading)
             ->call('updateUploadProgress', 75)
             ->assertSet('uploadProgress', 75);
     }

@@ -7,7 +7,6 @@ namespace Tests\Unit\Providers;
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Services\Preacher\NullSpeakerIdentificationService;
 use App\Services\Preacher\ResemblyzerSpeakerIdentificationService;
-use App\Services\Processing\ProcessingLogService;
 use App\Services\Processing\UnifiedMediaProcessor;
 use App\Services\Sermon\LivestreamSegmentationService;
 use Illuminate\Support\Facades\Config;
@@ -26,12 +25,6 @@ class MediaProcessingServiceProviderTest extends TestCase
     public function it_resolves_livestream_segmentation_service_from_the_container(): void
     {
         $this->assertInstanceOf(LivestreamSegmentationService::class, app(LivestreamSegmentationService::class));
-    }
-
-    #[Test]
-    public function it_resolves_processing_log_service_from_the_container(): void
-    {
-        $this->assertInstanceOf(ProcessingLogService::class, app(ProcessingLogService::class));
     }
 
     #[Test]

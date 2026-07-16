@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ServiceSectionCandidateMediaController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ChildrensCornerController;
+use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\PageController;
@@ -20,12 +21,12 @@ use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
 use App\Livewire\Admin\ChurchServices\ListSongs;
 use App\Livewire\Admin\ChurchServices\ManageChurchService;
-use App\Livewire\Admin\ChurchServices\ProcessingReview;
 use App\Livewire\Admin\ChurchServices\ReviewInbox;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\ChurchServices\ShowSong;
 use App\Livewire\Admin\ChurchServices\SubmitEmailText;
 use App\Livewire\Admin\ChurchServices\UploadChurchService;
+use App\Livewire\Admin\MediaUpload;
 use App\Livewire\Admin\Meetings\CreateMeeting;
 use App\Livewire\Admin\Meetings\EditMeeting;
 use App\Livewire\Admin\Meetings\ListMeetings;
@@ -37,10 +38,11 @@ use App\Livewire\Admin\Preachers\EditPreacher;
 use App\Livewire\Admin\Preachers\ListPreachers;
 use App\Livewire\Admin\Sermons\EditSermon;
 use App\Livewire\Admin\Sermons\ListSermons;
+use App\Livewire\Admin\SermonSegmentReview;
 use App\Livewire\Admin\Users\CreateUser;
 use App\Livewire\Admin\Users\EditUser;
 use App\Livewire\Admin\Users\ListUsers;
-use App\Livewire\MediaUpload;
+use App\Models\MediaProcessingLog;
 use Illuminate\Support\Facades\Route;
 use Spatie\Health\Http\Controllers\HealthCheckResultsController;
 
@@ -55,7 +57,7 @@ use Spatie\Health\Http\Controllers\HealthCheckResultsController;
 |
 */
 
-Route::view('/', 'full-width-pages.home')->name('home');
+Route::get('/', [LandingPageController::class, 'home'])->name('home');
 
 // Special pages route
 Route::view('/christmas', 'full-width-pages.christmas')->name('pages.christmas');
@@ -64,8 +66,8 @@ Route::view('/christmas', 'full-width-pages.christmas')->name('pages.christmas')
 Route::view('/christ', 'full-width-pages.christ')->name('pages.christ');
 Route::get('/christ/childrens-corner', [ChildrensCornerController::class, 'index'])->middleware('childrens-corner.access')->name('childrens-corner.index');
 Route::get('/christ/childrens-corner/{sermon:slug}', [ChildrensCornerController::class, 'show'])->middleware('childrens-corner.access')->name('childrens-corner.show');
-Route::view('/church', 'full-width-pages.church')->name('pages.church');
-Route::view('/community', 'full-width-pages.community')->name('pages.community');
+Route::get('/church', [LandingPageController::class, 'church'])->name('pages.church');
+Route::get('/community', [LandingPageController::class, 'community'])->name('pages.community');
 
 // High priority redirect that needs to be processed early
 Route::permanentRedirect('whats-on/buzz-club', '/community/buzz-club');
@@ -119,6 +121,10 @@ Route::group(['prefix' => 'christ/sermons'], function () {
     Route::get('/{sermon:slug}/thumbnail', [SermonAssetController::class, 'serveThumbnail'])
         ->middleware('throttle:media-thumbnail')
         ->name('sermons.thumbnail');
+
+    Route::get('/{sermon:slug}/thumbnail/plain', [SermonAssetController::class, 'servePlainThumbnail'])
+        ->middleware('throttle:media-thumbnail')
+        ->name('sermons.thumbnail.plain');
 
     Route::get('/{sermon:slug}/thumbnail/card', [SermonAssetController::class, 'serveCardThumbnail'])
         ->middleware('throttle:media-thumbnail')
@@ -194,6 +200,8 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/services/create', ManageChurchService::class)->name('services.create');
     Route::get('/services/upload', UploadChurchService::class)->name('services.upload');
     Route::get('/services/upload-recording', MediaUpload::class)->name('services.upload-recording');
+    Route::get('/recordings/{processingLog:processing_id}/sermon-segment', SermonSegmentReview::class)
+        ->name('recordings.sermon-segment');
     Route::get('/services/submit-email', SubmitEmailText::class)->name('services.submit-email');
     // Retired queue pages (P3.4/P5): triage moved to the review inbox, editing
     // to the service workbench. URLs 302 so bookmarks keep working.
@@ -201,13 +209,15 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::redirect('/services/inbound-emails', '/admin/services/inbox?filter=emails')->name('services.inbound-emails');
     Route::redirect('/services/section-publications', '/admin/services/inbox?filter=sections')->name('services.section-publications');
     Route::redirect('/services/processing/review', '/admin/services/inbox?filter=segments')->name('services.processing.review.index');
+    Route::get('/services/processing/{processingLog}/review', function (MediaProcessingLog $processingLog) {
+        return redirect()->route('admin.recordings.sermon-segment', $processingLog->processing_id);
+    })->name('services.processing.review');
     Route::get('/services/songs', ListSongs::class)->name('services.songs.index');
     Route::get('/services/songs/{song}', ShowSong::class)->name('services.songs.show');
     Route::get('/services/section-publications/{serviceSection}/preview/audio', [ServiceSectionCandidateMediaController::class, 'serveAudio'])
         ->name('services.section-publications.preview-audio');
     Route::get('/services/section-publications/{serviceSection}/preview/video', [ServiceSectionCandidateMediaController::class, 'serveVideo'])
         ->name('services.section-publications.preview-video');
-    Route::get('/services/processing/{processingLog}/review', ProcessingReview::class)->name('services.processing.review');
     Route::get('/services/{churchService}/edit', ManageChurchService::class)->name('services.edit');
     Route::get('/services/{churchService}', ShowChurchService::class)->name('services.show');
 

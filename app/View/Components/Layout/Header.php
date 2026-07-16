@@ -23,14 +23,18 @@ class Header extends Component
 
     public bool $canAccessChildrensCorner;
 
+    /**
+     * The nav_pages fetch is the one sanctioned shell-component exception to the props convention.
+     */
     public function __construct(SermonExposurePolicy $exposurePolicy)
     {
         /** @var ?User $user */
         $user = Auth::user();
 
         $this->user = $user;
-        $this->pages = Cache::rememberForever(
+        $this->pages = Cache::flexible(
             'nav_pages',
+            [300, 86400],
             fn (): Collection => Page::query()->isNavigation()
                 ->public()
                 ->select(['id', 'slug', 'heading', 'area'])

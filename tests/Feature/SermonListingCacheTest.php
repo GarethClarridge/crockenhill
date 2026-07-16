@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Sermon;
-use App\Services\Public\SermonRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -20,6 +20,7 @@ class SermonListingCacheTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Cache::flush();
         DB::enableQueryLog();
     }
 
@@ -37,7 +38,6 @@ class SermonListingCacheTest extends TestCase
 
         $this->get($url)->assertOk();
 
-        app(SermonRepository::class)->clearInternalCaches();
         DB::flushQueryLog();
 
         $this->get($url)->assertOk();
@@ -56,7 +56,6 @@ class SermonListingCacheTest extends TestCase
 
         $this->get($url)->assertOk();
 
-        app(SermonRepository::class)->clearInternalCaches();
         DB::flushQueryLog();
 
         $this->get($url)->assertOk();
@@ -65,45 +64,5 @@ class SermonListingCacheTest extends TestCase
             ->filter(fn ($query) => str_contains((string) $query['query'], 'sermons'));
 
         $this->assertCount(0, $sermonQueries, 'Sermons should be retrieved from cache, not database');
-    }
-
-    #[Test]
-    public function series_cache_is_invalidated_when_sermon_in_series_is_updated(): void
-    {
-        $sermon = Sermon::factory()->create(['series' => 'Genesis']);
-        $url = '/christ/sermons/series/genesis';
-
-        $this->get($url)->assertOk();
-
-        $sermon->update(['title' => 'Updated Genesis Sermon']);
-
-        DB::flushQueryLog();
-
-        $this->get($url)->assertOk();
-
-        $sermonQueries = collect(DB::getQueryLog())
-            ->filter(fn ($query) => str_contains((string) $query['query'], 'sermons'));
-
-        $this->assertNotEmpty($sermonQueries, 'Sermon cache should have been invalidated');
-    }
-
-    #[Test]
-    public function service_cache_is_invalidated_when_sermon_in_service_is_deleted(): void
-    {
-        $sermon = Sermon::factory()->create(['service' => 'morning']);
-        $url = '/christ/sermons/morning';
-
-        $this->get($url)->assertOk();
-
-        $sermon->delete();
-
-        DB::flushQueryLog();
-
-        $this->get($url)->assertOk();
-
-        $sermonQueries = collect(DB::getQueryLog())
-            ->filter(fn ($query) => str_contains((string) $query['query'], 'sermons'));
-
-        $this->assertNotEmpty($sermonQueries, 'Sermon cache should have been invalidated');
     }
 }

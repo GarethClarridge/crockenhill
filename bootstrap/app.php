@@ -27,8 +27,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withSchedule(function (Schedule $schedule) {
         // graceTimeInMinutes mirrors each task's withoutOverlapping lock window:
         // the runtime a task is allowed before ScheduledTasksCheck reports it
-        // overdue. Tasks without one accept the 5-minute default from
-        // config/schedule-monitor.php.
+        // overdue. Tasks without one accept schedule-monitor's 5-minute
+        // package default.
         $schedule->command('calendar:sync')
             ->cron('0 */4 * * *')
             ->environments(['production']);

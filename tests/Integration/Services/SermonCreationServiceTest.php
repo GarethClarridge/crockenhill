@@ -11,14 +11,15 @@ use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\TitleGenerationStrategy;
 use App\Exceptions\SermonRichnessDowngradeException;
+use App\Jobs\MoveSermonToPrivateStorage;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Services\Preacher\PreacherResolutionService;
-use App\Services\Public\SermonRepository;
 use App\Services\Sermon\SermonCreationService;
 use App\Services\Sermon\SermonFilenameParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -31,9 +32,9 @@ class SermonCreationServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Queue::fake([MoveSermonToPrivateStorage::class]);
         $this->service = new SermonCreationService(
             new PreacherResolutionService,
-            app(SermonRepository::class),
             new SermonFilenameParser,
         );
     }
@@ -425,6 +426,31 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('Matthew 6:5-15', $sermon->reference);
         $this->assertEquals(SermonSourceType::AudioUpload, $sermon->source_type);
         $this->assertNotNull($sermon->points);
+    }
+
+    #[Test]
+    public function it_generates_a_unique_slug_when_creating_a_sermon(): void
+    {
+        Sermon::factory()->create(['slug' => 'shared-title']);
+        Sermon::factory()->create(['slug' => 'shared-title-1']);
+
+        $log = MediaProcessingLog::factory()->audio()->create([
+            'extracted_date' => '2024-07-14',
+            'extracted_service' => SermonService::Morning,
+        ]);
+        $options = new SermonCreationOptions(
+            audioFilePath: 'audio/shared-title.mp3',
+            originalFilename: 'shared-title.mp3',
+            sourceType: SermonSourceType::AudioUpload,
+            titleStrategy: TitleGenerationStrategy::Custom,
+            customTitle: 'Shared Title',
+            service: SermonService::Morning,
+            date: '2024-07-14',
+        );
+
+        $sermon = $this->service->createSermon($log, $options);
+
+        $this->assertSame('shared-title-2', $sermon->slug);
     }
 
     #[Test]
