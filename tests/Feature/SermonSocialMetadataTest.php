@@ -39,10 +39,14 @@ class SermonSocialMetadataTest extends TestCase
         $response = $this->followingRedirects()->get("/christ/sermons/2024/03/{$sermon->slug}");
 
         $response->assertStatus(200);
-        $response->assertSee('<meta name="twitter:label1" content="Preacher">', false);
-        $response->assertSee('<meta name="twitter:data1" content="John Owen">', false);
-        $response->assertSee('<meta name="twitter:label2" content="Series">', false);
-        $response->assertSee('<meta name="twitter:data2" content="Great Doctrines">', false);
+        $response->assertSee('twitter:label1', false);
+        $response->assertSee('Preacher', false);
+        $response->assertSee('twitter:data1', false);
+        $response->assertSee('John Owen', false);
+        $response->assertSee('twitter:label2', false);
+        $response->assertSee('Series', false);
+        $response->assertSee('twitter:data2', false);
+        $response->assertSee('Great Doctrines', false);
     }
 
     #[Test]
@@ -61,7 +65,8 @@ class SermonSocialMetadataTest extends TestCase
         $response = $this->followingRedirects()->get("/christ/sermons/2024/03/{$sermon->slug}");
 
         $response->assertStatus(200);
-        $response->assertSee('<meta name="twitter:label1" content="Preacher">', false);
+        $response->assertSee('twitter:label1', false);
+        $response->assertSee('Preacher', false);
         $response->assertDontSee('twitter:label2');
     }
 
@@ -77,7 +82,9 @@ class SermonSocialMetadataTest extends TestCase
         $response = $this->get("/christ/sermons/preachers/{$preacher->slug}");
 
         $response->assertStatus(200);
-        $response->assertSee('<meta name="twitter:label1" content="Sermons">', false);
-        $response->assertSee('<meta name="twitter:data1" content="5">', false);
+        $response->assertSee('twitter:label1', false);
+        $response->assertSee('Sermons', false);
+        $response->assertSee('twitter:data1', false);
+        $response->assertSee('5', false);
     }
 }

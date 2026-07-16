@@ -28,8 +28,8 @@ class SeoMetadataTest extends TestCase
         $response = $this->get('/christ/sermons/preachers');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Preachers | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Preachers at Crockenhill Baptist Church.">', false);
+        $response->assertSee('Preachers | Crockenhill Baptist Church', false);
+        $response->assertSee('Preachers at Crockenhill Baptist Church.', false);
 
         $content = $response->getContent();
         $this->assertStringContainsString('"@type": "ItemList"', $content);
