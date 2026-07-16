@@ -12,7 +12,6 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Services\Public\SitemapService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -33,9 +32,8 @@ class SitemapTest extends TestCase
     {
         parent::setUp();
 
-        // Remove shared sitemap file and cache to prevent parallel test interference
+        // Remove the shared sitemap file to prevent parallel test interference.
         @unlink(public_path('sitemap.xml'));
-        Cache::forget('sitemap');
     }
 
     protected function tearDown(): void
@@ -84,9 +82,6 @@ class SitemapTest extends TestCase
             'date' => '2024-01-15',
         ]);
 
-        // Clear cache to regenerate sitemap
-        Cache::forget('sitemap');
-
         $response = $this->get('/sitemap.xml');
         $content = $response->getContent();
 
@@ -105,8 +100,6 @@ class SitemapTest extends TestCase
             'is_active' => true,
         ]);
 
-        Cache::forget('sitemap');
-
         $response = $this->get('/sitemap.xml');
         $content = $response->getContent();
 
@@ -122,8 +115,6 @@ class SitemapTest extends TestCase
         Sermon::factory()->create([
             'series' => 'Test Series',
         ]);
-
-        Cache::forget('sitemap');
 
         $response = $this->get('/sitemap.xml');
         $content = $response->getContent();
@@ -143,8 +134,6 @@ class SitemapTest extends TestCase
             'content_type' => SermonContentType::ChildrensTalk,
         ]);
 
-        Cache::forget('sitemap');
-
         $response = $this->get('/sitemap.xml');
         $content = $response->getContent();
 
@@ -162,8 +151,6 @@ class SitemapTest extends TestCase
             'date' => '2026-02-15',
             'content_type' => SermonContentType::ChildrensTalk,
         ]);
-
-        Cache::forget('sitemap');
 
         $response = $this->get('/sitemap.xml');
         $content = $response->getContent();
@@ -190,8 +177,6 @@ class SitemapTest extends TestCase
             'admin' => 'yes',
         ]);
 
-        Cache::forget('sitemap');
-
         $response = $this->get('/sitemap.xml');
         $content = $response->getContent();
 
@@ -208,8 +193,6 @@ class SitemapTest extends TestCase
         $meeting = Meeting::factory()->create([
             'slug' => 'test-meeting',
         ]);
-
-        Cache::forget('sitemap');
 
         $response = $this->get('/sitemap.xml');
         $content = $response->getContent();
@@ -237,8 +220,6 @@ class SitemapTest extends TestCase
             'page_id' => null,
         ]);
 
-        Cache::forget('sitemap');
-
         $response = $this->get('/sitemap.xml');
         $content = $response->getContent();
 
@@ -265,8 +246,6 @@ class SitemapTest extends TestCase
             ]);
         }
 
-        Cache::forget('sitemap');
-
         $response = $this->get('/sitemap.xml');
         $content = $response->getContent();
 
@@ -278,90 +257,12 @@ class SitemapTest extends TestCase
     }
 
     #[Test]
-    public function sitemap_has_correct_priorities(): void
-    {
-        Cache::forget('sitemap');
-
-        $response = $this->get('/sitemap.xml');
-        $content = $response->getContent();
-
-        // Homepage should have priority 1.0
-        $this->assertMatchesRegularExpression(
-            '/<loc>http:\/\/localhost<\/loc>.*?<priority>1\.0<\/priority>/s',
-            $content
-        );
-
-        // Main sections should have priority 0.9
-        $this->assertMatchesRegularExpression(
-            '/<loc>http:\/\/localhost\/christ<\/loc>.*?<priority>0\.9<\/priority>/s',
-            $content
-        );
-    }
-
-    #[Test]
-    public function sitemap_includes_change_frequencies(): void
-    {
-        // Create a page to ensure "monthly" frequency appears
-        // (seeded sermons are all old, so they have "yearly" frequency)
-        Page::factory()->create([
-            'slug' => 'test-page-for-frequency',
-            'area' => 'church',
-            'admin' => 'no',
-        ]);
-
-        Cache::forget('sitemap');
-
-        $response = $this->get('/sitemap.xml');
-        $content = $response->getContent();
-
-        // Check for various change frequencies
-        $this->assertStringContainsString('<changefreq>weekly</changefreq>', $content);  // Static pages
-        $this->assertStringContainsString('<changefreq>daily</changefreq>', $content);   // Sermons index
-        $this->assertStringContainsString('<changefreq>monthly</changefreq>', $content); // Pages
-    }
-
-    #[Test]
-    public function recent_sermons_have_higher_priority(): void
-    {
-        // Create a recent sermon (< 30 days old)
-        $recentSermon = Sermon::factory()->create([
-            'slug' => 'recent-sermon',
-            'date' => now()->subDays(15),
-        ]);
-
-        // Create an old sermon (> 30 days old)
-        $oldSermon = Sermon::factory()->create([
-            'slug' => 'old-sermon',
-            'date' => now()->subDays(60),
-        ]);
-
-        Cache::forget('sitemap');
-
-        $response = $this->get('/sitemap.xml');
-        $content = $response->getContent();
-
-        // Recent sermon should have priority 0.8
-        $this->assertMatchesRegularExpression(
-            '/recent-sermon<\/loc>.*?<priority>0\.8<\/priority>/s',
-            $content
-        );
-
-        // Old sermon should have priority 0.6
-        $this->assertMatchesRegularExpression(
-            '/old-sermon<\/loc>.*?<priority>0\.6<\/priority>/s',
-            $content
-        );
-    }
-
-    #[Test]
     public function sitemap_includes_last_modification_dates(): void
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'dated-sermon',
             'date' => '2024-01-15',
         ]);
-
-        Cache::forget('sitemap');
 
         $response = $this->get('/sitemap.xml');
         $content = $response->getContent();
@@ -387,34 +288,9 @@ class SitemapTest extends TestCase
     }
 
     #[Test]
-    public function sitemap_uses_flexible_caching(): void
-    {
-        $sitemapService = app(SitemapService::class);
-        $filePath = $sitemapService->getFilePath();
-
-        // Clear cache
-        Cache::forget('sitemap');
-
-        // First request should generate sitemap
-        $response1 = $this->get('/sitemap.xml');
-        $this->assertFileExists($filePath);
-
-        $modificationTime1 = filemtime($filePath);
-
-        // Second request should serve cached version (no sleep needed - filemtime is precise enough)
-        $response2 = $this->get('/sitemap.xml');
-        $modificationTime2 = filemtime($filePath);
-
-        // File modification time should be the same (cached)
-        $this->assertEquals($modificationTime1, $modificationTime2);
-    }
-
-    #[Test]
     public function sitemap_file_is_created_in_public_directory(): void
     {
         $sitemapService = app(SitemapService::class);
-
-        Cache::forget('sitemap');
 
         $this->get('/sitemap.xml');
 
@@ -440,8 +316,6 @@ class SitemapTest extends TestCase
         Page::query()->delete();
         Meeting::query()->delete();
 
-        Cache::forget('sitemap');
-
         $response = $this->get('/sitemap.xml');
 
         $response->assertStatus(200);
@@ -455,27 +329,6 @@ class SitemapTest extends TestCase
     }
 
     #[Test]
-    public function old_sermons_have_yearly_change_frequency(): void
-    {
-        // Create an old sermon (> 365 days) - use 2 years to be safe
-        $oldSermon = Sermon::factory()->create([
-            'slug' => 'very-old-sermon',
-            'date' => now()->subYears(2),
-        ]);
-
-        Cache::forget('sitemap');
-
-        $response = $this->get('/sitemap.xml');
-        $content = $response->getContent();
-
-        // Old sermon should have yearly change frequency
-        $this->assertMatchesRegularExpression(
-            '/very-old-sermon<\/loc>.*?<changefreq>yearly<\/changefreq>/s',
-            $content
-        );
-    }
-
-    #[Test]
     public function sitemap_includes_pages(): void
     {
         $page = Page::factory()->create([
@@ -483,8 +336,6 @@ class SitemapTest extends TestCase
             'area' => 'church',
             'admin' => 'no',
         ]);
-
-        Cache::forget('sitemap');
 
         $response = $this->get('/sitemap.xml');
 
@@ -500,8 +351,6 @@ class SitemapTest extends TestCase
         $meeting = Meeting::factory()->create([
             'slug' => 'meeting-without-date',
         ]);
-
-        Cache::forget('sitemap');
 
         $response = $this->get('/sitemap.xml');
 

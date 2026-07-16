@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\PageArea;
-use App\Sitemap\PageSitemapPresenter;
 use Database\Factories\PageFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -18,8 +17,6 @@ use Illuminate\Validation\Rule;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use Spatie\Sitemap\Contracts\Sitemapable;
-use Spatie\Sitemap\Tags\Url;
 
 /**
  * App\Models\Page
@@ -52,7 +49,7 @@ use Spatie\Sitemap\Tags\Url;
  *
  * @mixin \Eloquent
  */
-class Page extends Model implements HasMedia, Sitemapable
+class Page extends Model implements HasMedia
 {
     /** @use HasFactory<PageFactory> */
     use HasFactory;
@@ -320,15 +317,5 @@ class Page extends Model implements HasMedia, Sitemapable
             ->format('webp')
             ->quality(80)
             ->nonQueued();
-    }
-
-    /**
-     * Convert the page to a sitemap tag.
-     *
-     * @return Url|string|array<string, mixed>
-     */
-    public function toSitemapTag(): Url|string|array
-    {
-        return app(PageSitemapPresenter::class)->toSitemapTag($this);
     }
 }

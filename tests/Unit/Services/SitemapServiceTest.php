@@ -8,13 +8,9 @@ use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use App\Presenters\SermonViewPresenter;
 use App\Services\Public\SermonRepository;
 use App\Services\Public\SitemapService;
 use App\Services\Sermon\SermonExposurePolicy;
-use App\Sitemap\MeetingSitemapPresenter;
-use App\Sitemap\PageSitemapPresenter;
-use App\Sitemap\PreacherSitemapPresenter;
 use App\Sitemap\SermonSitemapPresenter;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
@@ -35,19 +31,12 @@ class SitemapServiceTest extends TestCase
 
         $exposurePolicy = $this->createStub(SermonExposurePolicy::class);
         $sermonRepository = $this->createStub(SermonRepository::class);
-        $pageSitemapPresenter = $this->createStub(PageSitemapPresenter::class);
         $sermonSitemapPresenter = $this->createStub(SermonSitemapPresenter::class);
-        $meetingSitemapPresenter = $this->createStub(MeetingSitemapPresenter::class);
-        $preacherSitemapPresenter = $this->createStub(PreacherSitemapPresenter::class);
 
         $this->service = new SitemapService(
             $exposurePolicy,
             $sermonRepository,
-            $pageSitemapPresenter,
             $sermonSitemapPresenter,
-            $meetingSitemapPresenter,
-            $preacherSitemapPresenter,
-            $this->createStub(SermonViewPresenter::class),
         );
     }
 
@@ -127,11 +116,7 @@ class SitemapServiceTest extends TestCase
             ->setConstructorArgs([
                 $exposurePolicy,
                 $sermonRepository,
-                $this->createStub(PageSitemapPresenter::class),
                 $this->createStub(SermonSitemapPresenter::class),
-                $this->createStub(MeetingSitemapPresenter::class),
-                $this->createStub(PreacherSitemapPresenter::class),
-                $this->createStub(SermonViewPresenter::class),
             ])
             ->onlyMethods(['getFilePath'])
             ->getMock();

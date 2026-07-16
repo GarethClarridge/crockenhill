@@ -11,9 +11,7 @@ use App\Models\Sermon;
 use App\Models\SpeakerProfile;
 use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test;
-use Spatie\Sitemap\Tags\Url;
 use Tests\TestCase;
 
 class PreacherTest extends TestCase
@@ -120,24 +118,6 @@ class PreacherTest extends TestCase
 
         $this->assertCount(2, $activePreachers);
         $this->assertTrue($activePreachers->every(fn ($p) => $p->is_active));
-    }
-
-    #[Test]
-    public function it_generates_sitemap_tag(): void
-    {
-        $updatedAt = Carbon::now()->subDay();
-        $preacher = Preacher::factory()->create([
-            'slug' => 'test-preacher',
-            'updated_at' => $updatedAt,
-        ]);
-
-        $tag = $preacher->toSitemapTag();
-
-        $this->assertInstanceOf(Url::class, $tag);
-        $this->assertStringContainsString('/christ/sermons/preachers/test-preacher', $tag->url);
-        $this->assertEquals(0.6, $tag->priority);
-        $this->assertEquals('monthly', $tag->changeFrequency);
-        $this->assertEquals($updatedAt->timestamp, $tag->lastModificationDate->timestamp);
     }
 
     #[Test]

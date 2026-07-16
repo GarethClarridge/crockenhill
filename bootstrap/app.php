@@ -32,6 +32,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('calendar:sync')
             ->cron('0 */4 * * *')
             ->environments(['production']);
+        $schedule->command('sitemap:generate')
+            ->dailyAt('04:00')
+            ->withoutOverlapping(60)
+            ->graceTimeInMinutes(60)
+            ->onOneServer()
+            ->environments(['production']);
         $schedule->command('media:cleanup-temp-files --hours=24')
             ->everySixHours()
             ->withoutOverlapping(60)

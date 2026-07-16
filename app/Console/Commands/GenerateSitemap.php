@@ -6,7 +6,6 @@ namespace App\Console\Commands;
 
 use App\Services\Public\SitemapService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
 
 class GenerateSitemap extends Command
 {
@@ -16,7 +15,6 @@ class GenerateSitemap extends Command
 
     public function handle(SitemapService $sitemapService): int
     {
-        Cache::forget('sitemap');
         $sitemapService->generate();
         $this->info("Sitemap generated at {$sitemapService->getFilePath()}");
 
