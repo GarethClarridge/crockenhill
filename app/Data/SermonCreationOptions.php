@@ -13,7 +13,7 @@ use App\Enums\TitleGenerationStrategy;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 
-class SermonCreationOptions
+final readonly class SermonCreationOptions
 {
     /**
      * @param  array{
@@ -78,6 +78,8 @@ class SermonCreationOptions
      */
     public static function fromAudioUpload(MediaProcessingLog $log, ?array $aiAnalysis): self
     {
+        $id3 = $log->processing_metadata?->id3Metadata;
+
         return new self(
             audioFilePath: self::requireAudioFilePath($log->source_file_path, $log->processing_id),
             originalFilename: $log->original_filename,
@@ -87,6 +89,10 @@ class SermonCreationOptions
             titleStrategy: TitleGenerationStrategy::AiWithFallback,
             service: $log->extracted_service,
             date: $log->extracted_date?->toDateString(),
+            id3Title: $id3?->title,
+            id3Preacher: $id3?->preacher,
+            id3Series: $id3?->series,
+            id3Reference: $id3?->reference,
             duration: $log->duration,
         );
     }
@@ -105,6 +111,8 @@ class SermonCreationOptions
      */
     public static function fromVideoUpload(MediaProcessingLog $log, ?array $aiAnalysis): self
     {
+        $id3 = $log->processing_metadata?->id3Metadata;
+
         return new self(
             audioFilePath: self::requireAudioFilePath($log->audio_file_path, $log->processing_id),
             originalFilename: $log->original_filename,
@@ -115,6 +123,10 @@ class SermonCreationOptions
             titleStrategy: TitleGenerationStrategy::AiWithFallback,
             service: $log->extracted_service,
             date: $log->extracted_date?->toDateString(),
+            id3Title: $id3?->title,
+            id3Preacher: $id3?->preacher,
+            id3Series: $id3?->series,
+            id3Reference: $id3?->reference,
             duration: $log->duration,
         );
     }

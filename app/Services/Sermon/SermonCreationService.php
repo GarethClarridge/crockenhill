@@ -454,14 +454,33 @@ class SermonCreationService
 
         $slug = $this->generateUniqueSlug($title);
 
-        [
-            'preacher_name' => $preacherName,
-            'preacher_model' => $preacherModel,
-            'preacher_source' => $preacherSource,
-            'preacher_confidence' => $preacherConfidence,
-            'needs_review' => $needsReview,
-        ] = $this->resolvePreacherAssignment($options);
+        $preacher = $this->resolvePreacherAssignment($options);
 
+        $sermonData = $this->buildSermonData($options, $title, $slug, $sermonDate, $service, $preacher);
+
+        return Sermon::query()->create($sermonData);
+    }
+
+    /**
+     * Build the data array for creating a fresh sermon record.
+     *
+     * @param  array{
+     *     preacher_name:string,
+     *     preacher_model:Preacher,
+     *     preacher_source:PreacherSource,
+     *     preacher_confidence:float|null,
+     *     needs_review:bool
+     * }  $preacher
+     * @return array<string, mixed>
+     */
+    private function buildSermonData(
+        SermonCreationOptions $options,
+        string $title,
+        string $slug,
+        string $sermonDate,
+        SermonService $service,
+        array $preacher
+    ): array {
         $sermonData = [
             'title' => $title,
             'audio_file_path' => $options->audioFilePath,
@@ -470,11 +489,11 @@ class SermonCreationService
             'service' => $service,
             'content_type' => $options->contentType,
             'slug' => $slug,
-            'preacher' => $preacherModel->name,
-            'preacher_id' => $preacherModel->id,
-            'preacher_source' => $preacherSource,
-            'preacher_confidence' => $preacherConfidence,
-            'needs_preacher_review' => $needsReview,
+            'preacher' => $preacher['preacher_model']->name,
+            'preacher_id' => $preacher['preacher_model']->id,
+            'preacher_source' => $preacher['preacher_source'],
+            'preacher_confidence' => $preacher['preacher_confidence'],
+            'needs_preacher_review' => $preacher['needs_review'],
             'source_type' => $options->sourceType,
             'duration' => $options->duration,
         ];
@@ -507,7 +526,7 @@ class SermonCreationService
             $sermonData['points'] = $options->aiAnalysis['points'];
         }
 
-        return Sermon::query()->create($sermonData);
+        return $sermonData;
     }
 
     /**
@@ -712,8 +731,6 @@ class SermonCreationService
     private function generateTitleFromFilename(array $context): string
     {
         $filename = $context['filename'];
-        /** @var MediaProcessingLog|null $processingLog */
-        $processingLog = $context['processing_log'] ?? null;
 
         if (blank($filename)) {
             return 'Sermon - '.now()->format('F j, Y');
@@ -725,20 +742,7 @@ class SermonCreationService
 
         // If title is empty or too short, use a default
         if (blank($title) || strlen($title) < 3 || $this->looksLikeFilenameFragment($title)) {
-            // Try to build from context
-            $date = $context['date'] ?? $this->filenameParser->extractDateFromFilename($filename)->toDateString();
-
-            // Extract service type - only if processing log is available
-            if ($processingLog) {
-                $service = $context['service'] ?? $this->extractServiceType($processingLog, $filename);
-            } else {
-                // Fallback: simple filename parsing when no processing log
-                $service = $context['service'] ?? $this->filenameParser->determineServiceFromFilename($filename);
-            }
-
-            $serviceLabel = $service->label();
-            $timestamp = strtotime($date) ?: null;
-            $title = $serviceLabel.' Sermon - '.date('F j, Y', $timestamp);
+            $title = $this->generateFallbackTitle($context);
         }
 
         // Capitalize words properly
@@ -746,6 +750,38 @@ class SermonCreationService
 
         // Ensure it's not too long
         return Str::limit($title, 100, '');
+    }
+
+    /**
+     * Generate a fallback title from context when filename parsing fails.
+     *
+     * @param  array{
+     *     filename: string,
+     *     processing_log?: MediaProcessingLog|null,
+     *     date?: string,
+     *     service?: SermonService
+     * }  $context
+     */
+    private function generateFallbackTitle(array $context): string
+    {
+        $filename = $context['filename'];
+        $processingLog = $context['processing_log'] ?? null;
+
+        // Try to build from context
+        $date = $context['date'] ?? $this->filenameParser->extractDateFromFilename($filename)->toDateString();
+
+        // Extract service type - only if processing log is available
+        if ($processingLog) {
+            $service = $context['service'] ?? $this->extractServiceType($processingLog, $filename);
+        } else {
+            // Fallback: simple filename parsing when no processing log
+            $service = $context['service'] ?? $this->filenameParser->determineServiceFromFilename($filename);
+        }
+
+        $serviceLabel = $service->label();
+        $dateLabel = Carbon::parse($date)->format('F j, Y');
+
+        return "{$serviceLabel} Sermon - {$dateLabel}";
     }
 
     /**

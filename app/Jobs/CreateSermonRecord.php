@@ -84,13 +84,9 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
                 MediaType::Livestream => throw new \Exception('CreateSermonRecord should not be used for livestream processing'),
             };
 
-            // Overlay ID3 metadata if available (takes priority over AI/defaults)
+            // ID3 metadata is overlaid onto the options by the factory above
+            // (it takes priority over AI/defaults); log it here when present.
             if ($id3Metadata !== null) {
-                $options->id3Title = $id3Metadata->title;
-                $options->id3Preacher = $id3Metadata->preacher;
-                $options->id3Series = $id3Metadata->series;
-                $options->id3Reference = $id3Metadata->reference;
-
                 Log::info('Using ID3 metadata for sermon creation', [
                     'processing_id' => $this->processingLog->processing_id,
                     'id3_title' => $options->id3Title,
