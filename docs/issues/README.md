@@ -191,6 +191,14 @@ from the pre-deletion release/tag if useful; do not restore do-not-invest toolin
 If the audit finds a non-audio problem, obtain explicit remediation approval and use scoped tooling
 with a declared deletion trigger.
 
+**Self-service path (added 2026-07-16):** `audit:sermon-assets` is a read-only artisan command
+covering every referenced asset field and thumbnail candidate (existence on the expected disk plus
+children's-talk private placement, which also closes the O25 one-off audit). Dispatch
+`production-audit.yml` (`gh workflow run production-audit.yml`) once this branch is on `master`;
+runs use the `production-audit` environment and wait for maintainer approval. The workflow output is
+public, so it prints counts only — run the command with `--details` on the server to identify
+affected sermons.
+
 ### O33 · [P2] Private plain-thumbnail URLs serve the wrong asset
 
 `SermonStorageService::getPlainThumbnailDeliveryUrl():387-394` routes a private plain thumbnail to
@@ -298,6 +306,10 @@ configured algorithm instead of returning false, so any legacy non-bcrypt hash r
 login attempt. Run `SELECT COUNT(*) FROM users WHERE password NOT LIKE '$2y$%'` in production; if
 non-zero, decide per-row remediation before relying on the new default. This checkout has no
 production access, so the check is recorded here rather than executed.
+
+**Self-service path (added 2026-07-16):** `audit:password-hashes` counts stored hashes by algorithm
+(never printing hash material or user ids) and fails when any non-`$2y$` row exists. Dispatch it via
+`production-audit.yml` as described under O32.
 
 ## 🟠 Open — needs a fix, not yet owned by a plan
 

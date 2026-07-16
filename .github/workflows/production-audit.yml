@@ -1,0 +1,71 @@
+name: Production Audit
+
+# Read-only, self-service production checks (see docs/issues/README.md O32/O38).
+# Runs only the whitelisted audit artisan commands below over the same SSH
+# channel the deploy uses. The production-audit environment requires manual
+# approval, so a dispatched run waits for a reviewer before it can touch the
+# secrets — including runs dispatched from a modified branch copy of this file.
+#
+# Output lands in the public Actions log, so the audit commands print counts
+# only — never storage paths, hash material, or per-user identifiers. Run the
+# commands with --details on the server itself to identify affected rows.
+
+on:
+  workflow_dispatch:
+    inputs:
+      audit:
+        description: Which audit to run
+        type: choice
+        default: all
+        options:
+          - all
+          - sermon-assets
+          - password-hashes
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Read-only production audit
+    runs-on: ubuntu-latest
+    environment: production-audit
+
+    steps:
+      - name: Run audits on production
+        uses: appleboy/ssh-action@v1
+        env:
+          AUDIT: ${{ inputs.audit }}
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          command_timeout: 30m
+          envs: AUDIT
+          script: |
+            set -eu
+            cd /srv/crockenhill
+
+            run_artisan() {
+              docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app php artisan "$@"
+            }
+
+            status=0
+
+            if [ "$AUDIT" = "all" ] || [ "$AUDIT" = "password-hashes" ]; then
+              echo "::group::audit:password-hashes"
+              run_artisan audit:password-hashes || status=1
+              echo "::endgroup::"
+            fi
+
+            if [ "$AUDIT" = "all" ] || [ "$AUDIT" = "sermon-assets" ]; then
+              echo "::group::audit:sermon-assets"
+              run_artisan audit:sermon-assets || status=1
+              echo "::endgroup::"
+            fi
+
+            exit "$status"
