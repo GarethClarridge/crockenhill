@@ -378,9 +378,10 @@ CREATE TABLE `meetings` (
   KEY `meetings_type_day_index` (`type`,`day`),
   KEY `meetings_meeting_date_index` (`meeting_date`),
   KEY `meetings_is_recurring_index` (`is_recurring`),
+  KEY `meetings_updated_at_index` (`updated_at`),
   CONSTRAINT `meetings_page_id_foreign` FOREIGN KEY (`page_id`) REFERENCES `pages` (`id`) ON DELETE SET NULL,
   CONSTRAINT `meetings_day_format_check` CHECK (((`day` is null) or ((cast(`day` as char charset binary) = trim(`day`)) and (`day` <> _utf8mb3'')))),
-  CONSTRAINT `meetings_leaders_email_format_check` CHECK (((`leaders_email` is null) or ((cast(`leaders_email` as char charset binary) = lower(trim(`leaders_email`))) and (`leaders_email` <> _utf8mb4'')))),
+  CONSTRAINT `meetings_leaders_email_format_check` CHECK (((`leaders_email` is null) or ((cast(`leaders_email` as char charset binary) = lower(trim(`leaders_email`))) and (`leaders_email` <> _utf8mb3'')))),
   CONSTRAINT `meetings_leaders_phone_format_check` CHECK (((`leaders_phone` is null) or ((cast(`leaders_phone` as char charset binary) = trim(`leaders_phone`)) and (`leaders_phone` <> _utf8mb3'')))),
   CONSTRAINT `meetings_location_format_check` CHECK (((`location` is null) or ((cast(`location` as char charset binary) = trim(`location`)) and (`location` <> _utf8mb3'')))),
   CONSTRAINT `meetings_recurring_frequency_check` CHECK (((`is_recurring` = 0) or (`frequency` is not null))),
@@ -1224,3 +1225,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_28_192314_add_i
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_07_190047_add_first_line_key_to_songs_table',78);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_10_155218_add_archive_eval_to_inbound_emails_status_enum',79);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_12_221655_remove_skipped_from_service_sections_status',80);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_16_053037_add_index_to_meetings_updated_at',81);
