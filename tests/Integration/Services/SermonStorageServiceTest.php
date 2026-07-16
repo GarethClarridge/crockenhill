@@ -157,6 +157,33 @@ class SermonStorageServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_discards_a_legacy_forever_cached_metadata_failure_and_rereads_storage(): void
+    {
+        Cache::flush();
+
+        $sermon = Sermon::factory()->create([
+            'audio_file_path' => 'sermons/poisoned.mp3',
+        ]);
+
+        // Before metadata caching gained a TTL, a storage failure was cached
+        // forever as null values. Seed that exact legacy shape.
+        $legacyKey = 'sermon_file_metadata_'.sha1(implode('|', [
+            $sermon->id,
+            $sermon->audio_file_path,
+            $sermon->updated_at->getTimestamp(),
+        ]));
+        Cache::forever($legacyKey, ['last_modified' => null, 'size' => null]);
+
+        $disk = Mockery::mock(FilesystemAdapter::class);
+        $disk->shouldReceive('lastModified')->once()->andReturn(100);
+        $disk->shouldReceive('size')->once()->andReturn(42);
+        Storage::shouldReceive('disk')->with('public')->twice()->andReturn($disk);
+
+        $this->assertSame(42, $this->service->getFileSize($sermon));
+        $this->assertSame(['last_modified' => 100, 'size' => 42], Cache::get($legacyKey));
+    }
+
+    #[Test]
     public function it_returns_video_url_for_sermon_with_video_path(): void
     {
         $sermon = Sermon::factory()->create([

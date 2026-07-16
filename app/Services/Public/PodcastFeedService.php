@@ -11,6 +11,7 @@ use App\Presenters\SermonViewPresenter;
 use App\Services\Sermon\SermonStorageService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class PodcastFeedService
 {
@@ -40,7 +41,21 @@ class PodcastFeedService
                 fn () => $this->fetchSermons($serviceType)
             );
 
-            if ($feed->contains(fn (PodcastFeedItemReadModel $item): bool => $item->enclosureLength === 0)) {
+            $zeroLengthSermonIds = $feed
+                ->filter(fn (PodcastFeedItemReadModel $item): bool => $item->enclosureLength === 0)
+                ->map(fn (PodcastFeedItemReadModel $item): int => $item->sermonId)
+                ->values();
+
+            if ($zeroLengthSermonIds->isNotEmpty()) {
+                // A zero enclosure length is either a transient storage failure
+                // (heals on the next request) or an audio file that is genuinely
+                // missing — the latter defeats this cache on every request until
+                // the sermon is fixed, so make it visible.
+                Log::warning('Podcast feed contains zero-length enclosures; feed cache invalidated', [
+                    'feed' => $cacheKey,
+                    'sermon_ids' => $zeroLengthSermonIds->all(),
+                ]);
+
                 $this->forgetFlexibleCacheKey($cacheKey);
             }
 

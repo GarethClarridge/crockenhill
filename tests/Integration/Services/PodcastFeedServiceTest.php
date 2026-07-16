@@ -17,6 +17,7 @@ use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -251,13 +252,20 @@ class PodcastFeedServiceTest extends TestCase
     public function it_retries_incomplete_enclosure_metadata_instead_of_caching_it(): void
     {
         config(['podcast.cache' => ['enabled' => true, 'ttl' => 3600, 'stale_ttl' => 7200]]);
-        Sermon::factory()->create([
+        $sermon = Sermon::factory()->create([
             'service' => 'morning',
             'audio_file_path' => 'sermons/test.mp3',
         ]);
 
         $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturnOnConsecutiveCalls(null, 1024);
+
+        Log::shouldReceive('warning')
+            ->once()
+            ->with('Podcast feed contains zero-length enclosures; feed cache invalidated', [
+                'feed' => 'podcast_feed_morning',
+                'sermon_ids' => [$sermon->id],
+            ]);
 
         $firstFeed = $this->service->getSermonsForFeed(SermonService::Morning);
 

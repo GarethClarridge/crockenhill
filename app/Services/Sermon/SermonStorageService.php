@@ -536,10 +536,13 @@ class SermonStorageService
         $cacheKey = $this->fileMetadataCacheKey($sermon);
         $cachedMetadata = Cache::get($cacheKey);
 
+        // Only integer values are ever written below, so null values identify a
+        // legacy rememberForever() entry that cached a storage failure. Reject
+        // those alongside malformed shapes so the failure is re-read, not served.
         if (is_array($cachedMetadata)
-            && array_key_exists('last_modified', $cachedMetadata)
-            && array_key_exists('size', $cachedMetadata)) {
-            /** @var array{last_modified: ?int, size: ?int} $cachedMetadata */
+            && is_int($cachedMetadata['last_modified'] ?? null)
+            && is_int($cachedMetadata['size'] ?? null)) {
+            /** @var array{last_modified: int, size: int} $cachedMetadata */
             return $cachedMetadata;
         }
 
