@@ -41,6 +41,7 @@ use App\Livewire\Admin\SermonSegmentReview;
 use App\Livewire\Admin\Users\CreateUser;
 use App\Livewire\Admin\Users\EditUser;
 use App\Livewire\Admin\Users\ListUsers;
+use App\Models\MediaProcessingLog;
 use Illuminate\Support\Facades\Route;
 use Spatie\Health\Http\Controllers\HealthCheckResultsController;
 
@@ -207,6 +208,9 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::redirect('/services/inbound-emails', '/admin/services/inbox?filter=emails')->name('services.inbound-emails');
     Route::redirect('/services/section-publications', '/admin/services/inbox?filter=sections')->name('services.section-publications');
     Route::redirect('/services/processing/review', '/admin/services/inbox?filter=segments')->name('services.processing.review.index');
+    Route::get('/services/processing/{processingLog}/review', function (MediaProcessingLog $processingLog) {
+        return redirect()->route('admin.recordings.sermon-segment', $processingLog->processing_id);
+    })->name('services.processing.review');
     Route::get('/services/songs', ListSongs::class)->name('services.songs.index');
     Route::get('/services/songs/{song}', ShowSong::class)->name('services.songs.show');
     Route::get('/services/section-publications/{serviceSection}/preview/audio', [ServiceSectionCandidateMediaController::class, 'serveAudio'])

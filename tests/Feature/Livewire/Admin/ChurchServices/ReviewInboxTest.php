@@ -341,6 +341,17 @@ class ReviewInboxTest extends TestCase
     }
 
     #[Test]
+    public function the_retired_per_run_review_url_redirects_to_the_segment_page(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'processing_type' => MediaType::Livestream,
+        ]);
+
+        $this->get("/admin/services/processing/{$log->id}/review")
+            ->assertRedirect(route('admin.recordings.sermon-segment', $log->processing_id));
+    }
+
+    #[Test]
     public function approve_blocks_when_extracted_media_is_missing(): void
     {
         Queue::fake();
