@@ -26,7 +26,7 @@ class PageControllerTest extends TestCase
     #[Test]
     public function show_page_returns_200_for_valid_area_with_landing_page(): void
     {
-        // Use 'sermons' area because '/christ', '/church', and '/community' have static Route::view overrides in web.php.
+        // Use 'sermons' because the section landing routes intentionally take precedence over CMS pages.
         // /sermons is handled dynamically by PageController::showPage.
         Page::factory()->create([
             'area' => PageArea::Sermons,
@@ -59,7 +59,7 @@ class PageControllerTest extends TestCase
     #[Test]
     public function show_page_returns_404_when_landing_page_is_missing_for_non_members_area(): void
     {
-        // Both christ and community have Route::view in web.php.
+        // Both christ and community have explicit landing routes in web.php.
         // Let's use 'sermons' area which only has dynamic PageController route for /sermons
         Page::query()->where('area', PageArea::Sermons)->where('slug', 'sermons')->delete();
 

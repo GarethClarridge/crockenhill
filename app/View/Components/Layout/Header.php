@@ -23,6 +23,9 @@ class Header extends Component
 
     public bool $canAccessChildrensCorner;
 
+    /**
+     * The nav_pages fetch is the one sanctioned shell-component exception to the props convention.
+     */
     public function __construct(SermonExposurePolicy $exposurePolicy)
     {
         /** @var ?User $user */
