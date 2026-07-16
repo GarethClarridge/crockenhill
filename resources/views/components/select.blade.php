@@ -33,6 +33,8 @@ $describedBy = implode(' ', $describedBy);
             @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
             @if($modelName)
                 wire:loading.attr="disabled"
+                wire:loading.attr="aria-disabled"
+                aria-disabled="false"
                 wire:target="{{ $modelName }}"
             @endif
         >
