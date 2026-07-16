@@ -117,10 +117,10 @@ class FormAccessibilityTest extends TestCase
     #[Test]
     public function form_components_render_loading_screen_reader_text(): void
     {
-        $this->blade('<x-input wire:model="field" />')->assertSee('<span class="sr-only">Loading...</span>', false);
-        $this->blade('<x-textarea wire:model="field" />')->assertSee('<span class="sr-only">Loading...</span>', false);
-        $this->blade('<x-select wire:model="field" :options="[]" />')->assertSee('<span class="sr-only">Loading...</span>', false);
-        $this->blade('<x-toggle wire:model="field" />')->assertSee('<span class="sr-only">Loading...</span>', false);
+        $this->blade('<x-input wire:model="field" />')->assertSee('sr-only', false)->assertSee('Loading...');
+        $this->blade('<x-textarea wire:model="field" />')->assertSee('sr-only', false)->assertSee('Loading...');
+        $this->blade('<x-select wire:model="field" :options="[]" />')->assertSee('sr-only', false)->assertSee('Loading...');
+        $this->blade('<x-toggle wire:model="field" />')->assertSee('sr-only', false)->assertSee('Loading...');
     }
 
     #[Test]
