@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ServiceSectionCandidateMediaController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ChildrensCornerController;
+use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\PageController;
@@ -56,7 +57,7 @@ use Spatie\Health\Http\Controllers\HealthCheckResultsController;
 |
 */
 
-Route::view('/', 'full-width-pages.home')->name('home');
+Route::get('/', [LandingPageController::class, 'home'])->name('home');
 
 // Special pages route
 Route::view('/christmas', 'full-width-pages.christmas')->name('pages.christmas');
@@ -65,8 +66,8 @@ Route::view('/christmas', 'full-width-pages.christmas')->name('pages.christmas')
 Route::view('/christ', 'full-width-pages.christ')->name('pages.christ');
 Route::get('/christ/childrens-corner', [ChildrensCornerController::class, 'index'])->middleware('childrens-corner.access')->name('childrens-corner.index');
 Route::get('/christ/childrens-corner/{sermon:slug}', [ChildrensCornerController::class, 'show'])->middleware('childrens-corner.access')->name('childrens-corner.show');
-Route::view('/church', 'full-width-pages.church')->name('pages.church');
-Route::view('/community', 'full-width-pages.community')->name('pages.community');
+Route::get('/church', [LandingPageController::class, 'church'])->name('pages.church');
+Route::get('/community', [LandingPageController::class, 'community'])->name('pages.community');
 
 // High priority redirect that needs to be processed early
 Route::permanentRedirect('whats-on/buzz-club', '/community/buzz-club');

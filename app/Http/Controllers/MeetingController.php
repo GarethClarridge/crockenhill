@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Meeting;
 use App\Presenters\RelatedPagePresenter;
+use App\Seo\MeetingSeoPresenter;
 use App\Services\Public\PublicMeetingReadModelCache;
 use App\Services\Public\PublicPageVisibilityGuard;
 use Illuminate\Contracts\View\View as ViewContract;
@@ -17,6 +18,7 @@ class MeetingController extends Controller
         private readonly PublicMeetingReadModelCache $publicMeetingReadModelCache,
         private readonly RelatedPagePresenter $relatedPagePresenter,
         private readonly PublicPageVisibilityGuard $publicPageVisibilityGuard,
+        private readonly MeetingSeoPresenter $meetingSeoPresenter,
     ) {}
 
     /**
@@ -45,11 +47,19 @@ class MeetingController extends Controller
         $readModel = $this->publicMeetingReadModelCache->get($meeting);
         $pastEvents = $this->publicMeetingReadModelCache->getPastEventsForMeeting($meeting);
 
-        return view('meetings.show', $readModel->toViewData(
-            links: $links,
-            meeting: $meeting,
-            pastEvents: $pastEvents,
-            page: $meeting->page,
-        ));
+        return view('meetings.show', [
+            ...$readModel->toViewData(
+                links: $links,
+                meeting: $meeting,
+                pastEvents: $pastEvents,
+                page: $meeting->page,
+            ),
+            'eventSchema' => $this->meetingSeoPresenter->eventItemList(
+                meeting: $meeting,
+                events: $readModel->upcomingEvents,
+                descriptionFallback: $readModel->pageDescription ?? $readModel->heading,
+                image: $readModel->headingpicture,
+            ),
+        ]);
     }
 }

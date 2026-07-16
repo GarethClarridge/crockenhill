@@ -84,7 +84,7 @@ class PageCardService
                 return $page->slug !== 'privacy-notice'
                     && $page->slug !== 'privacy-policy'
                     && $page->slug !== 'safeguarding-policy'
-                    && $page->admin !== 'yes';
+                    && ! $page->isAdminOnly();
             })
             ->values();
 
