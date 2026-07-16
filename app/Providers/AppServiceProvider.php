@@ -7,7 +7,6 @@ namespace App\Providers;
 use App\Presenters\PageCardPresenter;
 use App\Presenters\PageImagePresenter;
 use App\Presenters\RelatedPagePresenter;
-use App\Presenters\SermonViewPresenter;
 use App\Seo\SermonArchiveSeoPresenter;
 use App\Seo\SermonItemListPresenter;
 use App\Services\Media\Audio\SermonTranscriptReader;
@@ -65,7 +64,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(SermonStorageService::class);
         $this->app->scoped(SermonTranscriptReader::class);
         $this->app->scoped(TranscriptStorageService::class);
-        $this->app->scoped(SermonViewPresenter::class);
         $this->app->scoped(SermonItemListPresenter::class);
         $this->app->scoped(SermonSitemapPresenter::class);
         $this->app->scoped(PreacherSitemapPresenter::class);

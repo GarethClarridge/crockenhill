@@ -11,12 +11,8 @@ use App\Services\Sermon\SermonStorageService;
 /**
  * Builds the delivery and route URLs for a sermon's media and pages.
  *
- * Extracted from SermonViewPresenter so the URL/thumbnail cluster lives behind a
- * single-responsibility collaborator. Following the SermonPresentationAssembler
- * pattern, each method receives the presenter so cross-cutting reads (e.g. the
- * plain-thumbnail fallback to the primary thumbnail) flow back through the
- * presenter's single memoization layer; this collaborator adds no caching of its
- * own and is a pure function of the sermon plus the storage and exposure services.
+ * This collaborator is a pure function of the sermon plus the storage and
+ * exposure services.
  */
 class SermonUrlBuilder
 {
@@ -25,14 +21,14 @@ class SermonUrlBuilder
         private readonly SermonExposurePolicy $exposurePolicy,
     ) {}
 
-    public function audioUrl(SermonViewPresenter $presenter, Sermon $sermon): ?string
+    public function audioUrl(Sermon $sermon): ?string
     {
         return filled($sermon->audio_file_path)
             ? $this->storageService->getAudioDeliveryUrl($sermon)
             : null;
     }
 
-    public function videoUrl(SermonViewPresenter $presenter, Sermon $sermon): ?string
+    public function videoUrl(Sermon $sermon): ?string
     {
         if (! $this->exposurePolicy->shouldExposeVideo($sermon)) {
             return null;
@@ -41,17 +37,17 @@ class SermonUrlBuilder
         return $this->storageService->getVideoDeliveryUrl($sermon);
     }
 
-    public function canonicalUrl(SermonViewPresenter $presenter, Sermon $sermon): string
+    public function canonicalUrl(Sermon $sermon): string
     {
         return $this->exposurePolicy->canonicalUrl($sermon);
     }
 
-    public function publicUrl(SermonViewPresenter $presenter, Sermon $sermon): string
+    public function publicUrl(Sermon $sermon): string
     {
         return $this->exposurePolicy->publicUrl($sermon);
     }
 
-    public function thumbnailUrl(SermonViewPresenter $presenter, Sermon $sermon): ?string
+    public function thumbnailUrl(Sermon $sermon): ?string
     {
         if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
             return null;
@@ -70,7 +66,7 @@ class SermonUrlBuilder
      * Performance Optimization: Returns null when the thumbnail_metadata column
      * is not loaded (e.g. in listings) to avoid N+1 queries for large JSON metadata.
      */
-    public function cardThumbnailUrl(SermonViewPresenter $presenter, Sermon $sermon): ?string
+    public function cardThumbnailUrl(Sermon $sermon): ?string
     {
         if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
             return null;
@@ -90,11 +86,10 @@ class SermonUrlBuilder
     /**
      * Get the plain variant thumbnail URL for a sermon.
      *
-     * Performance Optimization: Falls back to the primary thumbnail (resolved
-     * through the presenter, so its memoized result is reused) for listings where
-     * the thumbnail_metadata column is not selected.
+     * Falls back to the primary thumbnail for listings where the
+     * thumbnail_metadata column is not selected.
      */
-    public function plainThumbnailUrl(SermonViewPresenter $presenter, Sermon $sermon): ?string
+    public function plainThumbnailUrl(Sermon $sermon): ?string
     {
         if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
             return null;
@@ -102,7 +97,7 @@ class SermonUrlBuilder
 
         // Fallback for listings where metadata is not selected: use primary thumbnail
         if (! isset($sermon->getAttributes()['thumbnail_metadata']) && $sermon->hasThumbnail()) {
-            return $presenter->thumbnailUrl($sermon);
+            return $this->thumbnailUrl($sermon);
         }
 
         if (! $sermon->hasPlainThumbnail()) {
@@ -112,7 +107,7 @@ class SermonUrlBuilder
         return $this->storageService->getPlainThumbnailDeliveryUrl($sermon);
     }
 
-    public function transcriptUrl(SermonViewPresenter $presenter, Sermon $sermon): ?string
+    public function transcriptUrl(Sermon $sermon): ?string
     {
         if (! $sermon->hasTranscript()) {
             return null;

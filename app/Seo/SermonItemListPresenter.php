@@ -11,33 +11,9 @@ use Illuminate\Support\Collection;
 
 class SermonItemListPresenter
 {
-    /**
-     * Memoization for presented data arrays and collections.
-     *
-     * @var array<string, array<string, mixed>|array<int, array<string, mixed>>>
-     */
-    private array $memoizedPresents = [];
-
-    /**
-     * Tracks which keys have been computed, allowing null to be a legitimate cached result.
-     *
-     * @var array<string, true>
-     */
-    private array $computed = [];
-
     public function __construct(
         private readonly SermonViewPresenter $sermonViewPresenter,
     ) {}
-
-    /**
-     * Clear all internal memoization caches.
-     * Useful for long-running processes or tests.
-     */
-    public function clearInternalCaches(): void
-    {
-        $this->memoizedPresents = [];
-        $this->computed = [];
-    }
 
     /**
      * Convert a collection of sermons into a Schema.org ItemList data array.
@@ -127,17 +103,6 @@ class SermonItemListPresenter
      */
     private function resolveAuthor(Sermon $sermon, array $sermonView, array $worksFor): array
     {
-        $preacherKey = $sermon->preacher_id !== null
-            ? "id_{$sermon->preacher_id}"
-            : (string) $sermonView['preacher_name'];
-
-        $authorKey = "author_{$preacherKey}";
-
-        if (isset($this->computed[$authorKey])) {
-            /** @var array<string, mixed> */
-            return $this->memoizedPresents[$authorKey];
-        }
-
         $author = [
             '@type' => 'Person',
             '@id' => $sermonView['preacher_url'].'#person',
@@ -151,9 +116,7 @@ class SermonItemListPresenter
             $author['image'] = $sermonView['preacher_image_url'];
         }
 
-        $this->computed[$authorKey] = true;
-
-        return $this->memoizedPresents[$authorKey] = $author;
+        return $author;
     }
 
     /**

@@ -35,7 +35,7 @@ class SermonPresenterPerformanceTest extends TestCase
             $surl1 = $presenter->seriesUrl($sermon);
             $curl1 = $presenter->canonicalUrl($sermon);
 
-            // Re-call to test memoization correctness
+            // Re-call to prove stateless presentation remains deterministic.
             $this->assertSame($name1, $presenter->displayPreacherName($sermon));
             $this->assertSame($ref1, $presenter->displayReference($sermon));
             $this->assertSame($dur1, $presenter->formattedDuration($sermon));
