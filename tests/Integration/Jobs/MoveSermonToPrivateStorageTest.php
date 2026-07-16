@@ -311,7 +311,49 @@ class MoveSermonToPrivateStorageTest extends TestCase
     }
 
     #[Test]
-    public function it_preserves_a_pre_existing_private_target_when_verification_fails(): void
+    public function it_replaces_a_stale_unreferenced_private_target_and_heals(): void
+    {
+        Storage::disk('public')->put('sermons/audio.mp3', 'full-audio-content');
+        // A crashed earlier attempt left a partial write that no sermon row references.
+        Storage::disk('local')->put('private/sermons/audio.mp3', 'partial');
+
+        $sermon = Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
+            'audio_file_path' => 'sermons/audio.mp3',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]));
+
+        (new MoveSermonToPrivateStorage($sermon->id))->handle();
+
+        $this->assertSame('private/sermons/audio.mp3', $sermon->fresh()->audio_file_path);
+        $this->assertSame('full-audio-content', Storage::disk('local')->get('private/sermons/audio.mp3'));
+        Storage::disk('public')->assertMissing('sermons/audio.mp3');
+    }
+
+    #[Test]
+    public function it_moves_remaining_assets_when_an_earlier_asset_fails(): void
+    {
+        Storage::disk('public')->put('sermons/video.mp4', 'video-content');
+
+        $sermon = Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
+            'audio_file_path' => 'sermons/missing-audio.mp3',
+            'video_file_path' => 'sermons/video.mp4',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]));
+
+        try {
+            (new MoveSermonToPrivateStorage($sermon->id))->handle();
+            $this->fail('The missing audio source should fail the move.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('source is missing', $exception->getMessage());
+        }
+
+        $this->assertSame('private/sermons/video.mp4', $sermon->fresh()->video_file_path);
+        Storage::disk('local')->assertExists('private/sermons/video.mp4');
+        Storage::disk('public')->assertMissing('sermons/video.mp4');
+    }
+
+    #[Test]
+    public function it_preserves_a_referenced_pre_existing_private_target_when_verification_fails(): void
     {
         Storage::disk('public')->put('sermons/shared.mp3', 'new-public-audio');
         Storage::disk('local')->put('private/sermons/shared.mp3', 'existing-private-audio');

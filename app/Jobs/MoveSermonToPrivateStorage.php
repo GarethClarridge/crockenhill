@@ -56,28 +56,42 @@ class MoveSermonToPrivateStorage implements ShouldQueue
 
         self::$sermonsBeingMoved[$this->sermonId] = true;
         $this->pendingSourceDeletions = [];
-        $moveFailure = null;
+
+        /** @var array<int, Throwable> $moveFailures */
+        $moveFailures = [];
 
         try {
             $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
             $transcriptDisk = (string) config('media-processing.storage.transcript_disk', $sermonDisk);
             $thumbnailDisk = (string) config('thumbnail-generation.storage.disk', 'public');
 
-            $this->moveDirectAsset('audio_file_path', $sermonDisk);
-            $this->moveDirectAsset('video_file_path', $sermonDisk);
-            $this->moveDirectAsset('transcript_file_path', $transcriptDisk);
-            $this->moveDirectAsset('thumbnail_file_path', $thumbnailDisk);
-            $this->moveMetadataAsset('plain_thumbnail_path', $thumbnailDisk);
-            $this->moveMetadataAsset('card_thumbnail_path', $thumbnailDisk);
-            $this->moveMetadataAsset('overlay_thumbnail_path', $thumbnailDisk);
-            $this->moveCandidateAssets($thumbnailDisk);
-        } catch (Throwable $exception) {
-            $moveFailure = $exception;
+            // One failed asset must not leave the others public: attempt every
+            // move, collect the failures, and rethrow after cleanup so retries
+            // still happen for whatever could not be protected this run.
+            $moveOperations = [
+                fn () => $this->moveDirectAsset('audio_file_path', $sermonDisk),
+                fn () => $this->moveDirectAsset('video_file_path', $sermonDisk),
+                fn () => $this->moveDirectAsset('transcript_file_path', $transcriptDisk),
+                fn () => $this->moveDirectAsset('thumbnail_file_path', $thumbnailDisk),
+                fn () => $this->moveMetadataAsset('plain_thumbnail_path', $thumbnailDisk),
+                fn () => $this->moveMetadataAsset('card_thumbnail_path', $thumbnailDisk),
+                fn () => $this->moveMetadataAsset('overlay_thumbnail_path', $thumbnailDisk),
+            ];
+
+            foreach ($moveOperations as $moveOperation) {
+                try {
+                    $moveOperation();
+                } catch (Throwable $exception) {
+                    $moveFailures[] = $exception;
+                }
+            }
+
+            $moveFailures = [...$moveFailures, ...$this->moveCandidateAssets($thumbnailDisk)];
         } finally {
             try {
                 $this->deleteScheduledSources();
             } catch (Throwable $cleanupException) {
-                if ($moveFailure === null) {
+                if ($moveFailures === []) {
                     throw $cleanupException;
                 }
 
@@ -90,9 +104,18 @@ class MoveSermonToPrivateStorage implements ShouldQueue
             }
         }
 
-        if ($moveFailure !== null) {
-            throw $moveFailure;
+        if ($moveFailures === []) {
+            return;
         }
+
+        foreach (array_slice($moveFailures, 1) as $additionalFailure) {
+            Log::error('MoveSermonToPrivateStorage: additional asset move failure', [
+                'sermon_id' => $this->sermonId,
+                'exception' => $additionalFailure,
+            ]);
+        }
+
+        throw $moveFailures[0];
     }
 
     public static function isMovingSermon(int $sermonId): bool
@@ -160,13 +183,16 @@ class MoveSermonToPrivateStorage implements ShouldQueue
         $this->scheduleSourceDeletion($sourceDisk, $sourcePath, $targetPath);
     }
 
-    private function moveCandidateAssets(string $sourceDisk): void
+    /** @return array<int, Throwable> */
+    private function moveCandidateAssets(string $sourceDisk): array
     {
         $metadata = Sermon::query()->findOrFail($this->sermonId)->thumbnail_metadata;
 
         if (! $metadata instanceof ThumbnailMetadata) {
-            return;
+            return [];
         }
+
+        $failures = [];
 
         foreach ($metadata->thumbnailCandidates as $candidate) {
             $candidateId = $candidate['id'];
@@ -178,18 +204,29 @@ class MoveSermonToPrivateStorage implements ShouldQueue
                     continue;
                 }
 
-                [$sourcePath, $targetPath] = $this->sourceAndTargetPaths($path);
-
-                if ($path === $sourcePath) {
-                    $this->copyAndVerify($sourceDisk, $sourcePath, $targetPath);
-                    $this->compareAndSetCandidatePath($candidateId, $key, $sourcePath, $targetPath);
-                } else {
-                    $this->verifyCommittedTarget($targetPath);
+                try {
+                    $this->moveCandidatePath($candidateId, $key, $path, $sourceDisk);
+                } catch (Throwable $exception) {
+                    $failures[] = $exception;
                 }
-
-                $this->scheduleSourceDeletion($sourceDisk, $sourcePath, $targetPath);
             }
         }
+
+        return $failures;
+    }
+
+    private function moveCandidatePath(string $candidateId, string $key, string $path, string $sourceDisk): void
+    {
+        [$sourcePath, $targetPath] = $this->sourceAndTargetPaths($path);
+
+        if ($path === $sourcePath) {
+            $this->copyAndVerify($sourceDisk, $sourcePath, $targetPath);
+            $this->compareAndSetCandidatePath($candidateId, $key, $sourcePath, $targetPath);
+        } else {
+            $this->verifyCommittedTarget($targetPath);
+        }
+
+        $this->scheduleSourceDeletion($sourceDisk, $sourcePath, $targetPath);
     }
 
     /** @return array{string, string} */
@@ -211,34 +248,47 @@ class MoveSermonToPrivateStorage implements ShouldQueue
             throw new RuntimeException("Private-media source is missing: [{$sourceDisk}] {$sourcePath}");
         }
 
-        $targetCreated = false;
-
-        if (! $target->exists($targetPath)) {
-            $stream = $source->readStream($sourcePath);
-
-            if (! is_resource($stream)) {
-                throw new RuntimeException("Unable to read private-media source: [{$sourceDisk}] {$sourcePath}");
+        if ($target->exists($targetPath)) {
+            if ($source->size($sourcePath) === $target->size($targetPath)) {
+                return;
             }
 
-            try {
-                $written = $target->writeStream($targetPath, $stream);
-            } finally {
-                fclose($stream);
+            // A mismatched pre-existing target that another sermon row already
+            // references may be its only private copy — never delete it. An
+            // unreferenced one is a stale partial from an earlier crashed
+            // attempt; replace it so retries can heal instead of failing forever.
+            if ($this->isPathReferenced($targetPath)) {
+                throw new RuntimeException("Private-media target verification failed: {$targetPath}");
             }
 
-            $targetCreated = true;
+            Log::warning('MoveSermonToPrivateStorage: replacing stale unreferenced target', [
+                'sermon_id' => $this->sermonId,
+                'target' => $targetPath,
+            ]);
 
-            if ($written !== true) {
-                $target->delete($targetPath);
+            $target->delete($targetPath);
+        }
 
-                throw new RuntimeException("Unable to write private-media target: {$targetPath}");
-            }
+        $stream = $source->readStream($sourcePath);
+
+        if (! is_resource($stream)) {
+            throw new RuntimeException("Unable to read private-media source: [{$sourceDisk}] {$sourcePath}");
+        }
+
+        try {
+            $written = $target->writeStream($targetPath, $stream);
+        } finally {
+            fclose($stream);
+        }
+
+        if ($written !== true) {
+            $target->delete($targetPath);
+
+            throw new RuntimeException("Unable to write private-media target: {$targetPath}");
         }
 
         if (! $target->exists($targetPath) || $source->size($sourcePath) !== $target->size($targetPath)) {
-            if ($targetCreated) {
-                $target->delete($targetPath);
-            }
+            $target->delete($targetPath);
 
             throw new RuntimeException("Private-media target verification failed: {$targetPath}");
         }
@@ -338,8 +388,15 @@ class MoveSermonToPrivateStorage implements ShouldQueue
         });
     }
 
-    private function deleteSourceAfterCommit(string $sourceDisk, string $sourcePath, string $targetPath): void
-    {
+    /**
+     * @param  array{disk_paths: array<string, true>, paths: array<string, true>}  $referencedAssets
+     */
+    private function deleteSourceAfterCommit(
+        string $sourceDisk,
+        string $sourcePath,
+        string $targetPath,
+        array $referencedAssets,
+    ): void {
         $source = Storage::disk($sourceDisk);
 
         if (! $source->exists($sourcePath)) {
@@ -352,7 +409,7 @@ class MoveSermonToPrivateStorage implements ShouldQueue
             throw new RuntimeException("Refusing to delete an unverified private-media source: {$sourcePath}");
         }
 
-        if ($this->isSourceReferenced($sourceDisk, $sourcePath)) {
+        if (isset($referencedAssets['disk_paths'][$sourceDisk.'|'.$sourcePath])) {
             Log::warning('MoveSermonToPrivateStorage: retained referenced source', [
                 'sermon_id' => $this->sermonId,
                 'disk' => $sourceDisk,
@@ -391,25 +448,47 @@ class MoveSermonToPrivateStorage implements ShouldQueue
 
     private function deleteScheduledSources(): void
     {
+        if ($this->pendingSourceDeletions === []) {
+            return;
+        }
+
+        // All path commits have happened by now, so one snapshot answers every
+        // deletion's "is this source still referenced elsewhere" question.
+        $referencedAssets = $this->referencedAssetIndex();
+
         foreach ($this->pendingSourceDeletions as $deletion) {
             $this->deleteSourceAfterCommit(
                 $deletion['disk'],
                 $deletion['source'],
                 $deletion['target'],
+                $referencedAssets,
             );
         }
     }
 
-    private function isSourceReferenced(string $disk, string $path): bool
+    private function isPathReferenced(string $path): bool
+    {
+        return isset($this->referencedAssetIndex()['paths'][$path]);
+    }
+
+    /**
+     * Every disk+path pair referenced by any sermon row, plus a disk-agnostic
+     * path set for private-target ownership checks.
+     *
+     * @return array{disk_paths: array<string, true>, paths: array<string, true>}
+     */
+    private function referencedAssetIndex(): array
     {
         $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
         $transcriptDisk = (string) config('media-processing.storage.transcript_disk', $sermonDisk);
         $thumbnailDisk = (string) config('thumbnail-generation.storage.disk', 'public');
 
-        return Sermon::query()
+        $index = ['disk_paths' => [], 'paths' => []];
+
+        Sermon::query()
             ->get(['audio_file_path', 'video_file_path', 'transcript_file_path', 'thumbnail_file_path', 'thumbnail_metadata'])
-            ->contains(function (Sermon $sermon) use ($disk, $path, $sermonDisk, $transcriptDisk, $thumbnailDisk): bool {
-                $paths = [
+            ->each(function (Sermon $sermon) use (&$index, $sermonDisk, $transcriptDisk, $thumbnailDisk): void {
+                $assets = [
                     [$sermonDisk, $sermon->audio_file_path],
                     [$sermonDisk, $sermon->video_file_path],
                     [$transcriptDisk, $sermon->transcript_file_path],
@@ -421,13 +500,20 @@ class MoveSermonToPrivateStorage implements ShouldQueue
 
                 foreach ($sermon->thumbnail_candidates as $candidate) {
                     foreach (['plain_path', 'card_path', 'overlay_path'] as $key) {
-                        $paths[] = [$thumbnailDisk, $candidate[$key] ?? null];
+                        $assets[] = [$thumbnailDisk, $candidate[$key] ?? null];
                     }
                 }
 
-                return collect($paths)->contains(
-                    fn (array $asset): bool => $asset[0] === $disk && $asset[1] === $path,
-                );
+                foreach ($assets as [$disk, $path]) {
+                    if (! is_string($path) || $path === '') {
+                        continue;
+                    }
+
+                    $index['disk_paths'][$disk.'|'.$path] = true;
+                    $index['paths'][$path] = true;
+                }
             });
+
+        return $index;
     }
 }
