@@ -10,17 +10,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
-/**
- * Route regression tests for the four legacy admin screens being migrated in TD-036.
- * These assert the routes still respond correctly before and after the Blade migration.
- */
 class LegacyAdminScreenRegressionTest extends TestCase
 {
     use RefreshDatabase;
 
     private User $admin;
-
-    private User $regularUser;
 
     protected function setUp(): void
     {
@@ -30,65 +24,6 @@ class LegacyAdminScreenRegressionTest extends TestCase
             'is_admin' => true,
             'email_verified_at' => now(),
         ]);
-
-        $this->regularUser = User::factory()->create([
-            'is_admin' => false,
-            'email_verified_at' => now(),
-        ]);
-    }
-
-    // --- admin/calendar/uncategorized ---
-
-    #[Test]
-    public function calendar_uncategorized_requires_authentication(): void
-    {
-        $response = $this->get('/admin/calendar/uncategorized');
-
-        $response->assertRedirect('/login');
-    }
-
-    #[Test]
-    public function calendar_uncategorized_forbids_non_admin(): void
-    {
-        $response = $this->actingAs($this->regularUser)->get('/admin/calendar/uncategorized');
-
-        $response->assertForbidden();
-    }
-
-    #[Test]
-    public function calendar_uncategorized_loads_for_admin(): void
-    {
-        $response = $this->actingAs($this->admin)->get('/admin/calendar/uncategorized');
-
-        $response->assertOk();
-        $response->assertViewIs('admin.calendar.uncategorized');
-    }
-
-    // --- admin/calendar/patterns ---
-
-    #[Test]
-    public function calendar_patterns_requires_authentication(): void
-    {
-        $response = $this->get('/admin/calendar/patterns');
-
-        $response->assertRedirect('/login');
-    }
-
-    #[Test]
-    public function calendar_patterns_forbids_non_admin(): void
-    {
-        $response = $this->actingAs($this->regularUser)->get('/admin/calendar/patterns');
-
-        $response->assertForbidden();
-    }
-
-    #[Test]
-    public function calendar_patterns_loads_for_admin(): void
-    {
-        $response = $this->actingAs($this->admin)->get('/admin/calendar/patterns');
-
-        $response->assertOk();
-        $response->assertViewIs('admin.calendar.patterns');
     }
 
     // --- sermons/edit ---

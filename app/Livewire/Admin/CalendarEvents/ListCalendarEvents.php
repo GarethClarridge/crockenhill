@@ -9,6 +9,7 @@ use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Services\Calendar\CalendarService;
+use App\Services\Calendar\GoogleCalendarSyncService;
 use App\Services\Public\MeetingListCache;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;
@@ -47,7 +48,6 @@ class ListCalendarEvents extends Component
 
     public function categorize(int $eventId, ?string $meetingSlug): void
     {
-
         $this->authorizeAdmin();
 
         $event = CalendarEvent::query()->find($eventId);
@@ -63,6 +63,23 @@ class ListCalendarEvents extends Component
         }
 
         $this->success('Event categorised');
+    }
+
+    public function syncCalendar(GoogleCalendarSyncService $syncService): void
+    {
+        $this->authorizeAdmin();
+
+        try {
+            $report = $syncService->syncFromGoogleCalendar();
+
+            $this->success(
+                "Sync completed! Processed: {$report['processed_events']}, ".
+                "Deleted: {$report['deleted_events']}, ".
+                "Uncategorised: {$report['uncategorized_events']}"
+            );
+        } catch (\Exception) {
+            $this->error('Sync failed due to an internal error.');
+        }
     }
 
     public function render(): View

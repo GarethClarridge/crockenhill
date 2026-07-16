@@ -45,26 +45,6 @@ class CalendarService
     }
 
     /**
-     * Get uncategorized calendar events.
-     *
-     * Performance Optimization: Limits retrieved records to the requested count
-     * and filters by date in the database to reduce memory usage and DB I/O.
-     *
-     * @return Collection<int, CalendarEvent>
-     */
-    public function getUncategorizedEvents(?Carbon $from = null, ?int $limit = null): Collection
-    {
-        return CalendarEvent::query()
-            ->forCard()
-            ->whereNull('meeting_slug')
-            ->confirmed()
-            ->when($from, fn (Builder $q) => $q->where('start_datetime', '>=', $from))
-            ->orderBy('start_datetime')
-            ->when($limit, fn (Builder $q, int $limit) => $q->limit($limit))
-            ->get();
-    }
-
-    /**
      * @throws ModelNotFoundException
      */
     public function manuallyCategorizeEvent(int $eventId, string $meetingSlug): CalendarCategorizationResult

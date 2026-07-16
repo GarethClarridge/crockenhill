@@ -82,20 +82,9 @@
               Edit meetings
             </x-button>
 
-            <x-button link="{{ route('admin.calendar.patterns') }}" icon="list-bullet" iconStyle="solid">
-              Event:meeting patterns
-            </x-button>
-
             <x-button link="{{ route('admin.calendar-events.index') }}" icon="tag" iconStyle="solid">
               Categorise events
             </x-button>
-
-            <form method="POST" action="{{ route('admin.calendar.sync') }}" class="block">
-              @csrf
-              <x-form-button class="w-full" icon="arrow-path">
-                Sync Google Calendar
-              </x-form-button>
-            </form>
           </div>
         </div>
         @endif

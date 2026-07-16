@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Admin\CalendarAdminController;
 use App\Http\Controllers\Admin\SermonAdminController;
 use App\Http\Controllers\Admin\SermonThumbnailCandidateController;
 use App\Http\Controllers\Admin\ServiceSectionCandidateMediaController;
@@ -74,7 +73,6 @@ Route::permanentRedirect('whats-on/buzz-club', '/community/buzz-club');
 
 // Calendar routes
 Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
-Route::get('/calendar/uncategorized', [CalendarController::class, 'uncategorized'])->name('calendar.uncategorized');
 Route::get('/meetings/{meeting}/events', [CalendarController::class, 'eventsForMeeting'])->name('meetings.events');
 
 // Community meetings - always loads a Meeting (which gets content from its related Page)
@@ -165,12 +163,6 @@ Route::get('health', HealthCheckResultsController::class)
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     // Redirect /admin to members home dashboard
     Route::redirect('/', '/church/members')->name('dashboard');
-
-    // Calendar admin routes
-    Route::get('/calendar/uncategorized', [CalendarAdminController::class, 'uncategorizedEvents'])->name('calendar.uncategorized');
-    Route::post('/calendar/categorize', [CalendarAdminController::class, 'categorizeEvent'])->name('calendar.categorize');
-    Route::get('/calendar/patterns', [CalendarAdminController::class, 'patternManagement'])->name('calendar.patterns');
-    Route::post('/calendar/sync', [CalendarAdminController::class, 'syncCalendar'])->name('calendar.sync');
 
     // Sermon upload (form renders the media-upload Livewire component; submission
     // is handled by the component / the /api/media/{type} API, not a POST route here)

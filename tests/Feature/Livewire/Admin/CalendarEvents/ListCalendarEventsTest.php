@@ -10,6 +10,7 @@ use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Models\User;
 use App\Services\Calendar\CalendarService;
+use App\Services\Calendar\GoogleCalendarSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -167,5 +168,46 @@ class ListCalendarEventsTest extends TestCase
         Livewire::test(ListCalendarEvents::class)
             ->call('categorize', $event->id, 'some-meeting')
             ->assertForbidden();
+    }
+
+    #[Test]
+    public function it_can_sync_calendar_events(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->mock(GoogleCalendarSyncService::class, function ($mock): void {
+            $mock->shouldReceive('syncFromGoogleCalendar')
+                ->once()
+                ->andReturn([
+                    'processed_events' => 12,
+                    'deleted_events' => 2,
+                    'uncategorized_events' => 3,
+                ]);
+        });
+
+        Livewire::test(ListCalendarEvents::class)
+            ->call('syncCalendar')
+            ->assertDispatched(
+                'notify',
+                type: 'success',
+                message: 'Sync completed! Processed: 12, Deleted: 2, Uncategorised: 3'
+            );
+    }
+
+    #[Test]
+    public function it_reports_calendar_sync_failures_without_exposing_the_exception(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->mock(GoogleCalendarSyncService::class, function ($mock): void {
+            $mock->shouldReceive('syncFromGoogleCalendar')
+                ->once()
+                ->andThrow(new \RuntimeException('Sensitive API details'));
+        });
+
+        Livewire::test(ListCalendarEvents::class)
+            ->call('syncCalendar')
+            ->assertDispatched('notify', type: 'error', message: 'Sync failed due to an internal error.')
+            ->assertDontSee('Sensitive API details');
     }
 }
