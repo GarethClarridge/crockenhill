@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Presenters;
 
 use App\Models\Page;
-use App\View\Presenters\PageLinksRepository;
+use App\Services\Public\PageListCache;
 use Illuminate\Support\Collection;
 
 class RelatedPagePresenter
 {
     public function __construct(
-        private readonly PageLinksRepository $links,
+        private readonly PageListCache $pageListCache,
         private readonly PageCardPresenter $pageCardPresenter,
     ) {}
 
@@ -26,13 +26,13 @@ class RelatedPagePresenter
         bool $excludeAdminPages = false,
         array $extraExcludedSlugs = [],
     ): Collection {
-        return $this->presentCollection($this->links->orderedLinks(
+        return $this->presentCollection($this->filteredLinks(
             linkArea: $linkArea,
             slugToExclude: $slugToExclude,
             secondSlugToExclude: $secondSlugToExclude,
             excludeAdminPages: $excludeAdminPages,
             extraExcludedSlugs: $extraExcludedSlugs,
-        ));
+        )->sortBy('slug')->values());
     }
 
     /**
@@ -47,14 +47,46 @@ class RelatedPagePresenter
         array $extraExcludedSlugs = [],
         int $limit = 5,
     ): Collection {
-        return $this->presentCollection($this->links->randomLinks(
+        return $this->presentCollection($this->filteredLinks(
             linkArea: $linkArea,
             slugToExclude: $slugToExclude,
             secondSlugToExclude: $secondSlugToExclude,
             excludeAdminPages: $excludeAdminPages,
             extraExcludedSlugs: $extraExcludedSlugs,
-            limit: $limit,
-        ));
+        )->shuffle()->take($limit));
+    }
+
+    /**
+     * @param  list<string>  $extraExcludedSlugs
+     * @return Collection<int, Page>
+     */
+    private function filteredLinks(
+        string $linkArea,
+        ?string $slugToExclude,
+        ?string $secondSlugToExclude,
+        bool $excludeAdminPages,
+        array $extraExcludedSlugs,
+    ): Collection {
+        if ($linkArea === '') {
+            return new Collection;
+        }
+
+        return $this->pageListCache->getAllLinksForArea($linkArea)
+            ->filter(function (Page $page) use ($slugToExclude, $secondSlugToExclude, $excludeAdminPages, $extraExcludedSlugs): bool {
+                if ($slugToExclude !== null && $page->slug === $slugToExclude) {
+                    return false;
+                }
+
+                if ($secondSlugToExclude !== null && $page->slug === $secondSlugToExclude) {
+                    return false;
+                }
+
+                if ($excludeAdminPages && $page->isAdminOnly()) {
+                    return false;
+                }
+
+                return ! in_array($page->slug, $extraExcludedSlugs, true);
+            });
     }
 
     /**

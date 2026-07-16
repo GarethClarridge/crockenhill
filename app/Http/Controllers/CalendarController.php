@@ -6,13 +6,17 @@ namespace App\Http\Controllers;
 
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
+use App\Seo\MeetingSeoPresenter;
 use App\Services\Calendar\CalendarService;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class CalendarController extends Controller
 {
-    public function __construct(private readonly CalendarService $calendarService) {}
+    public function __construct(
+        private readonly CalendarService $calendarService,
+        private readonly MeetingSeoPresenter $meetingSeoPresenter,
+    ) {}
 
     public function index(): View
     {
@@ -44,6 +48,7 @@ class CalendarController extends Controller
         $recentPastEvents = $this->calendarService
             ->getRecentPastEventsForMeeting($meeting->slug, $pastEventsLimit + 1);
         $pastEvents = $recentPastEvents->take($pastEventsLimit)->values();
+        $schemaEvents = $upcomingEvents->concat($pastEvents)->values();
 
         $meetingName = $meeting->heading ?? Str::title(str_replace('-', ' ', $meeting->slug));
 
@@ -52,7 +57,12 @@ class CalendarController extends Controller
             'upcomingEvents' => $upcomingEvents,
             'pastEvents' => $pastEvents,
             'hasMorePastEvents' => $recentPastEvents->count() > $pastEventsLimit,
-            'schemaEvents' => $upcomingEvents->concat($pastEvents)->values(),
+            'eventSchema' => $this->meetingSeoPresenter->eventItemList(
+                meeting: $meeting,
+                events: $schemaEvents,
+                descriptionFallback: 'Church event at '.config('church.name'),
+                includeFullEventMetadata: false,
+            ),
             'pastEventsLimit' => $pastEventsLimit,
             'heading' => $meetingName.' - All Events',
             'description' => "View all upcoming and past calendar events for {$meetingName} at Crockenhill Baptist Church.",
