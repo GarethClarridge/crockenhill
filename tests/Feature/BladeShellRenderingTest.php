@@ -131,7 +131,7 @@ class BladeShellRenderingTest extends TestCase
         $response = $this->actingAs($admin)->get('/admin/calendar/patterns');
 
         $response->assertOk();
-        $response->assertSee('<title>Calendar Patterns | Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>Calendar patterns | Crockenhill Baptist Church</title>', false);
     }
 
     #[Test]
