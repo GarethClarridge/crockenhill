@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Public;
 
 use App\Models\Page;
-use App\Support\FlexibleCache;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -36,7 +35,7 @@ class PageImageCacheService
     {
         $pageId = $page instanceof Page ? $page->id : $page;
 
-        FlexibleCache::forget($this->cacheKey($pageId));
+        Cache::forget($this->cacheKey($pageId));
     }
 
     /**

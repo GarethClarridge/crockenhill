@@ -10,7 +10,6 @@ use App\Models\Builders\SermonBuilder;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
-use App\Support\FlexibleCache;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -216,7 +215,7 @@ class SermonRepository
             );
         }
 
-        $keys->unique()->each(fn (string $key) => FlexibleCache::forget($key));
+        $keys->unique()->each(fn (string $key) => Cache::forget($key));
     }
 
     /**

@@ -7,8 +7,8 @@ namespace App\Services\Public;
 use App\Enums\PageArea;
 use App\Models\Page;
 use App\Presenters\PageCardPresenter;
-use App\Support\FlexibleCache;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class PageCardService
 {
@@ -32,7 +32,7 @@ class PageCardService
             self::COMMUNITY_RAIL_CACHE_KEY,
             self::CHURCH_RAIL_CACHE_KEY,
         ] as $railCacheKey) {
-            FlexibleCache::forget($railCacheKey);
+            Cache::forget($railCacheKey);
         }
     }
 

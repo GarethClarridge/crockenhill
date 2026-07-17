@@ -11,9 +11,9 @@ use App\Services\Public\PageImageCacheService;
 use App\Services\Public\PageListCache;
 use App\Services\Public\PublicMeetingReadModelCache;
 use App\Services\Public\PublicPageReadModelCache;
-use App\Support\FlexibleCache;
 use App\View\Components\Layout\Header;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
+use Illuminate\Support\Facades\Cache;
 
 class PublicReadModelCacheObserver implements ShouldHandleEventsAfterCommit
 {
@@ -98,7 +98,7 @@ class PublicReadModelCacheObserver implements ShouldHandleEventsAfterCommit
      */
     private function forgetPageCollections(Page $page): void
     {
-        FlexibleCache::forget(Header::NAV_CACHE_KEY);
+        Cache::forget(Header::NAV_CACHE_KEY);
         PageCardService::forgetRailCaches();
         PageListCache::forgetAreaCache($page->area);
 

@@ -9,7 +9,6 @@ use App\Enums\SermonService;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Services\Sermon\SermonStorageService;
-use App\Support\FlexibleCache;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -57,7 +56,7 @@ class PodcastFeedService
                     'sermon_ids' => $zeroLengthSermonIds->all(),
                 ]);
 
-                FlexibleCache::forget($cacheKey);
+                Cache::forget($cacheKey);
             }
 
             return $feed;
@@ -97,7 +96,7 @@ class PodcastFeedService
             $serviceType = SermonService::tryFrom((string) $feedKey);
 
             if ($serviceType !== null) {
-                FlexibleCache::forget(self::cacheKey($serviceType));
+                Cache::forget(self::cacheKey($serviceType));
             }
         }
     }

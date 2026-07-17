@@ -6,7 +6,6 @@ namespace App\Services\Public;
 
 use App\Enums\PageArea;
 use App\Models\Page;
-use App\Support\FlexibleCache;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
@@ -24,7 +23,7 @@ class PageListCache
      */
     public static function forgetAreaCache(string|PageArea $area): void
     {
-        FlexibleCache::forget(self::areaCacheKey($area));
+        Cache::forget(self::areaCacheKey($area));
     }
 
     private static function areaValue(string|PageArea $area): string
