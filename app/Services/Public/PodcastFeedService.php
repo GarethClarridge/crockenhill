@@ -94,13 +94,16 @@ class PodcastFeedService
      */
     private function enrichSermonForFeed(Sermon $sermon): PodcastFeedItemReadModel
     {
+        $preacherName = $this->sermonViewPresenter->displayPreacherName($sermon);
+
         return new PodcastFeedItemReadModel(
             canonicalUrl: $this->sermonViewPresenter->canonicalUrl($sermon),
             enclosureLength: $this->storageService->getFileSize($sermon) ?? 0,
             enclosureUrl: (string) $this->storageService->getAudioDeliveryUrl($sermon),
             episodeImageUrl: $this->sermonViewPresenter->thumbnailUrl($sermon),
             itunesDuration: $this->formatItunesDuration((int) ($sermon->duration ?? 0)),
-            podcastSummary: $this->buildPodcastSummary($sermon),
+            podcastSummary: $this->buildPodcastSummary($sermon, $preacherName),
+            preacherName: $preacherName,
             publishedAt: $sermon->date->toRfc2822String(),
             sermonId: $sermon->id,
             title: $sermon->title,
@@ -117,7 +120,7 @@ class PodcastFeedService
         return sprintf('%02d:%02d:%02d', $hours, $minutes, $remainingSeconds);
     }
 
-    private function buildPodcastSummary(Sermon $sermon): string
+    private function buildPodcastSummary(Sermon $sermon, ?string $preacherName): string
     {
         $parts = [];
 
@@ -126,7 +129,6 @@ class PodcastFeedService
             $parts[] = "A sermon on {$reference}";
         }
 
-        $preacherName = $this->sermonViewPresenter->displayPreacherName($sermon);
         if ($preacherName) {
             $prefix = empty($parts) ? 'A sermon from' : 'from';
             $parts[] = "{$prefix} {$preacherName}";

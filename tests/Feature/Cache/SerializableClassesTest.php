@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Cache;
 
+use App\Data\PodcastFeedItemReadModel;
 use App\Data\PublicMeetingReadModel;
 use App\Data\PublicPageReadModel;
 use App\Enums\PageArea;
@@ -104,6 +105,33 @@ class SerializableClassesTest extends TestCase
 
         $this->assertInstanceOf(PublicPageReadModel::class, $retrieved);
         $this->assertSame('Heading', $retrieved->heading);
+    }
+
+    #[Test]
+    public function podcast_feed_item_read_model_round_trips_through_cache(): void
+    {
+        $item = new PodcastFeedItemReadModel(
+            canonicalUrl: 'https://example.com/sermons/amazing-grace',
+            enclosureLength: 12345678,
+            enclosureUrl: 'https://cdn.example.com/sermons/42.mp3',
+            episodeImageUrl: null,
+            itunesDuration: '00:45:30',
+            podcastSummary: 'A sermon on grace.',
+            preacherName: 'Mark Drury',
+            publishedAt: 'Sun, 10 Mar 2024 10:30:00 +0000',
+            sermonId: 42,
+            title: 'Amazing Grace',
+            transcriptUrl: null,
+        );
+
+        $cache = $this->serializingCache();
+        $cache->put('podcast-item', collect([$item]), 60);
+
+        $retrieved = $cache->get('podcast-item')->first();
+
+        $this->assertInstanceOf(PodcastFeedItemReadModel::class, $retrieved);
+        $this->assertSame('Amazing Grace', $retrieved->title);
+        $this->assertSame('Mark Drury', $retrieved->preacherName);
     }
 
     #[Test]

@@ -65,6 +65,7 @@ class ProcessingResultsDataTest extends TestCase
             episodeImageUrl: 'https://cdn.example.com/sermons/42.jpg',
             itunesDuration: '00:45:30',
             podcastSummary: 'A sermon about grace.',
+            preacherName: 'Jane Smith',
             publishedAt: '2024-03-10T10:30:00Z',
             sermonId: 42,
             title: 'Amazing Grace',
@@ -77,6 +78,7 @@ class ProcessingResultsDataTest extends TestCase
         $this->assertSame('https://cdn.example.com/sermons/42.jpg', $item->episodeImageUrl);
         $this->assertSame('00:45:30', $item->itunesDuration);
         $this->assertSame('A sermon about grace.', $item->podcastSummary);
+        $this->assertSame('Jane Smith', $item->preacherName);
         $this->assertSame('2024-03-10T10:30:00Z', $item->publishedAt);
         $this->assertSame(42, $item->sermonId);
         $this->assertSame('Amazing Grace', $item->title);
@@ -93,6 +95,7 @@ class ProcessingResultsDataTest extends TestCase
             episodeImageUrl: null,
             itunesDuration: '00:30:00',
             podcastSummary: 'Summary',
+            preacherName: null,
             publishedAt: '2024-01-01T10:00:00Z',
             sermonId: 1,
             title: 'Sermon Title',
@@ -100,6 +103,7 @@ class ProcessingResultsDataTest extends TestCase
         );
 
         $this->assertNull($item->episodeImageUrl);
+        $this->assertNull($item->preacherName);
         $this->assertNull($item->transcriptUrl);
     }
 

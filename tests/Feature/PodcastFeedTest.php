@@ -270,6 +270,21 @@ class PodcastFeedTest extends TestCase
     }
 
     #[Test]
+    public function feed_identifies_the_preacher_as_a_podcast_person(): void
+    {
+        Sermon::factory()->create([
+            'service' => SermonService::Morning->value,
+            'audio_file_path' => 'test.mp3',
+            'preacher' => 'Mark Drury',
+        ]);
+
+        $response = $this->get('/christ/sermons/morning/feed');
+
+        $response->assertOk();
+        $this->assertStringContainsString('<podcast:person>Mark Drury</podcast:person>', (string) $response->getContent());
+    }
+
+    #[Test]
     public function feed_includes_rfc2822_pub_date(): void
     {
         Sermon::factory()->create([

@@ -20,26 +20,6 @@ use Illuminate\Contracts\Auth\Authenticatable;
  */
 class SermonExposurePolicy
 {
-    private bool $childrensTalksArePublic;
-
-    private bool $enforceVideoQuality;
-
-    private bool $hideNeedsReviewVideo;
-
-    /**
-     * Initialise the policy with configuration-driven visibility rules.
-     */
-    public function __construct()
-    {
-        /**
-         * Performance Optimization: Resolve and store configuration values in the constructor
-         * to avoid redundant config() lookups during high-frequency request cycles.
-         */
-        $this->childrensTalksArePublic = (bool) config('church.sermons.childrens_talks.public', false);
-        $this->enforceVideoQuality = (bool) config('media-processing.video_quality.enforce_public_visibility', true);
-        $this->hideNeedsReviewVideo = (bool) config('media-processing.video_quality.hide_needs_review', false);
-    }
-
     /**
      * Determine if Children's Talks should be visible to the general public.
      *
@@ -48,11 +28,7 @@ class SermonExposurePolicy
      */
     public function childrensTalksArePublic(): bool
     {
-        if (app()->environment('testing')) {
-            return (bool) config('church.sermons.childrens_talks.public', false);
-        }
-
-        return $this->childrensTalksArePublic;
+        return (bool) config('church.sermons.childrens_talks.public', false);
     }
 
     /**
@@ -234,22 +210,14 @@ class SermonExposurePolicy
 
     private function automaticVideoVisibility(Sermon $sermon): bool
     {
-        $enforceVideoQuality = app()->environment('testing')
-            ? (bool) config('media-processing.video_quality.enforce_public_visibility', true)
-            : $this->enforceVideoQuality;
-
-        if (! $enforceVideoQuality) {
+        if (! (bool) config('media-processing.video_quality.enforce_public_visibility', true)) {
             return true;
         }
-
-        $hideNeedsReviewVideo = app()->environment('testing')
-            ? (bool) config('media-processing.video_quality.hide_needs_review', false)
-            : $this->hideNeedsReviewVideo;
 
         return match ($sermon->videoQualityStatus()) {
             SermonVideoQualityStatus::Approved => true,
             SermonVideoQualityStatus::Rejected => false,
-            SermonVideoQualityStatus::NeedsReview => ! $hideNeedsReviewVideo,
+            SermonVideoQualityStatus::NeedsReview => ! (bool) config('media-processing.video_quality.hide_needs_review', false),
             SermonVideoQualityStatus::Unassessed => true,
         };
     }
