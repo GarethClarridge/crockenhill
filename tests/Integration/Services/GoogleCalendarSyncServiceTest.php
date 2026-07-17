@@ -7,8 +7,10 @@ namespace Tests\Integration\Services;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Services\Calendar\GoogleCalendarSyncService;
+use App\Services\Public\PublicMeetingReadModelCache;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\GoogleCalendar\Event;
@@ -24,7 +26,7 @@ class GoogleCalendarSyncServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->service = new GoogleCalendarSyncService;
+        $this->service = app(GoogleCalendarSyncService::class);
     }
 
     #[Test]
@@ -112,10 +114,7 @@ class GoogleCalendarSyncServiceTest extends TestCase
 
         $fakeGoogleEvent = $this->makeGoogleEvent(id: 'event-that-fails', name: 'Failing Event');
 
-        /** @var GoogleCalendarSyncService&Mockery\MockInterface $service */
-        $service = Mockery::mock(GoogleCalendarSyncService::class)
-            ->makePartial()
-            ->shouldAllowMockingProtectedMethods();
+        $service = $this->partiallyMockedService();
 
         $service->shouldReceive('fetchEventsFromGoogle')
             ->once()
@@ -140,10 +139,7 @@ class GoogleCalendarSyncServiceTest extends TestCase
             'end_datetime' => now()->addDays(7)->addHour(),
         ]);
 
-        /** @var GoogleCalendarSyncService&Mockery\MockInterface $service */
-        $service = Mockery::mock(GoogleCalendarSyncService::class)
-            ->makePartial()
-            ->shouldAllowMockingProtectedMethods();
+        $service = $this->partiallyMockedService();
 
         $service->shouldReceive('fetchEventsFromGoogle')
             ->once()
@@ -152,6 +148,91 @@ class GoogleCalendarSyncServiceTest extends TestCase
         $service->syncFromGoogleCalendar();
 
         $this->assertDatabaseMissing('calendar_events', ['google_event_id' => 'removed-from-google']);
+    }
+
+    #[Test]
+    public function it_forgets_the_public_meeting_read_model_when_google_removals_are_bulk_deleted(): void
+    {
+        $meeting = Meeting::factory()->create(['slug' => 'bulk-delete-meeting']);
+        $event = CalendarEvent::factory()->create([
+            'google_event_id' => 'removed-from-google',
+            'meeting_slug' => 'bulk-delete-meeting',
+            'status' => 'confirmed',
+            'start_datetime' => now()->addDays(7),
+            'end_datetime' => now()->addDays(7)->addHour(),
+        ]);
+
+        $cache = app(PublicMeetingReadModelCache::class);
+        $warmReadModel = $cache->get($meeting);
+        $this->assertTrue(
+            $warmReadModel->upcomingEvents->contains('id', $event->id),
+            'expected the warmed read model to contain the upcoming event',
+        );
+
+        $service = $this->partiallyMockedService();
+        $service->shouldReceive('fetchEventsFromGoogle')
+            ->once()
+            ->andReturn(collect([]));
+
+        $service->syncFromGoogleCalendar();
+
+        $refreshedReadModel = $cache->get($meeting->refresh());
+        $this->assertFalse(
+            $refreshedReadModel->upcomingEvents->contains('id', $event->id),
+            'expected the bulk-deleted event to be evicted from the public meeting read model',
+        );
+    }
+
+    #[Test]
+    public function it_locks_the_existing_row_inside_a_transaction_while_deciding_categorisation(): void
+    {
+        CalendarEvent::factory()->create([
+            'google_event_id' => 'locked-event',
+            'is_categorized_automatically' => true,
+        ]);
+
+        $baseTransactionLevel = DB::transactionLevel();
+
+        /** @var list<array{sql: string, level: int}> $queries */
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = ['sql' => $query->sql, 'level' => DB::transactionLevel()];
+        });
+
+        $this->service->syncSingleEvent($this->makeGoogleEvent(
+            id: 'locked-event',
+            name: 'Church Picnic',
+        ));
+
+        $lockedRead = collect($queries)->first(
+            fn (array $query): bool => str_contains($query['sql'], 'calendar_events')
+                && str_contains(strtolower($query['sql']), 'for update'),
+        );
+
+        $this->assertNotNull(
+            $lockedRead,
+            'expected the sync to read the existing row with a pessimistic lock (select ... for update)',
+        );
+        $this->assertGreaterThan(
+            $baseTransactionLevel,
+            $lockedRead['level'],
+            'expected the locked read to run inside the sync transaction',
+        );
+    }
+
+    /**
+     * @return GoogleCalendarSyncService&Mockery\MockInterface
+     */
+    private function partiallyMockedService(): GoogleCalendarSyncService
+    {
+        /** @var GoogleCalendarSyncService&Mockery\MockInterface $service */
+        $service = Mockery::mock(GoogleCalendarSyncService::class, [
+            app(PublicMeetingReadModelCache::class),
+        ])
+            ->makePartial()
+            ->shouldAllowMockingProtectedMethods();
+
+        return $service;
     }
 
     private function makeGoogleEvent(string $id, string $name): Event

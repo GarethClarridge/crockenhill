@@ -6,9 +6,11 @@ namespace App\Services\Calendar;
 
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
+use App\Services\Public\PublicMeetingReadModelCache;
 use App\Traits\SanitizesLogData;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Spatie\GoogleCalendar\Event;
 
@@ -18,6 +20,10 @@ class GoogleCalendarSyncService
 
     /** @var array<int, string>|null */
     private ?array $knownMeetingSlugs = null;
+
+    public function __construct(
+        private readonly PublicMeetingReadModelCache $publicMeetingReadModelCache,
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -64,7 +70,21 @@ class GoogleCalendarSyncService
         }
 
         $deletedEventIds = array_diff($existingEventIds, $seenUpstreamIds);
+
+        // A mass delete dispatches no per-model events, so CalendarEventObserver
+        // never sees the removals — capture the affected meetings first and forget
+        // their public read models explicitly.
+        $affectedMeetingSlugs = CalendarEvent::query()
+            ->whereIn('google_event_id', $deletedEventIds)
+            ->whereNotNull('meeting_slug')
+            ->distinct()
+            ->pluck('meeting_slug');
+
         CalendarEvent::query()->whereIn('google_event_id', $deletedEventIds)->delete();
+
+        foreach ($affectedMeetingSlugs as $meetingSlug) {
+            $this->publicMeetingReadModelCache->forgetBySlug($meetingSlug);
+        }
 
         $uncategorizedCount = CalendarEvent::query()->whereBetween('start_datetime', [$startDate, $endDate])
             ->whereNull('meeting_slug')
@@ -113,8 +133,6 @@ class GoogleCalendarSyncService
     public function syncSingleEvent(Event $googleEvent): CalendarEvent
     {
         $meetingSlug = $this->determineMeetingSlug($googleEvent);
-        /** @phpstan-ignore-next-line */
-        $existingEvent = CalendarEvent::query()->where('google_event_id', $googleEvent->id)->first();
 
         // Access extended properties from the underlying Google Calendar event
         $extendedProperties = $googleEvent->googleEvent->getExtendedProperties();
@@ -142,17 +160,30 @@ class GoogleCalendarSyncService
             'is_categorized_automatically' => true,
         ];
 
-        if ($existingEvent?->is_categorized_automatically === false) {
-            unset($attributes['meeting_slug'], $attributes['is_categorized_automatically']);
-        }
+        // The manual-categorisation check and the write must be atomic: an
+        // administrator can categorise the event between an unlocked read and
+        // the upsert, and the sync would then overwrite that manual choice
+        // with its pattern-derived slug. Locking the row for the duration of
+        // the decision makes a concurrent manual write wait until this
+        // transaction commits (after which the manual write wins), or commit
+        // first (in which case the locked read sees the manual flag).
+        return DB::transaction(function () use ($googleEvent, $attributes): CalendarEvent {
+            $existingEvent = CalendarEvent::query()
+                /** @phpstan-ignore-next-line */
+                ->where('google_event_id', $googleEvent->id)
+                ->lockForUpdate()
+                ->first();
 
-        $calendarEvent = CalendarEvent::query()->updateOrCreate(
-            /** @phpstan-ignore-next-line */
-            ['google_event_id' => $googleEvent->id],
-            $attributes
-        );
+            if ($existingEvent?->is_categorized_automatically === false) {
+                unset($attributes['meeting_slug'], $attributes['is_categorized_automatically']);
+            }
 
-        return $calendarEvent;
+            return CalendarEvent::query()->updateOrCreate(
+                /** @phpstan-ignore-next-line */
+                ['google_event_id' => $googleEvent->id],
+                $attributes
+            );
+        });
     }
 
     private function determineMeetingSlug(Event $googleEvent): ?string
