@@ -438,6 +438,8 @@ docblock; the weekly tech-debt rollup treats any one-shot older than a quarter a
 
 ### 3.1 [design] One presentation convention (decision D13; public 4.1 — the central Phase 5 item)
 
+**Complete (2026-07-16):** Merged as PR #1221.
+
 Adopt the rule: *every route's view data is one typed read-model object assembled in the controller
 or Livewire component; Blade components receive props; SEO/JSON-LD builders consume the same read
 model.* `PublicPageReadModel`/`PublicMeetingReadModel` already are the target. Deletions: `PageShowComposer`,
@@ -449,6 +451,8 @@ exception). **Unlocks:** one site-wide SEO/metadata implementation (public oppor
 seam for a design-system pass (opportunity 3).
 
 ### 3.2 [design] Caching simplification + repository slim (decision D13; public 4.2, sermons F5)
+
+**Complete (2026-07-16):** Merged as PR #1222.
 
 Choose freshness-by-TTL for listings: `Cache::flexible([300, 86400])` everywhere, deleting the
 ~150-line permutation-invalidation registry in `SermonRepository`, the framework-internal
@@ -462,6 +466,8 @@ hand-rolled copies. **Unlocks:** response/CDN caching becomes a config change (p
 
 ### 3.3 [design] Sermon presenter cluster collapse (decision D13; public 4.3/6.6)
 
+**Complete (2026-07-16):** Merged as PR #1223.
+
 Present each sermon once, eagerly, into a typed `SermonView` Data object (the shape
 `SermonPresentationAssembler::forFull()` already defines); helpers become pure functions. Deletes
 `SermonPresenterCache`, the identity-store half of `SermonIdentityResolver`, the presenter-passback
@@ -470,11 +476,15 @@ output shapes unchanged. Sanity-check the 24-item archive page before merging.
 
 ### 3.4 [design] Sitemap simplification (decision D13; public 4.6/6.3)
 
+**Complete (2026-07-16):** Merged as PR #1224.
+
 Plain sitemap — detail URLs + lastmod + static landing list; drop representative-image window
 queries, `priority`/`changefreq`; generate on the scheduler; controller becomes a file server.
 524 → ~150 lines; ~1,176 test lines shrink with it. `whereVisibleInSitemap` logic untouched.
 
 ### 3.5 [mechanical] Meetings & calendar decisions (decision D14; public 4.5/4.7, items 6.4/6.5/6.7/6.8)
+
+**Complete (2026-07-17):** Merged as PR #1225. The drop migration is destructive — flag at deploy; recoverable only from backups.
 
 - **Recurrence fields** (`meeting_date`/`is_recurring`/`frequency`): **do not merge a partial
   removal** — strip the
