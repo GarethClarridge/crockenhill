@@ -24,9 +24,9 @@ class PageImageCacheService
             $media = $page->getFirstMedia('headings');
 
             return [
-                'desktop' => $this->resolveHeadingImageUrl($page, $media, ['desktop', 'large'], 'large'),
+                'desktop' => $this->resolveHeadingImageUrl($page, $media, ['desktop'], 'large'),
                 'mobile' => $this->resolveHeadingImageUrl($page, $media, ['mobile'], 'small'),
-                'small' => $this->resolveHeadingImageUrl($page, $media, ['thumbnail', 'small'], 'small'),
+                'small' => $this->resolveHeadingImageUrl($page, $media, ['thumbnail'], 'small'),
                 'tablet' => $this->resolveHeadingImageUrl($page, $media, ['tablet'], 'large'),
             ];
         });
@@ -40,6 +40,10 @@ class PageImageCacheService
     }
 
     /**
+     * Every name in $conversions must be registered in Page::registerMediaConversions() —
+     * Media::getUrl() throws InvalidConversion for unregistered names even when the
+     * conversion file was generated under a registration that has since been removed.
+     *
      * @param  list<string>  $conversions
      */
     private function resolveHeadingImageUrl(Page $page, ?Media $media, array $conversions, string $size): ?string

@@ -300,22 +300,5 @@ class Page extends Model implements HasMedia
             ->format('webp')
             ->quality(80)
             ->nonQueued();
-
-        // Legacy conversions for backwards compatibility
-        $this->addMediaConversion('large')
-            ->width(1920)
-            ->height(960)
-            ->sharpen(10)
-            ->format('webp')
-            ->quality(85)
-            ->nonQueued();
-
-        $this->addMediaConversion('small')
-            ->width(300)
-            ->height(200)
-            ->sharpen(10)
-            ->format('webp')
-            ->quality(80)
-            ->nonQueued();
     }
 }

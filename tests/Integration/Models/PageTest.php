@@ -73,6 +73,20 @@ class PageTest extends TestCase
     }
 
     #[Test]
+    public function page_registers_only_the_canonical_media_conversions(): void
+    {
+        $page = new Page;
+
+        $page->registerMediaConversions();
+
+        $conversionNames = collect($page->mediaConversions)
+            ->map(fn ($conversion): string => $conversion->getName())
+            ->all();
+
+        $this->assertSame(['desktop', 'tablet', 'mobile', 'thumbnail'], $conversionNames);
+    }
+
+    #[Test]
     public function page_scopes()
     {
         Page::query()->delete(); // Clear pages before this test
