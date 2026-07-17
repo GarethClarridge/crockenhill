@@ -1,5 +1,13 @@
 # Workstream 3 — Public Read Path & Presentation Convergence (implementation plan)
 
+> **Archived 2026-07-17 — complete.** All six PRs merged: #1221 (3.1), #1222 (3.2), #1223 (3.3),
+> #1224 (3.4), #1225 (3.5), #1227 (3.6). A follow-up review of the merged work found thirteen
+> issues (O39–O51 in `docs/issues/README.md`), fixed in separate follow-up PRs. One instruction
+> below is superseded by what actually landed: PR 5 commit 5 also removed the `large`/`small`
+> names from `PageImageCacheService`'s fallback chains (asking Spatie Media Library for an
+> unregistered conversion name throws), so the live fallback is canonical conversion → original
+> media URL. **Do not restore the old conversion names.**
+
 Written 2026-07-16. This is the approved just-in-time implementation plan for **delivery-order
 item 7** of `docs/plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md`: backlog items
 **3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6**, in that order. Decisions D13/D14 (2026-07-05) approved all
@@ -408,8 +416,9 @@ memory: parallel workers otherwise read stale worker DBs).
 **Commit 5 — duplicate Page media conversions.** In `app/Models/Page.php`
 `registerMediaConversions()` (~269–323): delete the `large` and `small` conversion registrations
 (~308–322 — exact duplicates of `desktop`/`thumbnail`, kept "for backwards compatibility").
-**Keep** `PageImageCacheService`'s fallback chains (`['desktop','large']`, `['thumbnail','small']`,
-~L26–29) so historically-generated files keep serving.
+*(Superseded as landed: the `large`/`small` names were also removed from `PageImageCacheService`'s
+fallback chains, because requesting an unregistered conversion name throws; the fallback is now
+the original media URL — see the archival header.)*
 
 ---
 

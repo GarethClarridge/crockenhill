@@ -205,6 +205,7 @@ Never re-run the full suite just to discover which test failed.
 - Service providers are auto-discovered (no manual `providers` array in `config/app.php`).
 - Casts: prefer the `casts()` method on a model (not the `$casts` property).
 - When modifying a column in a migration, **include all previously defined attributes** — anything omitted is dropped.
+- Destructive schema changes (dropping columns, tables, or indexes) deploy **expand/contract**: one release stops reading the fields, a later release ships the drop migration. The deploy pipeline migrates before the container swap, so a drop that lands in the same release as the code that stops using it leaves the outgoing release serving unknown-column errors during the swap window.
 
 
 ## Frontend Conventions

@@ -2,7 +2,7 @@
 
 Consolidated tracker for audit findings (Mortician = dead code/assets, Pathfinder =
 broken links/SEO, public UX review = visitor journeys). Last reconciled against the codebase
-**2026-07-13** and production **2026-07-12**.
+**2026-07-17** and production **2026-07-12**.
 
 Convention: agent-generated per-issue reports get folded into this file (and, where the work is
 plan-shaped, into `docs/plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md`) and the source
@@ -310,6 +310,228 @@ production access, so the check is recorded here rather than executed.
 **Self-service path (added 2026-07-16):** `audit:password-hashes` counts stored hashes by algorithm
 (never printing hash material or user ids) and fails when any non-`$2y$` row exists. Dispatch it via
 `production-audit.yml` as described under O32.
+
+## 🟠 July simplification delivery-order item 7 review (2026-07-17)
+
+Review scope: merged PRs #1221, #1222, #1223, #1224, #1225 and #1227, which cumulatively
+implement backlog items 3.1–3.6. Each merge commit was reviewed separately (the history between
+some PRs contains unrelated work), then the combined current-`master` behaviour was traced through
+its controllers, presenters, observers, caches, scheduled commands, migrations, deployment order
+and surviving tests. The merge commits are `85452f9a4`, `876a88869`, `d326ac09c`, `7a4404814`,
+`3e168bf75` and `274a79e91` respectively. No actionable issue was found in PR #1221's presentation
+convergence or PR #1223's presenter collapse; their output shapes and access checks remain intact.
+
+Priority follows the convention above: **P1** blocks a safe deployment or can expose data;
+**P2** is a concrete behavioural or operability defect; **P3** is incomplete cleanup, resilience
+or source-of-truth drift.
+
+### O39 · [P1/deploy] The recurrence-column migration is incompatible with the live deployment order
+
+PR #1225 drops the recurrence CHECK, two indexes and three columns in
+`2026_07_16_222742_drop_recurrence_columns_from_meetings_table.php:17-22`, but the production
+workflow runs migrations at `.github/workflows/deploy.yml:429-433` while the outgoing release keeps
+serving until line 443. That outgoing #1224 code selects and filters `is_recurring`/`frequency` in
+the admin meeting list and hydrates/writes all three removed fields in its meeting form. Its list,
+create and edit requests can therefore fail with unknown-column errors during the first deployment.
+
+The migration is also not retry-safe. Laravel compiles the CHECK drop, each index drop and the
+column drop into separate `ALTER TABLE` statements; MySQL does not transact the group. If a later
+statement fails, no migration row is recorded, but retry starts by dropping an already-absent CHECK
+while the outgoing release may now face a partially contracted schema.
+
+**Suggested fix:** do not deploy this migration through the current migrate-before-swap sequence.
+Use a two-release expand/contract deployment, or an explicit maintenance/swap procedure in which no
+incompatible release can serve. Make the DDL one atomic `ALTER TABLE` where supported, or explicitly
+idempotent with a tested partial-failure recovery path. If it has already run successfully in
+production, record that one-time evidence before closing the deployment gate.
+
+**Production evidence (2026-07-17):** the migration has already run successfully in production. The
+deploy for merge `3e168bf75` (GitHub Actions run 29549070288's predecessor, run **29547382894**)
+completed green 2026-07-17 01:25–01:35 UTC, and the subsequent #1227 deploy also succeeded, so the
+schema contraction applied cleanly on the first attempt and no retry-path recovery was needed. The
+migrate-before-swap incompatibility window passed without a recorded failure (low-traffic window;
+the at-risk surfaces were admin-only). The one-time deployment gate is therefore closed. The durable
+fix is process, not code: an expand/contract convention for destructive migrations has been added to
+`AGENTS.md` (Laravel 13 structure section) so future drops ship one release behind the code that
+stops reading the fields.
+
+### O40 · [P1] TTL-only listing caches can publish a video URL after an operator hides it
+
+PR #1222 removed `SitemapCacheObserver`'s targeted sermon-list invalidation. The surviving
+`SermonObserver` does not evict `sermons_service_*`, series or preacher caches when
+`video_visibility_override` or `video_quality_status` changes. A cached Sermon therefore retains
+its old visibility fields after an operator force-hides or rejects the video.
+
+`SermonController:261-268` passes that cached model to `SermonItemListPresenter`, which emits a
+`VideoObject.contentUrl` from `SermonStorageService`'s direct public-storage/CDN URL. The guarded
+asset controller correctly denies the current model, but the public object URL bypasses it and can
+remain usable after the listing cache refreshes. The same missing targeted invalidation leaves
+deleted/reclassified sermons in podcast and listing caches, and leaves newly restricted Pages in
+cached navigation/cards (the page route itself remains guarded).
+
+With `[300, 86400]`, all requests can see the stale value for the remainder of the five-minute
+fresh interval; after that, normally the first later request plus concurrent races sees it before
+the deferred refresh. A quiet key can produce that response at any point before the 24-hour hard
+expiry. It is not continuous 24-hour exposure, but a single response is sufficient to disclose the
+durable direct URL.
+
+**Suggested fix:** retain TTL-only freshness for ordinary edits, but immediately evict affected
+public collections/feed keys on deletion and on access/exposure transitions (`content_type`, video
+visibility/quality, Page `admin`/`area`/`navigation`). Add warm-cache regression tests that revoke
+visibility and prove no HTML, JSON-LD or RSS response contains the hidden media URL.
+
+### O41 · [P2] Deleting a linked Page can leave its body in the surviving Meeting cache
+
+`PublicReadModelCacheObserver::deleted()` calls `loadMissing('meeting')` only after the Page has
+been deleted. The `meetings.page_id` foreign key is `ON DELETE SET NULL`, so an ordinarily resolved
+admin-delete Page has already lost that relationship and the observer never forgets the meeting
+key. `PublicMeetingReadModelCache` has copied the Page heading, rendered body, descriptions and
+image URLs into scalar cached data; `/community/{meeting}` remains routable with no linked Page and
+can serve that deleted content from its old read model.
+
+The unit observer test preloads the relation and calls `updated()`, so it does not exercise the
+actual delete/FK ordering. The same five-minute/one-later-response SWR qualification from O40
+applies.
+
+**Suggested fix:** retain the linked meeting id before the Page delete/FK action and invalidate the
+meeting key after commit. Add an integration test that warms the public meeting response, deletes
+its Page through the real model path, and proves the next response contains neither its body nor
+images.
+
+### O42 · [P2] Google removals bypass the observer that refreshes public meeting events
+
+`GoogleCalendarSyncService:66-67` removes events with a mass Eloquent `delete()`. Mass deletes do
+not dispatch per-model events, so `CalendarEventObserver::deleted()` never forgets the affected
+`PublicMeetingReadModelCache` keys. A future event removed from Google can consequently remain in
+the six cached upcoming events shown on its public meeting page. The sync test asserts only that
+the database row disappeared; it never warms or re-reads the public cache.
+
+**Suggested fix:** capture the affected non-null meeting slugs before the bulk delete and explicitly
+forget their read models, or delete hydrated models so the observer runs. Add a regression that
+warms a meeting read model, syncs an upstream deletion, and proves the next public read omits it.
+
+### O43 · [P2] Calendar sync can race and overwrite a new manual categorisation
+
+PR #1225's preservation rule reads the existing event at
+`GoogleCalendarSyncService:117`, decides at lines 145–147 whether it is automatic, then performs a
+separate upsert at lines 149–153. If the row is automatic at the read and an administrator manually
+categorises it before the upsert, the sync writes its pattern-derived slug and `true` flag over the
+new manual choice. The surviving Livewire screen exposes both categorisation and **Sync now**, and
+the scheduled sync can overlap either action; sequential tests do not cover the race.
+
+**Suggested fix:** make the decision and write atomic with a transaction plus `lockForUpdate`, or a
+conditional compare-and-set that cannot update the categorisation fields once the stored flag is
+false. Exercise a concurrent change at the read/write boundary.
+
+### O44 · [P2/deploy] The podcast DTO schema change is not self-invalidating
+
+PR #1227 adds the required readonly `PodcastFeedItemReadModel::$preacherName` property while
+retaining the unversioned `podcast_feed_{service}` key. An object serialized by the previous release
+rehydrates under the new class with that typed property uninitialised; `rss/feed.blade.php:40-42`
+then reads it and throws. The PR's cache-clear note does not close the window:
+`.github/workflows/deploy.yml:443` makes the new app public before `cache:clear` runs at lines
+451–452, and a failed post-swap clear leaves the incompatible value in place.
+
+**Suggested fix:** version cache keys whenever a serialized DTO schema changes (for example,
+`podcast_feed_v2_*`) so deployment correctness does not depend on command timing. Keep the broad
+post-deploy clear as hygiene, not as the compatibility mechanism, and pin the versioned rollover.
+
+### O45 · [P2/operational] The Google service account's read-only demotion is unverified
+
+Backlog item 3.5 says the service account **drops write scope**, but PR #1225 only removes the
+application's write calls and states that the account can now be demoted on the Google side. The
+package's requested API scope cannot be narrowed in this repository; the enforceable least-
+privilege change is the calendar-sharing role outside it. This checkout has no evidence of the
+production account's current ACL, so the stage cannot claim that operational part complete.
+
+**Suggested fix:** inspect the production calendar share, demote the service account to the
+read-only event-details role if necessary, run both scheduled/manual sync once, and record the
+role plus successful read. If it is already read-only, close this item with that evidence.
+
+### O46 · [P3] A stale filter cache can delay new sitemap archive URLs by an extra day
+
+PR #1224's daily sitemap calls cached `getSeriesForDisplay()` and `getScriptureBooks()` at
+`SitemapService:147/156`. Those methods use `Cache::flexible(..., [300, 86400])`. If the filter
+list is in its stale interval when the 04:00 command runs, Laravel returns the old value and defers
+the refresh until after the command has written the file. The cache is then fresh, but the sitemap
+is not generated again until the following day. A new series or Bible-book archive URL can
+therefore lag by nearly 48 hours, rather than appearing the next morning as PR #1224 intended.
+
+**Suggested fix:** have scheduled sitemap generation use fresh/uncached distinct filter queries (or
+refresh them before rendering), and test a stale filter cache through the real command lifecycle.
+
+### O47 · [P3] Scheduled sitemap replacement is not atomic
+
+`SitemapService:39` delegates to Spatie's `writeToFile()`, whose installed implementation calls
+`file_put_contents()` directly on the live `public/sitemap.xml`. The daily job now truncates and
+rewrites a file nginx serves concurrently, so a crawler can receive empty/partial XML; an I/O
+failure can also destroy the last-known-good sitemap until another successful run.
+
+**Suggested fix:** render to a sibling temporary file, validate that it is complete XML, then use a
+same-filesystem atomic rename. Cover failure-before-rename so the old sitemap demonstrably remains.
+
+### O48 · [P3] `<podcast:person>` silently classifies every preacher as the episode host
+
+PR #1227 emits `<podcast:person>{preacher}</podcast:person>` with no `role`. The official
+[Podcast Namespace person specification](https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/tags/person.md)
+defines omitted `role` as `host`, so visiting and one-off preachers are now advertised as the
+podcast host rather than simply credited as the episode's preacher/speaker. The new test pins the
+ambiguous form rather than the intended taxonomy.
+
+**Suggested fix:** decide the correct Podcast Taxonomy role (including how regular and visiting
+preachers differ), emit it explicitly, and assert the role as well as the person's escaped name.
+
+### O49 · [P2] The feed advertises one-hour HTTP freshness over a five-minute origin cache
+
+PR #1222 changes the feed's shipped origin-cache freshness to 300 seconds, but
+`PodcastFeedController:35-38` still returns `Cache-Control: public, max-age=3600`, and its feature
+test pins that value. A conforming client or intermediary may therefore reuse old XML for an hour
+without contacting the origin. That defeats the claimed five-minute feed freshness and can keep a
+zero-length enclosure response visible client-side after `PodcastFeedService` has already forgotten
+its origin key for recovery.
+
+**Suggested fix:** derive HTTP freshness from the configured fresh TTL, or require revalidation if
+the feed must react to takedowns and enclosure repair immediately. Test header/config agreement and
+the chosen recovery semantics.
+
+### O50 · [P3] Item 3.2 retained the framework-private flexible-cache key it promised to delete
+
+The backlog explicitly calls for deleting the `illuminate:cache:flexible:created:` key hack. PR
+#1222 instead centralises and hard-codes it in `app/Support/FlexibleCache.php:11-15`, with a unit
+test that now pins Laravel's private key format. Runtime currently works because the installed
+framework uses the same prefix, but a framework change can silently stop invalidation from
+cancelling an already-deferred refresh.
+
+**Suggested fix:** remove knowledge of the framework-private key. Use only supported cache APIs;
+if invalidation must supersede an already-deferred callback, use an app-owned version/generation
+key or lock and test the race without asserting Laravel's internal key name.
+
+### O51 · [P3] The Stage 7 source-of-truth documents still describe a state that did not land
+
+`JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md:504` has no **Complete / PR #1227** marker for
+3.6 even though #1227's commit message says it is marked on merge. The 3.5 text at lines 500–501
+also says the `large`/`small` fallback chain still serves old conversions, while #1225 deliberately
+removed those names from `PageImageCacheService` because unregistered conversions throw; the live
+fallback is now the original media URL. `WORKSTREAM-3-PUBLIC-READ-PATH-2026-07-16.md:408-412`
+retains the same superseded instruction.
+
+**Suggested fix:** mark 3.6 complete with PR #1227, describe the actual canonical-conversion →
+original-file fallback, and reconcile/archive the implementation workstream so future agents do not
+restore invalid conversion names.
+
+### Review verification
+
+- An independent focused parallel Sail run passed **182 tests (420 assertions)** across all six PR
+  surfaces; PHPUnit also reported 12 notices. Three delegated focused runs passed 149/529, 88/366
+  and 110/269 tests/assertions respectively; those sets overlap and are not summed.
+- `vendor/bin/sail composer phpstan` completed with **0 errors**, and `git diff --check` is clean.
+- The cache timing was checked against Laravel 13's installed `Repository::flexible()` source; the
+  non-atomic write against the installed Spatie sitemap implementation; migration statement
+  boundaries against Laravel's MySQL schema grammar; and Page deletion against the dumped FK.
+- Existing tests cover the intended happy paths, but not the deployment compatibility, access-
+  transition caches, real Page-delete ordering, bulk-delete invalidation, sync race, stale sitemap
+  generation, atomic replacement or old serialized DTO shape described above.
+- This was a review-only task: no application fix or production/Google-side mutation was attempted.
 
 ## 🟠 Open — needs a fix, not yet owned by a plan
 
