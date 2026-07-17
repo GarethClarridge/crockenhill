@@ -66,9 +66,19 @@ class PodcastFeedService
         return $this->fetchSermons($serviceType);
     }
 
+    /**
+     * The versioned cache key for a service's feed.
+     *
+     * The cached value serializes PodcastFeedItemReadModel objects, so the
+     * key must be bumped (v2 → v3 …) whenever that DTO's shape changes:
+     * an object serialized by the previous release rehydrates under the new
+     * class with any added typed property uninitialised and throws when the
+     * template reads it. Deployment ordering must not be the compatibility
+     * mechanism — the post-deploy cache:clear is hygiene, not a guarantee.
+     */
     public static function cacheKey(SermonService $serviceType): string
     {
-        return "podcast_feed_{$serviceType->value}";
+        return "podcast_feed_v2_{$serviceType->value}";
     }
 
     /**

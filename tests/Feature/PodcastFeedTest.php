@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Enums\SermonService;
 use App\Models\Sermon;
+use App\Services\Public\PodcastFeedService;
 use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -24,8 +25,8 @@ class PodcastFeedTest extends TestCase
     {
         parent::setUp();
         // Clear cache before each test (including flexible cache created-timestamp keys)
-        Cache::forget('podcast_feed_morning');
-        Cache::forget('podcast_feed_evening');
+        Cache::forget(PodcastFeedService::cacheKey(SermonService::Morning));
+        Cache::forget(PodcastFeedService::cacheKey(SermonService::Evening));
         Cache::flush();
 
         // Mock SermonStorageService to avoid hitting real S3
@@ -182,7 +183,7 @@ class PodcastFeedTest extends TestCase
         $this->assertStringNotContainsString('Evening Service Sermon', $morningContent);
 
         // Clear cache for the next request
-        Cache::forget('podcast_feed_evening');
+        Cache::forget(PodcastFeedService::cacheKey(SermonService::Evening));
 
         $eveningResponse = $this->get('/christ/sermons/evening/feed');
         $eveningContent = $eveningResponse->getContent();
@@ -281,7 +282,7 @@ class PodcastFeedTest extends TestCase
         $response = $this->get('/christ/sermons/morning/feed');
 
         $response->assertOk();
-        $this->assertStringContainsString('<podcast:person>Mark Drury</podcast:person>', (string) $response->getContent());
+        $this->assertStringContainsString('<podcast:person role="speaker">Mark Drury</podcast:person>', (string) $response->getContent());
     }
 
     #[Test]
@@ -393,7 +394,7 @@ class PodcastFeedTest extends TestCase
         }
 
         // Clear cache since we changed config
-        Cache::forget('podcast_feed_morning');
+        Cache::forget(PodcastFeedService::cacheKey(SermonService::Morning));
 
         $response = $this->get('/christ/sermons/morning/feed');
         $content = $response->getContent();
@@ -429,7 +430,7 @@ class PodcastFeedTest extends TestCase
     {
         // Ensure the test is deterministic even if baseline fixtures/seed data exist
         Sermon::query()->delete();
-        Cache::forget('podcast_feed_morning');
+        Cache::forget(PodcastFeedService::cacheKey(SermonService::Morning));
 
         $response = $this->get('/christ/sermons/morning/feed');
 
@@ -490,7 +491,7 @@ class PodcastFeedTest extends TestCase
         // Check both directives are present (order may vary)
         $cacheControl = $response->headers->get('Cache-Control');
         $this->assertStringContainsString('public', $cacheControl);
-        $this->assertStringContainsString('max-age=3600', $cacheControl);
+        $this->assertStringContainsString('max-age='.config('podcast.cache.ttl'), $cacheControl);
     }
 
     #[Test]
@@ -541,5 +542,45 @@ class PodcastFeedTest extends TestCase
 
         // Episode should have itunes:image (falls back to podcast artwork if no thumbnail)
         $this->assertStringContainsString('<itunes:image href="http://localhost/images/podcast/MorningArtwork.jpg"', $content);
+    }
+
+    #[Test]
+    public function feed_cache_key_is_versioned_for_dto_schema_changes(): void
+    {
+        // The cached value serializes PodcastFeedItemReadModel objects; the key
+        // version must roll whenever that DTO's shape changes so an old
+        // serialized value can never rehydrate with uninitialised properties.
+        // If this assertion fails because the DTO changed, bump the version —
+        // do not reuse the old key.
+        $this->assertSame('podcast_feed_v2_morning', PodcastFeedService::cacheKey(SermonService::Morning));
+
+        Sermon::factory()->create([
+            'service' => SermonService::Morning->value,
+            'audio_file_path' => 'test.mp3',
+        ]);
+
+        $this->get('/christ/sermons/morning/feed')->assertOk();
+
+        $this->assertTrue(Cache::has(PodcastFeedService::cacheKey(SermonService::Morning)));
+    }
+
+    #[Test]
+    public function http_freshness_follows_the_configured_origin_fresh_ttl(): void
+    {
+        $this->withoutMiddleware();
+        config(['podcast.cache.ttl' => 120]);
+
+        Sermon::factory()->create([
+            'service' => SermonService::Morning->value,
+            'audio_file_path' => 'test.mp3',
+        ]);
+
+        $response = $this->get('/christ/sermons/morning/feed');
+
+        $this->assertStringContainsString(
+            'max-age=120',
+            (string) $response->headers->get('Cache-Control'),
+            'expected the Cache-Control max-age to follow the configured origin fresh TTL',
+        );
     }
 }
