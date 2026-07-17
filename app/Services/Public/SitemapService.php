@@ -36,9 +36,58 @@ class SitemapService
         $this->addSeries($sitemap);
         $this->addBooks($sitemap);
 
-        $sitemap->writeToFile($this->getFilePath());
+        $this->replaceSitemapFileAtomically($sitemap, $this->getFilePath());
 
         return true;
+    }
+
+    /**
+     * Nginx serves the live file concurrently, so it must never be truncated
+     * in place: render to a sibling temporary file, verify it is complete
+     * XML, then swap it in with a same-filesystem atomic rename. On any
+     * failure the previous sitemap remains untouched.
+     */
+    private function replaceSitemapFileAtomically(Sitemap $sitemap, string $path): void
+    {
+        $temporaryPath = $path.'.'.uniqid('tmp', true);
+
+        try {
+            $this->writeSitemapFile($sitemap, $temporaryPath);
+            $this->assertWellFormedXml($temporaryPath);
+
+            if (! rename($temporaryPath, $path)) {
+                throw new \RuntimeException("Failed to atomically replace sitemap at {$path}");
+            }
+        } catch (\Throwable $exception) {
+            if (file_exists($temporaryPath)) {
+                @unlink($temporaryPath);
+            }
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * Extracted so tests can simulate a corrupt or failed render.
+     */
+    protected function writeSitemapFile(Sitemap $sitemap, string $temporaryPath): void
+    {
+        $sitemap->writeToFile($temporaryPath);
+    }
+
+    private function assertWellFormedXml(string $path): void
+    {
+        $previousUseInternalErrors = libxml_use_internal_errors(true);
+
+        try {
+            $document = simplexml_load_file($path);
+        } finally {
+            libxml_use_internal_errors($previousUseInternalErrors);
+        }
+
+        if ($document === false) {
+            throw new \RuntimeException("Generated sitemap at {$path} is not well-formed XML");
+        }
     }
 
     private function addStaticUrls(Sitemap $sitemap): void
@@ -144,7 +193,10 @@ class SitemapService
 
     private function addSeries(Sitemap $sitemap): void
     {
-        foreach ($this->sermonRepository->getSeriesForDisplay() as $series) {
+        // Uncached on purpose: a flexible-cache read in its stale window
+        // returns the old list and defers the refresh until after the file
+        // is written, delaying a new archive URL by a full extra day.
+        foreach ($this->sermonRepository->getExistingSeries() as $series) {
             $sitemap->add(Url::create(
                 route('sermons.series.show', ['series' => Str::slug($series)])
             ));
@@ -153,7 +205,7 @@ class SitemapService
 
     private function addBooks(Sitemap $sitemap): void
     {
-        foreach ($this->sermonRepository->getScriptureBooks() as $book) {
+        foreach ($this->sermonRepository->getExistingScriptureBooks() as $book) {
             $sitemap->add(Url::create(route('sermons.index', ['book' => $book])));
         }
     }

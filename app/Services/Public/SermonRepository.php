@@ -221,6 +221,25 @@ class SermonRepository
     }
 
     /**
+     * Get distinct Bible books that have associated sermons, bypassing the cache.
+     *
+     * Scheduled sitemap generation reads this instead of getScriptureBooks():
+     * a flexible-cache read in its stale window returns the old list and
+     * defers the refresh until after the sitemap file has been written, so a
+     * new archive URL would lag a full extra day.
+     *
+     * @return Collection<int, string>
+     */
+    public function getExistingScriptureBooks(): Collection
+    {
+        // Entries are only created for ContentType::Sermon, so no join is needed
+        return SermonScriptureFilter::query()
+            ->select('bible_book')
+            ->distinct()
+            ->pluck('bible_book');
+    }
+
+    /**
      * Get distinct Bible books that have associated sermons, optionally filtered by preacher or series.
      *
      * Performance Optimization: Caches the book list for 24 hours using flexible cache.
@@ -239,10 +258,7 @@ class SermonRepository
             $query = SermonScriptureFilter::query();
 
             if ($preacherId === null && $series === null) {
-                // Entries are only created for ContentType::Sermon, so we can skip the join
-                return $query->select('bible_book')
-                    ->distinct()
-                    ->pluck('bible_book');
+                return $this->getExistingScriptureBooks();
             }
 
             return $query->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')

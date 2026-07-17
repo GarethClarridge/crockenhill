@@ -110,7 +110,7 @@ class SitemapServiceTest extends TestCase
         $sermonRepository->method('getSermonsByService')->willReturn(collect());
         $sermonRepository->method('getExistingSeries')->willReturn([]);
         $sermonRepository->method('getSeriesForDisplay')->willReturn([]);
-        $sermonRepository->method('getScriptureBooks')->willReturn(collect(['Genesis', 'John']));
+        $sermonRepository->method('getExistingScriptureBooks')->willReturn(collect(['Genesis', 'John']));
 
         $service = $this->getMockBuilder(SitemapService::class)
             ->setConstructorArgs([
