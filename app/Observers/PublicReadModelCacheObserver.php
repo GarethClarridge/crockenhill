@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
-use App\Enums\PageArea;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Services\Public\PageCardService;
@@ -74,10 +73,16 @@ class PublicReadModelCacheObserver implements ShouldHandleEventsAfterCommit
 
         $this->pageImageCacheService->forget($model);
         $this->publicPageReadModelCache->forget($model);
-        // On deletion the meetings.page_id FK has already been set null by the
-        // time this after-commit handler runs; ModelObserverServiceProvider
-        // preloads the relation in a `deleting` hook so it is still available.
-        $model->loadMissing('meeting');
+
+        // A fresh load: the instance may carry a stale null relation cached
+        // before the meeting was linked. After deletion the row is gone and
+        // the meetings.page_id FK already set null, so rely on the relation
+        // preloaded by Page::booted()'s deleting hook instead.
+        if ($model->exists) {
+            $model->load('meeting');
+        } else {
+            $model->loadMissing('meeting');
+        }
 
         if ($model->meeting !== null) {
             $this->publicMeetingReadModelCache->forget($model->meeting);
@@ -87,26 +92,22 @@ class PublicReadModelCacheObserver implements ShouldHandleEventsAfterCommit
     /**
      * Evict the cached navigation and card collections a page can appear in.
      * A newly restricted page would otherwise linger in cached navigation and
-     * card rails until the stale window closes.
+     * card rails until the stale window closes. The rail and area keys are
+     * owned (and evicted) by their services; only the nav key is forgotten
+     * here directly.
      */
     private function forgetPageCollections(Page $page): void
     {
-        $keys = [
-            Header::NAV_CACHE_KEY,
-            PageCardService::HOME_RAIL_CACHE_KEY,
-            PageCardService::COMMUNITY_RAIL_CACHE_KEY,
-            PageCardService::CHURCH_RAIL_CACHE_KEY,
-            PageListCache::areaCacheKey($page->area),
-        ];
+        FlexibleCache::forget(Header::NAV_CACHE_KEY);
+        PageCardService::forgetRailCaches();
+        PageListCache::forgetAreaCache($page->area);
 
+        // getPrevious() returns raw attribute values, so a changed area
+        // arrives as its string value, never a cast enum.
         $previousArea = $page->getPrevious()['area'] ?? null;
 
-        if (is_string($previousArea) || $previousArea instanceof PageArea) {
-            $keys[] = PageListCache::areaCacheKey($previousArea);
-        }
-
-        foreach (array_unique($keys) as $key) {
-            FlexibleCache::forget($key);
+        if (is_string($previousArea) && $previousArea !== '') {
+            PageListCache::forgetAreaCache($previousArea);
         }
     }
 }

@@ -72,16 +72,23 @@ class PodcastFeedService
     }
 
     /**
-     * Forget both public feed caches.
+     * Forget every configured public feed cache.
      *
      * TTL freshness covers ordinary edits; this eviction is for sermon
      * exposure transitions (deletion, reclassification, media hiding) where
-     * a stale feed would keep advertising a withdrawn enclosure URL.
+     * a stale feed would keep advertising a withdrawn enclosure URL. The
+     * feed set is derived from config('podcast.feeds') — the same source
+     * getFeedMetadata() reads — so a new feed is evicted without touching
+     * this method.
      */
     public function forgetFeeds(): void
     {
-        foreach ([SermonService::Morning, SermonService::Evening] as $serviceType) {
-            FlexibleCache::forget(self::cacheKey($serviceType));
+        foreach (array_keys((array) config('podcast.feeds')) as $feedKey) {
+            $serviceType = SermonService::tryFrom((string) $feedKey);
+
+            if ($serviceType !== null) {
+                FlexibleCache::forget(self::cacheKey($serviceType));
+            }
         }
     }
 

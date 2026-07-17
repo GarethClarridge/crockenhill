@@ -7,6 +7,7 @@ namespace App\Services\Public;
 use App\Enums\PageArea;
 use App\Models\Page;
 use App\Presenters\PageCardPresenter;
+use App\Support\FlexibleCache;
 use Illuminate\Support\Collection;
 
 class PageCardService
@@ -16,6 +17,24 @@ class PageCardService
     public const COMMUNITY_RAIL_CACHE_KEY = 'page_card_rail_community';
 
     public const CHURCH_RAIL_CACHE_KEY = 'page_card_rail_church';
+
+    /**
+     * Forget every card-rail cache. Used on page exposure transitions, where
+     * TTL freshness is not enough (see PublicReadModelCacheObserver). Kept
+     * beside the rail keys so a new rail is evicted without touching the
+     * observer; eviction is deliberately unconditional — page writes are
+     * rare, and gating on rail slug membership is not worth the coupling.
+     */
+    public static function forgetRailCaches(): void
+    {
+        foreach ([
+            self::HOME_RAIL_CACHE_KEY,
+            self::COMMUNITY_RAIL_CACHE_KEY,
+            self::CHURCH_RAIL_CACHE_KEY,
+        ] as $railCacheKey) {
+            FlexibleCache::forget($railCacheKey);
+        }
+    }
 
     /**
      * @var list<string>

@@ -67,6 +67,16 @@ class Page extends Model implements HasMedia
 
             $page->description = filled($heading) ? $heading : 'No description provided.';
         });
+
+        // PublicReadModelCacheObserver handles events after commit, by which
+        // time the meetings.page_id ON DELETE SET NULL FK has already severed
+        // the relationship — load it while the row still links so deleted()
+        // can forget the surviving meeting's read model. A forced load, not
+        // loadMissing: the instance may carry a stale null relation cached
+        // before the meeting was linked.
+        static::deleting(function (self $page): void {
+            $page->load('meeting');
+        });
     }
 
     /**

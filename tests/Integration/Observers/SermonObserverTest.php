@@ -151,8 +151,8 @@ class SermonObserverTest extends TestCase
         ?SermonStorageService $storageService = null,
     ): SermonObserver {
         return new SermonObserver(
-            app(PodcastFeedService::class),
-            app(SermonRepository::class),
+            $this->createStub(PodcastFeedService::class),
+            $this->createStub(SermonRepository::class),
             $scriptureFilterIndexService ?? $this->createStub(SermonScriptureFilterIndexService::class),
             $storageService ?? $this->createStub(SermonStorageService::class),
         );
