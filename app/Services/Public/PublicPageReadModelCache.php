@@ -7,7 +7,6 @@ namespace App\Services\Public;
 use App\Data\PublicPageReadModel;
 use App\Models\Page;
 use App\Presenters\PageLayoutPresenter;
-use App\Support\FlexibleCache;
 use Illuminate\Support\Facades\Cache;
 
 class PublicPageReadModelCache
@@ -41,7 +40,7 @@ class PublicPageReadModelCache
     {
         $pageId = $page instanceof Page ? $page->id : $page;
 
-        FlexibleCache::forget($this->cacheKey($pageId));
+        Cache::forget($this->cacheKey($pageId));
     }
 
     private function cacheKey(int $pageId): string
