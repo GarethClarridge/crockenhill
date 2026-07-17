@@ -42,3 +42,8 @@
 **Pattern:** DatabaseTransactions on unit tests.
 **Cause:** Validation tests for `unique` and `exists` rules triggered database hits, forcing the use of `DatabaseTransactions` even for non-DB logic like regex or integer bounds.
 **Fix:** Removed `DatabaseTransactions` and introduced a `filterDatabaseRules` helper to strip `exists:` and `unique:` rules. This allows pure unit testing of model validation logic in isolation, significantly improving test speed and reliability.
+
+## 2027-02-15 - Harden SEO and Social Metadata Feature Tests
+**Pattern:** Brittle exact-string HTML/XML tag assertions
+**Cause:** Feature tests matched entire compiled tag strings (e.g., `<meta property="..." content="...">` and `<link rel="..." href="...">`), which would break if attribute ordering, spacing, or format changed.
+**Fix:** Converted exact-string tag assertions to separate assertions targeting individual attributes (e.g., property/name and content separately) using split `assertSee` calls, drastically increasing robustness against template updates.

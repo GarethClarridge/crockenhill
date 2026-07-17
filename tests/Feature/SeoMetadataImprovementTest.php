@@ -31,8 +31,10 @@ class SeoMetadataImprovementTest extends TestCase
         $response = $this->get("/christ/sermons/preachers/{$preacher->slug}");
 
         $response->assertStatus(200);
-        $response->assertSee('<meta property="og:type" content="profile">', false);
-        $response->assertSee('<meta property="profile:username" content="john-owen">', false);
+        $response->assertSee('property="og:type"', false);
+        $response->assertSee('content="profile"', false);
+        $response->assertSee('property="profile:username"', false);
+        $response->assertSee('content="john-owen"', false);
     }
 
     #[Test]
@@ -43,7 +45,7 @@ class SeoMetadataImprovementTest extends TestCase
         $response = $this->get("/meetings/{$meeting->slug}/events");
 
         $response->assertStatus(200);
-        $response->assertSee('<meta property="og:image"', false);
+        $response->assertSee('property="og:image"', false);
         $response->assertSee('content="Events for ', false);
     }
 }
