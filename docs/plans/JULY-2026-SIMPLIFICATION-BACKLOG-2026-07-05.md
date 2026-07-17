@@ -484,7 +484,11 @@ queries, `priority`/`changefreq`; generate on the scheduler; controller becomes 
 
 ### 3.5 [mechanical] Meetings & calendar decisions (decision D14; public 4.5/4.7, items 6.4/6.5/6.7/6.8)
 
-**Complete (2026-07-17):** Merged as PR #1225. The drop migration is destructive — flag at deploy; recoverable only from backups.
+**Complete (2026-07-17):** Merged as PR #1225. The drop migration is destructive — recoverable only
+from backups. **Deploy evidence (O39):** the migration was applied in production by the deploy run
+for merge `3e168bf75` (GitHub Actions run 29547382894, succeeded 2026-07-17 01:25–01:35 UTC) on its
+first attempt; the migrate-before-swap incompatibility window passed without a recorded failure.
+Future destructive migrations must use expand/contract (see `AGENTS.md`, Laravel 13 structure).
 
 - **Recurrence fields** (`meeting_date`/`is_recurring`/`frequency`): **do not merge a partial
   removal** — strip the
@@ -497,11 +501,16 @@ queries, `priority`/`changefreq`; generate on the scheduler; controller becomes 
   `syncCategorizationToGoogle`/`removeCategorizationFromGoogle` + `CalendarCategorizationResult`
   (~90 lines); service account drops write scope.
 - **`CalendarAdminController` + two Blade views**: converge on the Livewire calendar admin.
-- **Duplicate `Page` media conversions** (`large`/`small`): delete; fallback chain already serves
-  old files.
+- **Duplicate `Page` media conversions** (`large`/`small`): deleted. *(As landed, the `large`/`small`
+  names were also removed from `PageImageCacheService`'s fallback chains — asking Spatie Media
+  Library for an unregistered conversion name throws — so the live fallback is now canonical
+  conversion → original media URL. Do not restore the old conversion names.)*
 - Also: decide `/calendar/uncategorized` public exposure (public Q2 — likely make it admin-only).
 
 ### 3.6 [mechanical] Podcast feed merge + `SermonExposurePolicy` fix (quick-win adjacent)
+
+**Complete (2026-07-17):** Merged as PR #1227 (single `rss/feed.blade.php` with `<podcast:person>`,
+lazy config reads in `SermonExposurePolicy`).
 
 Merge the byte-identical `rss/morningFeed`/`eveningFeed` templates into one `rss/feed.blade.php`
 (sermons F8); Podcast 2.0 tags (`<podcast:person>`, chapters) become cheap follow-ups if wanted
@@ -760,9 +769,11 @@ Hard dependency chains, restated:
       deleted; the LLM path is primary with shadow/eval as the permanent regression mechanism.
 - [ ] No spent one-shot tool remains runnable; new one-shots carry deletion triggers.
 - [x] One storage service owns the sermon file lifecycle; no legacy path branching at runtime.
-- [ ] One presentation convention on the public read path; composers/inline JSON-LD/dead read
-      methods gone.
-- [ ] Listing freshness is TTL-based; no hand-maintained cache-key registry.
+- [x] One presentation convention on the public read path; composers/inline JSON-LD/dead read
+      methods gone. *(PRs #1221–#1227, 2026-07-17.)*
+- [x] Listing freshness is TTL-based; no hand-maintained cache-key registry. *(PR #1222; the
+      O39–O51 follow-up review added targeted model-derived eviction for exposure transitions
+      only — see `docs/issues/README.md`.)*
 - [ ] The upload flow is one authorized admin component with one state enum.
 - [ ] Operator diagnostics read from steps+metadata only; no log-file re-parsing.
 - [ ] Migrations are squashed with the drift gate updated and a re-squash cadence adopted.
