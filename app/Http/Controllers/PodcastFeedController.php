@@ -32,9 +32,14 @@ class PodcastFeedController extends Controller
             'metadata' => $metadata,
         ])->render();
 
+        // HTTP freshness must not exceed the origin cache's fresh TTL, or
+        // clients keep serving old XML long after the origin has moved on
+        // (including zero-length enclosures the origin has already healed).
+        $maxAge = (int) config('podcast.cache.ttl', 300);
+
         return response($content, 200, [
             'Content-Type' => 'application/rss+xml; charset=UTF-8',
-            'Cache-Control' => 'public, max-age=3600',
+            'Cache-Control' => "public, max-age={$maxAge}",
         ]);
     }
 }
