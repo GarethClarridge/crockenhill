@@ -6,11 +6,32 @@ namespace App\Services\Public;
 
 use App\Enums\PageArea;
 use App\Models\Page;
+use App\Support\FlexibleCache;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class PageListCache
 {
+    public static function areaCacheKey(string|PageArea $area): string
+    {
+        return 'page_links_'.self::areaValue($area);
+    }
+
+    /**
+     * Forget the cached link list for an area. Used on page exposure
+     * transitions, where TTL freshness is not enough (see
+     * PublicReadModelCacheObserver).
+     */
+    public static function forgetAreaCache(string|PageArea $area): void
+    {
+        FlexibleCache::forget(self::areaCacheKey($area));
+    }
+
+    private static function areaValue(string|PageArea $area): string
+    {
+        return $area instanceof PageArea ? $area->value : $area;
+    }
+
     /**
      * Get and cache all public links for an area.
      *
@@ -18,8 +39,8 @@ class PageListCache
      */
     public function getAllLinksForArea(string|PageArea $area): Collection
     {
-        $areaValue = $area instanceof PageArea ? $area->value : $area;
-        $key = "page_links_{$areaValue}";
+        $areaValue = self::areaValue($area);
+        $key = self::areaCacheKey($area);
 
         return Cache::flexible($key, [300, 86400], function () use ($areaValue): Collection {
             return Page::query()
@@ -36,7 +57,7 @@ class PageListCache
      */
     public function getLinksForAreaSlugs(string|PageArea $area, array $slugs, string $cacheKey): Collection
     {
-        $areaValue = $area instanceof PageArea ? $area->value : $area;
+        $areaValue = self::areaValue($area);
         $orderedSlugs = array_values(array_unique($slugs));
 
         if ($orderedSlugs === []) {

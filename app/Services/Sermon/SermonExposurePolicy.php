@@ -21,6 +21,21 @@ use Illuminate\Contracts\Auth\Authenticatable;
 class SermonExposurePolicy
 {
     /**
+     * The sermon attributes this policy's exposure rules consult.
+     *
+     * SermonObserver evicts warm public listing/feed caches when any of these
+     * change; a new exposure input added to this policy must be added here so
+     * flipping it evicts immediately instead of waiting out the stale window.
+     *
+     * @var list<string>
+     */
+    public const EXPOSURE_ATTRIBUTES = [
+        'content_type',
+        'video_visibility_override',
+        'video_quality_status',
+    ];
+
+    /**
      * Determine if Children's Talks should be visible to the general public.
      *
      * When false (default), these talks are restricted to authenticated members

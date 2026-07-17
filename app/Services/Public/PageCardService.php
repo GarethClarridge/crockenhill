@@ -7,10 +7,35 @@ namespace App\Services\Public;
 use App\Enums\PageArea;
 use App\Models\Page;
 use App\Presenters\PageCardPresenter;
+use App\Support\FlexibleCache;
 use Illuminate\Support\Collection;
 
 class PageCardService
 {
+    public const HOME_RAIL_CACHE_KEY = 'page_card_rail_home';
+
+    public const COMMUNITY_RAIL_CACHE_KEY = 'page_card_rail_community';
+
+    public const CHURCH_RAIL_CACHE_KEY = 'page_card_rail_church';
+
+    /**
+     * Forget every card-rail cache. Used on page exposure transitions, where
+     * TTL freshness is not enough (see PublicReadModelCacheObserver). Kept
+     * beside the rail keys so a new rail is evicted without touching the
+     * observer; eviction is deliberately unconditional — page writes are
+     * rare, and gating on rail slug membership is not worth the coupling.
+     */
+    public static function forgetRailCaches(): void
+    {
+        foreach ([
+            self::HOME_RAIL_CACHE_KEY,
+            self::COMMUNITY_RAIL_CACHE_KEY,
+            self::CHURCH_RAIL_CACHE_KEY,
+        ] as $railCacheKey) {
+            FlexibleCache::forget($railCacheKey);
+        }
+    }
+
     /**
      * @var list<string>
      */
@@ -52,7 +77,7 @@ class PageCardService
      */
     public function forHome(): Collection
     {
-        return $this->pagesBySlugs(self::HOME_CARD_SLUGS, 'page_card_rail_home');
+        return $this->pagesBySlugs(self::HOME_CARD_SLUGS, self::HOME_RAIL_CACHE_KEY);
     }
 
     /**
@@ -60,7 +85,7 @@ class PageCardService
      */
     public function forCommunity(): Collection
     {
-        return $this->pagesBySlugs(self::COMMUNITY_CARD_SLUGS, 'page_card_rail_community');
+        return $this->pagesBySlugs(self::COMMUNITY_CARD_SLUGS, self::COMMUNITY_RAIL_CACHE_KEY);
     }
 
     /**
@@ -68,7 +93,7 @@ class PageCardService
      */
     public function forChurch(): Collection
     {
-        return $this->pagesBySlugs(self::CHURCH_CARD_SLUGS, 'page_card_rail_church');
+        return $this->pagesBySlugs(self::CHURCH_CARD_SLUGS, self::CHURCH_RAIL_CACHE_KEY);
     }
 
     /**

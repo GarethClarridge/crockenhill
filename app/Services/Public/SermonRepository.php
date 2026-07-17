@@ -10,6 +10,7 @@ use App\Models\Builders\SermonBuilder;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
+use App\Support\FlexibleCache;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -178,6 +179,44 @@ class SermonRepository
         $slug = (string) ($preacher->slug ?: Str::slug($preacher->name));
 
         return 'sermons_preacher_'.$slug;
+    }
+
+    /**
+     * Forget the cached public listings this sermon can appear in.
+     *
+     * Ordinary edits rely on TTL freshness; this targeted eviction exists for
+     * exposure transitions (deletion, reclassification, video hiding), where
+     * a stale cached model would keep publishing a hidden or deleted media
+     * URL until the stale window closes. The keys are derived from the
+     * model's previous and current values, not a hand-maintained registry.
+     */
+    public function forgetPublicListings(Sermon $sermon): void
+    {
+        $previous = $sermon->getPrevious();
+
+        $keys = collect([$sermon->service?->value, $previous['service'] ?? null])
+            ->filter()
+            ->map(fn (string $service): string => "sermons_service_{$service}")
+            ->merge(
+                collect([$sermon->series, $previous['series'] ?? null])
+                    ->filter()
+                    ->map(fn (string $series): string => 'sermons_series_'.Str::slug($series))
+            );
+
+        $preacherIds = collect([$sermon->preacher_id, $previous['preacher_id'] ?? null])
+            ->filter()
+            ->unique();
+
+        if ($preacherIds->isNotEmpty()) {
+            $keys = $keys->merge(
+                Preacher::query()
+                    ->whereIn('id', $preacherIds)
+                    ->get(['id', 'slug', 'name'])
+                    ->map(fn (Preacher $preacher): string => $this->preacherCacheKey($preacher))
+            );
+        }
+
+        $keys->unique()->each(fn (string $key) => FlexibleCache::forget($key));
     }
 
     /**
