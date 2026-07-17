@@ -38,7 +38,7 @@
       <itunes:title><![CDATA[{{ $feedItem->title }}]]></itunes:title>
       <itunes:author>{{ $metadata['author'] }}</itunes:author>
 @if($feedItem->preacherName)
-      <podcast:person>{{ $feedItem->preacherName }}</podcast:person>
+      <podcast:person role="speaker">{{ $feedItem->preacherName }}</podcast:person>
 @endif
       <itunes:image href="{{ $feedItem->episodeImageUrl ?? $metadata['image'] }}" />
       <link>{{ $feedItem->canonicalUrl }}</link>

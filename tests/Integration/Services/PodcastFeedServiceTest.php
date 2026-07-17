@@ -263,18 +263,18 @@ class PodcastFeedServiceTest extends TestCase
         Log::shouldReceive('warning')
             ->once()
             ->with('Podcast feed contains zero-length enclosures; feed cache invalidated', [
-                'feed' => 'podcast_feed_morning',
+                'feed' => 'podcast_feed_v2_morning',
                 'sermon_ids' => [$sermon->id],
             ]);
 
         $firstFeed = $this->service->getSermonsForFeed(SermonService::Morning);
 
         $this->assertSame(0, $firstFeed->sole()->enclosureLength);
-        $this->assertFalse(Cache::has('podcast_feed_morning'));
+        $this->assertFalse(Cache::has('podcast_feed_v2_morning'));
         $secondFeed = $this->service->getSermonsForFeed(SermonService::Morning);
 
         $this->assertSame(1024, $secondFeed->sole()->enclosureLength);
-        $this->assertTrue(Cache::has('podcast_feed_morning'));
+        $this->assertTrue(Cache::has('podcast_feed_v2_morning'));
     }
 
     #[Test]
