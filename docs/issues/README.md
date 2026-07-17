@@ -313,6 +313,23 @@ production access, so the check is recorded here rather than executed.
 
 ## 🟠 July simplification delivery-order item 7 review (2026-07-17)
 
+**Status updated 2026-07-17 (same day):** every repository-side finding is resolved and merged.
+O39 was closed with production deploy evidence and an expand/contract convention in `AGENTS.md`,
+and O51's doc drift fixed, in PR #1229. O42/O43 were fixed in PR #1230 (bulk-delete cache eviction;
+lock-protected categorisation), O40/O41 in PR #1231 (targeted exposure-transition eviction with
+warm-cache regression tests; deleting-time relation preload), O46/O47 in PR #1233 (uncached sitemap
+source queries; atomic file replacement), O44/O48/O49 in PR #1236 (versioned `podcast_feed_v2_*`
+key; explicit `role="speaker"`; config-derived HTTP freshness — supersedes auto-closed #1232), and
+O50 in PR #1234 (framework-private flexible-cache key knowledge removed; the framework contract the
+strategy relies on is pinned by `FlexibleCacheInvalidationTest`). Codex could not review these PRs
+(usage limits); the substitute was the local multi-angle `/code-review` process, whose findings were
+addressed on PR #1231 before merge.
+
+**Only O45 remains open** — it is an operator-side action with no repository change: inspect the
+production Google Calendar share, demote the service account to the read-only event-details role if
+it still has write access, run one scheduled and one manual sync, and record the role plus the
+successful read here.
+
 Review scope: merged PRs #1221, #1222, #1223, #1224, #1225 and #1227, which cumulatively
 implement backlog items 3.1–3.6. Each merge commit was reviewed separately (the history between
 some PRs contains unrelated work), then the combined current-`master` behaviour was traced through
