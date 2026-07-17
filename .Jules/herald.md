@@ -45,3 +45,7 @@
 ## 2026-07-07 - Documenting Interface Contracts for API Clarity
 **Learning:** Interface contracts in `app/Contracts/` define the API surface and boundary between services. Providing class-level PHPDoc that explains the "why" and "purpose" of the interface, along with detailed method documentation, significantly improves developer experience when navigating service implementations.
 **Action:** Prioritize documenting interface contracts as they are the source of truth for service expectations. Ensure parameter and return descriptions clarify the domain context (e.g., OoS email components) rather than just technical types.
+
+## 2026-07-08 - Documenting SafeMarkdownRenderer and XSS Security Strategy
+**Learning:** Documenting utility services like `SafeMarkdownRenderer` that manage markdown conversion requires highlighting the security design (e.g., stripping HTML tags and blocking unsafe links by default) to convey why the specific library configuration was chosen. This bridges the gap between raw functionality and the overall application security posture.
+**Action:** Always document security strategies, inputs, and fallback behaviors for markdown and text sanitizers. Explicitly clarify parameters (like nullable strings) and expected output types.
