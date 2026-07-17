@@ -16,6 +16,8 @@ use Illuminate\View\Component;
 
 class Header extends Component
 {
+    public const NAV_CACHE_KEY = 'nav_pages';
+
     public ?User $user;
 
     /** @var Collection<int, Page> */
@@ -33,7 +35,7 @@ class Header extends Component
 
         $this->user = $user;
         $this->pages = Cache::flexible(
-            'nav_pages',
+            self::NAV_CACHE_KEY,
             [300, 86400],
             fn (): Collection => Page::query()->isNavigation()
                 ->public()

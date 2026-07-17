@@ -8,6 +8,8 @@ use App\Enums\SermonContentType;
 use App\Jobs\MoveSermonToPrivateStorage;
 use App\Models\Sermon;
 use App\Observers\SermonObserver;
+use App\Services\Public\PodcastFeedService;
+use App\Services\Public\SermonRepository;
 use App\Services\Scripture\SermonScriptureFilterIndexService;
 use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -35,7 +37,7 @@ class SermonObserverTest extends TestCase
         $service = $this->createMock(SermonScriptureFilterIndexService::class);
         $service->expects($this->never())->method('syncForSermon');
 
-        $observer = new SermonObserver($service, $this->createStub(SermonStorageService::class));
+        $observer = $this->makeObserver(scriptureFilterIndexService: $service);
         $observer->saved($sermon);
     }
 
@@ -56,7 +58,7 @@ class SermonObserverTest extends TestCase
             ->method('syncForSermon')
             ->with($this->callback(fn (Sermon $subject): bool => $subject->is($sermon)));
 
-        $observer = new SermonObserver($service, $this->createStub(SermonStorageService::class));
+        $observer = $this->makeObserver(scriptureFilterIndexService: $service);
         $observer->saved($sermon);
     }
 
@@ -71,10 +73,7 @@ class SermonObserverTest extends TestCase
 
         Sermon::withoutEvents(fn () => $sermon->update([$field => $path]));
 
-        $observer = new SermonObserver(
-            $this->createStub(SermonScriptureFilterIndexService::class),
-            $this->createStub(SermonStorageService::class),
-        );
+        $observer = $this->makeObserver();
         $observer->saved($sermon);
 
         Queue::assertPushed(
@@ -104,10 +103,7 @@ class SermonObserverTest extends TestCase
             ],
         ]));
 
-        $observer = new SermonObserver(
-            $this->createStub(SermonScriptureFilterIndexService::class),
-            $this->createStub(SermonStorageService::class),
-        );
+        $observer = $this->makeObserver();
         $observer->saved($sermon);
 
         Queue::assertPushed(MoveSermonToPrivateStorage::class);
@@ -128,10 +124,7 @@ class SermonObserverTest extends TestCase
             ],
         ]));
 
-        $observer = new SermonObserver(
-            $this->createStub(SermonScriptureFilterIndexService::class),
-            $this->createStub(SermonStorageService::class),
-        );
+        $observer = $this->makeObserver();
         $observer->saved($sermon);
 
         Queue::assertNotPushed(MoveSermonToPrivateStorage::class);
@@ -148,12 +141,21 @@ class SermonObserverTest extends TestCase
             ->method('clearCachedMetadata')
             ->with($this->callback(fn (Sermon $subject): bool => $subject->is($sermon)));
 
-        $observer = new SermonObserver(
-            $this->createStub(SermonScriptureFilterIndexService::class),
-            $storageService,
-        );
+        $observer = $this->makeObserver(storageService: $storageService);
 
         $observer->saved($sermon);
+    }
+
+    private function makeObserver(
+        ?SermonScriptureFilterIndexService $scriptureFilterIndexService = null,
+        ?SermonStorageService $storageService = null,
+    ): SermonObserver {
+        return new SermonObserver(
+            app(PodcastFeedService::class),
+            app(SermonRepository::class),
+            $scriptureFilterIndexService ?? $this->createStub(SermonScriptureFilterIndexService::class),
+            $storageService ?? $this->createStub(SermonStorageService::class),
+        );
     }
 
     /** @return array<string, array{string, string}> */

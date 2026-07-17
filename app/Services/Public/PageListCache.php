@@ -11,6 +11,13 @@ use Illuminate\Support\Facades\Cache;
 
 class PageListCache
 {
+    public static function areaCacheKey(string|PageArea $area): string
+    {
+        $areaValue = $area instanceof PageArea ? $area->value : $area;
+
+        return "page_links_{$areaValue}";
+    }
+
     /**
      * Get and cache all public links for an area.
      *
@@ -19,7 +26,7 @@ class PageListCache
     public function getAllLinksForArea(string|PageArea $area): Collection
     {
         $areaValue = $area instanceof PageArea ? $area->value : $area;
-        $key = "page_links_{$areaValue}";
+        $key = self::areaCacheKey($area);
 
         return Cache::flexible($key, [300, 86400], function () use ($areaValue): Collection {
             return Page::query()

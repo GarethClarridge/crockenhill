@@ -11,6 +11,12 @@ use Illuminate\Support\Collection;
 
 class PageCardService
 {
+    public const HOME_RAIL_CACHE_KEY = 'page_card_rail_home';
+
+    public const COMMUNITY_RAIL_CACHE_KEY = 'page_card_rail_community';
+
+    public const CHURCH_RAIL_CACHE_KEY = 'page_card_rail_church';
+
     /**
      * @var list<string>
      */
@@ -52,7 +58,7 @@ class PageCardService
      */
     public function forHome(): Collection
     {
-        return $this->pagesBySlugs(self::HOME_CARD_SLUGS, 'page_card_rail_home');
+        return $this->pagesBySlugs(self::HOME_CARD_SLUGS, self::HOME_RAIL_CACHE_KEY);
     }
 
     /**
@@ -60,7 +66,7 @@ class PageCardService
      */
     public function forCommunity(): Collection
     {
-        return $this->pagesBySlugs(self::COMMUNITY_CARD_SLUGS, 'page_card_rail_community');
+        return $this->pagesBySlugs(self::COMMUNITY_CARD_SLUGS, self::COMMUNITY_RAIL_CACHE_KEY);
     }
 
     /**
@@ -68,7 +74,7 @@ class PageCardService
      */
     public function forChurch(): Collection
     {
-        return $this->pagesBySlugs(self::CHURCH_CARD_SLUGS, 'page_card_rail_church');
+        return $this->pagesBySlugs(self::CHURCH_CARD_SLUGS, self::CHURCH_RAIL_CACHE_KEY);
     }
 
     /**

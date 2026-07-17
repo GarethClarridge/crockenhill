@@ -29,7 +29,7 @@ class PodcastFeedService
      */
     public function getSermonsForFeed(SermonService $serviceType): Collection
     {
-        $cacheKey = "podcast_feed_{$serviceType->value}";
+        $cacheKey = self::cacheKey($serviceType);
 
         /** @var array{enabled: bool, ttl: int, stale_ttl: int} $cacheConfig */
         $cacheConfig = config('podcast.cache');
@@ -64,6 +64,25 @@ class PodcastFeedService
         }
 
         return $this->fetchSermons($serviceType);
+    }
+
+    public static function cacheKey(SermonService $serviceType): string
+    {
+        return "podcast_feed_{$serviceType->value}";
+    }
+
+    /**
+     * Forget both public feed caches.
+     *
+     * TTL freshness covers ordinary edits; this eviction is for sermon
+     * exposure transitions (deletion, reclassification, media hiding) where
+     * a stale feed would keep advertising a withdrawn enclosure URL.
+     */
+    public function forgetFeeds(): void
+    {
+        foreach ([SermonService::Morning, SermonService::Evening] as $serviceType) {
+            FlexibleCache::forget(self::cacheKey($serviceType));
+        }
     }
 
     /**
