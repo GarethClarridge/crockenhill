@@ -28,8 +28,8 @@ class MediaStatusRequest extends MediaProcessingRequest
     {
         return [
             // Security: input length is bounded to provide Defense in Depth against DoS.
-            'include_logs' => ['nullable', 'boolean', 'max:20'],
-            'log_limit' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'include_logs' => ['nullable', 'max:20', 'boolean'],
+            'log_limit' => ['nullable', 'digits_between:1,3', 'integer', 'min:1', 'max:100'],
         ];
     }
 
