@@ -49,7 +49,7 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($meetings as $meeting)
-                <tr wire:loading.class="opacity-50" wire:target="delete({{ $meeting->id }})" class="hover:bg-gray-50">
+                <tr wire:loading.class="opacity-50 pointer-events-none" wire:target="delete({{ $meeting->id }})" class="hover:bg-gray-50">
                     {{-- Meeting --}}
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ $meeting->page?->heading ?? $meeting->slug }}</p>
