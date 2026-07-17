@@ -1,5 +1,6 @@
 <?php
 
+use App\Data\PodcastFeedItemReadModel;
 use App\Data\PublicMeetingReadModel;
 use App\Data\PublicPageReadModel;
 use App\Enums\CalendarEventStatus;
@@ -115,6 +116,10 @@ return [
         // Application DTOs cached by the public read-model layer.
         PublicMeetingReadModel::class,
         PublicPageReadModel::class,
+
+        // Podcast feed items cached by PodcastFeedService::getSermonsForFeed()
+        // via Cache::flexible — the feed 500s on read-back without this.
+        PodcastFeedItemReadModel::class,
 
         // Eloquent Page collections cached for the public navigation
         // (see App\View\Components\Layout\Header). Both the outer

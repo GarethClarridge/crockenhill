@@ -13,6 +13,7 @@ final readonly class PodcastFeedItemReadModel
         public ?string $episodeImageUrl,
         public string $itunesDuration,
         public string $podcastSummary,
+        public ?string $preacherName,
         public string $publishedAt,
         public int $sermonId,
         public string $title,

@@ -27,12 +27,7 @@ class PodcastFeedController extends Controller
         $feedItems = $this->feedService->getSermonsForFeed($serviceEnum);
         $metadata = $this->feedService->getFeedMetadata($service);
 
-        $viewName = match ($serviceEnum) {
-            SermonService::Morning => 'rss.morningFeed',
-            SermonService::Evening => 'rss.eveningFeed',
-        };
-
-        $content = view($viewName, [
+        $content = view('rss.feed', [
             'feedItems' => $feedItems,
             'metadata' => $metadata,
         ])->render();
