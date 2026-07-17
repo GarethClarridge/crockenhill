@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire\Admin\Meetings;
 
-use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
 use App\Livewire\Admin\Meetings\CreateMeeting;
 use App\Models\Meeting;
@@ -120,18 +119,6 @@ class CreateMeetingTest extends TestCase
     }
 
     #[Test]
-    public function it_validates_recurring_frequency(): void
-    {
-        $this->actingAs($this->admin);
-
-        Livewire::test(CreateMeeting::class)
-            ->set('form.isRecurring', true)
-            ->set('form.frequency', null)
-            ->call('save')
-            ->assertHasErrors(['form.frequency' => 'required_if']);
-    }
-
-    #[Test]
     public function it_accepts_valid_start_and_end_times(): void
     {
         $this->actingAs($this->admin);
@@ -161,39 +148,5 @@ class CreateMeetingTest extends TestCase
             ->set('form.endTime', '10:30')
             ->call('save')
             ->assertHasErrors(['form.endTime' => 'after_or_equal']);
-    }
-
-    #[Test]
-    public function it_clears_frequency_when_recurring_is_disabled(): void
-    {
-        $this->actingAs($this->admin);
-
-        Livewire::test(CreateMeeting::class)
-            ->set('form.isRecurring', true)
-            ->set('form.frequency', MeetingFrequency::Weekly->value)
-            ->set('form.isRecurring', false)
-            ->assertSet('form.frequency', null);
-    }
-
-    #[Test]
-    public function it_can_create_a_recurring_meeting(): void
-    {
-        $this->actingAs($this->admin);
-
-        Livewire::test(CreateMeeting::class)
-            ->set('form.slug', 'recurring-meeting')
-            ->set('form.type', MeetingType::Adults->value)
-            ->set('form.day', 'Monday')
-            ->set('form.who', 'Adults')
-            ->set('form.isRecurring', true)
-            ->set('form.frequency', MeetingFrequency::Weekly->value)
-            ->call('save')
-            ->assertHasNoErrors();
-
-        $this->assertDatabaseHas('meetings', [
-            'slug' => 'recurring-meeting',
-            'is_recurring' => true,
-            'frequency' => MeetingFrequency::Weekly->value,
-        ]);
     }
 }

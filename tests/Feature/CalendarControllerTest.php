@@ -236,52 +236,6 @@ class CalendarControllerTest extends TestCase
     }
 
     #[Test]
-    public function uncategorized_calendar_shows_upcoming_uncategorized_events(): void
-    {
-        Meeting::factory()->create(['slug' => 'some-meeting']);
-
-        CalendarEvent::factory()->create([
-            'meeting_slug' => null,
-            'start_datetime' => now()->addDays(1),
-            'end_datetime' => now()->addDays(1)->addHour(),
-            'status' => 'confirmed',
-            'title' => 'Uncategorised Upcoming',
-        ]);
-
-        CalendarEvent::factory()->create([
-            'meeting_slug' => null,
-            'start_datetime' => now()->subDays(1),
-            'end_datetime' => now()->subDays(1)->addHour(),
-            'status' => 'confirmed',
-            'title' => 'Uncategorised Past',
-        ]);
-
-        CalendarEvent::factory()->create([
-            'meeting_slug' => null,
-            'start_datetime' => now()->addDays(2),
-            'end_datetime' => now()->addDays(2)->addHour(),
-            'status' => 'tentative',
-            'title' => 'Uncategorised Tentative',
-        ]);
-
-        CalendarEvent::factory()->create([
-            'meeting_slug' => 'some-meeting',
-            'start_datetime' => now()->addDays(1),
-            'end_datetime' => now()->addDays(1)->addHour(),
-            'status' => 'confirmed',
-            'title' => 'Categorised Upcoming',
-        ]);
-
-        $response = $this->get(route('calendar.uncategorized'));
-
-        $response->assertStatus(200);
-        $response->assertSee('Uncategorised Upcoming');
-        $response->assertDontSee('Uncategorised Past');
-        $response->assertDontSee('Uncategorised Tentative');
-        $response->assertDontSee('Categorised Upcoming');
-    }
-
-    #[Test]
     public function calendar_index_handles_no_events_gracefully(): void
     {
         CalendarEvent::query()->delete();

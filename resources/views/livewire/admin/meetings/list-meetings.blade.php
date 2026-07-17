@@ -9,7 +9,7 @@
     </x-slot:actions>
 
     <x-slot:filters>
-        <x-admin.filter-bar loading-target="search, typeFilter, recurringFilter, resetFilters">
+        <x-admin.filter-bar loading-target="search, typeFilter, resetFilters">
             <x-input placeholder="Search meetings..." wire:model.live.debounce="search" icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
 
             <x-select
@@ -19,12 +19,6 @@
                 class="w-48"
             />
 
-            <x-select
-                placeholder="Recurring"
-                wire:model.live="recurringFilter"
-                :options="[['id' => '1', 'name' => 'Recurring'], ['id' => '0', 'name' => 'One-time']]"
-                class="w-40"
-            />
         </x-admin.filter-bar>
     </x-slot:filters>
 
@@ -72,17 +66,6 @@
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             {{ $meeting->type->label() }}
                         </span>
-                    </td>
-                    {{-- Recurring --}}
-                    <td class="px-4 py-3">
-                        @if($meeting->is_recurring)
-                            <div class="flex items-center gap-2">
-                                <x-heroicon-o-arrow-path class="w-4 h-4 text-blue-500" />
-                                <span class="text-sm">{{ $meeting->frequency?->label() }}</span>
-                            </div>
-                        @else
-                            <span class="text-sm text-gray-300">One-time</span>
-                        @endif
                     </td>
                     {{-- Location --}}
                     <td class="px-4 py-3">

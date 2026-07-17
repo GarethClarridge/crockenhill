@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\DataIntegrity;
 
-use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
 use App\Livewire\Admin\Meetings\CreateMeeting;
 use App\Models\Meeting;
@@ -210,28 +209,5 @@ class MeetingFortificationTest extends TestCase
         $this->assertNotNull($meeting);
         $this->assertSame('Monday', $meeting->day);
         $this->assertSame('Everyone', $meeting->who);
-    }
-
-    #[Test]
-    public function it_clears_frequency_when_meeting_is_not_recurring(): void
-    {
-        $admin = User::factory()->crockenhillAdmin()->create(['is_admin' => true]);
-        $this->actingAs($admin);
-
-        Livewire::test(CreateMeeting::class)
-            ->set('form.slug', 'one-off-meeting')
-            ->set('form.type', MeetingType::Adults->value)
-            ->set('form.day', 'Tuesday')
-            ->set('form.who', 'Everyone')
-            ->set('form.isRecurring', true)
-            ->set('form.frequency', MeetingFrequency::Weekly->value)
-            ->set('form.isRecurring', false)
-            ->call('save');
-
-        $meeting = Meeting::query()->where('slug', 'one-off-meeting')->first();
-
-        $this->assertNotNull($meeting);
-        $this->assertFalse($meeting->is_recurring);
-        $this->assertNull($meeting->frequency);
     }
 }

@@ -60,7 +60,6 @@ class EditMeeting extends Component
         return view('livewire.admin.meetings.meeting-form', [
             'title' => 'Edit Meeting',
             'types' => $this->form->typeOptions(),
-            'frequencies' => $this->form->frequencyOptions(),
             'pages' => $this->pageOptions(),
         ])->layout('layouts.admin', ['title' => 'Edit: '.$pageTitle, 'heading' => 'Edit Meeting']);
     }

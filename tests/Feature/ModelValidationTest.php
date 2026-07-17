@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\MediaType;
-use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SampleSource;
@@ -175,9 +174,6 @@ class ModelValidationTest extends TestCase
         $this->assertContains('required', $rules['type']);
         $this->assertTrue($this->hasEnumRule($rules['type'], MeetingType::class));
 
-        $this->assertArrayHasKey('frequency', $rules);
-        $this->assertContains('nullable', $rules['frequency']);
-        $this->assertTrue($this->hasEnumRule($rules['frequency'], MeetingFrequency::class));
     }
 
     /**

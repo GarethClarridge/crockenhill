@@ -47,7 +47,6 @@ class CreateMeeting extends Component
         return view('livewire.admin.meetings.meeting-form', [
             'title' => 'Create Meeting',
             'types' => $this->form->typeOptions(),
-            'frequencies' => $this->form->frequencyOptions(),
             'pages' => $this->pageOptions(),
         ])->layout('layouts.admin', ['title' => 'Create Meeting', 'heading' => 'Create Meeting']);
     }

@@ -9,6 +9,7 @@ use App\Services\Public\PageImageCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -78,6 +79,31 @@ class PageImageCacheServiceTest extends TestCase
         // mobile and small use the 'small' size path
         $this->assertNotNull($result['mobile']);
         $this->assertStringContainsString('our-church.webp', $result['mobile']);
+    }
+
+    #[Test]
+    public function it_falls_back_to_the_original_url_for_media_with_only_legacy_conversions(): void
+    {
+        Storage::fake('public');
+
+        $page = Page::factory()->create(['slug' => 'legacy-media-page']);
+
+        $directory = storage_path('framework/testing');
+        File::ensureDirectoryExists($directory);
+        $filePath = "{$directory}/legacy-heading.png";
+        File::put($filePath, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='));
+
+        $media = $page->addMedia($filePath)->toMediaCollection('headings');
+
+        // Simulate a row generated when only the legacy conversions were registered
+        $media->update(['generated_conversions' => ['large' => true, 'small' => true]]);
+
+        $result = $this->service->get($page->fresh());
+
+        $this->assertStringContainsString('legacy-heading', (string) $result['desktop']);
+        $this->assertStringContainsString('legacy-heading', (string) $result['mobile']);
+        $this->assertStringContainsString('legacy-heading', (string) $result['small']);
+        $this->assertStringContainsString('legacy-heading', (string) $result['tablet']);
     }
 
     // ── Cache behaviour ───────────────────────────────────────────────────────

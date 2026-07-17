@@ -72,20 +72,4 @@ class CalendarController extends Controller
             'slug' => $meeting->slug,
         ]);
     }
-
-    public function uncategorized(): View
-    {
-        $uncategorizedEvents = $this->calendarService->getUncategorizedEvents(
-            from: now(),
-            limit: 20
-        );
-
-        return view('calendar.uncategorized', [
-            'uncategorizedEvents' => $uncategorizedEvents,
-            'heading' => 'Uncategorised Events',
-            'description' => 'Calendar events that still need assigning to a meeting.',
-            'content' => '',
-            'links' => collect(),
-        ]);
-    }
 }

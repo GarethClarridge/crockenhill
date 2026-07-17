@@ -124,17 +124,6 @@ class BladeShellRenderingTest extends TestCase
     }
 
     #[Test]
-    public function admin_shell_calendar_patterns_title_is_correct(): void
-    {
-        $admin = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
-
-        $response = $this->actingAs($admin)->get('/admin/calendar/patterns');
-
-        $response->assertOk();
-        $response->assertSee('<title>Calendar patterns | Crockenhill Baptist Church</title>', false);
-    }
-
-    #[Test]
     public function layout_preloads_the_vite_built_pattern_asset(): void
     {
         $response = $this->get('/login');

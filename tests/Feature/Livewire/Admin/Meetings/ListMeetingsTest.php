@@ -127,23 +127,6 @@ class ListMeetingsTest extends TestCase
     }
 
     #[Test]
-    public function it_filters_by_recurring_status(): void
-    {
-        $meeting1 = Meeting::factory()->recurring()->create(['who' => 'Recurring User']);
-        $meeting2 = Meeting::factory()->notRecurring()->create(['who' => 'One-off User']);
-
-        $this->actingAs($this->admin);
-
-        Livewire::test(ListMeetings::class)
-            ->set('recurringFilter', true)
-            ->assertSee('Recurring User')
-            ->assertDontSee('One-off User')
-            ->set('recurringFilter', false)
-            ->assertSee('One-off User')
-            ->assertDontSee('Recurring User');
-    }
-
-    #[Test]
     public function it_sorts_meetings(): void
     {
         Meeting::query()->delete();

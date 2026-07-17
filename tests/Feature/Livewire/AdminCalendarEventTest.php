@@ -10,7 +10,6 @@ use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\User;
-use App\Services\Calendar\GoogleCalendarSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -29,11 +28,6 @@ class AdminCalendarEventTest extends TestCase
             'is_admin' => true,
             'email_verified_at' => now(),
         ]);
-
-        // Mock Google Calendar sync to prevent API calls in tests
-        $this->mock(GoogleCalendarSyncService::class, function ($mock) {
-            $mock->shouldReceive('syncCategorizationToGoogle')->andReturn(false);
-        });
     }
 
     #[Test]

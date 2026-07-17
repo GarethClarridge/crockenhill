@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Models\CalendarEvent;
+use App\Models\Meeting;
 use App\Services\Calendar\GoogleCalendarSyncService;
 use Carbon\Carbon;
-use Google\Service\Calendar\EventExtendedProperties;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
@@ -42,18 +42,60 @@ class GoogleCalendarSyncServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_ignores_stale_manual_meeting_slugs_that_no_longer_exist(): void
+    public function it_preserves_manual_categorization_while_updating_google_fields(): void
     {
+        Meeting::factory()->create(['slug' => 'pattern-meeting']);
+        Meeting::factory()->create(['slug' => 'manual-meeting']);
+        config(['calendar.meeting_patterns' => [
+            'pattern-meeting' => [
+                'patterns' => ['Bible study'],
+                'case_insensitive' => true,
+            ],
+        ]]);
+
+        CalendarEvent::factory()->create([
+            'google_event_id' => 'manual-event',
+            'meeting_slug' => 'manual-meeting',
+            'title' => 'Old title',
+            'is_categorized_automatically' => false,
+        ]);
+
         $event = $this->makeGoogleEvent(
-            id: 'stale-manual-event',
-            name: 'Church Picnic With Old Tag',
-            extendedMeetingSlug: 'deleted-meeting',
+            id: 'manual-event',
+            name: 'Bible Study Updated',
         );
 
         $calendarEvent = $this->service->syncSingleEvent($event);
 
-        $this->assertNull($calendarEvent->meeting_slug);
+        $this->assertSame('manual-meeting', $calendarEvent->meeting_slug);
         $this->assertFalse($calendarEvent->is_categorized_automatically);
+        $this->assertSame('Bible Study Updated', $calendarEvent->title);
+    }
+
+    #[Test]
+    public function it_recategorizes_automatically_categorized_events_from_patterns(): void
+    {
+        Meeting::factory()->create(['slug' => 'pattern-meeting']);
+        config(['calendar.meeting_patterns' => [
+            'pattern-meeting' => [
+                'patterns' => ['Bible study'],
+                'case_insensitive' => true,
+            ],
+        ]]);
+
+        CalendarEvent::factory()->create([
+            'google_event_id' => 'automatic-event',
+            'meeting_slug' => null,
+            'is_categorized_automatically' => true,
+        ]);
+
+        $calendarEvent = $this->service->syncSingleEvent($this->makeGoogleEvent(
+            id: 'automatic-event',
+            name: 'Bible Study Updated',
+        ));
+
+        $this->assertSame('pattern-meeting', $calendarEvent->meeting_slug);
+        $this->assertTrue($calendarEvent->is_categorized_automatically);
     }
 
     #[Test]
@@ -112,17 +154,7 @@ class GoogleCalendarSyncServiceTest extends TestCase
         $this->assertDatabaseMissing('calendar_events', ['google_event_id' => 'removed-from-google']);
     }
 
-    #[Test]
-    public function it_returns_false_when_google_event_cannot_be_found_during_categorization_sync(): void
-    {
-        config(['google-calendar.calendar_id' => 'test-calendar-id']);
-
-        $result = $this->service->syncCategorizationToGoogle('nonexistent-google-event-id', 'sunday-morning');
-
-        $this->assertFalse($result);
-    }
-
-    private function makeGoogleEvent(string $id, string $name, ?string $extendedMeetingSlug = null): Event
+    private function makeGoogleEvent(string $id, string $name): Event
     {
         $event = new Event;
         $event->id = $id;
@@ -132,12 +164,6 @@ class GoogleCalendarSyncServiceTest extends TestCase
         $event->startDateTime = Carbon::create(2026, 3, 15, 10, 0, 0);
         $event->endDateTime = Carbon::create(2026, 3, 15, 11, 0, 0);
         $event->status = 'confirmed';
-
-        if ($extendedMeetingSlug !== null) {
-            $properties = new EventExtendedProperties;
-            $properties->setPrivate(['meeting_slug' => $extendedMeetingSlug]);
-            $event->googleEvent->setExtendedProperties($properties);
-        }
 
         return $event;
     }

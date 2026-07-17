@@ -146,27 +146,21 @@ class AdminUrlStateTest extends TestCase
         Meeting::factory()->create([
             'page_id' => $matchingPage->id,
             'type' => MeetingType::Adults->value,
-            'is_recurring' => true,
-            'frequency' => 'weekly',
             'who' => 'Prayer Team',
         ]);
 
         Meeting::factory()->create([
             'page_id' => $excludedPage->id,
             'type' => MeetingType::Occasional->value,
-            'is_recurring' => false,
-            'frequency' => null,
             'who' => 'Prayer Guests',
         ]);
 
         Livewire::withQueryParams([
             'search' => 'Prayer',
             'typeFilter' => MeetingType::Adults->value,
-            'recurringFilter' => '1',
         ])->test(ListMeetings::class)
             ->assertSet('search', 'Prayer')
             ->assertSet('typeFilter', MeetingType::Adults->value)
-            ->assertSet('recurringFilter', true)
             ->assertSee('Prayer Gathering')
             ->assertDontSee('Prayer Guests');
     }

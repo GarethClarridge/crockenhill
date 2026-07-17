@@ -16,16 +16,6 @@ class MeetingValidationTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
-    public function it_validates_meeting_date_format(): void
-    {
-        $rules = Meeting::validationRules();
-
-        $this->assertTrue(Validator::make(['meeting_date' => '2023-01-15'], ['meeting_date' => $rules['meeting_date']])->passes());
-        $this->assertFalse(Validator::make(['meeting_date' => '15-01-2023'], ['meeting_date' => $rules['meeting_date']])->passes());
-        $this->assertFalse(Validator::make(['meeting_date' => '2023/01/15'], ['meeting_date' => $rules['meeting_date']])->passes());
-    }
-
-    #[Test]
     public function it_validates_time_formats(): void
     {
         $rules = Meeting::validationRules();
@@ -65,8 +55,6 @@ class MeetingValidationTest extends TestCase
         $this->assertTrue(Validator::make(['pictures' => 0], ['pictures' => $rules['pictures']])->passes());
         $this->assertFalse(Validator::make(['pictures' => 'yes'], ['pictures' => $rules['pictures']])->passes());
 
-        $this->assertTrue(Validator::make(['is_recurring' => false], ['is_recurring' => $rules['is_recurring']])->passes());
-        $this->assertFalse(Validator::make(['is_recurring' => 'no'], ['is_recurring' => $rules['is_recurring']])->passes());
     }
 
     #[Test]

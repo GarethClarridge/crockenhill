@@ -3,9 +3,10 @@
     description="Manage and categorise calendar events"
 >
     <x-slot:actions>
-        <x-button link="{{ route('admin.calendar.sync') }}" variant="secondary" icon="arrow-path" inline>
-            Sync calendar
-        </x-button>
+        <x-form-button type="button" wire:click="syncCalendar" variant="secondary" icon="arrow-path"
+            loading-label="Syncing...">
+            Sync now
+        </x-form-button>
     </x-slot:actions>
 
     <x-slot:filters>
@@ -105,9 +106,10 @@
                     :hasFilters="$hasFilters"
                 >
                     @if(!$hasFilters)
-                        <x-button link="{{ route('admin.calendar.sync') }}" variant="primary" icon="arrow-path" inline>
-                            Sync calendar
-                        </x-button>
+                        <x-form-button type="button" wire:click="syncCalendar" variant="primary" icon="arrow-path"
+                            loading-label="Syncing...">
+                            Sync now
+                        </x-form-button>
                     @endif
                 </x-admin.empty-state>
             @endforelse

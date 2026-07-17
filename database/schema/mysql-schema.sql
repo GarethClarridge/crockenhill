@@ -361,9 +361,6 @@ CREATE TABLE `meetings` (
   `type` enum('SundayAndBibleStudies','ChildrenAndYoungPeople','Adults','Occasional') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   `start_time` time DEFAULT NULL,
   `end_time` time DEFAULT NULL,
-  `meeting_date` datetime DEFAULT NULL,
-  `is_recurring` tinyint(1) NOT NULL DEFAULT '0',
-  `frequency` enum('daily','weekly','monthly','annually') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `day` varchar(75) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `location` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `who` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
@@ -376,15 +373,12 @@ CREATE TABLE `meetings` (
   UNIQUE KEY `meetings_slug_unique` (`slug`),
   UNIQUE KEY `meetings_page_id_unique` (`page_id`),
   KEY `meetings_type_day_index` (`type`,`day`),
-  KEY `meetings_meeting_date_index` (`meeting_date`),
-  KEY `meetings_is_recurring_index` (`is_recurring`),
   KEY `meetings_updated_at_index` (`updated_at`),
   CONSTRAINT `meetings_page_id_foreign` FOREIGN KEY (`page_id`) REFERENCES `pages` (`id`) ON DELETE SET NULL,
   CONSTRAINT `meetings_day_format_check` CHECK (((`day` is null) or ((cast(`day` as char charset binary) = trim(`day`)) and (`day` <> _utf8mb3'')))),
   CONSTRAINT `meetings_leaders_email_format_check` CHECK (((`leaders_email` is null) or ((cast(`leaders_email` as char charset binary) = lower(trim(`leaders_email`))) and (`leaders_email` <> _utf8mb3'')))),
   CONSTRAINT `meetings_leaders_phone_format_check` CHECK (((`leaders_phone` is null) or ((cast(`leaders_phone` as char charset binary) = trim(`leaders_phone`)) and (`leaders_phone` <> _utf8mb3'')))),
   CONSTRAINT `meetings_location_format_check` CHECK (((`location` is null) or ((cast(`location` as char charset binary) = trim(`location`)) and (`location` <> _utf8mb3'')))),
-  CONSTRAINT `meetings_recurring_frequency_check` CHECK (((`is_recurring` = 0) or (`frequency` is not null))),
   CONSTRAINT `meetings_slug_format_check` CHECK (regexp_like(`slug`,_utf8mb4'^[a-z0-9]+(?:-[a-z0-9]+)*$',_utf8mb4'c')),
   CONSTRAINT `meetings_time_check` CHECK (((`end_time` >= `start_time`) or (`end_time` is null) or (`start_time` is null))),
   CONSTRAINT `meetings_who_format_check` CHECK (((cast(`who` as char charset binary) = trim(`who`)) and (`who` <> _utf8mb3'')))
@@ -1226,3 +1220,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_07_190047_add_f
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_10_155218_add_archive_eval_to_inbound_emails_status_enum',79);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_12_221655_remove_skipped_from_service_sections_status',80);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_16_053037_add_index_to_meetings_updated_at',81);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_16_222742_drop_recurrence_columns_from_meetings_table',82);

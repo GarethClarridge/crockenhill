@@ -31,8 +31,6 @@ class ListMeetings extends Component
         'schedule',
         'start_time',
         'type',
-        'is_recurring',
-        'recurring',
         'location',
         'created_at',
         'updated_at',
@@ -43,9 +41,6 @@ class ListMeetings extends Component
 
     #[Url(except: null)]
     public ?string $typeFilter = null;
-
-    #[Url(except: null)]
-    public ?bool $recurringFilter = null;
 
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
@@ -59,7 +54,6 @@ class ListMeetings extends Component
         return [
             'search' => '',
             'typeFilter' => null,
-            'recurringFilter' => null,
         ];
     }
 
@@ -97,21 +91,18 @@ class ListMeetings extends Component
         $query = Meeting::query()
             ->select([
                 'id', 'slug', 'who', 'day', 'start_time', 'end_time',
-                'type', 'is_recurring', 'frequency', 'location', 'page_id', 'created_at', 'updated_at',
+                'type', 'location', 'page_id', 'created_at', 'updated_at',
             ])
             ->with('page:id,heading')
             ->when($this->search !== '', fn ($q) => $q->where(fn ($sub) => $sub->whereHas('page', fn ($q2) => $q2->where('heading', 'like', "%{$escapedSearch}%"))
                 ->orWhere('day', 'like', "%{$escapedSearch}%")
                 ->orWhere('who', 'like', "%{$escapedSearch}%")))
-            ->when($this->typeFilter, fn ($q) => $q->where('type', $this->typeFilter))
-            ->when($this->recurringFilter !== null, fn ($q) => $q->where('is_recurring', $this->recurringFilter));
+            ->when($this->typeFilter, fn ($q) => $q->where('type', $this->typeFilter));
 
         if ($this->sortBy === 'schedule') {
             $direction = $this->sortDirection === 'asc' ? 'asc' : 'desc';
             $query->orderByRaw("FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday') {$direction}")
                 ->orderBy('start_time', $direction);
-        } elseif ($this->sortBy === 'recurring') {
-            $query->orderBy('is_recurring', $this->sortDirection === 'desc' ? 'desc' : 'asc');
         } else {
             $query->orderBy($this->sortBy, $this->sortDirection === 'desc' ? 'desc' : 'asc');
         }
@@ -122,7 +113,6 @@ class ListMeetings extends Component
             ['key' => 'page', 'label' => 'Meeting', 'sortable' => false],
             ['key' => 'schedule', 'label' => 'Schedule', 'sortable' => true],
             ['key' => 'type', 'label' => 'Type', 'sortable' => true],
-            ['key' => 'recurring', 'label' => 'Recurring', 'sortable' => true],
             ['key' => 'location', 'label' => 'Location', 'sortable' => true],
         ];
 

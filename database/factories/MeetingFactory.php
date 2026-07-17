@@ -11,9 +11,6 @@ class MeetingFactory extends Factory
     public function definition()
     {
         $title = $this->faker->words(3, true);
-        $isRecurring = $this->faker->boolean(30);
-        $meetingDate = $this->faker->dateTimeBetween('+0 days', '+1 year');
-
         $startTime = $this->faker->optional()->dateTimeBetween('today 08:00:00', 'today 18:00:00');
         $endTime = $startTime ? (clone $startTime)->modify('+'.rand(30, 120).' minutes') : null;
 
@@ -45,10 +42,7 @@ class MeetingFactory extends Factory
             'leaders_phone' => $this->faker->optional()->numerify('##########'),
             'leaders_email' => $this->faker->optional()->safeEmail(),
 
-            'meeting_date' => $meetingDate,
-            'day' => Carbon::parse($meetingDate)->format('l'),
-            'is_recurring' => $isRecurring,
-            'frequency' => $isRecurring ? $this->faker->randomElement(['daily', 'weekly', 'monthly', 'annually']) : null,
+            'day' => $this->faker->dayOfWeek(),
         ];
     }
 
@@ -65,30 +59,9 @@ class MeetingFactory extends Factory
             }
 
             return [
-                'meeting_date' => $date,
                 'day' => $date->format('l'),
                 'start_time' => $start->format('H:i:s'),
                 'end_time' => $end->format('H:i:s'),
-            ];
-        });
-    }
-
-    public function recurring($frequency = 'weekly'): Factory
-    {
-        return $this->state(function (array $attributes) use ($frequency) {
-            return [
-                'is_recurring' => true,
-                'frequency' => $frequency,
-            ];
-        });
-    }
-
-    public function notRecurring(): Factory
-    {
-        return $this->state(function (array $attributes) {
-            return [
-                'is_recurring' => false,
-                'frequency' => null,
             ];
         });
     }
@@ -105,7 +78,6 @@ class MeetingFactory extends Factory
             }
 
             return [
-                'meeting_date' => $date,
                 'day' => $date->format('l'),
                 'start_time' => $start->format('H:i:s'),
                 'end_time' => $end->format('H:i:s'),
@@ -125,7 +97,6 @@ class MeetingFactory extends Factory
             }
 
             return [
-                'meeting_date' => $date,
                 'day' => $date->format('l'),
                 'start_time' => $start->format('H:i:s'),
                 'end_time' => $end->format('H:i:s'),

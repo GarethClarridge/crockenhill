@@ -65,8 +65,6 @@ class MeetingSeoTest extends TestCase
         Meeting::factory()->create([
             'page_id' => $page->id,
             'slug' => 'test-meeting',
-            'is_recurring' => false,
-            'frequency' => null,
         ]);
 
         $response = $this->get('/community/test-meeting');
