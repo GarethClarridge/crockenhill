@@ -120,15 +120,12 @@ class BritishEnglishConverter
      */
     private function buildCorrectionsFromWordList(array $wordList): array
     {
-        $corrections = [];
-
-        foreach ($wordList as $american => $british) {
-            // Create word boundary regex for exact matches
-            $pattern = '/\b'.preg_quote($american, '/').'\b/i';
-            $corrections[$pattern] = $british;
-        }
-
-        return $corrections;
+        return collect($wordList)
+            ->mapWithKeys(function (string $british, string $american): array {
+                // Create word boundary regex for exact matches
+                return ['/\b'.preg_quote($american, '/').'\b/i' => $british];
+            })
+            ->all();
     }
 
     /**
