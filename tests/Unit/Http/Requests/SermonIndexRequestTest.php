@@ -122,4 +122,26 @@ class SermonIndexRequestTest extends TestCase
         $validator = Validator::make(['series' => str_repeat('a', 256)], $request->rules());
         $this->assertFalse($validator->passes());
     }
+
+    #[Test]
+    public function validation_rules_reject_oversized_preacher_id_digit_length(): void
+    {
+        $request = new SermonIndexRequest;
+
+        // preacher_id with 11 digits (max allowed digits is 10)
+        $validator = Validator::make(['preacher_id' => '12345678901'], $request->rules());
+        $this->assertFalse($validator->passes());
+        $this->assertArrayHasKey('preacher_id', $validator->errors()->toArray());
+    }
+
+    #[Test]
+    public function validation_rules_reject_oversized_per_page_digit_length(): void
+    {
+        $request = new SermonIndexRequest;
+
+        // per_page with 4 digits (max allowed digits is 3)
+        $validator = Validator::make(['per_page' => '1000'], $request->rules());
+        $this->assertFalse($validator->passes());
+        $this->assertArrayHasKey('per_page', $validator->errors()->toArray());
+    }
 }

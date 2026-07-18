@@ -34,12 +34,12 @@ class SermonIndexRequest extends FormRequest
             'search' => ['nullable', 'string', 'max:255'],
             'service' => ['nullable', 'string', 'max:255', Rule::enum(SermonService::class)],
             'preacher' => ['nullable', 'string', 'max:255'],
-            // Security: integer bounding guards against malformed input and overflow before the exists lookup runs.
-            'preacher_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:preachers,id'],
+            // Security: digits_between validates digit length early to protect against DoS and overflow.
+            'preacher_id' => ['nullable', 'integer', 'min:1', 'digits_between:1,10', 'max:2147483647', 'exists:preachers,id'],
             'series' => ['nullable', 'string', 'max:255'],
             'sort' => ['nullable', 'string', 'max:255', 'in:date,title,preacher,series,service'],
             'order' => ['nullable', 'string', 'max:255', 'in:asc,desc'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'digits_between:1,3', 'max:100'],
             // Security: input length is bounded to provide Defense in Depth against DoS.
             'with_thumbnail' => ['nullable', 'boolean', 'max:20'],
         ];
