@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Song;
 
 use App\Support\OpenAiChatPayload;
+use App\Support\OpenAiUsageLogger;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -146,7 +147,7 @@ class SongLyricOcrService
     protected function callVisionApi(string $fullFramePath): string
     {
         $imageData = base64_encode((string) file_get_contents($fullFramePath));
-        $model = (string) config('media-processing.song_matching.ocr_model', 'gpt-5-mini');
+        $model = (string) config('media-processing.song_matching.ocr_model', 'gpt-5.4-mini');
 
         $response = OpenAI::chat()->create(OpenAiChatPayload::forModel([
             'model' => $model,
@@ -168,10 +169,13 @@ class SongLyricOcrService
                     ],
                 ],
             ],
+            'service_tier' => config('openai.service_tier'),
             // Headroom for reasoning models, whose hidden reasoning tokens share this budget with
             // the visible lyrics; classic models stop early so the ceiling costs nothing.
             'max_completion_tokens' => 2000,
-        ], reasoningEffort: 'minimal'));
+        ], reasoningEffort: (string) config('media-processing.song_matching.ocr_reasoning_effort', 'minimal')));
+
+        OpenAiUsageLogger::log($response, 'song_lyric_ocr', $model);
 
         return (string) ($response->choices[0]->message->content ?? '');
     }

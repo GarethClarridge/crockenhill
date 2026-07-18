@@ -38,6 +38,10 @@ class OpenAiChatPayload
      */
     public static function forModel(array $payload, string $reasoningEffort = 'low'): array
     {
+        if (empty($payload['service_tier'] ?? null)) {
+            unset($payload['service_tier']);
+        }
+
         if (array_key_exists('max_tokens', $payload)) {
             $payload['max_completion_tokens'] ??= $payload['max_tokens'];
             unset($payload['max_tokens']);
@@ -48,8 +52,24 @@ class OpenAiChatPayload
         }
 
         unset($payload['temperature']);
-        $payload['reasoning_effort'] ??= $reasoningEffort;
+        $payload['reasoning_effort'] ??= self::normaliseReasoningEffort(
+            (string) ($payload['model'] ?? ''),
+            $reasoningEffort,
+        );
 
         return $payload;
+    }
+
+    private static function normaliseReasoningEffort(string $model, string $reasoningEffort): string
+    {
+        if ($reasoningEffort !== 'minimal') {
+            return $reasoningEffort;
+        }
+
+        if (! preg_match('/^gpt-5\.(\d+)/i', $model, $matches)) {
+            return $reasoningEffort;
+        }
+
+        return (int) $matches[1] >= 4 ? 'none' : $reasoningEffort;
     }
 }

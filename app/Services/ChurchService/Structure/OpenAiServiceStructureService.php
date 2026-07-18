@@ -9,6 +9,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Support\OpenAiChatPayload;
+use App\Support\OpenAiUsageLogger;
 use OpenAI\Laravel\Facades\OpenAI;
 use RuntimeException;
 use TypeError;
@@ -82,7 +83,7 @@ TEXT;
             throw new RuntimeException('Cannot detect service structure from an empty transcript.');
         }
 
-        $model = (string) config('media-processing.service_structure.model', 'gpt-5');
+        $model = (string) config('media-processing.service_structure.model', 'gpt-5.6-sol');
         $prompt = $this->buildPrompt($transcript, $oosItems, $feedback);
 
         try {
@@ -93,17 +94,20 @@ TEXT;
                     ['role' => 'user', 'content' => $prompt['user']],
                 ],
                 'response_format' => $this->responseFormat(),
+                'service_tier' => config('openai.service_tier'),
                 'temperature' => 0.1,
                 // Headroom for reasoning models, whose hidden reasoning tokens
                 // share this budget with the visible JSON.
                 'max_completion_tokens' => 16000,
-            ]));
+            ], reasoningEffort: (string) config('media-processing.service_structure.reasoning_effort', 'medium')));
         } catch (TypeError $exception) {
             throw new RuntimeException(
                 'OpenAI service structure response malformed: '.$exception->getMessage(),
                 previous: $exception
             );
         }
+
+        OpenAiUsageLogger::log($response, 'service_structure', $model, $processingId);
 
         $content = $response->choices[0]->message->content ?? null;
 

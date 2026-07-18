@@ -49,7 +49,9 @@ class SongLyricOcrServiceTest extends TestCase
     #[Test]
     public function it_sends_reasoning_model_parameters_for_a_gpt5_ocr_model(): void
     {
-        Config::set('media-processing.song_matching.ocr_model', 'gpt-5-mini');
+        Config::set('media-processing.song_matching.ocr_model', 'gpt-5.4-mini');
+        Config::set('media-processing.song_matching.ocr_reasoning_effort', 'minimal');
+        Config::set('openai.service_tier', 'flex');
 
         OpenAI::fake([
             CreateResponse::fake([
@@ -63,11 +65,12 @@ class SongLyricOcrServiceTest extends TestCase
 
         OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
             return $method === 'create'
-                && $parameters['model'] === 'gpt-5-mini'
+                && $parameters['model'] === 'gpt-5.4-mini'
+                && $parameters['service_tier'] === 'flex'
                 && ! array_key_exists('max_tokens', $parameters)
                 && ! array_key_exists('temperature', $parameters)
                 && $parameters['max_completion_tokens'] === 2000
-                && $parameters['reasoning_effort'] === 'minimal';
+                && $parameters['reasoning_effort'] === 'none';
         });
     }
 

@@ -7,6 +7,7 @@ namespace App\Services\Email;
 use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
 use App\Support\OpenAiChatPayload;
+use App\Support\OpenAiUsageLogger;
 use OpenAI\Laravel\Facades\OpenAI;
 use RuntimeException;
 
@@ -18,8 +19,9 @@ class OpenAiOosEmailItemExtractor implements OosEmailItemExtractor
             throw new RuntimeException('OpenAI API key not configured for OoS email parsing.');
         }
 
+        $model = (string) config('service-tracking.email_parsing.model', 'gpt-5.4-nano');
         $response = OpenAI::chat()->create(OpenAiChatPayload::forModel([
-            'model' => (string) config('service-tracking.email_parsing.model', 'gpt-4.1-nano'),
+            'model' => $model,
             'messages' => [
                 [
                     'role' => 'system',
@@ -44,6 +46,7 @@ TEXT,
                     'content' => "Subject: {$subject}\n\nBody:\n{$body}",
                 ],
             ],
+            'service_tier' => config('openai.service_tier'),
             'response_format' => [
                 'type' => 'json_schema',
                 'json_schema' => [
@@ -100,7 +103,9 @@ TEXT,
             ],
             'temperature' => 0.1,
             'max_completion_tokens' => 1600,
-        ], reasoningEffort: 'minimal'));
+        ], reasoningEffort: (string) config('service-tracking.email_parsing.reasoning_effort', 'minimal')));
+
+        OpenAiUsageLogger::log($response, 'oos_email_parsing', $model);
 
         $content = $response->choices[0]->message->content ?? null;
 

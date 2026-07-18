@@ -20,6 +20,8 @@ class OpenAiChatPayloadTest extends TestCase
             'gpt-5 flagship' => ['gpt-5', true],
             'gpt-5-mini' => ['gpt-5-mini', true],
             'gpt-5-nano' => ['gpt-5-nano', true],
+            'gpt-5.4-mini' => ['gpt-5.4-mini', true],
+            'gpt-5.6-sol' => ['gpt-5.6-sol', true],
             'o1' => ['o1', true],
             'o3-mini' => ['o3-mini', true],
             'o4-mini' => ['o4-mini', true],
@@ -59,6 +61,16 @@ class OpenAiChatPayloadTest extends TestCase
         ], reasoningEffort: 'minimal');
 
         $this->assertSame('minimal', $payload['reasoning_effort']);
+    }
+
+    #[Test]
+    public function it_normalises_minimal_to_none_for_gpt54_and_newer_models(): void
+    {
+        $payload = OpenAiChatPayload::forModel([
+            'model' => 'gpt-5.4-mini',
+        ], reasoningEffort: 'minimal');
+
+        $this->assertSame('none', $payload['reasoning_effort']);
     }
 
     #[Test]
@@ -109,5 +121,16 @@ class OpenAiChatPayloadTest extends TestCase
         $this->assertSame(0.1, $payload['temperature']);
         $this->assertArrayNotHasKey('reasoning_effort', $payload);
         $this->assertSame(1400, $payload['max_completion_tokens']);
+    }
+
+    #[Test]
+    public function it_removes_an_empty_service_tier(): void
+    {
+        $payload = OpenAiChatPayload::forModel([
+            'model' => 'gpt-5.6-terra',
+            'service_tier' => null,
+        ]);
+
+        $this->assertArrayNotHasKey('service_tier', $payload);
     }
 }

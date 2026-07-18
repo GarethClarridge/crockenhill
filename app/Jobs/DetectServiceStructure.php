@@ -878,7 +878,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         ServiceStructureValidator $validator,
         bool $requireBoundBaseline,
     ): array {
-        $boundModel = (string) config('media-processing.service_structure.model', 'gpt-5');
+        $boundModel = (string) config('media-processing.service_structure.model', 'gpt-5.6-sol');
         $shadowModel = config('media-processing.service_structure.shadow_model');
 
         if (! is_string($shadowModel) || trim($shadowModel) === '' || $shadowModel === $boundModel) {

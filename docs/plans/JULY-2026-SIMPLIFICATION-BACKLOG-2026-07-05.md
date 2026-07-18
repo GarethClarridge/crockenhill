@@ -141,6 +141,7 @@ removal is approved: approval means "delete once the listed check passes".
 | D19 | Behaviour-adopting config updates: `hashing.php`, `auth.php`, `debugbar.php`, `livewire.php` regenerate (platform P4) | Accept — conscious adoption of current defaults incl. password-reset throttle | **Approved** |
 | D20 | Config merges: `sermons`+`opening-hours`+`organization` → `church.php`; `monitoring` → `health` (platform P6) | Accept | **Approved** |
 | D21 *(added 2026-07-07)* | Jules fleet stand-down for the programme: it was merging ~11 PRs/day and investing in deletion-scheduled code (PRs #1100, #1107, #1124). Pause code-writing personas; retire Warden/Herald/Bolt/Scribe/Steward; keep Mortician/Pathfinder (issue-first); survivors resume weekly under a worth-it gate; do-not-invest list + necessity check added to `AGENTS.md` and the PR-review skill | Accept | **Approved — implemented 2026-07-07** (fleet-status section in `AGENTS.md`; status banners in `.Jules/agents/*.md`; operator still to pause the Jules UI schedules) |
+| D22 *(added 2026-07-17)* | Revised promotion gate: replace the ~8-Sunday primary soak with a **prod historic-sample soak** — process ~8–12 historic livestreams from the backlog through the prod pipeline in primary mode (they route through the livestream chain via `HistoricVideoImporter`, so they exercise the exact path being promoted), plus the 2–3 natural Sundays that pass during review. Rationale: the corpus harness already ran the full chain locally in primary mode with the real detector (91%/89% type accuracy, validators caught all bad runs), so per-service confidence has diminishing returns after ~8; only timing-dependent behaviour (late-OOS reconcile) and prod wiring genuinely need prod, and neither needs 8 weeks. The late-OOS reconcile path (1.1b) is exercised deliberately — upload → complete → import `.osz` — rather than waiting for natural email timing. The **bulk historic backfill (~500 items) is explicitly deferred** until after 1.5/1.6 and 1.7a: the N+1 Whisper passes are the dominant per-service cost, and 1.7a halves them (a transcript-sidecar or prod-local whisper.cpp route via `TranscriptionServiceInterface` can cut them near zero). Local corpus runs stay useful for free quality evidence but produce no keepable records (the local→prod patch path is deletion-scheduled) | Accept | **Approved** — compresses the gate from ~2 months of calendar to review throughput; the soak sample is itself backlog work, not throwaway |
 
 ---
 
@@ -154,7 +155,10 @@ retirement payoff: ~5,054 lines of church-service heuristic production code + ~8
 1,123 script lines, plus ~2,000+ media-side visual-stack lines and ~550 song-cluster lines —
 replaced by an LLM path a third the size that also does more.
 
-**Calendar time dominates this workstream** (shadow Sundays, then a primary soak of ~8 services).
+~~**Calendar time dominates this workstream** (shadow Sundays, then a primary soak of ~8
+services).~~ **Revised 2026-07-17 (decision D22): calendar time no longer dominates.** The soak
+evidence comes from processing ~8–12 *historic* livestreams from the backlog through the prod
+pipeline in primary mode (see 1.4), so the gate is bounded by review throughput, not Sundays.
 Start the operational steps immediately; the code steps interleave with other workstreams.
 
 ### 1.1 Preparatory seam commits (pre-flip; each lands green independently)
@@ -201,12 +205,16 @@ Source: church review §4.2 seams 1–4, §7 quick wins 1–4.
   manifest, so shadow mode survives as the permanent model-upgrade mechanism. Also default
   `structure:evaluate --detector` to the bound detector (mock in CI) so a bare run costs nothing.
 
-### 1.2 [operational] Shadow soak (start now — decision D2 sets the clock)
+### 1.2 [operational] Shadow soak (start now — decision D2 sets the clock; **scope cut by D22**)
 
-Set `SERVICE_STRUCTURE_MODE=shadow` with the real detector/transcriber in production; accumulate
-Sundays; run `structure:shadow-report`; fill a real manifest for `structure:evaluate`. The plan's
-suggested promotion gate: clean shadow evidence, then flip, then ~8 clean primary services before
-deletion.
+Set `SERVICE_STRUCTURE_MODE=shadow` with the real detector/transcriber in production; run
+`structure:shadow-report`; fill a real manifest for `structure:evaluate`. ~~The plan's suggested
+promotion gate: clean shadow evidence, then flip, then ~8 clean primary services before
+deletion.~~ **Revised gate (D22):** shadow is now a *wiring check only* — one Sunday (or one
+historic upload) proving the prod env config, Horizon, and OpenAI calls work end-to-end. The
+quality evidence the long shadow accumulation was meant to gather already exists from the local
+corpus runs (test-files 91% / test-set-2 89%, full chain, real detector, primary mode); do not
+hold the flip for accumulated shadow Sundays.
 
 > **Status 2026-07-10 — awaiting the prod flip.** All three env lines are required (`detector`
 > and `transcription_service` default to `mock`): `SERVICE_STRUCTURE_MODE=shadow`,
@@ -224,10 +232,32 @@ guards — they are not in the auto-trim chain). Preferred shape (b): a dedicate
 path that writes sections independently of the global mode, so auto-trim keeps working throughout
 the shadow period; fallback shape (a): swap at the flip.
 
-### 1.4 [operational] Flip to primary + soak
+### 1.4 [operational] Flip to primary + historic-sample soak (revised 2026-07-17 — decision D22)
 
-Config flip once 1.1b/1.1c and the shadow evidence are in. During the soak, no new investment in
-heuristic-path tests (media test note 3).
+Config flip once 1.1b/1.1c have merged and the 1.2 wiring check passes. Then the soak is:
+
+1. **Process ~8–12 historic livestreams from the backlog in prod, in primary mode**, via
+   `HistoricVideoImporter` (it dispatches through the livestream chain, so these runs exercise
+   exactly the path being promoted). Review each through the normal inbox/workbench flow — these
+   are real backlog items, kept, not test throwaway. Cost is trivial (~£0.35 transcription + one
+   detector call per service).
+2. **Exercise the late-OOS reconcile path deliberately** (the 1.1b behaviour): let a run complete,
+   *then* import its `.osz`, and verify reconcile re-runs `DetectServiceStructure` against the
+   stored transcript. Historic services never trigger this naturally (their OOS is imported first
+   or never), and it is the one timing-dependent behaviour a historic sample cannot cover. A local
+   corpus rehearsal of the same sequence is a valid substitute for the mechanics; do at least one
+   in prod.
+3. The 2–3 natural Sundays that pass while reviewing count toward the gate as normal.
+
+Gate to proceed to 1.5: the sample services clean (or failures understood and routed to manual
+review by the validators, which is the designed fallback), the reconcile exercise verified, and
+the D6/5.3 merge-fire-rate observations recorded (note: bulk-import ordering differs from the
+email-then-livestream ordering of live Sundays — keep the 5.3 re-measure honest about that).
+
+During the soak, no new investment in heuristic-path tests (media test note 3).
+
+**The bulk historic backfill (~500 items, ~5 years) is *not* part of the soak** — it is deferred
+until after 1.5/1.6/1.7a, when the per-service cost halves (see 1.7a and item 2.5's gate).
 
 ### 1.5 [mechanical] Delete the church-service heuristic cluster (decision D1)
 
@@ -279,7 +309,12 @@ review.
 - **1.7a [design] — One Whisper pass per service** (media O2/F5). Slice the full-service transcript for the
   sermon transcript instead of re-transcribing extracted audio; delete the second transcription
   interface family. Halves transcription cost/latency; public transcript available minutes after
-  upload.
+  upload. **Promoted by D22 to prerequisite for the bulk historic backfill** (~500 items): the
+  N+1 Whisper passes are the dominant per-service cost, so the backfill waits for this to land.
+  If per-service cost still matters after 1.7a, the `TranscriptionServiceInterface` seam offers
+  two near-zero-cost routes for the batch: transcript sidecars generated on the local Metal
+  whisper.cpp (the OBS-localvocal plan's trust-the-sidecar pattern, applied in batch), or
+  `TRANSCRIPTION_SERVICE_TYPE=local` with whisper.cpp on the prod box for the duration.
 - **1.7b [design] — One ffmpeg audio-preparation helper** (media F5) owning the transcription-target
   profile; delete the other three compression paths and the `getVideoMetadata` double.
 - **1.7c [design] — One song matcher** (songs F5/F6, church opportunity 4). First shed
@@ -417,6 +452,10 @@ Each with its production check, then delete tool + companion + tests; record the
 ### 2.5 [mechanical] `HistoricVideoImporter` + `ImportHistoricVideoBatchCommand` (decision D11, ~1,500 lines)
 
 Gate: the 275 GB drive import is finished for good. Zero runtime risk — nothing else references it.
+
+**Sequencing note (D22, 2026-07-17):** this gate now closes *last* in the programme's tail. The
+importer is the vehicle for both the 1.4 historic-sample soak and the bulk backfill, and the
+backfill itself waits for 1.7a (cost halving). Do not delete until the full backlog is processed.
 
 ### 2.6 [mechanical] Platform one-shot command sweep (decision D12; platform P1, ~1,480 lines + tests)
 
@@ -720,12 +759,13 @@ Dependency-annotated. Items in different tracks parallelise freely; the numberin
 6. **4.1 upload consolidation → 4.2 diagnostics seam → 4.3 ProcessingReview retirement** — *(4.2 depends on 4.1 only for the status-panel surface; 4.3 independent).*
 7. **3.1 presentation convention → 3.2 caching → 3.3 presenter collapse → 3.4 sitemap → 3.5 calendar decisions → 3.6 podcast/exposure** — *(3.2 and 3.3 touch `SermonRepository`/presenters; land 3.1 first to fix the conventions they conform to).*
 8. **5.1 conflict-state collapse + 5.2 email parsing + 4.4 CRUD pass + 4.5 gates cleanup** — *(independent of each other).*
-9. **1.3 auto-trim migration → 1.4 flip → soak** — *(1.3 shape (b) can land during shadow; shape (a) lands at the flip).*
+9. **1.3 auto-trim migration → 1.4 flip → historic-sample soak** — *(1.3 shape (b) can land during shadow; shape (a) lands at the flip. Soak = ~8–12 prod historic livestreams + staged late-OOS reconcile exercise, per D22 — days-to-weeks of review throughput, not 8 Sundays).*
 10. **1.5 church-cluster deletion → 1.6 media-stack deletion (+ songs cluster residue)** — *(gated on soak evidence; 1.6's `AnalyzeSegments` re-homing designed before deletion).*
 11. **1.7a–c/e/f consolidations** — *(1.7a/b/c after 1.6; 1.7e last; 1.7d is closed — speaker stack kept per D3).*
-12. **5.3/5.4 deferred re-measures** — *(post-soak).*
-13. **7.1 test fold-ins + 7.2 conventions** — *(after 1.5/1.6/2.x so nothing is folded twice).*
-14. **Phase 9 code-quality review** — *(after the above has substantially landed).*
+12. **Bulk historic backfill (~500 items) → then the 2.5 importer deletion** — *(after 1.7a halves per-service transcription cost; optionally after a sidecar/local-whisper route if cost still matters — see 1.7a).*
+13. **5.3/5.4 deferred re-measures** — *(post-soak).*
+14. **7.1 test fold-ins + 7.2 conventions** — *(after 1.5/1.6/2.x so nothing is folded twice).*
+15. **Phase 9 code-quality review** — *(after the above has substantially landed).*
 
 Hard dependency chains, restated:
 
@@ -738,10 +778,12 @@ Hard dependency chains, restated:
 - steps+metadata read path (4.2) ⟶ delete `ProcessingLogService` + viewer
 - TTL caching decision (3.2) ⟶ delete permutation-invalidation registry
 - subjects deleted (1.5/1.6/2.x) ⟶ test fold-ins (7.1) ⟶ Phase 9
+- one Whisper pass (1.7a) ⟶ bulk historic backfill ⟶ `HistoricVideoImporter` deletion (2.5)
 
 ## Production checks checklist (run before the gated deletions)
 
-- [ ] Enable `SERVICE_STRUCTURE_MODE=shadow` in production (confirmed still `off` as of 2026-07-05 — decision D2; top of the delivery order)
+- [ ] Enable `SERVICE_STRUCTURE_MODE=shadow` in production (confirmed still `off` as of 2026-07-05 — decision D2; top of the delivery order. Per D22 this is a wiring check only — one clean shadowed service, then flip to primary once 1.1b/1.1c are merged)
+- [ ] 1.4 historic-sample soak evidence: ~8–12 prod historic livestreams clean (or validator-routed) + late-OOS reconcile exercised (gates 1.5/1.6 — decision D22)
 - [x] Production `LOG_CHANNEL` ≠ `sermon-processing` — confirmed `stack` 2026-07-12 (gates 2.1's channel deletion)
 - [x] `sermons:verify-storage` clean against production — 698/698 files accessible, zero legacy
       paths, zero missing files (confirmed 2026-07-13; gates 2.3)

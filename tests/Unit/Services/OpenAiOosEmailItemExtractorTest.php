@@ -8,6 +8,7 @@ use App\Data\OosEmailItemExtractionResult;
 use App\Services\Email\OpenAiOosEmailItemExtractor;
 use Illuminate\Support\Facades\Config;
 use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Resources\Chat;
 use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
@@ -22,6 +23,9 @@ class OpenAiOosEmailItemExtractorTest extends TestCase
         parent::setUp();
         $this->extractor = new OpenAiOosEmailItemExtractor;
         Config::set('openai.api_key', 'test-key');
+        Config::set('openai.service_tier', 'flex');
+        Config::set('service-tracking.email_parsing.model', 'gpt-5.4-nano');
+        Config::set('service-tracking.email_parsing.reasoning_effort', 'minimal');
     }
 
     #[Test]
@@ -60,6 +64,12 @@ class OpenAiOosEmailItemExtractorTest extends TestCase
         $this->assertEquals('Welcome', $result->items[0]['title']);
         $this->assertEquals(0.95, $result->confidence);
         $this->assertEquals(['Extracted successfully'], $result->notes);
+        OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+            return $method === 'create'
+                && $parameters['model'] === 'gpt-5.4-nano'
+                && $parameters['service_tier'] === 'flex'
+                && $parameters['reasoning_effort'] === 'none';
+        });
     }
 
     #[Test]

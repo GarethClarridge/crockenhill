@@ -22,7 +22,8 @@ return [
     'email_parsing' => [
         // Dedicated knob (was the shared OPENAI_MODEL) — lowest-stakes structured extraction, so
         // it defaults to the cheapest current model rather than tracking the analysis default.
-        'model' => env('OOS_EMAIL_PARSING_MODEL', 'gpt-4.1-nano'),
+        'model' => env('OOS_EMAIL_PARSING_MODEL', 'gpt-5.4-nano'),
+        'reasoning_effort' => env('OOS_EMAIL_PARSING_REASONING_EFFORT', 'minimal'),
         'review_threshold' => 0.75,
         'auto_import_threshold' => 0.90,
         // Plan emails are forward-looking and short-horizon: a resolved service date more

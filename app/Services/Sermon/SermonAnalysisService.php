@@ -10,6 +10,7 @@ use App\Services\OpenAIResponseLogger;
 use App\Services\Processing\SermonProcessingLogger;
 use App\Services\Public\SermonRepository;
 use App\Support\OpenAiChatPayload;
+use App\Support\OpenAiUsageLogger;
 use App\Traits\SanitizesLogData;
 use Exception;
 use Illuminate\Support\Facades\Log;
@@ -131,7 +132,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
     private function performAiAnalysis(string $transcript, array $existingSeries, string $processingId): array
     {
         $apiStartTime = microtime(true);
-        $model = (string) config('media-processing.analysis.model', 'gpt-5-mini');
+        $model = (string) config('media-processing.analysis.model', 'gpt-5.6-terra');
 
         try {
             return $this->runAnalysis($transcript, $existingSeries, $processingId);
@@ -196,7 +197,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
     private function runAnalysis(string $transcript, array $existingSeries, string $processingId): array
     {
         $apiStartTime = microtime(true);
-        $model = (string) config('media-processing.analysis.model', 'gpt-5-mini');
+        $model = (string) config('media-processing.analysis.model', 'gpt-5.6-terra');
 
         $this->logger->logProcessingStep(
             $processingId,
@@ -207,6 +208,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
         $prompt = $this->promptBuilder->buildAnalysisPrompt($transcript, $existingSeries);
         $response = $this->executeAiRequest($prompt, $model, $processingId);
+        OpenAiUsageLogger::log($response, 'sermon_analysis', $model, $processingId);
 
         $apiTime = microtime(true) - $apiStartTime;
 
@@ -308,11 +310,12 @@ class SermonAnalysisService implements SermonAnalysisInterface
                         'content' => $prompt,
                     ],
                 ],
+                'service_tier' => config('openai.service_tier'),
                 'temperature' => 0.3,
                 // Headroom for reasoning models, whose hidden reasoning tokens share this budget
                 // with the visible JSON; classic models stop early so the ceiling costs nothing.
                 'max_completion_tokens' => 4000,
-            ]));
+            ], reasoningEffort: (string) config('media-processing.analysis.reasoning_effort', 'low')));
         } catch (ErrorException $e) {
             throw $e;
         } catch (\TypeError $e) {

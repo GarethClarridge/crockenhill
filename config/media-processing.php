@@ -130,7 +130,8 @@ return [
         'openai_api_key' => env('OPENAI_API_KEY'),
         // Dedicated knob (was the shared OPENAI_MODEL) so sermon analysis can diverge from the
         // lower-stakes email parser; defaults to a reasoning model for better public summaries.
-        'model' => env('ANALYSIS_MODEL', 'gpt-5-mini'),
+        'model' => env('ANALYSIS_MODEL', 'gpt-5.6-terra'),
+        'reasoning_effort' => env('ANALYSIS_REASONING_EFFORT', 'low'),
         'debug_http_responses' => env('OPENAI_DEBUG_HTTP_RESPONSES', false),
     ],
 
@@ -255,7 +256,8 @@ return [
         'detector' => env('SERVICE_STRUCTURE_DETECTOR', 'mock'),
         // Owns the sermon-vs-children's-talk judgement, so it defaults to the
         // flagship reasoning model (same reasoning as section_classification.model).
-        'model' => env('SERVICE_STRUCTURE_MODEL', 'gpt-5'),
+        'model' => env('SERVICE_STRUCTURE_MODEL', 'gpt-5.6-sol'),
+        'reasoning_effort' => env('SERVICE_STRUCTURE_REASONING_EFFORT', 'medium'),
         // Candidate model for shadow runs. When set, shadow detection uses
         // this model while `model` stays authoritative — the permanent
         // model-upgrade mechanism once the heuristic baseline is retired.
@@ -325,7 +327,8 @@ return [
         // is stored and the heard text stays on display.
         'title_writeback_min_confidence' => (float) env('SONG_MATCHING_TITLE_WRITEBACK_MIN_CONFIDENCE', 0.75),
         'ocr_enabled' => env('SONG_MATCHING_OCR_ENABLED', true),
-        'ocr_model' => env('SONG_MATCHING_OCR_MODEL', 'gpt-5-mini'),
+        'ocr_model' => env('SONG_MATCHING_OCR_MODEL', 'gpt-5.4-mini'),
+        'ocr_reasoning_effort' => env('SONG_MATCHING_OCR_REASONING_EFFORT', 'minimal'),
     ],
 
     /*

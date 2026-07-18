@@ -38,14 +38,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Processing Tier
+    |--------------------------------------------------------------------------
+    |
+    | Flex is appropriate for these asynchronous media-processing requests: it
+    | trades response time and occasional unavailability for Batch API pricing.
+    |
+    */
+
+    'service_tier' => env('OPENAI_SERVICE_TIER', 'flex'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Request Timeout
     |--------------------------------------------------------------------------
     |
     | The timeout may be used to specify the maximum number of seconds to wait
-    | for a response. By default, the client will time out after 30 seconds.
+    | for a response. Flex requests are allowed the recommended 15 minutes.
     */
 
-    // Cast to int: env() returns the raw string (e.g. "600"), and the OpenAI client passes
+    // Cast to int: env() returns the raw string (e.g. "900"), and the OpenAI client passes
     // this straight to Guzzle's "timeout" request option, which deprecates non-int|float values.
-    'request_timeout' => (int) env('OPENAI_REQUEST_TIMEOUT', 30),
+    'request_timeout' => (int) env('OPENAI_REQUEST_TIMEOUT', 900),
 ];

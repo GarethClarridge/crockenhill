@@ -43,6 +43,9 @@ class SermonAnalysisServiceTest extends TestCase
         config([
             'media-processing.analysis.service' => 'openai',
             'media-processing.analysis.openai_api_key' => 'test-key',
+            'media-processing.analysis.model' => 'gpt-5.6-terra',
+            'media-processing.analysis.reasoning_effort' => 'low',
+            'openai.service_tier' => 'flex',
         ]);
 
         $logger = app(SermonProcessingLogger::class);
@@ -90,7 +93,13 @@ class SermonAnalysisServiceTest extends TestCase
         $this->assertEquals('Grace Series', $result->series);
         $this->assertEquals('Ephesians 2:8-9', $result->reference);
         $this->assertCount(2, $result->points);
-        OpenAI::assertSent(Chat::class, 1);
+        OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+            return $method === 'create'
+                && $parameters['model'] === 'gpt-5.6-terra'
+                && $parameters['service_tier'] === 'flex'
+                && $parameters['reasoning_effort'] === 'low'
+                && ! array_key_exists('temperature', $parameters);
+        });
     }
 
     #[Test]
@@ -162,7 +171,7 @@ class SermonAnalysisServiceTest extends TestCase
                 $this->greaterThanOrEqual(0.0),
                 $status,
                 $message,
-                $this->callback(fn (array $context): bool => $context['model'] === 'gpt-5-mini'
+                $this->callback(fn (array $context): bool => $context['model'] === 'gpt-5.6-terra'
                     && $context['error_type'] === $errorType),
             );
 
@@ -191,7 +200,7 @@ class SermonAnalysisServiceTest extends TestCase
                 'test-processing-id',
                 'ai_analysis',
                 $this->isInstanceOf(\Exception::class),
-                $this->callback(fn (array $context): bool => $context['model'] === 'gpt-5-mini'
+                $this->callback(fn (array $context): bool => $context['model'] === 'gpt-5.6-terra'
                     && $context['error_type'] === 'Exception'
                     && is_float($context['api_time_ms'])),
             );

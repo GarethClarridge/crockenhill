@@ -10,6 +10,7 @@ use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\OpenAiServiceStructureService;
 use Illuminate\Support\Facades\Config;
 use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Resources\Chat;
 use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
@@ -24,7 +25,9 @@ class OpenAiServiceStructureServiceTest extends TestCase
         parent::setUp();
 
         Config::set('media-processing.analysis.openai_api_key', 'test-key');
-        Config::set('media-processing.service_structure.model', 'gpt-5');
+        Config::set('media-processing.service_structure.model', 'gpt-5.6-sol');
+        Config::set('media-processing.service_structure.reasoning_effort', 'medium');
+        Config::set('openai.service_tier', 'flex');
 
         $this->service = new OpenAiServiceStructureService;
     }
@@ -75,7 +78,14 @@ class OpenAiServiceStructureServiceTest extends TestCase
         $this->assertSame(ServiceSectionType::Sermon, $structure->sections[1]->type);
         $this->assertSame(4, $structure->sections[1]->oosItemId);
         $this->assertSame(['Clean detection.'], $structure->notes);
-        $this->assertSame('gpt-5', $structure->model);
+        $this->assertSame('gpt-5.6-sol', $structure->model);
+        OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+            return $method === 'create'
+                && $parameters['model'] === 'gpt-5.6-sol'
+                && $parameters['service_tier'] === 'flex'
+                && $parameters['reasoning_effort'] === 'medium'
+                && ! array_key_exists('temperature', $parameters);
+        });
     }
 
     #[Test]
