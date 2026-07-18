@@ -40,7 +40,7 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($events as $event)
-                <tr class="hover:bg-gray-50">
+                <tr class="hover:bg-gray-50" wire:loading.class="opacity-50 pointer-events-none" wire:target="categorize({{ $event->id }})">
                     {{-- Title --}}
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ $event->title }}</p>
