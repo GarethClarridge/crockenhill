@@ -234,6 +234,9 @@ the shadow period; fallback shape (a): swap at the flip.
 
 ### 1.4 [operational] Flip to primary + historic-sample soak (revised 2026-07-17 — decision D22)
 
+> **Runbook:** step-by-step instructions for 1.2 + 1.4 (including early failure detection and
+> results analysis) are in `docs/operations/llm-structure-promotion-soak.md` (2026-07-18).
+
 Config flip once 1.1b/1.1c have merged and the 1.2 wiring check passes. Then the soak is:
 
 1. **Process ~8–12 historic livestreams from the backlog in prod, in primary mode**, via
