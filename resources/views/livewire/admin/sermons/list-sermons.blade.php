@@ -59,7 +59,7 @@
                         ? route('childrens-corner.show', ['sermon' => $sermon->slug])
                         : route('sermons.show', ['sermon' => $sermon->slug]);
                 @endphp
-                <tr wire:loading.class="opacity-50" wire:target="delete({{ $sermon->id }})" class="hover:bg-gray-50 {{ $sermon->needs_preacher_review ? 'border-l-4 border-amber-400 bg-amber-50/30' : '' }}">
+                <tr wire:loading.class="opacity-50 pointer-events-none" wire:target="delete({{ $sermon->id }})" class="hover:bg-gray-50 {{ $sermon->needs_preacher_review ? 'border-l-4 border-amber-400 bg-amber-50/30' : '' }}">
                     {{-- Title --}}
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ Str::limit($sermon->title, 50) }}</p>

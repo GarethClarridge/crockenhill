@@ -46,7 +46,7 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($users as $user)
-                <tr wire:loading.class="opacity-50" wire:target="delete({{ $user->id }}), toggleAdmin({{ $user->id }})" class="hover:bg-gray-50">
+                <tr wire:loading.class="opacity-50 pointer-events-none" wire:target="delete({{ $user->id }}), toggleAdmin({{ $user->id }})" class="hover:bg-gray-50">
                     {{-- Name --}}
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ $user->name }}</p>
