@@ -42,7 +42,7 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($preachers as $preacher)
-                <tr wire:loading.class="opacity-50" wire:target="delete({{ $preacher->id }})" class="hover:bg-gray-50">
+                <tr wire:loading.class="opacity-50 pointer-events-none" wire:target="delete({{ $preacher->id }})" class="hover:bg-gray-50">
                     {{-- Name --}}
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ $preacher->name }}</p>
