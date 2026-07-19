@@ -11,6 +11,12 @@ use App\Services\Media\Audio\TranscriptStorageService;
  *
  * Provides default implementations for TranscriptionServiceInterface storage methods
  * by delegating them to an injected TranscriptStorageService.
+ *
+ * Using this trait allows transcription services (e.g., AudioTranscriptionService,
+ * LocalWhisperTranscriptionService, MockTranscriptionService) to satisfy the storage-related
+ * methods of TranscriptionServiceInterface without duplicating the delegation boilerplate.
+ *
+ * @property-read \App\Services\Media\Audio\TranscriptStorageService $storageService The injected transcript storage service dependency
  */
 trait HandlesTranscriptStorage
 {
