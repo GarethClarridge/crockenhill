@@ -63,7 +63,7 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($pages as $page)
-                <tr wire:loading.class="opacity-50" wire:target="delete({{ $page->id }})" class="hover:bg-gray-50">
+                <tr wire:loading.class="opacity-50 pointer-events-none" wire:target="delete({{ $page->id }})" class="hover:bg-gray-50">
                     <td class="px-4 py-3">
                         <input type="checkbox" value="{{ $page->id }}" wire:model.live="selected"
                             aria-label="Select page: {{ $page->heading }}"
