@@ -265,8 +265,9 @@
                                 class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-gray-300 rounded-md bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2"
                                 @click="toggle()"
                                 x-bind:aria-expanded="expanded"
+                                x-bind:aria-label="expanded ? 'Hide transcript' : 'Show transcript'"
                                 aria-controls="transcript-content">
-                                <span x-text="expanded ? 'Hide' : 'Show'">Show</span>
+                                <span x-text="expanded ? 'Hide' : 'Show'" aria-hidden="true">Show</span>
                                 <x-heroicon-o-chevron-down class="h-4 w-4 transition-transform duration-200" x-bind:class="expanded ? 'rotate-180' : ''" aria-hidden="true" />
                             </button>
                         </div>
@@ -388,8 +389,9 @@
                                 class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-gray-300 rounded-md bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2"
                                 @click="expanded = !expanded"
                                 x-bind:aria-expanded="expanded"
+                                x-bind:aria-label="expanded ? 'Hide passage' : 'Read passage'"
                                 aria-controls="passage-content">
-                                <span x-text="expanded ? 'Hide' : 'Read passage'">Show passage</span>
+                                <span x-text="expanded ? 'Hide' : 'Read passage'" aria-hidden="true">Show passage</span>
                                 <x-heroicon-o-chevron-down class="h-4 w-4 transition-transform duration-200" x-bind:class="expanded ? 'rotate-180' : ''" aria-hidden="true" />
                             </button>
                         @endif
