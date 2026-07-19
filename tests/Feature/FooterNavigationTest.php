@@ -22,7 +22,7 @@ class FooterNavigationTest extends TestCase
         // The "Listen to evening sermons" footer link must target the evening
         // service archive, not the unfiltered sermons index.
         $this->assertMatchesRegularExpression(
-            '/href="'.preg_quote(route('sermons.service', 'evening'), '/').'"[^>]*>\s*Listen to evening sermons/',
+            '/href="\/christ\/sermons\/evening"[^>]*>\s*Listen to evening sermons/',
             (string) $response->getContent(),
             'The footer "Listen to evening sermons" link should point to the evening service page.'
         );

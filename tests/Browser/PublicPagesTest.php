@@ -65,9 +65,9 @@ class PublicPagesTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) {
             $browser->visit('/')
-                ->tap(fn ($b) => $b->script("document.querySelector('a[href=\"/christ/sermons\"]').click()"))
-                ->waitForLocation('/christ/sermons')
-                ->assertPathIs('/christ/sermons');
+                ->tap(fn ($b) => $b->script("document.querySelector('a[href=\"/christ/sermons/evening\"]').click()"))
+                ->waitForLocation('/christ/sermons/evening')
+                ->assertPathIs('/christ/sermons/evening');
         });
     }
 
