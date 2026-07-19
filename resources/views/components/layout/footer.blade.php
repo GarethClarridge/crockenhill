@@ -12,7 +12,7 @@ $linkClasses = 'rounded-sm text-cbc-teal-dark underline decoration-cbc-teal-dark
         <a class="inline-flex items-center justify-center rounded-md bg-[linear-gradient(120deg,var(--color-cbc-teal)_0%,var(--color-cbc-teal-dark)_55%,#0e3a3c_100%)] px-3 py-1.5 text-sm text-white no-underline transition-all hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2" href="{{ config('church.social.youtube') }}" rel="noopener" target="_blank">
           Watch Sunday morning services
         </a>
-        <a class="{{ $linkClasses }}" href="/christ/sermons" wire:navigate>
+        <a class="{{ $linkClasses }}" href="{{ route('sermons.service', 'evening') }}" wire:navigate>
           Listen to evening sermons
         </a>
       </div>
