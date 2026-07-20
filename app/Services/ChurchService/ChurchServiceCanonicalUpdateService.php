@@ -52,7 +52,7 @@ class ChurchServiceCanonicalUpdateService
         $shouldReopenReview = $reviewedPreviously && ($changes !== [] || $conflicts !== []);
         $importMetadata = $importMetadataData?->toArray() ?? [];
 
-        if ($changes !== [] || $conflicts !== []) {
+        if ($conflicts !== [] || ($beforeSnapshot !== [] && $changes !== [])) {
             $canonicalConflict = [
                 'detected_at' => now()->toIso8601String(),
                 'incoming_source' => $resolvedSource->value,

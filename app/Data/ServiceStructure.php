@@ -9,6 +9,7 @@ use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 
 /**
  * A detected service structure: the LLM's typed, timed reading of the whole
@@ -162,13 +163,36 @@ final readonly class ServiceStructure extends JsonData
                 'duration' => $section->duration(),
                 'confidence' => $section->confidence,
                 'status' => ServiceSectionStatus::Identified->value,
-                'needs_manual_review' => $section->reviewFlags !== [],
+                'needs_manual_review' => $this->reviewFlagsRequireManualReview($section),
                 'source_segment_ids' => $sourceSegmentIds,
                 'metadata' => $this->sectionMetadata($section, $transcript, $synthesisedSegment, $sourceSegmentIds === []),
             ];
         }
 
         return $classified;
+    }
+
+    private function reviewFlagsRequireManualReview(ServiceStructureSection $section): bool
+    {
+        foreach ($section->reviewFlags as $reviewFlag) {
+            if ($reviewFlag === ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION) {
+                continue;
+            }
+
+            if (
+                in_array($reviewFlag, [
+                    ServiceStructureValidator::FLAG_LOW_CONFIDENCE,
+                    ServiceStructureValidator::FLAG_MICRO_SECTION,
+                ], true)
+                && ! $section->type->requiresStructuralUncertaintyReview()
+            ) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     /**

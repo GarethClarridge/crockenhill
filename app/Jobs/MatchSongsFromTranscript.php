@@ -531,7 +531,9 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                 unset($metadataArray['review_reason']);
             }
 
-            $section->song_match_type = ServiceSectionSongMatchType::Inferred;
+            $section->song_match_type = $writeCatalogueTitle
+                ? ServiceSectionSongMatchType::Confirmed
+                : ServiceSectionSongMatchType::Inferred;
             $section->needs_manual_review = $reviewFlags !== [];
             $section->metadata = ServiceSectionMetadata::fromArray($metadataArray);
             $section->save();

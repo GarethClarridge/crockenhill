@@ -11,6 +11,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\SpeakerProfile;
 use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Support\ChurchServiceRunMatcher;
 use App\Support\ServiceSectionConfidence;
@@ -26,6 +27,8 @@ class ServiceReviewDashboardQuery
 
     /** @var array<string, ChurchService|null> */
     private array $serviceKeyLookupCache = [];
+
+    private ?bool $hasActiveSpeakerProfiles = null;
 
     public function __construct(
         private readonly MediaProcessingIdentityResolver $identityResolver,
@@ -285,6 +288,7 @@ class ServiceReviewDashboardQuery
             $section->section_type === ServiceSectionType::ChildrensTalk
             && $section->publicationChildrensTalkSpeaker() === null
             && $section->predictedChildrensTalkSpeaker() !== null
+            && $this->hasActiveSpeakerProfiles()
         ) {
             $reasons[] = [
                 'key' => 'speaker_review',
@@ -301,7 +305,11 @@ class ServiceReviewDashboardQuery
             ];
         }
 
-        if ($section->confidence !== null && $section->confidence < ServiceSectionConfidence::HIGH_THRESHOLD) {
+        if (
+            $section->section_type->requiresStructuralUncertaintyReview()
+            && $section->confidence !== null
+            && $section->confidence < ServiceSectionConfidence::HIGH_THRESHOLD
+        ) {
             $reasons[] = [
                 'key' => 'low_confidence',
                 'label' => 'Low confidence',
@@ -442,17 +450,26 @@ class ServiceReviewDashboardQuery
             ->where(function (Builder $query): void {
                 $query->where('needs_manual_review', true)
                     ->orWhere('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
-                    ->orWhere('confidence', '<', ServiceSectionConfidence::HIGH_THRESHOLD)
+                    ->orWhere(function (Builder $query): void {
+                        $query->whereIn('section_type', array_map(
+                            static fn (ServiceSectionType $type): string => $type->value,
+                            array_filter(
+                                ServiceSectionType::cases(),
+                                static fn (ServiceSectionType $type): bool => $type->requiresStructuralUncertaintyReview(),
+                            ),
+                        ))->where('confidence', '<', ServiceSectionConfidence::HIGH_THRESHOLD);
+                    })
                     ->orWhereJsonContains('metadata->review_flags', 'heuristic_demotion')
                     ->orWhereIn('song_match_type', [
                         ServiceSectionSongMatchType::Inferred->value,
                         ServiceSectionSongMatchType::Unmatched->value,
                     ])
-                    ->orWhere(function (Builder $query): void {
-                        // Speaker review: predicted but not yet reviewed
-                        $query->where('section_type', ServiceSectionType::ChildrensTalk->value)
-                            ->whereNotNull('metadata->childrens_talk_speaker->predicted')
-                            ->whereNull('metadata->childrens_talk_speaker->reviewed');
+                    ->when($this->hasActiveSpeakerProfiles(), function (Builder $query): void {
+                        $query->orWhere(function (Builder $query): void {
+                            $query->where('section_type', ServiceSectionType::ChildrensTalk->value)
+                                ->whereNotNull('metadata->childrens_talk_speaker->predicted')
+                                ->whereNull('metadata->childrens_talk_speaker->reviewed');
+                        });
                     })
                     ->orWhere(function (Builder $query): void {
                         // Legacy/fallback song match checks
@@ -463,6 +480,13 @@ class ServiceReviewDashboardQuery
                             });
                     });
             });
+    }
+
+    private function hasActiveSpeakerProfiles(): bool
+    {
+        return $this->hasActiveSpeakerProfiles ??= SpeakerProfile::query()
+            ->configuredForSpeakerIdentification()
+            ->exists();
     }
 
     /**

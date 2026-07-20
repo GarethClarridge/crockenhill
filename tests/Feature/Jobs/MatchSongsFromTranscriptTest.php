@@ -13,10 +13,12 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
+use App\Queries\ReviewInboxQuery;
 use App\Services\ChurchService\OosAlignmentService;
 use App\Services\Media\Audio\LocalWhisperTranscriptionService;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
+use App\Services\Public\PublicSongUsageService;
 use App\Services\Song\SongLyricOcrService;
 use App\Services\Song\SongLyricsMatchingService;
 use App\Services\Song\UnmatchedSongReviewApplicator;
@@ -156,7 +158,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $this->assertFalse($section->needs_manual_review);
 
         $match = $section->metadata['transcript_song_match'] ?? null;
@@ -353,8 +355,10 @@ class MatchSongsFromTranscriptTest extends TestCase
         // The match is recorded, but a sub-threshold confidence must not
         // present a possibly wrong catalogue title as the display title.
         $this->assertSame('title_hint_first_line', $section->metadata['transcript_song_match']['match_source'] ?? null);
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
         $this->assertSame('What love could remember', $section->title);
         $this->assertArrayNotHasKey('song_title', $section->metadata->toArray());
+        $this->assertSame(1, app(ReviewInboxQuery::class)->build()['counts']['sections']);
     }
 
     #[Test]
@@ -453,7 +457,7 @@ class MatchSongsFromTranscriptTest extends TestCase
         $section->refresh();
         $item->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $this->assertSame($song->id, $item->song_id);
         $this->assertSame('In Christ Alone', $item->title);
     }
@@ -497,7 +501,7 @@ class MatchSongsFromTranscriptTest extends TestCase
         $section->refresh();
 
         // Fuzzy match should have found the song via lyrics_plain.
-        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
 
         $match = $section->metadata['transcript_song_match'] ?? null;
         $this->assertIsArray($match);
@@ -564,7 +568,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $this->assertNotNull($section->metadata['song_opening_transcript'] ?? null);
 
         $match = $section->metadata['transcript_song_match'] ?? null;
@@ -649,7 +653,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $this->assertSame($song->id, $section->metadata['transcript_song_match']['song_id'] ?? null);
     }
 
@@ -715,7 +719,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $this->assertSame($song->id, $section->metadata['transcript_song_match']['song_id'] ?? null);
     }
 
@@ -760,7 +764,7 @@ class MatchSongsFromTranscriptTest extends TestCase
         $unmatchedSection->refresh();
 
         // The section should now be inferred and the unmatched review flag cleared.
-        $this->assertSame(ServiceSectionSongMatchType::Inferred, $unmatchedSection->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $unmatchedSection->song_match_type);
         $this->assertNotContains('unmatched_song_section', $unmatchedSection->metadata['review_flags'] ?? []);
 
         // The church service review state should have been refreshed.
@@ -863,7 +867,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $this->assertSame($ocrText, $section->metadata['song_ocr_text'] ?? null);
 
         $match = $section->metadata['transcript_song_match'] ?? null;
@@ -934,7 +938,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
 
         $match = $section->metadata['transcript_song_match'] ?? null;
         $this->assertIsArray($match);
@@ -1139,7 +1143,10 @@ class MatchSongsFromTranscriptTest extends TestCase
     #[Test]
     public function it_confirms_an_llm_proposed_song_title_without_rerunning_oos_alignment_in_primary_mode(): void
     {
-        config(['media-processing.service_structure.mode' => 'primary']);
+        config([
+            'media-processing.service_structure.mode' => 'primary',
+            'media-processing.song_matching.title_writeback_min_confidence' => 1.0,
+        ]);
 
         $song = Song::factory()->create([
             'title' => 'Praise My Soul the King of Heaven',
@@ -1147,7 +1154,15 @@ class MatchSongsFromTranscriptTest extends TestCase
             'lyrics_plain' => null,
         ]);
 
-        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $churchService = ChurchService::factory()->create();
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'type' => 'songs',
+            'song_id' => null,
+        ]);
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'church_service_id' => $churchService->id,
+        ]);
 
         // The shape DetectServiceStructure persists: LLM anchoring already on
         // the section, the sung title carried as the first-choice hint.
@@ -1155,6 +1170,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             'media_processing_log_id' => $log->id,
             'section_type' => ServiceSectionType::Song->value,
             'song_match_type' => null,
+            'church_service_item_id' => $item->id,
             'needs_manual_review' => false,
             'metadata' => [
                 'classification_mode' => 'llm_structure',
@@ -1182,11 +1198,16 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $match = $section->metadata['transcript_song_match'] ?? null;
         $this->assertIsArray($match);
         $this->assertSame($song->id, $match['song_id']);
         $this->assertSame('title_hint_canonical', $match['match_source']);
+
+        $log->forceFill(['status' => 'completed'])->save();
+
+        $this->assertSame(0, app(ReviewInboxQuery::class)->build()['counts']['sections']);
+        $this->assertSame(1, app(PublicSongUsageService::class)->statsForSong($song)['usage_count']);
     }
 
     #[Test]

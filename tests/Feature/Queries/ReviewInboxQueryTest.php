@@ -7,6 +7,7 @@ namespace Tests\Feature\Queries;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\MediaProcessingLog;
@@ -196,5 +197,35 @@ class ReviewInboxQueryTest extends TestCase
         $this->assertSame(1, $result['counts']['segments']);
         $this->assertSame(1, $result['counts']['sections']);
         $this->assertSame(4, $result['counts']['all']);
+    }
+
+    #[Test]
+    public function it_excludes_low_confidence_filler_but_keeps_low_confidence_publishable_sections(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Other,
+            'confidence' => 0.5,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+            'metadata' => ['review_flags' => ['structure_low_confidence']],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Song,
+            'confidence' => 0.5,
+            'needs_manual_review' => true,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+            'metadata' => ['review_flags' => ['structure_low_confidence']],
+        ]);
+
+        $result = $this->query->build();
+
+        $this->assertSame(1, $result['counts']['sections']);
     }
 }

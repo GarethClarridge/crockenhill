@@ -68,6 +68,32 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_treats_first_population_as_a_change_without_recording_a_conflict(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'needs_review' => false,
+            'import_metadata' => ['confidence_score' => 1.0],
+        ]);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::OpenLp,
+            'title' => 'Great is thy faithfulness',
+        ]);
+
+        Event::fake();
+
+        $result = $this->service->finalize($churchService, [], ChurchServiceItemSource::OpenLp);
+
+        $this->assertFalse($result->needs_review);
+        $this->assertNull($result->import_metadata['canonical_conflict'] ?? null);
+        $this->assertNull($result->import_metadata['canonical_conflict_history'] ?? null);
+        $this->assertSame(ChurchServiceCanonicalConflictState::None, $result->canonical_conflict_state);
+        Event::assertDispatched(ChurchServiceCanonicalListChanged::class);
+    }
+
+    #[Test]
     public function it_records_a_canonical_conflict_when_items_change_on_an_unreviewed_service(): void
     {
         Event::fake();

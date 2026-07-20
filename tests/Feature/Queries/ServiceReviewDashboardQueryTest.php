@@ -12,6 +12,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
+use App\Models\SpeakerProfile;
 use App\Queries\ServiceReviewDashboardQuery;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -365,6 +366,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song,
             'needs_manual_review' => false,
             'confidence' => ServiceSectionConfidence::HIGH_THRESHOLD - 0.01,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
@@ -374,6 +376,58 @@ class ServiceReviewDashboardQueryTest extends TestCase
 
         $keys = array_column($reasons, 'key');
         $this->assertContains('low_confidence', $keys);
+    }
+
+    #[Test]
+    public function childrens_talk_prediction_is_not_a_review_reason_without_a_compatible_profile(): void
+    {
+        config([
+            'media-processing.speaker_identification.provider' => 'resemblyzer',
+            'media-processing.speaker_identification.model_version' => 'v1.0',
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'section_type' => ServiceSectionType::ChildrensTalk,
+            'needs_manual_review' => false,
+            'confidence' => 0.99,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+            'metadata' => [
+                'childrens_talk_speaker' => [
+                    'predicted' => ['outcome' => 'no_profiles'],
+                ],
+            ],
+        ]);
+
+        $this->assertFalse($this->query->isReviewCandidate($section));
+        $this->assertSame([], $this->query->reviewGroups());
+    }
+
+    #[Test]
+    public function childrens_talk_prediction_remains_a_review_reason_with_a_compatible_profile(): void
+    {
+        config([
+            'media-processing.speaker_identification.provider' => 'resemblyzer',
+            'media-processing.speaker_identification.model_version' => 'v1.0',
+        ]);
+        SpeakerProfile::factory()->create([
+            'provider' => 'resemblyzer',
+            'model_version' => 'v1.0',
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'section_type' => ServiceSectionType::ChildrensTalk,
+            'needs_manual_review' => false,
+            'confidence' => 0.99,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+            'metadata' => [
+                'childrens_talk_speaker' => [
+                    'predicted' => ['outcome' => 'no_match'],
+                ],
+            ],
+        ]);
+
+        $this->assertTrue($this->query->isReviewCandidate($section));
+        $this->assertSame('speaker_review', $this->query->reviewReasons($section)[0]['key']);
     }
 
     #[Test]

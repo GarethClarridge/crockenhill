@@ -68,7 +68,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $section->save();
 
         $fresh = $section->fresh();
-        $this->assertTrue($fresh->needs_manual_review);
+        $this->assertFalse($fresh->needs_manual_review);
         $this->assertSame('skipped', $fresh->metadata?->toArray()['childrens_talk_speaker']['predicted']['outcome'] ?? null);
     }
 
@@ -92,7 +92,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $section->save();
 
         $fresh = $section->fresh();
-        $this->assertTrue($fresh->needs_manual_review);
+        $this->assertFalse($fresh->needs_manual_review);
         $this->assertSame('missing_audio', $fresh->metadata?->toArray()['childrens_talk_speaker']['predicted']['outcome'] ?? null);
     }
 
@@ -178,6 +178,37 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $fresh = $section->fresh();
         $this->assertTrue($fresh->needs_manual_review);
         $this->assertContains('childrens_talk_speaker_review', $fresh->metadata?->toArray()['review_flags'] ?? []);
+    }
+
+    #[Test]
+    public function it_keeps_a_prediction_without_opening_review_when_no_compatible_profile_exists(): void
+    {
+        config([
+            'media-processing.speaker_identification.enabled' => true,
+            'media-processing.speaker_identification.provider' => 'resemblyzer',
+            'media-processing.speaker_identification.model_version' => 'v1.0',
+        ]);
+
+        $speaker = $this->mock(SpeakerIdentificationInterface::class);
+        $speaker->shouldNotReceive('identify');
+
+        $this->app->forgetInstance(ChildrensTalkSpeakerService::class);
+
+        $section = ServiceSection::factory()->create([
+            'section_type' => ServiceSectionType::ChildrensTalk,
+            'extracted_audio_path' => 'sections/talk.mp3',
+            'duration' => 120,
+            'needs_manual_review' => false,
+            'metadata' => ['classification_mode' => 'llm_structure'],
+        ]);
+
+        app(ChildrensTalkSpeakerService::class)->detectAndStore($section);
+        $section->save();
+
+        $fresh = $section->fresh();
+        $this->assertFalse($fresh->needs_manual_review);
+        $this->assertSame('no_profiles', $fresh->metadata['childrens_talk_speaker']['predicted']['outcome'] ?? null);
+        $this->assertNotContains('childrens_talk_speaker_review', $fresh->metadata['review_flags'] ?? []);
     }
 
     // ── storeManualReview ─────────────────────────────────────────────────────

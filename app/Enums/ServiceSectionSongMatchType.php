@@ -26,8 +26,8 @@ enum ServiceSectionSongMatchType: string
     public function description(): string
     {
         return match ($this) {
-            self::Confirmed => 'This section is safe to count as a confirmed livestream match.',
-            self::Inferred => 'This label came from OoS ordering and still needs review before it is trusted.',
+            self::Confirmed => 'The transcript-verified match met the confidence required to use the catalogue title and count this livestream usage.',
+            self::Inferred => 'The transcript suggested this catalogue match below the confidence required to trust it without review.',
             self::Unmatched => 'No reliable OoS song match was found for this detected section.',
         };
     }

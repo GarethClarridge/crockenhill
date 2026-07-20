@@ -34,6 +34,16 @@ enum ServiceSectionType: string
         };
     }
 
+    public function requiresStructuralUncertaintyReview(): bool
+    {
+        return in_array($this, [
+            self::ChildrensTalk,
+            self::Song,
+            self::Sermon,
+            self::BibleReading,
+        ], true);
+    }
+
     /**
      * Infer a section type from a human-readable item title using keyword matching.
      *

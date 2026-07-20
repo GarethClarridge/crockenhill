@@ -50,7 +50,8 @@ class ChildrensTalkSpeakerService
 
         $metadata = $section->metadata?->toArray() ?? [];
         $speakerMetadata = $section->metadata?->childrensTalkSpeaker?->toArray() ?? [];
-        $prediction = $this->predictionPayload($section);
+        $profiles = $this->eligibleProfiles();
+        $prediction = $this->predictionPayload($section, $profiles);
 
         $speakerMetadata['predicted'] = $prediction;
 
@@ -68,6 +69,15 @@ class ChildrensTalkSpeakerService
             unset($metadata['review_reason']);
             $metadata['review_flags'] = $this->removeReviewFlag($metadata['review_flags'] ?? [], 'childrens_talk_speaker_review');
             $section->needs_manual_review = false;
+        } elseif ($profiles->isEmpty()) {
+            unset($speakerMetadata['reviewed']);
+            $metadata['review_flags'] = $this->removeReviewFlag($metadata['review_flags'] ?? [], 'childrens_talk_speaker_review');
+
+            if (str_starts_with((string) ($metadata['review_reason'] ?? ''), 'childrens_talk_speaker_')) {
+                unset($metadata['review_reason']);
+            }
+
+            $section->needs_manual_review = $metadata['review_flags'] !== [];
         } else {
             unset($speakerMetadata['reviewed']);
             $metadata['review_reason'] = $this->reviewReasonForOutcome((string) $prediction['outcome']);
@@ -160,9 +170,10 @@ class ChildrensTalkSpeakerService
     }
 
     /**
+     * @param  EloquentCollection<int, SpeakerProfile>  $profiles
      * @return array<string, mixed>
      */
-    private function predictionPayload(ServiceSection $section): array
+    private function predictionPayload(ServiceSection $section, EloquentCollection $profiles): array
     {
         $audioPath = trim((string) ($section->extracted_audio_path ?? ''));
         if ($audioPath === '') {
@@ -187,7 +198,6 @@ class ChildrensTalkSpeakerService
             );
         }
 
-        $profiles = $this->eligibleProfiles();
         if ($profiles->isEmpty()) {
             return $this->basePrediction(
                 outcome: 'no_profiles',
@@ -235,22 +245,10 @@ class ChildrensTalkSpeakerService
      */
     private function eligibleProfiles(): EloquentCollection
     {
-        $provider = (string) config('media-processing.speaker_identification.provider', 'null');
-        $modelVersion = (string) config('media-processing.speaker_identification.model_version', '');
-
-        $query = SpeakerProfile::query()
-            ->active()
-            ->with('preacher');
-
-        if ($provider !== '' && $provider !== 'null') {
-            $query->where('provider', $provider);
-
-            if ($modelVersion !== '') {
-                $query->where('model_version', $modelVersion);
-            }
-        }
-
-        return $query->get();
+        return SpeakerProfile::query()
+            ->configuredForSpeakerIdentification()
+            ->with('preacher')
+            ->get();
     }
 
     private function noProfilesReason(): string

@@ -33,6 +33,7 @@ use Illuminate\Support\Carbon;
  * @method static Builder|SpeakerProfile newQuery()
  * @method static Builder|SpeakerProfile query()
  * @method static Builder|SpeakerProfile active()
+ * @method static Builder|SpeakerProfile configuredForSpeakerIdentification()
  *
  * @mixin \Eloquent
  */
@@ -92,6 +93,30 @@ class SpeakerProfile extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * @param  Builder<SpeakerProfile>  $query
+     * @return Builder<SpeakerProfile>
+     */
+    public function scopeConfiguredForSpeakerIdentification(Builder $query): Builder
+    {
+        $provider = (string) config('media-processing.speaker_identification.provider', 'null');
+        $modelVersion = (string) config('media-processing.speaker_identification.model_version', '');
+
+        $query->active();
+
+        if ($provider === '' || $provider === 'null') {
+            return $query;
+        }
+
+        $query->where('provider', $provider);
+
+        if ($modelVersion !== '') {
+            $query->where('model_version', $modelVersion);
+        }
+
+        return $query;
     }
 
     public function getEffectiveAcceptThreshold(): float

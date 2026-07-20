@@ -18,6 +18,7 @@ use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -162,7 +163,7 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
     }
 
     #[Test]
-    public function review_flags_map_to_needs_manual_review_and_metadata(): void
+    public function filler_review_flags_remain_metadata_without_requiring_manual_review(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
         $this->coveringSegments($log);
@@ -175,13 +176,67 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
 
         $classified = $structure->toClassifiedSections($log);
 
-        $this->assertTrue($classified[0]['needs_manual_review']);
+        $this->assertFalse($classified[0]['needs_manual_review']);
         $this->assertSame(['structure_low_confidence'], $classified[0]['metadata']['review_flags']);
         $this->assertSame('structure_low_confidence', $classified[0]['metadata']['review_reason']);
 
         $this->assertFalse($classified[1]['needs_manual_review']);
         $this->assertSame([], $classified[1]['metadata']['review_flags']);
         $this->assertArrayNotHasKey('review_reason', $classified[1]['metadata']);
+    }
+
+    #[Test]
+    #[DataProvider('structuralReviewFlagMatrix')]
+    public function structural_review_flags_only_require_action_when_their_consequences_are_actionable(
+        string $sectionType,
+        string $reviewFlag,
+        bool $expectsManualReview,
+    ): void {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $section = $this->section($sectionType, 0.0, 120.0)->withReviewFlags([$reviewFlag]);
+
+        $classified = ServiceStructure::fromSections([$section])->toClassifiedSections($log);
+
+        $this->assertSame($expectsManualReview, $classified[0]['needs_manual_review']);
+        $this->assertSame([$reviewFlag], $classified[0]['metadata']['review_flags']);
+    }
+
+    /** @return array<string, array{string, string, bool}> */
+    public static function structuralReviewFlagMatrix(): array
+    {
+        $actionableTypes = ['childrens_talk', 'song', 'sermon', 'bible_reading'];
+        $fillerTypes = ['other', 'notices', 'prayer', 'welcome'];
+        $cases = [];
+
+        foreach (['structure_low_confidence', 'structure_micro_section'] as $flag) {
+            foreach ($actionableTypes as $type) {
+                $cases["{$type} {$flag}"] = [$type, $flag, true];
+            }
+
+            foreach ($fillerTypes as $type) {
+                $cases["{$type} {$flag}"] = [$type, $flag, false];
+            }
+        }
+
+        foreach (array_merge($actionableTypes, $fillerTypes) as $type) {
+            $cases["{$type} inversion"] = [$type, 'structure_oos_cross_type_inversion', false];
+        }
+
+        return $cases;
+    }
+
+    #[Test]
+    public function inversion_plus_low_confidence_on_a_song_still_requires_manual_review(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $section = $this->section('song', 0.0, 120.0)->withReviewFlags([
+            'structure_oos_cross_type_inversion',
+            'structure_low_confidence',
+        ]);
+
+        $classified = ServiceStructure::fromSections([$section])->toClassifiedSections($log);
+
+        $this->assertTrue($classified[0]['needs_manual_review']);
     }
 
     #[Test]
