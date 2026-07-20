@@ -48,13 +48,10 @@ class PageImageCacheService
     private function resolveHeadingImageUrl(Page $page, ?Media $media, array $conversions, string $size): ?string
     {
         if ($media instanceof Media) {
-            foreach ($conversions as $conversion) {
-                if ($media->hasGeneratedConversion($conversion)) {
-                    return $media->getUrl($conversion);
-                }
-            }
+            $conversion = collect($conversions)
+                ->first(fn (string $conv): bool => $media->hasGeneratedConversion($conv));
 
-            return $media->getUrl();
+            return $conversion !== null ? $media->getUrl($conversion) : $media->getUrl();
         }
 
         $storagePath = "pages/headings/{$size}/{$page->slug}.webp";
