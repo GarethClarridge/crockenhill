@@ -39,10 +39,7 @@ class ReviewInbox extends Component
     #[Url(except: 'all')]
     public string $filter = 'all';
 
-    public function mount(): void
-    {
-        $this->abortIfDisabled();
-    }
+    public function mount(): void {}
 
     public function approveEmail(int $inboundEmailId, ApproveInboundEmailImport $action): mixed
     {
@@ -308,12 +305,5 @@ class ReviewInbox extends Component
         $id = Auth::id();
 
         return is_int($id) ? $id : null;
-    }
-
-    private function abortIfDisabled(): void
-    {
-        if (! (bool) config('service-tracking.enabled', true)) {
-            abort(404);
-        }
     }
 }

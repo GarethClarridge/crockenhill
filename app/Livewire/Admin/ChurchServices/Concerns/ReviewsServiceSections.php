@@ -18,8 +18,7 @@ use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 
 /**
- * Section review editing shared by the service workbench and (until it
- * retires) the review dashboard: inline type/title edits, children's-talk
+ * Section review editing for the service workbench: inline type/title edits, children's-talk
  * speaker picks, batch approval, and adjacent-section merging.
  *
  * Edit state is seeded for review-candidate sections only — seeding every

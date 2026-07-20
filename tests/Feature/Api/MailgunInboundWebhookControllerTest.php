@@ -28,6 +28,17 @@ class MailgunInboundWebhookControllerTest extends TestCase
     }
 
     #[Test]
+    public function disabled_service_tracking_keeps_the_webhook_not_found_response(): void
+    {
+        config(['service-tracking.enabled' => false]);
+
+        $this->postJson('/api/webhooks/mailgun/inbound', $this->validPayload())
+            ->assertNotFound();
+
+        $this->assertDatabaseCount('inbound_emails', 0);
+    }
+
+    #[Test]
     public function test_valid_signature_is_accepted_and_queued(): void
     {
         Queue::fake();

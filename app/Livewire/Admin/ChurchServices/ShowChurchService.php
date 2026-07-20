@@ -37,14 +37,10 @@ class ShowChurchService extends Component
 
     public function mount(ChurchService $churchService): void
     {
-        $this->abortIfDisabled();
-
-        $this->churchService = $churchService->load([
-            'items' => fn ($query) => $query
-                ->with('song:id,title')
-                ->orderBy('position')
-                ->orderBy('id'),
-        ]);
+        $this->churchService = ChurchService::query()
+            ->whereKey($churchService->getKey())
+            ->withOrderedItems(withSong: true)
+            ->firstOrFail();
 
         // Seed edit state for review candidates only — seeding every section
         // of every run would balloon the Livewire payload.
@@ -238,12 +234,10 @@ class ShowChurchService extends Component
             return;
         }
 
-        $this->churchService = $result->churchService->load([
-            'items' => fn ($query) => $query
-                ->with('song:id,title')
-                ->orderBy('position')
-                ->orderBy('id'),
-        ]);
+        $this->churchService = ChurchService::query()
+            ->whereKey($result->churchService->getKey())
+            ->withOrderedItems(withSong: true)
+            ->firstOrFail();
 
         $label = $resolution === 'accept_incoming' ? 'Incoming items applied' : 'Current structure preserved';
         $this->success($label.'. Merge resolved.');
@@ -252,12 +246,5 @@ class ShowChurchService extends Component
     private function processingLogMatchesService(MediaProcessingLog $processingLog): bool
     {
         return app(ChurchServiceProcessingRunQuery::class)->matchesService($processingLog, $this->churchService);
-    }
-
-    private function abortIfDisabled(): void
-    {
-        if (! (bool) config('service-tracking.enabled', true)) {
-            abort(404);
-        }
     }
 }

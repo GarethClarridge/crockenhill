@@ -24,8 +24,6 @@ class ShowSong extends Component
 
     public function mount(Song $song): void
     {
-        $this->abortIfDisabled();
-
         $this->song = $song->load([
             'authors' => fn ($query) => $query->orderBy('display_name'),
             'books' => fn ($query) => $query->orderBy('name')->orderBy('song_book_song.entry'),
@@ -133,12 +131,5 @@ class ShowSong extends Component
             ->where('church_service_items.song_id', $this->song->id)
             ->where('church_service_items.type', 'songs')
             ->whereNull('church_service_items.deleted_at');
-    }
-
-    private function abortIfDisabled(): void
-    {
-        if (! (bool) config('service-tracking.enabled', true)) {
-            abort(404);
-        }
     }
 }

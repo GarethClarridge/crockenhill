@@ -7,6 +7,7 @@ namespace App\Livewire\Admin\ChurchServices;
 use App\Enums\ChurchServiceRollupStatus;
 use App\Enums\SermonService;
 use App\Livewire\Traits\WithAdminAuthorization;
+use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\ChurchService;
 use App\Queries\AdminAttentionCounts;
@@ -21,7 +22,7 @@ use Livewire\WithPagination;
 
 class ListChurchServices extends Component
 {
-    use EscapesLikeWildcards, WithAdminAuthorization, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithFilterableListing, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'date';
 
@@ -57,45 +58,27 @@ class ListChurchServices extends Component
     #[Url(except: null)]
     public ?bool $needsReviewFilter = null;
 
-    public bool $hasFilters = false;
-
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    public function mount(): void
+    /**
+     * @return array<string, mixed>
+     */
+    protected function filterProperties(): array
     {
-        $this->abortIfDisabled();
-    }
-
-    public function updatedSearch(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedServiceFilter(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedNeedsReviewFilter(): void
-    {
-        $this->resetPage();
-    }
-
-    public function resetFilters(): void
-    {
-        $this->reset(['search', 'serviceFilter', 'needsReviewFilter']);
-        $this->resetPage();
+        return [
+            'search' => '',
+            'serviceFilter' => null,
+            'needsReviewFilter' => null,
+        ];
     }
 
     public function render(ChurchServiceRollupQuery $rollupQuery, AdminAttentionCounts $attentionCounts): View
     {
         $this->sanitizeSorting();
 
-        $this->hasFilters = $this->search !== ''
-            || $this->serviceFilter !== null
-            || $this->needsReviewFilter !== null;
+        $this->computeHasFilters();
 
         $search = trim($this->search);
         $escapedSearch = $this->escapeLike($search);
@@ -243,12 +226,5 @@ class ListChurchServices extends Component
     private function isWithinHeroWindow(ChurchService $service): bool
     {
         return (int) abs(now()->startOfDay()->diffInDays($service->date)) <= self::HERO_WINDOW_DAYS;
-    }
-
-    private function abortIfDisabled(): void
-    {
-        if (! (bool) config('service-tracking.enabled', true)) {
-            abort(404);
-        }
     }
 }

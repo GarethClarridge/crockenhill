@@ -7,17 +7,16 @@ namespace App\Livewire\Admin\ChurchServices\Concerns;
 use App\Actions\Publication\ApproveSectionForPublication;
 use App\Actions\Publication\RejectSectionPublication;
 use App\Actions\Publication\RequeueSectionPublication;
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Models\ServiceSection;
 
 trait ManagesSectionPublication
 {
+    use WithAdminAuthorization;
+
     public function approve(int $sectionId): void
     {
-
-        // @phpstan-ignore function.alreadyNarrowedType
-        if (method_exists($this, 'authorizeAdmin')) {
-            $this->authorizeAdmin();
-        }
+        $this->authorizeAdmin();
 
         $section = ServiceSection::query()->find($sectionId);
         if (! $section instanceof ServiceSection) {
@@ -39,10 +38,7 @@ trait ManagesSectionPublication
     public function reject(int $sectionId): void
     {
 
-        // @phpstan-ignore function.alreadyNarrowedType
-        if (method_exists($this, 'authorizeAdmin')) {
-            $this->authorizeAdmin();
-        }
+        $this->authorizeAdmin();
 
         $section = ServiceSection::query()->find($sectionId);
         if (! $section instanceof ServiceSection) {
@@ -63,10 +59,7 @@ trait ManagesSectionPublication
     public function requeue(int $sectionId): void
     {
 
-        // @phpstan-ignore function.alreadyNarrowedType
-        if (method_exists($this, 'authorizeAdmin')) {
-            $this->authorizeAdmin();
-        }
+        $this->authorizeAdmin();
 
         $section = ServiceSection::query()->find($sectionId);
         if (! $section instanceof ServiceSection) {

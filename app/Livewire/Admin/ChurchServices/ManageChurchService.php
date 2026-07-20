@@ -42,8 +42,6 @@ class ManageChurchService extends Component
         PrefillChurchServiceFromInboundEmail $prefillAction,
         MediaProcessingIdentityResolver $identityResolver,
     ): void {
-        $this->abortIfDisabled();
-
         if ($this->churchService instanceof ChurchService && $this->churchService->exists) {
             /** @var ChurchService $churchService */
             $churchService = ChurchService::query()
@@ -113,8 +111,6 @@ class ManageChurchService extends Component
     public function save(SaveChurchServiceFromAdmin $saveAction): mixed
     {
         $this->authorizeAdmin();
-        $this->abortIfDisabled();
-
         $this->form->validate();
         $wasCreated = ! ($this->churchService instanceof ChurchService && $this->churchService->exists);
 
@@ -157,12 +153,5 @@ class ManageChurchService extends Component
             'title' => $this->churchService instanceof ChurchService ? 'Edit Service' : 'Create Service',
             'heading' => $this->churchService instanceof ChurchService ? 'Edit Service' : 'Create Service',
         ]);
-    }
-
-    private function abortIfDisabled(): void
-    {
-        if (! (bool) config('service-tracking.enabled', true)) {
-            abort(404);
-        }
     }
 }

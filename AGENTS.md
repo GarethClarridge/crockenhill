@@ -251,6 +251,15 @@ It encodes the project-specific design system (brand tokens, component selection
 - Every mutating Livewire action on an admin component MUST call `$this->authorizeAdmin()` before mutating state. `mount()` calls are optional (route middleware already covers the initial render).
 - Pinned by `tests/Integration/Livewire/Traits/AdminLivewireComponentsUseTraitTest.php` — adding a new admin Livewire component without the trait fails that test.
 
+### Admin list component recipe
+
+New admin list components should follow the established composition: use `WithAdminAuthorization`,
+`WithPagination`, `WithSortableListing`, and `WithFilterableListing`; define the sort constants and
+typed `#[Url]` state; return every filter property and its reset value from `filterProperties()`;
+call `sanitizeSorting()` and `computeHasFilters()` at the top of `render()`; escape user input
+before `LIKE` clauses; and render through the shared admin list shell. Mutating actions must call
+`authorizeAdmin()` before delegating to an action or changing model state.
+
 
 ## Email Configuration
 

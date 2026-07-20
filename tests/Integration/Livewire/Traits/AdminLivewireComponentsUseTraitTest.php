@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Livewire\Traits;
 
+use App\Livewire\Admin\ChurchServices\Concerns\ManagesSectionPublication;
 use App\Livewire\Traits\WithAdminAuthorization;
 use Livewire\Component;
 use PHPUnit\Framework\Attributes\Test;
@@ -57,6 +58,23 @@ class AdminLivewireComponentsUseTraitTest extends TestCase
             $missing,
             "Admin Livewire components missing WithAdminAuthorization trait:\n - ".implode("\n - ", $missing)
         );
+    }
+
+    #[Test]
+    public function every_section_publication_action_authorizes_before_working(): void
+    {
+        $source = file_get_contents((new ReflectionClass(ManagesSectionPublication::class))->getFileName());
+
+        self::assertIsString($source);
+        self::assertStringNotContainsString('method_exists($this, \'authorizeAdmin\')', $source);
+
+        foreach (['approve', 'reject', 'requeue'] as $action) {
+            self::assertMatchesRegularExpression(
+                '/public function '.$action.'\b.*?\{\s*\$this->authorizeAdmin\(\);/s',
+                $source,
+                "The {$action} section publication action must authorize before mutating state."
+            );
+        }
     }
 
     private function classFromFile(SplFileInfo $file): ?string

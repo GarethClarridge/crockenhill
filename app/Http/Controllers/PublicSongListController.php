@@ -18,8 +18,6 @@ class PublicSongListController extends Controller
         Request $request,
         SongArchiveSeoPresenter $seoPresenter,
     ): View {
-        $this->abortIfDisabled();
-
         $search = is_array($request->query('q')) ? '' : (string) $request->query('q', '');
         $range = is_array($request->query('range')) ? PublicSongCatalogService::RANGE_RECENT : (string) $request->query('range', PublicSongCatalogService::RANGE_RECENT);
         $page = $request->integer('page', 1);
@@ -36,8 +34,6 @@ class PublicSongListController extends Controller
 
     public function show(Song $song, PublicSongUsageService $songUsageService, SongVideoService $songVideoService): View
     {
-        $this->abortIfDisabled();
-
         $song->load([
             'authors' => fn ($query) => $query->select(['song_authors.id', 'song_authors.display_name'])->orderBy('display_name'),
         ]);
@@ -60,12 +56,5 @@ class PublicSongListController extends Controller
             'usageHistory' => $usageHistory,
             'videoUrl' => $videoUrl,
         ]);
-    }
-
-    private function abortIfDisabled(): void
-    {
-        if (! (bool) config('service-tracking.enabled', true)) {
-            abort(404);
-        }
     }
 }

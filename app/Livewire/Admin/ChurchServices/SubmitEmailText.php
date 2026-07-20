@@ -24,10 +24,7 @@ class SubmitEmailText extends Component
 
     public bool $submitted = false;
 
-    public function mount(): void
-    {
-        $this->abortIfDisabled();
-    }
+    public function mount(): void {}
 
     /**
      * @return array<string, mixed>
@@ -83,12 +80,5 @@ class SubmitEmailText extends Component
     {
         return view('livewire.admin.church-services.submit-email-text')
             ->layout('layouts.admin', ['title' => 'Import Email Text', 'heading' => 'Import Email Text']);
-    }
-
-    private function abortIfDisabled(): void
-    {
-        if (! (bool) config('service-tracking.enabled', true)) {
-            abort(404);
-        }
     }
 }

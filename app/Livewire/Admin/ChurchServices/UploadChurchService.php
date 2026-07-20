@@ -23,10 +23,7 @@ class UploadChurchService extends Component
     /** @var TemporaryUploadedFile|null */
     public mixed $file = null;
 
-    public function mount(): void
-    {
-        $this->abortIfDisabled();
-    }
+    public function mount(): void {}
 
     /**
      * @return array<string, mixed>
@@ -59,8 +56,6 @@ class UploadChurchService extends Component
     {
 
         $this->authorizeAdmin();
-        $this->abortIfDisabled();
-
         $validated = $this->validate();
         $uploadedFile = $validated['file'] ?? null;
 
@@ -100,12 +95,5 @@ class UploadChurchService extends Component
         return view('livewire.admin.church-services.upload-church-service', [
             'recentServices' => $recentServices,
         ])->layout('layouts.admin', ['title' => 'Upload Service', 'heading' => 'Upload Service']);
-    }
-
-    private function abortIfDisabled(): void
-    {
-        if (! (bool) config('service-tracking.enabled', true)) {
-            abort(404);
-        }
     }
 }

@@ -45,6 +45,7 @@ Route::prefix('services')
 
 Route::post('webhooks/mailgun/inbound', MailgunInboundWebhookController::class)
     ->middleware([
+        'service-tracking.enabled',
         'throttle:mailgun-probe',
         'mailgun.signature',
         'throttle:mailgun-inbound',

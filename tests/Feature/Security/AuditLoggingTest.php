@@ -69,7 +69,7 @@ class AuditLoggingTest extends TestCase
     }
 
     #[Test]
-    public function it_logs_sermon_deletion_via_controller(): void
+    public function legacy_sermon_delete_url_does_not_create_a_second_audit_event(): void
     {
         Log::spy();
         $sermon = Sermon::factory()->create(['title' => 'Sermon Title']);
@@ -78,13 +78,8 @@ class AuditLoggingTest extends TestCase
             ->post(route('sermons.destroy', $sermon->slug))
             ->assertRedirect();
 
-        $this->assertDatabaseMissing('sermons', ['id' => $sermon->id]);
-
-        Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'Sermon deleted by admin' &&
-            $context['admin_id'] === $this->admin->id &&
-            $context['sermon_id'] === $sermon->id &&
-            $context['title'] === 'Sermon Title'
-        );
+        $this->assertDatabaseHas('sermons', ['id' => $sermon->id]);
+        Log::assertNothingLogged();
     }
 
     #[Test]

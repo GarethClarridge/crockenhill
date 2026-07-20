@@ -55,14 +55,14 @@ class SermonAdminControllerTest extends TestCase
     }
 
     #[Test]
-    public function admin_can_delete_sermon(): void
+    public function legacy_delete_url_redirects_to_the_livewire_sermon_list(): void
     {
         $sermon = Sermon::factory()->create();
 
         $response = $this->actingAs($this->admin)->post("/christ/sermons/{$sermon->slug}/delete");
 
-        $response->assertRedirect(route('sermons.index'));
-        $this->assertDatabaseMissing('sermons', ['id' => $sermon->id]);
+        $response->assertRedirect(route('admin.sermons.index'));
+        $this->assertDatabaseHas('sermons', ['id' => $sermon->id]);
     }
 
     #[Test]
@@ -113,14 +113,14 @@ class SermonAdminControllerTest extends TestCase
     }
 
     #[Test]
-    public function destroy_works_via_slug_route(): void
+    public function legacy_slug_delete_url_does_not_delete_sermon(): void
     {
         $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
 
         $response = $this->actingAs($this->admin)->post("/christ/sermons/{$sermon->slug}/delete");
 
-        $response->assertRedirect(route('sermons.index'));
-        $this->assertDatabaseMissing('sermons', ['id' => $sermon->id]);
+        $response->assertRedirect(route('admin.sermons.index'));
+        $this->assertDatabaseHas('sermons', ['id' => $sermon->id]);
     }
 
     #[Test]

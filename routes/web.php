@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Admin\SermonAdminController;
 use App\Http\Controllers\Admin\SermonThumbnailCandidateController;
 use App\Http\Controllers\Admin\ServiceSectionCandidateMediaController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
@@ -136,7 +135,11 @@ Route::group(['prefix' => 'christ/sermons'], function () {
     Route::get('/{sermon:slug}', [SermonController::class, 'show'])
         ->middleware('throttle:public-not-found')
         ->name('sermons.show');
-    Route::post('/{sermon:slug}/delete', [SermonAdminController::class, 'destroy'])->middleware(['auth', 'verified', 'admin'])->name('sermons.destroy');
+    // Retain the old URL for bookmarks and external forms, but keep deletion
+    // exclusively on the admin Livewire listing.
+    Route::post('/{sermon:slug}/delete', fn () => redirect()->route('admin.sermons.index'))
+        ->middleware(['auth', 'verified', 'admin'])
+        ->name('sermons.destroy');
 });
 
 // Members routes
@@ -187,31 +190,33 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->name('sermons.thumbnails.preview');
 
     // Church Services
-    Route::get('/services', ListChurchServices::class)->name('services.index');
-    Route::get('/services/inbox', ReviewInbox::class)->name('services.inbox');
-    Route::get('/services/create', ManageChurchService::class)->name('services.create');
-    Route::get('/services/upload', UploadChurchService::class)->name('services.upload');
-    Route::get('/services/upload-recording', MediaUpload::class)->name('services.upload-recording');
-    Route::get('/recordings/{processingLog:processing_id}/sermon-segment', SermonSegmentReview::class)
-        ->name('recordings.sermon-segment');
-    Route::get('/services/submit-email', SubmitEmailText::class)->name('services.submit-email');
-    // Retired queue pages (P3.4/P5): triage moved to the review inbox, editing
-    // to the service workbench. URLs 302 so bookmarks keep working.
-    Route::redirect('/services/review', '/admin/services/inbox')->name('services.review');
-    Route::redirect('/services/inbound-emails', '/admin/services/inbox?filter=emails')->name('services.inbound-emails');
-    Route::redirect('/services/section-publications', '/admin/services/inbox?filter=sections')->name('services.section-publications');
-    Route::redirect('/services/processing/review', '/admin/services/inbox?filter=segments')->name('services.processing.review.index');
-    Route::get('/services/processing/{processingLog}/review', function (MediaProcessingLog $processingLog) {
-        return redirect()->route('admin.recordings.sermon-segment', $processingLog->processing_id);
-    })->name('services.processing.review');
-    Route::get('/services/songs', ListSongs::class)->name('services.songs.index');
-    Route::get('/services/songs/{song}', ShowSong::class)->name('services.songs.show');
-    Route::get('/services/section-publications/{serviceSection}/preview/audio', [ServiceSectionCandidateMediaController::class, 'serveAudio'])
-        ->name('services.section-publications.preview-audio');
-    Route::get('/services/section-publications/{serviceSection}/preview/video', [ServiceSectionCandidateMediaController::class, 'serveVideo'])
-        ->name('services.section-publications.preview-video');
-    Route::get('/services/{churchService}/edit', ManageChurchService::class)->name('services.edit');
-    Route::get('/services/{churchService}', ShowChurchService::class)->name('services.show');
+    Route::middleware('service-tracking.enabled')->group(function () {
+        Route::get('/services', ListChurchServices::class)->name('services.index');
+        Route::get('/services/inbox', ReviewInbox::class)->name('services.inbox');
+        Route::get('/services/create', ManageChurchService::class)->name('services.create');
+        Route::get('/services/upload', UploadChurchService::class)->name('services.upload');
+        Route::get('/services/upload-recording', MediaUpload::class)->name('services.upload-recording');
+        Route::get('/recordings/{processingLog:processing_id}/sermon-segment', SermonSegmentReview::class)
+            ->name('recordings.sermon-segment');
+        Route::get('/services/submit-email', SubmitEmailText::class)->name('services.submit-email');
+        // Retired queue pages (P3.4/P5): triage moved to the review inbox, editing
+        // to the service workbench. URLs 302 so bookmarks keep working.
+        Route::redirect('/services/review', '/admin/services/inbox')->name('services.review');
+        Route::redirect('/services/inbound-emails', '/admin/services/inbox?filter=emails')->name('services.inbound-emails');
+        Route::redirect('/services/section-publications', '/admin/services/inbox?filter=sections')->name('services.section-publications');
+        Route::redirect('/services/processing/review', '/admin/services/inbox?filter=segments')->name('services.processing.review.index');
+        Route::get('/services/processing/{processingLog}/review', function (MediaProcessingLog $processingLog) {
+            return redirect()->route('admin.recordings.sermon-segment', $processingLog->processing_id);
+        })->name('services.processing.review');
+        Route::get('/services/songs', ListSongs::class)->name('services.songs.index');
+        Route::get('/services/songs/{song}', ShowSong::class)->name('services.songs.show');
+        Route::get('/services/section-publications/{serviceSection}/preview/audio', [ServiceSectionCandidateMediaController::class, 'serveAudio'])
+            ->name('services.section-publications.preview-audio');
+        Route::get('/services/section-publications/{serviceSection}/preview/video', [ServiceSectionCandidateMediaController::class, 'serveVideo'])
+            ->name('services.section-publications.preview-video');
+        Route::get('/services/{churchService}/edit', ManageChurchService::class)->name('services.edit');
+        Route::get('/services/{churchService}', ShowChurchService::class)->name('services.show');
+    });
 
     // Preachers
     Route::get('/preachers', ListPreachers::class)->name('preachers.index');
@@ -234,8 +239,10 @@ Route::middleware(['auth', 'verified'])->prefix('church/members')->group(functio
 });
 
 Route::middleware(['auth', 'verified'])->prefix('church/songs')->name('church.songs.')->group(function () {
-    Route::get('', [PublicSongListController::class, 'index'])->name('index');
-    Route::get('{song:slug}', [PublicSongListController::class, 'show'])->name('show');
+    Route::middleware('service-tracking.enabled')->group(function () {
+        Route::get('', [PublicSongListController::class, 'index'])->name('index');
+        Route::get('{song:slug}', [PublicSongListController::class, 'show'])->name('show');
+    });
 });
 
 // Sitemap route

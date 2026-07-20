@@ -114,6 +114,26 @@ class ChurchService extends Model
     }
 
     /**
+     * Eager load service items in the order used by the admin workbench.
+     *
+     * @param  Builder<ChurchService>  $query
+     * @return Builder<ChurchService>
+     */
+    public function scopeWithOrderedItems(Builder $query, bool $withSong = false): Builder
+    {
+        return $query->with([
+            /** @param HasMany<ChurchServiceItem, ChurchService> $itemsQuery */
+            'items' => function ($itemsQuery) use ($withSong): void {
+                if ($withSong) {
+                    $itemsQuery->with('song:id,title');
+                }
+
+                $itemsQuery->orderBy('position')->orderBy('id');
+            },
+        ]);
+    }
+
+    /**
      * @return HasMany<MediaProcessingLog, $this>
      */
     public function mediaProcessingLogs(): HasMany

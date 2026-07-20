@@ -10,19 +10,14 @@ use App\Http\Requests\StoreMailgunInboundEmailRequest;
 use App\Jobs\ProcessInboundOosEmail;
 use App\Models\InboundEmail;
 use Illuminate\Http\JsonResponse;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class MailgunInboundWebhookController extends Controller
 {
     /**
      * Handle an inbound email webhook from Mailgun.
-     *
-     * @throws NotFoundHttpException If the service is disabled
      */
     public function __invoke(StoreMailgunInboundEmailRequest $request): JsonResponse
     {
-        $this->abortIfDisabled();
-
         $inboundEmail = InboundEmail::query()->firstOrCreate(
             ['message_id' => (string) $request->messageId()],
             [
@@ -53,12 +48,5 @@ class MailgunInboundWebhookController extends Controller
         return response()->json([
             'status' => 'accepted',
         ], 202);
-    }
-
-    private function abortIfDisabled(): void
-    {
-        if (! (bool) config('service-tracking.enabled', true)) {
-            abort(404);
-        }
     }
 }

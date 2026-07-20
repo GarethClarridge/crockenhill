@@ -4,6 +4,7 @@ use App\Contracts\ProvidesSafeMessage;
 use App\Http\Middleware\EnsureChildrensCornerAccess;
 use App\Http\Middleware\EnsureMediaProcessingAccess;
 use App\Http\Middleware\EnsureServiceTrackingAccess;
+use App\Http\Middleware\EnsureServiceTrackingEnabled;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureValidMailgunWebhookSignature;
 use App\Http\Middleware\SecurityHeaders;
@@ -133,6 +134,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'mailgun.signature' => EnsureValidMailgunWebhookSignature::class,
             'media.process' => EnsureMediaProcessingAccess::class,
             'service.access' => EnsureServiceTrackingAccess::class,
+            'service-tracking.enabled' => EnsureServiceTrackingEnabled::class,
         ]);
 
         $middleware->redirectGuestsTo('/login');
