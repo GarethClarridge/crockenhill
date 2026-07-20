@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Integration;
 
-use App\Models\Meeting;
 use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -62,21 +61,5 @@ class AuthorizationGatesTest extends TestCase
 
         $this->assertTrue($admin->can('viewAny', Sermon::class));
         $this->assertFalse($nonAdmin->can('viewAny', Sermon::class));
-    }
-
-    #[Test]
-    public function meeting_policy_matches_the_admin_route_capability(): void
-    {
-        $admin = User::factory()->create([
-            'is_admin' => true,
-            'email_verified_at' => now(),
-        ]);
-        $nonAdmin = User::factory()->create([
-            'is_admin' => false,
-            'email_verified_at' => now(),
-        ]);
-
-        $this->assertTrue($admin->can('viewAny', Meeting::class));
-        $this->assertFalse($nonAdmin->can('viewAny', Meeting::class));
     }
 }

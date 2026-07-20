@@ -26,7 +26,7 @@ Rules for using this folder, written for AI agents as much as humans:
 | [`operations/SEO_SETUP_GUIDE.md`](operations/SEO_SETUP_GUIDE.md) | Manual Search Console / GA4 setup steps (maintainer tasks). |
 | [`operations/section-extraction-testing.md`](operations/section-extraction-testing.md) | Local-only regression harness for section extraction against real recordings (with `structure-eval-manifest.example.json`). |
 | [`operations/horizon-staging-smoke-test.md`](operations/horizon-staging-smoke-test.md) | Outstanding one-time staging verification. |
-| `architecture/simplification-backlog.md` | Superseded backlog kept only until its item 4.5 lands (see its header); archive it then. |
+| [`archived-plans/simplification-backlog-2026-07-20.md`](archived-plans/simplification-backlog-2026-07-20.md) | Archived superseded simplification backlog; the remainder plan is now authoritative. |
 | `reviews/july-2026-simplification/` | The domain reviews behind the July 2026 backlog — reference material for backlog items. |
 | [`archived-plans/`](archived-plans/README.md) | Completed/superseded plans and historical audits. Never treat as current. |
 

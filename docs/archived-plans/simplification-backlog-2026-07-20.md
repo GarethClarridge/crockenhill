@@ -1,3 +1,7 @@
+> **Archived 2026-07-20:** item R4.5 authorization-gate cleanup landed in the July 2026
+> simplification remainder plan. The active execution tracker is
+> [JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md](../plans/JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md).
+
 # Simplification Backlog
 
 > **Superseded (2026-07-05):** consolidated into

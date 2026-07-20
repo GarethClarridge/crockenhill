@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Models\Meeting;
 use App\Models\Sermon;
-use App\Policies\MeetingPolicy;
 use App\Policies\SermonPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
@@ -18,7 +16,6 @@ class AuthServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     protected $policies = [
-        Meeting::class => MeetingPolicy::class,
         Sermon::class => SermonPolicy::class,
     ];
 
