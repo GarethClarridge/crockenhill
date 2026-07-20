@@ -106,6 +106,22 @@ class SermonIndexRequestTest extends TestCase
     }
 
     #[Test]
+    public function validation_rules_reject_oversized_digit_preacher_id_or_per_page(): void
+    {
+        $request = new SermonIndexRequest;
+
+        // preacher_id expects digits_between:1,10. Let's test with 11 digits:
+        $validator1 = Validator::make(['preacher_id' => '12345678901'], $request->rules());
+        $this->assertFalse($validator1->passes());
+        $this->assertArrayHasKey('preacher_id', $validator1->errors()->toArray());
+
+        // per_page expects digits_between:1,3. Let's test with 4 digits:
+        $validator2 = Validator::make(['per_page' => '1000'], $request->rules());
+        $this->assertFalse($validator2->passes());
+        $this->assertArrayHasKey('per_page', $validator2->errors()->toArray());
+    }
+
+    #[Test]
     public function validation_rules_reject_oversized_strings(): void
     {
         $request = new SermonIndexRequest;

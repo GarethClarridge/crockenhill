@@ -16,7 +16,7 @@ class ConfirmMediaSegmentRequest extends MediaProcessingRequest
     public function rules(): array
     {
         return [
-            'segment_id' => ['required', 'integer', 'min:1', 'max:2147483647', 'exists:livestream_segments,id'],
+            'segment_id' => ['required', 'integer', 'digits_between:1,10', 'min:1', 'max:2147483647', 'exists:livestream_segments,id'],
         ];
     }
 }
