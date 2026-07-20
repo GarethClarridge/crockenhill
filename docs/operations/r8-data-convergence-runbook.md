@@ -91,9 +91,13 @@ Do not start a real production mutation when any of these is true:
 - The temporary sermon promotion exporter/importer described in Phase 6 has not been implemented,
   reviewed, tested and deployed. The old SQL patch is not a fallback.
 
-The default local `storage/mnt/services` directory contained zero `.osz` files on 2026-07-20.
-Locate the original archive that produced the 395 local OpenLP services before proceeding. The
-database rows are not a substitute for those source files.
+The default local `storage/mnt/services` directory contained zero `.osz` files on 2026-07-20, but
+the original archive was subsequently located on the operator's external drive. Its 536 files
+contain a byte-identical 105-file nested duplicate set, leaving 431 unique sources. Operator
+curation retains 428 imports after 7 explicit date/service aliases and 3 explicit exclusions.
+Use the private curated manifest from the 2026-07-20 evidence directory; the database rows are not
+a substitute for those source files. The external source was verified through a read-only Sail
+mount because copying the roughly 9 GiB recursive archive would exhaust the local system disk.
 
 Keep SQL dumps, manifests, import reports and archive contents private. `oos:import-archive`
 reports can contain subjects, message IDs and unmatched titles. Store local evidence under
@@ -471,9 +475,14 @@ local_art service-tracking:import-openlp-services \
   --dry-run | tee "$R8_EVIDENCE/local-openlp-services-dry-run.txt"
 ```
 
-The command can update existing services. Review created/updated/review/failure counts. Run the
-real command locally only when this is the complete intended archive and the local DB backup has
-been verified:
+The command can update existing services. Review created/updated/review/failure counts. The
+2026-07-20 curated rehearsal processed 428 archives with 29 creates, 399 updates, 21 review
+outcomes and zero failures. Eighteen reviews are pre-existing local service flags, one additional
+livestream/OpenLP structure merge would be staged, and two email/OpenLP conflicts would
+auto-merge. The operator explicitly accepted those two email auto-merges because OpenLP is the
+authority over email-derived plans. Inspect or explicitly accept the remaining 19 cases before
+continuing. Run the real command locally only when this is the complete intended archive and the
+local DB backup has been verified:
 
 ```bash
 local_art service-tracking:import-openlp-services \

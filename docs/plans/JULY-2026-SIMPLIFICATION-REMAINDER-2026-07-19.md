@@ -241,14 +241,14 @@ by gate result:
 | `LegacySongReconciler` + `reconciledSongId` thread + schema probes (~500) | `Song::withTrashed()` null/blank/`legacy-song-%` canonical-key count = 0 | **BLOCKED 2026-07-20:** `1,207` rows remain |
 | `songs.alternative_title` column + `play_date` table | After both song rows above. **`praise_number` and `alternate_title` are live — do not touch either.** Expand/contract migration | **BLOCKED:** both prerequisite song gates are open |
 | `ConvertJpgToWebp` + test | Confirm the repo-wide conversion path is spent | ✅ 2026-07-20: 41 JPGs remain but zero code references would change; classified below. Do not run the real converter |
-| `ImportOpenLpDirectoryCommand` + test | Confirm the complete historic `.osz` archive is imported/reviewed in production and no further imports are expected | **BLOCKED 2026-07-20:** production has 2 OpenLP services vs local's 395; original `.osz` source set must be located |
+| `ImportOpenLpDirectoryCommand` + test | Confirm the complete historic `.osz` archive is imported/reviewed in production and no further imports are expected | **BLOCKED 2026-07-20 (local rehearsal advanced):** the original archive is located and checksummed. Its 536 files contain 105 byte-identical duplicates, leaving 431 unique sources; operator curation retains 428. The curated local dry run processed all 428 with 29 creates, 399 updates, 21 review outcomes and 0 failures. Production remains untouched; finish the local review/apply/idempotency gate, then repeat in production |
 | `BackfillMediaProcessingIdentityCommand` + test | Dry run reports `Would update = 0` | **BLOCKED 2026-07-20:** 36 of 41 candidates would update; 5 have no usable metadata |
 | `FixUploadDirectories` | Runtime roots writable; production entrypoint owns permissions; confirm no external provisioning invokes it | **PARTIAL 2026-07-20:** all four mounted roots exist and are writable as `www`; external automation confirmation remains |
 | `MeetingMigratePhotosCommand` + `MeetingPhotoMigrationService` + `public/images/meetings/{1150,baby-talk,bible-study,buzz-club,coffee-cup,sunday-services}/` (verified still present) | Confirm production photo import completed (photos serve from Spatie Media Library) | **PARTIAL 2026-07-20:** 0 to migrate / 48 skipped / 0 errors, but the six-pair `sunday-services` folder was not examined because no current meeting has that slug |
 | `ExtractVideoFrames` + `ExportVisualMetricsCommand` | None — they die with R10 regardless; delete there, not here | rides R10 |
 | `ImportOosArchiveCommand` + `OosArchiveEvaluator` + `OosArchiveMarkdownParser` + their 3 test files (~2,100 lines; added 2026-07-19 by the Phase 9 review, F3.2) | Production import/idempotency run passes after `.osz` import; maintainer confirms the paper archive is final | **BLOCKED 2026-07-20:** local has 2 email-sourced services; production has none |
 | `BackfillSongPraiseNumbersCommand` + test (added 2026-07-19 by the Phase 9 review, F3.2) | Operator confirms prod praise-number backfill + `service-tracking:link-songs` ran after PR #1171 | **BLOCKED 2026-07-20:** praise-number drift is 0, but song-link drift is 3 (`3` updates / `0` clears). Deletion must also update `AuditBackfillsCommand`/`BackfillAudit` so they do not name a deleted remedy |
-| `ImportHistoricVideoBatchCommand` + `HistoricVideoImporter` (~1,500) | **Closes last** — after the R12 bulk backfill completes | rides R12 |
+| `ImportHistoricVideoBatchCommand` + `HistoricVideoImporter` (~1,500) | **Closes last** — after the R12 bulk backfill completes | **DEFERRED by operator 2026-07-20:** the necessary historic-video source set has not yet been gathered; no import was dispatched. Resume only after the operator declares a selected batch complete; still rides R12 |
 
 Correction (2026-07-20): the earlier R8 row incorrectly scheduled `songs.praise_number` for
 deletion. It is live data: `SongCatalogSyncService` writes it and `SongTitleResolver` reads it as
@@ -260,6 +260,41 @@ an active matching rung. Preserve it alongside `songs.alternate_title`; only the
 Operator execution, local/production convergence, rollback boundaries and private evidence handling
 are defined in
 [`docs/operations/r8-data-convergence-runbook.md`](../operations/r8-data-convergence-runbook.md).
+
+#### Local operator checkpoint — session ended 2026-07-20
+
+Production was not accessed or mutated. Resume from this checkpoint rather than repeating the
+completed local work:
+
+- A verified compressed pre-R8 local database backup, source checksums and private reports are
+  retained under the gitignored `storage/scratch/r8/20260720-182803/` evidence directory.
+- The authoritative songs SQLite was synced locally: 1,173 source rows collapsed to 1,159
+  canonical songs (10 created, 1,149 reconciled). Song linking then applied 3 updates and its
+  idempotency dry run reported 0 updates / 0 clears. Required local catalogue, link-drift and
+  scripture-filter gates are now clean; speaker-profile and missing-passage counts remain advisory.
+- The original OpenLP archive was mounted read-only from the external drive. It contains 536
+  files, of which the 105-file nested subset is byte-identical to files at the root. The 431-file
+  unique set was curated by the operator into 428 intended imports: 7 ambiguous filenames received
+  explicit date/service aliases and 3 sources were explicitly excluded. The private curated
+  manifest and decisions are in the evidence directory.
+- The curated `.osz` dry run reported 428 processed, 29 creates, 399 updates, 21 review outcomes
+  and 0 failures. The 21 are accounted for: 18 services already carried local review flags, one
+  additional livestream/OpenLP structure merge would be staged, and two email/OpenLP canonical
+  conflicts would auto-merge. The operator explicitly accepted both email auto-merges because
+  OpenLP is authoritative over email-derived plans. Before the real local import, inspect or
+  explicitly accept the remaining 18 existing flags and the one new livestream merge; then run
+  the real import and an idempotency rehearsal.
+- The temporary create-only sermon promotion exporter/importer is implemented locally with focused
+  coverage and zero PHPStan errors. Its 11 focused tests pass (83 assertions). The full suite ran
+  5,811 tests with one reproducible unrelated failure in `AdminAttentionCountsTest`: its fixture
+  chooses a random section type although the assertion requires a structurally reviewable type.
+- Historic-video import is deliberately out of scope for the next resumption until the operator
+  has gathered and classified the required source files. The scratch-root filename dry run was not
+  a valid batch and dispatched no work.
+
+Next session: inspect/decide the 19 remaining local OpenLP review cases, apply the curated archive,
+run its idempotency check, and only then plan the production maintenance window. Do not begin the
+historic-video phase.
 
 Counts below are private operator evidence; publish only the totals:
 
