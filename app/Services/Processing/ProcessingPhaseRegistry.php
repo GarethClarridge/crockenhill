@@ -6,11 +6,8 @@ namespace App\Services\Processing;
 
 use App\Enums\MediaType;
 use App\Enums\ServiceStructureMode;
-use App\Jobs\AlignWithOos;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
-use App\Jobs\ClassifyServiceSections;
-use App\Jobs\ClassifySpeechSections;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\ExtractSermon;
@@ -19,13 +16,10 @@ use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
-use App\Jobs\ReclassifyIntroOutroSections;
-use App\Jobs\ResolveReadingReferences;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\TranscribeFullService;
-use App\Jobs\TranscribeSpeechSegments;
 use App\Models\MediaProcessingLog;
 
 /**
@@ -773,51 +767,6 @@ class ProcessingPhaseRegistry
                 ],
             ],
             [
-                'key' => 'classify_sections',
-                'progress' => 45,
-                'job_offset' => $offset(ClassifyServiceSections::class),
-                'retry_action' => 'dispatch_livestream_chain',
-                'rerun_strategy' => 'safe_to_rerun',
-                'reset_scope' => 'none',
-                'steps' => [
-                    'classifying_sections',
-                ],
-            ],
-            [
-                'key' => 'classified_sections',
-                'progress' => 52,
-                'job_offset' => $offset(ClassifyServiceSections::class),
-                'retry_action' => 'dispatch_livestream_chain',
-                'rerun_strategy' => 'safe_to_rerun',
-                'reset_scope' => 'none',
-                'steps' => [
-                    'section_classification_complete',
-                    'section_classification_skipped',
-                ],
-            ],
-            [
-                'key' => 'transcribe_speech_segments',
-                'progress' => 53,
-                'job_offset' => $offset(TranscribeSpeechSegments::class),
-                'retry_action' => 'dispatch_livestream_chain',
-                'rerun_strategy' => 'safe_to_rerun',
-                'reset_scope' => 'none',
-                'steps' => [
-                    'transcribe_speech_segments',
-                ],
-            ],
-            [
-                'key' => 'classify_speech_sections',
-                'progress' => 54,
-                'job_offset' => $offset(ClassifySpeechSections::class),
-                'retry_action' => 'dispatch_livestream_chain',
-                'rerun_strategy' => 'safe_to_rerun',
-                'reset_scope' => 'none',
-                'steps' => [
-                    'classify_speech_sections',
-                ],
-            ],
-            [
                 'key' => 'transcribe_full_service',
                 'progress' => 52,
                 'job_offset' => $offset(TranscribeFullService::class),
@@ -851,28 +800,6 @@ class ProcessingPhaseRegistry
                 ],
             ],
             [
-                'key' => 'align_with_oos',
-                'progress' => 55,
-                'job_offset' => $offset(AlignWithOos::class),
-                'retry_action' => 'dispatch_livestream_chain',
-                'rerun_strategy' => 'safe_to_rerun',
-                'reset_scope' => 'none',
-                'steps' => [
-                    'align_with_oos',
-                ],
-            ],
-            [
-                'key' => 'resolve_reading_references',
-                'progress' => 55,
-                'job_offset' => $offset(ResolveReadingReferences::class),
-                'retry_action' => 'dispatch_livestream_chain',
-                'rerun_strategy' => 'safe_to_rerun',
-                'reset_scope' => 'none',
-                'steps' => [
-                    'resolve_reading_references',
-                ],
-            ],
-            [
                 'key' => 'match_songs_from_transcript',
                 'progress' => 55,
                 'job_offset' => $offset(MatchSongsFromTranscript::class),
@@ -881,17 +808,6 @@ class ProcessingPhaseRegistry
                 'reset_scope' => 'none',
                 'steps' => [
                     'match_songs_from_transcript',
-                ],
-            ],
-            [
-                'key' => 'reclassify_intro_outro',
-                'progress' => 55,
-                'job_offset' => $offset(ReclassifyIntroOutroSections::class),
-                'retry_action' => 'dispatch_livestream_chain',
-                'rerun_strategy' => 'safe_to_rerun',
-                'reset_scope' => 'none',
-                'steps' => [
-                    'reclassify_intro_outro',
                 ],
             ],
             [

@@ -8,12 +8,10 @@ use App\Data\ProcessingResult;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Enums\UploadState;
-use App\Jobs\AlignWithOos;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
-use App\Jobs\ClassifyServiceSections;
-use App\Jobs\ClassifySpeechSections;
 use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateThumbnail;
@@ -22,12 +20,10 @@ use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
-use App\Jobs\ReclassifyIntroOutroSections;
-use App\Jobs\ResolveReadingReferences;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
-use App\Jobs\TranscribeSpeechSegments;
+use App\Jobs\TranscribeFullService;
 use App\Livewire\Admin\MediaUpload;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
@@ -506,14 +502,10 @@ class MediaUploadTest extends TestCase
 
         Bus::assertChained([
             AnalyzeSegments::class,
-            ClassifyServiceSections::class,
-            TranscribeSpeechSegments::class,
-            ClassifySpeechSections::class,
+            TranscribeFullService::class,
+            DetectServiceStructure::class,
             ProjectLivestreamServiceStructure::class,
-            AlignWithOos::class,
-            ResolveReadingReferences::class,
             MatchSongsFromTranscript::class,
-            ReclassifyIntroOutroSections::class,
             ExtractSermon::class,
             SubmitToProcessing::class,
             EnhanceAudio::class,

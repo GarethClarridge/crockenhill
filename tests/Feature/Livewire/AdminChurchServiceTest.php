@@ -13,10 +13,8 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Events\ChurchServiceCanonicalListChanged;
-use App\Jobs\AlignWithOos;
 use App\Jobs\AssessSermonVideoQuality;
-use App\Jobs\ClassifyServiceSections;
-use App\Jobs\ClassifySpeechSections;
+use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateThumbnail;
@@ -25,12 +23,10 @@ use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
-use App\Jobs\ReclassifyIntroOutroSections;
 use App\Jobs\ReconcileServiceSections;
-use App\Jobs\ResolveReadingReferences;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
-use App\Jobs\TranscribeSpeechSegments;
+use App\Jobs\TranscribeFullService;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
 use App\Livewire\Admin\ChurchServices\ManageChurchService;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
@@ -753,19 +749,11 @@ class AdminChurchServiceTest extends TestCase
             ->call('reclassify', $processingRun->id)
             ->assertDispatched('notify', type: 'success', message: 'Section reclassification queued');
 
-        Bus::assertDispatched(
-            ClassifyServiceSections::class,
-            fn (ClassifyServiceSections $job): bool => $job->preservesRunStatus()
-        );
         Bus::assertChained([
-            ClassifyServiceSections::class,
-            TranscribeSpeechSegments::class,
-            ClassifySpeechSections::class,
+            TranscribeFullService::class,
+            DetectServiceStructure::class,
             ProjectLivestreamServiceStructure::class,
-            AlignWithOos::class,
-            ResolveReadingReferences::class,
             MatchSongsFromTranscript::class,
-            ReclassifyIntroOutroSections::class,
             ExtractSermon::class,
             SubmitToProcessing::class,
             EnhanceAudio::class,
@@ -833,14 +821,10 @@ class AdminChurchServiceTest extends TestCase
             ->assertDispatched('notify', type: 'success', message: 'Section reclassification queued');
 
         Bus::assertChained([
-            ClassifyServiceSections::class,
-            TranscribeSpeechSegments::class,
-            ClassifySpeechSections::class,
+            TranscribeFullService::class,
+            DetectServiceStructure::class,
             ProjectLivestreamServiceStructure::class,
-            AlignWithOos::class,
-            ResolveReadingReferences::class,
             MatchSongsFromTranscript::class,
-            ReclassifyIntroOutroSections::class,
             ExtractSermon::class,
             SubmitToProcessing::class,
             EnhanceAudio::class,

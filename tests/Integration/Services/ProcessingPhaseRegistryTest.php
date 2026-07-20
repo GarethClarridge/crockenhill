@@ -8,7 +8,6 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
-use App\Jobs\ClassifyServiceSections;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\DetectServiceStructure;
@@ -20,7 +19,6 @@ use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
-use App\Jobs\ResolveReadingReferences;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
@@ -57,16 +55,13 @@ class ProcessingPhaseRegistryTest extends TestCase
     }
 
     #[Test]
-    public function it_maps_legacy_and_manual_review_steps_to_registry_progress(): void
+    public function it_maps_manual_review_and_notification_steps_to_registry_progress(): void
     {
         $registry = app(ProcessingPhaseRegistry::class);
 
         $this->assertSame(56, $registry->progressForStep('manual_review_confirmed'));
         $this->assertSame(10, $registry->progressForStep('initiated_from_livestream:abc123'));
         $this->assertSame(10, $registry->progressForStep('restarting_from_beginning'));
-        $this->assertSame(53, $registry->progressForStep('transcribe_speech_segments', MediaType::Livestream));
-        $this->assertSame(54, $registry->progressForStep('classify_speech_sections', MediaType::Livestream));
-        $this->assertSame(55, $registry->progressForStep('align_with_oos', MediaType::Livestream));
         $this->assertSame(92, $registry->progressForStep('sending_notification'));
         $this->assertSame(93, $registry->progressForStep('notification_sent'));
     }
@@ -95,7 +90,7 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame([
             'action' => 'dispatch_livestream_chain',
             'pipeline' => 'livestream',
-            'job_offset' => 13,
+            'job_offset' => 9,
             'rerun_strategy' => 'safe_to_rerun',
             'reset_scope' => 'none',
         ], $registry->retryPlanFor($processingLog));
@@ -115,14 +110,14 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame([
             'action' => 'dispatch_livestream_chain',
             'pipeline' => 'livestream',
-            'job_offset' => 17,
+            'job_offset' => 13,
             'rerun_strategy' => 'safe_to_rerun',
             'reset_scope' => 'none',
         ], $registry->retryPlanFor($processingLog));
     }
 
     #[Test]
-    public function it_retries_speech_segment_transcription_and_alignment_from_their_own_livestream_phase(): void
+    public function removed_heuristic_steps_restart_the_livestream_pipeline(): void
     {
         $registry = app(ProcessingPhaseRegistry::class);
 
@@ -136,21 +131,8 @@ class ProcessingPhaseRegistryTest extends TestCase
             'current_step' => 'align_with_oos',
         ]);
 
-        $this->assertSame([
-            'action' => 'dispatch_livestream_chain',
-            'pipeline' => 'livestream',
-            'job_offset' => 2,
-            'rerun_strategy' => 'safe_to_rerun',
-            'reset_scope' => 'none',
-        ], $registry->retryPlanFor($transcriptionLog));
-
-        $this->assertSame([
-            'action' => 'dispatch_livestream_chain',
-            'pipeline' => 'livestream',
-            'job_offset' => 5,
-            'rerun_strategy' => 'safe_to_rerun',
-            'reset_scope' => 'none',
-        ], $registry->retryPlanFor($alignmentLog));
+        $this->assertSame(['action' => 'restart_livestream'], $registry->retryPlanFor($transcriptionLog));
+        $this->assertSame(['action' => 'restart_livestream'], $registry->retryPlanFor($alignmentLog));
     }
 
     #[Test]
@@ -251,17 +233,17 @@ class ProcessingPhaseRegistryTest extends TestCase
                 'jobs' => $builder->buildLivestreamChainJobs($livestreamLog),
                 'expectations' => [
                     0 => AnalyzeSegments::class,
-                    1 => ClassifyServiceSections::class,
-                    6 => ResolveReadingReferences::class,
-                    9 => ExtractSermon::class,
-                    10 => SubmitToProcessing::class,
-                    13 => TranscribeAudio::class,
-                    14 => ProcessTranscriptWithAI::class,
-                    15 => AssessSermonVideoQuality::class,
-                    16 => GenerateThumbnail::class,
-                    17 => PrepareSectionPublicationCandidates::class,
-                    18 => SendCompletionNotification::class,
-                    19 => CleanupTemporaryFiles::class,
+                    1 => TranscribeFullService::class,
+                    2 => DetectServiceStructure::class,
+                    5 => ExtractSermon::class,
+                    6 => SubmitToProcessing::class,
+                    9 => TranscribeAudio::class,
+                    10 => ProcessTranscriptWithAI::class,
+                    11 => AssessSermonVideoQuality::class,
+                    12 => GenerateThumbnail::class,
+                    13 => PrepareSectionPublicationCandidates::class,
+                    14 => SendCompletionNotification::class,
+                    15 => CleanupTemporaryFiles::class,
                 ],
             ],
         ];
@@ -335,15 +317,14 @@ class ProcessingPhaseRegistryTest extends TestCase
         $plan = $registry->retryPlanFor($log);
 
         $this->assertSame('dispatch_livestream_chain', $plan['action']);
-        // Shadow inserts the LLM jobs after the nine heuristic-cluster jobs.
-        $this->assertSame(9, $plan['job_offset']);
+        $this->assertSame(1, $plan['job_offset']);
 
         $detectLog = MediaProcessingLog::factory()->livestream()->create([
             'status' => ProcessingStatus::Failed,
             'current_step' => 'detect_service_structure',
         ]);
 
-        $this->assertSame(10, $registry->retryPlanFor($detectLog)['job_offset']);
+        $this->assertSame(2, $registry->retryPlanFor($detectLog)['job_offset']);
     }
 
     #[Test]
@@ -362,15 +343,5 @@ class ProcessingPhaseRegistryTest extends TestCase
 
         $this->assertSame(['action' => 'restart_livestream'], $registry->retryPlanFor($heuristicLog));
 
-        // And an LLM-step failure retried after dropping back to off mode
-        // restarts rather than resuming at a job the chain no longer has.
-        config(['media-processing.service_structure.mode' => 'off']);
-
-        $llmLog = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::Failed,
-            'current_step' => 'detect_service_structure',
-        ]);
-
-        $this->assertSame(['action' => 'restart_livestream'], $registry->retryPlanFor($llmLog));
     }
 }

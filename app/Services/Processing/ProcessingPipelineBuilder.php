@@ -4,12 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Processing;
 
-use App\Enums\ServiceStructureMode;
-use App\Jobs\AlignWithOos;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
-use App\Jobs\ClassifyServiceSections;
-use App\Jobs\ClassifySpeechSections;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\DetectServiceStructure;
@@ -24,13 +20,10 @@ use App\Jobs\PerformVisualAnalysis;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
-use App\Jobs\ReclassifyIntroOutroSections;
-use App\Jobs\ResolveReadingReferences;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\TranscribeFullService;
-use App\Jobs\TranscribeSpeechSegments;
 use App\Jobs\ValidateAudioFile;
 use App\Jobs\ValidateVideoFile;
 use App\Models\MediaProcessingLog;
@@ -38,14 +31,8 @@ use App\Models\MediaProcessingLog;
 /**
  * ProcessingPipelineBuilder - Unified job chains for all media processing types
  *
- * The livestream and reclassification chains branch on
- * `media-processing.service_structure.mode` (ServiceStructureMode):
- * off keeps the heuristic chains byte-identical, shadow appends the LLM
- * transcript + detection jobs after the heuristic cluster (metadata-only),
- * and primary replaces the heuristic classification cluster with the LLM
- * path. Post-review chains are mode-independent so the operator escape
- * hatch always works; the auto-trim pipeline uses the same transcription and
- * structure-detection seam without livestream projection or publication.
+ * The livestream, reclassification, and auto-trim pipelines use the shared
+ * full-service transcription and structure-detection seam.
  */
 class ProcessingPipelineBuilder
 {
@@ -143,55 +130,12 @@ class ProcessingPipelineBuilder
      */
     public function buildLivestreamChainJobs(MediaProcessingLog $log): array
     {
-        $mode = ServiceStructureMode::fromConfig();
-
-        if ($mode === ServiceStructureMode::Primary) {
-            // AnalyzeSegments is retained: LivestreamSegment rows back the
-            // sections' source_segment_ids and the manual segment-confirmation
-            // flow. ProjectLivestreamServiceStructure is retained per the
-            // Phase 4 audit: it creates/links the canonical ChurchService when
-            // no OoS import exists, reading the (now LLM-written) sections.
-            // ResolveReadingReferences refines the LLM-supplied
-            // reading_reference against the section transcript, exactly as it
-            // refines OoS references on the heuristic chain.
-            return [
-                new AnalyzeSegments($log),
-                new TranscribeFullService($log),
-                new DetectServiceStructure($log),
-                new ProjectLivestreamServiceStructure($log),
-                new ResolveReadingReferences($log),
-                new MatchSongsFromTranscript($log),
-                new ExtractSermon($log),
-                new SubmitToProcessing($log),
-                new EnhanceAudio($log),
-                new IdentifySpeaker($log),
-                new TranscribeAudio($log),
-                new ProcessTranscriptWithAI($log),
-                new AssessSermonVideoQuality($log),
-                new GenerateThumbnail($log),
-                new PrepareSectionPublicationCandidates($log),
-                new SendCompletionNotification($log),
-                new CleanupTemporaryFiles($log),
-            ];
-        }
-
-        $shadowJobs = $mode === ServiceStructureMode::Shadow
-            ? [new TranscribeFullService($log), new DetectServiceStructure($log)]
-            : [];
-
         return [
             new AnalyzeSegments($log),
-            new ClassifyServiceSections($log),
-            new TranscribeSpeechSegments($log),
-            new ClassifySpeechSections($log),
+            new TranscribeFullService($log),
+            new DetectServiceStructure($log),
             new ProjectLivestreamServiceStructure($log),
-            new AlignWithOos($log),
-            new ResolveReadingReferences($log),
             new MatchSongsFromTranscript($log),
-            new ReclassifyIntroOutroSections($log),
-            // Shadow runs after the full heuristic cluster so its diff
-            // compares against the final heuristic output.
-            ...$shadowJobs,
             new ExtractSermon($log),
             new SubmitToProcessing($log),
             new EnhanceAudio($log),
@@ -274,43 +218,11 @@ class ProcessingPipelineBuilder
      */
     public function buildSectionReclassificationChainJobs(MediaProcessingLog $log): array
     {
-        $mode = ServiceStructureMode::fromConfig();
-
-        if ($mode === ServiceStructureMode::Primary) {
-            // Segments already exist on a reclassification run, so
-            // AnalyzeSegments is not repeated.
-            return [
-                new TranscribeFullService($log),
-                new DetectServiceStructure($log),
-                new ProjectLivestreamServiceStructure($log),
-                new ResolveReadingReferences($log),
-                new MatchSongsFromTranscript($log),
-                new ExtractSermon($log),
-                new SubmitToProcessing($log),
-                new EnhanceAudio($log),
-                new IdentifySpeaker($log),
-                new TranscribeAudio($log),
-                new ProcessTranscriptWithAI($log),
-                new AssessSermonVideoQuality($log),
-                new GenerateThumbnail($log),
-                new PrepareSectionPublicationCandidates($log),
-            ];
-        }
-
-        $shadowJobs = $mode === ServiceStructureMode::Shadow
-            ? [new TranscribeFullService($log), new DetectServiceStructure($log)]
-            : [];
-
         return [
-            new ClassifyServiceSections($log, preserveRunStatus: true),
-            new TranscribeSpeechSegments($log),
-            new ClassifySpeechSections($log),
+            new TranscribeFullService($log),
+            new DetectServiceStructure($log),
             new ProjectLivestreamServiceStructure($log),
-            new AlignWithOos($log),
-            new ResolveReadingReferences($log),
             new MatchSongsFromTranscript($log),
-            new ReclassifyIntroOutroSections($log),
-            ...$shadowJobs,
             new ExtractSermon($log),
             new SubmitToProcessing($log),
             new EnhanceAudio($log),

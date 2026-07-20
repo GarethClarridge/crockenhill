@@ -9,7 +9,6 @@ use App\Jobs\EnhanceAudio;
 use App\Jobs\GenerateRmsLog;
 use App\Jobs\PerformVisualAnalysis;
 use App\Jobs\TranscribeAudio;
-use App\Jobs\TranscribeSpeechSegments;
 use Illuminate\Queue\Attributes\FailOnTimeout;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -44,7 +43,6 @@ class FailOnTimeoutAttributeTest extends TestCase
     {
         return [
             'TranscribeAudio' => [TranscribeAudio::class],
-            'TranscribeSpeechSegments' => [TranscribeSpeechSegments::class],
         ];
     }
 
