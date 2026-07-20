@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Validator;
  * existing manual metadata edits where possible.
  *
  * Owns the canonical ClassifiedSection payload shape: every producer
- * (heuristic classifier or LLM structure mapper) must emit this exact array.
+ * The LLM structure mapper must emit this exact array.
  *
  * @phpstan-type ClassifiedSection array{
  *     church_service_item_id: int|null,

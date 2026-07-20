@@ -15,17 +15,6 @@
     <div class="flex flex-wrap gap-2">
         <x-form-button
             type="button"
-            variant="outline"
-            size="sm"
-            icon="arrow-path"
-            wire:click="reclassify({{ $run->id }})"
-            wire:target="reclassify({{ $run->id }})"
-        >
-            Reclassify
-        </x-form-button>
-
-        <x-form-button
-            type="button"
             variant="danger"
             size="sm"
             icon="trash"

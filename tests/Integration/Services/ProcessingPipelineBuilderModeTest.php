@@ -17,13 +17,12 @@ class ProcessingPipelineBuilderModeTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
-    public function livestream_and_reclassification_chains_use_the_llm_path_in_every_mode(): void
+    public function livestream_chain_uses_the_llm_path_in_every_mode(): void
     {
         $builder = new ProcessingPipelineBuilder;
         $livestreamLog = MediaProcessingLog::factory()->livestream()->pending()->create();
 
         $chains = [];
-        $reclassificationChains = [];
 
         foreach (['shadow', 'primary'] as $mode) {
             config(['media-processing.service_structure.mode' => $mode]);
@@ -31,16 +30,11 @@ class ProcessingPipelineBuilderModeTest extends TestCase
                 static fn (object $job): string => $job::class,
                 $builder->buildLivestreamChainJobs($livestreamLog)
             );
-            $reclassificationChains[$mode] = array_map(
-                static fn (object $job): string => $job::class,
-                $builder->buildSectionReclassificationChainJobs($livestreamLog)
-            );
         }
 
         $this->assertSame($chains['shadow'], $chains['primary']);
         $this->assertContains(TranscribeFullService::class, $chains['primary']);
         $this->assertContains(DetectServiceStructure::class, $chains['primary']);
-        $this->assertSame($reclassificationChains['shadow'], $reclassificationChains['primary']);
     }
 
     #[Test]

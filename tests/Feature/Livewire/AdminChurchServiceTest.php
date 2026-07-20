@@ -7,26 +7,12 @@ namespace Tests\Feature\Livewire;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\InboundEmailStatus;
 use App\Enums\MediaType;
-use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Events\ChurchServiceCanonicalListChanged;
-use App\Jobs\AssessSermonVideoQuality;
-use App\Jobs\DetectServiceStructure;
-use App\Jobs\EnhanceAudio;
-use App\Jobs\ExtractSermon;
-use App\Jobs\GenerateThumbnail;
-use App\Jobs\IdentifySpeaker;
-use App\Jobs\MatchSongsFromTranscript;
-use App\Jobs\PrepareSectionPublicationCandidates;
-use App\Jobs\ProcessTranscriptWithAI;
-use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\ReconcileServiceSections;
-use App\Jobs\SubmitToProcessing;
-use App\Jobs\TranscribeAudio;
-use App\Jobs\TranscribeFullService;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
 use App\Livewire\Admin\ChurchServices\ManageChurchService;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
@@ -41,10 +27,8 @@ use App\Models\Song;
 use App\Models\User;
 use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\OpenLpArchiveFactory;
@@ -726,115 +710,6 @@ class AdminChurchServiceTest extends TestCase
             ->assertSee('Failed')
             ->assertSee('Not recorded')
             ->assertSee('No step log recorded for this older run.');
-    }
-
-    #[Test]
-    public function reclassify_action_dispatches_classifier_for_matching_livestream_run(): void
-    {
-        Bus::fake();
-        Storage::fake('local');
-        $this->actingAs($this->admin);
-
-        $service = ChurchService::factory()->create([
-            'date' => '2026-04-05',
-            'service' => SermonService::Morning,
-        ]);
-
-        $processingRun = MediaProcessingLog::factory()->livestream()->pending()->create([
-            'extracted_date' => '2026-04-05',
-            'extracted_service' => SermonService::Morning,
-        ]);
-
-        Livewire::test(ShowChurchService::class, ['churchService' => $service])
-            ->call('reclassify', $processingRun->id)
-            ->assertDispatched('notify', type: 'success', message: 'Section reclassification queued');
-
-        Bus::assertChained([
-            TranscribeFullService::class,
-            DetectServiceStructure::class,
-            ProjectLivestreamServiceStructure::class,
-            MatchSongsFromTranscript::class,
-            ExtractSermon::class,
-            SubmitToProcessing::class,
-            EnhanceAudio::class,
-            IdentifySpeaker::class,
-            TranscribeAudio::class,
-            ProcessTranscriptWithAI::class,
-            AssessSermonVideoQuality::class,
-            GenerateThumbnail::class,
-            PrepareSectionPublicationCandidates::class,
-        ]);
-    }
-
-    #[Test]
-    public function reclassify_action_rejects_invalid_or_non_matching_runs(): void
-    {
-        Bus::fake();
-        $this->actingAs($this->admin);
-
-        $service = ChurchService::factory()->create([
-            'date' => '2026-04-12',
-            'service' => SermonService::Morning,
-        ]);
-
-        $videoRun = MediaProcessingLog::factory()->video()->create([
-            'extracted_date' => '2026-04-12',
-            'extracted_service' => SermonService::Morning,
-        ]);
-
-        $mismatchedRun = MediaProcessingLog::factory()->livestream()->create([
-            'extracted_date' => '2026-04-19',
-            'extracted_service' => SermonService::Morning,
-        ]);
-
-        Livewire::test(ShowChurchService::class, ['churchService' => $service])
-            ->call('reclassify', 999999)
-            ->assertDispatched('notify', type: 'error', message: 'Processing run not found.')
-            ->call('reclassify', $videoRun->id)
-            ->assertDispatched('notify', type: 'error', message: 'Only livestream runs can be reclassified.')
-            ->call('reclassify', $mismatchedRun->id)
-            ->assertDispatched('notify', type: 'error', message: 'Selected run does not belong to this service.');
-
-        Bus::assertNothingChained();
-    }
-
-    #[Test]
-    public function reclassify_action_succeeds_even_when_original_source_file_is_no_longer_available(): void
-    {
-        Bus::fake();
-        $this->actingAs($this->admin);
-
-        $service = ChurchService::factory()->create([
-            'date' => '2026-04-26',
-            'service' => SermonService::Morning,
-        ]);
-
-        $processingRun = MediaProcessingLog::factory()->livestream()->create([
-            'extracted_date' => '2026-04-26',
-            'extracted_service' => SermonService::Morning,
-            'source_file_path' => null,
-            'status' => ProcessingStatus::Completed,
-        ]);
-
-        Livewire::test(ShowChurchService::class, ['churchService' => $service])
-            ->call('reclassify', $processingRun->id)
-            ->assertDispatched('notify', type: 'success', message: 'Section reclassification queued');
-
-        Bus::assertChained([
-            TranscribeFullService::class,
-            DetectServiceStructure::class,
-            ProjectLivestreamServiceStructure::class,
-            MatchSongsFromTranscript::class,
-            ExtractSermon::class,
-            SubmitToProcessing::class,
-            EnhanceAudio::class,
-            IdentifySpeaker::class,
-            TranscribeAudio::class,
-            ProcessTranscriptWithAI::class,
-            AssessSermonVideoQuality::class,
-            GenerateThumbnail::class,
-            PrepareSectionPublicationCandidates::class,
-        ]);
     }
 
     #[Test]

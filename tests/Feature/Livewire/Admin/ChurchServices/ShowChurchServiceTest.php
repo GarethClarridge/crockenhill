@@ -12,7 +12,6 @@ use App\Enums\ServiceSectionType;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\ChurchServices\SubmitEmailText;
-use App\Mail\LivestreamProcessingFailed;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
@@ -22,14 +21,11 @@ use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Models\User;
 use App\Presenters\ChurchServiceShowPresenter;
-use App\Services\Processing\ProcessingPipelineBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\Support\AlwaysFailingJob;
 use Tests\TestCase;
 
 class ShowChurchServiceTest extends TestCase
@@ -131,46 +127,6 @@ class ShowChurchServiceTest extends TestCase
             ->test(SubmitEmailText::class)
             ->assertSee('Import email text')
             ->assertSeeHtml('wire:target="submit"');
-    }
-
-    #[Test]
-    public function it_marks_the_run_as_failed_and_sends_notification_when_reclassification_chain_fails(): void
-    {
-        Mail::fake();
-        config(['queue.default' => 'sync']);
-
-        $serviceDate = '2026-01-15';
-        $serviceType = SermonService::Morning;
-
-        $churchService = ChurchService::factory()->create([
-            'date' => $serviceDate,
-            'service' => $serviceType->value,
-        ]);
-
-        Storage::disk('local')->put('livestreams/2026/service.mp4', 'fake-video');
-
-        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
-            'source_file_path' => 'livestreams/2026/service.mp4',
-            'extracted_date' => $serviceDate,
-            'extracted_service' => $serviceType,
-        ]);
-
-        $builder = $this->mock(ProcessingPipelineBuilder::class);
-        $builder->shouldReceive('buildSectionReclassificationChainJobs')->andReturn([new AlwaysFailingJob]);
-
-        try {
-            Livewire::actingAs($this->admin)
-                ->test(ShowChurchService::class, ['churchService' => $churchService])
-                ->call('reclassify', $log->id);
-        } catch (\RuntimeException) {
-            // Sync queue re-throws after firing the catch callback — expected.
-        }
-
-        $log->refresh();
-        $this->assertSame(ProcessingStatus::Failed, $log->status);
-        $this->assertNotNull($log->error_message);
-        $this->assertNotNull($log->completed_at);
-        Mail::assertQueued(LivestreamProcessingFailed::class, fn ($mail) => $mail->processingId === $log->processing_id);
     }
 
     #[Test]
@@ -276,7 +232,7 @@ class ShowChurchServiceTest extends TestCase
         Livewire::actingAs($this->admin)
             ->test(ShowChurchService::class, ['churchService' => $churchService])
             ->assertSee($log->processing_id)
-            ->assertSee('Reclassify')
+            ->assertDontSee('Reclassify')
             ->assertSee('Delete upload');
     }
 

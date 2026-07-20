@@ -37,8 +37,8 @@ class ServiceStructureValidator
     /**
      * All review flags that an alignment/structure pass owns and recalculates:
      * cleared at the start of each run and only re-added when still applicable.
-     * Homed here (not on the heuristic restorer) so the registry survives the
-     * heuristic cluster's retirement.
+     * These flags are cleared before each validation pass so re-runs are
+     * idempotent.
      *
      * @var array<int, string>
      */

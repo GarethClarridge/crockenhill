@@ -117,25 +117,6 @@ class ProcessingPhaseRegistryTest extends TestCase
     }
 
     #[Test]
-    public function removed_heuristic_steps_restart_the_livestream_pipeline(): void
-    {
-        $registry = app(ProcessingPhaseRegistry::class);
-
-        $transcriptionLog = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::Failed,
-            'current_step' => 'transcribe_speech_segments',
-        ]);
-
-        $alignmentLog = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::Failed,
-            'current_step' => 'align_with_oos',
-        ]);
-
-        $this->assertSame(['action' => 'restart_livestream'], $registry->retryPlanFor($transcriptionLog));
-        $this->assertSame(['action' => 'restart_livestream'], $registry->retryPlanFor($alignmentLog));
-    }
-
-    #[Test]
     public function it_maps_auto_trim_video_runs_to_their_dedicated_pipeline_phases(): void
     {
         $registry = app(ProcessingPhaseRegistry::class);
@@ -325,23 +306,5 @@ class ProcessingPhaseRegistryTest extends TestCase
         ]);
 
         $this->assertSame(2, $registry->retryPlanFor($detectLog)['job_offset']);
-    }
-
-    #[Test]
-    public function a_step_whose_job_left_the_chain_falls_back_to_a_full_livestream_restart(): void
-    {
-        $registry = app(ProcessingPhaseRegistry::class);
-
-        // A heuristic-cluster failure retried after the flip to primary must
-        // not resume mid-chain — the heuristic jobs are no longer in it.
-        config(['media-processing.service_structure.mode' => 'primary']);
-
-        $heuristicLog = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::Failed,
-            'current_step' => 'classifying_sections',
-        ]);
-
-        $this->assertSame(['action' => 'restart_livestream'], $registry->retryPlanFor($heuristicLog));
-
     }
 }

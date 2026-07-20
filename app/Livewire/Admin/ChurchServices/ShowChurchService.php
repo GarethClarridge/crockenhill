@@ -7,7 +7,6 @@ namespace App\Livewire\Admin\ChurchServices;
 use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Actions\DeleteLivestreamUpload;
 use App\Actions\ServiceReview\ResolvePendingStructureMerge;
-use App\Enums\MediaType;
 use App\Livewire\Admin\ChurchServices\Concerns\ManagesSectionPublication;
 use App\Livewire\Admin\ChurchServices\Concerns\ReviewsServiceSections;
 use App\Livewire\Traits\WithAdminAuthorization;
@@ -18,7 +17,6 @@ use App\Models\ServiceSection;
 use App\Models\User;
 use App\Presenters\ChurchServiceShowPresenter;
 use App\Queries\ChurchServiceProcessingRunQuery;
-use App\Services\Processing\ProcessingRunOrchestrator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -67,41 +65,6 @@ class ShowChurchService extends Component
                 'title' => $label,
                 'heading' => $label,
             ]);
-    }
-
-    public function reclassify(int $processingLogId): void
-    {
-        $this->authorizeAdmin();
-
-        $processingLog = MediaProcessingLog::query()->find($processingLogId);
-        if (! $processingLog instanceof MediaProcessingLog) {
-            $this->error('Processing run not found.');
-
-            return;
-        }
-
-        if ($processingLog->processing_type !== MediaType::Livestream) {
-            $this->error('Only livestream runs can be reclassified.');
-
-            return;
-        }
-
-        if (! $this->processingLogMatchesService($processingLog)) {
-            $this->error('Selected run does not belong to this service.');
-
-            return;
-        }
-
-        Log::warning('Media processing run reclassification requested by admin', [
-            'admin_id' => auth()->id(),
-            'processing_log_id' => $processingLogId,
-            'church_service_id' => $this->churchService->id,
-        ]);
-
-        // Resolve on demand because Livewire serializes component state between requests.
-        app(ProcessingRunOrchestrator::class)->reclassify($processingLog);
-
-        $this->success('Section reclassification queued');
     }
 
     public function confirmRunSegment(int $processingLogId, int $segmentId): void

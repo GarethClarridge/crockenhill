@@ -196,6 +196,11 @@ return [
         ],
     ],
 
+    'section_classification' => [
+        'prefer_high_confidence_sermon_section' => env('SERVICE_SECTION_PREFER_HIGH_CONFIDENCE_SERMON', true),
+        'adjacent_merge_max_gap_seconds' => (int) env('SERVICE_SECTION_ADJACENT_MERGE_MAX_GAP_SECONDS', 2),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Reading Reference Validation
@@ -221,7 +226,7 @@ return [
         // mock|openai — the ServiceStructureInterface binding.
         'detector' => env('SERVICE_STRUCTURE_DETECTOR', 'mock'),
         // Owns the sermon-vs-children's-talk judgement, so it defaults to the
-        // flagship reasoning model (same reasoning as section_classification.model).
+        // flagship reasoning model.
         'model' => env('SERVICE_STRUCTURE_MODEL', 'gpt-5.6-sol'),
         'reasoning_effort' => env('SERVICE_STRUCTURE_REASONING_EFFORT', 'medium'),
         // Candidate model for shadow runs. When set, shadow detection uses

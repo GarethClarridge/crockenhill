@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Processing;
 
 use App\Enums\MediaType;
-use App\Enums\ServiceStructureMode;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\CleanupTemporaryFiles;
@@ -69,12 +68,12 @@ use App\Models\MediaProcessingLog;
 class ProcessingPhaseRegistry
 {
     /**
-     * Livestream job offsets per service-structure mode, memoised because the
-     * phase tables are rebuilt on every progress lookup.
+     * Livestream job offsets, memoised because the phase tables are rebuilt
+     * on every progress lookup.
      *
-     * @var array<string, array<class-string, int>>
+     * @var array<class-string, int>
      */
-    private array $livestreamJobOffsetsByMode = [];
+    private array $livestreamJobOffsets = [];
 
     public function __construct(
         private readonly ProcessingPipelineBuilder $pipelineBuilder,
@@ -964,16 +963,14 @@ class ProcessingPhaseRegistry
     }
 
     /**
-     * Where a job class sits in the current mode's livestream chain — null
-     * when the job is not part of it (for example a heuristic-cluster job
-     * under primary mode, or an LLM job under off mode).
+     * Where a job class sits in the livestream chain.
      */
     private function livestreamJobOffset(string $jobClass): ?int
     {
-        $mode = ServiceStructureMode::fromConfig()->value;
+        if ($this->livestreamJobOffsets === []) {
+            $this->livestreamJobOffsets = array_flip($this->pipelineBuilder->livestreamChainJobClasses());
+        }
 
-        $this->livestreamJobOffsetsByMode[$mode] ??= array_flip($this->pipelineBuilder->livestreamChainJobClasses());
-
-        return $this->livestreamJobOffsetsByMode[$mode][$jobClass] ?? null;
+        return $this->livestreamJobOffsets[$jobClass] ?? null;
     }
 }

@@ -106,26 +106,6 @@ class ProcessingRunOrchestrator
     }
 
     /**
-     * Re-run the classification and structural analysis for an existing livestream run.
-     *
-     * Used when the original source media is still available to refresh
-     * sermon-derived outputs or correct manual classification errors.
-     *
-     * @param  MediaProcessingLog  $processingLog  The log record to reclassify
-     *
-     * @throws \Throwable If dispatching the reclassification job chain fails
-     */
-    public function reclassify(MediaProcessingLog $processingLog): void
-    {
-        $this->dispatchChain(
-            $this->pipelineBuilder->buildSectionReclassificationChainJobs($processingLog),
-            $this->livestreamQueue(),
-            $processingLog->processing_id,
-            ProcessingRunFailureHandler::PROFILE_LIVESTREAM
-        );
-    }
-
-    /**
      * Attempt to retry a failed or cancelled processing run.
      *
      * Consults the PhaseRegistry to determine a surgical retry plan (either

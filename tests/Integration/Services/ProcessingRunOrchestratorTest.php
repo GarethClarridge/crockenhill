@@ -117,41 +117,6 @@ class ProcessingRunOrchestratorTest extends TestCase
     }
 
     #[Test]
-    public function it_applies_livestream_failure_handling_when_reclassifying(): void
-    {
-        Mail::fake();
-        config(['queue.default' => 'sync']);
-
-        $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
-            'source_file_path' => 'livestreams/reclassify.mp4',
-        ]);
-
-        $builder = $this->mock(ProcessingPipelineBuilder::class);
-        $builder->shouldReceive('buildSectionReclassificationChainJobs')
-            ->once()
-            ->andReturn([new AlwaysFailingJob]);
-
-        $storageService = $this->mock(VideoStorageService::class);
-        $storageService->shouldReceive('cleanupTemporaryFiles')
-            ->once()
-            ->with(Mockery::type('array'));
-
-        $this->app->forgetInstance(ProcessingRunFailureHandler::class);
-        $this->app->forgetInstance(ProcessingRunOrchestrator::class);
-
-        try {
-            app(ProcessingRunOrchestrator::class)->reclassify($processingLog);
-        } catch (\RuntimeException) {
-            // Sync queue rethrows after the chain catch callback has run.
-        }
-
-        $processingLog->refresh();
-        $this->assertSame(ProcessingStatus::Failed, $processingLog->status);
-        $this->assertNotNull($processingLog->completed_at);
-        Mail::assertQueued(LivestreamProcessingFailed::class, fn (LivestreamProcessingFailed $mail): bool => $mail->processingId === $processingLog->processing_id);
-    }
-
-    #[Test]
     public function it_cancels_livestream_runs_and_cleans_up_temporary_files(): void
     {
         $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([

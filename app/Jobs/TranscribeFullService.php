@@ -116,10 +116,8 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
                 'error' => $throwable->getMessage(),
             ]);
 
-            // In shadow mode the heuristic pipeline stays authoritative: a
-            // transcription failure is recorded and swallowed so it can never
-            // fail the run. DetectServiceStructure will find no transcript and
-            // record its own shadow error.
+            // Shadow runs are evaluation-only, so transcription failures are
+            // recorded without failing the processing run.
             if (ServiceStructureMode::fromConfig() === ServiceStructureMode::Shadow) {
                 $this->logStepSkipped(
                     ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,

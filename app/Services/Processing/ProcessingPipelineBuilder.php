@@ -31,7 +31,7 @@ use App\Models\MediaProcessingLog;
 /**
  * ProcessingPipelineBuilder - Unified job chains for all media processing types
  *
- * The livestream, reclassification, and auto-trim pipelines use the shared
+ * The livestream and auto-trim pipelines use the shared
  * full-service transcription and structure-detection seam.
  */
 class ProcessingPipelineBuilder
@@ -207,31 +207,6 @@ class ProcessingPipelineBuilder
             new GenerateThumbnail($log),
             new SendCompletionNotification($log),
             new CleanupTemporaryFiles($log),
-        ];
-    }
-
-    /**
-     * Reclassification chain for existing livestream runs that also refreshes
-     * sermon-derived outputs when the original source media is still available.
-     *
-     * @return non-empty-list<object>
-     */
-    public function buildSectionReclassificationChainJobs(MediaProcessingLog $log): array
-    {
-        return [
-            new TranscribeFullService($log),
-            new DetectServiceStructure($log),
-            new ProjectLivestreamServiceStructure($log),
-            new MatchSongsFromTranscript($log),
-            new ExtractSermon($log),
-            new SubmitToProcessing($log),
-            new EnhanceAudio($log),
-            new IdentifySpeaker($log),
-            new TranscribeAudio($log),
-            new ProcessTranscriptWithAI($log),
-            new AssessSermonVideoQuality($log),
-            new GenerateThumbnail($log),
-            new PrepareSectionPublicationCandidates($log),
         ];
     }
 }

@@ -262,29 +262,6 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertGreaterThan($identifyPos, $transcribePos, 'TranscribeAudio must come after IdentifySpeaker');
     }
 
-    #[Test]
-    public function it_builds_reclassification_chain_jobs_with_the_llm_structure_steps(): void
-    {
-        $log = MediaProcessingLog::factory()->livestream()->completed()->create();
-
-        $jobs = $this->builder->buildSectionReclassificationChainJobs($log);
-
-        $this->assertCount(13, $jobs);
-        $this->assertInstanceOf(TranscribeFullService::class, $jobs[0]);
-        $this->assertInstanceOf(DetectServiceStructure::class, $jobs[1]);
-        $this->assertInstanceOf(ProjectLivestreamServiceStructure::class, $jobs[2]);
-        $this->assertInstanceOf(MatchSongsFromTranscript::class, $jobs[3]);
-        $this->assertInstanceOf(ExtractSermon::class, $jobs[4]);
-        $this->assertInstanceOf(SubmitToProcessing::class, $jobs[5]);
-        $this->assertInstanceOf(EnhanceAudio::class, $jobs[6]);
-        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[7]);
-        $this->assertInstanceOf(TranscribeAudio::class, $jobs[8]);
-        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[9]);
-        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[10]);
-        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[11]);
-        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[12]);
-    }
-
     // --- buildLivestreamPostReviewChainJobs() ---
 
     #[Test]
