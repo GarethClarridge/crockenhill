@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Integration\Support;
+namespace Tests\Integration\Services\ChurchService;
 
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ServiceSectionPublicationStatus;
@@ -12,7 +12,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
-use App\Support\ServiceRecordTimeline;
+use App\Services\ChurchService\ServiceRecordTimeline;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;

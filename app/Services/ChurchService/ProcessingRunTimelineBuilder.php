@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Support;
+namespace App\Services\ChurchService;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
+use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 

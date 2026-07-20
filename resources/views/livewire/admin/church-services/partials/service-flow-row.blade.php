@@ -3,7 +3,7 @@
     use App\Enums\ServiceSectionSongMatchType;
     use App\Enums\ServiceSectionType;
     use App\Enums\SermonContentType;
-    use App\Support\ServiceRecordTimeline;
+    use App\Services\ChurchService\ServiceRecordTimeline;
 
     /** @var array<string, mixed> $item */
     /** @var int $rowIndex */

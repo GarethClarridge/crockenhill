@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Tests\Integration\Support;
+namespace Tests\Integration\Services\ChurchService;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
+use App\Services\ChurchService\ProcessingRunTimelineBuilder;
 use App\Support\ChurchServiceProcessingTimeline;
-use App\Support\ProcessingRunTimelineBuilder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;

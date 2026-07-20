@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Tests\Integration\Support;
+namespace Tests\Integration\Services\ChurchService;
 
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Support\ServiceFlowBuilder;
+use App\Services\ChurchService\ServiceFlowBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

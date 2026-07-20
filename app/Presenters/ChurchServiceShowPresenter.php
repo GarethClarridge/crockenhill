@@ -15,9 +15,9 @@ use App\Models\ServiceSection;
 use App\Queries\ChurchServiceProcessingRunQuery;
 use App\Queries\ChurchServiceRollupQuery;
 use App\Queries\ServiceReviewDashboardQuery;
+use App\Services\ChurchService\ProcessingRunTimelineBuilder;
+use App\Services\ChurchService\ServiceFlowBuilder;
 use App\Services\Media\Video\VideoStorageService;
-use App\Support\ProcessingRunTimelineBuilder;
-use App\Support\ServiceTimelineBuilder;
 use Illuminate\Database\Eloquent\Collection;
 
 class ChurchServiceShowPresenter
@@ -51,9 +51,9 @@ class ChurchServiceShowPresenter
 
         /** @var Collection<int, ChurchServiceItem> $items */
         $items = $churchService->items;
-        $serviceTimelines = ServiceTimelineBuilder::buildTimelines($processingRuns, $items);
+        $serviceTimelines = ServiceFlowBuilder::buildTimelines($processingRuns, $items);
         $processingTimelines = ProcessingRunTimelineBuilder::buildAll($processingRuns);
-        $serviceFlows = ServiceTimelineBuilder::buildFlows($serviceTimelines, $processingRuns);
+        $serviceFlows = ServiceFlowBuilder::buildFlows($serviceTimelines, $processingRuns);
 
         return new ChurchServiceShowReadModel(
             churchService: $churchService,
