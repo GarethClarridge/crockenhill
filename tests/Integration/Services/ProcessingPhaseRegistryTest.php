@@ -11,6 +11,7 @@ use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\ClassifyServiceSections;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
+use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractAudioFromVideo;
 use App\Jobs\ExtractSermon;
@@ -23,6 +24,7 @@ use App\Jobs\ResolveReadingReferences;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
+use App\Jobs\TranscribeFullService;
 use App\Models\MediaProcessingLog;
 use App\Services\Processing\ProcessingPhaseRegistry;
 use App\Services\Processing\ProcessingPipelineBuilder;
@@ -169,10 +171,16 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame([
             'action' => 'dispatch_chain',
             'pipeline' => 'video_auto_trim',
-            'job_offset' => 8,
+            'job_offset' => 6,
             'rerun_strategy' => 'safe_to_rerun',
             'reset_scope' => 'none',
         ], $registry->retryPlanFor($processingLog));
+
+        foreach (['transcribe_full_service' => 3, 'detect_service_structure' => 4] as $step => $expectedOffset) {
+            $processingLog->update(['current_step' => $step]);
+
+            $this->assertSame($expectedOffset, $registry->retryPlanFor($processingLog->refresh())['job_offset']);
+        }
     }
 
     #[Test]
@@ -225,16 +233,17 @@ class ProcessingPhaseRegistryTest extends TestCase
                 'jobs' => $builder->buildAutoTrimVideoPipeline($autoTrimLog),
                 'expectations' => [
                     2 => AnalyzeSegments::class,
-                    3 => ClassifyServiceSections::class,
-                    7 => ExtractSermon::class,
-                    8 => EnhanceAudio::class,
-                    9 => CreateSermonRecord::class,
-                    11 => TranscribeAudio::class,
-                    12 => ProcessTranscriptWithAI::class,
-                    13 => AssessSermonVideoQuality::class,
-                    14 => GenerateThumbnail::class,
-                    15 => SendCompletionNotification::class,
-                    16 => CleanupTemporaryFiles::class,
+                    3 => TranscribeFullService::class,
+                    4 => DetectServiceStructure::class,
+                    5 => ExtractSermon::class,
+                    6 => EnhanceAudio::class,
+                    7 => CreateSermonRecord::class,
+                    9 => TranscribeAudio::class,
+                    10 => ProcessTranscriptWithAI::class,
+                    11 => AssessSermonVideoQuality::class,
+                    12 => GenerateThumbnail::class,
+                    13 => SendCompletionNotification::class,
+                    14 => CleanupTemporaryFiles::class,
                 ],
             ],
             [

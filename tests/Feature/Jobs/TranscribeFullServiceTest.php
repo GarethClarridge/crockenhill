@@ -138,6 +138,21 @@ class TranscribeFullServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_transcribes_auto_trim_video_runs(): void
+    {
+        $log = MediaProcessingLog::factory()->video()->pending()->create([
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+            ],
+        ]);
+        Storage::disk('local')->put((string) $log->source_file_path, 'fake video bytes');
+
+        $this->runJob($log);
+
+        $this->assertNotNull($log->refresh()->serviceTranscriptPath());
+    }
+
+    #[Test]
     public function it_keeps_the_transcript_out_of_temporary_file_cleanup(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();

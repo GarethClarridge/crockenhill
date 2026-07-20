@@ -559,50 +559,25 @@ class ProcessingPhaseRegistry
                 ],
             ],
             [
-                'key' => 'classify_sections',
-                'progress' => 45,
+                'key' => 'transcribe_full_service',
+                'progress' => 50,
                 'job_offset' => 3,
                 'steps' => [
-                    'classifying_sections',
+                    'transcribe_full_service',
                 ],
             ],
             [
-                'key' => 'classified_sections',
-                'progress' => 52,
-                'job_offset' => 3,
-                'steps' => [
-                    'section_classification_complete',
-                    'section_classification_skipped',
-                ],
-            ],
-            [
-                'key' => 'transcribe_speech_segments',
-                'progress' => 53,
+                'key' => 'detect_service_structure',
+                'progress' => 54,
                 'job_offset' => 4,
                 'steps' => [
-                    'transcribe_speech_segments',
-                ],
-            ],
-            [
-                'key' => 'classify_speech_sections',
-                'progress' => 54,
-                'job_offset' => 5,
-                'steps' => [
-                    'classify_speech_sections',
-                ],
-            ],
-            [
-                'key' => 'reclassify_intro_outro',
-                'progress' => 55,
-                'job_offset' => 6,
-                'steps' => [
-                    'reclassify_intro_outro',
+                    'detect_service_structure',
                 ],
             ],
             [
                 'key' => 'manual_review',
                 'progress' => 55,
-                'job_offset' => 7,
+                'job_offset' => 5,
                 'steps' => [
                     'manual_review_required',
                 ],
@@ -610,7 +585,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'manual_review_confirmed',
                 'progress' => 56,
-                'job_offset' => 7,
+                'job_offset' => 5,
                 'steps' => [
                     'manual_review_confirmed',
                 ],
@@ -618,7 +593,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'extract_sermon',
                 'progress' => 57,
-                'job_offset' => 7,
+                'job_offset' => 5,
                 'steps' => [
                     'extraction',
                     'extracting_sermon',
@@ -627,7 +602,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'extraction_complete',
                 'progress' => 60,
-                'job_offset' => 7,
+                'job_offset' => 5,
                 'steps' => [
                     'extraction_complete',
                 ],
@@ -635,7 +610,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'enhance_audio',
                 'progress' => 65,
-                'job_offset' => 8,
+                'job_offset' => 6,
                 'steps' => [
                     'audio_enhancement',
                     'audio_enhancement_complete',
@@ -645,7 +620,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'create_sermon_record',
                 'progress' => 70,
-                'job_offset' => 9,
+                'job_offset' => 7,
                 'steps' => [
                     'sermon_creation',
                     'creating_sermon',
@@ -656,7 +631,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'transcribe_audio',
                 'progress' => 80,
-                'job_offset' => 11,
+                'job_offset' => 9,
                 'steps' => [
                     'transcribing_audio',
                     'transcribing_audio_failed',
@@ -667,7 +642,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'analyze_transcript',
                 'progress' => 88,
-                'job_offset' => 12,
+                'job_offset' => 10,
                 'steps' => [
                     'analyzing_transcript',
                     'analyzing_transcript_failed',
@@ -678,7 +653,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'assess_video_quality',
                 'progress' => 89,
-                'job_offset' => 13,
+                'job_offset' => 11,
                 'retry_action' => 'dispatch_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -689,7 +664,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'generate_thumbnail',
                 'progress' => 90,
-                'job_offset' => 14,
+                'job_offset' => 12,
                 'retry_action' => 'dispatch_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -700,7 +675,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'send_notification',
                 'progress' => 92,
-                'job_offset' => 15,
+                'job_offset' => 13,
                 'retry_action' => 'dispatch_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -711,7 +686,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'notification_complete',
                 'progress' => 93,
-                'job_offset' => 15,
+                'job_offset' => 13,
                 'retry_action' => 'dispatch_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -725,7 +700,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'cleanup',
                 'progress' => 95,
-                'job_offset' => 16,
+                'job_offset' => 14,
                 'retry_action' => 'dispatch_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',

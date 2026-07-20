@@ -44,8 +44,8 @@ use App\Models\MediaProcessingLog;
  * transcript + detection jobs after the heuristic cluster (metadata-only),
  * and primary replaces the heuristic classification cluster with the LLM
  * path. Post-review chains are mode-independent so the operator escape
- * hatch always works; the auto-trim pipeline keeps the heuristic path until
- * primary proves out on livestreams.
+ * hatch always works; the auto-trim pipeline uses the same transcription and
+ * structure-detection seam without livestream projection or publication.
  */
 class ProcessingPipelineBuilder
 {
@@ -102,10 +102,8 @@ class ProcessingPipelineBuilder
             new ValidateVideoFile($log),
             new GenerateRmsLog($log),
             new AnalyzeSegments($log),
-            new ClassifyServiceSections($log),
-            new TranscribeSpeechSegments($log),
-            new ClassifySpeechSections($log),
-            new ReclassifyIntroOutroSections($log),
+            new TranscribeFullService($log),
+            new DetectServiceStructure($log),
             new ExtractSermon($log),
             new EnhanceAudio($log),
             new CreateSermonRecord($log),

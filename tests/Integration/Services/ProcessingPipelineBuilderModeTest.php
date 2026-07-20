@@ -180,7 +180,7 @@ class ProcessingPipelineBuilderModeTest extends TestCase
     }
 
     #[Test]
-    public function the_auto_trim_pipeline_keeps_the_heuristic_path_in_every_mode(): void
+    public function the_auto_trim_pipeline_uses_the_llm_path_in_every_mode(): void
     {
         $log = MediaProcessingLog::factory()->video()->pending()->create([
             'processing_metadata' => [
@@ -200,8 +200,12 @@ class ProcessingPipelineBuilderModeTest extends TestCase
 
         $this->assertSame($chains['off'], $chains['shadow']);
         $this->assertSame($chains['off'], $chains['primary']);
-        $this->assertContains(ClassifyServiceSections::class, $chains['primary']);
-        $this->assertNotContains(DetectServiceStructure::class, $chains['primary']);
+        $this->assertContains(TranscribeFullService::class, $chains['primary']);
+        $this->assertContains(DetectServiceStructure::class, $chains['primary']);
+        $this->assertNotContains(ClassifyServiceSections::class, $chains['primary']);
+        $this->assertNotContains(TranscribeSpeechSegments::class, $chains['primary']);
+        $this->assertNotContains(ClassifySpeechSections::class, $chains['primary']);
+        $this->assertNotContains(ReclassifyIntroOutroSections::class, $chains['primary']);
     }
 
     #[Test]

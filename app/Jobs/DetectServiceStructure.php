@@ -7,7 +7,6 @@ namespace App\Jobs;
 use App\Contracts\ServiceStructureInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
-use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionType;
 use App\Enums\ServiceStructureMode;
@@ -96,10 +95,10 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             return;
         }
 
-        if ($this->processingLog->processing_type !== MediaType::Livestream) {
+        if (! $this->processingLog->usesSegmentationPipeline()) {
             $this->logStepSkipped(
                 ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE,
-                'Structure detection only runs for livestream processing'
+                'Structure detection only runs for segmentation pipelines'
             );
 
             return;

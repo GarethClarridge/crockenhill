@@ -9,7 +9,12 @@ use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ProcessingStatus;
+use App\Jobs\AnalyzeSegments;
 use App\Jobs\DetectServiceStructure;
+use App\Jobs\ExtractSermon;
+use App\Jobs\GenerateRmsLog;
+use App\Jobs\TranscribeFullService;
+use App\Jobs\ValidateVideoFile;
 use App\Mail\ManualReviewRequired;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -20,7 +25,9 @@ use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
+use App\Services\Processing\ProcessingPipelineBuilder;
 use App\Services\Sermon\SermonCandidateConfidenceService;
+use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
@@ -364,6 +371,99 @@ class DetectServiceStructureTest extends TestCase
         $this->assertEqualsWithDelta(600.0, (float) $log->sermon_start_time, 0.01);
         $this->assertEqualsWithDelta(2200.0, (float) $log->sermon_end_time, 0.01);
         $this->assertSame('llm_structure', $log->processing_metadata?->toArray()['sermon_bounds']['source'] ?? null);
+    }
+
+    #[Test]
+    public function auto_trim_primary_mode_uses_the_llm_sequence_and_produces_plausible_sermon_boundaries(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->video()->pending()->create([
+            'duration' => 2430.0,
+            'sermon_start_time' => 500.0,
+            'sermon_end_time' => 2100.0,
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+                'trim_requested' => true,
+            ],
+        ]);
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+        MockServiceStructureService::useStructure($this->validStructure());
+
+        $pipeline = app(ProcessingPipelineBuilder::class)->buildAutoTrimVideoPipeline($log);
+
+        $this->assertSame([
+            ValidateVideoFile::class,
+            GenerateRmsLog::class,
+            AnalyzeSegments::class,
+            TranscribeFullService::class,
+            DetectServiceStructure::class,
+            ExtractSermon::class,
+        ], array_map(
+            static fn (object $job): string => $job::class,
+            array_slice($pipeline, 0, 6),
+        ));
+
+        $this->runJob($log);
+
+        $sermonSection = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'sermon')
+            ->firstOrFail();
+        $extractionPlan = app(SermonExtractionPlanResolver::class)->resolve($log->refresh());
+
+        $this->assertEqualsWithDelta(600.0, (float) $sermonSection->start_time, 0.01);
+        $this->assertEqualsWithDelta(2200.0, (float) $sermonSection->end_time, 0.01);
+        $this->assertSame('service_sections', $extractionPlan['source']);
+        $this->assertEqualsWithDelta(420.0, $extractionPlan['segments'][0]['start_time'], 0.01);
+        $this->assertEqualsWithDelta(2200.0, $extractionPlan['segments'][0]['end_time'], 0.01);
+        $this->assertSame('llm_structure', $log->processing_metadata?->toArray()['sermon_bounds']['source'] ?? null);
+    }
+
+    #[Test]
+    public function auto_trim_primary_mode_keeps_the_rms_baseline_when_the_sermon_needs_review(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->video()->pending()->create([
+            'duration' => 2430.0,
+            'sermon_start_time' => 500.0,
+            'sermon_end_time' => 2100.0,
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+            ],
+        ]);
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+        MockServiceStructureService::useStructure(ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('bible_reading', 420.0, 590.0),
+            $this->section('sermon', 600.0, 2200.0, confidence: 0.5),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'mock'));
+
+        $this->runJob($log);
+
+        $extractionPlan = app(SermonExtractionPlanResolver::class)->resolve($log->refresh());
+
+        $this->assertEqualsWithDelta(500.0, (float) $log->sermon_start_time, 0.01);
+        $this->assertEqualsWithDelta(2100.0, (float) $log->sermon_end_time, 0.01);
+        $this->assertSame('processing_log', $extractionPlan['source']);
+        $this->assertSame('no_high_confidence_sermon_section', $extractionPlan['metadata']['reason']);
+        $this->assertArrayNotHasKey('sermon_bounds', $log->processing_metadata?->toArray() ?? []);
+    }
+
+    #[Test]
+    public function primary_mode_still_skips_direct_video_runs(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->video()->pending()->create();
+
+        $this->runJob($log);
+
+        $this->assertSame(0, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
     }
 
     #[Test]

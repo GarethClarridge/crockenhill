@@ -11,6 +11,7 @@ use App\Jobs\ClassifyServiceSections;
 use App\Jobs\ClassifySpeechSections;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
+use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractAudioFromVideo;
 use App\Jobs\ExtractSermon;
@@ -27,6 +28,7 @@ use App\Jobs\ResolveReadingReferences;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
+use App\Jobs\TranscribeFullService;
 use App\Jobs\TranscribeSpeechSegments;
 use App\Jobs\ValidateAudioFile;
 use App\Jobs\ValidateVideoFile;
@@ -137,24 +139,22 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildAutoTrimVideoPipeline($log);
 
-        $this->assertCount(17, $jobs);
+        $this->assertCount(15, $jobs);
         $this->assertInstanceOf(ValidateVideoFile::class, $jobs[0]);
         $this->assertInstanceOf(GenerateRmsLog::class, $jobs[1]);
         $this->assertInstanceOf(AnalyzeSegments::class, $jobs[2]);
-        $this->assertInstanceOf(ClassifyServiceSections::class, $jobs[3]);
-        $this->assertInstanceOf(TranscribeSpeechSegments::class, $jobs[4]);
-        $this->assertInstanceOf(ClassifySpeechSections::class, $jobs[5]);
-        $this->assertInstanceOf(ReclassifyIntroOutroSections::class, $jobs[6]);
-        $this->assertInstanceOf(ExtractSermon::class, $jobs[7]);
-        $this->assertInstanceOf(EnhanceAudio::class, $jobs[8]);
-        $this->assertInstanceOf(CreateSermonRecord::class, $jobs[9]);
-        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[10]);
-        $this->assertInstanceOf(TranscribeAudio::class, $jobs[11]);
-        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[12]);
-        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[13]);
-        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[14]);
-        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[15]);
-        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[16]);
+        $this->assertInstanceOf(TranscribeFullService::class, $jobs[3]);
+        $this->assertInstanceOf(DetectServiceStructure::class, $jobs[4]);
+        $this->assertInstanceOf(ExtractSermon::class, $jobs[5]);
+        $this->assertInstanceOf(EnhanceAudio::class, $jobs[6]);
+        $this->assertInstanceOf(CreateSermonRecord::class, $jobs[7]);
+        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[8]);
+        $this->assertInstanceOf(TranscribeAudio::class, $jobs[9]);
+        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[10]);
+        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[11]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[12]);
+        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[13]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[14]);
     }
 
     // --- buildLivestreamParallelJobs() ---
