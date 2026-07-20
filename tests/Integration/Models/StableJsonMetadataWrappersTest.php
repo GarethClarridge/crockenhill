@@ -59,8 +59,9 @@ class StableJsonMetadataWrappersTest extends TestCase
         $this->assertSame(0.82, $metadata->confidenceScore);
         $this->assertSame('openlp', $metadata->parseMethod);
         $this->assertSame('2026-03-17T12:00:00+00:00', $metadata->manualReview?->reviewedAt);
-        $this->assertSame('openlp', $metadata->canonicalConflict?->incomingSource);
-        $this->assertSame($payload, $metadata?->toArray());
+        $serialized = $metadata?->toArray();
+        $this->assertArrayNotHasKey('canonical_conflict', $serialized);
+        $this->assertSame($payload['canonical_conflict_history'], $serialized['canonical_conflict_history'] ?? null);
     }
 
     #[Test]

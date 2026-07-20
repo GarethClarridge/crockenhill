@@ -388,7 +388,7 @@ class DeleteLivestreamUpload
 
         $service->forceFill([
             'import_metadata' => $importMetadata,
-            ...$this->reviewStateService->normalizedColumns($importMetadata, $service->source),
+            ...$this->reviewStateService->normalizedReviewColumns($importMetadata),
         ])->saveQuietly();
 
         $service = $service->fresh() ?? $service;

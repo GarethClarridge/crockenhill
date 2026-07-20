@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
-use App\Enums\ChurchServiceCanonicalConflictState;
 use App\Models\ChurchService;
 use App\Models\ServiceSection;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -39,13 +38,13 @@ class ChurchServiceReviewSynchronizer
         $needsSectionReview = $sections->contains(
             fn (ServiceSection $section): bool => $section->needs_manual_review
         );
-        $normalizedColumns = $this->reviewStateService->normalizedColumns($importMetadata, $churchService->source);
+        $normalizedColumns = $this->reviewStateService->normalizedReviewColumns($importMetadata);
 
         $churchService->forceFill([
             'needs_review' => $reviewTriggers !== []
                 || $needsSectionReview
                 || $this->hasImportReviewSignal($churchService, $importMetadata)
-                || $normalizedColumns['canonical_conflict_state'] === ChurchServiceCanonicalConflictState::Reopened->value,
+                || filled($churchService->review_reason),
             'import_metadata' => $importMetadata,
             ...$normalizedColumns,
         ])->saveQuietly();

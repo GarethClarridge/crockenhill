@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Actions\ServiceReview;
 
 use App\Actions\ServiceReview\MarkServiceReviewed;
-use App\Enums\ChurchServiceCanonicalConflictState;
 use App\Enums\ChurchServiceReviewState;
 use App\Models\ChurchService;
 use App\Models\User;
@@ -44,6 +43,7 @@ class MarkServiceReviewedTest extends TestCase
     {
         $service = ChurchService::factory()->create([
             'needs_review' => true,
+            'review_reason' => 'Service items changed after manual review.',
             'import_metadata' => [
                 'canonical_conflict' => [
                     'detected_at' => now()->subHour()->toIso8601String(),
@@ -62,7 +62,7 @@ class MarkServiceReviewedTest extends TestCase
         $metadata = $fresh?->import_metadata?->toArray() ?? [];
         $this->assertArrayNotHasKey('canonical_conflict', $metadata);
         $this->assertCount(1, $metadata['canonical_conflict_history'] ?? []);
-        $this->assertSame(ChurchServiceCanonicalConflictState::None, $fresh?->canonical_conflict_state);
+        $this->assertNull($fresh?->review_reason);
     }
 
     #[Test]

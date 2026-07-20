@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Enums\ChurchServiceCanonicalConflictState;
 use App\Enums\ChurchServiceReviewState;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
@@ -12,6 +11,7 @@ use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -33,8 +33,8 @@ class CleanupReviewQueueNoiseCommandTest extends TestCase
 
         $this->assertTrue($bulkImport->fresh()->needs_review);
         $this->assertSame(
-            ChurchServiceCanonicalConflictState::Detected,
-            $firstPopulation->fresh()->canonical_conflict_state,
+            'detected',
+            $firstPopulation->fresh()->getRawOriginal('canonical_conflict_state'),
         );
     }
 
@@ -97,25 +97,31 @@ class CleanupReviewQueueNoiseCommandTest extends TestCase
             'fields' => [['field' => 'title', 'before' => 'Old', 'after' => 'New']],
         ]);
         $multipleConflicts = $this->firstPopulationConflictService();
-        $multipleMetadata = $multipleConflicts->import_metadata->toArray();
-        $multipleMetadata['canonical_conflict_history'][] = $multipleMetadata['canonical_conflict'];
-        $multipleConflicts->forceFill(['import_metadata' => $multipleMetadata])->saveQuietly();
+        $multipleMetadata = json_decode(
+            (string) $multipleConflicts->getRawOriginal('import_metadata'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        $multipleMetadata['canonical_conflict_history'][] = $multipleMetadata['canonical_conflict_history'][0];
+        DB::table('church_services')
+            ->where('id', $multipleConflicts->id)
+            ->update(['import_metadata' => json_encode($multipleMetadata, JSON_THROW_ON_ERROR)]);
 
         $this->artisan('services:cleanup-review-queue-noise', ['--execute' => true])
             ->assertSuccessful();
 
         $firstPopulation->refresh();
-        $this->assertSame(ChurchServiceCanonicalConflictState::None, $firstPopulation->canonical_conflict_state);
-        $this->assertNull($firstPopulation->canonical_conflict_reason);
-        $this->assertNull($firstPopulation->canonical_conflict_detected_at);
+        $this->assertSame('none', $firstPopulation->getRawOriginal('canonical_conflict_state'));
+        $this->assertNull($firstPopulation->getRawOriginal('canonical_conflict_reason'));
+        $this->assertNull($firstPopulation->getRawOriginal('canonical_conflict_detected_at'));
         $this->assertArrayNotHasKey('canonical_conflict', $firstPopulation->import_metadata->toArray());
         $this->assertEquals(
             $firstPopulationHistory,
             $firstPopulation->import_metadata['canonical_conflict_history'],
         );
 
-        $this->assertSame(ChurchServiceCanonicalConflictState::Detected, $genuineChange->fresh()->canonical_conflict_state);
-        $this->assertSame(ChurchServiceCanonicalConflictState::Detected, $multipleConflicts->fresh()->canonical_conflict_state);
+        $this->assertSame('detected', $genuineChange->fresh()->getRawOriginal('canonical_conflict_state'));
+        $this->assertSame('detected', $multipleConflicts->fresh()->getRawOriginal('canonical_conflict_state'));
     }
 
     #[Test]
@@ -258,19 +264,24 @@ class CleanupReviewQueueNoiseCommandTest extends TestCase
             'conflicts' => [],
         ];
 
-        return ChurchService::factory()->create([
-            'canonical_conflict_state' => ChurchServiceCanonicalConflictState::Detected,
+        $service = ChurchService::factory()->create([
+            'canonical_conflict_state' => 'detected',
             'canonical_conflict_detected_at' => '2026-05-08 09:00:00',
             'canonical_conflict_incoming_source' => 'openlp',
             'canonical_conflict_reviewed_previously' => false,
             'canonical_conflict_canonical_changed' => true,
             'canonical_conflict_reason' => 'canonical_changed',
-            'import_metadata' => [
+        ]);
+
+        DB::table('church_services')
+            ->where('id', $service->id)
+            ->update(['import_metadata' => json_encode([
                 'confidence_score' => 1.0,
                 'canonical_conflict' => $conflict,
                 'canonical_conflict_history' => [$conflict],
-            ],
-        ]);
+            ], JSON_THROW_ON_ERROR)]);
+
+        return $service->fresh();
     }
 
     private function corpusRun(ChurchService $service, string $createdAt): MediaProcessingLog

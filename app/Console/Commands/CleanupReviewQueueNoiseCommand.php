@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Enums\ChurchServiceCanonicalConflictState;
 use App\Enums\ChurchServiceReviewState;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
@@ -164,7 +163,7 @@ class CleanupReviewQueueNoiseCommand extends Command
             return false;
         }
 
-        if ($service->canonical_conflict_state === ChurchServiceCanonicalConflictState::Reopened) {
+        if ($service->getRawOriginal('canonical_conflict_state') === 'reopened') {
             return false;
         }
 
@@ -235,11 +234,11 @@ class CleanupReviewQueueNoiseCommand extends Command
         $updated = 0;
 
         ChurchService::query()
-            ->where('canonical_conflict_state', ChurchServiceCanonicalConflictState::Detected->value)
+            ->where('canonical_conflict_state', 'detected')
             ->orderBy('id')
             ->chunkById($chunkSize, function (EloquentCollection $services) use ($reviewStateService, &$eligibleIds, &$updated, $execute): void {
                 foreach ($services as $service) {
-                    $metadata = $service->import_metadata?->toArray() ?? [];
+                    $metadata = $this->rawImportMetadata($service);
                     if (! $this->hasOnlyFirstPopulationConflict($metadata)) {
                         continue;
                     }
@@ -254,7 +253,13 @@ class CleanupReviewQueueNoiseCommand extends Command
 
                     $service->forceFill([
                         'import_metadata' => $metadata,
-                        ...$reviewStateService->normalizedColumns($metadata, $service->source),
+                        'canonical_conflict_state' => 'none',
+                        'canonical_conflict_detected_at' => null,
+                        'canonical_conflict_incoming_source' => null,
+                        'canonical_conflict_reviewed_previously' => null,
+                        'canonical_conflict_canonical_changed' => null,
+                        'canonical_conflict_reason' => null,
+                        ...$reviewStateService->normalizedReviewColumns($metadata),
                     ])->saveQuietly();
                     $updated++;
                 }
@@ -305,6 +310,20 @@ class CleanupReviewQueueNoiseCommand extends Command
         }
 
         return true;
+    }
+
+    /** @return array<string, mixed> */
+    private function rawImportMetadata(ChurchService $service): array
+    {
+        $rawMetadata = $service->getRawOriginal('import_metadata');
+
+        if (! is_string($rawMetadata) || blank($rawMetadata)) {
+            return [];
+        }
+
+        $metadata = json_decode($rawMetadata, true);
+
+        return is_array($metadata) ? $metadata : [];
     }
 
     /**

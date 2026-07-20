@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Data;
 
-use App\Data\ChurchServiceCanonicalConflictMetadata;
 use App\Data\ChurchServiceImportMetadata;
 use App\Data\ChurchServiceImportMetadataCast;
 use App\Data\ChurchServiceManualReviewMetadata;
@@ -71,63 +70,6 @@ class ChurchServiceMetadataDataTest extends TestCase
         $metadata['key'] = 'value'; // @phpstan-ignore-line
     }
 
-    // ── ChurchServiceCanonicalConflictMetadata ────────────────────────────────
-
-    #[Test]
-    public function canonical_conflict_creates_from_full_array(): void
-    {
-        $metadata = ChurchServiceCanonicalConflictMetadata::fromArray([
-            'detected_at' => '2024-04-01T08:00:00Z',
-            'incoming_source' => 'oos_email',
-            'review_reopened' => true,
-            'reviewed_previously' => false,
-            'canonical_changed' => 1,
-            'changes' => [['field' => 'title', 'old' => 'A', 'new' => 'B']],
-            'conflicts' => [['type' => 'order_mismatch']],
-        ]);
-
-        $this->assertSame('2024-04-01T08:00:00Z', $metadata->detectedAt);
-        $this->assertSame('oos_email', $metadata->incomingSource);
-        $this->assertTrue($metadata->reviewReopened);
-        $this->assertFalse($metadata->reviewedPreviously);
-        $this->assertTrue($metadata->canonicalChanged);
-        $this->assertCount(1, $metadata->changes);
-        $this->assertCount(1, $metadata->conflicts);
-    }
-
-    #[Test]
-    public function canonical_conflict_filters_non_array_changes_and_conflicts(): void
-    {
-        $metadata = ChurchServiceCanonicalConflictMetadata::fromArray([
-            'changes' => [['field' => 'x'], 'bad_value', 42],
-            'conflicts' => ['not_array', ['type' => 'valid']],
-        ]);
-
-        $this->assertCount(1, $metadata->changes);
-        $this->assertCount(1, $metadata->conflicts);
-    }
-
-    #[Test]
-    public function canonical_conflict_returns_null_for_non_array(): void
-    {
-        $this->assertNull(ChurchServiceCanonicalConflictMetadata::fromArray(null));
-    }
-
-    #[Test]
-    public function canonical_conflict_round_trips_via_to_array(): void
-    {
-        $metadata = ChurchServiceCanonicalConflictMetadata::fromArray([
-            'detected_at' => '2024-05-01T09:00:00Z',
-            'canonical_changed' => false,
-            'changes' => [['field' => 'title']],
-        ]);
-
-        $arr = $metadata->toArray();
-        $this->assertSame('2024-05-01T09:00:00Z', $arr['detected_at']);
-        $this->assertFalse($arr['canonical_changed']);
-        $this->assertCount(1, $arr['changes']);
-    }
-
     // ── ChurchServiceImportMetadata ───────────────────────────────────────────
 
     #[Test]
@@ -149,7 +91,7 @@ class ChurchServiceMetadataDataTest extends TestCase
         $this->assertSame(['low_confidence'], $metadata->reviewTriggers);
         $this->assertCount(1, $metadata->canonicalConflictHistory);
         $this->assertInstanceOf(ChurchServiceManualReviewMetadata::class, $metadata->manualReview);
-        $this->assertInstanceOf(ChurchServiceCanonicalConflictMetadata::class, $metadata->canonicalConflict);
+        $this->assertArrayNotHasKey('canonical_conflict', $metadata->toArray());
     }
 
     #[Test]
@@ -161,7 +103,6 @@ class ChurchServiceMetadataDataTest extends TestCase
         $this->assertNull($metadata->parseMethod);
         $this->assertSame([], $metadata->warnings);
         $this->assertNull($metadata->manualReview);
-        $this->assertNull($metadata->canonicalConflict);
     }
 
     #[Test]

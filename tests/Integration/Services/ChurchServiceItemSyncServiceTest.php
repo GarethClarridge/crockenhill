@@ -793,7 +793,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $result = $updateService->finalize($churchService, $before, ChurchServiceItemSource::Livestream);
         $result->refresh();
 
-        $this->assertSame('livestream', $result->import_metadata['canonical_conflict']['incoming_source']);
+        $this->assertSame('livestream', $result->import_metadata['canonical_conflict_history'][0]['incoming_source']);
 
         Event::assertDispatched(
             ChurchServiceCanonicalListChanged::class,

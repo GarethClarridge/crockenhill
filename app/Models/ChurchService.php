@@ -6,8 +6,6 @@ namespace App\Models;
 
 use App\Data\ChurchServiceImportMetadata;
 use App\Data\ChurchServiceImportMetadataCast;
-use App\Enums\ChurchServiceCanonicalConflictReason;
-use App\Enums\ChurchServiceCanonicalConflictState;
 use App\Enums\ChurchServiceReviewState;
 use App\Enums\SermonService;
 use Database\Factories\ChurchServiceFactory;
@@ -27,17 +25,12 @@ use Illuminate\Validation\Rule;
  * @property string $source
  * @property string|null $original_filename
  * @property bool $needs_review
+ * @property string|null $review_reason
  * @property ChurchServiceReviewState $review_state
  * @property Carbon|null $manual_reviewed_at
  * @property int|null $manual_reviewed_by_user_id
  * @property Carbon|null $manual_review_reopened_at
  * @property string|null $manual_review_reopened_by_source
- * @property ChurchServiceCanonicalConflictState $canonical_conflict_state
- * @property Carbon|null $canonical_conflict_detected_at
- * @property string|null $canonical_conflict_incoming_source
- * @property bool|null $canonical_conflict_reviewed_previously
- * @property bool|null $canonical_conflict_canonical_changed
- * @property ChurchServiceCanonicalConflictReason|null $canonical_conflict_reason
  * @property ChurchServiceImportMetadata|null $import_metadata
  * @property string|null $pending_structure_merge_source
  * @property Carbon|null $created_at
@@ -67,17 +60,12 @@ class ChurchService extends Model
         'source',
         'original_filename',
         'needs_review',
+        'review_reason',
         'review_state',
         'manual_reviewed_at',
         'manual_reviewed_by_user_id',
         'manual_review_reopened_at',
         'manual_review_reopened_by_source',
-        'canonical_conflict_state',
-        'canonical_conflict_detected_at',
-        'canonical_conflict_incoming_source',
-        'canonical_conflict_reviewed_previously',
-        'canonical_conflict_canonical_changed',
-        'canonical_conflict_reason',
         'import_metadata',
         'pending_structure_merge_source',
     ];
@@ -96,11 +84,6 @@ class ChurchService extends Model
             'manual_reviewed_at' => 'datetime',
             'manual_reviewed_by_user_id' => 'integer',
             'manual_review_reopened_at' => 'datetime',
-            'canonical_conflict_state' => ChurchServiceCanonicalConflictState::class,
-            'canonical_conflict_detected_at' => 'datetime',
-            'canonical_conflict_reviewed_previously' => 'boolean',
-            'canonical_conflict_canonical_changed' => 'boolean',
-            'canonical_conflict_reason' => ChurchServiceCanonicalConflictReason::class,
             'import_metadata' => ChurchServiceImportMetadataCast::class,
         ];
     }
@@ -152,10 +135,9 @@ class ChurchService extends Model
             'source' => ['required', 'string', 'max:255'],
             'original_filename' => ['nullable', 'string', 'max:255'],
             'needs_review' => ['boolean'],
+            'review_reason' => ['nullable', 'string', 'max:255'],
             'review_state' => ['required', Rule::enum(ChurchServiceReviewState::class)],
             'manual_reviewed_by_user_id' => ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:users,id'],
-            'canonical_conflict_state' => ['required', Rule::enum(ChurchServiceCanonicalConflictState::class)],
-            'canonical_conflict_reason' => ['nullable', Rule::enum(ChurchServiceCanonicalConflictReason::class)],
             'pending_structure_merge_source' => ['nullable', 'string', 'max:255'],
         ];
     }

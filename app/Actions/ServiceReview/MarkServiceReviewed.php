@@ -24,10 +24,11 @@ class MarkServiceReviewed
             'reviewed_by_user_id' => $userId,
         ];
         unset($importMetadata['canonical_conflict']);
-        $normalizedColumns = $this->reviewStateService->normalizedColumns($importMetadata);
+        $normalizedColumns = $this->reviewStateService->normalizedReviewColumns($importMetadata);
 
         $service->forceFill([
             'needs_review' => false,
+            'review_reason' => null,
             'import_metadata' => $importMetadata,
             ...$normalizedColumns,
         ])->save();

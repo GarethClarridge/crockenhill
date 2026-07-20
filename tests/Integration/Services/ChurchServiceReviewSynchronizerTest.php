@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
-use App\Enums\ChurchServiceCanonicalConflictState;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
@@ -177,19 +176,14 @@ class ChurchServiceReviewSynchronizerTest extends TestCase
             'service' => SermonService::Morning->value,
             'source' => 'manual',
             'needs_review' => false,
-            'import_metadata' => [
-                'canonical_conflict' => [
-                    'review_reopened' => true,
-                    'detected_at' => now()->subMinute()->toIso8601String(),
-                ],
-            ],
+            'review_reason' => 'Service items changed after manual review.',
         ]);
 
         $this->synchronizer->sync($churchService, new EloquentCollection, []);
 
         $churchService->refresh();
         $this->assertTrue($churchService->needs_review);
-        $this->assertSame(ChurchServiceCanonicalConflictState::Reopened, $churchService->canonical_conflict_state);
+        $this->assertSame('Service items changed after manual review.', $churchService->review_reason);
     }
 
     // ── additive roll-up (openReviewFromSections) ────────────────────────────

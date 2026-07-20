@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Models;
 
-use App\Enums\ChurchServiceCanonicalConflictReason;
-use App\Enums\ChurchServiceCanonicalConflictState;
 use App\Enums\ChurchServiceReviewState;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
@@ -35,7 +33,6 @@ class ChurchServiceValidationTest extends TestCase
         $this->assertArrayHasKey('service', $validator->errors()->toArray());
         $this->assertArrayHasKey('source', $validator->errors()->toArray());
         $this->assertArrayHasKey('review_state', $validator->errors()->toArray());
-        $this->assertArrayHasKey('canonical_conflict_state', $validator->errors()->toArray());
     }
 
     #[Test]
@@ -48,8 +45,7 @@ class ChurchServiceValidationTest extends TestCase
             'service' => 'invalid-service',
             'source' => 'test-source',
             'review_state' => 'invalid-state',
-            'canonical_conflict_state' => 'invalid-state',
-            'canonical_conflict_reason' => 'invalid-reason',
+            'review_reason' => str_repeat('a', 256),
         ];
 
         $validator = Validator::make($data, $rules);
@@ -57,8 +53,7 @@ class ChurchServiceValidationTest extends TestCase
         $this->assertTrue($validator->fails());
         $this->assertArrayHasKey('service', $validator->errors()->toArray());
         $this->assertArrayHasKey('review_state', $validator->errors()->toArray());
-        $this->assertArrayHasKey('canonical_conflict_state', $validator->errors()->toArray());
-        $this->assertArrayHasKey('canonical_conflict_reason', $validator->errors()->toArray());
+        $this->assertArrayHasKey('review_reason', $validator->errors()->toArray());
     }
 
     #[Test]
@@ -72,8 +67,7 @@ class ChurchServiceValidationTest extends TestCase
             'source' => 'test-source',
             'needs_review' => true,
             'review_state' => ChurchServiceReviewState::Reviewed->value,
-            'canonical_conflict_state' => ChurchServiceCanonicalConflictState::None->value,
-            'canonical_conflict_reason' => null,
+            'review_reason' => 'Incoming service data conflicted with existing items.',
         ];
 
         $validator = Validator::make($data, $rules);
@@ -92,7 +86,6 @@ class ChurchServiceValidationTest extends TestCase
             'source' => 'test-source',
             'needs_review' => 'not-a-boolean',
             'review_state' => ChurchServiceReviewState::NotReviewed->value,
-            'canonical_conflict_state' => ChurchServiceCanonicalConflictState::None->value,
         ];
 
         $validator = Validator::make($data, $rules);
@@ -102,7 +95,7 @@ class ChurchServiceValidationTest extends TestCase
     }
 
     #[Test]
-    public function it_allows_valid_canonical_conflict_reason(): void
+    public function it_allows_a_null_review_reason(): void
     {
         $rules = array_map(fn ($r) => $this->filterDatabaseRules($r), ChurchService::validationRules());
 
@@ -111,8 +104,7 @@ class ChurchServiceValidationTest extends TestCase
             'service' => SermonService::Morning->value,
             'source' => 'test-source',
             'review_state' => ChurchServiceReviewState::NotReviewed->value,
-            'canonical_conflict_state' => ChurchServiceCanonicalConflictState::Detected->value,
-            'canonical_conflict_reason' => ChurchServiceCanonicalConflictReason::ConflictsOnly->value,
+            'review_reason' => null,
         ];
 
         $validator = Validator::make($data, $rules);

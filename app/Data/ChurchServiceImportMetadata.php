@@ -19,7 +19,6 @@ final readonly class ChurchServiceImportMetadata extends JsonData
         public array $reviewTriggers = [],
         public array $canonicalConflictHistory = [],
         public ?ChurchServiceManualReviewMetadata $manualReview = null,
-        public ?ChurchServiceCanonicalConflictMetadata $canonicalConflict = null,
         public ?PendingStructureMergeMetadata $pendingStructureMerge = null,
         public array $raw = [],
     ) {}
@@ -35,7 +34,6 @@ final readonly class ChurchServiceImportMetadata extends JsonData
             reviewTriggers: self::stringList($payload['review_triggers'] ?? null),
             canonicalConflictHistory: array_values(array_filter(self::arrayValue($payload['canonical_conflict_history'] ?? null), 'is_array')),
             manualReview: ChurchServiceManualReviewMetadata::fromArray($payload['manual_review'] ?? null),
-            canonicalConflict: ChurchServiceCanonicalConflictMetadata::fromArray($payload['canonical_conflict'] ?? null),
             pendingStructureMerge: PendingStructureMergeMetadata::fromArray($payload['pending_structure_merge'] ?? null),
             raw: $payload,
         );
@@ -47,6 +45,7 @@ final readonly class ChurchServiceImportMetadata extends JsonData
     public function toArray(): array
     {
         $data = $this->raw;
+        unset($data['canonical_conflict']);
 
         if ($this->confidenceScore !== null) {
             $data['confidence_score'] = $this->confidenceScore;
@@ -70,10 +69,6 @@ final readonly class ChurchServiceImportMetadata extends JsonData
 
         if ($this->manualReview instanceof ChurchServiceManualReviewMetadata) {
             $data['manual_review'] = $this->manualReview->toArray();
-        }
-
-        if ($this->canonicalConflict instanceof ChurchServiceCanonicalConflictMetadata) {
-            $data['canonical_conflict'] = $this->canonicalConflict->toArray();
         }
 
         if ($this->pendingStructureMerge instanceof PendingStructureMergeMetadata) {

@@ -161,10 +161,11 @@ class ResolvePendingStructureMerge
             'reviewed_by_user_id' => $userId,
         ];
 
-        $normalizedColumns = $this->reviewStateService->normalizedColumns($importMetadata);
+        $normalizedColumns = $this->reviewStateService->normalizedReviewColumns($importMetadata);
 
         $churchService->forceFill([
             'needs_review' => $preserveNeedsReview,
+            'review_reason' => $preserveNeedsReview ? $churchService->review_reason : null,
             'pending_structure_merge_source' => null,
             'import_metadata' => $importMetadata,
             ...$normalizedColumns,

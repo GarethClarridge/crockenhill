@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
-use App\Enums\ChurchServiceCanonicalConflictReason;
-use App\Enums\ChurchServiceCanonicalConflictState;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ChurchServiceReviewState;
 use App\Enums\SermonService;
 use App\Events\ChurchServiceCanonicalListChanged;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\User;
 use App\Services\ChurchService\ChurchServiceCanonicalStateService;
 use App\Services\ChurchService\ChurchServiceCanonicalUpdateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -61,7 +60,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         $this->assertFalse($result->needs_review);
         $this->assertNull($result->import_metadata['canonical_conflict'] ?? null);
         $this->assertNull($result->import_metadata['canonical_conflict_history'] ?? null);
-        $this->assertSame(ChurchServiceCanonicalConflictState::None, $result->canonical_conflict_state);
+        $this->assertNull($result->review_reason);
         $this->assertSame(ChurchServiceReviewState::NotReviewed, $result->review_state);
 
         Event::assertNotDispatched(ChurchServiceCanonicalListChanged::class);
@@ -89,7 +88,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         $this->assertFalse($result->needs_review);
         $this->assertNull($result->import_metadata['canonical_conflict'] ?? null);
         $this->assertNull($result->import_metadata['canonical_conflict_history'] ?? null);
-        $this->assertSame(ChurchServiceCanonicalConflictState::None, $result->canonical_conflict_state);
+        $this->assertNull($result->review_reason);
         Event::assertDispatched(ChurchServiceCanonicalListChanged::class);
     }
 
@@ -122,17 +121,15 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
 
         $result->refresh();
 
-        // An unreviewed service with changes records the conflict but does not force needs_review
-        // (review_reopened is false; hasOutstandingCanonicalConflict only triggers for reopened conflicts)
+        // An unreviewed service with changes records the audit history but does not force review.
         $this->assertFalse($result->needs_review);
-        $this->assertIsArray($result->import_metadata['canonical_conflict']);
-        $this->assertSame('email', $result->import_metadata['canonical_conflict']['incoming_source']);
-        $this->assertTrue($result->import_metadata['canonical_conflict']['canonical_changed']);
-        $this->assertFalse($result->import_metadata['canonical_conflict']['review_reopened']);
-        $this->assertFalse($result->import_metadata['canonical_conflict']['reviewed_previously']);
+        $this->assertArrayNotHasKey('canonical_conflict', $result->import_metadata->toArray());
         $this->assertCount(1, $result->import_metadata['canonical_conflict_history']);
-        $this->assertSame(ChurchServiceCanonicalConflictState::Detected, $result->canonical_conflict_state);
-        $this->assertSame(ChurchServiceCanonicalConflictReason::CanonicalChanged, $result->canonical_conflict_reason);
+        $this->assertSame('email', $result->import_metadata['canonical_conflict_history'][0]['incoming_source']);
+        $this->assertTrue($result->import_metadata['canonical_conflict_history'][0]['canonical_changed']);
+        $this->assertFalse($result->import_metadata['canonical_conflict_history'][0]['review_reopened']);
+        $this->assertFalse($result->import_metadata['canonical_conflict_history'][0]['reviewed_previously']);
+        $this->assertNull($result->review_reason);
 
         Event::assertDispatched(
             ChurchServiceCanonicalListChanged::class,
@@ -176,11 +173,11 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         $result->refresh();
 
         $this->assertTrue($result->needs_review);
-        $this->assertTrue($result->import_metadata['canonical_conflict']['review_reopened']);
+        $this->assertTrue($result->import_metadata['canonical_conflict_history'][0]['review_reopened']);
         $this->assertSame('openlp', $result->import_metadata['manual_review']['reopened_by_source'] ?? null);
         $this->assertArrayHasKey('reopened_at', $result->import_metadata['manual_review']);
         $this->assertSame(ChurchServiceReviewState::Reopened, $result->review_state);
-        $this->assertSame(ChurchServiceCanonicalConflictState::Reopened, $result->canonical_conflict_state);
+        $this->assertSame('Service items changed after manual review.', $result->review_reason);
     }
 
     #[Test]
@@ -216,11 +213,50 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         $result->refresh();
 
         $this->assertTrue($result->needs_review);
-        $this->assertFalse($result->import_metadata['canonical_conflict']['canonical_changed']);
-        $this->assertSame(ChurchServiceCanonicalConflictReason::ConflictsOnly, $result->canonical_conflict_reason);
+        $this->assertFalse($result->import_metadata['canonical_conflict_history'][0]['canonical_changed']);
+        $this->assertSame('Incoming service data conflicted with existing items.', $result->review_reason);
 
         // No canonical list change — event must not fire
         Event::assertNotDispatched(ChurchServiceCanonicalListChanged::class);
+    }
+
+    #[Test]
+    public function it_combines_the_reason_when_a_reviewed_service_changes_and_conflicts(): void
+    {
+        $reviewer = User::factory()->create();
+        $churchService = ChurchService::factory()->create([
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+            'import_metadata' => [
+                'manual_review' => [
+                    'reviewed_at' => '2026-03-10T10:00:00+00:00',
+                    'reviewed_by_user_id' => $reviewer->id,
+                ],
+            ],
+        ]);
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::Email,
+            'title' => 'Before the throne',
+        ]);
+        $canonicalState = app(ChurchServiceCanonicalStateService::class);
+        $before = $canonicalState->snapshot($churchService->load('items'));
+        $item->update(['title' => 'Before the throne of God above']);
+
+        $result = $this->service->finalize(
+            $churchService,
+            $before,
+            ChurchServiceItemSource::OpenLp,
+            ['conflicts' => [['field' => 'title', 'conflict' => 'duplicate']]],
+        );
+
+        $this->assertTrue($result->needs_review);
+        $this->assertSame(
+            'Service items changed after manual review and incoming data conflicted with existing items.',
+            $result->review_reason,
+        );
     }
 
     #[Test]
@@ -252,6 +288,6 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
 
         $result->refresh();
 
-        $this->assertSame('manual', $result->import_metadata['canonical_conflict']['incoming_source']);
+        $this->assertSame('manual', $result->import_metadata['canonical_conflict_history'][0]['incoming_source']);
     }
 }

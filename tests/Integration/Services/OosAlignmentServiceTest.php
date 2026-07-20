@@ -630,7 +630,7 @@ class OosAlignmentServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_does_not_clear_review_reopened_for_an_outstanding_canonical_conflict(): void
+    public function it_does_not_clear_a_canonical_change_review_reason(): void
     {
         $previousReviewer = User::factory()->create(['is_admin' => true]);
         $churchService = ChurchService::factory()->create([
@@ -638,6 +638,7 @@ class OosAlignmentServiceTest extends TestCase
             'service' => SermonService::Morning->value,
             'source' => 'manual',
             'needs_review' => true,
+            'review_reason' => 'Service items changed after manual review.',
             'import_metadata' => [
                 'manual_review' => [
                     'reviewed_at' => now()->subDays(2)->toIso8601String(),
@@ -686,7 +687,7 @@ class OosAlignmentServiceTest extends TestCase
 
         $this->assertSame([], $result['review_triggers']);
         $this->assertTrue($churchService->needs_review);
-        $this->assertSame('openlp', $churchService->import_metadata['canonical_conflict']['incoming_source'] ?? null);
+        $this->assertSame('Service items changed after manual review.', $churchService->review_reason);
     }
 
     #[Test]

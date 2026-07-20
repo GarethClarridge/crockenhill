@@ -84,6 +84,7 @@ CREATE TABLE `church_services` (
   `source` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `original_filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `needs_review` tinyint(1) NOT NULL DEFAULT '0',
+  `review_reason` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `review_state` enum('not_reviewed','reviewed','reopened') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'not_reviewed',
   `manual_reviewed_at` timestamp NULL DEFAULT NULL,
   `manual_reviewed_by_user_id` int unsigned DEFAULT NULL,
@@ -1221,3 +1222,5 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_10_155218_add_a
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_12_221655_remove_skipped_from_service_sections_status',80);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_16_053037_add_index_to_meetings_updated_at',81);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_16_222742_drop_recurrence_columns_from_meetings_table',82);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_20_124817_add_review_reason_to_church_services_table',83);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_20_124837_backfill_church_service_review_reasons',83);

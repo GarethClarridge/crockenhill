@@ -219,8 +219,9 @@ class ChurchServiceControllerTest extends TestCase
         $this->assertSame('Amazing Grace', $item->title);
         $this->assertSame('amazing grace@', $item->openlp_search_title);
         $this->assertSame($song->id, $item->song_id);
-        $this->assertSame('openlp', $service->import_metadata['canonical_conflict']['incoming_source'] ?? null);
-        $this->assertTrue((bool) ($service->import_metadata['canonical_conflict']['review_reopened'] ?? false));
+        $this->assertSame('openlp', $service->import_metadata['canonical_conflict_history'][0]['incoming_source'] ?? null);
+        $this->assertTrue((bool) ($service->import_metadata['canonical_conflict_history'][0]['review_reopened'] ?? false));
+        $this->assertSame('Service items changed after manual review.', $service->review_reason);
         $this->assertNotNull($service->import_metadata['manual_review']['reopened_at'] ?? null);
     }
 
@@ -232,6 +233,7 @@ class ChurchServiceControllerTest extends TestCase
             'service' => SermonService::Morning,
             'source' => 'email',
             'needs_review' => true,
+            'review_reason' => 'Service items changed after manual review.',
             'import_metadata' => [
                 'manual_review' => [
                     'reviewed_at' => now()->subDays(2)->toIso8601String(),
@@ -288,7 +290,7 @@ class ChurchServiceControllerTest extends TestCase
         $service->refresh();
 
         $this->assertTrue($service->needs_review);
-        $this->assertSame('openlp', $service->import_metadata['canonical_conflict']['incoming_source'] ?? null);
+        $this->assertSame('Service items changed after manual review.', $service->review_reason);
         $this->assertNotEmpty($service->import_metadata['canonical_conflict_history'] ?? []);
     }
 

@@ -10,6 +10,12 @@ use App\Models\ChurchService;
 
 class ChurchServiceCanonicalUpdateService
 {
+    public const CanonicalChangedAfterReviewReason = 'Service items changed after manual review.';
+
+    public const IncomingConflictReason = 'Incoming service data conflicted with existing items.';
+
+    public const ChangedAndConflictedAfterReviewReason = 'Service items changed after manual review and incoming data conflicted with existing items.';
+
     public function __construct(
         private readonly ChurchServiceCanonicalStateService $canonicalStateService,
         private readonly ChurchServiceReviewStateService $reviewStateService,
@@ -62,7 +68,7 @@ class ChurchServiceCanonicalUpdateService
                 'changes' => $changes,
                 'conflicts' => $conflicts,
             ];
-            $importMetadata = $this->reviewStateService->withRecordedCanonicalConflict($importMetadata, $canonicalConflict);
+            $importMetadata = $this->reviewStateService->withCanonicalConflictHistory($importMetadata, $canonicalConflict);
 
             if ($shouldReopenReview) {
                 $manualReview = is_array($importMetadata['manual_review'] ?? null) ? $importMetadata['manual_review'] : [];
@@ -74,9 +80,13 @@ class ChurchServiceCanonicalUpdateService
 
         $needsReview = $freshChurchService->needs_review
             || $conflicts !== []
-            || $shouldReopenReview
-            || $this->reviewStateService->hasOutstandingCanonicalConflict($importMetadata);
-        $normalizedColumns = $this->reviewStateService->normalizedColumns($importMetadata);
+            || $shouldReopenReview;
+        $reviewReason = $this->reviewReason(
+            $freshChurchService->review_reason,
+            $shouldReopenReview,
+            $conflicts !== [],
+        );
+        $normalizedColumns = $this->reviewStateService->normalizedReviewColumns($importMetadata);
 
         if (
             $needsReview !== $freshChurchService->needs_review
@@ -85,6 +95,7 @@ class ChurchServiceCanonicalUpdateService
         ) {
             $freshChurchService->forceFill([
                 'needs_review' => $needsReview,
+                'review_reason' => $reviewReason,
                 'import_metadata' => $importMetadata,
                 ...$normalizedColumns,
             ])->saveQuietly();
@@ -101,6 +112,23 @@ class ChurchServiceCanonicalUpdateService
         return $freshChurchService->fresh([
             'items' => fn ($query) => $query->orderBy('position')->orderBy('id'),
         ]) ?? $freshChurchService;
+    }
+
+    private function reviewReason(?string $existingReason, bool $reviewReopened, bool $hasConflicts): ?string
+    {
+        if ($reviewReopened && $hasConflicts) {
+            return self::ChangedAndConflictedAfterReviewReason;
+        }
+
+        if ($reviewReopened) {
+            return self::CanonicalChangedAfterReviewReason;
+        }
+
+        if ($hasConflicts) {
+            return self::IncomingConflictReason;
+        }
+
+        return $existingReason;
     }
 
     /**
