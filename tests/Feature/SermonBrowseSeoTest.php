@@ -27,9 +27,14 @@ class SermonBrowseSeoTest extends TestCase
         $response = $this->get('/christ/sermons');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Sermons | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Explore the sermon archive at Crockenhill Baptist Church. Watch or listen to Bible teaching from our Sunday services, filtered by scripture, preacher, or series.">', false);
-        $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons">', false);
+
+        $html = $response->getContent();
+
+        // Use precise but non-brittle assertions on individual tags using regex patterns
+        // to avoid breaking on attribute reordering, extra spacing, or minor HTML tag additions.
+        $this->assertMatchesRegularExpression('/<title>\s*Sermons \| Crockenhill Baptist Church\s*<\/title>/i', $html);
+        $this->assertMatchesRegularExpression('/<meta\s+name="description"\s+content="Explore the sermon archive at Crockenhill Baptist Church\. Watch or listen to Bible teaching from our Sunday services, filtered by scripture, preacher, or series\."/i', $html);
+        $this->assertMatchesRegularExpression('/<link\s+rel="canonical"\s+href="http:\/\/localhost\/christ\/sermons"/i', $html);
     }
 
     public function test_filtered_archive_renders_dynamic_presenter_seo_in_the_head(): void
@@ -37,9 +42,12 @@ class SermonBrowseSeoTest extends TestCase
         $response = $this->get('/christ/sermons?book=John&chapter=3');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>John 3 | Sermons | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Watch or listen to Bible-based sermons on John 3 from Crockenhill Baptist Church. Explore recent teaching from our morning and evening services.">', false);
-        $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons?book=John&amp;chapter=3">', false);
+
+        $html = $response->getContent();
+
+        $this->assertMatchesRegularExpression('/<title>\s*John 3 \| Sermons \| Crockenhill Baptist Church\s*<\/title>/i', $html);
+        $this->assertMatchesRegularExpression('/<meta\s+name="description"\s+content="Watch or listen to Bible-based sermons on John 3 from Crockenhill Baptist Church\. Explore recent teaching from our morning and evening services\."/i', $html);
+        $this->assertMatchesRegularExpression('/<link\s+rel="canonical"\s+href="http:\/\/localhost\/christ\/sermons\?book=John&amp;chapter=3"/i', $html);
     }
 
     public function test_individual_sermon_page_renders_canonical_and_title_in_the_head(): void
@@ -55,7 +63,10 @@ class SermonBrowseSeoTest extends TestCase
         $response = $this->get($canonicalUrl);
 
         $response->assertStatus(200);
-        $response->assertSee('<title>The Glory of Christ | John Owen | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<link rel="canonical" href="'.$canonicalUrl.'">', false);
+
+        $html = $response->getContent();
+
+        $this->assertMatchesRegularExpression('/<title>\s*The Glory of Christ \| John Owen \| Crockenhill Baptist Church\s*<\/title>/i', $html);
+        $this->assertMatchesRegularExpression('/<link\s+rel="canonical"\s+href="'.preg_quote($canonicalUrl, '/').'"/i', $html);
     }
 }
