@@ -96,9 +96,7 @@ final readonly class ServiceStructure extends JsonData
     }
 
     /**
-     * Map this structure to the exact ClassifiedSection shape
-     * ServiceSectionSyncService::sync() expects (documented on
-     * ServiceSectionClassifier).
+     * Map this structure to the shape ServiceSectionSyncService::sync() expects.
      *
      * source_segment_ids are resolved by time overlap with the run's
      * LivestreamSegment rows. sync() validation requires a non-empty list, so

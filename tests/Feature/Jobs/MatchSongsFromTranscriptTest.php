@@ -14,7 +14,6 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Queries\ReviewInboxQuery;
-use App\Services\ChurchService\OosAlignmentService;
 use App\Services\Media\Audio\LocalWhisperTranscriptionService;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
@@ -62,7 +61,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -82,7 +80,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -105,7 +102,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -148,7 +144,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -197,7 +192,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -248,7 +242,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -299,7 +292,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -342,7 +334,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -396,7 +387,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -446,7 +436,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -490,7 +479,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -558,7 +546,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -642,7 +629,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             $transcriptionService,
@@ -708,7 +694,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             $transcriptionService,
@@ -753,7 +738,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -799,7 +783,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -857,7 +840,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -928,7 +910,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -966,7 +947,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -1032,7 +1012,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -1082,7 +1061,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -1123,7 +1101,6 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -1180,15 +1157,8 @@ class MatchSongsFromTranscriptTest extends TestCase
             ],
         ]);
 
-        // In primary mode the LLM owns OoS anchoring — the heuristic aligner
-        // must not run and rewrite it.
-        $alignmentService = $this->mock(OosAlignmentService::class, function (MockInterface $mock): void {
-            $mock->shouldNotReceive('alignForProcessingLog');
-        });
-
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            $alignmentService,
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -1211,7 +1181,7 @@ class MatchSongsFromTranscriptTest extends TestCase
     }
 
     #[Test]
-    public function it_flags_a_song_that_stays_unmatched_for_review_in_primary_mode(): void
+    public function it_flags_a_song_that_stays_unmatched_for_review(): void
     {
         config(['media-processing.service_structure.mode' => 'primary']);
         Config::set('media-processing.song_matching.ocr_enabled', false);
@@ -1220,9 +1190,7 @@ class MatchSongsFromTranscriptTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
 
         // An LLM-proposed title with no catalogue counterpart: every matching
-        // strategy fails, so the section must still reach manual review even
-        // though the heuristic aligner (which normally applies the flag in
-        // OosAlignmentService) is suppressed in primary mode.
+        // strategy fails, so the section must still reach manual review.
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'section_type' => ServiceSectionType::Song->value,
@@ -1236,13 +1204,8 @@ class MatchSongsFromTranscriptTest extends TestCase
             ],
         ]);
 
-        $alignmentService = $this->mock(OosAlignmentService::class, function (MockInterface $mock): void {
-            $mock->shouldNotReceive('alignForProcessingLog');
-        });
-
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            $alignmentService,
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),

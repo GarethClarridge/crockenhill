@@ -10,12 +10,10 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
-use App\Enums\ServiceStructureMode;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
-use App\Services\ChurchService\OosAlignmentService;
 use App\Services\Media\Audio\LocalWhisperTranscriptionService;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
@@ -65,7 +63,6 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
 
     public function handle(
         SongLyricsMatchingService $lyricsMatchingService,
-        OosAlignmentService $alignmentService,
         VideoExtractionService $videoExtractor,
         StorageAdapterHelper $storageHelper,
         TranscriptionServiceInterface $transcriptionService,
@@ -166,23 +163,13 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             }
         }
 
-        if (ServiceStructureMode::fromConfig() === ServiceStructureMode::Primary) {
-            // The LLM detector owns OoS anchoring in primary mode, so the
-            // heuristic aligner must not rewrite it — but songs that still
-            // failed to match must reach manual review exactly as they do on
-            // the heuristic path, where OosAlignmentService applies this.
-            $matchedSectionIds = $sections
-                ->reject(fn (ServiceSection $section): bool => $this->needsSongMatching($section))
-                ->pluck('id')
-                ->all();
+        $matchedSectionIds = $sections
+            ->reject(fn (ServiceSection $section): bool => $this->needsSongMatching($section))
+            ->pluck('id')
+            ->all();
 
-            foreach ($unmatchedSongReviewApplicator->apply($sections, $matchedSectionIds) as $section) {
-                $section->save();
-            }
-        } elseif ($matchedCount > 0) {
-            // Re-run the full OoS alignment so the new catalog-backed matches link
-            // sections to their order-of-service items and review state is rebuilt.
-            $alignmentService->alignForProcessingLog($this->processingLog);
+        foreach ($unmatchedSongReviewApplicator->apply($sections, $matchedSectionIds) as $section) {
+            $section->save();
         }
 
         $this->logStepComplete(

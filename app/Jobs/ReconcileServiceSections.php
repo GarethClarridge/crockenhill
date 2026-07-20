@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Enums\MediaType;
-use App\Enums\ServiceStructureMode;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
-use App\Services\ChurchService\OosAlignmentService;
 use App\Services\Processing\MediaProcessingIdentityResolver;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -32,7 +30,6 @@ class ReconcileServiceSections implements ShouldBeUnique, ShouldQueue
 
     public function handle(
         MediaProcessingIdentityResolver $identityResolver,
-        OosAlignmentService $alignmentService,
     ): void {
         $processingLog = $this->processingLog->fresh();
         $churchService = $this->churchService->fresh();
@@ -65,13 +62,7 @@ class ReconcileServiceSections implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        // In primary mode the LLM structure owns OoS anchoring; letting the
-        // heuristic aligner rewrite it would degrade the run. Re-detect from
-        // the stored transcript artifact with the newly-arrived items instead.
-        // Legacy runs without an artifact (or non-primary modes) still take
-        // the heuristic path until the cluster retires.
-        if (ServiceStructureMode::fromConfig() === ServiceStructureMode::Primary
-            && $processingLog->hasStoredServiceTranscript()) {
+        if ($processingLog->hasStoredServiceTranscript()) {
             DetectServiceStructure::dispatch($processingLog, true)
                 ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'));
 
@@ -83,13 +74,9 @@ class ReconcileServiceSections implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        $result = $alignmentService->alignForProcessingLog($processingLog, $churchService, lateArrival: true);
-
-        Log::info('Service section reconciliation completed', [
+        Log::warning('Service section reconciliation skipped: stored transcript unavailable', [
             'processing_id' => $processingLog->processing_id,
             'church_service_id' => $churchService->id,
-            'aligned' => $result['aligned'],
-            'review_triggers' => $result['review_triggers'],
         ]);
     }
 

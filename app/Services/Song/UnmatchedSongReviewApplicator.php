@@ -21,8 +21,7 @@ class UnmatchedSongReviewApplicator
      * Apply unmatched-song review flags and confidence penalties to all song sections
      * that did not receive a confirmed or inferred match during alignment.
      *
-     * Mutates sections in place. Returns the collection of unmatched sections so the
-     * coordinator can pass a count to AlignmentTriggerCalculator.
+     * Mutates sections in place and returns the unmatched sections.
      *
      * @param  EloquentCollection<int, ServiceSection>  $sections
      * @param  array<int, int>  $matchedSongSectionIds
