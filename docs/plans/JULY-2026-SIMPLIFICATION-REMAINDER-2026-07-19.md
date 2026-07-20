@@ -234,21 +234,83 @@ by gate result:
 
 | Delete | Gate (operator) | Status |
 |---|---|---|
-| `LegacySermonImporter` + `ImportLegacySermonBatchCommand` (~1,520) | Confirm tape digitisation finished for good | ☐ |
-| `GenerateProdSermonPatchCommand` (669) | Confirm prod patch applied; local→prod merges never again (D22 already declared the local→prod patch path deletion-scheduled) | ☐ |
-| `PreacherCutoverCommand` + service (387) | `sermons WHERE preacher_id IS NULL` count = 0 | ☐ |
-| `LegacyPlayDateSongUsageImporter` + command (~700) | play_date backfill confirmed complete | ☐ |
-| `LegacySongReconciler` + `reconciledSongId` thread + schema probes (~500) | `Song::withTrashed()` null/blank/`legacy-song-%` canonical-key count = 0 | ☐ |
-| `songs.praise_number`, `songs.alternative_title` columns + `play_date` table | After both song rows above. **`alternate_title` is live — do not touch.** Expand/contract migration | ☐ |
-| `ConvertJpgToWebp`, `ImportOpenLpDirectoryCommand`, `BackfillMediaProcessingIdentityCommand`, `FixUploadDirectories` | Per-command prod confirmation (platform Q1a–f) | ☐ |
-| `MeetingMigratePhotosCommand` + `MeetingPhotoMigrationService` + `public/images/meetings/{1150,baby-talk,bible-study,buzz-club,coffee-cup,sunday-services}/` (verified still present) | Confirm production photo import completed (photos serve from Spatie Media Library) | ☐ |
+| `LegacySermonImporter` + `ImportLegacySermonBatchCommand` (~1,520) | Confirm tape digitisation and asset-backed promotion of valuable local-only MP3s finished for good | **BLOCKED 2026-07-20:** local has 830 sermons vs production's 704; 808 local legacy MP3 records point at verified Spaces objects, but row-level reconciliation and a safe portable promotion command are not yet complete |
+| `GenerateProdSermonPatchCommand` (669) | Stale patch formally abandoned; every local-only sermon promoted/rejected; local→prod row merges never again | **BLOCKED 2026-07-20:** do not run the May patch (711 inserts/99 updates). Its Spaces paths are real, but its date/service matching, missing preacher IDs, omitted provenance/relations, disabled FKs and lack of transaction remain unsafe |
+| `PreacherCutoverCommand` + service (387) | `sermons WHERE preacher_id IS NULL` count = 0 | ✅ 2026-07-20: `0` |
+| `LegacyPlayDateSongUsageImporter` + command (~700) | play_date backfill confirmed complete | **BLOCKED 2026-07-20:** `6,203` source rows are not accounted for by the importer's own two skip predicates |
+| `LegacySongReconciler` + `reconciledSongId` thread + schema probes (~500) | `Song::withTrashed()` null/blank/`legacy-song-%` canonical-key count = 0 | **BLOCKED 2026-07-20:** `1,207` rows remain |
+| `songs.alternative_title` column + `play_date` table | After both song rows above. **`praise_number` and `alternate_title` are live — do not touch either.** Expand/contract migration | **BLOCKED:** both prerequisite song gates are open |
+| `ConvertJpgToWebp` + test | Confirm the repo-wide conversion path is spent | ✅ 2026-07-20: 41 JPGs remain but zero code references would change; classified below. Do not run the real converter |
+| `ImportOpenLpDirectoryCommand` + test | Confirm the complete historic `.osz` archive is imported/reviewed in production and no further imports are expected | **BLOCKED 2026-07-20:** production has 2 OpenLP services vs local's 395; original `.osz` source set must be located |
+| `BackfillMediaProcessingIdentityCommand` + test | Dry run reports `Would update = 0` | **BLOCKED 2026-07-20:** 36 of 41 candidates would update; 5 have no usable metadata |
+| `FixUploadDirectories` | Runtime roots writable; production entrypoint owns permissions; confirm no external provisioning invokes it | **PARTIAL 2026-07-20:** all four mounted roots exist and are writable as `www`; external automation confirmation remains |
+| `MeetingMigratePhotosCommand` + `MeetingPhotoMigrationService` + `public/images/meetings/{1150,baby-talk,bible-study,buzz-club,coffee-cup,sunday-services}/` (verified still present) | Confirm production photo import completed (photos serve from Spatie Media Library) | **PARTIAL 2026-07-20:** 0 to migrate / 48 skipped / 0 errors, but the six-pair `sunday-services` folder was not examined because no current meeting has that slug |
 | `ExtractVideoFrames` + `ExportVisualMetricsCommand` | None — they die with R10 regardless; delete there, not here | rides R10 |
-| `ImportOosArchiveCommand` + `OosArchiveEvaluator` + their 2 test files (~1,100 lines; added 2026-07-19 by the Phase 9 review, F3.2) | Maintainer confirms the OoS paper archive import is final, no further evaluator runs planned | ☐ |
-| `BackfillSongPraiseNumbersCommand` + test (added 2026-07-19 by the Phase 9 review, F3.2) | Operator confirms prod praise-number backfill + `service-tracking:link-songs` ran after PR #1171 | ☐ |
+| `ImportOosArchiveCommand` + `OosArchiveEvaluator` + `OosArchiveMarkdownParser` + their 3 test files (~2,100 lines; added 2026-07-19 by the Phase 9 review, F3.2) | Production import/idempotency run passes after `.osz` import; maintainer confirms the paper archive is final | **BLOCKED 2026-07-20:** local has 2 email-sourced services; production has none |
+| `BackfillSongPraiseNumbersCommand` + test (added 2026-07-19 by the Phase 9 review, F3.2) | Operator confirms prod praise-number backfill + `service-tracking:link-songs` ran after PR #1171 | **BLOCKED 2026-07-20:** praise-number drift is 0, but song-link drift is 3 (`3` updates / `0` clears). Deletion must also update `AuditBackfillsCommand`/`BackfillAudit` so they do not name a deleted remedy |
 | `ImportHistoricVideoBatchCommand` + `HistoricVideoImporter` (~1,500) | **Closes last** — after the R12 bulk backfill completes | rides R12 |
 
-Note for the song-column drop: re-verify the `play_date` sweep against the songs review's own
-three-part predicate (songs Q2) — the reconciler's predicate is the gate, not a plain null check.
+Correction (2026-07-20): the earlier R8 row incorrectly scheduled `songs.praise_number` for
+deletion. It is live data: `SongCatalogSyncService` writes it and `SongTitleResolver` reads it as
+an active matching rung. Preserve it alongside `songs.alternate_title`; only the legacy spelling
+`songs.alternative_title` is deletion-scheduled.
+
+### R8 production evidence and remediation order (2026-07-20)
+
+Operator execution, local/production convergence, rollback boundaries and private evidence handling
+are defined in
+[`docs/operations/r8-data-convergence-runbook.md`](../operations/r8-data-convergence-runbook.md).
+
+Counts below are private operator evidence; publish only the totals:
+
+- The old sermon patch must not be run: production has 704 sermons (2012-06-03–2026-01-25)
+  against local's 830 (2003-08-30–2026-06-28), with 8 vs 17 duplicate stable-identity groups.
+  Counts do not identify the candidates. Local's 808 `audio_upload` sermons all use distinct
+  canonical `sermons/audio/...` keys, and the configured `do_spaces` audit found all 823 referenced
+  audio objects present. Implement a temporary, tested JSON promotion exporter/importer that
+  verifies the shared non-secret Spaces fingerprint, source SHA-256/size, preacher remapping and
+  conflicts before a create-only transaction. Preserve one real provenance log per promoted row;
+  regenerate natural-value scripture filters; never copy local numeric IDs. Re-import original
+  media only when an object/provenance cannot be verified. The three failed-log sermons (local IDs
+  35–37) and the missing transcript on local sermon 39 require explicit operator decisions.
+- Production has only 2 OpenLP church services and no email-sourced service, against local's 395
+  OpenLP + 2 email-sourced services. Locate and checksum the original `.osz` archive, import it in
+  production first, then run the Markdown archive's create-only import. Keep both one-shots until
+  their production idempotency/review gates pass.
+- Preacher cutover passed: zero sermons lack `preacher_id`.
+- The song catalogue is still predominantly pre-cutover: 1,207 null/blank/placeholder canonical
+  keys remain. Run `service-tracking:sync-songs --dry-run` against the authoritative current
+  OpenLP SQLite source, review the reconciliation report, take a production DB backup, then run
+  the real sync. Re-run the exact three-part count; it must reach zero before deleting the
+  reconciler or its `reconciledSongId` path.
+- The `play_date` import is not complete: 6,203 rows fail both of the importer's accounting
+  predicates. Do this **after** catalogue reconciliation so legacy song IDs are preserved: dry-run
+  `service-tracking:import-legacy-song-usage` against an authoritative production `play_date`
+  dump, then run it for real and repeat the accounting query until it returns zero.
+- Praise-number population itself is complete (`0` updates; 2 already set; 1,205 titles have no
+  number). Song linking is not: the exact audit reports 3 links to update. Run the real
+  `service-tracking:link-songs` only after the catalogue sync and `play_date` import, then require
+  both `songs_missing_praise_numbers = 0` and `song_link_drift = 0` from `backfill:audit --json`.
+- Media identity backfill is not complete: run the real
+  `media-processing:backfill-extracted-identity`, then repeat the dry run. `Would update` must be
+  zero; the five rows with no usable metadata may remain as an accepted residue.
+- Meeting migration passed for every folder whose slug still maps to a Meeting (0 to migrate,
+  0 errors). The legacy `sunday-services` folder contains six JPG/WebP pairs but was invisible to
+  the command because current meetings use different slugs. Before deleting that folder, verify
+  all 12 files have corresponding Media Library rows attached to the intended current meeting(s)
+  and visually check those public meeting pages.
+- The WebP dry run found 41 JPGs and zero source-reference rewrites: 26 are counterparts in the
+  deletion-scheduled meeting folders, 2 are intentionally live podcast artwork referenced from
+  `config/podcast.php`, and 13 are stored sermon thumbnails whose database paths must remain.
+  This confirms the repo-rewriting command is spent; deleting it must not delete or rename the
+  podcast artwork or stored sermon thumbnails.
+- The Docker directory check passed for `storage/app/livewire-tmp`, `storage/app/temp`,
+  `storage/app/public`, and `storage/logs`. Confirm separately that no host cron/systemd/operator
+  provisioning invokes `upload:fix-directories`; do not run the mutating command as a test.
+
+For the later song schema contract, the reconciler's null/blank/`legacy-song-%` predicate and the
+`play_date` accounting predicate above are separate gates. Release A must first remove the last
+runtime reads/writes; only a later Release B may drop `songs.alternative_title` and `play_date`.
 
 ## R9 — Item 1.5: delete the church-service heuristic cluster [mechanical]
 
@@ -418,15 +480,20 @@ just to read failure names.
 ## Consolidated operator checklist (production; counts only in public output)
 
 - [ ] One clean production auto-trim run after R2 merges (gates R9)
-- [ ] Tape digitisation finished for good (gates `LegacySermonImporter` deletion)
-- [ ] Prod sermon patch confirmed applied / local→prod merges retired (gates `GenerateProdSermonPatchCommand`)
-- [ ] `sermons WHERE preacher_id IS NULL` = 0 (gates `PreacherCutoverCommand`)
-- [ ] play_date backfill confirmed complete (gates `LegacyPlayDateSongUsageImporter`)
-- [ ] Null/blank/`legacy-song-%` canonical keys incl. trashed = 0 (gates `LegacySongReconciler` + column drops)
-- [ ] Platform Q1a–f per-command confirmations (gates the R8 platform batch)
-- [ ] OoS paper archive import declared final (gates `ImportOosArchiveCommand`/`OosArchiveEvaluator` — Phase 9 F3.2)
-- [ ] Prod praise-number backfill after #1171 confirmed (gates `BackfillSongPraiseNumbersCommand` — Phase 9 F3.2)
-- [ ] Meeting photo import to Media Library confirmed (gates photo-folder + migration-tool deletion)
+- [ ] Temporary sermon bundle commands implemented/tested/deployed; Spaces fingerprint and
+      per-object SHA-256/size verification pass
+- [ ] Tape digitisation + valuable local-only MP3 promotion finished (gates `LegacySermonImporter` deletion)
+- [ ] Stale sermon patch formally abandoned + local-only ledger resolved (gates `GenerateProdSermonPatchCommand`)
+- [x] `sermons WHERE preacher_id IS NULL` = 0 — confirmed 2026-07-20 (gates `PreacherCutoverCommand`)
+- [ ] play_date backfill confirmed complete — **6,203 unaccounted rows on 2026-07-20** (gates `LegacyPlayDateSongUsageImporter`)
+- [ ] Null/blank/`legacy-song-%` canonical keys incl. trashed = 0 — **1,207 on 2026-07-20** (gates `LegacySongReconciler` + column drops)
+- [x] `ConvertJpgToWebp` retirement confirmed 2026-07-20 — zero code-reference changes; remaining JPGs classified above
+- [ ] Complete `.osz` archive imported/reviewed in production and declared final (gates `ImportOpenLpDirectoryCommand`)
+- [ ] Media identity dry run `Would update = 0` — **36 on 2026-07-20** (gates `BackfillMediaProcessingIdentityCommand`)
+- [ ] No external provisioning invokes `upload:fix-directories` — container writability passed 2026-07-20
+- [ ] OoS paper archive production import/idempotency passed after `.osz`; archive declared final (gates `ImportOosArchiveCommand`/`OosArchiveEvaluator` — Phase 9 F3.2)
+- [ ] Prod praise-number backfill + song-link convergence after #1171 — praise drift `0`, link drift **3** on 2026-07-20 (gates `BackfillSongPraiseNumbersCommand` — Phase 9 F3.2)
+- [ ] Meeting photo import to Media Library confirmed — mapped folders passed; `sunday-services` mapping remains to verify
 - [ ] Maintainer decision: R6 sequencing vs. review-queue-noise plan
 - [ ] Maintainer answer: church Q4 lyrics-on-screen (gates OCR deletion in 1.7c)
 - [ ] Bulk backfill complete + drive import declared finished (gates `HistoricVideoImporter` deletion — last)

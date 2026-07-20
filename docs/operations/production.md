@@ -69,3 +69,10 @@ Push to `master` → `.github/workflows/deploy.yml`:
 
 Rollback: `rollback.yml` via manual workflow dispatch — supply a previously deployed git-SHA
 `image_tag` and type `rollback` to confirm.
+
+## One-shot data convergence
+
+The local/production reconciliation and R8 one-shot retirement procedure is in
+[`r8-data-convergence-runbook.md`](r8-data-convergence-runbook.md). It owns the manual ordering,
+source checksums, backup boundaries and postconditions for the song, historic OoS, legacy usage,
+sermon and media-identity operations. Do not use the retired local-to-production sermon SQL patch.
