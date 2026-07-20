@@ -1,6 +1,10 @@
-# LLM Structure Promotion Soak — Runbook
+# LLM Structure Promotion Soak — Historical Runbook
 
-Written 2026-07-18. Step-by-step instructions for running the revised promotion gate
+> **Status (2026-07-20): historical.** The shadow wiring check, primary promotion, historic
+> sample, and late-OOS reconcile exercise completed successfully on 2026-07-19. This runbook is
+> retained for its stage summaries and backfill reference; it is no longer an open gate.
+
+Written 2026-07-18. Step-by-step instructions for the revised promotion gate
 (decision D22) from
 [../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)
 items 1.2 (shadow wiring check) and 1.4 (flip + historic-sample soak), and for analysing the

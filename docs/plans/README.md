@@ -7,18 +7,16 @@ audit findings (Mortician dead-code reports, Pathfinder link/SEO crawls) are con
 
 ## The spine
 
-**[JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)**
-is the single active tracker and the default source of work. All 20 removal decisions are signed
-off; every item carries a `[mechanical]` / `[design]` / `[operational]` tag, its production-check
-gates, and a dependency-annotated delivery order. **Read its "Implementation protocol" section
-before picking up any item** — it is written to be executed by agents and encodes the traps the
-July review found.
-
 **[JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md](JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md)**
-is the execution companion written after the D22 promotion soak passed (2026-07-19): it
-re-verifies every still-open backlog item against the live code, corrects the backlog's stale
-statuses (4.1–4.3 and Workstream 6 already landed), and sequences the remainder R1–R15. Pick up
-remaining work from there.
+is the execution spine for the remaining simplification work. It re-verifies every still-open
+backlog item against the live code, corrects the backlog's stale statuses (4.1–4.3 and Workstream
+6 already landed), and sequences the remainder R1–R15. **Read its R1–R15 order before picking up
+any remaining item.**
+
+**[JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)**
+is the parent decision record and historical implementation context. All 20 removal decisions are
+signed off; its item descriptions and production-check gates remain useful, but the remainder plan
+is authoritative for current status and execution order.
 
 ## Standalone plans, in implementation order
 

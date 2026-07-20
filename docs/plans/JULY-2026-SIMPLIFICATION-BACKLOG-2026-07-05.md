@@ -7,9 +7,10 @@ findings docs into one prioritised implementation backlog, records the removal s
 supersedes the overlapping items in the older trackers. It is the successor in style to
 `docs/archived-plans/APRIL-2026-REVIEW-BACKLOG-2026-04-16.md`.
 
-**This is the single active tracker.** See `docs/plans/README.md` for how the remaining standalone
-plans sequence around it, and `docs/issues/README.md` for the open audit-issue register (its
-plan-shaped items were folded into items 2.1 and 2.6 on 2026-07-05).
+**This is the parent decision record.** The approved remainder execution order now lives in
+[`docs/plans/JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md`](JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md);
+see `docs/plans/README.md` for how the two documents relate, and `docs/issues/README.md` for the
+open audit-issue register (its plan-shaped items were folded into items 2.1 and 2.6 on 2026-07-05).
 
 Phase 9 (the technical code-quality review) remains gated on this backlog's structural work
 substantially landing; run it from the brief in the archived review plan.
@@ -205,7 +206,7 @@ Source: church review §4.2 seams 1–4, §7 quick wins 1–4.
   manifest, so shadow mode survives as the permanent model-upgrade mechanism. Also default
   `structure:evaluate --detector` to the bound detector (mock in CI) so a bare run costs nothing.
 
-### 1.2 [operational] Shadow soak (start now — decision D2 sets the clock; **scope cut by D22**)
+### 1.2 [operational] Shadow soak (complete 2026-07-19 — decision D2; **scope cut by D22**)
 
 Set `SERVICE_STRUCTURE_MODE=shadow` with the real detector/transcriber in production; run
 `structure:shadow-report`; fill a real manifest for `structure:evaluate`. ~~The plan's suggested
@@ -216,11 +217,9 @@ quality evidence the long shadow accumulation was meant to gather already exists
 corpus runs (test-files 91% / test-set-2 89%, full chain, real detector, primary mode); do not
 hold the flip for accumulated shadow Sundays.
 
-> **Status 2026-07-10 — awaiting the prod flip.** All three env lines are required (`detector`
-> and `transcription_service` default to `mock`): `SERVICE_STRUCTURE_MODE=shadow`,
-> `SERVICE_STRUCTURE_DETECTOR=openai`, `SERVICE_TRANSCRIPTION_SERVICE=openai`. Refresh the config
-> cache and restart Horizon while nothing is processing. ~£0.35 + one gpt-5 call per shadowed
-> service; shadow failures are swallowed and can never fail a run.
+> **Complete 2026-07-19.** The production wiring check passed; all three env lines were used
+> (`SERVICE_STRUCTURE_MODE=shadow`, `SERVICE_STRUCTURE_DETECTOR=openai`,
+> `SERVICE_TRANSCRIPTION_SERVICE=openai`).
 
 ### 1.3 [design] Auto-trim migration (seam 5 — the real gate on deleting the classification jobs)
 
@@ -232,7 +231,7 @@ guards — they are not in the auto-trim chain). Preferred shape (b): a dedicate
 path that writes sections independently of the global mode, so auto-trim keeps working throughout
 the shadow period; fallback shape (a): swap at the flip.
 
-### 1.4 [operational] Flip to primary + historic-sample soak (revised 2026-07-17 — decision D22)
+### 1.4 [operational] Flip to primary + historic-sample soak (complete 2026-07-19 — decision D22)
 
 > **Runbook:** step-by-step instructions for 1.2 + 1.4 (including early failure detection and
 > results analysis) are in `docs/operations/llm-structure-promotion-soak.md` (2026-07-18).
@@ -261,6 +260,11 @@ During the soak, no new investment in heuristic-path tests (media test note 3).
 
 **The bulk historic backfill (~500 items, ~5 years) is *not* part of the soak** — it is deferred
 until after 1.5/1.6/1.7a, when the per-service cost halves (see 1.7a and item 2.5's gate).
+
+> **Complete 2026-07-19.** The primary promotion soak passed, including the late-OOS reconcile
+> exercise. The soak's D6/5.3 pending-structure-merge count and operator accept/reject choices
+> were not captured in the available records; no values are inferred. Item 5.3 therefore starts
+> with a fresh measurement window rather than treating the missing observations as evidence.
 
 ### 1.5 [mechanical] Delete the church-service heuristic cluster (decision D1)
 
@@ -563,7 +567,7 @@ Merge the byte-identical `rss/morningFeed`/`eveningFeed` templates into one `rss
 
 ## Workstream 4 — Admin & upload flow
 
-### 4.1 [design] Upload consolidation (admin F1/F2/F3 — directions, no removal decision needed)
+### 4.1 [design] Upload consolidation (complete 2026-07-19; admin F1/F2/F3)
 
 One PR sequence: collapse `MediaUploadProgress`/`MediaUploadStatus` into Blade partials calling
 `$wire` directly (deletes the page-global event relay + singleton contract); replace the loose
@@ -575,7 +579,7 @@ authorization test covers it **and** add explicit `authorizeAdmin()` to each mut
 logging. **Unlocks (admin O1):** retry-without-reselecting, "your last upload" card, honest stall
 messaging, multi-instance mounting.
 
-### 4.2 [design] Operator diagnostics: one durable read path (decision D4; media F2/R4, admin R1)
+### 4.2 [design] Operator diagnostics: one durable read path (complete 2026-07-19; decision D4)
 
 The durable pair — `SermonProcessingStep` + `processing_metadata` + queue-correlation columns —
 becomes the only operator-facing read path. Re-point the status-with-logs API and whatever replaces
@@ -585,7 +589,7 @@ agreed replacement, e.g. a plain "view technical log" admin link). Plain `Log::`
 developers, freed from machine-re-parseability. **Unlocks (media O5):** per-step durations/attempt
 counts queryable after log rotation; "slowest step this month" panels possible.
 
-### 4.3 [mechanical] `ProcessingReview` page retirement (decision D15; admin F6/R2)
+### 4.3 [mechanical] `ProcessingReview` page retirement (complete 2026-07-19; decision D15)
 
 Point the three deep links (upload `manualReviewUrl`, `ManualReviewRequired` email, inbox segment
 rows) at the workbench; solve the orphan-run case via the inbox's existing "create this service"
@@ -627,11 +631,15 @@ Extend the existing `OpenAiOosEmailItemExtractor` pattern to one typed call retu
 in enum, future-dated tolerance) and the existing thresholds; delete ~300 lines of date/service
 regex from `OosEmailParserService`. Likely *better* on informal formats, not just smaller.
 
-### 5.3 Staged structure-merge workflow (decision D6 — deferred)
+### 5.3 Staged structure-merge workflow (decision D6 — deferred; soak data not captured)
 
 ~950 lines guarding a collision case promotion makes rarer. Re-measure after 1.4: count
 pending-structure-merge occurrences and operator choices over the soak; if it rarely fires and the
 operator always accepts the incoming email, collapse to "merge + `needs_review` + diff note".
+
+**R1 record (2026-07-20):** The 1.4 soak completed, but the pending-structure-merge occurrences
+and operator choices were not captured in the available scorecard or runbook records. This is
+explicitly unknown, not zero; R13 must begin with a fresh measurement window.
 
 ### 5.4 `ChurchServiceItemSyncService` reassessment (post-promotion; church §4.3)
 
@@ -648,9 +656,9 @@ re-proportioning waits for 1.5 (heuristic steps thin the timeline).
 
 ---
 
-## Workstream 6 — Platform hygiene
+## Workstream 6 — Platform hygiene (complete 2026-07-19)
 
-### 6.1 [mechanical] Migration squash (decision D17; platform F3/P2)
+### 6.1 [mechanical] Migration squash (complete 2026-07-19; decision D17)
 
 `schema:dump --prune`; delete the 3 corrective-migration test classes; strip the
 migration-requiring methods from the 8 live schema/integrity suites; **update
@@ -659,13 +667,13 @@ drop the "never --prune" message). Adopt quarterly re-squash. Consider tightenin
 (check existing covering indexes) to slow the ~100/year regrowth. **Unlocks (platform O1):** the
 nightly agent fleet stops compounding cost; fresh setup loads one dump.
 
-### 6.2 [mechanical] Config deletions (decision D18; platform P3/P5)
+### 6.2 [mechanical] Config deletions (complete 2026-07-19; decision D18)
 
 Delete the five stock files (`blade-heroicons`, `media-library`, `schedule-monitor`, `view`,
 `broadcasting`; ~590 lines) with a `config:show` spot-check each; remove the `auth.php` `api`
 guard block and the two dead `calendar.php` keys.
 
-### 6.3 [mechanical] Behaviour-adopting config updates (decision D19; platform P4)
+### 6.3 [mechanical] Behaviour-adopting config updates (complete 2026-07-19; decision D19)
 
 Consciously adopt current defaults: `hashing.php` (`HASH_VERIFY`, `rehash_on_login`), `auth.php`
 (`passwords.users.throttle => 60` — touches live reset flows, Dusk covers them; `password_timeout`),
@@ -674,12 +682,12 @@ regenerate without first diffing the current file against stock v4 and carrying 
 deliberate delta**, not just the two known overrides (`component_layout`, `class_namespace`);
 triage `blade-icons.php` drift.
 
-### 6.4 [mechanical] Config merges (decision D20; platform P6)
+### 6.4 [mechanical] Config merges (complete 2026-07-19; decision D20)
 
 `sermons.php` + `opening-hours.php` + `organization.php` → one `church.php`; optionally fold
 `monitoring.php` into `health.php`. `service-tracking.php` stays separate (platform F2 ruling).
 
-### 6.5 [mechanical] Agent-config fixes (platform F8 quick wins)
+### 6.5 [mechanical] Agent-config fixes (complete 2026-07-19; platform F8 quick wins)
 
 Fix `AGENTS.md` Key Services (three named services no longer exist) + the pre-LLM pipeline
 narrative — the highest-leverage doc fix in the repo; delete the stray
@@ -785,8 +793,8 @@ Hard dependency chains, restated:
 
 ## Production checks checklist (run before the gated deletions)
 
-- [ ] Enable `SERVICE_STRUCTURE_MODE=shadow` in production (confirmed still `off` as of 2026-07-05 — decision D2; top of the delivery order. Per D22 this is a wiring check only — one clean shadowed service, then flip to primary once 1.1b/1.1c are merged)
-- [ ] 1.4 historic-sample soak evidence: ~8–12 prod historic livestreams clean (or validator-routed) + late-OOS reconcile exercised (gates 1.5/1.6 — decision D22)
+- [x] Enable `SERVICE_STRUCTURE_MODE=shadow` in production — wiring check passed 2026-07-19 (decision D2/D22)
+- [x] 1.4 historic-sample soak evidence — primary soak and late-OOS reconcile passed 2026-07-19 (gates 1.5/1.6 — decision D22; D6/5.3 observations were not captured and are recorded as unknown above)
 - [x] Production `LOG_CHANNEL` ≠ `sermon-processing` — confirmed `stack` 2026-07-12 (gates 2.1's channel deletion)
 - [x] `sermons:verify-storage` clean against production — 698/698 files accessible, zero legacy
       paths, zero missing files (confirmed 2026-07-13; gates 2.3)
