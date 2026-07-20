@@ -57,7 +57,7 @@ trait WithInboundEmailTestHelpers
                 private readonly OosEmailItemExtractionResult $result,
             ) {}
 
-            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
                 return $this->result;
             }
@@ -68,7 +68,7 @@ trait WithInboundEmailTestHelpers
     {
         $this->app->bind(OosEmailItemExtractor::class, fn () => new class implements OosEmailItemExtractor
         {
-            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
                 throw new \RuntimeException('Stored parse data should have been used instead of reparsing.');
             }

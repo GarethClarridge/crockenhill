@@ -41,7 +41,7 @@ class ImportOosArchiveCommandTest extends TestCase
     {
         $this->app->bind(OosEmailItemExtractor::class, fn () => new class implements OosEmailItemExtractor
         {
-            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
                 throw new RuntimeException('Dry run must not call the extractor.');
             }
@@ -69,13 +69,19 @@ class ImportOosArchiveCommandTest extends TestCase
         {
             public int $calls = 0;
 
-            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
                 $this->calls++;
 
                 return new OosEmailItemExtractionResult(
                     items: [['type' => 'song', 'title' => 'Amazing Grace']],
                     confidence: 0.99,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => '2026-07-12',
+                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                        'confidence' => 0.99,
+                    ]],
                 );
             }
         };
@@ -108,11 +114,23 @@ class ImportOosArchiveCommandTest extends TestCase
     {
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
         {
-            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
+                $date = match (true) {
+                    str_contains($subject, '19 July') => '2026-07-19',
+                    str_contains($subject, '26 July') => '2026-07-26',
+                    default => '2026-07-12',
+                };
+
                 return new OosEmailItemExtractionResult(
                     items: [['type' => 'song', 'title' => 'Amazing Grace']],
                     confidence: 1.0,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => $date,
+                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                        'confidence' => 1.0,
+                    ]],
                 );
             }
         });
@@ -159,7 +177,7 @@ class ImportOosArchiveCommandTest extends TestCase
         // The gate only checks the primary (morning); the ungated evening plan must not be created.
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
         {
-            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
                 return new OosEmailItemExtractionResult(
                     items: [
@@ -168,10 +186,10 @@ class ImportOosArchiveCommandTest extends TestCase
                     ],
                     confidence: 0.99,
                     services: [
-                        ['service' => 'morning', 'date' => null, 'items' => [
+                        ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
                             ['type' => 'song', 'title' => 'Amazing Grace'],
                         ], 'confidence' => 0.99],
-                        ['service' => 'evening', 'date' => null, 'items' => [
+                        ['service' => 'evening', 'date' => '2026-07-12', 'items' => [
                             ['type' => 'sermon', 'title' => 'Evening Sermon'],
                         ], 'confidence' => 0.99],
                     ],
@@ -197,11 +215,17 @@ class ImportOosArchiveCommandTest extends TestCase
     {
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
         {
-            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
                 return new OosEmailItemExtractionResult(
                     items: [['type' => 'song', 'title' => 'Amazing Grace']],
                     confidence: 1.0,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => '2026-07-12',
+                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                        'confidence' => 1.0,
+                    ]],
                 );
             }
         });
@@ -231,7 +255,7 @@ class ImportOosArchiveCommandTest extends TestCase
         // 0.75-0.89 review band. The archive gate is per-plan >= 0.90: only morning may import.
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
         {
-            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
                 return new OosEmailItemExtractionResult(
                     items: [
@@ -240,10 +264,10 @@ class ImportOosArchiveCommandTest extends TestCase
                     ],
                     confidence: 0.99,
                     services: [
-                        ['service' => 'morning', 'date' => null, 'items' => [
+                        ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
                             ['type' => 'song', 'title' => 'Amazing Grace'],
                         ], 'confidence' => 0.99],
-                        ['service' => 'evening', 'date' => null, 'items' => [
+                        ['service' => 'evening', 'date' => '2026-07-12', 'items' => [
                             ['type' => 'song', 'title' => 'Abide With Me'],
                         ], 'confidence' => 0.60],
                     ],
@@ -270,7 +294,7 @@ class ImportOosArchiveCommandTest extends TestCase
     {
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
         {
-            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
                 return new OosEmailItemExtractionResult(
                     items: [
@@ -279,10 +303,10 @@ class ImportOosArchiveCommandTest extends TestCase
                     ],
                     confidence: 0.99,
                     services: [
-                        ['service' => 'morning', 'date' => null, 'items' => [
+                        ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
                             ['type' => 'song', 'title' => 'Amazing Grace'],
                         ], 'confidence' => 0.99],
-                        ['service' => 'evening', 'date' => null, 'items' => [
+                        ['service' => 'evening', 'date' => '2026-07-12', 'items' => [
                             ['type' => 'song', 'title' => 'Abide With Me'],
                         ], 'confidence' => 0.99],
                     ],
@@ -311,11 +335,19 @@ class ImportOosArchiveCommandTest extends TestCase
     {
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
         {
-            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
+                $item = ['type' => 'song', 'title' => trim($body)];
+
                 return new OosEmailItemExtractionResult(
-                    items: [['type' => 'song', 'title' => trim($body)]],
+                    items: [$item],
                     confidence: 1.0,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => '2026-07-12',
+                        'items' => [$item],
+                        'confidence' => 1.0,
+                    ]],
                 );
             }
         });

@@ -13,6 +13,7 @@ use App\Jobs\ProcessInboundOosEmail;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\Song;
+use App\Queries\ReviewInboxQuery;
 use App\Services\Public\PublicSongUsageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
@@ -38,6 +39,17 @@ class ProcessInboundOosEmailTest extends TestCase
                 ['type' => 'bible_reading', 'title' => 'Luke 15:1-32'],
             ],
             confidence: 0.95,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-03-15',
+                'items' => [
+                    ['type' => 'welcome', 'title' => 'Welcome'],
+                    ['type' => 'song', 'title' => 'Before the throne of God above'],
+                    ['type' => 'prayer', 'title' => 'Opening prayer'],
+                    ['type' => 'bible_reading', 'title' => 'Luke 15:1-32'],
+                ],
+                'confidence' => 0.95,
+            ]],
         ));
 
         $song = Song::factory()->create([
@@ -73,7 +85,7 @@ class ProcessInboundOosEmailTest extends TestCase
         $this->assertSame($service->id, $email->processing_metadata['imported_church_service_id']);
         $this->assertCount(4, $email->processing_metadata['parsing']['items']);
         $this->assertSame('morning', $email->processing_metadata['parsing']['resolved_service']);
-        $this->assertSame('subject_keyword', $email->processing_metadata['parsing']['service_extraction']['method']);
+        $this->assertSame('llm', $email->processing_metadata['parsing']['service_extraction']['method']);
         Event::assertDispatched(
             ChurchServiceCanonicalListChanged::class,
             fn (ChurchServiceCanonicalListChanged $event): bool => $event->churchServiceId === $service->id
@@ -92,7 +104,17 @@ class ProcessInboundOosEmailTest extends TestCase
                 ['type' => 'song', 'title' => 'How deep the Father\'s love for us'],
                 ['type' => 'sermon', 'title' => 'Sermon'],
             ],
-            confidence: 0.90,
+            confidence: 0.85,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-03-16',
+                'items' => [
+                    ['type' => 'welcome', 'title' => 'Welcome'],
+                    ['type' => 'song', 'title' => 'How deep the Father\'s love for us'],
+                    ['type' => 'sermon', 'title' => 'Sermon'],
+                ],
+                'confidence' => 0.85,
+            ]],
         ));
 
         $email = InboundEmail::factory()->create([
@@ -119,7 +141,6 @@ class ProcessInboundOosEmailTest extends TestCase
     public function it_imports_evening_oos_emails_and_counts_song_usage_without_a_livestream(
         string $subject,
         string $bodyPlain,
-        string $expectedExtractionMethod,
     ): void {
         $this->bindExtractor(new OosEmailItemExtractionResult(
             items: [
@@ -128,6 +149,16 @@ class ProcessInboundOosEmailTest extends TestCase
                 ['type' => 'prayer', 'title' => 'Pastoral prayer'],
             ],
             confidence: 0.95,
+            services: [[
+                'service' => 'evening',
+                'date' => '2026-03-15',
+                'items' => [
+                    ['type' => 'welcome', 'title' => 'Welcome'],
+                    ['type' => 'song', 'title' => 'There is a higher throne'],
+                    ['type' => 'prayer', 'title' => 'Pastoral prayer'],
+                ],
+                'confidence' => 0.95,
+            ]],
         ));
 
         $song = Song::factory()->create([
@@ -167,7 +198,7 @@ class ProcessInboundOosEmailTest extends TestCase
         $email->refresh();
         $this->assertSame(InboundEmailStatus::Processed, $email->status);
         $this->assertSame('evening', $email->processing_metadata['parsing']['resolved_service']);
-        $this->assertSame($expectedExtractionMethod, $email->processing_metadata['parsing']['service_extraction']['method']);
+        $this->assertSame('llm', $email->processing_metadata['parsing']['service_extraction']['method']);
     }
 
     #[Test]
@@ -218,6 +249,36 @@ class ProcessInboundOosEmailTest extends TestCase
         $this->assertArrayHasKey('failed_at', $failure);
     }
 
+    #[Test]
+    public function an_llm_error_reaches_the_queue_failure_path_and_manual_review_inbox(): void
+    {
+        $this->app->bind(OosEmailItemExtractor::class, fn () => new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                throw new RuntimeException('OpenAI unavailable');
+            }
+        });
+
+        $email = InboundEmail::factory()->create([
+            'status' => InboundEmailStatus::Pending->value,
+        ]);
+        $job = new ProcessInboundOosEmail($email);
+
+        try {
+            app()->call([$job, 'handle']);
+            $this->fail('The extractor error should be re-thrown for the queue to retry.');
+        } catch (RuntimeException $exception) {
+            $job->failed($exception);
+        }
+
+        $email->refresh();
+
+        $this->assertSame(InboundEmailStatus::Failed, $email->status);
+        $this->assertSame('OpenAI unavailable', $email->processing_metadata['failure']['message']);
+        $this->assertSame(1, app(ReviewInboxQuery::class)->build()['counts']['emails']);
+    }
+
     private function bindExtractor(OosEmailItemExtractionResult $result): void
     {
         $this->app->bind(OosEmailItemExtractor::class, fn () => new class($result) implements OosEmailItemExtractor
@@ -226,7 +287,7 @@ class ProcessInboundOosEmailTest extends TestCase
                 private readonly OosEmailItemExtractionResult $result,
             ) {}
 
-            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
                 return $this->result;
             }
@@ -234,7 +295,7 @@ class ProcessInboundOosEmailTest extends TestCase
     }
 
     /**
-     * @return array<string, array{subject:string, bodyPlain:string, expectedExtractionMethod:string}>
+     * @return array<string, array{subject:string, bodyPlain:string}>
      */
     public static function eveningEmailSubjects(): array
     {
@@ -242,12 +303,10 @@ class ProcessInboundOosEmailTest extends TestCase
             'explicit evening wording' => [
                 'subject' => 'Order of Service - Sunday 15 March 2026 evening',
                 'bodyPlain' => "Welcome\nThere is a higher throne\nPastoral prayer",
-                'expectedExtractionMethod' => 'subject_keyword',
             ],
             'pm time hint in body' => [
                 'subject' => 'Order of Service - Sunday 15 March 2026',
                 'bodyPlain' => "6pm service\nWelcome\nThere is a higher throne\nPastoral prayer",
-                'expectedExtractionMethod' => 'body_time_hint',
             ],
         ];
     }

@@ -42,11 +42,11 @@ class OosMultiServiceImportTest extends TestCase
             ],
             confidence: 0.95,
             services: [
-                ['service' => 'morning', 'date' => null, 'items' => [
+                ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
                     ['type' => 'welcome', 'title' => 'Welcome'],
                     ['type' => 'sermon', 'title' => 'Morning Sermon'],
                 ], 'confidence' => 0.95],
-                ['service' => 'evening', 'date' => null, 'items' => [
+                ['service' => 'evening', 'date' => '2026-07-12', 'items' => [
                     ['type' => 'welcome', 'title' => 'Welcome'],
                     ['type' => 'sermon', 'title' => 'Evening Sermon'],
                 ], 'confidence' => $eveningConfidence],
@@ -90,7 +90,7 @@ class OosMultiServiceImportTest extends TestCase
             [SermonService::Evening, SermonService::Morning],
             $services->pluck('service')->all(),
         );
-        // Both plans fell back to the email-level date (12 July 2026).
+        // Both typed plans carry the service date returned by the one-call extractor.
         $this->assertTrue($services->every(fn (ChurchService $service): bool => $service->date->toDateString() === '2026-07-12'));
 
         $email->refresh();
@@ -205,11 +205,11 @@ class OosMultiServiceImportTest extends TestCase
             ],
             confidence: 0.95,
             services: [
-                ['service' => 'morning', 'date' => null, 'items' => [
+                ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
                     ['type' => 'welcome', 'title' => 'Welcome'],
                     ['type' => 'sermon', 'title' => 'Morning Sermon'],
                 ], 'confidence' => 0.95],
-                ['service' => 'unknown', 'date' => null, 'items' => [
+                ['service' => 'unknown', 'date' => '2026-07-12', 'items' => [
                     ['type' => 'sermon', 'title' => 'Unclear Sermon'],
                 ], 'confidence' => 0.95],
             ],
@@ -297,7 +297,7 @@ class OosMultiServiceImportTest extends TestCase
             ],
             confidence: 0.95,
             services: [
-                ['service' => 'morning', 'date' => null, 'items' => [
+                ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
                     ['type' => 'welcome', 'title' => 'Welcome'],
                     ['type' => 'sermon', 'title' => 'Morning Sermon'],
                 ], 'confidence' => 0.95],

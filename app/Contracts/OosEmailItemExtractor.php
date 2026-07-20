@@ -19,7 +19,8 @@ interface OosEmailItemExtractor
      *
      * @param  string  $subject  The subject of the OoS email
      * @param  string  $body  The body text of the OoS email
+     * @param  string  $receivedDate  The email receipt date in YYYY-MM-DD format, used to resolve relative and yearless dates
      * @return OosEmailItemExtractionResult The result containing extracted items or error details
      */
-    public function extract(string $subject, string $body): OosEmailItemExtractionResult;
+    public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult;
 }

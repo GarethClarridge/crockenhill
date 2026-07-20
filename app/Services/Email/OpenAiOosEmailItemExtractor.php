@@ -13,7 +13,7 @@ use RuntimeException;
 
 class OpenAiOosEmailItemExtractor implements OosEmailItemExtractor
 {
-    public function extract(string $subject, string $body): OosEmailItemExtractionResult
+    public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
     {
         if (empty(config('openai.api_key'))) {
             throw new RuntimeException('OpenAI API key not configured for OoS email parsing.');
@@ -37,13 +37,15 @@ Rules:
 - Use "morning" for AM/10.30 services, "evening" for PM/6pm services, "other" for specials
   (carols, Christmas), and "unknown" only when the service time is genuinely unclear.
 - Set "date" only when a service states its own date; otherwise use null.
+- Resolve relative or yearless dates against the supplied email receipt date. These emails normally
+  describe services from the receipt date through the following two weeks; do not use a training-data year.
 - Use concise, human-readable titles. Use "song" for hymns/songs and "bible_reading" for readings.
 - Confidence reflects how reliable that service's extracted order is.
 TEXT,
                 ],
                 [
                     'role' => 'user',
-                    'content' => "Subject: {$subject}\n\nBody:\n{$body}",
+                    'content' => "Email received date: {$receivedDate}\nSubject: {$subject}\n\nBody:\n{$body}",
                 ],
             ],
             'service_tier' => config('openai.service_tier'),
@@ -65,9 +67,11 @@ TEXT,
                                     'properties' => [
                                         'service' => [
                                             'type' => 'string',
+                                            'enum' => ['morning', 'evening', 'other', 'unknown'],
                                         ],
                                         'date' => [
                                             'type' => ['string', 'null'],
+                                            'pattern' => '^\\d{4}-\\d{2}-\\d{2}$',
                                         ],
                                         'items' => [
                                             'type' => 'array',
@@ -78,6 +82,16 @@ TEXT,
                                                 'properties' => [
                                                     'type' => [
                                                         'type' => 'string',
+                                                        'enum' => [
+                                                            'welcome',
+                                                            'prayer',
+                                                            'notices',
+                                                            'song',
+                                                            'childrens_talk',
+                                                            'bible_reading',
+                                                            'sermon',
+                                                            'other',
+                                                        ],
                                                     ],
                                                     'title' => [
                                                         'type' => 'string',
@@ -87,6 +101,8 @@ TEXT,
                                         ],
                                         'confidence' => [
                                             'type' => 'number',
+                                            'minimum' => 0,
+                                            'maximum' => 1,
                                         ],
                                     ],
                                 ],
@@ -119,28 +135,17 @@ TEXT,
             throw new RuntimeException('Failed to decode OoS email parser response as JSON.');
         }
 
-        $notes = $this->normaliseNotes($decoded['notes'] ?? []);
-
-        // New multi-service shape. Fall back to the legacy flat "items" shape if a model still
-        // returns it, so a schema regression degrades gracefully to a single plan.
-        if (is_array($decoded['services'] ?? null)) {
-            $services = $this->normaliseServices($decoded['services']);
-
-            return new OosEmailItemExtractionResult(
-                items: $this->flattenServiceItems($services),
-                confidence: $this->averageConfidence($services),
-                notes: $notes,
-                services: $services,
-            );
+        if (! is_array($decoded['services'] ?? null)) {
+            throw new RuntimeException('OoS email parser response did not contain typed service plans.');
         }
 
-        $items = $this->normaliseItems($decoded['items'] ?? []);
-        $confidence = $decoded['confidence'] ?? 0.0;
+        $services = $this->normaliseServices($decoded['services']);
 
         return new OosEmailItemExtractionResult(
-            items: $items,
-            confidence: is_numeric($confidence) ? max(0.0, min(1.0, (float) $confidence)) : 0.0,
-            notes: $notes,
+            items: $this->flattenServiceItems($services),
+            confidence: $this->averageConfidence($services),
+            notes: $this->normaliseNotes($decoded['notes'] ?? []),
+            services: $services,
         );
     }
 

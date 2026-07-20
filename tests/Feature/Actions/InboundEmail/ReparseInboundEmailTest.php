@@ -33,6 +33,15 @@ class ReparseInboundEmailTest extends TestCase
                 ['type' => 'sermon', 'title' => 'Sermon'],
             ],
             confidence: 0.97,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-06-29',
+                'items' => [
+                    ['type' => 'welcome', 'title' => 'Call to Worship'],
+                    ['type' => 'sermon', 'title' => 'Sermon'],
+                ],
+                'confidence' => 0.97,
+            ]],
         ));
 
         $email = InboundEmail::factory()->create([
@@ -78,6 +87,15 @@ class ReparseInboundEmailTest extends TestCase
                 ['type' => 'prayer', 'title' => 'Opening Prayer'],
             ],
             confidence: 0.94,
+            services: [[
+                'service' => 'evening',
+                'date' => '2026-07-06',
+                'items' => [
+                    ['type' => 'welcome', 'title' => 'Welcome'],
+                    ['type' => 'prayer', 'title' => 'Opening Prayer'],
+                ],
+                'confidence' => 0.94,
+            ]],
         ));
 
         $email = InboundEmail::factory()->create([
@@ -112,7 +130,7 @@ class ReparseInboundEmailTest extends TestCase
     {
         $this->app->bind(OosEmailItemExtractor::class, fn () => new class implements OosEmailItemExtractor
         {
-            public function extract(string $subject, string $body): OosEmailItemExtractionResult
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
                 throw new \RuntimeException('Parser is broken');
             }

@@ -44,12 +44,22 @@ class ApproveInboundEmailImportTest extends TestCase
                 ['type' => 'sermon', 'title' => 'Sermon'],
             ],
             confidence: 0.90,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-06-22',
+                'items' => [
+                    ['type' => 'welcome', 'title' => 'Welcome'],
+                    ['type' => 'sermon', 'title' => 'Sermon'],
+                ],
+                'confidence' => 0.90,
+            ]],
         ));
 
         $email = InboundEmail::factory()->create([
             'subject' => 'Order of Service - 2026-06-22 AM',
             'body_plain' => "Welcome\nSermon",
             'status' => InboundEmailStatus::Pending->value,
+            'received_at' => '2026-06-20 09:00:00',
         ]);
 
         $result = app(ApproveInboundEmailImport::class)->execute($email, $this->admin->id);
@@ -120,6 +130,12 @@ class ApproveInboundEmailImportTest extends TestCase
                 ['type' => 'welcome', 'title' => 'Welcome'],
             ],
             confidence: 0.90,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-06-22',
+                'items' => [['type' => 'welcome', 'title' => 'Welcome']],
+                'confidence' => 0.90,
+            ]],
         ));
 
         // Stored result has a valid date/service/items so canApprove passes, but
@@ -135,6 +151,7 @@ class ApproveInboundEmailImportTest extends TestCase
             'subject' => 'Order of Service - 2026-06-22 AM',
             'body_plain' => "Welcome\nSermon",
             'status' => InboundEmailStatus::Pending->value,
+            'received_at' => '2026-06-20 09:00:00',
         ]);
 
         $result = app(ApproveInboundEmailImport::class)->execute($email, $this->admin->id);
