@@ -1,0 +1,332 @@
+# Code-Quality Remediation Plan — Phase 9 follow-through
+
+> **Status (2026-07-19, amended 2026-07-20): ready to start; WP1 downgraded from urgent — its
+> security premise was a stale local vendor tree (see the WP1 correction note).** This is the
+> implementation plan for
+> every finding in the Phase 9 code-quality review
+> ([../reviews/july-2026-simplification/code-quality-review-2026-07-19.md](../reviews/july-2026-simplification/code-quality-review-2026-07-19.md)
+> — "the findings doc"; F-numbers below refer to it). It is written to be executed by an agent
+> with no prior context: every item names its files, steps, tests, and acceptance check.
+>
+> **Dependencies:** the simplification remainder plan
+> [JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md](JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md)
+> is executing in parallel (R2–R15). WP7 here is **hard-gated on remainder R9–R11 merging**.
+> WP5's deletions were folded into the remainder plan's R8 table (rows added 2026-07-19) and are
+> tracked there, not here. Read `AGENTS.md` before starting any work package.
+>
+> **Agents must not, without maintainer input:** (a) start WP4a (`laravel-data` removal) —
+> dependency changes need approval per AGENTS.md; (b) enable `Model::shouldBeStrict()` outside
+> the WP4b survey procedure; (c) start WP7 before remainder R9–R11 have merged; (d) delete
+> `config/podcast.php`'s `enabled` key before maintainer answers open question Q3; (e) run any
+> production command — the two WP5 gates are operator-run (counts only in public output).
+>
+> **Maintainer answers needed** (each blocks only the item that cites it):
+> - **Q1:** Is the order-of-service paper archive fully imported, with no further
+>   `OosArchiveEvaluator` runs planned? → gates the R8 row for `ImportOosArchiveCommand`.
+> - **Q2:** Did the production praise-number backfill (+ `service-tracking:link-songs`) run after
+>   PR #1171 merged? → gates the R8 row for `BackfillSongPraiseNumbersCommand`.
+> - **Q3:** Should the podcast feed route be gateable by config, or delete the unread
+>   `podcast.enabled` key? (Recommendation: delete.) → WP2 step 4.
+> - **Q4:** Sign-off on the ratchet sequencing in WP7 (level 9 after R9–R11, no baseline).
+
+## Work-package overview and sequencing
+
+| WP | What | Kind | Blocked by |
+|---|---|---|---|
+| WP1 | medialibrary version bump (F5.1 — **downgraded 2026-07-20**, see WP1 note) | mechanical | — |
+| WP2 | Mechanical sweep: computed-property fix, provider bindings, dead config, small idiom residue (F6.1, F2.3, F3.3, F2.6, F2.7, F2.2, F1.3, F5.3) | mechanical | — |
+| WP3 | PHPUnit mock-notice sweep, 124 sites (F4.2) | mechanical, wide | — |
+| WP4 | Judgment items: laravel-data removal, Eloquent strict-mode survey, test-env branch inversion, thumbnail test speed, js-yaml override, `validationRules()` relocation (F2.4, F6.2, F2.5, F4.3, F5.2, F2.2a) | design | per-item, see below |
+| WP5 | Spent one-shot deletions → **executed via remainder R8** (F3.2) | mechanical | operator gates Q1/Q2 |
+| WP6 | Regression nets: query-count assertions + computed-call structural test (F6.1 guard, §5 opportunity) | mechanical | WP2 item 1 |
+| WP7 | PHPStan level-9 ratchet, ~800 errors in 4 clustered sessions (F1.1, F1.3 completion) | design | **remainder R9–R11 merged** + Q4 |
+
+WP2+WP6 as one PR stack; WP1/WP3 any time; WP4 items independently as answers/approvals
+arrive; WP7 last.
+
+## Quality gates (every PR, from AGENTS.md)
+
+`vendor/bin/sail artisan test --compact --parallel` (focused per change, full before merge, first
+run captured with `tee`) · `vendor/bin/sail composer phpstan` at 0 errors ·
+`vendor/bin/sail bin pint --dirty --format agent` · `vendor/bin/sail artisan dusk` only where
+noted (WP2 item 1 touches the public sermons page). All commands run through Sail; if a
+full-suite run drowns in `getaddrinfo for mysql failed` errors, that is Docker container DNS
+breakage — fix with `vendor/bin/sail down && vendor/bin/sail up -d`, do not debug the tests.
+
+---
+
+## WP1 — spatie/laravel-medialibrary version bump (F5.1) — downgraded from urgent 2026-07-20
+
+> **Correction (2026-07-20):** F5.1's premise was wrong. `composer.lock` has carried
+> **11.23.1** — which includes both CVE fixes (patched in 11.23.0 per the GitHub advisories) —
+> since commit `ac2ced40f` (2026-07-03), so production (which installs from the lock) was never
+> exposed during the review period. The review's `composer audit` read 11.22.1 from a **stale
+> local vendor tree**; `composer audit` audits installed packages, not the lock. Fixed
+> 2026-07-20 by running `vendor/bin/sail composer install` — audit is now clean with no code or
+> lock change. Lesson: verify version claims against `composer.lock` (and prod), not local
+> `composer show`/`composer audit` output.
+
+What remains is routine drift, foldable into F5.3's minor/patch sweep:
+
+1. `vendor/bin/sail composer update spatie/laravel-medialibrary` (11.23.1 → latest 11.x).
+2. Focused tests: `vendor/bin/sail artisan test --compact --parallel --filter=Media` plus the
+   meeting/page media suites (`--filter=Meeting`).
+3. Acceptance: `vendor/bin/sail composer audit` stays clean; suite green.
+
+## WP2 — Mechanical sweep (one PR stack; commits in this order)
+
+### 2.1 Livewire `#[Computed]` call-syntax fix (F6.1) — the perf bug
+
+Livewire memoizes computed properties only on **property access** (`$this->sermons`); method
+calls (`$this->sermons()`) re-execute the body. Measured effect: `/christ/sermons` runs its
+count/rows/preachers/scripture-passages query block 3× per request.
+
+Sites to convert from `$this->name()` to `$this->name` (all confirmed `#[Computed]`):
+
+- `app/Livewire/Sermons/BrowseSermons.php` lines 139 (`sermons()`), 142 (`enabledBooks()`),
+  145 (`enabledChapters()`), 146–148 (`preacherOptions()`, `seriesOptions()` — line 148 calls
+  both again), 222 and 238 (`sermons()` inside `presentedSermons()`/the JSON-LD presenter).
+- `app/Livewire/Admin/ChurchServices/ShowChurchService.php` lines 67–68
+  (`sectionTypeOptions()`, `preacherOptions()`).
+
+Re-grep before editing — line numbers drift:
+`grep -rnE '\$this->(sermons|enabledBooks|enabledChapters|preacherOptions|seriesOptions|sectionTypeOptions)\(\)' app/Livewire resources/views/livewire`
+
+**Staleness check (do this, don't skip):** `BrowseSermons`'s `updated*` hooks (lines ~65–93)
+mutate filter properties and call `resetPage()` before render. With memoization now effective,
+verify no computed property is *read* earlier in the same request cycle than a mutation that
+should invalidate it — in particular trace `dispatchMetadataUpdate()`: if it reads `seoTitle`/
+`seoDescription`/`seoCanonical`/`sermons` before `resetPage()` has taken effect, add
+`unset($this->sermons, $this->seoTitle, …)` at the top of the mutating hooks (Livewire's
+documented cache-bust idiom). If nothing reads computeds before render, no unsets are needed.
+
+Tests: extend the existing browse-page feature coverage with a query-duplication assertion (see
+WP6.1, which lands in the same PR). Run Dusk (`vendor/bin/sail artisan dusk`) — this touches the
+public sermons page render path.
+
+### 2.2 `AiServiceProvider` binding consistency (F2.3)
+
+`app/Providers/AiServiceProvider.php`: two bindings diverge from the family idiom
+(`match` + `InvalidArgumentException` on unknown config value, as used by
+`ServiceTranscriptionInterface` and `ServiceStructureInterface` at lines 50–73):
+
+- `SermonAnalysisInterface` (lines 30–38): if/else, silent fallback to the paid
+  `SermonAnalysisService` on typos.
+- `TranscriptionServiceInterface` (lines 40–48): `match` but with a silent `default =>` arm.
+
+Convert both to explicit `match` arms (`'mock'`, `'local'` where applicable, `'openai'`) with a
+throwing default, message style copied from line 57–59. **Behaviour note:** this makes an
+unrecognised `media-processing.analysis.service` / `media-processing.transcription.service`
+value throw instead of silently billing OpenAI — that is the point. Check `.env.example` and
+`config/media-processing.php` defaults name a valid value (`openai`), and update any provider
+test that asserted the fallback (`grep -rn "AiServiceProvider" tests`).
+
+### 2.3 Dead config keys (F3.3)
+
+Delete, then re-verify each with the grep shown:
+
+- `config/calendar.php`: the whole `performance` block (~line 63) and whole `google` block
+  (~line 75). The live `GOOGLE_CALENDAR_ID` read is `services.google.calendar_id` in
+  `config/services.php` — do not touch that. Verify: `grep -rn "calendar.performance\|calendar.google" app tests resources routes` → 0 hits.
+- `config/thumbnail-generation.php`: the `ffmpeg` block (lines ~11–13). The live ffmpeg path is
+  `media-processing.video.ffmpeg_path`. Verify: `grep -rn "thumbnail-generation.ffmpeg" app tests` → 0.
+- `config/podcast.php`: `enabled` — **only after maintainer answers Q3** (recommendation:
+  delete; the feed route has never been gated). If the answer is "make it gate", instead add the
+  check in `PodcastFeedController` + a feature test for the disabled state.
+
+### 2.4 `SermonRepository::getExistingSeries()` exception narrowing (F2.6)
+
+`app/Services/Public/SermonRepository.php` (catch at ~line 237): narrow
+`catch (\Exception)` to `catch (\Illuminate\Database\QueryException)` so only DB-level failures
+degrade to an empty series list; anything else propagates. Keep the `Log::warning`. Do **not**
+sweep the other ~100 broad catches — the media-pipeline ones are deliberate resilience.
+
+### 2.5 Drop `$processingId = 'unknown'` defaults (F2.7)
+
+`app/Services/Media/Audio/AudioTranscriptionService.php` lines 71 and 189: make `$processingId`
+a required `string` parameter. Verified callers all pass it explicitly
+(`MatchSongsFromTranscript:488`, `TranscribeSpeechSegments:214`, `TranscribeAudio:74`) — re-grep
+`-e "transcribe("` before editing. Update any test that relied on the default.
+
+### 2.6 `Sermon::$fillable` stale comments (F2.2)
+
+`app/Models/Sermon.php` lines ~118–154: delete the historical comments of the form
+`// Renamed from 'filename' for consistency` and similar migration narration. Keep any comment
+stating a *current* constraint (e.g. the integer-bounding security comment in
+`validationRules()` stays).
+
+### 2.7 `GoogleCalendarSyncService` ignore identifiers (F1.3, minimal form)
+
+`app/Services/Calendar/GoogleCalendarSyncService.php` has 12 bare
+`/** @phpstan-ignore-next-line */` comments (lines ~57–191). For each, run phpstan without the
+ignore to learn the identifier, then rewrite as
+`@phpstan-ignore-next-line <identifier> (<one-clause reason>)`. Do **not** attempt full typing
+of the Google payloads here — that belongs to WP7 session 3.
+
+### 2.8 Routine dependency bumps (F5.3)
+
+`vendor/bin/sail npm update tailwindcss @tailwindcss/vite vite laravel-vite-plugin` (all
+patch-level), `vendor/bin/sail npm run build`; `vendor/bin/sail composer update` for the ~20
+minor/patch composer packages **excluding** any new majors (symfony/http-client and
+symfony/mailgun-mailer stay on 7.4 until the framework moves). After the framework/larastan
+bumps, re-run `vendor/bin/sail artisan boost:install` per CLAUDE.md and commit the regenerated
+guideline blocks and skills together. Full suite + Dusk after the bumps.
+
+## WP3 — PHPUnit mock-notice sweep (F4.2)
+
+124 PHPUnit 13 "mock without expectations" notices. Enumerate per directory (compact mode hides
+them): `vendor/bin/sail php vendor/bin/phpunit tests/<dir> --display-all-issues --no-progress`
+for `tests/Unit`, `tests/Integration`, `tests/Feature` (the last is large — run per subfolder if
+slow). For each flagged test:
+
+1. If the double never gets `shouldReceive`/`expects` → replace `createMock`/`Mockery::mock`
+   with `createStub()` (PHPUnit) or keep Mockery but add
+   `#[AllowMockObjectsWithoutExpectations]` only where a shared fixture genuinely serves both
+   styles.
+2. While there, delete or strengthen constructor-only tests
+   (`it_can_be_instantiated_in_test_environment` in `AudioCompressionServiceTest` is the known
+   example — a test asserting only "no exception on new" adds nothing; PHPUnit-guidelines rule
+   "do not remove tests without approval" applies to files, so *strengthen* rather than delete
+   where in doubt, and list any outright deletions in the PR description).
+3. Skip test files on the remainder plan's deletion lists (R8/R9/R14 — check its tables) —
+   don't polish doomed tests.
+
+Acceptance: full-suite notice count reported in the PR (target ≤ a handful of justified
+`#[AllowMockObjectsWithoutExpectations]` sites); zero behaviour changes.
+
+## WP4 — Judgment items (independent; each its own small PR)
+
+### 4a. Drop `spatie/laravel-data` (F2.4) — **needs dependency-change approval first**
+
+Evidence: 8/56 `app/Data/` classes extend `Spatie\LaravelData\Data` (`SermonAnalysis`,
+`SongTitleMatch`, `LivestreamSegment`, `LivestreamProcessingResult`, `SpeakerMatchResult`,
+`SpeakerEmbeddingResult`, `SongCatalogSyncReport`, `SermonMetadata`); zero `::from()` calls,
+zero validation calls, four validation attributes total. Procedure:
+
+1. For each of the 8: `grep -rn "<Class>" app tests` and check instance usage for inherited
+   behaviour — chiefly `->toArray()` / `->all()` / array-casting. Add a hand-written
+   `toArray()` (match current output shape exactly — write a characterisation test per class
+   first: instantiate, `toArray()`, assert snapshot) and remove `extends Data`; convert the four
+   `Required`/`Max` attributes to plain PHPDoc (they were never enforced — nothing calls
+   validation).
+2. `composer remove spatie/laravel-data`; delete `config/data.php`.
+3. Watch `LivestreamSegment` specifically (111 references, cast-adjacent) — confirm its Eloquent
+   cast (`SongClusterCollectionCast` etc. are separate; check `MediaProcessingLog` casts) does
+   not rely on laravel-data serialization.
+4. Full gates. Coordinate with remainder R10, which deletes `SongCluster*` casts — if R10 lands
+   first, this shrinks.
+5. Afterwards, optionally do the `app/Data/` domain-subfolder reorganisation (platform review
+   F6) in a separate PR so files move once. Apply the namespace-move checklist from AGENTS.md /
+   the R5 instructions (explicit `use`, external siblings, moved files' own siblings, Blade
+   inline FQCNs, then full suite).
+
+### 4b. `Model::shouldBeStrict()` survey (F6.2) — survey first, decide second
+
+1. Branch; add `Model::shouldBeStrict(! app()->isProduction());` to
+   `AppServiceProvider::boot()`.
+2. Full parallel suite with `tee`; collect every `LazyLoadingViolationException` /
+   missing-attribute / silently-discarded error.
+3. Outcome A (clean or a handful of fixable violations): fix them, keep the flag, note each fix.
+   Outcome B (violations are widespread): write the list into a short decision note appended to
+   this plan and ask the maintainer whether to fix incrementally (flag on in `testing` env only
+   first) or drop the idea. Do not merge a red suite.
+
+### 4c. Invert the two `environment('testing')` branches (F2.5)
+
+- `app/Services/Processing/StorageAdapterHelper.php:234` and
+  `app/Services/Public/SitemapService.php:229`: replace the env check with an injected/config
+  seam — read the surrounding code to pick the natural one (a config key the test sets, or a
+  constructor collaborator the test fakes). The pattern to copy is whatever Phase 18 used when
+  it removed the same smell elsewhere (`git log --grep="environment" --oneline` to find it).
+- Leave `VideoSegmentationService.php:60` (R10 rewrites that file) and the three
+  `AppServiceProvider` hooks (documented deliberate infrastructure).
+
+### 4d. Thumbnail test-render speed (F4.3)
+
+The 11 slowest tests (5–12 s each) are full-resolution GD renders in
+`ThumbnailGenerationServiceTest`, `ThumbnailGenerationServiceCandidateTest`, and
+`Tests\Unit\Services\ThumbnailCanvasComposerTest`. Two independent moves:
+
+1. Re-home `ThumbnailCanvasComposerTest` from `tests/Unit` to `tests/Integration` (it renders
+   canvases; "Unit" is a lie the suite layout tells).
+2. Introduce a test-profile canvas size: a `thumbnail-generation.canvas` config the tests set to
+   a proportionally-scaled small geometry, with pixel assertions rewritten as ratios. **Only do
+   this if the assertions scale cleanly** — if the composer's layout maths has absolute-pixel
+   branches, record that in the PR and keep full-size renders (accepting the ~80 s serial cost)
+   rather than weakening assertions.
+
+### 4e. js-yaml override (F5.2)
+
+Dev-only moderate DoS via `@lhci/cli → @lhci/utils → js-yaml@3.14.2`. Check
+`npm view @lhci/cli versions` for a release bumping js-yaml; if none, add a `package.json`
+`overrides` entry pinning `js-yaml` ≥ 3.15 **under the @lhci scope only**, then run the
+Lighthouse CI workflow once (or its local equivalent) to prove @lhci still parses its config.
+If it breaks, revert and record "accepted risk: dev-only tooling" here.
+
+### 4f. `Sermon::validationRules()` relocation (F2.2a) — lowest priority
+
+Optional finish of the model slim-down: move the 56-line static into a dedicated
+`App\Models\Rules\SermonValidationRules` (or a Form Request if all consumers are HTTP — check
+callers: `grep -rn "validationRules" app`). Skip entirely if consumers span Livewire + API +
+jobs and the move adds a class without removing complexity — record "keep" here if so.
+
+## WP5 — Spent one-shot deletions (F3.2) — tracked in remainder R8
+
+Two rows were added to the remainder plan's R8 table on 2026-07-19 (`ImportOosArchiveCommand` +
+`OosArchiveEvaluator` + 2 test files, gated on Q1; `BackfillSongPraiseNumbersCommand` + test,
+gated on Q2). Execute them there under R8's commit discipline (delete tool + companion + tests
+in one commit, pre-deletion git tag in the PR description). Nothing further to do in this plan.
+
+## WP6 — Regression nets (lands with WP2.1)
+
+1. **Query-duplication assertion** on the sermons browse page: a feature test hitting
+   `/christ/sermons` that counts queries via `DB::listen()` (or
+   `expectsDatabaseQueryCount()` on the Livewire test) and asserts the listing block runs
+   once — pin the exact number only if stable across filters; otherwise assert "no identical
+   SELECT executed more than once". This is the durable guard for F6.1.
+2. **Computed-call structural test**: alongside
+   `tests/Integration/Livewire/Traits/AdminLivewireComponentsUseTraitTest.php`, add a test that
+   reflects over `app/Livewire` classes, collects method names carrying
+   `Livewire\Attributes\Computed`, and asserts no `$this-><name>()` call syntax appears in the
+   component source or its Blade view (simple token/regex scan of the files is fine — the goal
+   is preventing regression of the whole class of bug, and a string scan catches it).
+
+## WP7 — PHPStan level-9 ratchet (F1.1) — **gated on remainder R9–R11 + Q4**
+
+Current state: level 8, 0 errors, empty `phpstan-baseline.neon` (keep it empty — no baseline
+entries at any point; that is the ratchet's value). Level 9 trial on 2026-07-19: 867 errors, of
+which 67 die with R8–R12 deletions, ~90 more live in files R7/R11 rewrite. Re-run the trial
+after R9–R11 merge to get the true remaining count (expect ~600–700):
+
+`vendor/bin/sail php vendor/bin/phpstan analyse --level=9 --memory-limit=2G --no-progress --error-format=raw > /tmp/l9.txt`
+then aggregate: `cut -d: -f1 /tmp/l9.txt | sort | uniq -c | sort -rn`.
+
+Fix in four sessions, each ending with the full quality gates at level 8 (the config flip
+happens only in session 4):
+
+1. **Session 1 — typed job payloads** (the bug-adjacent cluster): `SendCompletionNotification`
+   (~36 errors: give the notification payload a `@phpstan-type` array shape or a small DTO at
+   the dispatch site), `SubmitToProcessing`, `MoveSermonToPrivateStorage`,
+   `SermonMetadataIntegrationService`, `MetadataExtractionService`. Rule from the phpstan
+   preamble: fix underlying types, no `@var` overrides, no casts-to-silence.
+2. **Session 2 — Livewire + read path**: typed URL-bound properties in `BrowseSongs` (~14) and
+   siblings; `SermonRepository` pluck generics; `PodcastFeedService`; `SermonApiController`.
+3. **Session 3 — external payload boundaries**: `GoogleCalendarSyncService` full typing (delete
+   the 12 ignores WP2.7 annotated); `ApiBibleClient`; `StructureEvaluateCommand` (44) and
+   `StructureShadowReportCommand` (34) — these two **stay** (successor regression mechanism per
+   the remainder plan) so they must be typed, mostly `config()`/JSON casts.
+4. **Session 4 — media-services remainder + the flip**: whatever survives in
+   `app/Services/Media/**` post-R10/R11 (ffmpeg param casts, `file_exists` on mixed, etc.);
+   then set `level: 9` in `phpstan.neon`, run `vendor/bin/sail composer phpstan` → must be 0,
+   and update the AGENTS.md quality-gate line if it names the level.
+
+Level 10 (1,248 errors at trial): **do not attempt**; reassess after level 9 has held for a few
+weeks of normal development.
+
+## Closure
+
+When WP1–WP4 and WP6 are done and WP7 is either done or parked behind its gate: append a dated
+completion note per WP here, update the findings doc's header with "remediated by
+CODE-QUALITY-REMEDIATION-2026-07-19", and archive this plan to `docs/archived-plans/` with a
+pointer header once WP7 lands. Report any rejected/kept-as-is item (4b outcome B, 4d fallback,
+4f "keep") in the note rather than deleting its section.

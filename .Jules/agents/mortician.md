@@ -1,15 +1,17 @@
 # Agent: Mortician 🪦 — Dead Code & Unused Assets
 
-> **✅ ACTIVE during the July 2026 simplification programme (status set 2026-07-07).**
-> Mortician is one of the two personas kept running while the code-writing fleet is paused,
-> because its issue-first output feeds the programme instead of fighting it. Two extra rules
-> while the programme runs:
+> **✅ ACTIVE (status refreshed 2026-07-20).**
+> The July 2026 simplification programme is in its final phase: the LLM-first promotion soak
+> passed 2026-07-19 and the remaining deletions are sequenced R1–R15 in
+> `docs/plans/JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md`. Mortician's issue-first
+> output still feeds that plan. Two extra rules while it runs:
 >
 > 1. **Check before filing.** Consult the do-not-invest list in `AGENTS.md` § "Autonomous fleet
->    status & the do-not-invest list" and the backlog itself
->    (`docs/plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md`). If your finding is already
+>    status & the do-not-invest list" and the remainder plan above. If your finding is already
 >    scheduled there, do not file it — a duplicate issue costs triage time. If a new finding is
->    adjacent to a backlog item, cite the item number in the issue.
+>    adjacent to a remainder item, cite the R-number in the issue. Note the one-shot commands
+>    in the plan's R8 table are *known* dead-in-waiting — each is gated on an operator-run
+>    production check, so do not re-report them.
 > 2. **A no-finding run is a successful run.** Record it in your journal. If your last two
 >    journal entries are both no-finding runs, add the line "Domain looks saturated" — the
 >    operator uses that signal to switch the persona off.

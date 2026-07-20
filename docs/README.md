@@ -8,8 +8,10 @@ Rules for using this folder, written for AI agents as much as humans:
 2. **Every document carries a date.** Distrust anything that contradicts the code, and fix or
    delete it when you notice.
 3. **One active tracker.** All current work flows from
-   [`plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md`](plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)
-   — start at [`plans/README.md`](plans/README.md).
+   [`plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md`](plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md),
+   executed via its remainder plan
+   [`plans/JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md`](plans/JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md)
+   (which corrects the backlog's stale statuses) — start at [`plans/README.md`](plans/README.md).
 
 ## Map
 

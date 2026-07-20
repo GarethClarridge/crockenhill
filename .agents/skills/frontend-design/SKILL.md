@@ -10,6 +10,15 @@ description: >-
 
 This skill is project-specific and overrides generic frontend-design advice. Follow it exactly.
 
+> **⚠️ Staleness note (2026-07-20):** the approved
+> `docs/plans/DESIGN-SYSTEM-REFRESH-2026-07-20.md` will change some of what this skill and
+> `docs/design-style-guide.md` say (gray/slate token aliasing with a "write `gray-*`"
+> convention, button-variant consolidation removing `featureOutline`, font-face repairs, and a
+> full style-guide rewrite in its PR 5 — which also refreshes this skill). Until that plan's
+> PRs land, verify token and component-variant claims against the live code
+> (`resources/css/app.css` `@theme` block, `resources/views/components/button.blade.php`)
+> when they matter, and delete this note as part of PR 5.
+
 ## Before writing any UI code
 
 1. Read `docs/design-style-guide.md` — it is the single source of truth for tokens, components, and patterns.

@@ -278,11 +278,11 @@ than letting the service bounce straight back into the queue.
   authorization stays admin-gated (add routes/actions to
   `AdminLivewireAuthorizationTest` scenarios if new endpoints appear).
 
-**C3 — Honest inbox counts.** Make the tab numbers and the summary sentence agree: tabs show
-true totals (the queries already run; the count query exists in
-`ServiceReviewDashboardQuery`), the list caps at 50 with "showing newest 50 of N", and the
-"Action items to surface the rest" sentence is deleted or replaced with plain copy
-("Resolve items to see older ones").
+**C3 — Honest inbox counts.** ~~Make the tab numbers and the summary sentence agree.~~
+**Superseded (2026-07-19)** by
+[SERVICE-SCREENS-CONSOLIDATION-2026-07-19.md](SERVICE-SCREENS-CONSOLIDATION-2026-07-19.md)
+Phase 4, which folds the inbox into the services hub and fixes the counts there. Do not
+polish the inbox's counts — the page is being retired.
 
 **C4 — Failed-run cards say so.** A `failed`/superseded run on the workbench collapses to a
 single summary row ("Run failed 2 months ago — no sections were produced") with the

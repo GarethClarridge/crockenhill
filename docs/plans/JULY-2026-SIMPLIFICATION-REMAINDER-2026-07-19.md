@@ -1,0 +1,432 @@
+# July 2026 Simplification Backlog — Remainder Implementation Plan
+
+> **Status (2026-07-19): approved to start.** The D22 promotion soak (backlog items 1.2 + 1.4)
+> **passed** — maintainer sign-off 2026-07-19. This plan is the just-in-time implementation plan
+> the backlog's protocol requires for the remaining `[design]` items, plus the execution sequence
+> for the remaining `[mechanical]` and `[operational]` items. It was written against commit
+> `4748bcd81` with every claim below re-verified against the live code (the backlog doc itself is
+> stale in several places — see "Verified state corrections").
+>
+> **Dependencies:** parent tracker is
+> [JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md);
+> read its Implementation protocol first. Cited review sections live in
+> `docs/reviews/july-2026-simplification/`.
+>
+> **Agents must not, without maintainer input:** (a) run any production check or production
+> command themselves — every ☐ gate below is operator-executed (see
+> `docs/plans/production_audit_workflow` conventions: public repo, counts only); (b) start item
+> R6 (canonical-conflict collapse) before the sequencing decision in its section is resolved;
+> (c) delete `HistoricVideoImporter` (R12) — its gate closes last, after the bulk backfill;
+> (d) schedule R11 (1.7f schema-field features) — operator-appetite only.
+
+## What remains (one-screen summary)
+
+| # | Item (backlog ref) | Tag | Blocked by |
+|---|---|---|---|
+| R1 | Bookkeeping: record soak pass, tick gates, fix stale statuses | mechanical | — |
+| R2 | 1.3 auto-trim migration to the LLM path | design | — (mode is already primary) |
+| R3 | 4.4 CRUD consistency pass (verified residual scope) | mechanical | — |
+| R4 | 4.5 authorization gates cleanup (verified residual scope) | mechanical | — |
+| R5 | 5.5 timeline family relocation | mechanical | — |
+| R6 | 5.1 canonical-conflict state collapse | design | sequencing vs. review-queue-noise plan |
+| R7 | 5.2 one-call OOS email parsing | design | — |
+| R8 | 2.4 legacy importer/backfill sweep + 2.6 platform one-shot sweep | mechanical | per-item prod gates |
+| R9 | 1.5 delete the church-service heuristic cluster | mechanical | R2 |
+| R10 | 1.6 delete the media visual stack + song clusters | design | R9 + re-homing pre-work |
+| R11 | 1.7a/b/c/e consolidations (1.7f unscheduled; 1.7d closed) | design | R10 (1.7a/b/c); 1.7e last |
+| R12 | Bulk historic backfill (~500) → `HistoricVideoImporter` deletion (2.5) | operational→mechanical | 1.7a |
+| R13 | 5.3/5.4 deferred re-measures | design | soak data recorded in R1 |
+| R14 | 7.1 duplicate-suite fold-ins + 7.2 conventions in `AGENTS.md` | mechanical | R9/R10/R8 |
+| R15 | Archive trackers; hand off to Phase 9 | mechanical | R14 |
+
+Suggested batching: **R1 → {R2, R3, R4, R5, R7, R8 in parallel} → R9 → R10 → R11 → R12 → R13/R14 → R15.**
+R6 slots wherever its sequencing decision lands.
+
+## Verified state corrections (2026-07-19)
+
+The backlog document under-records what has already shipped. Do **not** re-plan or re-execute
+these:
+
+- **Workstream 4 items 4.1, 4.2, 4.3 are done**, absorbed by the service-UI consolidation and
+  follow-ups: `App\Livewire\Admin\MediaUpload` exists with a backed `App\Enums\UploadState`;
+  `ProcessingLogService`, `ProcessingLogEntry`, `ProcessingLogCollection`, `ProcessingLogsViewer`
+  and the standalone `ProcessingReview` component no longer exist anywhere in `app/`; retired
+  per-run review URLs redirect (commit `7e483b437`). Only the 4.4/4.5 residue below is open.
+- **Workstream 6 is done in full** (PRs #1188/#1191): migrations are squashed
+  (`database/schema/mysql-schema.sql` + 5 post-squash migrations); the five stock config files,
+  `debugbar.php`, the `auth.php` `api` guard and dead `calendar.php` keys are gone; `livewire.php`
+  is v4-shaped with the two deliberate overrides; `church.php` and `health.php` exist,
+  `sermons.php`/`opening-hours.php`/`organization.php`/`monitoring.php` do not. 6.5's
+  `AGENTS.md` fixes and the one-shot retirement convention are in.
+- **Parts of 4.4 are done**: `App\Actions\ServiceReview\MarkServiceReviewed` is the shared
+  action; `ListUsers` already uses `WithFilterableListing`; `ServiceReviewDashboardQuery` already
+  carries its post-rename name.
+- **Parts of 7.1 are done**: the `PublicSongUsageServiceTest`, `SongLyricSnippetBuilderTest`,
+  `PublicMeetingReadModelCacheTest` and `SermonViewPresenterTest` duplicates are already single
+  files (deleted with 2.1/3.3). The surviving pairs are listed under R14.
+- **Workstream 1 seams 1.1a–1.1d merged** (#1156–#1159, 2026-07-12); `structure:evaluate` and
+  `structure:shadow-report` exist as the successor regression mechanism.
+- Still present and still to do, confirmed by file existence: all 11 heuristic services + 6 jobs
+  of the 1.5 list, `scripts/section-extraction/`, `ServiceStructureMode::Off`,
+  `VisualAnalysisService`, `SongClusteringService`, every 2.4/2.6 one-shot tool,
+  `MeetingPolicy`, the 800-line `OosEmailParserService`, the 167-line
+  `ChurchServiceReviewStateService`, and the four timeline classes in `app/Support/`.
+
+---
+
+## R1 — Bookkeeping (do first; ~30 min)
+
+1. In the backlog doc: tick the 1.4 soak checklist line (maintainer sign-off 2026-07-19), mark
+   1.2/1.4 complete, and correct the stale statuses listed above (4.1–4.3, Workstream 6) so no
+   future session re-derives them.
+2. Record the D6/5.3 soak observations where R13 can find them: the count of
+   pending-structure-merge occurrences during the soak and the operator's accept/reject choices
+   (backlog 1.4 gate required these; if they were not captured, say so explicitly in the 5.3
+   section rather than inventing them — R13 then starts with a measurement window instead).
+3. Update `docs/plans/README.md`: point the spine entry at this plan for execution order.
+4. Note in `docs/operations/llm-structure-promotion-soak.md`'s header that the soak completed
+   and the runbook is now historical (Stage summaries stay useful for the R12 backfill).
+
+## R2 — Item 1.3: auto-trim migration [design]
+
+**Why now:** production is already in primary mode, so backlog "shape (a) — swap at the flip"
+and "shape (b) — mode-independent path" have converged: a straight swap is the simple correct
+shape. This is the **only remaining code gate before R9** — the four classification jobs it
+removes from the auto-trim chain are on the 1.5 deletion list.
+
+Current chain (`app/Services/Processing/ProcessingPipelineBuilder.php:99`):
+`ValidateVideoFile → GenerateRmsLog → AnalyzeSegments → ClassifyServiceSections →
+TranscribeSpeechSegments → ClassifySpeechSections → ReclassifyIntroOutroSections →
+ExtractSermon → … `.
+
+**Target chain:** `ValidateVideoFile → GenerateRmsLog → AnalyzeSegments →
+TranscribeFullService → DetectServiceStructure → ExtractSermon → …` (AnalyzeSegments **stays**
+until R10 — it still produces the `sermon_start_time`/`sermon_end_time` baseline that
+`SermonExtractionPlanResolver` reads, and its no-sermon-candidate failure gate).
+
+Steps:
+
+1. Read church review §4.2.5 in full, then verify in code exactly which guards restrict
+   `TranscribeFullService` and `DetectServiceStructure` to livestream runs. Widen **only those
+   two guards** to accept auto-trim `MediaType::Video` runs. Do not widen projection, song, or
+   publication guards — they are not in the auto-trim chain and must not start firing for
+   auto-trim uploads.
+2. Confirm what `ExtractSermon` / `SermonExtractionPlanResolver` actually consume in the
+   auto-trim path. The design intent: extraction boundaries keep coming from `AnalyzeSegments`'
+   baseline (unchanged), while the LLM structure replaces the classification refinement. If code
+   inspection shows the four removed jobs feed extraction *inputs* (not just section metadata),
+   **stop and flag** per the backlog's stop rule.
+3. Update the pipeline-chain tests that pin the auto-trim sequence
+   (`ProcessingPipelineBuilderTest`, `ProcessingPhaseRegistryTest`, plus any test asserting
+   auto-trim is mode-independent — the soak runbook Stage 0 notes these pins exist). Update
+   `ProcessingPhaseRegistry` rows/offsets for the auto-trim pipeline in the same PR (memory:
+   inserting/removing chain jobs ripples every `job_offset`).
+4. Add one characterisation test: an auto-trim video run in primary mode produces a sermon with
+   plausible boundaries and the expected step sequence, using the mock detector.
+5. Quality gates; Dusk not needed unless the upload form surface changed (it shouldn't).
+
+**Operational follow-up:** the next real auto-trim upload in production is the acceptance check.
+One clean run → R9 unblocks (the soak already proved the shared LLM path).
+
+## R3 — Item 4.4: CRUD consistency pass [mechanical] (verified residual scope)
+
+Read admin review F4/F5/O2/O3 first. Remaining sub-items, verified open:
+
+1. **`service-tracking.enabled` route-group middleware.** `abortIfDisabled()` copies live in
+   `ListChurchServices`, `ShowSong`, `ListSongs`, `ShowChurchService`, `ReviewInbox`,
+   `SubmitEmailText`, `UploadChurchService`, `ManageChurchService` (Livewire) **plus**
+   `PublicSongListController` and `MailgunInboundWebhookController`. Add a small
+   `EnsureServiceTrackingEnabled` middleware; apply via route group for the admin pages and
+   per-route for the public song list and the webhook (the webhook should keep returning its
+   current disabled-state response shape — verify before swapping, an aborting middleware may
+   change what Mailgun sees on retry).
+2. **`ManagesSectionPublication`**: replace the three `method_exists($this, 'authorizeAdmin')`
+   guards (lines 18/43/67) with `use WithAdminAuthorization;` in the trait and direct calls.
+3. **`ListChurchServices` onto `WithFilterableListing`** (currently `WithSortableListing`) —
+   align with the seven sibling list components that already use it.
+4. **Structural test**: extend `AdminLivewireComponentsUseTraitTest` to assert per-action
+   `authorizeAdmin()` calls (admin F3's durable fix). Check what it already asserts first.
+5. **Sermon-delete convergence**: `ListSermons` (Livewire delete) and
+   `SermonAdminController::destroy` (`routes/web.php:139`) both exist. Converge on the Livewire
+   path; retire the controller route or reduce it to a redirect — check for external references
+   (emails, docs) to the POST route first.
+6. Named eager-load scope for church-service items; inline or docblock
+   `ReviewsServiceSections`; document the `AdminListComponent` recipe in `AGENTS.md`.
+
+Skip (already done): shared `markServiceReviewed()`, `ListUsers` alignment, query rename.
+
+## R4 — Item 4.5: authorization gates cleanup [mechanical] (scope shrunk by drift)
+
+The old backlog text no longer matches the code: there are **no** `@can('manage-*')` blocks in
+views, no `Gate::define` calls, and no `UpdateMeetingRequest`; `MeetingController` is a
+public show-only controller (`routes/web.php:79`) that must **stay**. Verified remaining scope:
+
+1. Grep for every `MeetingPolicy` consumer (`authorize(`, `can(`, `Gate::`, `->cannot(`) —
+   expected result: only the `AuthServiceProvider` registration and `MeetingPolicyTest`.
+2. Delete `app/Policies/MeetingPolicy.php`, its registration line in `AuthServiceProvider`
+   (leave `SermonPolicy` — it backs the Sermon create Gate used by the upload flow), and
+   `tests/Integration/Policies/MeetingPolicyTest.php` in the same commit.
+3. Audit `tests/Integration/AuthorizationGatesTest.php`: keep assertions that cover live
+   behaviour (`canAccessAdmin()`, SermonPolicy), delete only what asserted the removed policy.
+4. Then archive `docs/architecture/simplification-backlog.md` (the backlog says to archive it
+   once 4.5 lands) with a pointer header.
+
+## R5 — Item 5.5: timeline family relocation [mechanical]
+
+Move `ProcessingRunTimelineBuilder` (192), `ServiceRecordTimeline` (353), `ServiceFlowBuilder`
+(344), `ServiceTimelineBuilder` (49) from `app/Support/` into the church-service domain
+namespace; merge the 49-line `ServiceTimelineBuilder` pass-through into `ServiceFlowBuilder`
+while moving. Apply the R3 namespace-move checklist (memory): fix explicit `use` statements,
+external siblings, the moved files' own sibling references, **and grep Blade templates/strings
+for inline FQCNs** — then run the full suite, which is the only net that catches Blade misses.
+Do **not** re-proportion content — that waits for R9 thinning the timeline steps. Decide the
+target namespace by looking at where `ServiceSectionConfidence` and the projection services
+live (`app/Services/ChurchService/…` or `app/Support/ChurchService/…` — follow the majority).
+
+## R6 — Item 5.1: canonical-conflict state collapse [design] — **sequencing decision required**
+
+**Conflict of jurisdiction:** the
+[REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md](REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md)
+plan owns the review-predicate semantics of exactly this state (its evidence base found 401/401
+services with canonical-conflict "detected"), and 5.1 owns its storage. Landing 5.1 first would
+rewrite columns the noise plan's Workstream A predicates read; landing noise-A first means 5.1
+collapses a freshly-touched surface. **Recommendation: land noise-plan Workstreams A/B first,
+then execute 5.1 against the settled predicates** — the noise plan is smaller, already
+verified, and improves the operator's daily queue immediately. Confirm with maintainer before
+starting either.
+
+5.1 execution shape (write the detailed diff-level plan only after the sequencing decision):
+per church §4.5/R3 — pick column storage; shrink to `needs_review` + one human-readable reason
+string; keep `canonical_conflict_history` JSON as the audit trail; delete one enum, most of a
+second, six columns' ceremony, and most of `ChurchServiceReviewStateService` (167 lines).
+Touched files (verified): `ChurchService` model, `MarkServiceReviewed` action,
+`ChurchServiceImportMetadata`, `ChurchServiceReviewSynchronizer`,
+`ChurchServiceReviewStateService`. Column drops must use expand/contract migrations
+(`AGENTS.md` rule adopted after the 3.5 deploy).
+
+## R7 — Item 5.2: one-call OOS email parsing [design]
+
+Per church §4.7/R4 + opportunity 5. `OosEmailParserService` is 800 lines; ~300 are date/service
+regex extraction. Steps:
+
+1. Read the current `OpenAiOosEmailItemExtractor` (the pattern to extend) and map exactly which
+   `OosEmailParserService` methods are regex date/service extraction vs. item parsing vs.
+   validation.
+2. Extend the extractor's typed schema to return `{date, service, items, confidence}` in one
+   call. Keep the **deterministic validation gate** exactly as specified: date parses, service
+   in enum, future-dated tolerance, existing confidence thresholds.
+3. Delete the regex date/service path; keep whatever the deterministic gate needs.
+4. Tests: rewrite the parser tests around the new seam using the existing mock-extractor
+   pattern; keep every fixture email the current tests exercise (informal formats are the
+   cases the LLM is expected to *improve* on — the fixtures become the eval evidence). Run the
+   real-detector spot-check on 2–3 archived inbound emails locally before merging (the OOS
+   archive import made these available).
+5. Risk note: `ProcessInboundOosEmail` and the Mailgun webhook are the callers — verify the
+   failure path still lands emails in the manual queue, not a silent drop, when the LLM call
+   errors.
+
+## R8 — Items 2.4 + 2.6: gated one-shot deletions [mechanical]
+
+Each deletion PR: delete tool + companion + tests in one commit, record the pre-deletion git tag
+in the PR description. **Every gate is operator-run** (production checks; counts only in any
+public output). Verified all tools still exist. Suggested order — gates first, deletions batched
+by gate result:
+
+| Delete | Gate (operator) | Status |
+|---|---|---|
+| `LegacySermonImporter` + `ImportLegacySermonBatchCommand` (~1,520) | Confirm tape digitisation finished for good | ☐ |
+| `GenerateProdSermonPatchCommand` (669) | Confirm prod patch applied; local→prod merges never again (D22 already declared the local→prod patch path deletion-scheduled) | ☐ |
+| `PreacherCutoverCommand` + service (387) | `sermons WHERE preacher_id IS NULL` count = 0 | ☐ |
+| `LegacyPlayDateSongUsageImporter` + command (~700) | play_date backfill confirmed complete | ☐ |
+| `LegacySongReconciler` + `reconciledSongId` thread + schema probes (~500) | `Song::withTrashed()` null/blank/`legacy-song-%` canonical-key count = 0 | ☐ |
+| `songs.praise_number`, `songs.alternative_title` columns + `play_date` table | After both song rows above. **`alternate_title` is live — do not touch.** Expand/contract migration | ☐ |
+| `ConvertJpgToWebp`, `ImportOpenLpDirectoryCommand`, `BackfillMediaProcessingIdentityCommand`, `FixUploadDirectories` | Per-command prod confirmation (platform Q1a–f) | ☐ |
+| `MeetingMigratePhotosCommand` + `MeetingPhotoMigrationService` + `public/images/meetings/{1150,baby-talk,bible-study,buzz-club,coffee-cup,sunday-services}/` (verified still present) | Confirm production photo import completed (photos serve from Spatie Media Library) | ☐ |
+| `ExtractVideoFrames` + `ExportVisualMetricsCommand` | None — they die with R10 regardless; delete there, not here | rides R10 |
+| `ImportOosArchiveCommand` + `OosArchiveEvaluator` + their 2 test files (~1,100 lines; added 2026-07-19 by the Phase 9 review, F3.2) | Maintainer confirms the OoS paper archive import is final, no further evaluator runs planned | ☐ |
+| `BackfillSongPraiseNumbersCommand` + test (added 2026-07-19 by the Phase 9 review, F3.2) | Operator confirms prod praise-number backfill + `service-tracking:link-songs` ran after PR #1171 | ☐ |
+| `ImportHistoricVideoBatchCommand` + `HistoricVideoImporter` (~1,500) | **Closes last** — after the R12 bulk backfill completes | rides R12 |
+
+Note for the song-column drop: re-verify the `play_date` sweep against the songs review's own
+three-part predicate (songs Q2) — the reconciler's predicate is the gate, not a plain null check.
+
+## R9 — Item 1.5: delete the church-service heuristic cluster [mechanical]
+
+**Do not start until** R2 has merged and one production auto-trim run is clean. The noise plan's
+"must not touch" list becomes moot here — but if noise-plan work is in flight on review
+surfaces, coordinate merges to avoid conflicts on `ReviewInbox`/workbench files.
+
+Scope (all verified present): 11 services in `app/Services/ChurchService/`
+(`StructuralSectionAligner`, `SpeechSectionClassificationService`, `SongSectionAligner`,
+`OosAlignmentService`, `ServiceSectionClassifier`, `ReadingReferenceExtractor`,
+`SectionItemAlignmentScorer`, `SectionAlignmentBaselineRestorer`, `AlignmentTriggerCalculator`,
+`PresentationItemClassifier`, `MediaInterludeCueDetector`), 6 jobs (`ClassifySpeechSections`,
+`ResolveReadingReferences`, `TranscribeSpeechSegments`, `ReclassifyIntroOutroSections`,
+`ClassifyServiceSections`, `AlignWithOos`), the heuristic branches of
+`ProcessingPipelineBuilder`, `ServiceStructureMode::Off`, `scripts/section-extraction/` +
+`SectionExtractionScriptsTest`, and the heuristic-path test estate named in church §4.9.
+
+Commit discipline (each commit independently green; references before referents):
+
+1. One commit per job deletion, bundling: the job class, its `ProcessingPipelineBuilder`
+   branch, its `ProcessingPhaseRegistry` imports/phase-rows/anchor-offsets, its dedicated test
+   file, and updates to `ProcessingPipelineBuilderTest`/`ProcessingPhaseRegistryTest` and the
+   ~14 test files importing job classes (list is in church §4.9 — re-grep, it will have
+   drifted). Order jobs so no commit leaves a dangling reference.
+2. Then the now-unreferenced services, in dependency order (grep before each: the noise plan or
+   corpus-follow-up work may have added callers since the review — the backlog's stop rule
+   applies).
+3. Then the mode-enum collapse: remove `Off`, leaving `Shadow`/`Primary`. Check every
+   `ServiceStructureMode` match/case site and config default (`media-processing.php`), and the
+   `.env.example` guidance. Decide the new default (`primary` — matching production).
+4. Then `scripts/section-extraction/` + its test.
+5. Sweep for dead branches: the workbench `reclassify()` affordance and
+   `timeline-alignment-*` partials (admin §9); `MatchSongsFromTranscript`'s
+   `OosAlignmentService` type-hint (1.1b flagged it for removal at flip time — verify it's
+   still referenced, then strip).
+6. Implementation facts to honour (recorded during 1.1, memory-backed): the reconcile re-run
+   never re-opens completed runs; the transcript artifact survives cleanup but the RMS log does
+   not, so reconcile re-detection loses silence-snapping gracefully — do not "fix" this while
+   deleting.
+
+Expected size: ~5,000 production + ~8,900 test + 1,123 script lines. Full quality gates plus
+Dusk (upload form path). One PR per commit-group is acceptable; a single stacked PR series is
+preferred so CI proves each stage.
+
+## R10 — Item 1.6: media visual stack + song clusters [design]
+
+**Do not start until R9 is merged.** This is a segmentation migration, not a free deletion.
+
+**Pre-work (the actual design task):** `AnalyzeSegments` still consumes
+`$this->processingLog->song_clusters` (line 296) and produces (a) the no-sermon-candidate
+failure gate and (b) the `sermon_start_time`/`sermon_end_time` baseline read by
+`SermonExtractionPlanResolver`. Re-home both onto the LLM structure:
+
+1. Derive the sermon-boundary baseline from the primary-mode `ServiceStructure` (the detected
+   sermon section's bounds, snapped by the surviving RMS silence data).
+2. Derive the failure gate: "LLM structure contains no sermon section of plausible length" →
+   route to manual review via the existing `awaitingManualSermonReview` path (respect the
+   20-min minimum + 1.5× ratio confidence guard — memory: livestream extraction thresholds).
+3. Land a **characterisation test on primary-mode segment boundaries** (fixture structure in →
+   expected extraction plan out) *before* removing the producer.
+4. Then delete: `VisualAnalysisService` (881), `PerformVisualAnalysis` (326) + its
+   `buildLivestreamParallelJobs` branch and the `media-processing.visual_analysis.enabled`
+   config key, the visual/cluster halves of `VideoSegmentationService` and `AnalyzeSegments`,
+   `ExportVisualMetricsCommand`, `ExtractVideoFrames`, `SongClusteringService` +
+   `SongCluster`/`SongClusterCollection`/`SongClusterCollectionCast`, and the
+   `song_clusters`/`visual_confidence`/`visual_sample_count`/`calibration_method` columns
+   (expand/contract: code stops reading first, columns drop in a later deploy).
+5. Survives: `GenerateRmsLog`, the silence-parsing half of `RmsAnalysisService`, speech blocks
+   for manual review.
+
+Write the diff-level sequencing as a short addendum to this plan when R9 lands (the shape of
+`AnalyzeSegments` after R9's edits isn't knowable yet).
+
+## R11 — Item 1.7 consolidations (each its own PR, in order)
+
+- **1.7a — one Whisper pass** (media O2/F5). Slice the full-service transcript
+  (`ChurchServiceTranscript::sliceText()` exists) for the sermon transcript instead of
+  re-transcribing extracted audio. Both interface families verified present:
+  `ServiceTranscriptionInterface` (full service) and `TranscriptionServiceInterface`
+  (`TranscribeAudio` on extracted audio). Delete the second family *for the livestream/video
+  paths*; check first whether any path (audio-only uploads?) has no full-service transcript to
+  slice — if audio uploads transcribe directly, `TranscribeAudio` survives for that pipeline
+  only, and the "family deletion" is scoped to the redundant second pass. Acceptance: public
+  transcript available right after structure detection; per-service Whisper cost halves.
+  **Gates R12.** Note for tests: `SONG_MATCHING_LOCAL_WHISPER_URL`/local-whisper wiring
+  (memory) may be affected — keep the local dev route working.
+- **1.7b — one ffmpeg audio-preparation helper** (media F5): single owner of the
+  transcription-target profile; delete the other three compression paths and the
+  `getVideoMetadata` double. Re-verify the "three paths" claim against current code first.
+- **1.7c — one song matcher** (songs F5/F6, church opportunity 4): shed
+  `MatchSongsFromTranscript`'s third tier (per-section extraction + Whisper) in favour of
+  `sliceText()`; consolidate title-hint regexes + fuzzy lyrics windowing behind one typed
+  matching call; canonical-key bedrock stays deterministic; prune the 11 `song_matching`
+  config keys to `enabled` + local-dev switch. OCR retention depends on the maintainer's
+  "lyrics-on-screen-only" answer (church Q4) — ask before deleting OCR.
+- **1.7e — registry rationalisation** (media F3), last: anchor-job offsets for all pipelines,
+  progress from chain position, step-name normalisation at the write site, delete alias lists.
+  Much smaller after R9/R10 shrink the chains.
+- **1.7d** closed (speaker stack kept, D3). **1.7f** unscheduled — operator appetite only.
+
+## R12 — Bulk historic backfill → 2.5 deletion [operational → mechanical]
+
+After 1.7a lands: process the ~500-item historic backlog through
+`ImportHistoricVideoBatchCommand` (the soak runbook's Stage 3 mechanics apply; watch `app-temp`
+disk headroom — memory: temp disk is the bottleneck; check *container* disk, not host `df`).
+If per-service cost still matters, the `TranscriptionServiceInterface` seam offers the
+local-Metal whisper.cpp sidecar route or `TRANSCRIPTION_SERVICE_TYPE=local` on the prod box
+(see 1.7a text in the backlog). Only when the maintainer confirms the drive import is finished
+for good: delete `HistoricVideoImporter` + `ImportHistoricVideoBatchCommand` (~1,500 lines) —
+nothing else references them (re-verify at deletion time).
+
+## R13 — Items 5.3 / 5.4: deferred re-measures [design]
+
+With soak + backfill data:
+
+- **5.3 staged structure-merge** (~950 lines): count pending-structure-merge fires and operator
+  choices (R1 step 2 recorded the soak's; the R12 backfill adds volume, but note D22's caveat —
+  bulk-import ordering differs from live email-then-livestream ordering, so weight live-Sunday
+  evidence higher). If it rarely fires and the operator always accepts the incoming email:
+  collapse to "merge + `needs_review` + diff note".
+- **5.4 `ChurchServiceItemSyncService`**: post-promotion semantics settled — does `Livestream`
+  still need full merge authority? Does cross-source song-title matching still fire? Then
+  policy/mechanics split only if still warranted.
+
+Each produces a short decision note appended to the backlog's decision log (D-numbered), then
+either a small implementation PR or an explicit "keep" closure.
+
+## R14 — Items 7.1 + 7.2: test-suite roll-up [mechanical]
+
+After R8/R9/R10 (so nothing is folded twice). Verified surviving duplicate pairs:
+
+| Legacy flat file | Fold into | Lines |
+|---|---|---|
+| `tests/Feature/Livewire/Admin/EditSermonTest.php` | `Admin/Sermons/EditSermonTest.php` | 564 |
+| `tests/Feature/Livewire/Admin/ListSermonsTest.php` | `Admin/Sermons/` per-component home | 221 |
+| `tests/Feature/Livewire/AdminUserTest.php` | `Admin/Users/*` | 439 |
+| `tests/Feature/Livewire/AdminMeetingTest.php` | `Admin/Meetings/*` | 183 |
+| `tests/Feature/Livewire/AdminChurchServiceTest.php` | `Admin/ChurchServices/*` per-component suites | 1,402 |
+
+Method: diff assertions, port anything the per-component home lacks, delete the flat file in
+the same commit. Cross-cutting trait behaviour (sort sanitisation etc.) stays only at the
+trait level + structural tests. Then 7.2: write the four conventions into `AGENTS.md`
+(deletion-with-subject, one suite per component, one integrity home — pick the directory while
+here, eval manifests over characterisation suites for probabilistic seams).
+
+## R15 — Closure
+
+1. Confirm every Definition-of-done box in the backlog is ticked or explicitly rejected;
+   record any rejections in the decision log.
+2. Archive: this plan and the backlog move to `docs/archived-plans/` with pointer headers;
+   `docs/architecture/simplification-backlog.md` archived at R4 if not already.
+3. ~~Hand off to **Phase 9** (code-quality review)~~ — **Phase 9 ran early on 2026-07-19**
+   (maintainer waived the gate): findings in
+   `docs/reviews/july-2026-simplification/code-quality-review-2026-07-19.md`, implementation in
+   [CODE-QUALITY-REMEDIATION-2026-07-19.md](CODE-QUALITY-REMEDIATION-2026-07-19.md). Its WP7
+   (phpstan level-9 ratchet) is gated on R9–R11 here; at closure, confirm WP7's gate is
+   released and note it in that plan.
+
+## Quality gates (unchanged, every PR)
+
+`vendor/bin/sail artisan test --compact --parallel` (focused per PR, full before merge) ·
+`vendor/bin/sail composer phpstan` at 0 · `vendor/bin/sail bin pint --dirty` ·
+`vendor/bin/sail artisan dusk` for anything touching public routes or the upload form.
+Capture first-run test output with `tee` (AGENTS.md diagnosis trick) — never re-run the suite
+just to read failure names.
+
+## Consolidated operator checklist (production; counts only in public output)
+
+- [ ] One clean production auto-trim run after R2 merges (gates R9)
+- [ ] Tape digitisation finished for good (gates `LegacySermonImporter` deletion)
+- [ ] Prod sermon patch confirmed applied / local→prod merges retired (gates `GenerateProdSermonPatchCommand`)
+- [ ] `sermons WHERE preacher_id IS NULL` = 0 (gates `PreacherCutoverCommand`)
+- [ ] play_date backfill confirmed complete (gates `LegacyPlayDateSongUsageImporter`)
+- [ ] Null/blank/`legacy-song-%` canonical keys incl. trashed = 0 (gates `LegacySongReconciler` + column drops)
+- [ ] Platform Q1a–f per-command confirmations (gates the R8 platform batch)
+- [ ] OoS paper archive import declared final (gates `ImportOosArchiveCommand`/`OosArchiveEvaluator` — Phase 9 F3.2)
+- [ ] Prod praise-number backfill after #1171 confirmed (gates `BackfillSongPraiseNumbersCommand` — Phase 9 F3.2)
+- [ ] Meeting photo import to Media Library confirmed (gates photo-folder + migration-tool deletion)
+- [ ] Maintainer decision: R6 sequencing vs. review-queue-noise plan
+- [ ] Maintainer answer: church Q4 lyrics-on-screen (gates OCR deletion in 1.7c)
+- [ ] Bulk backfill complete + drive import declared finished (gates `HistoricVideoImporter` deletion — last)

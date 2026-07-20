@@ -1,7 +1,17 @@
 # OoS Archive Import: Evaluation Harness, Pipeline Fixes, Conservative Backfill
 
+> **ARCHIVED 2026-07-20 — complete.** All phases executed 2026-07-11: harness (commit 4da7e3d),
+> date-safety and multi-service pipeline fixes (PRs #1162, #1163), three evaluation runs, and the
+> gated create-only local import (2 services created, all 395 openlp rows untouched). The follow-up
+> date-plausibility fixes the eval surfaced merged as PR #1170 (2026-07-11). Calibration was
+> perfect across all runs (importable bands 34/34 correct, held band 0/66). Unfixed findings
+> recorded for future work: body date scan prefers the first textual date (notices dates can win),
+> a year-correction heuristic could recover ~7 no-other-evidence entries, song-link hit rate ~16%
+> because hymn-book numbers are unused by the linker. A prod import would need the gitignored
+> archive file (`storage/scratch/crockenhill_orders_of_service_archive.md`) present on the server.
+
 **Date:** 2026-07-10 (revised twice same day after external review rounds — every blocking finding was re-verified against code/archive before being addressed below)
-**Status:** Approved, not started
+**Status:** Complete (archived 2026-07-20 — see header above)
 **Priority steer from Gareth:** learning for future imports > backfill. Sequencing decision (explicit): fix the *known* bugs first, then run one evaluation pass so every miss it reports is a genuinely new finding — do **not** run a baseline eval just to measure already-confirmed bugs.
 
 ## Context
