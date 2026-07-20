@@ -87,10 +87,6 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     ): void {
         $mode = ServiceStructureMode::fromConfig();
 
-        if ($mode === ServiceStructureMode::Off) {
-            return;
-        }
-
         if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
             return;
         }

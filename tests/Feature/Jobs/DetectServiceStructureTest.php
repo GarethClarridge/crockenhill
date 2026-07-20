@@ -57,20 +57,6 @@ class DetectServiceStructureTest extends TestCase
     }
 
     #[Test]
-    public function off_mode_does_nothing(): void
-    {
-        Config::set('media-processing.service_structure.mode', 'off');
-
-        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
-
-        $this->runJob($log);
-
-        $log->refresh();
-        $this->assertArrayNotHasKey('service_structure_shadow', $log->processing_metadata?->toArray() ?? []);
-        $this->assertSame(0, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
-    }
-
-    #[Test]
     public function shadow_mode_records_the_proposal_without_touching_heuristic_sections(): void
     {
         Config::set('media-processing.service_structure.mode', 'shadow');

@@ -198,45 +198,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Service Section Classification
+    | Reading Reference Validation
     |--------------------------------------------------------------------------
-    */
-    'section_classification' => [
-        'enabled' => env('SERVICE_SECTION_CLASSIFICATION_ENABLED', true),
-        'prefer_high_confidence_sermon_section' => env('SERVICE_SECTION_PREFER_HIGH_CONFIDENCE_SERMON', true),
-        'transcribe_speech_segments' => env('SERVICE_SECTION_TRANSCRIBE_SPEECH_SEGMENTS', true),
-        'classify_speech_sections' => env('SERVICE_SECTION_CLASSIFY_SPEECH_SECTIONS', true),
-        'speech_transcription_min_duration_seconds' => (int) env('SERVICE_SECTION_SPEECH_TRANSCRIPTION_MIN_DURATION_SECONDS', 10),
-        'short_song_max_duration_seconds' => (int) env('SERVICE_SECTION_SHORT_SONG_MAX_DURATION_SECONDS', 90),
-        'childrens_talk_max_duration_seconds' => (int) env('SERVICE_SECTION_CHILDRENS_TALK_MAX_DURATION_SECONDS', 900),
-        // Speech-section classification drives the high-confidence auto-extraction decision and
-        // the sermon-vs-children's-talk judgement, so it gets its own explicit model knob
-        // (defaulting to the flagship reasoning model) rather than the cheaper analysis default.
-        'model' => env('SERVICE_SECTION_CLASSIFICATION_MODEL', 'gpt-5'),
-        'childrens_talk_min_preceding_duration_seconds' => (int) env('SERVICE_SECTION_CHILDRENS_TALK_MIN_PRECEDING_DURATION_SECONDS', 300),
-        'intro_max_start_seconds' => (int) env('SERVICE_SECTION_INTRO_MAX_START_SECONDS', 120),
-        'outro_min_remaining_seconds' => (int) env('SERVICE_SECTION_OUTRO_MIN_REMAINING_SECONDS', 30),
-        'outro_max_duration_seconds' => (int) env('SERVICE_SECTION_OUTRO_MAX_DURATION_SECONDS', 60),
-        'adjacent_merge_min_duration_seconds' => (int) env('SERVICE_SECTION_ADJACENT_MERGE_MIN_DURATION_SECONDS', 30),
-        'adjacent_merge_max_gap_seconds' => (int) env('SERVICE_SECTION_ADJACENT_MERGE_MAX_GAP_SECONDS', 2),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Reading Reference Resolution (Improvement #1)
-    |--------------------------------------------------------------------------
-    | Derives the actual scripture reference for a bible_reading section from the
-    | recited transcript when the OoS only carries a generic "Bible Reading" title.
-    | Gated by the analysis-service switch as well, so the `mock` service never
-    | makes a live call in tests.
+    | Prevents a short closing benediction from being adopted as the paired
+    | scripture reading when validating an LLM-proposed service structure.
     */
     'reading_references' => [
-        'enabled' => env('READING_REFERENCES_ENABLED', true),
-        'model' => env('READING_REFERENCES_MODEL', 'gpt-5-mini'),
-        'min_confidence' => (float) env('READING_REFERENCES_MIN_CONFIDENCE', 0.6),
-        // A short closing section whose transcript is a benediction formula is not a reading,
-        // even if the model names a passage (F12). The duration + end-of-service position guard
-        // means a benediction genuinely read mid-service is still resolved.
         'benediction_max_duration_seconds' => (float) env('READING_REFERENCES_BENEDICTION_MAX_DURATION', 60),
     ],
 
@@ -245,13 +212,12 @@ return [
     | LLM-First Service Structure Pipeline
     |--------------------------------------------------------------------------
     | Full-service transcription + one-call LLM structure detection, replacing
-    | the heuristic classification cluster once promoted. Rolled out via `mode`
-    | (off → shadow → primary); everything defaults dark. Unknown values throw
-    | at resolution time — there is deliberately no silent fallback.
+    | the retired heuristic classification cluster. Shadow mode remains the
+    | model-upgrade evaluation path; primary is authoritative.
     */
     'service_structure' => [
-        // off|shadow|primary — the rollout switch (ServiceStructureMode).
-        'mode' => env('SERVICE_STRUCTURE_MODE', 'off'),
+        // shadow|primary — primary matches the production pipeline.
+        'mode' => env('SERVICE_STRUCTURE_MODE', 'primary'),
         // mock|openai — the ServiceStructureInterface binding.
         'detector' => env('SERVICE_STRUCTURE_DETECTOR', 'mock'),
         // Owns the sermon-vs-children's-talk judgement, so it defaults to the

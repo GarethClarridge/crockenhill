@@ -684,16 +684,16 @@ class AdminChurchServiceTest extends TestCase
 
         SermonProcessingStep::factory()->create([
             'processing_id' => $run->processing_id,
-            'step' => ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS,
+            'step' => ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
             'status' => 'completed',
-            'message' => 'Stored 3 classified section(s)',
+            'message' => 'Stored full-service transcript',
             'started_at' => now()->subMinutes(30),
             'completed_at' => now()->subMinutes(29),
         ]);
 
         SermonProcessingStep::factory()->create([
             'processing_id' => $run->processing_id,
-            'step' => ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS,
+            'step' => ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE,
             'status' => 'failed',
             'message' => 'Transcript API timeout',
             'started_at' => now()->subMinutes(28),
@@ -702,7 +702,7 @@ class AdminChurchServiceTest extends TestCase
 
         SermonProcessingStep::factory()->create([
             'processing_id' => $run->processing_id,
-            'step' => ChurchServiceProcessingTimeline::CLASSIFY_SPEECH_SECTIONS,
+            'step' => ChurchServiceProcessingTimeline::PROJECT_LIVESTREAM_SERVICE_STRUCTURE,
             'status' => 'skipped',
             'message' => 'No sections available for transcript classification',
             'started_at' => now()->subMinutes(27),
@@ -712,10 +712,10 @@ class AdminChurchServiceTest extends TestCase
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
             ->assertSee('Processing Timeline')
             ->assertSeeInOrder([
-                'Classify service sections',
-                'Transcribe speech segments',
-                'Classify speech sections',
-                'Align with OoS',
+                'Transcribe full service',
+                'Detect service structure',
+                'Project service structure',
+                'Match songs from transcript',
                 'Extract sermon',
                 'Prepare publication candidates',
             ])

@@ -276,7 +276,7 @@ class ProcessingPhaseRegistryTest extends TestCase
             'cleanup' => CleanupTemporaryFiles::class,
         ];
 
-        foreach (['off', 'shadow', 'primary'] as $mode) {
+        foreach (['shadow', 'primary'] as $mode) {
             config(['media-processing.service_structure.mode' => $mode]);
 
             $chainClasses = array_map(

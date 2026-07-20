@@ -82,22 +82,22 @@ class ProcessingRunTimelineBuilderTest extends TestCase
 
         SermonProcessingStep::factory()->create([
             'processing_id' => $run->processing_id,
-            'step' => ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS,
+            'step' => ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
             'status' => ProcessingStatus::Completed,
             'started_at' => $startedAt,
             'completed_at' => $completedAt,
-            'message' => 'Classification finished.',
+            'message' => 'Transcription finished.',
         ]);
 
         $timeline = ProcessingRunTimelineBuilder::buildForRun($run);
 
-        $classifyStep = collect($timeline)->firstWhere('label', 'Classify service sections');
+        $transcriptionStep = collect($timeline)->firstWhere('label', 'Transcribe full service');
 
-        $this->assertSame('completed', $classifyStep['status']);
-        $this->assertEquals($startedAt->toDateTimeString(), $classifyStep['started_at']->toDateTimeString());
-        $this->assertEquals($completedAt->toDateTimeString(), $classifyStep['completed_at']->toDateTimeString());
-        $this->assertSame('3m 00s', $classifyStep['duration']);
-        $this->assertSame('Classification finished.', $classifyStep['message']);
+        $this->assertSame('completed', $transcriptionStep['status']);
+        $this->assertEquals($startedAt->toDateTimeString(), $transcriptionStep['started_at']->toDateTimeString());
+        $this->assertEquals($completedAt->toDateTimeString(), $transcriptionStep['completed_at']->toDateTimeString());
+        $this->assertSame('3m 00s', $transcriptionStep['duration']);
+        $this->assertSame('Transcription finished.', $transcriptionStep['message']);
     }
 
     #[Test]
@@ -158,7 +158,7 @@ class ProcessingRunTimelineBuilderTest extends TestCase
             'current_step' => 'projecting_service_structure',
         ]);
 
-        // Record a log for the 4th step (Project service structure)
+        // Record a log for the third step (Project service structure)
         SermonProcessingStep::factory()->create([
             'processing_id' => $run->processing_id,
             'step' => ChurchServiceProcessingTimeline::PROJECT_LIVESTREAM_SERVICE_STRUCTURE,
@@ -167,13 +167,11 @@ class ProcessingRunTimelineBuilderTest extends TestCase
 
         $timeline = ProcessingRunTimelineBuilder::buildForRun($run);
 
-        // First 3 steps should be 'not_recorded' because step 4 has logs
+        // First two steps should be 'not_recorded' because step three has logs.
         $this->assertSame('not_recorded', $timeline[0]['status']);
         $this->assertSame('not_recorded', $timeline[1]['status']);
-        $this->assertSame('not_recorded', $timeline[2]['status']);
 
-        // 4th step is completed (from log)
-        $this->assertSame('completed', $timeline[3]['status']);
+        $this->assertSame('completed', $timeline[2]['status']);
     }
 
     #[Test]
@@ -184,7 +182,7 @@ class ProcessingRunTimelineBuilderTest extends TestCase
         // 0 seconds
         SermonProcessingStep::factory()->create([
             'processing_id' => $run->processing_id,
-            'step' => ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS,
+            'step' => ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
             'started_at' => now(),
             'completed_at' => now(),
         ]);
@@ -192,7 +190,7 @@ class ProcessingRunTimelineBuilderTest extends TestCase
         // 45 seconds
         SermonProcessingStep::factory()->create([
             'processing_id' => $run->processing_id,
-            'step' => ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS,
+            'step' => ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE,
             'started_at' => now()->subSeconds(45),
             'completed_at' => now(),
         ]);
@@ -200,7 +198,7 @@ class ProcessingRunTimelineBuilderTest extends TestCase
         // 2m 15s
         SermonProcessingStep::factory()->create([
             'processing_id' => $run->processing_id,
-            'step' => ChurchServiceProcessingTimeline::CLASSIFY_SPEECH_SECTIONS,
+            'step' => ChurchServiceProcessingTimeline::MATCH_SONGS_FROM_TRANSCRIPT,
             'started_at' => now()->subSeconds(135),
             'completed_at' => now(),
         ]);
@@ -215,9 +213,9 @@ class ProcessingRunTimelineBuilderTest extends TestCase
 
         $timeline = ProcessingRunTimelineBuilder::buildForRun($run);
 
-        $this->assertSame('0s', collect($timeline)->firstWhere('label', 'Classify service sections')['duration']);
-        $this->assertSame('45s', collect($timeline)->firstWhere('label', 'Transcribe speech segments')['duration']);
-        $this->assertSame('2m 15s', collect($timeline)->firstWhere('label', 'Classify speech sections')['duration']);
+        $this->assertSame('0s', collect($timeline)->firstWhere('label', 'Transcribe full service')['duration']);
+        $this->assertSame('45s', collect($timeline)->firstWhere('label', 'Detect service structure')['duration']);
+        $this->assertSame('2m 15s', collect($timeline)->firstWhere('label', 'Match songs from transcript')['duration']);
         $this->assertSame('1h 05m 10s', collect($timeline)->firstWhere('label', 'Project service structure')['duration']);
     }
 
@@ -228,50 +226,36 @@ class ProcessingRunTimelineBuilderTest extends TestCase
 
         SermonProcessingStep::factory()->create([
             'processing_id' => $run->processing_id,
-            'step' => ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS,
+            'step' => ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
             'status' => ProcessingStatus::Started,
             'message' => '  Trimmed message  ',
         ]);
 
         SermonProcessingStep::factory()->create([
             'processing_id' => $run->processing_id,
-            'step' => ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS,
+            'step' => ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE,
             'status' => ProcessingStatus::Started,
             'message' => '   ',
         ]);
 
         $timeline = ProcessingRunTimelineBuilder::buildForRun($run);
 
-        $this->assertSame('Trimmed message', collect($timeline)->firstWhere('label', 'Classify service sections')['message']);
-        $this->assertNull(collect($timeline)->firstWhere('label', 'Transcribe speech segments')['message']);
+        $this->assertSame('Trimmed message', collect($timeline)->firstWhere('label', 'Transcribe full service')['message']);
+        $this->assertNull(collect($timeline)->firstWhere('label', 'Detect service structure')['message']);
     }
 
     #[Test]
-    public function timeline_steps_follow_the_service_structure_mode(): void
+    public function timeline_steps_are_the_same_for_shadow_and_primary_modes(): void
     {
-        config(['media-processing.service_structure.mode' => 'off']);
-        $this->assertNotContains(
-            ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
-            ChurchServiceProcessingTimeline::stepKeys()
-        );
-
         config(['media-processing.service_structure.mode' => 'shadow']);
         $shadowKeys = ChurchServiceProcessingTimeline::stepKeys();
-        $this->assertContains(ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE, $shadowKeys);
-        $this->assertContains(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE, $shadowKeys);
-        // Shadow keeps the heuristic cluster and appends the LLM steps after it.
-        $this->assertContains(ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS, $shadowKeys);
-        $this->assertGreaterThan(
-            array_search(ChurchServiceProcessingTimeline::RECLASSIFY_INTRO_OUTRO, $shadowKeys, true),
-            array_search(ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE, $shadowKeys, true)
-        );
 
         config(['media-processing.service_structure.mode' => 'primary']);
         $primaryKeys = ChurchServiceProcessingTimeline::stepKeys();
+
+        $this->assertSame($shadowKeys, $primaryKeys);
+        $this->assertContains(ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE, $primaryKeys);
         $this->assertContains(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE, $primaryKeys);
-        // Primary drops the heuristic-cluster steps that will never log.
-        $this->assertNotContains(ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS, $primaryKeys);
-        $this->assertNotContains(ChurchServiceProcessingTimeline::ALIGN_WITH_OOS, $primaryKeys);
         $this->assertContains(ChurchServiceProcessingTimeline::EXTRACT_SERMON, $primaryKeys);
     }
 

@@ -9,15 +9,11 @@ use InvalidArgumentException;
 /**
  * Rollout switch for the LLM-first service structure pipeline.
  *
- * - Off: nothing new runs; the heuristic pipeline is byte-for-byte unchanged.
- * - Shadow: the heuristic chain stays authoritative; the LLM path also runs,
- *   persists its proposal to run metadata only, and logs a structured diff.
- * - Primary: the LLM chain is authoritative; the heuristic cluster no longer
- *   runs. Validation failure routes to the existing manual-review flow.
+ * Shadow persists an LLM proposal to run metadata without replacing sections.
+ * Primary makes the LLM structure authoritative.
  */
 enum ServiceStructureMode: string
 {
-    case Off = 'off';
     case Shadow = 'shadow';
     case Primary = 'primary';
 
@@ -27,10 +23,10 @@ enum ServiceStructureMode: string
      */
     public static function fromConfig(): self
     {
-        $mode = (string) config('media-processing.service_structure.mode', 'off');
+        $mode = (string) config('media-processing.service_structure.mode', 'primary');
 
         return self::tryFrom($mode) ?? throw new InvalidArgumentException(
-            "Unknown service structure mode [{$mode}]; expected off, shadow or primary."
+            "Unknown service structure mode [{$mode}]; expected shadow or primary."
         );
     }
 }

@@ -25,7 +25,7 @@ class ProcessingPipelineBuilderModeTest extends TestCase
         $chains = [];
         $reclassificationChains = [];
 
-        foreach (['off', 'shadow', 'primary'] as $mode) {
+        foreach (['shadow', 'primary'] as $mode) {
             config(['media-processing.service_structure.mode' => $mode]);
             $chains[$mode] = array_map(
                 static fn (object $job): string => $job::class,
@@ -37,12 +37,10 @@ class ProcessingPipelineBuilderModeTest extends TestCase
             );
         }
 
-        $this->assertSame($chains['off'], $chains['shadow']);
-        $this->assertSame($chains['off'], $chains['primary']);
+        $this->assertSame($chains['shadow'], $chains['primary']);
         $this->assertContains(TranscribeFullService::class, $chains['primary']);
         $this->assertContains(DetectServiceStructure::class, $chains['primary']);
-        $this->assertSame($reclassificationChains['off'], $reclassificationChains['shadow']);
-        $this->assertSame($reclassificationChains['off'], $reclassificationChains['primary']);
+        $this->assertSame($reclassificationChains['shadow'], $reclassificationChains['primary']);
     }
 
     #[Test]
@@ -59,7 +57,7 @@ class ProcessingPipelineBuilderModeTest extends TestCase
         $autoTrimChains = [];
         $postReviewChains = [];
 
-        foreach (['off', 'shadow', 'primary'] as $mode) {
+        foreach (['shadow', 'primary'] as $mode) {
             config(['media-processing.service_structure.mode' => $mode]);
             $autoTrimChains[$mode] = array_map(
                 static fn (object $job): string => $job::class,
@@ -71,12 +69,10 @@ class ProcessingPipelineBuilderModeTest extends TestCase
             );
         }
 
-        $this->assertSame($autoTrimChains['off'], $autoTrimChains['shadow']);
-        $this->assertSame($autoTrimChains['off'], $autoTrimChains['primary']);
+        $this->assertSame($autoTrimChains['shadow'], $autoTrimChains['primary']);
         $this->assertContains(TranscribeFullService::class, $autoTrimChains['primary']);
         $this->assertContains(DetectServiceStructure::class, $autoTrimChains['primary']);
-        $this->assertSame($postReviewChains['off'], $postReviewChains['shadow']);
-        $this->assertSame($postReviewChains['off'], $postReviewChains['primary']);
+        $this->assertSame($postReviewChains['shadow'], $postReviewChains['primary']);
         $this->assertNotContains(DetectServiceStructure::class, $postReviewChains['primary']);
     }
 }
