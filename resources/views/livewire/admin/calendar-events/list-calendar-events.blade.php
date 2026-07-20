@@ -40,7 +40,7 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($events as $event)
-                <tr class="hover:bg-gray-50">
+                <tr wire:loading.class="opacity-50 pointer-events-none" wire:target="categorize({{ $event->id }})" class="hover:bg-gray-50">
                     {{-- Title --}}
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ $event->title }}</p>
@@ -72,6 +72,8 @@
                                     Uncategorised
                                 </span>
                                 <select wire:change="categorize({{ $event->id }}, $event.target.value)"
+                                    wire:loading.attr="disabled"
+                                    wire:target="categorize({{ $event->id }})"
                                     aria-label="Categorise event: {{ $event->title }}"
                                     class="text-xs rounded-md border-gray-300 shadow-sm focus:border-cbc-teal focus:ring-cbc-teal focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 w-40">
                                     <option value="">Categorise...</option>
