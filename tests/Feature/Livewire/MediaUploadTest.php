@@ -11,6 +11,7 @@ use App\Enums\UploadState;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractSermon;
@@ -22,7 +23,6 @@ use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
-use App\Jobs\TranscribeAudio;
 use App\Jobs\TranscribeFullService;
 use App\Livewire\Admin\MediaUpload;
 use App\Models\ChurchService;
@@ -510,7 +510,7 @@ class MediaUploadTest extends TestCase
             SubmitToProcessing::class,
             EnhanceAudio::class,
             IdentifySpeaker::class,
-            TranscribeAudio::class,
+            CreateSermonTranscriptFromService::class,
             ProcessTranscriptWithAI::class,
             AssessSermonVideoQuality::class,
             GenerateThumbnail::class,

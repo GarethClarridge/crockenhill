@@ -10,6 +10,7 @@ use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
+use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractAudioFromVideo;
@@ -201,7 +202,7 @@ class ProcessingPhaseRegistryTest extends TestCase
                     5 => ExtractSermon::class,
                     6 => EnhanceAudio::class,
                     7 => CreateSermonRecord::class,
-                    9 => TranscribeAudio::class,
+                    9 => CreateSermonTranscriptFromService::class,
                     10 => ProcessTranscriptWithAI::class,
                     11 => AssessSermonVideoQuality::class,
                     12 => GenerateThumbnail::class,
@@ -218,7 +219,7 @@ class ProcessingPhaseRegistryTest extends TestCase
                     2 => DetectServiceStructure::class,
                     5 => ExtractSermon::class,
                     6 => SubmitToProcessing::class,
-                    9 => TranscribeAudio::class,
+                    9 => CreateSermonTranscriptFromService::class,
                     10 => ProcessTranscriptWithAI::class,
                     11 => AssessSermonVideoQuality::class,
                     12 => GenerateThumbnail::class,

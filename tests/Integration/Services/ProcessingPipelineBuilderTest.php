@@ -8,6 +8,7 @@ use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
+use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractAudioFromVideo;
@@ -142,7 +143,7 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertInstanceOf(EnhanceAudio::class, $jobs[6]);
         $this->assertInstanceOf(CreateSermonRecord::class, $jobs[7]);
         $this->assertInstanceOf(IdentifySpeaker::class, $jobs[8]);
-        $this->assertInstanceOf(TranscribeAudio::class, $jobs[9]);
+        $this->assertInstanceOf(CreateSermonTranscriptFromService::class, $jobs[9]);
         $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[10]);
         $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[11]);
         $this->assertInstanceOf(GenerateThumbnail::class, $jobs[12]);
@@ -182,7 +183,7 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertInstanceOf(SubmitToProcessing::class, $jobs[6]);
         $this->assertInstanceOf(EnhanceAudio::class, $jobs[7]);
         $this->assertInstanceOf(IdentifySpeaker::class, $jobs[8]);
-        $this->assertInstanceOf(TranscribeAudio::class, $jobs[9]);
+        $this->assertInstanceOf(CreateSermonTranscriptFromService::class, $jobs[9]);
         $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[10]);
         $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[11]);
         $this->assertInstanceOf(GenerateThumbnail::class, $jobs[12]);
@@ -227,10 +228,10 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $submitPos = array_search(SubmitToProcessing::class, $classes);
         $identifyPos = array_search(IdentifySpeaker::class, $classes);
-        $transcribePos = array_search(TranscribeAudio::class, $classes);
+        $transcriptPos = array_search(CreateSermonTranscriptFromService::class, $classes);
 
         $this->assertGreaterThan($submitPos, $identifyPos, 'IdentifySpeaker must come after SubmitToProcessing');
-        $this->assertGreaterThan($identifyPos, $transcribePos, 'TranscribeAudio must come after IdentifySpeaker');
+        $this->assertGreaterThan($identifyPos, $transcriptPos, 'The sermon transcript must be created after IdentifySpeaker');
     }
 
     // --- buildLivestreamPostReviewChainJobs() ---
@@ -247,7 +248,7 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertInstanceOf(SubmitToProcessing::class, $jobs[1]);
         $this->assertInstanceOf(EnhanceAudio::class, $jobs[2]);
         $this->assertInstanceOf(IdentifySpeaker::class, $jobs[3]);
-        $this->assertInstanceOf(TranscribeAudio::class, $jobs[4]);
+        $this->assertInstanceOf(CreateSermonTranscriptFromService::class, $jobs[4]);
         $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[5]);
         $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[6]);
         $this->assertInstanceOf(GenerateThumbnail::class, $jobs[7]);
@@ -328,10 +329,14 @@ class ProcessingPipelineBuilderTest extends TestCase
             $this->builder->buildLivestreamChainJobs($livestreamLog),
         );
 
-        foreach ([$audioPipeline, $videoPipeline, $livestreamPipeline] as $pipeline) {
+        foreach ([$audioPipeline, $videoPipeline] as $pipeline) {
             $classes = array_map(fn ($job) => get_class($job), $pipeline);
             $this->assertContains(TranscribeAudio::class, $classes);
         }
+
+        $livestreamClasses = array_map(fn ($job) => get_class($job), $livestreamPipeline);
+        $this->assertContains(CreateSermonTranscriptFromService::class, $livestreamClasses);
+        $this->assertNotContains(TranscribeAudio::class, $livestreamClasses);
     }
 
     #[Test]

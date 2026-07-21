@@ -8,6 +8,7 @@ use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
+use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractAudioFromVideo;
@@ -94,7 +95,7 @@ class ProcessingPipelineBuilder
             new EnhanceAudio($log),
             new CreateSermonRecord($log),
             new IdentifySpeaker($log),
-            new TranscribeAudio($log),
+            new CreateSermonTranscriptFromService($log),
             new ProcessTranscriptWithAI($log),
             new AssessSermonVideoQuality($log),
             new GenerateThumbnail($log),
@@ -130,7 +131,7 @@ class ProcessingPipelineBuilder
             new SubmitToProcessing($log),
             new EnhanceAudio($log),
             new IdentifySpeaker($log),
-            new TranscribeAudio($log),
+            new CreateSermonTranscriptFromService($log),
             new ProcessTranscriptWithAI($log),
             new AssessSermonVideoQuality($log),
             new GenerateThumbnail($log),
@@ -169,7 +170,7 @@ class ProcessingPipelineBuilder
             new SubmitToProcessing($log),
             new EnhanceAudio($log),
             new IdentifySpeaker($log),
-            new TranscribeAudio($log),
+            new CreateSermonTranscriptFromService($log),
             new ProcessTranscriptWithAI($log),
             new AssessSermonVideoQuality($log),
             new GenerateThumbnail($log),
@@ -191,7 +192,7 @@ class ProcessingPipelineBuilder
             new EnhanceAudio($log),
             new CreateSermonRecord($log),
             new IdentifySpeaker($log),
-            new TranscribeAudio($log),
+            new CreateSermonTranscriptFromService($log),
             new ProcessTranscriptWithAI($log),
             new AssessSermonVideoQuality($log),
             new GenerateThumbnail($log),

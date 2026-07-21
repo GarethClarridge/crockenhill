@@ -8,6 +8,7 @@ use App\Enums\MediaType;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateThumbnail;
@@ -17,7 +18,6 @@ use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
-use App\Jobs\TranscribeAudio;
 use App\Jobs\TranscribeFullService;
 use App\Models\MediaProcessingLog;
 
@@ -862,13 +862,14 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'transcription',
                 'progress' => 70,
-                'job_offset' => $offset(TranscribeAudio::class),
+                'job_offset' => $offset(CreateSermonTranscriptFromService::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
                 'steps' => [
                     'transcribing_audio',
                     'transcribing_audio_failed',
+                    'creating_sermon_transcript',
                     'transcription_completed',
                     'transcription',
                 ],
