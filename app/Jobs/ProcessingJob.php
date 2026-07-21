@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Enums\ProcessingStep;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Processing\MediaProcessingRunTransitionService;
@@ -49,7 +50,7 @@ abstract class ProcessingJob
         }
 
         $this->writeProcessingStep('started', $step, function () use ($message, $step): void {
-            $this->processingStepTransitions()->markAsStarted((string) $this->processingId, $step, $message);
+            $this->processingStepTransitions()->markAsStarted((string) $this->processingId, ProcessingStep::canonicalize($step) ?? $step, $message);
         });
     }
 
@@ -68,7 +69,7 @@ abstract class ProcessingJob
         }
 
         $this->writeProcessingStep('completed', $step, function () use ($message, $step): void {
-            $this->processingStepTransitions()->markAsCompleted((string) $this->processingId, $step, $message);
+            $this->processingStepTransitions()->markAsCompleted((string) $this->processingId, ProcessingStep::canonicalize($step) ?? $step, $message);
         });
     }
 
@@ -88,7 +89,7 @@ abstract class ProcessingJob
         }
 
         $this->writeProcessingStep('failed', $step, function () use ($error, $step): void {
-            $this->processingStepTransitions()->markAsFailed((string) $this->processingId, $step, $error);
+            $this->processingStepTransitions()->markAsFailed((string) $this->processingId, ProcessingStep::canonicalize($step) ?? $step, $error);
         });
     }
 
@@ -107,7 +108,7 @@ abstract class ProcessingJob
         }
 
         $this->writeProcessingStep('skipped', $step, function () use ($message, $step): void {
-            $this->processingStepTransitions()->markAsSkipped((string) $this->processingId, $step, $message);
+            $this->processingStepTransitions()->markAsSkipped((string) $this->processingId, ProcessingStep::canonicalize($step) ?? $step, $message);
         });
     }
 

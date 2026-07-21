@@ -60,11 +60,22 @@ class ProcessingPhaseRegistryTest extends TestCase
     {
         $registry = app(ProcessingPhaseRegistry::class);
 
-        $this->assertSame(56, $registry->progressForStep('manual_review_confirmed'));
-        $this->assertSame(10, $registry->progressForStep('initiated_from_livestream:abc123'));
-        $this->assertSame(10, $registry->progressForStep('restarting_from_beginning'));
-        $this->assertSame(92, $registry->progressForStep('sending_notification'));
-        $this->assertSame(93, $registry->progressForStep('notification_sent'));
+        $this->assertSame(
+            $registry->progressForStep('manual_review_required'),
+            $registry->progressForStep('manual_review_confirmed'),
+        );
+        $this->assertSame(
+            $registry->progressForStep('livestream_processing_initiated'),
+            $registry->progressForStep('initiated_from_livestream:abc123'),
+        );
+        $this->assertSame(
+            $registry->progressForStep('livestream_processing_initiated'),
+            $registry->progressForStep('restarting_from_beginning'),
+        );
+        $this->assertSame(
+            $registry->progressForStep('sending_notification'),
+            $registry->progressForStep('notification_sent'),
+        );
     }
 
     #[Test]
@@ -72,10 +83,15 @@ class ProcessingPhaseRegistryTest extends TestCase
     {
         $registry = app(ProcessingPhaseRegistry::class);
 
-        $this->assertSame(89, $registry->progressForStep('generating_thumbnail', MediaType::Video));
-        $this->assertSame(90, $registry->progressForStep('generating_thumbnail', MediaType::Livestream));
-        $this->assertSame(88, $registry->progressForStep('assessing_video_quality', MediaType::Video));
-        $this->assertSame(89, $registry->progressForStep('assessing_video_quality', MediaType::Livestream));
+        $videoThumbnail = collect($registry->phasesForPipeline('video'))->firstWhere('step', 'generating_thumbnail')['progress'];
+        $livestreamThumbnail = collect($registry->phasesForPipeline('livestream'))->firstWhere('step', 'generating_thumbnail')['progress'];
+        $videoQuality = collect($registry->phasesForPipeline('video'))->firstWhere('step', 'assessing_video_quality')['progress'];
+        $livestreamQuality = collect($registry->phasesForPipeline('livestream'))->firstWhere('step', 'assessing_video_quality')['progress'];
+
+        $this->assertSame($videoThumbnail, $registry->progressForStep('generating_thumbnail', MediaType::Video));
+        $this->assertSame($livestreamThumbnail, $registry->progressForStep('generating_thumbnail', MediaType::Livestream));
+        $this->assertSame($videoQuality, $registry->progressForStep('assessing_video_quality', MediaType::Video));
+        $this->assertSame($livestreamQuality, $registry->progressForStep('assessing_video_quality', MediaType::Livestream));
     }
 
     #[Test]
@@ -107,7 +123,10 @@ class ProcessingPhaseRegistryTest extends TestCase
             'current_step' => 'preparing_section_publication_candidates',
         ]);
 
-        $this->assertSame(91, $registry->progressForStep('preparing_section_publication_candidates', MediaType::Livestream));
+        $this->assertSame(
+            collect($registry->phasesForPipeline('livestream'))->firstWhere('step', 'preparing_section_publication_candidates')['progress'],
+            $registry->progressForStep('preparing_section_publication_candidates', MediaType::Livestream),
+        );
         $this->assertSame([
             'action' => 'dispatch_livestream_chain',
             'pipeline' => 'livestream',
@@ -131,7 +150,10 @@ class ProcessingPhaseRegistryTest extends TestCase
             ],
         ]);
 
-        $this->assertSame(65, $registry->progressForLog($processingLog));
+        $this->assertSame(
+            collect($registry->phasesForPipeline('video_auto_trim'))->firstWhere('step', 'audio_enhancement')['progress'],
+            $registry->progressForLog($processingLog),
+        );
         $this->assertSame([
             'action' => 'dispatch_chain',
             'pipeline' => 'video_auto_trim',
@@ -239,6 +261,21 @@ class ProcessingPhaseRegistryTest extends TestCase
                     $sliced[0],
                     "Expected {$expectedClass} at offset {$offset} in {$scenario['pipeline']} pipeline, got ".get_class($sliced[0])
                 );
+            }
+        }
+    }
+
+    #[Test]
+    public function it_derives_every_phase_offset_from_an_anchor_job(): void
+    {
+        $registry = app(ProcessingPhaseRegistry::class);
+
+        foreach (['audio', 'video', 'video_auto_trim', 'livestream'] as $pipeline) {
+            foreach ($registry->phasesForPipeline($pipeline) as $phase) {
+                $this->assertArrayHasKey('anchor_job', $phase);
+                $this->assertArrayHasKey('step', $phase);
+                $this->assertArrayNotHasKey('steps', $phase);
+                $this->assertTrue($phase['job_offset'] === null || is_int($phase['job_offset']));
             }
         }
     }

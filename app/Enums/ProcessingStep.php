@@ -133,6 +133,32 @@ enum ProcessingStep: string
     }
 
     /**
+     * Convert historical write-site variants to the canonical pipeline step.
+     */
+    public static function canonicalize(?string $step): ?string
+    {
+        if ($step === null || $step === '') {
+            return $step;
+        }
+
+        if (str_starts_with($step, 'initiated_from_livestream:')) {
+            return self::InitiatedFromLivestream->value;
+        }
+
+        return match ($step) {
+            'creating_sermon', 'creating_sermon_record', 'sermon_record_created' => self::SermonCreation->value,
+            'transcribing_audio_failed', 'transcription_completed', 'transcription' => self::TranscribingAudio->value,
+            'analyzing_transcript_failed', 'ai_analysis_completed', 'ai_analysis_fallback' => self::AnalyzingTranscript->value,
+            'audio_enhancement_complete', 'audio_enhancement_skipped' => 'audio_enhancement',
+            'extracting_sermon' => self::Extraction->value,
+            'manual_review_confirmed' => self::ManualReviewRequired->value,
+            'notification_sent', 'notification_skipped', 'notification_failed', 'notification_failed_permanently' => self::SendingNotification->value,
+            'restarting_from_beginning' => 'livestream_processing_initiated',
+            default => $step,
+        };
+    }
+
+    /**
      * Return the progress percentage for a raw step string, falling back to 50 for unknowns.
      */
     public static function progressForStep(?string $step, ?MediaType $mediaType = null): int

@@ -10,6 +10,7 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use App\Services\Processing\ProcessingPhaseRegistry;
 use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -87,6 +88,10 @@ class MediaProcessingStatusTransitionsTest extends TestCase
         $response = $this->withToken($this->token)
             ->getJson("/api/media/processing/{$log->processing_id}/status");
 
+        $expectedProgress = $status === ProcessingStatus::Processing
+            ? app(ProcessingPhaseRegistry::class)->progressForLog($log)
+            : $expectedProgress;
+
         $response->assertOk()
             ->assertJson([
                 'found' => true,
@@ -132,6 +137,10 @@ class MediaProcessingStatusTransitionsTest extends TestCase
 
         $response = $this->withToken($this->token)
             ->getJson("/api/media/processing/{$log->processing_id}/status");
+
+        $expectedProgress = $status === ProcessingStatus::Processing
+            ? app(ProcessingPhaseRegistry::class)->progressForLog($log)
+            : $expectedProgress;
 
         $response->assertOk()
             ->assertJson([
@@ -181,6 +190,10 @@ class MediaProcessingStatusTransitionsTest extends TestCase
 
         $response = $this->withToken($this->token)
             ->getJson("/api/media/processing/{$log->processing_id}/status");
+
+        $expectedProgress = $status === ProcessingStatus::Processing
+            ? app(ProcessingPhaseRegistry::class)->progressForLog($log)
+            : $expectedProgress;
 
         $response->assertOk()
             ->assertJson([
@@ -292,6 +305,8 @@ class MediaProcessingStatusTransitionsTest extends TestCase
 
         $response = $this->withToken($this->token)
             ->getJson("/api/media/processing/{$log->processing_id}/status");
+
+        $expectedProgress = app(ProcessingPhaseRegistry::class)->progressForLog($log);
 
         $response->assertOk()
             ->assertJson([

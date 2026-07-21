@@ -6,6 +6,7 @@ namespace App\Services\Processing;
 
 use App\Data\ProcessingManualReviewMetadata;
 use App\Enums\ProcessingStatus;
+use App\Enums\ProcessingStep;
 use App\Models\MediaProcessingLog;
 
 /**
@@ -51,7 +52,7 @@ class MediaProcessingRunTransitionService
     {
         return $this->updateRunFields($processingLog, [
             'status' => ProcessingStatus::Processing,
-            'current_step' => $step,
+            'current_step' => ProcessingStep::canonicalize($step),
             'started_at' => $processingLog->started_at ?? now(),
         ]);
     }
@@ -74,7 +75,7 @@ class MediaProcessingRunTransitionService
     ): bool {
         return $this->updateRunFields($processingLog, [
             'status' => ProcessingStatus::Completed,
-            'current_step' => $step ?? 'completed',
+            'current_step' => ProcessingStep::canonicalize($step ?? 'completed'),
             'completed_at' => now(),
             'error_message' => $errorMessage,
             'dedup_key' => null,
@@ -96,7 +97,7 @@ class MediaProcessingRunTransitionService
     {
         return $this->updateRunFields($processingLog, [
             'status' => ProcessingStatus::Failed,
-            'current_step' => $step ?? $processingLog->current_step,
+            'current_step' => ProcessingStep::canonicalize($step ?? $processingLog->current_step),
             'error_message' => $errorMessage,
             'completed_at' => now(),
             'dedup_key' => null,
@@ -215,7 +216,7 @@ class MediaProcessingRunTransitionService
      */
     public function updateStep(MediaProcessingLog $processingLog, string $step): bool
     {
-        return $this->updateRunFields($processingLog, ['current_step' => $step]);
+        return $this->updateRunFields($processingLog, ['current_step' => ProcessingStep::canonicalize($step)]);
     }
 
     /**

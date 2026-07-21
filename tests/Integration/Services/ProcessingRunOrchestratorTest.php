@@ -7,6 +7,7 @@ namespace Tests\Integration\Services;
 use App\Enums\ProcessingStatus;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
@@ -166,7 +167,7 @@ class ProcessingRunOrchestratorTest extends TestCase
         $this->assertNull($processingLog->error_message);
 
         Bus::assertChained([
-            TranscribeAudio::class,
+            CreateSermonTranscriptFromService::class,
             ProcessTranscriptWithAI::class,
             AssessSermonVideoQuality::class,
             GenerateThumbnail::class,
@@ -264,7 +265,7 @@ class ProcessingRunOrchestratorTest extends TestCase
         $this->assertNull($processingLog->error_message);
 
         Bus::assertChained([
-            TranscribeAudio::class,
+            CreateSermonTranscriptFromService::class,
             ProcessTranscriptWithAI::class,
             AssessSermonVideoQuality::class,
             GenerateThumbnail::class,
