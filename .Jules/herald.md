@@ -45,3 +45,7 @@
 ## 2026-07-07 - Documenting Interface Contracts for API Clarity
 **Learning:** Interface contracts in `app/Contracts/` define the API surface and boundary between services. Providing class-level PHPDoc that explains the "why" and "purpose" of the interface, along with detailed method documentation, significantly improves developer experience when navigating service implementations.
 **Action:** Prioritize documenting interface contracts as they are the source of truth for service expectations. Ensure parameter and return descriptions clarify the domain context (e.g., OoS email components) rather than just technical types.
+
+## 2026-07-20 - Documenting Complex Quality Assessment Services
+**Learning:** When documenting intricate services that run local video frame evaluations (like `SermonVideoQualityAssessmentService`), it's essential to define distinct phpstan-type schemas (such as `FrameMetrics` and `FrozenWindowMetrics`) at the class level. Keep documentation strictly constrained to the public API/methods to follow negative boundaries and respect internal implementation encapsulated within private methods.
+**Action:** Ensure custom `@phpstan-type` array shapes are clearly documented. Avoid documenting private methods as they are implementation details, focusing instead on robust class-level and public method PHPDoc.

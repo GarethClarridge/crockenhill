@@ -13,10 +13,24 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Small, explainable video-quality gate for obvious sermon video failures.
+ * SermonVideoQualityAssessmentService
  *
- * @phpstan-type FrameMetrics array{brightness: float, variance: float, detail_score: float, aggregate_score: float, blank: bool, low_detail: bool}
- * @phpstan-type FrozenWindowMetrics array{ratio: float, pair_count: int}
+ * A lightweight, explainable quality gate for identifying obvious failures in sermon videos.
+ * Analyzes video files using frame-level luminance, variance, detail metrics, and temporal
+ * frame similarity checks (such as frozen or blank screen detection) to ensure high-quality media.
+ *
+ * @phpstan-type FrameMetrics array{
+ *     brightness: float,
+ *     variance: float,
+ *     detail_score: float,
+ *     aggregate_score: float,
+ *     blank: bool,
+ *     low_detail: bool,
+ * }
+ * @phpstan-type FrozenWindowMetrics array{
+ *     ratio: float,
+ *     pair_count: int,
+ * }
  */
 class SermonVideoQualityAssessmentService
 {
@@ -24,6 +38,12 @@ class SermonVideoQualityAssessmentService
 
     private string $tempDisk;
 
+    /**
+     * Create a new video quality assessment service instance.
+     *
+     * @param  FrameExtractionService  $frameExtractionService  Service utilized to extract specific video frames
+     * @param  StorageAdapterHelper  $storageHelper  Helper for storage interactions and fallback configurations
+     */
     public function __construct(
         private readonly FrameExtractionService $frameExtractionService,
         private readonly StorageAdapterHelper $storageHelper,
@@ -32,7 +52,18 @@ class SermonVideoQualityAssessmentService
     }
 
     /**
-     * @throws \Throwable
+     * Assess the visual quality of a sermon's video file.
+     *
+     * Resolves the video file from either local or S3 compatible storage, ensures a local
+     * path is available, and executes frame-based analysis. Downloads from remote storage are
+     * cleaned up automatically at the end of the operation.
+     *
+     * @param  Sermon  $sermon  The sermon model associated with the video
+     * @param  string|null  $videoPath  Optional absolute/relative path override to the video file
+     * @param  string|null  $disk  Optional storage disk override
+     * @return SermonVideoQualityAssessmentResult The assessment result containing verdict, scores, and metrics
+     *
+     * @throws \Throwable If storage operations or FFmpeg analysis fails critically
      */
     public function assess(Sermon $sermon, ?string $videoPath = null, ?string $disk = null): SermonVideoQualityAssessmentResult
     {
@@ -79,9 +110,12 @@ class SermonVideoQualityAssessmentService
      * The caller is responsible for cleaning up the returned local path via
      * FrameExtractionService::cleanupDownloadedVideo().
      *
+     * @param  Sermon  $sermon  The sermon model associated with the video
+     * @param  string|null  $videoPath  Optional path override to the video file
+     * @param  string|null  $disk  Optional storage disk override
      * @return array{result: SermonVideoQualityAssessmentResult, localVideoPath: string|null}
      *
-     * @throws \Throwable
+     * @throws \Throwable If storage operations or FFmpeg analysis fails critically
      */
     public function assessAndRetainLocalPath(Sermon $sermon, ?string $videoPath = null, ?string $disk = null): array
     {
@@ -120,7 +154,15 @@ class SermonVideoQualityAssessmentService
     }
 
     /**
-     * @throws \Exception
+     * Run quality assessment on a local video file.
+     *
+     * Extracts video duration from metadata, establishes coarse and burst sampling points,
+     * extracts individual frame metrics and computes frozen screen ratios before compiling the result.
+     *
+     * @param  string  $localVideoPath  Absolute path to the local video file
+     * @return SermonVideoQualityAssessmentResult The resolved assessment result containing the status verdict
+     *
+     * @throws \Exception If the metadata extraction or frame analysis fails critically
      */
     public function assessLocalVideo(string $localVideoPath): SermonVideoQualityAssessmentResult
     {
