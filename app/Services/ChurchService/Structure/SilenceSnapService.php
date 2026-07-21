@@ -76,7 +76,14 @@ class SilenceSnapService
                 ->withSnapDeltas($newStart - $section->startTime, $newEnd - $section->endTime);
         }
 
-        return ServiceStructure::fromSections($snapped, $structure->notes, $structure->model);
+        return ServiceStructure::fromSections(
+            $snapped,
+            $structure->notes,
+            $structure->model,
+            $structure->summary,
+            $structure->notices,
+            $structure->chapterMarkers,
+        );
     }
 
     /**

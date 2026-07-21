@@ -23,6 +23,9 @@ class ChurchServiceResourceTest extends TestCase
             'date' => '2026-04-06',
             'service' => SermonService::Morning,
             'needs_review' => false,
+            'summary' => 'A service summary.',
+            'notices' => [['title' => 'Holiday club', 'details' => 'Registration opens next week.']],
+            'chapter_markers' => [['title' => 'Sermon', 'start_time' => 60.0, 'end_time' => 1800.0]],
             'import_metadata' => null,
         ]);
 
@@ -34,6 +37,9 @@ class ChurchServiceResourceTest extends TestCase
         $this->assertArrayHasKey('source', $array);
         $this->assertArrayHasKey('original_filename', $array);
         $this->assertFalse($array['needs_review']);
+        $this->assertSame('A service summary.', $array['summary']);
+        $this->assertSame([['title' => 'Holiday club', 'details' => 'Registration opens next week.']], $array['notices']);
+        $this->assertSame([['title' => 'Sermon', 'start_time' => 60, 'end_time' => 1800]], $array['chapter_markers']);
         $this->assertArrayHasKey('import_metadata', $array);
         $this->assertArrayHasKey('items', $array);
         $this->assertArrayHasKey('created_at', $array);

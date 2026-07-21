@@ -16,6 +16,7 @@ final readonly class ServiceSectionMetadata extends JsonData
         public ?string $confidenceSource = null,
         public ?float $confidenceScore = null,
         public ?string $reviewReason = null,
+        public ?string $summary = null,
         public array $reviewFlags = [],
         public ?string $transcript = null,
         public ?int $songId = null,
@@ -36,6 +37,7 @@ final readonly class ServiceSectionMetadata extends JsonData
             confidenceSource: self::stringOrNull($payload['confidence_source'] ?? null),
             confidenceScore: self::floatOrNull($payload['confidence_score'] ?? null),
             reviewReason: self::stringOrNull($payload['review_reason'] ?? null),
+            summary: self::stringOrNull($payload['summary'] ?? null),
             reviewFlags: self::stringList($payload['review_flags'] ?? null),
             transcript: self::stringOrNull($payload['transcript'] ?? null),
             songId: self::intOrNull($payload['song_id'] ?? null),
@@ -72,6 +74,10 @@ final readonly class ServiceSectionMetadata extends JsonData
 
         if ($this->reviewReason !== null) {
             $data['review_reason'] = $this->reviewReason;
+        }
+
+        if ($this->summary !== null) {
+            $data['summary'] = $this->summary;
         }
 
         if ($this->reviewFlags !== []) {

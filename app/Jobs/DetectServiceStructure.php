@@ -253,6 +253,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         $classified = $result->structure->toClassifiedSections($this->processingLog, $transcript);
 
         $syncService->sync($this->processingLog, $classified);
+        $this->putStructureMetadata('service_structure', $result->structure->toArray());
 
         if ($this->reconcile) {
             $this->openServiceReviewFromSyncedSections();
@@ -557,7 +558,14 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             $structure->sections
         );
 
-        return new ServiceStructure($sections, $structure->notes, $structure->model);
+        return new ServiceStructure(
+            $sections,
+            $structure->notes,
+            $structure->model,
+            $structure->summary,
+            $structure->notices,
+            $structure->chapterMarkers,
+        );
     }
 
     /**
@@ -897,6 +905,9 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
                 $boundResult->structure->sections,
                 $boundResult->structure->notes,
                 $boundModel,
+                $boundResult->structure->summary,
+                $boundResult->structure->notices,
+                $boundResult->structure->chapterMarkers,
             );
         }
 
@@ -944,6 +955,9 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         return [
             'generated_at' => now()->toIso8601String(),
             'model' => $result->structure->model,
+            'summary' => $result->structure->summary,
+            'notices' => $result->structure->notices,
+            'chapter_markers' => $result->structure->chapterMarkers,
             'passed_validation' => $result->passed(),
             'hard_failures' => $result->hardFailures,
             'unmatched_oos_item_ids' => $result->unmatchedOosItemIds,

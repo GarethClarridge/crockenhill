@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Data\ServiceStructure;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
@@ -47,12 +48,14 @@ class LivestreamChurchServiceProjectionService
         $churchService = $this->findMatchingService($identity['date'], $identity['service']);
 
         $itemPayloads = $this->mapper->map($sections, $processingLog->processing_id);
+        $structureContent = $this->structureContent($processingLog);
 
         if ($itemPayloads === []) {
             // Nothing is projectable, but the sections may still carry review
             // state (an all-OTHER or all-low-confidence run is the run most in
             // need of a reviewer) — link and roll up before skipping.
             if ($churchService !== null) {
+                $this->persistStructureContent($churchService, $structureContent);
                 $this->linkProcessingLogToService($processingLog, $churchService);
                 $this->reviewSynchronizer->openReviewFromSections($churchService, $sections);
             }
@@ -61,6 +64,7 @@ class LivestreamChurchServiceProjectionService
         }
 
         if ($churchService !== null && $this->hasNonLivestreamItems($churchService)) {
+            $this->persistStructureContent($churchService, $structureContent);
             $this->linkProcessingLogToService($processingLog, $churchService);
 
             // OoS-backed services never reach projectItems()' needs_review
@@ -75,13 +79,14 @@ class LivestreamChurchServiceProjectionService
             );
         }
 
-        return $this->projectItems($processingLog, $sections, $itemPayloads, $churchService, $identity);
+        return $this->projectItems($processingLog, $sections, $itemPayloads, $churchService, $identity, $structureContent);
     }
 
     /**
      * @param  Collection<int, ServiceSection>  $sections
      * @param  list<array<string, mixed>>  $itemPayloads
      * @param  array{date: string, service: SermonService}  $identity
+     * @param  array{summary: string|null, notices: list<array{title: string, details: string|null}>, chapter_markers: list<array{title: string, start_time: float, end_time: float}>}|null  $structureContent
      * @return array{projected: bool, reason: string, church_service_id: int|null, items_projected: int}
      */
     private function projectItems(
@@ -90,6 +95,7 @@ class LivestreamChurchServiceProjectionService
         array $itemPayloads,
         ?ChurchService $churchService,
         array $identity,
+        ?array $structureContent,
     ): array {
         $isNewService = $churchService === null;
         $beforeSnapshot = $this->canonicalStateService->snapshot($churchService);
@@ -97,11 +103,13 @@ class LivestreamChurchServiceProjectionService
         /**
          * @var array{church_service: ChurchService, sync_result: array{conflicts: array<int, array<string, mixed>>}, needs_review: bool} $result
          */
-        $result = DB::transaction(function () use ($processingLog, $sections, $itemPayloads, $churchService, $identity, $isNewService): array {
+        $result = DB::transaction(function () use ($processingLog, $sections, $itemPayloads, $churchService, $identity, $isNewService, $structureContent): array {
             $projectionMetadata = [
                 'projected_at' => now()->toIso8601String(),
                 'confidence_summary' => $this->buildConfidenceSummary($itemPayloads),
             ];
+
+            $contentFields = $structureContent ?? [];
 
             if ($isNewService) {
                 $churchService = ChurchService::query()->create([
@@ -112,17 +120,18 @@ class LivestreamChurchServiceProjectionService
                     'import_metadata' => [
                         'livestream_projection' => $projectionMetadata,
                     ],
+                    ...$contentFields,
                 ]);
             } else {
                 /** @var ChurchService $churchService */
-                $churchService->forceFill([
+                $churchService->forceFill(array_merge([
                     'import_metadata' => array_replace_recursive(
                         $churchService->import_metadata?->toArray() ?? [],
                         [
                             'livestream_projection' => $projectionMetadata,
                         ]
                     ),
-                ])->saveQuietly();
+                ], $contentFields))->saveQuietly();
             }
 
             $this->linkProcessingLogToService($processingLog, $churchService);
@@ -314,6 +323,46 @@ class LivestreamChurchServiceProjectionService
         }
 
         return false;
+    }
+
+    /**
+     * Read the content fields produced by the accepted LLM structure. A
+     * missing structure payload means this projection came from an older run
+     * and should not erase any content already stored on the service.
+     *
+     * @return array{summary: string|null, notices: list<array{title: string, details: string|null}>, chapter_markers: list<array{title: string, start_time: float, end_time: float}>}|null
+     */
+    private function structureContent(MediaProcessingLog $processingLog): ?array
+    {
+        $structurePayload = $processingLog->processing_metadata?->toArray()['service_structure'] ?? null;
+
+        if (! is_array($structurePayload)) {
+            return null;
+        }
+
+        $structure = ServiceStructure::fromArray($structurePayload);
+
+        return [
+            'summary' => $structure->summary,
+            'notices' => $structure->notices,
+            'chapter_markers' => $structure->chapterMarkers,
+        ];
+    }
+
+    /**
+     * Enrich an existing canonical service without replacing its non-livestream
+     * item list. This keeps LLM content available when item projection is
+     * intentionally skipped for an OoS-backed service.
+     *
+     * @param  array{summary: string|null, notices: list<array{title: string, details: string|null}>, chapter_markers: list<array{title: string, start_time: float, end_time: float}>}|null  $structureContent
+     */
+    private function persistStructureContent(?ChurchService $churchService, ?array $structureContent): void
+    {
+        if ($churchService === null || $structureContent === null) {
+            return;
+        }
+
+        $churchService->forceFill($structureContent)->saveQuietly();
     }
 
     private function linkProcessingLogToService(MediaProcessingLog $processingLog, ChurchService $churchService): void

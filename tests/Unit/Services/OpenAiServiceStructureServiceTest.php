@@ -50,6 +50,8 @@ class OpenAiServiceStructureServiceTest extends TestCase
                                     'oos_item_id' => 1,
                                     'song_title' => null,
                                     'reading_reference' => null,
+                                    'sermon_reference' => null,
+                                    'summary' => 'The service opens with a welcome to the congregation.',
                                     'notes' => [],
                                 ],
                                 [
@@ -61,9 +63,25 @@ class OpenAiServiceStructureServiceTest extends TestCase
                                     'oos_item_id' => 4,
                                     'song_title' => null,
                                     'reading_reference' => null,
+                                    'sermon_reference' => 'Joshua 1:1-9',
+                                    'summary' => 'The sermon explains God’s faithfulness from Joshua chapter one.',
                                     'notes' => ['Single expository block.'],
                                 ],
                             ],
+                            'summary' => 'The service welcomes the congregation and teaches from Joshua chapter one.',
+                            'notices' => [[
+                                'title' => 'Holiday club',
+                                'details' => 'Registration opens next week.',
+                            ]],
+                            'chapter_markers' => [[
+                                'title' => 'Welcome',
+                                'start_time' => 0.0,
+                                'end_time' => 60.0,
+                            ], [
+                                'title' => 'Sermon',
+                                'start_time' => 430.0,
+                                'end_time' => 2200.0,
+                            ]],
                             'notes' => ['Clean detection.'],
                         ]),
                     ],
@@ -77,6 +95,12 @@ class OpenAiServiceStructureServiceTest extends TestCase
         $this->assertSame(ServiceSectionType::Welcome, $structure->sections[0]->type);
         $this->assertSame(ServiceSectionType::Sermon, $structure->sections[1]->type);
         $this->assertSame(4, $structure->sections[1]->oosItemId);
+        $this->assertSame('The sermon explains God’s faithfulness from Joshua chapter one.', $structure->sections[1]->summary);
+        $this->assertSame('The service welcomes the congregation and teaches from Joshua chapter one.', $structure->summary);
+        $this->assertSame([
+            ['title' => 'Holiday club', 'details' => 'Registration opens next week.'],
+        ], $structure->notices);
+        $this->assertCount(2, $structure->chapterMarkers);
         $this->assertSame(['Clean detection.'], $structure->notes);
         $this->assertSame('gpt-5.6-sol', $structure->model);
         OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
@@ -246,6 +270,9 @@ class OpenAiServiceStructureServiceTest extends TestCase
         $this->assertStringContainsString('do NOT label it prayer or other merely because', $prompt['system']);
         $this->assertStringContainsString('that prayer belongs INSIDE the sermon section', $prompt['system']);
         $this->assertStringContainsString('sermon_reference', $prompt['system']);
+        $this->assertStringContainsString('summary: a faithful one-sentence summary', $prompt['system']);
+        $this->assertStringContainsString('notices contains one entry per distinct announcement', $prompt['system']);
+        $this->assertStringContainsString('chapter_markers are the significant, listener-friendly sections', $prompt['system']);
         $this->assertStringContainsString('MUST come from the supplied cue', $prompt['system']);
         $this->assertStringContainsString('British English', $prompt['system']);
     }

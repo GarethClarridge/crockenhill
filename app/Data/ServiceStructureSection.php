@@ -19,6 +19,7 @@ final readonly class ServiceStructureSection extends JsonData
      * @param  list<string>  $notes
      * @param  list<string>  $reviewFlags
      * @param  array{start: float, end: float}|null  $snapDeltas  Seconds each boundary moved during silence-snapping
+     * @param  string|null  $summary  One-sentence summary of the section content
      */
     public function __construct(
         public ServiceSectionType $type,
@@ -33,6 +34,7 @@ final readonly class ServiceStructureSection extends JsonData
         public array $notes = [],
         public array $reviewFlags = [],
         public ?array $snapDeltas = null,
+        public ?string $summary = null,
     ) {}
 
     /**
@@ -91,6 +93,7 @@ final readonly class ServiceStructureSection extends JsonData
             snapDeltas: $snapStartDelta === null || $snapEndDelta === null
                 ? null
                 : ['start' => $snapStartDelta, 'end' => $snapEndDelta],
+            summary: self::stringOrNull($payload['summary'] ?? null),
         );
     }
 
@@ -112,6 +115,7 @@ final readonly class ServiceStructureSection extends JsonData
             'notes' => $this->notes,
             'review_flags' => $this->reviewFlags,
             'snap_deltas' => $this->snapDeltas,
+            'summary' => $this->summary,
         ];
     }
 
@@ -141,6 +145,7 @@ final readonly class ServiceStructureSection extends JsonData
             notes: [...$this->notes, ...$additionalNotes],
             reviewFlags: $this->reviewFlags,
             snapDeltas: $this->snapDeltas,
+            summary: $this->summary,
         );
     }
 
@@ -164,6 +169,7 @@ final readonly class ServiceStructureSection extends JsonData
             notes: $this->notes,
             reviewFlags: array_values(array_unique([...$this->reviewFlags, ...$flags])),
             snapDeltas: $this->snapDeltas,
+            summary: $this->summary,
         );
     }
 
@@ -185,6 +191,7 @@ final readonly class ServiceStructureSection extends JsonData
             notes: $this->notes,
             reviewFlags: $this->reviewFlags,
             snapDeltas: ['start' => $startDelta, 'end' => $endDelta],
+            summary: $this->summary,
         );
     }
 }

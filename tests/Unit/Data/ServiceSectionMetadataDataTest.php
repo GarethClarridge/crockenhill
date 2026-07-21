@@ -26,6 +26,7 @@ class ServiceSectionMetadataDataTest extends TestCase
             'confidence_source' => 'rms_analysis',
             'confidence_score' => 0.95,
             'review_reason' => 'ambiguous',
+            'summary' => 'The sermon explains the passage clearly.',
             'review_flags' => ['flag_a', 'flag_b'],
             'transcript' => 'The sermon transcript text...',
             'song_id' => 42,
@@ -37,6 +38,7 @@ class ServiceSectionMetadataDataTest extends TestCase
         $this->assertSame('rms_analysis', $metadata->confidenceSource);
         $this->assertSame(0.95, $metadata->confidenceScore);
         $this->assertSame('ambiguous', $metadata->reviewReason);
+        $this->assertSame('The sermon explains the passage clearly.', $metadata->summary);
         $this->assertSame(['flag_a', 'flag_b'], $metadata->reviewFlags);
         $this->assertSame('The sermon transcript text...', $metadata->transcript);
         $this->assertSame(42, $metadata->songId);
@@ -106,12 +108,14 @@ class ServiceSectionMetadataDataTest extends TestCase
     {
         $metadata = ServiceSectionMetadata::fromArray([
             'confidence_level' => 'medium',
+            'summary' => 'A concise section summary.',
             'song_id' => 10,
             'review_flags' => ['needs_check'],
         ]);
 
         $arr = $metadata->toArray();
         $this->assertSame('medium', $arr['confidence_level']);
+        $this->assertSame('A concise section summary.', $arr['summary']);
         $this->assertSame(10, $arr['song_id']);
         $this->assertSame(['needs_check'], $arr['review_flags']);
     }

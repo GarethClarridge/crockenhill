@@ -103,11 +103,12 @@ class LivestreamSectionToServiceItemMapper
      * `livestream_service_section_id`) and are written as top-level payload keys
      * by the mapper. Duplicating them inside the JSON blob invited drift.
      *
-     * @return array{livestream_projection: array{source_segment_ids: array<int, int>, confidence_level: string, needs_manual_review: bool}}
+     * @return array{section_summary: string|null, livestream_projection: array{source_segment_ids: array<int, int>, confidence_level: string, needs_manual_review: bool}}
      */
     private function buildMetadata(ServiceSection $section): array
     {
         return [
+            'section_summary' => $section->summary,
             'livestream_projection' => [
                 'source_segment_ids' => $section->source_segment_ids ?? [],
                 'confidence_level' => $this->confidenceLevel($section->confidence),

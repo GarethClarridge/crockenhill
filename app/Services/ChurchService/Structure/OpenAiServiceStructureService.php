@@ -62,10 +62,20 @@ Rules:
 - reading_reference: only for type=bible_reading — the passage read, e.g. "Joshua 1:1-9". Null otherwise.
 - sermon_reference: only for type=sermon — the main passage the sermon expounds, when it is stated
   or clearly identifiable from the preaching, e.g. "Philippians 2:5-11". Null otherwise or when unsure.
+- summary: a faithful one-sentence summary of the section in British English. Keep it factual and
+  concise; use null when the transcript does not contain enough content to summarise it.
 - start_time and end_time are seconds into the recording and MUST come from the supplied cue
   timestamps — each transcript line gives its cue's start and end. Never estimate a time that no
   cue supports.
 - confidence (0 to 1) reflects the section TYPE label. Be decisive when the type is unmistakable.
+- The top-level summary is a concise, factual summary of the whole service in no more than 80
+  words. Do not mention the recording or the detection process.
+- notices contains one entry per distinct announcement actually spoken in a notices section. Use
+  a short title and factual details; return an empty array when no notices are present. Never
+  invent dates, names, events or contact details.
+- chapter_markers are the significant, listener-friendly sections of the recording. Use the
+  section's grounded start_time and end_time, a concise title, and no more than one marker per
+  section. Return an empty array when no reliable marker can be made.
 - Use British English in all titles and notes.
 TEXT;
 
@@ -128,7 +138,8 @@ TEXT;
         }
 
         $sections = [];
-        $notes = ServiceStructure::fromArray(['notes' => $decoded['notes'] ?? []])->notes;
+        $parsedStructure = ServiceStructure::fromArray($decoded);
+        $notes = $parsedStructure->notes;
 
         foreach ($sectionPayloads as $sectionPayload) {
             $section = ServiceStructureSection::fromArray($sectionPayload);
@@ -146,7 +157,14 @@ TEXT;
             throw new RuntimeException('Service structure detection response contained no usable sections.');
         }
 
-        return ServiceStructure::fromSections($sections, $notes, $model);
+        return ServiceStructure::fromSections(
+            $sections,
+            $notes,
+            $model,
+            $parsedStructure->summary,
+            $parsedStructure->notices,
+            $parsedStructure->chapterMarkers,
+        );
     }
 
     /**
@@ -214,7 +232,7 @@ TEXT;
                 'schema' => [
                     'type' => 'object',
                     'additionalProperties' => false,
-                    'required' => ['sections', 'notes'],
+                    'required' => ['sections', 'summary', 'notices', 'chapter_markers', 'notes'],
                     'properties' => [
                         'sections' => [
                             'type' => 'array',
@@ -232,6 +250,7 @@ TEXT;
                                     'reading_reference',
                                     'sermon_reference',
                                     'notes',
+                                    'summary',
                                 ],
                                 'properties' => [
                                     'type' => [
@@ -255,10 +274,37 @@ TEXT;
                                     'song_title' => ['type' => ['string', 'null']],
                                     'reading_reference' => ['type' => ['string', 'null']],
                                     'sermon_reference' => ['type' => ['string', 'null']],
+                                    'summary' => ['type' => ['string', 'null']],
                                     'notes' => [
                                         'type' => 'array',
                                         'items' => ['type' => 'string'],
                                     ],
+                                ],
+                            ],
+                        ],
+                        'summary' => ['type' => ['string', 'null']],
+                        'notices' => [
+                            'type' => 'array',
+                            'items' => [
+                                'type' => 'object',
+                                'additionalProperties' => false,
+                                'required' => ['title', 'details'],
+                                'properties' => [
+                                    'title' => ['type' => 'string'],
+                                    'details' => ['type' => ['string', 'null']],
+                                ],
+                            ],
+                        ],
+                        'chapter_markers' => [
+                            'type' => 'array',
+                            'items' => [
+                                'type' => 'object',
+                                'additionalProperties' => false,
+                                'required' => ['title', 'start_time', 'end_time'],
+                                'properties' => [
+                                    'title' => ['type' => 'string'],
+                                    'start_time' => ['type' => 'number'],
+                                    'end_time' => ['type' => 'number'],
                                 ],
                             ],
                         ],

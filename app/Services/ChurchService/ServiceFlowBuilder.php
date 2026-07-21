@@ -69,6 +69,7 @@ final class ServiceFlowBuilder
      *     type_label: string,
      *     icon: string,
      *     title_suffix: string|null,
+     *     section_summary: string|null,
      *     description: string,
      *     planned_title: string|null,
      *     planned_context: string|null,
@@ -113,12 +114,13 @@ final class ServiceFlowBuilder
             $confidenceLevel = filled($row['confidence_level']) ? $row['confidence_level'] : null;
             $songTitle = filled($row['song_title']) ? $row['song_title'] : null;
             $sectionId = is_int($row['section_id']) ? $row['section_id'] : null;
+            $sectionSummary = filled($row['section_summary'] ?? null) ? (string) $row['section_summary'] : null;
 
             // Load section metadata for ai_notes / transcript / song_title_hint
             $metadata = self::resolveMetadata($processingLog, $sectionId);
 
             $transcriptExcerpt = self::extractTranscriptExcerpt($metadata);
-            $description = self::buildDescription($sectionType, $metadata, $transcriptExcerpt, $songTitle, $songMatchType, $rowType, $sermonTitle);
+            $description = self::buildDescription($sectionType, $sectionSummary, $metadata, $transcriptExcerpt, $songTitle, $songMatchType, $rowType, $sermonTitle);
             $titleSuffix = self::buildTitleSuffix($sectionType, $row, $songTitle, $metadata, $sermonTitle);
             $durationFormatted = self::formatDuration($startTime, $endTime);
             $plannedContext = self::buildPlannedContext($rowType, $plannedTitle, $row);
@@ -133,6 +135,7 @@ final class ServiceFlowBuilder
                 'type_label' => $sectionType?->label() ?? (is_string($row['item_type']) ? ucfirst($row['item_type']) : 'Unknown'),
                 'icon' => self::iconFor($sectionType),
                 'title_suffix' => $titleSuffix,
+                'section_summary' => $sectionSummary,
                 'description' => $description,
                 'planned_title' => $plannedTitle,
                 'planned_context' => $plannedContext,
@@ -226,6 +229,7 @@ final class ServiceFlowBuilder
      */
     private static function buildDescription(
         ?ServiceSectionType $type,
+        ?string $sectionSummary,
         array $metadata,
         ?string $transcriptExcerpt,
         ?string $songTitle,
@@ -233,6 +237,10 @@ final class ServiceFlowBuilder
         string $rowType,
         ?string $sermonTitle,
     ): string {
+        if ($sectionSummary !== null) {
+            return $sectionSummary;
+        }
+
         // ai_notes are the primary source — use the first note, truncated to 120 chars
         $aiNotes = self::aiNotesList($metadata);
         if ($aiNotes !== []) {

@@ -85,6 +85,9 @@ CREATE TABLE `church_services` (
   `original_filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `needs_review` tinyint(1) NOT NULL DEFAULT '0',
   `review_reason` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `summary` text COLLATE utf8mb4_unicode_ci,
+  `notices` json DEFAULT NULL,
+  `chapter_markers` json DEFAULT NULL,
   `review_state` enum('not_reviewed','reviewed','reopened') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'not_reviewed',
   `manual_reviewed_at` timestamp NULL DEFAULT NULL,
   `manual_reviewed_by_user_id` int unsigned DEFAULT NULL,
@@ -765,6 +768,7 @@ CREATE TABLE `service_sections` (
   `section_type` enum('welcome','prayer','notices','song','childrens_talk','bible_reading','sermon','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `section_order` int unsigned NOT NULL,
   `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `summary` text COLLATE utf8mb4_unicode_ci,
   `start_time` double NOT NULL,
   `end_time` double NOT NULL,
   `duration` double NOT NULL,
@@ -1224,3 +1228,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_16_053037_add_i
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_16_222742_drop_recurrence_columns_from_meetings_table',82);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_20_124817_add_review_reason_to_church_services_table',83);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_20_124837_backfill_church_service_review_reasons',83);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_21_000000_add_llm_content_fields_to_church_service_tables',84);

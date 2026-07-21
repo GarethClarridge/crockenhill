@@ -69,6 +69,43 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     }
 
     #[Test]
+    public function test_projects_llm_content_fields_onto_the_service(): void
+    {
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        $log->forceFill([
+            'processing_metadata' => [
+                'service_structure' => [
+                    'summary' => 'The service welcomes the congregation and teaches from Joshua chapter one.',
+                    'notices' => [[
+                        'title' => 'Holiday club',
+                        'details' => 'Registration opens next week.',
+                    ]],
+                    'chapter_markers' => [[
+                        'title' => 'Sermon',
+                        'start_time' => 600.0,
+                        'end_time' => 2200.0,
+                    ]],
+                ],
+            ],
+        ])->save();
+
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Sermon, 'title' => 'The faithfulness of God', 'confidence' => 0.95],
+        ]);
+
+        $result = $this->service->project($log);
+        $churchService = ChurchService::query()->findOrFail($result['church_service_id']);
+
+        $this->assertSame('The service welcomes the congregation and teaches from Joshua chapter one.', $churchService->summary);
+        $this->assertSame([
+            ['title' => 'Holiday club', 'details' => 'Registration opens next week.'],
+        ], $churchService->notices);
+        $this->assertSame('Sermon', $churchService->chapter_markers[0]['title']);
+        $this->assertEqualsWithDelta(600.0, (float) $churchService->chapter_markers[0]['start_time'], 0.01);
+        $this->assertEqualsWithDelta(2200.0, (float) $churchService->chapter_markers[0]['end_time'], 0.01);
+    }
+
+    #[Test]
     public function test_links_sections_back_to_projected_items(): void
     {
         $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
@@ -148,6 +185,15 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         ]);
 
         $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        $log->forceFill([
+            'processing_metadata' => [
+                'service_structure' => [
+                    'summary' => 'The service summary remains useful alongside the order of service.',
+                    'notices' => [['title' => 'Holiday club', 'details' => 'Registration opens next week.']],
+                    'chapter_markers' => [['title' => 'Sermon', 'start_time' => 600.0, 'end_time' => 2200.0]],
+                ],
+            ],
+        ])->save();
 
         $this->createSections($log, [
             ['type' => ServiceSectionType::Song, 'title' => 'Livestream Song', 'confidence' => 0.9],
@@ -162,6 +208,10 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $items = $churchService->fresh()->items;
         $this->assertCount(1, $items);
         $this->assertSame('OpenLP Song', $items->first()->title);
+        $this->assertSame(
+            'The service summary remains useful alongside the order of service.',
+            $churchService->fresh()->summary
+        );
     }
 
     #[Test]

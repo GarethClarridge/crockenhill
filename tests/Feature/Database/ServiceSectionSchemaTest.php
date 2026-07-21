@@ -32,6 +32,7 @@ class ServiceSectionSchemaTest extends TestCase
     #[Test]
     public function it_creates_phase_two_service_section_indexes(): void
     {
+        $this->assertTrue(Schema::hasColumn('service_sections', 'summary'));
         $this->assertTrue(Schema::hasIndex('service_sections', 'service_sections_log_order_unique'));
         $this->assertTrue(Schema::hasIndex('service_sections', 'service_sections_log_type_index'));
         $this->assertTrue(Schema::hasIndex('service_sections', 'service_sections_needs_review_index'));

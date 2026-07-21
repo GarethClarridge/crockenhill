@@ -26,6 +26,9 @@ use Illuminate\Validation\Rule;
  * @property string|null $original_filename
  * @property bool $needs_review
  * @property string|null $review_reason
+ * @property string|null $summary
+ * @property list<array{title: string, details: string|null}>|null $notices
+ * @property list<array{title: string, start_time: float, end_time: float}>|null $chapter_markers
  * @property ChurchServiceReviewState $review_state
  * @property Carbon|null $manual_reviewed_at
  * @property int|null $manual_reviewed_by_user_id
@@ -61,6 +64,9 @@ class ChurchService extends Model
         'original_filename',
         'needs_review',
         'review_reason',
+        'summary',
+        'notices',
+        'chapter_markers',
         'review_state',
         'manual_reviewed_at',
         'manual_reviewed_by_user_id',
@@ -80,6 +86,8 @@ class ChurchService extends Model
             'date' => 'date',
             'service' => SermonService::class,
             'needs_review' => 'boolean',
+            'notices' => 'array',
+            'chapter_markers' => 'array',
             'review_state' => ChurchServiceReviewState::class,
             'manual_reviewed_at' => 'datetime',
             'manual_reviewed_by_user_id' => 'integer',
@@ -136,6 +144,9 @@ class ChurchService extends Model
             'original_filename' => ['nullable', 'string', 'max:255'],
             'needs_review' => ['boolean'],
             'review_reason' => ['nullable', 'string', 'max:255'],
+            'summary' => ['nullable', 'string'],
+            'notices' => ['nullable', 'array'],
+            'chapter_markers' => ['nullable', 'array'],
             'review_state' => ['required', Rule::enum(ChurchServiceReviewState::class)],
             'manual_reviewed_by_user_id' => ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:users,id'],
             'pending_structure_merge_source' => ['nullable', 'string', 'max:255'],

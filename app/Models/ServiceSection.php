@@ -27,6 +27,7 @@ use Illuminate\Validation\Rule;
  * @property ServiceSectionType $section_type
  * @property int $section_order
  * @property string|null $title
+ * @property string|null $summary
  * @property float $start_time
  * @property float $end_time
  * @property float $duration
@@ -72,6 +73,7 @@ class ServiceSection extends Model
         'section_type',
         'section_order',
         'title',
+        'summary',
         'start_time',
         'end_time',
         'duration',
@@ -249,6 +251,7 @@ class ServiceSection extends Model
             'section_type' => ['required', Rule::enum(ServiceSectionType::class)],
             'section_order' => ['required', 'integer', 'min:0', 'max:4294967295'],
             'title' => ['nullable', 'string', 'max:255'],
+            'summary' => ['nullable', 'string'],
             'start_time' => ['required', 'numeric', 'min:0', 'max:9999999.999'],
             'end_time' => ['required', 'numeric', 'min:0', 'max:9999999.999', 'gt:start_time'],
             'duration' => ['required', 'numeric', 'min:0', 'max:9999999.999'],

@@ -73,6 +73,32 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
     }
 
     #[Test]
+    public function section_summaries_are_mapped_and_persisted(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->coveringSegments($log);
+
+        $summary = 'The sermon explains God’s faithfulness from Joshua chapter one.';
+        $structure = ServiceStructure::fromSections([
+            $this->section('sermon', 600.0, 2200.0, summary: $summary),
+        ], model: 'gpt-5');
+
+        $classified = $structure->toClassifiedSections($log);
+
+        $this->assertSame($summary, $classified[0]['summary']);
+        $this->assertSame($summary, $classified[0]['metadata']['summary']);
+
+        app(ServiceSectionSyncService::class)->sync($log, $classified);
+
+        $section = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->firstOrFail();
+
+        $this->assertSame($summary, $section->summary);
+        $this->assertSame($summary, $section->metadata['summary']);
+    }
+
+    #[Test]
     public function a_section_with_no_overlapping_segment_gets_a_synthesised_one(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
@@ -363,6 +389,7 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
         ?string $readingReference = null,
         ?string $songTitle = null,
         ?string $sermonReference = null,
+        ?string $summary = null,
     ): ServiceStructureSection {
         $section = ServiceStructureSection::fromArray([
             'type' => $type,
@@ -373,6 +400,7 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
             'reading_reference' => $readingReference,
             'song_title' => $songTitle,
             'sermon_reference' => $sermonReference,
+            'summary' => $summary,
         ]);
 
         assert($section instanceof ServiceStructureSection);

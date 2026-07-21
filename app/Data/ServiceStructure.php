@@ -22,25 +22,39 @@ final readonly class ServiceStructure extends JsonData
      * @param  list<ServiceStructureSection>  $sections  Ordered by start time
      * @param  list<string>  $notes  Run-level detector notes
      * @param  string|null  $model  The model that produced this structure
+     * @param  string|null  $summary  Automatic summary of the complete service
+     * @param  list<array{title: string, details: string|null}>  $notices  Extracted notice items
+     * @param  list<array{title: string, start_time: float, end_time: float}>  $chapterMarkers  Content-aware recording chapters
      */
     public function __construct(
         public array $sections,
         public array $notes = [],
         public ?string $model = null,
+        public ?string $summary = null,
+        public array $notices = [],
+        public array $chapterMarkers = [],
     ) {}
 
     /**
      * @param  list<ServiceStructureSection>  $sections
      * @param  list<string>  $notes
+     * @param  array<int|string, mixed>  $notices
+     * @param  array<int|string, mixed>  $chapterMarkers
      */
-    public static function fromSections(array $sections, array $notes = [], ?string $model = null): self
-    {
+    public static function fromSections(
+        array $sections,
+        array $notes = [],
+        ?string $model = null,
+        ?string $summary = null,
+        array $notices = [],
+        array $chapterMarkers = [],
+    ): self {
         usort(
             $sections,
             static fn (ServiceStructureSection $left, ServiceStructureSection $right): int => $left->startTime <=> $right->startTime
         );
 
-        return new self($sections, $notes, $model);
+        return new self($sections, $notes, $model, $summary, self::normaliseNotices($notices), self::normaliseChapterMarkers($chapterMarkers));
     }
 
     public static function fromArray(mixed $value): self
@@ -61,6 +75,9 @@ final readonly class ServiceStructure extends JsonData
             $sections,
             self::stringList($payload['notes'] ?? []),
             self::stringOrNull($payload['model'] ?? null),
+            self::stringOrNull($payload['summary'] ?? null),
+            self::arrayValue($payload['notices'] ?? null),
+            self::arrayValue($payload['chapter_markers'] ?? null),
         );
     }
 
@@ -76,6 +93,9 @@ final readonly class ServiceStructure extends JsonData
             ),
             'notes' => $this->notes,
             'model' => $this->model,
+            'summary' => $this->summary,
+            'notices' => $this->notices,
+            'chapter_markers' => $this->chapterMarkers,
         ];
     }
 
@@ -118,6 +138,7 @@ final readonly class ServiceStructure extends JsonData
      *     status: string,
      *     needs_manual_review: bool,
      *     source_segment_ids: array<int, int>,
+     *     summary: ?string,
      *     metadata: array<string, mixed>
      * }>
      */
@@ -161,6 +182,7 @@ final readonly class ServiceStructure extends JsonData
                 'duration' => $section->duration(),
                 'confidence' => $section->confidence,
                 'status' => ServiceSectionStatus::Identified->value,
+                'summary' => $section->summary,
                 'needs_manual_review' => $this->reviewFlagsRequireManualReview($section),
                 'source_segment_ids' => $sourceSegmentIds,
                 'metadata' => $this->sectionMetadata($section, $transcript, $synthesisedSegment, $sourceSegmentIds === []),
@@ -208,6 +230,7 @@ final readonly class ServiceStructure extends JsonData
             'confidence_score' => $section->confidence,
             'model' => $this->model,
             'ai_notes' => $section->notes,
+            'summary' => $section->summary,
             'reading_reference' => null,
             'reading_reference_source' => null,
             'sermon_reference' => null,
@@ -262,6 +285,72 @@ final readonly class ServiceStructure extends JsonData
         }
 
         return $metadata;
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $notices
+     * @return list<array{title: string, details: string|null}>
+     */
+    private static function normaliseNotices(array $notices): array
+    {
+        $normalised = [];
+
+        foreach ($notices as $notice) {
+            if (! is_array($notice)) {
+                continue;
+            }
+
+            $title = self::stringOrNull($notice['title'] ?? null);
+
+            if ($title === null) {
+                continue;
+            }
+
+            $normalised[] = [
+                'title' => $title,
+                'details' => self::stringOrNull($notice['details'] ?? null),
+            ];
+        }
+
+        return $normalised;
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $chapterMarkers
+     * @return list<array{title: string, start_time: float, end_time: float}>
+     */
+    private static function normaliseChapterMarkers(array $chapterMarkers): array
+    {
+        $normalised = [];
+
+        foreach ($chapterMarkers as $chapterMarker) {
+            if (! is_array($chapterMarker)) {
+                continue;
+            }
+
+            $title = self::stringOrNull($chapterMarker['title'] ?? null);
+            $startTime = self::floatOrNull($chapterMarker['start_time'] ?? null);
+            $endTime = self::floatOrNull($chapterMarker['end_time'] ?? null);
+
+            if ($title === null || $startTime === null || $endTime === null) {
+                continue;
+            }
+
+            $startTime = max(0.0, $startTime);
+            $endTime = max(0.0, $endTime);
+
+            if ($endTime <= $startTime) {
+                continue;
+            }
+
+            $normalised[] = [
+                'title' => $title,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+            ];
+        }
+
+        return $normalised;
     }
 
     private function synthesiseCoveringSegment(

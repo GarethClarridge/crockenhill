@@ -335,7 +335,21 @@ class DetectServiceStructureTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
         $this->storeTranscript($log);
         $this->coveringSegments($log);
-        MockServiceStructureService::useStructure($this->validStructure());
+        MockServiceStructureService::useStructure(ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('bible_reading', 420.0, 590.0),
+            $this->section(
+                'sermon',
+                600.0,
+                2200.0,
+                summary: 'The sermon explains God’s faithfulness from Joshua chapter one.'
+            ),
+            $this->section('song', 2210.0, 2400.0),
+        ], ['Fixture structure.'], 'mock', 'The service teaches from Joshua chapter one.', [
+            ['title' => 'Holiday club', 'details' => 'Registration opens next week.'],
+        ], [
+            ['title' => 'Sermon', 'start_time' => 600.0, 'end_time' => 2200.0],
+        ]));
 
         $this->runJob($log);
 
@@ -357,6 +371,10 @@ class DetectServiceStructureTest extends TestCase
         $this->assertEqualsWithDelta(600.0, (float) $log->sermon_start_time, 0.01);
         $this->assertEqualsWithDelta(2200.0, (float) $log->sermon_end_time, 0.01);
         $this->assertSame('llm_structure', $log->processing_metadata?->toArray()['sermon_bounds']['source'] ?? null);
+        $structurePayload = $log->processing_metadata?->toArray()['service_structure'] ?? [];
+        $this->assertSame('The service teaches from Joshua chapter one.', $structurePayload['summary']);
+        $this->assertSame('Holiday club', $structurePayload['notices'][0]['title']);
+        $this->assertSame('The sermon explains God’s faithfulness from Joshua chapter one.', $structurePayload['sections'][2]['summary']);
     }
 
     #[Test]
@@ -1026,14 +1044,21 @@ class DetectServiceStructureTest extends TestCase
         ], ['Fixture structure.'], 'mock');
     }
 
-    private function section(string $type, float $start, float $end, float $confidence = 0.95, ?int $oosItemId = null): ServiceStructureSection
-    {
+    private function section(
+        string $type,
+        float $start,
+        float $end,
+        float $confidence = 0.95,
+        ?int $oosItemId = null,
+        ?string $summary = null,
+    ): ServiceStructureSection {
         $section = ServiceStructureSection::fromArray([
             'type' => $type,
             'start_time' => $start,
             'end_time' => $end,
             'confidence' => $confidence,
             'oos_item_id' => $oosItemId,
+            'summary' => $summary,
         ]);
 
         assert($section instanceof ServiceStructureSection);

@@ -18,6 +18,9 @@ class ChurchServiceSchemaTest extends TestCase
     public function it_expands_the_collapsed_review_state_without_dropping_legacy_columns(): void
     {
         $this->assertTrue(Schema::hasColumn('church_services', 'review_reason'));
+        $this->assertTrue(Schema::hasColumn('church_services', 'summary'));
+        $this->assertTrue(Schema::hasColumn('church_services', 'notices'));
+        $this->assertTrue(Schema::hasColumn('church_services', 'chapter_markers'));
         $this->assertTrue(Schema::hasIndex('church_services', 'church_services_review_state_index'));
         $this->assertTrue(Schema::hasIndex('church_services', 'church_services_canonical_conflict_state_index'));
     }

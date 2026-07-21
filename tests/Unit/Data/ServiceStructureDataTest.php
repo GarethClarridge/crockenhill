@@ -24,6 +24,7 @@ class ServiceStructureDataTest extends TestCase
             'oos_item_id' => 7,
             'song_title' => null,
             'reading_reference' => 'Joshua 1:1-9',
+            'summary' => 'The reading introduces Joshua and the Lord’s promise to be with him.',
             'notes' => ['Read by the service leader.'],
         ]);
 
@@ -33,6 +34,7 @@ class ServiceStructureDataTest extends TestCase
         $this->assertSame(175.0, $section->duration());
         $this->assertSame(7, $section->oosItemId);
         $this->assertSame('Joshua 1:1-9', $section->readingReference);
+        $this->assertSame('The reading introduces Joshua and the Lord’s promise to be with him.', $section->summary);
         $this->assertSame([], $section->reviewFlags);
     }
 
@@ -147,7 +149,12 @@ class ServiceStructureDataTest extends TestCase
                 'confidence' => 0.97,
                 'oos_item_id' => 12,
             ]),
-        ], ['Detected cleanly.'], 'gpt-5');
+        ], ['Detected cleanly.'], 'gpt-5', 'The service includes worship, Bible teaching and prayer.', [
+            ['title' => 'Holiday club', 'details' => 'Registration opens next week.'],
+        ], [
+            ['title' => 'Welcome', 'start_time' => 0.0, 'end_time' => 60.0],
+            ['title' => 'Sermon', 'start_time' => 430.0, 'end_time' => 2200.0],
+        ]);
 
         $restored = ServiceStructure::fromArray(json_decode((string) json_encode($original), true));
 
@@ -166,5 +173,28 @@ class ServiceStructureDataTest extends TestCase
         $this->assertCount(2, $structure->sectionsOfType(ServiceSectionType::Song));
         $this->assertCount(1, $structure->sectionsOfType(ServiceSectionType::Sermon));
         $this->assertFalse($structure->isEmpty());
+    }
+
+    #[Test]
+    public function structure_discards_malformed_content_fields(): void
+    {
+        $structure = ServiceStructure::fromArray([
+            'sections' => [],
+            'summary' => '  A useful summary. ',
+            'notices' => [
+                ['title' => 'Valid notice', 'details' => null],
+                ['title' => '', 'details' => 'Missing title'],
+                'not an object',
+            ],
+            'chapter_markers' => [
+                ['title' => 'Valid chapter', 'start_time' => 5, 'end_time' => 20],
+                ['title' => 'Backwards', 'start_time' => 20, 'end_time' => 5],
+                ['title' => 'Missing time', 'start_time' => 5],
+            ],
+        ]);
+
+        $this->assertSame('A useful summary.', $structure->summary);
+        $this->assertSame([['title' => 'Valid notice', 'details' => null]], $structure->notices);
+        $this->assertSame([['title' => 'Valid chapter', 'start_time' => 5.0, 'end_time' => 20.0]], $structure->chapterMarkers);
     }
 }

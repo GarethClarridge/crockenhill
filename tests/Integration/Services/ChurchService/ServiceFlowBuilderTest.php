@@ -86,6 +86,23 @@ class ServiceFlowBuilderTest extends TestCase
     }
 
     #[Test]
+    public function description_prefers_the_llm_section_summary_when_present(): void
+    {
+        $run = $this->createRun();
+        $summary = 'The sermon explains God’s faithfulness from Joshua chapter one.';
+
+        $row = $this->makeRow([
+            'section_summary' => $summary,
+            'metadata' => ['ai_notes' => ['A less useful fallback.']],
+        ]);
+
+        $flow = ServiceFlowBuilder::build([$row], $run);
+
+        $this->assertSame($summary, $flow[0]['description']);
+        $this->assertSame($summary, $flow[0]['section_summary']);
+    }
+
+    #[Test]
     public function description_is_truncated_to_120_chars(): void
     {
         $run = $this->createRun();
@@ -432,6 +449,7 @@ class ServiceFlowBuilderTest extends TestCase
             'presentation_inference' => null,
             'section_order' => null,
             'section_title' => null,
+            'section_summary' => null,
             'confidence' => null,
         ], $overrides);
     }

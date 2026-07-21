@@ -424,7 +424,14 @@ class ServiceStructureValidator
             $sections[] = $flags === [] ? $section : $section->withReviewFlags($flags);
         }
 
-        return new ServiceStructure($sections, $structure->notes, $structure->model);
+        return new ServiceStructure(
+            $sections,
+            $structure->notes,
+            $structure->model,
+            $structure->summary,
+            $structure->notices,
+            $structure->chapterMarkers,
+        );
     }
 
     /**
