@@ -285,13 +285,6 @@ return [
     */
     'song_matching' => [
         'enabled' => env('SONG_MATCHING_ENABLED', true),
-        'transcribe_song_openings' => env('SONG_MATCHING_TRANSCRIBE_OPENINGS', true),
-        'song_opening_transcription_seconds' => (int) env('SONG_MATCHING_OPENING_SECONDS', 30),
-        'use_local_whisper_for_song_openings' => (bool) env('SONG_MATCHING_USE_LOCAL_WHISPER_FOR_OPENINGS', env('APP_ENV') === 'local'),
-        'song_opening_local_whisper_url' => env('SONG_MATCHING_LOCAL_WHISPER_URL', 'http://whisper:8000'),
-        'song_opening_local_whisper_transcription_path' => env('SONG_MATCHING_LOCAL_WHISPER_TRANSCRIPTION_PATH', '/v1/audio/transcriptions'),
-        'song_opening_local_whisper_model' => env('SONG_MATCHING_LOCAL_WHISPER_MODEL', env('LOCAL_WHISPER_MODEL', 'small')),
-        'song_opening_local_whisper_timeout' => (int) env('SONG_MATCHING_LOCAL_WHISPER_TIMEOUT', env('LOCAL_WHISPER_TIMEOUT', 1800)),
         'lyrics_threshold' => (float) env('SONG_MATCHING_LYRICS_THRESHOLD', 0.6),
         // Matches at or above this confidence rewrite the section's display
         // title to the catalogued song title; below it only the match record

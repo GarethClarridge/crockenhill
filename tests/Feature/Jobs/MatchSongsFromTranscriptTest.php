@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Jobs;
 
-use App\Contracts\TranscriptionServiceInterface;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Jobs\MatchSongsFromTranscript;
@@ -14,8 +13,6 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Queries\ReviewInboxQuery;
-use App\Services\Media\Audio\LocalWhisperTranscriptionService;
-use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Public\PublicSongUsageService;
 use App\Services\Song\SongLyricOcrService;
@@ -42,7 +39,6 @@ class MatchSongsFromTranscriptTest extends TestCase
         Config::set('media-processing.storage.sermon_disk', 'local');
         Config::set('media-processing.storage.temp_disk', 'local');
         Config::set('media-processing.song_matching.enabled', true);
-        Config::set('media-processing.song_matching.transcribe_song_openings', false);
         Config::set('media-processing.song_matching.ocr_enabled', false);
         Config::set('media-processing.song_matching.lyrics_threshold', 0.6);
     }
@@ -61,9 +57,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -80,9 +74,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -102,9 +94,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -144,9 +134,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -192,9 +180,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -242,9 +228,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -292,9 +276,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -334,9 +316,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -387,9 +367,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -436,9 +414,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -479,9 +455,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -499,216 +473,50 @@ class MatchSongsFromTranscriptTest extends TestCase
     // ---- Song opening transcription ----
 
     #[Test]
-    public function it_transcribes_song_opening_when_title_hint_absent_and_transcription_enabled(): void
+    public function it_matches_an_unmatched_section_from_the_full_service_transcript(): void
     {
-        Config::set('media-processing.song_matching.transcribe_song_openings', true);
-        Config::set('media-processing.song_matching.song_opening_transcription_seconds', 30);
-
         $song = Song::factory()->create([
             'title' => 'To God Be the Glory',
             'canonical_key' => 'to god be the glory',
             'lyrics_plain' => 'To God be the glory great things he hath done so loved he the world that he gave us his son',
         ]);
 
-        $sourceFile = 'temp/service_source.mp4';
-        Storage::disk('local')->put($sourceFile, 'fake-video-content');
-
-        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
-            'source_file_path' => $sourceFile,
-        ]);
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $transcriptPath = 'temp/service_transcript_'.$log->processing_id.'.json';
+        Storage::disk('local')->put($transcriptPath, json_encode([
+            'cues' => [
+                ['start' => 100.0, 'end' => 180.0, 'text' => 'To God be the glory great things he hath done so loved he the world'],
+            ],
+            'duration' => 180.0,
+            'source' => 'mock',
+        ], JSON_THROW_ON_ERROR));
+        $log->putServiceTranscriptPath($transcriptPath);
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'section_type' => ServiceSectionType::Song->value,
             'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
             'start_time' => 100.0,
-            'end_time' => 280.0,
+            'end_time' => 180.0,
             'needs_manual_review' => true,
             'metadata' => [
-                'classification_mode' => 'audio_only',
+                'classification_mode' => 'llm_structure',
                 'review_flags' => ['unmatched_song_section'],
             ],
         ]);
 
-        $openingTranscript = 'To God be the glory great things he hath done so loved he the world';
-
-        $this->mock(VideoExtractionService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('extractOptimizedAudio')
-                ->once()
-                ->andReturn(['audio_path' => 'temp/song_opening.mp3']);
-        });
-
-        $this->mock(TranscriptionServiceInterface::class, function (MockInterface $mock) use ($openingTranscript): void {
-            $mock->shouldReceive('transcribe')
-                ->once()
-                ->andReturn($openingTranscript);
-        });
-
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
-        $this->assertNotNull($section->metadata['song_opening_transcript'] ?? null);
-
-        $match = $section->metadata['transcript_song_match'] ?? null;
-        $this->assertIsArray($match);
-        $this->assertSame($song->id, $match['song_id']);
-        $this->assertSame('lyrics', $match['match_source']);
-    }
-
-    #[Test]
-    public function it_uses_cpu_local_whisper_for_song_openings_only_in_local_environment(): void
-    {
-        Config::set('app.env', 'local');
-        Config::set('media-processing.transcription.service', 'local');
-        Config::set('media-processing.song_matching.transcribe_song_openings', true);
-        Config::set('media-processing.song_matching.use_local_whisper_for_song_openings', true);
-        Config::set('media-processing.song_matching.song_opening_local_whisper_url', 'http://whisper:8000');
-        Config::set('media-processing.song_matching.song_opening_local_whisper_transcription_path', '/v1/audio/transcriptions');
-        Config::set('media-processing.song_matching.song_opening_local_whisper_model', 'small');
-        Config::set('media-processing.song_matching.song_opening_local_whisper_timeout', 1800);
-
-        $song = Song::factory()->create([
-            'title' => 'Great Is Thy Faithfulness',
-            'canonical_key' => 'great is thy faithfulness',
-            'lyrics_plain' => 'Great is thy faithfulness O God my Father morning by morning new mercies I see',
-        ]);
-
-        $sourceFile = 'temp/service_source.mp4';
-        Storage::disk('local')->put($sourceFile, 'fake-video-content');
-
-        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
-            'source_file_path' => $sourceFile,
-        ]);
-
-        $section = ServiceSection::factory()->create([
-            'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::Song->value,
-            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
-            'start_time' => 100.0,
-            'end_time' => 280.0,
-            'needs_manual_review' => true,
-            'metadata' => [
-                'classification_mode' => 'audio_only',
-                'review_flags' => ['unmatched_song_section'],
-            ],
-        ]);
-
-        $this->mock(VideoExtractionService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('extractOptimizedAudio')
-                ->once()
-                ->andReturn(['audio_path' => 'temp/song_opening.mp3']);
-        });
-
-        $transcriptionService = \Mockery::mock(TranscriptionServiceInterface::class);
-        $transcriptionService->shouldNotReceive('transcribe');
-
-        $localWhisper = \Mockery::mock(LocalWhisperTranscriptionService::class);
-        $localWhisper->shouldReceive('transcribeWithConfiguration')
-            ->once()
-            ->with(
-                'temp/song_opening.mp3',
-                $log->processing_id.'-song-'.$section->id.'-opening',
-                'local',
-                [
-                    'url' => 'http://whisper:8000',
-                    'transcription_path' => '/v1/audio/transcriptions',
-                    'model' => 'small',
-                    'timeout' => 1800,
-                ],
-            )
-            ->andReturn('Great is thy faithfulness O God my Father morning by morning new mercies I see');
-
-        (new MatchSongsFromTranscript($log))->handle(
-            app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
-            app(StorageAdapterHelper::class),
-            $transcriptionService,
-            app(SongLyricOcrService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            $localWhisper,
-        );
-
-        $section->refresh();
-
-        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $this->assertSame($song->id, $section->metadata['transcript_song_match']['song_id'] ?? null);
+        $this->assertSame('lyrics', $section->metadata['transcript_song_match']['match_source'] ?? null);
     }
-
-    #[Test]
-    public function it_uses_the_normal_transcription_service_for_song_openings_outside_local_environment(): void
-    {
-        Config::set('app.env', 'production');
-        Config::set('media-processing.transcription.service', 'openai');
-        Config::set('media-processing.song_matching.transcribe_song_openings', true);
-        Config::set('media-processing.song_matching.use_local_whisper_for_song_openings', true);
-
-        $song = Song::factory()->create([
-            'title' => 'To God Be the Glory',
-            'canonical_key' => 'to god be the glory',
-            'lyrics_plain' => 'To God be the glory great things he hath done so loved he the world',
-        ]);
-
-        $sourceFile = 'temp/service_source.mp4';
-        Storage::disk('local')->put($sourceFile, 'fake-video-content');
-
-        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
-            'source_file_path' => $sourceFile,
-        ]);
-
-        $section = ServiceSection::factory()->create([
-            'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::Song->value,
-            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
-            'start_time' => 100.0,
-            'end_time' => 280.0,
-            'needs_manual_review' => true,
-            'metadata' => [
-                'classification_mode' => 'audio_only',
-                'review_flags' => ['unmatched_song_section'],
-            ],
-        ]);
-
-        $this->mock(VideoExtractionService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('extractOptimizedAudio')
-                ->once()
-                ->andReturn(['audio_path' => 'temp/song_opening.mp3']);
-        });
-
-        $transcriptionService = \Mockery::mock(TranscriptionServiceInterface::class);
-        $transcriptionService->shouldReceive('transcribe')
-            ->once()
-            ->with('temp/song_opening.mp3', $log->processing_id.'-song-'.$section->id.'-opening', 'local')
-            ->andReturn('To God be the glory great things he hath done so loved he the world');
-
-        $localWhisper = \Mockery::mock(LocalWhisperTranscriptionService::class);
-        $localWhisper->shouldNotReceive('transcribeWithConfiguration');
-
-        (new MatchSongsFromTranscript($log))->handle(
-            app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
-            app(StorageAdapterHelper::class),
-            $transcriptionService,
-            app(SongLyricOcrService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            $localWhisper,
-        );
-
-        $section->refresh();
-
-        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
-        $this->assertSame($song->id, $section->metadata['transcript_song_match']['song_id'] ?? null);
-    }
-
-    // ---- Review bookkeeping is refreshed ----
 
     #[Test]
     public function it_re_runs_unmatched_song_review_applicator_after_matching(): void
@@ -738,9 +546,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -783,9 +589,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -840,9 +644,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -856,75 +658,6 @@ class MatchSongsFromTranscriptTest extends TestCase
         $this->assertIsArray($match);
         $this->assertSame($song->id, $match['song_id']);
         $this->assertSame('ocr', $match['match_source']);
-    }
-
-    #[Test]
-    public function it_falls_through_to_whisper_when_ocr_returns_null(): void
-    {
-        Config::set('media-processing.song_matching.ocr_enabled', true);
-        Config::set('media-processing.song_matching.transcribe_song_openings', true);
-        Config::set('media-processing.song_matching.song_opening_transcription_seconds', 30);
-
-        $song = Song::factory()->create([
-            'title' => 'Great Is Thy Faithfulness',
-            'canonical_key' => 'great is thy faithfulness',
-            'lyrics_plain' => 'Great is thy faithfulness O God my Father morning by morning new mercies I see',
-        ]);
-
-        $sourceFile = 'temp/service_source.mp4';
-        Storage::disk('local')->put($sourceFile, 'fake-video-content');
-
-        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
-            'source_file_path' => $sourceFile,
-        ]);
-
-        $section = ServiceSection::factory()->create([
-            'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::Song->value,
-            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
-            'start_time' => 300.0,
-            'end_time' => 500.0,
-            'needs_manual_review' => true,
-            'metadata' => [
-                'classification_mode' => 'audio_only',
-                'review_flags' => ['unmatched_song_section'],
-            ],
-        ]);
-
-        $openingTranscript = 'Great is thy faithfulness O God my Father morning by morning new mercies I see';
-
-        // OCR returns null — no lyrics visible on screen.
-        $this->mock(SongLyricOcrService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('extractLyricsSamples')->once()->andReturn([]);
-        });
-
-        $this->mock(VideoExtractionService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('extractOptimizedAudio')
-                ->once()
-                ->andReturn(['audio_path' => 'temp/song_opening.mp3']);
-        });
-
-        $this->mock(TranscriptionServiceInterface::class, function (MockInterface $mock) use ($openingTranscript): void {
-            $mock->shouldReceive('transcribe')->once()->andReturn($openingTranscript);
-        });
-
-        (new MatchSongsFromTranscript($log))->handle(
-            app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
-            app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
-            app(SongLyricOcrService::class),
-            app(UnmatchedSongReviewApplicator::class),
-        );
-
-        $section->refresh();
-
-        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
-
-        $match = $section->metadata['transcript_song_match'] ?? null;
-        $this->assertIsArray($match);
-        $this->assertSame($song->id, $match['song_id']);
-        $this->assertSame('lyrics', $match['match_source']);
     }
 
     #[Test]
@@ -947,9 +680,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             $mockOcr,
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -1012,9 +743,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -1061,9 +790,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -1101,9 +828,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -1159,9 +884,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
@@ -1185,7 +908,6 @@ class MatchSongsFromTranscriptTest extends TestCase
     {
         config(['media-processing.service_structure.mode' => 'primary']);
         Config::set('media-processing.song_matching.ocr_enabled', false);
-        Config::set('media-processing.song_matching.transcribe_song_openings', false);
 
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
 
@@ -1206,9 +928,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
-            app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );

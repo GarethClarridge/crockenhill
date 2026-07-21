@@ -49,6 +49,31 @@ class SongLyricsMatchingService
     }
 
     /**
+     * @return array{song_id: int|null, confidence: float, matched_title: string|null, match_source: string|null}
+     */
+    public function matchTitleHint(string $titleHint): array
+    {
+        $result = $this->matchFromLyrics($titleHint);
+
+        if ($result['song_id'] === null) {
+            return [...$result, 'match_source' => null];
+        }
+
+        $keys = Song::matchKeyVariants($this->extractFirstLine($titleHint));
+        $isCanonicalTitle = $keys !== [] && Song::query()->whereIn('canonical_key', $keys)->exists();
+
+        if ($isCanonicalTitle) {
+            return [...$result, 'match_source' => 'title_hint_canonical'];
+        }
+
+        $firstLineMatches = $keys === []
+            ? new Collection
+            : Song::query()->whereIn('first_line_key', $keys)->limit(2)->get();
+
+        return [...$result, 'match_source' => $firstLineMatches->count() === 1 ? 'title_hint_first_line' : 'title_hint_fuzzy'];
+    }
+
+    /**
      * @return array{song_id: int|null, confidence: float, matched_title: string|null}|null
      */
     private function tryCanonicalKeyLookup(string $transcript, bool $allowFirstLineKeyMatch): ?array

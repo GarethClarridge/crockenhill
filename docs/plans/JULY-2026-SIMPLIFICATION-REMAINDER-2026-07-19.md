@@ -430,7 +430,7 @@ failure gate and (b) the `sermon_start_time`/`sermon_end_time` baseline read by
 Write the diff-level sequencing as a short addendum to this plan when R9 lands (the shape of
 `AnalyzeSegments` after R9's edits isn't knowable yet).
 
-## R11 — Item 1.7 consolidations (each its own PR, in order)
+## R11 — Item 1.7 consolidations (each its own commit, in order)
 
 - **1.7a — one Whisper pass** (media O2/F5). Slice the full-service transcript
   (`ChurchServiceTranscript::sliceText()` exists) for the sermon transcript instead of
@@ -450,8 +450,8 @@ Write the diff-level sequencing as a short addendum to this plan when R9 lands (
   `MatchSongsFromTranscript`'s third tier (per-section extraction + Whisper) in favour of
   `sliceText()`; consolidate title-hint regexes + fuzzy lyrics windowing behind one typed
   matching call; canonical-key bedrock stays deterministic; prune the 11 `song_matching`
-  config keys to `enabled` + local-dev switch. OCR retention depends on the maintainer's
-  "lyrics-on-screen-only" answer (church Q4) — ask before deleting OCR.
+  config keys to the active matcher and OCR settings. **OCR is retained**: it covers
+  lyrics-on-screen-only services (maintainer decision 2026-07-21).
 - **1.7e — registry rationalisation** (media F3), last: anchor-job offsets for all pipelines,
   progress from chain position, step-name normalisation at the write site, delete alias lists.
   Much smaller after R9/R10 shrink the chains.
@@ -541,5 +541,5 @@ just to read failure names.
 - [ ] Prod praise-number backfill + song-link convergence after #1171 — praise drift `0`, link drift **3** on 2026-07-20 (gates `BackfillSongPraiseNumbersCommand` — Phase 9 F3.2)
 - [ ] Meeting photo import to Media Library confirmed — mapped folders passed; `sunday-services` mapping remains to verify
 - [ ] Maintainer decision: R6 sequencing vs. review-queue-noise plan
-- [ ] Maintainer answer: church Q4 lyrics-on-screen (gates OCR deletion in 1.7c)
+- [x] Maintainer answer: church Q4 lyrics-on-screen — retain OCR (2026-07-21)
 - [ ] Bulk backfill complete + drive import declared finished (gates `HistoricVideoImporter` deletion — last)

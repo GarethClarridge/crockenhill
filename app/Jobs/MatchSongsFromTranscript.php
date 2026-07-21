@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Contracts\TranscriptionServiceInterface;
+use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
@@ -13,9 +13,6 @@ use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Models\Song;
-use App\Services\Media\Audio\LocalWhisperTranscriptionService;
-use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongLyricOcrService;
 use App\Services\Song\SongLyricsMatchingService;
@@ -63,12 +60,9 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
 
     public function handle(
         SongLyricsMatchingService $lyricsMatchingService,
-        VideoExtractionService $videoExtractor,
         StorageAdapterHelper $storageHelper,
-        TranscriptionServiceInterface $transcriptionService,
         SongLyricOcrService $ocrService,
         UnmatchedSongReviewApplicator $unmatchedSongReviewApplicator,
-        ?LocalWhisperTranscriptionService $localWhisperTranscriptionService = null
     ): void {
         if (! (bool) config('media-processing.song_matching.enabled', true)) {
             $this->initializeStepLogging($this->processingLog->processing_id);
@@ -112,19 +106,16 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         $localSourcePath = null;
         $cleanupSourcePath = false;
         $ocrEnabled = (bool) config('media-processing.song_matching.ocr_enabled', true);
-        $transcribeEnabled = (bool) config('media-processing.song_matching.transcribe_song_openings', true);
 
-        if ($ocrEnabled || $transcribeEnabled) {
+        if ($ocrEnabled) {
             try {
                 [$localSourcePath, $cleanupSourcePath] = $this->resolveLocalSourceVideoPath($storageHelper);
             } catch (\Throwable $throwable) {
-                Log::warning('MatchSongsFromTranscript: source video unavailable, skipping frame extraction and song opening transcription', [
+                Log::warning('MatchSongsFromTranscript: source video unavailable, skipping frame extraction', [
                     'processing_id' => $this->processingLog->processing_id,
                     'error' => $throwable->getMessage(),
                 ]);
-                // Proceed without the video — title-hint matching and OCR matching
-                // against previously stored frame text still work.
-                $transcribeEnabled = false;
+                // Previously stored OCR text remains available for re-runs.
             }
         }
 
@@ -144,17 +135,8 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                     }
                 }
 
-                if ($transcribeEnabled && $localSourcePath !== null) {
-                    if ($this->matchSectionFromOpeningTranscript(
-                        $section,
-                        $localSourcePath,
-                        $lyricsMatchingService,
-                        $videoExtractor,
-                        $transcriptionService,
-                        $localWhisperTranscriptionService
-                    )) {
-                        $matchedCount++;
-                    }
+                if ($this->matchSectionFromServiceTranscript($section, $lyricsMatchingService)) {
+                    $matchedCount++;
                 }
             }
         } finally {
@@ -214,7 +196,7 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * Try to match a section using the song_title_hint written by SongTitleHintExtractor.
+     * Try to match a section using the song title detected from the full-service transcript.
      * Returns true if a match was found and persisted.
      */
     private function matchSectionFromTitleHint(
@@ -226,36 +208,9 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             return false;
         }
 
-        // Canonical key lookup first.
-        $canonicalKey = Song::canonicalizeKey($hint);
-        $song = Song::query()->where('canonical_key', $canonicalKey)->first();
-
-        if ($song instanceof Song) {
-            $this->applyMatch($section, $song->id, $song->title, 1.0, 'title_hint_canonical');
-
-            return true;
-        }
-
-        // A heard "title" is often the first lyric line, not the catalogued
-        // title. first_line_key is not unique, and an ambiguous hit must not
-        // persist an arbitrary song — leave it to fuzzy lyrics matching, which
-        // can weigh the rest of the hint.
-        $firstLineMatches = Song::query()
-            ->whereIn('first_line_key', Song::matchKeyVariants($hint))
-            ->limit(2)
-            ->get();
-
-        if ($firstLineMatches->count() === 1) {
-            $song = $firstLineMatches->sole();
-            $this->applyMatch($section, $song->id, $song->title, 0.95, 'title_hint_first_line');
-
-            return true;
-        }
-
-        // Fallback: run the hint text through lyrics matching as a transcript.
-        $result = $lyricsMatchingService->matchFromLyrics($hint);
+        $result = $lyricsMatchingService->matchTitleHint($hint);
         if ($result['song_id'] !== null) {
-            $this->applyMatch($section, $result['song_id'], (string) $result['matched_title'], $result['confidence'], 'title_hint_fuzzy');
+            $this->applyMatch($section, $result['song_id'], (string) $result['matched_title'], $result['confidence'], (string) $result['match_source']);
 
             return true;
         }
@@ -381,98 +336,23 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         return $ocrTexts;
     }
 
-    /**
-     * Transcribe the first N seconds of the song section and attempt lyrics matching.
-     * Returns true if a match was found and persisted.
-     */
-    private function matchSectionFromOpeningTranscript(
-        ServiceSection $section,
-        string $localSourcePath,
-        SongLyricsMatchingService $lyricsMatchingService,
-        VideoExtractionService $videoExtractor,
-        TranscriptionServiceInterface $transcriptionService,
-        ?LocalWhisperTranscriptionService $localWhisperTranscriptionService
-    ): bool {
-        $openingSeconds = (int) config('media-processing.song_matching.song_opening_transcription_seconds', 30);
-        $endTime = min((float) $section->start_time + $openingSeconds, (float) $section->end_time);
-
-        $audioPath = null;
-
-        try {
-            $audioResult = $videoExtractor->extractOptimizedAudio(
-                $localSourcePath,
-                (object) [
-                    'start_time' => (float) $section->start_time,
-                    'end_time' => $endTime,
-                ],
-                $this->processingLog->processing_id.'_song_'.$section->id.'_opening.mp3'
-            );
-
-            $audioPath = $audioResult['audio_path'];
-            $openingTranscript = $this->transcribeSongOpening(
-                $transcriptionService,
-                $localWhisperTranscriptionService,
-                $audioPath,
-                $this->processingLog->processing_id.'-song-'.$section->id.'-opening',
-                $this->sermonDisk()
-            );
-
-            // Store the opening transcript in metadata for traceability.
-            $metadataArray = $section->metadata?->toArray() ?? [];
-            $metadataArray['song_opening_transcript'] = $openingTranscript;
-            $section->metadata = ServiceSectionMetadata::fromArray($metadataArray);
-            $section->saveQuietly();
-
-            if (trim($openingTranscript) === '') {
-                return false;
-            }
-
-            $result = $lyricsMatchingService->matchFromLyrics($openingTranscript);
-            if ($result['song_id'] !== null) {
-                $this->applyMatch($section, $result['song_id'], (string) $result['matched_title'], $result['confidence'], 'lyrics');
-
-                return true;
-            }
-        } catch (\Throwable $throwable) {
-            Log::warning('MatchSongsFromTranscript: failed to transcribe song opening', [
-                'processing_id' => $this->processingLog->processing_id,
-                'service_section_id' => $section->id,
-                'error' => $throwable->getMessage(),
-            ]);
-        } finally {
-            $this->cleanupExtractedAudio($audioPath);
+    private function matchSectionFromServiceTranscript(ServiceSection $section, SongLyricsMatchingService $lyricsMatchingService): bool
+    {
+        $transcript = $this->loadServiceTranscript();
+        if (! $transcript instanceof ChurchServiceTranscript) {
+            return false;
         }
 
-        return false;
-    }
+        $text = $transcript->sliceText((float) $section->start_time, (float) $section->end_time);
+        $result = $lyricsMatchingService->matchFromLyrics($text);
 
-    private function transcribeSongOpening(
-        TranscriptionServiceInterface $transcriptionService,
-        ?LocalWhisperTranscriptionService $localWhisperTranscriptionService,
-        string $audioPath,
-        string $processingId,
-        string $disk
-    ): string {
-        if (
-            (bool) config('media-processing.song_matching.use_local_whisper_for_song_openings', false)
-            && config('app.env') === 'local'
-            && config('media-processing.transcription.service') === 'local'
-            && $localWhisperTranscriptionService instanceof LocalWhisperTranscriptionService
-        ) {
-            return $localWhisperTranscriptionService->transcribeWithConfiguration(
-                $audioPath,
-                $processingId,
-                $disk,
-                [
-                    'url' => (string) config('media-processing.song_matching.song_opening_local_whisper_url', 'http://whisper:8000'),
-                    'transcription_path' => (string) config('media-processing.song_matching.song_opening_local_whisper_transcription_path', '/v1/audio/transcriptions'),
-                    'model' => (string) config('media-processing.song_matching.song_opening_local_whisper_model', config('media-processing.transcription.local_whisper_model', 'small')),
-                    'timeout' => max(1, (int) config('media-processing.song_matching.song_opening_local_whisper_timeout', config('media-processing.transcription.local_whisper_timeout', 1800))),
-                ],
-            );
+        if ($result['song_id'] === null) {
+            return false;
         }
 
-        return $transcriptionService->transcribe($audioPath, $processingId, $disk);
+        $this->applyMatch($section, $result['song_id'], (string) $result['matched_title'], $result['confidence'], 'lyrics');
+
+        return true;
     }
 
     /**
@@ -591,30 +471,27 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         return $sourceFilePath;
     }
 
-    private function cleanupExtractedAudio(?string $audioPath): void
+    private function loadServiceTranscript(): ?ChurchServiceTranscript
     {
-        if (! is_string($audioPath) || $audioPath === '') {
-            return;
-        }
-
-        $disk = $this->sermonDisk();
-
         try {
-            if (Storage::disk($disk)->exists($audioPath)) {
-                Storage::disk($disk)->delete($audioPath);
+            $path = $this->processingLog->serviceTranscriptPath();
+            $disk = (string) config('media-processing.storage.temp_disk', 'local');
+
+            if ($path === null || ! Storage::disk($disk)->exists($path)) {
+                return null;
             }
+
+            /** @var array<string, mixed> $data */
+            $data = json_decode((string) Storage::disk($disk)->get($path), true, 512, JSON_THROW_ON_ERROR);
+
+            return ChurchServiceTranscript::fromArray($data);
         } catch (\Throwable $throwable) {
-            Log::warning('MatchSongsFromTranscript: failed to clean up extracted audio', [
+            Log::warning('MatchSongsFromTranscript: full-service transcript unavailable', [
                 'processing_id' => $this->processingLog->processing_id,
-                'audio_path' => $audioPath,
-                'disk' => $disk,
                 'error' => $throwable->getMessage(),
             ]);
         }
-    }
 
-    private function sermonDisk(): string
-    {
-        return (string) config('media-processing.storage.sermon_disk', 'public');
+        return null;
     }
 }
