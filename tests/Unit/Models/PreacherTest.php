@@ -63,6 +63,7 @@ class PreacherTest extends TestCase
         $validator = Validator::make([
             'name' => 'John Smith',
             'slug' => 'john-smith',
+            'is_active' => true,
         ], $rules);
 
         $this->assertFalse($validator->fails(), 'Validation should pass with valid data');
@@ -70,11 +71,13 @@ class PreacherTest extends TestCase
         $validator = Validator::make([
             'name' => '',
             'slug' => 'Invalid Slug!',
+            'is_active' => 'not-a-boolean-value',
         ], $rules);
 
         $this->assertTrue($validator->fails());
         $this->assertArrayHasKey('name', $validator->errors()->toArray());
         $this->assertArrayHasKey('slug', $validator->errors()->toArray());
+        $this->assertArrayHasKey('is_active', $validator->errors()->toArray());
     }
 
     /**
