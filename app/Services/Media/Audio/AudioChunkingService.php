@@ -339,7 +339,7 @@ class AudioChunkingService
      */
     public function compressAudioForTranscription(string $inputPath, string $processingId): string
     {
-        $fallbackConfig = config('media-processing.audio_extraction.fallback_compression');
+        $fallbackConfig = TranscriptionAudioProfile::fallback();
         $compressedPath = storage_path('app/temp/'.basename($inputPath, '.mp3').'_compressed_'.time().'.mp3');
 
         $tempDir = dirname($compressedPath);
@@ -356,8 +356,8 @@ class AudioChunkingService
             $audio = $ffmpeg->open($inputPath);
 
             $format = new Mp3;
-            $format->setAudioKiloBitrate($fallbackConfig['bitrate'] ?? 32);
-            $format->setAudioChannels($fallbackConfig['channels'] ?? 1);
+            $format->setAudioKiloBitrate($fallbackConfig['bitrate']);
+            $format->setAudioChannels($fallbackConfig['channels']);
 
             $audio->save($format, $compressedPath);
 
@@ -378,8 +378,8 @@ class AudioChunkingService
                 'input_path' => $inputPath,
                 'output_path' => $compressedPath,
                 'compression_settings' => [
-                    'bitrate_kbps' => $fallbackConfig['bitrate'] ?? 32,
-                    'channels' => $fallbackConfig['channels'] ?? 1,
+                    'bitrate_kbps' => $fallbackConfig['bitrate'],
+                    'channels' => $fallbackConfig['channels'],
                     'purpose' => 'transcription_size_reduction',
                 ],
             ]);

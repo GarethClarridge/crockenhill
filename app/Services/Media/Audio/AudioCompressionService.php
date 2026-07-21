@@ -95,8 +95,8 @@ class AudioCompressionService
                 throw new VideoProcessingException("Input video file not found: {$inputVideoPath}");
             }
 
-            $config = config('media-processing.audio_extraction.transcription_optimized');
-            $fallbackConfig = config('media-processing.audio_extraction.fallback_compression');
+            $config = TranscriptionAudioProfile::optimized();
+            $fallbackConfig = TranscriptionAudioProfile::fallback();
 
             /** @var Video $video */
             $video = $this->requireFfmpeg()->open($inputVideoPath);
@@ -240,7 +240,7 @@ class AudioCompressionService
             $fileSize = 0;
         }
 
-        $maxSize = (int) config('media-processing.audio_extraction.transcription_optimized.max_file_size', 0);
+        $maxSize = TranscriptionAudioProfile::optimized()['max_file_size'];
 
         return [
             'valid' => $fileSize <= $maxSize && $fileSize > 0,

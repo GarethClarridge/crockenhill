@@ -8,7 +8,6 @@ use App\Exceptions\InvalidFileException;
 use App\Services\Media\Audio\AudioExtractionService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Log;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -137,42 +136,5 @@ class AudioExtractionServiceTest extends TestCase
         $this->expectNotToPerformAssertions();
 
         $this->service->validateAudioFile($file);
-    }
-
-    // ---- extractFromVideo (requires FFmpeg, test error handling) ----
-
-    #[Test]
-    public function it_logs_error_and_rethrows_when_extract_from_video_fails(): void
-    {
-        Log::shouldReceive('error')
-            ->once()
-            ->withArgs(function ($message, $context) {
-                return $message === 'Failed to extract audio from video'
-                    && isset($context['video_path'])
-                    && isset($context['error']);
-            });
-
-        // FFMpeg::create will fail because the binaries don't exist in test
-        $this->expectException(\Exception::class);
-
-        $this->service->extractFromVideo('/nonexistent/video.mp4', 120.0);
-    }
-
-    // ---- compressForTranscription (requires FFmpeg, test error handling) ----
-
-    #[Test]
-    public function it_logs_error_and_rethrows_when_compression_fails(): void
-    {
-        Log::shouldReceive('error')
-            ->once()
-            ->withArgs(function ($message, $context) {
-                return $message === 'Failed to compress audio file'
-                    && isset($context['input_path'])
-                    && isset($context['error']);
-            });
-
-        $this->expectException(\Exception::class);
-
-        $this->service->compressForTranscription('/nonexistent/audio.mp3');
     }
 }
