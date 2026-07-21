@@ -317,7 +317,6 @@ class StandardProcessingResponseTest extends TestCase
             'unknown_step falls to default' => ['unknown_step', 50],
             'audio_processing_initiated' => ['audio_processing_initiated', 10],
             'video_processing_initiated' => ['video_processing_initiated', 10],
-            'visual_analysis' => ['visual_analysis', 10],
             'validating' => ['validating', 15],
             'rms_generation' => ['rms_generation', 20],
             'extracting_audio' => ['extracting_audio', 25],

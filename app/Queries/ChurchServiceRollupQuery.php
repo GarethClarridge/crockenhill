@@ -24,8 +24,8 @@ class ChurchServiceRollupQuery
 {
     /**
      * Safe column list for media_processing_logs (TD-004B): the table carries
-     * oversized JSON blobs (visual_samples, song_clusters, rms_stats,
-     * ai_analysis) that must never be hydrated for list/rollup rendering.
+     * oversized JSON blobs (rms_stats, ai_analysis) that must never be
+     * hydrated for list/rollup rendering.
      *
      * @var list<string>
      */

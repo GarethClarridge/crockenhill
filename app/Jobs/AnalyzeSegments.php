@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Data\LivestreamSegment;
-use App\Enums\LivestreamSegmentClassification;
 use App\Enums\ProcessingStep;
 use App\Models\LivestreamSegment as LivestreamSegmentModel;
 use App\Models\MediaProcessingLog;
@@ -18,20 +17,11 @@ use Illuminate\Queue\Attributes\FailOnTimeout;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 #[FailOnTimeout]
 class AnalyzeSegments implements ShouldQueue
 {
     use ChecksCancellation, InteractsWithQueue, Queueable, SerializesModels;
-
-    private const VISUAL_AUDIO_SUPPORT_WINDOW = 45.0;
-
-    private const VISUAL_ONLY_CONFIDENCE_THRESHOLD = 0.7;
-
-    private const VISUAL_AUDIO_START_LEAD_CAP = 10.0;
-
-    private const VISUAL_AUDIO_END_TRAIL_CAP = 5.0;
 
     public int $tries = 3;
 
@@ -64,35 +54,12 @@ class AnalyzeSegments implements ShouldQueue
                 throw new \Exception('RMS log path not found in processing log');
             }
 
-            // Check if visual analysis results are available
-            $visualClusters = $this->getVisualClusters();
+            $analysisResult = $segmentationService->analyzeSegments($this->processingLog->rms_log_path);
 
-            if ($visualClusters !== null && count($visualClusters) > 0) {
-                Log::info('Using visual-guided segmentation', [
-                    'processing_id' => $this->processingLog->processing_id,
-                    'cluster_count' => count($visualClusters),
-                ]);
-
-                $segments = $this->analyzeWithVisualGuidance(
-                    $segmentationService,
-                    $this->processingLog->rms_log_path,
-                    $visualClusters
-                );
-
-                $thresholdMetadata = ['method' => 'visual_guided', 'clusters' => count($visualClusters)];
-            } else {
-                Log::info('Using RMS-only segmentation (no visual data)', [
-                    'processing_id' => $this->processingLog->processing_id,
-                ]);
-
-                $analysisResult = $segmentationService->analyzeSegments($this->processingLog->rms_log_path);
-
-                // Extract segments and metadata from the analysis result
-                /** @var array<int, LivestreamSegment> $segments */
-                $segments = $analysisResult['segments'];
-                /** @var array<string, mixed> $thresholdMetadata */
-                $thresholdMetadata = $analysisResult['threshold_metadata'];
-            }
+            /** @var array<int, LivestreamSegment> $segments */
+            $segments = $analysisResult['segments'];
+            /** @var array<string, mixed> $thresholdMetadata */
+            $thresholdMetadata = $analysisResult['threshold_metadata'];
 
             if (empty($segments)) {
                 throw new \Exception('No segments found in analysis');
@@ -105,47 +72,9 @@ class AnalyzeSegments implements ShouldQueue
 
             $this->storeSegments($segments);
 
-            $sermonCandidate = $this->findSermonCandidate($segments);
-
-            if ($sermonCandidate) {
-                if ($this->abortIfCancelled('AnalyzeSegments')) {
-                    return;
-                }
-
-                $processingRunTransitions->updateRunFields($this->processingLog, [
-                    'sermon_start_time' => $sermonCandidate->startTime,
-                    'sermon_end_time' => $sermonCandidate->endTime,
-                    'current_step' => ProcessingStep::Segmenting->value,
-                ]);
-
-                Log::info('Sermon candidate identified', [
-                    'processing_id' => $this->processingLog->processing_id,
-                    'start_time' => $sermonCandidate->startTime,
-                    'end_time' => $sermonCandidate->endTime,
-                    'duration' => $sermonCandidate->duration,
-                ]);
-
-                // Job chain will automatically proceed to next job
-            } else {
-                if ($this->abortIfCancelled('AnalyzeSegments')) {
-                    return;
-                }
-
-                Log::warning('No sermon candidate found', [
-                    'processing_id' => $this->processingLog->processing_id,
-                    'total_segments' => count($segments),
-                    'speech_segments' => count(array_filter($segments, fn ($s) => $s->isSpeech())),
-                ]);
-
-                $processingRunTransitions->markAsFailed(
-                    $this->processingLog,
-                    'No sermon candidate found. Longest speech segment does not meet minimum duration requirements.'
-                );
-
-                CleanupTemporaryFiles::dispatch($this->processingLog)
-                    ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'))
-                    ->delay(now()->addMinutes(5));
-            }
+            $processingRunTransitions->updateRunFields($this->processingLog, [
+                'current_step' => ProcessingStep::Segmenting->value,
+            ]);
 
         } catch (\Exception $e) {
             Log::error('Segment analysis failed', [
@@ -210,19 +139,6 @@ class AnalyzeSegments implements ShouldQueue
                 'metadata' => $segmentData->metadata,
             ];
 
-            // Add visual analysis fields if present in metadata
-            if (isset($segmentData->metadata['visual_confidence'])) {
-                $segmentRecord['visual_confidence'] = $segmentData->metadata['visual_confidence'];
-            }
-
-            if (isset($segmentData->metadata['visual_sample_count'])) {
-                $segmentRecord['visual_sample_count'] = $segmentData->metadata['visual_sample_count'];
-            }
-
-            if (isset($segmentData->metadata['calibration_method'])) {
-                $segmentRecord['calibration_method'] = $segmentData->metadata['calibration_method'];
-            }
-
             LivestreamSegmentModel::query()->updateOrCreate(
                 [
                     'media_processing_log_id' => $this->processingLog->id,
@@ -236,29 +152,6 @@ class AnalyzeSegments implements ShouldQueue
             'processing_id' => $this->processingLog->processing_id,
             'segment_count' => count($segments),
         ]);
-    }
-
-    /**
-     * @param  array<int, LivestreamSegment>  $segments
-     */
-    private function findSermonCandidate(array $segments): ?LivestreamSegment
-    {
-        $speechSegments = array_filter($segments, fn ($s) => $s->isSpeech());
-
-        if (empty($speechSegments)) {
-            return null;
-        }
-
-        usort($speechSegments, fn ($a, $b) => $b->duration <=> $a->duration);
-        $longestSpeechSegment = $speechSegments[0];
-
-        $minSermonDuration = (float) config('media-processing.segmentation.min_sermon_duration', 300.0);
-
-        if ($longestSpeechSegment->duration >= $minSermonDuration) {
-            return $longestSpeechSegment;
-        }
-
-        return null;
     }
 
     public function failed(\Throwable $exception): void
@@ -275,373 +168,5 @@ class AnalyzeSegments implements ShouldQueue
         );
 
         // Cleanup will be handled by the chain failure handler
-    }
-
-    /**
-     * Get visual clusters from processing log
-     *
-     * @return array<int, array{
-     *     start_estimate: float,
-     *     end_estimate: float,
-     *     samples: array<int, float>,
-     *     confidence: float,
-     *     sample_count?: int,
-     *     refined_visual_start?: float,
-     *     refined_visual_end?: float,
-     *     dense_sample_count?: int
-     * }>|null
-     */
-    private function getVisualClusters(): ?array
-    {
-        $rawClusters = $this->processingLog->song_clusters?->toArray() ?? [];
-
-        if ($rawClusters === []) {
-            return null;
-        }
-
-        $clusters = [];
-        foreach ($rawClusters as $rawCluster) {
-            $startEstimate = $rawCluster['start_estimate'] ?? null;
-            $endEstimate = $rawCluster['end_estimate'] ?? null;
-            $samples = $rawCluster['samples'] ?? null;
-            if (! is_numeric($startEstimate) || ! is_numeric($endEstimate) || ! is_array($samples)) {
-                continue;
-            }
-
-            /** @var array{
-             *     start_estimate: float,
-             *     end_estimate: float,
-             *     samples: array<int, float>,
-             *     confidence: float,
-             *     sample_count?: int,
-             *     refined_visual_start?: float,
-             *     refined_visual_end?: float,
-             *     dense_sample_count?: int
-             * } $normalizedCluster */
-            $normalizedCluster = [
-                'start_estimate' => (float) $startEstimate,
-                'end_estimate' => (float) $endEstimate,
-                'samples' => array_values(array_map('floatval', $samples)),
-                'confidence' => is_numeric($rawCluster['confidence'] ?? null) ? (float) $rawCluster['confidence'] : 0.0,
-            ];
-
-            if (is_numeric($rawCluster['sample_count'] ?? null)) {
-                $normalizedCluster['sample_count'] = (int) $rawCluster['sample_count'];
-            }
-            if (is_numeric($rawCluster['refined_visual_start'] ?? null)) {
-                $normalizedCluster['refined_visual_start'] = (float) $rawCluster['refined_visual_start'];
-            }
-            if (is_numeric($rawCluster['refined_visual_end'] ?? null)) {
-                $normalizedCluster['refined_visual_end'] = (float) $rawCluster['refined_visual_end'];
-            }
-            if (is_numeric($rawCluster['dense_sample_count'] ?? null)) {
-                $normalizedCluster['dense_sample_count'] = (int) $rawCluster['dense_sample_count'];
-            }
-
-            $clusters[] = $normalizedCluster;
-        }
-
-        return $clusters === [] ? null : $clusters;
-    }
-
-    /**
-     * Analyze segments using visual guidance
-     *
-     * @param  array<int, array{
-     *     start_estimate: float,
-     *     end_estimate: float,
-     *     samples: array<int, float>,
-     *     confidence: float,
-     *     sample_count?: int,
-     *     refined_visual_start?: float,
-     *     refined_visual_end?: float,
-     *     dense_sample_count?: int
-     * }>  $visualClusters
-     * @return array<int, LivestreamSegment>
-     */
-    private function analyzeWithVisualGuidance(
-        VideoSegmentationService $segmentationService,
-        string $rmsLogPath,
-        array $visualClusters
-    ): array {
-        $visualSegments = [];
-        $segmentOrder = 0;
-
-        $rmsAnalysis = $segmentationService->analyzeSegments($rmsLogPath);
-        /** @var array<int, LivestreamSegment> $rmsSegments */
-        $rmsSegments = $rmsAnalysis['segments'];
-        /** @var array<string, mixed> $thresholdMetadata */
-        $thresholdMetadata = $rmsAnalysis['threshold_metadata'];
-        $fallbackThreshold = $this->resolveVisualFallbackThreshold($thresholdMetadata);
-
-        // Get total duration from RMS log for sermon identification
-        $fullRmsLogPath = Storage::disk(config('media-processing.storage.temp_disk'))
-            ->path($rmsLogPath);
-        $logContent = file_get_contents($fullRmsLogPath);
-        if ($logContent === false) {
-            throw new \Exception('Unable to read RMS log for visual-guided analysis');
-        }
-        $lines = explode("\n", trim($logContent));
-        $totalDuration = $this->getTotalDurationFromLog($lines);
-
-        // Process each visual cluster to create song segments
-        foreach ($visualClusters as $cluster) {
-            $calibrationMetadata = [];
-            $threshold = $fallbackThreshold;
-
-            try {
-                $calibration = $segmentationService->calibratePerSongThreshold($rmsLogPath, $cluster);
-                $threshold = (float) $calibration['threshold'];
-                $calibrationMetadata = [
-                    'calibration_method' => 'per_song_visual',
-                    'song_avg_rms' => $calibration['song_avg_rms'],
-                    'speech_avg_rms' => $calibration['speech_avg_rms'],
-                ];
-            } catch (\Throwable $exception) {
-                Log::warning('Visual-guided calibration failed; falling back to baseline RMS threshold', [
-                    'processing_id' => $this->processingLog->processing_id,
-                    'cluster_start' => $cluster['start_estimate'],
-                    'cluster_end' => $cluster['end_estimate'],
-                    'fallback_threshold' => $fallbackThreshold,
-                    'error' => $exception->getMessage(),
-                ]);
-
-                $calibrationMetadata = [
-                    'calibration_method' => 'baseline_rms_fallback',
-                    'calibration_error' => $exception->getMessage(),
-                    'fallback_threshold_used' => $fallbackThreshold,
-                ];
-            }
-
-            // Detect precise boundaries
-            $segment = $segmentationService->detectBoundariesForCluster(
-                $rmsLogPath,
-                $cluster,
-                $threshold
-            );
-
-            // Update segment order
-            $segment->segmentOrder = $segmentOrder++;
-
-            // Add metadata about calibration
-            $segment->metadata = array_merge($segment->metadata ?? [], $calibrationMetadata);
-
-            $visualSegments[] = $segment;
-        }
-
-        $segments = $this->mergeVisualAndRmsSongSegments($visualSegments, $rmsSegments);
-
-        // Generate speech segments from gaps between songs
-        $segments = $this->fillGapsWithSpeechSegments($segments, $totalDuration, $segmentOrder);
-
-        // Renumber segmentOrder sequentially based on chronological array position.
-        // Song segments were assigned orders 0–N during the first loop, while speech
-        // segments inserted between them received orders N+1 onwards. The array is
-        // already in chronological order after fillGapsWithSpeechSegments, so we
-        // just need to reassign the values to match the array positions.
-        foreach ($segments as $index => $segment) {
-            $segment->segmentOrder = $index;
-        }
-
-        return $segments;
-    }
-
-    /**
-     * @param  array<string, mixed>  $thresholdMetadata
-     */
-    private function resolveVisualFallbackThreshold(array $thresholdMetadata): float
-    {
-        $threshold = $thresholdMetadata['threshold'] ?? $thresholdMetadata['threshold_used'] ?? null;
-
-        if (is_numeric($threshold)) {
-            return (float) $threshold;
-        }
-
-        return (float) config('media-processing.segmentation.rms_threshold', -45.0);
-    }
-
-    /**
-     * @param  array<int, LivestreamSegment>  $visualSegments
-     * @param  array<int, LivestreamSegment>  $rmsSegments
-     * @return array<int, LivestreamSegment>
-     */
-    private function mergeVisualAndRmsSongSegments(array $visualSegments, array $rmsSegments): array
-    {
-        $baselineSongSegments = array_values(array_filter($rmsSegments, fn (LivestreamSegment $segment): bool => $segment->isSong()));
-        $merged = [];
-        $coveredBaselineIndexes = [];
-
-        foreach ($visualSegments as $visualSegment) {
-            $supportedBaselineIndexes = [];
-
-            foreach ($baselineSongSegments as $index => $baselineSongSegment) {
-                if (! $this->segmentsOverlapOrAreNearby($visualSegment, $baselineSongSegment)) {
-                    continue;
-                }
-
-                $coveredBaselineIndexes[$index] = true;
-                $supportedBaselineIndexes[] = $index;
-            }
-
-            $visualConfidence = (float) ($visualSegment->metadata['visual_confidence'] ?? 0.0);
-            if ($supportedBaselineIndexes !== []) {
-                $matchedBaselineSegments = array_map(
-                    fn (int $index): LivestreamSegment => $baselineSongSegments[$index],
-                    $supportedBaselineIndexes
-                );
-
-                $merged[] = $this->mergeVisualSegmentWithBaselineSupport($visualSegment, $matchedBaselineSegments);
-
-                continue;
-            }
-
-            if ($visualConfidence >= self::VISUAL_ONLY_CONFIDENCE_THRESHOLD) {
-                $merged[] = $visualSegment;
-            }
-        }
-
-        foreach ($baselineSongSegments as $index => $baselineSongSegment) {
-            if (isset($coveredBaselineIndexes[$index])) {
-                continue;
-            }
-
-            $merged[] = $baselineSongSegment;
-        }
-
-        usort($merged, fn (LivestreamSegment $left, LivestreamSegment $right): int => $left->startTime <=> $right->startTime);
-
-        return $merged;
-    }
-
-    private function segmentsOverlapOrAreNearby(LivestreamSegment $left, LivestreamSegment $right): bool
-    {
-        if ($left->endTime >= $right->startTime && $right->endTime >= $left->startTime) {
-            return true;
-        }
-
-        $gap = min(
-            abs($left->startTime - $right->endTime),
-            abs($right->startTime - $left->endTime)
-        );
-
-        return $gap <= self::VISUAL_AUDIO_SUPPORT_WINDOW;
-    }
-
-    /**
-     * @param  non-empty-array<int, LivestreamSegment>  $baselineSegments
-     */
-    private function mergeVisualSegmentWithBaselineSupport(LivestreamSegment $visualSegment, array $baselineSegments): LivestreamSegment
-    {
-        $earliestBaselineStart = min(array_map(fn (LivestreamSegment $segment): float => $segment->startTime, $baselineSegments));
-        $latestBaselineEnd = max(array_map(fn (LivestreamSegment $segment): float => $segment->endTime, $baselineSegments));
-
-        $startFloor = $earliestBaselineStart - self::VISUAL_AUDIO_START_LEAD_CAP;
-        $mergedStart = min($earliestBaselineStart, max($visualSegment->startTime, $startFloor));
-        $mergedEnd = max($latestBaselineEnd, min($visualSegment->endTime, $latestBaselineEnd + self::VISUAL_AUDIO_END_TRAIL_CAP));
-
-        $metadata = array_merge($visualSegment->metadata ?? [], [
-            'baseline_song_segments_merged' => count($baselineSegments),
-            'baseline_song_start' => $earliestBaselineStart,
-            'baseline_song_end' => $latestBaselineEnd,
-        ]);
-
-        return new LivestreamSegment(
-            startTime: $mergedStart,
-            endTime: $mergedEnd,
-            duration: $mergedEnd - $mergedStart,
-            classification: $visualSegment->classification,
-            avgRms: $visualSegment->avgRms,
-            peakRms: $visualSegment->peakRms,
-            isSermonCandidate: false,
-            segmentOrder: $visualSegment->segmentOrder,
-            metadata: $metadata,
-        );
-    }
-
-    /**
-     * Fill gaps between song segments with speech segments
-     *
-     * @param  array<LivestreamSegment>  $songSegments
-     * @return array<LivestreamSegment>
-     */
-    private function fillGapsWithSpeechSegments(array $songSegments, float $totalDuration, int &$segmentOrder): array
-    {
-        if (empty($songSegments)) {
-            // No songs found, entire video is speech
-            return [
-                new LivestreamSegment(
-                    startTime: 0.0,
-                    endTime: $totalDuration,
-                    duration: $totalDuration,
-                    classification: LivestreamSegmentClassification::Speech->value,
-                    avgRms: -50.0,
-                    peakRms: -40.0,
-                    segmentOrder: $segmentOrder++
-                ),
-            ];
-        }
-
-        // Sort song segments by start time
-        usort($songSegments, fn ($a, $b) => $a->startTime <=> $b->startTime);
-
-        $allSegments = [];
-        $previousEnd = 0.0;
-
-        foreach ($songSegments as $songSegment) {
-            // Add speech segment before this song if there's a gap
-            if ($songSegment->startTime > $previousEnd) {
-                $allSegments[] = new LivestreamSegment(
-                    startTime: $previousEnd,
-                    endTime: $songSegment->startTime,
-                    duration: $songSegment->startTime - $previousEnd,
-                    classification: LivestreamSegmentClassification::Speech->value,
-                    avgRms: -50.0,
-                    peakRms: -40.0,
-                    segmentOrder: $segmentOrder++
-                );
-            }
-
-            // Add the song segment
-            $allSegments[] = $songSegment;
-            $previousEnd = $songSegment->endTime;
-        }
-
-        // Add final speech segment if needed
-        if ($previousEnd < $totalDuration) {
-            $allSegments[] = new LivestreamSegment(
-                startTime: $previousEnd,
-                endTime: $totalDuration,
-                duration: $totalDuration - $previousEnd,
-                classification: LivestreamSegmentClassification::Speech->value,
-                avgRms: -50.0,
-                peakRms: -40.0,
-                segmentOrder: $segmentOrder++
-            );
-        }
-
-        return $allSegments;
-    }
-
-    /**
-     * Get total duration from RMS log lines
-     *
-     * @param  array<int, string>  $lines
-     */
-    private function getTotalDurationFromLog(array $lines): float
-    {
-        $maxTime = 0.0;
-
-        foreach ($lines as $line) {
-            if (preg_match('/pts_time:(\d+(?:\.\d+)?)/', $line, $matches)) {
-                $maxTime = max($maxTime, (float) $matches[1]);
-            }
-        }
-
-        // Fallback estimate if no pts_time found
-        if ($maxTime === 0.0) {
-            $maxTime = count($lines) / 43.0;
-        }
-
-        return $maxTime;
     }
 }

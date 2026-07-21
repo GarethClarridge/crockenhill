@@ -330,7 +330,7 @@ class ChurchServiceRollupQueryTest extends TestCase
             $this->assertStringNotContainsString('select *', strtolower($sql));
             $this->assertStringNotContainsString('"media_processing_logs".*', $sql);
 
-            foreach (['visual_samples', 'song_clusters', 'rms_stats', 'ai_analysis', 'rms_log_path'] as $column) {
+            foreach (['rms_stats', 'ai_analysis', 'rms_log_path'] as $column) {
                 $this->assertStringNotContainsString("`{$column}`", $sql);
             }
         }

@@ -32,7 +32,6 @@ enum ProcessingStep: string
     // -------------------------------------------------------------------------
     // Livestream-specific pipeline steps
     // -------------------------------------------------------------------------
-    case VisualAnalysis = 'visual_analysis';
     case RmsGeneration = 'rms_generation';
     case Segmentation = 'segmentation';
     case Segmenting = 'segmenting';

@@ -29,9 +29,6 @@ use Illuminate\Validation\Rule;
  * @property bool|null $is_sermon_segment
  * @property int|null $segment_order
  * @property array<string, mixed>|null $metadata
- * @property float|null $visual_confidence
- * @property int|null $visual_sample_count
- * @property string|null $calibration_method
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -53,9 +50,6 @@ class LivestreamSegment extends Model
         'is_sermon_segment',
         'segment_order',
         'metadata',
-        'visual_confidence',
-        'visual_sample_count',
-        'calibration_method',
     ];
 
     /**
@@ -76,8 +70,6 @@ class LivestreamSegment extends Model
             'avg_rms' => 'float',
             'peak_rms' => 'float',
             'segment_order' => 'integer',
-            'visual_confidence' => 'float',
-            'visual_sample_count' => 'integer',
         ];
     }
 
@@ -279,9 +271,6 @@ class LivestreamSegment extends Model
             'is_sermon_candidate' => ['sometimes', 'boolean'],
             'avg_rms' => ['nullable', 'numeric'],
             'peak_rms' => ['nullable', 'numeric'],
-            'visual_sample_count' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
-            'visual_confidence' => ['nullable', 'numeric', 'min:0', 'max:1'],
-            'calibration_method' => ['nullable', 'string', 'max:255'],
             'segment_order' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
         ];
     }

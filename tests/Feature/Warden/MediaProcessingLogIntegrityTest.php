@@ -29,8 +29,6 @@ class MediaProcessingLogIntegrityTest extends TestCase
                     'ai_analysis' => null,
                     'processing_metadata' => null,
                     'rms_stats' => null,
-                    'visual_samples' => null,
-                    'song_clusters' => null,
                 ]
             )
         );
@@ -48,8 +46,6 @@ class MediaProcessingLogIntegrityTest extends TestCase
                     'ai_analysis' => null,
                     'processing_metadata' => null,
                     'rms_stats' => null,
-                    'visual_samples' => null,
-                    'song_clusters' => null,
                 ]
             )
         );
@@ -72,8 +68,6 @@ class MediaProcessingLogIntegrityTest extends TestCase
                     'ai_analysis' => null,
                     'processing_metadata' => null,
                     'rms_stats' => null,
-                    'visual_samples' => null,
-                    'song_clusters' => null,
                 ]
             )
         );
@@ -107,8 +101,6 @@ class MediaProcessingLogIntegrityTest extends TestCase
                     'ai_analysis' => null,
                     'processing_metadata' => null,
                     'rms_stats' => null,
-                    'visual_samples' => null,
-                    'song_clusters' => null,
                 ]
             )
         );
@@ -127,8 +119,6 @@ class MediaProcessingLogIntegrityTest extends TestCase
                     'ai_analysis' => null,
                     'processing_metadata' => null,
                     'rms_stats' => null,
-                    'visual_samples' => null,
-                    'song_clusters' => null,
                 ]
             )
         );

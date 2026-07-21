@@ -33,9 +33,6 @@ class LivestreamSegmentTest extends TestCase
             'is_sermon_segment' => true,
             'segment_order' => 1,
             'metadata' => ['key' => 'value'],
-            'visual_confidence' => 0.95,
-            'visual_sample_count' => 10,
-            'calibration_method' => 'visual',
         ];
 
         $segment = new LivestreamSegment($data);

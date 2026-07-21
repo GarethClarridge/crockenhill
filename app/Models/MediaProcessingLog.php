@@ -9,8 +9,6 @@ use App\Data\ProcessingMetadata;
 use App\Data\ProcessingMetadataCast;
 use App\Data\SermonAnalysis;
 use App\Data\SermonAnalysisCast;
-use App\Data\SongClusterCollection;
-use App\Data\SongClusterCollectionCast;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
@@ -55,8 +53,6 @@ use Illuminate\Validation\Rule;
  * @property float|null $adaptive_threshold
  * @property array<string, mixed>|null $rms_stats
  * @property array<int, array<string, mixed>>|null $visual_samples
- * @property SongClusterCollection|null $song_clusters
- * @property int|null $visual_sample_count
  * @property float|null $visual_processing_time
  * @property int|null $sermon_id
  * @property int|null $owner_user_id
@@ -123,12 +119,6 @@ class MediaProcessingLog extends Model
         'adaptive_threshold',
         'rms_stats',
 
-        // Visual analysis fields
-        'visual_samples',
-        'song_clusters',
-        'visual_sample_count',
-        'visual_processing_time',
-
         // Relationships
         'sermon_id',
         'owner_user_id',
@@ -157,16 +147,12 @@ class MediaProcessingLog extends Model
             'ai_analysis' => SermonAnalysisCast::class,
             'processing_metadata' => ProcessingMetadataCast::class,
             'rms_stats' => 'array',
-            'visual_samples' => 'array',
-            'song_clusters' => SongClusterCollectionCast::class,
             'duration' => 'float',
             'extracted_date' => 'date',
             'extracted_service' => SermonService::class,
             'sermon_start_time' => 'float',
             'sermon_end_time' => 'float',
             'adaptive_threshold' => 'float',
-            'visual_sample_count' => 'integer',
-            'visual_processing_time' => 'float',
             'file_size' => 'integer',
             'sermon_id' => 'integer',
             'owner_user_id' => 'integer',
@@ -754,8 +740,6 @@ class MediaProcessingLog extends Model
             'extracted_service' => ['nullable', Rule::enum(SermonService::class)],
             'sermon_start_time' => ['nullable', 'numeric', 'min:0', 'max:9999999.999'],
             'sermon_end_time' => ['nullable', 'numeric', 'min:0', 'max:9999999.999', 'gte:sermon_start_time'],
-            'visual_sample_count' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
-            'visual_processing_time' => ['nullable', 'numeric', 'min:0', 'max:9999999.999'],
             'sermon_id' => ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:sermons,id'],
             'owner_user_id' => ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:users,id'],
             'church_service_id' => ['nullable', 'integer', 'min:1', 'max:9223372036854775807', 'exists:church_services,id'],

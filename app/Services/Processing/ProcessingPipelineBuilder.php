@@ -16,7 +16,6 @@ use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\IdentifySpeaker;
 use App\Jobs\MatchSongsFromTranscript;
-use App\Jobs\PerformVisualAnalysis;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
@@ -106,21 +105,12 @@ class ProcessingPipelineBuilder
 
     /**
      * Jobs to run in parallel at the start of the livestream pipeline.
-     * Always includes RMS generation; includes visual analysis if enabled.
      *
      * @return non-empty-list<object>
      */
     public function buildLivestreamParallelJobs(MediaProcessingLog $log): array
     {
-        $jobs = [];
-
-        if (config('media-processing.visual_analysis.enabled', true)) {
-            $jobs[] = new PerformVisualAnalysis($log);
-        }
-
-        $jobs[] = new GenerateRmsLog($log);
-
-        return $jobs;
+        return [new GenerateRmsLog($log)];
     }
 
     /**

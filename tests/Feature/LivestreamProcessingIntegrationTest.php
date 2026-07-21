@@ -16,7 +16,6 @@ use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\IdentifySpeaker;
 use App\Jobs\MatchSongsFromTranscript;
-use App\Jobs\PerformVisualAnalysis;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
@@ -115,13 +114,11 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $processing = MediaProcessingLog::where('processing_id', $result->processingId)->first();
         $this->assertTrue(Storage::exists($processing->source_file_path));
 
-        // Verify PerformVisualAnalysis and GenerateRmsLog are dispatched as a batch (parallel phase)
+        // Verify RMS generation is dispatched in the parallel phase
         Bus::assertBatched(function (PendingBatch $batch) {
             $classes = $batch->jobs->map(fn ($job) => get_class($job))->all();
 
-            return in_array(PerformVisualAnalysis::class, $classes)
-                && in_array(GenerateRmsLog::class, $classes)
-                && count($classes) === 2;
+            return $classes === [GenerateRmsLog::class];
         });
     }
 

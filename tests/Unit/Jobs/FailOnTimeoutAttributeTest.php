@@ -7,7 +7,6 @@ namespace Tests\Unit\Jobs;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\GenerateRmsLog;
-use App\Jobs\PerformVisualAnalysis;
 use App\Jobs\TranscribeAudio;
 use Illuminate\Queue\Attributes\FailOnTimeout;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -29,7 +28,6 @@ class FailOnTimeoutAttributeTest extends TestCase
     public static function jobsThatFailOnTimeout(): array
     {
         return [
-            'PerformVisualAnalysis' => [PerformVisualAnalysis::class],
             'EnhanceAudio' => [EnhanceAudio::class],
             'GenerateRmsLog' => [GenerateRmsLog::class],
             'AnalyzeSegments' => [AnalyzeSegments::class],

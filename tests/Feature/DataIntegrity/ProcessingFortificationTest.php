@@ -77,9 +77,6 @@ class ProcessingFortificationTest extends TestCase
         $this->assertValidationPasses($rules['segment_index'], 'segment_index', 65535);
         $this->assertValidationFails($rules['segment_index'], 'segment_index', 65536);
 
-        $validator = Validator::make(['visual_sample_count' => self::SIGNED_INTEGER_MAX + 1], ['visual_sample_count' => $rules['visual_sample_count']]);
-        $this->assertTrue($validator->fails());
-
         $validator = Validator::make(['segment_order' => self::SIGNED_INTEGER_MAX + 1], ['segment_order' => $rules['segment_order']]);
         $this->assertTrue($validator->fails());
 
@@ -105,8 +102,6 @@ class ProcessingFortificationTest extends TestCase
         $validator = Validator::make(['duration' => 10000000], ['duration' => $rules['duration']]);
         $this->assertTrue($validator->fails());
 
-        $validator = Validator::make(['visual_sample_count' => self::SIGNED_INTEGER_MAX + 1], ['visual_sample_count' => $rules['visual_sample_count']]);
-        $this->assertTrue($validator->fails());
     }
 
     #[Test]

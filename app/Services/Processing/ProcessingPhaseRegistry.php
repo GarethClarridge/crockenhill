@@ -727,7 +727,6 @@ class ProcessingPhaseRegistry
                 'reset_scope' => 'none',
                 'steps' => [
                     'livestream_processing_initiated',
-                    'visual_analysis',
                     'restarting_from_beginning',
                 ],
             ],

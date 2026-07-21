@@ -394,6 +394,17 @@ preferred so CI proves each stage.
 
 **Do not start until R9 is merged.** This is a segmentation migration, not a free deletion.
 
+### Implementation addendum (2026-07-21)
+
+R9 is merged. `DetectServiceStructure` is now the only producer of automatic sermon bounds:
+after primary-mode validation it writes the eligible LLM sermon section to
+`sermon_start_time`/`sermon_end_time`; validator failures already take the existing manual-review
+route with the persisted RMS speech blocks. The primary-mode fixture-to-extraction-plan
+characterisation in `DetectServiceStructureTest` pins this hand-off. R10 therefore removes the
+visual producer and the RMS longest-speech candidate gate, while retaining RMS segmentation for
+silence snapping and manual review. The named database columns remain for this deploy's contract
+phase and will be dropped only in a later release after this code is live.
+
 **Pre-work (the actual design task):** `AnalyzeSegments` still consumes
 `$this->processingLog->song_clusters` (line 296) and produces (a) the no-sermon-candidate
 failure gate and (b) the `sermon_start_time`/`sermon_end_time` baseline read by

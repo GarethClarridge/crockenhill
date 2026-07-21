@@ -16,7 +16,6 @@ use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\IdentifySpeaker;
 use App\Jobs\MatchSongsFromTranscript;
-use App\Jobs\PerformVisualAnalysis;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
@@ -154,36 +153,8 @@ class ProcessingPipelineBuilderTest extends TestCase
     // --- buildLivestreamParallelJobs() ---
 
     #[Test]
-    public function it_builds_livestream_parallel_jobs_with_visual_analysis_enabled(): void
-    {
-        config(['media-processing.visual_analysis.enabled' => true]);
-        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
-
-        $jobs = $this->builder->buildLivestreamParallelJobs($log);
-
-        $jobClasses = array_map(fn ($job) => get_class($job), $jobs);
-        $this->assertContains(PerformVisualAnalysis::class, $jobClasses);
-        $this->assertContains(GenerateRmsLog::class, $jobClasses);
-        $this->assertCount(2, $jobs);
-    }
-
-    #[Test]
-    public function it_excludes_visual_analysis_from_parallel_jobs_when_disabled(): void
-    {
-        config(['media-processing.visual_analysis.enabled' => false]);
-        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
-
-        $jobs = $this->builder->buildLivestreamParallelJobs($log);
-
-        $jobClasses = array_map(fn ($job) => get_class($job), $jobs);
-        $this->assertNotContains(PerformVisualAnalysis::class, $jobClasses);
-        $this->assertCount(1, $jobs);
-    }
-
-    #[Test]
     public function it_always_includes_rms_generation_in_parallel_jobs(): void
     {
-        config(['media-processing.visual_analysis.enabled' => false]);
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
 
         $jobs = $this->builder->buildLivestreamParallelJobs($log);

@@ -6,7 +6,6 @@ namespace Tests\Integration\Models;
 
 use App\Data\ProcessingMetadata;
 use App\Data\SermonAnalysis;
-use App\Data\SongClusterCollection;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\ChurchService;
@@ -89,16 +88,6 @@ class MediaProcessingLogTest extends TestCase
             'threshold_method' => 'adaptive',
             'adaptive_threshold' => -20.0,
             'rms_stats' => ['avg' => -25],
-            'visual_samples' => ['sample1'],
-            'song_clusters' => [[
-                'start_estimate' => 10.0,
-                'end_estimate' => 30.0,
-                'sample_count' => 2,
-                'samples' => [10.0, 20.0],
-                'confidence' => 0.85,
-            ]],
-            'visual_sample_count' => 5,
-            'visual_processing_time' => 10.5,
             'sermon_id' => 1,
             'church_service_id' => 2,
             'started_at' => now(),
@@ -115,13 +104,6 @@ class MediaProcessingLogTest extends TestCase
             if ($key === 'ai_analysis') {
                 $this->assertInstanceOf(SermonAnalysis::class, $log->ai_analysis);
                 $this->assertEquals($value, $log->ai_analysis?->toArray());
-
-                continue;
-            }
-
-            if ($key === 'song_clusters') {
-                $this->assertInstanceOf(SongClusterCollection::class, $log->song_clusters);
-                $this->assertEquals($value, $log->song_clusters?->toArray());
 
                 continue;
             }
@@ -164,7 +146,7 @@ class MediaProcessingLogTest extends TestCase
     }
 
     #[Test]
-    public function it_wraps_processing_metadata_and_song_clusters_without_losing_historical_keys(): void
+    public function it_wraps_processing_metadata_without_losing_historical_keys(): void
     {
         $processingMetadata = [
             'id3_metadata' => [
@@ -190,18 +172,8 @@ class MediaProcessingLogTest extends TestCase
             'legacy_context' => 'preserve-me',
         ];
 
-        $songClusters = [[
-            'start_estimate' => 10.0,
-            'end_estimate' => 20.0,
-            'sample_count' => 2,
-            'samples' => [10.0, 20.0],
-            'confidence' => 0.91,
-            'refined_visual_start' => 9.0,
-        ]];
-
         $log = MediaProcessingLog::factory()->create([
             'processing_metadata' => $processingMetadata,
-            'song_clusters' => $songClusters,
         ]);
 
         $this->assertSame('ID3 Title', $log->processing_metadata->id3Metadata?->title);
@@ -209,7 +181,6 @@ class MediaProcessingLogTest extends TestCase
         $this->assertSame(MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM, $log->processing_metadata?->videoProcessingMode);
         $this->assertTrue($log->processing_metadata?->trimRequested);
         $this->assertSame($processingMetadata, $log->processing_metadata?->toArray());
-        $this->assertSame($songClusters, $log->song_clusters?->toArray());
     }
 
     #[Test]
