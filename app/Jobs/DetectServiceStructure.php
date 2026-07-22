@@ -331,6 +331,12 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
      * validated structure. Once a structure passes the gate, its sermon bounds
      * are authoritative, so the fallback carries them instead of the RMS guess.
      *
+     * When the passing structure has no auto-extractable sermon section (none
+     * present, or one below the high-confidence threshold), this method returns
+     * without touching the fields: the RMS baseline stays in place so
+     * SermonExtractionPlanResolver still resolves a plan and ExtractSermon's
+     * confidence guard can route the run to manual review rather than throwing.
+     *
      * @param  array<int, array<string, mixed>>  $classified
      */
     private function writeBackSermonBounds(array $classified): void

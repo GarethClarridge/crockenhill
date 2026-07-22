@@ -72,9 +72,15 @@ class AnalyzeSegments implements ShouldQueue
 
             $this->storeSegments($segments);
 
-            $processingRunTransitions->updateRunFields($this->processingLog, [
-                'current_step' => ProcessingStep::Segmenting->value,
-            ]);
+            $baselineFields = ['current_step' => ProcessingStep::Segmenting->value];
+
+            $sermonBaseline = $this->longestSpeechSegment($segments);
+            if ($sermonBaseline !== null) {
+                $baselineFields['sermon_start_time'] = $sermonBaseline->startTime;
+                $baselineFields['sermon_end_time'] = $sermonBaseline->endTime;
+            }
+
+            $processingRunTransitions->updateRunFields($this->processingLog, $baselineFields);
 
         } catch (\Exception $e) {
             Log::error('Segment analysis failed', [
@@ -152,6 +158,38 @@ class AnalyzeSegments implements ShouldQueue
             'processing_id' => $this->processingLog->processing_id,
             'segment_count' => count($segments),
         ]);
+    }
+
+    /**
+     * The longest speech segment is the coarse RMS sermon-boundary baseline.
+     * DetectServiceStructure overwrites it with the validated section's bounds
+     * whenever the LLM structure yields an auto-extractable sermon; otherwise
+     * SermonExtractionPlanResolver::baselinePlan() reads it, and ExtractSermon's
+     * confidence guard re-derives the extraction candidate from the stored
+     * speech segments — routing ambiguous runs to manual review. Plausible-length
+     * gating therefore belongs to that guard, so this baseline is deliberately
+     * unfiltered; runs with no speech at all leave it null and fail downstream,
+     * matching the previous no-candidate behaviour.
+     *
+     * @param  array<int, LivestreamSegment>  $segments
+     */
+    private function longestSpeechSegment(array $segments): ?LivestreamSegment
+    {
+        $speechSegments = array_values(array_filter(
+            $segments,
+            static fn (LivestreamSegment $segment): bool => $segment->isSpeech()
+        ));
+
+        if ($speechSegments === []) {
+            return null;
+        }
+
+        usort(
+            $speechSegments,
+            static fn (LivestreamSegment $a, LivestreamSegment $b): int => $b->duration <=> $a->duration
+        );
+
+        return $speechSegments[0];
     }
 
     public function failed(\Throwable $exception): void
