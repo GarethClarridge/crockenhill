@@ -89,25 +89,21 @@ class RmsAnalysisService
      */
     public function calculateSegmentRms(float $startTime, float $endTime, array $rmsData): array
     {
-        $segmentRms = [];
+        $segmentRms = collect($rmsData)
+            ->filter(fn (array $data) => $data['time'] >= $startTime && $data['time'] <= $endTime && $data['rms'] > -999.0)
+            ->pluck('rms');
 
-        foreach ($rmsData as $data) {
-            if ($data['time'] >= $startTime && $data['time'] <= $endTime && $data['rms'] > -999.0) {
-                $segmentRms[] = $data['rms'];
-            }
-        }
-
-        if (empty($segmentRms)) {
+        if ($segmentRms->isEmpty()) {
             // Fallback values representing a quiet but not silent segment.
             return ['avg' => -50.0, 'peak' => -40.0];
         }
 
-        $avgRms = array_sum($segmentRms) / count($segmentRms);
-        $peakRms = max($segmentRms);
+        $avgRms = $segmentRms->average();
+        $peakRms = $segmentRms->max();
 
         return [
-            'avg' => round($avgRms, 1),
-            'peak' => round($peakRms, 1),
+            'avg' => round((float) $avgRms, 1),
+            'peak' => round((float) $peakRms, 1),
         ];
     }
 
@@ -188,16 +184,13 @@ class RmsAnalysisService
      */
     public function getTotalDuration(string $logContent, array $lines): float
     {
-        $maxTime = 0.0;
-        foreach ($lines as $line) {
-            $ptsTime = $this->parsePtsTime($line);
-            if ($ptsTime !== null) {
-                $maxTime = max($maxTime, $ptsTime);
-            }
-        }
+        $maxTime = collect($lines)
+            ->map(fn (string $line) => $this->parsePtsTime($line))
+            ->filter(fn (?float $ptsTime) => ! is_null($ptsTime))
+            ->max();
 
-        if ($maxTime > 0) {
-            return $maxTime;
+        if ($maxTime !== null && $maxTime > 0) {
+            return (float) $maxTime;
         }
 
         // FFmpeg's astats output typically prints metadata at 43.06 fps (frame rate of the filter),
@@ -377,20 +370,21 @@ class RmsAnalysisService
      */
     public function extractRmsForTimestamps(array $rmsData, array $timestamps): array
     {
-        $values = [];
         /** Window in seconds to search for a matching RMS entry around a target timestamp. */
         $tolerance = 5.0;
 
-        foreach ($timestamps as $targetTime) {
-            foreach ($rmsData as $data) {
-                if (abs($data['time'] - $targetTime) <= $tolerance && $data['rms'] > -999.0) {
-                    $values[] = $data['rms'];
-                    break;
-                }
-            }
-        }
+        $rmsCollection = collect($rmsData);
 
-        return $values;
+        /** @var list<float> */
+        return collect($timestamps)
+            ->map(function (float $targetTime) use ($rmsCollection, $tolerance): ?float {
+                $match = $rmsCollection->first(fn (array $data) => abs($data['time'] - $targetTime) <= $tolerance && $data['rms'] > -999.0);
+
+                return $match !== null ? (float) $match['rms'] : null;
+            })
+            ->filter(fn (?float $value) => ! is_null($value))
+            ->values()
+            ->all();
     }
 
     /**
@@ -406,15 +400,12 @@ class RmsAnalysisService
      */
     public function extractRmsForRegion(array $rmsData, float $startTime, float $endTime): array
     {
-        $values = [];
-
-        foreach ($rmsData as $data) {
-            if ($data['time'] >= $startTime && $data['time'] <= $endTime && $data['rms'] > -999.0) {
-                $values[] = $data['rms'];
-            }
-        }
-
-        return $values;
+        /** @var list<float> */
+        return collect($rmsData)
+            ->filter(fn (array $data) => $data['time'] >= $startTime && $data['time'] <= $endTime && $data['rms'] > -999.0)
+            ->pluck('rms')
+            ->values()
+            ->all();
     }
 
     /**
