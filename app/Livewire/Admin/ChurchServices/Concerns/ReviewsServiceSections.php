@@ -29,6 +29,15 @@ use Livewire\Attributes\Computed;
 trait ReviewsServiceSections
 {
     /**
+     * @var list<string>
+     */
+    private const NonPersonSpeakerNames = [
+        'god is with us',
+        'palm sunday',
+        'the gospel of john',
+    ];
+
+    /**
      * @var array<int, array{section_type: string, title: string}>
      */
     public array $sectionEdits = [];
@@ -314,11 +323,23 @@ trait ReviewsServiceSections
         return Preacher::query()->active()
             ->orderBy('name')
             ->get(['id', 'name'])
+            ->filter(fn (Preacher $preacher): bool => $this->isPlausibleSpeakerName($preacher->name))
             ->map(fn (Preacher $preacher): array => [
                 'id' => (string) $preacher->id,
                 'name' => $preacher->name,
             ])
             ->all();
+    }
+
+    private function isPlausibleSpeakerName(string $name): bool
+    {
+        $normalizedName = Str::lower(trim($name));
+
+        if (preg_match('/^\d{3}[ab]$/', $normalizedName) === 1) {
+            return false;
+        }
+
+        return ! in_array($normalizedName, self::NonPersonSpeakerNames, true);
     }
 
     /**

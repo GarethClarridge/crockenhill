@@ -1217,6 +1217,38 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function the_childrens_talk_speaker_picker_only_lists_plausible_active_speakers(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $includedPreacher = Preacher::factory()->create(['name' => 'Rev Suitable Speaker']);
+        $inactivePreacher = Preacher::factory()->inactive()->create(['name' => 'Inactive Speaker']);
+
+        foreach (['081A', 'God Is With Us', 'Palm Sunday', 'The Gospel Of John'] as $name) {
+            Preacher::factory()->create(['name' => $name]);
+        }
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'title' => "Children's Talk",
+            'needs_manual_review' => true,
+        ]);
+
+        $html = Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->html();
+
+        $this->assertStringContainsString('Rev Suitable Speaker', $html);
+        $this->assertStringContainsString('Speaker name (recommended)', $html);
+        $this->assertStringContainsString('Enter the speaker&#039;s name directly if they are not in the list.', $html);
+
+        foreach ([$inactivePreacher->name, '081A', 'God Is With Us', 'Palm Sunday', 'The Gospel Of John'] as $excludedName) {
+            $this->assertStringNotContainsString($excludedName, $html);
+        }
+    }
+
+    #[Test]
     public function it_hides_publication_affordances_when_section_publishing_is_disabled(): void
     {
         config(['media-processing.section_publishing.enabled' => false]);
