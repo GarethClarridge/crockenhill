@@ -134,7 +134,7 @@ class ServiceReviewDashboardQuery
                 'audio_url' => $this->assetUrl($section, 'audio', $section->extracted_audio_path),
                 'video_url' => $this->assetUrl($section, 'video', $section->extracted_video_path),
                 'manual_edit_url' => $serviceModel instanceof ChurchService
-                    ? route('admin.services.edit', $serviceModel)
+                    ? route('admin.services.show', $serviceModel).'?edit=1'
                     : null,
             ];
 

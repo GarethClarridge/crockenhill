@@ -342,7 +342,8 @@ class AdminChurchServiceTest extends TestCase
             'canonical_key' => 'closing song',
         ]);
 
-        $component = Livewire::test(ManageChurchService::class, ['churchService' => $service])
+        $component = Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->call('startEditingOrderOfService')
             ->assertSet('form.items.0.section_type', ServiceSectionType::Welcome->value)
             ->assertSet('form.items.1.section_type', ServiceSectionType::Prayer->value)
             ->call('moveItemDown', 0)
@@ -358,7 +359,7 @@ class AdminChurchServiceTest extends TestCase
         $service->refresh();
         $service->load(['items' => fn ($query) => $query->orderBy('position')->orderBy('id')]);
 
-        $component->assertRedirect(route('admin.services.show', $service));
+        $component->assertNoRedirect();
 
         $this->assertSame('manual', $service->source);
         $this->assertFalse($service->needs_review);
@@ -407,10 +408,11 @@ class AdminChurchServiceTest extends TestCase
             'extracted_service' => SermonService::Morning->value,
         ]);
 
-        Livewire::test(ManageChurchService::class, ['churchService' => $service])
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->call('startEditingOrderOfService')
             ->set('form.items.0.title', 'Welcome and Notices')
             ->call('save')
-            ->assertRedirect(route('admin.services.show', $service));
+            ->assertNoRedirect();
 
         Queue::assertPushed(
             ReconcileServiceSections::class,
@@ -452,9 +454,10 @@ class AdminChurchServiceTest extends TestCase
             'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
         ]);
 
-        Livewire::test(ManageChurchService::class, ['churchService' => $service])
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->call('startEditingOrderOfService')
             ->call('save')
-            ->assertRedirect(route('admin.services.show', $service));
+            ->assertNoRedirect();
 
         Event::assertNotDispatched(ChurchServiceCanonicalListChanged::class);
     }

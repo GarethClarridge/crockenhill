@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Livewire\Admin\ChurchServices;
 
 use App\Livewire\Admin\ChurchServices\ManageChurchService;
-use App\Models\ChurchService;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -21,13 +20,11 @@ class ManageChurchServiceAuthTest extends TestCase
     {
         config(['service-tracking.enabled' => true]);
         $user = User::factory()->create(['is_admin' => false]);
-        $service = ChurchService::factory()->create();
-
         $this->actingAs($user);
 
         // Route middleware (auth, verified, admin) enforces access at the HTTP layer.
         // AdminLivewireAuthorizationTest covers this. Direct component mount is unrestricted.
-        Livewire::test(ManageChurchService::class, ['churchService' => $service])
+        Livewire::test(ManageChurchService::class)
             ->assertOk();
     }
 }

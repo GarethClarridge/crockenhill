@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Livewire\Admin\ChurchServices;
 
 use App\Actions\ConfirmLivestreamSermonSegment;
+use App\Actions\SaveChurchServiceFromAdmin;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
@@ -19,6 +20,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Models\User;
 use App\Presenters\ChurchServiceShowPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -48,6 +50,124 @@ class ShowChurchServiceTest extends TestCase
         ]);
 
         $this->admin = User::factory()->create(['is_admin' => true]);
+    }
+
+    #[Test]
+    public function it_presents_the_plan_and_recording_as_separate_regions(): void
+    {
+        [$service] = $this->workbenchServiceWithRun();
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'title' => 'Welcome and notices',
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSeeInOrder(['Order of service', 'Welcome and notices', 'Recording', 'Classified livestream runs']);
+    }
+
+    #[Test]
+    public function edit_query_parameter_opens_the_prefilled_order_of_service_editor(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-10',
+            'service' => SermonService::Evening,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'title' => 'Opening prayer',
+            'section_type' => ServiceSectionType::Prayer,
+        ]);
+
+        Livewire::withQueryParams(['edit' => '1'])
+            ->actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSet('edit', true)
+            ->assertSet('form.date', '2026-05-10')
+            ->assertSet('form.service', SermonService::Evening->value)
+            ->assertSet('form.items.0.title', 'Opening prayer')
+            ->assertSee('Save order of service');
+    }
+
+    #[Test]
+    public function it_edits_planned_items_in_place_and_clears_the_review_flag(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-10',
+            'service' => SermonService::Morning,
+            'needs_review' => true,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'title' => 'Welcome',
+            'section_type' => ServiceSectionType::Welcome,
+        ]);
+
+        $song = Song::factory()->create([
+            'title' => 'Closing Song',
+            'canonical_key' => 'closing song',
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->call('startEditingOrderOfService')
+            ->call('addItem')
+            ->set('form.items.1.section_type', ServiceSectionType::Song->value)
+            ->set('form.items.1.title', 'Closing')
+            ->assertSee('Closing Song')
+            ->call('selectSong', 1, $song->id)
+            ->call('moveItemUp', 1)
+            ->set('form.items.1.title', 'Welcome and notices')
+            ->call('save')
+            ->assertNoRedirect()
+            ->assertSet('edit', false)
+            ->assertDispatched('notify', type: 'success', message: 'Service updated');
+
+        $service->refresh();
+        $service->load(['items' => fn ($query) => $query->orderBy('position')]);
+
+        $this->assertFalse($service->needs_review);
+        $this->assertSame('Closing Song', $service->items[0]->title);
+        $this->assertSame($song->id, $service->items[0]->song_id);
+        $this->assertSame('Welcome and notices', $service->items[1]->title);
+    }
+
+    #[Test]
+    public function ordering_conflicts_remain_on_the_service_page_as_form_errors(): void
+    {
+        $service = ChurchService::factory()->create();
+        ChurchServiceItem::factory()->create(['church_service_id' => $service->id]);
+
+        $this->mock(SaveChurchServiceFromAdmin::class, function ($mock): void {
+            $mock->shouldReceive('execute')
+                ->once()
+                ->andThrow(new \RuntimeException('Service item ordering conflict: reload and try again.'));
+        });
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->call('startEditingOrderOfService')
+            ->call('save')
+            ->assertHasErrors(['form.items'])
+            ->assertSet('edit', true)
+            ->assertNoRedirect();
+    }
+
+    #[Test]
+    public function the_retired_edit_url_redirects_to_the_service_page_in_edit_mode(): void
+    {
+        config(['service-tracking.enabled' => true]);
+        $service = ChurchService::factory()->create();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.services.edit', $service))
+            ->assertRedirect(route('admin.services.show', $service).'?edit=1');
     }
 
     // -------------------------------------------------------------------------
@@ -261,7 +381,7 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
-    public function failed_runs_without_sections_render_a_summary_instead_of_planned_only_rows(): void
+    public function failed_runs_without_sections_render_a_summary_alongside_the_plan(): void
     {
         $service = ChurchService::factory()->create([
             'date' => '2026-05-22',
@@ -285,14 +405,14 @@ class ShowChurchServiceTest extends TestCase
             ->test(ShowChurchService::class, ['churchService' => $service])
             ->assertSee('Run failed 2 months ago — no sections were produced')
             ->assertSee('Delete upload')
-            ->assertDontSee('Ghost planned item')
+            ->assertSee('Ghost planned item')
             ->assertDontSee('Expected from Order of Service');
 
         $this->assertSame('failed', $run->fresh()?->status->value);
     }
 
     #[Test]
-    public function completed_runs_without_sections_do_not_render_planned_only_rows(): void
+    public function completed_runs_without_sections_render_the_empty_run_alongside_the_plan(): void
     {
         $service = ChurchService::factory()->create([
             'date' => '2026-05-22',
@@ -314,7 +434,7 @@ class ShowChurchServiceTest extends TestCase
         Livewire::actingAs($this->admin)
             ->test(ShowChurchService::class, ['churchService' => $service])
             ->assertSee('No classified sections available for this run yet.')
-            ->assertDontSee('Unproduced planned item')
+            ->assertSee('Unproduced planned item')
             ->assertDontSee('Expected from Order of Service');
     }
 

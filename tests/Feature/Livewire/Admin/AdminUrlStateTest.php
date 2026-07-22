@@ -12,6 +12,7 @@ use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
 use App\Livewire\Admin\ChurchServices\ListSongs;
 use App\Livewire\Admin\ChurchServices\ManageChurchService;
+use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\Meetings\ListMeetings;
 use App\Livewire\Admin\Pages\ListPages;
 use App\Livewire\Admin\Preachers\ListPreachers;
@@ -391,5 +392,23 @@ class AdminUrlStateTest extends TestCase
             ->assertSet('form.service', SermonService::Morning->value)
             ->assertSet('form.items.0.title', 'Welcome')
             ->assertSet('form.items.1.title', 'Opening Hymn');
+    }
+
+    #[Test]
+    public function church_service_show_hydrates_edit_mode_from_the_url(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create();
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'title' => 'Welcome',
+        ]);
+
+        Livewire::withQueryParams(['edit' => '1'])
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSet('edit', true)
+            ->assertSet('form.items.0.title', 'Welcome')
+            ->assertSee('Save order of service');
     }
 }

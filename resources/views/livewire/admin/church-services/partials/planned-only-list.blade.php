@@ -1,6 +1,21 @@
-<x-card heading="Order of service">
+<x-card :heading="($showHeading ?? true) ? 'Order of service' : null">
     @if($items->isEmpty())
-        <p class="text-sm text-gray-500">This service has no planned items.</p>
+        <div class="space-y-3">
+            <p class="text-sm text-gray-500">This service has no planned items.</p>
+            <div class="flex flex-wrap items-center gap-2">
+                <x-button link="{{ route('admin.services.submit-email') }}" variant="outline" size="sm" inline>
+                    Paste the email
+                </x-button>
+                <span class="text-gray-300" aria-hidden="true">·</span>
+                <x-button link="{{ route('admin.services.upload') }}" variant="outline" size="sm" inline>
+                    Upload the .osz
+                </x-button>
+                <span class="text-gray-300" aria-hidden="true">·</span>
+                <x-form-button type="button" variant="outline" size="sm" wire:click="startEditingOrderOfService">
+                    Add items by hand
+                </x-form-button>
+            </div>
+        </div>
     @else
         <ol class="divide-y divide-gray-200">
             @foreach($items as $item)

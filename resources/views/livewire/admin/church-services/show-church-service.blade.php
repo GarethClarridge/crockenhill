@@ -15,9 +15,6 @@
         <x-button link="{{ route('admin.services.inbox') }}" variant="outline" icon="inbox" inline>
             Review inbox
         </x-button>
-        <x-button link="{{ route('admin.services.edit', $churchService) }}" variant="outline" icon="pencil-square" inline>
-            Edit service
-        </x-button>
         <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
             Back to services
         </x-button>
@@ -68,28 +65,85 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div class="lg:col-span-3 space-y-6">
-            @if($pendingMerge)
-                @include('livewire.admin.church-services.partials.pending-structure-merge', [
-                    'pendingMerge' => $pendingMerge,
-                    'pendingMergeSource' => $pendingMergeSource,
-                ])
-            @endif
+            <section class="space-y-3" aria-labelledby="order-of-service-heading">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <h2 id="order-of-service-heading" class="font-display text-2xl text-gray-900">Order of service</h2>
 
-            @if($processingRunViews === [])
-                @include('livewire.admin.church-services.partials.planned-only-list', [
-                    'items' => $churchService->items,
-                ])
-            @else
-                <x-card heading="Classified livestream runs">
-                    <div class="space-y-4">
-                        @foreach($processingRunViews as $processingRunView)
-                            @include('livewire.admin.church-services.partials.processing-run-card', [
-                                'processingRunView' => $processingRunView,
-                            ])
-                        @endforeach
-                    </div>
-                </x-card>
-            @endif
+                    @if($edit)
+                        <div class="flex flex-wrap items-center gap-2">
+                            <x-form-button type="button" variant="outline" size="sm" wire:click="cancelEditingOrderOfService">
+                                Cancel
+                            </x-form-button>
+                            <x-form-button
+                                type="button"
+                                variant="primary"
+                                size="sm"
+                                icon="check"
+                                wire:click="save"
+                                loading-label="Saving..."
+                            >
+                                Save order of service
+                            </x-form-button>
+                        </div>
+                    @else
+                        <x-form-button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            icon="pencil-square"
+                            wire:click="startEditingOrderOfService"
+                        >
+                            Edit order of service
+                        </x-form-button>
+                    @endif
+                </div>
+
+                @if($edit)
+                    <x-card>
+                        <x-admin.church-services.planned-items-editor
+                            :items="$items"
+                            :section-type-options="$sectionTypeOptions"
+                            :song-suggestions="$songSuggestions" />
+                    </x-card>
+                @else
+                    @include('livewire.admin.church-services.partials.planned-only-list', [
+                        'items' => $churchService->items,
+                        'showHeading' => false,
+                    ])
+                @endif
+            </section>
+
+            <section class="space-y-3" aria-labelledby="recording-heading">
+                <h2 id="recording-heading" class="font-display text-2xl text-gray-900">Recording</h2>
+
+                @if($pendingMerge)
+                    @include('livewire.admin.church-services.partials.pending-structure-merge', [
+                        'pendingMerge' => $pendingMerge,
+                        'pendingMergeSource' => $pendingMergeSource,
+                    ])
+                @endif
+
+                @if($processingRunViews === [])
+                    <x-card>
+                        <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p class="text-sm text-gray-500">No recording has been uploaded for this service.</p>
+                            <x-button link="{{ route('admin.services.upload-recording') }}" variant="outline" size="sm" icon="arrow-up-tray" inline>
+                                Upload a recording
+                            </x-button>
+                        </div>
+                    </x-card>
+                @else
+                    <x-card heading="Classified livestream runs">
+                        <div class="space-y-4">
+                            @foreach($processingRunViews as $processingRunView)
+                                @include('livewire.admin.church-services.partials.processing-run-card', [
+                                    'processingRunView' => $processingRunView,
+                                ])
+                            @endforeach
+                        </div>
+                    </x-card>
+                @endif
+            </section>
         </div>
 
         <div class="space-y-6">

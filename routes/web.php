@@ -214,7 +214,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
             ->name('services.section-publications.preview-audio');
         Route::get('/services/section-publications/{serviceSection}/preview/video', [ServiceSectionCandidateMediaController::class, 'serveVideo'])
             ->name('services.section-publications.preview-video');
-        Route::get('/services/{churchService}/edit', ManageChurchService::class)->name('services.edit');
+        Route::redirect('/services/{churchService}/edit', '/admin/services/{churchService}?edit=1')->name('services.edit');
         Route::get('/services/{churchService}', ShowChurchService::class)->name('services.show');
     });
 

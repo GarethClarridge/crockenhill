@@ -7,8 +7,10 @@ namespace App\Livewire\Admin\ChurchServices;
 use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Actions\DeleteLivestreamUpload;
 use App\Actions\ServiceReview\ResolvePendingStructureMerge;
+use App\Livewire\Admin\ChurchServices\Concerns\EditsPlannedItems;
 use App\Livewire\Admin\ChurchServices\Concerns\ManagesSectionPublication;
 use App\Livewire\Admin\ChurchServices\Concerns\ReviewsServiceSections;
+use App\Livewire\Forms\ChurchServiceFormData;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
@@ -21,11 +23,13 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\Features\SupportRedirects\Redirector;
 
 class ShowChurchService extends Component
 {
+    use EditsPlannedItems;
     use ManagesSectionPublication;
     use ReviewsServiceSections;
     use WithAdminAuthorization;
@@ -33,12 +37,19 @@ class ShowChurchService extends Component
 
     public ChurchService $churchService;
 
+    public ChurchServiceFormData $form;
+
+    #[Url(except: false)]
+    public bool $edit = false;
+
     public function mount(ChurchService $churchService): void
     {
         $this->churchService = ChurchService::query()
             ->whereKey($churchService->getKey())
             ->withOrderedItems(withSong: true)
             ->firstOrFail();
+
+        $this->form->setChurchService($this->churchService);
 
         // Seed edit state for review candidates only — seeding every section
         // of every run would balloon the Livewire payload.
@@ -60,11 +71,30 @@ class ShowChurchService extends Component
             ...$readModel->toViewData(),
             'sectionTypeOptions' => $this->sectionTypeOptions(),
             'preacherOptions' => $this->preacherOptions(),
+            'items' => $this->form->items,
+            'songSuggestions' => $this->edit ? $this->form->songSuggestions() : [],
         ])
             ->layout('layouts.admin', [
                 'title' => $label,
                 'heading' => $label,
             ]);
+    }
+
+    public function startEditingOrderOfService(): void
+    {
+        $this->authorizeAdmin();
+
+        $this->form->setChurchService($this->churchService);
+        $this->edit = true;
+    }
+
+    public function cancelEditingOrderOfService(): void
+    {
+        $this->authorizeAdmin();
+
+        $this->form->setChurchService($this->churchService);
+        $this->resetErrorBag('form.items');
+        $this->edit = false;
     }
 
     public function confirmRunSegment(int $processingLogId, int $segmentId): void
@@ -209,5 +239,34 @@ class ShowChurchService extends Component
     private function processingLogMatchesService(MediaProcessingLog $processingLog): bool
     {
         return app(ChurchServiceProcessingRunQuery::class)->matchesService($processingLog, $this->churchService);
+    }
+
+    protected function churchServiceForPlannedItems(): ?ChurchService
+    {
+        return $this->churchService;
+    }
+
+    protected function inboundEmailIdForPlannedItems(): ?int
+    {
+        return null;
+    }
+
+    protected function planKeyForPlannedItems(): ?string
+    {
+        return null;
+    }
+
+    protected function afterPlannedItemsSaved(ChurchService $churchService, bool $wasCreated): mixed
+    {
+        $this->churchService = ChurchService::query()
+            ->whereKey($churchService->getKey())
+            ->withOrderedItems(withSong: true)
+            ->firstOrFail();
+
+        $this->form->setChurchService($this->churchService);
+        $this->edit = false;
+        $this->success('Service updated');
+
+        return null;
     }
 }

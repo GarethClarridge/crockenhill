@@ -119,7 +119,7 @@
                     <td class="px-4 py-3 text-right">
                         <div class="flex gap-1 justify-end" role="group" aria-label="Actions for {{ $churchService->date->format('j M Y') }} {{ $churchService->service->label() }} service">
                             <x-button
-                                link="{{ route('admin.services.edit', $churchService) }}"
+                                link="{{ route('admin.services.show', $churchService) }}?edit=1"
                                 variant="ghost"
                                 size="xs"
                                 icon="pencil-square"
