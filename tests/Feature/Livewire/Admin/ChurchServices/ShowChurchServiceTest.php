@@ -11,8 +11,8 @@ use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Jobs\PublishApprovedServiceSection;
+use App\Livewire\Admin\ChurchServices\AddToService;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
-use App\Livewire\Admin\ChurchServices\SubmitEmailText;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
@@ -268,9 +268,9 @@ class ShowChurchServiceTest extends TestCase
         config(['media-processing.section_publishing.enabled' => true]);
 
         Livewire::actingAs($this->admin)
-            ->test(SubmitEmailText::class)
-            ->assertSee('Import email text')
-            ->assertSeeHtml('wire:target="submit"');
+            ->test(AddToService::class)
+            ->assertSee('Add to service')
+            ->assertSeeHtml('wire:target="importPlan"');
     }
 
     #[Test]

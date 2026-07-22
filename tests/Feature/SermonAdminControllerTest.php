@@ -102,6 +102,21 @@ class SermonAdminControllerTest extends TestCase
     }
 
     #[Test]
+    public function public_sermon_recording_action_uses_the_add_page_when_available(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('sermons.index'))
+            ->assertOk()
+            ->assertSee(route('admin.services.add', ['intent' => 'recording']));
+
+        config(['service-tracking.enabled' => false]);
+
+        $this->get(route('sermons.index'))
+            ->assertOk()
+            ->assertSee(route('admin.services.upload-recording'));
+    }
+
+    #[Test]
     public function legacy_date_edit_get_route_is_removed(): void
     {
         $sermon = Sermon::factory()->create(['date' => '2024-03-15']);

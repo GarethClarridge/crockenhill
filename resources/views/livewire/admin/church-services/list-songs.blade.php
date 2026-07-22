@@ -3,8 +3,8 @@
     description="Most-used songs linked from imported orders of service"
 >
     <x-slot:actions>
-        <x-button link="{{ route('admin.services.upload') }}" variant="primary" icon="arrow-up-tray" inline>
-            Upload service
+        <x-button link="{{ route('admin.services.add', ['intent' => 'plan']) }}" variant="primary" icon="plus" inline>
+            Add order of service
         </x-button>
     </x-slot:actions>
 

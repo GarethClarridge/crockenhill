@@ -40,6 +40,20 @@ class ListSermonsTest extends TestCase
     }
 
     #[Test]
+    public function recording_actions_use_the_add_page_when_service_tracking_is_enabled(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(ListSermons::class)
+            ->assertSeeHtml(route('admin.services.add', ['intent' => 'recording']));
+
+        config(['service-tracking.enabled' => false]);
+
+        Livewire::test(ListSermons::class)
+            ->assertSeeHtml(route('admin.services.upload-recording'));
+    }
+
+    #[Test]
     public function it_forbids_non_admins_from_the_sermons_admin_route(): void
     {
         $user = User::factory()->create(['is_admin' => false]);

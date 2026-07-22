@@ -6,20 +6,9 @@
         <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
             Song catalogue
         </x-button>
-        <x-admin.action-menu label="Add service">
-            <x-admin.action-menu-item link="{{ route('admin.services.upload-recording') }}" icon="film">
-                Upload recording
-            </x-admin.action-menu-item>
-            <x-admin.action-menu-item link="{{ route('admin.services.upload') }}" icon="arrow-up-tray">
-                Upload order of service
-            </x-admin.action-menu-item>
-            <x-admin.action-menu-item link="{{ route('admin.services.submit-email') }}" icon="envelope">
-                Paste email text
-            </x-admin.action-menu-item>
-            <x-admin.action-menu-item link="{{ route('admin.services.create') }}" icon="pencil-square">
-                Create manually
-            </x-admin.action-menu-item>
-        </x-admin.action-menu>
+        <x-button link="{{ route('admin.services.add') }}" variant="primary" icon="plus" inline>
+            Add
+        </x-button>
     </x-slot:actions>
 
     <x-slot:filters>
@@ -142,14 +131,9 @@
                     :hasFilters="$hasFilters"
                 >
                     @if(!$hasFilters)
-                        <div class="flex gap-2 justify-center">
-                            <x-button link="{{ route('admin.services.create') }}" variant="outline" icon="plus" inline>
-                                Create service
-                            </x-button>
-                            <x-button link="{{ route('admin.services.upload') }}" variant="primary" icon="arrow-up-tray" inline>
-                                Upload service
-                            </x-button>
-                        </div>
+                        <x-button link="{{ route('admin.services.add') }}" variant="primary" icon="plus" inline>
+                            Add to service
+                        </x-button>
                     @endif
                 </x-admin.empty-state>
             @endforelse

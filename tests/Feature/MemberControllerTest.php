@@ -94,6 +94,8 @@ class MemberControllerTest extends TestCase
         $response = $this->get(route('members.home'));
 
         $response->assertOk();
+        $response->assertSee(route('admin.services.add'));
+        $response->assertSeeText('Add to service');
         $response->assertSee(route('admin.services.inbox'));
         $response->assertSeeText('Review inbox');
         $response->assertSeeText('2');

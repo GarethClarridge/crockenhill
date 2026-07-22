@@ -5,7 +5,7 @@
     itemsName="sermon"
 >
     <x-slot:actions>
-        <x-button link="{{ route('admin.services.upload-recording') }}" variant="primary" icon="cloud-arrow-up" inline>
+        <x-button link="{{ (bool) config('service-tracking.enabled', true) ? route('admin.services.add', ['intent' => 'recording']) : route('admin.services.upload-recording') }}" variant="primary" icon="cloud-arrow-up" inline>
             Upload recording
         </x-button>
     </x-slot:actions>
@@ -141,7 +141,7 @@
                     :hasFilters="$hasFilters"
                 >
                     @if(!$hasFilters)
-                        <x-button link="{{ route('admin.services.upload-recording') }}" variant="primary" icon="cloud-arrow-up" inline>
+                        <x-button link="{{ (bool) config('service-tracking.enabled', true) ? route('admin.services.add', ['intent' => 'recording']) : route('admin.services.upload-recording') }}" variant="primary" icon="cloud-arrow-up" inline>
                             Upload recording
                         </x-button>
                     @endif

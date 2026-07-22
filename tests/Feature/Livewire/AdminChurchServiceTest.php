@@ -13,10 +13,10 @@ use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Events\ChurchServiceCanonicalListChanged;
 use App\Jobs\ReconcileServiceSections;
+use App\Livewire\Admin\ChurchServices\AddToService;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
 use App\Livewire\Admin\ChurchServices\ManageChurchService;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
-use App\Livewire\Admin\ChurchServices\UploadChurchService;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\InboundEmail;
@@ -126,9 +126,9 @@ class AdminChurchServiceTest extends TestCase
 
         $upload = $this->makeLivewireUpload($openLpUpload, '2024-11-17 AM.osz', 'application/zip');
 
-        $component = Livewire::test(UploadChurchService::class)
+        $component = Livewire::test(AddToService::class)
             ->set('file', $upload)
-            ->call('save');
+            ->call('importPlan');
 
         $service = ChurchService::query()->firstOrFail();
 
@@ -166,9 +166,9 @@ class AdminChurchServiceTest extends TestCase
 
         $upload = $this->makeLivewireUpload($openLpUpload, '2024-11-17 AM.osz', 'application/zip');
 
-        Livewire::test(UploadChurchService::class)
+        Livewire::test(AddToService::class)
             ->set('file', $upload)
-            ->call('save');
+            ->call('importPlan');
 
         $this->assertDatabaseHas('church_service_items', [
             'openlp_search_title' => 'song one@',
@@ -181,9 +181,9 @@ class AdminChurchServiceTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        Livewire::test(UploadChurchService::class)
-            ->call('save')
-            ->assertHasErrors(['file' => ['required']]);
+        Livewire::test(AddToService::class)
+            ->call('importPlan')
+            ->assertHasErrors(['planInput']);
     }
 
     #[Test]
@@ -1061,17 +1061,14 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
-    public function hub_header_offers_a_single_add_menu(): void
+    public function hub_header_offers_a_single_add_button(): void
     {
         $this->actingAs($this->admin);
 
         Livewire::test(ListChurchServices::class)
-            ->assertSee('Upload recording')
-            ->assertSee('Upload order of service')
-            ->assertSee('Paste email text')
-            ->assertSee('Create manually')
+            ->assertSee('Add')
             ->assertSee('Song catalogue')
-            ->assertSeeHtml(route('admin.services.upload-recording'));
+            ->assertSeeHtml(route('admin.services.add'));
     }
 
     #[Test]

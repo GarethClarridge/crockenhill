@@ -9,6 +9,7 @@ use App\Enums\MeetingType;
 use App\Enums\PageArea;
 use App\Enums\SermonService;
 use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
+use App\Livewire\Admin\ChurchServices\AddToService;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
 use App\Livewire\Admin\ChurchServices\ListSongs;
 use App\Livewire\Admin\ChurchServices\ManageChurchService;
@@ -50,6 +51,17 @@ class AdminUrlStateTest extends TestCase
             'is_admin' => true,
             'email_verified_at' => now(),
         ]);
+    }
+
+    #[Test]
+    public function add_to_service_hydrates_the_intent_from_the_url(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::withQueryParams(['intent' => 'recording'])
+            ->test(AddToService::class)
+            ->assertSet('intent', 'recording')
+            ->assertSee('Upload a recording');
     }
 
     #[Test]

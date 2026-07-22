@@ -16,14 +16,13 @@ use App\Http\Controllers\SermonController;
 use App\Http\Controllers\SitemapController;
 use App\Livewire\Admin\CalendarEvents\EditCalendarEvent;
 use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
+use App\Livewire\Admin\ChurchServices\AddToService;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
 use App\Livewire\Admin\ChurchServices\ListSongs;
 use App\Livewire\Admin\ChurchServices\ManageChurchService;
 use App\Livewire\Admin\ChurchServices\ReviewInbox;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\ChurchServices\ShowSong;
-use App\Livewire\Admin\ChurchServices\SubmitEmailText;
-use App\Livewire\Admin\ChurchServices\UploadChurchService;
 use App\Livewire\Admin\MediaUpload;
 use App\Livewire\Admin\Meetings\CreateMeeting;
 use App\Livewire\Admin\Meetings\EditMeeting;
@@ -189,16 +188,19 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->where('variant', 'overlay|card|plain')
         ->name('sermons.thumbnails.preview');
 
+    // Recording upload remains available when service tracking is disabled.
+    Route::get('/services/upload-recording', MediaUpload::class)->name('services.upload-recording');
+
     // Church Services
     Route::middleware('service-tracking.enabled')->group(function () {
         Route::get('/services', ListChurchServices::class)->name('services.index');
         Route::get('/services/inbox', ReviewInbox::class)->name('services.inbox');
+        Route::get('/services/add', AddToService::class)->name('services.add');
         Route::get('/services/create', ManageChurchService::class)->name('services.create');
-        Route::get('/services/upload', UploadChurchService::class)->name('services.upload');
-        Route::get('/services/upload-recording', MediaUpload::class)->name('services.upload-recording');
+        Route::redirect('/services/upload', '/admin/services/add?intent=plan')->name('services.upload');
         Route::get('/recordings/{processingLog:processing_id}/sermon-segment', SermonSegmentReview::class)
             ->name('recordings.sermon-segment');
-        Route::get('/services/submit-email', SubmitEmailText::class)->name('services.submit-email');
+        Route::redirect('/services/submit-email', '/admin/services/add?intent=plan')->name('services.submit-email');
         // Retired queue pages (P3.4/P5): triage moved to the review inbox, editing
         // to the service workbench. URLs 302 so bookmarks keep working.
         Route::redirect('/services/review', '/admin/services/inbox')->name('services.review');
