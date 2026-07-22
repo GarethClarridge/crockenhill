@@ -80,6 +80,10 @@ class SendCompletionNotification implements ShouldQueue
                 $sermon = Sermon::query()->find($this->processingLog->sermon_id);
             }
 
+            if (! $sermon instanceof Sermon) {
+                throw new \RuntimeException('Sermon context is missing for completion notification.');
+            }
+
             // Prepare notification data
             $notificationData = $this->prepareNotificationData($sermon, $this->processingLog);
 

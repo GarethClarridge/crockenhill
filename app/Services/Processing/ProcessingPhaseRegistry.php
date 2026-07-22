@@ -55,13 +55,7 @@ class ProcessingPhaseRegistry
      */
     public function phasesForPipeline(string $pipeline): array
     {
-        $definitions = match ($pipeline) {
-            'audio' => $this->audioPhases(),
-            'video' => $this->videoPhases(),
-            'video_auto_trim' => $this->videoAutoTrimPhases(),
-            'livestream' => $this->livestreamPhases(),
-            default => [],
-        };
+        $definitions = $this->phaseDefinitionsForPipeline($pipeline);
 
         $jobClasses = $this->jobClassesForPipeline($pipeline);
         $lastOffset = max(1, count($jobClasses) - 1);
@@ -73,9 +67,11 @@ class ProcessingPhaseRegistry
             return [
                 ...$phase,
                 'job_offset' => $resolvedOffset,
-                'progress' => $resolvedOffset === null
+                'progress' => isset($phase['progress'])
+                    ? $phase['progress']
+                    : ($resolvedOffset === null
                     ? ($phase['retry_action'] ?? null) === 'restart_livestream' ? 10 : 50
-                    : min(95, 10 + (int) round(($resolvedOffset / $lastOffset) * 85)),
+                    : min(95, 10 + (int) round(($resolvedOffset / $lastOffset) * 85))),
             ];
         }, $definitions);
     }
@@ -96,10 +92,10 @@ class ProcessingPhaseRegistry
         }
 
         foreach ($pipelines as $pipeline) {
-            foreach ($this->phasesForPipeline($pipeline) as $phase) {
-                if ($phase['step'] === $step) {
-                    return $phase['progress'];
-                }
+            $progress = $this->progressForPipelineStep($pipeline, $step);
+
+            if ($progress !== null) {
+                return $progress;
             }
         }
 
@@ -179,7 +175,19 @@ class ProcessingPhaseRegistry
             return null;
         }
 
-        return ProcessingStep::canonicalize($step);
+        $canonicalStep = ProcessingStep::canonicalize($step);
+
+        return match ($canonicalStep) {
+            'creating_sermon', 'creating_sermon_record', 'sermon_record_created' => 'sermon_creation',
+            'transcribing_audio_failed', 'transcription_completed', 'transcription' => 'transcribing_audio',
+            'analyzing_transcript_failed', 'ai_analysis_completed', 'ai_analysis_fallback' => 'analyzing_transcript',
+            'audio_enhancement_complete', 'audio_enhancement_skipped' => 'audio_enhancement',
+            'extracting_sermon' => 'extraction',
+            'manual_review_confirmed' => 'manual_review_required',
+            'notification_skipped', 'notification_failed', 'notification_failed_permanently' => 'notification_sent',
+            'restarting_from_beginning' => 'livestream_processing_initiated',
+            default => $canonicalStep,
+        };
     }
 
     private function pipelineForMediaType(MediaType $mediaType): string
@@ -210,12 +218,15 @@ class ProcessingPhaseRegistry
             return $this->jobClassCache[$pipeline];
         }
 
+        if ($pipeline === 'livestream') {
+            return $this->jobClassCache[$pipeline] = $this->pipelineBuilder->livestreamChainJobClasses();
+        }
+
         $log = new MediaProcessingLog;
         $jobs = match ($pipeline) {
             'audio' => $this->pipelineBuilder->buildAudioPipeline($log),
             'video' => $this->pipelineBuilder->buildDirectVideoPipeline($log),
             'video_auto_trim' => $this->pipelineBuilder->buildAutoTrimVideoPipeline($log),
-            'livestream' => $this->pipelineBuilder->buildLivestreamChainJobs($log),
             default => [],
         };
 
@@ -225,19 +236,44 @@ class ProcessingPhaseRegistry
         ));
     }
 
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function phaseDefinitionsForPipeline(string $pipeline): array
+    {
+        return match ($pipeline) {
+            'audio' => $this->audioPhases(),
+            'video' => $this->videoPhases(),
+            'video_auto_trim' => $this->videoAutoTrimPhases(),
+            'livestream' => $this->livestreamPhases(),
+            default => [],
+        };
+    }
+
+    private function progressForPipelineStep(string $pipeline, ?string $step): ?int
+    {
+        foreach ($this->phaseDefinitionsForPipeline($pipeline) as $phase) {
+            if ($phase['step'] === $step) {
+                return isset($phase['progress']) ? (int) $phase['progress'] : null;
+            }
+        }
+
+        return null;
+    }
+
     /** @return list<array<string, mixed>> */
     private function audioPhases(): array
     {
         return [
-            $this->phase('initiated_from_livestream', ValidateAudioFile::class, 'initiated_from_livestream'),
-            $this->phase('audio_initiated', ValidateAudioFile::class, 'audio_processing_initiated'),
-            $this->phase('validate_audio', ValidateAudioFile::class, 'validating'),
-            $this->phase('create_sermon_record', CreateSermonRecord::class, 'sermon_creation'),
-            $this->phase('transcribe_audio', TranscribeAudio::class, 'transcribing_audio'),
-            $this->phase('analyze_transcript', ProcessTranscriptWithAI::class, 'analyzing_transcript'),
-            $this->phase('send_notification', SendCompletionNotification::class, 'sending_notification'),
-            $this->phase('notification_complete', SendCompletionNotification::class, 'sending_notification'),
-            $this->phase('cleanup', CleanupTemporaryFiles::class, 'cleanup'),
+            $this->phase('initiated_from_livestream', ValidateAudioFile::class, 'initiated_from_livestream', progress: 10),
+            $this->phase('audio_initiated', ValidateAudioFile::class, 'audio_processing_initiated', progress: 10),
+            $this->phase('validate_audio', ValidateAudioFile::class, 'validating', progress: 15),
+            $this->phase('create_sermon_record', CreateSermonRecord::class, 'sermon_creation', progress: 60),
+            $this->phase('transcribe_audio', TranscribeAudio::class, 'transcribing_audio', progress: 70),
+            $this->phase('analyze_transcript', ProcessTranscriptWithAI::class, 'analyzing_transcript', progress: 85),
+            $this->phase('send_notification', SendCompletionNotification::class, 'sending_notification', progress: 92),
+            $this->phase('notification_complete', SendCompletionNotification::class, 'notification_sent', progress: 92),
+            $this->phase('cleanup', CleanupTemporaryFiles::class, 'cleanup', progress: 95),
         ];
     }
 
@@ -245,16 +281,17 @@ class ProcessingPhaseRegistry
     private function videoPhases(): array
     {
         return [
-            $this->phase('video_initiated', ValidateVideoFile::class, 'video_processing_initiated'),
-            $this->phase('validate_video', ValidateVideoFile::class, 'validating'),
-            $this->phase('extract_audio', ExtractAudioFromVideo::class, 'extracting_audio'),
-            $this->phase('create_sermon_record', CreateSermonRecord::class, 'sermon_creation'),
-            $this->phase('transcribe_audio', TranscribeAudio::class, 'transcribing_audio'),
-            $this->phase('analyze_transcript', ProcessTranscriptWithAI::class, 'analyzing_transcript'),
-            $this->phase('assess_video_quality', AssessSermonVideoQuality::class, 'assessing_video_quality'),
-            $this->phase('generate_thumbnail', GenerateThumbnail::class, 'generating_thumbnail'),
-            $this->phase('send_notification', SendCompletionNotification::class, 'sending_notification'),
-            $this->phase('cleanup', CleanupTemporaryFiles::class, 'cleanup'),
+            $this->phase('video_initiated', ValidateVideoFile::class, 'video_processing_initiated', progress: 10),
+            $this->phase('validate_video', ValidateVideoFile::class, 'validating', progress: 15),
+            $this->phase('extract_audio', ExtractAudioFromVideo::class, 'extracting_audio', progress: 25),
+            $this->phase('create_sermon_record', CreateSermonRecord::class, 'sermon_creation', progress: 60),
+            $this->phase('transcribe_audio', TranscribeAudio::class, 'transcribing_audio', progress: 70),
+            $this->phase('analyze_transcript', ProcessTranscriptWithAI::class, 'analyzing_transcript', progress: 85),
+            $this->phase('assess_video_quality', AssessSermonVideoQuality::class, 'assessing_video_quality', progress: 87),
+            $this->phase('generate_thumbnail', GenerateThumbnail::class, 'generating_thumbnail', progress: 89),
+            $this->phase('send_notification', SendCompletionNotification::class, 'sending_notification', progress: 92),
+            $this->phase('notification_complete', SendCompletionNotification::class, 'notification_sent', progress: 92),
+            $this->phase('cleanup', CleanupTemporaryFiles::class, 'cleanup', progress: 95),
         ];
     }
 
@@ -262,22 +299,24 @@ class ProcessingPhaseRegistry
     private function videoAutoTrimPhases(): array
     {
         return [
-            $this->phase('video_initiated', ValidateVideoFile::class, 'video_processing_initiated'),
-            $this->phase('validate_video', ValidateVideoFile::class, 'validating'),
-            $this->phase('rms_generation', GenerateRmsLog::class, 'rms_generation'),
-            $this->phase('analyze_segments', AnalyzeSegments::class, 'segmentation', resetScope: 'analyze_segments', rerunStrategy: 'targeted_reset'),
+            $this->phase('video_initiated', ValidateVideoFile::class, 'video_processing_initiated', progress: 10),
+            $this->phase('validate_video', ValidateVideoFile::class, 'validating', progress: 15),
+            $this->phase('rms_generation', GenerateRmsLog::class, 'rms_generation', progress: 20),
+            $this->phase('analyze_segments', AnalyzeSegments::class, 'segmentation', progress: 30, resetScope: 'analyze_segments', rerunStrategy: 'targeted_reset'),
+            $this->phase('legacy_analyze_segments', AnalyzeSegments::class, 'analyzing_segments', progress: 40),
             $this->phase('transcribe_full_service', TranscribeFullService::class, 'transcribe_full_service'),
             $this->phase('detect_service_structure', DetectServiceStructure::class, 'detect_service_structure'),
             $this->phase('manual_review', ExtractSermon::class, 'manual_review_required'),
-            $this->phase('extract_sermon', ExtractSermon::class, 'extraction'),
+            $this->phase('extract_sermon', ExtractSermon::class, 'extraction', progress: 57),
             $this->phase('enhance_audio', EnhanceAudio::class, 'audio_enhancement'),
-            $this->phase('create_sermon_record', CreateSermonRecord::class, 'sermon_creation'),
-            $this->phase('transcribe_audio', CreateSermonTranscriptFromService::class, 'transcribing_audio'),
-            $this->phase('analyze_transcript', ProcessTranscriptWithAI::class, 'analyzing_transcript'),
-            $this->phase('assess_video_quality', AssessSermonVideoQuality::class, 'assessing_video_quality'),
-            $this->phase('generate_thumbnail', GenerateThumbnail::class, 'generating_thumbnail'),
-            $this->phase('send_notification', SendCompletionNotification::class, 'sending_notification'),
-            $this->phase('cleanup', CleanupTemporaryFiles::class, 'cleanup'),
+            $this->phase('create_sermon_record', CreateSermonRecord::class, 'sermon_creation', progress: 60),
+            $this->phase('transcribe_audio', CreateSermonTranscriptFromService::class, 'transcribing_audio', progress: 70),
+            $this->phase('analyze_transcript', ProcessTranscriptWithAI::class, 'analyzing_transcript', progress: 85),
+            $this->phase('assess_video_quality', AssessSermonVideoQuality::class, 'assessing_video_quality', progress: 87),
+            $this->phase('generate_thumbnail', GenerateThumbnail::class, 'generating_thumbnail', progress: 89),
+            $this->phase('send_notification', SendCompletionNotification::class, 'sending_notification', progress: 92),
+            $this->phase('notification_complete', SendCompletionNotification::class, 'notification_sent', progress: 92),
+            $this->phase('cleanup', CleanupTemporaryFiles::class, 'cleanup', progress: 95),
         ];
     }
 
@@ -285,23 +324,25 @@ class ProcessingPhaseRegistry
     private function livestreamPhases(): array
     {
         return [
-            $this->phase('parallel_start', GenerateRmsLog::class, 'livestream_processing_initiated', retryAction: 'restart_livestream', rerunStrategy: 'full_restart'),
-            $this->phase('rms_generation', GenerateRmsLog::class, 'rms_generation', retryAction: 'restart_livestream', rerunStrategy: 'full_restart'),
-            $this->phase('analyze_segments', AnalyzeSegments::class, 'segmentation', retryAction: 'dispatch_livestream_chain', resetScope: 'analyze_segments', rerunStrategy: 'targeted_reset'),
+            $this->phase('parallel_start', GenerateRmsLog::class, 'livestream_processing_initiated', progress: 10, retryAction: 'restart_livestream', rerunStrategy: 'full_restart'),
+            $this->phase('rms_generation', GenerateRmsLog::class, 'rms_generation', progress: 20, retryAction: 'restart_livestream', rerunStrategy: 'full_restart'),
+            $this->phase('analyze_segments', AnalyzeSegments::class, 'segmentation', progress: 30, retryAction: 'dispatch_livestream_chain', resetScope: 'analyze_segments', rerunStrategy: 'targeted_reset'),
+            $this->phase('legacy_analyze_segments', AnalyzeSegments::class, 'analyzing_segments', progress: 40),
             $this->phase('transcribe_full_service', TranscribeFullService::class, 'transcribe_full_service', retryAction: 'dispatch_livestream_chain'),
             $this->phase('detect_service_structure', DetectServiceStructure::class, 'detect_service_structure', retryAction: 'dispatch_livestream_chain'),
             $this->phase('project_livestream_service_structure', ProjectLivestreamServiceStructure::class, 'project_livestream_service_structure', retryAction: 'dispatch_livestream_chain'),
             $this->phase('match_songs_from_transcript', MatchSongsFromTranscript::class, 'match_songs_from_transcript', retryAction: 'dispatch_livestream_chain'),
             $this->phase('manual_review', ExtractSermon::class, 'manual_review_required'),
-            $this->phase('extract_sermon', ExtractSermon::class, 'extraction', retryAction: 'dispatch_livestream_chain'),
+            $this->phase('extract_sermon', ExtractSermon::class, 'extraction', progress: 57, retryAction: 'dispatch_livestream_chain'),
             $this->phase('submit_to_processing', SubmitToProcessing::class, 'sermon_submitted', retryAction: 'dispatch_livestream_chain', resetScope: 'submit_to_processing', rerunStrategy: 'targeted_reset'),
-            $this->phase('transcription', CreateSermonTranscriptFromService::class, 'transcribing_audio', retryAction: 'dispatch_livestream_chain'),
-            $this->phase('analysis', ProcessTranscriptWithAI::class, 'analyzing_transcript', retryAction: 'dispatch_livestream_chain'),
-            $this->phase('assess_video_quality', AssessSermonVideoQuality::class, 'assessing_video_quality', retryAction: 'dispatch_livestream_chain'),
-            $this->phase('thumbnail', GenerateThumbnail::class, 'generating_thumbnail', retryAction: 'dispatch_livestream_chain'),
-            $this->phase('prepare_section_publication_candidates', PrepareSectionPublicationCandidates::class, 'preparing_section_publication_candidates', retryAction: 'dispatch_livestream_chain'),
-            $this->phase('send_notification', SendCompletionNotification::class, 'sending_notification', retryAction: 'dispatch_livestream_chain'),
-            $this->phase('cleanup', CleanupTemporaryFiles::class, 'cleanup', retryAction: 'dispatch_livestream_chain'),
+            $this->phase('transcription', CreateSermonTranscriptFromService::class, 'transcribing_audio', progress: 70, retryAction: 'dispatch_livestream_chain'),
+            $this->phase('analysis', ProcessTranscriptWithAI::class, 'analyzing_transcript', progress: 85, retryAction: 'dispatch_livestream_chain'),
+            $this->phase('assess_video_quality', AssessSermonVideoQuality::class, 'assessing_video_quality', progress: 87, retryAction: 'dispatch_livestream_chain'),
+            $this->phase('thumbnail', GenerateThumbnail::class, 'generating_thumbnail', progress: 89, retryAction: 'dispatch_livestream_chain'),
+            $this->phase('prepare_section_publication_candidates', PrepareSectionPublicationCandidates::class, 'preparing_section_publication_candidates', progress: 84, retryAction: 'dispatch_livestream_chain'),
+            $this->phase('send_notification', SendCompletionNotification::class, 'sending_notification', progress: 92, retryAction: 'dispatch_livestream_chain'),
+            $this->phase('notification_complete', SendCompletionNotification::class, 'notification_sent', progress: 92, retryAction: 'dispatch_livestream_chain'),
+            $this->phase('cleanup', CleanupTemporaryFiles::class, 'cleanup', progress: 95, retryAction: 'dispatch_livestream_chain'),
         ];
     }
 
@@ -313,6 +354,7 @@ class ProcessingPhaseRegistry
         string $key,
         string $anchorJob,
         string $step,
+        ?int $progress = null,
         ?string $retryAction = null,
         ?string $rerunStrategy = null,
         ?string $resetScope = null,
@@ -322,6 +364,10 @@ class ProcessingPhaseRegistry
             'anchor_job' => $anchorJob,
             'step' => $step,
         ];
+
+        if ($progress !== null) {
+            $phase['progress'] = $progress;
+        }
 
         if ($retryAction !== null) {
             $phase['retry_action'] = $retryAction;

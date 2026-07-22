@@ -7,6 +7,7 @@ namespace Tests\Feature\Queries;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\MediaProcessingLog;
@@ -77,6 +78,7 @@ class AdminAttentionCountsTest extends TestCase
         // count would miss this section entirely (contract C1).
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Sermon->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'confidence' => ServiceSectionConfidence::HIGH_THRESHOLD - 0.1,

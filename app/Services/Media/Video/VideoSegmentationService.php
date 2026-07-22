@@ -183,6 +183,36 @@ class VideoSegmentationService
 
         $segments = $this->combineLoudAndQuietSections($loudSections, $totalDuration, $rmsData);
 
+        return $this->markSermonCandidate($segments);
+    }
+
+    /**
+     * Mark the longest speech segment when it meets the minimum sermon duration.
+     *
+     * @param  list<LivestreamSegment>  $segments
+     * @return list<LivestreamSegment>
+     */
+    private function markSermonCandidate(array $segments): array
+    {
+        $minimumDuration = (float) config('media-processing.segmentation.min_sermon_duration', 300.0);
+        $candidateIndex = null;
+        $candidateDuration = 0.0;
+
+        foreach ($segments as $index => $segment) {
+            if (! $segment->isSpeech() || $segment->duration < $minimumDuration) {
+                continue;
+            }
+
+            if ($segment->duration > $candidateDuration) {
+                $candidateIndex = $index;
+                $candidateDuration = $segment->duration;
+            }
+        }
+
+        if ($candidateIndex !== null) {
+            $segments[$candidateIndex]->isSermonCandidate = true;
+        }
+
         return $segments;
     }
 
