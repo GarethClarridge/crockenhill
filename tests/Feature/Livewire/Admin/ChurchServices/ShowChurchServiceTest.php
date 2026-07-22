@@ -119,6 +119,30 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function sidebar_review_status_matches_the_stepper_when_a_section_needs_review(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'title' => 'Flagged Song',
+            'needs_manual_review' => true,
+        ]);
+
+        $html = Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->html();
+
+        $this->assertStringContainsString('wire:key="pipeline-step-3-Review"', $html);
+        $this->assertStringContainsString('bg-amber-400 border-amber-400', $html);
+        $this->assertMatchesRegularExpression(
+            '/<p class="text-gray-500">Review status<\/p>.*?bg-rose-100.*?Needs review/s',
+            $html,
+        );
+    }
+
+    #[Test]
     public function church_service_workflow_pages_use_the_shared_admin_composition_components(): void
     {
         config(['media-processing.section_publishing.enabled' => true]);

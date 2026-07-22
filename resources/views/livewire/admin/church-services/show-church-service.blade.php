@@ -8,6 +8,8 @@
                 static fn (array $reason): bool => $reason['key'] !== 'pending_approval'
             )
         )->count();
+        $reviewStep = collect($pipelineSteps)->firstWhere('label', 'Review');
+        $reviewNeedsAttention = ($reviewStep['state'] ?? null) === 'blocked';
     @endphp
 
     <x-slot:actions>
@@ -121,7 +123,7 @@
                             </div>
                             <div>
                                 <p class="text-gray-500">Review status</p>
-                                @if($churchService->needs_review)
+                                @if($reviewNeedsAttention)
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
                                         Needs review
                                     </span>
