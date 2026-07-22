@@ -283,6 +283,16 @@ class SermonExtractionPlanResolver
     }
 
     /**
+     * Whether the structure path already produced a high-confidence sermon
+     * section this run could auto-extract from — i.e. a paused manual sermon
+     * review is redundant and can be resolved without a human segment pick.
+     */
+    public function hasAutoExtractableSermonSection(MediaProcessingLog $processingLog): bool
+    {
+        return $this->findPreferredSection($processingLog, ServiceSectionType::Sermon) instanceof ServiceSection;
+    }
+
+    /**
      * Review-flagged sections are not excluded wholesale: ordering flags such
      * as a cross-type OoS inversion question item alignment, not boundaries,
      * so SermonAutoExtractionPolicy decides which review states still qualify.

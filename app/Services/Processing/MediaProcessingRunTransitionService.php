@@ -208,6 +208,47 @@ class MediaProcessingRunTransitionService
     }
 
     /**
+     * Resolve a run awaiting manual sermon review without a human segment
+     * selection, so the extraction resolver falls through to its detected
+     * high-confidence sermon *section* (the correct boundaries) rather than a
+     * coarse whole-recording speech segment.
+     *
+     * Used to reconcile runs left paused by a superseded policy: the structure
+     * path already produced an auto-extractable sermon, making the segment
+     * selection redundant. No confirmedSegmentId is set — that is the whole
+     * point, so SermonExtractionPlanResolver prefers the sermon section.
+     *
+     * @return bool True if the transition was successful
+     */
+    public function autoResolveManualReviewFromStructure(MediaProcessingLog $processingLog): bool
+    {
+        $manualReview = $processingLog->processing_metadata->manualReview
+            ?? ProcessingManualReviewMetadata::fromArray($processingLog->manualReviewMetadata());
+        $speechSegments = $manualReview instanceof ProcessingManualReviewMetadata
+            ? $manualReview->speechSegments
+            : [];
+
+        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
+        $metadata['manual_review'] = (new ProcessingManualReviewMetadata(
+            status: 'auto_resolved',
+            reasonCode: $manualReview?->reasonCode,
+            reasonMessage: $manualReview?->reasonMessage,
+            flaggedAt: $manualReview?->flaggedAt,
+            speechSegments: $speechSegments,
+            confirmedSegmentId: null,
+            confirmedByUserId: null,
+            confirmedAt: now()->toIso8601String(),
+        ))->toArray();
+
+        return $processingLog->update([
+            'status' => ProcessingStatus::Pending,
+            'current_step' => 'manual_review_confirmed',
+            'error_message' => null,
+            'processing_metadata' => $metadata,
+        ]);
+    }
+
+    /**
      * Update the current processing step without changing the overall status.
      *
      * @param  MediaProcessingLog  $processingLog  The log record to update
