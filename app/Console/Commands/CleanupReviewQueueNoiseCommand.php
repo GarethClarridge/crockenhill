@@ -13,7 +13,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ChurchServiceReviewStateService;
 use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
-use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\SectionReviewFlagRecalculator;
 use App\Support\ServiceSectionConfidence;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
@@ -42,6 +42,12 @@ class CleanupReviewQueueNoiseCommand extends Command
         {--corpus-run-date=* : Override the local corpus processing-log creation dates (YYYY-MM-DD)}';
 
     protected $description = 'Preview or apply the guarded review-queue noise cleanup from Workstream B';
+
+    public function __construct(
+        private readonly SectionReviewFlagRecalculator $recalculator,
+    ) {
+        parent::__construct();
+    }
 
     public function handle(
         ChurchServiceReviewStateService $reviewStateService,
@@ -422,54 +428,7 @@ class CleanupReviewQueueNoiseCommand extends Command
     /** @return array<string, mixed> */
     private function corpusSectionUpdates(ServiceSection $section): array
     {
-        $metadata = $section->metadata?->toArray() ?? [];
-        $reviewFlags = is_array($metadata['review_flags'] ?? null)
-            ? $metadata['review_flags']
-            : [];
-        $needsManualReview = $this->reviewFlagsRequireManualReview($section->section_type, $reviewFlags);
-        $updates = [];
-
-        if ($section->needs_manual_review !== $needsManualReview) {
-            $updates['needs_manual_review'] = $needsManualReview;
-        }
-
-        $matchConfidence = $metadata['transcript_song_match']['confidence'] ?? null;
-        $writebackThreshold = (float) config('media-processing.song_matching.title_writeback_min_confidence', 0.75);
-
-        if (
-            $section->section_type === ServiceSectionType::Song
-            && $section->song_match_type === ServiceSectionSongMatchType::Inferred
-            && is_numeric($matchConfidence)
-            && (float) $matchConfidence >= $writebackThreshold
-        ) {
-            $updates['song_match_type'] = ServiceSectionSongMatchType::Confirmed;
-        }
-
-        return $updates;
-    }
-
-    /** @param array<int, mixed> $reviewFlags */
-    private function reviewFlagsRequireManualReview(ServiceSectionType $sectionType, array $reviewFlags): bool
-    {
-        foreach ($reviewFlags as $reviewFlag) {
-            if ($reviewFlag === ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION) {
-                continue;
-            }
-
-            if (
-                in_array($reviewFlag, [
-                    ServiceStructureValidator::FLAG_LOW_CONFIDENCE,
-                    ServiceStructureValidator::FLAG_MICRO_SECTION,
-                ], true)
-                && ! $sectionType->requiresStructuralUncertaintyReview()
-            ) {
-                continue;
-            }
-
-            return true;
-        }
-
-        return false;
+        return $this->recalculator->updatesFor($section);
     }
 
     /** @return EloquentCollection<int, ServiceSection> */

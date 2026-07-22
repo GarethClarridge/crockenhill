@@ -26,6 +26,8 @@ class ServiceStructureValidator
 
     public const FLAG_OOS_CROSS_TYPE_INVERSION = 'structure_oos_cross_type_inversion';
 
+    public const FLAG_OOS_STRUCTURE_MISMATCH = 'oos_structure_mismatch';
+
     /**
      * Applied by DetectServiceStructure when a validated structure has a
      * sermon but no bible_reading section near it, and a feedback-guided
@@ -43,7 +45,7 @@ class ServiceStructureValidator
      * @var array<int, string>
      */
     public const OOS_REVIEW_FLAGS = [
-        'oos_structure_mismatch',
+        self::FLAG_OOS_STRUCTURE_MISMATCH,
         'unmatched_song_section',
         'song_alignment_inferred',
         'song_name_reference_only',
@@ -62,7 +64,7 @@ class ServiceStructureValidator
      * @var array<int, string>
      */
     public const OOS_REVIEW_REASONS = [
-        'oos_structure_mismatch',
+        self::FLAG_OOS_STRUCTURE_MISMATCH,
         'unmatched_song_section',
         'song_alignment_inferred',
         'song_name_reference_only',
