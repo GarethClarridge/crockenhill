@@ -37,17 +37,18 @@ class OpenAiUsageLoggerTest extends TestCase
 
         Log::shouldHaveReceived('info')
             ->once()
-            ->with('OpenAI chat completion usage', [
-                'operation' => 'sermon_analysis',
-                'processing_id' => 'processing-1',
-                'requested_model' => 'gpt-5.6-terra',
-                'response_model' => 'gpt-5.6-terra-2026-07-01',
-                'service_tier' => 'flex',
-                'input_tokens' => 1200,
-                'cached_input_tokens' => 400,
-                'output_tokens' => 300,
-                'reasoning_tokens' => 175,
-                'total_tokens' => 1500,
-            ]);
+            ->withArgs(function (string $message, array $context) {
+                return $message === 'OpenAI chat completion usage'
+                    && $context['operation'] === 'sermon_analysis'
+                    && $context['processing_id'] === 'processing-1'
+                    && $context['requested_model'] === 'gpt-5.6-terra'
+                    && $context['response_model'] === 'gpt-5.6-terra-2026-07-01'
+                    && $context['service_tier'] === 'flex'
+                    && $context['input_tokens'] === 1200
+                    && $context['cached_input_tokens'] === 400
+                    && $context['output_tokens'] === 300
+                    && $context['reasoning_tokens'] === 175
+                    && $context['total_tokens'] === 1500;
+            });
     }
 }

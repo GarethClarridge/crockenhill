@@ -24,15 +24,16 @@ class OpenAIResponseLoggerTest extends TestCase
 
         Log::shouldHaveReceived('warning')
             ->once()
-            ->with('OpenAI API response type analysis', [
-                'processing_id' => 'test-id',
-                'attempt' => 1,
-                'response_data_type' => 'string',
-                'response_type_hint' => 'test-hint',
-                'response_content_preview' => 'test content',
-                'response_length' => 12,
-                'is_json' => 'no',
-            ]);
+            ->withArgs(function (string $message, array $context) {
+                return $message === 'OpenAI API response type analysis'
+                    && $context['processing_id'] === 'test-id'
+                    && $context['attempt'] === 1
+                    && $context['response_data_type'] === 'string'
+                    && $context['response_type_hint'] === 'test-hint'
+                    && $context['response_content_preview'] === 'test content'
+                    && $context['response_length'] === 12
+                    && $context['is_json'] === 'no';
+            });
     }
 
     #[Test]
@@ -85,14 +86,15 @@ class OpenAIResponseLoggerTest extends TestCase
 
         Log::shouldHaveReceived('warning')
             ->once()
-            ->with('OpenAI API response type analysis', [
-                'processing_id' => 'test-id',
-                'attempt' => 1,
-                'response_data_type' => 'array',
-                'response_type_hint' => null,
-                'response_keys' => ['foo', 'baz'],
-                'response_structure_valid' => true,
-            ]);
+            ->withArgs(function (string $message, array $context) {
+                return $message === 'OpenAI API response type analysis'
+                    && $context['processing_id'] === 'test-id'
+                    && $context['attempt'] === 1
+                    && $context['response_data_type'] === 'array'
+                    && $context['response_type_hint'] === null
+                    && $context['response_keys'] === ['foo', 'baz']
+                    && $context['response_structure_valid'] === true;
+            });
     }
 
     #[Test]
@@ -102,12 +104,13 @@ class OpenAIResponseLoggerTest extends TestCase
 
         Log::shouldHaveReceived('error')
             ->once()
-            ->with('OpenAI API transport layer error', [
-                'processing_id' => 'test-id',
-                'attempt' => 1,
-                'error_message' => 'Network failure',
-                'status_code' => 500,
-            ]);
+            ->withArgs(function (string $message, array $context) {
+                return $message === 'OpenAI API transport layer error'
+                    && $context['processing_id'] === 'test-id'
+                    && $context['attempt'] === 1
+                    && $context['error_message'] === 'Network failure'
+                    && $context['status_code'] === 500;
+            });
     }
 
     #[Test]
