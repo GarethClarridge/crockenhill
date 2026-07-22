@@ -27,6 +27,19 @@
     $mergeSecondaryId = ($item['section_id'] ?? null) !== null
         ? (($mergeCandidatePairs ?? [])[$item['section_id']] ?? null)
         : null;
+    $reviewReasons = is_array($reviewPanel['reasons'] ?? null) ? $reviewPanel['reasons'] : [];
+    $reviewReasonKeys = array_column($reviewReasons, 'key');
+    $presentationInference = data_get($item['metadata'] ?? [], 'oos_alignment.presentation_inference');
+    $canBePlanned = in_array($item['type'] ?? null, [
+        ServiceSectionType::Song,
+        ServiceSectionType::BibleReading,
+        ServiceSectionType::ChildrensTalk,
+    ], true) || is_array($presentationInference);
+    $publishableSectionTypes = array_keys((array) config('media-processing.section_publishing.handlers', []));
+    $isPublishableType = $item['type'] instanceof ServiceSectionType
+        && in_array($item['type']->value, $publishableSectionTypes, true);
+    $hideNotApplicablePublication = $item['publication_status'] === ServiceSectionPublicationStatus::NotApplicable
+        && ! $isPublishableType;
 @endphp
 
 <li
@@ -72,15 +85,15 @@
                     <span class="text-xs text-gray-400">{{ $item['duration_formatted'] }}</span>
                 @endif
 
-                @if($item['needs_review'])
-                    <span
-                        class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
-                        @if($item['review_reason']) title="{{ str_replace('_', ' ', $item['review_reason']) }}" @endif
-                    >
+                @if($reviewReasons !== [])
+                    @foreach($reviewReasons as $reason)
+                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $reason['classes'] }}">
+                            {{ $reason['label'] }}
+                        </span>
+                    @endforeach
+                @elseif($item['needs_review'])
+                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
                         <span aria-hidden="true">⚠</span> Review
-                        @if($item['review_reason'])
-                            <span class="sr-only">: {{ str_replace('_', ' ', $item['review_reason']) }}</span>
-                        @endif
                     </span>
                 @endif
 
@@ -90,7 +103,7 @@
                     </span>
                 @endif
 
-                @if($item['row_type'] === 'unplanned')
+                @if($item['row_type'] === 'unplanned' && $canBePlanned)
                     <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">
                         Not in plan
                     </span>
@@ -102,17 +115,19 @@
                     </span>
                 @endif
 
-                @if($item['confidence_level'] === 'low')
+                @if($reviewReasons === [] && $item['confidence_level'] === 'low')
                     <span class="inline-block h-2 w-2 rounded-full bg-amber-400" title="Low confidence">
                         <span class="sr-only">Low confidence</span>
                     </span>
-                @elseif($item['confidence_level'] === 'none')
+                @elseif($reviewReasons === [] && $item['confidence_level'] === 'none')
                     <span class="inline-block h-2 w-2 rounded-full bg-rose-400" title="No confidence">
                         <span class="sr-only">No confidence</span>
                     </span>
                 @endif
 
-                @if($item['publication_status'] instanceof ServiceSectionPublicationStatus && $item['publication_status'] !== ServiceSectionPublicationStatus::PendingApproval)
+                @if($item['publication_status'] instanceof ServiceSectionPublicationStatus
+                    && $item['publication_status'] !== ServiceSectionPublicationStatus::PendingApproval
+                    && ! $hideNotApplicablePublication)
                     <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ match($item['publication_status']) {
                         ServiceSectionPublicationStatus::Approved => 'bg-sky-100 text-sky-800',
                         ServiceSectionPublicationStatus::Rejected => 'bg-rose-100 text-rose-800',
@@ -121,13 +136,18 @@
                     } }}">
                         {{ $item['publication_status']->label() }}
                     </span>
-                @elseif($item['publication_status'] === ServiceSectionPublicationStatus::PendingApproval)
+                @elseif($item['publication_status'] === ServiceSectionPublicationStatus::PendingApproval
+                    && ! in_array('pending_approval', $reviewReasonKeys, true))
                     <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
                         Pending approval
                     </span>
                 @endif
 
-                @if($item['type'] === ServiceSectionType::Song && $item['song_match_type'] instanceof ServiceSectionSongMatchType)
+                @if($item['type'] === ServiceSectionType::Song
+                    && $item['song_match_type'] instanceof ServiceSectionSongMatchType
+                    && ! in_array($item['song_match_type'] === ServiceSectionSongMatchType::Inferred
+                        ? 'inferred_song_label'
+                        : 'unmatched_song', $reviewReasonKeys, true))
                     <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ $item['song_match_type'] === ServiceSectionSongMatchType::Confirmed ? 'bg-cbc-teal-light/15 text-cbc-teal-dark' : 'bg-amber-100 text-amber-700' }}">
                         {{ $item['song_match_type']->label() }}
                     </span>
@@ -193,20 +213,6 @@
                 <div>
                     <p class="font-medium text-gray-500 uppercase tracking-wide mb-1">Mismatch reason</p>
                     <p class="text-amber-700">{{ str_replace('_', ' ', $item['mismatch_reason']) }}</p>
-                </div>
-            @endif
-
-            @if($item['review_reason'])
-                <div>
-                    <p class="font-medium text-gray-500 uppercase tracking-wide mb-1">Review reason</p>
-                    <p class="text-amber-700">{{ str_replace('_', ' ', $item['review_reason']) }}</p>
-                </div>
-            @endif
-
-            @if($item['confidence_level'])
-                <div>
-                    <p class="font-medium text-gray-500 uppercase tracking-wide mb-1">Confidence</p>
-                    <p>{{ ucfirst($item['confidence_level']) }}</p>
                 </div>
             @endif
 

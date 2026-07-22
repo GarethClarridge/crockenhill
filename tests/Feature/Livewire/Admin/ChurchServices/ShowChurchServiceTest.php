@@ -655,6 +655,30 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_renders_each_review_reason_once_on_the_flow_row_header(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 1,
+            'title' => 'Flagged song',
+            'needs_manual_review' => true,
+            'confidence' => 0.72,
+            'metadata' => ['review_reason' => 'structure_low_confidence'],
+        ]);
+
+        $html = Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->html();
+
+        $this->assertSame(1, substr_count($html, 'Manual review'));
+        $this->assertSame(1, substr_count($html, 'Low confidence'));
+        $this->assertStringNotContainsString('Review reason', $html);
+    }
+
+    #[Test]
     public function it_does_not_seed_edit_buffers_for_review_rows_created_after_mount(): void
     {
         [$service, $run] = $this->workbenchServiceWithRun();

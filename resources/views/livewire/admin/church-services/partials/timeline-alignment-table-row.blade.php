@@ -1,6 +1,7 @@
 @php
     use App\Enums\ServiceSectionPublicationStatus;
     use App\Enums\ServiceSectionSongMatchType;
+    use App\Enums\ServiceSectionType;
     use App\Enums\SermonContentType;
     use App\Services\ChurchService\ServiceRecordTimeline;
 
@@ -13,6 +14,17 @@
         'planned_only' => 'bg-slate-50',
         default => '',
     };
+    $presentationInference = $row['presentation_inference'] ?? null;
+    $canBePlanned = in_array($row['section_type'] ?? null, [
+        ServiceSectionType::Song,
+        ServiceSectionType::BibleReading,
+        ServiceSectionType::ChildrensTalk,
+    ], true) || is_array($presentationInference);
+    $publishableSectionTypes = array_keys((array) config('media-processing.section_publishing.handlers', []));
+    $isPublishableType = $row['section_type'] instanceof ServiceSectionType
+        && in_array($row['section_type']->value, $publishableSectionTypes, true);
+    $hideNotApplicablePublication = $row['publication_status'] === ServiceSectionPublicationStatus::NotApplicable
+        && ! $isPublishableType;
 @endphp
 
 <tr class="{{ $rowBg }}" wire:key="table-row-{{ $rowIndex }}">
@@ -35,7 +47,7 @@
     </td>
 
     <td class="px-3 py-2 text-sm">
-        @if($row['row_type'] === 'unplanned')
+        @if($row['row_type'] === 'unplanned' && $canBePlanned)
             <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">
                 Not in plan
             </span>
@@ -129,14 +141,11 @@
             <span class="mt-1 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
                 Needs review
             </span>
-            @if($row['review_reason'])
-                <p class="mt-0.5 text-xs text-gray-500">{{ str_replace('_', ' ', $row['review_reason']) }}</p>
-            @endif
         @endif
     </td>
 
     <td class="px-3 py-2 text-sm">
-        @if($row['publication_status'] instanceof ServiceSectionPublicationStatus)
+        @if($row['publication_status'] instanceof ServiceSectionPublicationStatus && ! $hideNotApplicablePublication)
             <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ match($row['publication_status']) {
                 ServiceSectionPublicationStatus::PendingApproval => 'bg-amber-100 text-amber-800',
                 ServiceSectionPublicationStatus::Approved => 'bg-sky-100 text-sky-800',

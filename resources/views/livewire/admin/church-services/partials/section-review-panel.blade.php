@@ -1,5 +1,5 @@
-{{-- Inline section review panel: expects $panel (section, reasons, review_reason,
-     audio_url, video_url), $sectionTypeOptions, $preacherOptions, $sectionPublishingEnabled --}}
+{{-- Inline section review panel: expects $panel (section, audio_url, video_url),
+     $sectionTypeOptions, $preacherOptions, and $sectionPublishingEnabled. --}}
 @php
     $section = $panel['section'];
     $publicationSpeaker = $section->publicationChildrensTalkSpeaker();
@@ -8,19 +8,8 @@
 @endphp
 
 <div id="section-{{ $section->id }}" class="rounded-lg border border-amber-200 bg-amber-50/40 p-3 space-y-3" wire:key="section-review-panel-{{ $section->id }}">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-        <div class="flex flex-wrap items-center gap-2">
-            @foreach($panel['reasons'] as $reason)
-                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $reason['classes'] }}">
-                    {{ $reason['label'] }}
-                </span>
-            @endforeach
-            @if($panel['review_reason'])
-                <span class="text-xs text-gray-500">{{ $panel['review_reason'] }}</span>
-            @endif
-        </div>
-
-        @if($sectionPublishingEnabled)
+    @if($sectionPublishingEnabled)
+        <div class="flex justify-end">
             <div class="flex flex-wrap gap-2">
                 @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::PendingApproval)
                     <x-form-button
@@ -61,8 +50,8 @@
                     </x-form-button>
                 @endif
             </div>
-        @endif
-    </div>
+        </div>
+    @endif
 
     <div class="grid gap-3 md:grid-cols-[12rem_minmax(0,1fr)_auto]">
         <x-select

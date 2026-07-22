@@ -646,7 +646,7 @@ class AdminChurchServiceTest extends TestCase
             ->assertDontSee($nonMatchingRun->processing_id)
             ->assertSeeInOrder(['Welcome', 'Closing Song'])
             ->assertSee('Needs review')
-            ->assertSee('expected type mismatch')
+            ->assertDontSee('expected type mismatch')
             ->assertSee('Published')
             ->assertSee('Pending Approval');
     }
@@ -856,7 +856,7 @@ class AdminChurchServiceTest extends TestCase
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
             ->assertSee('Unplanned Section')
             ->assertSee('Unplanned')
-            ->assertSee('Not in plan');
+            ->assertDontSee('Not in plan');
     }
 
     #[Test]

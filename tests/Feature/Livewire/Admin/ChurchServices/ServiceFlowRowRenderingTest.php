@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire\Admin\ChurchServices;
 
+use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionType;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -33,6 +35,7 @@ class ServiceFlowRowRenderingTest extends TestCase
             'confidence_level' => null,
             'section_id' => null,
             'transcript_excerpt' => null,
+            'metadata' => [],
             'publication_status' => null,
             'song_match_type' => null,
             'published_sermon' => null,
@@ -73,5 +76,47 @@ class ServiceFlowRowRenderingTest extends TestCase
 
         $this->assertStringContainsString('id="service-row-details-0"', $first);
         $this->assertStringContainsString('id="service-row-details-1"', $second);
+    }
+
+    #[Test]
+    public function it_hides_not_in_plan_for_section_types_that_cannot_be_planned(): void
+    {
+        $rendered = $this->renderRow(overrides: [
+            'row_type' => 'unplanned',
+            'type' => ServiceSectionType::Other,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+        ]);
+
+        $this->assertStringNotContainsString('Not in plan', $rendered);
+        $this->assertStringNotContainsString('Not Applicable', $rendered);
+    }
+
+    #[Test]
+    public function it_keeps_planning_and_publication_state_for_song_sections(): void
+    {
+        $rendered = $this->renderRow(overrides: [
+            'row_type' => 'unplanned',
+            'type' => ServiceSectionType::Song,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+        ]);
+
+        $this->assertStringContainsString('Not in plan', $rendered);
+        $this->assertStringContainsString('Not Applicable', $rendered);
+    }
+
+    #[Test]
+    public function it_keeps_planning_state_for_presentation_backed_sections(): void
+    {
+        $rendered = $this->renderRow(overrides: [
+            'row_type' => 'unplanned',
+            'type' => ServiceSectionType::Other,
+            'metadata' => [
+                'oos_alignment' => [
+                    'presentation_inference' => ['resolved_type' => 'other'],
+                ],
+            ],
+        ]);
+
+        $this->assertStringContainsString('Not in plan', $rendered);
     }
 }
