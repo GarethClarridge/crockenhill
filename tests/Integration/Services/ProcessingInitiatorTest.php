@@ -313,6 +313,30 @@ class ProcessingInitiatorTest extends TestCase
     }
 
     #[Test]
+    public function service_date_override_wins_over_a_contradictory_filename(): void
+    {
+        $file = UploadedFile::fake()->create('2025-12-14-evening-service.mp4', 2048);
+
+        $this->metadataService->expects($this->never())->method('extractDateFromVideo');
+        $this->metadataService->expects($this->never())->method('determineServiceFromTime');
+        $this->metadataService->expects($this->never())->method('determineServiceFromFilename');
+
+        $log = $this->initiator->initiateProcessing(
+            $file,
+            MediaType::Video,
+            null,
+            [],
+            null,
+            SermonService::Morning,
+            '2026-02-22',
+        );
+
+        $this->assertEquals('2026-02-22', $log->extracted_date->toDateString());
+        $this->assertEquals(SermonService::Morning, $log->extracted_service);
+        $this->assertEquals('service_context', $log->processing_metadata['date_extraction_method']);
+    }
+
+    #[Test]
     public function service_override_sets_service_on_the_pre_extracted_audio_path(): void
     {
         $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');

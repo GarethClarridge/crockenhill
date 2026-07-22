@@ -127,7 +127,7 @@
                     <x-card>
                         <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <p class="text-sm text-gray-500">No recording has been uploaded for this service.</p>
-                            <x-button link="{{ route('admin.services.upload-recording') }}" variant="outline" size="sm" icon="arrow-up-tray" inline>
+                            <x-button link="{{ route('admin.services.upload-recording', ['churchServiceId' => $churchService->id]) }}" variant="outline" size="sm" icon="arrow-up-tray" inline>
                                 Upload a recording
                             </x-button>
                         </div>

@@ -221,6 +221,45 @@ class MediaUploadTest extends TestCase
     }
 
     #[Test]
+    public function service_context_prefills_the_service_and_passes_its_date_to_the_processor(): void
+    {
+        $this->actingAs($this->admin);
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-02-22',
+            'service' => SermonService::Morning,
+        ]);
+        $file = UploadedFile::fake()->create('2025-12-14-evening-sermon.mp3', 1024);
+
+        $processor = $this->createMock(UnifiedMediaProcessor::class);
+        $processor->expects($this->once())
+            ->method('process')
+            ->with(
+                'audio',
+                $this->isInstanceOf(UploadedFile::class),
+                null,
+                [],
+                SermonService::Morning,
+                '2026-02-22',
+            )
+            ->willReturn(ProcessingResult::success('00000000-0000-0000-0000-000000000998', 'Started'));
+
+        $this->app->instance(UnifiedMediaProcessor::class, $processor);
+
+        Livewire::withQueryParams(['churchServiceId' => (string) $churchService->id])
+            ->test(MediaUpload::class)
+            ->assertSet('churchServiceId', $churchService->id)
+            ->assertSet('serviceOverride', SermonService::Morning->value)
+            ->assertSee('Uploading for')
+            ->assertSee('22 February 2026 — Morning')
+            ->assertSee('Wrong service?')
+            ->set('mediaType', 'audio')
+            ->set('mediaFile', $file)
+            ->call('uploadComplete')
+            ->assertSet('processingId', '00000000-0000-0000-0000-000000000998');
+    }
+
+    #[Test]
     public function it_passes_the_selected_service_override_to_the_processor(): void
     {
         $this->actingAs($this->admin);

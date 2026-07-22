@@ -3,7 +3,7 @@
         <div class="space-y-3">
             <p class="text-sm text-gray-500">This service has no planned items.</p>
             <div class="flex flex-wrap items-center gap-2">
-                <x-button link="{{ route('admin.services.add', ['intent' => 'plan']) }}" variant="outline" size="sm" inline>
+                <x-button link="{{ route('admin.services.add', ['intent' => 'plan', 'churchServiceId' => $churchService->id]) }}" variant="outline" size="sm" inline>
                     Add an order of service
                 </x-button>
                 <span class="text-gray-300" aria-hidden="true">·</span>

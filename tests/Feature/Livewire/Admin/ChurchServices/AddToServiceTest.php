@@ -58,6 +58,19 @@ class AddToServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_keeps_service_context_when_switching_to_the_recording_uploader(): void
+    {
+        $churchService = ChurchService::factory()->create();
+
+        Livewire::actingAs($this->admin)
+            ->test(AddToService::class, ['churchServiceId' => $churchService->id])
+            ->assertSeeHtml('churchServiceId='.$churchService->id)
+            ->assertSeeHtml('intent=recording')
+            ->set('intent', 'recording')
+            ->assertSeeHtml(route('admin.services.upload-recording', ['churchServiceId' => $churchService->id]));
+    }
+
+    #[Test]
     public function an_openlp_file_uses_the_existing_import_path(): void
     {
         $this->actingAs($this->admin);

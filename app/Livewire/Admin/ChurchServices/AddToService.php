@@ -30,6 +30,9 @@ class AddToService extends Component
     #[Url(except: 'plan')]
     public string $intent = 'plan';
 
+    #[Url(except: null)]
+    public ?int $churchServiceId = null;
+
     /** @var TemporaryUploadedFile|null */
     public mixed $file = null;
 

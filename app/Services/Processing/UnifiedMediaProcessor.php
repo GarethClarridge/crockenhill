@@ -52,6 +52,7 @@ class UnifiedMediaProcessor
      * @param  string|null  $clientFileDate  Optional date provided by the client
      * @param  array{auto_trim?: bool, video_processing_mode?: string}  $options  Processing configuration
      * @param  SermonService|null  $serviceOverride  Operator-selected service; when set, overrides automatic detection
+     * @param  string|null  $serviceDateOverride  Server-derived service date; when set, overrides inferred recording dates
      * @return ProcessingResult The result of the initiation attempt
      *
      * @throws UniqueConstraintViolationException If a duplicate race occurs
@@ -65,6 +66,7 @@ class UnifiedMediaProcessor
         ?string $clientFileDate = null,
         array $options = [],
         ?SermonService $serviceOverride = null,
+        ?string $serviceDateOverride = null,
     ): ProcessingResult {
         Log::info('Unified media processing started', $this->sanitizeArrayForLog([
             'type' => $type,
@@ -107,10 +109,18 @@ class UnifiedMediaProcessor
         }
 
         try {
+            if ($serviceDateOverride === null) {
+                return match ($mediaType) {
+                    MediaType::Audio => $this->processAudio($file, $clientFileDate, $fileHash, $dedupKey, $serviceOverride),
+                    MediaType::Video => $this->processDirectVideo($file, $clientFileDate, $fileHash, $options, $dedupKey, $serviceOverride),
+                    MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate, $fileHash, $dedupKey, $serviceOverride),
+                };
+            }
+
             return match ($mediaType) {
-                MediaType::Audio => $this->processAudio($file, $clientFileDate, $fileHash, $dedupKey, $serviceOverride),
-                MediaType::Video => $this->processDirectVideo($file, $clientFileDate, $fileHash, $options, $dedupKey, $serviceOverride),
-                MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate, $fileHash, $dedupKey, $serviceOverride),
+                MediaType::Audio => $this->processAudio($file, $clientFileDate, $fileHash, $dedupKey, $serviceOverride, $serviceDateOverride),
+                MediaType::Video => $this->processDirectVideo($file, $clientFileDate, $fileHash, $options, $dedupKey, $serviceOverride, $serviceDateOverride),
+                MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate, $fileHash, $dedupKey, $serviceOverride, $serviceDateOverride),
             };
         } catch (UniqueConstraintViolationException) {
             return $this->reuseRacedDuplicate($dedupKey);
@@ -225,7 +235,7 @@ class UnifiedMediaProcessor
      * @throws InvalidFileException If the file fails initial validation
      * @throws \Exception For underlying service or storage failures
      */
-    private function processAudio(UploadedFile $file, ?string $clientFileDate, ?string $fileHash, ?string $dedupKey, ?SermonService $serviceOverride = null): ProcessingResult
+    private function processAudio(UploadedFile $file, ?string $clientFileDate, ?string $fileHash, ?string $dedupKey, ?SermonService $serviceOverride = null, ?string $serviceDateOverride = null): ProcessingResult
     {
         try {
             Log::info('Starting audio processing', $this->sanitizeArrayForLog([
@@ -242,20 +252,31 @@ class UnifiedMediaProcessor
 
             $id3Metadata = $this->metadataService->extractId3Metadata($file);
 
-            $processingLog = $this->processingInitiator->initiateProcessing(
-                $file,
-                MediaType::Audio,
-                $clientFileDate,
-                [
-                    'source_file_path' => $storedFilePath,
-                    'file_hash' => $fileHash,
-                    'dedup_key' => $dedupKey,
-                ],
-                preExtractedMetadata: [
-                    'id3_metadata' => $id3Metadata,
-                ],
-                serviceOverride: $serviceOverride,
-            );
+            $additionalLogData = [
+                'source_file_path' => $storedFilePath,
+                'file_hash' => $fileHash,
+                'dedup_key' => $dedupKey,
+            ];
+            $preExtractedMetadata = ['id3_metadata' => $id3Metadata];
+
+            $processingLog = $serviceDateOverride === null
+                ? $this->processingInitiator->initiateProcessing(
+                    $file,
+                    MediaType::Audio,
+                    $clientFileDate,
+                    $additionalLogData,
+                    preExtractedMetadata: $preExtractedMetadata,
+                    serviceOverride: $serviceOverride,
+                )
+                : $this->processingInitiator->initiateProcessing(
+                    $file,
+                    MediaType::Audio,
+                    $clientFileDate,
+                    $additionalLogData,
+                    preExtractedMetadata: $preExtractedMetadata,
+                    serviceOverride: $serviceOverride,
+                    serviceDateOverride: $serviceDateOverride,
+                );
 
             Log::info('Audio file stored, processing log created', $this->sanitizeArrayForLog([
                 'processing_id' => $processingLog->processing_id,
@@ -417,6 +438,7 @@ class UnifiedMediaProcessor
         array $options = [],
         ?string $dedupKey = null,
         ?SermonService $serviceOverride = null,
+        ?string $serviceDateOverride = null,
     ): ProcessingResult {
         try {
             // Store video file temporarily before processing (preserves file timestamps for metadata extraction)
@@ -428,22 +450,32 @@ class UnifiedMediaProcessor
 
             $videoProcessingMode = VideoProcessingOptions::resolveMode($options);
 
-            // Create processing log via shared initiator
-            $processingLog = $this->processingInitiator->initiateProcessing(
-                $file,
-                MediaType::Video,
-                $clientFileDate,
-                [
-                    'source_file_path' => $tempPath,
-                    'file_hash' => $fileHash,
-                    'dedup_key' => $dedupKey,
-                    'processing_metadata' => [
-                        'video_processing_mode' => $videoProcessingMode,
-                        'trim_requested' => $videoProcessingMode === MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
-                    ],
+            $additionalLogData = [
+                'source_file_path' => $tempPath,
+                'file_hash' => $fileHash,
+                'dedup_key' => $dedupKey,
+                'processing_metadata' => [
+                    'video_processing_mode' => $videoProcessingMode,
+                    'trim_requested' => $videoProcessingMode === MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
                 ],
-                serviceOverride: $serviceOverride,
-            );
+            ];
+
+            $processingLog = $serviceDateOverride === null
+                ? $this->processingInitiator->initiateProcessing(
+                    $file,
+                    MediaType::Video,
+                    $clientFileDate,
+                    $additionalLogData,
+                    serviceOverride: $serviceOverride,
+                )
+                : $this->processingInitiator->initiateProcessing(
+                    $file,
+                    MediaType::Video,
+                    $clientFileDate,
+                    $additionalLogData,
+                    serviceOverride: $serviceOverride,
+                    serviceDateOverride: $serviceDateOverride,
+                );
 
             $this->processingRunOrchestrator->start($processingLog);
 

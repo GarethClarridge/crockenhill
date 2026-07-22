@@ -27,6 +27,17 @@
             in_array($status, [\App\Enums\UploadState::Idle, \App\Enums\UploadState::Uploading], true)
             || ($status === \App\Enums\UploadState::Failed && $processingId === null && $tempFilePath === null)
         )
+            @if($contextChurchService)
+                <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-cbc-teal/30 bg-cbc-teal/5 px-4 py-3">
+                    <p class="text-sm text-gray-700">
+                        Uploading for <strong>{{ $contextChurchService->date->format('j F Y') }} — {{ $contextChurchService->service->label() }}</strong>
+                    </p>
+                    <x-button link="{{ route('admin.services.upload-recording') }}" variant="outline" size="sm" inline>
+                        Wrong service?
+                    </x-button>
+                </div>
+            @endif
+
             <x-card heading="Recording">
                 <div class="space-y-6">
                     {{-- Media Type Selection --}}
@@ -57,7 +68,7 @@
 
                     {{-- Service Selection: defaults per media type (livestream → morning,
                          video/audio → evening) and overrides automatic detection. --}}
-                    @if($mediaType)
+                    @if($mediaType && ! $contextChurchService)
                         <div>
                             <x-select
                                 label="Service"

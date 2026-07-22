@@ -69,6 +69,18 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function its_empty_states_preserve_the_service_context(): void
+    {
+        $service = ChurchService::factory()->create();
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSeeHtml('churchServiceId='.$service->id)
+            ->assertSeeHtml('intent=plan')
+            ->assertSeeHtml(route('admin.services.upload-recording', ['churchServiceId' => $service->id]));
+    }
+
+    #[Test]
     public function edit_query_parameter_opens_the_prefilled_order_of_service_editor(): void
     {
         $service = ChurchService::factory()->create([

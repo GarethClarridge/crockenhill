@@ -10,6 +10,7 @@ use App\Enums\ProcessingStep;
 use App\Enums\SermonService;
 use App\Enums\UploadState;
 use App\Livewire\Traits\WithAdminAuthorization;
+use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Queries\ChurchServiceProcessingRunQuery;
@@ -23,6 +24,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -41,6 +43,9 @@ class MediaUpload extends Component
     public bool $autoTrimVideo = false;
 
     public string $serviceOverride = '';
+
+    #[Url(except: null)]
+    public ?int $churchServiceId = null;
 
     public int $uploadProgress = 0;
 
@@ -79,6 +84,11 @@ class MediaUpload extends Component
         $this->runQuery = $runQuery;
     }
 
+    public function mount(): void
+    {
+        $this->applyChurchServiceContext();
+    }
+
     public function updatedMediaType(): void
     {
         $this->authorizeAdmin();
@@ -88,7 +98,8 @@ class MediaUpload extends Component
             $this->autoTrimVideo = false;
         }
 
-        $this->serviceOverride = $this->defaultServiceForType($this->mediaType);
+        $this->serviceOverride = $this->contextChurchService()?->service->value
+            ?? $this->defaultServiceForType($this->mediaType);
         $this->resetErrorBag('mediaFile');
     }
 
@@ -126,6 +137,7 @@ class MediaUpload extends Component
         $this->uploadProgress = 100;
 
         try {
+            $this->applyChurchServiceContext();
             $this->validate($this->getDynamicRules(), $this->getDynamicMessages());
             $this->originalFileName = $this->mediaFile->getClientOriginalName();
             $this->status = UploadState::Processing;
@@ -201,13 +213,24 @@ class MediaUpload extends Component
                 true,
             );
 
-            $result = $this->processor->process(
-                $this->mediaType,
-                $originalFile,
-                $this->fileModifiedDate,
-                $this->processingOptions(),
-                SermonService::tryFrom($this->serviceOverride),
-            );
+            $churchService = $this->contextChurchService();
+
+            $result = $churchService instanceof ChurchService
+                ? $this->processor->process(
+                    $this->mediaType,
+                    $originalFile,
+                    $this->fileModifiedDate,
+                    $this->processingOptions(),
+                    $churchService->service,
+                    $churchService->date->toDateString(),
+                )
+                : $this->processor->process(
+                    $this->mediaType,
+                    $originalFile,
+                    $this->fileModifiedDate,
+                    $this->processingOptions(),
+                    SermonService::tryFrom($this->serviceOverride),
+                );
 
             $this->processingId = $result->processingId;
 
@@ -394,6 +417,24 @@ class MediaUpload extends Component
             : SermonService::Evening->value;
     }
 
+    private function applyChurchServiceContext(): void
+    {
+        $churchService = $this->contextChurchService();
+
+        if ($churchService instanceof ChurchService) {
+            $this->serviceOverride = $churchService->service->value;
+        }
+    }
+
+    private function contextChurchService(): ?ChurchService
+    {
+        if ($this->churchServiceId === null) {
+            return null;
+        }
+
+        return ChurchService::query()->findOrFail($this->churchServiceId);
+    }
+
     private function handleProcessingError(string $message): void
     {
         $this->status = UploadState::Failed;
@@ -500,6 +541,7 @@ class MediaUpload extends Component
             'allowedExtensions' => $mediaType ? $this->validation->allowedExtensionsForDisplay($mediaType) : null,
             'maxFileSizeBytes' => $mediaType ? $this->validation->maxFileSizeBytes($mediaType) : null,
             'acceptAttribute' => $mediaType ? $this->validation->acceptAttribute($mediaType) : '',
+            'contextChurchService' => $this->contextChurchService(),
         ])->layout('layouts.admin', [
             'title' => 'Upload recording',
             'heading' => 'Upload recording',

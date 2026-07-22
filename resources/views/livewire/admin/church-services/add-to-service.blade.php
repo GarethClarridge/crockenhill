@@ -16,7 +16,7 @@
 
     <nav class="flex flex-wrap gap-2" aria-label="Choose what to add">
         <x-button
-            :link="route('admin.services.add', ['intent' => 'plan'])"
+            :link="route('admin.services.add', array_filter(['intent' => 'plan', 'churchServiceId' => $churchServiceId]))"
             :variant="$intent === 'plan' ? 'primary' : 'outline'"
             inline
             :aria-current="$intent === 'plan' ? 'page' : null"
@@ -24,7 +24,7 @@
             Order of service
         </x-button>
         <x-button
-            :link="route('admin.services.add', ['intent' => 'recording'])"
+            :link="route('admin.services.add', array_filter(['intent' => 'recording', 'churchServiceId' => $churchServiceId]))"
             :variant="$intent === 'recording' ? 'primary' : 'outline'"
             inline
             :aria-current="$intent === 'recording' ? 'page' : null"
@@ -39,7 +39,7 @@
                 <p class="text-sm text-gray-600">
                     Add sermon audio, a sermon video, or a full livestream using the recording uploader.
                 </p>
-                <x-button link="{{ route('admin.services.upload-recording') }}" variant="primary" icon="film" inline>
+                <x-button link="{{ route('admin.services.upload-recording', array_filter(['churchServiceId' => $churchServiceId])) }}" variant="primary" icon="film" inline>
                     Upload a recording
                 </x-button>
             </div>

@@ -64,6 +64,7 @@ class ProcessingInitiator
      *     }
      * }|null  $preExtractedMetadata  When non-null, replaces standard identity extraction
      * @param  SermonService|null  $serviceOverride  Operator-selected service; when set, overrides automatic detection
+     * @param  string|null  $serviceDateOverride  Server-derived service date; when set, overrides inferred recording dates
      * @return MediaProcessingLog The newly created processing log
      *
      * @throws UniqueConstraintViolationException If a duplicate processing run is initiated concurrently.
@@ -75,13 +76,20 @@ class ProcessingInitiator
         array $additionalLogData = [],
         ?array $preExtractedMetadata = null,
         ?SermonService $serviceOverride = null,
+        ?string $serviceDateOverride = null,
     ): MediaProcessingLog {
         $processingId = Str::uuid()->toString();
 
-        $extractedIdentity = [];
+        $extractedIdentity = $serviceDateOverride === null
+            ? []
+            : ['extracted_date' => $serviceDateOverride];
 
         if ($preExtractedMetadata !== null) {
             $baseMetadata = $preExtractedMetadata;
+
+            if ($serviceDateOverride !== null) {
+                $baseMetadata['date_extraction_method'] = 'service_context';
+            }
 
             if ($serviceOverride instanceof SermonService) {
                 $extractedIdentity['extracted_service'] = $serviceOverride;
@@ -95,7 +103,9 @@ class ProcessingInitiator
                 'service_override' => $serviceOverride?->value,
             ]));
         } else {
-            $extractedDateTime = $this->metadataService->extractDateFromVideo($file, $clientFileDate);
+            $extractedDateTime = $serviceDateOverride === null
+                ? $this->metadataService->extractDateFromVideo($file, $clientFileDate)
+                : Carbon::parse($serviceDateOverride)->startOfDay();
             $extractedService = $serviceOverride ?? $this->determineService($extractedDateTime, $file->getClientOriginalName());
 
             Log::info('Extracted metadata from media file', $this->sanitizeArrayForLog([
@@ -114,7 +124,7 @@ class ProcessingInitiator
             ];
 
             $baseMetadata = [
-                'date_extraction_method' => 'video_metadata_or_filename',
+                'date_extraction_method' => $serviceDateOverride === null ? 'video_metadata_or_filename' : 'service_context',
                 'service_extraction_method' => $serviceOverride instanceof SermonService ? 'manual_override' : 'datetime_timestamp',
             ];
         }

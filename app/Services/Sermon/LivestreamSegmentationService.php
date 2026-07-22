@@ -53,12 +53,13 @@ class LivestreamSegmentationService
      * @param  string|null  $fileHash  Pre-computed file hash for deduplication
      * @param  string|null  $dedupKey  Pre-built deduplication key
      * @param  SermonService|null  $serviceOverride  Operator-selected service; when set, overrides automatic detection
+     * @param  string|null  $serviceDateOverride  Server-derived service date; when set, overrides inferred recording dates
      * @return ProcessingResult The result of the initiation attempt
      *
      * @throws Exception If storage space is insufficient or video format is invalid
      * @throws RuntimeException If storage service fails to return required file paths
      */
-    public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null, ?string $fileHash = null, ?string $dedupKey = null, ?SermonService $serviceOverride = null): ProcessingResult
+    public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null, ?string $fileHash = null, ?string $dedupKey = null, ?SermonService $serviceOverride = null, ?string $serviceDateOverride = null): ProcessingResult
     {
         try {
             Log::info('Starting livestream processing', $this->sanitizeArrayForLog([
@@ -82,26 +83,36 @@ class LivestreamSegmentationService
 
             $metadata = $this->segmentationService->getVideoMetadata($fullPath);
 
-            // Create processing log via shared initiator with livestream-specific data
-            $processingLog = $this->processingInitiator->initiateProcessing(
-                $videoFile,
-                MediaType::Livestream,
-                $clientFileDate,
-                [
-                    'source_file_path' => $tempPath,
-                    'file_size' => $uploadResult['file_size'],
-                    'duration' => $metadata['duration'],
-                    'file_hash' => $fileHash,
-                    'dedup_key' => $dedupKey,
-                    'processing_metadata' => [
-                        'upload_time' => now()->toISOString(),
-                        'format_details' => $metadata,
-                        'mime_type' => $uploadResult['mime_type'],
-                        'file_format' => pathinfo($originalFilename, PATHINFO_EXTENSION),
-                    ],
+            $additionalLogData = [
+                'source_file_path' => $tempPath,
+                'file_size' => $uploadResult['file_size'],
+                'duration' => $metadata['duration'],
+                'file_hash' => $fileHash,
+                'dedup_key' => $dedupKey,
+                'processing_metadata' => [
+                    'upload_time' => now()->toISOString(),
+                    'format_details' => $metadata,
+                    'mime_type' => $uploadResult['mime_type'],
+                    'file_format' => pathinfo($originalFilename, PATHINFO_EXTENSION),
                 ],
-                serviceOverride: $serviceOverride,
-            );
+            ];
+
+            $processingLog = $serviceDateOverride === null
+                ? $this->processingInitiator->initiateProcessing(
+                    $videoFile,
+                    MediaType::Livestream,
+                    $clientFileDate,
+                    $additionalLogData,
+                    serviceOverride: $serviceOverride,
+                )
+                : $this->processingInitiator->initiateProcessing(
+                    $videoFile,
+                    MediaType::Livestream,
+                    $clientFileDate,
+                    $additionalLogData,
+                    serviceOverride: $serviceOverride,
+                    serviceDateOverride: $serviceDateOverride,
+                );
 
             $this->orchestrator->start($processingLog);
 
