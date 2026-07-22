@@ -55,6 +55,8 @@ class ChurchServiceShowPresenter
         $processingTimelines = ProcessingRunTimelineBuilder::buildAll($processingRuns);
         $serviceFlows = ServiceFlowBuilder::buildFlows($serviceTimelines, $processingRuns);
 
+        $rollup = $this->rollupQuery->rollupFor($churchService, $processingRuns);
+
         return new ChurchServiceShowReadModel(
             churchService: $churchService,
             importMetadata: $importMetadata,
@@ -63,7 +65,8 @@ class ChurchServiceShowPresenter
             processingRunViews: $this->runViews($processingRuns, $processingTimelines, $serviceTimelines, $serviceFlows),
             pendingMerge: $hasPendingMerge ? $pendingMerge : null,
             pendingMergeSource: $hasPendingMerge ? $pendingMergeSource : null,
-            pipelineSteps: $this->rollupQuery->rollupFor($churchService, $processingRuns)['steps'],
+            pipelineSteps: $rollup['steps'],
+            reviewNeedsAttention: $rollup['attention_count'] > 0,
             sectionReviewPanels: $this->sectionReviewPanels($processingRuns),
             mergeCandidatePairs: $this->mergeCandidatePairs($processingRuns),
             segmentConfirmations: $this->segmentConfirmations($processingRuns),
@@ -85,6 +88,7 @@ class ChurchServiceShowPresenter
      *     section: ServiceSection,
      *     reasons: array<int, array{key: string, label: string, classes: string}>,
      *     review_reason: string|null,
+     *     confirmable: bool,
      *     audio_url: string|null,
      *     video_url: string|null
      * }>

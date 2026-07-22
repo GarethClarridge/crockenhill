@@ -1,14 +1,15 @@
-{{-- Inline section review panel: expects $panel (section, audio_url, video_url),
-     $sectionTypeOptions, $preacherOptions, and $sectionPublishingEnabled. --}}
+{{-- Inline section review panel: expects $panel (section, confirmable, audio_url,
+     video_url), $sectionTypeOptions, $preacherOptions, and $sectionPublishingEnabled. --}}
 @php
     $section = $panel['section'];
     $publicationSpeaker = $section->publicationChildrensTalkSpeaker();
     $predictedSpeaker = $section->predictedChildrensTalkSpeaker();
     $speakerOutcome = is_array($predictedSpeaker) ? ($predictedSpeaker['outcome'] ?? null) : null;
     $reviewReasons = is_array($panel['reasons'] ?? null) ? $panel['reasons'] : [];
-    $hasManualReviewAction = collect($reviewReasons)->contains(
-        static fn (array $reason): bool => $reason['key'] !== 'pending_approval'
-    );
+    // Only offer Confirm when a one-click confirm will actually clear the section
+    // (unmatched songs and pending speaker reviews are resolved via their own
+    // controls, not by Confirm).
+    $hasManualReviewAction = (bool) ($panel['confirmable'] ?? false);
 @endphp
 
 <div id="section-{{ $section->id }}" class="rounded-lg border border-amber-200 bg-amber-50/40 p-3 space-y-3" wire:key="section-review-panel-{{ $section->id }}">

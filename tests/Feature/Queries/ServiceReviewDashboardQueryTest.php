@@ -482,6 +482,33 @@ class ServiceReviewDashboardQueryTest extends TestCase
     }
 
     #[Test]
+    public function review_entry_marks_one_click_confirmable_sections(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+
+        $confirmable = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Other->value,
+            'needs_manual_review' => true,
+            'confidence' => 0.99,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+        ]);
+
+        $unmatchedSong = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'church_service_item_id' => null,
+            'needs_manual_review' => false,
+            'confidence' => 0.99,
+            'song_match_type' => 'unmatched',
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+        ]);
+
+        $this->assertTrue($this->query->reviewEntryFor($confirmable)['confirmable']);
+        $this->assertFalse($this->query->reviewEntryFor($unmatchedSong)['confirmable']);
+    }
+
+    #[Test]
     public function is_review_candidate_returns_false_for_clean_section(): void
     {
         $run = MediaProcessingLog::factory()->livestream()->create();

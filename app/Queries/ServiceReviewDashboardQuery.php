@@ -394,6 +394,7 @@ class ServiceReviewDashboardQuery
      * @return array{
      *     reasons: array<int, array{key: string, label: string, classes: string}>,
      *     review_reason: string|null,
+     *     confirmable: bool,
      *     audio_url: string|null,
      *     video_url: string|null
      * }|null
@@ -408,6 +409,7 @@ class ServiceReviewDashboardQuery
         return [
             'reasons' => $reasons,
             'review_reason' => $this->reviewReasonLabel($section),
+            'confirmable' => $this->confirmationSkipReason($section) === null,
             'audio_url' => $this->assetUrl($section, 'audio', $section->extracted_audio_path),
             'video_url' => $this->assetUrl($section, 'video', $section->extracted_video_path),
         ];

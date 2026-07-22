@@ -16,7 +16,7 @@ final readonly class ChurchServiceShowReadModel
      * @param  list<string>  $warnings
      * @param  list<ChurchServiceProcessingRunView>  $processingRunViews
      * @param  list<array{label: string, state: string}>  $pipelineSteps
-     * @param  array<int, array{section: ServiceSection, reasons: array<int, array{key: string, label: string, classes: string}>, review_reason: string|null, audio_url: string|null, video_url: string|null}>  $sectionReviewPanels
+     * @param  array<int, array{section: ServiceSection, reasons: array<int, array{key: string, label: string, classes: string}>, review_reason: string|null, confirmable: bool, audio_url: string|null, video_url: string|null}>  $sectionReviewPanels
      * @param  array<int, int>  $mergeCandidatePairs
      * @param  array<int, array{segments: Collection<int, LivestreamSegment>, confirmed_segment_id: int|null, source_available: bool}>  $segmentConfirmations
      */
@@ -29,6 +29,7 @@ final readonly class ChurchServiceShowReadModel
         public ?PendingStructureMergeMetadata $pendingMerge,
         public ?string $pendingMergeSource,
         public array $pipelineSteps,
+        public bool $reviewNeedsAttention,
         public array $sectionReviewPanels,
         public array $mergeCandidatePairs,
         public array $segmentConfirmations,
@@ -46,7 +47,8 @@ final readonly class ChurchServiceShowReadModel
      *     pendingMerge: ?PendingStructureMergeMetadata,
      *     pendingMergeSource: ?string,
      *     pipelineSteps: list<array{label: string, state: string}>,
-     *     sectionReviewPanels: array<int, array{section: ServiceSection, reasons: array<int, array{key: string, label: string, classes: string}>, review_reason: string|null, audio_url: string|null, video_url: string|null}>,
+     *     reviewNeedsAttention: bool,
+     *     sectionReviewPanels: array<int, array{section: ServiceSection, reasons: array<int, array{key: string, label: string, classes: string}>, review_reason: string|null, confirmable: bool, audio_url: string|null, video_url: string|null}>,
      *     mergeCandidatePairs: array<int, int>,
      *     segmentConfirmations: array<int, array{segments: Collection<int, LivestreamSegment>, confirmed_segment_id: int|null, source_available: bool}>,
      *     pendingApprovalCount: int,
@@ -64,6 +66,7 @@ final readonly class ChurchServiceShowReadModel
             'pendingMerge' => $this->pendingMerge,
             'pendingMergeSource' => $this->pendingMergeSource,
             'pipelineSteps' => $this->pipelineSteps,
+            'reviewNeedsAttention' => $this->reviewNeedsAttention,
             'sectionReviewPanels' => $this->sectionReviewPanels,
             'mergeCandidatePairs' => $this->mergeCandidatePairs,
             'segmentConfirmations' => $this->segmentConfirmations,

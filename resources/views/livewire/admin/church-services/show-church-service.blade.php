@@ -3,13 +3,12 @@
     description="Review the planned service, processing runs, and publication state."
 >
     @php
+        // Only sections "Confirm all remaining" will actually clear — the same
+        // guard ConfirmServiceSections applies — so the count never overstates
+        // what the button does.
         $confirmableSectionCount = collect($sectionReviewPanels)->filter(
-            static fn (array $panel): bool => collect($panel['reasons'] ?? [])->contains(
-                static fn (array $reason): bool => $reason['key'] !== 'pending_approval'
-            )
+            static fn (array $panel): bool => (bool) ($panel['confirmable'] ?? false)
         )->count();
-        $reviewStep = collect($pipelineSteps)->firstWhere('label', 'Review');
-        $reviewNeedsAttention = ($reviewStep['state'] ?? null) === 'blocked';
     @endphp
 
     <x-slot:actions>

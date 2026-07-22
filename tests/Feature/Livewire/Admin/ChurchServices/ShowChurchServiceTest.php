@@ -501,6 +501,32 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_hides_confirm_for_sections_that_are_not_one_click_confirmable(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $unmatchedSong = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'title' => 'Unmatched song',
+            'church_service_item_id' => null,
+            'needs_manual_review' => false,
+            'confidence' => 0.99,
+            'song_match_type' => 'unmatched',
+        ]);
+
+        $html = Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertDontSee('Confirm all remaining')
+            ->html();
+
+        // The panel still renders (the song is flagged), but Confirm is withheld
+        // because resolving the match — not a one-click confirm — is the action.
+        $this->assertStringContainsString('Unmatched song', $html);
+        $this->assertStringNotContainsString('wire:click="confirmSection('.$unmatchedSong->id.')"', $html);
+    }
+
+    #[Test]
     public function it_does_not_seed_edit_state_for_clean_sections(): void
     {
         [$service, $run] = $this->workbenchServiceWithRun();
