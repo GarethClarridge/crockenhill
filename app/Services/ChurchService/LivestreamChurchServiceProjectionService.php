@@ -26,6 +26,7 @@ class LivestreamChurchServiceProjectionService
         private readonly ChurchServiceCanonicalStateService $canonicalStateService,
         private readonly ChurchServiceCanonicalUpdateService $canonicalUpdateService,
         private readonly ChurchServiceReviewSynchronizer $reviewSynchronizer,
+        private readonly ProcessingRunSupersessionService $supersessionService,
     ) {}
 
     /**
@@ -372,6 +373,11 @@ class LivestreamChurchServiceProjectionService
                 'church_service_id' => $churchService->id,
             ])->saveQuietly();
         }
+
+        // A run has just attached to this service; if it now shares the service
+        // with an earlier run (a duplicate upload), keep only the best one's
+        // structure and supersede the rest so surfaces show no overlap.
+        $this->supersessionService->reconcile($churchService);
     }
 
     /**

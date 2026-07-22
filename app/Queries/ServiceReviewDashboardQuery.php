@@ -258,9 +258,11 @@ class ServiceReviewDashboardQuery
                 'churchServiceItem.churchService:id,date,service,needs_review',
             ])
             ->where('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
+            ->whereDoesntHave('processingLog', fn (Builder $query): Builder => $query->whereNotNull('superseded_at'))
             ->where(function (Builder $query) use ($service, $fallbackProcessingIds): void {
                 $query->whereIn('media_processing_log_id', MediaProcessingLog::query()
                     ->select('id')
+                    ->notSuperseded()
                     ->tap(fn ($query) => $this->runMatcher->applyMatchClauses($query, $service, $fallbackProcessingIds)))
                     ->orWhereHas('churchServiceItem', fn (Builder $query): Builder => $query->where('church_service_id', $service->id));
             })
@@ -505,6 +507,12 @@ class ServiceReviewDashboardQuery
     private function reviewCandidateSectionsBaseQuery(): Builder
     {
         return ServiceSection::query()
+            // Sections belonging to a superseded run (a duplicate/earlier
+            // processing of the same service) are kept for audit but never
+            // reviewed — the winning run owns the service's structure.
+            ->whereDoesntHave('processingLog', function (Builder $query): void {
+                $query->whereNotNull('superseded_at');
+            })
             ->where(function (Builder $query): void {
                 $query->where('needs_manual_review', true)
                     ->orWhere('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)

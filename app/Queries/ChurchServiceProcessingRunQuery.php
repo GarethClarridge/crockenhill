@@ -26,6 +26,7 @@ class ChurchServiceProcessingRunQuery
 
         return MediaProcessingLog::query()
             ->segmentationPipeline()
+            ->notSuperseded()
             ->with([
                 'serviceSections' => fn ($query) => $query
                     ->with([

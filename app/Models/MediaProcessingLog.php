@@ -133,6 +133,10 @@ class MediaProcessingLog extends Model
         'started_at',
         'completed_at',
         'is_degraded_completion',
+
+        // Supersession (a later/better run for the same service won)
+        'superseded_at',
+        'superseded_by_processing_log_id',
     ];
 
     /**
@@ -160,6 +164,7 @@ class MediaProcessingLog extends Model
             'attempt_count' => 'integer',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
+            'superseded_at' => 'datetime',
             'is_degraded_completion' => 'boolean',
         ];
     }
@@ -259,6 +264,32 @@ class MediaProcessingLog extends Model
      * @param  Builder<MediaProcessingLog>  $query
      * @return Builder<MediaProcessingLog>
      */
+    /**
+     * Runs left in place but no longer the authoritative processing of their
+     * service — a later/better run for the same service won. Their sections are
+     * kept for audit but excluded from every review and timeline surface.
+     *
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
+    public function scopeNotSuperseded(Builder $query): Builder
+    {
+        return $query->whereNull('superseded_at');
+    }
+
+    /**
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
+    public function scopeSuperseded(Builder $query): Builder
+    {
+        return $query->whereNotNull('superseded_at');
+    }
+
+    /**
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
     public function scopeSegmentationPipeline(Builder $query): Builder
     {
         return $query->where(function (Builder $query): void {
@@ -319,6 +350,7 @@ class MediaProcessingLog extends Model
     public function scopeAwaitingManualSermonReview(Builder $query): Builder
     {
         return $query
+            ->whereNull('superseded_at')
             ->where('status', ProcessingStatus::Failed->value)
             ->where('current_step', 'manual_review_required')
             ->where(function (Builder $query): void {
