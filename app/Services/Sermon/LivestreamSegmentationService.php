@@ -97,22 +97,14 @@ class LivestreamSegmentationService
                 ],
             ];
 
-            $processingLog = $serviceDateOverride === null
-                ? $this->processingInitiator->initiateProcessing(
-                    $videoFile,
-                    MediaType::Livestream,
-                    $clientFileDate,
-                    $additionalLogData,
-                    serviceOverride: $serviceOverride,
-                )
-                : $this->processingInitiator->initiateProcessing(
-                    $videoFile,
-                    MediaType::Livestream,
-                    $clientFileDate,
-                    $additionalLogData,
-                    serviceOverride: $serviceOverride,
-                    serviceDateOverride: $serviceDateOverride,
-                );
+            $processingLog = $this->processingInitiator->initiateProcessing(
+                $videoFile,
+                MediaType::Livestream,
+                $clientFileDate,
+                $additionalLogData,
+                serviceOverride: $serviceOverride,
+                serviceDateOverride: $serviceDateOverride,
+            );
 
             $this->orchestrator->start($processingLog);
 

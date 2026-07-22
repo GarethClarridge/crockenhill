@@ -76,7 +76,11 @@ class ChurchServiceItemFactory extends Factory
 
                 return is_numeric($maxPosition) ? ((int) $maxPosition + 1) : 1;
             },
-            'type' => $this->faker->randomElement(['songs', 'bibles', 'presentations', 'custom']),
+            // Deterministic by default: a random `type` here is faker-sequence
+            // dependent, which silently changes item-sync/song-linking behaviour
+            // between runs. Use the ->song()/->bible()/->presentation() states
+            // when a specific type matters.
+            'type' => 'custom',
             'section_type' => null,
             'source' => ChurchServiceItemSource::OpenLp->value,
             'title' => $this->faker->sentence(3),
@@ -96,5 +100,20 @@ class ChurchServiceItemFactory extends Factory
             'source' => ChurchServiceItemSource::Livestream->value,
             'openlp_search_title' => null,
         ]);
+    }
+
+    public function song(): static
+    {
+        return $this->state(fn (): array => ['type' => 'songs']);
+    }
+
+    public function bible(): static
+    {
+        return $this->state(fn (): array => ['type' => 'bibles']);
+    }
+
+    public function presentation(): static
+    {
+        return $this->state(fn (): array => ['type' => 'presentations']);
     }
 }

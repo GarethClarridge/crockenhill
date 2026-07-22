@@ -47,6 +47,13 @@ class MediaUpload extends Component
     #[Url(except: null)]
     public ?int $churchServiceId = null;
 
+    /**
+     * Per-request memo for the contextual service. `false` means "not yet
+     * resolved"; `null` means "resolved, but no matching service" — Livewire
+     * re-instantiates the component each request, so this resets naturally.
+     */
+    private ChurchService|false|null $contextChurchService = false;
+
     public int $uploadProgress = 0;
 
     public ?string $processingId = null;
@@ -215,22 +222,16 @@ class MediaUpload extends Component
 
             $churchService = $this->contextChurchService();
 
-            $result = $churchService instanceof ChurchService
-                ? $this->processor->process(
-                    $this->mediaType,
-                    $originalFile,
-                    $this->fileModifiedDate,
-                    $this->processingOptions(),
-                    $churchService->service,
-                    $churchService->date->toDateString(),
-                )
-                : $this->processor->process(
-                    $this->mediaType,
-                    $originalFile,
-                    $this->fileModifiedDate,
-                    $this->processingOptions(),
-                    SermonService::tryFrom($this->serviceOverride),
-                );
+            $result = $this->processor->process(
+                $this->mediaType,
+                $originalFile,
+                $this->fileModifiedDate,
+                $this->processingOptions(),
+                $churchService instanceof ChurchService
+                    ? $churchService->service
+                    : SermonService::tryFrom($this->serviceOverride),
+                $churchService?->date->toDateString(),
+            );
 
             $this->processingId = $result->processingId;
 
@@ -428,11 +429,17 @@ class MediaUpload extends Component
 
     private function contextChurchService(): ?ChurchService
     {
-        if ($this->churchServiceId === null) {
-            return null;
+        if ($this->contextChurchService !== false) {
+            return $this->contextChurchService;
         }
 
-        return ChurchService::query()->findOrFail($this->churchServiceId);
+        if ($this->churchServiceId === null) {
+            return $this->contextChurchService = null;
+        }
+
+        // find(), not findOrFail(): a stale ?churchServiceId= from a bookmark
+        // must degrade to the ordinary uploader, not 404 the whole page.
+        return $this->contextChurchService = ChurchService::query()->find($this->churchServiceId);
     }
 
     private function handleProcessingError(string $message): void

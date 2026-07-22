@@ -355,4 +355,27 @@ class ProcessingInitiatorTest extends TestCase
         $this->assertEquals(SermonService::Evening, $log->extracted_service);
         $this->assertEquals('manual_override', $log->processing_metadata['service_extraction_method']);
     }
+
+    #[Test]
+    public function service_date_override_sets_the_date_on_the_pre_extracted_audio_path(): void
+    {
+        $file = UploadedFile::fake()->create('2025-12-14-evening-sermon.mp3', 1024, 'audio/mpeg');
+
+        $this->metadataService->expects($this->never())->method('extractDateFromVideo');
+
+        $log = $this->initiator->initiateProcessing(
+            $file,
+            MediaType::Audio,
+            null,
+            ['source_file_path' => 'sermons/2026/02/audio.mp3'],
+            preExtractedMetadata: ['id3_metadata' => ['title' => 'Grace Alone']],
+            serviceOverride: SermonService::Morning,
+            serviceDateOverride: '2026-02-22',
+        );
+
+        $this->assertEquals('2026-02-22', $log->extracted_date->toDateString());
+        $this->assertEquals(SermonService::Morning, $log->extracted_service);
+        $this->assertEquals('service_context', $log->processing_metadata['date_extraction_method']);
+        $this->assertEquals('manual_override', $log->processing_metadata['service_extraction_method']);
+    }
 }

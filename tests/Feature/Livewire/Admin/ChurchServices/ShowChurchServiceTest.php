@@ -1294,8 +1294,13 @@ class ShowChurchServiceTest extends TestCase
 
         [$service, $run] = $this->workbenchServiceWithRun();
 
+        // church_service_item_id => null throughout: the factory default chains
+        // to an unpinned ChurchServiceItem → random-date ChurchService, which can
+        // collide on the date+service unique key. These detected sections need no
+        // projected-item link for this test.
         $first = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
             'section_type' => ServiceSectionType::Song->value,
             'section_order' => 5,
             'needs_manual_review' => true,
@@ -1306,6 +1311,7 @@ class ShowChurchServiceTest extends TestCase
         // Un-flagged section at order 6 (between the merge candidates by section_order)
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
             'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 6,
             'needs_manual_review' => false,
@@ -1317,6 +1323,7 @@ class ShowChurchServiceTest extends TestCase
         // the between-sections check triggers instead.
         $third = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
             'section_type' => ServiceSectionType::Song->value,
             'section_order' => 7,
             'needs_manual_review' => true,

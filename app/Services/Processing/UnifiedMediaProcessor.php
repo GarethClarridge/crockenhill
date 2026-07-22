@@ -109,14 +109,6 @@ class UnifiedMediaProcessor
         }
 
         try {
-            if ($serviceDateOverride === null) {
-                return match ($mediaType) {
-                    MediaType::Audio => $this->processAudio($file, $clientFileDate, $fileHash, $dedupKey, $serviceOverride),
-                    MediaType::Video => $this->processDirectVideo($file, $clientFileDate, $fileHash, $options, $dedupKey, $serviceOverride),
-                    MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate, $fileHash, $dedupKey, $serviceOverride),
-                };
-            }
-
             return match ($mediaType) {
                 MediaType::Audio => $this->processAudio($file, $clientFileDate, $fileHash, $dedupKey, $serviceOverride, $serviceDateOverride),
                 MediaType::Video => $this->processDirectVideo($file, $clientFileDate, $fileHash, $options, $dedupKey, $serviceOverride, $serviceDateOverride),
@@ -259,24 +251,15 @@ class UnifiedMediaProcessor
             ];
             $preExtractedMetadata = ['id3_metadata' => $id3Metadata];
 
-            $processingLog = $serviceDateOverride === null
-                ? $this->processingInitiator->initiateProcessing(
-                    $file,
-                    MediaType::Audio,
-                    $clientFileDate,
-                    $additionalLogData,
-                    preExtractedMetadata: $preExtractedMetadata,
-                    serviceOverride: $serviceOverride,
-                )
-                : $this->processingInitiator->initiateProcessing(
-                    $file,
-                    MediaType::Audio,
-                    $clientFileDate,
-                    $additionalLogData,
-                    preExtractedMetadata: $preExtractedMetadata,
-                    serviceOverride: $serviceOverride,
-                    serviceDateOverride: $serviceDateOverride,
-                );
+            $processingLog = $this->processingInitiator->initiateProcessing(
+                $file,
+                MediaType::Audio,
+                $clientFileDate,
+                $additionalLogData,
+                preExtractedMetadata: $preExtractedMetadata,
+                serviceOverride: $serviceOverride,
+                serviceDateOverride: $serviceDateOverride,
+            );
 
             Log::info('Audio file stored, processing log created', $this->sanitizeArrayForLog([
                 'processing_id' => $processingLog->processing_id,
@@ -460,22 +443,14 @@ class UnifiedMediaProcessor
                 ],
             ];
 
-            $processingLog = $serviceDateOverride === null
-                ? $this->processingInitiator->initiateProcessing(
-                    $file,
-                    MediaType::Video,
-                    $clientFileDate,
-                    $additionalLogData,
-                    serviceOverride: $serviceOverride,
-                )
-                : $this->processingInitiator->initiateProcessing(
-                    $file,
-                    MediaType::Video,
-                    $clientFileDate,
-                    $additionalLogData,
-                    serviceOverride: $serviceOverride,
-                    serviceDateOverride: $serviceDateOverride,
-                );
+            $processingLog = $this->processingInitiator->initiateProcessing(
+                $file,
+                MediaType::Video,
+                $clientFileDate,
+                $additionalLogData,
+                serviceOverride: $serviceOverride,
+                serviceDateOverride: $serviceDateOverride,
+            );
 
             $this->processingRunOrchestrator->start($processingLog);
 

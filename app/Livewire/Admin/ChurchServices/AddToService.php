@@ -49,12 +49,6 @@ class AddToService extends Component
         $this->normaliseIntent();
     }
 
-    public function updatedIntent(): void
-    {
-        $this->authorizeAdmin();
-        $this->normaliseIntent();
-    }
-
     public function importPlan(): void
     {
         $this->authorizeAdmin();
