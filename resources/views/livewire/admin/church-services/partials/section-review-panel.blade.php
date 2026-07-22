@@ -5,49 +5,69 @@
     $publicationSpeaker = $section->publicationChildrensTalkSpeaker();
     $predictedSpeaker = $section->predictedChildrensTalkSpeaker();
     $speakerOutcome = is_array($predictedSpeaker) ? ($predictedSpeaker['outcome'] ?? null) : null;
+    $reviewReasons = is_array($panel['reasons'] ?? null) ? $panel['reasons'] : [];
+    $hasManualReviewAction = collect($reviewReasons)->contains(
+        static fn (array $reason): bool => $reason['key'] !== 'pending_approval'
+    );
 @endphp
 
 <div id="section-{{ $section->id }}" class="rounded-lg border border-amber-200 bg-amber-50/40 p-3 space-y-3" wire:key="section-review-panel-{{ $section->id }}">
-    @if($sectionPublishingEnabled)
+    @if($hasManualReviewAction || $sectionPublishingEnabled)
         <div class="flex justify-end">
             <div class="flex flex-wrap gap-2">
-                @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::PendingApproval)
+                @if($hasManualReviewAction)
                     <x-form-button
                         type="button"
                         size="xs"
                         variant="primary"
-                        wire:click="approve({{ $section->id }})"
-                        wire:target="approve({{ $section->id }})"
+                        icon="check"
+                        wire:click="confirmSection({{ $section->id }})"
+                        wire:target="confirmSection({{ $section->id }})"
+                        loading-label="Confirming..."
                     >
-                        Approve
+                        Confirm
                     </x-form-button>
                 @endif
 
-                @if(in_array($section->publication_status, [
-                    \App\Enums\ServiceSectionPublicationStatus::PendingApproval,
-                    \App\Enums\ServiceSectionPublicationStatus::Approved,
-                ], true))
-                    <x-form-button
-                        type="button"
-                        size="xs"
-                        variant="outline"
-                        wire:click="reject({{ $section->id }})"
-                        wire:target="reject({{ $section->id }})"
-                    >
-                        Reject
-                    </x-form-button>
-                @endif
+                @if($sectionPublishingEnabled)
+                    @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::PendingApproval)
+                        <x-form-button
+                            type="button"
+                            size="xs"
+                            variant="primary"
+                            wire:click="approve({{ $section->id }})"
+                            wire:target="approve({{ $section->id }})"
+                        >
+                            Approve
+                        </x-form-button>
+                    @endif
 
-                @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::Rejected)
-                    <x-form-button
-                        type="button"
-                        size="xs"
-                        variant="outline"
-                        wire:click="requeue({{ $section->id }})"
-                        wire:target="requeue({{ $section->id }})"
-                    >
-                        Requeue
-                    </x-form-button>
+                    @if(in_array($section->publication_status, [
+                        \App\Enums\ServiceSectionPublicationStatus::PendingApproval,
+                        \App\Enums\ServiceSectionPublicationStatus::Approved,
+                    ], true))
+                        <x-form-button
+                            type="button"
+                            size="xs"
+                            variant="outline"
+                            wire:click="reject({{ $section->id }})"
+                            wire:target="reject({{ $section->id }})"
+                        >
+                            Reject
+                        </x-form-button>
+                    @endif
+
+                    @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::Rejected)
+                        <x-form-button
+                            type="button"
+                            size="xs"
+                            variant="outline"
+                            wire:click="requeue({{ $section->id }})"
+                            wire:target="requeue({{ $section->id }})"
+                        >
+                            Requeue
+                        </x-form-button>
+                    @endif
                 @endif
             </div>
         </div>

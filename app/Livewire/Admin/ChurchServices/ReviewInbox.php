@@ -191,7 +191,13 @@ class ReviewInbox extends Component
             return;
         }
 
-        $action->execute($service, $userId);
+        $warning = $action->execute($service, $userId);
+
+        if ($warning !== null) {
+            $this->warning($warning);
+
+            return;
+        }
 
         $this->success('Service marked as reviewed.');
     }

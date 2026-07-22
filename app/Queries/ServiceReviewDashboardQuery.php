@@ -270,6 +270,40 @@ class ServiceReviewDashboardQuery
     }
 
     /**
+     * Review-candidate sections scoped to a service via the same run/item
+     * matching paths used by the workbench and batch publication actions.
+     *
+     * @return EloquentCollection<int, ServiceSection>
+     */
+    public function reviewSectionsForService(ChurchService $service): EloquentCollection
+    {
+        $fallbackProcessingIds = $this->runMatcher->fallbackProcessingIdsForService($service);
+
+        return $this->reviewSectionsQuery()
+            ->where(function (Builder $query) use ($service, $fallbackProcessingIds): void {
+                $query->whereIn('media_processing_log_id', MediaProcessingLog::query()
+                    ->select('id')
+                    ->tap(fn ($query) => $this->runMatcher->applyMatchClauses($query, $service, $fallbackProcessingIds)))
+                    ->orWhereHas('churchServiceItem', fn (Builder $query): Builder => $query->where('church_service_id', $service->id));
+            })
+            ->orderBy('section_order')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * @return EloquentCollection<int, ServiceSection>
+     */
+    public function manualReviewSectionsForService(ChurchService $service): EloquentCollection
+    {
+        return $this->reviewSectionsForService($service)
+            ->filter(fn (ServiceSection $section): bool => collect($this->reviewReasons($section))
+                ->reject(static fn (array $reason): bool => $reason['key'] === 'pending_approval')
+                ->isNotEmpty())
+            ->values();
+    }
+
+    /**
      * @return array<int, array{key:string,label:string,classes:string}>
      */
     public function reviewReasons(ServiceSection $section): array
@@ -309,6 +343,7 @@ class ServiceReviewDashboardQuery
             $section->section_type->requiresStructuralUncertaintyReview()
             && $section->confidence !== null
             && $section->confidence < ServiceSectionConfidence::HIGH_THRESHOLD
+            && ! $this->hasManualConfirmation($section)
         ) {
             $reasons[] = [
                 'key' => 'low_confidence',
@@ -317,7 +352,7 @@ class ServiceReviewDashboardQuery
             ];
         }
 
-        if ($section->hasInferredSongMatch()) {
+        if ($section->hasInferredSongMatch() && ! $this->hasSongMatchReview($section)) {
             $reasons[] = [
                 'key' => 'inferred_song_label',
                 'label' => 'Inferred song label',
@@ -325,7 +360,7 @@ class ServiceReviewDashboardQuery
             ];
         }
 
-        if ($section->hasUnmatchedSongMatch()) {
+        if ($section->hasUnmatchedSongMatch() && ! $this->hasSongMatchReview($section)) {
             $reasons[] = [
                 'key' => 'unmatched_song',
                 'label' => 'Unmatched song',
@@ -387,6 +422,27 @@ class ServiceReviewDashboardQuery
 
         if ($additionalReviewFlags->isNotEmpty()) {
             return 'blocked by other review flags';
+        }
+
+        return null;
+    }
+
+    public function confirmationSkipReason(ServiceSection $section): ?string
+    {
+        $reviewReasons = collect($this->reviewReasons($section));
+
+        if ($reviewReasons->isEmpty() || $reviewReasons->every(
+            static fn (array $reason): bool => $reason['key'] === 'pending_approval'
+        )) {
+            return 'not awaiting manual review';
+        }
+
+        if ($reviewReasons->contains('key', 'speaker_review')) {
+            return 'speaker review required';
+        }
+
+        if ($reviewReasons->contains('key', 'unmatched_song')) {
+            return 'unmatched song';
         }
 
         return null;
@@ -457,13 +513,22 @@ class ServiceReviewDashboardQuery
                                 ServiceSectionType::cases(),
                                 static fn (ServiceSectionType $type): bool => $type->requiresStructuralUncertaintyReview(),
                             ),
-                        ))->where('confidence', '<', ServiceSectionConfidence::HIGH_THRESHOLD);
+                        ))->where('confidence', '<', ServiceSectionConfidence::HIGH_THRESHOLD)
+                            ->where(function (Builder $query): void {
+                                $query->whereNull('metadata->manual_review->confirmed_at')
+                                    ->orWhere('metadata->manual_review->confirmed_at', '');
+                            });
                     })
                     ->orWhereJsonContains('metadata->review_flags', 'heuristic_demotion')
-                    ->orWhereIn('song_match_type', [
-                        ServiceSectionSongMatchType::Inferred->value,
-                        ServiceSectionSongMatchType::Unmatched->value,
-                    ])
+                    ->orWhere(function (Builder $query): void {
+                        $query->whereIn('song_match_type', [
+                            ServiceSectionSongMatchType::Inferred->value,
+                            ServiceSectionSongMatchType::Unmatched->value,
+                        ])->where(function (Builder $query): void {
+                            $query->whereNull('metadata->manual_review->song_match_reviewed_at')
+                                ->orWhere('metadata->manual_review->song_match_reviewed_at', '');
+                        });
+                    })
                     ->when($this->hasActiveSpeakerProfiles(), function (Builder $query): void {
                         $query->orWhere(function (Builder $query): void {
                             $query->where('section_type', ServiceSectionType::ChildrensTalk->value)
@@ -475,11 +540,25 @@ class ServiceReviewDashboardQuery
                         // Legacy/fallback song match checks
                         $query->where('section_type', ServiceSectionType::Song->value)
                             ->where(function (Builder $query): void {
+                                $query->whereNull('metadata->manual_review->song_match_reviewed_at')
+                                    ->orWhere('metadata->manual_review->song_match_reviewed_at', '');
+                            })
+                            ->where(function (Builder $query): void {
                                 $query->whereNull('church_service_item_id')
                                     ->orWhereHas('churchServiceItem', fn (Builder $query): Builder => $query->whereNull('song_id'));
                             });
                     });
             });
+    }
+
+    private function hasManualConfirmation(ServiceSection $section): bool
+    {
+        return filled(data_get($section->metadata?->toArray() ?? [], 'manual_review.confirmed_at'));
+    }
+
+    private function hasSongMatchReview(ServiceSection $section): bool
+    {
+        return filled(data_get($section->metadata?->toArray() ?? [], 'manual_review.song_match_reviewed_at'));
     }
 
     private function hasActiveSpeakerProfiles(): bool

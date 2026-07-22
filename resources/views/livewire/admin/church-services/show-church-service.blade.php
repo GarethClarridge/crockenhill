@@ -2,6 +2,14 @@
     :title="$churchService->date->format('j M Y').' '.$churchService->service->label()"
     description="Review the planned service, processing runs, and publication state."
 >
+    @php
+        $confirmableSectionCount = collect($sectionReviewPanels)->filter(
+            static fn (array $panel): bool => collect($panel['reasons'] ?? [])->contains(
+                static fn (array $reason): bool => $reason['key'] !== 'pending_approval'
+            )
+        )->count();
+    @endphp
+
     <x-slot:actions>
         <x-button link="{{ route('admin.services.inbox') }}" variant="outline" icon="inbox" inline>
             Review inbox
@@ -18,21 +26,40 @@
         <div class="flex flex-wrap items-center justify-between gap-3">
             <x-admin.pipeline-steps :steps="$pipelineSteps" />
 
-            @if($sectionPublishingEnabled && $pendingApprovalCount > 0)
-                <div class="flex items-center gap-3">
-                    <p class="text-xs text-gray-500">
-                        {{ $pendingApprovalCount }} pending {{ \Illuminate\Support\Str::plural('publication', $pendingApprovalCount) }}
-                    </p>
-                    <x-form-button
-                        type="button"
-                        variant="primary"
-                        size="sm"
-                        wire:click="approvePendingPublications({{ $churchService->id }})"
-                        wire:target="approvePendingPublications({{ $churchService->id }})"
-                        wire:loading.attr="disabled"
-                    >
-                        Approve all pending publications
-                    </x-form-button>
+            @if($confirmableSectionCount > 0 || ($sectionPublishingEnabled && $pendingApprovalCount > 0))
+                <div class="flex flex-wrap items-center justify-end gap-3">
+                    @if($confirmableSectionCount > 0)
+                        <p class="text-xs text-gray-500">
+                            {{ $confirmableSectionCount }} remaining {{ \Illuminate\Support\Str::plural('section', $confirmableSectionCount) }}
+                        </p>
+                        <x-form-button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            wire:click="confirmAllSections({{ $churchService->id }})"
+                            wire:target="confirmAllSections({{ $churchService->id }})"
+                            wire:loading.attr="disabled"
+                            loading-label="Confirming..."
+                        >
+                            Confirm all remaining
+                        </x-form-button>
+                    @endif
+
+                    @if($sectionPublishingEnabled && $pendingApprovalCount > 0)
+                        <p class="text-xs text-gray-500">
+                            {{ $pendingApprovalCount }} pending {{ \Illuminate\Support\Str::plural('publication', $pendingApprovalCount) }}
+                        </p>
+                        <x-form-button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            wire:click="approvePendingPublications({{ $churchService->id }})"
+                            wire:target="approvePendingPublications({{ $churchService->id }})"
+                            wire:loading.attr="disabled"
+                        >
+                            Approve all pending publications
+                        </x-form-button>
+                    @endif
                 </div>
             @endif
         </div>

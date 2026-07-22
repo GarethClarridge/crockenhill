@@ -20,6 +20,7 @@ class SaveServiceSection
 {
     public function __construct(
         private readonly ChildrensTalkSpeakerService $speakerService,
+        private readonly ConfirmServiceSection $confirmSection,
         private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
         private readonly ExtractedSectionMediaChecker $mediaChecker,
     ) {}
@@ -100,17 +101,10 @@ class SaveServiceSection
             );
         } else {
             unset($metadata['childrens_talk_speaker']);
-            $section->needs_manual_review = false;
             $section->metadata = ServiceSectionMetadata::fromArray($metadata);
         }
 
-        $metadata = $section->metadata?->toArray() ?? [];
-        unset($metadata['review_reason'], $metadata['review_flags']);
-        $metadata['manual_review'] = [
-            'updated_at' => now()->toIso8601String(),
-            'updated_by_user_id' => $userId,
-        ];
-        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+        $this->confirmSection->apply($section, $userId);
 
         if (
             ! $this->publicationTransitions->isPublishableType($section)

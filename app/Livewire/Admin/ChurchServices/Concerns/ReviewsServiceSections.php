@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\ChurchServices\Concerns;
 
 use App\Actions\ServiceReview\BatchApproveServicePublications;
+use App\Actions\ServiceReview\ConfirmServiceSection;
+use App\Actions\ServiceReview\ConfirmServiceSections;
 use App\Actions\ServiceReview\MarkServiceReviewed;
 use App\Actions\ServiceReview\MergeAdjacentServiceSections;
 use App\Actions\ServiceReview\SaveServiceSection;
@@ -47,6 +49,10 @@ trait ReviewsServiceSections
 
     protected MarkServiceReviewed $markReviewedAction;
 
+    protected ConfirmServiceSection $confirmSectionAction;
+
+    protected ConfirmServiceSections $confirmSectionsAction;
+
     protected BatchApproveServicePublications $batchApproveAction;
 
     protected MergeAdjacentServiceSections $mergeAction;
@@ -54,12 +60,16 @@ trait ReviewsServiceSections
     public function bootReviewsServiceSections(
         ServiceReviewDashboardQuery $dashboardQuery,
         SaveServiceSection $saveSectionAction,
+        ConfirmServiceSection $confirmSectionAction,
+        ConfirmServiceSections $confirmSectionsAction,
         MarkServiceReviewed $markReviewedAction,
         BatchApproveServicePublications $batchApproveAction,
         MergeAdjacentServiceSections $mergeAction,
     ): void {
         $this->dashboardQuery = $dashboardQuery;
         $this->saveSectionAction = $saveSectionAction;
+        $this->confirmSectionAction = $confirmSectionAction;
+        $this->confirmSectionsAction = $confirmSectionsAction;
         $this->markReviewedAction = $markReviewedAction;
         $this->batchApproveAction = $batchApproveAction;
         $this->mergeAction = $mergeAction;
@@ -104,6 +114,73 @@ trait ReviewsServiceSections
         $this->success('Section changes saved.');
     }
 
+    public function confirmSection(int $sectionId): void
+    {
+        $this->authorizeAdmin();
+
+        $section = ServiceSection::query()->find($sectionId);
+        if (! $section instanceof ServiceSection) {
+            $this->error('Section not found.');
+
+            return;
+        }
+
+        $section->loadMissing('churchServiceItem');
+
+        $skipReason = $this->dashboardQuery->confirmationSkipReason($section);
+        if ($skipReason !== null) {
+            $this->warning($this->formatConfirmationSkipReason($skipReason));
+
+            return;
+        }
+
+        $this->confirmSectionAction->execute($section, $this->reviewingUserId());
+
+        $this->success('Section confirmed.');
+    }
+
+    public function confirmAllSections(int $serviceId): void
+    {
+        $this->authorizeAdmin();
+
+        $service = ChurchService::query()->find($serviceId);
+        if (! $service instanceof ChurchService) {
+            $this->error('Service not found.');
+
+            return;
+        }
+
+        $result = $this->confirmSectionsAction->execute($service, $this->reviewingUserId());
+        $confirmedCount = $result['confirmed_count'];
+        $skippedReasons = $result['skipped_reasons'];
+
+        if ($confirmedCount === 0) {
+            $this->warning(sprintf(
+                'No sections were confirmed. %s',
+                $this->formatBatchApprovalSkipSummary($skippedReasons)
+            ));
+
+            return;
+        }
+
+        if ($skippedReasons === []) {
+            $this->success(sprintf(
+                'Confirmed all %d %s for this service.',
+                $confirmedCount,
+                Str::plural('section', $confirmedCount)
+            ));
+
+            return;
+        }
+
+        $this->success(sprintf(
+            'Confirmed %d %s. %s',
+            $confirmedCount,
+            Str::plural('section', $confirmedCount),
+            $this->formatBatchApprovalSkipSummary($skippedReasons)
+        ));
+    }
+
     public function markServiceReviewed(int $serviceId): void
     {
         $this->authorizeAdmin();
@@ -115,7 +192,13 @@ trait ReviewsServiceSections
             return;
         }
 
-        $this->markReviewedAction->execute($service, $this->reviewingUserId());
+        $warning = $this->markReviewedAction->execute($service, $this->reviewingUserId());
+
+        if ($warning !== null) {
+            $this->warning($warning);
+
+            return;
+        }
 
         $this->success('Service marked as reviewed.');
     }
@@ -285,6 +368,15 @@ trait ReviewsServiceSections
             Str::plural('section', $totalSkipped),
             $reasons
         );
+    }
+
+    protected function formatConfirmationSkipReason(string $skipReason): string
+    {
+        return match ($skipReason) {
+            'speaker review required' => 'Choose a speaker before confirming this section.',
+            'unmatched song' => 'Resolve the song match before confirming this section.',
+            default => 'This section is no longer awaiting manual review.',
+        };
     }
 
     protected function reviewingUserId(): int

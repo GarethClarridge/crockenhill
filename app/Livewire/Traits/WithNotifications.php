@@ -26,4 +26,9 @@ trait WithNotifications
     {
         $this->dispatch('notify', type: 'error', message: $message);
     }
+
+    public function warning(string $message): void
+    {
+        $this->dispatch('notify', type: 'warning', message: $message);
+    }
 }

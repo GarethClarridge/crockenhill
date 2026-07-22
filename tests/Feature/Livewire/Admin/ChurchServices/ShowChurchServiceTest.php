@@ -322,6 +322,68 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_confirms_one_section_without_saving_the_edit_form(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Welcome->value,
+            'title' => 'Confirmed welcome',
+            'needs_manual_review' => true,
+            'metadata' => [
+                'review_reason' => 'structure_low_confidence',
+                'review_flags' => ['structure_low_confidence'],
+            ],
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Confirm')
+            ->call('confirmSection', $section->id)
+            ->assertDispatched('notify', type: 'success', message: 'Section confirmed.')
+            ->assertDontSee('Confirm all remaining');
+
+        $fresh = $section->fresh();
+        $metadata = $fresh?->metadata?->toArray() ?? [];
+
+        $this->assertFalse($fresh?->needs_manual_review);
+        $this->assertArrayNotHasKey('review_flags', $metadata);
+        $this->assertSame('Confirmed welcome', $fresh?->title);
+    }
+
+    #[Test]
+    public function it_confirms_all_clearable_sections_and_reports_blocked_sections(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $clearable = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Welcome->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'metadata' => ['review_flags' => ['structure_low_confidence']],
+        ]);
+
+        $blocked = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 2,
+            'song_match_type' => 'unmatched',
+            'needs_manual_review' => true,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Confirm all remaining')
+            ->call('confirmAllSections', $service->id)
+            ->assertDispatched('notify', type: 'success', message: 'Confirmed 1 section. Skipped 1 section: unmatched song (1).');
+
+        $this->assertFalse($clearable->fresh()?->needs_manual_review);
+        $this->assertTrue($blocked->fresh()?->needs_manual_review);
+    }
+
+    #[Test]
     public function it_does_not_seed_edit_state_for_clean_sections(): void
     {
         [$service, $run] = $this->workbenchServiceWithRun();
@@ -416,6 +478,8 @@ class ShowChurchServiceTest extends TestCase
 
         foreach ([
             fn ($component) => $component->call('saveSection', $section->id),
+            fn ($component) => $component->call('confirmSection', $section->id),
+            fn ($component) => $component->call('confirmAllSections', $service->id),
             fn ($component) => $component->call('approvePendingPublications', $service->id),
             // The confirmMerge() authorization gap from the dashboard must not be copied (C4),
             // and the pending-merge state setters are guarded too.

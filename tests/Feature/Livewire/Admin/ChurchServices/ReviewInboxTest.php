@@ -254,6 +254,35 @@ class ReviewInboxTest extends TestCase
     }
 
     #[Test]
+    public function mark_service_reviewed_warns_and_preserves_the_flag_when_sections_remain(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+            'needs_review' => true,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'church_service_id' => $service->id,
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => SermonService::Morning->value,
+            'sermon_id' => null,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => true,
+            'metadata' => ['review_flags' => ['structure_low_confidence']],
+        ]);
+
+        Livewire::test(ReviewInbox::class)
+            ->call('markServiceReviewed', $service->id)
+            ->assertDispatched('notify', type: 'warning', message: 'This service still has 1 section needing attention. Confirm or resolve the section first.');
+
+        $this->assertTrue($service->fresh()->needs_review);
+    }
+
+    #[Test]
     public function every_mutating_action_rejects_non_admin_users(): void
     {
         $member = User::factory()->create([

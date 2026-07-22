@@ -6,7 +6,10 @@ namespace Tests\Feature\Actions\ServiceReview;
 
 use App\Actions\ServiceReview\MarkServiceReviewed;
 use App\Enums\ChurchServiceReviewState;
+use App\Enums\SermonService;
 use App\Models\ChurchService;
+use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -36,6 +39,32 @@ class MarkServiceReviewedTest extends TestCase
         $this->action->execute($service, $this->admin->id);
 
         $this->assertFalse($service->fresh()->needs_review);
+    }
+
+    #[Test]
+    public function it_refuses_to_clear_service_review_while_section_review_remains(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+            'needs_review' => true,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => 'morning',
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => true,
+        ]);
+
+        $warning = $this->action->execute($service, $this->admin->id);
+
+        $this->assertSame('This service still has 1 section needing attention. Confirm or resolve the section first.', $warning);
+        $this->assertTrue($service->fresh()->needs_review);
     }
 
     #[Test]
