@@ -33,3 +33,7 @@
 ## 2026-07-15 - Unit Testing Model Validation Rules
 **Learning:** To unit test model `validationRules()` without a database connection, use `Validator::make()` but filter out database-dependent rules (e.g., `exists`, `unique`) from the rule array. Filtering must account for both string-based rules (e.g., `'exists:table,column'`) and object-based rules (e.g., `Rule::unique()`). To verify rule configuration, cast the rule to a string (e.g., `unique:users,email,"123",id`) before filtering.
 **Action:** Use a `filterDatabaseRules` helper in unit tests to strip DB-dependent rules before passing them to the Validator. Assert the configuration of `unique` rules by casting the rule object to a string.
+
+## 2026-07-20 - Asserting Unescaped HTML Text
+**Learning:** When asserting text containing single quotes or apostrophes (such as "I've got children") in HTML responses within feature tests, Laravel's `assertSee()` defaults to escaping the searched string (converting `'` to `&#039;`). If the page renders raw characters or the assertion string is already escaped differently, this causes brittle test failures. Passing `false` as the second argument (`$escape`) bypasses this default behavior.
+**Action:** Use `$response->assertSee('text', false)` to safely perform unescaped assertions in feature tests.
