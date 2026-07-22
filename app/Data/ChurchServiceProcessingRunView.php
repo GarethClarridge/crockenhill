@@ -37,7 +37,14 @@ final readonly class ChurchServiceProcessingRunView
 
     public function hasClassifiedSections(): bool
     {
-        return $this->serviceTimeline !== [];
+        return $this->hasSections && $this->serviceTimeline !== [];
+    }
+
+    public function isFailedWithoutSections(): bool
+    {
+        return $this->run->isFailed()
+            && ! $this->hasSections
+            && ! $this->needsSermonReview;
     }
 
     public function hasReviewActions(): bool

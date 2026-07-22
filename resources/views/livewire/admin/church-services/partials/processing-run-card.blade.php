@@ -35,6 +35,12 @@
 
     @if($processingRunView->isWaitingForSections())
         <p class="text-sm text-gray-500">Sections not yet available — processing is still in progress.</p>
+    @elseif($processingRunView->isFailedWithoutSections())
+        <div class="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-3" role="status">
+            <p class="text-sm font-medium text-rose-900">
+                Run failed {{ $run->updated_at?->diffForHumans() ?? 'previously' }} — no sections were produced
+            </p>
+        </div>
     @elseif(! $processingRunView->hasClassifiedSections())
         <p class="text-sm text-gray-500">No classified sections available for this run yet.</p>
     @else

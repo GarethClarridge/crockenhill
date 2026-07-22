@@ -131,10 +131,6 @@
             <span class="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-medium text-rose-800">
                 Unplanned
             </span>
-        @elseif($row['row_type'] === 'planned_only')
-            <span class="inline-flex items-center rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-700">
-                Not detected
-            </span>
         @endif
 
         @if($row['needs_review'] && $row['row_type'] !== 'mismatched')

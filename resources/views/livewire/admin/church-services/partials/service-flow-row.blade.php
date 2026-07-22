@@ -154,7 +154,7 @@
                 @endif
             </div>
 
-            @if($item['description'] !== '')
+            @if($item['description'] !== '' && $item['row_type'] !== 'planned_only')
                 <p class="mt-1 text-xs text-gray-500 leading-relaxed">{{ $item['description'] }}</p>
             @endif
 
@@ -202,7 +202,7 @@
                 </div>
             @endif
 
-            @if($item['planned_context'])
+            @if($item['planned_context'] && $item['row_type'] !== 'planned_only')
                 <div>
                     <p class="font-medium text-gray-500 uppercase tracking-wide mb-1">Order of Service</p>
                     <p>{{ $item['planned_context'] }}</p>

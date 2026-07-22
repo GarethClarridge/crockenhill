@@ -236,6 +236,99 @@ class ShowChurchServiceTest extends TestCase
             ->assertSee('Delete upload');
     }
 
+    #[Test]
+    public function failed_runs_without_sections_render_a_summary_instead_of_planned_only_rows(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-22',
+            'service' => SermonService::Morning->value,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'title' => 'Ghost planned item',
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->failed()->create([
+            'extracted_date' => $service->date,
+            'extracted_service' => $service->service->value,
+            'created_at' => now()->subMonths(2),
+            'updated_at' => now()->subMonths(2),
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Run failed 2 months ago — no sections were produced')
+            ->assertSee('Delete upload')
+            ->assertDontSee('Ghost planned item')
+            ->assertDontSee('Expected from Order of Service');
+
+        $this->assertSame('failed', $run->fresh()?->status->value);
+    }
+
+    #[Test]
+    public function completed_runs_without_sections_do_not_render_planned_only_rows(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-22',
+            'service' => SermonService::Morning->value,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'title' => 'Unproduced planned item',
+        ]);
+
+        MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => $service->date,
+            'extracted_service' => $service->service->value,
+            'sermon_id' => null,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('No classified sections available for this run yet.')
+            ->assertDontSee('Unproduced planned item')
+            ->assertDontSee('Expected from Order of Service');
+    }
+
+    #[Test]
+    public function planned_only_rows_show_one_not_detected_explanation_when_a_run_has_sections(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-22',
+            'service' => SermonService::Morning->value,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'title' => 'Unmatched planned item',
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => $service->date,
+            'extracted_service' => $service->service->value,
+            'sermon_id' => null,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Welcome->value,
+            'section_order' => 1,
+            'title' => 'Detected welcome',
+        ]);
+
+        $html = Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->html();
+
+        $this->assertSame(1, substr_count($html, 'Expected from Order of Service'));
+        $this->assertSame(2, substr_count($html, 'Not detected'));
+    }
+
     // -------------------------------------------------------------------------
     // Inline section review (P3.2)
     // -------------------------------------------------------------------------
