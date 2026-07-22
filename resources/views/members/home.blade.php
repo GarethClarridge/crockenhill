@@ -43,8 +43,8 @@
               Add to service
             </x-button>
 
-            <x-button link="{{ route('admin.services.inbox') }}" icon="inbox" iconStyle="solid">
-              Review inbox
+            <x-button link="{{ route('admin.services.index') }}" icon="inbox" iconStyle="solid">
+              Needs attention
               @if(($reviewInboxCount ?? 0) > 0)
               <span class="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
                 {{ $reviewInboxCount }}

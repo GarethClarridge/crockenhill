@@ -12,9 +12,6 @@
     @endphp
 
     <x-slot:actions>
-        <x-button link="{{ route('admin.services.inbox') }}" variant="outline" icon="inbox" inline>
-            Review inbox
-        </x-button>
         <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
             Back to services
         </x-button>

@@ -1006,7 +1006,7 @@ class AdminChurchServiceTest extends TestCase
         // needs_review flag + pending merge = 2 attention items rolled up
         Livewire::test(ListChurchServices::class)
             ->assertSee('Needs review (2)')
-            ->assertSee('Pending merges');
+            ->assertSee('1 plan conflict to resolve · 1 service needs checking');
     }
 
     #[Test]
@@ -1041,7 +1041,7 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
-    public function hub_attention_strip_links_to_the_review_inbox_filters(): void
+    public function hub_folds_attention_items_into_service_groups(): void
     {
         $this->actingAs($this->admin);
 
@@ -1053,10 +1053,9 @@ class AdminChurchServiceTest extends TestCase
             ->create();
 
         Livewire::test(ListChurchServices::class)
-            ->assertSee('Inbound emails')
-            ->assertSee('Services needing review')
-            ->assertSeeHtml(route('admin.services.inbox', ['filter' => 'emails']))
-            ->assertSeeHtml(route('admin.services.inbox', ['filter' => 'services']))
+            ->assertSee('Needs attention')
+            ->assertSee('service needs checking')
+            ->assertSeeHtml(route('admin.services.show', ChurchService::query()->whereDate('date', '2026-01-19')->firstOrFail()))
             ->assertDontSee('All caught up');
     }
 

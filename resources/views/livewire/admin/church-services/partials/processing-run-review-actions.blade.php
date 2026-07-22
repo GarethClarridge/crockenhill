@@ -20,16 +20,5 @@
             </span>
         @endif
 
-        @if($processingRunView->hasPendingPublications)
-            <x-button
-                link="{{ route('admin.services.inbox', ['filter' => 'sections']) }}"
-                variant="outline"
-                size="xs"
-                icon="queue-list"
-                inline
-            >
-                Review inbox
-            </x-button>
-        @endif
     </div>
 @endif

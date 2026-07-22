@@ -13,7 +13,60 @@
 
     <x-slot:filters>
         <div class="space-y-4">
-            <x-admin.attention-strip :chips="$attentionChips" />
+            <section class="space-y-3" aria-labelledby="needs-attention-heading">
+                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <h2 id="needs-attention-heading" class="font-display text-xl text-gray-900">
+                        Needs attention
+                        <span class="font-sans text-sm font-medium text-gray-500">{{ $attentionTotal }}</span>
+                    </h2>
+                    @if($attentionShown < $attentionTotal)
+                        <p class="text-sm text-gray-500">
+                            Showing the newest {{ $attentionShown }} of {{ $attentionTotal }} — resolve items to see older ones.
+                        </p>
+                    @endif
+                </div>
+
+                <div class="space-y-3" wire:loading.class.delay.200ms="opacity-50" aria-busy="false" wire:loading.attr="aria-busy">
+                    @forelse($attentionGroups as $group)
+                        <x-card wire:key="attention-group-{{ $group['key'] }}">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div class="min-w-0 space-y-1">
+                                    <h3 class="font-medium text-gray-900">
+                                        {{ $group['date_label'] }}{{ $group['service_label'] !== '' ? ' — '.$group['service_label'] : '' }}
+                                    </h3>
+                                    @if($group['summary'] !== '')
+                                        <p class="text-sm text-gray-600">{{ $group['summary'] }}</p>
+                                    @endif
+                                </div>
+                                @if($group['service'] !== null && $group['summary'] !== '')
+                                    <x-button :link="route('admin.services.show', $group['service'])" variant="outline" size="xs" icon="arrow-right" iconPosition="trailing" inline>
+                                        Review service
+                                    </x-button>
+                                @elseif($group['service'] === null && $group['date'] !== null && $group['service_value'] !== null && $group['summary'] !== '')
+                                    <x-button :link="route('admin.services.create', ['date' => $group['date'], 'service' => $group['service_value']])" variant="outline" size="xs" icon="plus" inline>
+                                        Create this service
+                                    </x-button>
+                                @endif
+                            </div>
+
+                            @if($group['emails'] !== [])
+                                <ul class="mt-3 divide-y divide-gray-100 border-t border-gray-200">
+                                    @foreach($group['emails'] as $index => $item)
+                                        <li class="py-4" wire:key="attention-email-{{ $item['email']->id }}">
+                                            @include('livewire.admin.church-services.partials.inbound-email-attention-row', ['item' => $item])
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                        </x-card>
+                    @empty
+                        <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center">
+                            <p class="font-medium text-gray-900">All caught up</p>
+                            <p class="mt-1 text-sm text-gray-500">Nothing currently needs your attention.</p>
+                        </div>
+                    @endforelse
+                </div>
+            </section>
 
             @if($heroService !== null)
                 @include('livewire.admin.church-services.partials.services-hub-hero')

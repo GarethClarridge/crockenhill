@@ -53,6 +53,6 @@ class ManualReviewRequired extends Mailable
             return route('admin.recordings.sermon-segment', $log->processing_id);
         }
 
-        return route('admin.services.inbox', ['filter' => 'segments']);
+        return route('admin.services.index');
     }
 }

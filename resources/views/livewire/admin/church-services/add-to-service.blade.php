@@ -52,11 +52,11 @@
                 </div>
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">Email text imported for review</h2>
-                    <p class="mt-1 text-sm text-gray-600">The email text has been queued for processing. Check the review inbox to see the parsed result.</p>
+                    <p class="mt-1 text-sm text-gray-600">The email text has been queued for processing. Check Needs attention on the services page to see the parsed result.</p>
                 </div>
                 <div class="flex flex-wrap justify-center gap-3">
-                    <x-button link="{{ route('admin.services.inbox', ['filter' => 'emails']) }}" variant="primary" inline>
-                        View in review inbox
+                    <x-button link="{{ route('admin.services.index') }}" variant="primary" inline>
+                        View services
                     </x-button>
                     <x-form-button type="button" variant="outline" wire:click="resetEmailForm">
                         Add another order of service
@@ -141,7 +141,7 @@
             <x-card heading="How imports work">
                 <div class="space-y-3 text-sm text-gray-600">
                     <p>OpenLP files are imported immediately. Low-confidence imports are flagged for review.</p>
-                    <p>Email text uses the same parsing pipeline as inbound mail and appears in the review inbox when ready.</p>
+                    <p>Email text uses the same parsing pipeline as inbound mail and appears under Needs attention when ready.</p>
                 </div>
             </x-card>
 

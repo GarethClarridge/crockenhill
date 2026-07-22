@@ -20,7 +20,6 @@ use App\Livewire\Admin\ChurchServices\AddToService;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
 use App\Livewire\Admin\ChurchServices\ListSongs;
 use App\Livewire\Admin\ChurchServices\ManageChurchService;
-use App\Livewire\Admin\ChurchServices\ReviewInbox;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\ChurchServices\ShowSong;
 use App\Livewire\Admin\MediaUpload;
@@ -194,7 +193,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     // Church Services
     Route::middleware('service-tracking.enabled')->group(function () {
         Route::get('/services', ListChurchServices::class)->name('services.index');
-        Route::get('/services/inbox', ReviewInbox::class)->name('services.inbox');
+        Route::redirect('/services/inbox', '/admin/services')->name('services.inbox');
         Route::get('/services/add', AddToService::class)->name('services.add');
         Route::get('/services/create', ManageChurchService::class)->name('services.create');
         Route::redirect('/services/upload', '/admin/services/add?intent=plan')->name('services.upload');
@@ -203,10 +202,10 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         Route::redirect('/services/submit-email', '/admin/services/add?intent=plan')->name('services.submit-email');
         // Retired queue pages (P3.4/P5): triage moved to the review inbox, editing
         // to the service workbench. URLs 302 so bookmarks keep working.
-        Route::redirect('/services/review', '/admin/services/inbox')->name('services.review');
-        Route::redirect('/services/inbound-emails', '/admin/services/inbox?filter=emails')->name('services.inbound-emails');
-        Route::redirect('/services/section-publications', '/admin/services/inbox?filter=sections')->name('services.section-publications');
-        Route::redirect('/services/processing/review', '/admin/services/inbox?filter=segments')->name('services.processing.review.index');
+        Route::redirect('/services/review', '/admin/services')->name('services.review');
+        Route::redirect('/services/inbound-emails', '/admin/services')->name('services.inbound-emails');
+        Route::redirect('/services/section-publications', '/admin/services')->name('services.section-publications');
+        Route::redirect('/services/processing/review', '/admin/services')->name('services.processing.review.index');
         Route::get('/services/processing/{processingLog}/review', function (MediaProcessingLog $processingLog) {
             return redirect()->route('admin.recordings.sermon-segment', $processingLog->processing_id);
         })->name('services.processing.review');

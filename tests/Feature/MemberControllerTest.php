@@ -96,8 +96,8 @@ class MemberControllerTest extends TestCase
         $response->assertOk();
         $response->assertSee(route('admin.services.add'));
         $response->assertSeeText('Add to service');
-        $response->assertSee(route('admin.services.inbox'));
-        $response->assertSeeText('Review inbox');
+        $response->assertSee(route('admin.services.index'));
+        $response->assertSeeText('Needs attention');
         $response->assertSeeText('2');
     }
 
@@ -119,7 +119,7 @@ class MemberControllerTest extends TestCase
         $response = $this->get(route('members.home'));
 
         $response->assertOk();
-        $response->assertSeeText('Review inbox');
+        $response->assertSeeText('Needs attention');
         $response->assertSeeText('1');
     }
 
@@ -136,12 +136,11 @@ class MemberControllerTest extends TestCase
         $response = $this->get(route('members.home'));
 
         $response->assertOk();
-        $response->assertDontSeeText('Review inbox');
+        $response->assertDontSeeText('Needs attention');
         // Exact-URL check: the upload button's /admin/services/upload-recording
         // URL shares this prefix but is gated by the Sermon create Gate, not
         // service tracking, so it must stay.
         $response->assertDontSee(route('admin.services.index').'"', false);
-        $response->assertDontSee(route('admin.services.inbox'));
         $response->assertSeeText('Upload sermon');
         $response->assertSee(route('admin.services.upload-recording'));
         $response->assertSeeText('Manage sermons');

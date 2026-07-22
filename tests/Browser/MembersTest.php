@@ -44,7 +44,7 @@ class MembersTest extends DuskTestCase
                 ->visit('/church/members')
                 ->assertSee('Services, sermons and songs')
                 ->assertSee('Services')
-                ->assertSee('Review inbox')
+                ->assertSee('Needs attention')
                 ->assertSee('Manage sermons')
                 ->assertSee('Song catalogue');
         });
@@ -57,22 +57,22 @@ class MembersTest extends DuskTestCase
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
                 ->visit('/church/members')
-                ->assertDontSee('Review inbox')
+                ->assertDontSee('Needs attention')
                 ->assertDontSee('Manage sermons')
                 ->assertSee('Welcome back');
         });
     }
 
-    public function test_admin_review_inbox_link_navigates(): void
+    public function test_admin_needs_attention_link_navigates_to_services(): void
     {
         $admin = User::factory()->crockenhillAdmin()->create();
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
                 ->visit('/church/members')
-                ->clickLink('Review inbox')
-                ->waitForLocation('/admin/services/inbox')
-                ->assertPathIs('/admin/services/inbox');
+                ->clickLink('Needs attention')
+                ->waitForLocation('/admin/services')
+                ->assertPathIs('/admin/services');
         });
     }
 

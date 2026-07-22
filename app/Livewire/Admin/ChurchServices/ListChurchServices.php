@@ -6,13 +6,17 @@ namespace App\Livewire\Admin\ChurchServices;
 
 use App\Enums\ChurchServiceRollupStatus;
 use App\Enums\SermonService;
+use App\Livewire\Admin\ChurchServices\Concerns\ManagesInboundEmailReview;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithFilterableListing;
+use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\ChurchService;
 use App\Queries\AdminAttentionCounts;
 use App\Queries\ChurchServiceRollupQuery;
+use App\Queries\ReviewInboxQuery;
 use App\Traits\EscapesLikeWildcards;
+use App\Traits\SanitizesLogData;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\View\View;
@@ -22,7 +26,14 @@ use Livewire\WithPagination;
 
 class ListChurchServices extends Component
 {
-    use EscapesLikeWildcards, WithAdminAuthorization, WithFilterableListing, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards;
+    use ManagesInboundEmailReview;
+    use SanitizesLogData;
+    use WithAdminAuthorization;
+    use WithFilterableListing;
+    use WithNotifications;
+    use WithPagination;
+    use WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'date';
 
@@ -74,8 +85,11 @@ class ListChurchServices extends Component
         ];
     }
 
-    public function render(ChurchServiceRollupQuery $rollupQuery, AdminAttentionCounts $attentionCounts): View
-    {
+    public function render(
+        ChurchServiceRollupQuery $rollupQuery,
+        AdminAttentionCounts $attentionCounts,
+        ReviewInboxQuery $reviewInboxQuery,
+    ): View {
         $this->sanitizeSorting();
 
         $this->computeHasFilters();
@@ -132,12 +146,17 @@ class ListChurchServices extends Component
             ['key' => 'updated_at', 'label' => 'Uploaded', 'sortable' => true],
         ];
 
+        $attention = $reviewInboxQuery->build();
+        $attentionTotals = $attentionCounts->counts();
+
         return view('livewire.admin.church-services.list-church-services', [
             'churchServices' => $churchServices,
             'services' => SermonService::cases(),
             'headers' => $headers,
             'rollups' => $rollups,
-            'attentionChips' => $this->attentionChips($attentionCounts->counts()),
+            'attentionGroups' => $this->summariseAttentionGroups($attention['groups']),
+            'attentionShown' => $attention['counts']['all'],
+            'attentionTotal' => $attentionCounts->total($attentionTotals),
             'heroService' => $heroService,
             'heroRollup' => $heroService !== null ? ($rollups[$heroService->id] ?? null) : null,
             'heroIsCurrent' => $heroService !== null && $this->isWithinHeroWindow($heroService),
@@ -145,18 +164,41 @@ class ListChurchServices extends Component
     }
 
     /**
-     * @param  array{pending_emails: int, awaiting_segment_runs: int, flagged_sections: int, pending_merges: int, services_needing_review: int}  $counts
-     * @return list<array{label: string, count: int, href: string}>
+     * @param  list<array<string, mixed>>  $groups
+     * @return list<array<string, mixed>>
      */
-    private function attentionChips(array $counts): array
+    private function summariseAttentionGroups(array $groups): array
     {
-        return [
-            ['label' => 'Inbound emails', 'count' => $counts['pending_emails'], 'href' => route('admin.services.inbox', ['filter' => 'emails'])],
-            ['label' => 'Sermon segments', 'count' => $counts['awaiting_segment_runs'], 'href' => route('admin.services.inbox', ['filter' => 'segments'])],
-            ['label' => 'Flagged sections', 'count' => $counts['flagged_sections'], 'href' => route('admin.services.inbox', ['filter' => 'sections'])],
-            ['label' => 'Pending merges', 'count' => $counts['pending_merges'], 'href' => route('admin.services.inbox', ['filter' => 'services'])],
-            ['label' => 'Services needing review', 'count' => $counts['services_needing_review'], 'href' => route('admin.services.inbox', ['filter' => 'services'])],
-        ];
+        return array_map(function (array $group): array {
+            $kindCounts = [];
+
+            foreach ($group['items'] as $item) {
+                $kind = $item['kind'];
+                $kindCounts[$kind] = ($kindCounts[$kind] ?? 0) + 1;
+            }
+
+            $group['emails'] = array_values(array_filter(
+                $group['items'],
+                fn (array $item): bool => $item['kind'] === 'email',
+            ));
+            $group['summary'] = collect([
+                $this->summaryPart($kindCounts['section'] ?? 0, 'section to confirm', 'sections to confirm'),
+                $this->summaryPart($kindCounts['segment'] ?? 0, 'sermon segment needs choosing', 'sermon segments need choosing'),
+                $this->summaryPart($kindCounts['merge'] ?? 0, 'plan conflict to resolve', 'plan conflicts to resolve'),
+                $this->summaryPart($kindCounts['service_flag'] ?? 0, 'service needs checking', 'service flags need checking'),
+            ])->filter()->implode(' · ');
+
+            return $group;
+        }, $groups);
+    }
+
+    private function summaryPart(int $count, string $singular, string $plural): ?string
+    {
+        if ($count === 0) {
+            return null;
+        }
+
+        return $count.' '.($count === 1 ? $singular : $plural);
     }
 
     /**
