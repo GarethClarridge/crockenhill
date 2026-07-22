@@ -106,6 +106,41 @@ class SermonIndexRequestTest extends TestCase
     }
 
     #[Test]
+    public function validation_rules_reject_oversized_digits_preacher_id(): void
+    {
+        $data = [
+            'preacher_id' => 12345678901, // 11 digits
+        ];
+
+        $request = new SermonIndexRequest;
+        $rules = $request->rules();
+
+        // Temporarily filter out exists rule so we only test bounds
+        $rules['preacher_id'] = array_filter($rules['preacher_id'], function ($rule) {
+            return ! (is_string($rule) && str_starts_with($rule, 'exists'));
+        });
+
+        $validator = Validator::make($data, ['preacher_id' => $rules['preacher_id']]);
+
+        $this->assertFalse($validator->passes());
+        $this->assertTrue($validator->errors()->has('preacher_id'));
+    }
+
+    #[Test]
+    public function validation_rules_reject_oversized_digits_per_page(): void
+    {
+        $data = [
+            'per_page' => 1000, // 4 digits
+        ];
+
+        $request = new SermonIndexRequest;
+        $validator = Validator::make($data, $request->rules());
+
+        $this->assertFalse($validator->passes());
+        $this->assertTrue($validator->errors()->has('per_page'));
+    }
+
+    #[Test]
     public function validation_rules_reject_oversized_strings(): void
     {
         $request = new SermonIndexRequest;
