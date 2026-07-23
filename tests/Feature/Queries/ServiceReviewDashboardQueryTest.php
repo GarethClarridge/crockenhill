@@ -6,6 +6,7 @@ namespace Tests\Feature\Queries;
 
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -407,6 +408,40 @@ class ServiceReviewDashboardQueryTest extends TestCase
         // with RefreshDatabase only these two sections exist.
         $this->assertFalse($this->query->isReviewCandidate($benediction));
         $this->assertTrue($this->query->isReviewCandidate($plainReading));
+        $this->assertSame(1, $this->query->reviewCandidateSectionCount());
+    }
+
+    #[Test]
+    public function a_confirmed_song_match_is_exempt_from_low_confidence_review(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+
+        $attributes = [
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song,
+            'needs_manual_review' => false,
+            'confidence' => ServiceSectionConfidence::HIGH_THRESHOLD - 0.05,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+        ];
+
+        // A positively identified song: the transcript match already cleared the
+        // confidence bar, so its low structural-placement score must not, on its
+        // own, keep it in review.
+        $confirmedSong = ServiceSection::factory()->create([
+            ...$attributes,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+        ]);
+        // An unidentified low-confidence song still warrants a look.
+        $unmatchedSong = ServiceSection::factory()->create([
+            ...$attributes,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
+        ]);
+
+        // The confirmed match drops out of both the live PHP reasons and the SQL
+        // candidate set; the unmatched song stays flagged. reviewCandidateSectionCount()
+        // exercises the base query, and with RefreshDatabase only these two sections exist.
+        $this->assertFalse($this->query->isReviewCandidate($confirmedSong));
+        $this->assertTrue($this->query->isReviewCandidate($unmatchedSong));
         $this->assertSame(1, $this->query->reviewCandidateSectionCount());
     }
 

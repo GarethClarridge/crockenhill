@@ -348,6 +348,10 @@ class ServiceReviewDashboardQuery
             && $section->confidence < ServiceSectionConfidence::HIGH_THRESHOLD
             && ! $this->hasManualConfirmation($section)
             && ! $this->isSuspectedBenediction($section)
+            // A confirmed song match has already cleared the transcript-match
+            // confidence bar, so the low structural-placement score is not, on
+            // its own, a review trigger (mirrors the base query below).
+            && ! $section->hasConfirmedSongMatch()
         ) {
             $reasons[] = [
                 'key' => 'low_confidence',
@@ -524,6 +528,13 @@ class ServiceReviewDashboardQuery
                                 static fn (ServiceSectionType $type): bool => $type->requiresStructuralUncertaintyReview(),
                             ),
                         ))->where('confidence', '<', ServiceSectionConfidence::HIGH_THRESHOLD)
+                            // A confirmed song match is exempt: identity is settled,
+                            // so structural confidence alone does not flag it (mirrors
+                            // reviewReasons()).
+                            ->where(function (Builder $query): void {
+                                $query->whereNull('song_match_type')
+                                    ->orWhere('song_match_type', '!=', ServiceSectionSongMatchType::Confirmed->value);
+                            })
                             ->where(function (Builder $query): void {
                                 $query->whereNull('metadata->manual_review->confirmed_at')
                                     ->orWhere('metadata->manual_review->confirmed_at', '');
@@ -560,6 +571,12 @@ class ServiceReviewDashboardQuery
                     ->orWhere(function (Builder $query): void {
                         // Legacy/fallback song match checks
                         $query->where('section_type', ServiceSectionType::Song->value)
+                            // A confirmed match is a settled identity, not an
+                            // unmatched/unreviewed song, so it is exempt here too.
+                            ->where(function (Builder $query): void {
+                                $query->whereNull('song_match_type')
+                                    ->orWhere('song_match_type', '!=', ServiceSectionSongMatchType::Confirmed->value);
+                            })
                             ->where(function (Builder $query): void {
                                 $query->whereNull('metadata->manual_review->song_match_reviewed_at')
                                     ->orWhere('metadata->manual_review->song_match_reviewed_at', '');
