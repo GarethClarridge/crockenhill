@@ -52,7 +52,7 @@
                             @if($group['emails'] !== [])
                                 <ul class="mt-3 divide-y divide-gray-100 border-t border-gray-200">
                                     @foreach($group['emails'] as $index => $item)
-                                        <li class="py-4" wire:key="attention-email-{{ $item['email']->id }}">
+                                        <li class="py-4" wire:key="attention-email-{{ $item['email']->id }}" wire:loading.class="opacity-50 pointer-events-none" wire:target="approveEmail({{ $item['email']->id }}), rejectEmail({{ $item['email']->id }}), reparseEmail({{ $item['email']->id }}), editAndApproveEmail({{ $item['email']->id }})">
                                             @include('livewire.admin.church-services.partials.inbound-email-attention-row', ['item' => $item])
                                         </li>
                                     @endforeach
@@ -124,7 +124,7 @@
                     $rollup = $rollups[$churchService->id] ?? null;
                     $needsReview = $rollup !== null && $rollup['status'] === \App\Enums\ChurchServiceRollupStatus::NeedsReview;
                 @endphp
-                <tr class="hover:bg-gray-50 {{ $needsReview ? 'border-l-4 border-amber-400 bg-amber-50/30' : '' }}" wire:loading.class.delay.200ms="opacity-50" wire:key="service-row-{{ $churchService->id }}">
+                <tr class="hover:bg-gray-50 {{ $needsReview ? 'border-l-4 border-amber-400 bg-amber-50/30' : '' }}" wire:loading.class.delay.200ms="opacity-50 pointer-events-none" wire:key="service-row-{{ $churchService->id }}">
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ $churchService->date->format('j M Y') }}</p>
                         <x-badge variant="default" size="xs">
