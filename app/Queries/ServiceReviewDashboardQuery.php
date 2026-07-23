@@ -512,9 +512,7 @@ class ServiceReviewDashboardQuery
             // Sections belonging to a superseded run (a duplicate/earlier
             // processing of the same service) are kept for audit but never
             // reviewed — the winning run owns the service's structure.
-            ->whereDoesntHave('processingLog', function (Builder $query): void {
-                $query->whereNotNull('superseded_at');
-            })
+            ->notSuperseded()
             ->where(function (Builder $query): void {
                 $query->where('needs_manual_review', true)
                     ->orWhere('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)

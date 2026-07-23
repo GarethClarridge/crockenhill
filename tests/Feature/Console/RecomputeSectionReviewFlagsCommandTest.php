@@ -108,6 +108,73 @@ class RecomputeSectionReviewFlagsCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_clears_orphan_service_triggers_that_no_allow_list_would_match(): void
+    {
+        // The two orphan triggers have no live producer, so a strip allow-list can
+        // never match them — only a full recompute from live sections clears them.
+        $service = ChurchService::factory()->create([
+            'needs_review' => true,
+            'import_metadata' => [
+                'review_triggers' => ['ambiguous_sermon_detection', 'unmatched_song_sections'],
+                'confidence_score' => 1,
+            ],
+        ]);
+        $run = $this->livestreamRun($service);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+            'needs_manual_review' => false,
+            'metadata' => ['review_flags' => []],
+        ]);
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $service->refresh();
+        $this->assertFalse($service->needs_review);
+        $this->assertEmpty($service->import_metadata?->reviewTriggers ?? []);
+    }
+
+    #[Test]
+    public function it_ignores_a_flagged_section_on_a_superseded_run(): void
+    {
+        // The phantom: a flagged section survives on a superseded run; the winning
+        // run is clean, so the service should recompute to not-needing-review.
+        $service = ChurchService::factory()->create([
+            'needs_review' => true,
+            'import_metadata' => ['review_triggers' => ['manual_review_sections'], 'confidence_score' => 1],
+        ]);
+
+        $supersededRun = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'superseded_at' => now(),
+        ]);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $supersededRun->id,
+            'section_type' => ServiceSectionType::Sermon,
+            'needs_manual_review' => true,
+            'metadata' => ['review_flags' => ['structure_low_confidence']],
+        ]);
+
+        $winningRun = $this->livestreamRun($service);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $winningRun->id,
+            'section_type' => ServiceSectionType::Song,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+            'needs_manual_review' => false,
+            'metadata' => ['review_flags' => []],
+        ]);
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $service->refresh();
+        $this->assertFalse($service->needs_review);
+        $this->assertEmpty($service->import_metadata?->reviewTriggers ?? []);
+    }
+
+    #[Test]
     public function it_leaves_a_genuinely_actionable_section_flagged(): void
     {
         $service = ChurchService::factory()->create(['needs_review' => true]);

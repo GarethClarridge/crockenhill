@@ -51,6 +51,33 @@ class ChurchServiceReviewSynchronizer
     }
 
     /**
+     * Recompute service-level review from persisted, non-superseded section state.
+     *
+     * Drops the structure-derived review triggers whenever no live section still
+     * needs manual review — including orphaned legacy triggers that a strip
+     * allow-list can never enumerate — then defers to sync() for the needs_review
+     * latch. sync() still preserves the import-confidence and review_reason signals,
+     * so import-band and canonical-conflict services stay flagged. Idempotent:
+     * re-running against an already-reconciled service is a no-op.
+     */
+    public function reconcileServiceReview(ChurchService $churchService): void
+    {
+        $sections = ServiceSection::query()
+            ->forService($churchService)
+            ->notSuperseded()
+            ->get();
+
+        $hasActionableSection = $sections->contains(
+            fn (ServiceSection $section): bool => $section->needs_manual_review
+        );
+
+        $existingTriggers = $churchService->import_metadata->reviewTriggers ?? [];
+        $reviewTriggers = $hasActionableSection ? $existingTriggers : [];
+
+        $this->sync($churchService, $sections, $reviewTriggers);
+    }
+
+    /**
      * Open service-level review when any of the run's sections still needs
      * manual review — without rewriting review triggers and without ever
      * closing review.

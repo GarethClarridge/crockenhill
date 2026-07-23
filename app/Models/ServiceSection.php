@@ -150,6 +150,40 @@ class ServiceSection extends Model
     }
 
     /**
+     * Exclude sections belonging to a superseded processing run (a duplicate or
+     * earlier processing of the same service). They are kept for audit but never
+     * count toward review — the winning run owns the service's structure. Mirrors
+     * the exclusion in ServiceReviewDashboardQuery's review-candidate predicate so
+     * the read and reconcile sides share one definition.
+     *
+     * @param  Builder<ServiceSection>  $query
+     * @return Builder<ServiceSection>
+     */
+    public function scopeNotSuperseded(Builder $query): Builder
+    {
+        return $query->whereDoesntHave('processingLog', function (Builder $log): void {
+            $log->whereNotNull('superseded_at');
+        });
+    }
+
+    /**
+     * Scope to the sections belonging to a service. A section belongs through its
+     * processing log or its projected item; either path counts.
+     *
+     * @param  Builder<ServiceSection>  $query
+     * @return Builder<ServiceSection>
+     */
+    public function scopeForService(Builder $query, ChurchService|int $service): Builder
+    {
+        $serviceId = $service instanceof ChurchService ? $service->id : $service;
+
+        return $query->where(function (Builder $query) use ($serviceId): void {
+            $query->whereHas('processingLog', fn (Builder $log): Builder => $log->where('church_service_id', $serviceId))
+                ->orWhereHas('churchServiceItem', fn (Builder $item): Builder => $item->where('church_service_id', $serviceId));
+        });
+    }
+
+    /**
      * @return array{
      *     church_service_item_id: int|null,
      *     section_type: string,

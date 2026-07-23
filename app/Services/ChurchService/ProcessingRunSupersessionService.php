@@ -24,6 +24,7 @@ class ProcessingRunSupersessionService
 {
     public function __construct(
         private readonly ChurchServiceRunMatcher $runMatcher,
+        private readonly ChurchServiceReviewSynchronizer $reviewSynchronizer,
     ) {}
 
     /**
@@ -67,6 +68,15 @@ class ProcessingRunSupersessionService
                     'superseded_by_processing_log_id' => $targetSupersededBy,
                 ])->saveQuietly();
             }
+        }
+
+        // Forward guard: once losers are superseded, the service-level review
+        // latch and its triggers may be stale (they mirror the losing run's
+        // sections). Recompute from the surviving sections so the service can't
+        // stay flagged with nothing actionable. Any additive review roll-up that
+        // follows in the projection path re-opens review if the winner needs it.
+        if ($execute && $superseded !== []) {
+            $this->reviewSynchronizer->reconcileServiceReview($service);
         }
 
         return ['winner' => $winner, 'superseded' => $superseded];

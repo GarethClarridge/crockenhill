@@ -255,4 +255,136 @@ class ChurchServiceReviewSynchronizerTest extends TestCase
         $churchService->refresh();
         $this->assertFalse($churchService->needs_review);
     }
+
+    // ── reconcileServiceReview (superseded-aware recompute) ───────────────────
+
+    #[Test]
+    public function reconcile_ignores_sections_on_a_superseded_run(): void
+    {
+        $service = $this->flaggedService('2026-11-09', ['manual_review_sections'], ['confidence_score' => 1]);
+
+        // The flagged section lives on a superseded run; the winning run is clean.
+        $this->section($this->processingRun($service, superseded: true), needsManualReview: true);
+        $this->section($this->processingRun($service), needsManualReview: false);
+
+        $this->synchronizer->reconcileServiceReview($service);
+
+        $service->refresh();
+        $this->assertFalse($service->needs_review, 'A flagged section on a superseded run must not keep review open.');
+        $this->assertArrayNotHasKey('review_triggers', $service->import_metadata?->toArray() ?? []);
+    }
+
+    #[Test]
+    public function reconcile_drops_orphan_triggers_no_allow_list_would_match(): void
+    {
+        $service = $this->flaggedService(
+            '2026-11-10',
+            ['ambiguous_sermon_detection', 'unmatched_song_sections'],
+            ['confidence_score' => 1],
+        );
+        $this->section($this->processingRun($service), needsManualReview: false);
+
+        $this->synchronizer->reconcileServiceReview($service);
+
+        $service->refresh();
+        $this->assertFalse($service->needs_review);
+        $this->assertArrayNotHasKey('review_triggers', $service->import_metadata?->toArray() ?? []);
+    }
+
+    #[Test]
+    public function reconcile_preserves_triggers_when_a_live_section_still_needs_review(): void
+    {
+        $service = $this->flaggedService('2026-11-11', ['manual_review_sections']);
+        $this->section($this->processingRun($service), needsManualReview: true);
+
+        $this->synchronizer->reconcileServiceReview($service);
+
+        $service->refresh();
+        $this->assertTrue($service->needs_review);
+        $this->assertSame(
+            ['manual_review_sections'],
+            $service->import_metadata?->toArray()['review_triggers'] ?? null,
+        );
+    }
+
+    #[Test]
+    public function reconcile_clears_triggers_but_keeps_review_open_for_import_confidence_band(): void
+    {
+        $service = $this->flaggedService(
+            '2026-11-12',
+            ['unmatched_song_sections'],
+            ['confidence_score' => 0.80],
+            ['source' => 'email'],
+        );
+        $this->section($this->processingRun($service), needsManualReview: false);
+
+        $this->synchronizer->reconcileServiceReview($service);
+
+        $service->refresh();
+        $this->assertTrue($service->needs_review, 'The mid-band import confidence keeps review open.');
+        $this->assertArrayNotHasKey('review_triggers', $service->import_metadata?->toArray() ?? []);
+    }
+
+    #[Test]
+    public function reconcile_clears_triggers_but_keeps_review_open_for_canonical_conflict(): void
+    {
+        $service = $this->flaggedService(
+            '2026-11-13',
+            ['manual_review_sections'],
+            [],
+            ['source' => 'manual', 'review_reason' => 'Service items changed after manual review.'],
+        );
+        $this->section($this->processingRun($service), needsManualReview: false);
+
+        $this->synchronizer->reconcileServiceReview($service);
+
+        $service->refresh();
+        $this->assertTrue($service->needs_review, 'An outstanding review_reason keeps review open.');
+        $this->assertArrayNotHasKey('review_triggers', $service->import_metadata?->toArray() ?? []);
+    }
+
+    #[Test]
+    public function reconcile_is_idempotent(): void
+    {
+        $service = $this->flaggedService('2026-11-14', ['manual_review_sections'], ['confidence_score' => 1]);
+        $this->section($this->processingRun($service), needsManualReview: false);
+
+        $this->synchronizer->reconcileServiceReview($service);
+        $this->synchronizer->reconcileServiceReview($service->refresh());
+
+        $service->refresh();
+        $this->assertFalse($service->needs_review);
+        $this->assertArrayNotHasKey('review_triggers', $service->import_metadata?->toArray() ?? []);
+    }
+
+    /**
+     * @param  list<string>  $triggers
+     * @param  array<string, mixed>  $importMetadataExtra
+     * @param  array<string, mixed>  $attributes
+     */
+    private function flaggedService(string $date, array $triggers, array $importMetadataExtra = [], array $attributes = []): ChurchService
+    {
+        return ChurchService::factory()->create(array_merge([
+            'date' => $date,
+            'service' => SermonService::Morning->value,
+            'needs_review' => true,
+            'import_metadata' => array_merge(['review_triggers' => $triggers], $importMetadataExtra),
+        ], $attributes));
+    }
+
+    private function processingRun(ChurchService $service, bool $superseded = false): MediaProcessingLog
+    {
+        return MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'superseded_at' => $superseded ? now() : null,
+        ]);
+    }
+
+    private function section(MediaProcessingLog $run, bool $needsManualReview): ServiceSection
+    {
+        return ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => $needsManualReview,
+        ]);
+    }
 }

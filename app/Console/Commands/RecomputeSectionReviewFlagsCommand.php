@@ -9,7 +9,6 @@ use App\Models\ChurchService;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
 use App\Services\ChurchService\SectionReviewFlagRecalculator;
-use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -91,9 +90,9 @@ class RecomputeSectionReviewFlagsCommand extends Command
                 }
             });
 
-        // Also re-sync services carrying a stale service-level structure trigger
-        // even when no section changed this pass — otherwise a service left
-        // flagged with zero actionable items would never clear.
+        // Also re-sync services still carrying any review trigger even when no
+        // section changed this pass — otherwise a service left flagged with zero
+        // actionable items (a phantom) would never clear.
         foreach ($this->servicesWithStaleTriggers($serviceIds) as $serviceId) {
             $touchedServiceIds[$serviceId] = true;
         }
@@ -107,21 +106,11 @@ class RecomputeSectionReviewFlagsCommand extends Command
                 ->orderBy('id')
                 ->chunkById($chunkSize, function (EloquentCollection $services) use ($reviewSynchronizer, &$syncedServices): void {
                     foreach ($services as $service) {
-                        $sections = $this->sectionsForService($service);
-                        $reviewTriggers = $service->import_metadata->reviewTriggers ?? [];
-
-                        if (! $sections->contains(fn (ServiceSection $section): bool => $section->needs_manual_review)) {
-                            // With no section left needing review, the structure-derived
-                            // service triggers (the service-level mirror of the section
-                            // flags) are stale — a genuine concern would still flag its
-                            // section and keep review open via that path.
-                            $reviewTriggers = array_values(array_filter(
-                                $reviewTriggers,
-                                static fn (string $trigger): bool => ! in_array($trigger, self::staleStructureTriggers(), true),
-                            ));
-                        }
-
-                        $reviewSynchronizer->sync($service, $sections, $reviewTriggers);
+                        // Recompute needs_review and review_triggers from the service's
+                        // live (non-superseded) sections. Triggers no longer backed by
+                        // an actionable section are dropped — including orphaned legacy
+                        // triggers a strip allow-list could never enumerate.
+                        $reviewSynchronizer->reconcileServiceReview($service);
                         $syncedServices++;
                     }
                 });
@@ -176,23 +165,12 @@ class RecomputeSectionReviewFlagsCommand extends Command
     }
 
     /**
-     * Structure-derived triggers whose service-level mirror is stale once no
-     * section still needs manual review (the service-level side of OD-1).
-     *
-     * @return list<string>
-     */
-    private static function staleStructureTriggers(): array
-    {
-        return array_merge(
-            ['manual_review_sections'],
-            ServiceStructureValidator::OOS_REVIEW_REASONS,
-        );
-    }
-
-    /**
-     * Flagged services carrying a stale structure trigger, so a service left
-     * flagged with no actionable section is revisited even without a section
-     * change this pass.
+     * Flagged services still carrying any review trigger, so a service left
+     * flagged with no actionable non-superseded section is revisited even
+     * without a section change this pass. reconcileServiceReview() then recomputes
+     * from live sections and drops triggers no longer substantiated — a non-empty
+     * import_metadata->review_triggers key is present only while triggers remain
+     * (sync() unsets it when empty).
      *
      * @param  list<int>  $serviceIds
      * @return list<int>
@@ -201,11 +179,7 @@ class RecomputeSectionReviewFlagsCommand extends Command
     {
         $ids = ChurchService::query()
             ->where('needs_review', true)
-            ->where(function (Builder $query): void {
-                foreach (self::staleStructureTriggers() as $trigger) {
-                    $query->orWhereJsonContains('import_metadata->review_triggers', $trigger);
-                }
-            })
+            ->whereNotNull('import_metadata->review_triggers')
             ->when($serviceIds !== [], fn (Builder $query): Builder => $query->whereIn('id', $serviceIds))
             ->pluck('id')
             ->all();
@@ -233,18 +207,5 @@ class RecomputeSectionReviewFlagsCommand extends Command
         }
 
         return array_values(array_unique($ids));
-    }
-
-    /**
-     * @return EloquentCollection<int, ServiceSection>
-     */
-    private function sectionsForService(ChurchService $service): EloquentCollection
-    {
-        return ServiceSection::query()
-            ->where(function (Builder $query) use ($service): void {
-                $query->whereHas('processingLog', fn (Builder $log): Builder => $log->where('church_service_id', $service->id))
-                    ->orWhereHas('churchServiceItem', fn (Builder $item): Builder => $item->where('church_service_id', $service->id));
-            })
-            ->get();
     }
 }

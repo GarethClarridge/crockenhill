@@ -63,6 +63,60 @@ class SupersedeDuplicateRunsCommandTest extends TestCase
         $this->assertSame($before - 3, $after);
     }
 
+    #[Test]
+    public function executing_recomputes_the_service_review_phantom_away(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-07-05',
+            'service' => SermonService::Morning->value,
+            'needs_review' => true,
+            'import_metadata' => [
+                'review_triggers' => ['ambiguous_sermon_detection', 'manual_review_sections'],
+                'confidence_score' => 1,
+            ],
+        ]);
+
+        $weakRun = $this->processingRun($service);
+        $this->sections($weakRun, [0.3, 0.3, 0.4]); // flagged (needs_manual_review => true)
+
+        $strongRun = $this->processingRun($service);
+        $this->sections($strongRun, [0.9, 0.95, 0.98], needsManualReview: false);
+
+        $this->artisan('services:supersede-duplicate-runs', ['--execute' => true])->assertSuccessful();
+
+        $this->assertNotNull($weakRun->fresh()->superseded_at);
+        $this->assertNull($strongRun->fresh()->superseded_at);
+
+        $service->refresh();
+        $this->assertFalse(
+            $service->needs_review,
+            'The service self-heals once its only flagged run is superseded.'
+        );
+        $this->assertArrayNotHasKey('review_triggers', $service->import_metadata?->toArray() ?? []);
+    }
+
+    #[Test]
+    public function a_dry_run_leaves_service_review_state_untouched(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-07-12',
+            'service' => SermonService::Morning->value,
+            'needs_review' => true,
+            'import_metadata' => ['review_triggers' => ['manual_review_sections'], 'confidence_score' => 1],
+        ]);
+        $this->sections($this->processingRun($service), [0.3]);
+        $this->sections($this->processingRun($service), [0.9, 0.95, 0.98], needsManualReview: false);
+
+        $this->artisan('services:supersede-duplicate-runs')->assertSuccessful();
+
+        $service->refresh();
+        $this->assertTrue($service->needs_review);
+        $this->assertSame(
+            ['manual_review_sections'],
+            $service->import_metadata?->toArray()['review_triggers'] ?? null,
+        );
+    }
+
     /**
      * @return array{0: ChurchService, 1: MediaProcessingLog, 2: MediaProcessingLog}
      */
@@ -94,7 +148,7 @@ class SupersedeDuplicateRunsCommandTest extends TestCase
     /**
      * @param  list<float>  $confidences
      */
-    private function sections(MediaProcessingLog $run, array $confidences): void
+    private function sections(MediaProcessingLog $run, array $confidences, bool $needsManualReview = true): void
     {
         foreach ($confidences as $index => $confidence) {
             ServiceSection::factory()->create([
@@ -103,7 +157,7 @@ class SupersedeDuplicateRunsCommandTest extends TestCase
                 'status' => ServiceSectionStatus::Identified,
                 'confidence' => $confidence,
                 'section_order' => $index + 1,
-                'needs_manual_review' => true,
+                'needs_manual_review' => $needsManualReview,
             ]);
         }
     }
