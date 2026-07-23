@@ -11,6 +11,7 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -70,19 +71,15 @@ class SermonRepository
      */
     public function resolveSeriesNameFromSlug(string $slug): ?string
     {
-        foreach ($this->getSeriesForDisplay() as $name) {
-            if (Str::slug($name) === $slug) {
-                return $name;
-            }
+        $series = collect($this->getSeriesForDisplay())
+            ->first(fn (string $name): bool => Str::slug($name) === $slug);
+
+        if ($series !== null) {
+            return $series;
         }
 
-        foreach ($this->getExistingSeries() as $name) {
-            if (Str::slug($name) === $slug) {
-                return $name;
-            }
-        }
-
-        return null;
+        return collect($this->getExistingSeries())
+            ->first(fn (string $name): bool => Str::slug($name) === $slug);
     }
 
     /**
@@ -234,7 +231,7 @@ class SermonRepository
                 ->orderBy('series')
                 ->pluck('series')
                 ->all();
-        } catch (\Exception $e) {
+        } catch (QueryException|\ErrorException $e) {
             Log::warning('Failed to retrieve existing series', [
                 'error' => $e->getMessage(),
             ]);

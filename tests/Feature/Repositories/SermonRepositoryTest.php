@@ -109,6 +109,19 @@ class SermonRepositoryTest extends TestCase
         $this->assertNotContains('Children Series', $result);
     }
 
+    #[Test]
+    public function it_resolves_series_name_from_slug(): void
+    {
+        Sermon::factory()->create(['series' => 'Study in Romans', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'Another Series Name', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+
+        $resolved = $this->repository->resolveSeriesNameFromSlug('study-in-romans');
+        $this->assertEquals('Study in Romans', $resolved);
+
+        $resolvedNull = $this->repository->resolveSeriesNameFromSlug('non-existent-series');
+        $this->assertNull($resolvedNull);
+    }
+
     // ── Preacher & Service Retrieval ─────────────────────────────────────────
 
     #[Test]
