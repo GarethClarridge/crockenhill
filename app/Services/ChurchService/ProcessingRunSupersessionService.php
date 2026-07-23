@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Enums\ServiceSectionSongMatchType;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Support\ChurchServiceRunMatcher;
@@ -16,9 +17,22 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
  * overlapping sections. This picks the single authoritative run and marks the
  * rest superseded so review and timeline surfaces show one coherent structure.
  *
- * Best-run-wins (decision OD-2): the winner is ranked by high-confidence
- * coverage, then mean confidence, then section count, then recency — never by
- * run status, because a "failed" re-run can carry the better structure.
+ * Best-run-wins (decision OD-2, revised): the winner is ranked by
+ * transcript-confirmed song count, then high-confidence coverage, then completed
+ * status, then mean confidence, section count, and recency.
+ *
+ * Confirmed song matches lead the ordering because they are grounded evidence —
+ * the section's transcript matched the catalogue lyrics/title above the writeback
+ * threshold (see MatchSongsFromTranscript) — whereas the confidence terms are the
+ * segmentation classifier's self-assessment of section *type*, a softer prior.
+ * A run that only *inferred* its songs by projecting the plan has verified
+ * nothing, so it must not supersede a run that confirmed them (service 785).
+ *
+ * Completed status sits *below* the grounded evidence terms, never above them:
+ * it only breaks ties once song evidence and high-confidence coverage are equal,
+ * so it can never veto a failed re-run that carries genuinely better structure
+ * (OD-2's original point). When everything grounded is equal, the run that
+ * actually finished the pipeline is the record worth keeping.
  */
 class ProcessingRunSupersessionService
 {
@@ -92,7 +106,7 @@ class ProcessingRunSupersessionService
         return MediaProcessingLog::query()
             ->segmentationPipeline()
             ->withCount('serviceSections')
-            ->with('serviceSections:id,media_processing_log_id,confidence')
+            ->with('serviceSections:id,media_processing_log_id,confidence,song_match_type')
             ->tap(fn ($query) => $this->runMatcher->applyMatchClauses($query, $service, $fallbackProcessingIds))
             ->get()
             ->filter(fn (MediaProcessingLog $run): bool => $run->service_sections_count > 0)
@@ -102,12 +116,16 @@ class ProcessingRunSupersessionService
     /**
      * Higher is better, compared element by element.
      *
-     * @return array{int, float, int, int}
+     * @return array{int, int, int, float, int, int}
      */
     private function score(MediaProcessingLog $run): array
     {
         $sections = $run->serviceSections;
         $count = $sections->count();
+
+        $confirmedSongs = $sections
+            ->filter(fn ($section): bool => $section->song_match_type === ServiceSectionSongMatchType::Confirmed)
+            ->count();
 
         $highConfidence = $sections
             ->filter(fn ($section): bool => (float) ($section->confidence ?? 0.0) >= ServiceSectionConfidence::HIGH_THRESHOLD)
@@ -118,7 +136,9 @@ class ProcessingRunSupersessionService
             : 0.0;
 
         return [
+            $confirmedSongs,
             $highConfidence,
+            $run->isComplete() ? 1 : 0,
             $meanConfidence,
             $count,
             (int) $run->id,

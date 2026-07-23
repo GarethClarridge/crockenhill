@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
@@ -49,6 +50,61 @@ class ProcessingRunSupersessionServiceTest extends TestCase
         $this->assertNotNull($weakRun->fresh()->superseded_at);
         $this->assertSame($strongRun->id, $weakRun->fresh()->superseded_by_processing_log_id);
         $this->assertNull($strongRun->fresh()->superseded_at);
+    }
+
+    #[Test]
+    public function the_run_with_transcript_confirmed_songs_wins_over_a_higher_confidence_run_without_them(): void
+    {
+        // Reproduces service 785: a failed run classified its sections with a
+        // marginally higher self-assessed confidence but only *inferred* its
+        // songs by projecting the plan, while a later completed run actually
+        // matched the songs against the catalogue transcript (Confirmed).
+        // Confirmed matches are grounded evidence and must outrank the softer
+        // classification prior, so the completed run wins.
+        $churchService = $this->churchService();
+
+        $inferredRun = $this->processingRun($churchService, status: 'failed');
+        $this->sections($inferredRun, [0.9, 0.95, 0.98, 0.9], songMatch: ServiceSectionSongMatchType::Inferred);
+
+        $confirmedRun = $this->processingRun($churchService, status: 'completed');
+        $this->sections($confirmedRun, [0.6, 0.7, 0.8], songMatch: ServiceSectionSongMatchType::Confirmed);
+
+        $result = $this->service->reconcile($churchService);
+
+        $this->assertTrue(
+            $result['winner']->is($confirmedRun),
+            'The run whose songs were transcript-confirmed must win over one that only inferred them.'
+        );
+        $this->assertSame([$inferredRun->id], $result['superseded']);
+        $this->assertNull($confirmedRun->fresh()->superseded_at);
+        $this->assertNotNull($inferredRun->fresh()->superseded_at);
+    }
+
+    #[Test]
+    public function a_completed_run_wins_the_tiebreak_over_a_failed_run_carrying_equal_evidence(): void
+    {
+        // Service 785's two surviving candidates confirmed the identical songs and
+        // had equal high-confidence coverage; the only real difference was that one
+        // completed and the other failed. Status breaks the tie *after* the grounded
+        // evidence terms, so it never vetoes better structure — but here, all else
+        // equal, the run that actually finished the pipeline is the record to keep.
+        $churchService = $this->churchService();
+
+        // The failed run has a marginally higher mean confidence, so without a
+        // status tiebreak it would win once the hard evidence terms tie.
+        $failedRun = $this->processingRun($churchService, status: 'failed');
+        $this->sections($failedRun, [0.95, 0.9], songMatch: ServiceSectionSongMatchType::Confirmed);
+
+        $completedRun = $this->processingRun($churchService, status: 'completed');
+        $this->sections($completedRun, [0.9, 0.9], songMatch: ServiceSectionSongMatchType::Confirmed);
+
+        $result = $this->service->reconcile($churchService);
+
+        $this->assertTrue(
+            $result['winner']->is($completedRun),
+            'With equal song evidence and coverage, the completed run must win the tiebreak.'
+        );
+        $this->assertSame([$failedRun->id], $result['superseded']);
     }
 
     #[Test]
@@ -184,8 +240,12 @@ class ProcessingRunSupersessionServiceTest extends TestCase
     /**
      * @param  list<float>  $confidences
      */
-    private function sections(MediaProcessingLog $run, array $confidences, bool $needsManualReview = false): void
-    {
+    private function sections(
+        MediaProcessingLog $run,
+        array $confidences,
+        bool $needsManualReview = false,
+        ?ServiceSectionSongMatchType $songMatch = null,
+    ): void {
         foreach ($confidences as $index => $confidence) {
             ServiceSection::factory()->create([
                 'media_processing_log_id' => $run->id,
@@ -194,6 +254,7 @@ class ProcessingRunSupersessionServiceTest extends TestCase
                 'confidence' => $confidence,
                 'section_order' => $index + 1,
                 'needs_manual_review' => $needsManualReview,
+                'song_match_type' => $songMatch,
             ]);
         }
     }
