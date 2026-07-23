@@ -25,10 +25,6 @@ use OpenAI\Responses\Audio\TranscriptionResponse;
  */
 class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
 {
-    private const TRANSCRIPTION_PROMPT = 'The following is a full church service at Crockenhill Baptist Church, '
-        .'in the British conservative evangelical tradition: welcome, hymns and songs, prayers, Bible readings, '
-        .'notices and a sermon.';
-
     public function __construct(
         private readonly SermonProcessingLogger $logger,
         private readonly AudioChunkingService $chunkingService,
@@ -154,7 +150,7 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
                 'model' => (string) config('media-processing.service_structure.transcription_model', 'whisper-1'),
                 'response_format' => 'verbose_json',
                 'language' => 'en',
-                'prompt' => self::TRANSCRIPTION_PROMPT,
+                'prompt' => (string) config('media-processing.transcription.prompts.full_service'),
             ]);
 
             $this->logger->logApiCall(

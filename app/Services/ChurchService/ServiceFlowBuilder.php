@@ -84,6 +84,7 @@ final class ServiceFlowBuilder
      *     publication_status: ServiceSectionPublicationStatus|null,
      *     metadata: array<string, mixed>,
      *     transcript_excerpt: string|null,
+     *     is_visual_only: bool,
      * }>
      */
     public static function build(array $timelineRows, MediaProcessingLog $processingLog): array
@@ -117,12 +118,14 @@ final class ServiceFlowBuilder
             $sectionId = is_int($row['section_id']) ? $row['section_id'] : null;
             $sectionSummary = filled($row['section_summary'] ?? null) ? (string) $row['section_summary'] : null;
             $detectedTitle = filled($row['section_title'] ?? null) ? (string) $row['section_title'] : null;
+            $itemType = is_string($row['item_type']) ? $row['item_type'] : null;
+            $isVisualOnly = $rowType === 'planned_only' && in_array($itemType, ['presentations', 'images'], true);
 
             // Load section metadata for ai_notes / transcript / song_title_hint
             $metadata = self::resolveMetadata($processingLog, $sectionId);
 
             $transcriptExcerpt = self::extractTranscriptExcerpt($metadata);
-            $description = self::buildDescription($sectionType, $sectionSummary, $metadata, $transcriptExcerpt, $songTitle, $songMatchType, $rowType, $sermonTitle);
+            $description = self::buildDescription($sectionType, $sectionSummary, $metadata, $transcriptExcerpt, $songTitle, $songMatchType, $rowType, $itemType, $sermonTitle);
             $titleSuffix = self::buildTitleSuffix($sectionType, $row, $songTitle, $metadata, $sermonTitle);
             $durationFormatted = self::formatDuration($startTime, $endTime);
             $plannedContext = self::buildPlannedContext($rowType, $plannedTitle, $row);
@@ -134,7 +137,7 @@ final class ServiceFlowBuilder
                 'end_time' => $endTime,
                 'duration_formatted' => $durationFormatted,
                 'type' => $sectionType,
-                'type_label' => $sectionType?->label() ?? (is_string($row['item_type']) ? ucfirst($row['item_type']) : 'Unknown'),
+                'type_label' => $sectionType?->label() ?? ($itemType !== null ? ucfirst($itemType) : 'Unknown'),
                 'icon' => self::iconFor($sectionType),
                 'title_suffix' => $titleSuffix,
                 'detected_title' => $detectedTitle,
@@ -152,6 +155,7 @@ final class ServiceFlowBuilder
                 'publication_status' => $publicationStatus,
                 'metadata' => $metadata,
                 'transcript_excerpt' => $transcriptExcerpt,
+                'is_visual_only' => $isVisualOnly,
             ];
         }
 
@@ -238,6 +242,7 @@ final class ServiceFlowBuilder
         ?string $songTitle,
         ?ServiceSectionSongMatchType $songMatchType,
         string $rowType,
+        ?string $itemType,
         ?string $sermonTitle,
     ): string {
         if ($sectionSummary !== null) {
@@ -260,6 +265,10 @@ final class ServiceFlowBuilder
 
         // Planned-only rows have no section data at all
         if ($rowType === 'planned_only') {
+            if (in_array($itemType, ['presentations', 'images'], true)) {
+                return 'Slides / visual element — no separate audio segment';
+            }
+
             return 'Expected from Order of Service — not detected in recording';
         }
 

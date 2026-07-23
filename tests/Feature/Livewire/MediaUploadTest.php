@@ -18,6 +18,7 @@ use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\IdentifySpeaker;
 use App\Jobs\MatchSongsFromTranscript;
+use App\Jobs\MergeSongContinuations;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
@@ -545,6 +546,7 @@ class MediaUploadTest extends TestCase
             DetectServiceStructure::class,
             ProjectLivestreamServiceStructure::class,
             MatchSongsFromTranscript::class,
+            MergeSongContinuations::class,
             ExtractSermon::class,
             SubmitToProcessing::class,
             EnhanceAudio::class,

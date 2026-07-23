@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Contracts\ServiceTranscriptionInterface;
+use App\Data\ChurchServiceTranscript;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceStructureMode;
 use App\Models\MediaProcessingLog;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
+use App\Support\TranscriptPromptEchoDetector;
 use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -58,7 +60,8 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
 
     public function handle(
         StorageAdapterHelper $storageHelper,
-        ServiceTranscriptionInterface $transcriptionService
+        ServiceTranscriptionInterface $transcriptionService,
+        TranscriptPromptEchoDetector $promptEchoDetector,
     ): void {
         if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
             return;
@@ -85,6 +88,7 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
             // cleanup for exactly this purpose — the recording has not
             // changed, so it is still valid evidence for detection.
             if ($this->hasStoredTranscript()) {
+                $this->filterStoredTranscript($promptEchoDetector);
                 $this->logStepSkipped(
                     ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
                     'Source media unavailable; reusing the stored full-service transcript'
@@ -102,13 +106,15 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
                 $this->processingLog->processing_id
             );
 
-            $transcriptPath = $this->storeTranscript($transcript->toArray());
+            $filteredTranscript = $this->filterTranscript($transcript, $promptEchoDetector);
+
+            $transcriptPath = $this->storeTranscript($filteredTranscript->toArray());
 
             $this->processingLog->putServiceTranscriptPath($transcriptPath);
 
             $this->logStepComplete(
                 ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
-                sprintf('Transcribed %d cue(s) covering %.0fs', count($transcript->cues), $transcript->duration)
+                sprintf('Transcribed %d cue(s) covering %.0fs', count($filteredTranscript->cues), $filteredTranscript->duration)
             );
         } catch (\Throwable $throwable) {
             Log::error('Full-service transcription failed', [
@@ -147,6 +153,41 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
     private function hasStoredTranscript(): bool
     {
         return $this->processingLog->hasStoredServiceTranscript();
+    }
+
+    private function filterStoredTranscript(TranscriptPromptEchoDetector $detector): void
+    {
+        $path = $this->processingLog->serviceTranscriptPath();
+        if ($path === null) {
+            return;
+        }
+
+        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+        $transcript = ChurchServiceTranscript::fromArray(
+            json_decode((string) Storage::disk($tempDisk)->get($path), true)
+        );
+
+        Storage::disk($tempDisk)->put(
+            $path,
+            json_encode(
+                $this->filterTranscript($transcript, $detector)->toArray(),
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
+            )
+        );
+    }
+
+    private function filterTranscript(
+        ChurchServiceTranscript $transcript,
+        TranscriptPromptEchoDetector $detector,
+    ): ChurchServiceTranscript {
+        return ChurchServiceTranscript::fromCues(
+            array_values(array_filter(
+                $transcript->cues,
+                fn (array $cue): bool => ! $detector->isPromptEcho($cue['text'])
+            )),
+            $transcript->duration,
+            $transcript->source,
+        );
     }
 
     /**

@@ -10,6 +10,7 @@ use App\Jobs\TranscribeFullService;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\MockServiceTranscriptionService;
 use App\Services\Processing\StorageAdapterHelper;
+use App\Support\TranscriptPromptEchoDetector;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -62,6 +63,28 @@ class TranscribeFullServiceTest extends TestCase
         $this->assertSame(5400.0, $stored->duration);
         $this->assertCount(2, $stored->cues);
         $this->assertSame('Good morning and welcome.', $stored->cues[0]['text']);
+    }
+
+    #[Test]
+    public function it_strips_prompt_echo_cues_before_persisting_the_transcript(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        Storage::disk('local')->put((string) $log->source_file_path, 'fake video bytes');
+
+        MockServiceTranscriptionService::useTranscript(ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 3.5, 'text' => 'This is a Christian sermon preached at Crockenhill Baptist Church, in the British conservative evangelical tradition.'],
+            ['start' => 3.5, 'end' => 30.0, 'text' => 'Please sit down and let us pray together.'],
+        ], 30.0, ChurchServiceTranscript::SOURCE_MOCK));
+
+        $this->runJob($log);
+
+        $stored = ChurchServiceTranscript::fromArray(
+            json_decode((string) Storage::disk('local')->get((string) $log->refresh()->serviceTranscriptPath()), true)
+        );
+
+        $this->assertCount(1, $stored->cues);
+        $this->assertSame('Please sit down and let us pray together.', $stored->cues[0]['text']);
+        $this->assertSame(30.0, $stored->duration);
     }
 
     #[Test]
@@ -172,6 +195,7 @@ class TranscribeFullServiceTest extends TestCase
         (new TranscribeFullService($log))->handle(
             app(StorageAdapterHelper::class),
             app(ServiceTranscriptionInterface::class),
+            app(TranscriptPromptEchoDetector::class),
         );
     }
 }

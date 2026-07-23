@@ -111,6 +111,10 @@ return [
 
     'transcription' => [
         'service' => env('TRANSCRIPTION_SERVICE_TYPE', 'mock'),
+        'prompts' => [
+            'sermon' => 'The following speech is a Christian sermon preached at Crockenhill Baptist Church, in the British conservative evangelical tradition.',
+            'full_service' => 'The following is a full church service at Crockenhill Baptist Church, in the British conservative evangelical tradition: welcome, hymns and songs, prayers, Bible readings, notices and a sermon.',
+        ],
         'openai_api_key' => env('OPENAI_API_KEY'),
         'max_file_size' => 25 * 1024 * 1024,
         'timeout' => 300,

@@ -186,7 +186,7 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
                     'model' => $model,
                     'language' => 'en',
                     'response_format' => 'text',
-                    'prompt' => 'The following speech is a Christian sermon preached at Crockenhill Baptist Church, in the British conservative evangelical tradition.',
+                    'prompt' => (string) config('media-processing.transcription.prompts.sermon'),
                 ]);
         } catch (Exception $e) {
             $apiTime = microtime(true) - $apiStartTime;

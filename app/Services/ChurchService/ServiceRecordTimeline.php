@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Support\ServiceSectionConfidence;
+use App\Support\SongTitleNormalizer;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 final class ServiceRecordTimeline
@@ -46,6 +48,15 @@ final class ServiceRecordTimeline
         $sections = $processingLog->relationLoaded('serviceSections')
             ? $processingLog->serviceSections
             : $processingLog->serviceSections()->with(['churchServiceItem', 'publishedSermon'])->orderBy('section_order')->orderBy('id')->get();
+        $songItemOverrides = self::reconcileSongItems($items, $sections);
+
+        // Per-song cardinality: a song planned once but sung twice (order aside) is
+        // the real plan/recording divergence worth flagging. Count planned occurrences
+        // and total detected occurrences per song so the excess sections can be marked.
+        $plannedSongCounts = self::plannedSongCounts($items);
+        $detectedSongCounts = self::detectedSongCounts($sections);
+        /** @var array<int, int> $detectedSongSeen */
+        $detectedSongSeen = [];
 
         foreach ($sections as $section) {
             $oosAlignment = self::oosAlignment($section);
@@ -55,14 +66,14 @@ final class ServiceRecordTimeline
 
             // --- Resolve planned context ---
             // Priority 1: the direct FK relationship (includes soft-deleted via withTrashed())
-            $linkedItem = $section->churchServiceItem instanceof ChurchServiceItem
+            $linkedItem = $songItemOverrides[$section->id] ?? ($section->churchServiceItem instanceof ChurchServiceItem
                 ? $section->churchServiceItem
-                : null;
+                : null);
 
             // Priority 2/3: metadata fallback when the FK is unset
-            $expectedItemId = $section->expected_item_id;
+            $expectedItemId = isset($songItemOverrides[$section->id]) ? null : $section->expected_item_id;
 
-            $matchedItemId = $section->matched_item_id;
+            $matchedItemId = isset($songItemOverrides[$section->id]) ? null : $section->matched_item_id;
 
             // Determine the active item that should be consumed so it isn't also emitted as planned_only
             $consumableActiveItemId = null;
@@ -98,7 +109,8 @@ final class ServiceRecordTimeline
                 $consumed[$consumableActiveItemId] = true;
             }
 
-            $rows[] = self::buildRow($rowType, $plannedItemFields, $section, $oosAlignment);
+            $row = self::buildRow($rowType, $plannedItemFields, $section, $oosAlignment);
+            $rows[] = self::flagOversungSong($row, $section, $plannedSongCounts, $detectedSongCounts, $detectedSongSeen);
         }
 
         // Append planned_only rows for items never consumed
@@ -127,6 +139,164 @@ final class ServiceRecordTimeline
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * @param  EloquentCollection<int, ChurchServiceItem>  $items
+     * @param  EloquentCollection<int, ServiceSection>  $sections
+     * @return array<int, ChurchServiceItem>
+     */
+    private static function reconcileSongItems(EloquentCollection $items, EloquentCollection $sections): array
+    {
+        $availableItems = $items
+            ->filter(fn (ChurchServiceItem $item): bool => ! $item->trashed() && $item->type === 'songs')
+            ->sortBy([['position', 'asc'], ['id', 'asc']])
+            ->values();
+        $songSections = $sections
+            ->filter(fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::Song)
+            ->values();
+        $overrides = [];
+        $consumed = [];
+
+        foreach ($songSections as $section) {
+            $songId = $section->metadata?->songId;
+            if ($songId === null) {
+                continue;
+            }
+
+            $item = $availableItems->first(
+                fn (ChurchServiceItem $item): bool => ! isset($consumed[$item->id]) && $item->song_id === $songId
+            );
+
+            if ($item instanceof ChurchServiceItem) {
+                $overrides[$section->id] = $item;
+                $consumed[$item->id] = true;
+            }
+        }
+
+        foreach ($songSections as $section) {
+            if (isset($overrides[$section->id])) {
+                continue;
+            }
+
+            $detectedTitle = SongTitleNormalizer::normalize($section->title);
+            if ($detectedTitle === '') {
+                continue;
+            }
+
+            $item = $availableItems->first(function (ChurchServiceItem $item) use ($consumed, $detectedTitle): bool {
+                if (isset($consumed[$item->id])) {
+                    return false;
+                }
+
+                return SongTitleNormalizer::normalize($item->title) === $detectedTitle
+                    || SongTitleNormalizer::normalize($item->song?->title) === $detectedTitle;
+            });
+
+            if ($item instanceof ChurchServiceItem) {
+                $overrides[$section->id] = $item;
+                $consumed[$item->id] = true;
+            }
+        }
+
+        return $overrides;
+    }
+
+    /**
+     * Count how many times each song is planned across active (non-deleted) song items.
+     *
+     * @param  EloquentCollection<int, ChurchServiceItem>  $items
+     * @return array<int, int>
+     */
+    private static function plannedSongCounts(EloquentCollection $items): array
+    {
+        $counts = [];
+
+        foreach ($items as $item) {
+            if ($item->trashed() || $item->type !== 'songs' || $item->song_id === null) {
+                continue;
+            }
+
+            $counts[$item->song_id] = ($counts[$item->song_id] ?? 0) + 1;
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Count how many times each song was detected across the recording's song sections.
+     *
+     * @param  EloquentCollection<int, ServiceSection>  $sections
+     * @return array<int, int>
+     */
+    private static function detectedSongCounts(EloquentCollection $sections): array
+    {
+        $counts = [];
+
+        foreach ($sections as $section) {
+            if ($section->section_type !== ServiceSectionType::Song) {
+                continue;
+            }
+
+            $songId = $section->metadata?->songId;
+            if ($songId === null) {
+                continue;
+            }
+
+            $counts[$songId] = ($counts[$songId] ?? 0) + 1;
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Flag a song section as a mismatch when its song was sung more times than the plan
+     * expects. Only occurrences beyond the planned count are flagged, and only when the
+     * song is planned at least once (an entirely-unplanned catalogue variant is left alone).
+     *
+     * @param  array<string, mixed>  $row
+     * @param  array<int, int>  $plannedSongCounts
+     * @param  array<int, int>  $detectedSongCounts
+     * @param  array<int, int>  $detectedSongSeen
+     * @return array<string, mixed>
+     */
+    private static function flagOversungSong(
+        array $row,
+        ServiceSection $section,
+        array $plannedSongCounts,
+        array $detectedSongCounts,
+        array &$detectedSongSeen,
+    ): array {
+        if ($section->section_type !== ServiceSectionType::Song) {
+            return $row;
+        }
+
+        $songId = $section->metadata?->songId;
+        if ($songId === null) {
+            return $row;
+        }
+
+        $detectedSongSeen[$songId] = ($detectedSongSeen[$songId] ?? 0) + 1;
+
+        $plannedCount = $plannedSongCounts[$songId] ?? 0;
+        $detectedCount = $detectedSongCounts[$songId] ?? 0;
+
+        $isExcessOccurrence = $plannedCount >= 1
+            && $detectedCount > $plannedCount
+            && $detectedSongSeen[$songId] > $plannedCount;
+
+        if (! $isExcessOccurrence || $row['mismatch_reason'] !== null) {
+            return $row;
+        }
+
+        $row['mismatch_reason'] = sprintf(
+            'Sung %d times in the recording but planned %d',
+            $detectedCount,
+            $plannedCount,
+        );
+        $row['row_type'] = 'mismatched';
+
+        return $row;
+    }
 
     /**
      * @param  array<int, ChurchServiceItem>  $activeLookup
@@ -268,9 +438,20 @@ final class ServiceRecordTimeline
         $mismatchReason = isset($oosAlignment['mismatch_reason']) && is_string($oosAlignment['mismatch_reason'])
             ? $oosAlignment['mismatch_reason']
             : null;
+        // The detected song title should reflect what was heard in *this* section,
+        // not the song linked to the plan item it was aligned to — a heuristic-era
+        // mis-alignment (or a desynced item.title) otherwise surfaces the wrong song.
+        // Priority: matched catalogue title → the section's own detected title →
+        // the plan item's linked song as a last resort.
+        $sectionDetectedSongTitle = $section->section_type === ServiceSectionType::Song
+            && in_array($section->song_match_type, [ServiceSectionSongMatchType::Confirmed, ServiceSectionSongMatchType::Inferred], true)
+            && is_string($section->title) && trim($section->title) !== ''
+                ? $section->title
+                : null;
+
         $detectedSongTitle = isset($metadata['song_title']) && is_string($metadata['song_title']) && trim($metadata['song_title']) !== ''
             ? $metadata['song_title']
-            : $plannedFields['song_title'];
+            : ($sectionDetectedSongTitle ?? $plannedFields['song_title']);
 
         $presentationInference = isset($oosAlignment['presentation_inference']) && is_array($oosAlignment['presentation_inference'])
             ? $oosAlignment['presentation_inference']

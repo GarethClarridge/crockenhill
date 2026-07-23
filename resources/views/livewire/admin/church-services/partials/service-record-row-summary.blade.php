@@ -39,6 +39,8 @@
 
             @if($item['row_type'] === 'mismatched')
                 <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Mismatch</span>
+            @elseif($item['row_type'] === 'planned_only' && $item['is_visual_only'])
+                <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">Visual plan item</span>
             @elseif($item['row_type'] === 'planned_only')
                 <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">Plan only</span>
             @elseif($item['row_type'] === 'unplanned')

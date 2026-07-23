@@ -290,6 +290,137 @@ class ServiceRecordTimelineTest extends TestCase
         $this->assertSame('Jesus Shall Take The Highest Honour #305', $song->title);
     }
 
+    #[Test]
+    public function detected_song_title_uses_the_sections_own_match_over_a_mismatched_plan_item(): void
+    {
+        // The section confidently detected "Great Is The Lord", but it was aligned
+        // to a plan item whose linked song is a different song entirely. The detected
+        // column must reflect what was heard, not the plan item's song.
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $plannedSong = Song::factory()->create(['title' => 'God is for us']);
+        $item = ChurchServiceItem::factory()->create([
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'God is for us',
+            'song_id' => $plannedSong->id,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 1,
+            'title' => 'Great Is The Lord',
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        $run->load(['serviceSections.churchServiceItem.song', 'serviceSections.publishedSermon']);
+        $item->load('song');
+
+        $rows = ServiceRecordTimeline::build($this->itemCollection([$item]), $run);
+
+        $this->assertSame('Great Is The Lord', $rows[0]['song_title']);
+        $this->assertSame('God is for us', $rows[0]['planned_title']);
+    }
+
+    #[Test]
+    public function detected_song_title_falls_back_to_the_plan_item_song_when_the_section_is_unmatched(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $plannedSong = Song::factory()->create(['title' => 'God is for us']);
+        $item = ChurchServiceItem::factory()->create([
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'God is for us',
+            'song_id' => $plannedSong->id,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 1,
+            'title' => null,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        $run->load(['serviceSections.churchServiceItem.song', 'serviceSections.publishedSermon']);
+        $item->load('song');
+
+        $rows = ServiceRecordTimeline::build($this->itemCollection([$item]), $run);
+
+        $this->assertSame('God is for us', $rows[0]['song_title']);
+    }
+
+    #[Test]
+    public function a_song_planned_once_but_detected_twice_flags_the_excess_occurrence(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $song = Song::factory()->create(['title' => 'God is for us']);
+        $plannedItem = ChurchServiceItem::factory()->create([
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'God is for us',
+            'song_id' => $song->id,
+        ]);
+
+        foreach ([1, 2] as $order) {
+            ServiceSection::factory()->create([
+                'media_processing_log_id' => $run->id,
+                'church_service_item_id' => null,
+                'section_type' => ServiceSectionType::Song->value,
+                'section_order' => $order,
+                'title' => 'God is for us',
+                'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+                'metadata' => ['song_id' => $song->id],
+            ]);
+        }
+
+        $run->load(['serviceSections.churchServiceItem.song', 'serviceSections.publishedSermon']);
+
+        $rows = ServiceRecordTimeline::build($this->itemCollection([$plannedItem]), $run);
+
+        // First occurrence is within the planned count — not flagged.
+        $this->assertNotSame('mismatched', $rows[0]['row_type']);
+        $this->assertNull($rows[0]['mismatch_reason']);
+
+        // Second occurrence exceeds the plan — flagged as a mismatch.
+        $this->assertSame('mismatched', $rows[1]['row_type']);
+        $this->assertSame('Sung 2 times in the recording but planned 1', $rows[1]['mismatch_reason']);
+    }
+
+    #[Test]
+    public function a_song_sung_as_often_as_planned_is_not_flagged(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $song = Song::factory()->create(['title' => 'God is for us']);
+        $plannedItems = [
+            ChurchServiceItem::factory()->create(['position' => 1, 'type' => 'songs', 'title' => 'God is for us', 'song_id' => $song->id]),
+            ChurchServiceItem::factory()->create(['position' => 2, 'type' => 'songs', 'title' => 'God is for us', 'song_id' => $song->id]),
+        ];
+
+        foreach ([1, 2] as $order) {
+            ServiceSection::factory()->create([
+                'media_processing_log_id' => $run->id,
+                'church_service_item_id' => null,
+                'section_type' => ServiceSectionType::Song->value,
+                'section_order' => $order,
+                'title' => 'God is for us',
+                'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+                'metadata' => ['song_id' => $song->id],
+            ]);
+        }
+
+        $run->load(['serviceSections.churchServiceItem.song', 'serviceSections.publishedSermon']);
+
+        $rows = ServiceRecordTimeline::build($this->itemCollection($plannedItems), $run);
+
+        $this->assertNull($rows[0]['mismatch_reason']);
+        $this->assertNull($rows[1]['mismatch_reason']);
+    }
+
     // -------------------------------------------------------------------------
     // empty collection edge cases
     // -------------------------------------------------------------------------
@@ -605,6 +736,76 @@ class ServiceRecordTimelineTest extends TestCase
         $rows = ServiceRecordTimeline::build($this->itemCollection([$item]), $run);
 
         $this->assertNull($rows[0]['presentation_inference']);
+    }
+
+    #[Test]
+    public function song_identity_reconciliation_replaces_a_wrong_fk_using_normalized_title(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $duplicateCatalogueSong = Song::factory()->create(['title' => 'Great Is The Lord']);
+        $plannedCatalogueSong = Song::factory()->create(['title' => 'Great Is The Lord #179']);
+        $wrongSong = Song::factory()->create(['title' => 'God is for us']);
+        $correctItem = ChurchServiceItem::factory()->create([
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Great Is The Lord #179',
+            'song_id' => $plannedCatalogueSong->id,
+        ]);
+        $wrongItem = ChurchServiceItem::factory()->create([
+            'church_service_id' => $correctItem->church_service_id,
+            'position' => 2,
+            'type' => 'songs',
+            'title' => 'God is for us',
+            'song_id' => $wrongSong->id,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => $wrongItem->id,
+            'section_type' => ServiceSectionType::Song,
+            'section_order' => 1,
+            'title' => 'Great Is The Lord',
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+            'metadata' => ['song_id' => $duplicateCatalogueSong->id],
+        ]);
+
+        $run->load(['serviceSections.churchServiceItem.song', 'serviceSections.publishedSermon']);
+        $rows = ServiceRecordTimeline::build($this->itemCollection([$correctItem->load('song'), $wrongItem->load('song')]), $run);
+
+        $this->assertSame('matched', $rows[0]['row_type']);
+        $this->assertSame($correctItem->id, $rows[0]['item_id']);
+        $this->assertSame($wrongItem->id, $rows[1]['item_id']);
+        $this->assertSame('planned_only', $rows[1]['row_type']);
+    }
+
+    #[Test]
+    public function song_identity_reconciliation_uses_exact_song_id_before_title(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $song = Song::factory()->create(['title' => 'God is for us']);
+        $item = ChurchServiceItem::factory()->create([
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'God is for us',
+            'song_id' => $song->id,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Song,
+            'section_order' => 1,
+            'title' => 'A transcription typo',
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+            'metadata' => ['song_id' => $song->id],
+        ]);
+
+        $run->load(['serviceSections.churchServiceItem.song', 'serviceSections.publishedSermon']);
+        $rows = ServiceRecordTimeline::build($this->itemCollection([$item->load('song')]), $run);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('matched', $rows[0]['row_type']);
+        $this->assertSame($item->id, $rows[0]['item_id']);
     }
 
     // -------------------------------------------------------------------------

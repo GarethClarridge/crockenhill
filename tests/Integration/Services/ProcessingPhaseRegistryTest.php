@@ -17,6 +17,7 @@ use App\Jobs\ExtractAudioFromVideo;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\MatchSongsFromTranscript;
+use App\Jobs\MergeSongContinuations;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
@@ -107,7 +108,7 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame([
             'action' => 'dispatch_livestream_chain',
             'pipeline' => 'livestream',
-            'job_offset' => 9,
+            'job_offset' => 10,
             'rerun_strategy' => 'safe_to_rerun',
             'reset_scope' => 'none',
         ], $registry->retryPlanFor($processingLog));
@@ -130,7 +131,7 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame([
             'action' => 'dispatch_livestream_chain',
             'pipeline' => 'livestream',
-            'job_offset' => 13,
+            'job_offset' => 14,
             'rerun_strategy' => 'safe_to_rerun',
             'reset_scope' => 'none',
         ], $registry->retryPlanFor($processingLog));
@@ -239,15 +240,16 @@ class ProcessingPhaseRegistryTest extends TestCase
                     0 => AnalyzeSegments::class,
                     1 => TranscribeFullService::class,
                     2 => DetectServiceStructure::class,
-                    5 => ExtractSermon::class,
-                    6 => SubmitToProcessing::class,
-                    9 => CreateSermonTranscriptFromService::class,
-                    10 => ProcessTranscriptWithAI::class,
-                    11 => AssessSermonVideoQuality::class,
-                    12 => GenerateThumbnail::class,
-                    13 => PrepareSectionPublicationCandidates::class,
-                    14 => SendCompletionNotification::class,
-                    15 => CleanupTemporaryFiles::class,
+                    5 => MergeSongContinuations::class,
+                    6 => ExtractSermon::class,
+                    7 => SubmitToProcessing::class,
+                    10 => CreateSermonTranscriptFromService::class,
+                    11 => ProcessTranscriptWithAI::class,
+                    12 => AssessSermonVideoQuality::class,
+                    13 => GenerateThumbnail::class,
+                    14 => PrepareSectionPublicationCandidates::class,
+                    15 => SendCompletionNotification::class,
+                    16 => CleanupTemporaryFiles::class,
                 ],
             ],
         ];

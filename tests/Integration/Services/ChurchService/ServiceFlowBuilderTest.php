@@ -407,6 +407,29 @@ class ServiceFlowBuilderTest extends TestCase
         $this->assertSame(ServiceSectionPublicationStatus::Published, $flow[0]['publication_status']);
     }
 
+    #[Test]
+    public function visual_only_plan_items_are_described_as_expected_visual_elements(): void
+    {
+        $run = $this->createRun();
+
+        foreach (['presentations', 'images'] as $itemType) {
+            $flow = ServiceFlowBuilder::build([
+                $this->makeRow([
+                    'row_type' => 'planned_only',
+                    'section_type' => null,
+                    'item_type' => $itemType,
+                    'planned_title' => 'Heidelberg-week16.pptx',
+                    'start_time' => null,
+                    'end_time' => null,
+                ]),
+            ], $run);
+
+            $this->assertSame('Slides / visual element — no separate audio segment', $flow[0]['description']);
+            $this->assertTrue($flow[0]['is_visual_only']);
+            $this->assertStringNotContainsString('not detected', $flow[0]['description']);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

@@ -203,7 +203,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
                 'model' => 'gpt-4o-transcribe',
                 'response_format' => 'text',
                 'language' => 'en',
-                'prompt' => 'The following speech is a Christian sermon preached at Crockenhill Baptist Church, in the British conservative evangelical tradition.',
+                'prompt' => (string) config('media-processing.transcription.prompts.sermon'),
             ]);
 
             $apiTime = microtime(true) - $apiStartTime;

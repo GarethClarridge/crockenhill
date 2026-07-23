@@ -18,10 +18,6 @@ use Illuminate\Support\Facades\Http;
  */
 class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInterface
 {
-    private const TRANSCRIPTION_PROMPT = 'The following is a full church service at Crockenhill Baptist Church, '
-        .'in the British conservative evangelical tradition: welcome, hymns and songs, prayers, Bible readings, '
-        .'notices and a sermon.';
-
     public function __construct(
         private readonly SermonProcessingLogger $logger,
         private readonly AudioChunkingService $chunkingService,
@@ -85,7 +81,7 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
                     'model' => (string) config('media-processing.transcription.local_whisper_model', 'small'),
                     'language' => 'en',
                     'response_format' => 'verbose_json',
-                    'prompt' => self::TRANSCRIPTION_PROMPT,
+                    'prompt' => (string) config('media-processing.transcription.prompts.full_service'),
                 ]);
         } catch (Exception $e) {
             $this->logger->logApiCall(

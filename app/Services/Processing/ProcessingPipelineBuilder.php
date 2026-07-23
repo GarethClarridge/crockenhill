@@ -17,6 +17,7 @@ use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\IdentifySpeaker;
 use App\Jobs\MatchSongsFromTranscript;
+use App\Jobs\MergeSongContinuations;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
@@ -127,6 +128,7 @@ class ProcessingPipelineBuilder
             new DetectServiceStructure($log),
             new ProjectLivestreamServiceStructure($log),
             new MatchSongsFromTranscript($log),
+            new MergeSongContinuations($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
             new EnhanceAudio($log),
