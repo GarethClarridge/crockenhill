@@ -1,15 +1,17 @@
 # Service Workbench Redesign — One Service Record
 
-> **Status (2026-07-23): ready to implement after simplification remainder R9.** This plan
+> **Status (2026-07-23): ready to implement — the R9 dependency is satisfied.** This plan
 > records the maintainer's review of `/admin/services/790` and is executable without further
 > design decisions. It supersedes the service-page view structure specified in Phase 1 of the
 > now-completed service-screens consolidation plan.
 >
-> **Dependency:** do not start the view rewrite until R9 of
+> **Dependency:** R9 of
 > [JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md](JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md)
-> has removed the heuristic path and the deletion-scheduled `timeline-alignment-*` partials.
-> The useful comparison data from that table must survive in the primary service record, but
-> no work should deepen those partials before R9 deletes them.
+> has removed the heuristic path (commits `01dd1dcd0`..`a130092ee`), which unblocks this rewrite.
+> R9 did **not** delete the `timeline-alignment-*` partials it had been scheduled to remove — they
+> still exist and are still `@include`d by `processing-run-card.blade.php:51`. **This plan now owns
+> that deletion (step C.1).** The useful comparison data from that table must survive in the primary
+> service record, and no work should deepen those partials before step C deletes them.
 >
 > **Coordination:**
 >
@@ -273,8 +275,16 @@ hub and workbench to disagree.
 
 ### C. Replace the split regions with the unified record
 
-1. After R9 deletes the detailed table, retain its useful comparison fields in the merged row view
-   data rather than recreating the table.
+1. Retain the detailed alignment table's useful comparison fields — planned context, detected
+   context, timing and publication state — in the merged row view data rather than recreating the
+   table. Then **delete the now-orphaned partials** and their include:
+   `resources/views/livewire/admin/church-services/partials/timeline-alignment-table.blade.php`,
+   `timeline-alignment-table-row.blade.php`, and the `@include` at
+   `processing-run-card.blade.php:51`. These three form a self-contained cluster
+   (`processing-run-card` → `timeline-alignment-table` → `timeline-alignment-table-row`) with no PHP
+   or test references, so once the comparison fields are preserved and the include removed they can
+   be deleted safely. The table consumes `$processingRunView->serviceTimeline`, the same source the
+   merged record uses, so no data plumbing is lost.
 2. Prefer a typed row/read-model structure over growing anonymous Blade conditionals. Build the
    display data in `ChurchServiceShowPresenter` or a focused data object; Blade should render
    already-decided labels, tones and optional fields.
@@ -358,7 +368,8 @@ workbench assertions encountered there into the namespaced suite in preparation 
 - One overall status agrees with the newest relevant processing run and the services hub.
 - A failed latest run cannot appear to have progressed to Review.
 - The plan and recording are presented as one chronological service record, not two peer sections
-  plus a duplicate table.
+  plus a duplicate table. The `timeline-alignment-table*` partials and their `processing-run-card`
+  include are deleted, and no view references them.
 - Transcript excerpts are visible by default.
 - Missing plan linkage is neutral provenance. Only real review predicates, mismatch or processing
   failure use warning/error colour.
