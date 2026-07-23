@@ -45,3 +45,7 @@
 ## 2026-07-07 - Documenting Interface Contracts for API Clarity
 **Learning:** Interface contracts in `app/Contracts/` define the API surface and boundary between services. Providing class-level PHPDoc that explains the "why" and "purpose" of the interface, along with detailed method documentation, significantly improves developer experience when navigating service implementations.
 **Action:** Prioritize documenting interface contracts as they are the source of truth for service expectations. Ensure parameter and return descriptions clarify the domain context (e.g., OoS email components) rather than just technical types.
+
+## 2026-07-21 - Aligning Class-Level Documentation with Refactored Single-Responsibility Roles
+**Learning:** When core services are refactored to follow the Single Responsibility Principle, remaining methods can result in a service whose name (like `AudioExtractionService`) no longer reflects its actual operation (only validating files via `MediaValidationService`). Updating the class-level PHPDoc to document this delegation and provide historical context is critical for preventing developer confusion and ensuring clear boundary architecture.
+**Action:** When inspecting services, check if class-level comments are aligned with the actual methods implemented. Use {@see} tags to explicitly link delegated responsibilities, and document constructors and injected validation contracts.
