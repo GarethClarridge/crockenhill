@@ -421,6 +421,6 @@ class AdminUrlStateTest extends TestCase
             ->test(ShowChurchService::class, ['churchService' => $service])
             ->assertSet('edit', true)
             ->assertSet('form.items.0.title', 'Welcome')
-            ->assertSee('Save order of service');
+            ->assertSee('Save plan');
     }
 }

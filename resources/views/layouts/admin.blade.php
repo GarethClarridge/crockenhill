@@ -41,7 +41,7 @@
       @endif
 
       {{-- Breadcrumbs --}}
-      <x-breadcrumbs area="church" :heading="$heading ?? 'Admin'" />
+      <x-breadcrumbs area="church" :heading="$breadcrumbHeading ?? $heading ?? 'Admin'" />
 
       {{-- Main Content: $slot for Livewire full-page components, @yield for legacy @extends consumers --}}
       <div class="mt-6">

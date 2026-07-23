@@ -143,6 +143,7 @@
                                 :variant="match($rollup['status']) {
                                     \App\Enums\ChurchServiceRollupStatus::NeedsReview => 'warning',
                                     \App\Enums\ChurchServiceRollupStatus::Processing => 'sky',
+                                    \App\Enums\ChurchServiceRollupStatus::ProcessingFailed => 'danger',
                                     \App\Enums\ChurchServiceRollupStatus::Ready => 'teal',
                                     \App\Enums\ChurchServiceRollupStatus::Published => 'success',
                                     default => 'default',

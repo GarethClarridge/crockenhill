@@ -15,6 +15,7 @@ final readonly class ChurchServiceShowReadModel
      * @param  array<string, mixed>  $importMetadata
      * @param  list<string>  $warnings
      * @param  list<ChurchServiceProcessingRunView>  $processingRunViews
+     * @param  list<ChurchServiceProcessingRunView>  $otherProcessingRunViews
      * @param  list<array{label: string, state: string}>  $pipelineSteps
      * @param  array<int, array{section: ServiceSection, reasons: array<int, array{key: string, label: string, classes: string}>, review_reason: string|null, confirmable: bool, audio_url: string|null, video_url: string|null}>  $sectionReviewPanels
      * @param  array<int, int>  $mergeCandidatePairs
@@ -26,9 +27,14 @@ final readonly class ChurchServiceShowReadModel
         public array $warnings,
         public ?float $confidenceScore,
         public array $processingRunViews,
+        public ?ChurchServiceProcessingRunView $primaryProcessingRunView,
+        public array $otherProcessingRunViews,
         public ?PendingStructureMergeMetadata $pendingMerge,
         public ?string $pendingMergeSource,
         public array $pipelineSteps,
+        public ChurchServiceStatusSummary $statusSummary,
+        public int $attentionCount,
+        public string $planSourceNote,
         public bool $reviewNeedsAttention,
         public array $sectionReviewPanels,
         public array $mergeCandidatePairs,
@@ -44,9 +50,14 @@ final readonly class ChurchServiceShowReadModel
      *     warnings: list<string>,
      *     confidenceScore: ?float,
      *     processingRunViews: list<ChurchServiceProcessingRunView>,
+     *     primaryProcessingRunView: ?ChurchServiceProcessingRunView,
+     *     otherProcessingRunViews: list<ChurchServiceProcessingRunView>,
      *     pendingMerge: ?PendingStructureMergeMetadata,
      *     pendingMergeSource: ?string,
      *     pipelineSteps: list<array{label: string, state: string}>,
+     *     statusSummary: ChurchServiceStatusSummary,
+     *     attentionCount: int,
+     *     planSourceNote: string,
      *     reviewNeedsAttention: bool,
      *     sectionReviewPanels: array<int, array{section: ServiceSection, reasons: array<int, array{key: string, label: string, classes: string}>, review_reason: string|null, confirmable: bool, audio_url: string|null, video_url: string|null}>,
      *     mergeCandidatePairs: array<int, int>,
@@ -63,9 +74,14 @@ final readonly class ChurchServiceShowReadModel
             'warnings' => $this->warnings,
             'confidenceScore' => $this->confidenceScore,
             'processingRunViews' => $this->processingRunViews,
+            'primaryProcessingRunView' => $this->primaryProcessingRunView,
+            'otherProcessingRunViews' => $this->otherProcessingRunViews,
             'pendingMerge' => $this->pendingMerge,
             'pendingMergeSource' => $this->pendingMergeSource,
             'pipelineSteps' => $this->pipelineSteps,
+            'statusSummary' => $this->statusSummary,
+            'attentionCount' => $this->attentionCount,
+            'planSourceNote' => $this->planSourceNote,
             'reviewNeedsAttention' => $this->reviewNeedsAttention,
             'sectionReviewPanels' => $this->sectionReviewPanels,
             'mergeCandidatePairs' => $this->mergeCandidatePairs,

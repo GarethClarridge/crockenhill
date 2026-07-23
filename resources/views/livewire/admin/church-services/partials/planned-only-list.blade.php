@@ -1,4 +1,6 @@
+@if($renderCard ?? true)
 <x-card :heading="($showHeading ?? true) ? 'Order of service' : null">
+@endif
     @if($items->isEmpty())
         <div class="space-y-3">
             <p class="text-sm text-gray-500">This service has no planned items.</p>
@@ -53,4 +55,6 @@
             @endforeach
         </ol>
     @endif
+@if($renderCard ?? true)
 </x-card>
+@endif

@@ -148,9 +148,8 @@ class ChurchServiceRollupQueryTest extends TestCase
 
         $rollups = $this->query->forServices($this->freshServices());
 
-        $this->assertSame(ChurchServiceRollupStatus::NeedsReview, $rollups[$service->id]['status']);
-        // flagged section + awaiting-segment run + needs_review + pending merge
-        $this->assertSame(4, $rollups[$service->id]['attention_count']);
+        $this->assertSame(ChurchServiceRollupStatus::ProcessingFailed, $rollups[$service->id]['status']);
+        $this->assertSame(3, $rollups[$service->id]['attention_count']);
     }
 
     #[Test]
@@ -215,6 +214,51 @@ class ChurchServiceRollupQueryTest extends TestCase
         $rollups = $this->query->forServices($this->freshServices());
 
         $this->assertSame(ChurchServiceRollupStatus::Ready, $rollups[$service->id]['status']);
+    }
+
+    #[Test]
+    public function it_returns_processing_failed_for_the_latest_surviving_failed_run(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->failed()->create([
+            'church_service_id' => $service->id,
+            'created_at' => now(),
+        ]);
+
+        $rollup = $this->query->forServices($this->freshServices())[$service->id];
+
+        $this->assertSame(ChurchServiceRollupStatus::ProcessingFailed, $rollup['status']);
+        $this->assertSame($run->id, $rollup['primary_run_id']);
+    }
+
+    #[Test]
+    public function a_newer_completed_run_prevents_an_older_failure_from_overriding_status(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+        ]);
+
+        MediaProcessingLog::factory()->livestream()->failed()->create([
+            'church_service_id' => $service->id,
+            'created_at' => now()->subMinute(),
+        ]);
+
+        $completedRun = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'church_service_id' => $service->id,
+            'created_at' => now(),
+        ]);
+
+        $rollup = $this->query->forServices($this->freshServices())[$service->id];
+
+        $this->assertSame(ChurchServiceRollupStatus::Ready, $rollup['status']);
+        $this->assertSame($completedRun->id, $rollup['primary_run_id']);
     }
 
     #[Test]

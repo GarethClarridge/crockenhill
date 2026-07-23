@@ -229,8 +229,8 @@ class ServiceFlowBuilderTest extends TestCase
 
         $flow = ServiceFlowBuilder::build([$row], $run);
 
-        $this->assertStringContainsString('Expected from Order of Service', $flow[0]['planned_context']);
-        $this->assertStringContainsString('not detected', $flow[0]['planned_context']);
+        $this->assertStringContainsString('Plan only', $flow[0]['planned_context']);
+        $this->assertStringContainsString('Song', $flow[0]['planned_context']);
     }
 
     #[Test]
@@ -241,7 +241,7 @@ class ServiceFlowBuilderTest extends TestCase
         $row = $this->makeRow(['row_type' => 'unplanned', 'planned_title' => null]);
         $flow = ServiceFlowBuilder::build([$row], $run);
 
-        $this->assertSame('Not in Order of Service', $flow[0]['planned_context']);
+        $this->assertSame('Recording only', $flow[0]['planned_context']);
     }
 
     // -------------------------------------------------------------------------
@@ -383,7 +383,7 @@ class ServiceFlowBuilderTest extends TestCase
 
         $this->assertCount(1, $flow);
         $this->assertSame('planned_only', $flow[0]['row_type']);
-        $this->assertStringContainsString('Expected from Order of Service', $flow[0]['planned_context']);
+        $this->assertStringContainsString('Plan only', $flow[0]['planned_context']);
         $this->assertNull($flow[0]['start_time']);
         $this->assertNull($flow[0]['end_time']);
     }

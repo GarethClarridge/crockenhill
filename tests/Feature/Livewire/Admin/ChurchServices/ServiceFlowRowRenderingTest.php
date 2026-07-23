@@ -48,34 +48,29 @@ class ServiceFlowRowRenderingTest extends TestCase
     }
 
     #[Test]
-    public function it_wires_the_disclosure_button_to_the_details_region_for_screen_readers(): void
+    public function it_wires_actionable_disclosures_to_their_details_region(): void
     {
-        $rendered = $this->renderRow(rowIndex: 3);
+        $rendered = $this->renderRow(rowIndex: 3, overrides: [
+            'row_type' => 'mismatched',
+            'mismatch_reason' => 'expected_type_mismatch',
+        ]);
 
-        // The button must advertise which region it controls, and the region
-        // must carry the matching id — the WAI-ARIA disclosure relationship.
         $this->assertStringContainsString('aria-controls="service-row-details-3"', $rendered);
         $this->assertStringContainsString('id="service-row-details-3"', $rendered);
-    }
-
-    #[Test]
-    public function it_binds_aria_expanded_to_the_alpine_toggle_state(): void
-    {
-        $rendered = $this->renderRow();
-
         $this->assertStringContainsString(':aria-expanded="expanded.toString()"', $rendered);
-        // The redundant static aria-expanded must not linger alongside the binding.
         $this->assertStringNotContainsString('aria-expanded="false"', $rendered);
     }
 
     #[Test]
-    public function the_details_region_id_tracks_the_row_index(): void
+    public function clean_rows_are_static_and_show_transcript_evidence(): void
     {
-        $first = $this->renderRow(rowIndex: 0);
-        $second = $this->renderRow(rowIndex: 1);
+        $rendered = $this->renderRow(overrides: [
+            'transcript_excerpt' => 'Let us pray together.',
+        ]);
 
-        $this->assertStringContainsString('id="service-row-details-0"', $first);
-        $this->assertStringContainsString('id="service-row-details-1"', $second);
+        $this->assertStringContainsString('Let us pray together.', $rendered);
+        $this->assertStringNotContainsString('<button', $rendered);
+        $this->assertStringNotContainsString('aria-controls=', $rendered);
     }
 
     #[Test]
@@ -92,7 +87,7 @@ class ServiceFlowRowRenderingTest extends TestCase
     }
 
     #[Test]
-    public function it_keeps_planning_and_publication_state_for_song_sections(): void
+    public function recording_only_song_sections_use_neutral_provenance(): void
     {
         $rendered = $this->renderRow(overrides: [
             'row_type' => 'unplanned',
@@ -100,12 +95,13 @@ class ServiceFlowRowRenderingTest extends TestCase
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
         ]);
 
-        $this->assertStringContainsString('Not in plan', $rendered);
-        $this->assertStringContainsString('Not Applicable', $rendered);
+        $this->assertStringContainsString('Recording only', $rendered);
+        $this->assertStringNotContainsString('Not in plan', $rendered);
+        $this->assertStringNotContainsString('bg-rose', $rendered);
     }
 
     #[Test]
-    public function it_keeps_planning_state_for_presentation_backed_sections(): void
+    public function presentation_backed_recording_only_sections_are_not_warnings(): void
     {
         $rendered = $this->renderRow(overrides: [
             'row_type' => 'unplanned',
@@ -117,6 +113,7 @@ class ServiceFlowRowRenderingTest extends TestCase
             ],
         ]);
 
-        $this->assertStringContainsString('Not in plan', $rendered);
+        $this->assertStringContainsString('Recording only', $rendered);
+        $this->assertStringNotContainsString('Not in plan', $rendered);
     }
 }

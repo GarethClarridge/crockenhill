@@ -6,6 +6,8 @@ namespace App\Presenters;
 
 use App\Data\ChurchServiceProcessingRunView;
 use App\Data\ChurchServiceShowReadModel;
+use App\Data\ChurchServiceStatusSummary;
+use App\Enums\ChurchServiceRollupStatus;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -18,6 +20,7 @@ use App\Queries\ServiceReviewDashboardQuery;
 use App\Services\ChurchService\ProcessingRunTimelineBuilder;
 use App\Services\ChurchService\ServiceFlowBuilder;
 use App\Services\Media\Video\VideoStorageService;
+use BackedEnum;
 use Illuminate\Database\Eloquent\Collection;
 
 class ChurchServiceShowPresenter
@@ -57,15 +60,32 @@ class ChurchServiceShowPresenter
 
         $rollup = $this->rollupQuery->rollupFor($churchService, $processingRuns);
 
+        $processingRunViews = $this->runViews($processingRuns, $processingTimelines, $serviceTimelines, $serviceFlows);
+        $primaryRunId = $rollup['primary_run_id'];
+        $primaryProcessingRunView = collect($processingRunViews)
+            ->first(fn (ChurchServiceProcessingRunView $view): bool => $view->run->id === $primaryRunId);
+
         return new ChurchServiceShowReadModel(
             churchService: $churchService,
             importMetadata: $importMetadata,
             warnings: $warnings,
             confidenceScore: is_numeric($confidenceScore) ? (float) $confidenceScore : null,
-            processingRunViews: $this->runViews($processingRuns, $processingTimelines, $serviceTimelines, $serviceFlows),
+            processingRunViews: $processingRunViews,
+            primaryProcessingRunView: $primaryProcessingRunView,
+            otherProcessingRunViews: array_values(collect($processingRunViews)
+                ->reject(fn (ChurchServiceProcessingRunView $view): bool => $view->run->id === $primaryRunId)
+                ->all()),
             pendingMerge: $hasPendingMerge ? $pendingMerge : null,
             pendingMergeSource: $hasPendingMerge ? $pendingMergeSource : null,
             pipelineSteps: $rollup['steps'],
+            statusSummary: $this->statusSummary(
+                $churchService,
+                $rollup['status'],
+                $rollup['attention_count'],
+                $primaryProcessingRunView,
+            ),
+            attentionCount: $rollup['attention_count'],
+            planSourceNote: $this->planSourceNote($items),
             reviewNeedsAttention: $rollup['attention_count'] > 0,
             sectionReviewPanels: $this->sectionReviewPanels($processingRuns),
             mergeCandidatePairs: $this->mergeCandidatePairs($processingRuns),
@@ -76,6 +96,96 @@ class ChurchServiceShowPresenter
                 ->count(),
             sectionPublishingEnabled: (bool) config('media-processing.section_publishing.enabled', true),
         );
+    }
+
+    private function statusSummary(
+        ChurchService $churchService,
+        ChurchServiceRollupStatus $status,
+        int $attentionCount,
+        ?ChurchServiceProcessingRunView $primaryRunView,
+    ): ChurchServiceStatusSummary {
+        $uploadUrl = route('admin.services.upload-recording', ['churchServiceId' => $churchService->id]);
+        $failureMessage = trim((string) $primaryRunView?->run->error_message);
+
+        return match ($status) {
+            ChurchServiceRollupStatus::PlanOnly => new ChurchServiceStatusSummary(
+                $status,
+                'This future service has a plan but no recording yet.',
+                'Upload recording',
+                $uploadUrl,
+                null,
+            ),
+            ChurchServiceRollupStatus::AwaitingRecording => new ChurchServiceStatusSummary(
+                $status,
+                'The service date has passed and no recording is attached.',
+                'Upload recording',
+                $uploadUrl,
+                null,
+            ),
+            ChurchServiceRollupStatus::Processing => new ChurchServiceStatusSummary(
+                $status,
+                'The recording is still being analysed.',
+                null,
+                null,
+                null,
+            ),
+            ChurchServiceRollupStatus::ProcessingFailed => new ChurchServiceStatusSummary(
+                $status,
+                $failureMessage !== '' ? $failureMessage : 'The recording could not be processed.',
+                'Upload replacement recording',
+                $uploadUrl,
+                null,
+            ),
+            ChurchServiceRollupStatus::NeedsReview => new ChurchServiceStatusSummary(
+                $status,
+                "{$attentionCount} ".str('item')->plural($attentionCount).' need attention.',
+                'Jump to first attention row',
+                null,
+                'service-record',
+            ),
+            ChurchServiceRollupStatus::Published => new ChurchServiceStatusSummary(
+                $status,
+                'Published outputs are available.',
+                null,
+                null,
+                null,
+            ),
+            ChurchServiceRollupStatus::Ready => new ChurchServiceStatusSummary(
+                $status,
+                'Processing completed and nothing needs attention.',
+                null,
+                null,
+                null,
+            ),
+        };
+    }
+
+    /**
+     * @param  Collection<int, ChurchServiceItem>  $items
+     */
+    private function planSourceNote(Collection $items): string
+    {
+        $sources = $items
+            ->pluck('source')
+            ->map(fn (mixed $source): mixed => $source instanceof BackedEnum ? $source->value : $source)
+            ->filter(fn (mixed $source): bool => is_string($source) && $source !== '')
+            ->map(fn (string $source): string => strtolower($source))
+            ->unique()
+            ->values();
+
+        if ($sources->contains(fn (string $source): bool => str_contains($source, 'openlp'))) {
+            return 'Presentation plan from OpenLP. It usually contains slide-backed items only, so other parts of the service may appear only in the recording.';
+        }
+
+        if ($sources->contains(fn (string $source): bool => str_contains($source, 'email'))) {
+            return 'Plan imported from an email. It may describe more of the service than the presentation slides.';
+        }
+
+        if ($sources->count() > 1) {
+            return 'This plan combines items from more than one source. Recording-only sections are expected where the plan does not describe the whole service.';
+        }
+
+        return 'This service plan was entered manually. It may not describe every part of the recording.';
     }
 
     /**

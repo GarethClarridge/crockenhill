@@ -57,6 +57,7 @@ class ChurchServiceRollupQuery
      *     status: ChurchServiceRollupStatus,
      *     attention_count: int,
      *     run_count: int,
+     *     primary_run_id: int|null,
      *     steps: list<array{label: string, state: string}>
      * }>
      */
@@ -100,6 +101,7 @@ class ChurchServiceRollupQuery
      *     status: ChurchServiceRollupStatus,
      *     attention_count: int,
      *     run_count: int,
+     *     primary_run_id: int|null,
      *     steps: list<array{label: string, state: string}>
      * }
      */
@@ -118,6 +120,7 @@ class ChurchServiceRollupQuery
         return MediaProcessingLog::query()
             ->select(self::RUN_COLUMNS)
             ->segmentationPipeline()
+            ->notSuperseded()
             ->with([
                 'serviceSections' => fn ($query) => $query
                     ->orderBy('section_order')
@@ -139,19 +142,32 @@ class ChurchServiceRollupQuery
      *     status: ChurchServiceRollupStatus,
      *     attention_count: int,
      *     run_count: int,
+     *     primary_run_id: int|null,
      *     steps: list<array{label: string, state: string}>
      * }
      */
     private function rollup(ChurchService $service, Collection $serviceRuns): array
     {
+        $primaryRun = $serviceRuns
+            ->sortByDesc(fn (MediaProcessingLog $run): string => sprintf(
+                '%s-%020d',
+                $run->created_at?->format('Y-m-d H:i:s.u') ?? '',
+                $run->id,
+            ))
+            ->first();
+
+        $primaryRuns = $primaryRun instanceof MediaProcessingLog
+            ? collect([$primaryRun])
+            : collect();
+
         /** @var Collection<int, ServiceSection> $sections */
-        $sections = $serviceRuns->flatMap(fn (MediaProcessingLog $run) => $run->serviceSections);
+        $sections = $primaryRuns->flatMap(fn (MediaProcessingLog $run) => $run->serviceSections);
 
         $flaggedSectionCount = $this->sectionPublishingEnabled()
             ? $sections->filter(fn (ServiceSection $section): bool => $this->dashboardQuery->isReviewCandidate($section))->count()
             : 0;
 
-        $awaitingSegmentRunCount = $serviceRuns
+        $awaitingSegmentRunCount = $primaryRuns
             ->filter(fn (MediaProcessingLog $run): bool => $run->requiresManualSermonReview())
             ->count();
 
@@ -160,7 +176,7 @@ class ChurchServiceRollupQuery
             + ($service->needs_review ? 1 : 0)
             + ($service->pending_structure_merge_source !== null ? 1 : 0);
 
-        $isProcessing = $serviceRuns->contains(
+        $isProcessing = $primaryRuns->contains(
             fn (MediaProcessingLog $run): bool => in_array($run->status, [
                 ProcessingStatus::Pending,
                 ProcessingStatus::Started,
@@ -168,11 +184,13 @@ class ChurchServiceRollupQuery
             ], true)
         );
 
-        $hasCompletedRun = $serviceRuns->contains(
+        $hasCompletedRun = $primaryRuns->contains(
             fn (MediaProcessingLog $run): bool => $run->status === ProcessingStatus::Completed
         );
 
-        $hasSermon = $serviceRuns->contains(fn (MediaProcessingLog $run): bool => $run->sermon_id !== null)
+        $hasFailedRun = $primaryRun instanceof MediaProcessingLog && $primaryRun->status === ProcessingStatus::Failed;
+
+        $hasSermon = $primaryRuns->contains(fn (MediaProcessingLog $run): bool => $run->sermon_id !== null)
             || $sections->contains(fn (ServiceSection $section): bool => $section->published_sermon_id !== null);
 
         $allSectionsResolved = $sections->isNotEmpty() && $sections->every(
@@ -184,6 +202,7 @@ class ChurchServiceRollupQuery
 
         $status = match (true) {
             $isProcessing => ChurchServiceRollupStatus::Processing,
+            $hasFailedRun => ChurchServiceRollupStatus::ProcessingFailed,
             $attentionCount > 0 => ChurchServiceRollupStatus::NeedsReview,
             $serviceRuns->isEmpty() => $service->date->isPast() && ! $service->date->isToday()
                 ? ChurchServiceRollupStatus::AwaitingRecording
@@ -196,6 +215,7 @@ class ChurchServiceRollupQuery
             'status' => $status,
             'attention_count' => $attentionCount,
             'run_count' => $serviceRuns->count(),
+            'primary_run_id' => $primaryRun?->id,
             'steps' => $this->steps($service, $status, $serviceRuns->isNotEmpty(), $hasCompletedRun, $attentionCount),
         ];
     }

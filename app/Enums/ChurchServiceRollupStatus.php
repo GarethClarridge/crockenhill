@@ -20,6 +20,7 @@ enum ChurchServiceRollupStatus: string
     case PlanOnly = 'plan_only';
     case AwaitingRecording = 'awaiting_recording';
     case Processing = 'processing';
+    case ProcessingFailed = 'processing_failed';
     case NeedsReview = 'needs_review';
     case Ready = 'ready';
     case Published = 'published';
@@ -30,6 +31,7 @@ enum ChurchServiceRollupStatus: string
             self::PlanOnly => 'Plan only',
             self::AwaitingRecording => 'Awaiting recording',
             self::Processing => 'Processing',
+            self::ProcessingFailed => 'Processing failed',
             self::NeedsReview => 'Needs review',
             self::Ready => 'Ready',
             self::Published => 'Published',
@@ -42,6 +44,7 @@ enum ChurchServiceRollupStatus: string
             self::PlanOnly => 'bg-slate-200 text-slate-800',
             self::AwaitingRecording => 'bg-slate-200 text-slate-700',
             self::Processing => 'bg-sky-100 text-sky-800',
+            self::ProcessingFailed => 'bg-rose-100 text-rose-800',
             self::NeedsReview => 'bg-amber-100 text-amber-800',
             self::Ready => 'bg-cbc-teal-light/15 text-cbc-teal-dark',
             self::Published => 'bg-cbc-teal text-white',
@@ -50,6 +53,6 @@ enum ChurchServiceRollupStatus: string
 
     public function needsAttention(): bool
     {
-        return $this === self::NeedsReview;
+        return in_array($this, [self::ProcessingFailed, self::NeedsReview], true);
     }
 }

@@ -555,7 +555,6 @@ class AdminChurchServiceTest extends TestCase
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
             ->assertSeeInOrder(['Opening Hymn', 'Closing Prayer'])
-            ->assertSee(route('admin.services.songs.show', $song))
             ->assertSee('Upload filename and embedded .osj filename identities do not match.')
             ->assertSee('40%');
     }
@@ -644,11 +643,10 @@ class AdminChurchServiceTest extends TestCase
             ->create();
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
-            ->assertSee('Classified livestream runs')
+            ->assertSee('Service record')
             ->assertSee($matchingRun->processing_id)
             ->assertDontSee($nonMatchingRun->processing_id)
             ->assertSeeInOrder(['Welcome', 'Closing Song'])
-            ->assertSee('Needs review')
             ->assertDontSee('expected type mismatch')
             ->assertSee('Published')
             ->assertSee('Pending Approval');
@@ -697,22 +695,19 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
-            ->assertSee('Processing Timeline')
+            ->assertSee('Technical processing details')
+            ->assertSee('Recorded processing steps')
             ->assertSeeInOrder([
                 'Transcribe full service',
                 'Detect service structure',
                 'Project service structure',
-                'Match songs from transcript',
-                'Extract sermon',
-                'Prepare publication candidates',
             ])
             ->assertSee('1m 00s')
             ->assertSee('30s')
             ->assertSee('Transcript API timeout')
             ->assertSee('Skipped')
             ->assertSee('Failed')
-            ->assertSee('Not recorded')
-            ->assertSee('No step log recorded for this older run.');
+            ->assertDontSee('No step log recorded for this older run.');
     }
 
     #[Test]
@@ -734,10 +729,9 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
-            ->assertSee('Order of service')
-            ->assertSee('Opening Prayer')
-            ->assertSee('EMAIL')
-            ->assertDontSee('Classified livestream runs');
+            ->assertSee('Service record')
+            ->assertSee('Plan imported from an email')
+            ->assertDontSee('Other uploads');
     }
 
     #[Test]
@@ -775,10 +769,9 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
-            ->assertSee('Classified livestream runs')
+            ->assertSee('Service record')
             ->assertSee('Notices')
-            ->assertSee('OPENLP')
-            ->assertSee('Aligned')
+            ->assertSee('Matches plan')
             ->assertSee('5:00')
             ->assertSee('7:00');
     }
@@ -827,7 +820,7 @@ class AdminChurchServiceTest extends TestCase
             ->assertSee('Planned Sermon')
             ->assertSee('Detected Song')
             ->assertSee('Mismatch')
-            ->assertSee('type mismatch');
+            ->assertSee('Type mismatch');
     }
 
     #[Test]
@@ -858,7 +851,7 @@ class AdminChurchServiceTest extends TestCase
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
             ->assertSee('Unplanned Section')
-            ->assertSee('Unplanned')
+            ->assertSee('Recording only')
             ->assertDontSee('Not in plan');
     }
 
@@ -896,7 +889,7 @@ class AdminChurchServiceTest extends TestCase
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
             ->assertSee('Deleted Item')
-            ->assertSee('Archived from plan');
+            ->assertSee('Matches plan');
     }
 
     #[Test]
@@ -1171,8 +1164,8 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
-            ->assertSeeHtml('aria-label="Pipeline progress"')
-            ->assertSeeInOrder(['Plan', 'Recording', 'Processed', 'Review', 'Published']);
+            ->assertSee('Ready')
+            ->assertDontSeeHtml('aria-label="Pipeline progress"');
     }
 
     #[Test]
@@ -1197,9 +1190,8 @@ class AdminChurchServiceTest extends TestCase
             'needs_manual_review' => true,
         ]);
 
-        // Review dot rendered in the blocked (amber) state
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
-            ->assertSeeHtml('bg-amber-400');
+            ->assertSee('Needs review');
     }
 
     #[Test]

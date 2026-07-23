@@ -69,6 +69,7 @@ final class ServiceFlowBuilder
      *     type_label: string,
      *     icon: string,
      *     title_suffix: string|null,
+     *     detected_title: string|null,
      *     section_summary: string|null,
      *     description: string,
      *     planned_title: string|null,
@@ -115,6 +116,7 @@ final class ServiceFlowBuilder
             $songTitle = filled($row['song_title']) ? $row['song_title'] : null;
             $sectionId = is_int($row['section_id']) ? $row['section_id'] : null;
             $sectionSummary = filled($row['section_summary'] ?? null) ? (string) $row['section_summary'] : null;
+            $detectedTitle = filled($row['section_title'] ?? null) ? (string) $row['section_title'] : null;
 
             // Load section metadata for ai_notes / transcript / song_title_hint
             $metadata = self::resolveMetadata($processingLog, $sectionId);
@@ -135,6 +137,7 @@ final class ServiceFlowBuilder
                 'type_label' => $sectionType?->label() ?? (is_string($row['item_type']) ? ucfirst($row['item_type']) : 'Unknown'),
                 'icon' => self::iconFor($sectionType),
                 'title_suffix' => $titleSuffix,
+                'detected_title' => $detectedTitle,
                 'section_summary' => $sectionSummary,
                 'description' => $description,
                 'planned_title' => $plannedTitle,
@@ -294,10 +297,11 @@ final class ServiceFlowBuilder
         return match ($rowType) {
             'matched' => $plannedTitle !== null ? "Planned: {$plannedTitle}" : null,
             'mismatched' => $expectedType !== null && $sectionType !== null && $expectedType !== $sectionType
-                ? "Expected {$expectedType->label()}, detected {$sectionType->label()}"
+                ? 'Expected '.($plannedTitle !== null ? "{$plannedTitle} ({$expectedType->label()})" : $expectedType->label())
+                    .", detected {$sectionType->label()}"
                 : ($plannedTitle !== null ? "Planned: {$plannedTitle}" : null),
-            'planned_only' => 'Expected from Order of Service — not detected',
-            'unplanned' => 'Not in Order of Service',
+            'planned_only' => $plannedTitle !== null ? "Plan only: {$plannedTitle}" : 'Plan only',
+            'unplanned' => 'Recording only',
             default => null,
         };
     }

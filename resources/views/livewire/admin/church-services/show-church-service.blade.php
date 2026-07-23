@@ -1,228 +1,180 @@
 <x-admin.page
-    :title="$churchService->date->format('j M Y').' '.$churchService->service->label()"
-    description="Review the planned service, processing runs, and publication state."
+    :title="$churchService->date->format('l j F Y')"
+    :description="$churchService->service->label().' service'"
+    :show-heading="false"
 >
     @php
-        // Only sections "Confirm all remaining" will actually clear — the same
-        // guard ConfirmServiceSections applies — so the count never overstates
-        // what the button does.
         $confirmableSectionCount = collect($sectionReviewPanels)->filter(
             static fn (array $panel): bool => (bool) ($panel['confirmable'] ?? false)
         )->count();
     @endphp
 
     <x-slot:actions>
-        <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
-            Back to services
-        </x-button>
+        @unless($edit)
+            <x-form-button
+                type="button"
+                variant="outline"
+                size="sm"
+                icon="pencil-square"
+                wire:click="startEditingOrderOfService"
+            >
+                Edit plan
+            </x-form-button>
+        @endunless
     </x-slot:actions>
 
-    <x-card class="py-3">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <x-admin.pipeline-steps :steps="$pipelineSteps" />
-
-            @if($confirmableSectionCount > 0 || ($sectionPublishingEnabled && $pendingApprovalCount > 0))
-                <div class="flex flex-wrap items-center justify-end gap-3">
-                    @if($confirmableSectionCount > 0)
-                        <p class="text-xs text-gray-500">
-                            {{ $confirmableSectionCount }} remaining {{ \Illuminate\Support\Str::plural('section', $confirmableSectionCount) }}
-                        </p>
-                        <x-form-button
-                            type="button"
-                            variant="primary"
-                            size="sm"
-                            wire:click="confirmAllSections({{ $churchService->id }})"
-                            wire:target="confirmAllSections({{ $churchService->id }})"
-                            wire:loading.attr="disabled"
-                            loading-label="Confirming..."
-                        >
-                            Confirm all remaining
-                        </x-form-button>
-                    @endif
-
-                    @if($sectionPublishingEnabled && $pendingApprovalCount > 0)
-                        <p class="text-xs text-gray-500">
-                            {{ $pendingApprovalCount }} pending {{ \Illuminate\Support\Str::plural('publication', $pendingApprovalCount) }}
-                        </p>
-                        <x-form-button
-                            type="button"
-                            variant="primary"
-                            size="sm"
-                            wire:click="approvePendingPublications({{ $churchService->id }})"
-                            wire:target="approvePendingPublications({{ $churchService->id }})"
-                            wire:loading.attr="disabled"
-                        >
-                            Approve all pending publications
-                        </x-form-button>
-                    @endif
+    <x-card class="py-4">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div class="space-y-2">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusSummary->status->badgeClasses() }}">
+                        {{ $statusSummary->status->label() }}
+                    </span>
+                    <span class="text-sm text-gray-500">{{ ucfirst($churchService->source) }} plan</span>
+                    <span class="text-sm text-gray-400">Last updated {{ $churchService->updated_at?->format('j F Y, H:i') }}</span>
                 </div>
+                <p class="max-w-3xl text-sm text-gray-700" @if($statusSummary->status === \App\Enums\ChurchServiceRollupStatus::Processing) wire:poll.5s @endif>
+                    {{ $statusSummary->explanation }}
+                </p>
+            </div>
+
+            @if($statusSummary->actionUrl)
+                <x-button :link="$statusSummary->actionUrl" variant="primary" size="sm" icon="arrow-up-tray" inline wire:navigate>
+                    {{ $statusSummary->actionLabel }}
+                </x-button>
+            @elseif($statusSummary->attentionTarget)
+                <x-button :link="'#'.$statusSummary->attentionTarget" variant="outline" size="sm" inline>
+                    {{ $statusSummary->actionLabel }}
+                </x-button>
             @endif
         </div>
+
+        @if($confirmableSectionCount > 0 || ($sectionPublishingEnabled && $pendingApprovalCount > 0))
+            <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-gray-200 pt-4">
+                @if($confirmableSectionCount > 0)
+                    <x-form-button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        wire:click="confirmAllSections({{ $churchService->id }})"
+                        wire:target="confirmAllSections({{ $churchService->id }})"
+                        wire:loading.attr="disabled"
+                        loading-label="Confirming..."
+                    >
+                        Confirm all remaining ({{ $confirmableSectionCount }})
+                    </x-form-button>
+                @endif
+
+                @if($sectionPublishingEnabled && $pendingApprovalCount > 0)
+                    <x-form-button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        wire:click="approvePendingPublications({{ $churchService->id }})"
+                        wire:target="approvePendingPublications({{ $churchService->id }})"
+                        wire:loading.attr="disabled"
+                    >
+                        Approve pending publications ({{ $pendingApprovalCount }})
+                    </x-form-button>
+                @endif
+            </div>
+        @endif
     </x-card>
 
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div class="lg:col-span-3 space-y-6">
-            <section class="space-y-3" aria-labelledby="order-of-service-heading">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <h2 id="order-of-service-heading" class="font-display text-2xl text-gray-900">Order of service</h2>
+    @if($pendingMerge)
+        @include('livewire.admin.church-services.partials.pending-structure-merge', [
+            'pendingMerge' => $pendingMerge,
+            'pendingMergeSource' => $pendingMergeSource,
+        ])
+    @endif
 
-                    @if($edit)
-                        <div class="flex flex-wrap items-center gap-2">
-                            <x-form-button type="button" variant="outline" size="sm" wire:click="cancelEditingOrderOfService">
-                                Cancel
-                            </x-form-button>
-                            <x-form-button
-                                type="button"
-                                variant="primary"
-                                size="sm"
-                                icon="check"
-                                wire:click="save"
-                                loading-label="Saving..."
-                            >
-                                Save order of service
-                            </x-form-button>
-                        </div>
-                    @else
-                        <x-form-button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            icon="pencil-square"
-                            wire:click="startEditingOrderOfService"
-                        >
-                            Edit order of service
-                        </x-form-button>
-                    @endif
+    @if($warnings !== [])
+        <div class="space-y-2" role="alert">
+            @foreach($warnings as $warning)
+                <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    {{ $warning }}
                 </div>
-
-                @if($edit)
-                    <x-card>
-                        <x-admin.church-services.planned-items-editor
-                            :items="$items"
-                            :section-type-options="$sectionTypeOptions"
-                            :song-suggestions="$songSuggestions" />
-                    </x-card>
-                @else
-                    @include('livewire.admin.church-services.partials.planned-only-list', [
-                        'items' => $churchService->items,
-                        'showHeading' => false,
-                    ])
-                @endif
-            </section>
-
-            <section class="space-y-3" aria-labelledby="recording-heading">
-                <h2 id="recording-heading" class="font-display text-2xl text-gray-900">Recording</h2>
-
-                @if($pendingMerge)
-                    @include('livewire.admin.church-services.partials.pending-structure-merge', [
-                        'pendingMerge' => $pendingMerge,
-                        'pendingMergeSource' => $pendingMergeSource,
-                    ])
-                @endif
-
-                @if($processingRunViews === [])
-                    <x-card>
-                        <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <p class="text-sm text-gray-500">No recording has been uploaded for this service.</p>
-                            <x-button link="{{ route('admin.services.upload-recording', ['churchServiceId' => $churchService->id]) }}" variant="outline" size="sm" icon="arrow-up-tray" inline>
-                                Upload a recording
-                            </x-button>
-                        </div>
-                    </x-card>
-                @else
-                    <x-card heading="Classified livestream runs">
-                        <div class="space-y-4">
-                            @foreach($processingRunViews as $processingRunView)
-                                @include('livewire.admin.church-services.partials.processing-run-card', [
-                                    'processingRunView' => $processingRunView,
-                                ])
-                            @endforeach
-                        </div>
-                    </x-card>
-                @endif
-            </section>
+            @endforeach
         </div>
+    @endif
 
-        <div class="space-y-6">
+    @if($edit)
+        <section class="space-y-3" aria-labelledby="edit-plan-heading">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <h2 id="edit-plan-heading" class="font-display text-2xl text-gray-900">Edit plan</h2>
+                <div class="flex flex-wrap items-center gap-2">
+                    <x-form-button type="button" variant="outline" size="sm" wire:click="cancelEditingOrderOfService">
+                        Cancel
+                    </x-form-button>
+                    <x-form-button type="button" variant="primary" size="sm" icon="check" wire:click="save" loading-label="Saving...">
+                        Save plan
+                    </x-form-button>
+                </div>
+            </div>
             <x-card>
-                <div class="space-y-4 text-sm">
-                    <div>
-                        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Service</p>
-                        <div class="space-y-2">
-                            <div>
-                                <p class="text-gray-500">Date</p>
-                                <p class="font-medium">{{ $churchService->date->format('l j F Y') }}</p>
-                            </div>
-                            <div>
-                                <p class="text-gray-500">Type</p>
-                                <p class="font-medium">{{ $churchService->service->label() }}</p>
-                            </div>
-                            <div>
-                                <p class="text-gray-500">Source</p>
-                                <p class="font-medium uppercase">{{ $churchService->source }}</p>
-                            </div>
-                            @if($churchService->original_filename)
-                                <div>
-                                    <p class="text-gray-500">Original filename</p>
-                                    <p class="font-medium break-all">{{ $churchService->original_filename }}</p>
-                                </div>
-                            @endif
-                            <div>
-                                <p class="text-gray-500">Imported</p>
-                                <p class="font-medium">{{ $churchService->updated_at?->format('j M Y g:ia') }}</p>
-                            </div>
-                            <div>
-                                <p class="text-gray-500">Review status</p>
-                                @if($reviewNeedsAttention)
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
-                                        Needs review
-                                    </span>
-                                @else
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cbc-teal-light/15 text-cbc-teal-dark">
-                                        Ready
-                                    </span>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="border-t border-gray-100 pt-4">
-                        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Import</p>
-                        <div class="space-y-2">
-                            <div>
-                                <p class="text-gray-500">Parse method</p>
-                                <p class="font-medium">{{ $importMetadata['parse_method'] ?? 'unknown' }}</p>
-                            </div>
-                            <div>
-                                <p class="text-gray-500">Confidence</p>
-                                <p class="font-medium">
-                                    @if($confidenceScore !== null)
-                                        {{ number_format($confidenceScore * 100, 0) }}%
-                                    @else
-                                        Unknown
-                                    @endif
-                                </p>
-                            </div>
-                            <div>
-                                <p class="text-gray-500">Filename mismatch</p>
-                                <p class="font-medium">{{ ($importMetadata['filename_mismatch'] ?? false) ? 'Yes' : 'No' }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <x-admin.church-services.planned-items-editor
+                    :items="$items"
+                    :section-type-options="$sectionTypeOptions"
+                    :song-suggestions="$songSuggestions" />
             </x-card>
+        </section>
+    @endif
 
-            @if($warnings !== [])
-                <x-card heading="Warnings">
-                    <div class="space-y-2">
-                        @foreach($warnings as $warning)
-                            <div class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                                {{ $warning }}
-                            </div>
-                        @endforeach
-                    </div>
-                </x-card>
-            @endif
+    <section id="service-record" class="space-y-3 scroll-mt-6" aria-labelledby="service-record-heading">
+        <div>
+            <h2 id="service-record-heading" class="font-display text-2xl text-gray-900">Service record</h2>
+            <p class="mt-1 max-w-4xl text-sm text-gray-600">{{ $planSourceNote }}</p>
         </div>
-    </div>
+
+        <x-card>
+            @if($primaryProcessingRunView)
+                @include('livewire.admin.church-services.partials.processing-run-card', [
+                    'processingRunView' => $primaryProcessingRunView,
+                    'isPrimary' => true,
+                ])
+            @else
+                @include('livewire.admin.church-services.partials.planned-only-list', [
+                    'items' => $churchService->items,
+                    'showHeading' => false,
+                    'renderCard' => false,
+                ])
+            @endif
+        </x-card>
+    </section>
+
+    @if($otherProcessingRunViews !== [])
+        <details class="rounded-lg border border-gray-200 bg-white">
+            <summary class="min-h-11 cursor-pointer px-4 py-3 text-sm font-semibold text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal">
+                Other uploads ({{ count($otherProcessingRunViews) }})
+            </summary>
+            <div class="space-y-4 border-t border-gray-200 p-4">
+                @foreach($otherProcessingRunViews as $processingRunView)
+                    @include('livewire.admin.church-services.partials.processing-run-card', [
+                        'processingRunView' => $processingRunView,
+                        'isPrimary' => false,
+                    ])
+                @endforeach
+            </div>
+        </details>
+    @endif
+
+    <details class="rounded-lg border border-gray-200 bg-white">
+        <summary class="min-h-11 cursor-pointer px-4 py-3 text-sm font-semibold text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal">
+            Import details
+        </summary>
+        <dl class="grid gap-4 border-t border-gray-200 p-4 text-sm sm:grid-cols-3">
+            <div>
+                <dt class="text-gray-500">Parse method</dt>
+                <dd class="font-medium text-gray-900">{{ $importMetadata['parse_method'] ?? 'Unknown' }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500">Confidence</dt>
+                <dd class="font-medium text-gray-900">{{ $confidenceScore !== null ? number_format($confidenceScore * 100, 0).'%' : 'Unknown' }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500">Filename mismatch</dt>
+                <dd class="font-medium text-gray-900">{{ ($importMetadata['filename_mismatch'] ?? false) ? 'Yes' : 'No' }}</dd>
+            </div>
+        </dl>
+    </details>
 </x-admin.page>

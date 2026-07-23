@@ -65,7 +65,8 @@ class ShowChurchService extends Component
     {
         $readModel = app(ChurchServiceShowPresenter::class)->present($this->churchService);
 
-        $label = $this->churchService->date->format('j M Y').' '.$this->churchService->service->label();
+        $dateHeading = $this->churchService->date->format('l j F Y');
+        $serviceLabel = $this->churchService->service->label().' service';
 
         return view('livewire.admin.church-services.show-church-service', [
             ...$readModel->toViewData(),
@@ -75,8 +76,9 @@ class ShowChurchService extends Component
             'songSuggestions' => $this->edit ? $this->form->songSuggestions() : [],
         ])
             ->layout('layouts.admin', [
-                'title' => $label,
-                'heading' => $label,
+                'title' => "{$dateHeading} — {$serviceLabel}",
+                'heading' => $dateHeading,
+                'breadcrumbHeading' => $this->churchService->date->format('j F Y'),
             ]);
     }
 

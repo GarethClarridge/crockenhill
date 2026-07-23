@@ -1,10 +1,8 @@
-<details class="mb-4">
-    <summary class="cursor-pointer rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-gray-900 select-none hover:bg-slate-100">
-        Processing Timeline
-    </summary>
-    <div class="mt-1 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+<div>
+    <h3 class="text-sm font-semibold text-gray-900">Recorded processing steps</h3>
+    <div class="mt-2">
         <ol class="space-y-3">
-            @foreach($processingTimeline as $timelineStep)
+            @foreach(collect($processingTimeline)->reject(fn (array $step): bool => $step['status'] === 'not_recorded') as $timelineStep)
                 <li class="rounded-lg border border-white bg-white p-3 shadow-sm">
                     <div class="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                         <div class="space-y-2">
@@ -46,4 +44,4 @@
             @endforeach
         </ol>
     </div>
-</details>
+</div>

@@ -53,7 +53,7 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_presents_the_plan_and_recording_as_separate_regions(): void
+    public function it_presents_one_unified_service_record(): void
     {
         [$service] = $this->workbenchServiceWithRun();
 
@@ -65,7 +65,53 @@ class ShowChurchServiceTest extends TestCase
 
         Livewire::actingAs($this->admin)
             ->test(ShowChurchService::class, ['churchService' => $service])
-            ->assertSeeInOrder(['Order of service', 'Welcome and notices', 'Recording', 'Classified livestream runs']);
+            ->assertSee('Service record')
+            ->assertDontSee('Order of service')
+            ->assertDontSee('Classified livestream runs');
+    }
+
+    #[Test]
+    public function it_renders_one_long_date_heading_without_a_duplicate_back_action(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-14',
+            'service' => SermonService::Morning,
+        ]);
+
+        $html = $this->actingAs($this->admin)
+            ->get(route('admin.services.show', $service))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(1, substr_count($html, '<h1'));
+        $this->assertStringContainsString('Sunday 14 June 2026', $html);
+        $this->assertStringContainsString('py-24 text-center font-display text-6xl', $html);
+        $this->assertStringContainsString('Morning service', $html);
+        $this->assertStringNotContainsString('Back to services', $html);
+    }
+
+    #[Test]
+    public function it_explains_openlp_and_email_plan_coverage(): void
+    {
+        $openLpService = ChurchService::factory()->create();
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $openLpService->id,
+            'source' => 'openlp',
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $openLpService])
+            ->assertSee('Presentation plan from OpenLP. It usually contains slide-backed items only');
+
+        $emailService = ChurchService::factory()->create();
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $emailService->id,
+            'source' => 'email',
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $emailService])
+            ->assertSee('Plan imported from an email. It may describe more of the service');
     }
 
     #[Test]
@@ -76,7 +122,6 @@ class ShowChurchServiceTest extends TestCase
         Livewire::actingAs($this->admin)
             ->test(ShowChurchService::class, ['churchService' => $service])
             ->assertSeeHtml('churchServiceId='.$service->id)
-            ->assertSeeHtml('intent=plan')
             ->assertSeeHtml(route('admin.services.upload-recording', ['churchServiceId' => $service->id]));
     }
 
@@ -102,7 +147,7 @@ class ShowChurchServiceTest extends TestCase
             ->assertSet('form.date', '2026-05-10')
             ->assertSet('form.service', SermonService::Evening->value)
             ->assertSet('form.items.0.title', 'Opening prayer')
-            ->assertSee('Save order of service');
+            ->assertSee('Save plan');
     }
 
     #[Test]
@@ -251,7 +296,7 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
-    public function sidebar_review_status_matches_the_stepper_when_a_section_needs_review(): void
+    public function status_summary_reports_when_a_section_needs_review(): void
     {
         [$service, $run] = $this->workbenchServiceWithRun();
 
@@ -266,12 +311,9 @@ class ShowChurchServiceTest extends TestCase
             ->test(ShowChurchService::class, ['churchService' => $service])
             ->html();
 
-        $this->assertStringContainsString('wire:key="pipeline-step-3-Review"', $html);
-        $this->assertStringContainsString('bg-amber-400 border-amber-400', $html);
-        $this->assertMatchesRegularExpression(
-            '/<p class="text-gray-500">Review status<\/p>.*?bg-rose-100.*?Needs review/s',
-            $html,
-        );
+        $this->assertStringContainsString('Needs review', $html);
+        $this->assertStringContainsString('Jump to first attention row', $html);
+        $this->assertStringNotContainsString('pipeline-step-3-Review', $html);
     }
 
     #[Test]
@@ -415,10 +457,11 @@ class ShowChurchServiceTest extends TestCase
 
         Livewire::actingAs($this->admin)
             ->test(ShowChurchService::class, ['churchService' => $service])
-            ->assertSee('Run failed 2 months ago — no sections were produced')
+            ->assertSee('Processing failed')
+            ->assertSee('No sections were produced from this upload.')
             ->assertSee('Delete upload')
             ->assertSee('Ghost planned item')
-            ->assertDontSee('Expected from Order of Service');
+            ->assertSee('Plan only');
 
         $this->assertSame('failed', $run->fresh()?->status->value);
     }
@@ -445,9 +488,9 @@ class ShowChurchServiceTest extends TestCase
 
         Livewire::actingAs($this->admin)
             ->test(ShowChurchService::class, ['churchService' => $service])
-            ->assertSee('No classified sections available for this run yet.')
+            ->assertSee('No classified sections are available for this upload.')
             ->assertSee('Unproduced planned item')
-            ->assertDontSee('Expected from Order of Service');
+            ->assertSee('Plan only');
     }
 
     #[Test]
@@ -481,8 +524,8 @@ class ShowChurchServiceTest extends TestCase
             ->test(ShowChurchService::class, ['churchService' => $service])
             ->html();
 
-        $this->assertSame(1, substr_count($html, 'Expected from Order of Service'));
-        $this->assertSame(2, substr_count($html, 'Not detected'));
+        $this->assertStringContainsString('Plan only', $html);
+        $this->assertStringNotContainsString('Not detected', $html);
     }
 
     // -------------------------------------------------------------------------
@@ -781,8 +824,7 @@ class ShowChurchServiceTest extends TestCase
 
         Livewire::actingAs($this->admin)
             ->test(ShowChurchService::class, ['churchService' => $service])
-            ->assertSee('1 pending publication')
-            ->assertSee('Approve all pending publications')
+            ->assertSee('Approve pending publications (1)')
             ->call('approvePendingPublications', $service->id)
             ->assertDispatched('notify');
     }
