@@ -1,3 +1,9 @@
+> **Archived 2026-07-23:** all four phases are present in the live route/component structure.
+> The follow-up service-page information architecture is specified by
+> [SERVICE-WORKBENCH-REDESIGN-2026-07-23.md](../plans/SERVICE-WORKBENCH-REDESIGN-2026-07-23.md),
+> which supersedes Phase 1's plan/recording view split. Keep this document as the decision record
+> for the completed route and screen consolidation; do not add new work here.
+
 # Service Screens Consolidation — Volunteer-First Admin IA
 
 > **Status (2026-07-19): approved by maintainer; not started.** This plan reorganises the
@@ -9,12 +15,12 @@
 >
 > - **Phases 1–3 are independent of the noise plan** and can start any time. **Phase 4 (inbox
 >   fold-in) must wait for Workstreams A + B of
->   [REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md](REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md)**
+>   [REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md](../plans/REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md)**
 >   — folding today's 222-item queue into the main services list would poison the hub. That
 >   plan's **C2 (Confirm action), C4, C5, C6** remain valid and should land before or during
 >   Phase 1 here; its **C3 (inbox count copy) is superseded by Phase 4 of this plan** — do not
 >   implement C3.
-> - **Simplification remainder** ([JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md](JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md)):
+> - **Simplification remainder** ([JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md](../plans/JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md)):
 >   R3 makes mechanical changes to the same Livewire components (`EnsureServiceTrackingEnabled`
 >   middleware, trait tidy-ups) — either order works, just rebase carefully. **R9 deletes the
 >   workbench `reclassify()` affordance and the `timeline-alignment-*` partials**; Phase 1 here

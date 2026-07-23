@@ -2,10 +2,10 @@
 
 > **Status (2026-07-20): drafted, awaiting maintainer sign-off.** No dependencies on the July
 > simplification backlog. Coordinates with
-> [SERVICE-SCREENS-CONSOLIDATION-2026-07-19.md](SERVICE-SCREENS-CONSOLIDATION-2026-07-19.md)
+> [SERVICE-SCREENS-CONSOLIDATION-2026-07-19.md](../archived-plans/SERVICE-SCREENS-CONSOLIDATION-2026-07-19.md)
 > only at one seam: the song-suggestion picker work lands in `ChurchServiceFormData` (the shared
-> form object), not in `ManageChurchService`'s view alone, so the badge survives when plan 7
-> moves item editing onto the service page.
+> form object), not in `ManageChurchService`'s view alone, because item editing now lives on the
+> service page.
 >
 > **Maintainer decision needed before starting (D1 below):** where "sung exactly once in the
 > last 5 years" lands. The requested spec (green > 3×/2y, amber > 1×/5y, red 0×/5y) leaves that
