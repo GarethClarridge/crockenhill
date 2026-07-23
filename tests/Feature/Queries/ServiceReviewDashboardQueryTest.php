@@ -14,6 +14,7 @@ use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Models\SpeakerProfile;
 use App\Queries\ServiceReviewDashboardQuery;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -376,6 +377,37 @@ class ServiceReviewDashboardQueryTest extends TestCase
 
         $keys = array_column($reasons, 'key');
         $this->assertContains('low_confidence', $keys);
+    }
+
+    #[Test]
+    public function a_suspected_closing_benediction_is_exempt_from_low_confidence_review(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+
+        $attributes = [
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::BibleReading,
+            'needs_manual_review' => false,
+            'confidence' => ServiceSectionConfidence::HIGH_THRESHOLD - 0.05,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+        ];
+
+        $benediction = ServiceSection::factory()->create([
+            ...$attributes,
+            'metadata' => ['review_flags' => [ServiceStructureValidator::FLAG_BENEDICTION_SUSPECT]],
+        ]);
+        $plainReading = ServiceSection::factory()->create([
+            ...$attributes,
+            'metadata' => ['review_flags' => []],
+        ]);
+
+        // The suspected benediction drops out of both the live PHP reasons and
+        // the SQL candidate set; an identical reading without the flag stays
+        // flagged. reviewCandidateSectionCount() exercises the base query, and
+        // with RefreshDatabase only these two sections exist.
+        $this->assertFalse($this->query->isReviewCandidate($benediction));
+        $this->assertTrue($this->query->isReviewCandidate($plainReading));
+        $this->assertSame(1, $this->query->reviewCandidateSectionCount());
     }
 
     #[Test]

@@ -398,7 +398,6 @@ class ServiceStructureValidator
     private function annotateSoftFlags(ServiceStructure $structure, ValidationContext $context, array $crossTypeInversions): ServiceStructure
     {
         $minSectionSeconds = (float) config('media-processing.service_structure.min_section_seconds', 15);
-        $benedictionMaxDuration = (float) config('media-processing.reading_references.benediction_max_duration_seconds', 60);
 
         $sections = [];
 
@@ -413,9 +412,12 @@ class ServiceStructureValidator
                 $flags[] = self::FLAG_MICRO_SECTION;
             }
 
-            if ($section->type === ServiceSectionType::BibleReading
-                && $section->duration() <= $benedictionMaxDuration
-                && $section->endTime >= $context->recordingDuration - self::BENEDICTION_END_WINDOW_SECONDS) {
+            if (self::isBenedictionSuspect(
+                $section->type,
+                $section->duration(),
+                $section->endTime,
+                $context->recordingDuration,
+            )) {
                 $flags[] = self::FLAG_BENEDICTION_SUSPECT;
             }
 
@@ -434,6 +436,28 @@ class ServiceStructureValidator
             $structure->notices,
             $structure->chapterMarkers,
         );
+    }
+
+    /**
+     * Whether a section is a suspected closing benediction: a short bible_reading
+     * ending within the end-of-recording window (a doxology read verbatim, not
+     * the preached text). Shared by structure validation and the backfill command
+     * so both agree on the geometry (F12).
+     */
+    public static function isBenedictionSuspect(
+        ServiceSectionType $type,
+        float $durationSeconds,
+        float $endTime,
+        float $recordingDuration,
+    ): bool {
+        if ($type !== ServiceSectionType::BibleReading) {
+            return false;
+        }
+
+        $maxDuration = (float) config('media-processing.reading_references.benediction_max_duration_seconds', 60);
+
+        return $durationSeconds <= $maxDuration
+            && $endTime >= $recordingDuration - self::BENEDICTION_END_WINDOW_SECONDS;
     }
 
     /**

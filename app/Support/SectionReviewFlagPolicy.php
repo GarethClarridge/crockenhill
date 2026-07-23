@@ -28,10 +28,17 @@ class SectionReviewFlagPolicy
     /**
      * Flags that never force manual review regardless of section type.
      *
+     * Includes the suspected-closing-benediction flag: it only ever lands on a
+     * short bible_reading at the very end of the service (a doxology/benediction
+     * read verbatim), which is filler-by-position and already excluded from
+     * sermon pairing — so it warrants no operator action even though
+     * bible_reading is otherwise a structural-uncertainty type.
+     *
      * @var array<int, string>
      */
     private const ALWAYS_DEMOTED_FLAGS = [
         ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION,
+        ServiceStructureValidator::FLAG_BENEDICTION_SUSPECT,
     ];
 
     /**

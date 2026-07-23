@@ -141,6 +141,34 @@ class RecomputeSectionReviewFlagsCommandTest extends TestCase
         $this->assertTrue($otherSection->fresh()->needs_manual_review);
     }
 
+    #[Test]
+    public function it_reclassifies_a_speech_detected_unmatched_song_as_other(): void
+    {
+        $service = ChurchService::factory()->create(['needs_review' => true]);
+        $run = $this->livestreamRun($service);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'detected_segment_class' => 'speech',
+                'review_flags' => ['unmatched_song_section'],
+                'review_reason' => 'unmatched_song_section',
+            ],
+        ]);
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $fresh = $section->fresh();
+        $this->assertSame(ServiceSectionType::Other, $fresh->section_type);
+        $this->assertNull($fresh->song_match_type);
+        $this->assertFalse($fresh->needs_manual_review);
+        $this->assertNotContains('unmatched_song_section', $fresh->metadata?->toArray()['review_flags'] ?? []);
+        $this->assertFalse($service->fresh()->needs_review);
+    }
+
     /**
      * @return array{0: ChurchService, 1: ServiceSection}
      */

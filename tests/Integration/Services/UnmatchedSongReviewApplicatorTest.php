@@ -134,6 +134,64 @@ class UnmatchedSongReviewApplicatorTest extends TestCase
     }
 
     #[Test]
+    public function it_reclassifies_a_speech_detected_unmatched_song_as_other(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => null,
+            'confidence' => 0.72,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'classification_mode' => 'ai_transcript',
+                'detected_segment_class' => 'speech',
+            ],
+        ]);
+
+        $sections = ServiceSection::where('media_processing_log_id', $log->id)->get();
+        $mutated = $this->applicator->apply($sections, []);
+        $this->persistUnmatched($mutated);
+
+        $fresh = $section->fresh();
+        // A spoken song-announcement is not a sung item: retype it and clear the
+        // song-match state so no review path (song-match or manual-review) flags it.
+        $this->assertSame(ServiceSectionType::Other, $fresh->section_type);
+        $this->assertNull($fresh->song_match_type);
+        $this->assertFalse($fresh->needs_manual_review);
+        $this->assertNotContains('unmatched_song_section', $fresh->metadata?->toArray()['review_flags'] ?? []);
+        // No confidence penalty — it is being reclassified, not doubted as a song.
+        $this->assertEqualsWithDelta(0.72, (float) $fresh->confidence, 0.0001);
+    }
+
+    #[Test]
+    public function it_still_flags_a_music_detected_unmatched_song(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'classification_mode' => 'ai_transcript',
+                'detected_segment_class' => 'song',
+            ],
+        ]);
+
+        $sections = ServiceSection::where('media_processing_log_id', $log->id)->get();
+        $this->persistUnmatched($this->applicator->apply($sections, []));
+
+        $fresh = $section->fresh();
+        $this->assertSame(ServiceSectionType::Song, $fresh->section_type);
+        $this->assertTrue($fresh->needs_manual_review);
+        $this->assertContains('unmatched_song_section', $fresh->metadata?->toArray()['review_flags'] ?? []);
+    }
+
+    #[Test]
     public function it_does_not_flag_non_song_sections(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create();

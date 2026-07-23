@@ -18,10 +18,17 @@ class UnmatchedSongReviewApplicator
     use ReadsSectionMetadata;
 
     /**
-     * Apply unmatched-song review flags and confidence penalties to all song sections
-     * that did not receive a confirmed or inferred match during alignment.
+     * Resolve the review outcome for every song section that did not receive a
+     * confirmed or inferred match during alignment.
      *
-     * Mutates sections in place and returns the unmatched sections.
+     * A section the segmenter detected as *speech* (a spoken lead-in — "let's
+     * stand and sing hymn 196") is not a sung item: it is reclassified as
+     * `Other` and its song-match state cleared, so no review path flags it.
+     * Everything else is a genuine unmatched song and keeps the manual-review
+     * flag + confidence penalty.
+     *
+     * Mutates sections in place and returns every section it touched (both the
+     * reclassified and the still-flagged), for the caller to persist.
      *
      * @param  EloquentCollection<int, ServiceSection>  $sections
      * @param  array<int, int>  $matchedSongSectionIds
@@ -29,28 +36,64 @@ class UnmatchedSongReviewApplicator
      */
     public function apply(EloquentCollection $sections, array $matchedSongSectionIds): Collection
     {
-        $unmatchedSongSections = $this->unmatchedSongSections($sections, $matchedSongSectionIds);
+        return $this->unmatchedSongSections($sections, $matchedSongSectionIds)
+            ->map(fn (ServiceSection $section): ServiceSection => $this->isSpokenSongAnnouncement($section)
+                ? $this->reclassifyAsSpokenAnnouncement($section)
+                : $this->flagUnmatchedSong($section))
+            ->values();
+    }
 
-        foreach ($unmatchedSongSections as $section) {
-            $metadata = $this->metadata($section);
-            $reviewFlags = $this->reviewFlags($metadata);
-            $reviewFlags[] = 'unmatched_song_section';
-            $metadata['review_flags'] = array_values(array_unique($reviewFlags));
+    private function flagUnmatchedSong(ServiceSection $section): ServiceSection
+    {
+        $metadata = $this->metadata($section);
+        $reviewFlags = $this->reviewFlags($metadata);
+        $reviewFlags[] = 'unmatched_song_section';
+        $metadata['review_flags'] = array_values(array_unique($reviewFlags));
 
-            if (! array_key_exists('review_reason', $metadata)) {
-                $metadata['review_reason'] = 'unmatched_song_section';
-            }
-
-            $section->needs_manual_review = true;
-            $section->song_match_type = $section->song_match_type ?? ServiceSectionSongMatchType::Unmatched;
-            $section->confidence = ServiceSectionConfidence::decrease(
-                ServiceSectionConfidence::resolve($section->confidence, $metadata),
-                0.10
-            );
-            $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+        if (! array_key_exists('review_reason', $metadata)) {
+            $metadata['review_reason'] = 'unmatched_song_section';
         }
 
-        return $unmatchedSongSections;
+        $section->needs_manual_review = true;
+        $section->song_match_type = $section->song_match_type ?? ServiceSectionSongMatchType::Unmatched;
+        $section->confidence = ServiceSectionConfidence::decrease(
+            ServiceSectionConfidence::resolve($section->confidence, $metadata),
+            0.10
+        );
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+
+        return $section;
+    }
+
+    /**
+     * A `song` section the segmenter classified as speech is the spoken
+     * announcement of the song, not the song itself — retype it to `Other`
+     * transition filler and drop the song-match review state entirely.
+     */
+    private function reclassifyAsSpokenAnnouncement(ServiceSection $section): ServiceSection
+    {
+        $metadata = $this->metadata($section);
+
+        $metadata['review_flags'] = array_values(array_filter(
+            $this->reviewFlags($metadata),
+            static fn (string $flag): bool => $flag !== 'unmatched_song_section',
+        ));
+
+        if (($metadata['review_reason'] ?? null) === 'unmatched_song_section') {
+            unset($metadata['review_reason']);
+        }
+
+        $section->section_type = ServiceSectionType::Other;
+        $section->song_match_type = null;
+        $section->needs_manual_review = false;
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+
+        return $section;
+    }
+
+    private function isSpokenSongAnnouncement(ServiceSection $section): bool
+    {
+        return ($this->metadata($section)['detected_segment_class'] ?? null) === 'speech';
     }
 
     /**

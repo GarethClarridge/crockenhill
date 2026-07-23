@@ -71,6 +71,17 @@ class SectionReviewFlagPolicyTest extends TestCase
     }
 
     #[Test]
+    public function a_suspected_closing_benediction_never_forces_review(): void
+    {
+        // A short closing bible_reading flagged as a suspected benediction is
+        // filler-by-position, never the preached text — no operator action.
+        $this->assertFalse(SectionReviewFlagPolicy::requiresManualReview(
+            ServiceSectionType::BibleReading,
+            [ServiceStructureValidator::FLAG_BENEDICTION_SUSPECT],
+        ));
+    }
+
+    #[Test]
     public function an_unrecognised_flag_still_forces_review(): void
     {
         $this->assertTrue(SectionReviewFlagPolicy::requiresManualReview(

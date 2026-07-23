@@ -12,6 +12,7 @@ use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\SpeakerProfile;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Support\ChurchServiceRunMatcher;
 use App\Support\ServiceSectionConfidence;
@@ -346,6 +347,7 @@ class ServiceReviewDashboardQuery
             && $section->confidence !== null
             && $section->confidence < ServiceSectionConfidence::HIGH_THRESHOLD
             && ! $this->hasManualConfirmation($section)
+            && ! $this->isSuspectedBenediction($section)
         ) {
             $reasons[] = [
                 'key' => 'low_confidence',
@@ -527,6 +529,17 @@ class ServiceReviewDashboardQuery
                             ->where(function (Builder $query): void {
                                 $query->whereNull('metadata->manual_review->confirmed_at')
                                     ->orWhere('metadata->manual_review->confirmed_at', '');
+                            })
+                            // A suspected closing benediction is exempt from the
+                            // low-confidence path (mirrors reviewReasons()). The
+                            // whereNull guard keeps readings with no review_flags
+                            // in review rather than excluding them on a null match.
+                            ->where(function (Builder $query): void {
+                                $query->whereNull('metadata->review_flags')
+                                    ->orWhereJsonDoesntContain(
+                                        'metadata->review_flags',
+                                        ServiceStructureValidator::FLAG_BENEDICTION_SUSPECT,
+                                    );
                             });
                     })
                     ->orWhereJsonContains('metadata->review_flags', 'heuristic_demotion')
@@ -564,6 +577,14 @@ class ServiceReviewDashboardQuery
     private function hasManualConfirmation(ServiceSection $section): bool
     {
         return filled(data_get($section->metadata?->toArray() ?? [], 'manual_review.confirmed_at'));
+    }
+
+    private function isSuspectedBenediction(ServiceSection $section): bool
+    {
+        $flags = $section->metadata['review_flags'] ?? [];
+
+        return is_array($flags)
+            && in_array(ServiceStructureValidator::FLAG_BENEDICTION_SUSPECT, $flags, true);
     }
 
     private function hasSongMatchReview(ServiceSection $section): bool
