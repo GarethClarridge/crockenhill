@@ -98,6 +98,7 @@ class Preacher extends Model
             'slug' => $slugRule,
             'image_path' => ['nullable', 'string', 'max:255'],
             'bio' => ['nullable', 'string', 'max:10000'],
+            'is_active' => ['boolean'],
         ];
     }
 

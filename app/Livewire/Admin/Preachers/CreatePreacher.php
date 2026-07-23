@@ -34,7 +34,7 @@ class CreatePreacher extends Component
             'name' => $modelRules['name'],
             'slug' => $modelRules['slug'],
             'bio' => $modelRules['bio'],
-            'isActive' => 'boolean',
+            'isActive' => $modelRules['is_active'],
         ];
     }
 
