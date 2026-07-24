@@ -6,6 +6,7 @@ namespace Tests\Integration\Livewire\Traits;
 
 use App\Livewire\Admin\ChurchServices\Concerns\ManagesSectionPublication;
 use App\Livewire\Traits\WithAdminAuthorization;
+use Illuminate\Support\Str;
 use Livewire\Component;
 use PHPUnit\Framework\Attributes\Test;
 use ReflectionClass;
@@ -75,6 +76,77 @@ class AdminLivewireComponentsUseTraitTest extends TestCase
                 "The {$action} section publication action must authorize before mutating state."
             );
         }
+    }
+
+    #[Test]
+    public function every_computed_property_is_accessed_as_a_property(): void
+    {
+        $livewireDir = app_path('Livewire');
+        $finder = (new Finder)->files()->in($livewireDir)->name('*.php');
+
+        $violations = [];
+
+        /** @var SplFileInfo $file */
+        foreach ($finder as $file) {
+            $class = $this->classFromFile($file);
+
+            if ($class === null) {
+                continue;
+            }
+
+            $reflection = new ReflectionClass($class);
+
+            if ($reflection->isAbstract() || $reflection->isTrait() || $reflection->isInterface()) {
+                continue;
+            }
+
+            if (! $reflection->isSubclassOf(Component::class)) {
+                continue;
+            }
+
+            $computedProperties = [];
+            foreach ($reflection->getMethods() as $method) {
+                $attributes = $method->getAttributes('Livewire\Attributes\Computed');
+                if ($attributes !== []) {
+                    $computedProperties[] = $method->getName();
+                }
+            }
+
+            if ($computedProperties === []) {
+                continue;
+            }
+
+            $contents = file_get_contents($file->getRealPath());
+            self::assertIsString($contents);
+
+            foreach ($computedProperties as $prop) {
+                if (preg_match('/\$this->' . preg_quote($prop, '/') . '\s*\(/i', $contents) === 1) {
+                    $violations[] = "{$class}: computed property '{$prop}' called as a method '\$this->{$prop}()' in component source.";
+                }
+            }
+
+            $classNamePart = str_replace('App\\Livewire\\', '', $class);
+            $parts = explode('\\', $classNamePart);
+            $camelParts = array_map(fn ($part) => Str::kebab($part), $parts);
+            $bladePath = resource_path('views/livewire/' . implode('/', $camelParts) . '.blade.php');
+
+            if (file_exists($bladePath)) {
+                $bladeContents = file_get_contents($bladePath);
+                self::assertIsString($bladeContents);
+
+                foreach ($computedProperties as $prop) {
+                    if (preg_match('/(?:\$this->' . preg_quote($prop, '/') . '|\$' . preg_quote($prop, '/') . ')\s*\(/i', $bladeContents) === 1) {
+                        $violations[] = "{$class}: computed property '{$prop}' called as a method in view file: {$bladePath}.";
+                    }
+                }
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $violations,
+            "Found computed properties being called with method invocation syntax instead of property access:\n - " . implode("\n - ", $violations)
+        );
     }
 
     private function classFromFile(SplFileInfo $file): ?string

@@ -344,6 +344,30 @@ class BrowseSermonsTest extends TestCase
             ->assertDontSee('Romans Sermon');
     }
 
+    #[Test]
+    public function rendering_browse_sermons_does_not_execute_duplicate_queries(): void
+    {
+        Sermon::factory()->count(5)->create();
+
+        $queries = [];
+        \Illuminate\Support\Facades\DB::listen(function ($query) use (&$queries) {
+            $queries[] = $query->sql;
+        });
+
+        Livewire::test(BrowseSermons::class)->assertOk();
+
+        // Let's count how many times each select query is executed.
+        // We want to ensure no identical SELECT queries are executed multiple times.
+        $duplicates = array_filter(array_count_values($queries), function ($count, $sql) {
+            return $count > 1 && str_starts_with(strtolower($sql), 'select');
+        }, ARRAY_FILTER_USE_BOTH);
+
+        $this->assertEmpty(
+            $duplicates,
+            "Found duplicate select queries during BrowseSermons rendering:\n" . print_r($duplicates, true)
+        );
+    }
+
     private function createIndexedSermon(array $attributes): Sermon
     {
         $sermon = Sermon::factory()->create($attributes);

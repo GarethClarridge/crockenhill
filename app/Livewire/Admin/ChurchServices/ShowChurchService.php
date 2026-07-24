@@ -69,8 +69,8 @@ class ShowChurchService extends Component
 
         return view('livewire.admin.church-services.show-church-service', [
             ...$readModel->toViewData(),
-            'sectionTypeOptions' => $this->sectionTypeOptions(),
-            'preacherOptions' => $this->preacherOptions(),
+            'sectionTypeOptions' => $this->sectionTypeOptions,
+            'preacherOptions' => $this->preacherOptions,
             'items' => $this->form->items,
             'songSuggestions' => $this->edit ? $this->form->songSuggestions() : [],
         ])

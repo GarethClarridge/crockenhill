@@ -136,16 +136,16 @@ class BrowseSermons extends Component
         $hasActiveFilters = $this->hasActiveFilters();
 
         /** @var LengthAwarePaginator<int, Sermon> $sermons */
-        $sermons = $this->sermons();
+        $sermons = $this->sermons;
 
         return view('livewire.sermons.browse-sermons', [
-            'bookOptions' => $bibleCanon->bookOptions($this->enabledBooks()),
+            'bookOptions' => $bibleCanon->bookOptions($this->enabledBooks),
             'chapterOptions' => $this->bookFilter === null
                 ? []
-                : $bibleCanon->chapterOptions($this->bookFilter, $this->enabledChapters()),
-            'preacherOptions' => $this->preacherOptions(),
-            'seriesOptions' => $this->seriesOptions(),
-            'activeFilterLabels' => $this->activeFilterLabels($this->preacherOptions(), $this->seriesOptions()),
+                : $bibleCanon->chapterOptions($this->bookFilter, $this->enabledChapters),
+            'preacherOptions' => $this->preacherOptions,
+            'seriesOptions' => $this->seriesOptions,
+            'activeFilterLabels' => $this->activeFilterLabels($this->preacherOptions, $this->seriesOptions),
             'sermons' => $sermons,
             'hasActiveFilters' => $hasActiveFilters,
         ]);
@@ -219,7 +219,7 @@ class BrowseSermons extends Component
     public function jsonLdData(): array
     {
         return app(SermonItemListPresenter::class)->toItemList(
-            $this->sermons()->getCollection()
+            $this->sermons->getCollection()
         );
     }
 
@@ -235,7 +235,7 @@ class BrowseSermons extends Component
     public function presentedSermons(): array
     {
         return app(SermonViewPresenter::class)->presentCollection(
-            $this->sermons()->getCollection()
+            $this->sermons->getCollection()
         );
     }
 
