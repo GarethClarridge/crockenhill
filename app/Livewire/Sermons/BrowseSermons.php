@@ -23,8 +23,8 @@ use Livewire\WithPagination;
 /**
  * @property-read Collection<int, string> $enabledBooks
  * @property-read Collection<int, int> $enabledChapters
- * @property-read array<int, array{id:int, name:string}> $preacherOptions
- * @property-read array<int, array{id:string, name:string}> $seriesOptions
+ * @property-read list<array{id:int, name:string}> $preacherOptions
+ * @property-read list<array{id:string, name:string}> $seriesOptions
  * @property-read LengthAwarePaginator<int, Sermon> $sermons
  * @property-read array<int, array<string, mixed>> $presentedSermons
  * @property-read string $seoTitle
@@ -124,6 +124,12 @@ class BrowseSermons extends Component
 
     private function dispatchMetadataUpdate(): void
     {
+        // Livewire memoizes computed properties for the whole request. Several
+        // filter updates can arrive in one round trip, so bust the SEO cache
+        // before reading it or a later hook would dispatch an earlier hook's
+        // metadata.
+        unset($this->seoTitle, $this->seoDescription, $this->seoCanonical);
+
         $this->dispatch('sermon-filters-updated', [
             'title' => $this->seoTitle,
             'description' => $this->seoDescription,
@@ -133,21 +139,19 @@ class BrowseSermons extends Component
 
     public function render(BibleCanon $bibleCanon): View
     {
-        $hasActiveFilters = $this->hasActiveFilters();
-
-        /** @var LengthAwarePaginator<int, Sermon> $sermons */
-        $sermons = $this->sermons();
+        $preacherOptions = $this->preacherOptions;
+        $seriesOptions = $this->seriesOptions;
 
         return view('livewire.sermons.browse-sermons', [
-            'bookOptions' => $bibleCanon->bookOptions($this->enabledBooks()),
+            'bookOptions' => $bibleCanon->bookOptions($this->enabledBooks),
             'chapterOptions' => $this->bookFilter === null
                 ? []
-                : $bibleCanon->chapterOptions($this->bookFilter, $this->enabledChapters()),
-            'preacherOptions' => $this->preacherOptions(),
-            'seriesOptions' => $this->seriesOptions(),
-            'activeFilterLabels' => $this->activeFilterLabels($this->preacherOptions(), $this->seriesOptions()),
-            'sermons' => $sermons,
-            'hasActiveFilters' => $hasActiveFilters,
+                : $bibleCanon->chapterOptions($this->bookFilter, $this->enabledChapters),
+            'preacherOptions' => $preacherOptions,
+            'seriesOptions' => $seriesOptions,
+            'activeFilterLabels' => $this->activeFilterLabels($preacherOptions, $seriesOptions),
+            'sermons' => $this->sermons,
+            'hasActiveFilters' => $this->hasActiveFilters(),
         ]);
     }
 
@@ -219,7 +223,7 @@ class BrowseSermons extends Component
     public function jsonLdData(): array
     {
         return app(SermonItemListPresenter::class)->toItemList(
-            $this->sermons()->getCollection()
+            $this->sermons->getCollection()
         );
     }
 
@@ -235,7 +239,7 @@ class BrowseSermons extends Component
     public function presentedSermons(): array
     {
         return app(SermonViewPresenter::class)->presentCollection(
-            $this->sermons()->getCollection()
+            $this->sermons->getCollection()
         );
     }
 

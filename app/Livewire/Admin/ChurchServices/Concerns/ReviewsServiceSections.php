@@ -25,6 +25,9 @@ use Livewire\Attributes\Computed;
  *
  * Edit state is seeded for review-candidate sections only — seeding every
  * section of every run would balloon the Livewire payload.
+ *
+ * @property-read list<array{id: string, name: string}> $sectionTypeOptions
+ * @property-read list<array{id: string, name: string}> $preacherOptions
  */
 trait ReviewsServiceSections
 {
@@ -301,34 +304,37 @@ trait ReviewsServiceSections
     }
 
     /**
-     * @return array<int, array{id: string, name: string}>
+     * @return list<array{id: string, name: string}>
      */
     #[Computed]
     public function sectionTypeOptions(): array
     {
-        return collect(ServiceSectionType::cases())
-            ->map(fn (ServiceSectionType $type): array => [
+        return array_map(
+            fn (ServiceSectionType $type): array => [
                 'id' => $type->value,
                 'name' => $type->label(),
-            ])
-            ->all();
+            ],
+            ServiceSectionType::cases()
+        );
     }
 
     /**
-     * @return array<int, array{id: string, name: string}>
+     * @return list<array{id: string, name: string}>
      */
     #[Computed]
     public function preacherOptions(): array
     {
-        return Preacher::query()->active()
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->filter(fn (Preacher $preacher): bool => $this->isPlausibleSpeakerName($preacher->name))
-            ->map(fn (Preacher $preacher): array => [
+        return array_values(array_map(
+            fn (Preacher $preacher): array => [
                 'id' => (string) $preacher->id,
                 'name' => $preacher->name,
-            ])
-            ->all();
+            ],
+            Preacher::query()->active()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->filter(fn (Preacher $preacher): bool => $this->isPlausibleSpeakerName($preacher->name))
+                ->all()
+        ));
     }
 
     private function isPlausibleSpeakerName(string $name): bool

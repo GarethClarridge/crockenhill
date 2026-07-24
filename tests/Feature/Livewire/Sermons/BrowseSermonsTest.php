@@ -9,7 +9,9 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
 use App\Services\Scripture\SermonScriptureFilterIndexService;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -342,6 +344,31 @@ class BrowseSermonsTest extends TestCase
             ->assertSee('No sermons match these filters')
             ->assertSee('Clear filters')
             ->assertDontSee('Romans Sermon');
+    }
+
+    /**
+     * Regression guard for the `#[Computed]` call-syntax bug: `$this->sermons()`
+     * re-executes the body on every call, so `render()`, `presentedSermons` and
+     * `jsonLdData` each ran the browse query block once — 3x per request.
+     */
+    #[Test]
+    public function browsing_runs_each_listing_query_only_once(): void
+    {
+        Sermon::factory()->count(3)->create();
+
+        $executed = [];
+        DB::listen(function (QueryExecuted $query) use (&$executed): void {
+            $executed[] = $query->sql.'|'.json_encode($query->bindings);
+        });
+
+        Livewire::test(BrowseSermons::class)->assertOk();
+
+        $duplicates = array_filter(array_count_values($executed), fn (int $count): bool => $count > 1);
+
+        $this->assertSame([], $duplicates, sprintf(
+            'Expected no query to run more than once per render, but these repeated: %s',
+            implode(', ', array_keys($duplicates))
+        ));
     }
 
     private function createIndexedSermon(array $attributes): Sermon

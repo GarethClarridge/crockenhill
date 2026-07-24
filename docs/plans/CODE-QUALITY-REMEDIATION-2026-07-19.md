@@ -4,13 +4,14 @@
 > hard gate on the PHPStan level-9 ratchet is released — only maintainer answer Q4 (ratchet
 > sequencing sign-off) still stands in front of it. `phpstan.neon` is still at `level: 8`.
 >
-> **Nothing else in this plan has started** (verified 2026-07-24): the `#[Computed]` call sites in
-> `BrowseSermons` (lines 139–148, 222, 238) and `ShowChurchService` (73–74) are still method calls,
+> **WP2.1 and WP6.1 are DONE (2026-07-24).** The `#[Computed]` call-syntax bug is fixed and guarded
+> by a regression test that was proven to fail against the old code. See the completion notes in
+> WP2.1 and WP6 for what was verified.
+>
+> **Nothing else in this plan has started** (verified 2026-07-24):
 > `AiServiceProvider`'s `SermonAnalysisInterface` if/else and `TranscriptionServiceInterface` silent
 > `default =>` arm are unchanged, `spatie/laravel-data` is still in `composer.json`, and
-> `composer.lock` still carries medialibrary 11.23.1. **WP2's computed-property fix is the highest
-> value/lowest risk item in the whole plans directory** — it is a measured 3× query multiplication
-> on the public sermons page.
+> `composer.lock` still carries medialibrary 11.23.1.
 >
 > **Status (2026-07-19, amended 2026-07-20): ready to start; WP1 downgraded from urgent — its
 > security premise was a stale local vendor tree (see the WP1 correction note).** This is the
@@ -46,11 +47,11 @@
 | WP | What | Kind | Blocked by |
 |---|---|---|---|
 | WP1 | medialibrary version bump (F5.1 — **downgraded 2026-07-20**, see WP1 note) | mechanical | — |
-| WP2 | Mechanical sweep: computed-property fix, provider bindings, dead config, small idiom residue (F6.1, F2.3, F3.3, F2.6, F2.7, F2.2, F1.3, F5.3) | mechanical | — |
+| WP2 | Mechanical sweep: computed-property fix (**2.1 DONE 2026-07-24**), provider bindings, dead config, small idiom residue (F6.1, F2.3, F3.3, F2.6, F2.7, F2.2, F1.3, F5.3) | mechanical | — |
 | WP3 | PHPUnit mock-notice sweep, 124 sites (F4.2) | mechanical, wide | — |
 | WP4 | Judgment items: laravel-data removal, Eloquent strict-mode survey, test-env branch inversion, thumbnail test speed, js-yaml override, `validationRules()` relocation (F2.4, F6.2, F2.5, F4.3, F5.2, F2.2a) | design | per-item, see below |
 | WP5 | Spent one-shot deletions → **executed via remainder R8** (F3.2) | mechanical | operator gates Q1/Q2 |
-| WP6 | Regression nets: query-count assertions + computed-call structural test (F6.1 guard, §5 opportunity) | mechanical | WP2 item 1 |
+| WP6 | Regression nets: query-count assertions (**6.1 DONE 2026-07-24**) + computed-call structural test (F6.1 guard, §5 opportunity) | mechanical | WP2 item 1 |
 | WP7 | PHPStan level-9 ratchet, ~800 errors in 4 clustered sessions (F1.1, F1.3 completion) | design | **remainder R9–R11 merged** + Q4 |
 
 WP2+WP6 as one PR stack; WP1/WP3 any time; WP4 items independently as answers/approvals
@@ -87,7 +88,35 @@ What remains is routine drift, foldable into F5.3's minor/patch sweep:
 
 ## WP2 — Mechanical sweep (one PR stack; commits in this order)
 
-### 2.1 Livewire `#[Computed]` call-syntax fix (F6.1) — the perf bug
+### 2.1 Livewire `#[Computed]` call-syntax fix (F6.1) — the perf bug — **DONE 2026-07-24**
+
+> **Completion note (2026-07-24).** All ten call sites converted to property access; ten was the
+> true count (the plan's prose said "nine"). The 3× claim was **confirmed empirically**, not just
+> asserted: with the bug temporarily reintroduced, the new WP6.1 guard reported
+> `select count(*) … from sermons where content_type = ?` → 3 and the 24-row browse `SELECT` → 3.
+> With the fix, every query in a browse render runs exactly once.
+>
+> Three things the plan did not anticipate:
+>
+> 1. **The staleness check found a real hazard, and it was fixed.** `dispatchMetadataUpdate()` reads
+>    `seoTitle`/`seoDescription`/`seoCanonical` *before* render, and all five mutating hooks call
+>    it. Livewire can batch several `wire:model.live` updates into one request, in which case an
+>    earlier hook would memoize the SEO strings and a later hook would dispatch that stale copy.
+>    Fixed by `unset($this->seoTitle, $this->seoDescription, $this->seoCanonical)` at the top of
+>    `dispatchMetadataUpdate()` — one place rather than five, and it covers the Blade
+>    `@js($this->seoTitle)` read too. `sermons` needs no unset: nothing reads it before render.
+> 2. **The `@property-read` docblocks became load-bearing.** Property access resolves types through
+>    the class docblock, so PHPStan level 8 immediately failed on `BrowseSermons`' two option
+>    properties (declared `array<int, …>`, methods return `list<…>`). Fixed by tightening the
+>    annotations, not by casting.
+> 3. **`ShowChurchService`'s two computeds live in the `ReviewsServiceSections` trait**, which had
+>    no `@property-read` block at all. Added there rather than on the component, so future consumers
+>    inherit it. `preacherOptions()` genuinely was not a `list` — it `filter()`s before `map()`, so
+>    its keys were gapped (a JSON-object-not-array hazard in the Livewire payload). Both methods
+>    rewritten to `array_map` over the underlying array, matching `BrowseSermons`' existing idiom.
+>
+> Gates: pint clean · PHPStan 0 errors · full parallel suite 5552 passed / 17203 assertions / 0
+> failures (the 124 PHPUnit notices are WP3's pre-existing backlog, unchanged) · Dusk 47 passed.
 
 Livewire memoizes computed properties only on **property access** (`$this->sermons`); method
 calls (`$this->sermons()`) re-execute the body. Measured effect: `/christ/sermons` runs its
@@ -291,12 +320,14 @@ in one commit, pre-deletion git tag in the PR description). Nothing further to d
 
 ## WP6 — Regression nets (lands with WP2.1)
 
-1. **Query-duplication assertion** on the sermons browse page: a feature test hitting
-   `/christ/sermons` that counts queries via `DB::listen()` (or
-   `expectsDatabaseQueryCount()` on the Livewire test) and asserts the listing block runs
-   once — pin the exact number only if stable across filters; otherwise assert "no identical
-   SELECT executed more than once". This is the durable guard for F6.1.
-2. **Computed-call structural test**: alongside
+1. **Query-duplication assertion** — **DONE 2026-07-24**.
+   `BrowseSermonsTest::browsing_runs_each_listing_query_only_once` captures every query of a
+   `Livewire::test(BrowseSermons::class)` render via `DB::listen()`, keys them by SQL + bindings,
+   and asserts no key repeats. The "no identical query more than once" form was chosen over a
+   pinned count, as the plan allowed — the count is not stable across filter combinations. The
+   guard was verified by temporarily reverting the two `$this->sermons()` call sites: it failed
+   with both offending queries at count 3, which is the F6.1 measurement reproduced as a test.
+2. **Computed-call structural test** — still open. Alongside
    `tests/Integration/Livewire/Traits/AdminLivewireComponentsUseTraitTest.php`, add a test that
    reflects over `app/Livewire` classes, collects method names carrying
    `Livewire\Attributes\Computed`, and asserts no `$this-><name>()` call syntax appears in the
