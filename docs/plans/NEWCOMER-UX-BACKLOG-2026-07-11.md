@@ -1,5 +1,11 @@
 # Newcomer UX plan — production review 2026-07-11
 
+> **Gate update (2026-07-24): O19's dependency has cleared.** Backlog item 3.1 (one presentation
+> convention) completed 2026-07-16 as PR #1221; `RelatedPagePresenter` survived the change and now
+> lives at `app/Presenters/RelatedPagePresenter.php`. O19 is therefore ready to be reassessed and
+> fixed against the settled seam. Nothing else here has started (verified 2026-07-24 — O16–O21 are
+> still open in `docs/issues/README.md`).
+
 **Status (2026-07-12): Approved; not started.** This plan owns verified issues O16–O21 and
 opportunities N1–N5 in `docs/issues/README.md`. O16, O20, O21, O17, and the N1/N2 newcomer path can
 start independently of the July simplification backlog. O19 must wait for backlog item 3.1 because

@@ -1,56 +1,128 @@
 # Plans index
 
-Reconciled 2026-07-20. This directory holds only **active** plans; completed or superseded plans
-move to `docs/archived-plans/` with an archival header explaining what superseded them. Open
-audit findings (Mortician dead-code reports, Pathfinder link/SEO crawls) are consolidated in
-`docs/issues/README.md`, not here.
+Reconciled **2026-07-24** against the live code (not against commit messages — every status below
+was checked by looking for the class, migration, config key or test it claims). This directory
+holds only **active** plans; completed or superseded plans move to `docs/archived-plans/` with an
+archival header explaining what superseded them. Open audit findings (Mortician dead-code reports,
+Pathfinder link/SEO crawls) are consolidated in `docs/issues/README.md`, not here.
+
+## What changed since the 2026-07-20 reconciliation
+
+- **The simplification spine is nearly finished.** R1–R11 all merged (2026-07-20/21). The heuristic
+  service-structure cluster, the media visual stack and the song clusters are gone; transcription,
+  audio preparation, song matching and the phase registry are each consolidated to one owner;
+  1.7f shipped too, though it had been left unscheduled. **R12–R15 remain**, and R8's deletions
+  remain entirely unexecuted (its *evidence* is what shipped).
+- **The review-queue noise plan is complete and archived** (Workstreams A, B and C1–C6). Its
+  follow-on discovery — phantom review state from superseded runs — was fixed in seven more commits.
+- **The service workbench redesign largely landed** (steps A–D). Step E's Dusk and Playwright
+  coverage is the outstanding piece.
+- **Three gates released:** WP7 of the code-quality plan (needed R9–R11), the semantic-search and
+  OBS-transcript plans (both needed 1.7a), and newcomer O19 (needed backlog 3.1).
+- **Two new plans arrived** on 2026-07-24: children's-talk private storage, and historic archive
+  import + promotion. The first contains a live production data-loss bug.
+
+## Do these first
+
+1. **`CHILDRENS-TALK-STORAGE-TO-SPACES` WP0 — a two-line `docker-compose.prod.yml` change.**
+   Production has no volume for `storage/app/private`, so children's-talk media and section-preview
+   files are destroyed on every deploy. This is losing data *now*, is gated on nothing, and should
+   ship on its own.
+2. **`CODE-QUALITY-REMEDIATION` WP2.1 — the `#[Computed]` call-syntax fix.** A measured 3×
+   query-block multiplication on the public sermons page, fixed by changing `$this->sermons()` to
+   `$this->sermons` at nine call sites. Still unfixed as of 2026-07-24.
+
+Everything else is a project, not a one-sitting fix.
 
 ## The spine
 
 **[JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md](JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md)**
-is the execution spine for the remaining simplification work. It re-verifies every still-open
-backlog item against the live code, corrects the backlog's stale statuses (4.1–4.3 and Workstream
-6 already landed), and sequences the remainder R1–R15. **Read its R1–R15 order before picking up
-any remaining item.**
+sequences the simplification work R1–R15 and now carries a per-item status column. **R1–R11 are
+merged.** What is left:
+
+| Item | State |
+|---|---|
+| R8 (spent one-shot deletions) | Evidence, runbook and production counts are done; **not one tool has been deleted** — every gate is BLOCKED or PARTIAL on data convergence. Now effectively an operator workstream (`docs/operations/r8-data-convergence-runbook.md`), and several rows are entangled with the historic-archive plan |
+| R12 (bulk historic backfill) | **Ownership moved** to the historic-archive plan's Stage A, which supersedes R12's paragraph with a retention prerequisite and a promotion stage |
+| R13 (5.3/5.4 re-measures) | Open. R1 recorded the soak's D6/5.3 observations as *not captured*, so this starts with a measurement window |
+| R14 (test-suite fold-ins) | Open, and no longer blocked — all five flat suites still exist. Re-diff `AdminChurchServiceTest.php`: the workbench redesign modified it |
+| R15 (archive the trackers) | Open; last |
 
 **[JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)**
-is the parent decision record and historical implementation context. All 20 removal decisions are
-signed off; its item descriptions and production-check gates remain useful, but the remainder plan
-is authoritative for current status and execution order.
+is the parent decision record and historical context. All 20 removal decisions are signed off; six
+Definition-of-done boxes are now ticked. The remainder plan is authoritative for status and order.
 
-## Standalone plans, in implementation order
+## Dependency map
 
-| Order | Plan | Status | When to do it |
+```
+CHILDRENS-TALK-STORAGE  ──(deletes WP8, §5.1)──▶  HISTORIC-ARCHIVE (Stage A)
+      WP0 (urgent, ungated)                            │
+                                                       ├─ needs WP-A1..A6 retention BEFORE first batch
+                                                       ├─ needs WP6 thumbnail env BEFORE first batch
+                                                       ├─ needs WP1 song-usage baseline BEFORE any prod write
+                                                       └──▶ closes remainder R8's importer rows + R12
+
+SENTRY ──(release-tagged errors during the long import)──▶ HISTORIC-ARCHIVE (Stage B)
+
+remainder R9–R11 (merged) ──▶ CODE-QUALITY WP7 (phpstan level 9)      [gate released]
+                          └─▶ SERVICE-WORKBENCH (A–D landed; E open)  [gate released]
+
+backlog 1.7a (merged) ──▶ SEMANTIC-SERMON-SEARCH (re-plan Phase 1)    [gate released]
+                      └─▶ LIVESTREAM-TRANSCRIPT-REUSE (Part B re-scope) [gate released]
+
+SONG-SCRIPTURE-AND-THEME ──(builds Phase 0 embeddings + shared `themes` table)──▶ SEMANTIC-SEARCH
+HISTORIC-ARCHIVE WP-A1/WP-A3 ──(transcript retention decides what is searchable)──▶ SEMANTIC-SEARCH
+
+SITE-SEARCH ──(occupies the `?q=` UI slot; semantic swaps the backend later)──▶ SEMANTIC-SEARCH
+
+backlog 3.1 (merged) ──▶ NEWCOMER-UX O19                              [gate released]
+
+DESIGN-SYSTEM-REFRESH ⇄ SERVICE-WORKBENCH step E  (Playwright baseline churn — see order note)
+```
+
+## Active plans, in recommended implementation order
+
+| # | Plan | Status (verified 2026-07-24) | Why here |
 |---|---|---|---|
-| 1 | [SENTRY-ERROR-TRACKING.md](SENTRY-ERROR-TRACKING.md) | Not started; no dependencies | Any time — but ideally **before** the backlog's Workstream 1 flips `SERVICE_STRUCTURE_MODE` to primary (item 1.4), so the big pipeline change lands under release-tagged error tracking |
-| 2 | [GOOGLE-ANALYTICS-ENHANCEMENT-2026-06-19.md](GOOGLE-ANALYTICS-ENHANCEMENT-2026-06-19.md) | GA1–GA4 shipped | Remaining work is GA6, a **manual GA4-admin task for the maintainer** (register custom dimensions, mark conversions). GA5 is optional and needs a maintainer decision before anyone builds it |
-| 3 | [SEMANTIC-SERMON-SEARCH-AND-QA-2026-06-18.md](SEMANTIC-SERMON-SEARCH-AND-QA-2026-06-18.md) | Not started; gated; **re-scoped 2026-07-20 to retrieval-only** (semantic search + theme browsing + related sermons — the Q&A surface is removed) | After backlog items 2.3 (storage collapse) and 1.7a (one Whisper pass). Re-plan its Phase 1 first — 1.7a supersedes the drafted transcription changes (see the plan's status header) |
-| 4 | [LIVESTREAM-TRANSCRIPT-REUSE-FROM-OBS-2026-06-20.md](LIVESTREAM-TRANSCRIPT-REUSE-FROM-OBS-2026-06-20.md) | Deferred; Part B stale as drafted | After backlog 1.5/1.7a; re-scope Part B as a `ServiceTranscriptionInterface` adapter (see the plan's status header). Part A (OBS live subtitles) is operational and can happen any time |
-| 5 | [NEWCOMER-UX-BACKLOG-2026-07-11.md](NEWCOMER-UX-BACKLOG-2026-07-11.md) | Approved; not started | Start with the production/data and copy fixes (O16/O20/O21), then O17 and the newcomer path. O18/N3/N4 need maintainer input; O19 waits for backlog item 3.1 |
-| 6 | [REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md](REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md) | Findings verified; not started | Workstreams A/B (queue predicates + data cleanup) ideally **before** the backlog 1.4 soak's Stage 3 review — the soak reviews services through the inbox this plan un-floods. OD1–OD3 need maintainer input; UI workstream C any time (C3 was delivered by the completed service-screen consolidation). Must not touch backlog 1.5 deletion-list classes |
-| 7 | [CODE-QUALITY-REMEDIATION-2026-07-19.md](CODE-QUALITY-REMEDIATION-2026-07-19.md) | Ready to start; WP1 downgraded 2026-07-20 | Implements the Phase 9 review findings. WP1's "urgent" premise was a stale local vendor tree — the lock has carried the CVE-patched medialibrary 11.23.1 since 2026-07-03, so prod was never exposed; what remains of WP1 is a routine bump to latest (see the plan's WP1 correction note). WP2/WP3/WP6 any time; WP4 items as maintainer answers arrive; WP5 executes via the remainder plan's R8; WP7 (phpstan level-9 ratchet) **only after** remainder R9–R11 merge |
-| 8 | [SITE-SEARCH-2026-07-20.md](SITE-SEARCH-2026-07-20.md) | Approved; not started; no backlog dependencies | Any time. Keyword (LIKE) search: Phase A adds a `?q=` search box to the public sermon archive, Phase B adds a site-wide `/search` page + header entry. Deliberately front-runs plan 3's Phase 3 UI slot — the semantic plan later swaps the ranking backend behind the same `q` param (contract recorded in both plans). No AI, no new dependencies |
-| 9 | [SONG-SCRIPTURE-AND-THEME-SEARCH-2026-07-20.md](SONG-SCRIPTURE-AND-THEME-SEARCH-2026-07-20.md) | Approved; not started; no backlog dependencies | Any time — songs never touch the media pipeline. Scripture search + shared theme vocabulary + semantic lyric search on the members song catalogue. **Builds plan 3's Phase 0 embedding foundations and the shared `themes` table** (contract recorded in both plans), so if plan 3 starts later it inherits both. Flag flips gated on two maintainer calibration reviews |
-| 10 | [DESIGN-SYSTEM-REFRESH-2026-07-20.md](DESIGN-SYSTEM-REFRESH-2026-07-20.md) | Approved; not started; no backlog dependencies | Any time, but merge after (or rebase over) any in-flight UI PR to avoid double Playwright-baseline churn. Five PRs: correctness fixes (sermon-title ordinals + backfill, font-face repairs), token/component consolidation, left-aligned prose + real display bold, placeholder-artwork retint, docs truth-up. Source review: `docs/reviews/design-system-review-2026-07-20.md`. Typewriter hero stays (maintainer decision); prod title backfill is maintainer-gated |
-| 11 | [SONG-FAMILIARITY-RATING-2026-07-20.md](SONG-FAMILIARITY-RATING-2026-07-20.md) | Drafted; awaiting maintainer sign-off (one open decision, D1); no backlog dependencies | Any time. Traffic-light familiarity badge (green > 3×/2y, amber = sung within 5y, red = not sung in 5y) on the three admin song surfaces: catalogue list (+ filter), song detail, and the service-plan song picker. Computed on read via the existing usage-subquery pattern — no migration, no stored counters. Picker work goes through `ChurchServiceFormData` so it survives the completed service-screen consolidation. Admin-only: no badge on members' `BrowseSongs` |
-| 12 | [SERVICE-WORKBENCH-REDESIGN-2026-07-23.md](SERVICE-WORKBENCH-REDESIGN-2026-07-23.md) | Ready to implement; maintainer direction recorded; gated on remainder R9 | Replaces the split plan/recording workbench with one chronological service record, one truthful status/next action, visible transcript evidence, neutral plan-coverage semantics, and collapsed technical diagnostics. Implement after R9 removes the heuristic alignment partials; write new tests only in namespaced suites ahead of R14 |
+| 1 | [CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md) | Drafted; **WP0 is a live data-loss fix**; no dependencies | `storage/app/private` is neither created by the `Dockerfile` (`:92`) nor mounted (`docker-compose.prod.yml:36-43`), so children's-talk media and `private/section-publications/` previews die on every deploy. WP0 (the volume) ships alone, immediately. The rest moves private assets to a new `do_spaces_private` disk — same bucket and credentials as `do_spaces`, private visibility, no CDN, mirroring `do_spaces_backups`. Stored `private/…` paths become literal object keys, so **the migration is a file copy plus a config flip with zero database writes**; rollback is one env var. Blocking constraint: the serving path calls `Storage::disk()->path()` (local-driver only), so **WP3/WP4 must land before the flip**. Maintainer confirmed there is no safeguarding sensitivity — children's talks are private only because unpublished — which permits signed-URL delivery (keeps HTTP Range, so seeking survives) and makes WP7 (publish, retire the private mechanism) the destination |
+| 2 | [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md) | Drafted; all questions answered (Q1–Q6); **Stage A gated on the WP-A\* retention workstream**; now also owns remainder R12 | Brings production to the state it would be in if every historic recording on the CBC drive had been processed by today's pipeline — sermon archive **and** the service structure feeding public song usage. **Start with Stage A0 (WP-A1–WP-A6):** the drive is a one-shot resource and the pipeline discards artifacts it cannot re-derive — most sharply, the full-service transcript is written to the temp disk and deleted 24h later by `media:cleanup-temp-files` (confirmed by test), despite a comment in `temporaryFilePaths()` claiming it is preserved. Also unretained: full-service audio (produced at 32 kbps then `unlink()`ed), RMS logs, raw `verbose_json` payloads, and any record of which drive files fed which run. Then Stage A (local import + review via `sermons:import-historic-videos`), then Stage B (promotion). **WP1 (song-usage baseline) must precede any production write** — the §6.1 usage policy means a botched promotion silently *deletes* currently-public song usage. Note that transcription and detection both default to `mock`, and a mocked run completes without error. Landing plan 1 first largely deletes this plan's WP8 |
+| 3 | [SENTRY-ERROR-TRACKING.md](SENTRY-ERROR-TRACKING.md) | Not started; no dependencies; **not installed** (no `sentry/sentry-laravel` in `composer.json`) | Its original motivation — land before the `SERVICE_STRUCTURE_MODE` flip — is spent; the flip happened 2026-07-19. Its **new** motivation is plan 2: a long, unattended, irreversible-in-practice production import is exactly when you want release-tagged error tracking. Land it before Stage B, not after |
+| 4 | [CODE-QUALITY-REMEDIATION-2026-07-19.md](CODE-QUALITY-REMEDIATION-2026-07-19.md) | Ready; nothing started; **WP7's gate is now released** | WP2.1 is the "do this first" perf fix above. WP1 is now routine drift (its CVE premise was a stale local vendor tree — the lock has carried medialibrary 11.23.1 since 2026-07-03). WP2/WP3/WP6 any time; WP4 as maintainer answers arrive; WP5 rides R8; **WP7 (PHPStan level 9, ~800 errors, `phpstan.neon` still at `level: 8`) is unblocked now that R9–R11 have merged** — only Q4 sign-off stands in front of it |
+| 5 | [SERVICE-WORKBENCH-REDESIGN-2026-07-23.md](SERVICE-WORKBENCH-REDESIGN-2026-07-23.md) | **Steps A–D implemented** (`98dd4cab5`, `473ba42c9`); step E outstanding | Remaining: Dusk coverage for edit-plan/review-row/technical-details/keyboard operation, a deterministic Playwright fixture at desktop and mobile widths, and deletion of the now-orphaned `partials/processing-run-header.blade.php` (no include, no PHP, no test references it). Sequence with plan 9: doing the design refresh first means generating the workbench's Playwright baselines once, against the final tokens |
+| 6 | [NEWCOMER-UX-BACKLOG-2026-07-11.md](NEWCOMER-UX-BACKLOG-2026-07-11.md) | Approved; not started; **O19's gate released** | Highest visitor-facing value per hour in the directory, and Phase 0 is mostly production content rather than code. Start with O16/O20/O21 (production/data + copy), then O17 (address + map), then the newcomer path (N1/N2/N5). O19 can now be reassessed — backlog 3.1 landed 2026-07-16 and `RelatedPagePresenter` survived at `app/Presenters/`. O18/N3/N4 still need maintainer input |
+| 7 | [SITE-SEARCH-2026-07-20.md](SITE-SEARCH-2026-07-20.md) | Approved; not started; no dependencies | Keyword (LIKE) search: Phase A adds a `?q=` box to the public sermon archive, Phase B a site-wide `/search` page + header entry. No AI, no new dependencies. Deliberately front-runs plan 10's UI slot — the semantic plan later swaps the ranking backend behind the same `q` param (contract recorded in both plans) |
+| 8 | [SONG-SCRIPTURE-AND-THEME-SEARCH-2026-07-20.md](SONG-SCRIPTURE-AND-THEME-SEARCH-2026-07-20.md) | Approved; not started; no dependencies | Songs never touch the media pipeline, so this is independent of everything above. Scripture search + shared theme vocabulary + semantic lyric search on the members' song catalogue. **Builds plan 10's Phase 0 embedding foundations and the shared `themes` table** — neither exists yet — so running it first means plan 10 inherits both. Flag flips gated on two maintainer calibration reviews |
+| 9 | [DESIGN-SYSTEM-REFRESH-2026-07-20.md](DESIGN-SYSTEM-REFRESH-2026-07-20.md) | Approved; not started; no dependencies | Five PRs: correctness fixes (sermon-title ordinals + backfill, font-face repairs), token/component consolidation, left-aligned prose + real display bold, placeholder-artwork retint, docs truth-up. Source review: `docs/reviews/design-system-review-2026-07-20.md`. The workbench redesign has already landed, so the "rebase over in-flight UI PRs" caution now points at plan 5's step E and plan 6's newcomer path. Typewriter hero stays (maintainer decision); the prod title backfill is maintainer-gated |
+| 10 | [SEMANTIC-SERMON-SEARCH-AND-QA-2026-06-18.md](SEMANTIC-SERMON-SEARCH-AND-QA-2026-06-18.md) | Not started; **both backlog gates cleared**; re-scoped 2026-07-20 to retrieval-only | Items 2.3 and 1.7a have both landed, so the header's "re-plan Phase 1 first" instruction is now the next action — written against `CreateSermonTranscriptFromService` + `ChurchServiceTranscript::sliceText()`, not the drafted `TranscriptionServiceInterface` extension. Best done after plan 8 (inherits Phase 0 + `themes`) and after plan 2's WP-A1/WP-A3 decide whether transcripts and word-level timestamps are retained at all |
+| 11 | [SONG-FAMILIARITY-RATING-2026-07-20.md](SONG-FAMILIARITY-RATING-2026-07-20.md) | Drafted; **awaiting maintainer sign-off on D1**; no dependencies | Traffic-light familiarity badge (green > 3×/2y, amber = sung within 5y, red = not sung in 5y) on the three admin song surfaces. Computed on read via the existing usage-subquery pattern — no migration, no stored counters. Picker work goes through `ChurchServiceFormData`. Admin-only; no badge on members' `BrowseSongs`. Small enough to slot anywhere once D1 is answered |
+| 12 | [LIVESTREAM-TRANSCRIPT-REUSE-FROM-OBS-2026-06-20.md](LIVESTREAM-TRANSCRIPT-REUSE-FROM-OBS-2026-06-20.md) | Deferred; **Part B's re-scope trigger has fired** | 1.5 and 1.7a both landed, so Part B is now "one more `ServiceTranscriptionInterface` implementation" plus ingest and trust-gate plumbing. The cost case halved with the second Whisper pass, and a prod-local whisper.cpp sidecar (`TRANSCRIPTION_SERVICE_TYPE=local`) reaches the same saving for less work — compare before building. Part A (OBS live subtitles) is operational and can happen any time |
+| 13 | [GOOGLE-ANALYTICS-ENHANCEMENT-2026-06-19.md](GOOGLE-ANALYTICS-ENHANCEMENT-2026-06-19.md) | GA1–GA4 shipped | Remaining GA6 is a **manual GA4-admin task for the maintainer** (register custom dimensions, mark conversions). GA5 is optional and needs a maintainer decision before anyone builds it |
 
-Items 1 and 2 are independent of everything and of each other. Items 3 and 4 both wait for the
-backlog's Workstream 1/2 to reshape the ground they build on — starting them earlier means
-building against code that is scheduled for deletion.
+## Waiting on the operator or maintainer (no agent can advance these)
+
+| What | Where | Note |
+|---|---|---|
+| R8 data convergence — song catalogue sync, `play_date` import, media identity backfill, OpenLP archive apply, sermon promotion | remainder plan R8 + `docs/operations/r8-data-convergence-runbook.md` | Every one-shot deletion is blocked behind these. The local rehearsal is done and checkpointed; production has not been touched |
+| Run `CleanupReviewQueueNoiseCommand` against production | archived review-queue-noise plan, OD3 | The command shipped 2026-07-20 (dry-run-first, counts-only). No record it has been run in production |
+| Answer D1 (song familiarity: "sung exactly once in 5 years") | plan 11 | Blocks the whole plan; the draft defaults it to amber |
+| Answer Q3/Q4 (podcast `enabled` key; PHPStan ratchet sequencing) | plan 4 | Q4 is the last thing in front of WP7 |
+| O32 production asset audit | `docs/issues/README.md` | Needs production access this checkout does not have |
+| O16/O20/O21 production content fixes | plan 6, Phase 0 | Content/deployment actions, not code |
+| GA6 GA4-admin configuration | plan 13 | Manual console work |
 
 ## Gated follow-up
 
 - **Phase 9 code-quality review — COMPLETE 2026-07-19** (ran early; maintainer waived the
   structural-work gate). Findings:
   [../reviews/july-2026-simplification/code-quality-review-2026-07-19.md](../reviews/july-2026-simplification/code-quality-review-2026-07-19.md).
-  Implementation is plan 8 above.
+  Implementation is plan 4 above.
 
 ## Recently archived
 
 | Plan | Archived | Why |
 |---|---|---|
-| `SERVICE-SCREENS-CONSOLIDATION-2026-07-19.md` | 2026-07-23 | All four phases are present in the route/component structure; its Phase 1 view split is superseded by the service-workbench redesign plan |
+| `REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md` | 2026-07-24 | Complete: Workstream A (`c71ac1221`), Workstream B (`5843d40eb`), C1/C2/C4/C5/C6; C3 was superseded before work began. Residue recorded in its archival header — the production run of the cleanup command, the unmeasured before/after counts, and the follow-on phantom-review-state fixes (`684cacee4`..`36e32670f`) |
+| `SERVICE-SCREENS-CONSOLIDATION-2026-07-19.md` | 2026-07-23 | All four phases present in the route/component structure; its Phase 1 view split superseded by the service-workbench redesign |
 | `OOS-ARCHIVE-IMPORT-AND-PIPELINE-EVAL-2026-07-10.md` | 2026-07-20 | Complete 2026-07-11: harness + pipeline fixes shipped (PRs #1162/#1163/#1170), three eval runs done, gated create-only import executed. Unfixed eval findings recorded in its archival header for any future import work |
 
 ### 2026-07-05 reconciliation
@@ -58,11 +130,11 @@ building against code that is scheduled for deletion.
 | Plan | Why |
 |---|---|
 | `SIMPLIFICATION-PLAN.md` | All phases complete except 9/25, which became backlog items 2.3/2.4 |
-| `JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md` | Review complete through Phase 8; only the Phase 9 brief remains live (see above) |
+| `JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md` | Review complete through Phase 8; only the Phase 9 brief remained live (now also complete) |
 | `LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md` | Phases 1–5 shipped; Phase 6 superseded by backlog Workstream 1 (whose list corrects it in four places) |
 | `LLM-SERVICE-SECTION-CLASSIFICATION-SPIKE-2026-06-19.md` | Superseded by the LLM-first plan |
 | `SERMON-SECTION-EXTRACTION-REMAINING-FIXES-2026-06-21.md` | All items done or superseded |
-| `LIVESTREAM-DAEMON-UPLOAD-2026-05-01.md` | Never started; designed around the heuristic analysis stack the backlog deletes. The 5 GB-upload problem is real — if it still hurts post-Workstream 1, write a fresh (much simpler) plan |
+| `LIVESTREAM-DAEMON-UPLOAD-2026-05-01.md` | Never started; designed around the heuristic analysis stack the backlog deleted. The 5 GB-upload problem is real — if it still hurts now that Workstream 1 is done, write a fresh (much simpler) plan |
 
 ## Conventions for new plans
 
@@ -70,5 +142,7 @@ building against code that is scheduled for deletion.
   loser pointing at the winner) rather than letting both stay "active".
 - Every plan opens with a dated **status header**: started/not started, dependencies on backlog
   items, and what an agent must *not* do without maintainer input.
+- When work lands, amend that header with what was verified in the code — not just a commit hash.
+  A plan whose status is stale costs the next session a re-derivation.
 - Work generated by audits (Mortician/Pathfinder) goes into `docs/issues/README.md` first, and is
   folded into a plan from there — per-issue report files do not accumulate.

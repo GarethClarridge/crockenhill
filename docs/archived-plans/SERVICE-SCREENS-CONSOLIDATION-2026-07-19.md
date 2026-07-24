@@ -15,7 +15,7 @@
 >
 > - **Phases 1–3 are independent of the noise plan** and can start any time. **Phase 4 (inbox
 >   fold-in) must wait for Workstreams A + B of
->   [REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md](../plans/REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md)**
+>   [REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md](REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md)**
 >   — folding today's 222-item queue into the main services list would poison the hub. That
 >   plan's **C2 (Confirm action), C4, C5, C6** remain valid and should land before or during
 >   Phase 1 here; its **C3 (inbox count copy) is superseded by Phase 4 of this plan** — do not

@@ -798,7 +798,8 @@ Hard dependency chains, restated:
 - [x] Production `LOG_CHANNEL` ≠ `sermon-processing` — confirmed `stack` 2026-07-12 (gates 2.1's channel deletion)
 - [x] `sermons:verify-storage` clean against production — 698/698 files accessible, zero legacy
       paths, zero missing files (confirmed 2026-07-13; gates 2.3)
-- [ ] `SELECT COUNT(*) FROM sermons WHERE preacher_id IS NULL` = 0 (gates PreacherCutover deletion)
+- [x] `SELECT COUNT(*) FROM sermons WHERE preacher_id IS NULL` = 0 — confirmed `0` in production
+      2026-07-20 (gates PreacherCutover deletion; the deletion itself is still pending in R8)
 - [x] No children's talks on non-`private/` paths — dry run confirmed none require migration
       (2026-07-13; gates `MoveChildrensTalksToPrivateStorage` deletion)
 - [ ] `Song::withTrashed()` null/blank/`legacy-song-%` canonical-key count = 0 (gates reconciler deletion)
@@ -818,8 +819,11 @@ Hard dependency chains, restated:
 
 ## Definition of done
 
-- [ ] The heuristic structure path (church services + media visual stack + song clusters) is
+- [x] The heuristic structure path (church services + media visual stack + song clusters) is
       deleted; the LLM path is primary with shadow/eval as the permanent regression mechanism.
+      *(Remainder R2/R9/R10/R11, merged 2026-07-21; verified 2026-07-24 — no heuristic service,
+      job, script or `ServiceStructureMode::Off` remains, and `structure:evaluate` /
+      `structure:shadow-report` are the surviving regression mechanism.)*
 - [ ] No spent one-shot tool remains runnable; new one-shots carry deletion triggers.
 - [x] One storage service owns the sermon file lifecycle; no legacy path branching at runtime.
 - [x] One presentation convention on the public read path; composers/inline JSON-LD/dead read
@@ -827,10 +831,15 @@ Hard dependency chains, restated:
 - [x] Listing freshness is TTL-based; no hand-maintained cache-key registry. *(PR #1222; the
       O39–O51 follow-up review added targeted model-derived eviction for exposure transitions
       only — see `docs/issues/README.md`.)*
-- [ ] The upload flow is one authorized admin component with one state enum.
-- [ ] Operator diagnostics read from steps+metadata only; no log-file re-parsing.
-- [ ] Migrations are squashed with the drift gate updated and a re-squash cadence adopted.
-- [ ] Config contains no stock-copy files; behaviour-relevant defaults consciously adopted.
+- [x] The upload flow is one authorized admin component with one state enum. *(Item 4.1, absorbed
+      by the service-UI consolidation: `App\Livewire\Admin\MediaUpload` + `App\Enums\UploadState`.)*
+- [x] Operator diagnostics read from steps+metadata only; no log-file re-parsing. *(Item 4.2:
+      `ProcessingLogService`, `ProcessingLogEntry`, `ProcessingLogCollection`, `ProcessingLogsViewer`
+      and the standalone `ProcessingReview` component no longer exist.)*
+- [x] Migrations are squashed with the drift gate updated and a re-squash cadence adopted.
+      *(Workstream 6, PRs #1188/#1191: `database/schema/mysql-schema.sql` + post-squash migrations.)*
+- [x] Config contains no stock-copy files; behaviour-relevant defaults consciously adopted.
+      *(Workstream 6: stock files and dead keys removed; `church.php`/`health.php` added.)*
 - [ ] Each remaining removal decision recorded above is either executed or explicitly rejected.
 - [ ] Test suite: no preservative tests, one suite per component, one integrity home.
 - [ ] Older trackers archived with pointers here.

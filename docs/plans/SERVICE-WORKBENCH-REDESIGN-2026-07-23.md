@@ -1,5 +1,32 @@
 # Service Workbench Redesign — One Service Record
 
+> **Status (2026-07-24): steps A–D are implemented (`98dd4cab5`, extended by `473ba42c9`); step E
+> is partly done and its browser/visual coverage is outstanding.** Verified against the live code:
+>
+> - **A** ✅ `ChurchServiceRollupStatus::ProcessingFailed` exists with badge styling,
+>   `ChurchServiceStatusSummary` carries status/explanation/next action through
+>   `ChurchServiceShowReadModel`, and `ChurchServiceRollupQueryTest` covers the precedence cases.
+> - **B** ✅ `<x-admin.page>` gained a header opt-out; `ShowChurchServiceTest:86` asserts exactly
+>   one `<h1>`.
+> - **C** ✅ one chronological record (`service-flow.blade.php` `<ol>` → `service-flow-row` `<li>`
+>   with `wire:key`, `service-record-row-summary` holding the merged plan/detected/timing/publication
+>   fields). The `timeline-alignment-table*` partials and their include are **deleted** and nothing
+>   references them.
+> - **D** ✅ source-coverage copy lives in `ChurchServiceShowPresenter:176-181` (OpenLP slide-only /
+>   email provenance); diagnostics are collapsed under a "Technical processing details" `<details>`;
+>   failure text renders outside it; `deleteUpload` moved into that disclosure.
+> - **E** ◐ semantic `<ol>`/`<li>`, `wire:key`, one `<h1>` and the responsive row stacking are in.
+>   **Not done: no Dusk coverage and no Playwright fixture/spec were added** — `tests/Browser/` and
+>   `tests/Playwright/` are unchanged by both commits. Keyboard verification of edit/review/merge/
+>   publication/upload-delete is therefore unproven.
+>
+> **Residue found 2026-07-24:** `resources/views/livewire/admin/church-services/partials/`
+> `processing-run-header.blade.php` is now **orphaned** — no `@include`, no PHP, no test references
+> it (its "Delete upload" button was superseded by the one inside the technical-details disclosure).
+> Delete it when finishing step E.
+>
+> ---
+>
 > **Status (2026-07-23): ready to implement — the R9 dependency is satisfied.** This plan
 > records the maintainer's review of `/admin/services/790` and is executable without further
 > design decisions. It supersedes the service-page view structure specified in Phase 1 of the

@@ -1,5 +1,16 @@
 # OBS-LocalVocal Transcript Sourcing — Plan (2026-06-20)
 
+> **Gate update (2026-07-24): the re-scope trigger has fired.** Item 1.5 deleted
+> `TranscribeSpeechSegments` with the heuristic cluster (`6683a70cf`), and item 1.7a landed
+> 2026-07-21: `CreateSermonTranscriptFromService` (`f332427ea`) slices the full-service transcript
+> for the sermon, so the pipeline now pays **one** Whisper pass per service, behind
+> `ServiceTranscriptionInterface` with `LocalWhisperServiceTranscriptionService`,
+> `OpenAiServiceTranscriptionService` and `MockServiceTranscriptionService` as its implementations.
+> **Part B is now exactly "one more implementation of that interface" plus ingest and trust-gate
+> plumbing** — write it that way. The cost case has halved accordingly; a local whisper.cpp sidecar
+> on the prod box (`TRANSCRIPTION_SERVICE_TYPE=local`) is a competing, cheaper-to-build route to the
+> same saving and should be compared before building the OBS ingest path.
+>
 > **Status (2026-07-05): deferred — Part B is stale as drafted; do not implement it from this
 > document.** The two Whisper passes this plan saves are changing under
 > [JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md):

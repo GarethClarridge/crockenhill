@@ -1,5 +1,38 @@
 # Review Queue Noise and Review UI — Findings and Resolution Plan
 
+> **ARCHIVED 2026-07-24 — complete.** Every workstream shipped, verified against the live code:
+>
+> - **Workstream A (A1–A5)** — `c71ac1221` (2026-07-20). `MatchSongsFromTranscript` now writes
+>   `Confirmed` above the writeback threshold (A1, OD1 answered as recommended);
+>   `ServiceStructure::toClassifiedSections()` derives `needs_manual_review` from disqualifying
+>   flags only (A2/A3); `SpeakerProfile` gates the children's-talk speaker reason (A4);
+>   `ChurchServiceCanonicalUpdateService` no longer records a conflict at first population (A5).
+> - **Workstream B** — `5843d40eb`: one guarded `CleanupReviewQueueNoiseCommand` (503 lines,
+>   dry-run-first) covering B1/B2/B3.
+> - **Workstream C** — C1 `a97f13841`, C2 `45a0a87c1` (`ConfirmServiceSection` +
+>   `ConfirmServiceSections` actions), C4 `6817cb46b`, C5 `1d29c74cf`, C6 `9466d628f`.
+>   C3 was superseded by the service-screens consolidation's Phase 4 before work began.
+>
+> **Residue carried forward (not lost, just not part of this plan any more):**
+>
+> 1. **Operational:** OD3 answered "run it", but there is no record in the repo that
+>    `CleanupReviewQueueNoiseCommand` has been run against **production**. It is dry-run-first and
+>    counts-only. This is an operator task; see `docs/plans/README.md`.
+> 2. **Follow-up work this plan did not anticipate:** running the cleaner queue exposed a second
+>    class of noise — *phantom* review state left by superseded/stale runs rather than by
+>    over-broad predicates. Fixes 1–7 (`684cacee4`..`36e32670f`) added
+>    `SectionReviewFlagRecalculator`, `ProcessingRunSupersessionService`, `ReconcileStaleSermonReview`,
+>    service-level review reconciliation and confirmed-song exemption. That work is recorded in the
+>    `stale_review_state_reconciliation` memory, not here.
+> 3. **Unmeasured:** the acceptance criteria's before/after inbox counts (222 + 79 → "under ~30 +
+>    ~12") were never re-measured after A/B landed. If the numbers matter, measure them; do not
+>    re-derive the predicates.
+> 4. The review UI this plan polished has since been substantially rebuilt by
+>    [SERVICE-WORKBENCH-REDESIGN-2026-07-23.md](../plans/SERVICE-WORKBENCH-REDESIGN-2026-07-23.md).
+>    Read that plan's status header before treating any C-series description here as current.
+>
+> ---
+>
 > **Status (2026-07-18): not started.** Findings verified against the local database, the
 > July corpus runs of 2026-07-09/10 (`storage/scratch/july-test-files`, test-set-2), and the
 > admin UI in a browser session on 2026-07-18. **Sequencing:** Workstreams A and B should land

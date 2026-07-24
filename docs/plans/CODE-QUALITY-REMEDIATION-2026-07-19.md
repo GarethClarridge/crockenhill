@@ -1,5 +1,17 @@
 # Code-Quality Remediation Plan — Phase 9 follow-through
 
+> **Gate update (2026-07-24): WP7 is unblocked.** Remainder R9, R10 and R11 have all merged, so the
+> hard gate on the PHPStan level-9 ratchet is released — only maintainer answer Q4 (ratchet
+> sequencing sign-off) still stands in front of it. `phpstan.neon` is still at `level: 8`.
+>
+> **Nothing else in this plan has started** (verified 2026-07-24): the `#[Computed]` call sites in
+> `BrowseSermons` (lines 139–148, 222, 238) and `ShowChurchService` (73–74) are still method calls,
+> `AiServiceProvider`'s `SermonAnalysisInterface` if/else and `TranscriptionServiceInterface` silent
+> `default =>` arm are unchanged, `spatie/laravel-data` is still in `composer.json`, and
+> `composer.lock` still carries medialibrary 11.23.1. **WP2's computed-property fix is the highest
+> value/lowest risk item in the whole plans directory** — it is a measured 3× query multiplication
+> on the public sermons page.
+>
 > **Status (2026-07-19, amended 2026-07-20): ready to start; WP1 downgraded from urgent — its
 > security premise was a stale local vendor tree (see the WP1 correction note).** This is the
 > implementation plan for

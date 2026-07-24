@@ -1,5 +1,28 @@
 # July 2026 Simplification Backlog — Remainder Implementation Plan
 
+> **Progress update (2026-07-24): R1–R11 are merged; R12–R15 remain.** Verified against the live
+> code, not against commit messages: the 11 heuristic services and 6 jobs are gone,
+> `ServiceStructureMode` has only `Shadow`/`Primary`, `scripts/section-extraction/` is gone
+> (R9); `VisualAnalysisService`/`SongClusteringService`/`PerformVisualAnalysis`/`ExtractVideoFrames`
+> are gone (R10); `CreateSermonTranscriptFromService` replaces the second Whisper pass on the
+> livestream/video chain, `TranscriptionAudioProfile` is the single audio-prep owner, and 1.7c/1.7e
+> landed — with **1.7f also delivered** (`ce4e3178c`), although this plan had left it unscheduled
+> (R11). R1–R7 merged 2026-07-20/21 (`9fe4590a9`..`10063f9c6`).
+>
+> **R8 is the exception: its *documentation* is complete, its *deletions* are not.** Every gate row
+> in the R8 table below still reads BLOCKED/PARTIAL except the preacher-cutover and WebP rows, and
+> no one-shot tool has been deleted. R8 is now effectively an operator data-convergence workstream
+> (see `docs/operations/r8-data-convergence-runbook.md`), and several of its rows have been
+> overtaken by the historic-archive plan — see the ownership note under R12.
+>
+> **Still open:** R12 (now owned by
+> [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)),
+> R13, R14 (all five duplicate suites still present), R15. **R9–R11 merging releases the gate on
+> WP7 of [CODE-QUALITY-REMEDIATION-2026-07-19.md](CODE-QUALITY-REMEDIATION-2026-07-19.md)** (the
+> PHPStan level-9 ratchet) and on
+> [SERVICE-WORKBENCH-REDESIGN-2026-07-23.md](SERVICE-WORKBENCH-REDESIGN-2026-07-23.md), which has
+> since largely landed.
+>
 > **Status (2026-07-19): approved to start.** The D22 promotion soak (backlog items 1.2 + 1.4)
 > **passed** — maintainer sign-off 2026-07-19. This plan is the just-in-time implementation plan
 > the backlog's protocol requires for the remaining `[design]` items, plus the execution sequence
@@ -21,26 +44,42 @@
 
 ## What remains (one-screen summary)
 
-| # | Item (backlog ref) | Tag | Blocked by |
-|---|---|---|---|
-| R1 | Bookkeeping: record soak pass, tick gates, fix stale statuses | mechanical | — |
-| R2 | 1.3 auto-trim migration to the LLM path | design | — (mode is already primary) |
-| R3 | 4.4 CRUD consistency pass (verified residual scope) | mechanical | — |
-| R4 | 4.5 authorization gates cleanup (verified residual scope) | mechanical | — |
-| R5 | 5.5 timeline family relocation | mechanical | — |
-| R6 | 5.1 canonical-conflict state collapse | design | sequencing vs. review-queue-noise plan |
-| R7 | 5.2 one-call OOS email parsing | design | — |
-| R8 | 2.4 legacy importer/backfill sweep + 2.6 platform one-shot sweep | mechanical | per-item prod gates |
-| R9 | 1.5 delete the church-service heuristic cluster | mechanical | R2 |
-| R10 | 1.6 delete the media visual stack + song clusters | design | R9 + re-homing pre-work |
-| R11 | 1.7a/b/c/e consolidations (1.7f unscheduled; 1.7d closed) | design | R10 (1.7a/b/c); 1.7e last |
-| R12 | Bulk historic backfill (~500) → `HistoricVideoImporter` deletion (2.5) | operational→mechanical | 1.7a |
-| R13 | 5.3/5.4 deferred re-measures | design | soak data recorded in R1 |
-| R14 | 7.1 duplicate-suite fold-ins + 7.2 conventions in `AGENTS.md` | mechanical | R9/R10/R8 |
-| R15 | Archive trackers; hand off to Phase 9 | mechanical | R14 |
+| # | Item (backlog ref) | Tag | Blocked by | Status (2026-07-24) |
+|---|---|---|---|---|
+| R1 | Bookkeeping: record soak pass, tick gates, fix stale statuses | mechanical | — | ✅ `9fe4590a9` |
+| R2 | 1.3 auto-trim migration to the LLM path | design | — (mode is already primary) | ✅ `953bbc758` |
+| R3 | 4.4 CRUD consistency pass (verified residual scope) | mechanical | — | ✅ `e314fb52b` |
+| R4 | 4.5 authorization gates cleanup (verified residual scope) | mechanical | — | ✅ `c2850d36f` |
+| R5 | 5.5 timeline family relocation | mechanical | — | ✅ `f0bf31d59` |
+| R6 | 5.1 canonical-conflict state collapse | design | sequencing vs. review-queue-noise plan | ✅ `10063f9c6` (noise plan landed first; no conflict) |
+| R7 | 5.2 one-call OOS email parsing | design | — | ✅ `7d718f499` |
+| R8 | 2.4 legacy importer/backfill sweep + 2.6 platform one-shot sweep | mechanical | per-item prod gates | ◐ **evidence + runbook done (`c648a79b3`, `bd8b6b063`); zero deletions executed** — every gate below still BLOCKED/PARTIAL |
+| R9 | 1.5 delete the church-service heuristic cluster | mechanical | R2 | ✅ `ae5f0e188`..`a130092ee` |
+| R10 | 1.6 delete the media visual stack + song clusters | design | R9 + re-homing pre-work | ✅ `b9af5930b` |
+| R11 | 1.7a/b/c/e consolidations (1.7f unscheduled; 1.7d closed) | design | R10 (1.7a/b/c); 1.7e last | ✅ `f332427ea`, `0681beaa1`, `05e343ceb`, `8875019e0` — **plus 1.7f, delivered anyway (`ce4e3178c`)** |
+| R12 | Bulk historic backfill (~500) → `HistoricVideoImporter` deletion (2.5) | operational→mechanical | 1.7a | ☐ **open — ownership moved** to the historic-archive plan (see note below) |
+| R13 | 5.3/5.4 deferred re-measures | design | soak data recorded in R1 | ☐ open — R1 recorded the D6/5.3 observations as *not captured*, so R13 starts with a measurement window |
+| R14 | 7.1 duplicate-suite fold-ins + 7.2 conventions in `AGENTS.md` | mechanical | R9/R10/R8 | ☐ open — all five flat suites still present; R9/R10 no longer block it |
+| R15 | Archive trackers; hand off to Phase 9 | mechanical | R14 | ☐ open |
 
 Suggested batching: **R1 → {R2, R3, R4, R5, R7, R8 in parallel} → R9 → R10 → R11 → R12 → R13/R14 → R15.**
 R6 slots wherever its sequencing decision lands.
+
+**R12 ownership (2026-07-24).** R12's "process the ~500-item historic backlog" *is* Stage A of
+[HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md),
+which supersedes this section with a fuller design: the import now has an artifact-durability
+prerequisite (WP-A1–WP-A6 — today's pipeline sweeps the full-service transcript 24h after each
+run) and a promotion stage that this plan never contemplated. **Do the work from that plan, not
+from R12's paragraph.** R8's `ImportHistoricVideoBatchCommand` + `HistoricVideoImporter` row still
+closes last, after that plan's Stage A is declared finished. R8's `LegacySermonImporter`,
+`GenerateProdSermonPatchCommand` and `ImportOosArchiveCommand` rows are also entangled with it —
+the promotion bundle exporter/importer built during the R8 local checkpoint
+(`SermonPromotionBundleExporter`/`Importer`) is the mechanism that plan's Stage B extends.
+
+**R14 note (2026-07-24):** the workbench redesign deliberately routed its new coverage into
+`tests/Feature/Livewire/Admin/ChurchServices/` in preparation for this fold-in, but it also
+*modified* `tests/Feature/Livewire/AdminChurchServiceTest.php` (`98dd4cab5`), so re-diff that file
+rather than assuming its assertions are unchanged since 2026-07-19.
 
 ## Verified state corrections (2026-07-19)
 
@@ -186,7 +225,7 @@ live (`app/Services/ChurchService/…` or `app/Support/ChurchService/…` — fo
 ## R6 — Item 5.1: canonical-conflict state collapse [design] — **sequencing decision required**
 
 **Conflict of jurisdiction:** the
-[REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md](REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md)
+[REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md](../archived-plans/REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md)
 plan owns the review-predicate semantics of exactly this state (its evidence base found 401/401
 services with canonical-conflict "detected"), and 5.1 owns its storage. Landing 5.1 first would
 rewrite columns the noise plan's Workstream A predicates read; landing noise-A first means 5.1

@@ -7,6 +7,24 @@
 > Q&A) is deleted, and theme-based browsing — previously an optional Phase 5 afterthought — is
 > promoted into its place as a first-class navigation surface.
 
+> **Gate update (2026-07-24): both backlog gates have cleared.** Item 2.3 (storage collapse)
+> completed 2026-07-13 and item 1.7a landed 2026-07-21 — `CreateSermonTranscriptFromService`
+> (`f332427ea`) now slices the full-service transcript for the sermon instead of re-transcribing,
+> exactly as anticipated. **The Phase 1 re-plan this header demands is therefore now the next
+> action**, and it should be written against `CreateSermonTranscriptFromService` +
+> `ChurchServiceTranscript::sliceText()` rather than against `TranscriptionServiceInterface`.
+>
+> Two new dependencies that did not exist when this was drafted:
+>
+> - **Phase 0's embedding foundations and the shared `themes` table are now specified in**
+>   [SONG-SCRIPTURE-AND-THEME-SEARCH-2026-07-20.md](SONG-SCRIPTURE-AND-THEME-SEARCH-2026-07-20.md).
+>   If that plan runs first, this one inherits both; neither exists in the schema yet (verified
+>   2026-07-24 — no themes or embeddings migration).
+> - [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
+>   WP-A1/WP-A3 decide whether full-service transcripts and word-level timestamps are **retained at
+>   all** (today the full-service transcript is swept 24h after each run). The archive backfill this
+>   plan needs is materially cheaper if that plan's retention work lands first.
+>
 > **Status (2026-07-05): not started — deliberately queued behind the July backlog. Do not start
 > until the gates below clear, and re-plan Phase 1 first.**
 > Sequencing against
