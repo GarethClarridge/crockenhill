@@ -22,6 +22,7 @@ class ChecksCancellationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Log::spy();
 
         $this->subject = new class
         {
@@ -45,12 +46,12 @@ class ChecksCancellationTest extends TestCase
 
         $this->subject->processingLog = $log;
 
-        // Security: We assert that a log entry is created for audit/visibility,
-        // but avoid exact string matching to prevent test fragility.
-        Log::shouldReceive('info')->once();
-
         $this->assertTrue($this->subject->checkAbortIfCancelled('TestJob'));
         $this->assertTrue($this->subject->processingLog->isCancelled());
+
+        // Security: We assert that a log entry is created for audit/visibility,
+        // but avoid exact string matching to prevent test fragility.
+        Log::shouldHaveReceived('info')->once();
     }
 
     #[Test]
@@ -65,6 +66,8 @@ class ChecksCancellationTest extends TestCase
         $this->assertFalse($this->subject->checkAbortIfCancelled('TestJob'));
         $this->assertSame($log->id, $this->subject->processingLog->id);
         $this->assertFalse($this->subject->processingLog->isCancelled());
+
+        Log::shouldNotHaveReceived('info');
     }
 
     #[Test]
@@ -77,6 +80,7 @@ class ChecksCancellationTest extends TestCase
         $log->delete();
 
         $this->assertTrue($this->subject->checkAbortIfCancelled('TestJob'));
+        Log::shouldNotHaveReceived('info');
     }
 
     #[Test]
@@ -91,10 +95,12 @@ class ChecksCancellationTest extends TestCase
         // Update in DB behind the scenes
         $log->update(['status' => ProcessingStatus::Cancelled]);
 
-        Log::shouldReceive('info')->once();
-
         $this->assertTrue($this->subject->checkAbortIfCancelled('TestJob'));
         $this->assertTrue($this->subject->processingLog->isCancelled());
+
+        // Security: We assert that a log entry is created for audit/visibility,
+        // but avoid exact string matching to prevent test fragility.
+        Log::shouldHaveReceived('info')->once();
     }
 
     #[Test]
@@ -110,8 +116,10 @@ class ChecksCancellationTest extends TestCase
 
         $this->subject->processingLog = $log;
 
-        Log::shouldReceive('info')->once();
-
         $this->assertTrue($this->subject->checkAbortIfCancelled('TestJob'));
+
+        // Security: We assert that a log entry is created for audit/visibility,
+        // but avoid exact string matching to prevent test fragility.
+        Log::shouldHaveReceived('info')->once();
     }
 }
