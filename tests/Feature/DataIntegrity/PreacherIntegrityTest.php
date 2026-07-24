@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\Preacher\PreacherResolutionService;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Validator;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -98,5 +99,16 @@ class PreacherIntegrityTest extends TestCase
 
         $this->assertEquals($name, $resolved->name);
         $this->assertDatabaseCount('preachers', 1);
+    }
+
+    #[Test]
+    public function it_validates_is_active_as_boolean(): void
+    {
+        $rules = Preacher::validationRules();
+
+        $this->assertArrayHasKey('is_active', $rules);
+        $this->assertTrue(Validator::make(['is_active' => true], ['is_active' => $rules['is_active']])->passes());
+        $this->assertTrue(Validator::make(['is_active' => false], ['is_active' => $rules['is_active']])->passes());
+        $this->assertFalse(Validator::make(['is_active' => 'not-a-boolean'], ['is_active' => $rules['is_active']])->passes());
     }
 }

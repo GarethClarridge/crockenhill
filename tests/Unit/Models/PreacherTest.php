@@ -77,6 +77,15 @@ class PreacherTest extends TestCase
         $this->assertArrayHasKey('slug', $validator->errors()->toArray());
     }
 
+    #[Test]
+    public function it_validates_is_active_validation_rules(): void
+    {
+        $rules = Preacher::validationRules();
+
+        $this->assertArrayHasKey('is_active', $rules);
+        $this->assertEquals(['boolean'], $rules['is_active']);
+    }
+
     /**
      * @param  array<string, array<int, mixed>>  $rules
      * @return array<string, array<int, mixed>>
