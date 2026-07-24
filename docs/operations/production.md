@@ -16,6 +16,12 @@ Single-server Docker Compose (`docker-compose.prod.yml`):
 Named volumes persist storage, temp-upload space (`app-temp` — the disk-pressure bottleneck for
 large livestream uploads), logs, MySQL, and Redis data.
 
+`app-private` (`storage/app/private`) holds children's-talk assets and section-publication preview
+clips. It is **interim**: it was added 2026-07-24 because the path had no volume at all and was
+being destroyed on every deploy, and it is removed once
+`docs/plans/CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md` moves those assets to Spaces. Unlike
+the other volumes it has no backup story, so treat it as the floor rather than the destination.
+
 ## Queues (Horizon)
 
 Workers are managed by Horizon, not raw `queue:work` (adopted June 2026). One supervisor,

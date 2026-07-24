@@ -89,7 +89,12 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 # Directories and permissions
 RUN mkdir -p /run/php /var/log/supervisor \
     && mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs \
-    && mkdir -p storage/app/livewire-tmp storage/app/temp storage/app/public \
+    # storage/app/private is INTERIM — it holds children's-talk assets and
+    # section-publication previews until WP6 of
+    # docs/plans/CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md moves them to
+    # Spaces. Creating it here means the matching named volume is seeded with
+    # www:www ownership rather than being created root-owned by Docker.
+    && mkdir -p storage/app/livewire-tmp storage/app/temp storage/app/public storage/app/private \
     && chown -R www:www storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 

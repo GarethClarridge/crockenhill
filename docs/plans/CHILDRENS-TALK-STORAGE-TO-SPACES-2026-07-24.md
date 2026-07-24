@@ -1,6 +1,14 @@
 # Move Children's-Talk (Private) Asset Storage to Spaces
 
-> **Status (2026-07-24): drafted, not started.**
+> **Status (2026-07-24): WP0 implemented (code); WP1–WP7 not started.**
+>
+> **WP0 landed in the repo on 2026-07-24** — `storage/app/private` is now created in the
+> `Dockerfile` (`:92`), mounted as the `app-private` named volume in `docker-compose.prod.yml`,
+> and chowned at boot by `docker/production/entrypoint.sh`. The plan had anticipated two sites;
+> there were three (see WP0 below). **Its acceptance criterion is not yet met**: nothing is fixed
+> in production until this is deployed, and the check is a deploy → write → deploy → still-present
+> cycle that only the operator can run. Until that happens, production is still destroying
+> children's-talk media on every deploy.
 >
 > **Why this exists:** children's-talk media is written to the `local` disk under `private/`, and
 > **production does not persist that directory**. `storage/app/private` is neither created by the
@@ -305,7 +313,7 @@ Two things to note rather than fix in this plan:
 
 | WP | What | Kind | Blocked by |
 |---|---|---|---|
-| **WP0** | **Stopgap: mount `storage/app/private` as a volume** | ops | — |
+| **WP0** | **Stopgap: mount `storage/app/private` as a volume** — **code done 2026-07-24, awaiting deploy** | ops | — |
 | WP1 | Quantify the loss: audit private assets in production (read-only) | ops | — |
 | WP2 | `do_spaces_private` disk + `private_disk` config seam (default `local`, no behaviour change) | refactor | — |
 | WP3 | Serving paths off `->path()` — signed-URL redirect | code | WP2 |
@@ -320,24 +328,41 @@ Shipping it does not reduce the case for the rest — a volume on one host is st
 of failure with no backup story, which is the argument for Spaces — but there is no reason to keep
 losing data while the proper fix lands.
 
-### WP0 — Stop the bleeding
+### WP0 — Stop the bleeding — **code implemented 2026-07-24; deploy outstanding**
 
-- Add the missing volume to the `app` service in `docker-compose.prod.yml`, alongside the existing
-  three:
+Persisting a storage path in production turned out to take **three** changes, not the two drafted
+here. All three are in the repo:
 
-  ```yaml
-  # Children's-talk and section-publication assets (see PRIVATE_STORAGE_DISK).
-  # Interim: superseded by do_spaces_private once WP6 lands.
-  - app-private:/var/www/html/storage/app/private
-  ```
+- `docker-compose.prod.yml` — mounts `app-private:/var/www/html/storage/app/private` on the `app`
+  service and declares `app-private:` in the top-level `volumes:` block.
+- `Dockerfile` (`:92`) — `storage/app/private` added to the `mkdir -p` alongside `livewire-tmp`,
+  `temp` and `public`.
+- `docker/production/entrypoint.sh` — **the site this plan missed.** The entrypoint `chown -R
+  www:www` / `chmod -R 775`s every mounted storage path at boot, with the comment "Fix ownership on
+  Docker-mounted volumes (created as root)". Omitting `app-private` would have left the new volume
+  as the only one without that guarantee, and a root-owned volume is a silent write failure rather
+  than a loud one.
 
-  …and declare `app-private:` in the top-level `volumes:` block.
-- Create the directory in the `Dockerfile` alongside the others (`:92`) so ownership and
-  permissions are set at build time rather than by whichever process writes first.
-- Comment both to say they are interim, referencing this plan — a volume that outlives its reason
-  is how the next person concludes the local disk was a deliberate choice.
-- **Acceptance:** deploy, write a children's talk asset, deploy again, asset still present.
-  Verify by deploying twice rather than by reading the compose file.
+The Dockerfile and entrypoint steps are not redundant with each other. Docker seeds a *new* named
+volume from the image directory it covers, including ownership — but only if that directory exists
+in the image; if it does not, Docker creates it `root:root`. The `mkdir` makes the seeding path
+correct for fresh volumes; the entrypoint makes ownership correct regardless of the order in which
+volume and image directory came into existence, which is what the existing comment implies has
+actually happened on this host.
+
+All three carry an interim comment naming this plan, so the arrangement cannot be mistaken for a
+deliberate choice to keep private assets on local disk.
+
+Verified in the repo: `docker compose config` resolves the mount and the volume declaration,
+`docker build --check` passes, and `bash -n` accepts the entrypoint. **None of that is the
+acceptance criterion.**
+
+- **Acceptance (NOT YET MET — operator action):** deploy, write a children's-talk asset, deploy
+  again, asset still present. Verify by deploying twice rather than by reading the compose file.
+  **Production keeps losing files on every deploy until this ships**, so the code landing is not
+  the fix — the deploy is.
+- Note for the operator: the first deploy after this change creates an empty `app-private` volume.
+  It does **not** recover anything already lost; WP1 is what quantifies that.
 
 ### WP1 — Quantify the loss
 
@@ -433,7 +458,8 @@ Read-only, and it produces the number that tells the operator what WP6 has to re
   fails if the lists drift.
 - Operator sequence: back up → run copy → verify with `audit:sermon-assets` → set
   `PRIVATE_STORAGE_DISK=do_spaces_private` → deploy → verify again → **only then** delete sources
-  → remove WP0's volume mount in a later deploy.
+  → remove WP0's three changes in a later deploy (the `docker-compose.prod.yml` mount **and** its
+  `volumes:` declaration, the `Dockerfile` `mkdir`, and the `entrypoint.sh` chown/chmod entries).
 - `docs/operations/private-asset-storage.md`: the sequence above, the rollback (§8), and a note
   that `PRIVATE_STORAGE_DISK` is now a load-bearing production variable.
 - **Acceptance:** `audit:sermon-assets` reports zero `missing` and zero `childrens_talk_public`
@@ -496,7 +522,7 @@ simply switched to the new disk.
 
 | Risk | Mitigation |
 |---|---|
-| **Assets already lost in production (§2.1)** | WP1 quantifies before anything changes; WP0 stops further loss within one deploy |
+| **Assets already lost in production (§2.1)** | WP1 quantifies before anything changes; WP0 stops further loss within one deploy — **its code landed 2026-07-24 but loss continues until that deploy happens** |
 | Flipping the disk before WP3/WP4 → 500s on every children's-talk asset (`->path()` on S3) | Explicit ordering; WP6 blocked on WP3, WP4, WP5; header prohibition (b) |
 | Signed URL replaces authorisation instead of following it | WP3's security tests assert an unauthorised caller receives a redirect to login and never a signed URL |
 | Video seeking breaks (Range lost with `BinaryFileResponse`) | Signed redirect keeps Range at S3 (§3.3); streamed fallback must implement Range explicitly |

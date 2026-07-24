@@ -39,6 +39,12 @@ services:
       # Temp storage for large file uploads (Livewire uploads + processing)
       - app-temp:/var/www/html/storage/app/temp
       - app-livewire-tmp:/var/www/html/storage/app/livewire-tmp
+      # Children's-talk assets and section-publication preview clips. INTERIM:
+      # superseded by the do_spaces_private disk once WP6 of
+      # docs/plans/CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md lands. Without
+      # this mount the directory lives in the container's writable layer and is
+      # destroyed on every deploy. Do not remove it as "unused" — see that plan.
+      - app-private:/var/www/html/storage/app/private
       # Persist logs for debugging (also captured by Docker logging below)
       - app-logs:/var/www/html/storage/logs
     logging:
@@ -99,6 +105,7 @@ volumes:
   app-storage:     # Laravel storage (non-Spaces files)
   app-temp:        # Temp storage for large file uploads and processing
   app-livewire-tmp: # Livewire temporary file uploads
+  app-private:     # Children's-talk + section-publication assets (interim, see CHILDRENS-TALK-STORAGE-TO-SPACES plan)
   app-logs:        # Laravel logs (persisted across container restarts)
   mysql-data:      # Database persistence
   redis-data:      # Queue/cache persistence
