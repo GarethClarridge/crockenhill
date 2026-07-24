@@ -526,4 +526,113 @@ class SermonAssetControllerTest extends TestCase
 
         $response->assertRedirect(route('login'));
     }
+
+    #[Test]
+    public function it_serves_plain_thumbnail_successfully(): void
+    {
+        Storage::fake('public');
+        config(['thumbnail-generation.storage.disk' => 'public']);
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'plain-test-sermon',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'thumbnails/plain.webp',
+            ],
+        ]);
+
+        Storage::disk('public')->put('thumbnails/plain.webp', 'fake webp content');
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/plain");
+
+        $response->assertRedirect(app(SermonStorageService::class)->getPlainThumbnailUrl($sermon));
+    }
+
+    #[Test]
+    public function it_serves_private_plain_thumbnail_file_as_binary_response_to_admin(): void
+    {
+        Storage::fake('local');
+        $admin = User::factory()->admin()->create();
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'private-plain-thumb-sermon',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'private/thumbnails/plain.webp',
+            ],
+        ]);
+
+        Storage::disk('local')->put('private/thumbnails/plain.webp', 'fake private webp content');
+
+        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/thumbnail/plain");
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'image/webp');
+    }
+
+    #[Test]
+    public function guest_is_redirected_when_accessing_non_public_childrens_talk_plain_thumbnail(): void
+    {
+        config(['church.sermons.childrens_talks.public' => false]);
+
+        $sermon = Sermon::factory()->create([
+            'content_type' => SermonContentType::ChildrensTalk,
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'thumbnails/plain.webp',
+            ],
+        ]);
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/plain");
+
+        $response->assertRedirect(route('login'));
+    }
+
+    #[Test]
+    public function it_returns_404_when_plain_thumbnail_is_missing(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'no-plain-test-sermon',
+            'thumbnail_metadata' => null,
+        ]);
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/plain");
+
+        $response->assertStatus(404);
+    }
+
+    #[Test]
+    public function it_returns_404_when_plain_thumbnail_file_missing_on_disk(): void
+    {
+        Storage::fake('public');
+        config(['thumbnail-generation.storage.disk' => 'public']);
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'missing-file-plain-sermon',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'thumbnails/missing-on-disk.webp',
+            ],
+        ]);
+
+        // We DO NOT put the file on the fake disk
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/plain");
+
+        $response->assertStatus(404);
+    }
+
+    #[Test]
+    public function it_returns_404_when_plain_thumbnail_path_is_unsafe(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('secrets.txt', 'this is a secret');
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'malicious-plain-thumb-sermon',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => '../secrets.txt',
+            ],
+        ]);
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/plain");
+
+        $response->assertStatus(404);
+    }
 }
