@@ -41,7 +41,7 @@
 >    `docs/operations/production.md`.
 > 3. **The 91 missing sermon assets** WP1 found (transcripts and every thumbnail sub-kind, none of
 >    them private) are unrelated to this plan and have their own:
->    [SERMON-ASSET-DISK-MIGRATION-RECOVERY-2026-07-25.md](../plans/SERMON-ASSET-DISK-MIGRATION-RECOVERY-2026-07-25.md).
+>    [SERMON-ASSET-DISK-MIGRATION-RECOVERY-2026-07-25.md](SERMON-ASSET-DISK-MIGRATION-RECOVERY-2026-07-25.md) — itself now complete and archived, with the 56 stranded thumbnails restored in production and the 35 lost transcripts closed as accepted loss.
 >    That plan's §2.5 settles the "is the audit resolving the wrong disk?" question this plan left
 >    open — it is not; the audit is correct.
 > 4. **`CleanupReviewQueueNoiseCommandTest` is flaky** and was never fixed here: it creates three
@@ -172,7 +172,7 @@
 > (c) run WP2's migration before WP3's observer-hook removal has landed (§4 WP2, ordering trap);
 > (d) treat WP0 as optional — it is what stops the bleeding while the rest lands.
 >
-> **Related:** [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
+> **Related:** [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](../plans/HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
 > §2.6 and WP8. Under the superseded design that plan's WP8 "mostly evaporated". Under this one it
 > **disappears entirely** — see §5.1.
 

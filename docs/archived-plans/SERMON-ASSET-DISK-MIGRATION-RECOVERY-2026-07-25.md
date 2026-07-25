@@ -1,19 +1,79 @@
 # Recover Sermon Assets Orphaned by the Spaces Disk Migration
 
-> **Status (2026-07-25): WP4 done, WP2 code done and unrun, WP1 instrumented, WP3 still blocked.**
-> See §9 for exactly what landed and what the maintainer still has to do. The two outstanding items
-> both need a human: the production `--apply` run (WP2) and a verification method for the transcripts
-> (WP3).
+> **ARCHIVED 2026-07-25 — complete.** All four work packages are resolved: WP4 (stranded reporting)
+> and WP2 (`media:restore-stranded-thumbnails`) shipped and ran against production, WP1's measurement
+> was discharged by running them, and WP3 is closed as accepted loss. Production went from
+> **748/839 assets present to 804/839**, with **0 stranded and 0 check errors**. Written, shipped and
+> run inside a single day.
+>
+> **Read this header, not the status header below it**, which is a snapshot from just before the
+> production runs.
+>
+> **The headline finding, because it disposes of the plan's hardest problem without answering it.**
+> §2.6 built a careful case that transcripts could only be restored after per-file identity
+> verification — two naming generations, ids spanning 1–999 against a diverged database, and the risk
+> of attributing one preacher's words to another. That argument is sound and still worth reading. It
+> was also never reachable: production's missing transcripts are sermons **718–757**, and the entire
+> 235-file laptop corpus covers ids **1–261** plus a stray 999. **The intersection is empty in all
+> four naming shapes**, so there was no candidate set to verify. A single `ls | grep -oE '[0-9]+' |
+> sort -n` would have closed WP3 on day one — **check the candidate set's range before designing the
+> method that validates its members.** See §9.5.
+>
+> **What production looks like now.** Every thumbnail kind reads `Present = Referenced`; the whole
+> family (`thumbnail`, `plain`/`card`/`overlay`, and the three candidate kinds) resolves on
+> `do_spaces` under the keys the database already held — no path column was ever rewritten. The 35
+> missing transcripts are permanent and are recorded as accepted loss, with the reason in §9.5. The
+> audit therefore still exits non-zero; **that is correct, not a regression.** Verified end to end:
+> five thumbnail URLs spanning the affected range (733, 750, 758, 763, 764) return 200 through
+> `SermonAssetController::serveThumbnail`, so the recovery is proven at the read path and not merely
+> at the bucket.
+>
+> **What WP4 left behind, and why it matters more than the restore.** `audit:sermon-assets` now
+> reports `stranded on <disk>` distinct from `missing`, probing `public` + `local` + whichever disks
+> are *configured* as kind disks. The next disk repointing that orphans its objects shows up as a
+> line of output instead of an archaeology exercise — §3.3's claim, now demonstrated: WP4 reproduced
+> this entire investigation's conclusion in one command.
+>
+> **Residue carried forward — one operator decision, no code:**
+>
+> 1. **The stranded sources are still on production's `public` disk** (~61 files under
+>    `storage/app/public/sermons/thumbnails`). WP2 copied rather than moved, so these are its
+>    rollback (§8) and nothing schedules their removal. Deleting them is a deliberate decision to
+>    give up that rollback, not tidying. No deadline — they sit on a mounted volume and cost only
+>    disk. See §9.6.
+>
+> **Do not**, without maintainer input: re-run `media:restore-stranded-thumbnails --apply`
+> speculatively; delete `storage/app/public/sermons/thumbnails` on production; "fix"
+> `audit:sermon-assets` (§2.5 records the disproof); or attempt to fill *any* sermon's empty
+> transcript column from the laptop corpus by filename id — §2.6 explains why that is dangerous
+> rather than merely unreliable, and §9.5 confirms it buys nothing here. The laptop's
+> `storage/app/transcripts` is no longer load-bearing for this plan but remains the only copy of
+> those 235 files, so keep it.
+
+> **Status (2026-07-25): COMPLETE. WP1, WP2 and WP4 done in production; WP3 closed as accepted loss.**
+> Production now reports **804/839 assets present, 0 stranded, 0 check errors** — the entire thumbnail
+> family recovered. The 35 missing transcripts are permanent: §9.5 measured the laptop corpus against
+> the missing sermon ids and found **zero overlap**, so there was never a candidate set to verify.
+> See §9.4 for the production run and §9.5 for the WP3 closure.
+>
+> **One deliberate residue:** the stranded sources are still on the `public` disk (~61 files under
+> `storage/app/public/sermons/thumbnails`). They are the rollback for WP2 and nothing schedules their
+> removal — see §9.6.
 >
 > **Originally: evidence gathered, nothing started.** Discovered while running WP1 of
-> [CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](../archived-plans/CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md)
+> [CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md)
 > against production. Nothing here is urgent: the loss stopped when the disk config changed, and no
 > further assets are being orphaned.
 >
 > **Agents must not, without maintainer input:** (a) write to production storage — WP2 is the only
-> work package that does, and its run needs explicit sign-off; (b) delete or tidy
-> `storage/app/transcripts` on the maintainer's laptop, which is currently the **only** surviving copy
-> of the material WP3 might restore; (c) "fix" `audit:sermon-assets` — it is correct, see §2.5.
+> work package that does, and its run is now **done**; do not re-run `--apply` speculatively;
+> (b) delete `storage/app/public/sermons/thumbnails` on production, which is WP2's rollback (§9.6);
+> (c) "fix" `audit:sermon-assets` — it is correct, see §2.5; (d) attempt to match the laptop transcript
+> corpus to production sermons by filename id — §9.5 closed that off, and §2.6 explains why it is
+> actively dangerous rather than merely unreliable.
+>
+> The laptop's `storage/app/transcripts` is **no longer** load-bearing for this plan (§9.5), but it is
+> still the only copy of 235 transcripts, so keep it.
 
 ---
 
@@ -178,9 +238,9 @@ it is cheap: the audit already loops every referenced asset and already knows ev
 
 | WP | What | Kind | Blocked by | Status |
 |---|---|---|---|---|
-| WP1 | Measure the real overlap for both families (read-only) | ops | — | **instrumented** — WP4 + WP2's dry run are the measurement; production run outstanding (§9.2) |
-| WP2 | Restore the stranded thumbnails to Spaces | code/ops | WP1 | **code done, unrun** — needs sign-off |
-| WP3 | Restore provably-identified transcripts | code/ops | WP1, content verification | **blocked**, unchanged |
+| WP1 | Measure the real overlap for both families (read-only) | ops | — | **done in production** (§9.4) — 56/56 per-path match |
+| WP2 | Restore the stranded thumbnails to Spaces | code/ops | WP1 | **done in production** (§9.4) — 50 objects, 0 failures |
+| WP3 | Restore provably-identified transcripts | code/ops | WP1, content verification | **closed — accepted loss** (§9.5); no candidate set exists |
 | WP4 | Teach the audit to report stranded assets | code | — (do first if convenient) | **done** |
 
 ### WP1 — Measure, before building anything
@@ -358,15 +418,97 @@ databases. §2.3 measured 0 files under production's `storage/app/public/transcr
 expectation is that production's 35 are all genuinely `missing` and none get this easy route. **The
 production WP4 run settles it**, and the answer changes how much of WP3 remains.
 
-### 9.3 What the maintainer still has to do
+### 9.3 What the maintainer had to do — all discharged
 
-1. **Run WP1 on production** (read-only, on the server, never through `production-audit.yml`):
-   `audit:sermon-assets --details`, then `media:restore-stranded-thumbnails` with no flags. Expect the
-   56 thumbnails as stranded-on-`public` and the 35 transcripts as `missing`.
-2. **Sign off the WP2 production run.** Suggested sequence: `--apply --sermon=<one id>` first, load
-   that sermon's page, then the full `--apply`, then `audit:sermon-assets` to confirm the
-   thumbnail-family count reaches zero. Sources are retained throughout, so the rollback is deleting
-   the copied objects.
-3. **Decide WP3.** Still blocked, deliberately: no verification method has been agreed, and §2.6's
-   reasoning is unchanged. Whatever step 1 reports about stranded transcripts determines whether any of
-   the 35 have a safe route at all.
+The three outstanding items (production WP1, WP2 sign-off, WP3 decision) were completed on
+2026-07-25. §9.4 records the runs, §9.5 the WP3 closure, §9.6 the one thing left open.
+
+### 9.4 The production runs (2026-07-25)
+
+**WP1 — measurement.** `audit:sermon-assets --details` and `media:restore-stranded-thumbnails`
+(dry run), both on the server. The two reports matched **row for row**:
+
+| Asset kind | Audit `stranded` | Restore `restorable` |
+|---|---|---|
+| thumbnail | 28 | 28 |
+| plain_thumbnail | 6 | 6 |
+| card_thumbnail | 2 | 2 |
+| overlay_thumbnail | 6 | 6 |
+| candidate_plain | 10 | 10 |
+| candidate_card | 2 | 2 |
+| candidate_overlay | 2 | 2 |
+| **total** | **56** | **56** |
+
+0 unrecoverable, 0 size mismatches, 0 failures, 0 skipped-private. **This is WP1's acceptance
+criterion met exactly** — a per-path overlap, not the count comparison §2.2 refused. The 56 references
+resolve to 44 distinct objects, plus 6 already present.
+
+The stranded sermons are **733–764, contiguous** — the fingerprint of a single config change, not
+gradual decay, which independently corroborates §2.2's account.
+
+**WP2 — restore.** Smoke test on sermon 763 first (the richest case: all seven kinds plus the dedup
+path), then the full `--apply`. Final state:
+
+```
+audit:sermon-assets   839 referenced, 804 present, 35 missing, 0 stranded, 0 check errors
+                      every thumbnail kind at Present = Referenced
+```
+
+**The two-unit reporting earned its keep here, and it is worth recording why.** Between the dry run
+and the apply run, `already_present` jumped 6 → 17 and `restored` came in at 45 rather than 56 — which
+in isolation is indistinguishable from a double-copy bug or a miscount. It reconciles precisely once
+the smoke test is accounted for: sermon 763 is 11 references / 7 distinct objects, so `6+11=17`,
+`56−11=45`, `6+7=13`, `44−7=37`. Both runs total **62 references / 50 objects**. With a single tally
+there would have been no way to distinguish a correct run from a broken one short of listing the
+bucket by hand.
+
+The audit still exits non-zero, because of the 35 transcripts. That is correct behaviour, not a
+regression — see §9.5.
+
+### 9.5 WP3 — closed as accepted loss
+
+**The gate §4 described was never reachable, because there is no candidate set.**
+
+Production's missing transcripts are sermons **718–757** (from `--details`). The laptop corpus at
+`storage/app/transcripts` holds 235 files in four naming shapes:
+
+| Shape | Count |
+|---|---|
+| `sermon-{n}.txt` | 146 |
+| `sermon_{n}_transcript.txt` | 55 |
+| `sermon_{n}.md` | 33 |
+| `transcript_{n}.md` | 1 |
+
+Every id appearing in any of those shapes falls in **1–261**, plus a single stray `999`. **The
+intersection with 718–757 is empty in all four shapes.** Nothing in the corpus could be restored onto
+a sermon that is missing a transcript, whatever verification method were agreed.
+
+This also disposes of the hopeful case §9.2 raised. Production reported **0 stranded transcripts**,
+unlike local's 1, confirming §2.3's measurement that `storage/app/public/transcripts` is empty in
+production. There was no easy route and there was no hard route either.
+
+**Decision: the 35 transcripts are permanently lost and are recorded as accepted loss.** Per §4's
+acceptance criterion, the reason is written down here rather than left implicit: they were destroyed
+by deploys before the disk was repointed (§2.3), production holds no copy on any disk, and the only
+surviving corpus does not reach their id range. §4's instruction stands — *a missing transcript
+degrades a page; a wrong one misrepresents a preacher* — and with zero overlap there is not even a
+tempting wrong answer available.
+
+**Do not revisit this by matching filenames to ids.** §2.6's argument (two naming generations, ids
+spanning 1–999 against a database whose highest local id is 870, two diverged populations) is not
+weakened by the corpus being useless here — it is the reason the corpus cannot be repurposed to fill
+*other* sermons' empty transcript columns either. That would be new scope, and it belongs to the
+historic archive import plan under its own evidence rules.
+
+Re-transcription remains theoretically open but is out of scope: §2.1 of the children's-talk plan found
+source recordings for older runs were themselves destroyed, so it is not known to be available.
+
+### 9.6 The one open item: the stranded sources
+
+WP2 copied rather than moved, so roughly **61 files remain under
+`storage/app/public/sermons/thumbnails` on production**. They are now redundant — every referenced key
+exists on `do_spaces` — but they are also WP2's rollback (§8), and nothing schedules their removal.
+
+Leave them until the thumbnails have been observed rendering across the archive rather than on the one
+smoke-tested sermon. Deleting them is a deliberate decision to give up the rollback, not tidying, and
+it should be taken as such. There is no deadline: they sit on a mounted volume and cost only disk.
