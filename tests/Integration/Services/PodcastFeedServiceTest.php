@@ -260,17 +260,20 @@ class PodcastFeedServiceTest extends TestCase
         $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturnOnConsecutiveCalls(null, 1024);
 
-        Log::shouldReceive('warning')
+        Log::spy();
+
+        $firstFeed = $this->service->getSermonsForFeed(SermonService::Morning);
+
+        $this->assertSame(0, $firstFeed->sole()->enclosureLength);
+        $this->assertFalse(Cache::has('podcast_feed_v2_morning'));
+
+        Log::shouldHaveReceived('warning')
             ->once()
             ->with('Podcast feed contains zero-length enclosures; feed cache invalidated', [
                 'feed' => 'podcast_feed_v2_morning',
                 'sermon_ids' => [$sermon->id],
             ]);
 
-        $firstFeed = $this->service->getSermonsForFeed(SermonService::Morning);
-
-        $this->assertSame(0, $firstFeed->sole()->enclosureLength);
-        $this->assertFalse(Cache::has('podcast_feed_v2_morning'));
         $secondFeed = $this->service->getSermonsForFeed(SermonService::Morning);
 
         $this->assertSame(1024, $secondFeed->sole()->enclosureLength);
