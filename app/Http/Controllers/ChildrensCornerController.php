@@ -11,6 +11,7 @@ use App\Presenters\SermonViewPresenter;
 use App\Seo\SermonItemListPresenter;
 use App\Services\Public\SermonRepository;
 use Illuminate\View\View;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ChildrensCornerController extends Controller
 {
@@ -49,6 +50,11 @@ class ChildrensCornerController extends Controller
         ]);
     }
 
+    /**
+     * Display a single children's corner talk.
+     *
+     * @throws HttpException If sermon content type is not a Children's Talk
+     */
     public function show(Sermon $sermon): View
     {
         abort_unless($sermon->content_type === SermonContentType::ChildrensTalk, 404);

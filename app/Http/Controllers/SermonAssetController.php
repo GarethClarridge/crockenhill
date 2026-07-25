@@ -16,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class SermonAssetController extends Controller
 {
@@ -29,6 +30,8 @@ class SermonAssetController extends Controller
     /**
      * Serve the rendered HTML for a sermon transcript so the detail page can
      * fetch it lazily instead of embedding the full markdown render up front.
+     *
+     * @throws HttpException If the transcript is empty or access is denied
      */
     public function serveTranscript(Sermon $sermon): Response|RedirectResponse
     {
@@ -53,6 +56,8 @@ class SermonAssetController extends Controller
 
     /**
      * Serve audio file for a sermon
+     *
+     * @throws HttpException If the audio file does not exist or path is unsafe
      */
     public function serveAudio(Sermon $sermon): RedirectResponse
     {
@@ -78,6 +83,11 @@ class SermonAssetController extends Controller
         return redirect()->to($this->storageService->getPublicUrl($sermon));
     }
 
+    /**
+     * Serve video file for a sermon
+     *
+     * @throws HttpException If the video file does not exist or path is unsafe
+     */
     public function serveVideo(Sermon $sermon): RedirectResponse
     {
         $authorizationResponse = $this->authorizeAssetAccess($sermon, 'video');
@@ -107,6 +117,8 @@ class SermonAssetController extends Controller
 
     /**
      * Serve thumbnail image for a sermon
+     *
+     * @throws HttpException If the thumbnail does not exist or path is unsafe
      */
     public function serveThumbnail(Sermon $sermon): RedirectResponse
     {
@@ -132,6 +144,11 @@ class SermonAssetController extends Controller
         return $this->redirectToAsset($this->storageService->getThumbnailUrl($sermon));
     }
 
+    /**
+     * Serve plain thumbnail image for a sermon
+     *
+     * @throws HttpException If the plain thumbnail does not exist or path is unsafe
+     */
     public function servePlainThumbnail(Sermon $sermon): RedirectResponse
     {
         $authorizationResponse = $this->authorizeAssetAccess($sermon, 'plain_thumbnail');
@@ -160,6 +177,8 @@ class SermonAssetController extends Controller
 
     /**
      * Serve the thumbnail variant intended for compact UI cards.
+     *
+     * @throws HttpException If the card thumbnail does not exist or path is unsafe
      */
     public function serveCardThumbnail(Sermon $sermon): RedirectResponse
     {
@@ -193,6 +212,8 @@ class SermonAssetController extends Controller
      * Every asset now lives on a public disk, so these routes exist to authorise
      * the request and then hand off — the streaming branch they used to fall back
      * to went with the `private/` prefix.
+     *
+     * @throws HttpException If URL cannot be resolved
      */
     private function redirectToAsset(?string $url, string $notFoundMessage = 'Thumbnail file not found.'): RedirectResponse
     {
@@ -210,6 +231,8 @@ class SermonAssetController extends Controller
      * is gated by verified email (when not public). Regular sermon video and
      * thumbnail visibility is governed by automated quality assessment and
      * manual visibility overrides.
+     *
+     * @throws HttpException If the asset is not exposed/available
      */
     private function authorizeAssetAccess(Sermon $sermon, string $assetType): ?RedirectResponse
     {

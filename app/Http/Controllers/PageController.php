@@ -9,8 +9,10 @@ use App\Models\Page;
 use App\Presenters\RelatedPagePresenter;
 use App\Services\Public\PublicPageReadModelCache;
 use App\Services\Public\PublicPageVisibilityGuard;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Controller for displaying pages to the public.
@@ -27,6 +29,8 @@ class PageController extends Controller
      * Display a generic page layout.
      *
      * @param  string  $area  The area of the page.
+     *
+     * @throws HttpException If the area is unknown or the landing page is not found
      */
     public function showPage(string $area): Response
     {
@@ -77,6 +81,8 @@ class PageController extends Controller
      *
      * @param  string  $area  The area of the page.
      * @param  string  $slug  The slug of the page.
+     *
+     * @throws ModelNotFoundException If the page is not found
      */
     public function show(string $area, string $slug): Response
     {
