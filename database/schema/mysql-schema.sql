@@ -294,6 +294,8 @@ CREATE TABLE `media_processing_logs` (
   `processing_type` enum('audio','video','livestream') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `status` enum('pending','started','processing','completed','skipped','failed','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `current_step` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `superseded_at` timestamp NULL DEFAULT NULL,
+  `superseded_by_processing_log_id` bigint unsigned DEFAULT NULL,
   `error_message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `original_filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `file_hash` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -344,6 +346,7 @@ CREATE TABLE `media_processing_logs` (
   KEY `media_processing_logs_review_queue_index` (`processing_type`,`status`,`current_step`,`updated_at`),
   KEY `media_processing_logs_original_filename_index` (`original_filename`),
   KEY `media_processing_logs_job_id_index` (`job_id`),
+  KEY `media_processing_logs_superseded_at_index` (`superseded_at`),
   CONSTRAINT `media_processing_logs_church_service_id_foreign` FOREIGN KEY (`church_service_id`) REFERENCES `church_services` (`id`) ON DELETE SET NULL,
   CONSTRAINT `media_processing_logs_owner_user_id_foreign` FOREIGN KEY (`owner_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `media_processing_logs_sermon_id_foreign` FOREIGN KEY (`sermon_id`) REFERENCES `sermons` (`id`) ON DELETE SET NULL,
@@ -1229,3 +1232,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_16_222742_drop_
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_20_124817_add_review_reason_to_church_services_table',83);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_20_124837_backfill_church_service_review_reasons',83);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_21_000000_add_llm_content_fields_to_church_service_tables',84);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_22_211419_add_superseded_at_to_media_processing_logs',84);
