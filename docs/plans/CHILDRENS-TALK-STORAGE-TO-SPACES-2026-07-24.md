@@ -1,59 +1,72 @@
-# Move Children's-Talk (Private) Asset Storage to Spaces
+# Move Children's-Talk Asset Storage to Spaces
 
-> **Status (2026-07-25): WP0 implemented (code, awaiting deploy); WP1 tooling landed (awaiting
-> production run); WP2–WP7 not started.**
+> **Status (2026-07-25): redesigned. WP0 implemented (code, awaiting deploy); WP1 tooling landed
+> (awaiting production run); WP2–WP4 not started.**
 >
-> **WP1's audit tooling landed 2026-07-25** — `audit:sermon-assets` now splits private from public
-> counts and summarises per children's talk, new `audit:section-assets` covers the section-candidate
-> population, and both are whitelisted in `production-audit.yml` under a `private-assets` choice.
-> See WP1 for the two gaps in the drafted approach this closed, and for the ordering: the WP0 deploy
-> destroys the private files that are still present, but the audits cannot run until that deploy has
-> shipped them — so the operator's **first** action is a no-deploy `docker compose cp` rescue of
-> `storage/app/private`, and measurement follows the deploy.
+> ## Redesign note — 2026-07-25
 >
-> **WP0 landed in the repo on 2026-07-24** — `storage/app/private` is now created in the
-> `Dockerfile` (`:92`), mounted as the `app-private` named volume in `docker-compose.prod.yml`,
-> and chowned at boot by `docker/production/entrypoint.sh`. The plan had anticipated two sites;
-> there were three (see WP0 below). **Its acceptance criterion is not yet met**: nothing is fixed
-> in production until this is deployed, and the check is a deploy → write → deploy → still-present
-> cycle that only the operator can run. Until that happens, production is still destroying
-> children's-talk media on every deploy.
+> **This plan previously routed children's-talk media through a new private Spaces disk
+> (`do_spaces_private`) with signed-URL delivery, and deferred making the files public to a
+> speculative WP7. That design is superseded.** The files now go **straight to the existing sermon
+> disk**, under ordinary sermon keys, in one move.
 >
-> **Why this exists:** children's-talk media is written to the `local` disk under `private/`, and
-> **production does not persist that directory**. `storage/app/private` is neither created by the
-> Dockerfile nor mounted as a volume (`docker-compose.prod.yml:36-43`), so it lives in the
-> container's writable layer and is **destroyed on every deploy**. This is not a cleanliness
-> improvement — §2.1 is a live data-loss bug, and it has been losing files for as long as private
-> storage and containerised deploys have coexisted.
+> The reason, in the maintainer's words (2026-07-25): *"The only reason talks are currently private
+> is because the children's-talk area is behind a login until we're happy enough with it to publish.
+> It's basically a feature toggle. That shouldn't need to affect the storage of the media files.
+> This plan moves them twice, which feels unnecessary. They're basically just a different type of
+> sermon."*
 >
-> **Scope clarification from the maintainer (2026-07-24):** there is **no safeguarding
-> sensitivity** here. Children's talks are private only because they have not been *published*
-> yet; making them public was always the eventual intent. That materially changes the design —
-> §3.1 explains how. This plan moves the storage and leaves the publish decision to WP7, which it
-> sets up rather than pre-empts.
+> Verified against the code, and correct on every count — see §2.2 and §2.4. The login gate is
+> `SermonExposurePolicy::canAccessChildrensCorner()`, driven by `CHILDRENS_TALKS_PUBLIC`, and it is
+> **completely independent of storage**. The `private/` path prefix buys exactly one property on top
+> of that gate: bytes unreachable without an authorised application request. The superseded design
+> **deliberately gave that property away** in its own WP3 (6-hour signed URLs; risk table: *"Signed
+> URL leaks and outlives the session — Accepted"*) while still paying for a new disk, a new delivery
+> path, a migration command, a runbook, and a second data move to undo it all.
 >
-> **Agents must not, without maintainer input:** (a) run any command against production;
-> (b) flip `PRIVATE_STORAGE_DISK` before WP3 and WP4 have landed — the serving path calls
-> `Storage::disk()->path()`, which only exists on local disks, so flipping first returns 500s on
-> every children's-talk asset (§2.3); (c) treat WP0 as optional — it is the stopgap that stops
-> the bleeding while the rest lands.
+> What the old plan spent five work packages building, this one deletes. Net diff is negative.
+>
+> **`CHILDRENS_TALKS_PUBLIC` stays `false`. Nothing in this plan publishes anything.** The
+> children's-corner pages remain behind the members' login exactly as today. What changes is where
+> the bytes live.
+>
+> ### What survives from the previous version
+>
+> - **WP0 in full** (both volume mounts), unchanged and still the urgent part.
+> - **WP1 in full** (rescue-then-measure ordering, both audit commands), unchanged, and it still
+>   gates everything downstream.
+> - The old §2.1 evidence on production data loss, verbatim — that analysis was right.
+> - The old WP7's *content*, promoted from a speculative appendix to the substance of the plan.
+>
+> ### What is deleted from the previous version
+>
+> WP2 (`do_spaces_private` disk + `private_disk` config seam), WP3 (signed-URL delivery), WP4
+> (non-serving readers off `->path()`), WP5 (writers target the configured disk), WP6 (migration
+> command + flip + runbook). None of it was started; there is nothing to unwind. Confirmed
+> 2026-07-25: no `private_disk` key exists in `config/media-processing.php` and no
+> `do_spaces_private` disk exists in `config/filesystems.php`.
+>
+> **Agents must not, without maintainer input:** (a) run any command against production; (b) flip
+> `CHILDRENS_TALKS_PUBLIC` — this plan does not publish children's talks and does not need to;
+> (c) run WP2's migration before WP3's observer-hook removal has landed (§4 WP2, ordering trap);
+> (d) treat WP0 as optional — it is what stops the bleeding while the rest lands.
 >
 > **Related:** [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
-> §2.6 and WP8. That plan has to build a whole file-transfer workstream *because* children's-talk
-> media is local-only. **If this plan lands first, that plan's WP8 mostly evaporates** — promotion
-> goes back to being a database-row operation for children's talks too. See §5.1.
+> §2.6 and WP8. Under the superseded design that plan's WP8 "mostly evaporated". Under this one it
+> **disappears entirely** — see §5.1.
 
 ---
 
 ## 1. What this changes, in one paragraph
 
-Children's-talk assets keep their `private/…` paths and their guarded, authorisation-gated
-delivery routes. What changes is the **disk those paths resolve to**: today an unconditional
-`'local'`, after this a configured `private_disk` that production points at a new
-`do_spaces_private` filesystem — the same Spaces bucket and credentials as `do_spaces`, but with
-private visibility and no CDN. Because the stored path strings already begin with `private/` and
-the new disk uses no root prefix, **not one database row changes**. The migration is a file copy
-plus a config flip.
+Children's-talk assets stop being special. Their `private/` prefix is stripped, their files move
+from the local disk to the same `do_spaces` sermon/thumbnail disks every other sermon already uses,
+and every code path that asked "does this path start with `private/`?" is deleted. Access control
+does not move: `EnsureChildrensCornerAccess` middleware still guards both children's-corner routes
+and `SermonExposurePolicy::canAccessChildrensCorner()` still gates the asset controller, both driven
+by the unchanged `CHILDRENS_TALKS_PUBLIC=false`. Section-publication preview candidates move off
+`private/` in the same direction, so the prefix rule can be removed outright rather than kept alive
+for one remaining tenant.
 
 ---
 
@@ -61,11 +74,14 @@ plus a config flip.
 
 ### 2.1 Production destroys children's-talk media on every deploy
 
+*(Unchanged from the previous version of this plan. This analysis was correct and is the reason
+WP0 and WP1 come first regardless of the design above them.)*
+
 The `local` disk is rooted at `storage_path('app')` (`config/filesystems.php:46-48`), so a stored
 path of `private/2024/talk.mp3` resolves to `/var/www/html/storage/app/private/2024/talk.mp3`.
 
-Production runs a container image pinned to a git SHA and mounts exactly four persistent volumes
-(`docker-compose.prod.yml:36-43`):
+Production runs a container image pinned to a git SHA and mounted exactly four persistent volumes
+(`docker-compose.prod.yml:36-43` as drafted):
 
 ```yaml
 volumes:
@@ -76,285 +92,279 @@ volumes:
   - app-logs:/var/www/html/storage/logs
 ```
 
-`storage/app/private` is not among them. The Dockerfile does not create it either — it makes
-`storage/app/livewire-tmp`, `storage/app/temp` and `storage/app/public` and stops there
-(`Dockerfile:92`), i.e. precisely the three paths that *are* mounted. So Laravel creates
-`storage/app/private` lazily on first write, into the container's ephemeral writable layer.
-
-A deploy sets a new `IMAGE_TAG` and replaces the container. The writable layer goes with it.
+`storage/app/private` was not among them, and the Dockerfile did not create it either. So Laravel
+created it lazily on first write, into the container's ephemeral writable layer. A deploy sets a new
+`IMAGE_TAG` and replaces the container. The writable layer goes with it.
 
 **Every children's-talk audio file, video, transcript, thumbnail and thumbnail candidate written
 since the last deploy is lost at the next one.** The database rows survive and keep pointing at
-paths with nothing behind them, which is why this has been able to run undetected: the sermon
-still lists, the page still renders, and only the asset routes 404. The repo is already aware of
-this class of bug in another place — `deploy.yml:468` notes a path is "not a persisted volume, so
-a fresh image has no sitemap file".
+paths with nothing behind them, which is why this ran undetected: the sermon still lists, the page
+still renders, and only the asset routes 404.
 
 Second population, same fault: `PrepareSectionPublicationCandidates` writes review-time preview
-clips to `private/section-publications/{id}/` on a hardcoded `'local'` disk (`:277-283`). Those
-are lost on deploy too, which would present to an operator as preview audio/video silently
-disappearing from the review UI between deploys.
+clips to `private/section-publications/{id}/` on a hardcoded `'local'` disk (`:277-283`).
 
-**Third population, found 2026-07-25 while building WP1 — and this one is worse.** The *original
-uploaded recordings* are equally unpersisted. `VideoStorageService::storeUploadedVideo()` (`:32-34`)
-stores them to `livestream/temp/{uuid}.{ext}` on the temp disk, which is `'local'`
+**Third population, found 2026-07-25 — and this one is worse.** The *original uploaded recordings*
+are equally unpersisted. `VideoStorageService::storeUploadedVideo()` (`:32-34`) stores them to
+`livestream/temp/{uuid}.{ext}` on the temp disk, which is `'local'`
 (`config/media-processing.php:57`), rooted at `storage_path('app')` — so they land in
-**`storage/app/livestream/temp/`**. That directory appears in neither the `Dockerfile` `mkdir`
-(`:97`, which now covers `livewire-tmp`, `temp`, `public`, `private`) nor the prod volume list
-(`docker-compose.prod.yml:36-49`). Confirmed against production data shapes: every
-`media_processing_logs.source_file_path` sampled is of the form `livestream/temp/{uuid}.mkv|mp4`.
+**`storage/app/livestream/temp/`**, a directory in neither the Dockerfile `mkdir` nor the prod
+volume list. Confirmed against production data shapes: every `media_processing_logs.source_file_path`
+sampled is of the form `livestream/temp/{uuid}.mkv|mp4`.
 
 Note the near-miss: `storage/app/temp` **is** mounted, and `media-processing.paths.temp` is
 `temp/media-processing`, so *derived* processing artifacts persist. Only the original upload does
-not, because it alone sits under `livestream/`. It is easy to read the mounted `app-temp` volume as
-covering source media. It does not.
+not, because it alone sits under `livestream/`.
 
 Two consequences beyond this plan's scope:
 
 1. **Re-derivability is largely nil.** A children's talk cannot be regenerated from a source
-   recording that the same deploy destroyed. WP1's recoverability columns are what quantify this;
-   expect `source recording gone` to dominate.
+   recording that the same deploy destroyed. WP1's recoverability columns quantify this; expect
+   `source recording gone` to dominate.
 2. **A deploy during processing destroys the recording being processed**, not just the queued job.
    That is a live availability bug, independent of children's talks.
 
-**WP0 was therefore incomplete; the `livestream/` mount landed 2026-07-25** as the same three-site
-change (compose mount + `volumes:` declaration, Dockerfile `mkdir`, entrypoint chown/chmod) via the
-`app-livestream` volume. Unlike the `private/` mount it is **not** interim — source uploads are not
-moving to Spaces in this plan — so it carries no WP6 removal note, and its comments say so.
+Both mounts landed 2026-07-25 as the same three-site change (compose mount + `volumes:`
+declaration, Dockerfile `mkdir`, entrypoint chown/chmod).
+`tests/Feature/Config/ProductionStoragePersistenceTest.php` guards the arrangement: every path in
+`PERSISTED_STORAGE_PATHS` must be mounted, declared, `mkdir`'d and chown/chmod'd. The chown and
+chmod argument lists are checked separately rather than by scanning the file, so a path present in
+one but absent from the other fails — precisely the omission WP0 originally made.
 
-`tests/Feature/Config/ProductionStoragePersistenceTest.php` now guards the whole arrangement: every
-path in its `PERSISTED_STORAGE_PATHS` list must be mounted, declared, `mkdir`'d and chown/chmod'd,
-and each mounted volume must be declared. The chown and chmod argument lists are checked separately
-rather than by scanning the file, so a path present in one but absent from the other fails — which is
-precisely the omission WP0 originally made. Verified by deleting each site in turn and confirming the
-suite goes red.
+**The `app-livestream` volume is permanent** (source uploads are not moving to Spaces in this plan).
+**The `app-private` volume is interim**, and its purpose changes under this redesign: it is no
+longer a stopgap for storage that will keep living locally, it is what protects the files WP2 is
+about to move. It comes out after WP2 has been verified in production.
 
-**WP1 quantifies the damage before anything is changed. Do not assume it is small, and do not
-assume it is large.**
+### 2.2 The `private/` prefix is one switch, and it is not the access gate
 
-### 2.2 `do_spaces_backups` is the template, and it already proves the pattern works
+This is the finding that supersedes the previous design. Two mechanisms are at work, and the old
+plan treated them as coupled:
 
-The repo already runs a private disk against the same bucket
-(`config/filesystems.php:91-105`), with a comment that reads like it was written for this plan:
-
-```php
-// Same Spaces bucket/credentials as do_spaces, but private visibility and
-// a dedicated prefix. Backup archives must never inherit the public-read
-// visibility (or CDN exposure) the sermon-serving disk requires, and
-// throw=true lets a failed upload surface as a BackupHasFailed alert
-// instead of a silent false return.
-```
-
-So the two properties this plan needs — private visibility on a bucket whose default disk is
-`'visibility' => 'public'` with a `cdn_endpoint`, and loud failures via `throw => true` — are
-already configured, exercised, and known to work in production against DigitalOcean Spaces.
-
-One deliberate divergence: `do_spaces_backups` sets `'root' => 'backups'`. **The private disk must
-not set a root**, because the stored paths already carry their own `private/` prefix. Adding a root
-would produce `private/private/…` keys and force a rewrite of every path in the database. Keeping
-root empty makes the migration a pure file copy with **zero database writes** — see §3.2.
-
-### 2.3 The serving path is hard-wired to local disks
-
-This is the blocker that dictates work-package order. Private assets are served by reading an
-**absolute filesystem path** and returning a `BinaryFileResponse`:
+**The access gate.** `SermonExposurePolicy::canAccessChildrensCorner()`
+(`app/Services/Sermon/SermonExposurePolicy.php:57`) is:
 
 ```php
-// SermonAssetController.php:85
-$path = Storage::disk($fileInfo['disk'])->path($fileInfo['path']);
-…
-return response()->file($path, [...]);
+return $this->childrensTalksArePublic() || ($user instanceof User && $user->hasVerifiedEmail());
 ```
 
-`Storage::disk()->path()` is a local-driver method. On an S3 disk it does not return a fetchable
-absolute path, so **flipping the disk config without changing this code breaks every children's
-talk asset**. The same pattern appears at `SermonAssetController.php:122` (video) and `:250`
-(thumbnails), plus two admin preview controllers (`SermonThumbnailCandidateController.php:43`,
-`ServiceSectionCandidateMediaController.php:57`) and one non-serving caller,
-`ThumbnailGenerationService.php:562`, which does `Image::decode(Storage::disk($disk)->path($plainPath))`
-to render overlay/card variants from a stored plain thumbnail.
+`childrensTalksArePublic()` (`:44`) reads `config('church.sermons.childrens_talks.public')`, which is
+`env('CHILDRENS_TALKS_PUBLIC', false)` (`config/church.php:41-43`). It is enforced in three places,
+none of which consult a file path:
 
-There is a second, quieter reason `response()->file()` matters: Symfony's `BinaryFileResponse`
-handles HTTP `Range` requests automatically. That is what makes seeking work in the audio and
-video players. Any replacement must preserve range support or children's-talk video becomes
-unseekable — §3.3 covers this.
+| Enforcement point | Covers |
+|---|---|
+| `EnsureChildrensCornerAccess` middleware (`:23`), on `routes/web.php:63-64` | both `/christ/childrens-corner` pages |
+| `SermonAssetController::authorizeAssetAccess()` (`:289-293`) | every asset route, redirecting guests to login |
+| `SermonExposurePolicy::shouldIncludeInSitemap()` (`:157`) / `shouldExposeOnSermonApi()` (`:91`) | sitemap, public API, and therefore crawler discovery |
 
-### 2.4 The private-vs-local decision is duplicated across eight sites
+**The storage switch.** `SermonStorageService::requiresGuardedDelivery()` (`:623`) is, in its
+entirety, `return str_starts_with($path, 'private/');`. That single boolean is what makes
+`getAudioDeliveryUrl()` return `route('sermons.audio', …)` instead of a CDN URL, and it is what
+`resolveFileInfo()` (`:122`) consults to pick the `local` disk.
+
+**The feature toggle the maintainer described already exists and already works without private
+storage.** Flipping `CHILDRENS_TALKS_PUBLIC` to `true` would publish the talks whether or not a
+single byte moved; leaving it `false` keeps them gated whether or not a single byte moved.
+
+### 2.3 The prefix rule is duplicated across nine sites
 
 Every consumer re-derives the disk from the path prefix, independently:
 
 | Site | Shape |
 |---|---|
-| `SermonAssetController.php:111, 151, 183, 222, 243` | `str_starts_with($path, 'private/') ? 'local' : <configured disk>` |
-| `SermonStorageService.php:274` (`resolveThumbnailDisk`) | same ternary |
-| `SermonStorageService.php:122` (`resolveFileInfo`) | returns `['type' => 'private', 'disk' => 'local', …]` |
-| `ThumbnailGenerationService.php:825, 840` | same ternary |
-| `MediaAssetPath::diskForPath()` (`:14-20`) | `isPrivate($path) ? 'local' : $publicDisk ?? sermon_disk` |
-| `PrepareSectionPublicationCandidates::candidateDisk()` (`:277`) | hardcoded `return 'local';` |
-| `PrepareSectionPublicationCandidates` (`:250`) — **ninth site, found 2026-07-25** | passes a literal `'local'` as `extractOptimizedAudio()`'s `$permanentDisk`, *bypassing* `candidateDisk()` |
-| `MoveSermonToPrivateStorage::copyAndVerify()` (`:244`) | hardcoded `$target = Storage::disk('local');` |
-| `AuditSermonAssetsCommand.php:158` | `$expectedDisk = $isPrivate ? 'local' : $kindDisk;` |
+| `SermonAssetController:110, 150, 182, 221, 242` | `str_starts_with($path, 'private/') ? 'local' : <configured disk>` |
+| `SermonAssetController:81, 118, 158, 190, 229, 308` | the *early-return* prefix checks — each already has a working public-URL branch |
+| `SermonStorageService:623` (`requiresGuardedDelivery`) | the guarded-vs-CDN switch |
+| `SermonStorageService:122` (`resolveFileInfo`) | returns `['type' => 'private', 'disk' => 'local', …]` |
+| `SermonStorageService:273` (`resolveThumbnailDisk`) | same ternary, memoised |
+| `ThumbnailGenerationService:824, 839` | same ternary |
+| `MediaAssetPath::diskForPath()` (`:14-21`) | `isPrivate($path) ? 'local' : $publicDisk ?? sermon_disk` |
+| `PrepareSectionPublicationCandidates::candidateDisk()` (`:281`) | hardcoded `return 'local';` |
+| `PrepareSectionPublicationCandidates:250` — **the ninth site** | passes a literal `'local'` as `extractOptimizedAudio()`'s `$permanentDisk` (signature at `VideoExtractionService:518-524`), *bypassing* `candidateDisk()` |
+| `MoveSermonToPrivateStorage:245, 299, 406` | hardcoded `Storage::disk('local')` as the copy target |
+| `AuditSermonAssetsCommand:158` | `$expectedDisk = $isPrivate ? 'local' : $kindDisk;` |
+| `SermonPromotionAssets::guardPortablePath()` (`:167`) | rejects `private/` paths from promotion bundles outright |
 
-The ninth site is a trap for WP5 specifically: candidate *video* goes through `candidateDisk()` but
-candidate *audio* does not, so changing `candidateDisk()` alone splits a section's pair across two
-disks — video on Spaces, audio on local — and `DeleteLivestreamUpload`'s per-field disk map would
-then be right about one and wrong about the other.
+The old plan's response was to route all nine through a new config seam. This plan's response is to
+delete all nine, because after WP2 no path begins with `private/`.
 
-Nine places encoding one rule is the reason this is a work package rather than a one-line change,
-and it is also the opportunity: collapsing them onto a single configured seam is what makes the
-production flip a single environment variable (§3.2).
+Note what the early-return checks in the first two rows mean in practice: **every one of the six
+serving methods already has a fully working non-private branch**, exercised in production for
+regular sermons on every request. De-privatising does not require writing a delivery path. It
+requires deleting the *other* arm of an existing if/else.
 
-### 2.5 Two different things live under `private/`
+### 2.4 What private storage actually buys, and what the old plan did with it
 
-Worth stating explicitly, because the prefix is overloaded and the plan treats them differently:
+Given §2.2, the `private/` prefix adds exactly one property on top of the access gate: **the bytes
+are unreachable without an authorised application request.** Access to the *pages* and to the
+*asset routes* is already gated without it.
 
-| Population | Written by | Lifetime | Why private |
-|---|---|---|---|
-| Children's-talk sermon assets | `MoveSermonToPrivateStorage` | permanent | not published yet (maintainer, 2026-07-24) |
-| Section publication candidates | `PrepareSectionPublicationCandidates` | ephemeral; deleted on publish, governed by `unpublished_expires_at` | review-time preview clips, never public |
+The superseded WP3 traded that property away on purpose. It replaced `response()->file()` with a
+6-hour presigned S3 URL, and its own risk table recorded: *"Signed URL leaks and outlives the
+session — **Accepted**: 6h TTL, and the content is destined to be public."*
 
-Both resolve through the same prefix rule, so both move together on the shared seam. That is a
-feature, not collateral: candidates are lost on deploy today for exactly the same reason, and
-fixing them costs nothing extra once the seam exists.
+Once a shareable URL is acceptable, the private disk is protecting nothing that is still being paid
+for — and the bill was a new S3 disk, a dual local/S3 delivery branch (needed because development,
+CI and Dusk all run on the local disk), a `temporaryUrl()`-under-`bucket_endpoint` unknown to verify
+against a live bucket, a migration command with a field-list drift test, an operations runbook, a
+new load-bearing production environment variable, and a second data move to undo it in WP7.
+
+**Keys are not enumerable, which is what makes the direct route defensible.** Stored asset
+filenames carry a UUID: `Str::uuid().'_sermon_optimized.mp3'` (`AudioCompressionService:72`),
+`Str::uuid().'_sermon.mp3'` (`VideoExtractionService:426`), under `sermons/audio` and `sermons/video`
+(`config/media-processing.php:65-66`). So public storage does not make talks discoverable — it makes
+them fetchable *by anyone holding a URL that an authorised member handed over*. §3.3 states the
+residual difference honestly.
+
+### 2.5 The candidate population is already disk-agnostic
+
+Checked 2026-07-25, and this is better news than the old plan assumed. Every consumer of
+`service_sections.extracted_video_path` / `extracted_audio_path` already resolves its disk through
+`ServiceSection::extractedAssetDisk()` (`:217`) and already handles S3 sources via
+`StorageAdapterHelper::downloadToTemp()`:
+
+| Consumer | Already disk-agnostic? |
+|---|---|
+| `SongPublicationHandler:64, 132, 145, 216, 276` | yes — including the `isS3CompatibleDisk()` temp-download branch at `:154-158` |
+| `SermonPublicationHandler:126, 129, 209, 216-232` | yes |
+| `CleanupUnpublishedSectionAssetsCommand:137-140` | yes |
+| `ServiceSectionSyncService:353` | yes |
+| `DeleteLivestreamUpload:218, 223` | yes |
+| `ExtractedSectionMediaChecker:26-27` | yes, via `MediaAssetPath::diskForPath()` |
+| `Admin/ServiceSectionCandidateMediaController:57` | **no** — `Storage::disk($disk)->path($path)` + `response()->file()` |
+
+**Exactly one site breaks on a non-local candidate disk.** WP4 is therefore much smaller than the
+old WP4+WP5 pair implied.
+
+`Actions/Publication/ExpireSectionPublicationAssets` only nulls the path columns; file deletion is
+the cleanup command's job. So for candidates, **path set + file absent is unambiguous loss**, never
+legitimate expiry — which is what makes WP1's `audit:section-assets` numbers meaningful.
 
 ### 2.6 Existing test coverage is substantial
 
-26 test files reference `private/`, including `tests/Feature/SermonPrivateAssetTest.php`,
-`tests/Feature/Security/ChildrensTalkAssetSecurityTest.php`,
-`tests/Feature/Security/SermonPrivateStorageMoveTest.php`,
-`tests/Integration/Jobs/MoveSermonToPrivateStorageTest.php` and
-`tests/Feature/Console/AuditSermonAssetsCommandTest.php`.
+27 test files reference `private/`. The ones that go away with the machinery:
 
-That is good news — the behaviour being preserved is well pinned. It is also the bulk of the
-mechanical work: many of these assert against `Storage::disk('local')` or
-`Storage::fake('local')` specifically, and must move to the configured private disk so they
-exercise the real code path in both configurations.
+- `tests/Integration/Jobs/MoveSermonToPrivateStorageTest.php` (433 lines)
+- `tests/Feature/Security/SermonPrivateStorageMoveTest.php` (140 lines)
+- `tests/Feature/SermonPrivateAssetTest.php` (98 lines)
+
+The ones that must be **kept and rewritten to assert the gate rather than the storage** — these are
+the important ones, because they are what proves the login gate survived the change:
+
+- `tests/Feature/Security/ChildrensTalkAssetSecurityTest.php`
+- `tests/Feature/SermonAssetSecurityTest.php`
+- `tests/Feature/ChildrensCornerPagesTest.php`
+- `tests/Feature/Operations/ChildrensTalkPublicationWorkflowTest.php`
+- `tests/Integration/Observers/SermonObserverTest.php`
+- `tests/Feature/Console/AuditSermonAssetsCommandTest.php` (`:139`, `:161` assert on
+  `childrens_talk_public`, whose meaning inverts — see WP3)
+
+**Note for whoever implements this:** the local development database has 3 children's talks and
+**none of them has any asset path set** (verified 2026-07-25). The migration cannot be exercised
+against real local data; WP2's tests must construct it via factories.
 
 ---
 
 ## 3. Design
 
-### 3.1 What "private" means here, and what it does not
+### 3.1 The decision
 
-The maintainer's clarification rules out the design this would otherwise need. There is no
-safeguarding requirement, no confidentiality obligation, and no need to defend against a
-determined attacker with a leaked URL. Children's talks are unpublished, not sensitive, and the
-long-term intent is to publish them.
+Children's-talk assets live on the ordinary sermon disks under ordinary sermon keys. There is no
+private disk, no signed URL, no `PRIVATE_STORAGE_DISK`, and no second move. Access control stays
+where it already is, in `SermonExposurePolicy` and the two middleware/controller enforcement points.
 
-Two consequences:
+The end state is **less** code than today, in a codebase whose active tracker is a simplification
+backlog.
 
-1. **Short-lived signed URLs are an acceptable delivery mechanism.** Had this been safeguarding
-   material, handing out a URL that works without an authenticated session — even briefly, even
-   once — would have been the wrong shape, and the plan would have had to stream every byte
-   through the application to keep authorisation attached to each request. It is not, so it does
-   not. This is the single decision that makes §3.3 simple.
-2. **The end state is deletion of this machinery, not elaboration of it.** WP7 makes children's
-   talks public, at which point `MoveSermonToPrivateStorage`, the `private/` prefix rule, and the
-   guarded asset routes for this content type all become removable. Nothing in WP2–WP6 should
-   make that harder — no new database columns, no new path conventions, no per-asset state.
+### 3.2 What gets deleted
 
-**The access gate does not change in this plan.** `SermonAssetController::authorizeAssetAccess()`
-still runs `exposurePolicy->canAccessChildrensCorner($user)` before anything is served, and admins
-are still exempt. Only what happens *after* authorisation succeeds changes.
+| Thing | Lines | Fate |
+|---|---|---|
+| `MoveSermonToPrivateStorage` | 519 | delete after WP2 has run in production |
+| its tests (`MoveSermonToPrivateStorageTest`, `SermonPrivateStorageMoveTest`) | 573 | delete with it |
+| `SermonObserver::saved()` re-privatise hook (`:47-53`) + `hasNonPrivateProtectedAsset()` (`:81-104`) | ~30 | delete — **before** WP2 runs (§4 WP2) |
+| `SermonStorageService::requiresGuardedDelivery()` (`:623`) + its two call sites (`:getAudioDeliveryUrl`, `:getVideoDeliveryUrl`) | ~12 | delete; both methods collapse to their public branch |
+| `SermonStorageService::resolveFileInfo()` private branch (`:122-128`), `resolveThumbnailDisk()` ternary (`:273`) | ~12 | collapse |
+| `SermonAssetController` — the `->path()` + `response()->file()` tail of `serveAudio`, `serveVideo`, `serveThumbnail`, `servePlainThumbnail`, `serveCardThumbnail`, and `serveStoredThumbnail()` entirely | ~90 | delete; each method becomes authorise-then-redirect, which its first branch already does |
+| `SermonAssetController::authorizeAssetAccess()` private-path branch (`:308-314`) | ~7 | delete; the children's-talk gate at `:289-293` **stays** |
+| `MediaAssetPath::isPrivate()` + `diskForPath()`'s `'local'` branch | ~10 | `diskForPath()` collapses to the configured disk; `isPrivate()` goes |
+| `ThumbnailGenerationService:824, 839` ternaries | ~6 | collapse |
+| `SermonPromotionAssets::guardPortablePath()`'s `private/` rejection (`:167`) | 1 clause | delete — this is what removes the archive plan's WP8 |
+| `AuditSermonAssetsCommand`'s `childrens_talk_public` finding (`:64, 158, 207-208, 277, 293, 337`) | ~10 | delete — it currently treats the desired end state as a **failure** |
+| `PrepareSectionPublicationCandidates::candidateDisk()` (`:281`) and the `'local'` literal at `:250` | ~4 | point at the sermon disk (WP4) |
+| `docker-compose.prod.yml` `app-private` mount + declaration, `Dockerfile` `mkdir`, `entrypoint.sh` chown/chmod | 4 sites | remove in a later deploy, after WP2 is verified |
 
-### 3.2 One configured seam, no database writes
+### 3.3 What is given up, stated plainly
 
-Add `media-processing.storage.private_disk`, read from `PRIVATE_STORAGE_DISK` and **defaulting to
-`local`**, then route all eight sites in §2.4 through it. Default-`local` means WP2 is a pure
-refactor that changes no behaviour anywhere — it ships and proves itself before the disk it
-enables is ever used.
+**1. Asset URLs become permanently shareable.** Today a children's-talk page renders
+`route('sermons.audio', …)`, which authorises every request. After WP2,
+`SermonUrlBuilder::audioUrl()` → `getAudioDeliveryUrl()` → `getPublicUrl()` renders the CDN URL
+directly into the (still login-gated) page. A member who copies that URL can share it, and it works
+without a session, indefinitely.
 
-The new disk mirrors `do_spaces_backups` with the root removed:
+Weighed against the alternatives:
+
+| Delivery | Guessable? | Expires? | Cost |
+|---|---|---|---|
+| Today: streamed via guarded route | n/a | every request re-authorised | 4 sites of `->path()` + local-disk-only storage |
+| Superseded WP3: 6h presigned URL | no | after 6h | new disk, dual-branch delivery, migration, runbook, second move |
+| **This plan: public CDN URL** | **no** (UUID keys, §2.4) | **never** | none — it is the existing path |
+
+The superseded design is genuinely stronger on one axis: a leaked URL dies within six hours. The
+judgement recorded here is that a six-hour window on non-sensitive, soon-to-be-public content does
+not justify five work packages and two data moves — and that the old plan had already conceded the
+principle by accepting leak-tolerant URLs at all.
+
+**2. The move is the one step a config flip cannot undo.** Rollback of everything else is a deploy
+(§8). But once an object has been public-read in a CDN-fronted bucket, anything that fetched, cached
+or crawled it is beyond recall. **A children's-talk video may show or name identifiable children.**
+The maintainer's position, recorded 2026-07-24 and reaffirmed 2026-07-25, is that there is no
+safeguarding sensitivity here and that publication was always the intent; this plan proceeds on that
+basis. It is noted rather than argued because it is the only irreversible step in the plan and
+because sitemap and API exclusion (§2.2) mean *discovery* remains gated even afterwards.
+
+**3. Candidate keys are enumerable, unlike sermon keys.** `candidateAudioDirectory()` (`:285`)
+produces `private/section-publications/{section->id}`, and the video is `…/{id}/video.mp4` — a
+sequential integer, not a UUID. On the local disk that does not matter. On a public bucket it means
+unpublished review clips could be walked by section id. WP4 therefore adds a random component to
+the directory (§4 WP4); this is the one place where moving to public storage needs a small design
+change rather than a deletion.
+
+### 3.4 The migration is the existing job, reversed by a parameter
+
+`MoveSermonToPrivateStorage::sourceAndTargetPaths()` (`:233-240`) is **already bidirectional** — it
+returns `[stripped, prefixed]` for a private path and `[path, prefixed]` for a public one, because
+it needs both to recognise an already-completed move. Only three lines hardcode the direction:
+`copyAndVerify()`'s `$target = Storage::disk('local')` (`:245`), `verifyCommittedTarget()` (`:299`),
+and `deleteSourceAfterCommit()` (`:406`).
+
+So the reverse migration is a target-disk parameter on the existing job, not a new job. Everything
+that makes it safe is direction-agnostic because it is expressed against the `Storage` API:
+verify-before-delete (`:408-410`), compare-and-set path commits under `lockForUpdate()`
+(`:304-389`), the stale-unreferenced-target healing path (`:251-270`), per-asset failure collection
+so one failure cannot leave the rest half-moved (`:68-87`), and the deferred-deletion snapshot
+(`:449-467`).
+
+**One defect must be fixed for the reverse direction to be safe.** `referencedAssetIndex()`
+(`:480-518`) pairs every referenced path with its *kind's public disk*:
 
 ```php
-// config/filesystems.php
-'do_spaces_private' => [
-    'driver' => 's3',
-    'key' => env('DO_SPACES_KEY', env('DO_SPACES_ACCESS_KEY_ID')),
-    'secret' => env('DO_SPACES_SECRET', env('DO_SPACES_SECRET_ACCESS_KEY')),
-    'region' => env('DO_SPACES_REGION', env('DO_SPACES_DEFAULT_REGION', 'nyc3')),
-    'bucket' => env('DO_SPACES_BUCKET'),
-    'endpoint' => env('DO_SPACES_ENDPOINT', 'https://nyc3.digitaloceanspaces.com'),
-    // No 'root': stored paths already carry their own `private/` prefix, so the
-    // object key is `private/…` and no database path has to be rewritten.
-    // No 'cdn_endpoint': signed URLs must be issued against the bucket endpoint,
-    // and this content must not be CDN-cached while it is unpublished.
-    'use_path_style_endpoint' => false,
-    'throw' => true,
-    'visibility' => 'private',
-    'bucket_endpoint' => true,
-],
+$assets = [
+    [$sermonDisk, $sermon->audio_file_path],
+    …
+];
+$index['disk_paths'][$disk.'|'.$path] = true;
 ```
 
-Because the object key is byte-identical to the stored path, migration is:
-
-1. copy `private/…` from local to `do_spaces_private`, verifying size and hash;
-2. set `PRIVATE_STORAGE_DISK=do_spaces_private`;
-3. delete the local copies once verified.
-
-No migration, no path rewrite, no downtime window, and a rollback that is just flipping the
-variable back (§8).
-
-### 3.3 Delivery: signed redirect, not streamed bytes
-
-Replace `Storage::disk()->path()` + `response()->file()` with a redirect to a
-`temporaryUrl()` on the private disk. Per §3.1 this is available to us, and it is materially
-better than the alternatives:
-
-- **HTTP Range comes back for free.** S3 handles `Range` natively, so seeking in audio and video
-  works exactly as `BinaryFileResponse` made it work. A naive `response()->stream()` would not,
-  and would have silently broken scrubbing on every children's talk.
-- **No application bandwidth.** Serving a 2 GB video through PHP-FPM ties up a worker for the
-  duration of the download. Today that is masked because the file is on local disk and
-  `response()->file()` can hand off to the web server; on S3 it would not be.
-- **The authorisation gate stays exactly where it is.** The controller still authorises, then
-  mints a URL instead of bytes.
-
-Design notes that matter:
-
-- **TTL must exceed a viewing session, not a request.** A signed URL is checked when a request is
-  made, so a viewer who starts a 25-minute talk and seeks at minute 24 issues a *new* request
-  against the same URL. Too short a TTL turns that into a 403 mid-playback. Start at **6 hours**;
-  it is long enough that no realistic session outlives it and short enough that a pasted link
-  stops working the same day.
-- **Sign against the bucket endpoint, never the CDN.** The private disk deliberately omits
-  `cdn_endpoint`. `SermonStorageService::resolvePublicUrl()` (`:522-525`) swaps in the CDN host for
-  `do_spaces`; the private path must not go near that branch.
-- **Non-private assets are unaffected.** Those already redirect to public URLs
-  (`SermonAssetController.php:81`, `:118`) — the private branch converges on the same shape, which
-  simplifies the controller rather than complicating it.
-- **Verify `temporaryUrl()` against Spaces before relying on it.** The disk sets
-  `bucket_endpoint => true`; presigned URL generation under that flag should be confirmed against
-  a real bucket in WP3, not assumed. If it misbehaves, the fallback is a streamed response with
-  explicit `Range` handling — more code, same outcome — and WP3 should not be considered done
-  until one of the two is demonstrated working.
-
-### 3.4 Non-serving readers need a temp download
-
-`ThumbnailGenerationService::createRenderedAssetsFromStoredPlainPath()` (`:562`) decodes a stored
-plain thumbnail from an absolute path to render the branded variants. That has no URL to redirect
-to — it needs actual bytes locally. `StorageAdapterHelper` already implements exactly this
-download-to-temp-then-clean-up pattern for S3 sources (`:68-81`, `:290-300`), and
-`PrepareSectionPublicationCandidates` already uses it with an `$isS3TempDisk` flag and a `finally`
-cleanup (`:216`, `:269-272`). Reuse it; do not invent a second mechanism.
-
-### 3.5 `MoveSermonToPrivateStorage` becomes same-bucket, and that is a footnote not a rewrite
-
-The job currently copies from the sermon disk to a hardcoded `Storage::disk('local')`
-(`:242-245`), then deletes the source. Pointing the target at the configured private disk makes it
-a Spaces→Spaces copy within one bucket. Its verify-then-delete discipline, compare-and-set path
-commits and `isPathReferenced()` guard all still hold, because they are expressed in terms of the
-`Storage` API rather than the filesystem.
-
-Two things to note rather than fix in this plan:
-
-- The copy is a read-stream/write-stream round trip through the application. Within one bucket
-  a server-side `COPY` would be strictly better, but correctness first — call it out in WP5 and
-  leave it as an optimisation.
-- With `throw => true` on the private disk, `writeStream()` raises instead of returning `false`,
-  so the `$written !== true` check at `:277` becomes unreachable. Harmless, and the surrounding
-  `try/catch` already handles throwables — but leave the check, because the *source* disk in a
-  local-disk configuration still returns `false`.
+A row still holding `private/sermons/audio/x.mp3` is therefore indexed as
+`do_spaces|private/sermons/audio/x.mp3`, never `local|private/…`. Forward, the source key is
+`do_spaces|sermons/audio/x.mp3` and matches correctly. **Reverse, the source key is
+`local|private/sermons/audio/x.mp3` and can never match**, so the "retained referenced source" guard
+at `:412-420` would silently never fire and the job could delete a private object another sermon row
+still points at. Fix: build the index's disk through `MediaAssetPath::diskForPath()` so private paths
+index against the private disk. A test must cover it — two children's talks sharing one asset path,
+migrate one, assert the source survives.
 
 ---
 
@@ -362,121 +372,89 @@ Two things to note rather than fix in this plan:
 
 | WP | What | Kind | Blocked by |
 |---|---|---|---|
-| **WP0** | **Stopgap: mount `storage/app/private` as a volume** — **code done 2026-07-24, awaiting deploy** | ops | — |
-| WP1 | Quantify the loss: audit private assets in production (read-only) — **tooling done 2026-07-25, run outstanding** | ops | — |
-| WP2 | `do_spaces_private` disk + `private_disk` config seam (default `local`, no behaviour change) | refactor | — |
-| WP3 | Serving paths off `->path()` — signed-URL redirect | code | WP2 |
-| WP4 | Non-serving readers off `->path()` — thumbnail rendering + admin previews | code | WP2 |
-| WP5 | `MoveSermonToPrivateStorage` + candidate writer target the configured disk | code | WP2 |
-| WP6 | Migration command, production flip, runbook | ops/code | WP1, WP3, WP4, WP5 |
-| WP7 | Publish children's talks — retire the private mechanism | design/code | WP6 |
+| **WP0** | **Mount `storage/app/private` and `storage/app/livestream`** — code done 2026-07-24/25, **awaiting deploy** | ops | — |
+| WP1 | Rescue + quantify the loss in production (read-only) — tooling done 2026-07-25, **run outstanding** | ops | WP0 rescue step first |
+| WP2 | De-privatise children's-talk assets: reverse the mover, run it in production | code/ops | WP1, WP3's observer removal |
+| WP3 | Delete the `private/` machinery | refactor | WP2 |
+| WP4 | Section-publication candidates off `private/` | code | WP3 |
 
-**WP0 ships first and alone.** Everything else is a week or more of careful work; WP0 is a
-two-line change to `docker-compose.prod.yml` that stops files being destroyed in the meantime.
-Shipping it does not reduce the case for the rest — a volume on one host is still a single point
-of failure with no backup story, which is the argument for Spaces — but there is no reason to keep
-losing data while the proper fix lands.
+Two work packages of code where there were five, and no new configuration surface.
 
-### WP0 — Stop the bleeding — **code implemented 2026-07-24; deploy outstanding**
+### WP0 — Stop the bleeding — **code implemented; deploy outstanding**
 
-Persisting a storage path in production turned out to take **three** changes, not the two drafted
-here. All three are in the repo:
+Unchanged from the previous version. Persisting a storage path in production takes **three** changes
+per path, all in the repo for both `private/` and `livestream/`:
 
-- `docker-compose.prod.yml` — mounts `app-private:/var/www/html/storage/app/private` on the `app`
-  service and declares `app-private:` in the top-level `volumes:` block.
-- `Dockerfile` (`:92`) — `storage/app/private` added to the `mkdir -p` alongside `livewire-tmp`,
-  `temp` and `public`.
-- `docker/production/entrypoint.sh` — **the site this plan missed.** The entrypoint `chown -R
-  www:www` / `chmod -R 775`s every mounted storage path at boot, with the comment "Fix ownership on
-  Docker-mounted volumes (created as root)". Omitting `app-private` would have left the new volume
-  as the only one without that guarantee, and a root-owned volume is a silent write failure rather
-  than a loud one.
+- `docker-compose.prod.yml` — mounts `app-private:/var/www/html/storage/app/private` and
+  `app-livestream:/var/www/html/storage/app/livestream`, and declares both in the top-level
+  `volumes:` block.
+- `Dockerfile` (`:97`) — both paths added to the `mkdir -p` alongside `livewire-tmp`, `temp`,
+  `public`.
+- `docker/production/entrypoint.sh` — both added to the boot-time `chown -R www:www` / `chmod -R
+  775` of mounted storage paths. **This is the site the plan originally missed.** A root-owned volume
+  is a silent write failure rather than a loud one.
 
-The Dockerfile and entrypoint steps are not redundant with each other. Docker seeds a *new* named
-volume from the image directory it covers, including ownership — but only if that directory exists
-in the image; if it does not, Docker creates it `root:root`. The `mkdir` makes the seeding path
-correct for fresh volumes; the entrypoint makes ownership correct regardless of the order in which
-volume and image directory came into existence, which is what the existing comment implies has
-actually happened on this host.
+The Dockerfile and entrypoint steps are not redundant. Docker seeds a *new* named volume from the
+image directory it covers, including ownership — but only if that directory exists in the image; if
+not, Docker creates it `root:root`. The `mkdir` makes seeding correct for fresh volumes; the
+entrypoint makes ownership correct regardless of the order in which volume and image directory came
+into existence.
 
-All three carry an interim comment naming this plan, so the arrangement cannot be mistaken for a
-deliberate choice to keep private assets on local disk.
-
-Verified in the repo: `docker compose config` resolves the mount and the volume declaration,
-`docker build --check` passes, and `bash -n` accepts the entrypoint. **None of that is the
-acceptance criterion.**
-
-**Amended 2026-07-25: a fourth site, and a different directory.** `storage/app/livestream` needed the
-same treatment (see §2.1's third population) and now has it, via the permanent `app-livestream`
-volume. It ships in the same deploy as the `private/` mount — deploying one without the other leaves
-source recordings being destroyed, which is the loss that cannot be undone by any later import.
+`tests/Feature/Config/ProductionStoragePersistenceTest.php` guards all of it, verified by deleting
+each site in turn and confirming the suite goes red.
 
 - **Acceptance (NOT YET MET — operator action):** deploy, write a children's-talk asset **and upload
-  a recording**, deploy again, both still present. Verify by deploying twice rather than by reading
-  the compose file. **Production keeps losing files on every deploy until this ships**, so the code
-  landing is not the fix — the deploy is.
-- Note for the operator: the first deploy after this change creates an empty `app-private` volume.
-  It does **not** recover anything already lost; WP1 is what quantifies that.
+  a recording**, deploy again, both still present. Verify by deploying twice, not by reading the
+  compose file. **Production keeps losing files on every deploy until this ships** — the code landing
+  is not the fix, the deploy is.
+- Both mounts ship in the **same** deploy. Deploying one without the other leaves source recordings
+  being destroyed, which is the loss no later import can undo.
+- **Redesign note:** `app-livestream` is permanent. `app-private` is now interim in a different
+  sense than before — it protects the files WP2 moves, and comes out after WP2 is verified.
 
-### WP1 — Quantify the loss — **tooling landed 2026-07-25; production run outstanding**
+### WP1 — Rescue, then quantify — **tooling landed 2026-07-25; production run outstanding**
 
-Read-only, and it produces the number that tells the operator what WP6 has to reconstruct.
+Unchanged, and under this redesign it matters *more*, because it answers a question WP2 cannot
+start without: **is there anything left to move?**
 
-**The drafted approach did not work as written.** Two gaps, both now closed in the repo:
+Two audit commands, both whitelisted in `production-audit.yml` under a `private-assets` choice
+(`:25`, `:75`, `:81`) — **counts only, never paths or ids**, per the repo's production-audit
+convention:
 
-1. **`audit:sermon-assets` computed the private/public distinction and then discarded it.** It
-   counted `missing` per *asset kind* only, so a production run reported e.g. "144 missing" with no
-   way to tell deploy-destroyed private files from public files absent for unrelated reasons. On the
-   local dev database that exact run reports 144 missing of which **zero** are private — the
-   undifferentiated number is not merely coarse, it is unusable for this purpose. The command now
-   carries `private_referenced` / `private_missing` per kind, plus a per-talk summary block (total
-   children's talks, how many reference private assets, how many have at least one private asset
-   missing). Per-talk, not per-asset, because recoverability is decided one talk at a time.
-2. **Nothing audited the section-candidate population at all.** `ExtractedSectionMediaChecker` gives
-   a per-section boolean at review time; there was no reporting command, so no whitelisted way to
-   count these on production. New `audit:section-assets` covers
-   `service_sections.extracted_video_path` / `extracted_audio_path`, resolving each through
-   `ServiceSection::extractedAssetDisk()` with the same private/public split.
+- `audit:sermon-assets` — carries `private_referenced` / `private_missing` per asset kind, plus a
+  per-talk summary (total children's talks, how many reference private assets, how many have at
+  least one private asset missing). Per-talk, not per-asset, because recoverability is decided one
+  talk at a time. Without this split a production run reports e.g. "144 missing" with no way to tell
+  deploy-destroyed private files from public files absent for unrelated reasons — on the local dev
+  database that exact run reports 144 missing of which **zero** are private.
+- `audit:section-assets` — covers `service_sections.extracted_video_path` / `extracted_audio_path`
+  through `ServiceSection::extractedAssetDisk()`, same split. Nothing audited this population before.
 
-Both are whitelisted in `production-audit.yml`, which gains a `private-assets` choice running the
-pair — **counts only, never paths or ids**, per the repo's production-audit convention.
+#### Ordering — rescue first, measure second
 
-**"Missing" is an unambiguous loss signal for candidates.**
-`CleanupUnpublishedSectionAssetsCommand` nulls both path columns inside its transaction and deletes
-the files only `afterCommit` (`:87-95`), and `ExpireSectionPublicationAssets` nulls them on expiry
-(`:44-45`). So a row that still names a path was never cleaned up: path set + file absent is loss,
-never legitimate expiry. No disentangling required.
-
-#### Ordering against WP0's deploy — rescue first, measure second
-
-WP0's note below says the first deploy "does not recover anything already lost", which is true but
-understates the hazard: **that deploy also destroys the private files that are still there.** They
-live in the running container's writable layer; the deploy replaces the container and mounts a
-fresh, empty `app-private` volume, so whatever survived the last deploy dies at this one.
-
-The tempting sequence — measure, then deploy — **does not work.** `production-audit.yml` runs
-`docker compose exec app php artisan`, i.e. inside the *running* container, so the extended
-`audit:sermon-assets` and the new `audit:section-assets` do not exist on production until they are
-deployed. Measurement is gated on the very deploy that destroys the evidence.
+WP0's deploy **destroys the private files that are still there**: they live in the running
+container's writable layer, and the deploy replaces the container with a fresh, empty `app-private`
+volume. But measurement is gated on that same deploy, because `production-audit.yml` runs
+`docker compose exec app php artisan` inside the *running* container, so the audit tooling does not
+exist on production until it ships.
 
 The step that preserves files needs no deploy, so it goes first:
 
 1. **Rescue, before any deploy.** On the production host:
    `docker compose -f docker-compose.prod.yml cp app:/var/www/html/storage/app/private ./private-rescue`
-   No code change required, nothing to gate on, and it captures whatever survived the last deploy.
    Do this even if the expectation is that it finds nothing — the cost is a directory listing.
-2. **Deploy**, shipping WP0's volume mount and WP1's audit tooling together.
+2. **Deploy**, shipping WP0's two volume mounts and WP1's audit tooling together.
 3. **Restore** the rescued tree into the now-persistent `app-private` volume.
-4. **Run the audits.** With WP0 mounted, this number is final and stable rather than decaying at
-   the next deploy, and it is what WP6 has to reconstruct.
+4. **Run the audits.** With WP0 mounted, the number is final and stable rather than decaying at the
+   next deploy.
 
 Step 1's output is also the honest measure of ongoing loss: file count and total size in
 `private-rescue` is what a single deploy was costing.
 
-#### The recoverability columns answer the decision, not just the count
+#### The recoverability columns answer the decision
 
-Both audits partition their "missing" total three ways, so the production run yields the *decision*
-rather than a number someone then has to investigate:
+Both audits partition their "missing" total three ways, and a test asserts the buckets sum back to
+the total so a future asset kind cannot quietly fall outside all three:
 
 | Bucket | Meaning |
 |---|---|
@@ -484,158 +462,161 @@ rather than a number someone then has to investigate:
 | `missing_and_source_media_gone` | source referenced but absent; unrecoverable |
 | `missing_and_no_source_reference` | no processing run or no source path recorded (historic/manual) |
 
-The buckets are a partition of `with_missing_*`, and a test asserts they sum back to it — so a
-future asset kind cannot quietly fall outside all three.
-
 `SourceMediaPresence` resolves `source_file_path` in both shapes it occurs in (temp-disk-relative
-`livestream/temp/…`, and absolute for historic imports), memoising per path because several talks
-and sections routinely share one run. A sermon reaches its run either directly
+`livestream/temp/…`, and absolute for historic imports), memoising per path because several talks and
+sections routinely share one run. A sermon reaches its run either directly
 (`media_processing_logs.sermon_id`) or through the section that published it
-(`ServiceSection::published_sermon_id`); both routes are covered, and talks with neither land in
-`no_source_reference`.
+(`ServiceSection::published_sermon_id`).
 
-**Given §2.1's third population, expect `source recording gone` to dominate.** If it does, the WP6
-reconstruction question is settled in the negative and the honest record is that the archive is not
-recoverable from production — which makes the historic-archive import plan the only route back for
-these talks.
+**Given §2.1's third population, expect `source recording gone` to dominate.** If it does, WP2's
+scope shrinks to whatever survives, and the honest record is that the rest is recoverable only
+through the historic-archive import.
 
-- **Acceptance:** a number, and a decision recorded against it. The buckets above *are* the
-  decision; what remains for a human is whether the unrecoverable set is worth re-importing from
-  another source.
+- **Acceptance:** a number, and a decision recorded against it — how many talks WP2 has files for,
+  and whether the unrecoverable remainder is worth re-importing from another source.
 
-### WP2 — The config seam
+### WP2 — De-privatise children's-talk assets
 
-- Add `'private_disk' => env('PRIVATE_STORAGE_DISK', 'local')` to `config/media-processing.php`
-  alongside `sermon_disk`/`transcript_disk`/`temp_disk`, and the `do_spaces_private` disk from
-  §3.2 to `config/filesystems.php`.
-- Route all eight sites in §2.4 through it. Prefer one accessor over eight `config()` calls —
-  `MediaAssetPath` is the natural home, since it already owns `isPrivate()` and `diskForPath()`.
-  Give it a `privateDisk(): string` and have the ternaries call it.
-- `AuditSermonAssetsCommand` moves too, or the audit checks the wrong disk immediately after the
-  flip and reports the entire archive missing.
-- **Default stays `local`, so this WP changes no behaviour.** That is the point: it lands and bakes
-  independently of the risky part.
-- Tests: existing coverage should pass untouched. Add a test asserting the resolved disk follows
-  the config in both settings — that single test is what proves the seam is real and not eight
-  ternaries that merely look alike.
+**Ordering trap, read this first.** `SermonObserver::saved()` (`:37-53`) dispatches
+`MoveSermonToPrivateStorage` whenever a children's talk's `audio_file_path`, `video_file_path`,
+`transcript_file_path`, `thumbnail_file_path` or `thumbnail_metadata` changes and
+`hasNonPrivateProtectedAsset()` (`:81-104`) finds any path lacking the `private/` prefix. That is
+exactly the state WP2 commits. **The observer hook must be removed before the migration runs**, or
+every talk is re-privatised the instant it is un-privatised. The job's own
+`isMovingSermon()` re-entrancy guard (`:121-124`) does not help — it only suppresses dispatch while
+the forward job itself is running.
 
-### WP3 — Serving off `->path()`
+So WP3's observer removal is a **prerequisite of WP2's production run**, not a follow-up. Land them
+in this order: observer hook removed → migration run → remaining machinery deleted.
 
-- `SermonAssetController::serveAudio()`, `serveVideo()`, `serveThumbnail()`, `servePlainThumbnail()`,
-  `serveCardThumbnail()` and `serveStoredThumbnail()`: after authorisation, redirect to
-  `Storage::disk($privateDisk)->temporaryUrl($path, now()->addHours(6))`.
-- Keep local-disk support: when the configured private disk is a local driver, `temporaryUrl()`
-  is unavailable, so retain the `response()->file()` branch. Both configurations must work, because
-  development, CI and Dusk all run on the local disk and WP6 flips only production.
-- Preserve `Cache-Control: private, no-store` semantics on the redirect response so an unpublished
-  talk is not cached by intermediaries.
-- Confirm `temporaryUrl()` works against Spaces with `bucket_endpoint => true` (§3.3). If it does
-  not, implement the streamed fallback **with explicit `Range` support** and say so in the WP.
-- Tests: `SermonAssetControllerTest`, `SermonPrivateAssetTest`, `SermonVideoServingTest`,
-  `SermonThumbnailServingTest`, `Security/ChildrensTalkAssetSecurityTest` — each asserting, on
-  both disk configurations, that **authorisation still runs first**. The security tests are the
-  ones that matter: an unauthenticated request must still redirect to login and must never receive
-  a signed URL. Add an explicit test that a signed URL is not issued to an unauthorised caller.
+Work:
 
-### WP4 — Non-serving readers off `->path()`
+- Parameterise `MoveSermonToPrivateStorage`'s copy target: add a target disk to `copyAndVerify()`
+  (`:245`), `verifyCommittedTarget()` (`:299`) and `deleteSourceAfterCommit()` (`:406`), and a
+  constructor flag selecting direction. `sourceAndTargetPaths()` (`:233`) needs no change (§3.4).
+- **Fix `referencedAssetIndex()`'s disk keying** (§3.4) — resolve each path's disk through
+  `MediaAssetPath::diskForPath()` rather than assuming the kind's public disk. Without this the
+  shared-source guard silently never fires in the reverse direction.
+- New command `media:publicise-childrens-talk-assets {--apply} {--delete-source}`:
+  - dry-run by default, consistent with the repo's other one-shot commands;
+  - iterates children's talks, dispatching the reversed job per talk;
+  - idempotent — a target object already present and size-matched is a no-op, which the existing
+    `copyAndVerify()` already implements;
+  - `--delete-source` is a **separate later invocation**, never the same run as the copy.
+- Evict caches after the run. `SermonObserver::saved()` calls `clearCachedMetadata()` on path change
+  (`:28-34`), so per-sermon metadata is handled — but `forgetPublicListingCaches()` fires only on
+  `SermonExposurePolicy::EXPOSURE_ATTRIBUTES` (`:59-61`), not on path changes. Children's talks are
+  excluded from public listings and the podcast feed anyway, so the exposure is small; clear
+  explicitly rather than reason about it.
+- Tests, parameterised over both directions:
+  - a talk with all seven direct/metadata assets plus thumbnail candidates migrates, every path
+    loses its prefix, every object exists on the correct kind disk;
+  - **two talks sharing one asset path** — migrate one, assert the source survives (the
+    `referencedAssetIndex()` fix);
+  - a partially-migrated talk resumes cleanly (mixed prefixed/unprefixed paths);
+  - **source deletion happens after a verified copy** — the step that, if it silently no-ops,
+    leaves orphans behind;
+  - a concurrent path change aborts via compare-and-set rather than committing a mismatch.
 
-- `ThumbnailGenerationService::createRenderedAssetsFromStoredPlainPath()` (`:562`) downloads to
-  temp via `StorageAdapterHelper` before `Image::decode()`, cleaning up in a `finally` (§3.4).
-- `Admin/SermonThumbnailCandidateController.php:43` and
-  `Admin/ServiceSectionCandidateMediaController.php:57` take the same treatment as WP3 — these are
-  admin-only previews, so a signed redirect is equally appropriate.
-- Tests: `Admin/SermonThumbnailCandidatePreviewTest`,
-  `Admin/ServiceSectionCandidateMediaControllerTest`, plus a thumbnail-rendering test proving
-  overlay/card variants still generate when the plain thumbnail is on a non-local private disk.
+- **Acceptance:** `audit:sermon-assets` reports zero `missing` and zero `private_referenced`, and a
+  children's talk plays end-to-end with working seek **for a verified member and not for a guest**.
+  The guest half of that check is the one that proves the gate survived.
 
-### WP5 — Writers target the configured disk
+### WP3 — Delete the `private/` machinery
 
-- `MoveSermonToPrivateStorage::copyAndVerify()` (`:244`) uses the configured private disk instead
-  of `Storage::disk('local')`. Same for `verifyCommittedTarget()` (`:297`) and
-  `isPathReferenced()`'s disk assumptions.
-- `PrepareSectionPublicationCandidates::candidateDisk()` (`:277`) returns the configured disk
-  instead of the hardcoded `'local'`. Check the publish/cleanup side
-  (`PublishApprovedServiceSection`, `DeleteLivestreamUpload`) moves with it — a candidate written
-  to Spaces and deleted from local is a leak, and `DeleteLivestreamUpload`'s per-field disk map is
-  the authoritative list of what must agree.
-- Note the same-bucket server-side `COPY` optimisation and leave it undone (§3.5).
-- Tests: `MoveSermonToPrivateStorageTest`, `Security/SermonPrivateStorageMoveTest`,
-  `PrepareSectionPublicationCandidatesTest`, `PublishApprovedServiceSectionTest` — parameterised
-  over both disk configurations. Explicitly assert the **source deletion still happens** after a
-  verified copy: that is the step which, if it silently no-ops on S3, leaves public copies behind.
+Split so the observer removal can land ahead of WP2's run:
 
-### WP6 — Migrate and flip
+**WP3a (before WP2's production run):** remove `SermonObserver`'s re-privatise hook (`:47-53`) and
+`hasNonPrivateProtectedAsset()` (`:81-104`). Update `tests/Integration/Observers/SermonObserverTest.php`.
+Nothing else changes; talks with existing `private/` paths keep being served by the still-present
+private branches.
 
-- New command `media:migrate-private-assets {--to=} {--apply} {--delete-source}`:
-  - walks every referenced private path — children's-talk sermon assets (all seven fields plus
-    thumbnail candidates) and section-publication candidates;
-  - copies each from the current private disk to the target, verifying size and sha256;
-  - idempotent: an object already present and matching is a no-op;
-  - `--delete-source` is a **separate later invocation**, never the same run as the copy;
-  - dry-run by default, consistent with the repo's other one-shot commands.
-- Reuse the field enumeration rather than writing a third copy of it — §2.4 of the archive plan
-  makes the same point about `MoveSermonToPrivateStorage`'s `$moveOperations` list and
-  `SermonObserver::hasNonPrivateProtectedAsset()` already disagreeing in shape. Add a test that
-  fails if the lists drift.
-- Operator sequence: back up → run copy → verify with `audit:sermon-assets` → set
-  `PRIVATE_STORAGE_DISK=do_spaces_private` → deploy → verify again → **only then** delete sources
-  → remove WP0's three changes in a later deploy (the `docker-compose.prod.yml` mount **and** its
-  `volumes:` declaration, the `Dockerfile` `mkdir`, and the `entrypoint.sh` chown/chmod entries).
-- `docs/operations/private-asset-storage.md`: the sequence above, the rollback (§8), and a note
-  that `PRIVATE_STORAGE_DISK` is now a load-bearing production variable.
-- **Acceptance:** `audit:sermon-assets` reports zero `missing` and zero `childrens_talk_public`
-  after the flip, and a children's talk plays end-to-end with working seek for a verified member.
+**WP3b (after WP2's production run is verified):** everything in §3.2's table. The two that must move
+together with the rest, because leaving either behind produces something that looks like a bug:
 
-### WP7 — Publish children's talks (the actual destination)
+- `AuditSermonAssetsCommand`'s `childrens_talk_public` finding (`:207-208`, and its inclusion in the
+  failure condition at `:277`) currently reports a public children's talk as a **fault**. Left in
+  place it would flag the entire migrated archive.
+- `SermonPromotionAssets::guardPortablePath()`'s `private/` clause (`:167`) — this is the one that
+  deletes the archive plan's WP8 (§5.1).
 
-Recorded here because it is the stated intent and because WP2–WP6 should not make it harder — not
-because it must follow immediately.
+Rewrite rather than delete the tests in §2.6's second list. `Security/ChildrensTalkAssetSecurityTest`
+in particular must keep asserting that an unauthenticated request to a children's-talk asset route
+redirects to login and that a verified member gets the asset — the storage change must not weaken
+either. Delete only the three test files whose subject is the mover itself.
 
-- The publish operation is `MoveSermonToPrivateStorage` **in reverse**: copy each object from the
-  `private/` key prefix to its public key, compare-and-set the paths, delete the private object.
-  Within one bucket that is a server-side copy. The job's existing verify-then-delete structure is
-  directly reusable, and building it as `MoveSermonToPublicStorage` alongside its inverse is
-  cheaper than generalising the existing job.
-- Everything downstream then flows through the already-existing non-private branches: public URLs,
-  CDN delivery, `SermonExposurePolicy` for visibility. There is no new delivery path to write.
-- The guards that enforce today's arrangement must be retired *deliberately and together*:
-  `AuditSermonAssetsCommand`'s `childrens_talk_public` finding (`:151`) currently treats a public
-  children's talk as a **failure**, and `SermonObserver` (`:47-53`) will re-privatise any talk
-  whose assets go public. Publishing without changing both means the observer immediately undoes
-  the publish and the audit reports the attempt as a fault — a loop that would look like a bug.
-- `SermonPromotionAssets::guardPortablePath()`'s `private/` rejection (`:167`) can also go, and
-  with it the archive plan's WP8 entirely.
-- **This is a content/policy decision, not a technical one.** The plan is ready when the maintainer
-  says children's talks are public; nothing above should be built speculatively.
+- **Acceptance:** `grep -rn "private/" app` returns nothing outside WP4's scope; the security tests
+  pass unchanged in intent.
+
+### WP4 — Section-publication candidates off `private/`
+
+Small, because §2.5 found the population is already disk-agnostic everywhere but one site.
+
+- `PrepareSectionPublicationCandidates::candidateDisk()` (`:281`) returns the sermon disk instead of
+  `'local'`, **and** the literal `'local'` at `:250` — `extractOptimizedAudio()`'s `$permanentDisk` —
+  moves with it. Changing only `candidateDisk()` splits a section's pair across two disks (video on
+  Spaces, audio on local) and `DeleteLivestreamUpload`'s per-field disk map would then be right about
+  one and wrong about the other.
+- `candidateAudioDirectory()` (`:285`) drops the `private/` prefix **and gains a random component**:
+  `section-publications/{id}-{random}/`. Per §3.3, the current key is a bare sequential section id,
+  which on a public bucket would let unpublished review clips be walked. The paths are stored in
+  `extracted_video_path` / `extracted_audio_path` so nothing needs to recompute them; the random
+  component only has to be stable within one extraction, not derivable afterwards.
+- `Admin/ServiceSectionCandidateMediaController::serveAsset()` (`:57`) is the only reader that breaks
+  on a non-local disk. It becomes authorise-then-redirect to the public URL, keeping its
+  `publication_status` / `published_sermon_id` guard (`:37-43`) ahead of the redirect.
+- `MediaAssetPath::isPrivate()` and `ServiceSection::extractedAssetDisk()`'s prefix dependence can
+  then go; `extractedAssetDisk()` collapses to the configured disk.
+- One-shot migration for candidates in flight is **not** needed: they are ephemeral and regenerable,
+  and `ExtractedSectionMediaChecker` (`:26-27`) already reports a missing pair at review time. Rows
+  pointing at old `private/…` paths after the change resolve to the sermon disk, find nothing, and
+  present as needing re-extraction — which is the correct outcome and the same one a deploy has been
+  producing all along. Note it in the WP so it is not mistaken for a regression.
+- Tests: `PrepareSectionPublicationCandidatesTest`, `Admin/ServiceSectionCandidateMediaControllerTest`,
+  `AdminSectionPublicationCandidateMediaTest`, `SongPublicationHandlerTest`,
+  `SermonPublicationHandlerTest`, `ExtractedSectionMediaCheckerTest`,
+  `CleanupUnpublishedSectionAssetsCommand`'s test — asserting the audio and video of one section land
+  on the **same** disk, and that publish and cleanup both delete from where the write happened.
+
+- **Acceptance:** `audit:section-assets` clean; a section's candidate pair previews in the admin UI;
+  publishing a section still promotes and still deletes its source.
 
 ---
 
 ## 5. Interactions
 
-### 5.1 This plan substantially deletes the archive plan's WP8
+### 5.1 This plan deletes the archive plan's WP8 entirely
 
 `HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md` §2.6 exists solely because children's-talk
 media ends up on the import machine's local disk and is deleted from the bucket. Its WP8 builds a
 manifest, a restore command, a staging-and-privatise dance, and a capacity check for production's
 local disk.
 
-**If this plan lands first, almost all of that becomes unnecessary.** With `PRIVATE_STORAGE_DISK`
-pointing at Spaces on the import machine, a locally-imported children's talk writes straight to the
-shared bucket under `private/…`, exactly where production will look for it. Promotion returns to
-being a database-row operation, `SermonPromotionAssets` needs only its `private/` guard relaxed for
-the archive bundle's manifest, and WP8 collapses to "verify the objects exist".
+Under the superseded design that became "verify the objects exist", because talks would still live
+under a distinct `private/` prefix requiring `guardPortablePath()` to be relaxed. **Under this design
+it disappears completely**: a children's talk's assets are on the sermon disk under ordinary sermon
+keys, indistinguishable from a sermon's, so promotion is the existing database-row operation with no
+special case and no relaxed guard.
 
-The remaining ordering question for whoever schedules both: the archive plan's Stage A is gated on
-its own WP-A\* retention workstream, and this plan is gated on nothing. **Doing this one first is
-strictly cheaper.** If the import starts first, WP8 has to be built and then the talks re-handled
-after this lands.
+Ordering for whoever schedules both: the archive plan's Stage A is gated on its own WP-A\* retention
+workstream, and this plan is gated on nothing. **Doing this one first is strictly cheaper**, and more
+so than before.
 
-### 5.2 Local development and CI are unaffected
+### 5.2 The publish decision is now genuinely independent
 
-`PRIVATE_STORAGE_DISK` defaults to `local`, so development, the parallel suite, and Dusk keep
-today's behaviour with no `.env` change. WP3's dual-branch requirement (§WP3) is what keeps that
-true, and it is the reason the tests must be parameterised over both configurations rather than
-simply switched to the new disk.
+Under the old plan, publishing children's talks was WP7 — a second data move that could only happen
+after WP6. Under this one, publishing is `CHILDRENS_TALKS_PUBLIC=true` and a deploy, with **no file
+movement at all**. The bytes are already where a public talk's bytes belong; only the gate changes.
+
+That is worth stating because it changes the shape of the decision: it stops being a migration to
+schedule and becomes a switch to throw whenever the content is judged ready. This plan does not
+throw it.
+
+### 5.3 Local development and CI
+
+No new configuration, so no `.env` change anywhere. Development, the parallel suite and Dusk resolve
+the sermon disk exactly as they do for regular sermons today — which also removes the old plan's
+requirement that every serving test be parameterised over two disk drivers.
 
 ---
 
@@ -643,38 +624,42 @@ simply switched to the new disk.
 
 | Risk | Mitigation |
 |---|---|
-| **Assets already lost in production (§2.1)** | WP1 quantifies before anything changes; WP0 stops further loss within one deploy — **its code landed 2026-07-24 but loss continues until that deploy happens** |
-| Flipping the disk before WP3/WP4 → 500s on every children's-talk asset (`->path()` on S3) | Explicit ordering; WP6 blocked on WP3, WP4, WP5; header prohibition (b) |
-| Signed URL replaces authorisation instead of following it | WP3's security tests assert an unauthorised caller receives a redirect to login and never a signed URL |
-| Video seeking breaks (Range lost with `BinaryFileResponse`) | Signed redirect keeps Range at S3 (§3.3); streamed fallback must implement Range explicitly |
-| `temporaryUrl()` misbehaves under `bucket_endpoint => true` | Verified in WP3 against a real bucket, not assumed; documented fallback |
-| Signed URL leaks and outlives the session | Accepted: 6h TTL, and the content is destined to be public (§3.1). Revisit only if that premise changes |
-| Private objects inherit the bucket's public visibility | Disk sets `'visibility' => 'private'` and omits `cdn_endpoint`, mirroring the proven `do_spaces_backups` config; WP6 verifies with an unauthenticated fetch of a known key |
-| Source deletion silently no-ops on S3, leaving public copies | WP5 asserts deletion after verified copy; `--delete-source` is a separate WP6 invocation after the audit passes |
-| Path rewrite bugs during migration | There is no path rewrite — the disk has no root and keys equal stored paths (§3.2) |
-| Field lists drift between the mover, the observer and the migrator | WP6 adds a drift test; the same hazard is already flagged in the archive plan's WP8 |
-| WP0's volume outlives its purpose and is mistaken for design | Comment references this plan; WP6's final step removes it |
-| Section-publication candidates move unintentionally | Deliberate (§2.5) — they are lost on deploy today for the same reason; WP5 covers their publish/cleanup path |
+| **Assets already lost in production (§2.1)** | WP1 quantifies before anything changes; WP0 stops further loss within one deploy — **its code landed but loss continues until that deploy happens** |
+| Observer re-privatises assets as fast as WP2 un-privatises them | WP3a lands **before** WP2's run; §4 WP2 states the ordering as a prerequisite |
+| Reverse migration deletes a source another sermon row still references | `referencedAssetIndex()` disk-keying fix (§3.4) plus a two-talks-one-path test; `--delete-source` is a separate invocation after the audit passes |
+| Source deletion silently no-ops, leaving orphaned private objects | Existing `deleteSourceAfterCommit()` verifies then re-checks existence (`:408-428`); WP2 asserts it |
+| Leaked CDN URL grants indefinite access | Accepted (§3.3): keys are UUID-named so not enumerable, sitemap/API exclusion keeps discovery gated, and the content is destined to be public |
+| **A public object cannot be un-published from caches and crawlers** | The one irreversible step; flagged in §3.3 against the maintainer's recorded position rather than silently accepted |
+| Candidate keys enumerable by section id on a public bucket | WP4 adds a random component to the candidate directory |
+| Candidate audio and video split across two disks | WP4 changes `candidateDisk()` **and** the `:250` literal together; tests assert both land on one disk |
+| Access gate weakened while storage changes | The gate is untouched code (§2.2); `Security/ChildrensTalkAssetSecurityTest` and `SermonAssetSecurityTest` are kept and must still prove guest→login, member→asset |
+| `childrens_talk_public` audit finding flags the migrated archive | Removed in WP3b, together with the observer hook and the promotion guard |
+| WP0's `app-private` volume outlives its purpose | Comment references this plan; removed after WP2 is verified, as the last step (§8) |
+| Candidates in flight break at the WP4 cutover | Accepted and documented: they are regenerable and already present as needing re-extraction after any deploy |
 
 ## 7. What this plan does not do
 
-- It does not publish children's talks. That is WP7 and a maintainer decision.
-- It does not change who can access a children's talk. The `canAccessChildrensCorner` gate is
-  untouched.
-- It does not move any other asset class. Sermon audio, video and transcripts are already in
-  Spaces; temp-disk artifacts are addressed by the archive plan's WP-A\* workstream.
-- It does not introduce a second bucket. One bucket, one prefix, private visibility — the
-  arrangement `do_spaces_backups` already runs.
+- **It does not publish children's talks.** `CHILDRENS_TALKS_PUBLIC` stays `false`; the login gate is
+  untouched. See §5.2 for what publishing would then cost.
+- It does not change who can access a children's talk, at the page or the asset route.
+- It does not introduce a private disk, a second bucket, a new environment variable, or a signed-URL
+  delivery path.
+- It does not move any other asset class. Sermon audio, video and transcripts are already in Spaces;
+  source recordings stay on the local disk behind WP0's permanent `app-livestream` volume;
+  temp-disk artifacts are the archive plan's WP-A\* workstream.
 
 ## 8. Rollback
 
-Rollback is a configuration change, which is the main argument for the §3.2 design:
-
-- **Before sources are deleted:** set `PRIVATE_STORAGE_DISK=local` and deploy. The local copies are
-  still present and byte-identical, and no database row was ever changed. Recovery is one deploy.
-- **After sources are deleted:** re-run `media:migrate-private-assets --to=local` in the reverse
-  direction, then flip. The Spaces objects are the source of truth at that point.
-- **WP0's volume is the floor.** Keep it mounted until the flip has survived several deploys and
-  `audit:sermon-assets` is clean; removing it is the last step, not part of the flip.
-- Objects are never deleted in the same operation that copies them, in either direction. That is
-  what makes both rollbacks non-destructive.
+- **WP0** is additive and has no rollback — an unmounted volume is the bug.
+- **WP2, before sources are deleted:** the local `private/…` copies are still present and
+  byte-identical. Re-run the migration in the forward direction (the job is bidirectional by
+  construction, §3.4) and revert WP3a. Recovery is one deploy plus one command.
+- **WP2, after sources are deleted:** the Spaces objects are the source of truth. Reverting means
+  running the forward direction back onto local, which requires `app-private` to still be mounted —
+  hence the ordering below.
+- **`app-private` is the floor.** Keep it mounted until WP2 has survived several deploys and
+  `audit:sermon-assets` is clean. Removing it is the last step of the whole plan, not part of WP2.
+- **WP4** is a config-shaped change plus one controller; candidates are ephemeral, so rollback is a
+  revert and a re-extraction.
+- Objects are never deleted in the same operation that copies them, in either direction. That is what
+  makes rollback non-destructive up to the point where sources are explicitly removed.

@@ -22,10 +22,12 @@
 > WP8 or the private-storage move lands — their media is **not** in the production bucket and
 > promoting the rows alone would publish dangling paths (§2.6).
 >
-> **Recommended sequencing change (2026-07-24):** land
+> **Recommended sequencing change (2026-07-24, strengthened 2026-07-25):** land
 > [CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md)
-> before Stage A. It fixes a confirmed production data-loss bug, is gated on nothing, and largely
-> deletes WP8 from this plan (§2.6, WP8).
+> before Stage A. It fixes a confirmed production data-loss bug and is gated on nothing. That plan
+> was **redesigned on 2026-07-25** to drop the `private/` prefix altogether rather than move it to a
+> private Spaces disk, which means it now **deletes WP8 from this plan in full**, not just largely
+> (§2.6, WP8).
 >
 > **All open questions are answered as of 2026-07-24. No item in this plan is blocked on the
 > maintainer.**
@@ -321,12 +323,20 @@ Two guards make sure this cannot be papered over:
   disk (`:158`). So "just promote them as public paths" is not available either — the audit exists
   precisely to stop that.
 
-**A cheaper resolution exists and should be preferred.** All of the above is a consequence of the
-private disk being `local`. [CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md)
-changes that to a private disk in the shared Spaces bucket, at which point children's-talk media
-never leaves the bucket and this entire section stops applying. That plan is independently
-justified — it fixes a confirmed production data-loss bug — and landing it before Stage A is the
-recommended path. The rest of this section describes what WP8 must do **if it has not landed**.
+**A cheaper resolution exists and should be preferred.** All of the above is a consequence of
+children's-talk assets being private at all.
+[CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md)
+**was redesigned on 2026-07-25** and no longer introduces a private Spaces disk: it strips the
+`private/` prefix and puts children's-talk assets on the ordinary sermon disk under ordinary sermon
+keys, deleting the prefix rule, the mover job, the `childrens_talk_public` audit finding and
+`SermonPromotionAssets::guardPortablePath()`'s `private/` clause along with it. The login gate stays
+(`CHILDRENS_TALKS_PUBLIC` is untouched) — only the storage location changes.
+
+**Every one of the three blockers above is removed by that plan, not worked around.** A children's
+talk becomes indistinguishable from a sermon for promotion purposes, so this entire section stops
+applying and WP8 does not need to exist. That plan is independently justified — it fixes a confirmed
+production data-loss bug — is gated on nothing, and landing it before Stage A is the recommended
+path. The rest of this section describes what WP8 must do **if it has not landed**.
 
 The resolution is that production's own move job is the transport. Restore the files to their
 pre-private keys in Spaces, promote the sermon row with **non-private** paths, and production's
@@ -850,15 +860,16 @@ not the plan.
 
 ### WP8 — Children's-talk asset transfer
 
-> **Check before building this.**
+> **Check before building this — do not build it speculatively.**
 > [CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md)
-> moves private assets onto a `do_spaces_private` disk in the shared bucket. **If that plan has
-> landed, nearly all of WP8 is unnecessary** — a locally-imported children's talk writes straight
-> to the bucket under `private/…`, exactly where production looks, and promotion goes back to
-> being a database-row operation. What remains is relaxing the archive bundle's manifest to permit
-> `private/` paths (still not `SermonPromotionAssets`' own guard) and verifying the objects exist.
-> That plan is gated on nothing and its WP0 fixes a live production data-loss bug, so doing it
-> first is strictly cheaper than building WP8 and re-handling these talks afterwards.
+> was **redesigned on 2026-07-25**: instead of adding a `do_spaces_private` disk, it strips the
+> `private/` prefix entirely and puts children's-talk assets on the ordinary sermon disk under
+> ordinary sermon keys. **If that plan has landed, WP8 is unnecessary in full** — not "nearly all"
+> as previously recorded here. A children's talk's assets become indistinguishable from a sermon's,
+> so there is no manifest to relax, no `guardPortablePath()` exception to carve out, no staging
+> dance, and no local-disk capacity question: promotion is the same database-row operation as for
+> any other sermon. That plan is gated on nothing and its WP0 fixes a live production data-loss bug,
+> so doing it first is strictly cheaper than building WP8 and re-handling these talks afterwards.
 
 The work Q3 created, **assuming the storage plan has not landed**. §2.6 is the evidence; this is
 the build. Everything here exists only because children's-talk media is on the import machine's
