@@ -16,6 +16,9 @@ class ServiceSectionCandidateMediaControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** The disk phpunit.xml configures as the sermon disk, where candidates live. */
+    private const string CANDIDATE_DISK = 'public';
+
     // ── auth guard ─────────────────────────────────────────────────────────
 
     #[Test]
@@ -23,7 +26,7 @@ class ServiceSectionCandidateMediaControllerTest extends TestCase
     {
         $section = ServiceSection::factory()->create([
             'publication_status' => ServiceSectionPublicationStatus::Approved,
-            'extracted_audio_path' => 'private/section-publications/1/audio.mp3',
+            'extracted_audio_path' => 'section-publications/1-abcdef0123456789/audio.mp3',
         ]);
 
         $response = $this->get(route('admin.services.section-publications.preview-audio', $section));
@@ -42,20 +45,84 @@ class ServiceSectionCandidateMediaControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
+    // ── admins are redirected to storage ───────────────────────────────────
+
+    #[Test]
+    public function audio_preview_redirects_an_admin_to_the_candidate_storage_url(): void
+    {
+        Storage::fake(self::CANDIDATE_DISK);
+        $admin = User::factory()->crockenhillAdmin()->create();
+
+        $path = 'section-publications/1-abcdef0123456789/audio.mp3';
+        $section = ServiceSection::factory()->create([
+            'publication_status' => ServiceSectionPublicationStatus::Approved,
+            'extracted_audio_path' => $path,
+        ]);
+
+        Storage::disk(self::CANDIDATE_DISK)->put($path, 'audio');
+
+        $response = $this->actingAs($admin)->get(route('admin.services.section-publications.preview-audio', $section));
+
+        $response->assertRedirect(Storage::disk(self::CANDIDATE_DISK)->url($path));
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+    }
+
+    #[Test]
+    public function video_preview_redirects_an_admin_to_the_candidate_storage_url(): void
+    {
+        Storage::fake(self::CANDIDATE_DISK);
+        $admin = User::factory()->crockenhillAdmin()->create();
+
+        $path = 'section-publications/1-abcdef0123456789/video.mp4';
+        $section = ServiceSection::factory()->create([
+            'publication_status' => ServiceSectionPublicationStatus::Approved,
+            'extracted_video_path' => $path,
+        ]);
+
+        Storage::disk(self::CANDIDATE_DISK)->put($path, 'video');
+
+        $response = $this->actingAs($admin)->get(route('admin.services.section-publications.preview-video', $section));
+
+        $response->assertRedirect(Storage::disk(self::CANDIDATE_DISK)->url($path));
+    }
+
+    /**
+     * Legacy rows still naming a `private/` path resolve to the sermon disk,
+     * find nothing there, and present as needing re-extraction. That is the
+     * intended outcome, not a regression.
+     */
+    #[Test]
+    public function audio_preview_returns_404_for_a_legacy_private_path(): void
+    {
+        Storage::fake(self::CANDIDATE_DISK);
+        Storage::fake('local');
+        $admin = User::factory()->crockenhillAdmin()->create();
+
+        $section = ServiceSection::factory()->create([
+            'publication_status' => ServiceSectionPublicationStatus::Approved,
+            'extracted_audio_path' => 'private/section-publications/1/audio.mp3',
+        ]);
+
+        Storage::disk('local')->put('private/section-publications/1/audio.mp3', 'audio');
+
+        $response = $this->actingAs($admin)->get(route('admin.services.section-publications.preview-audio', $section));
+        $response->assertStatus(404);
+    }
+
     // ── published sections blocked ─────────────────────────────────────────
 
     #[Test]
     public function audio_preview_returns_404_for_published_section(): void
     {
-        Storage::fake('local');
+        Storage::fake(self::CANDIDATE_DISK);
         $admin = User::factory()->crockenhillAdmin()->create();
 
         $section = ServiceSection::factory()->create([
             'publication_status' => ServiceSectionPublicationStatus::Published,
-            'extracted_audio_path' => 'private/section-publications/99/audio.mp3',
+            'extracted_audio_path' => 'section-publications/99-abcdef0123456789/audio.mp3',
         ]);
 
-        Storage::disk('local')->put('private/section-publications/99/audio.mp3', 'audio');
+        Storage::disk(self::CANDIDATE_DISK)->put('section-publications/99-abcdef0123456789/audio.mp3', 'audio');
 
         $response = $this->actingAs($admin)->get(route('admin.services.section-publications.preview-audio', $section));
         $response->assertStatus(404);
@@ -64,15 +131,15 @@ class ServiceSectionCandidateMediaControllerTest extends TestCase
     #[Test]
     public function video_preview_returns_404_for_published_section(): void
     {
-        Storage::fake('local');
+        Storage::fake(self::CANDIDATE_DISK);
         $admin = User::factory()->crockenhillAdmin()->create();
 
         $section = ServiceSection::factory()->create([
             'publication_status' => ServiceSectionPublicationStatus::Published,
-            'extracted_video_path' => 'private/section-publications/99/video.mp4',
+            'extracted_video_path' => 'section-publications/99-abcdef0123456789/video.mp4',
         ]);
 
-        Storage::disk('local')->put('private/section-publications/99/video.mp4', 'video');
+        Storage::disk(self::CANDIDATE_DISK)->put('section-publications/99-abcdef0123456789/video.mp4', 'video');
 
         $response = $this->actingAs($admin)->get(route('admin.services.section-publications.preview-video', $section));
         $response->assertStatus(404);
@@ -99,12 +166,12 @@ class ServiceSectionCandidateMediaControllerTest extends TestCase
     #[Test]
     public function audio_preview_returns_404_when_file_does_not_exist(): void
     {
-        Storage::fake('local');
+        Storage::fake(self::CANDIDATE_DISK);
         $admin = User::factory()->crockenhillAdmin()->create();
 
         $section = ServiceSection::factory()->create([
             'publication_status' => ServiceSectionPublicationStatus::Approved,
-            'extracted_audio_path' => 'private/section-publications/1/missing.mp3',
+            'extracted_audio_path' => 'section-publications/1-abcdef0123456789/missing.mp3',
         ]);
 
         // File is not created on disk

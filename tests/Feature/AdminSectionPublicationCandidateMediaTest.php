@@ -18,6 +18,9 @@ class AdminSectionPublicationCandidateMediaTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** The disk phpunit.xml configures as the sermon disk, where candidates live. */
+    private const string CANDIDATE_DISK = 'public';
+
     private User $admin;
 
     protected function setUp(): void
@@ -30,60 +33,72 @@ class AdminSectionPublicationCandidateMediaTest extends TestCase
         ]);
     }
 
+    /**
+     * Candidates live on the sermon disk now, so the bytes are reachable by
+     * anyone holding the key. What the review dashboard must never do is hand
+     * that key out: every link it renders goes through the admin-guarded
+     * preview route, which is where authorisation happens.
+     */
     #[Test]
-    public function extracted_private_candidate_media_is_not_publicly_retrievable_from_a_raw_storage_url(): void
+    public function the_review_dashboard_links_candidate_media_only_through_the_guarded_route(): void
     {
-        Storage::fake('local');
+        Storage::fake(self::CANDIDATE_DISK);
 
         $run = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
-            'extracted_audio_path' => 'private/section-publications/700/audio.mp3',
+            'extracted_audio_path' => 'section-publications/700-abcdef0123456789/audio.mp3',
+            'extracted_video_path' => 'section-publications/700-abcdef0123456789/video.mp4',
         ]);
 
-        Storage::disk('local')->put((string) $section->extracted_audio_path, 'candidate-audio');
+        Storage::disk(self::CANDIDATE_DISK)->put((string) $section->extracted_audio_path, 'candidate-audio');
+        Storage::disk(self::CANDIDATE_DISK)->put((string) $section->extracted_video_path, 'candidate-video');
 
-        $rawUrl = Storage::disk('local')->url((string) $section->extracted_audio_path);
-        $rawPath = (string) (parse_url($rawUrl, PHP_URL_PATH) ?: $rawUrl);
+        $this->actingAs($this->admin);
 
-        $this->get($rawPath)->assertNotFound();
+        $sectionData = app(ServiceReviewDashboardQuery::class)->reviewGroups()[0]['sections'][0];
+
+        $this->assertSame(
+            route('admin.services.section-publications.preview-audio', $section),
+            (string) $sectionData['audio_url'],
+        );
+        $this->assertSame(
+            route('admin.services.section-publications.preview-video', $section),
+            (string) $sectionData['video_url'],
+        );
+
+        // A guest hitting either link is bounced, never served.
+        auth()->logout();
+        $this->get((string) $sectionData['audio_url'])->assertRedirect(route('login'));
     }
 
     #[Test]
     public function authenticated_admins_can_preview_candidate_media_via_the_guarded_dashboard_path(): void
     {
-        Storage::fake('local');
+        Storage::fake(self::CANDIDATE_DISK);
 
         $run = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
-            'extracted_audio_path' => 'private/section-publications/701/audio.mp3',
-            'extracted_video_path' => 'private/section-publications/701/video.mp4',
+            'extracted_audio_path' => 'section-publications/701-abcdef0123456789/audio.mp3',
+            'extracted_video_path' => 'section-publications/701-abcdef0123456789/video.mp4',
         ]);
 
-        Storage::disk('local')->put((string) $section->extracted_audio_path, 'candidate-audio');
-        Storage::disk('local')->put((string) $section->extracted_video_path, 'candidate-video');
+        Storage::disk(self::CANDIDATE_DISK)->put((string) $section->extracted_audio_path, 'candidate-audio');
+        Storage::disk(self::CANDIDATE_DISK)->put((string) $section->extracted_video_path, 'candidate-video');
 
         $this->actingAs($this->admin);
 
-        $query = app(ServiceReviewDashboardQuery::class);
-        $groups = $query->reviewGroups();
+        $sectionData = app(ServiceReviewDashboardQuery::class)->reviewGroups()[0]['sections'][0];
 
-        $audioUrl = (string) $groups[0]['sections'][0]['audio_url'];
-        $videoUrl = (string) $groups[0]['sections'][0]['video_url'];
-
-        $audioResponse = $this->get((string) parse_url($audioUrl, PHP_URL_PATH))
-            ->assertOk()
-            ->assertHeader('Content-Type', 'audio/mpeg');
+        $audioResponse = $this->get((string) parse_url((string) $sectionData['audio_url'], PHP_URL_PATH));
+        $audioResponse->assertRedirect(Storage::disk(self::CANDIDATE_DISK)->url((string) $section->extracted_audio_path));
         $this->assertStringContainsString('private', (string) $audioResponse->headers->get('Cache-Control'));
         $this->assertStringContainsString('no-store', (string) $audioResponse->headers->get('Cache-Control'));
 
-        $videoResponse = $this->get((string) parse_url($videoUrl, PHP_URL_PATH))
-            ->assertOk()
-            ->assertHeader('Content-Type', 'video/mp4');
-        $this->assertStringContainsString('private', (string) $videoResponse->headers->get('Cache-Control'));
-        $this->assertStringContainsString('no-store', (string) $videoResponse->headers->get('Cache-Control'));
+        $videoResponse = $this->get((string) parse_url((string) $sectionData['video_url'], PHP_URL_PATH));
+        $videoResponse->assertRedirect(Storage::disk(self::CANDIDATE_DISK)->url((string) $section->extracted_video_path));
     }
 }

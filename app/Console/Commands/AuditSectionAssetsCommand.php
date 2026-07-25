@@ -12,9 +12,14 @@ use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 /**
- * Read-only counterpart to audit:sermon-assets for the second population living
- * under the `private/` prefix: section-publication preview candidates written by
+ * Read-only counterpart to audit:sermon-assets for the second asset population:
+ * section-publication preview candidates written by
  * PrepareSectionPublicationCandidates.
+ *
+ * Candidates now live on the sermon disk. The private_* columns count legacy
+ * rows still naming a `private/` path — those files went with the local
+ * directory, so they are audited against the sermon disk and report missing,
+ * which is the same "needs re-extraction" signal the review screen already gives.
  *
  * A referenced path with no file behind it is unambiguous loss rather than
  * expiry. CleanupUnpublishedSectionAssetsCommand nulls both path columns inside
@@ -172,7 +177,7 @@ class AuditSectionAssetsCommand extends Command
         }
 
         try {
-            $exists = Storage::disk($section->extractedAssetDisk($path))->exists($path);
+            $exists = Storage::disk($section->extractedAssetDisk())->exists($path);
         } catch (Throwable) {
             $this->countsByKind[$kind]['check_errors']++;
             $this->findings[] = ['section_id' => $section->id, 'kind' => $kind, 'issue' => 'check_error'];

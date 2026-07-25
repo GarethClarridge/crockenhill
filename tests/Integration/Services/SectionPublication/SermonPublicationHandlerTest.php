@@ -72,7 +72,7 @@ class SermonPublicationHandlerTest extends TestCase
     #[Test]
     public function it_checks_reusable_media_requires_both_video_and_audio(): void
     {
-        Storage::fake('local');
+        Storage::fake('public');
 
         $section = ServiceSection::factory()->create([
             'extracted_video_path' => null,
@@ -87,13 +87,13 @@ class SermonPublicationHandlerTest extends TestCase
     #[Test]
     public function it_checks_reusable_media_passes_when_both_paths_exist_on_disk(): void
     {
-        Storage::fake('local');
+        Storage::fake('public');
 
-        $videoPath = 'private/section-publications/1/video.mp4';
-        $audioPath = 'private/section-publications/1/audio.mp3';
+        $videoPath = 'section-publications/1-abcdef0123456789/video.mp4';
+        $audioPath = 'section-publications/1-abcdef0123456789/audio.mp3';
 
-        Storage::disk('local')->put($videoPath, 'video-content');
-        Storage::disk('local')->put($audioPath, 'audio-content');
+        Storage::disk('public')->put($videoPath, 'video-content');
+        Storage::disk('public')->put($audioPath, 'audio-content');
 
         $section = ServiceSection::factory()->create([
             'extracted_video_path' => $videoPath,
@@ -202,14 +202,13 @@ class SermonPublicationHandlerTest extends TestCase
     #[Test]
     public function publish_successfully_promotes_section_to_sermon(): void
     {
-        Storage::fake('local');
         Storage::fake('public');
         config(['media-processing.storage.sermon_disk' => 'public']);
 
-        $videoPath = 'private/section-publications/1/video.mp4';
-        $audioPath = 'private/section-publications/1/audio.mp3';
-        Storage::disk('local')->put($videoPath, 'video-content');
-        Storage::disk('local')->put($audioPath, 'audio-content');
+        $videoPath = 'section-publications/1-abcdef0123456789/video.mp4';
+        $audioPath = 'section-publications/1-abcdef0123456789/audio.mp3';
+        Storage::disk('public')->put($videoPath, 'video-content');
+        Storage::disk('public')->put($audioPath, 'audio-content');
 
         $processingLog = MediaProcessingLog::factory()->audio()->create();
         $section = ServiceSection::factory()->create([
@@ -285,12 +284,12 @@ class SermonPublicationHandlerTest extends TestCase
     #[Test]
     public function publish_throws_exception_when_video_file_is_missing_on_disk(): void
     {
-        Storage::fake('local');
+        Storage::fake('public');
         $processingLog = MediaProcessingLog::factory()->audio()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'extracted_video_path' => 'private/missing.mp4',
-            'extracted_audio_path' => 'private/exists.mp3',
+            'extracted_video_path' => 'section-publications/1-abcdef0123456789/missing.mp4',
+            'extracted_audio_path' => 'section-publications/1-abcdef0123456789/exists.mp3',
         ]);
 
         $this->identityResolver->shouldReceive('resolve')
@@ -307,14 +306,14 @@ class SermonPublicationHandlerTest extends TestCase
     #[Test]
     public function publish_throws_exception_when_audio_file_is_missing_on_disk(): void
     {
-        Storage::fake('local');
-        Storage::disk('local')->put('private/video.mp4', 'content');
+        Storage::fake('public');
+        Storage::disk('public')->put('section-publications/1-abcdef0123456789/video.mp4', 'content');
 
         $processingLog = MediaProcessingLog::factory()->audio()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'extracted_video_path' => 'private/video.mp4',
-            'extracted_audio_path' => 'private/missing.mp3',
+            'extracted_video_path' => 'section-publications/1-abcdef0123456789/video.mp4',
+            'extracted_audio_path' => 'section-publications/1-abcdef0123456789/missing.mp3',
         ]);
 
         $this->identityResolver->shouldReceive('resolve')
@@ -331,15 +330,15 @@ class SermonPublicationHandlerTest extends TestCase
     #[Test]
     public function publish_throws_exception_when_identity_resolution_fails(): void
     {
-        Storage::fake('local');
-        Storage::disk('local')->put('private/video.mp4', 'content');
-        Storage::disk('local')->put('private/audio.mp3', 'content');
+        Storage::fake('public');
+        Storage::disk('public')->put('section-publications/1-abcdef0123456789/video.mp4', 'content');
+        Storage::disk('public')->put('section-publications/1-abcdef0123456789/audio.mp3', 'content');
 
         $processingLog = MediaProcessingLog::factory()->audio()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'extracted_video_path' => 'private/video.mp4',
-            'extracted_audio_path' => 'private/audio.mp3',
+            'extracted_video_path' => 'section-publications/1-abcdef0123456789/video.mp4',
+            'extracted_audio_path' => 'section-publications/1-abcdef0123456789/audio.mp3',
         ]);
 
         $this->identityResolver->shouldReceive('resolve')
@@ -356,15 +355,15 @@ class SermonPublicationHandlerTest extends TestCase
     #[Test]
     public function publish_throws_exception_when_approval_signature_is_missing(): void
     {
-        Storage::fake('local');
-        Storage::disk('local')->put('private/video.mp4', 'content');
-        Storage::disk('local')->put('private/audio.mp3', 'content');
+        Storage::fake('public');
+        Storage::disk('public')->put('section-publications/1-abcdef0123456789/video.mp4', 'content');
+        Storage::disk('public')->put('section-publications/1-abcdef0123456789/audio.mp3', 'content');
 
         $processingLog = MediaProcessingLog::factory()->audio()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'extracted_video_path' => 'private/video.mp4',
-            'extracted_audio_path' => 'private/audio.mp3',
+            'extracted_video_path' => 'section-publications/1-abcdef0123456789/video.mp4',
+            'extracted_audio_path' => 'section-publications/1-abcdef0123456789/audio.mp3',
             'metadata' => null,
         ]);
 
@@ -382,15 +381,15 @@ class SermonPublicationHandlerTest extends TestCase
     #[Test]
     public function publish_throws_exception_when_signature_mismatches(): void
     {
-        Storage::fake('local');
-        Storage::disk('local')->put('private/video.mp4', 'content');
-        Storage::disk('local')->put('private/audio.mp3', 'content');
+        Storage::fake('public');
+        Storage::disk('public')->put('section-publications/1-abcdef0123456789/video.mp4', 'content');
+        Storage::disk('public')->put('section-publications/1-abcdef0123456789/audio.mp3', 'content');
 
         $processingLog = MediaProcessingLog::factory()->audio()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'extracted_video_path' => 'private/video.mp4',
-            'extracted_audio_path' => 'private/audio.mp3',
+            'extracted_video_path' => 'section-publications/1-abcdef0123456789/video.mp4',
+            'extracted_audio_path' => 'section-publications/1-abcdef0123456789/audio.mp3',
             'title' => 'Original Title',
         ]);
 
@@ -416,16 +415,16 @@ class SermonPublicationHandlerTest extends TestCase
     #[Test]
     public function publish_throws_exception_for_childrens_talk_with_unresolved_speaker(): void
     {
-        Storage::fake('local');
-        Storage::disk('local')->put('private/video.mp4', 'content');
-        Storage::disk('local')->put('private/audio.mp3', 'content');
+        Storage::fake('public');
+        Storage::disk('public')->put('section-publications/1-abcdef0123456789/video.mp4', 'content');
+        Storage::disk('public')->put('section-publications/1-abcdef0123456789/audio.mp3', 'content');
 
         $processingLog = MediaProcessingLog::factory()->audio()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'section_type' => ServiceSectionType::ChildrensTalk->value,
-            'extracted_video_path' => 'private/video.mp4',
-            'extracted_audio_path' => 'private/audio.mp3',
+            'extracted_video_path' => 'section-publications/1-abcdef0123456789/video.mp4',
+            'extracted_audio_path' => 'section-publications/1-abcdef0123456789/audio.mp3',
         ]);
 
         $section->metadata = ServiceSectionMetadata::fromArray([
@@ -448,16 +447,16 @@ class SermonPublicationHandlerTest extends TestCase
     #[Test]
     public function publish_throws_exception_when_transition_to_published_fails(): void
     {
-        Storage::fake('local');
-        Storage::disk('local')->put('private/video.mp4', 'content');
-        Storage::disk('local')->put('private/audio.mp3', 'content');
+        Storage::fake('public');
+        Storage::disk('public')->put('section-publications/1-abcdef0123456789/video.mp4', 'content');
+        Storage::disk('public')->put('section-publications/1-abcdef0123456789/audio.mp3', 'content');
 
         $processingLog = MediaProcessingLog::factory()->audio()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'section_type' => ServiceSectionType::Sermon->value,
-            'extracted_video_path' => 'private/video.mp4',
-            'extracted_audio_path' => 'private/audio.mp3',
+            'extracted_video_path' => 'section-publications/1-abcdef0123456789/video.mp4',
+            'extracted_audio_path' => 'section-publications/1-abcdef0123456789/audio.mp3',
         ]);
 
         $section->metadata = ServiceSectionMetadata::fromArray([

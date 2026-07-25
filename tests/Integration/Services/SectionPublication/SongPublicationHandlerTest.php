@@ -69,7 +69,7 @@ class SongPublicationHandlerTest extends TestCase
             'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'extracted_video_path' => $videoPath,
-            'extracted_audio_path' => 'private/section-publications/audio.mp3',
+            'extracted_audio_path' => 'section-publications/audio.mp3',
             'extracted_at' => now(),
             'start_time' => 60.0,
             'end_time' => 240.0,
@@ -91,7 +91,7 @@ class SongPublicationHandlerTest extends TestCase
     #[Test]
     public function it_checks_reusable_media_requires_only_video(): void
     {
-        Storage::fake('local');
+        Storage::fake('public');
 
         $section = ServiceSection::factory()->create([
             'extracted_video_path' => null,
@@ -106,10 +106,10 @@ class SongPublicationHandlerTest extends TestCase
     #[Test]
     public function it_checks_reusable_media_passes_with_video_only(): void
     {
-        Storage::fake('local');
+        Storage::fake('public');
 
-        $videoPath = 'private/section-publications/1/video.mp4';
-        Storage::disk('local')->put($videoPath, 'video-content');
+        $videoPath = 'section-publications/1-abcdef0123456789/video.mp4';
+        Storage::disk('public')->put($videoPath, 'video-content');
 
         $section = ServiceSection::factory()->create([
             'extracted_video_path' => $videoPath,
@@ -210,7 +210,6 @@ class SongPublicationHandlerTest extends TestCase
     #[Test]
     public function it_publishes_a_song_section_and_creates_song_video(): void
     {
-        Storage::fake('local');
         Storage::fake('public');
         config(['media-processing.storage.sermon_disk' => 'public']);
 
@@ -218,8 +217,8 @@ class SongPublicationHandlerTest extends TestCase
         $this->audioEnhancement->shouldReceive('enhanceVideo')->andReturn(null);
 
         $song = Song::factory()->create();
-        $videoPath = 'private/section-publications/99/video.mp4';
-        Storage::disk('local')->put($videoPath, 'extracted-video-content');
+        $videoPath = 'section-publications/99-abcdef0123456789/video.mp4';
+        Storage::disk('public')->put($videoPath, 'extracted-video-content');
 
         $section = $this->makePublishableSection($song, $videoPath);
 
@@ -247,7 +246,7 @@ class SongPublicationHandlerTest extends TestCase
     {
         Log::spy();
 
-        Storage::fake('local');
+        Storage::fake('public');
 
         $song = Song::factory()->create();
         $item = ChurchServiceItem::factory()->create(['song_id' => $song->id]);
@@ -259,7 +258,7 @@ class SongPublicationHandlerTest extends TestCase
             'section_type' => ServiceSectionType::Song->value,
             'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
-            'extracted_video_path' => 'private/section-publications/99/video.mp4',
+            'extracted_video_path' => 'section-publications/99-abcdef0123456789/video.mp4',
             'extracted_audio_path' => null,
             'extracted_at' => now(),
         ]);
@@ -341,13 +340,12 @@ class SongPublicationHandlerTest extends TestCase
     #[Test]
     public function publish_promotes_enhanced_video_when_enhancement_succeeds(): void
     {
-        Storage::fake('local');
         Storage::fake('public');
         config(['media-processing.storage.sermon_disk' => 'public']);
 
         $song = Song::factory()->create();
-        $videoPath = 'private/section-publications/1/video.mp4';
-        Storage::disk('local')->put($videoPath, 'original-video-content');
+        $videoPath = 'section-publications/1-abcdef0123456789/video.mp4';
+        Storage::disk('public')->put($videoPath, 'original-video-content');
 
         // Create a real temp file as the "enhanced" output so promoteLocalFileAsVideo can stream it.
         $enhancedTempPath = tempnam(sys_get_temp_dir(), 'enhanced_').'.mp4';
@@ -368,7 +366,7 @@ class SongPublicationHandlerTest extends TestCase
         $this->assertEquals('enhanced-video-content', Storage::disk('public')->get($expectedPath));
 
         // The original extracted clip should be removed from the source disk.
-        Storage::disk('local')->assertMissing($videoPath);
+        Storage::disk('public')->assertMissing($videoPath);
 
         // Temp file should have been cleaned up by the finally block.
         $this->assertFileDoesNotExist($enhancedTempPath);
@@ -377,13 +375,12 @@ class SongPublicationHandlerTest extends TestCase
     #[Test]
     public function publish_promotes_original_clip_when_enhancement_returns_null(): void
     {
-        Storage::fake('local');
         Storage::fake('public');
         config(['media-processing.storage.sermon_disk' => 'public']);
 
         $song = Song::factory()->create();
-        $videoPath = 'private/section-publications/2/video.mp4';
-        Storage::disk('local')->put($videoPath, 'original-video-content');
+        $videoPath = 'section-publications/2-abcdef0123456789/video.mp4';
+        Storage::disk('public')->put($videoPath, 'original-video-content');
 
         $this->audioEnhancement->shouldReceive('enhanceVideo')->andReturn(null);
 
@@ -402,13 +399,12 @@ class SongPublicationHandlerTest extends TestCase
     #[Test]
     public function publish_cleans_up_enhanced_temp_file_after_promotion(): void
     {
-        Storage::fake('local');
         Storage::fake('public');
         config(['media-processing.storage.sermon_disk' => 'public']);
 
         $song = Song::factory()->create();
-        $videoPath = 'private/section-publications/3/video.mp4';
-        Storage::disk('local')->put($videoPath, 'video-content');
+        $videoPath = 'section-publications/3-abcdef0123456789/video.mp4';
+        Storage::disk('public')->put($videoPath, 'video-content');
 
         $enhancedTempPath = tempnam(sys_get_temp_dir(), 'cleanup_test_').'.mp4';
         file_put_contents($enhancedTempPath, 'enhanced-content');
@@ -426,7 +422,6 @@ class SongPublicationHandlerTest extends TestCase
     #[Test]
     public function publish_is_unchanged_when_audio_enhancement_is_disabled(): void
     {
-        Storage::fake('local');
         Storage::fake('public');
         config(['media-processing.storage.sermon_disk' => 'public']);
 
@@ -434,8 +429,8 @@ class SongPublicationHandlerTest extends TestCase
         $this->audioEnhancement->shouldReceive('enhanceVideo')->andReturn(null);
 
         $song = Song::factory()->create();
-        $videoPath = 'private/section-publications/4/video.mp4';
-        Storage::disk('local')->put($videoPath, 'video-content');
+        $videoPath = 'section-publications/4-abcdef0123456789/video.mp4';
+        Storage::disk('public')->put($videoPath, 'video-content');
 
         $section = $this->makePublishableSection($song, $videoPath);
 

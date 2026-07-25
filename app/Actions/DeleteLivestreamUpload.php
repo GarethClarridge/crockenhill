@@ -215,12 +215,12 @@ class DeleteLivestreamUpload
     {
         $videoPath = $section->extracted_video_path;
         if (is_string($videoPath) && $videoPath !== '') {
-            $this->addStoredTarget($targets, $section->extractedAssetDisk($videoPath), $videoPath);
+            $this->addStoredTarget($targets, $section->extractedAssetDisk(), $videoPath);
         }
 
         $audioPath = $section->extracted_audio_path;
         if (is_string($audioPath) && $audioPath !== '') {
-            $this->addStoredTarget($targets, $section->extractedAssetDisk($audioPath), $audioPath);
+            $this->addStoredTarget($targets, $section->extractedAssetDisk(), $audioPath);
         }
     }
 

@@ -1,12 +1,20 @@
 # Move Children's-Talk Asset Storage to Spaces
 
-> **Status (2026-07-25): WP0, WP1, WP3a and WP3b are DONE. WP2's production run is CANCELLED as a
-> no-op — WP1 found both private populations empty in production, so there was nothing to move (see
-> §4 WP1's result). Only WP4 remains, plus two loose ends: WP0's two-deploy acceptance check is still
-> unverified, and the `app-private` volume plus its `config/backup.php` entry come out after WP4.**
+> **Status (2026-07-25): every code work package is DONE — WP0, WP1, WP3a, WP3b and WP4. WP2's
+> production run is CANCELLED as a no-op — WP1 found both private populations empty in production, so
+> there was nothing to move (see §4 WP1's result). Two loose ends remain, both operator-side: WP0's
+> two-deploy acceptance check is still unverified, and the `app-private` volume plus its
+> `config/backup.php` entry now come out (see §4 WP4's result).**
 >
-> Note for anyone reading §3.2's deletion table: it is wrong about `MediaAssetPath`, which belongs to
-> WP4, not WP3b. See WP3b's result note for that and two other places it undercounted.
+> Note for anyone reading §3.2's deletion table: it is wrong about `MediaAssetPath`. That file was
+> never WP3b's to delete, and WP4 did not delete it either — it reduced it to
+> `isPrivate()` (a reporting predicate the audits still need) plus `disk()` (which takes no path).
+> See WP3b's result note for two further places §3.2 undercounted.
+>
+> **Anywhere below that gates an action on "after WP2 has been verified in production", read "after
+> WP4".** WP2's production run was cancelled as a no-op, so that verification will never happen; the
+> condition it was standing in for — the files are safely on the sermon disk and the audits are clean
+> — is what WP4 discharges. This affects §2.1, §3.2's last row, §4 WP0's redesign note, §6 and §8.
 >
 > ## Deploy note — 2026-07-25
 >
@@ -382,9 +390,10 @@ because sitemap and API exclusion (§2.2) mean *discovery* remains gated even af
 **3. Candidate keys are enumerable, unlike sermon keys.** `candidateAudioDirectory()` (`:285`)
 produces `private/section-publications/{section->id}`, and the video is `…/{id}/video.mp4` — a
 sequential integer, not a UUID. On the local disk that does not matter. On a public bucket it means
-unpublished review clips could be walked by section id. WP4 therefore adds a random component to
+unpublished review clips could be walked by section id. WP4 therefore adds an unguessable component to
 the directory (§4 WP4); this is the one place where moving to public storage needs a small design
-change rather than a deletion.
+change rather than a deletion. **As shipped it is HMAC-derived rather than random** — see WP4's
+result for why a per-extraction random value would have leaked orphaned objects onto the bucket.
 
 ### 3.4 The migration is the existing job, reversed by a parameter
 
@@ -432,7 +441,7 @@ migrate one, assert the source survives.
 | WP3a | Remove the observer re-privatise hook — **done 2026-07-25**, ships with WP0 | refactor | — |
 | WP2 | De-privatise children's-talk assets — code done 2026-07-25; **production run CANCELLED as a no-op** (WP1 found nothing to move); code deleted by WP3b | code/ops | WP1, WP3a |
 | WP3b | Delete the rest of the `private/` machinery — **DONE 2026-07-25** | refactor | WP1 (not WP2's run) |
-| WP4 | Section-publication candidates off `private/` | code | WP3b |
+| WP4 | Section-publication candidates off `private/` — **DONE 2026-07-25** | code | WP3b |
 
 Two work packages of code where there were five, and no new configuration surface.
 
@@ -737,6 +746,60 @@ Small, because §2.5 found the population is already disk-agnostic everywhere bu
 - **Acceptance:** `audit:section-assets` clean; a section's candidate pair previews in the admin UI;
   publishing a section still promotes and still deletes its source.
 
+#### WP4 RESULT — DONE, 2026-07-25
+
+Landed in full. All four gates green: pint, phpstan (541 files, 0 errors), the parallel suite
+(5,534 tests) and Dusk (47 tests). `grep -rn "private/" app` now returns **comments only** — the
+prefix has no behavioural presence anywhere in the application.
+
+**Two deliberate deviations from the WP text, both documented in code:**
+
+1. **`MediaAssetPath::isPrivate()` was kept, not deleted.** WP4's bullet said it "can then go", but
+   WP3b had already made the opposite call for `AuditSermonAssetsCommand`, keeping private detection
+   so a regression is *reported* rather than silently audited against the wrong disk. Deleting
+   `isPrivate()` would have forced the `private_referenced` / `private_missing` columns out of both
+   audits and taken that detection with them. What WP4 actually removed is the prefix's *power*:
+   `diskForPath()` is gone, replaced by `MediaAssetPath::disk()`, which takes no path at all. The
+   predicate survives as a pure reporting label with no routing consequence.
+
+2. **The candidate directory's extra component is HMAC-derived, not random.** WP4 specified a random
+   component "stable within one extraction, not derivable afterwards". A per-extraction random value
+   would orphan the previous `video.mp4` on a public bucket every time a section is re-extracted
+   (which happens whenever its classification signature changes) — nothing cleans those up, because
+   `CleanupUnpublishedSectionAssetsCommand` only knows the path the row currently names. The slug is
+   instead `substr(hash_hmac('sha256', 'section-publication-candidate:'.$id, config('app.key')), 0, 16)`:
+   stable per section, so re-extraction overwrites; unguessable from outside, which is the property
+   §3.3 actually wanted.
+
+**Signature change worth knowing about:** `ServiceSection::extractedAssetDisk()` now takes **no
+argument**, at ten call sites. Leaving the parameter in place would have preserved a per-path seam
+that no longer exists.
+
+**Test disposition.** Two tests had their premise inverted by the change and were rewritten rather
+than deleted:
+
+- `ExtractedSectionMediaCheckerTest::it_handles_private_disk_correctly` →
+  `it_reports_legacy_private_paths_as_missing`. A legacy row now resolves to the sermon disk, finds
+  nothing, and presents as needing re-extraction — the outcome WP4 predicted.
+- `AdminSectionPublicationCandidateMediaTest`'s "not publicly retrievable from a raw storage URL"
+  test. On a public-read bucket that guarantee is gone by design, so asserting it would have been a
+  lie. It now asserts the guarantee that *does* survive: the review dashboard links candidate media
+  **only** through the admin-guarded preview route, and a guest hitting that route is bounced.
+
+Added: a candidate-audio/video same-disk-and-directory test on the extraction job (the split-pair
+risk in §6), a legacy-private-path 404 test on the preview controller, and a legacy-private-path
+counting test on `audit:section-assets`. Candidate video paths are asserted by shape
+(`section-publications/{id}-[0-9a-f]{16}/video.mp4`) rather than by recomputing the slug, so the test
+is not just comparing the derivation to itself.
+
+**Cutover note, as the WP required:** no migration was written for candidates in flight. Rows still
+naming `private/…` resolve to the sermon disk, find nothing, and show as needing re-extraction. That
+is correct, and it is the same state a deploy has been producing all along — not a regression.
+
+**Remaining after this:** the `app-private` volume (compose mount + declaration, Dockerfile `mkdir`,
+entrypoint chown/chmod) and `config/backup.php`'s `storage_path('app/private')` entry, plus WP0's
+still-unverified two-deploy acceptance check.
+
 ---
 
 ## 5. Interactions
@@ -786,11 +849,11 @@ requirement that every serving test be parameterised over two disk drivers.
 | Source deletion silently no-ops, leaving orphaned private objects | Existing `deleteSourceAfterCommit()` verifies then re-checks existence (`:408-428`); WP2 asserts it |
 | Leaked CDN URL grants indefinite access | Accepted (§3.3): keys are UUID-named so not enumerable, sitemap/API exclusion keeps discovery gated, and the content is destined to be public |
 | **A public object cannot be un-published from caches and crawlers** | The one irreversible step; flagged in §3.3 against the maintainer's recorded position rather than silently accepted |
-| Candidate keys enumerable by section id on a public bucket | WP4 adds a random component to the candidate directory |
-| Candidate audio and video split across two disks | WP4 changes `candidateDisk()` **and** the `:250` literal together; tests assert both land on one disk |
+| Candidate keys enumerable by section id on a public bucket | **Closed by WP4**: the candidate directory carries an unguessable per-section component (HMAC of the id under `app.key`) |
+| Candidate audio and video split across two disks | **Closed by WP4**: `candidateDisk()` and the `extractOptimizedAudio()` literal changed together, and a test asserts the pair shares a disk *and* a directory |
 | Access gate weakened while storage changes | The gate is untouched code (§2.2); `Security/ChildrensTalkAssetSecurityTest` and `SermonAssetSecurityTest` are kept and must still prove guest→login, member→asset |
 | `childrens_talk_public` audit finding flags the migrated archive | Removed in WP3b, together with the observer hook and the promotion guard |
-| WP0's `app-private` volume outlives its purpose | Comment references this plan; removed after WP2 is verified, as the last step (§8) |
+| WP0's `app-private` volume outlives its purpose | Comment references this plan; **now due for removal** — WP4 has landed and WP2's run was cancelled, so this is the last remaining step (§8) |
 | Candidates in flight break at the WP4 cutover | Accepted and documented: they are regenerable and already present as needing re-extraction after any deploy |
 
 ## 7. What this plan does not do
@@ -806,16 +869,23 @@ requirement that every serving test be parameterised over two disk drivers.
 
 ## 8. Rollback
 
+**Updated after WP4, 2026-07-25.** WP2's production run was cancelled and its code deleted in WP3b,
+so the WP2 rollback paths below are historical — there is no mover to re-run in the forward
+direction, and nothing was moved. What remains is a deploy-shaped rollback.
+
 - **WP0** is additive and has no rollback — an unmounted volume is the bug.
-- **WP2, before sources are deleted:** the local `private/…` copies are still present and
-  byte-identical. Re-run the migration in the forward direction (the job is bidirectional by
-  construction, §3.4) and revert WP3a. Recovery is one deploy plus one command.
-- **WP2, after sources are deleted:** the Spaces objects are the source of truth. Reverting means
-  running the forward direction back onto local, which requires `app-private` to still be mounted —
-  hence the ordering below.
-- **`app-private` is the floor.** Keep it mounted until WP2 has survived several deploys and
-  `audit:sermon-assets` is clean. Removing it is the last step of the whole plan, not part of WP2.
-- **WP4** is a config-shaped change plus one controller; candidates are ephemeral, so rollback is a
-  revert and a re-extraction.
-- Objects are never deleted in the same operation that copies them, in either direction. That is what
-  makes rollback non-destructive up to the point where sources are explicitly removed.
+- **WP3b and WP4** are code-only: rollback is a revert and a deploy. No data moved, so nothing has to
+  be moved back. Candidates written under the new keys become unreferenced on a revert; they are
+  ephemeral and regenerable, and present as needing re-extraction, which is the same state a deploy
+  has always produced.
+- **`app-private` is no longer the floor.** It was kept mounted to protect files WP2 would move; WP1
+  proved there were none, and WP4 removed the last writer to `private/`. **Removing the volume is now
+  the last remaining step of the plan** — the four sites in §3.2's last row, plus
+  `config/backup.php`'s `storage_path('app/private')` entry, which WP3b deliberately left in place
+  rather than quietly reducing backup coverage during a refactor.
+- **Do not remove `app-livestream`.** It is permanent and unrelated: it persists original uploaded
+  recordings (§2.1's third population), which nothing in this plan moves to Spaces.
+
+*Historical, retained because it explains the ordering above:* WP2 was designed so objects were never
+deleted in the same operation that copied them, in either direction, making rollback non-destructive
+up to the point where sources were explicitly removed. That property was never exercised.

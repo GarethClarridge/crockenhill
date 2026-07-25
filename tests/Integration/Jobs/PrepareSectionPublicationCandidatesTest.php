@@ -84,7 +84,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'start_time' => 120.0,
             'end_time' => 420.0,
         ]);
-        $expectedAudioPath = 'private/section-publications/'.$section->id.'/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
+        $expectedAudioPath = 'section-publications/'.$section->id.'-0123456789abcdef/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
@@ -115,7 +115,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
         $this->assertFalse($section->needs_manual_review);
         $this->assertSame($expectedAudioPath, $section->extracted_audio_path);
-        $this->assertSame('private/section-publications/'.$section->id.'/video.mp4', $section->extracted_video_path);
+        $videoPath = $this->assertCandidateVideoPath($section);
         $this->assertNotNull($section->extracted_at);
         $this->assertNotNull($section->unpublished_expires_at);
         $this->assertSame('matched', $section->metadata['childrens_talk_speaker']['predicted']['outcome'] ?? null);
@@ -125,8 +125,10 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'step' => ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES,
             'status' => 'completed',
         ]);
-        Storage::disk('local')->assertExists('private/section-publications/'.$section->id.'/video.mp4');
-        Storage::disk('public')->assertMissing('private/section-publications/'.$section->id.'/video.mp4');
+        // Candidates live on the sermon disk, not the local one that a production
+        // deploy wipes — and audio and video must land on the *same* disk.
+        Storage::disk('public')->assertExists($videoPath);
+        Storage::disk('local')->assertMissing($videoPath);
     }
 
     #[Test]
@@ -243,7 +245,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'start_time' => 120.0,
             'end_time' => 420.0,
         ]);
-        $expectedAudioPath = 'private/section-publications/'.$section->id.'/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
+        $expectedAudioPath = 'section-publications/'.$section->id.'-0123456789abcdef/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
@@ -329,7 +331,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'start_time' => 200.0,
             'end_time' => 680.0,
         ]);
-        $expectedAudioPath = 'private/section-publications/'.$section->id.'/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
+        $expectedAudioPath = 'section-publications/'.$section->id.'-0123456789abcdef/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
@@ -433,7 +435,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'start_time' => 120.0,
             'end_time' => 420.0,
         ]);
-        $expectedAudioPath = 'private/section-publications/'.$section->id.'/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
+        $expectedAudioPath = 'section-publications/'.$section->id.'-0123456789abcdef/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
         Storage::disk('local')->put($expectedAudioPath, 'fresh-section-audio');
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
@@ -463,7 +465,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $section->refresh();
 
         $this->assertSame($expectedAudioPath, $section->extracted_audio_path);
-        $this->assertSame('private/section-publications/'.$section->id.'/video.mp4', $section->extracted_video_path);
+        $this->assertCandidateVideoPath($section);
         $this->assertSame(
             $section->classificationSignature(),
             $section->metadata['publication_candidate_extraction']['classification_signature'] ?? null
@@ -646,5 +648,107 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $section->refresh();
         $this->assertNotNull($section->extracted_video_path);
         $this->assertNull($section->extracted_audio_path);
+    }
+
+    /**
+     * Audio and video of one section must land on the same disk. Changing only
+     * the video's disk would split the pair, and DeleteLivestreamUpload's
+     * per-field disk map would then be right about one and wrong about the other.
+     */
+    #[Test]
+    public function it_extracts_candidate_audio_onto_the_same_disk_and_directory_as_the_video(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => ['childrens_talk' => SermonPublicationHandler::class],
+            'media-processing.speaker_identification.enabled' => false,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'source_file_path' => 'livestreams/source.mp4',
+        ]);
+
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'status' => ServiceSectionStatus::Identified->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'metadata' => ['confidence_level' => 'high'],
+            'start_time' => 120.0,
+            'end_time' => 420.0,
+        ]);
+
+        $capturedAudioDirectory = null;
+
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->willReturn('temp/section-video.mp4');
+        $videoExtractor->expects($this->once())
+            ->method('extractOptimizedAudio')
+            ->with(
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+                'public',
+                $this->callback(function (?string $directory) use (&$capturedAudioDirectory): bool {
+                    $capturedAudioDirectory = $directory;
+
+                    return true;
+                }),
+            )
+            ->willReturn([
+                'audio_path' => 'section-publications/captured/audio.mp3',
+                'full_path' => '/tmp/audio.mp3',
+                'original_size' => 1024,
+                'final_size' => 1024,
+                'compression_applied' => false,
+                'compression_ratio' => 1.0,
+                'valid_for_transcription' => true,
+            ]);
+
+        $job = new PrepareSectionPublicationCandidates($processingLog);
+        $job->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
+
+        $section->refresh();
+
+        $videoPath = $this->assertCandidateVideoPath($section);
+        $this->assertSame(dirname($videoPath), $capturedAudioDirectory);
+    }
+
+    /**
+     * Asserts the stored candidate video path has the shape WP4 requires, and
+     * returns it.
+     *
+     * The clips are unpublished review material on a public-read bucket, so the
+     * key must not be derivable from the section id — hence the trailing
+     * component. It is deliberately not recomputed here: a test that repeated
+     * the derivation would only be comparing it to itself.
+     */
+    private function assertCandidateVideoPath(ServiceSection $section): string
+    {
+        $path = (string) $section->extracted_video_path;
+
+        $this->assertMatchesRegularExpression(
+            '#^section-publications/'.$section->id.'-[0-9a-f]{16}/video\.mp4$#',
+            $path,
+            'Candidate video must sit under a per-section directory that cannot be walked by id.',
+        );
+
+        return $path;
     }
 }

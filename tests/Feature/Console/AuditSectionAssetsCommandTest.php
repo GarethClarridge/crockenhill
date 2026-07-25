@@ -30,12 +30,12 @@ class AuditSectionAssetsCommandTest extends TestCase
     public function it_passes_when_every_referenced_candidate_exists(): void
     {
         ServiceSection::factory()->create([
-            'extracted_video_path' => 'private/section-publications/1/video.mp4',
-            'extracted_audio_path' => 'private/section-publications/1/audio.mp3',
+            'extracted_video_path' => 'section-publications/1/video.mp4',
+            'extracted_audio_path' => 'section-publications/1/audio.mp3',
         ]);
 
-        Storage::disk('local')->put('private/section-publications/1/video.mp4', 'asset');
-        Storage::disk('local')->put('private/section-publications/1/audio.mp3', 'asset');
+        Storage::disk('public')->put('section-publications/1/video.mp4', 'asset');
+        Storage::disk('public')->put('section-publications/1/audio.mp3', 'asset');
 
         $this->artisan('audit:section-assets')
             ->expectsOutputToContain('Section asset audit is clean')
@@ -53,35 +53,59 @@ class AuditSectionAssetsCommandTest extends TestCase
     public function it_reports_a_referenced_candidate_whose_file_is_gone_without_printing_the_path(): void
     {
         ServiceSection::factory()->create([
-            'extracted_video_path' => 'private/section-publications/7/video.mp4',
-            'extracted_audio_path' => 'private/section-publications/7/audio.mp3',
+            'extracted_video_path' => 'section-publications/7/video.mp4',
+            'extracted_audio_path' => 'section-publications/7/audio.mp3',
         ]);
 
-        Storage::disk('local')->put('private/section-publications/7/audio.mp3', 'asset');
+        Storage::disk('public')->put('section-publications/7/audio.mp3', 'asset');
 
         $this->artisan('audit:section-assets')
-            ->doesntExpectOutputToContain('private/section-publications/7/video.mp4')
+            ->doesntExpectOutputToContain('section-publications/7/video.mp4')
             ->expectsOutputToContain('Section asset audit found problems')
             ->assertFailed();
 
         $report = $this->jsonReport();
 
         $this->assertSame(1, $report['kinds']['extracted_video']['missing']);
-        $this->assertSame(1, $report['kinds']['extracted_video']['private_missing']);
+        $this->assertSame(0, $report['kinds']['extracted_video']['private_missing']);
         $this->assertSame(1, $report['kinds']['extracted_audio']['present']);
         $this->assertSame(1, $report['sections']['with_missing_assets']);
         $this->assertArrayNotHasKey('findings', $report);
+    }
+
+    /**
+     * Nothing writes `private/` candidate paths any more. A legacy row is now
+     * audited against the sermon disk like every other row — it reports missing
+     * (the file went with the local private directory) and the private_* columns
+     * say why, so it is not mistaken for an unexplained loss.
+     */
+    #[Test]
+    public function it_counts_legacy_private_candidates_and_reports_them_missing(): void
+    {
+        ServiceSection::factory()->create([
+            'extracted_video_path' => 'private/section-publications/7/video.mp4',
+        ]);
+
+        Storage::disk('local')->put('private/section-publications/7/video.mp4', 'asset');
+
+        $this->artisan('audit:section-assets')->assertFailed();
+
+        $report = $this->jsonReport();
+
+        $this->assertSame(1, $report['kinds']['extracted_video']['private_referenced']);
+        $this->assertSame(1, $report['kinds']['extracted_video']['private_missing']);
+        $this->assertSame(1, $report['kinds']['extracted_video']['missing']);
     }
 
     #[Test]
     public function it_lists_section_ids_but_never_paths_with_the_details_option(): void
     {
         $section = ServiceSection::factory()->create([
-            'extracted_video_path' => 'private/section-publications/9/video.mp4',
+            'extracted_video_path' => 'section-publications/9/video.mp4',
         ]);
 
         $this->artisan('audit:section-assets --details')
-            ->doesntExpectOutputToContain('private/section-publications/9/video.mp4')
+            ->doesntExpectOutputToContain('section-publications/9/video.mp4')
             ->expectsOutputToContain((string) $section->id)
             ->assertFailed();
 
@@ -131,7 +155,7 @@ class AuditSectionAssetsCommandTest extends TestCase
         foreach ([$survivingLog, $wipedLog, $noSourceLog] as $log) {
             ServiceSection::factory()->create([
                 'media_processing_log_id' => $log->id,
-                'extracted_video_path' => 'private/section-publications/'.$log->id.'/video.mp4',
+                'extracted_video_path' => 'section-publications/'.$log->id.'/video.mp4',
             ]);
         }
 
@@ -157,7 +181,7 @@ class AuditSectionAssetsCommandTest extends TestCase
             'extracted_video_path' => null,
             'extracted_audio_path' => null,
         ])->each(function (ServiceSection $section): void {
-            $section->extracted_video_path = 'private/section-publications/'.$section->id.'/video.mp4';
+            $section->extracted_video_path = 'section-publications/'.$section->id.'/video.mp4';
             $section->saveQuietly();
         });
 

@@ -134,7 +134,7 @@ class CleanupUnpublishedSectionAssetsCommand extends Command
             return;
         }
 
-        $disk = $section->extractedAssetDisk($path);
+        $disk = $section->extractedAssetDisk();
 
         if (Storage::disk($disk)->exists($path)) {
             Storage::disk($disk)->delete($path);

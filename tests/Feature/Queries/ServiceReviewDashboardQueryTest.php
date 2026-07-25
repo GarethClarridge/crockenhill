@@ -246,8 +246,8 @@ class ServiceReviewDashboardQueryTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
-            'extracted_audio_path' => 'private/section-publications/501/audio.mp3',
-            'extracted_video_path' => 'private/section-publications/501/video.mp4',
+            'extracted_audio_path' => 'section-publications/501/audio.mp3',
+            'extracted_video_path' => 'section-publications/501/video.mp4',
         ]);
 
         $groups = $this->query->reviewGroups();
@@ -276,8 +276,8 @@ class ServiceReviewDashboardQueryTest extends TestCase
             'publication_status' => ServiceSectionPublicationStatus::Published->value,
             'published_sermon_id' => $sermon->id,
             'needs_manual_review' => true,
-            'extracted_audio_path' => 'private/section-publications/502/audio.mp3',
-            'extracted_video_path' => 'private/section-publications/502/video.mp4',
+            'extracted_audio_path' => 'section-publications/502/audio.mp3',
+            'extracted_video_path' => 'section-publications/502/video.mp4',
         ]);
 
         $groups = $this->query->reviewGroups();

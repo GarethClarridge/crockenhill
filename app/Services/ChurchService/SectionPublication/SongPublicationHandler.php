@@ -61,7 +61,7 @@ class SongPublicationHandler implements SectionPublicationHandler
             return false;
         }
 
-        return Storage::disk($section->extractedAssetDisk($videoPath))->exists($videoPath);
+        return Storage::disk($section->extractedAssetDisk())->exists($videoPath);
     }
 
     /**
@@ -129,7 +129,7 @@ class SongPublicationHandler implements SectionPublicationHandler
             throw new \RuntimeException('Section video path missing for song publication');
         }
 
-        if (! Storage::disk($section->extractedAssetDisk($videoPath))->exists($videoPath)) {
+        if (! Storage::disk($section->extractedAssetDisk())->exists($videoPath)) {
             throw new \RuntimeException('Section video file is missing for song publication');
         }
 
@@ -142,7 +142,7 @@ class SongPublicationHandler implements SectionPublicationHandler
         $enhancedTempPath = null;
 
         try {
-            $sourceDiskName = $section->extractedAssetDisk($videoPath);
+            $sourceDiskName = $section->extractedAssetDisk();
             $localInputPath = $this->storageHelper->downloadToTemp(
                 $videoPath,
                 $sourceDiskName,
@@ -213,7 +213,7 @@ class SongPublicationHandler implements SectionPublicationHandler
         $item = $section->churchServiceItem;
         $targetPath = 'sermons/songs/'.$item->song_id.'/'.$section->id.'.mp4';
 
-        $sourceDisk = $section->extractedAssetDisk($sourcePath);
+        $sourceDisk = $section->extractedAssetDisk();
         $targetDisk = $this->sermonDisk();
 
         if ($sourceDisk === $targetDisk && $sourcePath === $targetPath) {
@@ -273,7 +273,7 @@ class SongPublicationHandler implements SectionPublicationHandler
         // Remove the original extracted clip from the source disk now that the enhanced version is promoted.
         $sourcePath = $section->extracted_video_path;
         if (is_string($sourcePath) && $sourcePath !== '') {
-            Storage::disk($section->extractedAssetDisk($sourcePath))->delete($sourcePath);
+            Storage::disk($section->extractedAssetDisk())->delete($sourcePath);
         }
 
         return $targetPath;

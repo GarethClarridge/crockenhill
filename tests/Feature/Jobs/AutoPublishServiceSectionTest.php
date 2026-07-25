@@ -41,8 +41,8 @@ class AutoPublishServiceSectionTest extends TestCase
             'church_service_id' => $churchService->id,
         ]);
 
-        $videoPath = 'private/section-publications/1/video.mp4';
-        Storage::disk('local')->put($videoPath, 'video-content');
+        $videoPath = 'section-publications/1/video.mp4';
+        Storage::disk('public')->put($videoPath, 'video-content');
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,

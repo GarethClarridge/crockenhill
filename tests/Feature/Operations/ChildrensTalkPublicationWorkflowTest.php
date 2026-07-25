@@ -167,12 +167,14 @@ class ChildrensTalkPublicationWorkflowTest extends TestCase
 
         $videoExtractor->method('extractOptimizedAudio')
             ->willReturnCallback(function (string $inputPath, object $segment, string $filename, string $disk, string $directory): array {
+                // Honour the disk the job asks for: candidate audio must land on
+                // the same disk as the candidate video, which is the sermon disk.
                 $audioPath = $directory.'/'.$filename;
-                Storage::disk('local')->put($audioPath, 'section-audio');
+                Storage::disk($disk)->put($audioPath, 'section-audio');
 
                 return [
                     'audio_path' => $audioPath,
-                    'full_path' => Storage::disk('local')->path($audioPath),
+                    'full_path' => Storage::disk($disk)->path($audioPath),
                     'original_size' => 1024,
                     'final_size' => 1024,
                     'compression_applied' => false,

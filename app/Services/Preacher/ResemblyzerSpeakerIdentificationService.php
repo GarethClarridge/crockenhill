@@ -276,7 +276,7 @@ class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationIn
      */
     private function prepareAudioForExtraction(string $audioPath, ?string $disk = null): array
     {
-        $sermonDisk = $disk ?? MediaAssetPath::diskForPath($audioPath);
+        $sermonDisk = $disk ?? MediaAssetPath::disk();
         $sermonFilesystem = Storage::disk($sermonDisk);
 
         if ($this->usesRemoteStorage($sermonDisk)) {

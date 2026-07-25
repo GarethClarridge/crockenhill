@@ -214,9 +214,9 @@ class ServiceSection extends Model
         return hash('sha256', (string) json_encode($this->classificationSignaturePayload()));
     }
 
-    public function extractedAssetDisk(?string $path): string
+    public function extractedAssetDisk(): string
     {
-        return MediaAssetPath::diskForPath($path);
+        return MediaAssetPath::disk();
     }
 
     public function hasConfirmedSongMatch(): bool

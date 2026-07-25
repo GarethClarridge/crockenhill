@@ -16,6 +16,7 @@ use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
+use App\Support\MediaAssetPath;
 use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -248,7 +249,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                     $localSourcePath,
                     $segment,
                     $this->processingLog->processing_id.'_section_'.$section->id.'.mp3',
-                    'local',
+                    $this->candidateDisk(),
                     $this->candidateAudioDirectory($section)
                 );
 
@@ -275,12 +276,31 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
 
     private function candidateDisk(): string
     {
-        return 'local';
+        return MediaAssetPath::disk();
     }
 
     private function candidateAudioDirectory(ServiceSection $section): string
     {
-        return 'private/section-publications/'.$section->id;
+        return 'section-publications/'.$section->id.'-'.$this->candidateDirectorySlug($section);
+    }
+
+    /**
+     * Candidate directories used to be a bare `section-publications/{id}` on the
+     * local disk. On the sermon disk — public-read and CDN-fronted — a sequential
+     * integer would let unpublished review clips be walked by section id, so the
+     * directory gains a component an outsider cannot derive.
+     *
+     * It is keyed on the application key rather than randomised so that it stays
+     * stable for a section: a re-extraction overwrites the previous candidate
+     * instead of orphaning it on a bucket nothing will ever clean up.
+     */
+    private function candidateDirectorySlug(ServiceSection $section): string
+    {
+        return substr(
+            hash_hmac('sha256', 'section-publication-candidate:'.$section->id, (string) config('app.key')),
+            0,
+            16,
+        );
     }
 
     private function candidateVideoPath(ServiceSection $section): string

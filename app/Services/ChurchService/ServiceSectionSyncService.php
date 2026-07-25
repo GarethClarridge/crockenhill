@@ -350,7 +350,7 @@ class ServiceSectionSyncService
             return;
         }
 
-        $disk = $section->extractedAssetDisk($path);
+        $disk = $section->extractedAssetDisk();
 
         try {
             if (Storage::disk($disk)->exists($path)) {

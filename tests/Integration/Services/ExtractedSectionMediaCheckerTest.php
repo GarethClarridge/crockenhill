@@ -96,18 +96,24 @@ class ExtractedSectionMediaCheckerTest extends TestCase
         $this->assertTrue($this->service->hasExtractedMedia($section));
     }
 
+    /**
+     * Legacy rows still naming a `private/` path are audited against the sermon
+     * disk like everything else. The local private directory is gone, so they
+     * correctly present as needing re-extraction rather than being looked up on
+     * a disk production no longer writes to.
+     */
     #[Test]
-    public function it_handles_private_disk_correctly(): void
+    public function it_reports_legacy_private_paths_as_missing(): void
     {
         $section = ServiceSection::factory()->create([
             'extracted_video_path' => 'private/sections/video.mp4',
             'extracted_audio_path' => 'private/sections/audio.mp3',
         ]);
 
-        // Put them on local disk (where private/ files are expected)
+        Storage::fake('local');
         Storage::disk('local')->put('private/sections/video.mp4', 'video content');
         Storage::disk('local')->put('private/sections/audio.mp3', 'audio content');
 
-        $this->assertTrue($this->service->hasExtractedMedia($section));
+        $this->assertFalse($this->service->hasExtractedMedia($section));
     }
 }

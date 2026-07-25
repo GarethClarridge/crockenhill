@@ -123,10 +123,10 @@ class SermonPublicationHandler implements SectionPublicationHandler
             throw new \RuntimeException('Section audio path missing for approved publication');
         }
 
-        if (! Storage::disk($section->extractedAssetDisk($videoPath))->exists($videoPath)) {
+        if (! Storage::disk($section->extractedAssetDisk())->exists($videoPath)) {
             throw new \RuntimeException('Section video file is missing for approved publication');
         }
-        if (! Storage::disk($section->extractedAssetDisk($audioPath))->exists($audioPath)) {
+        if (! Storage::disk($section->extractedAssetDisk())->exists($audioPath)) {
             throw new \RuntimeException('Section audio file is missing for approved publication');
         }
 
@@ -206,7 +206,7 @@ class SermonPublicationHandler implements SectionPublicationHandler
         string $sourcePath,
         string $targetPath,
     ): string {
-        $sourceDisk = $section->extractedAssetDisk($sourcePath);
+        $sourceDisk = $section->extractedAssetDisk();
         $targetDisk = (string) config('media-processing.storage.sermon_disk', config('filesystems.default', 'local'));
 
         if ($sourceDisk === $targetDisk && $sourcePath === $targetPath) {

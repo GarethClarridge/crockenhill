@@ -23,7 +23,8 @@ class ExtractedSectionMediaChecker
             return false;
         }
 
-        return Storage::disk(MediaAssetPath::diskForPath($videoPath))->exists($videoPath)
-            && Storage::disk(MediaAssetPath::diskForPath($audioPath))->exists($audioPath);
+        $disk = Storage::disk(MediaAssetPath::disk());
+
+        return $disk->exists($videoPath) && $disk->exists($audioPath);
     }
 }
