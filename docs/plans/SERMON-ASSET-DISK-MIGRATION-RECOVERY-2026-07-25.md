@@ -1,6 +1,11 @@
 # Recover Sermon Assets Orphaned by the Spaces Disk Migration
 
-> **Status (2026-07-25): evidence gathered, nothing started.** Discovered while running WP1 of
+> **Status (2026-07-25): WP4 done, WP2 code done and unrun, WP1 instrumented, WP3 still blocked.**
+> See §9 for exactly what landed and what the maintainer still has to do. The two outstanding items
+> both need a human: the production `--apply` run (WP2) and a verification method for the transcripts
+> (WP3).
+>
+> **Originally: evidence gathered, nothing started.** Discovered while running WP1 of
 > [CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](../archived-plans/CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md)
 > against production. Nothing here is urgent: the loss stopped when the disk config changed, and no
 > further assets are being orphaned.
@@ -171,12 +176,12 @@ it is cheap: the audit already loops every referenced asset and already knows ev
 
 ## 4. Work packages
 
-| WP | What | Kind | Blocked by |
-|---|---|---|---|
-| WP1 | Measure the real overlap for both families (read-only) | ops | — |
-| WP2 | Restore the stranded thumbnails to Spaces | code/ops | WP1 |
-| WP3 | Restore provably-identified transcripts | code/ops | WP1, content verification |
-| WP4 | Teach the audit to report stranded assets | code | — (do first if convenient) |
+| WP | What | Kind | Blocked by | Status |
+|---|---|---|---|---|
+| WP1 | Measure the real overlap for both families (read-only) | ops | — | **instrumented** — WP4 + WP2's dry run are the measurement; production run outstanding (§9.2) |
+| WP2 | Restore the stranded thumbnails to Spaces | code/ops | WP1 | **code done, unrun** — needs sign-off |
+| WP3 | Restore provably-identified transcripts | code/ops | WP1, content verification | **blocked**, unchanged |
+| WP4 | Teach the audit to report stranded assets | code | — (do first if convenient) | **done** |
 
 ### WP1 — Measure, before building anything
 
@@ -284,3 +289,84 @@ distinct from `missing`. Counts only — a disk *name* is not a path and is safe
 - **WP3** is additive per file. A transcript later found to be misattributed is removed by deleting the
   object and nulling the column — but the safeguard is not restoring it in the first place.
 - **WP4** is a reporting change with no data effect.
+
+---
+
+## 9. Implementation record (2026-07-25)
+
+### 9.1 What landed
+
+**A shared asset enumeration** (`app/Support/SermonAssetReferences.php`). Both commands now read one
+list of `[kind, disk, path]` tuples. This is not tidying: WP2's acceptance criterion is stated in
+terms of the audit's numbers, so if the two enumerated the thumbnail family differently there would be
+no way to verify a restore against an audit. `AuditSermonAssetsCommand::referencedAssets()` moved here
+unchanged.
+
+**WP4 — stranded reporting.** `auditAsset()` now probes the other known disks on a miss and records
+`stranded` with the disk name, distinct from `missing`. Three details worth keeping:
+
+- The probe list is `public` + `local` + whichever disks are *configured* as kind disks — not a
+  hardcoded `do_spaces`. A hardcoded remote disk would have made the audit build an S3 client for
+  every installation that does not use one, including the test suite.
+- A probe that throws is treated as "not here", not as a `check_error`. The expected disk already
+  answered, so the asset's status is known; an unreachable secondary disk must not downgrade a
+  definite `missing`.
+- Probes only run for assets already known to be absent, so a clean audit costs nothing extra.
+
+`stranded` stays inside the failure condition, per §6 — every reader resolves the configured disk, so
+a visitor still gets a 404. A test asserts the partition
+`present + missing + stranded + check_errors == referenced`.
+
+**WP2 — `media:restore-stranded-thumbnails`.** Dry-run by default; `--apply` copies. Streams each
+object across, verifies size, never deletes a source, never writes a path column. Beyond the plan's
+requirements:
+
+- **It never overwrites a live key.** An object present on the target at a *different* size from its
+  source is reported as `size_mismatch` and left alone. Silently calling that "already present" would
+  hide a truncated upload; overwriting it would guess which copy is right.
+- **Legacy `private/` rows are skipped, not guessed at.** They resolve to the local disk, so the key
+  this command would write is not the key the row references.
+- **One object referenced twice is copied once.** The report therefore carries two units: `objects`
+  (distinct storage keys — what happened to the disks) and `references` (per kind, the audit's unit).
+  The per-kind table lines up with the audit's row for row; the summary line reports distinct objects.
+- `--sermon=` limits the run, which is how the plan's "a sermon page renders its thumbnail" acceptance
+  check is done on one sermon before committing to the archive.
+
+### 9.2 WP1 is now a command, not an investigation
+
+§3.3 predicted this and it held. WP4 answers WP1's first question (*which* assets, and whether the
+bytes survive elsewhere) and WP2's dry run answers the second (*per-path* overlap, not a count
+comparison). WP1 no longer needs bespoke work — it is two read-only commands.
+
+**Measured locally on 2026-07-25** (local shares the production Spaces bucket, so the disk resolution
+is identical, but the database is a different population — 832 sermons vs production's):
+
+```
+audit:sermon-assets            1002 referenced, 858 present, 0 missing, 144 stranded, 0 check errors
+                               all 144 stranded on `public`
+media:restore-stranded-…       143 thumbnail-family references restorable (91 distinct objects)
+                               0 unrecoverable, 0 size mismatches
+```
+
+Every asset the audit previously called `missing` is in fact `stranded on public`. That is the
+investigation's conclusion, reproduced by one command, which was WP4's acceptance criterion.
+
+**One transcript is stranded on `public` too.** This sharpens WP3 in a way §2.6 could not: a transcript
+found on another disk *under the exact key its own row records* needs no identity verification at all
+— it is production's own file at production's own path, not a filename-id guess across diverged
+databases. §2.3 measured 0 files under production's `storage/app/public/transcripts`, so the
+expectation is that production's 35 are all genuinely `missing` and none get this easy route. **The
+production WP4 run settles it**, and the answer changes how much of WP3 remains.
+
+### 9.3 What the maintainer still has to do
+
+1. **Run WP1 on production** (read-only, on the server, never through `production-audit.yml`):
+   `audit:sermon-assets --details`, then `media:restore-stranded-thumbnails` with no flags. Expect the
+   56 thumbnails as stranded-on-`public` and the 35 transcripts as `missing`.
+2. **Sign off the WP2 production run.** Suggested sequence: `--apply --sermon=<one id>` first, load
+   that sermon's page, then the full `--apply`, then `audit:sermon-assets` to confirm the
+   thumbnail-family count reaches zero. Sources are retained throughout, so the rollback is deleting
+   the copied objects.
+3. **Decide WP3.** Still blocked, deliberately: no verification method has been agreed, and §2.6's
+   reasoning is unchanged. Whatever step 1 reports about stranded transcripts determines whether any of
+   the 35 have a safe route at all.

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Data\ThumbnailMetadata;
 use App\Enums\SermonContentType;
 use App\Models\Sermon;
 use App\Support\MediaAssetPath;
+use App\Support\SermonAssetReferences;
 use App\Support\SourceMediaPresence;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
@@ -28,6 +28,23 @@ class AuditSermonAssetsCommand extends Command
         'candidate_card',
         'candidate_overlay',
     ];
+
+    /**
+     * Disks probed when a referenced asset is absent from the one its kind is
+     * configured to use. A hit means the bytes survived a disk repointing that
+     * moved the configuration without moving the objects — the fault that
+     * orphaned the thumbnail family, and which read as plain data loss until
+     * somebody probed a key by hand.
+     *
+     * Only the two local disks are named here — the previous homes of every
+     * asset family. Every remote disk reaches the probe set by being a
+     * *configured* kind disk, which both keeps a future disk covered without
+     * editing this list and stops the audit building an S3 client for a bucket
+     * this installation does not use.
+     *
+     * @var list<string>
+     */
+    private const array STRANDED_PROBE_DISKS = ['public', 'local'];
 
     protected $signature = 'audit:sermon-assets
         {--json : Emit the full audit report as JSON}
@@ -60,6 +77,7 @@ class AuditSermonAssetsCommand extends Command
                 'referenced' => 0,
                 'present' => 0,
                 'missing' => 0,
+                'stranded' => 0,
                 'check_errors' => 0,
                 'private_referenced' => 0,
                 'private_missing' => 0,
@@ -77,12 +95,8 @@ class AuditSermonAssetsCommand extends Command
             'missing_and_no_source_reference' => 0,
         ];
 
-        $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
-        $transcriptDisk = (string) config('media-processing.storage.transcript_disk', $sermonDisk);
-        $thumbnailDisk = (string) config('thumbnail-generation.storage.disk', 'public');
-
         $sermons = Sermon::query()
-            ->select(['id', 'content_type', 'audio_file_path', 'video_file_path', 'transcript_file_path', 'thumbnail_file_path', 'thumbnail_metadata'])
+            ->select(['id', 'content_type', ...SermonAssetReferences::selectColumns()])
             ->orderBy('id')
             ->cursor();
 
@@ -96,7 +110,7 @@ class AuditSermonAssetsCommand extends Command
             $hasPrivateAsset = false;
             $hasMissingPrivateAsset = false;
 
-            foreach ($this->referencedAssets($sermon, $sermonDisk, $transcriptDisk, $thumbnailDisk) as [$kind, $kindDisk, $path]) {
+            foreach (SermonAssetReferences::for($sermon) as ['kind' => $kind, 'disk' => $kindDisk, 'path' => $path]) {
                 $outcome = $this->auditAsset($sermon, $kind, $kindDisk, $path);
 
                 if (! MediaAssetPath::isPrivate($path)) {
@@ -145,7 +159,11 @@ class AuditSermonAssetsCommand extends Command
             return self::SUCCESS;
         }
 
-        $this->error('Sermon asset audit found problems (missing assets, storage errors, or publicly placed children\'s-talk assets).');
+        $this->error('Sermon asset audit found problems (missing assets, stranded assets, or storage errors).');
+
+        if ($this->strandedTotal() > 0) {
+            $this->comment('Stranded assets exist on another disk under the same key — their disk was repointed without the objects being moved. `media:restore-stranded-thumbnails` recovers the thumbnail family.');
+        }
 
         if (! (bool) $this->option('details')) {
             $this->comment('Re-run with --details on the server to see which sermons are affected. Storage paths are never printed.');
@@ -155,42 +173,7 @@ class AuditSermonAssetsCommand extends Command
     }
 
     /**
-     * Every asset reference on the sermon row, mirroring the placement contract
-     * used when resolving each asset kind's disk.
-     *
-     * @return list<array{string, string, string}> [kind, kindDisk, path]
-     */
-    private function referencedAssets(Sermon $sermon, string $sermonDisk, string $transcriptDisk, string $thumbnailDisk): array
-    {
-        $assets = [
-            ['audio', $sermonDisk, $sermon->audio_file_path],
-            ['video', $sermonDisk, $sermon->video_file_path],
-            ['transcript', $transcriptDisk, $sermon->transcript_file_path],
-            ['thumbnail', $thumbnailDisk, $sermon->thumbnail_file_path],
-        ];
-
-        $metadata = $sermon->thumbnail_metadata;
-
-        if ($metadata instanceof ThumbnailMetadata) {
-            $assets[] = ['plain_thumbnail', $thumbnailDisk, $metadata->plainThumbnailPath];
-            $assets[] = ['card_thumbnail', $thumbnailDisk, $metadata->cardThumbnailPath];
-            $assets[] = ['overlay_thumbnail', $thumbnailDisk, $metadata->overlayThumbnailPath];
-
-            foreach ($metadata->thumbnailCandidates as $candidate) {
-                $assets[] = ['candidate_plain', $thumbnailDisk, $candidate['plain_path']];
-                $assets[] = ['candidate_card', $thumbnailDisk, $candidate['card_path'] ?? null];
-                $assets[] = ['candidate_overlay', $thumbnailDisk, $candidate['overlay_path'] ?? null];
-            }
-        }
-
-        return array_values(array_filter(
-            $assets,
-            fn (array $asset): bool => is_string($asset[2]) && $asset[2] !== '',
-        ));
-    }
-
-    /**
-     * @return 'present'|'missing'|'check_error'
+     * @return 'present'|'missing'|'stranded'|'check_error'
      */
     private function auditAsset(Sermon $sermon, string $kind, string $kindDisk, string $path): string
     {
@@ -216,21 +199,74 @@ class AuditSermonAssetsCommand extends Command
             return 'check_error';
         }
 
-        if (! $exists) {
-            $this->countsByKind[$kind]['missing']++;
+        if ($exists) {
+            $this->countsByKind[$kind]['present']++;
 
-            if ($isPrivate) {
-                $this->countsByKind[$kind]['private_missing']++;
-            }
-
-            $this->findings[] = ['sermon_id' => $sermon->id, 'kind' => $kind, 'issue' => 'missing'];
-
-            return 'missing';
+            return 'present';
         }
 
-        $this->countsByKind[$kind]['present']++;
+        if ($isPrivate) {
+            $this->countsByKind[$kind]['private_missing']++;
+        }
 
-        return 'present';
+        $strandedOn = $this->strandedDisk($expectedDisk, $path);
+
+        if ($strandedOn !== null) {
+            $this->countsByKind[$kind]['stranded']++;
+            $this->findings[] = ['sermon_id' => $sermon->id, 'kind' => $kind, 'issue' => "stranded on {$strandedOn}"];
+
+            return 'stranded';
+        }
+
+        $this->countsByKind[$kind]['missing']++;
+        $this->findings[] = ['sermon_id' => $sermon->id, 'kind' => $kind, 'issue' => 'missing'];
+
+        return 'missing';
+    }
+
+    /**
+     * The disk holding this exact key, when it is absent from the one the asset
+     * is configured to use. Null when the bytes are genuinely gone.
+     *
+     * A probe that throws is treated as "not here" rather than as a check error:
+     * the expected disk answered successfully, so the asset's status is known,
+     * and an unreachable secondary disk should not turn a definite `missing`
+     * into a `check_error`. Probes only run for assets already known to be
+     * absent, so a clean audit costs nothing.
+     */
+    private function strandedDisk(string $expectedDisk, string $path): ?string
+    {
+        foreach ($this->probeDisks($expectedDisk) as $disk) {
+            try {
+                if (Storage::disk($disk)->exists($path)) {
+                    return $disk;
+                }
+            } catch (Throwable) {
+                continue;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function probeDisks(string $expectedDisk): array
+    {
+        $configured = (array) config('filesystems.disks', []);
+
+        $candidates = [
+            ...self::STRANDED_PROBE_DISKS,
+            SermonAssetReferences::sermonDisk(),
+            SermonAssetReferences::transcriptDisk(),
+            SermonAssetReferences::thumbnailDisk(),
+        ];
+
+        return array_values(array_filter(
+            array_unique($candidates),
+            fn (string $disk): bool => $disk !== $expectedDisk && array_key_exists($disk, $configured),
+        ));
     }
 
     /**
@@ -266,10 +302,20 @@ class AuditSermonAssetsCommand extends Command
         return is_string($path) && $path !== '' ? $path : null;
     }
 
+    /**
+     * Stranded assets count as failures. The bytes existing somewhere is a
+     * recovery opportunity, not a working site: every reader resolves the
+     * configured disk, so a visitor still gets a 404.
+     */
+    private function strandedTotal(): int
+    {
+        return array_sum(array_column($this->countsByKind, 'stranded'));
+    }
+
     private function hasFailures(): bool
     {
         foreach ($this->countsByKind as $counts) {
-            if ($counts['missing'] > 0 || $counts['check_errors'] > 0) {
+            if ($counts['missing'] > 0 || $counts['stranded'] > 0 || $counts['check_errors'] > 0) {
                 return true;
             }
         }
@@ -284,6 +330,7 @@ class AuditSermonAssetsCommand extends Command
             'referenced' => 0,
             'present' => 0,
             'missing' => 0,
+            'stranded' => 0,
             'check_errors' => 0,
             'private_referenced' => 0,
             'private_missing' => 0,
@@ -305,6 +352,7 @@ class AuditSermonAssetsCommand extends Command
                 'Referenced',
                 'Present',
                 'Missing',
+                'Stranded',
                 'Check errors',
                 'Private referenced',
                 'Private missing',
@@ -326,6 +374,7 @@ class AuditSermonAssetsCommand extends Command
             (string) $counts['referenced'],
             (string) $counts['present'],
             (string) $counts['missing'],
+            (string) $counts['stranded'],
             (string) $counts['check_errors'],
             (string) $counts['private_referenced'],
             (string) $counts['private_missing'],
