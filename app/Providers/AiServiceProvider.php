@@ -28,22 +28,27 @@ class AiServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(SermonAnalysisInterface::class, function ($app): SermonAnalysisInterface {
-            $serviceType = config('media-processing.analysis.service', 'openai');
+            $serviceType = (string) config('media-processing.analysis.service', 'openai');
 
-            if ($serviceType === 'mock') {
-                return $app->make(MockSermonAnalysisService::class);
-            }
-
-            return $app->make(SermonAnalysisService::class);
+            return match ($serviceType) {
+                'mock' => $app->make(MockSermonAnalysisService::class),
+                'openai' => $app->make(SermonAnalysisService::class),
+                default => throw new InvalidArgumentException(
+                    "Unknown sermon analysis service [{$serviceType}]; expected mock or openai."
+                ),
+            };
         });
 
         $this->app->bind(TranscriptionServiceInterface::class, function ($app): TranscriptionServiceInterface {
-            $serviceType = config('media-processing.transcription.service', 'openai');
+            $serviceType = (string) config('media-processing.transcription.service', 'openai');
 
             return match ($serviceType) {
                 'mock' => $app->make(MockTranscriptionService::class),
                 'local' => $app->make(LocalWhisperTranscriptionService::class),
-                default => $app->make(AudioTranscriptionService::class),
+                'openai' => $app->make(AudioTranscriptionService::class),
+                default => throw new InvalidArgumentException(
+                    "Unknown transcription service [{$serviceType}]; expected mock, local or openai."
+                ),
             };
         });
 
