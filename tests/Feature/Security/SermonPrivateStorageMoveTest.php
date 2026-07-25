@@ -19,20 +19,21 @@ class SermonPrivateStorageMoveTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
-    public function it_dispatches_move_job_when_sermon_is_created_as_childrens_talk(): void
+    public function it_does_not_relocate_media_when_a_sermon_is_created_as_a_childrens_talk(): void
     {
         Queue::fake();
 
-        Sermon::factory()->create([
+        $sermon = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
             'audio_file_path' => 'sermons/childrens-talk.mp3',
         ]);
 
-        Queue::assertPushed(MoveSermonToPrivateStorage::class);
+        Queue::assertNotPushed(MoveSermonToPrivateStorage::class);
+        $this->assertSame('sermons/childrens-talk.mp3', $sermon->fresh()?->audio_file_path);
     }
 
     #[Test]
-    public function it_dispatches_move_job_when_content_type_changes_to_childrens_talk(): void
+    public function it_does_not_relocate_media_when_content_type_changes_to_childrens_talk(): void
     {
         Queue::fake();
 
@@ -40,15 +41,13 @@ class SermonPrivateStorageMoveTest extends TestCase
             'content_type' => SermonContentType::Sermon,
         ]);
 
-        Queue::fake(); // reset — no job dispatched during create of a Sermon type
-        Queue::assertNotPushed(MoveSermonToPrivateStorage::class);
-
         $sermon->update([
             'content_type' => SermonContentType::ChildrensTalk,
             'audio_file_path' => 'sermons/childrens-talk.mp3',
         ]);
 
-        Queue::assertPushed(MoveSermonToPrivateStorage::class);
+        Queue::assertNotPushed(MoveSermonToPrivateStorage::class);
+        $this->assertSame('sermons/childrens-talk.mp3', $sermon->fresh()?->audio_file_path);
     }
 
     #[Test]
@@ -59,8 +58,6 @@ class SermonPrivateStorageMoveTest extends TestCase
         $sermon = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
         ]);
-
-        Queue::fake(); // reset after the create dispatch
 
         // Refresh to clear wasRecentlyCreated flag
         $sermon = $sermon->fresh();

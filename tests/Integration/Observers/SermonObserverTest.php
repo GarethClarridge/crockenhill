@@ -62,9 +62,14 @@ class SermonObserverTest extends TestCase
         $observer->saved($sermon);
     }
 
+    /**
+     * Children's-talk media stays on the disk its writer chose. Relocating it to
+     * the local `private/` disk is what made every asset written since the last
+     * deploy vanish at the next one, because that disk is not persisted.
+     */
     #[Test]
     #[DataProvider('protectedDirectMediaFields')]
-    public function it_dispatches_the_private_mover_for_same_type_media_reprocessing(string $field, string $path): void
+    public function it_leaves_childrens_talk_media_where_it_was_written(string $field, string $path): void
     {
         Queue::fake();
         $sermon = Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
@@ -76,14 +81,12 @@ class SermonObserverTest extends TestCase
         $observer = $this->makeObserver();
         $observer->saved($sermon);
 
-        Queue::assertPushed(
-            MoveSermonToPrivateStorage::class,
-            fn (MoveSermonToPrivateStorage $job): bool => true,
-        );
+        Queue::assertNotPushed(MoveSermonToPrivateStorage::class);
+        $this->assertSame($path, $sermon->fresh()?->getAttribute($field));
     }
 
     #[Test]
-    public function it_dispatches_the_private_mover_after_late_thumbnail_generation(): void
+    public function it_leaves_late_generated_childrens_talk_thumbnails_where_they_were_written(): void
     {
         Queue::fake();
         $sermon = Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
@@ -106,28 +109,8 @@ class SermonObserverTest extends TestCase
         $observer = $this->makeObserver();
         $observer->saved($sermon);
 
-        Queue::assertPushed(MoveSermonToPrivateStorage::class);
-    }
-
-    #[Test]
-    public function it_does_not_redispatch_when_the_mover_commits_private_paths(): void
-    {
-        Queue::fake();
-        $sermon = Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
-        ]));
-
-        Sermon::withoutEvents(fn () => $sermon->update([
-            'audio_file_path' => 'private/sermons/audio.mp3',
-            'thumbnail_metadata' => [
-                'plain_thumbnail_path' => 'private/thumbs/plain.webp',
-            ],
-        ]));
-
-        $observer = $this->makeObserver();
-        $observer->saved($sermon);
-
         Queue::assertNotPushed(MoveSermonToPrivateStorage::class);
+        $this->assertSame('thumbs/late-primary.webp', $sermon->fresh()?->thumbnail_file_path);
     }
 
     #[Test]

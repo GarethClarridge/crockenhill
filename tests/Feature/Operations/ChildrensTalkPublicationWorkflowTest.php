@@ -24,6 +24,7 @@ use App\Services\ChurchService\SectionPublication\SermonPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
@@ -132,9 +133,19 @@ class ChildrensTalkPublicationWorkflowTest extends TestCase
         $this->assertNull($section->unpublished_expires_at);
         $this->assertSame(SermonContentType::ChildrensTalk, $sermon->content_type);
         $this->assertSame($preacher->id, $sermon->preacher_id);
-        $this->assertSame('private/sermons/sections/'.$section->id.'/video.mp4', $sermon->video_file_path);
-        Storage::disk('local')->assertExists('private/sermons/sections/'.$section->id.'/video.mp4');
-        Storage::disk('public')->assertMissing('sermons/sections/'.$section->id.'/video.mp4');
+        // Media stays on the ordinary sermon disk under an ordinary sermon key.
+        // It used to be relocated to the local `private/` disk, which production
+        // never persisted, so every published talk's video died at the next deploy.
+        $this->assertSame('sermons/sections/'.$section->id.'/video.mp4', $sermon->video_file_path);
+        Storage::disk('public')->assertExists('sermons/sections/'.$section->id.'/video.mp4');
+        Storage::disk('local')->assertMissing('private/sermons/sections/'.$section->id.'/video.mp4');
+
+        // Storage moved; the gate did not. Discovery and guest access are still
+        // closed, driven by `CHILDRENS_TALKS_PUBLIC` rather than by any file path.
+        $exposurePolicy = app(SermonExposurePolicy::class);
+        $this->assertFalse($exposurePolicy->canAccessChildrensCorner(null));
+        $this->assertFalse($exposurePolicy->shouldExposeOnSermonApi($sermon));
+        $this->assertFalse($exposurePolicy->shouldIncludeInSitemap($sermon));
     }
 
     /**
