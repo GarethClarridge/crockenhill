@@ -39,18 +39,12 @@ services:
       # Temp storage for large file uploads (Livewire uploads + processing)
       - app-temp:/var/www/html/storage/app/temp
       - app-livewire-tmp:/var/www/html/storage/app/livewire-tmp
-      # Children's-talk assets and section-publication preview clips. INTERIM:
-      # superseded by the do_spaces_private disk once WP6 of
-      # docs/plans/CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md lands. Without
-      # this mount the directory lives in the container's writable layer and is
-      # destroyed on every deploy. Do not remove it as "unused" — see that plan.
-      - app-private:/var/www/html/storage/app/private
       # Original uploaded recordings (livestream/temp/{uuid}.ext). PERMANENT —
-      # unlike app-private these are not moving to Spaces, so this mount has no
-      # removal step. The app-temp mount above does NOT cover these: only the
-      # original upload lives under livestream/, and without this volume every
-      # source recording is destroyed on deploy, killing in-flight processing
-      # runs and any chance of re-deriving lost children's talks.
+      # these are not moving to Spaces, so this mount has no removal step. The
+      # app-temp mount above does NOT cover these: only the original upload
+      # lives under livestream/, and without this volume every source recording
+      # is destroyed on deploy, killing in-flight processing runs and any chance
+      # of re-deriving a lost derived asset.
       - app-livestream:/var/www/html/storage/app/livestream
       # Persist logs for debugging (also captured by Docker logging below)
       - app-logs:/var/www/html/storage/logs
@@ -112,7 +106,6 @@ volumes:
   app-storage:     # Laravel storage (non-Spaces files)
   app-temp:        # Temp storage for large file uploads and processing
   app-livewire-tmp: # Livewire temporary file uploads
-  app-private:     # Children's-talk + section-publication assets (interim, see CHILDRENS-TALK-STORAGE-TO-SPACES plan)
   app-livestream:  # Original uploaded recordings (permanent — not moving to Spaces)
   app-logs:        # Laravel logs (persisted across container restarts)
   mysql-data:      # Database persistence

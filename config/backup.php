@@ -34,12 +34,6 @@ return [
                 'include' => [
                     // Medialibrary-managed files and site assets (local-only).
                     storage_path('app/public'),
-                    // Retained deliberately though now near-empty: sermon assets no
-                    // longer live here, and the section-publication candidates that
-                    // still do are ephemeral. Kept so the path is covered if anything
-                    // unexpected lands in it; remove alongside the app-private volume
-                    // once WP4 of the children's-talk storage plan has landed.
-                    storage_path('app/private'),
                     // Google service-account credentials for calendar sync.
                     storage_path('app/google-calendar'),
                     // BritishEnglishConverter external word list.
@@ -54,9 +48,6 @@ return [
                 'exclude' => [
                     // Transient thumbnails/uploads inside the public disk.
                     storage_path('app/public/temp'),
-                    // Publication candidates; purged after 48 h by
-                    // media:cleanup-unpublished-section-assets.
-                    storage_path('app/private/section-publications'),
                 ],
 
                 /*

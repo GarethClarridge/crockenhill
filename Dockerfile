@@ -89,20 +89,17 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 # Directories and permissions
 RUN mkdir -p /run/php /var/log/supervisor \
     && mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs \
-    # storage/app/private is INTERIM — it holds children's-talk assets and
-    # section-publication previews until WP6 of
-    # docs/plans/CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md moves them to
-    # Spaces. Creating it here means the matching named volume is seeded with
+    # Creating these here means each matching named volume is seeded with
     # www:www ownership rather than being created root-owned by Docker.
     #
-    # storage/app/livestream is PERMANENT. It holds the original uploaded
-    # recordings (livestream/temp/{uuid}.ext, written by VideoStorageService),
-    # which are NOT moving to Spaces. Note that storage/app/temp being mounted
-    # does not cover these: the upload alone lives under livestream/, so without
-    # this directory plus its named volume every source recording is destroyed on
-    # deploy — losing in-flight processing runs and any chance of re-deriving a
-    # lost children's talk. See §2.1 of the plan above.
-    && mkdir -p storage/app/livewire-tmp storage/app/temp storage/app/public storage/app/private storage/app/livestream \
+    # storage/app/livestream holds the original uploaded recordings
+    # (livestream/temp/{uuid}.ext, written by VideoStorageService), which are NOT
+    # moving to Spaces. Note that storage/app/temp being mounted does not cover
+    # these: the upload alone lives under livestream/, so without this directory
+    # plus its named volume every source recording is destroyed on deploy —
+    # losing in-flight processing runs and any chance of re-deriving a lost
+    # derived asset.
+    && mkdir -p storage/app/livewire-tmp storage/app/temp storage/app/public storage/app/livestream \
     && chown -R www:www storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 

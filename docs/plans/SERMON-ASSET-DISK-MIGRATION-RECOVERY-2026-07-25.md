@@ -1,7 +1,7 @@
 # Recover Sermon Assets Orphaned by the Spaces Disk Migration
 
 > **Status (2026-07-25): evidence gathered, nothing started.** Discovered while running WP1 of
-> [CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md)
+> [CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](../archived-plans/CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md)
 > against production. Nothing here is urgent: the loss stopped when the disk config changed, and no
 > further assets are being orphaned.
 >
@@ -73,8 +73,8 @@ root is `storage_path('app')`, so `transcripts/sermon_39.md` lived at
 `/var/www/html/storage/app/transcripts/sermon_39.md`.
 
 `storage/app/transcripts` is **not** in `PERSISTED_STORAGE_PATHS`
-(`tests/Feature/Config/ProductionStoragePersistenceTest.php:44-51`, which lists `storage/app/public`,
-`storage/app/temp`, `storage/app/livewire-tmp`, `storage/app/private`, `storage/app/livestream`,
+(`tests/Feature/Config/ProductionStoragePersistenceTest.php`, whose `PERSISTED_STORAGE_PATHS` lists
+`storage/app/public`, `storage/app/temp`, `storage/app/livewire-tmp`, `storage/app/livestream` and
 `storage/logs`) and is not mounted in `docker-compose.prod.yml`. So every transcript written there was
 destroyed at the next deploy — precisely the §2.1 mechanism of the children's-talk plan, applied to a
 path that plan never enumerated.
@@ -241,9 +241,11 @@ distinct from `missing`. Counts only — a disk *name* is not a path and is safe
 
 ## 5. Interactions
 
-- **Children's-talk plan.** Independent. That plan's WP3b may proceed regardless; it deletes
-  `MoveSermonToPrivateStorage`, whose copy-verify-commit structure is worth reading as a model for WP2
-  before it goes.
+- **Children's-talk plan.** Independent, and now **complete and archived** (2026-07-25). Its WP3b
+  deleted `MoveSermonToPrivateStorage`, whose copy-verify-commit structure is the model WP2 should
+  follow: verify-before-delete, compare-and-set path commits under `lockForUpdate()`, per-asset
+  failure collection so one failure cannot leave the rest half-moved. **Read it from git history**
+  (`git show 238ad6f71^:app/Jobs/MoveSermonToPrivateStorage.php`) rather than looking for the file.
 - **Historic archive import.** If WP3's overlap is poor, re-transcription or archive re-import becomes
   the only route for those 35, which is that plan's territory. Note that §2.1 of the children's-talk
   plan found source recordings for older runs were themselves destroyed, so re-transcription may not be

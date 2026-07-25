@@ -18,16 +18,19 @@
 > (b) start Stage A before WP0 and WP-A1 – WP-A6 have landed (§5, §6);
 > (c) start Stage B WP3+ before the WP1 song-usage baseline has been captured from production;
 > (d) widen `SermonPromotionBundleExporter`'s eligibility guard in place — it is a marked
-> R8 one-shot scheduled for deletion (see §2.1); (e) promote children's talks before **either**
-> WP8 or the private-storage move lands — their media is **not** in the production bucket and
-> promoting the rows alone would publish dangling paths (§2.6).
+> R8 one-shot scheduled for deletion (see §2.1). ~~(e) promote children's talks before **either**
+> WP8 or the private-storage move lands~~ — **no longer applies, see below.**
 >
-> **Recommended sequencing change (2026-07-24, strengthened 2026-07-25):** land
-> [CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md)
-> before Stage A. It fixes a confirmed production data-loss bug and is gated on nothing. That plan
-> was **redesigned on 2026-07-25** to drop the `private/` prefix altogether rather than move it to a
-> private Spaces disk, which means it now **deletes WP8 from this plan in full**, not just largely
-> (§2.6, WP8).
+> **WP8 is CANCELLED — the storage plan landed, 2026-07-25.**
+> [CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](../archived-plans/CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md)
+> is complete and archived. The `private/` prefix no longer exists anywhere in the application:
+> children's-talk assets are on the ordinary sermon disk under ordinary sermon keys, and
+> `MoveSermonToPrivateStorage`, the observer hook, the `childrens_talk_public` audit finding and
+> `SermonPromotionAssets::guardPortablePath()`'s `private/` clause have all been deleted. **A
+> children's talk is now indistinguishable from a sermon for promotion purposes**, so §2.6 and WP8
+> below are dead text — retained only to explain why the WP numbering skips one. Constraint (e) is
+> discharged: there is nothing to move and no dangling-path hazard. The login gate is unchanged
+> (`CHILDRENS_TALKS_PUBLIC` is still `false`), so promoted talks stay members-only exactly as before.
 >
 > **All open questions are answered as of 2026-07-24. No item in this plan is blocked on the
 > maintainer.**
@@ -38,11 +41,14 @@
 > - **Q2 — strictly zero-loss.** No loss of currently-public song usage is acceptable during
 >   promotion. A service that would drop even one qualifying song item rolls back and is reported
 >   for manual handling. → WP2's acceptance test, WP4 step 7.
-> - **Q3 — children's talks are promoted too.** Not sermons only. This turned out to be the most
->   expensive answer in the set: children's-talk media is moved to **private local** storage during
->   the local import and deleted from the bucket, so §2.2's "promotion is a database-row operation
->   only" does not hold for them. They need a real file-transfer workstream — the new **WP8**, and
->   the new evidence section **§2.6**. → WP3 scope, WP8.
+> - **Q3 — children's talks are promoted too.** Not sermons only. This was the most expensive answer
+>   in the set when it was given, because children's-talk media was moved to **private local**
+>   storage during the local import and deleted from the bucket — so §2.2's "promotion is a
+>   database-row operation only" did not hold for them, and they needed a file-transfer workstream
+>   (WP8, §2.6). **That cost was removed on 2026-07-25**: the children's-talk storage plan deleted
+>   private storage, so their media stays in the bucket and §2.2 holds for them after all. **Q3 is
+>   now the cheapest answer in the set** — a children's talk promotes as an ordinary sermon.
+>   → WP3 scope only.
 > - **Q4 — review locally first, promote once reviewed.** Promoted services therefore arrive in
 >   production **already `reviewed`**, carrying the local review timestamp; they do not enter the
 >   production review inbox. WP3 already refuses to export an unreviewed service, so review-then-
@@ -120,10 +126,11 @@ and (once Q5's Strategy A is applied — §2.4, WP6) thumbnails are already in t
 moment the local import completes. The corollary is that rejected/abandoned local imports leave
 orphan objects in the live bucket — `audit:sermon-assets` surfaces these and cleanup is a WP7 chore.
 
-**This does not hold for children's talks, which Q3 puts in scope.** Their media is deliberately
-moved *out* of the bucket during the local import and deleted from it. §2.6 is the evidence; WP8 is
-the fix. Everywhere else in this plan that says "no file transfer is in scope", read "except
-children's talks".
+~~**This does not hold for children's talks, which Q3 puts in scope.**~~ **It holds for them too, as
+of 2026-07-25.** Their media used to be moved *out* of the bucket during the local import and
+deleted from it (§2.6 is the evidence, WP8 was the fix); the children's-talk storage plan removed
+that behaviour entirely. **"No file transfer is in scope" is now unqualified** — there is no
+"except children's talks" anywhere in this plan.
 
 ### 2.3 Production can rebuild the service graph natively
 
@@ -142,8 +149,14 @@ no media files. So it can be replayed in production.
 
 ### 2.4 Not every asset the local import produces reaches DO Spaces
 
-Disk selection is per-asset-kind, and three different config keys are involved. `MediaAssetPath::diskForPath()`
-adds one more rule: any path beginning `private/` resolves to the **local** disk regardless.
+Disk selection is per-asset-kind, and three different config keys are involved. ~~`MediaAssetPath::diskForPath()`
+adds one more rule: any path beginning `private/` resolves to the **local** disk regardless.~~
+
+> **Corrected 2026-07-25.** `MediaAssetPath::diskForPath()` no longer exists — it was replaced by
+> `MediaAssetPath::disk()`, which takes no path, because the `private/` prefix has no routing power
+> any more. The two `private/` rows in the table below are struck through accordingly, and
+> consequence 4 with them. `MediaAssetPath::isPrivate()` survives, but purely as a reporting label
+> for the audits. Everything else in this section is unchanged and still accurate.
 
 | Field | Disk resolved from | Value locally | In Spaces? |
 |---|---|---|---|
@@ -152,12 +165,12 @@ adds one more rule: any path beginning `private/` resolves to the **local** disk
 | `sermons.transcript_file_path` | `…transcript_disk` → falls back to sermon disk | `do_spaces` | **Yes** |
 | `media_processing_logs.audio_file_path` / `video_file_path` | sermon_disk | `do_spaces` | **Yes** |
 | `media_processing_logs.transcript_file_path` | transcript_disk | `do_spaces` | **Yes** |
-| `service_sections.extracted_video_path` / `extracted_audio_path` | `MediaAssetPath::diskForPath()` | `do_spaces` unless `private/` | Yes, but **ephemeral** |
+| `service_sections.extracted_video_path` / `extracted_audio_path` | `MediaAssetPath::disk()` | `do_spaces` | Yes, but **ephemeral** |
 | `sermons.thumbnail_file_path` + every `thumbnail_metadata` candidate | `thumbnail-generation.storage.disk` | **`public` (local)** → `do_spaces` once §6.1 item 3 is applied | **No** → Yes |
 | `media_processing_logs.source_file_path` | `…temp_disk` (hardcoded `'local'`) | local | **No** |
 | `media_processing_logs.rms_log_path` | temp_disk | local | **No** |
 | `media_processing_logs.enhanced_audio_file_path` | temp_disk | local | **No** |
-| anything under `private/` (children's talks) | forced `local` | local | **No — and in scope per Q3 (§2.6)** |
+| ~~anything under `private/` (children's talks)~~ | ~~forced `local`~~ — **no longer exists (2026-07-25)**; children's-talk assets resolve exactly like a sermon's, so they are already covered by the rows above | `do_spaces` | **Yes** |
 
 Evidence: `DeleteLivestreamUpload::collectProcessingLogFileTargets()` (`:196–208`) is the
 authoritative per-field disk map — it has to be exact to delete correctly, so it is the best
@@ -181,18 +194,21 @@ Four consequences for the bundle:
    are review-time preview clips governed by `unpublished_expires_at`, and
    `ServiceSectionCandidateMediaController` 404s them once the section is published. They are
    Stage-A review aids with no production role.
-4. **Children's-talk assets need transporting, not referencing.** Q3 puts them in scope, and no
-   `private/` path is reachable from production. See §2.6.
+4. ~~**Children's-talk assets need transporting, not referencing.**~~ **CANCELLED 2026-07-25.** Q3
+   still puts them in scope, but they are referenced like any other sermon asset now — they are in
+   the bucket, reachable from production, and need no transport. This is what deleted WP8.
 
 `SermonPromotionAssets` already models the right discipline for the sermon tier: `KINDS`, a
 `diskFor()` matching the table above (`:151`), `manifestForSermon()` recording size + sha256 and
 failing if a file is missing (`:90`), `verify()` re-checking at import, and `guardPortablePath()`
-rejecting empty, unsafe, and `private/` paths (`:165`). WP3/WP4 should reuse this class directly
-for sermon assets and extend the same pattern to the two log fields that live in Spaces.
+rejecting empty and unsafe paths. WP3/WP4 should reuse this class directly for **all** sermon
+assets — children's talks included — and extend the same pattern to the two log fields that live in
+Spaces.
 
-Note the last of those guards: `guardPortablePath()` **rejects `private/` outright**
-(`SermonPromotionAssets.php:167`). That is a correct constraint for the class as written, and it is
-exactly why Q3 cannot be satisfied by reusing it — see §2.6.
+~~Note the last of those guards: `guardPortablePath()` **rejects `private/` outright**~~ — **that
+clause was deleted on 2026-07-25.** It was the reason Q3 could not be satisfied by reusing the
+class; with it gone, reuse is exactly the right answer and no parallel children's-talk path is
+needed.
 
 ### 2.5 The pipeline assumes the source recording is durable. Here, it is not.
 
@@ -325,7 +341,7 @@ Two guards make sure this cannot be papered over:
 
 **A cheaper resolution exists and should be preferred.** All of the above is a consequence of
 children's-talk assets being private at all.
-[CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md)
+[CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](../archived-plans/CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md)
 **was redesigned on 2026-07-25** and no longer introduces a private Spaces disk: it strips the
 `private/` prefix and puts children's-talk assets on the ordinary sermon disk under ordinary sermon
 keys, deleting the prefix rule, the mover job, the `childrens_talk_public` audit finding and
@@ -334,9 +350,12 @@ keys, deleting the prefix rule, the mover job, the `childrens_talk_public` audit
 
 **Every one of the three blockers above is removed by that plan, not worked around.** A children's
 talk becomes indistinguishable from a sermon for promotion purposes, so this entire section stops
-applying and WP8 does not need to exist. That plan is independently justified — it fixes a confirmed
-production data-loss bug — is gated on nothing, and landing it before Stage A is the recommended
-path. The rest of this section describes what WP8 must do **if it has not landed**.
+applying and WP8 does not need to exist.
+
+> **That plan landed and was archived on 2026-07-25, so everything from here to the end of §2.6 is
+> dead text.** It is retained because it explains why the work-package numbering skips WP8. Do not
+> implement any of it: `MoveSermonToPrivateStorage` and the `SermonObserver` hook it describes have
+> both been deleted, and no path in the application begins with `private/`.
 
 The resolution is that production's own move job is the transport. Restore the files to their
 pre-private keys in Spaces, promote the sermon row with **non-private** paths, and production's
@@ -470,16 +489,22 @@ One bundle per service carries:
 | Assets | manifest of every referenced asset: kind, path, disk, size, sha256 | verified in place for sermons; for children's talks the manifest also drives the step-0 restore (§2.6) |
 | Review state | local `review_state`, `needs_review`, and `import_metadata['manual_review']` | replayed verbatim in step 8 (Q4) |
 
-Import sequence in production. Steps 1–8 run inside one transaction per service; step 0 is a
-pre-transaction upload and step 9 is a post-commit settle, because neither is transactional:
+Import sequence in production. Steps 1–8 run inside one transaction per service.
 
-0. **(Children's talks only, per §2.6.)** Restore the talk's `private/…` assets to their
-   pre-private keys in Spaces and verify each against the bundle manifest's sha256. Nothing is
-   written to the database yet, so a failure here costs only a re-upload.
+> **Steps 0 and 9 are CANCELLED (2026-07-25).** Both existed only to shuttle children's-talk media
+> into and out of private storage. The children's-talk storage plan removed private storage
+> entirely, so a children's talk's assets are already on the sermon disk under ordinary sermon keys,
+> already in the bucket, and need no restore before the transaction and no settle after it.
+> **The whole sequence is now transactional**, steps 1–8, with no pre- or post-transaction phases —
+> which also deletes the §8 rollback exception and the idempotency carve-outs that existed for them.
+> Step numbering is preserved so the cross-references in §6.1, §8 and WP4 still resolve.
+
+0. ~~**(Children's talks only, per §2.6.)** Restore the talk's `private/…` assets to their
+   pre-private keys in Spaces and verify each against the bundle manifest's sha256.~~ **CANCELLED**
+   — the assets never leave the bucket now, so there is nothing to restore.
 1. Preflight-classify (`already_present` / `create` / `conflict`) — no writes.
-2. Create the `sermons` row + preacher link + scripture filters (Tier 1). **For a children's talk,
-   write the non-private paths from step 0** — production's own `SermonObserver` will privatise
-   them in step 9.
+2. Create the `sermons` row + preacher link + scripture filters (Tier 1). A children's talk is
+   written exactly like a sermon; there are no private paths and no observer to wait for.
 3. Create the `media_processing_logs` row, `sermon_id` remapped to step 2.
 4. Create `service_sections` rows with `media_processing_log_id` from step 3 and
    `published_sermon_id` from step 2, carrying each section's reviewed `needs_manual_review` value;
@@ -493,15 +518,14 @@ pre-transaction upload and step 9 is a post-commit settle, because neither is tr
    or roll back (Q2: strictly zero-loss).
 8. Apply the promoted review state (Q4): the service lands `reviewed`, carrying the local review
    timestamp. Assert `needs_review` is false, or roll back — see WP5.
-9. **After commit**, let the queue settle: for children's talks, `MoveSermonToPrivateStorage` runs,
-   pulls the assets onto production's private disk and deletes the staging objects. Verify with
-   `audit:sermon-assets` before declaring the service done.
+9. ~~**After commit**, let the queue settle: for children's talks, `MoveSermonToPrivateStorage` runs,
+   pulls the assets onto production's private disk and deletes the staging objects.~~ **CANCELLED**
+   — that job no longer exists. Still run `audit:sermon-assets` before declaring the service done;
+   it is now an ordinary post-import check rather than a settle step.
 
 Only **two** FK remappings cross the database boundary (`sermon_id`, `media_processing_log_id`).
 Everything else is derived in production by production's own code — which is precisely the stated
-goal of "the state it would be in if they were processed by today's code". Step 9 extends the same
-principle to children's-talk storage: rather than reproducing the privatisation rules in the
-importer, hand production public paths and let its observer apply its own policy.
+goal of "the state it would be in if they were processed by today's code".
 
 ---
 
@@ -530,11 +554,11 @@ longer mounted. **WP0–WP7** are the Stage B promotion work.
 | WP1 | Song-usage baseline + diff tooling (read-only) | new command | — |
 | WP2 | Bundle format + validator, with the §3.1 gate as an acceptance test | design | WP1 |
 | WP3 | Exporter: `sermons:export-archive-bundle` (sermons **and** children's talks, per Q3) | new code | WP2 |
-| WP4 | Importer: `sermons:import-archive-bundle`, steps 0–9 above | new code | WP0, WP2, WP8 |
+| WP4 | Importer: `sermons:import-archive-bundle`, steps 0–9 above | new code | WP0, WP2 |
 | WP5 | Review-state and idempotency semantics — promoted services land `reviewed` (Q4) | design | — |
 | WP6 | Thumbnail strategy — Strategy A, one `.env` line before Stage A (Q5) | ops/code | — |
 | WP7 | Operator runbook + orphan-asset cleanup | docs/chore | WP4 |
-| **WP8** | **Children's-talk asset transfer (§2.6)** — the new work Q3 created | **new code** | WP2 |
+| ~~WP8~~ | ~~Children's-talk asset transfer (§2.6)~~ — **CANCELLED 2026-07-25**, the storage plan removed its reason to exist | — | — |
 
 **WP0 lands first among the Stage B items, and before Stage A too.** It is a live-pipeline
 improvement in its own right, it is small, and every Stage-A import run after it produces
@@ -725,12 +749,11 @@ constructed §3.1 scenario is reported as a loss.
 - Validator asserts: bundle self-consistency, every `confirmed` song section carries a resolvable
   song natural key, scripture filters match the current reference parser (R8 already does this —
   `SermonPromotionBundleExporter.php:107`), `processing_id` is a UUID, `file_hash` is 64 hex chars.
-- **Asset manifest (`ArchiveBundleAssets`).** Reuse `SermonPromotionAssets` unchanged for sermon
-  assets. For children's talks it cannot be reused — `guardPortablePath()` rejects `private/` by
-  design (§2.6) — so the new class permits `private/` paths, resolves them to the `local` disk the
-  way `AuditSermonAssetsCommand` does (`:158`), and records size + sha256 per asset. **Do not relax
-  `SermonPromotionAssets`' guard**; the two classes encode different contracts and the R8 one is
-  scheduled for deletion.
+- **Asset manifest (`ArchiveBundleAssets`).** Reuse `SermonPromotionAssets` unchanged for **all**
+  assets, children's talks included. *(Simplified 2026-07-25: this bullet previously required a
+  second class because `guardPortablePath()` rejected `private/` by design. That clause is gone
+  along with the prefix, so there is no children's-talk special case to carve out and no guard to
+  relax.)* The class still records size + sha256 per asset and still fails on a missing file.
 - **The §3.1 gate is an acceptance test, and Q2 sets its threshold at zero.** Not "no material
   loss", not "loss below a tolerance": a single qualifying `church_service_items` row dropping out
   of `PublicSongUsageService`'s result set fails the bundle and rolls the service back. Encode that
@@ -747,23 +770,24 @@ constructed §3.1 scenario is reported as a loss.
   promote an unreviewed service even by mistake, and the exporter's refusal message should say so.
 - **Children's talks are in scope (Q3).** A date's children's talk exports alongside its sermon —
   they share date + service and are distinguished by `content_type`, which the preflight already
-  keys on. The bundle carries their assets as a manifest for WP8's restore, not as in-place
-  references.
+  keys on. *(Corrected 2026-07-25: their assets are ordinary in-place references now, like a
+  sermon's. The manifest-for-WP8's-restore arrangement this bullet used to describe is gone.)*
 - Carry the service's review state and `import_metadata['manual_review']` block so WP5 can replay
   it (§4 step 8).
 - Tests: feature test over a factory-built livestream service; assert the emitted bundle contains
   no local primary keys except the declared `local_id` provenance field; assert a not-yet-reviewed
-  service is refused; assert a date carrying both a sermon and a children's talk exports both, with
-  the talk's private assets manifested rather than referenced.
+  service is refused; assert a date carrying both a sermon and a children's talk exports both, the
+  talk's assets referenced the same way the sermon's are.
 
 ### WP4 — Importer (the substance)
 
 - `sermons:import-archive-bundle {bundle} {--dry-run}`; **dry-run is the default posture** —
   require an explicit `--apply`.
-- Implement steps 0–9 of §4. Steps 6, 7 and 8 are hard gates: failure rolls the service back and
-  reports it, without aborting the remaining services in the bundle. Step 0 runs before the
-  transaction opens and step 9 after it commits (§2.6) — a step-9 failure does **not** roll back the
-  service, it reports the talk for manual attention with its staging objects left in place.
+- Implement steps 1–8 of §4 — **steps 0 and 9 are cancelled** (see the banner there; they existed
+  only for private storage, which no longer exists). The whole sequence is one transaction per
+  service, with no pre- or post-transaction phase to reason about. Steps 6, 7 and 8 are hard gates:
+  failure rolls the service back and reports it, without aborting the remaining services in the
+  bundle.
 - Reuse rather than reimplement: `LivestreamChurchServiceProjectionService`,
   `ChurchServiceItemSyncService` matching helpers, `MediaProcessingIdentityResolver`,
   `SermonPromotionAssets::verify()`.
@@ -778,8 +802,8 @@ constructed §3.1 scenario is reported as a loss.
 - Tests, all feature-level: create-path, `already_present` idempotency (re-importing the same
   bundle is a no-op), slug conflict, date-collision with an existing OoS service (both Q1
   branches), a dedicated §3.1 regression test asserting zero song-usage loss, a promoted service
-  landing `reviewed` with `needs_review` false, and a children's-talk import ending with private
-  paths and a clean `audit:sermon-assets`.
+  landing `reviewed` with `needs_review` false, and a children's-talk import ending with **ordinary
+  sermon-disk paths** (not private ones — see §2.4's correction) and a clean `audit:sermon-assets`.
 
 ### WP5 — Review state and idempotency
 
@@ -809,8 +833,7 @@ The mechanism mostly falls out of existing code rather than needing new state ha
   for a conflict their operator already dispositioned locally.
 
 Idempotency: re-running an identical bundle must classify every entry `already_present` and write
-nothing — including step 0, which must not re-upload assets for a talk already privatised in
-production, and step 9, which must not re-dispatch the move job.
+nothing. The step-0 and step-9 carve-outs this previously called out are gone with those steps.
 
 - Tests: a promoted service lands `reviewed` with `needs_review` false and the local timestamp
   preserved; a bundle carrying a section still flagged `needs_manual_review` is rejected at export
@@ -836,8 +859,11 @@ Two constraints, both about ordering:
 - **Set it before Stage A begins** (§6.1 item 3). Thumbnails generated before that line exists stay
   on the local `public` disk and would need re-running or a manual upload. This is the single
   cheapest item on the pre-flight checklist and the easiest to forget.
-- **Children's talks are unaffected by it.** Their thumbnails are privatised along with everything
-  else (§2.6), so they land on the local disk regardless of this setting and travel via WP8.
+- ~~**Children's talks are unaffected by it.**~~ **Inverted 2026-07-25 — children's talks now
+  depend on this line exactly like sermons do.** Their thumbnails were previously privatised onto
+  the local disk regardless of the setting and travelled via WP8; with private storage removed and
+  WP8 cancelled, they follow `THUMBNAIL_STORAGE_DISK` like everything else. Forgetting the line no
+  longer merely misses sermon thumbnails — it misses every thumbnail in the import.
 
 The exporter must **refuse** to emit a bundle whose thumbnail assets fail `manifestForSermon()`'s
 existence check, rather than silently promoting dangling paths — that guard is what turns a
@@ -855,21 +881,23 @@ not the plan.
 - `docs/operations/historic-archive-promotion.md`: the operator sequence, the WP1 gate, and the
   rollback procedure.
 - Orphan-asset sweep: `audit:sermon-assets` after each promotion round to catch bucket objects
-  from locally-rejected imports (§2.2), and to confirm every promoted children's talk privatised
-  cleanly (§2.6 / WP8).
+  from locally-rejected imports (§2.2). The "confirm every promoted children's talk privatised
+  cleanly" half of this check is **gone** — there is no privatisation step any more (§2.6).
 
-### WP8 — Children's-talk asset transfer
+### ~~WP8 — Children's-talk asset transfer~~ — CANCELLED 2026-07-25
 
-> **Check before building this — do not build it speculatively.**
-> [CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md)
-> was **redesigned on 2026-07-25**: instead of adding a `do_spaces_private` disk, it strips the
-> `private/` prefix entirely and puts children's-talk assets on the ordinary sermon disk under
-> ordinary sermon keys. **If that plan has landed, WP8 is unnecessary in full** — not "nearly all"
-> as previously recorded here. A children's talk's assets become indistinguishable from a sermon's,
-> so there is no manifest to relax, no `guardPortablePath()` exception to carve out, no staging
-> dance, and no local-disk capacity question: promotion is the same database-row operation as for
-> any other sermon. That plan is gated on nothing and its WP0 fixes a live production data-loss bug,
-> so doing it first is strictly cheaper than building WP8 and re-handling these talks afterwards.
+> **Do not build this.**
+> [CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](../archived-plans/CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md)
+> **landed and was archived on 2026-07-25.** It stripped the `private/` prefix entirely and put
+> children's-talk assets on the ordinary sermon disk under ordinary sermon keys, so **WP8 is
+> unnecessary in full** — not "nearly all". A children's talk's assets are now indistinguishable
+> from a sermon's: there is no manifest to relax, no `guardPortablePath()` exception to carve out,
+> no staging dance, and no local-disk capacity question. Promotion is the same database-row
+> operation as for any other sermon.
+>
+> The text below is a **snapshot of work that will never be done**, kept so the WP numbering and
+> §2.6 make sense. Several classes it names (`MoveSermonToPrivateStorage`, the `SermonObserver`
+> privatise hook) no longer exist.
 
 The work Q3 created, **assuming the storage plan has not landed**. §2.6 is the evidence; this is
 the build. Everything here exists only because children's-talk media is on the import machine's
@@ -981,11 +1009,12 @@ Work through it in order; do not start batch 1 with any item outstanding.
 
    Per-batch, not per-run: batches are the natural rollback unit, and reviewing a batch is what
    makes its data worth keeping.
-9. **Protect `storage/app/private/` on the import machine.** Per §2.6, every children's talk the
-   import produces has its media moved there and deleted from the bucket, so between Stage A and
-   WP8's restore that directory is the **only** copy in existence — the drive is gone and Spaces
-   never kept one. It is not covered by `backup:run --only-db`. Back it up separately, and do not
-   run any local storage cleanup that touches it until promotion is verified.
+9. ~~**Protect `storage/app/private/` on the import machine.**~~ **OBSOLETE 2026-07-25 — do not do
+   this.** It assumed the import moved children's-talk media to a local private disk and deleted it
+   from the bucket. The children's-talk storage plan removed that behaviour entirely: the mover job
+   and its observer hook are gone, `storage/app/private` no longer exists, and children's-talk media
+   stays on the sermon disk in Spaces exactly like a sermon's. There is no local-only copy to
+   protect and no separate backup to take. The item number is kept because §8 refers to it.
 
 ### 6.2 The import loop
 
@@ -1029,8 +1058,8 @@ unusual services, children's-talk misclassification, and title derivation.
 | Risk | Mitigation |
 |---|---|
 | **Promotion deletes public song usage (§3.1)** | WP1 baseline + WP4 step-7 per-service gate; Q2 sets the tolerance at exactly zero, asserted as a set equality not a count |
-| **Children's-talk media exists only on the import machine (§2.6)** | §6.1 item 9 (back it up separately); WP8 restores it via the bucket and lets production's own move job privatise it |
-| Children's talk promoted before WP8 lands → dangling private paths and a failing `audit:sermon-assets` | WP4 depends on WP8; importer refuses a children's-talk entry with no asset manifest |
+| ~~**Children's-talk media exists only on the import machine (§2.6)**~~ | **Closed 2026-07-25** — the children's-talk storage plan landed, so their media stays in the bucket like a sermon's. No local-only copy, no separate backup, no restore |
+| ~~Children's talk promoted before WP8 lands → dangling private paths and a failing `audit:sermon-assets`~~ | **Closed 2026-07-25** — WP8 is cancelled and there are no private paths to dangle |
 | Children's-talk restore leaves staging objects public in the bucket if the move job fails | WP8 treats a non-empty post-promotion sweep as a failure, not a chore; move job retries 3× with backoff |
 | Production local disk fills as children's talks accumulate | WP8 capacity check before the first promotion batch — bucket storage does not absorb these |
 | Promoted services re-open for review in production despite local review (Q4) | WP5: carry post-review `needs_manual_review` into step 4, clear `canonical_conflict`, and fail the service if `needs_review` is true after projection |
@@ -1064,15 +1093,19 @@ a *committed* service: delete its `service_sections`, then its `media_processing
 diff to confirm song usage returned to baseline. Bucket assets are left in place deliberately —
 they are re-usable if the service is promoted again.
 
-**Children's talks are the exception, in both directions.** §4 steps 0 and 9 sit outside the
-transaction, so rolling back the rows does not undo them:
+~~**Children's talks are the exception, in both directions.**~~ **OBSOLETE 2026-07-25 — children's
+talks are no longer an exception at all.** The three bullets below assumed the private-storage move
+job and the staging dance that WP8 was going to build. Both are gone: a children's talk's assets sit
+on the sermon disk under ordinary sermon keys, so it rolls back exactly like any other sermon, and
+the "public copy of something meant to be private" disclosure state cannot arise. Retained struck
+through because §6.1 item 9 and §2.6 refer to it.
 
-- If the failure happened before step 9, the restored staging objects are still in the bucket.
+- ~~If the failure happened before step 9, the restored staging objects are still in the bucket.
   Delete them — until the move job runs, they are *public* copies of assets that are supposed to be
   private, which is the one rollback state with a disclosure consequence rather than just an
-  untidiness one. Check for them explicitly rather than assuming the rollback was clean.
-- If the failure happened after step 9, production already holds the private copies on its local
+  untidiness one. Check for them explicitly rather than assuming the rollback was clean.~~
+- ~~If the failure happened after step 9, production already holds the private copies on its local
   disk. Deleting the `sermons` row orphans them; sweep them with `audit:sermon-assets` and remove
-  them manually.
-- The import machine's `storage/app/private/` copy is untouched by any of this and remains the
-  master, which is why §6.1 item 9 protects it until promotion is verified.
+  them manually.~~
+- ~~The import machine's `storage/app/private/` copy is untouched by any of this and remains the
+  master, which is why §6.1 item 9 protects it until promotion is verified.~~

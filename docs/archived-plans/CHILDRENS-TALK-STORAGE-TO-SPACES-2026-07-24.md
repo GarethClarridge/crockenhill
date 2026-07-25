@@ -1,5 +1,63 @@
 # Move Children's-Talk Asset Storage to Spaces
 
+> **ARCHIVED 2026-07-25 — complete.** Every work package landed: WP0 (both volume mounts), WP1
+> (both audit commands, run against production), WP3a (observer hook), WP2 (code written, then
+> deleted — see below), WP3b (the `private/` machinery) and WP4 (section-publication candidates).
+> The final step — removing the now-purposeless `app-private` volume — landed with this archival.
+>
+> **Read this header, not the dated status header below it**, which is a snapshot from before the
+> last step and still describes two loose ends where one remains.
+>
+> **The headline finding, because it inverts the plan's premise.** §2.1 diagnosed a real data-loss
+> mechanism — `storage/app/private` had no volume, so a deploy destroyed it — but WP1's production
+> run found **zero children's talks in production and zero private references of any kind**. The bug
+> never had a victim. WP0 and WP3a were preventative, WP2's production run was cancelled as a no-op,
+> and nothing was rescued or migrated. Do not read the plan's urgency as evidence that files were
+> lost.
+>
+> **What the codebase looks like now.** No path in the application begins with `private/`;
+> `grep -rn "private/" app` returns comments only. Children's-talk media and section-publication
+> preview clips live on the ordinary sermon disk under ordinary sermon keys. `CHILDRENS_TALKS_PUBLIC`
+> is still `false` — the login gate (`SermonExposurePolicy::canAccessChildrensCorner()`, the
+> `EnsureChildrensCornerAccess` middleware, the sitemap and API exclusions) is untouched, which is
+> what `Security/ChildrensTalkAssetSecurityTest` proves by having needed no change at all. Publishing
+> is now a config flip with no file movement (§5.2).
+>
+> **Two deliberate deviations from the plan text, both still true of the code:**
+> `MediaAssetPath::isPrivate()` survives as a pure *reporting* predicate for the audits (its routing
+> power is gone — `diskForPath()` was replaced by `disk()`, which takes no path); and the candidate
+> directory's unguessable component is HMAC-derived from the section id under `app.key`, not random,
+> because a per-extraction random value would orphan objects on the bucket. See the WP4 result.
+>
+> **Residue carried forward — operator tasks, none of them code:**
+>
+> 1. **WP0's two-deploy acceptance check is still unverified**, and its scope has narrowed: with
+>    `app-private` removed, only `app-livestream` remains to prove. Upload a recording, deploy, and
+>    confirm the source file survives. `tests/Feature/Config/ProductionStoragePersistenceTest.php`
+>    proves the four files agree with each other, not that Docker does what they say.
+> 2. **The `crockenhill_app-private` named volume still exists on the production host.** Removing the
+>    mount does not delete it. After a post-removal deploy is up:
+>    `docker volume rm crockenhill_app-private`. WP1 verified it empty. Recorded in
+>    `docs/operations/production.md`.
+> 3. **The 91 missing sermon assets** WP1 found (transcripts and every thumbnail sub-kind, none of
+>    them private) are unrelated to this plan and have their own:
+>    [SERMON-ASSET-DISK-MIGRATION-RECOVERY-2026-07-25.md](../plans/SERMON-ASSET-DISK-MIGRATION-RECOVERY-2026-07-25.md).
+>    That plan's §2.5 settles the "is the audit resolving the wrong disk?" question this plan left
+>    open — it is not; the audit is correct.
+> 4. **`CleanupReviewQueueNoiseCommandTest` is flaky** and was never fixed here: it creates three
+>    `ChurchService` rows via a factory that randomises `date`, against a `(date, service)` unique
+>    constraint, in a `DatabaseTransactions` class. Give it explicit dates.
+>
+> **What this deletes elsewhere:** the historic-archive plan's **WP8 is gone in full** (§5.1) —
+> children's-talk assets are now indistinguishable from a sermon's, so promotion needs no manifest,
+> no restore command and no relaxed `guardPortablePath()`.
+>
+> **Superseded design, for anyone reading git history:** an earlier version of this plan routed the
+> files through a new private Spaces disk (`do_spaces_private`) with signed-URL delivery and deferred
+> making them public to a speculative WP7. It was replaced on 2026-07-25 by the one-move design
+> recorded below, which deletes five work packages' worth of machinery instead of building it. The
+> redesign note in the status header explains why.
+
 > **Status (2026-07-25): every code work package is DONE — WP0, WP1, WP3a, WP3b and WP4. WP2's
 > production run is CANCELLED as a no-op — WP1 found both private populations empty in production, so
 > there was nothing to move (see §4 WP1's result). Two loose ends remain, both operator-side: WP0's

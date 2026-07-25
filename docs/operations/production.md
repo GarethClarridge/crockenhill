@@ -16,11 +16,20 @@ Single-server Docker Compose (`docker-compose.prod.yml`):
 Named volumes persist storage, temp-upload space (`app-temp` — the disk-pressure bottleneck for
 large livestream uploads), logs, MySQL, and Redis data.
 
-`app-private` (`storage/app/private`) holds children's-talk assets and section-publication preview
-clips. It is **interim**: it was added 2026-07-24 because the path had no volume at all and was
-being destroyed on every deploy, and it is removed once
-`docs/plans/CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md` moves those assets to Spaces. Unlike
-the other volumes it has no backup story, so treat it as the floor rather than the destination.
+`app-livestream` (`storage/app/livestream`) holds the **original uploaded recordings**
+(`livestream/temp/{uuid}.ext`) and is permanent. `app-temp` does not cover it: only the original
+upload lives under `livestream/`, and derived processing artifacts under `temp/`. Without this
+volume every source recording is destroyed on deploy, taking in-flight processing runs and any
+chance of re-deriving a lost asset with it. Adding a new local write root means four coordinated
+changes (compose mount, compose declaration, `Dockerfile` `mkdir`, `entrypoint.sh` chown/chmod);
+`tests/Feature/Config/ProductionStoragePersistenceTest.php` holds them in agreement in both
+directions.
+
+**Removed 2026-07-25:** `app-private` (`storage/app/private`). Children's-talk assets and
+section-publication preview clips now live on the sermon disk in Spaces, so nothing writes there.
+The named volume is not deleted by a deploy — remove the orphan on the host with
+`docker volume rm crockenhill_app-private` once a post-removal deploy is up. It is verified empty
+(see the archived children's-talk storage plan, WP1).
 
 ## Queues (Horizon)
 

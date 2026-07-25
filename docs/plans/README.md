@@ -1,6 +1,7 @@
 # Plans index
 
-Reconciled **2026-07-24** against the live code (not against commit messages — every status below
+Reconciled **2026-07-24**, amended **2026-07-25** (children's-talk storage archived; sermon-asset
+disk-migration recovery added), against the live code (not against commit messages — every status below
 was checked by looking for the class, migration, config key or test it claims). This directory
 holds only **active** plans; completed or superseded plans move to `docs/archived-plans/` with an
 archival header explaining what superseded them. Open audit findings (Mortician dead-code reports,
@@ -22,14 +23,26 @@ Pathfinder link/SEO crawls) are consolidated in `docs/issues/README.md`, not her
 - **Two new plans arrived** on 2026-07-24: children's-talk private storage, and historic archive
   import + promotion. The first contains a live production data-loss bug.
 
+## Amendments — 2026-07-25
+
+- **`CHILDRENS-TALK-STORAGE-TO-SPACES` is complete and archived.** All work packages landed, the
+  `private/` prefix is gone from the application entirely, and the interim `app-private` volume has
+  been removed. **The data-loss bug never had a victim:** WP1's production audit found zero
+  children's talks and zero private references, so WP0 and the observer removal were preventative
+  and the migration run was cancelled as a no-op. Two operator items survive it — the
+  `crockenhill_app-private` orphan volume on the host, and WP0's two-deploy acceptance check, now
+  narrowed to `app-livestream` only. **This deletes the historic-archive plan's WP8 in full.**
+- **A new plan came out of that audit:**
+  [SERMON-ASSET-DISK-MIGRATION-RECOVERY-2026-07-25.md](SERMON-ASSET-DISK-MIGRATION-RECOVERY-2026-07-25.md).
+  91 production sermon assets — transcripts and every thumbnail sub-kind, none of them children's
+  talks — resolve to Spaces keys that do not exist, because the disk *config* was repointed without
+  the *files* being moved. 56 thumbnails are stranded-but-intact; 35 transcripts were destroyed.
+
 ## Do these first
 
-1. **Deploy `CHILDRENS-TALK-STORAGE-TO-SPACES` WP0 — the code is in, the fix is not.**
-   Implemented 2026-07-24 across three files (`docker-compose.prod.yml` volume + declaration,
-   `Dockerfile` `mkdir`, `entrypoint.sh` chown). **Nothing is fixed until it deploys** — production
-   still has no volume for `storage/app/private`, so children's-talk media and section-preview
-   files are destroyed on every deploy. Acceptance is a deploy → write asset → deploy → still-there
-   cycle, which needs the operator.
+1. ~~**Deploy `CHILDRENS-TALK-STORAGE-TO-SPACES` WP0.**~~ **Done 2026-07-25** — deployed, audited,
+   and the whole plan is archived. See the amendments above for what it did and did not turn out
+   to be.
 2. ~~**`CODE-QUALITY-REMEDIATION` WP2.1 — the `#[Computed]` call-syntax fix.**~~ **Done 2026-07-24**
    (ten call sites, not nine). The 3× multiplication was reproduced as a failing test before the
    fix and now guards it (WP6.1). Two things fell out of it: a genuine pre-render staleness hazard
@@ -58,8 +71,8 @@ Definition-of-done boxes are now ticked. The remainder plan is authoritative for
 ## Dependency map
 
 ```
-CHILDRENS-TALK-STORAGE  ──(deletes WP8, §5.1)──▶  HISTORIC-ARCHIVE (Stage A)
-      WP0 (code in; needs a deploy)                    │
+CHILDRENS-TALK-STORAGE  ──(deleted WP8, §5.1)──▶  HISTORIC-ARCHIVE (Stage A)
+      [ARCHIVED 2026-07-25 — gate released]            │
                                                        ├─ needs WP-A1..A6 retention BEFORE first batch
                                                        ├─ needs WP6 thumbnail env BEFORE first batch
                                                        ├─ needs WP1 song-usage baseline BEFORE any prod write
@@ -87,8 +100,8 @@ DESIGN-SYSTEM-REFRESH ⇄ SERVICE-WORKBENCH step E  (Playwright baseline churn �
 
 | # | Plan | Status (verified 2026-07-24) | Why here |
 |---|---|---|---|
-| 1 | [CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md](CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md) | **WP0 implemented 2026-07-24, awaiting deploy**; WP1–WP7 not started; no dependencies | `storage/app/private` was neither created by the `Dockerfile` (`:92`) nor mounted (`docker-compose.prod.yml`), so children's-talk media and `private/section-publications/` previews die on every deploy. **WP0 now creates, mounts and chowns it** — three files, not the two the plan drafted (the `entrypoint.sh` ownership fix was the missed one) — **but production keeps losing files until this deploys**. The rest moves private assets to a new `do_spaces_private` disk — same bucket and credentials as `do_spaces`, private visibility, no CDN, mirroring `do_spaces_backups`. Stored `private/…` paths become literal object keys, so **the migration is a file copy plus a config flip with zero database writes**; rollback is one env var. Blocking constraint: the serving path calls `Storage::disk()->path()` (local-driver only), so **WP3/WP4 must land before the flip**. Maintainer confirmed there is no safeguarding sensitivity — children's talks are private only because unpublished — which permits signed-URL delivery (keeps HTTP Range, so seeking survives) and makes WP7 (publish, retire the private mechanism) the destination |
-| 2 | [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md) | Drafted; all questions answered (Q1–Q6); **Stage A gated on the WP-A\* retention workstream**; now also owns remainder R12 | Brings production to the state it would be in if every historic recording on the CBC drive had been processed by today's pipeline — sermon archive **and** the service structure feeding public song usage. **Start with Stage A0 (WP-A1–WP-A6):** the drive is a one-shot resource and the pipeline discards artifacts it cannot re-derive — most sharply, the full-service transcript is written to the temp disk and deleted 24h later by `media:cleanup-temp-files` (confirmed by test), despite a comment in `temporaryFilePaths()` claiming it is preserved. Also unretained: full-service audio (produced at 32 kbps then `unlink()`ed), RMS logs, raw `verbose_json` payloads, and any record of which drive files fed which run. Then Stage A (local import + review via `sermons:import-historic-videos`), then Stage B (promotion). **WP1 (song-usage baseline) must precede any production write** — the §6.1 usage policy means a botched promotion silently *deletes* currently-public song usage. Note that transcription and detection both default to `mock`, and a mocked run completes without error. Landing plan 1 first largely deletes this plan's WP8 |
+| 1 | [SERMON-ASSET-DISK-MIGRATION-RECOVERY-2026-07-25.md](SERMON-ASSET-DISK-MIGRATION-RECOVERY-2026-07-25.md) | Evidence gathered 2026-07-25, nothing started; no dependencies | 91 of 839 referenced production sermon assets resolve to Spaces keys that do not exist: the transcript and thumbnail disk *config* was repointed at `do_spaces` without the *files* being moved. The two families then diverged — **56 thumbnails are stranded but intact** on the persisted `public` disk (WP2 copies them across), while **35 transcripts were destroyed**, having lived on a path production does not persist (WP3 restores only those provably identified from the maintainer's laptop). Nothing is decaying, so it is not urgent. **WP4 is the cheap win and should go first regardless**: it teaches `audit:sermon-assets` to report `stranded` as distinct from `missing`, which is the instrument every other plan — the archive import especially — relies on to verify a migration. Do **not** "fix" the audit's 91 figure: §2.5 confirms it is correct |
+| 2 | [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md) | Drafted; all questions answered (Q1–Q6); **Stage A gated on the WP-A\* retention workstream**; now also owns remainder R12 | Brings production to the state it would be in if every historic recording on the CBC drive had been processed by today's pipeline — sermon archive **and** the service structure feeding public song usage. **Start with Stage A0 (WP-A1–WP-A6):** the drive is a one-shot resource and the pipeline discards artifacts it cannot re-derive — most sharply, the full-service transcript is written to the temp disk and deleted 24h later by `media:cleanup-temp-files` (confirmed by test), despite a comment in `temporaryFilePaths()` claiming it is preserved. Also unretained: full-service audio (produced at 32 kbps then `unlink()`ed), RMS logs, raw `verbose_json` payloads, and any record of which drive files fed which run. Then Stage A (local import + review via `sermons:import-historic-videos`), then Stage B (promotion). **WP1 (song-usage baseline) must precede any production write** — the §6.1 usage policy means a botched promotion silently *deletes* currently-public song usage. Note that transcription and detection both default to `mock`, and a mocked run completes without error. **WP8 is now CANCELLED** — the children's-talk storage plan landed on 2026-07-25 and removed its reason to exist entirely (children's talks promote as ordinary sermons, no manifest, no restore command, no relaxed guard) |
 | 3 | [SENTRY-ERROR-TRACKING.md](SENTRY-ERROR-TRACKING.md) | Not started; no dependencies; **not installed** (no `sentry/sentry-laravel` in `composer.json`) | Its original motivation — land before the `SERVICE_STRUCTURE_MODE` flip — is spent; the flip happened 2026-07-19. Its **new** motivation is plan 2: a long, unattended, irreversible-in-practice production import is exactly when you want release-tagged error tracking. Land it before Stage B, not after |
 | 4 | [CODE-QUALITY-REMEDIATION-2026-07-19.md](CODE-QUALITY-REMEDIATION-2026-07-19.md) | **WP2.1 + WP6.1 done 2026-07-24**; rest not started; **WP7's gate is now released** | WP2.1 (the `#[Computed]` perf fix) and its WP6.1 query-duplication guard have landed — remaining WP2 items are 2.2–2.8, and WP6.2's structural test is still open. WP1 is now routine drift (its CVE premise was a stale local vendor tree — the lock has carried medialibrary 11.23.1 since 2026-07-03). WP2/WP3/WP6 any time; WP4 as maintainer answers arrive; WP5 rides R8; **WP7 (PHPStan level 9, ~800 errors, `phpstan.neon` still at `level: 8`) is unblocked now that R9–R11 have merged** — only Q4 sign-off stands in front of it |
 | 5 | [SERVICE-WORKBENCH-REDESIGN-2026-07-23.md](SERVICE-WORKBENCH-REDESIGN-2026-07-23.md) | **Steps A–D implemented** (`98dd4cab5`, `473ba42c9`); step E outstanding | Remaining: Dusk coverage for edit-plan/review-row/technical-details/keyboard operation, a deterministic Playwright fixture at desktop and mobile widths, and deletion of the now-orphaned `partials/processing-run-header.blade.php` (no include, no PHP, no test references it). Sequence with plan 9: doing the design refresh first means generating the workbench's Playwright baselines once, against the final tokens |
@@ -105,7 +118,8 @@ DESIGN-SYSTEM-REFRESH ⇄ SERVICE-WORKBENCH step E  (Playwright baseline churn �
 
 | What | Where | Note |
 |---|---|---|
-| **Deploy WP0's `app-private` volume, then verify it by deploying twice** | plan 1, WP0 | The only thing standing between the current code and the data loss stopping. The first deploy creates an empty volume — it recovers nothing already lost (that is WP1) |
+| **Verify `app-livestream` survives two deploys** | archived children's-talk plan, WP0 | The last unverified piece of that plan. Upload a recording, deploy, confirm the source file is still there. `app-private` no longer needs proving — it was removed once WP1 showed it had never held anything |
+| **Remove the orphaned `crockenhill_app-private` volume** | archived children's-talk plan; `docs/operations/production.md` | Dropping the mount does not delete the volume. After a post-removal deploy is up: `docker volume rm crockenhill_app-private`. Verified empty by WP1 |
 | R8 data convergence — song catalogue sync, `play_date` import, media identity backfill, OpenLP archive apply, sermon promotion | remainder plan R8 + `docs/operations/r8-data-convergence-runbook.md` | Every one-shot deletion is blocked behind these. The local rehearsal is done and checkpointed; production has not been touched |
 | Run `CleanupReviewQueueNoiseCommand` against production | archived review-queue-noise plan, OD3 | The command shipped 2026-07-20 (dry-run-first, counts-only). No record it has been run in production |
 | Answer D1 (song familiarity: "sung exactly once in 5 years") | plan 11 | Blocks the whole plan; the draft defaults it to amber |
@@ -125,6 +139,7 @@ DESIGN-SYSTEM-REFRESH ⇄ SERVICE-WORKBENCH step E  (Playwright baseline churn �
 
 | Plan | Archived | Why |
 |---|---|---|
+| `CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md` | 2026-07-25 | Complete: WP0 (both volume mounts), WP1 (audits run against production), WP3a (observer hook), WP3b (the `private/` machinery), WP4 (section-publication candidates), and finally the removal of the `app-private` volume itself. WP2's migration run was **cancelled as a no-op** — WP1 found zero children's talks and zero private references in production, so the data-loss bug it was written for never had a victim. `grep -rn "private/" app` now returns comments only. Two operator items and one unrelated finding (the 91 missing assets, now plan 1 above) are recorded in its archival header |
 | `REVIEW-QUEUE-NOISE-AND-REVIEW-UI-2026-07-18.md` | 2026-07-24 | Complete: Workstream A (`c71ac1221`), Workstream B (`5843d40eb`), C1/C2/C4/C5/C6; C3 was superseded before work began. Residue recorded in its archival header — the production run of the cleanup command, the unmeasured before/after counts, and the follow-on phantom-review-state fixes (`684cacee4`..`36e32670f`) |
 | `SERVICE-SCREENS-CONSOLIDATION-2026-07-19.md` | 2026-07-23 | All four phases present in the route/component structure; its Phase 1 view split superseded by the service-workbench redesign |
 | `OOS-ARCHIVE-IMPORT-AND-PIPELINE-EVAL-2026-07-10.md` | 2026-07-20 | Complete 2026-07-11: harness + pipeline fixes shipped (PRs #1162/#1163/#1170), three eval runs done, gated create-only import executed. Unfixed eval findings recorded in its archival header for any future import work |

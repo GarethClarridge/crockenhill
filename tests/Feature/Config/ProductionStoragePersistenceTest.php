@@ -16,10 +16,11 @@ use Tests\TestCase;
  * Production runs an image pinned to a git SHA, so anything written to a path
  * that is not a named volume lives in the container's writable layer and is
  * destroyed when the next deploy replaces the container. This has bitten twice:
- * `storage/app/private` (children's-talk media and section-publication previews)
- * and `storage/app/livestream` (the original uploaded recordings). Both failed
- * silently — database rows survive pointing at nothing, so listings render and
- * only the asset routes 404.
+ * `storage/app/livestream` (the original uploaded recordings) and the former
+ * `storage/app/private` (children's-talk media and section-publication
+ * previews, since moved to Spaces). Both failed silently — database rows
+ * survive pointing at nothing, so listings render and only the asset routes
+ * 404.
  *
  * Three files must agree for a path to be safe:
  *   - docker-compose.prod.yml  mounts the named volume AND declares it
@@ -45,7 +46,6 @@ class ProductionStoragePersistenceTest extends TestCase
         'storage/app/public',
         'storage/app/temp',
         'storage/app/livewire-tmp',
-        'storage/app/private',
         'storage/app/livestream',
         'storage/logs',
     ];
@@ -60,6 +60,28 @@ class ProductionStoragePersistenceTest extends TestCase
                 '/var/www/html/'.$path,
                 $mounts,
                 "docker-compose.prod.yml does not mount a volume at {$path}, so everything written there is destroyed on the next deploy.",
+            );
+        }
+    }
+
+    /**
+     * The converse of the test above, so the list is the single source of truth
+     * in both directions. Without this, a path the application has stopped
+     * writing to keeps its mount, its `mkdir` and its chown indefinitely — which
+     * is exactly what `storage/app/private` did once children's-talk media moved
+     * to Spaces. A stale mount is not a data-loss bug, but it is four files
+     * claiming a requirement that no longer exists.
+     */
+    #[Test]
+    public function no_storage_path_is_mounted_that_the_application_no_longer_writes_to(): void
+    {
+        foreach ($this->appServiceMounts() as $containerPath => $volumeName) {
+            $relative = str_replace('/var/www/html/', '', $containerPath);
+
+            $this->assertContains(
+                $relative,
+                self::PERSISTED_STORAGE_PATHS,
+                "Volume {$volumeName} is mounted at {$relative}, which is not a path the application writes to. Remove the mount, its declaration, its Dockerfile mkdir and its entrypoint chown/chmod together.",
             );
         }
     }

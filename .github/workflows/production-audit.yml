@@ -61,7 +61,7 @@ jobs:
             # "private-assets" is the pair of audits that together quantify the
             # private/ prefix: children's-talk sermon assets and section
             # publication candidates. See WP1 of
-            # docs/plans/CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md.
+            # docs/archived-plans/CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md.
             selected() {
               [ "$AUDIT" = "all" ] || [ "$AUDIT" = "$1" ] || [ "$AUDIT" = "$2" ]
             }
