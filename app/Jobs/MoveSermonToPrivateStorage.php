@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Data\ThumbnailMetadata;
 use App\Enums\SermonContentType;
 use App\Models\Sermon;
+use App\Support\MediaAssetPath;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -17,11 +18,20 @@ use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Throwable;
 
+/**
+ * Moves a children's talk's assets between the kind's ordinary disk and the
+ * local `private/` disk. Both directions run through the same copy-verify-commit
+ * -then-delete sequence; only `$toPrivate` decides which end is the source.
+ */
 class MoveSermonToPrivateStorage implements ShouldQueue
 {
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
+
+    private const PRIVATE_PREFIX = 'private/';
+
+    private const PRIVATE_DISK = 'local';
 
     public int $tries = 3;
 
@@ -33,12 +43,26 @@ class MoveSermonToPrivateStorage implements ShouldQueue
     /** @var array<int, true> */
     private static array $sermonsBeingMoved = [];
 
-    /** @var array<string, array{disk: string, source: string, target: string}> */
+    /** @var array<string, array{source_disk: string, target_disk: string, source: string, target: string}> */
     private array $pendingSourceDeletions = [];
+
+    /**
+     * Declared with defaults instead of promoted so that a job already queued
+     * before these parameters existed still deserialises into the forward
+     * direction rather than an uninitialised readonly property.
+     */
+    private bool $toPrivate = true;
+
+    private bool $deleteSource = true;
 
     public function __construct(
         private readonly int $sermonId,
-    ) {}
+        bool $toPrivate = true,
+        bool $deleteSource = true,
+    ) {
+        $this->toPrivate = $toPrivate;
+        $this->deleteSource = $deleteSource;
+    }
 
     public function handle(): void
     {
@@ -131,7 +155,7 @@ class MoveSermonToPrivateStorage implements ShouldQueue
         ]);
     }
 
-    private function moveDirectAsset(string $field, string $sourceDisk): void
+    private function moveDirectAsset(string $field, string $kindDisk): void
     {
         $sermon = Sermon::query()->findOrFail($this->sermonId);
         $path = $sermon->getAttribute($field);
@@ -143,16 +167,16 @@ class MoveSermonToPrivateStorage implements ShouldQueue
         [$sourcePath, $targetPath] = $this->sourceAndTargetPaths($path);
 
         if ($path === $sourcePath) {
-            $this->copyAndVerify($sourceDisk, $sourcePath, $targetPath);
+            $this->copyAndVerify($kindDisk, $sourcePath, $targetPath);
             $this->compareAndSetDirectPath($field, $sourcePath, $targetPath);
         } else {
-            $this->verifyCommittedTarget($targetPath);
+            $this->verifyCommittedTarget($kindDisk, $targetPath);
         }
 
-        $this->scheduleSourceDeletion($sourceDisk, $sourcePath, $targetPath);
+        $this->scheduleSourceDeletion($kindDisk, $sourcePath, $targetPath);
     }
 
-    private function moveMetadataAsset(string $key, string $sourceDisk): void
+    private function moveMetadataAsset(string $key, string $kindDisk): void
     {
         $metadata = Sermon::query()->findOrFail($this->sermonId)->thumbnail_metadata;
 
@@ -174,17 +198,17 @@ class MoveSermonToPrivateStorage implements ShouldQueue
         [$sourcePath, $targetPath] = $this->sourceAndTargetPaths($path);
 
         if ($path === $sourcePath) {
-            $this->copyAndVerify($sourceDisk, $sourcePath, $targetPath);
+            $this->copyAndVerify($kindDisk, $sourcePath, $targetPath);
             $this->compareAndSetMetadataPath($key, $sourcePath, $targetPath);
         } else {
-            $this->verifyCommittedTarget($targetPath);
+            $this->verifyCommittedTarget($kindDisk, $targetPath);
         }
 
-        $this->scheduleSourceDeletion($sourceDisk, $sourcePath, $targetPath);
+        $this->scheduleSourceDeletion($kindDisk, $sourcePath, $targetPath);
     }
 
     /** @return array<int, Throwable> */
-    private function moveCandidateAssets(string $sourceDisk): array
+    private function moveCandidateAssets(string $kindDisk): array
     {
         $metadata = Sermon::query()->findOrFail($this->sermonId)->thumbnail_metadata;
 
@@ -205,7 +229,7 @@ class MoveSermonToPrivateStorage implements ShouldQueue
                 }
 
                 try {
-                    $this->moveCandidatePath($candidateId, $key, $path, $sourceDisk);
+                    $this->moveCandidatePath($candidateId, $key, $path, $kindDisk);
                 } catch (Throwable $exception) {
                     $failures[] = $exception;
                 }
@@ -215,34 +239,56 @@ class MoveSermonToPrivateStorage implements ShouldQueue
         return $failures;
     }
 
-    private function moveCandidatePath(string $candidateId, string $key, string $path, string $sourceDisk): void
+    private function moveCandidatePath(string $candidateId, string $key, string $path, string $kindDisk): void
     {
         [$sourcePath, $targetPath] = $this->sourceAndTargetPaths($path);
 
         if ($path === $sourcePath) {
-            $this->copyAndVerify($sourceDisk, $sourcePath, $targetPath);
+            $this->copyAndVerify($kindDisk, $sourcePath, $targetPath);
             $this->compareAndSetCandidatePath($candidateId, $key, $sourcePath, $targetPath);
         } else {
-            $this->verifyCommittedTarget($targetPath);
+            $this->verifyCommittedTarget($kindDisk, $targetPath);
         }
 
-        $this->scheduleSourceDeletion($sourceDisk, $sourcePath, $targetPath);
+        $this->scheduleSourceDeletion($kindDisk, $sourcePath, $targetPath);
     }
 
-    /** @return array{string, string} */
+    /**
+     * The [source, target] pair for the configured direction. Both are derived
+     * from the prefix-stripped path, so an asset already sitting at its target
+     * yields `$path !== $source` and callers take the verify-only branch — which
+     * is how a partially-completed run resumes in either direction.
+     *
+     * @return array{string, string}
+     */
     private function sourceAndTargetPaths(string $path): array
     {
-        if (str_starts_with($path, 'private/')) {
-            return [substr($path, strlen('private/')), $path];
-        }
+        $publicPath = str_starts_with($path, self::PRIVATE_PREFIX)
+            ? substr($path, strlen(self::PRIVATE_PREFIX))
+            : $path;
 
-        return [$path, 'private/'.$path];
+        $privatePath = self::PRIVATE_PREFIX.$publicPath;
+
+        return $this->toPrivate
+            ? [$publicPath, $privatePath]
+            : [$privatePath, $publicPath];
     }
 
-    private function copyAndVerify(string $sourceDisk, string $sourcePath, string $targetPath): void
+    private function sourceDisk(string $kindDisk): string
     {
+        return $this->toPrivate ? $kindDisk : self::PRIVATE_DISK;
+    }
+
+    private function targetDisk(string $kindDisk): string
+    {
+        return $this->toPrivate ? self::PRIVATE_DISK : $kindDisk;
+    }
+
+    private function copyAndVerify(string $kindDisk, string $sourcePath, string $targetPath): void
+    {
+        $sourceDisk = $this->sourceDisk($kindDisk);
         $source = Storage::disk($sourceDisk);
-        $target = Storage::disk('local');
+        $target = Storage::disk($this->targetDisk($kindDisk));
 
         if (! $source->exists($sourcePath)) {
             throw new RuntimeException("Private-media source is missing: [{$sourceDisk}] {$sourcePath}");
@@ -294,9 +340,9 @@ class MoveSermonToPrivateStorage implements ShouldQueue
         }
     }
 
-    private function verifyCommittedTarget(string $targetPath): void
+    private function verifyCommittedTarget(string $kindDisk, string $targetPath): void
     {
-        if (! Storage::disk('local')->exists($targetPath)) {
+        if (! Storage::disk($this->targetDisk($kindDisk))->exists($targetPath)) {
             throw new RuntimeException("Committed private-media target is missing: {$targetPath}");
         }
     }
@@ -393,6 +439,7 @@ class MoveSermonToPrivateStorage implements ShouldQueue
      */
     private function deleteSourceAfterCommit(
         string $sourceDisk,
+        string $targetDisk,
         string $sourcePath,
         string $targetPath,
         array $referencedAssets,
@@ -403,7 +450,7 @@ class MoveSermonToPrivateStorage implements ShouldQueue
             return;
         }
 
-        $target = Storage::disk('local');
+        $target = Storage::disk($targetDisk);
 
         if (! $target->exists($targetPath) || $source->size($sourcePath) !== $target->size($targetPath)) {
             throw new RuntimeException("Refusing to delete an unverified private-media source: {$sourcePath}");
@@ -435,12 +482,14 @@ class MoveSermonToPrivateStorage implements ShouldQueue
         ]);
     }
 
-    private function scheduleSourceDeletion(string $sourceDisk, string $sourcePath, string $targetPath): void
+    private function scheduleSourceDeletion(string $kindDisk, string $sourcePath, string $targetPath): void
     {
+        $sourceDisk = $this->sourceDisk($kindDisk);
         $key = $sourceDisk.'|'.$sourcePath;
 
         $this->pendingSourceDeletions[$key] = [
-            'disk' => $sourceDisk,
+            'source_disk' => $sourceDisk,
+            'target_disk' => $this->targetDisk($kindDisk),
             'source' => $sourcePath,
             'target' => $targetPath,
         ];
@@ -448,7 +497,11 @@ class MoveSermonToPrivateStorage implements ShouldQueue
 
     private function deleteScheduledSources(): void
     {
-        if ($this->pendingSourceDeletions === []) {
+        // A copy-only run leaves every source in place, so the copy can be
+        // audited before anything becomes unrecoverable. A later run with
+        // deletion enabled takes the verify-only branch for each already
+        // committed path and removes the sources it has just re-verified.
+        if (! $this->deleteSource || $this->pendingSourceDeletions === []) {
             return;
         }
 
@@ -458,7 +511,8 @@ class MoveSermonToPrivateStorage implements ShouldQueue
 
         foreach ($this->pendingSourceDeletions as $deletion) {
             $this->deleteSourceAfterCommit(
-                $deletion['disk'],
+                $deletion['source_disk'],
+                $deletion['target_disk'],
                 $deletion['source'],
                 $deletion['target'],
                 $referencedAssets,
@@ -474,6 +528,13 @@ class MoveSermonToPrivateStorage implements ShouldQueue
     /**
      * Every disk+path pair referenced by any sermon row, plus a disk-agnostic
      * path set for private-target ownership checks.
+     *
+     * Each path's disk is resolved from the path itself, not from its kind's
+     * ordinary disk: a row still holding `private/…` lives on the private disk,
+     * and keying it against the public one would make the "source is still
+     * referenced elsewhere" guard in `deleteSourceAfterCommit()` unable to match
+     * in the reverse direction, so a shared asset could be deleted out from
+     * under another sermon.
      *
      * @return array{disk_paths: array<string, true>, paths: array<string, true>}
      */
@@ -504,10 +565,12 @@ class MoveSermonToPrivateStorage implements ShouldQueue
                     }
                 }
 
-                foreach ($assets as [$disk, $path]) {
+                foreach ($assets as [$publicDisk, $path]) {
                     if (! is_string($path) || $path === '') {
                         continue;
                     }
+
+                    $disk = MediaAssetPath::diskForPath($path, $publicDisk);
 
                     $index['disk_paths'][$disk.'|'.$path] = true;
                     $index['paths'][$path] = true;

@@ -1,7 +1,36 @@
 # Move Children's-Talk Asset Storage to Spaces
 
 > **Status (2026-07-25): redesigned. WP0 implemented (code, awaiting deploy); WP1 tooling landed
-> (awaiting production run); WP2–WP4 not started.**
+> (awaiting production run); WP3a landed; WP2 code landed (awaiting production run); WP3b–WP4 not
+> started.**
+>
+> ## Progress note — 2026-07-25 (later)
+>
+> GitHub Actions was down, so WP0's deploy is still outstanding. The code-only work that does not
+> depend on it was brought forward:
+>
+> - **WP3a landed early, and ships in the same deploy as WP0.** The observer hook was not merely an
+>   obstacle to WP2 — it was the *cause* of the children's-talk data loss. `SermonObserver` was the
+>   only dispatch site for `MoveSermonToPrivateStorage` (verified), so removing it means new talks
+>   stay on Spaces, where a container replacement cannot reach them. WP0 makes the private directory
+>   survive a deploy; WP3a makes it unnecessary. Accepted consequence, per §3.3: from that deploy,
+>   newly processed children's-talk media lands on public-read keys, and the existing prefix-based
+>   serving branches render CDN URLs for it. The login gate, sitemap and API exclusion are untouched.
+> - **WP2's code is complete**: the mover takes `toPrivate` and `deleteSource` flags (declared with
+>   defaults rather than promoted, so jobs queued before the change still deserialise);
+>   `referencedAssetIndex()`'s disk-keying defect is fixed via `MediaAssetPath::diskForPath()`, with a
+>   test confirmed to fail without it while its forward-direction twin still passes; and
+>   `media:publicise-childrens-talk-assets` is dry-run by default. The command **refuses** a
+>   `--delete-source` pass while any talk still references a private path, so the plan's
+>   "never the same run as the copy" rule is enforced in code rather than in a runbook.
+> - `ChildrensTalkPublicationWorkflowTest` was rewritten per §2.6 to assert the gate
+>   (`canAccessChildrensCorner` / `shouldExposeOnSermonApi` / `shouldIncludeInSitemap`) instead of the
+>   storage location. It was the only suite failure caused by WP3a.
+> - Both audit commands were smoke-tested locally ahead of their production debut and match the
+>   baseline recorded in §4 WP1 (144 missing, zero private; sections clean).
+>
+> **Still blocked on the deploy:** WP1's production run, WP2's production run, WP3b, and removal of
+> the `app-private` volume.
 >
 > ## Redesign note — 2026-07-25
 >
@@ -374,9 +403,10 @@ migrate one, assert the source survives.
 |---|---|---|---|
 | **WP0** | **Mount `storage/app/private` and `storage/app/livestream`** — code done 2026-07-24/25, **awaiting deploy** | ops | — |
 | WP1 | Rescue + quantify the loss in production (read-only) — tooling done 2026-07-25, **run outstanding** | ops | WP0 rescue step first |
-| WP2 | De-privatise children's-talk assets: reverse the mover, run it in production | code/ops | WP1, WP3's observer removal |
-| WP3 | Delete the `private/` machinery | refactor | WP2 |
-| WP4 | Section-publication candidates off `private/` | code | WP3 |
+| WP3a | Remove the observer re-privatise hook — **done 2026-07-25**, ships with WP0 | refactor | — |
+| WP2 | De-privatise children's-talk assets — **code done 2026-07-25**, production run outstanding | code/ops | WP1, WP3a |
+| WP3b | Delete the rest of the `private/` machinery | refactor | WP2's production run |
+| WP4 | Section-publication candidates off `private/` | code | WP3b |
 
 Two work packages of code where there were five, and no new configuration surface.
 
@@ -429,6 +459,22 @@ convention:
   database that exact run reports 144 missing of which **zero** are private.
 - `audit:section-assets` — covers `service_sections.extracted_video_path` / `extracted_audio_path`
   through `ServiceSection::extractedAssetDisk()`, same split. Nothing audited this population before.
+
+#### Rescue step discharged — 2026-07-25
+
+**`storage/app/private` does not exist in the production container.** Checked inside the running
+container (not on the host, which would prove nothing since the app lives in the image), it returned
+`No such file or directory` and a count of 0.
+
+So there is nothing to rescue and the ordering constraint below is satisfied trivially: **step 1 is a
+no-op and the deploy can go first.** It also settles the scope question WP2 could not start without —
+whatever children's-talk media production once had is *already* gone from an earlier deploy, and the
+directory was never even recreated since. Expect WP1's audit to report the loss as historic, and
+WP2's production run to have little or nothing to move. That does not make WP2 pointless: it still
+strips the prefix off the surviving database rows so that the machinery in WP3b can be deleted.
+
+The per-deploy loss figure the rescue tree was meant to provide is therefore unavailable. WP1's
+`missing` counts are the remaining measure.
 
 #### Ordering — rescue first, measure second
 

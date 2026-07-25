@@ -430,4 +430,221 @@ class MoveSermonToPrivateStorageTest extends TestCase
 
         (new MoveSermonToPrivateStorage(99999))->handle();
     }
+
+    #[Test]
+    public function it_moves_every_private_asset_back_onto_its_kind_disk(): void
+    {
+        $sermonPaths = ['sermons/audio.mp3', 'sermons/video.mp4'];
+        $thumbnailPaths = [
+            'thumbs/primary.webp',
+            'thumbs/plain.webp',
+            'thumbs/card.webp',
+            'thumbs/candidate-plain.webp',
+            'thumbs/candidate-card.webp',
+            'thumbs/candidate-overlay.webp',
+        ];
+
+        foreach ([...$sermonPaths, ...$thumbnailPaths, 'transcripts/talk.md'] as $path) {
+            Storage::disk('local')->put('private/'.$path, 'contents-of-'.$path);
+        }
+
+        $sermon = Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
+            'content_type' => SermonContentType::ChildrensTalk,
+            'audio_file_path' => 'private/sermons/audio.mp3',
+            'video_file_path' => 'private/sermons/video.mp4',
+            'transcript_file_path' => 'private/transcripts/talk.md',
+            'thumbnail_file_path' => 'private/thumbs/primary.webp',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'private/thumbs/plain.webp',
+                'card_thumbnail_path' => 'private/thumbs/card.webp',
+                'overlay_thumbnail_path' => 'private/thumbs/candidate-overlay.webp',
+                'thumbnail_candidates' => [[
+                    'id' => 'candidate-1',
+                    'timestamp' => 10.0,
+                    'score' => 0.9,
+                    'plain_path' => 'private/thumbs/candidate-plain.webp',
+                    'card_path' => 'private/thumbs/candidate-card.webp',
+                    'overlay_path' => 'private/thumbs/candidate-overlay.webp',
+                ]],
+            ],
+        ]));
+
+        (new MoveSermonToPrivateStorage($sermon->id, toPrivate: false))->handle();
+
+        $sermon->refresh();
+
+        $this->assertSame('sermons/audio.mp3', $sermon->audio_file_path);
+        $this->assertSame('sermons/video.mp4', $sermon->video_file_path);
+        $this->assertSame('transcripts/talk.md', $sermon->transcript_file_path);
+        $this->assertSame('thumbs/primary.webp', $sermon->thumbnail_file_path);
+        $this->assertSame('thumbs/plain.webp', $sermon->plain_thumbnail_file_path);
+        $this->assertSame('thumbs/card.webp', $sermon->card_thumbnail_file_path);
+        $this->assertSame('thumbs/candidate-overlay.webp', $sermon->thumbnail_metadata?->overlayThumbnailPath);
+        $this->assertSame('thumbs/candidate-plain.webp', $sermon->thumbnail_candidates[0]['plain_path']);
+        $this->assertSame('thumbs/candidate-card.webp', $sermon->thumbnail_candidates[0]['card_path']);
+        $this->assertSame('thumbs/candidate-overlay.webp', $sermon->thumbnail_candidates[0]['overlay_path']);
+
+        // Each kind lands on its own configured disk, not on one shared disk.
+        foreach ([...$sermonPaths, ...$thumbnailPaths] as $path) {
+            Storage::disk('public')->assertExists($path);
+            Storage::disk('local')->assertMissing('private/'.$path);
+        }
+
+        Storage::disk('transcripts')->assertExists('transcripts/talk.md');
+        Storage::disk('local')->assertMissing('private/transcripts/talk.md');
+    }
+
+    /**
+     * The reverse of `it_retains_a_public_source_still_referenced_by_another_sermon`.
+     * This is the case `referencedAssetIndex()` used to get wrong: it keyed every
+     * referenced path against its kind's public disk, so a row holding a
+     * `private/…` path was indexed under `public|private/…` and the `local|private/…`
+     * lookup here could never match — deleting a second sermon's only copy.
+     */
+    #[Test]
+    public function it_retains_a_private_source_still_referenced_by_another_sermon(): void
+    {
+        Storage::disk('local')->put('private/sermons/shared.mp3', 'shared-audio');
+
+        Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
+            'audio_file_path' => 'private/sermons/shared.mp3',
+        ]));
+
+        $sermon = Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
+            'audio_file_path' => 'private/sermons/shared.mp3',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]));
+
+        (new MoveSermonToPrivateStorage($sermon->id, toPrivate: false))->handle();
+
+        $this->assertSame('sermons/shared.mp3', $sermon->fresh()->audio_file_path);
+        Storage::disk('public')->assertExists('sermons/shared.mp3');
+        Storage::disk('local')->assertExists('private/sermons/shared.mp3');
+    }
+
+    #[Test]
+    public function it_resumes_a_partially_publicised_talk(): void
+    {
+        // Audio was already committed on a previous run; video was not.
+        Storage::disk('public')->put('sermons/audio.mp3', 'audio-content');
+        Storage::disk('local')->put('private/sermons/audio.mp3', 'audio-content');
+        Storage::disk('local')->put('private/sermons/video.mp4', 'video-content');
+
+        $sermon = Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
+            'audio_file_path' => 'sermons/audio.mp3',
+            'video_file_path' => 'private/sermons/video.mp4',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]));
+
+        (new MoveSermonToPrivateStorage($sermon->id, toPrivate: false))->handle();
+
+        $sermon->refresh();
+
+        $this->assertSame('sermons/audio.mp3', $sermon->audio_file_path);
+        $this->assertSame('sermons/video.mp4', $sermon->video_file_path);
+        Storage::disk('public')->assertExists('sermons/video.mp4');
+        Storage::disk('local')->assertMissing('private/sermons/audio.mp3');
+        Storage::disk('local')->assertMissing('private/sermons/video.mp4');
+    }
+
+    #[Test]
+    public function it_leaves_private_sources_in_place_when_deletion_is_disabled(): void
+    {
+        Storage::disk('local')->put('private/sermons/audio.mp3', 'audio-content');
+
+        $sermon = Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
+            'audio_file_path' => 'private/sermons/audio.mp3',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]));
+
+        (new MoveSermonToPrivateStorage($sermon->id, toPrivate: false, deleteSource: false))->handle();
+
+        $this->assertSame('sermons/audio.mp3', $sermon->fresh()->audio_file_path);
+        Storage::disk('public')->assertExists('sermons/audio.mp3');
+        // The byte-identical rollback copy survives the copy-only pass.
+        Storage::disk('local')->assertExists('private/sermons/audio.mp3');
+    }
+
+    #[Test]
+    public function it_deletes_a_private_source_only_after_the_committed_copy_verifies(): void
+    {
+        Storage::disk('public')->put('sermons/audio.mp3', 'audio-content');
+        Storage::disk('local')->put('private/sermons/audio.mp3', 'audio-content');
+
+        $sermon = Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
+            'audio_file_path' => 'sermons/audio.mp3',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]));
+
+        (new MoveSermonToPrivateStorage($sermon->id, toPrivate: false, deleteSource: true))->handle();
+
+        $this->assertSame('sermons/audio.mp3', $sermon->fresh()->audio_file_path);
+        Storage::disk('public')->assertExists('sermons/audio.mp3');
+        Storage::disk('local')->assertMissing('private/sermons/audio.mp3');
+    }
+
+    #[Test]
+    public function it_refuses_to_delete_a_private_source_when_the_committed_copy_is_missing(): void
+    {
+        // The row claims the copy is committed, but the object is not there.
+        Storage::disk('local')->put('private/sermons/audio.mp3', 'audio-content');
+
+        $sermon = Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
+            'audio_file_path' => 'sermons/audio.mp3',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]));
+
+        try {
+            (new MoveSermonToPrivateStorage($sermon->id, toPrivate: false, deleteSource: true))->handle();
+            $this->fail('A missing committed target should fail before any deletion.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('target is missing', $exception->getMessage());
+        }
+
+        Storage::disk('local')->assertExists('private/sermons/audio.mp3');
+    }
+
+    #[Test]
+    public function it_aborts_the_commit_when_the_path_changes_concurrently(): void
+    {
+        $sermon = Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
+            'audio_file_path' => 'private/sermons/audio.mp3',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]));
+
+        $stream = fopen('php://temp', 'r+');
+        fwrite($stream, 'audio-content');
+        rewind($stream);
+
+        $source = Mockery::mock(FilesystemAdapter::class);
+        $source->shouldReceive('exists')->with('private/sermons/audio.mp3')->andReturnTrue();
+        $source->shouldReceive('readStream')->with('private/sermons/audio.mp3')->andReturn($stream);
+        $source->shouldReceive('size')->with('private/sermons/audio.mp3')->andReturn(13);
+
+        $target = Mockery::mock(FilesystemAdapter::class);
+        $target->shouldReceive('exists')->with('sermons/audio.mp3')->andReturn(false, true);
+        $target->shouldReceive('size')->with('sermons/audio.mp3')->andReturn(13);
+        // Another writer repoints the row while this copy is in flight.
+        $target->shouldReceive('writeStream')->once()->andReturnUsing(
+            function () use ($sermon): bool {
+                Sermon::withoutEvents(fn () => Sermon::query()
+                    ->whereKey($sermon->id)
+                    ->update(['audio_file_path' => 'sermons/reprocessed.mp3']));
+
+                return true;
+            },
+        );
+
+        Storage::shouldReceive('disk')->with('local')->andReturn($source);
+        Storage::shouldReceive('disk')->with('public')->andReturn($target);
+
+        try {
+            (new MoveSermonToPrivateStorage($sermon->id, toPrivate: false))->handle();
+            $this->fail('A concurrent path change should abort the commit.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('changed concurrently', $exception->getMessage());
+        }
+
+        $this->assertSame('sermons/reprocessed.mp3', $sermon->fresh()->audio_file_path);
+    }
 }
