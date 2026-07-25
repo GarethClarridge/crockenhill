@@ -104,6 +104,18 @@ class EditSermonTest extends TestCase
     }
 
     #[Test]
+    public function it_renders_dynamic_aria_labels_for_removing_sermon_points(): void
+    {
+        $sermon = Sermon::factory()->create(['points' => ['First Point', 'Second Point']]);
+
+        $this->actingAs($this->admin);
+
+        Livewire::test(EditSermon::class, ['sermon' => $sermon])
+            ->assertSeeHtml('aria-label="Remove point: 1"')
+            ->assertSeeHtml('aria-label="Remove point: 2"');
+    }
+
+    #[Test]
     public function it_validates_sermon_data(): void
     {
         $sermon = Sermon::factory()->create();
