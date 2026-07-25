@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Integration\Observers;
 
 use App\Enums\SermonContentType;
-use App\Jobs\MoveSermonToPrivateStorage;
 use App\Models\Sermon;
 use App\Observers\SermonObserver;
 use App\Services\Public\PodcastFeedService;
@@ -81,7 +80,7 @@ class SermonObserverTest extends TestCase
         $observer = $this->makeObserver();
         $observer->saved($sermon);
 
-        Queue::assertNotPushed(MoveSermonToPrivateStorage::class);
+        Queue::assertNothingPushed();
         $this->assertSame($path, $sermon->fresh()?->getAttribute($field));
     }
 
@@ -109,7 +108,7 @@ class SermonObserverTest extends TestCase
         $observer = $this->makeObserver();
         $observer->saved($sermon);
 
-        Queue::assertNotPushed(MoveSermonToPrivateStorage::class);
+        Queue::assertNothingPushed();
         $this->assertSame('thumbs/late-primary.webp', $sermon->fresh()?->thumbnail_file_path);
     }
 

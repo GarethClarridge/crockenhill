@@ -547,7 +547,7 @@ class ThumbnailGenerationService
      */
     private function createRenderedAssetsFromStoredPlainPath(Sermon $sermon, string $plainPath): ?array
     {
-        $disk = $this->resolveStoredThumbnailDisk($plainPath);
+        $disk = $this->storageDisk;
         if (! Storage::disk($disk)->exists($plainPath)) {
             Log::warning('Plain thumbnail not found for overlay rendering', [
                 'sermon_id' => $sermon->id,
@@ -821,11 +821,7 @@ class ThumbnailGenerationService
         }
 
         try {
-            $disk = str_starts_with($path, 'private/')
-                ? 'local'
-                : $this->storageDisk;
-
-            Storage::disk($disk)->delete($path);
+            Storage::disk($this->storageDisk)->delete($path);
         } catch (\Throwable $e) {
             Log::warning('Failed to delete stored thumbnail', [
                 'path' => $path,
@@ -834,16 +830,9 @@ class ThumbnailGenerationService
         }
     }
 
-    private function resolveStoredThumbnailDisk(string $path): string
-    {
-        return str_starts_with($path, 'private/')
-            ? 'local'
-            : $this->storageDisk;
-    }
-
     private function storedThumbnailExists(string $path): bool
     {
-        return Storage::disk($this->resolveStoredThumbnailDisk($path))->exists($path);
+        return Storage::disk($this->storageDisk)->exists($path);
     }
 
     private function cleanupTempFile(string $tempPath): void

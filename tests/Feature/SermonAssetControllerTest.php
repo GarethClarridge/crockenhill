@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\SermonContentType;
-use App\Jobs\MoveSermonToPrivateStorage;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\Media\Audio\SermonTranscriptReader;
 use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -20,13 +18,6 @@ use Tests\TestCase;
 class SermonAssetControllerTest extends TestCase
 {
     use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        Queue::fake([MoveSermonToPrivateStorage::class]);
-    }
 
     #[Test]
     public function it_serves_audio_file_for_local_storage(): void
@@ -402,85 +393,6 @@ class SermonAssetControllerTest extends TestCase
 
         $response->assertRedirect();
         $this->assertStringContainsString('childrens-talk.mp4', $response->headers->get('Location'));
-    }
-
-    #[Test]
-    public function it_serves_private_audio_file_as_binary_response_to_admin(): void
-    {
-        Storage::fake('local');
-        $admin = User::factory()->admin()->create();
-
-        $sermon = Sermon::factory()->create([
-            'slug' => 'private-sermon',
-            'audio_file_path' => 'private/sermons/test-audio.mp3',
-        ]);
-
-        Storage::disk('local')->put('private/sermons/test-audio.mp3', 'fake private audio content');
-
-        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/audio");
-
-        $response->assertStatus(200);
-        $response->assertHeader('Content-Type', 'audio/mpeg');
-    }
-
-    #[Test]
-    public function it_serves_private_video_file_as_binary_response_to_admin(): void
-    {
-        Storage::fake('local');
-        $admin = User::factory()->admin()->create();
-
-        $sermon = Sermon::factory()->create([
-            'slug' => 'private-video-sermon',
-            'video_file_path' => 'private/sermons/test-video.mp4',
-        ]);
-
-        Storage::disk('local')->put('private/sermons/test-video.mp4', 'fake private video content');
-
-        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/video");
-
-        $response->assertStatus(200);
-        $response->assertHeader('Content-Type', 'video/mp4');
-        $response->assertHeaderContains('Cache-Control', 'no-store');
-    }
-
-    #[Test]
-    public function it_serves_private_thumbnail_file_as_binary_response_to_admin(): void
-    {
-        Storage::fake('local');
-        $admin = User::factory()->admin()->create();
-
-        $sermon = Sermon::factory()->create([
-            'slug' => 'private-thumb-sermon',
-            'thumbnail_file_path' => 'private/thumbnails/test-thumb.png',
-        ]);
-
-        Storage::disk('local')->put('private/thumbnails/test-thumb.png', 'fake private png content');
-
-        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/thumbnail");
-
-        $response->assertStatus(200);
-        $response->assertHeader('Content-Type', 'image/png');
-    }
-
-    #[Test]
-    public function it_serves_private_card_thumbnail_file_as_binary_response_to_admin(): void
-    {
-        Storage::fake('local');
-        $admin = User::factory()->admin()->create();
-
-        $sermon = Sermon::factory()->create([
-            'slug' => 'private-card-thumb-sermon',
-            'thumbnail_metadata' => [
-                'card_thumbnail_path' => 'private/thumbnails/card.webp',
-            ],
-        ]);
-
-        Storage::disk('local')->put('private/thumbnails/card.webp', 'fake private webp content');
-
-        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
-
-        $response->assertStatus(200);
-        $response->assertHeader('Content-Type', 'image/webp');
     }
 
     // ── Transcript endpoint ───────────────────────────────────────────────────

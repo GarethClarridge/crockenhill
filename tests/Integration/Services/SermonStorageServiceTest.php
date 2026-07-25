@@ -213,34 +213,6 @@ class SermonStorageServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_returns_guarded_audio_delivery_url_for_private_assets(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'slug' => 'private-audio-sermon',
-            'audio_file_path' => 'private/sermons/audio/test.mp3',
-        ]);
-
-        $this->assertSame(
-            route('sermons.audio', ['sermon' => $sermon->slug]),
-            $this->service->getAudioDeliveryUrl($sermon),
-        );
-    }
-
-    #[Test]
-    public function it_returns_guarded_video_delivery_url_for_private_assets(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'slug' => 'private-video-sermon',
-            'video_file_path' => 'private/sermons/video/test.mp4',
-        ]);
-
-        $this->assertSame(
-            route('sermons.video', ['sermon' => $sermon->slug]),
-            $this->service->getVideoDeliveryUrl($sermon),
-        );
-    }
-
-    #[Test]
     public function it_returns_null_video_url_when_no_video_path(): void
     {
         $sermon = Sermon::factory()->create([
@@ -284,20 +256,6 @@ class SermonStorageServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_returns_guarded_thumbnail_delivery_url_for_private_assets(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'slug' => 'private-thumbnail-sermon',
-            'thumbnail_file_path' => 'private/thumbnails/test.jpg',
-        ]);
-
-        $this->assertSame(
-            route('sermons.thumbnail', ['sermon' => $sermon->slug]),
-            $this->service->getThumbnailDeliveryUrl($sermon),
-        );
-    }
-
-    #[Test]
     public function it_returns_null_thumbnail_url_when_no_thumbnail_path(): void
     {
         $sermon = Sermon::factory()->create([
@@ -323,92 +281,6 @@ class SermonStorageServiceTest extends TestCase
         $url = $this->service->getCardThumbnailUrl($sermon);
 
         $this->assertStringStartsWith('https://cdn.example.com/sermons/thumbnails/sermon-card.jpg?v=', (string) $url);
-    }
-
-    #[Test]
-    public function it_returns_guarded_card_thumbnail_delivery_url_for_private_assets(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'slug' => 'private-card-sermon',
-            'thumbnail_metadata' => [
-                'card_thumbnail_path' => 'private/thumbnails/card.jpg',
-            ],
-        ]);
-
-        $this->assertSame(
-            route('sermons.thumbnail.card', ['sermon' => $sermon->slug]),
-            $this->service->getCardThumbnailDeliveryUrl($sermon),
-        );
-    }
-
-    #[Test]
-    public function it_rejects_generating_direct_public_audio_urls_for_private_assets(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'audio_file_path' => 'private/sermons/audio/test.mp3',
-        ]);
-
-        $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage('Private audio assets must be served through guarded sermon asset routes.');
-
-        $this->service->getPublicUrl($sermon);
-    }
-
-    #[Test]
-    public function it_rejects_generating_direct_public_video_urls_for_private_assets(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'video_file_path' => 'private/sermons/video/test.mp4',
-        ]);
-
-        $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage('Private video assets must be served through guarded sermon asset routes.');
-
-        $this->service->getVideoUrl($sermon);
-    }
-
-    #[Test]
-    public function it_rejects_generating_direct_public_thumbnail_urls_for_private_assets(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'thumbnail_file_path' => 'private/thumbnails/test.jpg',
-        ]);
-
-        $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage('Private thumbnail assets must be served through guarded sermon asset routes.');
-
-        $this->service->getThumbnailUrl($sermon);
-    }
-
-    #[Test]
-    public function it_returns_guarded_plain_thumbnail_delivery_url_for_private_assets(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'slug' => 'private-plain-thumbnail-sermon',
-            'thumbnail_metadata' => [
-                'plain_thumbnail_path' => 'private/thumbnails/plain.jpg',
-            ],
-        ]);
-
-        $this->assertSame(
-            route('sermons.thumbnail.plain', ['sermon' => $sermon->slug]),
-            $this->service->getPlainThumbnailDeliveryUrl($sermon),
-        );
-    }
-
-    #[Test]
-    public function it_rejects_generating_direct_public_plain_thumbnail_urls_for_private_assets(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'thumbnail_metadata' => [
-                'plain_thumbnail_path' => 'private/thumbnails/plain.jpg',
-            ],
-        ]);
-
-        $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage('Private plain thumbnail assets must be served through guarded sermon asset routes.');
-
-        $this->service->getPlainThumbnailUrl($sermon);
     }
 
     #[Test]

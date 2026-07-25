@@ -23,8 +23,6 @@ class AuditSermonAssetsCommandTest extends TestCase
     {
         parent::setUp();
 
-        // Creating children's talks dispatches MoveSermonToPrivateStorage via
-        // the observer; the audit must read the rows as they stand, unmoved.
         Queue::fake();
 
         Storage::fake('public');
@@ -122,8 +120,13 @@ class AuditSermonAssetsCommandTest extends TestCase
         );
     }
 
+    /**
+     * A children's talk on the ordinary sermon disk is now the correct state, not
+     * a fault. The audit used to report it as a failure, which after WP3b would
+     * have flagged the entire archive.
+     */
     #[Test]
-    public function it_flags_a_childrens_talk_asset_outside_private_storage_even_when_the_file_exists(): void
+    public function it_passes_for_a_childrens_talk_asset_on_the_ordinary_sermon_disk(): void
     {
         Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -132,16 +135,21 @@ class AuditSermonAssetsCommandTest extends TestCase
 
         Storage::disk('public')->put('sermons/talk.mp3', 'asset');
 
-        $this->artisan('audit:sermon-assets')->assertFailed();
+        $this->artisan('audit:sermon-assets')->assertSuccessful();
 
         $report = $this->jsonReport();
 
-        $this->assertSame(1, $report['kinds']['audio']['childrens_talk_public']);
         $this->assertSame(1, $report['kinds']['audio']['present']);
+        $this->assertSame(0, $report['kinds']['audio']['private_referenced']);
     }
 
+    /**
+     * Nothing writes `private/` sermon paths any more, but a legacy row must still
+     * be audited against the local disk rather than reported as missing from the
+     * sermon disk.
+     */
     #[Test]
-    public function it_passes_for_a_childrens_talk_whose_assets_live_under_private_local_storage(): void
+    public function it_still_audits_a_legacy_private_path_against_the_local_disk(): void
     {
         Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -158,7 +166,7 @@ class AuditSermonAssetsCommandTest extends TestCase
 
         $this->assertSame(1, $report['kinds']['audio']['present']);
         $this->assertSame(1, $report['kinds']['transcript']['present']);
-        $this->assertSame(0, $report['kinds']['audio']['childrens_talk_public']);
+        $this->assertSame(1, $report['kinds']['audio']['private_referenced']);
     }
 
     #[Test]

@@ -93,7 +93,7 @@ class SermonThumbnailServingTest extends TestCase
         $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
-    public function test_private_thumbnail_response_includes_no_store_cache_control(): void
+    public function test_a_legacy_private_thumbnail_path_is_no_longer_streamed(): void
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
@@ -106,10 +106,9 @@ class SermonThumbnailServingTest extends TestCase
         $admin = User::factory()->crockenhillAdmin()->create();
         $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
-        $response->assertStatus(200);
-        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
-        // ETag is not sent — computing md5_file() for a no-store response is wasteful
-        $this->assertNull($response->headers->get('ETag'));
+        // No no-store streaming branch remains; the route only resolves against
+        // the configured thumbnail disk.
+        $response->assertStatus(404);
     }
 
     public function test_card_thumbnail_prefers_card_variant_when_available(): void
@@ -132,28 +131,26 @@ class SermonThumbnailServingTest extends TestCase
         $response->assertRedirect(app(SermonStorageService::class)->getCardThumbnailUrl($sermon));
     }
 
-    public function test_private_plain_thumbnail_route_serves_plain_variant_bytes(): void
+    public function test_plain_thumbnail_route_resolves_the_plain_variant_not_the_primary(): void
     {
         $sermon = Sermon::factory()->create([
-            'slug' => 'private-plain-thumbnail',
-            'thumbnail_file_path' => 'private/sermons/thumbnails/primary.webp',
+            'slug' => 'plain-thumbnail-variant',
+            'thumbnail_file_path' => 'sermons/thumbnails/primary.webp',
             'thumbnail_metadata' => [
-                'plain_thumbnail_path' => 'private/sermons/thumbnails/plain.webp',
+                'plain_thumbnail_path' => 'sermons/thumbnails/plain.webp',
             ],
         ]);
 
-        Storage::disk('local')->put($sermon->thumbnail_file_path, 'primary image content');
-        Storage::disk('local')->put($sermon->plain_thumbnail_file_path, 'plain image content');
+        Storage::disk('public')->put($sermon->thumbnail_file_path, 'primary image content');
+        Storage::disk('public')->put($sermon->plain_thumbnail_file_path, 'plain image content');
 
         $admin = User::factory()->crockenhillAdmin()->create();
         $response = $this->actingAs($admin)->get(route('sermons.thumbnail.plain', $sermon));
 
-        $response->assertOk();
-        $this->assertSame(
-            'plain image content',
-            file_get_contents($response->baseResponse->getFile()->getPathname()),
-        );
-        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        $response->assertRedirect();
+        $location = (string) $response->headers->get('Location');
+        $this->assertStringContainsString('sermons/thumbnails/plain.webp', $location);
+        $this->assertStringNotContainsString('primary.webp', $location);
     }
 
     public function test_public_plain_thumbnail_route_redirects_to_plain_variant_url(): void

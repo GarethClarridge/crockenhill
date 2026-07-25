@@ -164,7 +164,7 @@ class SermonPromotionAssets
 
     private function guardPortablePath(string $path): void
     {
-        if ($path === '' || Path::isUnsafe($path) || str_starts_with($path, 'private/')) {
+        if ($path === '' || Path::isUnsafe($path)) {
             throw new RuntimeException('Promotion bundles may reference only safe, shared storage paths.');
         }
     }

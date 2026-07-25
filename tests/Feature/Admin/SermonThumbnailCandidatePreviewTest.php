@@ -49,9 +49,9 @@ class SermonThumbnailCandidatePreviewTest extends TestCase
     }
 
     #[Test]
-    public function admin_can_preview_a_private_thumbnail_candidate(): void
+    public function admin_can_preview_a_stored_thumbnail_candidate(): void
     {
-        Storage::fake('local');
+        Storage::fake('public');
 
         $admin = User::factory()->admin()->create();
         $sermon = Sermon::factory()->create([
@@ -62,14 +62,14 @@ class SermonThumbnailCandidatePreviewTest extends TestCase
                         'id' => 'candidate-2',
                         'timestamp' => 240.0,
                         'score' => 0.91,
-                        'card_path' => 'private/sermons/thumbnails/candidate-2-card.webp',
-                        'plain_path' => 'private/sermons/thumbnails/candidate-2-plain.webp',
+                        'card_path' => 'sermons/thumbnails/candidate-2-card.webp',
+                        'plain_path' => 'sermons/thumbnails/candidate-2-plain.webp',
                     ],
                 ],
             ],
         ]);
 
-        Storage::disk('local')->put('private/sermons/thumbnails/candidate-2-card.webp', 'card content');
+        Storage::disk('public')->put('sermons/thumbnails/candidate-2-card.webp', 'card content');
 
         $response = $this->actingAs($admin)->get(route('admin.sermons.thumbnails.preview', [
             'sermon' => $sermon->slug,

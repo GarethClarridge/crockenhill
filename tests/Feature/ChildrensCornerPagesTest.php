@@ -6,12 +6,10 @@ namespace Tests\Feature;
 
 use App\Enums\SermonContentType;
 use App\Enums\SermonVideoQualityStatus;
-use App\Jobs\MoveSermonToPrivateStorage;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -25,7 +23,6 @@ class ChildrensCornerPagesTest extends TestCase
         parent::setUp();
 
         Storage::fake('local');
-        Queue::fake([MoveSermonToPrivateStorage::class]);
     }
 
     #[Test]
@@ -128,14 +125,14 @@ class ChildrensCornerPagesTest extends TestCase
     }
 
     #[Test]
-    public function detail_page_uses_guarded_routes_for_private_media_assets(): void
+    public function detail_page_renders_direct_media_urls_behind_the_login_gate(): void
     {
         $this->actingAs(User::factory()->create());
 
-        $audioPath = 'private/sermons/audio/private-media-little-listeners.mp3';
-        $videoPath = 'private/sermons/video/private-media-little-listeners.mp4';
-        $thumbnailPath = 'private/thumbnails/private-media-little-listeners.jpg';
-        $plainThumbnailPath = 'private/thumbnails/private-media-little-listeners-plain.jpg';
+        $audioPath = 'sermons/audio/media-little-listeners.mp3';
+        $videoPath = 'sermons/video/media-little-listeners.mp4';
+        $thumbnailPath = 'thumbnails/media-little-listeners.jpg';
+        $plainThumbnailPath = 'thumbnails/media-little-listeners-plain.jpg';
 
         $talk = Sermon::factory()->create([
             'title' => 'Private Media Little Listeners',
@@ -151,15 +148,12 @@ class ChildrensCornerPagesTest extends TestCase
 
         $response = $this->get(route('childrens-corner.show', $talk));
 
+        // Storage moved to the ordinary sermon disks, so the page links the assets
+        // directly. The page itself is still gated by CHILDRENS_TALKS_PUBLIC.
         $response->assertOk();
-        $response->assertSee(route('sermons.audio', $talk), false);
-        $response->assertSee(route('sermons.video', $talk), false);
-        $response->assertSee(route('sermons.thumbnail', $talk), false);
+        $response->assertSee($audioPath, false);
+        $response->assertSee($thumbnailPath, false);
         $response->assertDontSee('/storage/private/', false);
-        $response->assertDontSee($audioPath, false);
-        $response->assertDontSee($videoPath, false);
-        $response->assertDontSee($thumbnailPath, false);
-        $response->assertDontSee($plainThumbnailPath, false);
     }
 
     #[Test]
@@ -189,7 +183,7 @@ class ChildrensCornerPagesTest extends TestCase
     }
 
     #[Test]
-    public function listing_uses_guarded_card_thumbnail_route_for_private_media_assets(): void
+    public function listing_renders_the_card_thumbnail_url(): void
     {
         $this->actingAs(User::factory()->create());
 
@@ -198,20 +192,20 @@ class ChildrensCornerPagesTest extends TestCase
             'slug' => 'private-card-little-listeners',
             'content_type' => SermonContentType::ChildrensTalk,
             'thumbnail_metadata' => [
-                'plain_thumbnail_path' => 'private/thumbnails/private-card-little-listeners-plain.jpg',
-                'card_thumbnail_path' => 'private/thumbnails/private-card-little-listeners.jpg',
+                'plain_thumbnail_path' => 'thumbnails/card-little-listeners-plain.jpg',
+                'card_thumbnail_path' => 'thumbnails/card-little-listeners.jpg',
             ],
         ]);
 
         $response = $this->get(route('childrens-corner.index'));
 
         $response->assertOk();
-        $response->assertSee(route('sermons.thumbnail.card', $talk), false);
+        $response->assertSee('thumbnails/card-little-listeners.jpg', false);
         $response->assertDontSee('/storage/private/', false);
     }
 
     #[Test]
-    public function listing_uses_guarded_thumbnail_route_for_private_plain_thumbnail(): void
+    public function listing_falls_back_to_the_plain_thumbnail_url(): void
     {
         $this->actingAs(User::factory()->create());
 
@@ -220,14 +214,14 @@ class ChildrensCornerPagesTest extends TestCase
             'slug' => 'private-plain-little-listeners',
             'content_type' => SermonContentType::ChildrensTalk,
             'thumbnail_metadata' => [
-                'plain_thumbnail_path' => 'private/thumbnails/private-plain-little-listeners.jpg',
+                'plain_thumbnail_path' => 'thumbnails/plain-little-listeners.jpg',
             ],
         ]);
 
         $response = $this->get(route('childrens-corner.index'));
 
         $response->assertOk();
-        $response->assertSee(route('sermons.thumbnail', $talk), false);
+        $response->assertSee('thumbnails/plain-little-listeners.jpg', false);
         $response->assertDontSee('/storage/private/', false);
     }
 

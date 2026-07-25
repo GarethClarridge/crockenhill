@@ -33,7 +33,7 @@ class AuditSermonAssetsCommand extends Command
         {--json : Emit the full audit report as JSON}
         {--details : List sermon id + asset kind per finding. Output can hint at guessable storage paths, so keep this off when the output leaves the server (e.g. public CI logs)}';
 
-    protected $description = 'Read-only audit that every referenced sermon asset exists on its expected disk and that children\'s-talk assets sit under private storage';
+    protected $description = 'Read-only audit that every referenced sermon asset exists on its expected disk';
 
     /** @var array<string, array<string, int>> */
     private array $countsByKind = [];
@@ -61,7 +61,6 @@ class AuditSermonAssetsCommand extends Command
                 'present' => 0,
                 'missing' => 0,
                 'check_errors' => 0,
-                'childrens_talk_public' => 0,
                 'private_referenced' => 0,
                 'private_missing' => 0,
             ];
@@ -157,7 +156,7 @@ class AuditSermonAssetsCommand extends Command
 
     /**
      * Every asset reference on the sermon row, mirroring the placement contract
-     * used by MoveSermonToPrivateStorage.
+     * used when resolving each asset kind's disk.
      *
      * @return list<array{string, string, string}> [kind, kindDisk, path]
      */
@@ -203,13 +202,9 @@ class AuditSermonAssetsCommand extends Command
             $this->countsByKind[$kind]['private_referenced']++;
         }
 
-        if ($sermon->content_type === SermonContentType::ChildrensTalk && ! $isPrivate) {
-            $this->countsByKind[$kind]['childrens_talk_public']++;
-            $this->findings[] = ['sermon_id' => $sermon->id, 'kind' => $kind, 'issue' => 'childrens_talk_public'];
-        }
-
-        // Private paths live on the local disk regardless of asset kind; this is
-        // the same contract MoveSermonToPrivateStorage commits to.
+        // Private paths live on the local disk regardless of asset kind. No sermon
+        // asset should be private any more, but the check is kept so a regression
+        // is reported rather than silently audited against the wrong disk.
         $expectedDisk = $isPrivate ? 'local' : $kindDisk;
 
         try {
@@ -274,7 +269,7 @@ class AuditSermonAssetsCommand extends Command
     private function hasFailures(): bool
     {
         foreach ($this->countsByKind as $counts) {
-            if ($counts['missing'] > 0 || $counts['check_errors'] > 0 || $counts['childrens_talk_public'] > 0) {
+            if ($counts['missing'] > 0 || $counts['check_errors'] > 0) {
                 return true;
             }
         }
@@ -290,7 +285,6 @@ class AuditSermonAssetsCommand extends Command
             'present' => 0,
             'missing' => 0,
             'check_errors' => 0,
-            'childrens_talk_public' => 0,
             'private_referenced' => 0,
             'private_missing' => 0,
         ];
@@ -312,7 +306,6 @@ class AuditSermonAssetsCommand extends Command
                 'Present',
                 'Missing',
                 'Check errors',
-                "Children's-talk public",
                 'Private referenced',
                 'Private missing',
             ],
@@ -334,7 +327,6 @@ class AuditSermonAssetsCommand extends Command
             (string) $counts['present'],
             (string) $counts['missing'],
             (string) $counts['check_errors'],
-            (string) $counts['childrens_talk_public'],
             (string) $counts['private_referenced'],
             (string) $counts['private_missing'],
         ];

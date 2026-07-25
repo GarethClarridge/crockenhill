@@ -382,28 +382,35 @@ class SermonViewPresenterTest extends TestCase
         $this->assertStringContainsString('/storage/sermons/test.mp4', $presented['video_url'] ?? '');
     }
 
+    /**
+     * Children's-talk media is presented as direct asset URLs like any other
+     * sermon's. The guarded-route indirection went with the `private/` prefix;
+     * access is still gated by CHILDRENS_TALKS_PUBLIC at the page and route.
+     */
     #[Test]
-    public function it_uses_guarded_routes_for_private_childrens_talk_media(): void
+    public function it_presents_direct_urls_for_childrens_talk_media(): void
     {
         $sermon = Sermon::factory()->create([
-            'slug' => 'private-childrens-talk',
+            'slug' => 'a-childrens-talk',
             'content_type' => SermonContentType::ChildrensTalk,
-            'audio_file_path' => 'private/sermons/audio/private-childrens-talk.mp3',
-            'video_file_path' => 'private/sermons/video/private-childrens-talk.mp4',
-            'thumbnail_file_path' => 'private/thumbnails/private-childrens-talk.jpg',
+            'audio_file_path' => 'sermons/audio/a-childrens-talk.mp3',
+            'video_file_path' => 'sermons/video/a-childrens-talk.mp4',
+            'thumbnail_file_path' => 'thumbnails/a-childrens-talk.jpg',
             'thumbnail_metadata' => [
-                'plain_thumbnail_path' => 'private/thumbnails/private-childrens-talk-plain.jpg',
-                'card_thumbnail_path' => 'private/thumbnails/private-childrens-talk-card.jpg',
+                'plain_thumbnail_path' => 'thumbnails/a-childrens-talk-plain.jpg',
+                'card_thumbnail_path' => 'thumbnails/a-childrens-talk-card.jpg',
             ],
         ]);
 
         $presented = $this->presenter->present($sermon);
 
-        $this->assertSame(route('sermons.audio', ['sermon' => $sermon->slug]), $presented['audio_url']);
-        $this->assertSame(route('sermons.video', ['sermon' => $sermon->slug]), $presented['video_url']);
-        $this->assertSame(route('sermons.thumbnail', ['sermon' => $sermon->slug]), $presented['thumbnail_url']);
-        $this->assertSame(route('sermons.thumbnail.card', ['sermon' => $sermon->slug]), $presented['card_thumbnail_url']);
-        $this->assertSame(route('sermons.thumbnail.plain', ['sermon' => $sermon->slug]), $this->presenter->plainThumbnailUrl($sermon));
+        $this->assertStringContainsString('sermons/audio/a-childrens-talk.mp3', (string) $presented['audio_url']);
+        $this->assertStringContainsString('sermons/video/a-childrens-talk.mp4', (string) $presented['video_url']);
+        $this->assertStringContainsString('thumbnails/a-childrens-talk.jpg', (string) $presented['thumbnail_url']);
+        $this->assertStringContainsString('thumbnails/a-childrens-talk-card.jpg', (string) $presented['card_thumbnail_url']);
+        $this->assertStringContainsString('thumbnails/a-childrens-talk-plain.jpg', (string) $this->presenter->plainThumbnailUrl($sermon));
+
+        $this->assertStringNotContainsString('/christ/sermons/', (string) $presented['audio_url']);
     }
 
     #[Test]

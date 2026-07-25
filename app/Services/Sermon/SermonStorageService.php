@@ -11,7 +11,6 @@ use Exception;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
-use LogicException;
 
 /**
  * Service for managing the resolution and retrieval of sermon media files.
@@ -41,7 +40,7 @@ class SermonStorageService
     private array $memoizedDiskUrls = [];
 
     /**
-     * @var array<string, array{type: 'private'|'storage', disk: string, path: string}>
+     * @var array<string, array{type: 'storage', disk: string, path: string}>
      */
     private array $memoizedFileInfo = [];
 
@@ -91,7 +90,7 @@ class SermonStorageService
      * to avoid redundant path validation and storage pattern logic when resolving
      * multiple URLs (e.g., audio, public, delivery) for the same sermon.
      *
-     * @return array{type: 'private'|'storage', disk: string, path: string}
+     * @return array{type: 'storage', disk: string, path: string}
      */
     public function getSermonFileInfo(Sermon $sermon): array
     {
@@ -111,21 +110,12 @@ class SermonStorageService
     /**
      * Resolve file information for a sermon based on its canonical path.
      *
-     * @return array{type: 'private'|'storage', disk: string, path: string}
+     * @return array{type: 'storage', disk: string, path: string}
      */
     private function resolveFileInfo(Sermon $sermon): array
     {
         $audioPath = $sermon->audio_file_path ?? '';
         $this->validatePath($audioPath, 'audio file');
-
-        // Private files stored on the local disk (unreachable via the public/storage symlink)
-        if (str_starts_with($audioPath, 'private/')) {
-            return [
-                'type' => 'private',
-                'disk' => 'local',
-                'path' => $audioPath,
-            ];
-        }
 
         return [
             'type' => 'storage',
@@ -141,7 +131,6 @@ class SermonStorageService
      * @return string|null The versioned public URL, or null if no video exists
      *
      * @throws InvalidArgumentException If the video path contains unsafe characters
-     * @throws LogicException If the video is stored in a private directory
      */
     public function getVideoUrl(Sermon $sermon): ?string
     {
@@ -150,7 +139,6 @@ class SermonStorageService
         }
 
         $this->validatePath($sermon->video_file_path, 'video file');
-        $this->ensurePubliclyResolvable($sermon->video_file_path, 'video');
 
         return $this->resolvePublicUrl(
             $this->sermonDisk,
@@ -165,11 +153,11 @@ class SermonStorageService
      * @param  Sermon  $sermon  The sermon model
      * @return string|null The versioned public URL, or null if no thumbnail exists
      *
-     * @throws LogicException If the thumbnail is stored in a private directory
+     * @throws InvalidArgumentException If the thumbnail path contains unsafe characters
      */
     public function getThumbnailUrl(Sermon $sermon): ?string
     {
-        return $this->resolveThumbnailUrl($sermon, $sermon->thumbnail_file_path, 'thumbnail');
+        return $this->resolveThumbnailUrl($sermon, $sermon->thumbnail_file_path);
     }
 
     /**
@@ -180,11 +168,11 @@ class SermonStorageService
      * @param  Sermon  $sermon  The sermon model
      * @return string|null The versioned public URL, or null if no card exists
      *
-     * @throws LogicException If the thumbnail is stored in a private directory
+     * @throws InvalidArgumentException If the thumbnail path contains unsafe characters
      */
     public function getCardThumbnailUrl(Sermon $sermon): ?string
     {
-        return $this->resolveThumbnailUrl($sermon, $sermon->card_thumbnail_file_path, 'card thumbnail');
+        return $this->resolveThumbnailUrl($sermon, $sermon->card_thumbnail_file_path);
     }
 
     /**
@@ -193,11 +181,11 @@ class SermonStorageService
      * @param  Sermon  $sermon  The sermon model
      * @return string|null The versioned public URL, or null if no plain thumbnail exists
      *
-     * @throws LogicException If the thumbnail is stored in a private directory
+     * @throws InvalidArgumentException If the thumbnail path contains unsafe characters
      */
     public function getPlainThumbnailUrl(Sermon $sermon): ?string
     {
-        return $this->resolveThumbnailUrl($sermon, $sermon->plain_thumbnail_file_path, 'plain thumbnail');
+        return $this->resolveThumbnailUrl($sermon, $sermon->plain_thumbnail_file_path);
     }
 
     /**
@@ -270,9 +258,7 @@ class SermonStorageService
 
         $this->validatePath($thumbnailPath, 'thumbnail');
 
-        return $this->memoizedThumbnailDisks[$thumbnailPath] = str_starts_with($thumbnailPath, 'private/')
-            ? 'local'
-            : $this->thumbnailDisk;
+        return $this->memoizedThumbnailDisks[$thumbnailPath] = $this->thumbnailDisk;
     }
 
     /**
@@ -280,13 +266,10 @@ class SermonStorageService
      *
      * @param  Sermon  $sermon  The sermon model
      * @return string The versioned public URL
-     *
-     * @throws LogicException If the asset is stored in a private directory
      */
     public function getPublicUrl(Sermon $sermon): string
     {
         $info = $this->getSermonFileInfo($sermon);
-        $this->ensurePubliclyResolvable($info['path'], 'audio');
 
         return $this->resolvePublicUrl($info['disk'], $info['path'], $this->audioVersion($sermon));
     }
@@ -304,12 +287,6 @@ class SermonStorageService
     {
         if (! filled($sermon->audio_file_path)) {
             return null;
-        }
-
-        $info = $this->getSermonFileInfo($sermon);
-
-        if ($this->requiresGuardedDelivery($info['path'])) {
-            return route('sermons.audio', ['sermon' => $sermon->slug]);
         }
 
         return $this->getPublicUrl($sermon);
@@ -333,10 +310,6 @@ class SermonStorageService
 
         $this->validatePath((string) $videoPath, 'video file');
 
-        if ($this->requiresGuardedDelivery($videoPath)) {
-            return route('sermons.video', ['sermon' => $sermon->slug]);
-        }
-
         return $this->getVideoUrl($sermon);
     }
 
@@ -354,7 +327,6 @@ class SermonStorageService
             $sermon,
             $sermon->thumbnail_file_path,
             'thumbnail',
-            'sermons.thumbnail'
         );
     }
 
@@ -372,7 +344,6 @@ class SermonStorageService
             $sermon,
             $sermon->card_thumbnail_file_path,
             'card thumbnail',
-            'sermons.thumbnail.card'
         );
     }
 
@@ -390,7 +361,6 @@ class SermonStorageService
             $sermon,
             $sermon->plain_thumbnail_file_path,
             'plain thumbnail',
-            'sermons.thumbnail.plain'
         );
     }
 
@@ -459,14 +429,13 @@ class SermonStorageService
         return "{$url}{$separator}v={$version}";
     }
 
-    private function resolveThumbnailUrl(Sermon $sermon, mixed $path, string $type): ?string
+    private function resolveThumbnailUrl(Sermon $sermon, mixed $path): ?string
     {
         if (! filled($path)) {
             return null;
         }
 
-        $this->ensurePubliclyResolvable((string) $path, $type);
-
+        // resolveThumbnailDisk() validates the path, so no separate check here.
         return $this->resolvePublicUrl(
             $this->resolveThumbnailDisk((string) $path),
             (string) $path,
@@ -477,17 +446,13 @@ class SermonStorageService
     /**
      * @throws InvalidArgumentException
      */
-    private function resolveThumbnailDeliveryUrl(Sermon $sermon, mixed $path, string $type, string $routeName): ?string
+    private function resolveThumbnailDeliveryUrl(Sermon $sermon, mixed $path, string $type): ?string
     {
         if (! filled($path)) {
             return null;
         }
 
         $this->validatePath((string) $path, $type);
-
-        if ($this->requiresGuardedDelivery((string) $path)) {
-            return route($routeName, ['sermon' => $sermon->slug]);
-        }
 
         return match ($type) {
             'thumbnail' => $this->getThumbnailUrl($sermon),
@@ -606,20 +571,5 @@ class SermonStorageService
         if (is_string($path) && Path::isUnsafe($path)) {
             throw new InvalidArgumentException("Invalid {$type} path: Unsafe path detected.");
         }
-    }
-
-    /**
-     * @throws LogicException
-     */
-    private function ensurePubliclyResolvable(string $path, string $type): void
-    {
-        if ($this->requiresGuardedDelivery($path)) {
-            throw new LogicException("Private {$type} assets must be served through guarded sermon asset routes.");
-        }
-    }
-
-    private function requiresGuardedDelivery(string $path): bool
-    {
-        return str_starts_with($path, 'private/');
     }
 }

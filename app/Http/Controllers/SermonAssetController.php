@@ -16,8 +16,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Symfony\Component\HttpFoundation\HeaderUtils;
 
 class SermonAssetController extends Controller
 {
@@ -56,7 +54,7 @@ class SermonAssetController extends Controller
     /**
      * Serve audio file for a sermon
      */
-    public function serveAudio(Sermon $sermon): BinaryFileResponse|RedirectResponse
+    public function serveAudio(Sermon $sermon): RedirectResponse
     {
         $authorizationResponse = $this->authorizeAssetAccess($sermon, 'audio');
         if ($authorizationResponse instanceof RedirectResponse) {
@@ -71,28 +69,16 @@ class SermonAssetController extends Controller
             abort(404, 'Invalid audio file path.');
         }
 
-        $storageService = $this->storageService;
-        $fileInfo = $storageService->getSermonFileInfo($sermon);
+        $fileInfo = $this->storageService->getSermonFileInfo($sermon);
 
         if (! Storage::disk($fileInfo['disk'])->exists($fileInfo['path'])) {
             abort(404, 'Audio file not found.');
         }
 
-        if (! str_starts_with($sermon->audio_file_path, 'private/')) {
-            return redirect()->to($storageService->getPublicUrl($sermon));
-        }
-
-        $path = Storage::disk($fileInfo['disk'])->path($fileInfo['path']);
-        $name = basename($fileInfo['path']);
-
-        return response()->file($path, [
-            'Content-Type' => 'audio/mpeg',
-            'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, $name),
-            'Cache-Control' => 'private, no-store',
-        ]);
+        return redirect()->to($this->storageService->getPublicUrl($sermon));
     }
 
-    public function serveVideo(Sermon $sermon): BinaryFileResponse|RedirectResponse
+    public function serveVideo(Sermon $sermon): RedirectResponse
     {
         $authorizationResponse = $this->authorizeAssetAccess($sermon, 'video');
         if ($authorizationResponse instanceof RedirectResponse) {
@@ -107,32 +93,22 @@ class SermonAssetController extends Controller
             abort(404, 'Invalid video file path.');
         }
 
-        $disk = str_starts_with($sermon->video_file_path, 'private/')
-            ? 'local'
-            : config('media-processing.storage.sermon_disk', 'public');
+        $disk = (string) config('media-processing.storage.sermon_disk', 'public');
 
         if (! Storage::disk($disk)->exists($sermon->video_file_path)) {
             abort(404, 'Video file not found.');
         }
 
-        if (! str_starts_with($sermon->video_file_path, 'private/')) {
-            return redirect()->to((string) $this->storageService->getVideoDeliveryUrl($sermon));
-        }
-
-        $path = Storage::disk($disk)->path($sermon->video_file_path);
-        $name = basename($sermon->video_file_path);
-
-        return response()->file($path, [
-            'Content-Type' => $this->videoContentType($name),
-            'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, $name),
-            'Cache-Control' => 'private, no-store',
-        ]);
+        return $this->redirectToAsset(
+            $this->storageService->getVideoDeliveryUrl($sermon),
+            'Video file not found.',
+        );
     }
 
     /**
      * Serve thumbnail image for a sermon
      */
-    public function serveThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
+    public function serveThumbnail(Sermon $sermon): RedirectResponse
     {
         $authorizationResponse = $this->authorizeAssetAccess($sermon, 'thumbnail');
         if ($authorizationResponse instanceof RedirectResponse) {
@@ -147,22 +123,16 @@ class SermonAssetController extends Controller
             abort(404, 'Invalid thumbnail file path.');
         }
 
-        $disk = str_starts_with($sermon->thumbnail_file_path, 'private/')
-            ? 'local'
-            : config('thumbnail-generation.storage.disk', 'public');
+        $disk = (string) config('thumbnail-generation.storage.disk', 'public');
 
         if (! Storage::disk($disk)->exists($sermon->thumbnail_file_path)) {
             abort(404, 'Thumbnail file not found.');
         }
 
-        if (! str_starts_with($sermon->thumbnail_file_path, 'private/')) {
-            return redirect()->to((string) $this->storageService->getThumbnailUrl($sermon));
-        }
-
-        return $this->serveStoredThumbnail($sermon->thumbnail_file_path);
+        return $this->redirectToAsset($this->storageService->getThumbnailUrl($sermon));
     }
 
-    public function servePlainThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
+    public function servePlainThumbnail(Sermon $sermon): RedirectResponse
     {
         $authorizationResponse = $this->authorizeAssetAccess($sermon, 'plain_thumbnail');
         if ($authorizationResponse instanceof RedirectResponse) {
@@ -179,29 +149,19 @@ class SermonAssetController extends Controller
             abort(404, 'Invalid thumbnail file path.');
         }
 
-        $disk = str_starts_with($plainThumbnailPath, 'private/')
-            ? 'local'
-            : config('thumbnail-generation.storage.disk', 'public');
+        $disk = (string) config('thumbnail-generation.storage.disk', 'public');
 
         if (! Storage::disk($disk)->exists($plainThumbnailPath)) {
             abort(404, 'Thumbnail file not found.');
         }
 
-        if (! str_starts_with($plainThumbnailPath, 'private/')) {
-            $plainThumbnailUrl = $this->storageService->getPlainThumbnailUrl($sermon);
-
-            if ($plainThumbnailUrl !== null) {
-                return redirect()->to($plainThumbnailUrl);
-            }
-        }
-
-        return $this->serveStoredThumbnail($plainThumbnailPath);
+        return $this->redirectToAsset($this->storageService->getPlainThumbnailUrl($sermon));
     }
 
     /**
      * Serve the thumbnail variant intended for compact UI cards.
      */
-    public function serveCardThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
+    public function serveCardThumbnail(Sermon $sermon): RedirectResponse
     {
         $authorizationResponse = $this->authorizeAssetAccess($sermon, 'card_thumbnail');
         if ($authorizationResponse instanceof RedirectResponse) {
@@ -218,52 +178,29 @@ class SermonAssetController extends Controller
             abort(404, 'Invalid thumbnail file path.');
         }
 
-        $disk = str_starts_with($cardThumbnailPath, 'private/')
-            ? 'local'
-            : config('thumbnail-generation.storage.disk', 'public');
+        $disk = (string) config('thumbnail-generation.storage.disk', 'public');
 
         if (! Storage::disk($disk)->exists($cardThumbnailPath)) {
             abort(404, 'Thumbnail file not found.');
         }
 
-        if (! str_starts_with($cardThumbnailPath, 'private/')) {
-            $cardThumbnailUrl = $this->storageService->getCardThumbnailUrl($sermon);
-
-            if ($cardThumbnailUrl !== null) {
-                return redirect()->to($cardThumbnailUrl);
-            }
-        }
-
-        return $this->serveStoredThumbnail($cardThumbnailPath);
+        return $this->redirectToAsset($this->storageService->getCardThumbnailUrl($sermon));
     }
 
-    private function serveStoredThumbnail(string $thumbnailPath): BinaryFileResponse
+    /**
+     * Redirect to an asset's public URL, 404ing if one could not be resolved.
+     *
+     * Every asset now lives on a public disk, so these routes exist to authorise
+     * the request and then hand off — the streaming branch they used to fall back
+     * to went with the `private/` prefix.
+     */
+    private function redirectToAsset(?string $url, string $notFoundMessage = 'Thumbnail file not found.'): RedirectResponse
     {
-        $disk = str_starts_with($thumbnailPath, 'private/')
-            ? 'local'
-            : config('thumbnail-generation.storage.disk', 'public');
-
-        if (! Storage::disk($disk)->exists($thumbnailPath)) {
-            abort(404, 'Thumbnail file not found.');
+        if ($url === null) {
+            abort(404, $notFoundMessage);
         }
 
-        $path = Storage::disk($disk)->path($thumbnailPath);
-        $name = basename($thumbnailPath);
-
-        // Determine content type based on file extension
-        $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-        $contentType = match ($extension) {
-            'jpg', 'jpeg' => 'image/jpeg',
-            'png' => 'image/png',
-            'webp' => 'image/webp',
-            default => 'image/jpeg',
-        };
-
-        return response()->file($path, [
-            'Content-Type' => $contentType,
-            'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, $name),
-            'Cache-Control' => 'no-store',
-        ]);
+        return redirect()->to($url);
     }
 
     /**
@@ -292,27 +229,6 @@ class SermonAssetController extends Controller
             }
         }
 
-        // Security: Private assets are generally restricted to administrators.
-        // However, Children's Talks moved to private storage for privacy reasons
-        // are accessible to verified members.
-        $path = match ($assetType) {
-            'audio' => $sermon->audio_file_path,
-            'video' => $sermon->video_file_path,
-            'thumbnail' => $sermon->thumbnail_file_path,
-            'plain_thumbnail' => $sermon->plain_thumbnail_file_path,
-            'card_thumbnail' => $sermon->card_thumbnail_file_path,
-            'transcript' => $sermon->transcript_file_path,
-            default => null,
-        };
-
-        if ($path !== null && str_starts_with($path, 'private/')) {
-            $isChildrensTalk = $sermon->content_type === SermonContentType::ChildrensTalk;
-
-            if (! $isChildrensTalk) {
-                abort(404, 'Asset not available.');
-            }
-        }
-
         // Visibility checks based on quality assessment and manual overrides.
         // These apply to all sermons, including Children's Talks (Defense in Depth).
         $exposed = match ($assetType) {
@@ -326,17 +242,5 @@ class SermonAssetController extends Controller
         }
 
         return null;
-    }
-
-    private function videoContentType(string $name): string
-    {
-        $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-
-        return match ($extension) {
-            'mp4' => 'video/mp4',
-            'webm' => 'video/webm',
-            'mov' => 'video/quicktime',
-            default => 'video/mp4',
-        };
     }
 }

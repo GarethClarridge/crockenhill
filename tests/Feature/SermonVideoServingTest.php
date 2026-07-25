@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\SermonContentType;
-use App\Jobs\MoveSermonToPrivateStorage;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -26,7 +24,6 @@ class SermonVideoServingTest extends TestCase
 
         Storage::fake('public');
         Storage::fake('local');
-        Queue::fake([MoveSermonToPrivateStorage::class]);
 
         Config::set('media-processing.storage.sermon_disk', 'public');
     }
@@ -48,7 +45,7 @@ class SermonVideoServingTest extends TestCase
     }
 
     #[Test]
-    public function can_serve_private_video_directly(): void
+    public function a_legacy_private_video_path_is_no_longer_streamed(): void
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-private-video',
@@ -60,9 +57,9 @@ class SermonVideoServingTest extends TestCase
         $admin = User::factory()->crockenhillAdmin()->create();
         $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/video");
 
-        $response->assertStatus(200);
-        $response->assertHeader('Content-Type', 'video/mp4');
-        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        // The route resolves against the sermon disk only; nothing streams from
+        // the local disk any more, so a legacy path is unreachable even for admins.
+        $response->assertStatus(404);
     }
 
     #[Test]

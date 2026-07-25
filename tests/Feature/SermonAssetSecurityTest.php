@@ -114,38 +114,17 @@ class SermonAssetSecurityTest extends TestCase
         $this->assertStringContainsString('thumbnails/thumb.webp', $response->headers->get('Location'));
     }
 
+    /**
+     * No asset route streams from the local disk any more — they authorise and
+     * then redirect to the configured disk. A legacy `private/` path is therefore
+     * unreachable for everyone, admins included, and that is deliberate: it is
+     * what proves the `response()->file()` fallback has not crept back in.
+     */
     #[Test]
-    public function guest_cannot_access_private_audio(): void
+    public function a_legacy_private_path_is_served_to_nobody(): void
     {
         Storage::fake('local');
-        $sermon = Sermon::factory()->create([
-            'audio_file_path' => 'private/sermons/audio.mp3',
-        ]);
-        Storage::disk('local')->put('private/sermons/audio.mp3', 'fake audio');
-
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
-
-        $response->assertStatus(404);
-    }
-
-    #[Test]
-    public function guest_cannot_access_private_video(): void
-    {
-        Storage::fake('local');
-        $sermon = Sermon::factory()->create([
-            'video_file_path' => 'private/sermons/video.mp4',
-        ]);
-        Storage::disk('local')->put('private/sermons/video.mp4', 'fake video');
-
-        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
-
-        $response->assertStatus(404);
-    }
-
-    #[Test]
-    public function admin_can_access_private_assets(): void
-    {
-        Storage::fake('local');
+        Storage::fake('public');
         $admin = User::factory()->admin()->create();
 
         $sermon = Sermon::factory()->create([
@@ -155,8 +134,26 @@ class SermonAssetSecurityTest extends TestCase
         Storage::disk('local')->put('private/sermons/audio.mp3', 'fake audio');
         Storage::disk('local')->put('private/sermons/video.mp4', 'fake video');
 
-        // Private assets are served as BinaryFileResponse (200)
-        $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/audio")->assertOk();
-        $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/video")->assertOk();
+        $this->get("/christ/sermons/{$sermon->slug}/audio")->assertStatus(404);
+        $this->get("/christ/sermons/{$sermon->slug}/video")->assertStatus(404);
+        $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/audio")->assertStatus(404);
+        $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/video")->assertStatus(404);
+    }
+
+    #[Test]
+    public function admin_can_access_ordinary_sermon_assets(): void
+    {
+        Storage::fake('public');
+        $admin = User::factory()->admin()->create();
+
+        $sermon = Sermon::factory()->create([
+            'audio_file_path' => 'sermons/audio.mp3',
+            'video_file_path' => 'sermons/video.mp4',
+        ]);
+        Storage::disk('public')->put('sermons/audio.mp3', 'fake audio');
+        Storage::disk('public')->put('sermons/video.mp4', 'fake video');
+
+        $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/audio")->assertRedirect();
+        $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/video")->assertRedirect();
     }
 }

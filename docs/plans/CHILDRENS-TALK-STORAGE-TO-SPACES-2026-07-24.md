@@ -1,8 +1,12 @@
 # Move Children's-Talk Asset Storage to Spaces
 
-> **Status (2026-07-25): redesigned. WP0 + WP3a + WP1 tooling + WP2 code are all DEPLOYED
-> (run 30159923493, master `2e417d313`). WP0's two-deploy acceptance check is still unverified;
-> WP1's and WP2's production runs are outstanding; WP3b–WP4 not started.**
+> **Status (2026-07-25): WP0, WP1, WP3a and WP3b are DONE. WP2's production run is CANCELLED as a
+> no-op — WP1 found both private populations empty in production, so there was nothing to move (see
+> §4 WP1's result). Only WP4 remains, plus two loose ends: WP0's two-deploy acceptance check is still
+> unverified, and the `app-private` volume plus its `config/backup.php` entry come out after WP4.**
+>
+> Note for anyone reading §3.2's deletion table: it is wrong about `MediaAssetPath`, which belongs to
+> WP4, not WP3b. See WP3b's result note for that and two other places it undercounted.
 >
 > ## Deploy note — 2026-07-25
 >
@@ -426,8 +430,8 @@ migrate one, assert the source survives.
 | **WP0** | **Mount `storage/app/private` and `storage/app/livestream`** — code done 2026-07-24/25, **awaiting deploy** | ops | — |
 | WP1 | Rescue + quantify the loss in production (read-only) — tooling done 2026-07-25, **run outstanding** | ops | WP0 rescue step first |
 | WP3a | Remove the observer re-privatise hook — **done 2026-07-25**, ships with WP0 | refactor | — |
-| WP2 | De-privatise children's-talk assets — **code done 2026-07-25**, production run outstanding | code/ops | WP1, WP3a |
-| WP3b | Delete the rest of the `private/` machinery | refactor | WP2's production run |
+| WP2 | De-privatise children's-talk assets — code done 2026-07-25; **production run CANCELLED as a no-op** (WP1 found nothing to move); code deleted by WP3b | code/ops | WP1, WP3a |
+| WP3b | Delete the rest of the `private/` machinery — **DONE 2026-07-25** | refactor | WP1 (not WP2's run) |
 | WP4 | Section-publication candidates off `private/` | code | WP3b |
 
 Two work packages of code where there were five, and no new configuration surface.
@@ -637,7 +641,53 @@ Split so the observer removal can land ahead of WP2's run:
 Nothing else changes; talks with existing `private/` paths keep being served by the still-present
 private branches.
 
-**WP3b (after WP2's production run is verified):** everything in §3.2's table. The two that must move
+#### WP3b RESULT — DONE, 2026-07-25
+
+Landed in full. All four gates green: pint, phpstan (541 files, 0 errors), the parallel suite
+(5,529 tests) and Dusk (47 tests). Acceptance met — `grep -rn "private/" app` returns only WP4's scope
+(`MediaAssetPath::isPrivate()`, `PrepareSectionPublicationCandidates:283`) plus two comments.
+
+**Correction to §3.2's table: `MediaAssetPath` does NOT belong in WP3b.** It was listed there, but
+`diskForPath()` is load-bearing for the *section-candidate* population — `ServiceSection`,
+`ExtractedSectionMediaChecker`, `ResemblyzerSpeakerIdentificationService` and
+`AuditSectionAssetsCommand` all resolve through it, and `PrepareSectionPublicationCandidates:283` still
+writes `private/section-publications/`. §4's WP4 had this right and §3.2 was wrong; the file survives
+until WP4 removes the last writer.
+
+**Two other places §3.2 undercounted.** `requiresGuardedDelivery()` had **four** call sites, not two —
+the extra pair being `resolveThumbnailDeliveryUrl()` and `ensurePubliclyResolvable()`, the latter a
+defensive guard (three call sites of its own) that becomes unreachable once no sermon path is private.
+Both are gone. `videoContentType()` and `serveStoredThumbnail()` went with the streaming branch.
+
+**Also deleted, beyond §3.2:** WP2's `media:publicise-childrens-talk-assets` command and its test. With
+WP2's production run cancelled there is nothing for it to do, and it depended on the deleted mover.
+
+**Test disposition.** Deleted: `MoveSermonToPrivateStorageTest`, `SermonPrivateStorageMoveTest`,
+`SermonPrivateAssetTest` (the three §2.6 named), `PubliciseChildrensTalkAssetsCommandTest`, nine
+guarded-delivery tests in `SermonStorageServiceTest`, and four binary-response tests in
+`SermonAssetControllerTest` whose new-behaviour equivalents already existed in the same file.
+**Rewritten rather than deleted** — the ones proving the gate survived: `ChildrensCornerPagesTest` ×3,
+`SermonViewPresenterTest`, `SermonThumbnailServingTest` ×2, `SermonVideoServingTest`,
+`SermonThumbnailCandidatePreviewTest`, `AuditSermonAssetsCommandTest` ×2 (whose meaning inverted, as
+predicted), and `SermonAssetSecurityTest`, where three private-prefix tests became a **stronger**
+assertion: a legacy `private/` path is now served to *nobody*, admins included, which is what guards
+against the `response()->file()` fallback creeping back in.
+`Security/ChildrensTalkAssetSecurityTest` needed **no** behavioural change and still passes — guest
+redirects to login, verified member gets the asset, raw storage path unreachable. That is the evidence
+the gate is untouched.
+
+**One regression found and fixed during the work.** Replacing `ensurePubliclyResolvable()` with a
+`validatePath()` call inside `resolveThumbnailUrl()` changed a path-traversal message from
+`Invalid thumbnail path` to `Invalid card thumbnail path`. `resolveThumbnailDisk()` already validates,
+so the added call was redundant and was removed rather than the test being updated to match.
+
+**Not done here (deliberately):** `config/backup.php` still includes `storage_path('app/private')`. The
+comment naming the deleted job was corrected, but the path was kept — quietly reducing backup coverage
+as a side effect of a refactor is the wrong trade. It comes out with the `app-private` volume after WP4.
+
+---
+
+**WP3b (original plan text):** everything in §3.2's table. The two that must move
 together with the rest, because leaving either behind produces something that looks like a bug:
 
 - `AuditSermonAssetsCommand`'s `childrens_talk_public` finding (`:207-208`, and its inclusion in the

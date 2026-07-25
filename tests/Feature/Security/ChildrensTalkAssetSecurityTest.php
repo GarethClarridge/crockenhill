@@ -5,12 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature\Security;
 
 use App\Enums\SermonContentType;
-use App\Jobs\MoveSermonToPrivateStorage;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -18,13 +16,6 @@ use Tests\TestCase;
 class ChildrensTalkAssetSecurityTest extends TestCase
 {
     use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        Queue::fake([MoveSermonToPrivateStorage::class]);
-    }
 
     #[Test]
     public function it_redirects_unauthorized_access_to_childrens_talk_audio_to_login(): void
