@@ -1,8 +1,30 @@
 # Move Children's-Talk Asset Storage to Spaces
 
-> **Status (2026-07-25): redesigned. WP0 implemented (code, awaiting deploy); WP1 tooling landed
-> (awaiting production run); WP3a landed; WP2 code landed (awaiting production run); WP3b–WP4 not
-> started.**
+> **Status (2026-07-25): redesigned. WP0 + WP3a + WP1 tooling + WP2 code are all DEPLOYED
+> (run 30159923493, master `2e417d313`). WP0's two-deploy acceptance check is still unverified;
+> WP1's and WP2's production runs are outstanding; WP3b–WP4 not started.**
+>
+> ## Deploy note — 2026-07-25
+>
+> Actions recovered and the `Deploy` workflow ran green on `2e417d313`, so production now has WP0's
+> `app-private` + `app-livestream` mounts, WP3a's observer removal, WP1's audit tooling, and WP2's
+> command. Consequences, in order of what matters:
+>
+> 1. **The bleeding has stopped, by two independent mechanisms** — the mounts persist the private
+>    directory, and WP3a means new children's-talk media never goes there in the first place.
+> 2. **§3.3 is now live for new content.** From this deploy, a newly processed children's talk keeps
+>    its Spaces keys, and the existing prefix-based delivery switch renders CDN URLs for it inside the
+>    still-login-gated page. The gate, sitemap exclusion and API exclusion are unchanged.
+> 3. **WP1's audit is now runnable** — `production-audit.yml` execs into the running container, and the
+>    commands finally exist there. This is the next action.
+> 4. **WP0's acceptance is NOT met yet.** It requires *two* deploys with a written asset and an
+>    uploaded recording surviving in between (§4 WP0). Only the first deploy has happened. Do not mark
+>    WP0 done on the strength of this run.
+>
+> The CI failure on the first attempt at this run was an unrelated pre-existing flake:
+> `CleanupReviewQueueNoiseCommandTest` creates three `ChurchService` rows via a factory that generates
+> `date` randomly, against a `(date, service)` unique constraint, in a class using
+> `DatabaseTransactions`. It passed on rerun. Worth hardening separately with explicit dates.
 >
 > ## Progress note — 2026-07-25 (later)
 >
@@ -520,6 +542,44 @@ through the historic-archive import.
 
 - **Acceptance:** a number, and a decision recorded against it — how many talks WP2 has files for,
   and whether the unrecoverable remainder is worth re-importing from another source.
+
+#### WP1 RESULT — MET, 2026-07-25 (run on the server)
+
+Both audits were run against production. **Both private populations are empty:**
+
+| Measure | Production |
+|---|---|
+| Children's talks, total | **0** |
+| Talks referencing private assets | 0 |
+| `private_referenced`, all ten sermon asset kinds | **0** |
+| Service sections with referenced candidate assets | **0** |
+| `private_referenced` / `private_missing`, both candidate kinds | 0 |
+
+**Decision recorded: skip WP2's production run and proceed straight to WP3b.** There is nothing to
+migrate — not merely no bytes, but no rows. Nothing to re-import from another source either, so the
+recoverability buckets are all zero and moot. WP2's code stays as the tested rollback/repeatability
+tool and is not run in production. The "declaration of loss" variant considered for rows pointing at
+dead `private/` paths is **cancelled** — no such rows exist.
+
+**So WP0 and WP3a were preventative, not remedial.** The data-loss mechanism in §2.1 was real and
+correctly diagnosed, but it never had a victim: the children's-corner feature has never produced
+content in production, which is also why `storage/app/private` did not exist in the container. State
+this plainly rather than implying anything was rescued.
+
+**Caveat on the section figure.** Candidates are ephemeral — created at review time and swept by
+`CleanupUnpublishedSectionAssetsCommand` — so zero is a point-in-time reading, not a durable property.
+WP4's cutover note about in-flight candidates resolving to the sermon disk and presenting as needing
+re-extraction still applies to whatever exists when WP4 ships. The children's-talk zero *is* durable,
+because those are persistent rows.
+
+**Unrelated finding, out of scope, not folded in:** the sermon audit reports **91 missing** assets,
+none of them private. Audio (700/700) and video (36/36) are fully present; transcripts are 35 missing
+of 41, and every thumbnail sub-kind is at or near zero present (`plain_thumbnail` 0/6,
+`card_thumbnail` 0/2, `overlay_thumbnail` 0/6, all three candidate kinds 0/14). The local run shows the
+same total wipe of the same asset family, and two environments failing identically and completely on
+one family points more at `audit:sermon-assets` resolving the thumbnail disk differently from where
+thumbnails are actually written than at a coincidental double loss. **Treat the 91 as unverified until
+that is checked** — it is the same command relied on to verify future migrations.
 
 ### WP2 — De-privatise children's-talk assets
 
