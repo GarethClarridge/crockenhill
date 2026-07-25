@@ -1,6 +1,15 @@
 # Move Children's-Talk (Private) Asset Storage to Spaces
 
-> **Status (2026-07-24): WP0 implemented (code); WP1–WP7 not started.**
+> **Status (2026-07-25): WP0 implemented (code, awaiting deploy); WP1 tooling landed (awaiting
+> production run); WP2–WP7 not started.**
+>
+> **WP1's audit tooling landed 2026-07-25** — `audit:sermon-assets` now splits private from public
+> counts and summarises per children's talk, new `audit:section-assets` covers the section-candidate
+> population, and both are whitelisted in `production-audit.yml` under a `private-assets` choice.
+> See WP1 for the two gaps in the drafted approach this closed, and for the ordering: the WP0 deploy
+> destroys the private files that are still present, but the audits cannot run until that deploy has
+> shipped them — so the operator's **first** action is a no-deploy `docker compose cp` rescue of
+> `storage/app/private`, and measurement follows the deploy.
 >
 > **WP0 landed in the repo on 2026-07-24** — `storage/app/private` is now created in the
 > `Dockerfile` (`:92`), mounted as the `app-private` named volume in `docker-compose.prod.yml`,
@@ -86,6 +95,40 @@ clips to `private/section-publications/{id}/` on a hardcoded `'local'` disk (`:2
 are lost on deploy too, which would present to an operator as preview audio/video silently
 disappearing from the review UI between deploys.
 
+**Third population, found 2026-07-25 while building WP1 — and this one is worse.** The *original
+uploaded recordings* are equally unpersisted. `VideoStorageService::storeUploadedVideo()` (`:32-34`)
+stores them to `livestream/temp/{uuid}.{ext}` on the temp disk, which is `'local'`
+(`config/media-processing.php:57`), rooted at `storage_path('app')` — so they land in
+**`storage/app/livestream/temp/`**. That directory appears in neither the `Dockerfile` `mkdir`
+(`:97`, which now covers `livewire-tmp`, `temp`, `public`, `private`) nor the prod volume list
+(`docker-compose.prod.yml:36-49`). Confirmed against production data shapes: every
+`media_processing_logs.source_file_path` sampled is of the form `livestream/temp/{uuid}.mkv|mp4`.
+
+Note the near-miss: `storage/app/temp` **is** mounted, and `media-processing.paths.temp` is
+`temp/media-processing`, so *derived* processing artifacts persist. Only the original upload does
+not, because it alone sits under `livestream/`. It is easy to read the mounted `app-temp` volume as
+covering source media. It does not.
+
+Two consequences beyond this plan's scope:
+
+1. **Re-derivability is largely nil.** A children's talk cannot be regenerated from a source
+   recording that the same deploy destroyed. WP1's recoverability columns are what quantify this;
+   expect `source recording gone` to dominate.
+2. **A deploy during processing destroys the recording being processed**, not just the queued job.
+   That is a live availability bug, independent of children's talks.
+
+**WP0 was therefore incomplete; the `livestream/` mount landed 2026-07-25** as the same three-site
+change (compose mount + `volumes:` declaration, Dockerfile `mkdir`, entrypoint chown/chmod) via the
+`app-livestream` volume. Unlike the `private/` mount it is **not** interim — source uploads are not
+moving to Spaces in this plan — so it carries no WP6 removal note, and its comments say so.
+
+`tests/Feature/Config/ProductionStoragePersistenceTest.php` now guards the whole arrangement: every
+path in its `PERSISTED_STORAGE_PATHS` list must be mounted, declared, `mkdir`'d and chown/chmod'd,
+and each mounted volume must be declared. The chown and chmod argument lists are checked separately
+rather than by scanning the file, so a path present in one but absent from the other fails — which is
+precisely the omission WP0 originally made. Verified by deleting each site in turn and confirming the
+suite goes red.
+
 **WP1 quantifies the damage before anything is changed. Do not assume it is small, and do not
 assume it is large.**
 
@@ -148,10 +191,16 @@ Every consumer re-derives the disk from the path prefix, independently:
 | `ThumbnailGenerationService.php:825, 840` | same ternary |
 | `MediaAssetPath::diskForPath()` (`:14-20`) | `isPrivate($path) ? 'local' : $publicDisk ?? sermon_disk` |
 | `PrepareSectionPublicationCandidates::candidateDisk()` (`:277`) | hardcoded `return 'local';` |
+| `PrepareSectionPublicationCandidates` (`:250`) — **ninth site, found 2026-07-25** | passes a literal `'local'` as `extractOptimizedAudio()`'s `$permanentDisk`, *bypassing* `candidateDisk()` |
 | `MoveSermonToPrivateStorage::copyAndVerify()` (`:244`) | hardcoded `$target = Storage::disk('local');` |
 | `AuditSermonAssetsCommand.php:158` | `$expectedDisk = $isPrivate ? 'local' : $kindDisk;` |
 
-Eight places encoding one rule is the reason this is a work package rather than a one-line change,
+The ninth site is a trap for WP5 specifically: candidate *video* goes through `candidateDisk()` but
+candidate *audio* does not, so changing `candidateDisk()` alone splits a section's pair across two
+disks — video on Spaces, audio on local — and `DeleteLivestreamUpload`'s per-field disk map would
+then be right about one and wrong about the other.
+
+Nine places encoding one rule is the reason this is a work package rather than a one-line change,
 and it is also the opportunity: collapsing them onto a single configured seam is what makes the
 production flip a single environment variable (§3.2).
 
@@ -314,7 +363,7 @@ Two things to note rather than fix in this plan:
 | WP | What | Kind | Blocked by |
 |---|---|---|---|
 | **WP0** | **Stopgap: mount `storage/app/private` as a volume** — **code done 2026-07-24, awaiting deploy** | ops | — |
-| WP1 | Quantify the loss: audit private assets in production (read-only) | ops | — |
+| WP1 | Quantify the loss: audit private assets in production (read-only) — **tooling done 2026-07-25, run outstanding** | ops | — |
 | WP2 | `do_spaces_private` disk + `private_disk` config seam (default `local`, no behaviour change) | refactor | — |
 | WP3 | Serving paths off `->path()` — signed-URL redirect | code | WP2 |
 | WP4 | Non-serving readers off `->path()` — thumbnail rendering + admin previews | code | WP2 |
@@ -357,30 +406,102 @@ Verified in the repo: `docker compose config` resolves the mount and the volume 
 `docker build --check` passes, and `bash -n` accepts the entrypoint. **None of that is the
 acceptance criterion.**
 
-- **Acceptance (NOT YET MET — operator action):** deploy, write a children's-talk asset, deploy
-  again, asset still present. Verify by deploying twice rather than by reading the compose file.
-  **Production keeps losing files on every deploy until this ships**, so the code landing is not
-  the fix — the deploy is.
+**Amended 2026-07-25: a fourth site, and a different directory.** `storage/app/livestream` needed the
+same treatment (see §2.1's third population) and now has it, via the permanent `app-livestream`
+volume. It ships in the same deploy as the `private/` mount — deploying one without the other leaves
+source recordings being destroyed, which is the loss that cannot be undone by any later import.
+
+- **Acceptance (NOT YET MET — operator action):** deploy, write a children's-talk asset **and upload
+  a recording**, deploy again, both still present. Verify by deploying twice rather than by reading
+  the compose file. **Production keeps losing files on every deploy until this ships**, so the code
+  landing is not the fix — the deploy is.
 - Note for the operator: the first deploy after this change creates an empty `app-private` volume.
   It does **not** recover anything already lost; WP1 is what quantifies that.
 
-### WP1 — Quantify the loss
+### WP1 — Quantify the loss — **tooling landed 2026-07-25; production run outstanding**
 
 Read-only, and it produces the number that tells the operator what WP6 has to reconstruct.
 
-- `audit:sermon-assets` already reports `missing` per kind and resolves private paths against the
-  `local` disk (`AuditSermonAssetsCommand.php:145-176`). Run it in production via the
-  approval-gated `production-audit.yml` workflow — **counts only, never paths or ids**, per the
-  repo's production-audit convention.
-- Report: how many children's talks exist, how many have referenced private assets, and how many
-  of those assets are missing. Expect the missing count to be high and to correlate with deploy
-  recency rather than with anything about the talks themselves.
-- Do the same for `service_sections.extracted_audio_path` / `extracted_video_path` under
-  `private/section-publications/`.
-- **Acceptance:** a number, and a decision recorded against it. If assets are gone, the source
-  recordings determine whether they are re-derivable: a children's talk extracted from a livestream
-  can be regenerated from the processing log if the source media survives, and cannot if it does
-  not. That question belongs to whoever reads WP1's output, not to this plan.
+**The drafted approach did not work as written.** Two gaps, both now closed in the repo:
+
+1. **`audit:sermon-assets` computed the private/public distinction and then discarded it.** It
+   counted `missing` per *asset kind* only, so a production run reported e.g. "144 missing" with no
+   way to tell deploy-destroyed private files from public files absent for unrelated reasons. On the
+   local dev database that exact run reports 144 missing of which **zero** are private — the
+   undifferentiated number is not merely coarse, it is unusable for this purpose. The command now
+   carries `private_referenced` / `private_missing` per kind, plus a per-talk summary block (total
+   children's talks, how many reference private assets, how many have at least one private asset
+   missing). Per-talk, not per-asset, because recoverability is decided one talk at a time.
+2. **Nothing audited the section-candidate population at all.** `ExtractedSectionMediaChecker` gives
+   a per-section boolean at review time; there was no reporting command, so no whitelisted way to
+   count these on production. New `audit:section-assets` covers
+   `service_sections.extracted_video_path` / `extracted_audio_path`, resolving each through
+   `ServiceSection::extractedAssetDisk()` with the same private/public split.
+
+Both are whitelisted in `production-audit.yml`, which gains a `private-assets` choice running the
+pair — **counts only, never paths or ids**, per the repo's production-audit convention.
+
+**"Missing" is an unambiguous loss signal for candidates.**
+`CleanupUnpublishedSectionAssetsCommand` nulls both path columns inside its transaction and deletes
+the files only `afterCommit` (`:87-95`), and `ExpireSectionPublicationAssets` nulls them on expiry
+(`:44-45`). So a row that still names a path was never cleaned up: path set + file absent is loss,
+never legitimate expiry. No disentangling required.
+
+#### Ordering against WP0's deploy — rescue first, measure second
+
+WP0's note below says the first deploy "does not recover anything already lost", which is true but
+understates the hazard: **that deploy also destroys the private files that are still there.** They
+live in the running container's writable layer; the deploy replaces the container and mounts a
+fresh, empty `app-private` volume, so whatever survived the last deploy dies at this one.
+
+The tempting sequence — measure, then deploy — **does not work.** `production-audit.yml` runs
+`docker compose exec app php artisan`, i.e. inside the *running* container, so the extended
+`audit:sermon-assets` and the new `audit:section-assets` do not exist on production until they are
+deployed. Measurement is gated on the very deploy that destroys the evidence.
+
+The step that preserves files needs no deploy, so it goes first:
+
+1. **Rescue, before any deploy.** On the production host:
+   `docker compose -f docker-compose.prod.yml cp app:/var/www/html/storage/app/private ./private-rescue`
+   No code change required, nothing to gate on, and it captures whatever survived the last deploy.
+   Do this even if the expectation is that it finds nothing — the cost is a directory listing.
+2. **Deploy**, shipping WP0's volume mount and WP1's audit tooling together.
+3. **Restore** the rescued tree into the now-persistent `app-private` volume.
+4. **Run the audits.** With WP0 mounted, this number is final and stable rather than decaying at
+   the next deploy, and it is what WP6 has to reconstruct.
+
+Step 1's output is also the honest measure of ongoing loss: file count and total size in
+`private-rescue` is what a single deploy was costing.
+
+#### The recoverability columns answer the decision, not just the count
+
+Both audits partition their "missing" total three ways, so the production run yields the *decision*
+rather than a number someone then has to investigate:
+
+| Bucket | Meaning |
+|---|---|
+| `missing_and_source_media_present` | re-derivable — the run's source recording is still on disk |
+| `missing_and_source_media_gone` | source referenced but absent; unrecoverable |
+| `missing_and_no_source_reference` | no processing run or no source path recorded (historic/manual) |
+
+The buckets are a partition of `with_missing_*`, and a test asserts they sum back to it — so a
+future asset kind cannot quietly fall outside all three.
+
+`SourceMediaPresence` resolves `source_file_path` in both shapes it occurs in (temp-disk-relative
+`livestream/temp/…`, and absolute for historic imports), memoising per path because several talks
+and sections routinely share one run. A sermon reaches its run either directly
+(`media_processing_logs.sermon_id`) or through the section that published it
+(`ServiceSection::published_sermon_id`); both routes are covered, and talks with neither land in
+`no_source_reference`.
+
+**Given §2.1's third population, expect `source recording gone` to dominate.** If it does, the WP6
+reconstruction question is settled in the negative and the honest record is that the archive is not
+recoverable from production — which makes the historic-archive import plan the only route back for
+these talks.
+
+- **Acceptance:** a number, and a decision recorded against it. The buckets above *are* the
+  decision; what remains for a human is whether the unrecoverable set is worth re-importing from
+  another source.
 
 ### WP2 — The config seam
 

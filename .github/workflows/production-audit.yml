@@ -20,7 +20,9 @@ on:
         options:
           - all
           - sermon-assets
+          - section-assets
           - password-hashes
+          - private-assets
 
 permissions:
   contents: read
@@ -56,15 +58,29 @@ jobs:
 
             status=0
 
-            if [ "$AUDIT" = "all" ] || [ "$AUDIT" = "password-hashes" ]; then
+            # "private-assets" is the pair of audits that together quantify the
+            # private/ prefix: children's-talk sermon assets and section
+            # publication candidates. See WP1 of
+            # docs/plans/CHILDRENS-TALK-STORAGE-TO-SPACES-2026-07-24.md.
+            selected() {
+              [ "$AUDIT" = "all" ] || [ "$AUDIT" = "$1" ] || [ "$AUDIT" = "$2" ]
+            }
+
+            if selected password-hashes password-hashes; then
               echo "::group::audit:password-hashes"
               run_artisan audit:password-hashes || status=1
               echo "::endgroup::"
             fi
 
-            if [ "$AUDIT" = "all" ] || [ "$AUDIT" = "sermon-assets" ]; then
+            if selected sermon-assets private-assets; then
               echo "::group::audit:sermon-assets"
               run_artisan audit:sermon-assets || status=1
+              echo "::endgroup::"
+            fi
+
+            if selected section-assets private-assets; then
+              echo "::group::audit:section-assets"
+              run_artisan audit:section-assets || status=1
               echo "::endgroup::"
             fi
 

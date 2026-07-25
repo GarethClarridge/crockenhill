@@ -7,14 +7,14 @@ namespace App\Console\Commands;
 use App\Data\ThumbnailMetadata;
 use App\Enums\SermonContentType;
 use App\Models\Sermon;
+use App\Support\MediaAssetPath;
+use App\Support\SourceMediaPresence;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class AuditSermonAssetsCommand extends Command
 {
-    private const string PRIVATE_PREFIX = 'private/';
-
     /** @var list<string> */
     private const array ASSET_KINDS = [
         'audio',
@@ -38,8 +38,16 @@ class AuditSermonAssetsCommand extends Command
     /** @var array<string, array<string, int>> */
     private array $countsByKind = [];
 
+    /** @var array<string, int> */
+    private array $childrensTalkCounts = [];
+
     /** @var list<array{sermon_id: int, kind: string, issue: string}> */
     private array $findings = [];
+
+    public function __construct(private readonly SourceMediaPresence $sourceMedia)
+    {
+        parent::__construct();
+    }
 
     public function handle(): int
     {
@@ -54,8 +62,21 @@ class AuditSermonAssetsCommand extends Command
                 'missing' => 0,
                 'check_errors' => 0,
                 'childrens_talk_public' => 0,
+                'private_referenced' => 0,
+                'private_missing' => 0,
             ];
         }
+
+        $this->childrensTalkCounts = [
+            'total' => 0,
+            'with_private_assets' => 0,
+            'with_missing_private_assets' => 0,
+            // Re-derivability of the talks in with_missing_private_assets. These
+            // three are a partition of it, so they sum back to it.
+            'missing_and_source_media_present' => 0,
+            'missing_and_source_media_gone' => 0,
+            'missing_and_no_source_reference' => 0,
+        ];
 
         $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
         $transcriptDisk = (string) config('media-processing.storage.transcript_disk', $sermonDisk);
@@ -67,8 +88,35 @@ class AuditSermonAssetsCommand extends Command
             ->cursor();
 
         foreach ($sermons as $sermon) {
+            $isChildrensTalk = $sermon->content_type === SermonContentType::ChildrensTalk;
+
+            if ($isChildrensTalk) {
+                $this->childrensTalkCounts['total']++;
+            }
+
+            $hasPrivateAsset = false;
+            $hasMissingPrivateAsset = false;
+
             foreach ($this->referencedAssets($sermon, $sermonDisk, $transcriptDisk, $thumbnailDisk) as [$kind, $kindDisk, $path]) {
-                $this->auditAsset($sermon, $kind, $kindDisk, $path);
+                $outcome = $this->auditAsset($sermon, $kind, $kindDisk, $path);
+
+                if (! MediaAssetPath::isPrivate($path)) {
+                    continue;
+                }
+
+                $hasPrivateAsset = true;
+                $hasMissingPrivateAsset = $hasMissingPrivateAsset || $outcome !== 'present';
+            }
+
+            if (! $isChildrensTalk || ! $hasPrivateAsset) {
+                continue;
+            }
+
+            $this->childrensTalkCounts['with_private_assets']++;
+
+            if ($hasMissingPrivateAsset) {
+                $this->childrensTalkCounts['with_missing_private_assets']++;
+                $this->childrensTalkCounts[$this->recoverabilityKey($sermon)]++;
             }
         }
 
@@ -142,11 +190,18 @@ class AuditSermonAssetsCommand extends Command
         ));
     }
 
-    private function auditAsset(Sermon $sermon, string $kind, string $kindDisk, string $path): void
+    /**
+     * @return 'present'|'missing'|'check_error'
+     */
+    private function auditAsset(Sermon $sermon, string $kind, string $kindDisk, string $path): string
     {
         $this->countsByKind[$kind]['referenced']++;
 
-        $isPrivate = str_starts_with($path, self::PRIVATE_PREFIX);
+        $isPrivate = MediaAssetPath::isPrivate($path);
+
+        if ($isPrivate) {
+            $this->countsByKind[$kind]['private_referenced']++;
+        }
 
         if ($sermon->content_type === SermonContentType::ChildrensTalk && ! $isPrivate) {
             $this->countsByKind[$kind]['childrens_talk_public']++;
@@ -163,17 +218,57 @@ class AuditSermonAssetsCommand extends Command
             $this->countsByKind[$kind]['check_errors']++;
             $this->findings[] = ['sermon_id' => $sermon->id, 'kind' => $kind, 'issue' => 'check_error'];
 
-            return;
+            return 'check_error';
         }
 
         if (! $exists) {
             $this->countsByKind[$kind]['missing']++;
+
+            if ($isPrivate) {
+                $this->countsByKind[$kind]['private_missing']++;
+            }
+
             $this->findings[] = ['sermon_id' => $sermon->id, 'kind' => $kind, 'issue' => 'missing'];
 
-            return;
+            return 'missing';
         }
 
         $this->countsByKind[$kind]['present']++;
+
+        return 'present';
+    }
+
+    /**
+     * Which recoverability bucket a talk with missing private assets falls into.
+     * A talk is re-derivable only while the source recording behind its
+     * processing run survives — see WP1 of the children's-talk storage plan.
+     *
+     * @return 'missing_and_source_media_present'|'missing_and_source_media_gone'|'missing_and_no_source_reference'
+     */
+    private function recoverabilityKey(Sermon $sermon): string
+    {
+        $sourcePath = $this->sourceFilePathFor($sermon);
+
+        if ($sourcePath === null) {
+            return 'missing_and_no_source_reference';
+        }
+
+        return $this->sourceMedia->exists($sourcePath)
+            ? 'missing_and_source_media_present'
+            : 'missing_and_source_media_gone';
+    }
+
+    /**
+     * A sermon reaches its processing run either directly (`sermon_id` on the
+     * log) or through the service section that published it; older and manually
+     * created talks have neither.
+     */
+    private function sourceFilePathFor(Sermon $sermon): ?string
+    {
+        $log = $sermon->latestProcessingLog ?? $sermon->publishedServiceSection?->processingLog;
+        $path = $log?->source_file_path;
+
+        return is_string($path) && $path !== '' ? $path : null;
     }
 
     private function hasFailures(): bool
@@ -190,42 +285,88 @@ class AuditSermonAssetsCommand extends Command
     private function renderTable(): void
     {
         $rows = [];
-        $totals = ['referenced' => 0, 'present' => 0, 'missing' => 0, 'check_errors' => 0, 'childrens_talk_public' => 0];
+        $totals = [
+            'referenced' => 0,
+            'present' => 0,
+            'missing' => 0,
+            'check_errors' => 0,
+            'childrens_talk_public' => 0,
+            'private_referenced' => 0,
+            'private_missing' => 0,
+        ];
 
         foreach ($this->countsByKind as $kind => $counts) {
-            $rows[] = [
-                $kind,
-                (string) $counts['referenced'],
-                (string) $counts['present'],
-                (string) $counts['missing'],
-                (string) $counts['check_errors'],
-                (string) $counts['childrens_talk_public'],
-            ];
+            $rows[] = $this->countRow($kind, $counts);
 
             foreach ($totals as $key => $value) {
                 $totals[$key] = $value + $counts[$key];
             }
         }
 
-        $rows[] = [
-            'total',
-            (string) $totals['referenced'],
-            (string) $totals['present'],
-            (string) $totals['missing'],
-            (string) $totals['check_errors'],
-            (string) $totals['childrens_talk_public'],
-        ];
+        $rows[] = $this->countRow('total', $totals);
 
         $this->table(
-            ['Asset kind', 'Referenced', 'Present', 'Missing', 'Check errors', "Children's-talk public"],
+            [
+                'Asset kind',
+                'Referenced',
+                'Present',
+                'Missing',
+                'Check errors',
+                "Children's-talk public",
+                'Private referenced',
+                'Private missing',
+            ],
             $rows,
+        );
+
+        $this->renderChildrensTalkSummary();
+    }
+
+    /**
+     * @param  array<string, int>  $counts
+     * @return list<string>
+     */
+    private function countRow(string $label, array $counts): array
+    {
+        return [
+            $label,
+            (string) $counts['referenced'],
+            (string) $counts['present'],
+            (string) $counts['missing'],
+            (string) $counts['check_errors'],
+            (string) $counts['childrens_talk_public'],
+            (string) $counts['private_referenced'],
+            (string) $counts['private_missing'],
+        ];
+    }
+
+    /**
+     * Per-talk rather than per-asset, because recoverability is decided one talk
+     * at a time: a talk missing only its thumbnail is a different problem from a
+     * talk missing its audio.
+     */
+    private function renderChildrensTalkSummary(): void
+    {
+        $this->table(
+            ["Children's talks", 'Count'],
+            [
+                ['total', (string) $this->childrensTalkCounts['total']],
+                ['with private assets referenced', (string) $this->childrensTalkCounts['with_private_assets']],
+                ['with at least one private asset missing', (string) $this->childrensTalkCounts['with_missing_private_assets']],
+                ['  └ re-derivable (source recording present)', (string) $this->childrensTalkCounts['missing_and_source_media_present']],
+                ['  └ unrecoverable (source recording gone)', (string) $this->childrensTalkCounts['missing_and_source_media_gone']],
+                ['  └ unrecoverable (no source recorded)', (string) $this->childrensTalkCounts['missing_and_no_source_reference']],
+            ],
         );
     }
 
-    /** @return array{kinds: array<string, array<string, int>>, findings?: list<array{sermon_id: int, kind: string, issue: string}>} */
+    /** @return array{kinds: array<string, array<string, int>>, childrens_talks: array<string, int>, findings?: list<array{sermon_id: int, kind: string, issue: string}>} */
     private function jsonReport(): array
     {
-        $report = ['kinds' => $this->countsByKind];
+        $report = [
+            'kinds' => $this->countsByKind,
+            'childrens_talks' => $this->childrensTalkCounts,
+        ];
 
         if ((bool) $this->option('details')) {
             $report['findings'] = $this->findings;
