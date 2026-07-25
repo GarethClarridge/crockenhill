@@ -84,6 +84,130 @@ class ProcessTranscriptWithAITest extends TestCase
     }
 
     #[Test]
+    public function it_reslugs_a_livestream_placeholder_sermon_from_the_ai_title(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create([
+            'title' => 'Evening Sermon - January 16, 2022',
+            'slug' => 'evening-sermon-january-16-2022',
+        ]);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+        ]);
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->expects($this->once())
+            ->method('analyzeSermon')
+            ->willReturn($this->createAnalysis('The Good Shepherd'));
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        $job = new ProcessTranscriptWithAI($log);
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
+
+        $sermon->refresh();
+        $this->assertEquals('The Good Shepherd', $sermon->title);
+        $this->assertEquals('the-good-shepherd', $sermon->slug);
+    }
+
+    #[Test]
+    public function it_suffixes_the_reslugged_sermon_when_the_ai_title_collides(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        Sermon::factory()->create([
+            'title' => 'The Good Shepherd',
+            'slug' => 'the-good-shepherd',
+        ]);
+
+        $sermon = Sermon::factory()->create([
+            'title' => 'Morning Sermon - January 16, 2022',
+            'slug' => 'morning-sermon-january-16-2022',
+        ]);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+        ]);
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->expects($this->once())
+            ->method('analyzeSermon')
+            ->willReturn($this->createAnalysis('The Good Shepherd'));
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        $job = new ProcessTranscriptWithAI($log);
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
+
+        $sermon->refresh();
+        $this->assertEquals('the-good-shepherd-1', $sermon->slug);
+    }
+
+    #[Test]
+    public function it_preserves_a_hand_curated_slug_when_applying_the_ai_title(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create([
+            'title' => 'Evening Sermon - January 16, 2022',
+            'slug' => 'a-slug-the-office-chose',
+        ]);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+        ]);
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->expects($this->once())
+            ->method('analyzeSermon')
+            ->willReturn($this->createAnalysis('The Good Shepherd'));
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        $job = new ProcessTranscriptWithAI($log);
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
+
+        $sermon->refresh();
+        $this->assertEquals('The Good Shepherd', $sermon->title);
+        $this->assertEquals('a-slug-the-office-chose', $sermon->slug);
+    }
+
+    #[Test]
+    public function it_leaves_the_slug_alone_when_the_title_is_already_curated(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create([
+            'title' => 'Draw Near By The Blood Of Jesus',
+            'slug' => 'draw-near-by-the-blood-of-jesus',
+        ]);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+        ]);
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->expects($this->once())
+            ->method('analyzeSermon')
+            ->willReturn($this->createAnalysis('The Good Shepherd'));
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        $job = new ProcessTranscriptWithAI($log);
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
+
+        $sermon->refresh();
+        $this->assertEquals('Draw Near By The Blood Of Jesus', $sermon->title);
+        $this->assertEquals('draw-near-by-the-blood-of-jesus', $sermon->slug);
+    }
+
+    #[Test]
     public function it_uses_fallback_when_transcript_path_is_empty(): void
     {
         Storage::fake();
@@ -142,6 +266,134 @@ class ProcessTranscriptWithAITest extends TestCase
         $this->assertNotNull($log->ai_analysis);
         $this->assertEquals('ai_analysis_fallback', $log->current_step);
         $this->assertTrue($log->is_degraded_completion);
+    }
+
+    #[Test]
+    public function the_fallback_preserves_a_curated_title_when_ai_analysis_fails(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create([
+            'title' => 'Draw Near By The Blood Of Jesus',
+            'slug' => 'draw-near-by-the-blood-of-jesus',
+        ]);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+            'original_filename' => 'sermon-2026-01-15.mp3',
+        ]);
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->expects($this->once())
+            ->method('analyzeSermon')
+            ->willThrowException(new \Exception('AI service unavailable'));
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('error')->atLeast()->once();
+
+        $job = new ProcessTranscriptWithAI($log);
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
+
+        $sermon->refresh();
+        $this->assertEquals('Draw Near By The Blood Of Jesus', $sermon->title);
+        $this->assertEquals('draw-near-by-the-blood-of-jesus', $sermon->slug);
+    }
+
+    #[Test]
+    public function the_fallback_keeps_a_placeholder_title_rather_than_downgrading_to_a_junk_filename(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create([
+            'title' => 'Evening Sermon - January 16, 2022',
+            'slug' => 'evening-sermon-january-16-2022',
+        ]);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+            'original_filename' => '17-55.mkv',
+        ]);
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->expects($this->once())
+            ->method('analyzeSermon')
+            ->willThrowException(new \Exception('AI service unavailable'));
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('error')->atLeast()->once();
+
+        $job = new ProcessTranscriptWithAI($log);
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
+
+        $sermon->refresh();
+        $this->assertEquals('Evening Sermon - January 16, 2022', $sermon->title);
+        $this->assertEquals('evening-sermon-january-16-2022', $sermon->slug);
+    }
+
+    #[Test]
+    public function the_fallback_still_upgrades_a_placeholder_title_from_a_usable_filename(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create([
+            'title' => 'Evening Sermon - January 16, 2022',
+            'slug' => 'evening-sermon-january-16-2022',
+        ]);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+            'original_filename' => 'The Good Shepherd.mp3',
+        ]);
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->expects($this->once())
+            ->method('analyzeSermon')
+            ->willThrowException(new \Exception('AI service unavailable'));
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('error')->atLeast()->once();
+
+        $job = new ProcessTranscriptWithAI($log);
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
+
+        $sermon->refresh();
+        $this->assertEquals('The Good Shepherd', $sermon->title);
+    }
+
+    #[Test]
+    public function the_fallback_does_not_wipe_an_existing_summary_and_points(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create([
+            'title' => 'Draw Near By The Blood Of Jesus',
+            'summary' => 'A careful walk through Hebrews 10.',
+            'points' => [['point' => 'The new and living way', 'sub_points' => []]],
+        ]);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+            'original_filename' => 'sermon-2026-01-15.mp3',
+        ]);
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->expects($this->once())
+            ->method('analyzeSermon')
+            ->willThrowException(new \Exception('AI service unavailable'));
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('error')->atLeast()->once();
+
+        $job = new ProcessTranscriptWithAI($log);
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
+
+        $sermon->refresh();
+        $this->assertEquals('A careful walk through Hebrews 10.', $sermon->summary);
+        $this->assertEquals([['point' => 'The new and living way', 'sub_points' => []]], $sermon->points);
     }
 
     #[Test]

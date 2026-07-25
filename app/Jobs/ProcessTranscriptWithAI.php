@@ -11,6 +11,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Media\Audio\TranscriptStorageService;
 use App\Services\Public\SermonRepository;
+use App\Services\Sermon\SermonSlugGenerator;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -112,6 +113,13 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
 
             if (! $hasValidId3Title && $this->looksLikeFilename($sermon->title)) {
                 $updateData['title'] = $analysis->title;
+
+                // The placeholder title the pipeline created the record with also
+                // produced the slug, so the public URL still reads
+                // "evening-sermon-january-16-2022". Nothing has been publicised at
+                // that URL yet — SendCompletionNotification runs later in the chain
+                // — so carry the better title through to the slug as well.
+                $this->applyAiSlug($sermon, $analysis->title, $updateData);
             }
 
             // Only update series if not already set on the sermon or in ID3 tags
@@ -162,8 +170,14 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             if ($fallbackAnalysis) {
                 $this->processingLog->update(['ai_analysis' => $fallbackAnalysis]);
 
-                // Update sermon if it exists - preserve ID3 metadata
-                if ($this->processingLog->sermon) {
+                // Update sermon if it exists. The fallback carries no real analysis —
+                // its title is filename-derived and its other fields are empty — so it
+                // may only fill gaps, never overwrite what a previous run or an editor
+                // already produced. Without this the degraded path silently destroys
+                // good data every time AI analysis fails on a re-run.
+                $sermon = $this->processingLog->sermon;
+
+                if ($sermon instanceof Sermon) {
                     $updateData = [];
 
                     // Get ID3 metadata from processing log if available
@@ -174,27 +188,34 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                     $hasValidId3Title = $id3Title !== null
                         && ! $this->looksLikeFilename($id3Title);
 
-                    if (! $hasValidId3Title) {
+                    // A filename-derived title must not displace a curated one, nor a
+                    // placeholder when the filename yields nothing better ("17 55").
+                    if (! $hasValidId3Title
+                        && $this->looksLikeFilename($sermon->title)
+                        && ! $this->looksLikeFilename($fallbackAnalysis->title)
+                    ) {
                         $updateData['title'] = $fallbackAnalysis->title;
                     }
-                    if ($id3Metadata?->series === null) {
+                    if ($sermon->series === null && $id3Metadata?->series === null) {
                         $updateData['series'] = $fallbackAnalysis->series;
                     }
-                    if ($id3Metadata?->reference === null) {
+                    if ($sermon->reference === null && $id3Metadata?->reference === null) {
                         $updateData['reference'] = $fallbackAnalysis->reference;
                         // Clear stale passage link so old text is not shown during re-enrichment
                         $updateData['scripture_passage_id'] = null;
                     }
 
-                    $updateData['summary'] = $fallbackAnalysis->summary;
-                    $updateData['points'] = $fallbackAnalysis->points;
+                    if (blank($sermon->summary)) {
+                        $updateData['summary'] = $fallbackAnalysis->summary;
+                    }
+                    if (blank($sermon->points)) {
+                        $updateData['points'] = $fallbackAnalysis->points;
+                    }
 
-                    $this->processingLog->sermon->update($updateData);
+                    $sermon->update($updateData);
 
                     // Dispatch scripture enrichment for the fallback reference too
-                    app(QueueScriptureEnrichment::class)->dispatch(
-                        $this->processingLog->sermon->fresh() ?? $this->processingLog->sermon
-                    );
+                    app(QueueScriptureEnrichment::class)->dispatch($sermon->fresh() ?? $sermon);
                 }
 
                 $this->updateProcessingRunStep($this->processingLog, 'ai_analysis_fallback');
@@ -248,6 +269,44 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
         }
 
         return Str::title($title);
+    }
+
+    /**
+     * Re-slug a sermon whose placeholder title is being replaced by the AI title.
+     *
+     * Skipped when the current slug is not the machine-generated form of the
+     * current title, which means someone chose it by hand and it must survive.
+     *
+     * @param  array<string, mixed>  $updateData
+     */
+    private function applyAiSlug(Sermon $sermon, string $aiTitle, array &$updateData): void
+    {
+        $slugGenerator = app(SermonSlugGenerator::class);
+
+        if (! $slugGenerator->isDerivedFrom($sermon->slug, $sermon->title)) {
+            Log::info('Preserving hand-curated sermon slug despite AI title update', [
+                'processing_id' => $this->processingLog->processing_id,
+                'sermon_id' => $sermon->id,
+                'slug' => $sermon->slug,
+            ]);
+
+            return;
+        }
+
+        $slug = $slugGenerator->generate($aiTitle, $sermon->id);
+
+        if ($slug === $sermon->slug) {
+            return;
+        }
+
+        Log::info('Re-slugging sermon from AI title', [
+            'processing_id' => $this->processingLog->processing_id,
+            'sermon_id' => $sermon->id,
+            'old_slug' => $sermon->slug,
+            'new_slug' => $slug,
+        ]);
+
+        $updateData['slug'] = $slug;
     }
 
     /**

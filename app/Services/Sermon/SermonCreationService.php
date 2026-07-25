@@ -19,7 +19,6 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Services\Preacher\PreacherResolutionService;
 use App\Traits\SanitizesLogData;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -42,6 +41,7 @@ class SermonCreationService
     public function __construct(
         private readonly PreacherResolutionService $preacherResolutionService,
         private readonly SermonFilenameParser $filenameParser,
+        private readonly SermonSlugGenerator $slugGenerator,
     ) {}
 
     /**
@@ -117,19 +117,7 @@ class SermonCreationService
 
     private function generateUniqueSlug(string $title, ?int $excludeSermonId = null): string
     {
-        $baseSlug = Str::slug($title);
-        $slug = $baseSlug;
-        $counter = 1;
-
-        $query = Sermon::query()
-            ->when($excludeSermonId, fn (Builder $builder): Builder => $builder->where('id', '!=', $excludeSermonId));
-
-        while ($query->clone()->where('slug', $slug)->exists()) {
-            $slug = "{$baseSlug}-{$counter}";
-            $counter++;
-        }
-
-        return $slug;
+        return $this->slugGenerator->generate($title, $excludeSermonId);
     }
 
     /**

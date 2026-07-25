@@ -14,9 +14,7 @@ use App\Exceptions\SermonRichnessDowngradeException;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use App\Services\Preacher\PreacherResolutionService;
 use App\Services\Sermon\SermonCreationService;
-use App\Services\Sermon\SermonFilenameParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -30,10 +28,7 @@ class SermonCreationServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new SermonCreationService(
-            new PreacherResolutionService,
-            new SermonFilenameParser,
-        );
+        $this->service = $this->app->make(SermonCreationService::class);
     }
 
     #[Test]
