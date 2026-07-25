@@ -51,7 +51,7 @@ class EditPreacher extends Component
             'name' => $modelRules['name'],
             'slug' => $modelRules['slug'],
             'bio' => $modelRules['bio'],
-            'isActive' => 'boolean',
+            'isActive' => $modelRules['is_active'],
             'newAlias' => 'nullable|string|max:255',
         ];
     }

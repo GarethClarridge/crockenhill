@@ -22,3 +22,7 @@
 ## 2026-07-01 - Decoupling Model Integrity from UI-specific Defaults
 **Learning:** Adding a `required` validation rule to a model to mirror a database `NOT NULL` constraint can break UI components that intentionally allow empty inputs (which are later populated with application-level defaults during submission).
 **Action:** When a UI component needs to allow blank input for a required model field, dynamically filter the rule list in the component's `rules()` method (e.g. using `array_filter` to strip the `required` rule). This ensures the model remains the source of truth for schema-level integrity while allowing the UI to remain flexible.
+
+## 2026-07-25 - Livewire Type Coercion and Boolean Validation
+**Learning:** Strictly-typed Livewire property fields (e.g. `public bool $isActive`) can trigger automatic PHP/Livewire type coercion where any non-empty string is cast directly to `true` prior to rule validation. This silently bypasses boolean failure assertions during testing.
+**Action:** To properly verify validation integrity on coerced type fields, assert the presence and alignment of model rules directly, and test the valid boolean mapped states (true/false) through the components rather than trying to assert type mismatches.

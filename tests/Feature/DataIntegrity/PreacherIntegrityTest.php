@@ -99,4 +99,39 @@ class PreacherIntegrityTest extends TestCase
         $this->assertEquals($name, $resolved->name);
         $this->assertDatabaseCount('preachers', 1);
     }
+
+    #[Test]
+    public function it_validates_is_active_is_boolean(): void
+    {
+        $rules = Preacher::validationRules();
+
+        $this->assertArrayHasKey('is_active', $rules);
+        $this->assertContains('boolean', $rules['is_active']);
+
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        Livewire::actingAs($admin)
+            ->test(CreatePreacher::class)
+            ->set('name', 'Preacher Active Valid')
+            ->set('isActive', false)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('preachers', [
+            'name' => 'Preacher Active Valid',
+            'is_active' => false,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(CreatePreacher::class)
+            ->set('name', 'Preacher Active True')
+            ->set('isActive', true)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('preachers', [
+            'name' => 'Preacher Active True',
+            'is_active' => true,
+        ]);
+    }
 }
