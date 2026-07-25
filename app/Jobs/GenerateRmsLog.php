@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
+use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Media\Video\VideoSegmentationService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use Illuminate\Bus\Batchable;
@@ -90,7 +91,11 @@ class GenerateRmsLog implements ShouldQueue
                 throw new \Exception('File size exceeds maximum allowed size');
             }
 
-            $rmsLogPath = $segmentationService->generateRmsLog($videoPath);
+            $temporaryRmsLogPath = $segmentationService->generateRmsLog($videoPath);
+            $rmsLogPath = app(ServiceArtifactStorage::class)->archiveRms(
+                $this->processingLog->processing_id,
+                $temporaryRmsLogPath,
+            );
 
             $this->processingLog->update([
                 'rms_log_path' => $rmsLogPath,

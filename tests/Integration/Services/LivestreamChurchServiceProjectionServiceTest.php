@@ -168,7 +168,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     }
 
     #[Test]
-    public function test_skips_projection_when_non_livestream_items_exist(): void
+    public function test_merges_projection_when_non_livestream_items_exist(): void
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-23',
@@ -201,13 +201,15 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
 
         $result = $this->service->project($log);
 
-        $this->assertFalse($result['projected']);
-        $this->assertStringContainsString('non-livestream items', $result['reason']);
+        $this->assertTrue($result['projected']);
         $this->assertSame($churchService->id, $result['church_service_id']);
 
-        $items = $churchService->fresh()->items;
-        $this->assertCount(1, $items);
-        $this->assertSame('OpenLP Song', $items->first()->title);
+        $items = $churchService->fresh()->items()->orderBy('position')->get();
+        $this->assertCount(2, $items);
+        $this->assertSame('OpenLP Song', $items[0]->title);
+        $this->assertSame('Livestream Song', $items[1]->title);
+        $this->assertSame(ChurchServiceItemSource::OpenLp, $items[0]->source);
+        $this->assertSame(ChurchServiceItemSource::Livestream, $items[1]->source);
         $this->assertSame(
             'The service summary remains useful alongside the order of service.',
             $churchService->fresh()->summary
@@ -215,7 +217,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     }
 
     #[Test]
-    public function test_opens_service_review_when_skipping_projection_with_flagged_sections(): void
+    public function test_opens_service_review_when_merging_projection_with_flagged_sections(): void
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-23',
@@ -240,10 +242,10 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
 
         $result = $this->service->project($log);
 
-        $this->assertFalse($result['projected']);
+        $this->assertTrue($result['projected']);
         $this->assertTrue(
             $churchService->fresh()->needs_review,
-            'Section review state must roll up to the OoS-backed service even though projection skips.'
+            'Section review state must roll up to the OoS-backed service when projection merges.'
         );
     }
 
@@ -287,7 +289,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     }
 
     #[Test]
-    public function test_leaves_service_review_closed_when_skipping_projection_with_clean_sections(): void
+    public function test_leaves_service_review_closed_when_merging_projection_with_clean_sections(): void
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-23',
@@ -311,8 +313,11 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
 
         $result = $this->service->project($log);
 
-        $this->assertFalse($result['projected']);
-        $this->assertFalse($churchService->fresh()->needs_review);
+        $this->assertTrue($result['projected']);
+        $this->assertTrue(
+            $churchService->fresh()->needs_review,
+            'Merging independently sourced order-of-service items must remain reviewable.',
+        );
     }
 
     #[Test]
@@ -482,7 +487,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     }
 
     #[Test]
-    public function test_links_processing_log_to_existing_service_even_when_skipped(): void
+    public function test_links_processing_log_to_existing_service_when_merged(): void
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-23',
@@ -503,7 +508,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
 
         $result = $this->service->project($log);
 
-        $this->assertFalse($result['projected']);
+        $this->assertTrue($result['projected']);
 
         $log->refresh();
         $this->assertSame($churchService->id, $log->church_service_id);

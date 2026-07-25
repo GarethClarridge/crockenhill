@@ -64,22 +64,6 @@ class LivestreamChurchServiceProjectionService
             return $this->skipped('No projectable sections after filtering', $churchService?->id);
         }
 
-        if ($churchService !== null && $this->hasNonLivestreamItems($churchService)) {
-            $this->persistStructureContent($churchService, $structureContent);
-            $this->linkProcessingLogToService($processingLog, $churchService);
-
-            // OoS-backed services never reach projectItems()' needs_review
-            // propagation, and in primary mode no alignment pass rolls section
-            // review state up to the service — without this, a low-confidence
-            // structure run would never reach the review inbox.
-            $this->reviewSynchronizer->openReviewFromSections($churchService, $sections);
-
-            return $this->skipped(
-                'Matching service contains non-livestream items; skipping projection',
-                $churchService->id
-            );
-        }
-
         return $this->projectItems($processingLog, $sections, $itemPayloads, $churchService, $identity, $structureContent);
     }
 
@@ -225,16 +209,6 @@ class LivestreamChurchServiceProjectionService
             ->whereDate('date', $date)
             ->where('service', $service->value)
             ->first();
-    }
-
-    private function hasNonLivestreamItems(ChurchService $churchService): bool
-    {
-        return $churchService->items()
-            ->where(function ($query): void {
-                $query->where('source', '!=', ChurchServiceItemSource::Livestream->value)
-                    ->orWhereNull('source');
-            })
-            ->exists();
     }
 
     /**

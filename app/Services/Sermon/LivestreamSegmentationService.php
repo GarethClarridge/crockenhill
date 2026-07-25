@@ -59,7 +59,10 @@ class LivestreamSegmentationService
      * @throws Exception If storage space is insufficient or video format is invalid
      * @throws RuntimeException If storage service fails to return required file paths
      */
-    public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null, ?string $fileHash = null, ?string $dedupKey = null, ?SermonService $serviceOverride = null, ?string $serviceDateOverride = null): ProcessingResult
+    /**
+     * @param  array<string, mixed>  $processingMetadata
+     */
+    public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null, ?string $fileHash = null, ?string $dedupKey = null, ?SermonService $serviceOverride = null, ?string $serviceDateOverride = null, array $processingMetadata = []): ProcessingResult
     {
         try {
             Log::info('Starting livestream processing', $this->sanitizeArrayForLog([
@@ -89,12 +92,12 @@ class LivestreamSegmentationService
                 'duration' => $metadata['duration'],
                 'file_hash' => $fileHash,
                 'dedup_key' => $dedupKey,
-                'processing_metadata' => [
+                'processing_metadata' => array_merge($processingMetadata, [
                     'upload_time' => now()->toISOString(),
                     'format_details' => $metadata,
                     'mime_type' => $uploadResult['mime_type'],
                     'file_format' => pathinfo($originalFilename, PATHINFO_EXTENSION),
-                ],
+                ]),
             ];
 
             $processingLog = $this->processingInitiator->initiateProcessing(

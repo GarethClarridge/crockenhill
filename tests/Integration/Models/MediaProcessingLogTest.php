@@ -279,7 +279,7 @@ class MediaProcessingLogTest extends TestCase
     }
 
     #[Test]
-    public function it_includes_rms_logs_and_temp_video_paths_in_temporary_file_paths(): void
+    public function it_preserves_durable_rms_logs_while_including_temp_video_paths(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->make([
             'source_file_path' => 'livestream/temp/original.mkv',
@@ -294,7 +294,6 @@ class MediaProcessingLogTest extends TestCase
         $this->assertSame([
             'livestream/temp/original.mkv',
             '/tmp/enhanced.mp3',
-            'temp/rms.log',
             'temp/sermon-video.mp4',
             'temp/segment-video.mp4',
         ], $log->temporaryFilePaths());

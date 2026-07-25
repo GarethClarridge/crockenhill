@@ -361,6 +361,7 @@ class ProcessTranscriptWithAITest extends TestCase
 
         $sermon->refresh();
         $this->assertEquals('The Good Shepherd', $sermon->title);
+        $this->assertEquals('the-good-shepherd', $sermon->slug);
     }
 
     #[Test]

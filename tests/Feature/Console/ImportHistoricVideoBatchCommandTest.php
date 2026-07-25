@@ -65,9 +65,39 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_rejects_any_local_driver_without_the_override(): void
+    {
+        config([
+            'media-processing.storage.sermon_disk' => 'public',
+            'filesystems.disks.public.driver' => 'local',
+        ]);
+
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--dry-run' => true,
+        ])
+            ->assertExitCode(1)
+            ->expectsOutputToContain('uses the local filesystem driver');
+    }
+
+    #[Test]
+    public function it_rejects_an_unknown_sermon_disk_even_with_the_local_override(): void
+    {
+        config(['media-processing.storage.sermon_disk' => 'missing-disk']);
+
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--dry-run' => true,
+        ])
+            ->assertExitCode(1)
+            ->expectsOutputToContain('is not configured');
+    }
+
+    #[Test]
     public function dry_run_outputs_plan_without_dispatching(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'spaces']);
+        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
 
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 18-38-15.mkv');
 
@@ -86,7 +116,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function it_skips_completed_livestream_for_same_date_and_service(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'spaces']);
+        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
 
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
 
@@ -110,7 +140,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function it_skips_in_flight_livestream_for_same_date_and_service(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'spaces']);
+        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
 
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
 
@@ -132,7 +162,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function it_skips_pending_manual_review_for_same_date_and_service(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'spaces']);
+        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
 
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
 
@@ -161,7 +191,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function force_flag_bypasses_skip_checks(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'spaces']);
+        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
 
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
 
@@ -195,7 +225,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function it_skips_small_files(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'spaces']);
+        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
 
         // Create a very small file (less than 30MB default)
         $path = $this->temporaryDirectory.'/2022-01-16 10-38-15.mkv';
@@ -212,7 +242,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function it_skips_files_with_unparseable_dates(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'spaces']);
+        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
 
         $this->createFakeVideo($this->temporaryDirectory.'/YouTubeDownloads/26 April_ Sermon.mp4');
 
@@ -227,7 +257,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function default_year_flag_allows_month_day_only_youtube_filenames(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'spaces']);
+        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
 
         $this->createFakeVideo($this->temporaryDirectory.'/YouTubeDownloads/12 April Sermon.mp4');
 
@@ -253,7 +283,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function it_shows_summary_table_on_completion(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'spaces']);
+        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
 
         $this->artisan('sermons:import-historic-videos', [
             '--dir' => $this->temporaryDirectory,
@@ -268,7 +298,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function it_exits_with_failure_code_when_errors_occur(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'spaces']);
+        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
 
         $this->mock(HistoricVideoImporter::class)
             ->shouldReceive('import')

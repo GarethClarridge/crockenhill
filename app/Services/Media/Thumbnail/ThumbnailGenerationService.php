@@ -10,6 +10,7 @@ use App\Services\Media\Video\FrameExtractionService;
 use App\Services\Media\Video\FrameQualityScorer;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Sermon\SermonExposurePolicy;
+use App\Support\HistoricImportAssetPath;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -653,10 +654,12 @@ class ThumbnailGenerationService
         try {
             $fullTempPath = Storage::disk($this->tempDisk)->path($thumbnailPath);
 
-            $filename = $this->buildStorageFilename($sermon, $variant);
-            $finalPath = $this->storagePath.'/'.$filename;
+            $historicProcessingId = HistoricImportAssetPath::forSermon($sermon);
+            $finalPath = $historicProcessingId !== null
+                ? HistoricImportAssetPath::thumbnail($historicProcessingId, $variant)
+                : $this->storagePath.'/'.$this->buildStorageFilename($sermon, $variant);
 
-            Storage::disk($this->storageDisk)->makeDirectory($this->storagePath);
+            Storage::disk($this->storageDisk)->makeDirectory(dirname($finalPath));
 
             $thumbnailContent = file_get_contents($fullTempPath);
             if (! is_string($thumbnailContent) || $thumbnailContent === '') {

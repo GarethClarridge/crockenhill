@@ -28,6 +28,7 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
     public function __construct(
         private readonly SermonProcessingLogger $logger,
         private readonly AudioChunkingService $chunkingService,
+        private readonly ?ServiceArtifactStorage $artifactStorage = null,
     ) {}
 
     public function transcribeService(string $audioOrVideoPath, string $processingId): ChurchServiceTranscript
@@ -53,6 +54,8 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
             $transcript = filesize($audioPath) <= $this->maxUploadBytes()
                 ? $this->transcribeWhole($audioPath, $processingId)
                 : $this->transcribeInChunks($audioPath, $processingId);
+            ($this->artifactStorage ?? app(ServiceArtifactStorage::class))
+                ->archiveAudio($processingId, $audioPath);
 
             $this->logger->logProcessingStep(
                 $processingId,
@@ -149,9 +152,13 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
                 'file' => fopen($audioPath, 'r'),
                 'model' => (string) config('media-processing.service_structure.transcription_model', 'whisper-1'),
                 'response_format' => 'verbose_json',
+                'timestamp_granularities' => ['word', 'segment'],
                 'language' => 'en',
                 'prompt' => (string) config('media-processing.transcription.prompts.full_service'),
             ]);
+
+            ($this->artifactStorage ?? app(ServiceArtifactStorage::class))
+                ->putJson($processingId, 'raw-'.substr(hash('sha256', basename($audioPath)), 0, 12), $response->toArray());
 
             $this->logger->logApiCall(
                 $processingId,

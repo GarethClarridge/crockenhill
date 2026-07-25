@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Services\Media\Video\HistoricVideoImporter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Config;
 use Throwable;
 
 class ImportHistoricVideoBatchCommand extends Command
@@ -28,7 +29,8 @@ class ImportHistoricVideoBatchCommand extends Command
                             {--dry-run : Show what would happen, no work}
                             {--delay=0 : Seconds between dispatches}
                             {--limit=0 : Max sermons to import this run (0 = no limit)}
-                            {--force : Bypass all skip checks and the upsert reject path}';
+                            {--report= : Write a permission-restricted JSON decision and asset manifest}
+                            {--force : Bypass date/service existence and in-flight skip checks}';
 
     protected $description = 'Import historic video recordings into the livestream processing pipeline';
 
@@ -62,6 +64,8 @@ class ImportHistoricVideoBatchCommand extends Command
         $pollInterval = max(5, (int) $this->option('poll-interval'));
         $perFileTimeout = max(60, (int) $this->option('per-file-timeout'));
         $limit = max(0, (int) $this->option('limit'));
+        $reportOption = $this->option('report');
+        $reportPath = is_string($reportOption) && trim($reportOption) !== '' ? $reportOption : null;
 
         $defaultYear = null;
         $defaultYearOption = $this->option('default-year');
@@ -116,6 +120,7 @@ class ImportHistoricVideoBatchCommand extends Command
                 },
                 from: $from instanceof Carbon ? $from : null,
                 until: $until instanceof Carbon ? $until : null,
+                reportPath: $reportPath,
             );
         } catch (Throwable $exception) {
             $this->error($exception->getMessage());
@@ -161,12 +166,19 @@ class ImportHistoricVideoBatchCommand extends Command
 
     private function checkStorageDisk(): bool
     {
-        $sermonDisk = config('media-processing.storage.sermon_disk', 'local');
+        $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'local');
+        $diskConfiguration = Config::get("filesystems.disks.{$sermonDisk}");
 
-        if ($sermonDisk === 'local' && ! $this->option('allow-local-storage')) {
+        if (! is_array($diskConfiguration) || ! isset($diskConfiguration['driver'])) {
+            $this->error("SERMON_STORAGE_DISK '{$sermonDisk}' is not configured.");
+
+            return false;
+        }
+
+        if ($diskConfiguration['driver'] === 'local' && ! $this->option('allow-local-storage')) {
             $this->error(
-                'SERMON_STORAGE_DISK is set to "local". Importing 275 GB of video will fill local disk.'
-                .PHP_EOL.'Set SERMON_STORAGE_DISK=spaces in .env, or pass --allow-local-storage to override.'
+                "SERMON_STORAGE_DISK '{$sermonDisk}' uses the local filesystem driver. Importing the archive may fill local disk."
+                .PHP_EOL.'Configure an S3-compatible disk, or pass --allow-local-storage to override.'
             );
 
             return false;

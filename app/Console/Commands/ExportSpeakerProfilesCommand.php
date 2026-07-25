@@ -49,9 +49,7 @@ class ExportSpeakerProfilesCommand extends Command
             $profiles = $this->profiles();
 
             if ($profiles === []) {
-                $this->warn('No matching speaker profiles found; nothing was written.');
-
-                return self::SUCCESS;
+                throw new RuntimeException('No matching speaker profiles found; nothing was written.');
             }
 
             $this->writeBundle($output, $profiles);
@@ -175,6 +173,10 @@ class ExportSpeakerProfilesCommand extends Command
 
         if (File::put($output, $json) === false) {
             throw new RuntimeException("Unable to write bundle to {$output}.");
+        }
+
+        if (! chmod($output, 0600)) {
+            throw new RuntimeException("Unable to restrict speaker profile bundle permissions: {$output}");
         }
     }
 

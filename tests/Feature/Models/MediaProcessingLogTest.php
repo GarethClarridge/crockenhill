@@ -226,7 +226,7 @@ class MediaProcessingLogTest extends TestCase
 
         $this->assertContains('temp/source.mp4', $paths);
         $this->assertContains('temp/enhanced.mp3', $paths);
-        $this->assertContains('temp/rms.log', $paths);
+        $this->assertNotContains('temp/rms.log', $paths);
         $this->assertContains('temp/preview.mp4', $paths);
         $this->assertContains('temp/segment.mp4', $paths);
         $this->assertContains('temp/audio.mp3', $paths);

@@ -625,7 +625,9 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             throw new \RuntimeException('No full-service transcript recorded for this run; TranscribeFullService must run first.');
         }
 
-        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+        $tempDisk = str_starts_with($transcriptPath, 'service-transcripts/')
+            ? (string) config('media-processing.storage.transcript_disk', 'local')
+            : (string) config('media-processing.storage.temp_disk', 'local');
 
         if (! Storage::disk($tempDisk)->exists($transcriptPath)) {
             throw new \RuntimeException("Full-service transcript artifact missing: {$transcriptPath}");
@@ -712,7 +714,9 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             return $structure;
         }
 
-        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+        $tempDisk = str_starts_with($rmsLogPath, 'service-transcripts/')
+            ? (string) config('media-processing.storage.transcript_disk', 'local')
+            : (string) config('media-processing.storage.temp_disk', 'local');
 
         if (! Storage::disk($tempDisk)->exists($rmsLogPath)) {
             return $structure;

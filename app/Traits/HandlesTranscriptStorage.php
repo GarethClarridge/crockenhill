@@ -23,9 +23,9 @@ trait HandlesTranscriptStorage
      *
      * @throws \Exception When storage fails
      */
-    public function storeTranscript(int $sermonId, string $transcript): string
+    public function storeTranscript(int $sermonId, string $transcript, ?string $processingId = null): string
     {
-        return $this->storageService->storeTranscript($sermonId, $transcript);
+        return $this->storageService->storeTranscript($sermonId, $transcript, $processingId);
     }
 
     /**

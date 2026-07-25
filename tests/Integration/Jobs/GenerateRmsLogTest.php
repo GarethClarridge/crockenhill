@@ -73,7 +73,12 @@ class GenerateRmsLogTest extends TestCase
         $mockService = $this->createMock(VideoSegmentationService::class);
         $mockService->expects($this->once())
             ->method('generateRmsLog')
-            ->willReturn('rms-logs/'.$log->processing_id.'.json');
+            ->willReturnCallback(function () use ($log): string {
+                $path = 'rms-logs/'.$log->processing_id.'.json';
+                Storage::disk('local')->put($path, '{"rms":-20}');
+
+                return $path;
+            });
 
         Log::shouldReceive('info')->atLeast()->once();
 
@@ -81,7 +86,10 @@ class GenerateRmsLogTest extends TestCase
         $job->handle($mockService);
 
         $log->refresh();
-        $this->assertEquals('rms-logs/'.$log->processing_id.'.json', $log->rms_log_path);
+        $this->assertEquals(
+            'service-transcripts/unknown-date/other-'.$log->processing_id.'.rms.json',
+            $log->rms_log_path,
+        );
 
         @unlink($absolutePath);
     }
@@ -209,7 +217,12 @@ class GenerateRmsLogTest extends TestCase
         $mockService = $this->createMock(VideoSegmentationService::class);
         $mockService->expects($this->once())
             ->method('generateRmsLog')
-            ->willReturn('rms-logs/'.$log->processing_id.'.json');
+            ->willReturnCallback(function () use ($log): string {
+                $path = 'rms-logs/'.$log->processing_id.'.json';
+                Storage::disk('local')->put($path, '{"rms":-20}');
+
+                return $path;
+            });
 
         Log::shouldReceive('info')->atLeast()->once();
 
@@ -217,7 +230,10 @@ class GenerateRmsLogTest extends TestCase
         $job->handle($mockService);
 
         $log->refresh();
-        $this->assertEquals('rms-logs/'.$log->processing_id.'.json', $log->rms_log_path);
+        $this->assertEquals(
+            'service-transcripts/unknown-date/other-'.$log->processing_id.'.rms.json',
+            $log->rms_log_path,
+        );
 
         @unlink($absolutePath);
     }

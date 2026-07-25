@@ -13,6 +13,7 @@ use App\Models\Sermon;
 use App\Services\Media\Video\HistoricVideoImporter;
 use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -109,6 +110,113 @@ class HistoricVideoImporterTest extends TestCase
         $this->runImportWithProcessor($processor);
 
         $this->assertTrue(str_contains($capturedClientDate ?? '', '18:38'));
+    }
+
+    #[Test]
+    public function it_attaches_historic_source_provenance_before_dispatch(): void
+    {
+        $path = $this->temporaryDirectory.'/2022-01-16 18-38-15.mkv';
+        $this->createFakeVideo($path);
+        $capturedMetadata = null;
+
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->once()
+            ->withArgs(function (string $type, mixed $file, ?string $clientFileDate, array $options) use (&$capturedMetadata): bool {
+                $capturedMetadata = $options['processing_metadata']['historic_import'] ?? null;
+
+                return $type === 'livestream' && $clientFileDate !== null;
+            })
+            ->andReturnUsing(function (): ProcessingResult {
+                $processingId = 'historic-'.uniqid();
+                MediaProcessingLog::factory()->livestream()->completed()->create([
+                    'processing_id' => $processingId,
+                ]);
+
+                return ProcessingResult::success($processingId, 'ok');
+            });
+
+        $this->runImportWithProcessor($processor);
+
+        $this->assertIsArray($capturedMetadata);
+        $this->assertSame('livestream', $capturedMetadata['tag']);
+        $this->assertSame($path, $capturedMetadata['sources'][0]['path']);
+        $this->assertSame(hash_file('sha256', $path), $capturedMetadata['sources'][0]['sha256']);
+        $this->assertArrayHasKey('codec_fingerprint', $capturedMetadata);
+        $this->assertArrayHasKey('imported_at', $capturedMetadata);
+    }
+
+    #[Test]
+    public function it_counts_a_failed_pipeline_as_an_import_error(): void
+    {
+        $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
+
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->once()
+            ->andReturnUsing(function (): ProcessingResult {
+                $processingId = 'failed-'.uniqid();
+                MediaProcessingLog::factory()->livestream()->create([
+                    'processing_id' => $processingId,
+                    'status' => ProcessingStatus::Failed,
+                    'error_message' => 'Transcription failed',
+                ]);
+
+                return ProcessingResult::success($processingId, 'dispatched');
+            });
+
+        $metrics = $this->runImportWithProcessor($processor);
+
+        $this->assertSame(1, $metrics['errors']);
+        $this->assertSame(1, $metrics['terminal_failed']);
+    }
+
+    #[Test]
+    public function it_counts_a_pipeline_timeout_as_an_import_error(): void
+    {
+        $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
+
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->once()
+            ->andReturnUsing(function (): ProcessingResult {
+                $processingId = 'timeout-'.uniqid();
+                MediaProcessingLog::factory()->livestream()->processing()->create([
+                    'processing_id' => $processingId,
+                ]);
+
+                return ProcessingResult::success($processingId, 'dispatched');
+            });
+
+        $metrics = $this->runImportWithProcessor(
+            $processor,
+            perFileTimeoutSeconds: 0,
+            pollIntervalSeconds: 0,
+        );
+
+        $this->assertSame(1, $metrics['errors']);
+        $this->assertSame(1, $metrics['timed_out']);
+    }
+
+    #[Test]
+    public function it_writes_a_private_json_report_covering_skipped_items(): void
+    {
+        $this->createFakeVideo($this->temporaryDirectory.'/UnnamedRecording.mkv');
+        $reportPath = $this->temporaryDirectory.'/reports/historic-import.json';
+
+        $this->runImportWithProcessor(
+            $this->mockProcessorSuccess(),
+            dryRun: true,
+            reportPath: $reportPath,
+        );
+
+        $this->assertFileExists($reportPath);
+        $report = json_decode(File::get($reportPath), true);
+
+        $this->assertSame('crockenhill.historic-import-report', $report['format']);
+        $this->assertSame('skip-no-date', $report['items'][0]['decision']);
+        $this->assertSame('UnnamedRecording.mkv', $report['items'][0]['label']);
+        $this->assertSame(0600, fileperms($reportPath) & 0777);
     }
 
     // -------------------------------------------------------------------------
@@ -471,6 +579,7 @@ class HistoricVideoImporterTest extends TestCase
         int $limit = 0,
         bool $dryRun = false,
         bool $force = false,
+        ?string $reportPath = null,
     ): array {
         $importer = new HistoricVideoImporter($processor);
 
@@ -489,6 +598,7 @@ class HistoricVideoImporterTest extends TestCase
             pollIntervalSeconds: $pollIntervalSeconds,
             perFileTimeoutSeconds: $perFileTimeoutSeconds,
             limit: $limit,
+            reportPath: $reportPath,
         );
     }
 

@@ -475,7 +475,9 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
     {
         try {
             $path = $this->processingLog->serviceTranscriptPath();
-            $disk = (string) config('media-processing.storage.temp_disk', 'local');
+            $disk = is_string($path) && str_starts_with($path, 'service-transcripts/')
+                ? (string) config('media-processing.storage.transcript_disk', 'local')
+                : (string) config('media-processing.storage.temp_disk', 'local');
 
             if ($path === null || ! Storage::disk($disk)->exists($path)) {
                 return null;

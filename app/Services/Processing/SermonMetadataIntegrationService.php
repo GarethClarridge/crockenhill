@@ -8,6 +8,7 @@ use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
+use App\Support\HistoricImportAssetPath;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -93,7 +94,7 @@ class SermonMetadataIntegrationService
         ]);
 
         // Simple organization by sermon ID
-        $finalVideoPath = $this->organizeVideoFile($videoPath, $sermonId);
+        $finalVideoPath = $this->organizeVideoFile($videoPath, $sermonId, $processingId);
 
         return $finalVideoPath;
     }
@@ -187,7 +188,7 @@ class SermonMetadataIntegrationService
      * @param  int  $sermonId  The sermon ID
      * @return string The final organized path
      */
-    private function organizeVideoFile(string $videoPath, int $sermonId): string
+    private function organizeVideoFile(string $videoPath, int $sermonId, string $processingId): string
     {
         $sermonDiskName = config('media-processing.storage.sermon_disk', 'public');
 
@@ -195,9 +196,31 @@ class SermonMetadataIntegrationService
         $sermonDisk = Storage::disk($sermonDiskName);
 
         // Create directory structure based on sermon ID
-        $directory = "sermons/{$sermonId}";
-        $filename = 'video.mp4';
-        $finalPath = "{$directory}/{$filename}";
+        $finalPath = HistoricImportAssetPath::isHistoricProcessing($processingId)
+            ? HistoricImportAssetPath::video($processingId)
+            : "sermons/{$sermonId}/video.mp4";
+        $directory = dirname($finalPath);
+
+        if ($sermonDisk->exists($finalPath)) {
+            $sourceHash = hash_file('sha256', $videoPath);
+            $storedStream = $sermonDisk->readStream($finalPath);
+
+            if (! is_resource($storedStream)) {
+                throw new \RuntimeException("Unable to verify existing sermon video: {$finalPath}");
+            }
+
+            try {
+                $storedHash = hash('sha256', stream_get_contents($storedStream) ?: '');
+            } finally {
+                fclose($storedStream);
+            }
+
+            if ($sourceHash !== false && hash_equals($sourceHash, $storedHash)) {
+                return $finalPath;
+            }
+
+            throw new \RuntimeException("Refusing to overwrite existing sermon video with different content: {$finalPath}");
+        }
 
         // Ensure the directory exists
         $sermonDisk->makeDirectory($directory);
@@ -209,13 +232,9 @@ class SermonMetadataIntegrationService
         }
 
         try {
-            $uploaded = $sermonDisk->put($finalPath, $stream);
+            $sermonDisk->put($finalPath, $stream);
         } finally {
             fclose($stream);
-        }
-
-        if ($uploaded === false || ! $sermonDisk->exists($finalPath)) {
-            throw new \RuntimeException("Failed to persist sermon video to {$sermonDiskName}: {$finalPath}");
         }
 
         $storedFileSize = $sermonDisk->size($finalPath);

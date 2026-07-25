@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Data\ThumbnailResult;
+use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Media\Thumbnail\ThumbnailCanvasComposer;
 use App\Services\Media\Thumbnail\ThumbnailForegroundExtractionService;
@@ -98,6 +99,29 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
         $this->assertNotNull($result);
         $this->assertStringContainsString('sermon_'.$sermon->id, $result);
         $this->assertStringContainsString('_plain.webp', $result);
+    }
+
+    #[Test]
+    public function it_uses_the_processing_id_namespace_for_historic_import_thumbnails(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'processing_metadata' => [
+                'historic_import' => ['label' => 'archive recording'],
+            ],
+        ]);
+        $sermon = Sermon::factory()->create([
+            'livestream_processing_id' => $log->processing_id,
+        ]);
+        $tempPath = 'thumbnails/temp/historic.webp';
+        Storage::disk('local')->put($tempPath, 'historic thumbnail');
+
+        $result = $this->service->storeThumbnail($tempPath, $sermon, 'plain');
+
+        $this->assertSame(
+            "historic-imports/{$log->processing_id}/sermon/thumbnails/plain.webp",
+            $result,
+        );
+        Storage::disk('public')->assertExists((string) $result);
     }
 
     // ---- regenerateThumbnail tests ----

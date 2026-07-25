@@ -38,23 +38,7 @@ class HistoricVideoImporter
 
     /**
      * @param  \Closure(string $tag, string $label, string|null $detail): void|null  $onProgress
-     * @return array{
-     *     dispatched: int,
-     *     concatenated: int,
-     *     concatenated_reencoded: int,
-     *     enriched: int,
-     *     skipped_exists: int,
-     *     skipped_inflight: int,
-     *     skipped_pending_review: int,
-     *     skipped_small: int,
-     *     skipped_audio_dup: int,
-     *     skipped_no_date: int,
-     *     skipped_unclassified: int,
-     *     skipped_low_disk: int,
-     *     errors: int,
-     *     bytes_processed: int,
-     *     bytes_skipped: int
-     * }
+     * @return array<string, int>
      */
     public function import(
         string $directory,
@@ -74,6 +58,7 @@ class HistoricVideoImporter
         ?\Closure $onProgress = null,
         ?Carbon $from = null,
         ?Carbon $until = null,
+        ?string $reportPath = null,
     ): array {
         $metrics = [
             'dispatched' => 0,
@@ -89,12 +74,17 @@ class HistoricVideoImporter
             'skipped_unclassified' => 0,
             'skipped_low_disk' => 0,
             'errors' => 0,
+            'terminal_failed' => 0,
+            'terminal_cancelled' => 0,
+            'terminal_skipped' => 0,
+            'timed_out' => 0,
             'bytes_processed' => 0,
             'bytes_skipped' => 0,
         ];
 
         $inflight = [];
         $dispatched = 0;
+        $decisions = [];
 
         $workItems = $this->prioritiseWorkItems(
             iterator_to_array($this->buildWorkItems($directory, $minSizeMb, $includeUnclassified, $defaultYear), false),
@@ -108,6 +98,7 @@ class HistoricVideoImporter
             $tag = $item['tag'];
             $label = $item['label'];
             $bytes = $item['bytes'];
+            $decisions[] = ['decision' => $tag, 'label' => $label, 'assets' => []];
 
             if ($tag === 'skip-small') {
                 $metrics['skipped_small']++;
@@ -189,7 +180,7 @@ class HistoricVideoImporter
             }
 
             if ($parallel === 1 && $inflight !== []) {
-                $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds);
+                $this->recordTerminalOutcomes($metrics, $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds));
                 $inflight = [];
             }
 
@@ -206,6 +197,12 @@ class HistoricVideoImporter
 
                     $processingId = $result['processing_id'];
                     $inflight[] = $processingId;
+                    $decisions[] = [
+                        'decision' => 'dispatched',
+                        'label' => $label,
+                        'processing_id' => $processingId,
+                        'assets' => ["historic-imports/{$processingId}/"],
+                    ];
 
                     match ($result['tag']) {
                         'concat' => $metrics['concatenated']++,
@@ -223,7 +220,7 @@ class HistoricVideoImporter
                     }
 
                     if (count($inflight) >= $parallel) {
-                        $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds);
+                        $this->recordTerminalOutcomes($metrics, $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds));
                         $inflight = [];
                     }
                 }
@@ -238,7 +235,11 @@ class HistoricVideoImporter
         }
 
         if ($inflight !== []) {
-            $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds);
+            $this->recordTerminalOutcomes($metrics, $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds));
+        }
+
+        if ($reportPath !== null) {
+            $this->writeReport($reportPath, $metrics, $decisions);
         }
 
         return $metrics;
@@ -653,6 +654,7 @@ class HistoricVideoImporter
                 type: 'livestream',
                 file: $file,
                 clientFileDate: $item['client_file_date'] !== '' ? $item['client_file_date'] : null,
+                options: ['processing_metadata' => $this->historicImportMetadata($item, $path)],
             );
 
             if (! $result->success) {
@@ -851,6 +853,7 @@ class HistoricVideoImporter
             type: 'livestream',
             file: $file,
             clientFileDate: $item['client_file_date'] !== '' ? $item['client_file_date'] : null,
+            options: ['processing_metadata' => $this->historicImportMetadata($item, $outputPath)],
         );
     }
 
@@ -932,7 +935,7 @@ class HistoricVideoImporter
         $freeBytes = disk_free_space($this->tempDiskPath());
 
         if ($freeBytes === false) {
-            return true;
+            return false;
         }
 
         $minFreeBytes = $minFreeGb * 1024 ** 3;
@@ -951,22 +954,115 @@ class HistoricVideoImporter
      * Poll each processing_id until it leaves Pending/Processing, up to the per-file timeout.
      *
      * @param  list<string>  $processingIds
+     * @return array<string, string>
      */
-    private function waitForInflight(array $processingIds, int $pollIntervalSeconds, int $perFileTimeoutSeconds): void
+    private function waitForInflight(array $processingIds, int $pollIntervalSeconds, int $perFileTimeoutSeconds): array
     {
         $deadline = time() + $perFileTimeoutSeconds;
 
         while (time() < $deadline) {
             $stillRunning = MediaProcessingLog::query()
                 ->whereIn('processing_id', $processingIds)
-                ->whereIn('status', [ProcessingStatus::Pending->value, ProcessingStatus::Processing->value])
+                ->whereIn('status', [ProcessingStatus::Pending->value, ProcessingStatus::Started->value, ProcessingStatus::Processing->value])
                 ->exists();
 
             if (! $stillRunning) {
-                break;
+                return MediaProcessingLog::query()
+                    ->whereIn('processing_id', $processingIds)
+                    ->pluck('status', 'processing_id')
+                    ->map(fn (ProcessingStatus|string $status): string => $status instanceof ProcessingStatus ? $status->value : $status)
+                    ->all();
             }
 
-            sleep($pollIntervalSeconds);
+            if ($pollIntervalSeconds > 0) {
+                sleep($pollIntervalSeconds);
+            }
+        }
+
+        return array_fill_keys($processingIds, 'timed_out');
+    }
+
+    /**
+     * @param  array<string, int>  $metrics
+     * @param  array<string, string>  $outcomes
+     */
+    private function recordTerminalOutcomes(array &$metrics, array $outcomes): void
+    {
+        foreach ($outcomes as $status) {
+            $metric = match ($status) {
+                ProcessingStatus::Failed->value => 'terminal_failed',
+                ProcessingStatus::Cancelled->value => 'terminal_cancelled',
+                ProcessingStatus::Skipped->value => 'terminal_skipped',
+                'timed_out' => 'timed_out',
+                default => null,
+            };
+
+            if ($metric !== null) {
+                $metrics[$metric]++;
+                $metrics['errors']++;
+            }
+        }
+    }
+
+    /**
+     * @param  array{tag: string, label: string, files: list<string>}  $item
+     * @return array{historic_import: array<string, mixed>}
+     */
+    private function historicImportMetadata(array $item, string $path): array
+    {
+        $sources = array_map(
+            static fn (string $sourcePath): array => [
+                'path' => $sourcePath,
+                'size' => (int) (filesize($sourcePath) ?: 0),
+                'mtime' => (int) (filemtime($sourcePath) ?: 0),
+                'sha256' => hash_file('sha256', $sourcePath) ?: null,
+            ],
+            $item['files'],
+        );
+
+        return ['historic_import' => [
+            'tag' => $item['tag'],
+            'label' => $item['label'],
+            'sources' => $sources,
+            'concatenation' => count($item['files']) > 1
+                ? ($path === $item['files'][0] ? 'none' : 'pipeline-generated')
+                : 'none',
+            'codec_fingerprint' => $this->probeCodecInfo($path),
+            'drive_volume' => $this->driveVolume($item['files'][0]),
+            'imported_at' => now()->toISOString(),
+        ]];
+    }
+
+    private function driveVolume(string $path): ?string
+    {
+        if (preg_match('#^/Volumes/([^/]+)#', $path, $matches) !== 1) {
+            return null;
+        }
+
+        return $matches[1];
+    }
+
+    /**
+     * @param  array<string, int>  $metrics
+     * @param  list<array{decision: string, label: string, assets: list<string>}>  $decisions
+     */
+    private function writeReport(string $path, array $metrics, array $decisions): void
+    {
+        $directory = dirname($path);
+
+        if (! is_dir($directory) && ! mkdir($directory, 0700, true) && ! is_dir($directory)) {
+            throw new \RuntimeException("Unable to create historic import report directory: {$directory}");
+        }
+
+        $json = json_encode([
+            'format' => 'crockenhill.historic-import-report',
+            'generated_at' => now()->toISOString(),
+            'metrics' => $metrics,
+            'items' => $decisions,
+        ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
+
+        if (file_put_contents($path, $json.PHP_EOL) === false || ! chmod($path, 0600)) {
+            throw new \RuntimeException("Unable to write secure historic import report: {$path}");
         }
     }
 

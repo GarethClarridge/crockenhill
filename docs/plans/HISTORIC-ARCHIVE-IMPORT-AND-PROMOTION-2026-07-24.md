@@ -546,6 +546,10 @@ longer mounted. **WP0–WP7** are the Stage B promotion work.
 | WP-A5 | Retain the RMS log for the duration of the import | pipeline change | WP-A1 |
 | WP-A6 | Keep the full-service compressed audio in Spaces (32 kbps, per Q6) | pipeline change | — |
 
+**Implemented 2026-07-25:** WP-A1–WP-A6 now use processing-ID-suffixed durable keys; raw
+payloads and compressed audio are archived before local cleanup, source provenance is attached
+before dispatch, and import decisions can be written with `--report=`.
+
 ### Stage B — promotion
 
 | WP | What | Kind | Blocked by |
@@ -564,6 +568,9 @@ longer mounted. **WP0–WP7** are the Stage B promotion work.
 improvement in its own right, it is small, and every Stage-A import run after it produces
 correctly-merged local data — so doing it before Stage A begins avoids re-importing services that
 were projected under the old guard.
+
+**Implemented 2026-07-25:** WP0 now merges livestream-derived items through the existing
+source-aware synchroniser instead of skipping services that already contain OpenLP or human items.
 
 **A note on scope discipline.** WP-A1 – WP-A6 are all live-pipeline changes, so they affect next
 Sunday as well as the historic archive. That is intentional and, in every case, an improvement:
@@ -956,9 +963,9 @@ Work through it in order; do not start batch 1 with any item outstanding.
 
 **Code that must be merged first**
 
-1. **WP0** — services imported under the current `hasNonLivestreamItems()` guard get no
-   section→item links on OoS-backed dates, so they would need re-importing later.
-2. **WP-A1 – WP-A6** (§5, Stage A prerequisites) — the retention fixes. WP-A1 (transcript
+1. **WP0 (landed 2026-07-25)** — verify the merge regression tests remain green.
+2. **WP-A1 – WP-A6 (landed 2026-07-25)** (§5, Stage A prerequisites) — verify their focused
+   retention tests and inspect one real canary run before starting the batch.
    survival) is the one that changes "we must remount the drive to change anything" into "we can
    re-run structure detection, song matching and section classification forever". If time forces a
    subset, WP-A1, WP-A4 and WP-A6 are the ones that buy the most.
@@ -991,14 +998,25 @@ Work through it in order; do not start batch 1 with any item outstanding.
 6. **Check temp disk headroom.** `--temp-disk-min-free-gb` brakes the importer, but it skips work
    rather than waiting, so a low disk turns a batch into a no-op that looks like progress. Check
    inside the container (`sail exec laravel.test df -h /`), not on the host.
+7. **Transfer and verify speaker profiles before importing.** An empty export now fails, imports
+   are dry-run by default, and resemblyzer bundles with dimensions other than 256 are rejected:
+
+   ```bash
+   # production
+   vendor/bin/sail artisan speaker-profiles:export --provider=resemblyzer --output=/secure/speaker-profiles.json
+   # import machine: inspect first, then explicitly apply
+   vendor/bin/sail artisan speaker-profiles:import /secure/speaker-profiles.json
+   vendor/bin/sail artisan speaker-profiles:import /secure/speaker-profiles.json --apply
+   ```
 
 **Capture before you start, and between batches**
 
-7. **Save the dry-run inventory as the corpus manifest.** Commit it. It is the only record of what
+8. **Save the dry-run inventory as the corpus manifest using `--report=`.** Store it securely
+   outside the public repository because it contains absolute source paths and hashes. It records
+   what
    the drive contained as the importer saw it — including the items it classified `skip-small`,
-   `skip-no-date` and `skip-unclassified`, which leave no database trace at all. WP-A4's
-   `--report=` output supersedes this once built; until then the dry-run output is the record.
-8. **Snapshot the database before batch 1 and after each batch.** All the reviewed structure that
+   `skip-no-date` and `skip-unclassified`, which leave no database trace at all.
+9. **Snapshot the database before batch 1 and after each batch.** All the reviewed structure that
    Stage B promotes lives only in the local database, so a lost local database means re-importing
    from the drive — the exact thing this plan is trying to do only once.
    `spatie/laravel-backup` is already wired to the `do_spaces_backups` disk:
@@ -1009,7 +1027,7 @@ Work through it in order; do not start batch 1 with any item outstanding.
 
    Per-batch, not per-run: batches are the natural rollback unit, and reviewing a batch is what
    makes its data worth keeping.
-9. ~~**Protect `storage/app/private/` on the import machine.**~~ **OBSOLETE 2026-07-25 — do not do
+10. ~~**Protect `storage/app/private/` on the import machine.**~~ **OBSOLETE 2026-07-25 — do not do
    this.** It assumed the import moved children's-talk media to a local private disk and deleted it
    from the bucket. The children's-talk storage plan removed that behaviour entirely: the mover job
    and its observer hook are gone, `storage/app/private` no longer exists, and children's-talk media
@@ -1020,14 +1038,17 @@ Work through it in order; do not start batch 1 with any item outstanding.
 
 ```bash
 # 1. Inventory only — free, no writes. Save this (checklist item 7).
-vendor/bin/sail artisan sermons:import-historic-videos --dry-run
+vendor/bin/sail artisan sermons:import-historic-videos --dry-run --report=storage/scratch/historic-import-dry-run.json
 
 # 2. Calibration batch. --limit picks the highest-value items first:
 #    prioritiseWorkItems() sorts processable-before-skips, then services with
 #    no existing sermon, then newest-first (HistoricVideoImporter.php:253).
-vendor/bin/sail artisan sermons:import-historic-videos --limit=6
+vendor/bin/sail artisan sermons:import-historic-videos --limit=6 --report=storage/scratch/historic-import-batch-01.json
 
 # 3. Review at /admin/services (needs-review filter), disposition each service.
+
+# 3a. Ensure every asset prefix emitted by the batch is referenced by retained data.
+vendor/bin/sail artisan audit:historic-import-assets storage/scratch/historic-import-batch-01.json
 
 # 4. Re-run the identical command. checkExistence() (:880) skips completed,
 #    in-flight, and awaiting-review services, so the same command advances.

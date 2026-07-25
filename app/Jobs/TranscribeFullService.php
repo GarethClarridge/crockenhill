@@ -9,6 +9,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceStructureMode;
 use App\Models\MediaProcessingLog;
+use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\TranscriptPromptEchoDetector;
@@ -108,7 +109,11 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
 
             $filteredTranscript = $this->filterTranscript($transcript, $promptEchoDetector);
 
-            $transcriptPath = $this->storeTranscript($filteredTranscript->toArray());
+            $transcriptPath = app(ServiceArtifactStorage::class)->putJson(
+                $this->processingLog->processing_id,
+                'normalized',
+                $filteredTranscript->toArray(),
+            );
 
             $this->processingLog->putServiceTranscriptPath($transcriptPath);
 
@@ -162,7 +167,9 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
             return;
         }
 
-        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+        $tempDisk = str_starts_with($path, 'service-transcripts/')
+            ? (string) config('media-processing.storage.transcript_disk', 'local')
+            : (string) config('media-processing.storage.temp_disk', 'local');
         $transcript = ChurchServiceTranscript::fromArray(
             json_decode((string) Storage::disk($tempDisk)->get($path), true)
         );
@@ -188,22 +195,6 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
             $transcript->duration,
             $transcript->source,
         );
-    }
-
-    /**
-     * @param  array<string, mixed>  $transcriptData
-     */
-    private function storeTranscript(array $transcriptData): string
-    {
-        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
-        $transcriptPath = 'temp/service_transcript_'.$this->processingLog->processing_id.'.json';
-
-        Storage::disk($tempDisk)->put(
-            $transcriptPath,
-            json_encode($transcriptData, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
-        );
-
-        return $transcriptPath;
     }
 
     /**

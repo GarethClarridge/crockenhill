@@ -50,7 +50,7 @@ class UnifiedMediaProcessor
      * @param  string  $type  The media type string (audio, video, livestream)
      * @param  UploadedFile  $file  The uploaded media file
      * @param  string|null  $clientFileDate  Optional date provided by the client
-     * @param  array{auto_trim?: bool, video_processing_mode?: string}  $options  Processing configuration
+     * @param  array{auto_trim?: bool, video_processing_mode?: string, processing_metadata?: array<string, mixed>}  $options  Processing configuration
      * @param  SermonService|null  $serviceOverride  Operator-selected service; when set, overrides automatic detection
      * @param  string|null  $serviceDateOverride  Server-derived service date; when set, overrides inferred recording dates
      * @return ProcessingResult The result of the initiation attempt
@@ -112,7 +112,15 @@ class UnifiedMediaProcessor
             return match ($mediaType) {
                 MediaType::Audio => $this->processAudio($file, $clientFileDate, $fileHash, $dedupKey, $serviceOverride, $serviceDateOverride),
                 MediaType::Video => $this->processDirectVideo($file, $clientFileDate, $fileHash, $options, $dedupKey, $serviceOverride, $serviceDateOverride),
-                MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate, $fileHash, $dedupKey, $serviceOverride, $serviceDateOverride),
+                MediaType::Livestream => $this->livestreamService()->startProcessing(
+                    $file,
+                    $clientFileDate,
+                    $fileHash,
+                    $dedupKey,
+                    $serviceOverride,
+                    $serviceDateOverride,
+                    $options['processing_metadata'] ?? [],
+                ),
             };
         } catch (UniqueConstraintViolationException) {
             return $this->reuseRacedDuplicate($dedupKey);

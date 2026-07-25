@@ -572,7 +572,9 @@ class MediaProcessingLog extends Model
             return false;
         }
 
-        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+        $tempDisk = str_starts_with($transcriptPath, 'service-transcripts/')
+            ? (string) config('media-processing.storage.transcript_disk', 'local')
+            : (string) config('media-processing.storage.temp_disk', 'local');
 
         return Storage::disk($tempDisk)->exists($transcriptPath);
     }
@@ -722,10 +724,6 @@ class MediaProcessingLog extends Model
 
         if (filled($this->enhanced_audio_file_path)) {
             $tempFiles[] = (string) $this->enhanced_audio_file_path;
-        }
-
-        if (filled($this->rms_log_path)) {
-            $tempFiles[] = (string) $this->rms_log_path;
         }
 
         if (filled($this->video_file_path) && str_contains((string) $this->video_file_path, 'temp/')) {

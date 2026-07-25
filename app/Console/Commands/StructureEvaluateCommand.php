@@ -220,7 +220,9 @@ class StructureEvaluateCommand extends Command
                 throw new \RuntimeException('No transcript available: give the entry a transcript_file or a processing_id with a stored transcript.');
             }
 
-            $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+            $tempDisk = str_starts_with($transcriptPath, 'service-transcripts/')
+                ? (string) config('media-processing.storage.transcript_disk', 'local')
+                : (string) config('media-processing.storage.temp_disk', 'local');
             $transcript = ChurchServiceTranscript::fromArray(
                 json_decode((string) Storage::disk($tempDisk)->get($transcriptPath), true)
             );

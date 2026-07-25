@@ -28,6 +28,9 @@ use Throwable;
  * by deleting whatever it copied. The dry run is the measurement: it reports the
  * per-path overlap between what the audit calls missing and what survives on the
  * source disk, which is the number that sizes the real run.
+ *
+ * Deletion trigger: remove after the stranded-thumbnail production repair and one
+ * subsequent quarterly asset audit both report no restorable objects.
  */
 class RestoreStrandedThumbnailsCommand extends Command
 {

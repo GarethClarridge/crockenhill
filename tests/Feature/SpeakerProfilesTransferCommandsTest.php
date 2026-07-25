@@ -100,7 +100,7 @@ class SpeakerProfilesTransferCommandsTest extends TestCase
         SpeakerProfile::factory()->inactive()->create(['preacher_id' => $preacher->id]);
 
         $this->artisan("speaker-profiles:export --output={$this->bundlePath}")
-            ->assertSuccessful();
+            ->assertFailed();
 
         $this->assertFalse(File::exists($this->bundlePath));
 
@@ -126,7 +126,7 @@ class SpeakerProfilesTransferCommandsTest extends TestCase
             $this->profilePayload(['preacher_name' => 'Mark Drury', 'preacher_slug' => 'mark-drury']),
         ]);
 
-        $this->artisan("speaker-profiles:import {$this->bundlePath}")->assertSuccessful();
+        $this->artisan("speaker-profiles:import {$this->bundlePath} --apply")->assertSuccessful();
 
         $profile = SpeakerProfile::query()->firstOrFail();
         $this->assertSame($local->id, $profile->preacher_id);
@@ -140,7 +140,7 @@ class SpeakerProfilesTransferCommandsTest extends TestCase
             $this->profilePayload(['preacher_name' => 'Brand New Preacher', 'preacher_slug' => 'brand-new-preacher']),
         ]);
 
-        $this->artisan("speaker-profiles:import {$this->bundlePath}")->assertSuccessful();
+        $this->artisan("speaker-profiles:import {$this->bundlePath} --apply")->assertSuccessful();
 
         $this->assertDatabaseHas('preachers', ['name' => 'Brand New Preacher']);
         $this->assertSame(1, SpeakerProfile::query()->count());
@@ -151,8 +151,8 @@ class SpeakerProfilesTransferCommandsTest extends TestCase
         Preacher::factory()->create(['name' => 'Mark Drury', 'slug' => 'mark-drury']);
         $this->writeBundle([$this->profilePayload()]);
 
-        $this->artisan("speaker-profiles:import {$this->bundlePath}")->assertSuccessful();
-        $this->artisan("speaker-profiles:import {$this->bundlePath}")->assertSuccessful();
+        $this->artisan("speaker-profiles:import {$this->bundlePath} --apply")->assertSuccessful();
+        $this->artisan("speaker-profiles:import {$this->bundlePath} --apply")->assertSuccessful();
 
         $this->assertSame(1, SpeakerProfile::query()->count());
     }
@@ -169,7 +169,7 @@ class SpeakerProfilesTransferCommandsTest extends TestCase
 
         $this->writeBundle([$this->profilePayload()]);
 
-        $this->artisan("speaker-profiles:import {$this->bundlePath}")->assertSuccessful();
+        $this->artisan("speaker-profiles:import {$this->bundlePath} --apply")->assertSuccessful();
 
         $profile = SpeakerProfile::query()->firstOrFail();
         $this->assertEqualsWithDelta(0.5, $profile->centroid_embedding[0], 1e-9);
@@ -182,7 +182,7 @@ class SpeakerProfilesTransferCommandsTest extends TestCase
 
         $this->writeBundle([$this->profilePayload()]);
 
-        $this->artisan("speaker-profiles:import {$this->bundlePath} --deactivate-existing")
+        $this->artisan("speaker-profiles:import {$this->bundlePath} --apply --deactivate-existing")
             ->assertSuccessful();
 
         $this->assertFalse($stale->fresh()->is_active);
@@ -191,13 +191,13 @@ class SpeakerProfilesTransferCommandsTest extends TestCase
         );
     }
 
-    public function test_import_dry_run_writes_nothing(): void
+    public function test_import_is_a_dry_run_by_default(): void
     {
         $this->writeBundle([
             $this->profilePayload(['preacher_name' => 'Nobody Here', 'preacher_slug' => 'nobody-here']),
         ]);
 
-        $this->artisan("speaker-profiles:import {$this->bundlePath} --dry-run")
+        $this->artisan("speaker-profiles:import {$this->bundlePath}")
             ->assertSuccessful();
 
         $this->assertSame(0, SpeakerProfile::query()->count());
@@ -213,7 +213,7 @@ class SpeakerProfilesTransferCommandsTest extends TestCase
             $this->profilePayload(['preacher_name' => 'Real Profile', 'preacher_slug' => 'real-profile']),
         ]);
 
-        $this->artisan("speaker-profiles:import {$this->bundlePath}")->assertSuccessful();
+        $this->artisan("speaker-profiles:import {$this->bundlePath} --apply")->assertSuccessful();
 
         $this->assertSame(1, SpeakerProfile::query()->count());
         $this->assertSame(
@@ -272,7 +272,7 @@ class SpeakerProfilesTransferCommandsTest extends TestCase
 
         SpeakerProfile::query()->delete();
 
-        $this->artisan("speaker-profiles:import {$this->bundlePath}")->assertSuccessful();
+        $this->artisan("speaker-profiles:import {$this->bundlePath} --apply")->assertSuccessful();
 
         $restored = SpeakerProfile::query()->firstOrFail();
 

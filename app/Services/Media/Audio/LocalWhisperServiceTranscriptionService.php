@@ -21,6 +21,7 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
     public function __construct(
         private readonly SermonProcessingLogger $logger,
         private readonly AudioChunkingService $chunkingService,
+        private readonly ?ServiceArtifactStorage $artifactStorage = null,
     ) {}
 
     public function transcribeService(string $audioOrVideoPath, string $processingId): ChurchServiceTranscript
@@ -42,6 +43,8 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
 
         try {
             $transcript = $this->requestVerboseTranscription($audioPath, $processingId);
+            ($this->artifactStorage ?? app(ServiceArtifactStorage::class))
+                ->archiveAudio($processingId, $audioPath);
 
             $this->logger->logProcessingStep(
                 $processingId,
@@ -81,6 +84,7 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
                     'model' => (string) config('media-processing.transcription.local_whisper_model', 'small'),
                     'language' => 'en',
                     'response_format' => 'verbose_json',
+                    'timestamp_granularities[]' => 'word',
                     'prompt' => (string) config('media-processing.transcription.prompts.full_service'),
                 ]);
         } catch (Exception $e) {
@@ -132,6 +136,9 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
         if (! is_array($payload) || ! is_array($payload['segments'] ?? null) || $payload['segments'] === []) {
             throw new TranscriptionException('Local Whisper verbose_json response contained no timestamped segments');
         }
+
+        ($this->artifactStorage ?? app(ServiceArtifactStorage::class))
+            ->putJson($processingId, 'raw', $payload);
 
         $cues = [];
 

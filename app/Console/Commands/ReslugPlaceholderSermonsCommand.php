@@ -21,6 +21,9 @@ use Illuminate\Support\Collection;
  * Changing a slug changes the sermon's public URL and the old one will 404 —
  * there is no slug-redirect table. Podcast subscribers are unaffected because the
  * feed's GUID is keyed on the sermon ID, not the slug.
+ *
+ * Deletion trigger: remove after the historic archive promotion has completed and
+ * a production dry run reports no remaining placeholder slugs.
  */
 class ReslugPlaceholderSermonsCommand extends Command
 {

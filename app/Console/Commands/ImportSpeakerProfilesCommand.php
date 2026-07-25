@@ -30,14 +30,14 @@ class ImportSpeakerProfilesCommand extends Command
 
     protected $signature = 'speaker-profiles:import
                             {file : Path to the JSON bundle produced by speaker-profiles:export}
-                            {--dry-run : Report what would change without writing}
+                            {--apply : Apply changes (the default is a dry run)}
                             {--deactivate-existing : Deactivate all current profiles before importing}';
 
     protected $description = 'Import speaker profile centroids from a portable JSON bundle';
 
     public function handle(PreacherResolutionService $preacherResolution): int
     {
-        $dryRun = (bool) $this->option('dry-run');
+        $dryRun = ! (bool) $this->option('apply');
 
         try {
             $profiles = $this->readBundle();
@@ -214,8 +214,12 @@ class ImportSpeakerProfilesCommand extends Command
 
         $profiles = [];
 
-        foreach ($decoded['profiles'] as $profile) {
+        foreach ($decoded['profiles'] as $index => $profile) {
             $embedding = array_values(array_map('floatval', $profile['centroid_embedding']));
+
+            if ($profile['provider'] === 'resemblyzer' && count($embedding) !== 256) {
+                throw new RuntimeException("Profile {$index} has ".count($embedding).' dimensions; resemblyzer requires 256.');
+            }
 
             if ($this->isZeroVector($embedding)) {
                 $this->warn("Skipping {$profile['preacher_name']}: centroid is a zero vector (never trained).");

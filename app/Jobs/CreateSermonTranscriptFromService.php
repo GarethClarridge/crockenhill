@@ -49,7 +49,11 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
             throw new \RuntimeException('The full-service transcript contains no sermon text for the extracted bounds.');
         }
 
-        $transcriptPath = $transcriptStorage->storeTranscript($sermon->id, $sermonText);
+        $transcriptPath = $transcriptStorage->storeTranscript(
+            $sermon->id,
+            $sermonText,
+            $this->processingLog->processing_id,
+        );
 
         $this->processingLog->update(['transcript_file_path' => $transcriptPath]);
         $sermon->update(['transcript_file_path' => $transcriptPath]);
@@ -71,7 +75,9 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
             throw new \RuntimeException('No full-service transcript recorded for this run.');
         }
 
-        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+        $tempDisk = str_starts_with($transcriptPath, 'service-transcripts/')
+            ? (string) config('media-processing.storage.transcript_disk', 'local')
+            : (string) config('media-processing.storage.temp_disk', 'local');
         if (! Storage::disk($tempDisk)->exists($transcriptPath)) {
             throw new \RuntimeException('The recorded full-service transcript is unavailable.');
         }

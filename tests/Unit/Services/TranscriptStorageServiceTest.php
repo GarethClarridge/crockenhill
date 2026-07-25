@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\TranscriptStorageService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class TranscriptStorageServiceTest extends TestCase
 {
+    use RefreshDatabase;
+
     private TranscriptStorageService $service;
 
     protected function setUp(): void
@@ -55,6 +59,22 @@ class TranscriptStorageServiceTest extends TestCase
         $this->service->storeTranscript(42, $content);
 
         $this->assertEquals($content, Storage::get('transcripts/sermon_42.md'));
+    }
+
+    #[Test]
+    public function it_uses_the_processing_id_for_a_historic_import_transcript(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'processing_metadata' => [
+                'historic_import' => ['label' => 'archive recording'],
+            ],
+        ]);
+
+        $path = $this->service->storeTranscript(42, 'Historic transcript', $log->processing_id);
+
+        $this->assertSame("historic-imports/{$log->processing_id}/sermon/transcript.md", $path);
+        $this->assertStringNotContainsString('sermon_42', $path);
+        Storage::assertExists($path);
     }
 
     #[Test]

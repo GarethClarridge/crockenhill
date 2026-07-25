@@ -194,6 +194,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                         && $this->looksLikeFilename($sermon->title)
                         && ! $this->looksLikeFilename($fallbackAnalysis->title)
                     ) {
+                        $this->applyAiSlug($sermon, $fallbackAnalysis->title, $updateData);
                         $updateData['title'] = $fallbackAnalysis->title;
                     }
                     if ($sermon->series === null && $id3Metadata?->series === null) {

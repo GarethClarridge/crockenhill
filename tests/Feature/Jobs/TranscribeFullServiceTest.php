@@ -28,6 +28,7 @@ class TranscribeFullServiceTest extends TestCase
         Storage::fake('local');
 
         Config::set('media-processing.storage.temp_disk', 'local');
+        Config::set('media-processing.storage.transcript_disk', 'local');
         Config::set('media-processing.service_structure.transcription_service', 'mock');
     }
 
@@ -51,7 +52,7 @@ class TranscribeFullServiceTest extends TestCase
 
         $this->runJob($log);
 
-        $expectedPath = 'temp/service_transcript_'.$log->processing_id.'.json';
+        $expectedPath = 'service-transcripts/unknown-date/other-'.$log->processing_id.'.normalized.json';
 
         $log->refresh();
         $this->assertSame($expectedPath, $log->serviceTranscriptPath());
