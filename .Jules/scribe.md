@@ -33,3 +33,7 @@
 ## 2026-07-15 - Unit Testing Model Validation Rules
 **Learning:** To unit test model `validationRules()` without a database connection, use `Validator::make()` but filter out database-dependent rules (e.g., `exists`, `unique`) from the rule array. Filtering must account for both string-based rules (e.g., `'exists:table,column'`) and object-based rules (e.g., `Rule::unique()`). To verify rule configuration, cast the rule to a string (e.g., `unique:users,email,"123",id`) before filtering.
 **Action:** Use a `filterDatabaseRules` helper in unit tests to strip DB-dependent rules before passing them to the Validator. Assert the configuration of `unique` rules by casting the rule object to a string.
+
+## 2026-07-26 - [Mocking Nested Presenters in Unit Tests]
+**Learning:** Presenter classes that format database models for views and depend on other nested presenters (like `PageCardPresenter` depending on `PageImagePresenter`) can be cleanly covered via database-less unit tests. This is achieved by mocking the nested presenter and passing unpersisted Eloquent models instantiated with `Page::factory()->make()`.
+**Action:** Use Mockery to mock nested presenter classes in unit tests to isolate formatting and mapping logic completely from S3, databases, or third-party libraries, while maintaining excellent, high-performance coverage.
