@@ -8,10 +8,15 @@ use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
+use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Support\ServiceSectionConfidence;
 
 class StructureMergePolicy
 {
+    public function __construct(
+        private readonly ScriptureReferenceResolver $scriptureResolver,
+    ) {}
+
     /**
      * Determine whether an incoming source import should go through merge planning
      * rather than direct sync when a matching service already exists.
@@ -248,6 +253,23 @@ class StructureMergePolicy
         );
     }
 
+    /**
+     * Whether two readings name the same passage, on whichever field carries a
+     * parseable reference.
+     *
+     * @param  array<string, mixed>  $existing
+     * @param  array<string, mixed>  $incoming
+     */
+    private function referencesAgree(array $existing, array $incoming): bool
+    {
+        $reference = static fn (mixed $value): ?string => is_string($value) ? $value : null;
+
+        return $this->scriptureResolver->anyReferencesAgree(
+            [$reference($existing['title'] ?? null), $reference($existing['source_title'] ?? null)],
+            [$reference($incoming['title'] ?? null), $reference($incoming['source_title'] ?? null)],
+        );
+    }
+
     private function titlesSemanticallyMatch(string $existingTitle, string $incomingTitle): bool
     {
         if ($existingTitle === '' || $incomingTitle === '') {
@@ -322,6 +344,13 @@ class StructureMergePolicy
                     if ($incomingTitle !== '' && $this->titlesSemanticallyMatch($existingTitle, $incomingTitle)) {
                         $matched = true;
                     }
+                }
+
+                // Keyed on type rather than section_type: an email plan often omits
+                // the semantic type, and a plan's "Joshua 1" against a run's "Joshua
+                // 1:1-9" is one reading either way.
+                if (! $matched && $incomingType === 'bibles') {
+                    $matched = $this->referencesAgree($snapshot, $incomingItem);
                 }
             }
 

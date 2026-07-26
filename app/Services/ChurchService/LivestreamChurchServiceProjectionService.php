@@ -37,7 +37,9 @@ class LivestreamChurchServiceProjectionService
      * duplicates that the refining pass then collapses. Those are working
      * guesses, not findings — raising merge conflicts from them would set
      * needs_review permanently, and no later pass can clear it. So only the
-     * refining pass reports on the quality of the merge.
+     * refining pass reports on the quality of the merge, and only it records a
+     * verdict: the provisional pass suppresses both the sync's conflicts and the
+     * review state finalisation would otherwise derive from its canonical changes.
      *
      * @return array{projected: bool, reason: string, church_service_id: int|null, items_projected: int}
      */
@@ -182,6 +184,7 @@ class LivestreamChurchServiceProjectionService
             $beforeSnapshot,
             ChurchServiceItemSource::Livestream,
             $result['sync_result'],
+            recordReviewState: $refining,
         );
 
         $itemCount = $churchService->items()->count();

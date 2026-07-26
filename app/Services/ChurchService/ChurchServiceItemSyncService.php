@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
-use App\Data\SongTitleMatch;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
 use App\Services\Scripture\ScriptureReferenceResolver;
-use App\Services\Song\SongTitleResolver;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -31,19 +29,9 @@ class ChurchServiceItemSyncService
      */
     private const float MinimumSongAnchorCoverage = 0.5;
 
-    /**
-     * Catalogue match types that are inferred rather than deterministic, so the
-     * link they produce carries an audit trail. Mirrors ChurchServiceSongLinker.
-     *
-     * @var list<string>
-     */
-    private const array AuditedMatchTypes = [
-        SongTitleMatch::TYPE_FIRST_LINE,
-        SongTitleMatch::TYPE_FUZZY,
-    ];
-
     public function __construct(
         private readonly ScriptureReferenceResolver $scriptureResolver,
+        private readonly ServiceItemCatalogueSongResolver $catalogueSongResolver,
         private readonly ServiceItemMergeOrderResolver $orderResolver = new ServiceItemMergeOrderResolver,
     ) {}
 
@@ -64,6 +52,11 @@ class ChurchServiceItemSyncService
         $replaceMode = (bool) ($options['replace_mode'] ?? false);
         $emitMergeEvidence = (bool) ($options['emit_merge_evidence'] ?? true);
 
+        // Ahead of the lock: a caller that already classified this merge resolved the
+        // same links, so this is usually a no-op, but a direct sync must not depend on
+        // that.
+        $incomingItems = $this->catalogueSongResolver->resolveAll($incomingItems, $incomingSource);
+
         return DB::transaction(function () use ($churchService, $incomingItems, $incomingSource, $replaceMode, $emitMergeEvidence): array {
             $lockedService = ChurchService::query()
                 ->whereKey($churchService->id)
@@ -77,11 +70,9 @@ class ChurchServiceItemSyncService
             $conflicts = [];
             /** @var list<array<string, mixed>> $plan */
             $plan = [];
-            $songTitleResolver = null;
 
             foreach ($incomingItems as $index => $rawIncomingItem) {
                 $incomingItem = $this->normaliseIncomingItem($rawIncomingItem, $index + 1);
-                $incomingItem = $this->withResolvedCatalogueSong($incomingItem, $incomingSource, $songTitleResolver);
 
                 if (in_array($incomingItem['position'], $seenPositions, true)) {
                     throw new RuntimeException('Incoming items contain duplicate active positions.');
@@ -249,70 +240,13 @@ class ChurchServiceItemSyncService
     }
 
     /**
-     * Resolve an incoming song title against the catalogue so both sides of a
-     * merge carry a song link.
+     * The strongest available anchor between the incoming item and one existing row.
      *
-     * The catalogue is the one vocabulary all three sources can independently
-     * reach, which makes it a far better anchor than comparing their text to each
-     * other: a hand-typed "Amazng Grace" and OpenLP's "Amazing Grace" resolve to
-     * the same row even though no string comparison would pair them.
+     * Each tier is searched across every candidate before the next is tried. Walking
+     * the tiers per row instead would let an older row's weak agreement — a shared
+     * normalised title, or a broad reading that merely contains the incoming one —
+     * claim an item whose exact counterpart sits further down the list.
      *
-     * SongTitleResolver is used rather than a second matcher because it is already
-     * calibrated against this corpus — including the truncated titles emails
-     * routinely carry. A detected run is excluded: MatchSongsFromTranscript
-     * resolves those from lyrics and OCR, which is stronger evidence than the
-     * heard title, and it has already run by the refining projection.
-     *
-     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
-     * @return array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}
-     */
-    private function withResolvedCatalogueSong(
-        array $incomingItem,
-        ChurchServiceItemSource $incomingSource,
-        ?SongTitleResolver &$songTitleResolver,
-    ): array {
-        if ($incomingItem['song_id'] !== null || ! $this->isSongType($incomingItem['type'])) {
-            return $incomingItem;
-        }
-
-        if ($incomingSource->isDetected()) {
-            return $incomingItem;
-        }
-
-        $searchTitle = $incomingItem['openlp_search_title']
-            ?? $incomingItem['source_title']
-            ?? $incomingItem['title'];
-
-        if (trim($searchTitle) === '') {
-            return $incomingItem;
-        }
-
-        // Built at most once per sync, and only when there is something to resolve
-        // — it loads a lookup over the whole catalogue.
-        $songTitleResolver ??= SongTitleResolver::fromDatabase();
-
-        $match = $songTitleResolver->resolve($searchTitle);
-
-        if (! $match instanceof SongTitleMatch) {
-            return $incomingItem;
-        }
-
-        $incomingItem['song_id'] = $match->songId;
-
-        if (in_array($match->matchType, self::AuditedMatchTypes, true)) {
-            $incomingItem['metadata'] = [
-                ...$incomingItem['metadata'] ?? [],
-                'song_link' => [
-                    'match_type' => $match->matchType,
-                    'confidence' => $match->confidence,
-                ],
-            ];
-        }
-
-        return $incomingItem;
-    }
-
-    /**
      * @param  Collection<int, ChurchServiceItem>  $existingItems
      * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      * @param  array<int, int>  $matchedExistingItemIds
@@ -323,45 +257,44 @@ class ChurchServiceItemSyncService
         array $matchedExistingItemIds,
         ChurchServiceItemSource $incomingSource
     ): ?ChurchServiceItem {
-        /** @var ChurchServiceItem|null $match */
-        $match = $existingItems->first(function (ChurchServiceItem $existingItem) use ($incomingItem, $matchedExistingItemIds, $incomingSource): bool {
-            if (in_array($existingItem->id, $matchedExistingItemIds, true)) {
-                return false;
+        $candidates = $existingItems->filter(
+            fn (ChurchServiceItem $existingItem): bool => ! in_array($existingItem->id, $matchedExistingItemIds, true)
+                && $existingItem->type === $incomingItem['type']
+        );
+
+        if ($candidates->isEmpty()) {
+            return null;
+        }
+
+        $tiers = [
+            // Both sides resolved to the same catalogue song, so the titles need
+            // not agree at all.
+            fn (ChurchServiceItem $existingItem): bool => $incomingItem['song_id'] !== null
+                && $existingItem->song_id === $incomingItem['song_id'],
+
+            fn (ChurchServiceItem $existingItem): bool => $incomingItem['openlp_search_title'] !== null
+                && $existingItem->openlp_search_title === $incomingItem['openlp_search_title'],
+
+            fn (ChurchServiceItem $existingItem): bool => $incomingItem['source_title'] !== null
+                && $existingItem->source_title === $incomingItem['source_title'],
+
+            fn (ChurchServiceItem $existingItem): bool => $this->shouldUseCrossSourceTitleMatch($existingItem, $incomingSource)
+                && $this->hasMatchingNormalisedTitle($existingItem, $incomingItem),
+
+            fn (ChurchServiceItem $existingItem): bool => $this->shouldUseCrossSourceTitleMatch($existingItem, $incomingSource)
+                && $this->hasAgreeingScriptureReference($existingItem, $incomingItem),
+        ];
+
+        foreach ($tiers as $matchesTier) {
+            /** @var ChurchServiceItem|null $match */
+            $match = $candidates->first($matchesTier);
+
+            if ($match instanceof ChurchServiceItem) {
+                return $match;
             }
+        }
 
-            if ($existingItem->type !== $incomingItem['type']) {
-                return false;
-            }
-
-            // The strongest anchor available: both sides resolved to the same
-            // catalogue song, so the titles need not agree at all.
-            $incomingSongId = $incomingItem['song_id'];
-            if ($incomingSongId !== null && $existingItem->song_id === $incomingSongId) {
-                return true;
-            }
-
-            $incomingSearchTitle = $incomingItem['openlp_search_title'];
-            if ($incomingSearchTitle !== null && $existingItem->openlp_search_title === $incomingSearchTitle) {
-                return true;
-            }
-
-            $incomingSourceTitle = $incomingItem['source_title'];
-            if ($incomingSourceTitle !== null && $existingItem->source_title === $incomingSourceTitle) {
-                return true;
-            }
-
-            if (! $this->shouldUseCrossSourceTitleMatch($existingItem, $incomingSource)) {
-                return false;
-            }
-
-            if ($this->hasMatchingNormalisedTitle($existingItem, $incomingItem)) {
-                return true;
-            }
-
-            return $this->hasAgreeingScriptureReference($existingItem, $incomingItem);
-        });
-
-        return $match;
+        return null;
     }
 
     /**
@@ -467,14 +400,13 @@ class ChurchServiceItemSyncService
             return false;
         }
 
-        $existingReference = $existingItem->source_title ?? $existingItem->title;
-        $incomingReference = $incomingItem['source_title'] ?? $incomingItem['title'];
-
-        if (trim($existingReference) === '' || trim($incomingReference) === '') {
-            return false;
-        }
-
-        return $this->scriptureResolver->referencesAgree($existingReference, $incomingReference);
+        // Both fields are offered rather than one preferred: OpenLP keeps the
+        // canonical reference in title and an unparseable copyright header in
+        // source_title, so preferring either field alone silences half the corpus.
+        return $this->scriptureResolver->anyReferencesAgree(
+            [$existingItem->title, $existingItem->source_title],
+            [$incomingItem['title'], $incomingItem['source_title']],
+        );
     }
 
     /**
@@ -560,6 +492,16 @@ class ChurchServiceItemSyncService
             return $replaceMode;
         }
 
+        // The run is the record of what actually happened, so its silence-free
+        // observations outlive lists that were never trying to be complete: an
+        // OpenLP export carries only slide-backed items, and an email plan predates
+        // the service. Only a manual save states the whole list — the admin saw the
+        // item on screen and removed it — and only an explicit replace discards it
+        // wholesale.
+        if ($existingSource->isDetected()) {
+            return $replaceMode || $incomingSource === ChurchServiceItemSource::Manual;
+        }
+
         if ($incomingSource === ChurchServiceItemSource::OpenLp && $existingSource->isHumanProvided()) {
             return false;
         }
@@ -568,12 +510,10 @@ class ChurchServiceItemSyncService
             return true;
         }
 
-        if ($incomingSource->isDetected() && ! $existingSource->isDetected()) {
+        // Everything below here was authored by a plan the run cannot see all of,
+        // so an observation that missed it is not evidence it never happened.
+        if ($incomingSource->isDetected()) {
             return false;
-        }
-
-        if ($incomingSource->isHumanProvided() && $existingSource->isDetected()) {
-            return true;
         }
 
         return true;
@@ -657,11 +597,42 @@ class ChurchServiceItemSyncService
         array $incomingItem,
         bool $preserveExistingSongIdentity
     ): ?int {
+        $incomingIsExplicit = $this->hasExplicitSongLink($incomingItem['metadata']);
+        $existingIsExplicit = $this->hasExplicitSongLink($existingItem->metadata);
+
+        // A link a person chose from the catalogue outranks every rule below it:
+        // the identity lattice exists to stop one source's *inference* rewriting
+        // another's, and a deliberate choice is not an inference.
+        if ($incomingIsExplicit && $incomingItem['song_id'] !== null) {
+            return $incomingItem['song_id'];
+        }
+
+        if ($existingIsExplicit && $existingItem->song_id !== null) {
+            return $existingItem->song_id;
+        }
+
         if ($preserveExistingSongIdentity) {
             return $existingItem->song_id ?? $incomingItem['song_id'];
         }
 
         return $incomingItem['song_id'] ?? $existingItem->song_id;
+    }
+
+    /**
+     * Whether a song link on this item was chosen by a person rather than resolved.
+     *
+     * The admin form's syncPayload() records the chosen song's canonical key
+     * alongside the id, which is also what makes the choice survive a later
+     * ChurchServiceSongLinker pass. Its presence is therefore the one durable
+     * marker of a deliberate link.
+     *
+     * @param  array<string, mixed>|null  $metadata
+     */
+    private function hasExplicitSongLink(?array $metadata): bool
+    {
+        $canonicalKey = $metadata['linked_song_canonical_key'] ?? null;
+
+        return is_string($canonicalKey) && trim($canonicalKey) !== '';
     }
 
     private function resolveSource(
@@ -689,6 +660,53 @@ class ChurchServiceItemSyncService
      * @return array<string, mixed>|null
      */
     private function resolveMetadata(
+        ChurchServiceItem $existingItem,
+        array $incomingItem,
+        ChurchServiceItemSource $existingSource,
+        ChurchServiceItemSource $incomingSource
+    ): ?array {
+        return $this->withSurvivingExplicitSongLink(
+            $this->mergeMetadataForSources($existingItem, $incomingItem, $existingSource, $incomingSource),
+            $existingItem,
+            $incomingItem,
+        );
+    }
+
+    /**
+     * Keep the marker that made a link explicit alongside the link itself.
+     *
+     * {@see resolveSongId()} lets a deliberate link outrank the source lattice, so
+     * the marker has to survive the same merge — otherwise the link stays but stops
+     * counting as deliberate on the next one, and the following import quietly
+     * overwrites it.
+     *
+     * @param  array<string, mixed>|null  $merged
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @return array<string, mixed>|null
+     */
+    private function withSurvivingExplicitSongLink(
+        ?array $merged,
+        ChurchServiceItem $existingItem,
+        array $incomingItem,
+    ): ?array {
+        $explicitKey = match (true) {
+            $this->hasExplicitSongLink($incomingItem['metadata']) => $incomingItem['metadata']['linked_song_canonical_key'] ?? null,
+            $this->hasExplicitSongLink($existingItem->metadata) => $existingItem->metadata['linked_song_canonical_key'] ?? null,
+            default => null,
+        };
+
+        if ($explicitKey === null) {
+            return $merged;
+        }
+
+        return [...$merged ?? [], 'linked_song_canonical_key' => $explicitKey];
+    }
+
+    /**
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @return array<string, mixed>|null
+     */
+    private function mergeMetadataForSources(
         ChurchServiceItem $existingItem,
         array $incomingItem,
         ChurchServiceItemSource $existingSource,

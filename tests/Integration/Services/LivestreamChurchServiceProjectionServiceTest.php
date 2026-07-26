@@ -14,6 +14,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
+use App\Models\User;
 use App\Services\ChurchService\LivestreamChurchServiceProjectionService;
 use App\Services\Public\PublicSongUsageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -612,6 +613,90 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $this->service->project($log, refining: false);
 
         $this->assertFalse($churchService->fresh()->needs_review);
+    }
+
+    #[Test]
+    public function test_provisional_projection_does_not_reopen_a_reviewed_service(): void
+    {
+        $reviewer = User::factory()->create();
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-23',
+            'service' => SermonService::Morning->value,
+            'source' => 'openlp',
+            'needs_review' => false,
+            'import_metadata' => [
+                'manual_review' => [
+                    'reviewed_at' => now()->subDay()->toIso8601String(),
+                    'reviewed_by_user_id' => $reviewer->id,
+                ],
+            ],
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Great Is Thy Faithfulness, O God My Father',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+        ]);
+
+        // The provisional pass adds a duplicate the refining pass will collapse.
+        // Suppressing its conflicts is pointless if the canonical change alone
+        // reopens a settled review — nothing later can close it again.
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Song, 'title' => 'Great is thy faithfulness o God', 'confidence' => 0.9],
+        ]);
+
+        $this->service->project($log, refining: false);
+
+        $fresh = $churchService->fresh();
+        $importMetadata = $fresh->import_metadata?->toArray() ?? [];
+
+        $this->assertFalse($fresh->needs_review);
+        $this->assertArrayNotHasKey('reopened_at', $importMetadata['manual_review'] ?? []);
+        $this->assertSame([], $importMetadata['canonical_conflict_history'] ?? []);
+    }
+
+    #[Test]
+    public function test_refining_projection_still_reopens_a_reviewed_service(): void
+    {
+        $reviewer = User::factory()->create();
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-23',
+            'service' => SermonService::Morning->value,
+            'source' => 'openlp',
+            'needs_review' => false,
+            'import_metadata' => [
+                'manual_review' => [
+                    'reviewed_at' => now()->subDay()->toIso8601String(),
+                    'reviewed_by_user_id' => $reviewer->id,
+                ],
+            ],
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Great Is Thy Faithfulness, O God My Father',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+        ]);
+
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Song, 'title' => 'Great is thy faithfulness o God', 'confidence' => 0.9],
+        ]);
+
+        $this->service->project($log, refining: true);
+
+        $fresh = $churchService->fresh();
+        $importMetadata = $fresh->import_metadata?->toArray() ?? [];
+
+        $this->assertTrue($fresh->needs_review);
+        $this->assertArrayHasKey('reopened_at', $importMetadata['manual_review'] ?? []);
     }
 
     #[Test]

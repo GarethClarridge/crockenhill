@@ -15,6 +15,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\InboundEmail;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Models\User;
 use App\Services\ChurchService\ImportChurchServiceFromOpenLp;
 use App\Services\ChurchService\LivestreamChurchServiceProjectionService;
@@ -215,6 +216,74 @@ class StructureMergeIntegrationTest extends TestCase
         $this->assertNull($fresh->pending_structure_merge_source);
     }
 
+    #[Test]
+    public function test_email_import_auto_merges_a_mistyped_song_through_the_catalogue(): void
+    {
+        $song = Song::factory()->create(['title' => 'Amazing Grace', 'canonical_key' => 'amazing grace']);
+
+        $this->createLivestreamService('2026-03-22', SermonService::Morning, [
+            ['type' => 'songs', 'title' => 'Amazing Grace', 'confidence' => 'high', 'song_id' => $song->id],
+        ]);
+
+        $inboundEmail = InboundEmail::factory()->create(['status' => InboundEmailStatus::Pending]);
+
+        $parseResult = new OosEmailParseResult(
+            date: '2026-03-22',
+            service: SermonService::Morning,
+            items: [
+                ['position' => 1, 'type' => 'songs', 'title' => 'Amazng Grace', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ],
+            confidenceScore: 0.9,
+            needsReview: false,
+            shouldImport: true,
+            importMetadata: [],
+        );
+
+        $importResult = app(InboundEmailImportService::class)->import($inboundEmail, $parseResult, reviewedByUserId: 1);
+
+        $fresh = $importResult->firstResolvedService()?->fresh();
+        $this->assertNotNull($fresh);
+
+        $this->assertNull(
+            $fresh->pending_structure_merge_source,
+            'A typo that resolves to the same catalogue song is not a conflict for a human to settle.',
+        );
+        $this->assertCount(1, $fresh->items()->get());
+    }
+
+    #[Test]
+    public function test_email_import_auto_merges_a_broader_reference_for_the_same_reading(): void
+    {
+        $this->createLivestreamService('2026-03-22', SermonService::Morning, [
+            ['type' => 'bibles', 'title' => 'Joshua 1:1-9', 'confidence' => 'high'],
+        ]);
+
+        $inboundEmail = InboundEmail::factory()->create(['status' => InboundEmailStatus::Pending]);
+
+        $parseResult = new OosEmailParseResult(
+            date: '2026-03-22',
+            service: SermonService::Morning,
+            items: [
+                ['position' => 1, 'type' => 'bibles', 'title' => 'Joshua 1', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ],
+            confidenceScore: 0.9,
+            needsReview: false,
+            shouldImport: true,
+            importMetadata: [],
+        );
+
+        $importResult = app(InboundEmailImportService::class)->import($inboundEmail, $parseResult, reviewedByUserId: 1);
+
+        $fresh = $importResult->firstResolvedService()?->fresh();
+        $this->assertNotNull($fresh);
+
+        $this->assertNull(
+            $fresh->pending_structure_merge_source,
+            'A planned chapter and the detected verse span are one reading, not a staged conflict.',
+        );
+        $this->assertCount(1, $fresh->items()->get());
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Full lifecycle tests (projection → import → resolve)
     // ─────────────────────────────────────────────────────────────────────────
@@ -409,7 +478,7 @@ class StructureMergeIntegrationTest extends TestCase
     }
 
     /**
-     * @param  list<array{type: string, title: string, confidence: string, section_type?: ServiceSectionType}>  $items
+     * @param  list<array{type: string, title: string, confidence: string, section_type?: ServiceSectionType, song_id?: int}>  $items
      */
     private function createLivestreamService(string $date, SermonService $sermonService, array $items): ChurchService
     {
@@ -449,6 +518,7 @@ class StructureMergeIntegrationTest extends TestCase
                 'type' => $item['type'],
                 'section_type' => $sectionType,
                 'title' => $item['title'],
+                'song_id' => $item['song_id'] ?? null,
                 'livestream_processing_id' => $processingLog->processing_id,
                 'livestream_service_section_id' => $section->id,
                 'metadata' => [

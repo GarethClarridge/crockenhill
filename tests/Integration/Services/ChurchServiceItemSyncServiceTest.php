@@ -1268,6 +1268,178 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->assertSame('Great Is Thy Faithfulness, O God My Father', $planned->refresh()->title);
     }
 
+    #[Test]
+    public function test_a_reading_anchors_through_the_verbose_reference_openlp_records(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        // The shape OpenLpServiceParser actually produces: the canonical footer
+        // reference in title, the copyright-laden header in source_title.
+        $planned = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'bibles',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'Luke 15:1-32',
+            'source_title' => 'Luke 15:1-32 New International Version (Anglicised), Copyright line',
+        ]);
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'bibles', 'Luke 15:1-10', 'Luke 15:1-10', null),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertCount(
+            1,
+            $churchService->items()->get(),
+            'The unparseable source_title must not hide the canonical reference in title.',
+        );
+        $this->assertSame('Luke 15:1-32', $planned->refresh()->title);
+    }
+
+    #[Test]
+    public function test_an_exact_reference_claims_its_own_row_before_a_broader_one(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        $broad = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'bibles',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'Joshua 1',
+            'source_title' => 'Joshua 1',
+        ]);
+
+        $exact = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 2,
+            'type' => 'bibles',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'Joshua 1:1-9',
+            'source_title' => 'Joshua 1:1-9',
+        ]);
+
+        // The broader row is older, so a per-row tier walk reaches its weak
+        // scripture agreement before the exact row's identical source_title.
+        $this->service->sync($churchService, [
+            $this->incomingItem(2, 'bibles', 'Joshua 1:1-9', 'Joshua 1:1-9', null, ['heard' => true]),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertArrayHasKey('heard', $exact->refresh()->metadata ?? [], 'The strongest tier must be searched across every candidate first.');
+        $this->assertArrayNotHasKey('heard', $broad->refresh()->metadata ?? []);
+    }
+
+    #[Test]
+    public function test_an_explicit_song_link_wins_over_the_link_an_earlier_source_authored(): void
+    {
+        $openLpSong = Song::factory()->create(['title' => 'Amazing Grace', 'canonical_key' => 'amazing grace']);
+        $chosenSong = Song::factory()->create(['title' => 'A Deliberately Different Song', 'canonical_key' => 'a deliberately different song']);
+
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        $planned = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'Amazing Grace',
+            'source_title' => 'Amazing Grace',
+            'song_id' => $openLpSong->id,
+        ]);
+
+        // The admin form marks a hand-picked link with the song's canonical key.
+        $this->service->sync($churchService, [
+            $this->incomingItem(
+                1,
+                'songs',
+                'Amazing Grace',
+                'Amazing Grace',
+                null,
+                ['linked_song_canonical_key' => $chosenSong->canonical_key],
+                $chosenSong->id,
+            ),
+        ], ChurchServiceItemSource::Manual);
+
+        $this->assertSame($chosenSong->id, $planned->refresh()->song_id, 'A human picking a song outranks the link another source authored.');
+    }
+
+    #[Test]
+    public function test_a_resolved_link_never_overwrites_an_explicit_one(): void
+    {
+        Song::factory()->create(['title' => 'Amazing Grace', 'canonical_key' => 'amazing grace']);
+        $chosenSong = Song::factory()->create(['title' => 'A Deliberately Different Song', 'canonical_key' => 'a deliberately different song']);
+
+        $churchService = ChurchService::factory()->create(['source' => 'manual']);
+
+        $chosen = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::Manual->value,
+            'title' => 'Amazing Grace',
+            'source_title' => 'Amazing Grace',
+            'song_id' => $chosenSong->id,
+            'metadata' => ['linked_song_canonical_key' => $chosenSong->canonical_key],
+        ]);
+
+        // OpenLP resolves the title to a different catalogue row — an inference,
+        // against a link a human made deliberately.
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Amazing Grace', 'Amazing Grace', 'amazing grace@'),
+        ], ChurchServiceItemSource::OpenLp);
+
+        $this->assertSame($chosenSong->id, $chosen->refresh()->song_id, 'A resolver inference must not overwrite a deliberate link.');
+    }
+
+    #[Test]
+    public function test_openlp_preserves_an_unmatched_detected_item(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'livestream']);
+
+        $detectedPrayer = ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Opening Prayer',
+            'source_title' => 'Opening Prayer',
+        ]);
+
+        // An OpenLP export only lists slide-backed items, so its silence about a
+        // prayer says nothing about whether one happened.
+        $result = $this->service->sync($churchService, [
+            $this->incomingItem(1, 'custom', 'Notices', 'Notices', null),
+        ], ChurchServiceItemSource::OpenLp);
+
+        $this->assertNull($detectedPrayer->refresh()->deleted_at);
+
+        // Silently: an export that never lists prayers, sermons or notices leaves
+        // several detected items unmatched every time, and flagging each one would
+        // send every OpenLP import to the review inbox.
+        $this->assertSame([], $result['conflicts']);
+    }
+
+    #[Test]
+    public function test_email_preserves_an_unmatched_detected_item(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'livestream']);
+
+        $detectedPrayer = ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Opening Prayer',
+            'source_title' => 'Opening Prayer',
+        ]);
+
+        // The email plan predates the service, so an item only the run saw is
+        // something extra that actually happened.
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'custom', 'Notices', 'Notices', null),
+        ], ChurchServiceItemSource::Email);
+
+        $this->assertNull($detectedPrayer->refresh()->deleted_at);
+    }
+
     /**
      * @param  array<string, mixed>|null  $metadata
      * @return array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>,section_type?:string}

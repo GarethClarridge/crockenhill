@@ -19,6 +19,7 @@ class ChurchServiceStructureMergeService
         private readonly ChurchServiceCanonicalStateService $canonicalStateService,
         private readonly ChurchServiceItemSyncService $itemSyncService,
         private readonly ChurchServiceCanonicalUpdateService $canonicalUpdateService,
+        private readonly ServiceItemCatalogueSongResolver $catalogueSongResolver,
     ) {}
 
     /**
@@ -36,13 +37,11 @@ class ChurchServiceStructureMergeService
      *
      * ## Unmatched incoming items
      *
-     * Items from the incoming source that do not correspond to any existing livestream
-     * item (classified as `unmatched_incoming` by the policy) are always treated as
-     * safe additions and applied via direct sync, even when other items are staged for
-     * review. The rationale: an entirely new item cannot conflict with a livestream
-     * detection, so staging it would only delay information that is unambiguously additive.
-     * If this assumption changes (e.g. structural ordering matters), consider routing
-     * unmatched_incoming items through review when review_required is non-empty.
+     * Items with no counterpart among the existing livestream items are classified as
+     * `unmatched_incoming` and never counted as conflicts — an entirely new item cannot
+     * contradict a detection. They are not applied separately, though: staging holds
+     * the whole incoming list, additions included, so the reviewer resolves one
+     * coherent proposal rather than a list already half-applied.
      *
      * @param  array<int, array<string, mixed>>  $incomingItems
      */
@@ -51,6 +50,12 @@ class ChurchServiceStructureMergeService
         array $incomingItems,
         ChurchServiceItemSource $incomingSource,
     ): StructureMergeResult {
+        // Classification decides whether these items reach the sync at all, so it has
+        // to see the same catalogue links the sync would resolve. Without this a
+        // hand-typed "Amazng Grace" is staged as a conflict against the very song it
+        // resolves to, and the resolution never runs.
+        $incomingItems = $this->catalogueSongResolver->resolveAll($incomingItems, $incomingSource);
+
         if (! $this->policy->requiresMergePlanning($churchService, $incomingSource)) {
             return $this->directMerge($churchService, $incomingItems, $incomingSource);
         }

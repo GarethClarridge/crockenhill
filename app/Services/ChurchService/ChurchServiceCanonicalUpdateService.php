@@ -22,6 +22,15 @@ class ChurchServiceCanonicalUpdateService
     ) {}
 
     /**
+     * Record the outcome of a merge against the service's review state.
+     *
+     * $recordReviewState is the switch a provisional pass needs. Review state here
+     * is sticky by design — needs_review is ORed in and a reopened review cannot be
+     * closed by a later pass — so a caller whose items are working guesses rather
+     * than findings must be able to change the canonical list without leaving a
+     * verdict behind. Suppressing the sync's conflicts is not enough on its own: a
+     * canonical change alone reopens a settled review.
+     *
      * @param  array<int, array<string, mixed>>  $beforeSnapshot
      * @param  array{conflicts?:array<int, array<string, mixed>>}  $syncResult
      */
@@ -30,6 +39,7 @@ class ChurchServiceCanonicalUpdateService
         array $beforeSnapshot,
         ChurchServiceItemSource|string $incomingSource,
         array $syncResult = [],
+        bool $recordReviewState = true,
     ): ChurchService {
         $resolvedSource = $incomingSource instanceof ChurchServiceItemSource
             ? $incomingSource
@@ -46,7 +56,7 @@ class ChurchServiceCanonicalUpdateService
             $this->canonicalStateService->snapshot($freshChurchService),
         );
 
-        $conflicts = $syncResult['conflicts'] ?? [];
+        $conflicts = $recordReviewState ? $syncResult['conflicts'] ?? [] : [];
 
         $originalImportMetadata = $freshChurchService->getRawOriginal('import_metadata');
         $originalImportMetadata = is_string($originalImportMetadata) && trim($originalImportMetadata) !== ''
@@ -55,10 +65,10 @@ class ChurchServiceCanonicalUpdateService
         $originalImportMetadata = is_array($originalImportMetadata) ? $originalImportMetadata : [];
         $importMetadataData = $freshChurchService->import_metadata;
         $reviewedPreviously = is_string($importMetadataData?->manualReview?->reviewedAt);
-        $shouldReopenReview = $reviewedPreviously && ($changes !== [] || $conflicts !== []);
+        $shouldReopenReview = $recordReviewState && $reviewedPreviously && ($changes !== [] || $conflicts !== []);
         $importMetadata = $importMetadataData?->toArray() ?? [];
 
-        if ($conflicts !== [] || ($beforeSnapshot !== [] && $changes !== [])) {
+        if ($recordReviewState && ($conflicts !== [] || ($beforeSnapshot !== [] && $changes !== []))) {
             $canonicalConflict = [
                 'detected_at' => now()->toIso8601String(),
                 'incoming_source' => $resolvedSource->value,

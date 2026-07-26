@@ -104,6 +104,39 @@ class ScriptureReferenceResolver
     }
 
     /**
+     * Whether any reading named on one side agrees with any named on the other.
+     *
+     * A source rarely records its reference in a single field. OpenLP writes the
+     * canonical reference to the item title and a copyright-laden header to
+     * source_title — "Luke 15:1-32 New International Version (Anglicised),
+     * Copyright line" — and only one of the two parses at all. Trying every
+     * pairing lets whichever field carries a reference speak for the item.
+     *
+     * @param  list<string|null>  $left
+     * @param  list<string|null>  $right
+     */
+    public function anyReferencesAgree(array $left, array $right): bool
+    {
+        foreach ($left as $leftReference) {
+            if (! is_string($leftReference) || trim($leftReference) === '') {
+                continue;
+            }
+
+            foreach ($right as $rightReference) {
+                if (! is_string($rightReference) || trim($rightReference) === '') {
+                    continue;
+                }
+
+                if ($this->referencesAgree($leftReference, $rightReference)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Whether two references share any verses at all — the loosest comparison,
      * for evidence ranking rather than gating.
      *
