@@ -14,6 +14,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\ChurchService\Structure\ValidationContext;
+use App\Support\ServiceArtifactDisk;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
@@ -220,11 +221,9 @@ class StructureEvaluateCommand extends Command
                 throw new \RuntimeException('No transcript available: give the entry a transcript_file or a processing_id with a stored transcript.');
             }
 
-            $tempDisk = str_starts_with($transcriptPath, 'service-transcripts/')
-                ? (string) config('media-processing.storage.transcript_disk', 'local')
-                : (string) config('media-processing.storage.temp_disk', 'local');
+            $artifactDisk = ServiceArtifactDisk::for($transcriptPath);
             $transcript = ChurchServiceTranscript::fromArray(
-                json_decode((string) Storage::disk($tempDisk)->get($transcriptPath), true)
+                json_decode((string) Storage::disk($artifactDisk)->get($transcriptPath), true)
             );
         }
 
@@ -303,13 +302,13 @@ class StructureEvaluateCommand extends Command
             return $structure;
         }
 
-        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+        $rmsDisk = ServiceArtifactDisk::for($rmsLogPath);
 
-        if (! Storage::disk($tempDisk)->exists($rmsLogPath)) {
+        if (! Storage::disk($rmsDisk)->exists($rmsLogPath)) {
             return $structure;
         }
 
-        return $snapService->snap($structure, (string) Storage::disk($tempDisk)->get($rmsLogPath));
+        return $snapService->snap($structure, (string) Storage::disk($rmsDisk)->get($rmsLogPath));
     }
 
     /**

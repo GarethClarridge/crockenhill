@@ -14,9 +14,11 @@ use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ChurchServiceReviewStateService;
 use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
+use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Media\Audio\TranscriptStorageService;
 use App\Services\Sermon\SermonStorageService;
 use App\Support\Path;
+use App\Support\ServiceArtifactDisk;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -201,11 +203,23 @@ class DeleteLivestreamUpload
         $transcriptDisk = (string) config('media-processing.storage.transcript_disk', $sermonDisk);
 
         $this->addRelativeOrAbsoluteTarget($targets, $tempDisk, $processingLog->source_file_path);
-        $this->addRelativeOrAbsoluteTarget($targets, $tempDisk, $processingLog->rms_log_path);
+        $this->addRelativeOrAbsoluteTarget(
+            $targets,
+            ServiceArtifactDisk::for($processingLog->rms_log_path),
+            $processingLog->rms_log_path,
+        );
         $this->addRelativeOrAbsoluteTarget($targets, $tempDisk, $processingLog->enhanced_audio_file_path);
         $this->addStoredTarget($targets, $sermonDisk, $processingLog->audio_file_path);
         $this->addStoredTarget($targets, $sermonDisk, $processingLog->video_file_path);
         $this->addStoredTarget($targets, $transcriptDisk, $processingLog->transcript_file_path);
+
+        // The durable service artifacts (full-service transcript, raw payloads,
+        // archived RMS log, compressed service audio) are recorded on the log
+        // rather than in columns. Without this, deleting and re-importing a
+        // service during calibration strands ~21 MB of audio per cycle in Spaces.
+        foreach (ServiceArtifactStorage::recordedFor($processingLog) as $artifact) {
+            $this->addStoredTarget($targets, $artifact['disk'], $artifact['path']);
+        }
     }
 
     /**

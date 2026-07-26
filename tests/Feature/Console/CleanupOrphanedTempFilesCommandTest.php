@@ -6,6 +6,7 @@ namespace Tests\Feature\Console;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Services\Media\Audio\ServiceArtifactStorage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -33,6 +34,47 @@ class CleanupOrphanedTempFilesCommandTest extends TestCase
             ->assertSuccessful();
 
         Storage::disk('local')->assertExists($filePath);
+    }
+
+    /**
+     * WP-A1's acceptance test. The full-service transcript used to live on the
+     * temp disk under `temp/service_transcript_*.json`, which this sweep deletes
+     * 24 hours after a run completes — taking with it the one artifact that makes
+     * re-running structure detection, song matching and section classification
+     * possible without the source recording. It now lives on the transcript disk,
+     * and this asserts the sweep cannot reach it.
+     */
+    #[Test]
+    public function it_does_not_delete_the_stored_service_transcript_of_a_completed_run(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.transcript_disk' => 'public',
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => '2026-03-22',
+        ]);
+
+        $transcriptPath = app(ServiceArtifactStorage::class)->putJson(
+            $log->processing_id,
+            'normalized',
+            ['cues' => [['start' => 0.0, 'end' => 4.0, 'text' => 'Welcome']]],
+        );
+
+        $log->putServiceTranscriptPath($transcriptPath);
+
+        $this->artisan('media:cleanup-temp-files', ['--hours' => 1])
+            ->assertSuccessful();
+
+        Storage::disk('public')->assertExists($transcriptPath);
+        $this->assertTrue(
+            $log->fresh()->hasStoredServiceTranscript(),
+            'A completed run must still resolve its full-service transcript after the sweep.',
+        );
     }
 
     #[Test]

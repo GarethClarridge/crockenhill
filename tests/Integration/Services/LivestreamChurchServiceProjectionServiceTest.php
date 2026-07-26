@@ -11,7 +11,9 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Services\ChurchService\LivestreamChurchServiceProjectionService;
+use App\Services\Public\PublicSongUsageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use PHPUnit\Framework\Attributes\Test;
@@ -314,10 +316,150 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $result = $this->service->project($log);
 
         $this->assertTrue($result['projected']);
-        $this->assertTrue(
+        $this->assertFalse(
             $churchService->fresh()->needs_review,
-            'Merging independently sourced order-of-service items must remain reviewable.',
+            'A clean detected run filling gaps in the order of service is routine, not reviewable.',
         );
+    }
+
+    #[Test]
+    public function test_preserves_openlp_song_identity_when_a_livestream_section_matches_it(): void
+    {
+        $song = Song::factory()->create(['title' => 'Amazing Grace']);
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-23',
+            'service' => SermonService::Morning->value,
+            'source' => 'openlp',
+            'needs_review' => false,
+        ]);
+
+        $openLpItem = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Amazing Grace',
+            'openlp_search_title' => 'amazinggrace',
+            'song_id' => $song->id,
+            'source' => ChurchServiceItemSource::OpenLp->value,
+        ]);
+
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        $sections = $this->createSections($log, [
+            ['type' => ServiceSectionType::Song, 'title' => 'Amazing Grace', 'confidence' => 0.9],
+        ]);
+
+        $result = $this->service->project($log);
+
+        $this->assertTrue($result['projected']);
+
+        $openLpItem->refresh();
+        $this->assertSame('Amazing Grace', $openLpItem->title);
+        $this->assertSame('amazinggrace', $openLpItem->openlp_search_title);
+        $this->assertSame($song->id, $openLpItem->song_id, 'The order of service owns the song link.');
+        $this->assertSame(ChurchServiceItemSource::OpenLp, $openLpItem->source);
+        $this->assertSame(1, $openLpItem->position, 'Order-of-service items keep their planned position.');
+
+        $this->assertSame(
+            $log->processing_id,
+            $openLpItem->livestream_processing_id,
+            'The detected run still attaches its provenance to the matched item.',
+        );
+        $this->assertSame($sections[0]->id, $openLpItem->livestream_service_section_id);
+        $this->assertSame($openLpItem->id, $sections[0]->fresh()->church_service_item_id);
+
+        $this->assertFalse($churchService->fresh()->needs_review);
+    }
+
+    #[Test]
+    public function test_livestream_fills_gaps_after_the_order_of_service(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-23',
+            'service' => SermonService::Morning->value,
+            'source' => 'openlp',
+            'needs_review' => false,
+        ]);
+
+        foreach (['First Planned Song', 'Second Planned Song'] as $index => $title) {
+            ChurchServiceItem::factory()->create([
+                'church_service_id' => $churchService->id,
+                'position' => $index + 1,
+                'type' => 'songs',
+                'title' => $title,
+                'source' => ChurchServiceItemSource::OpenLp->value,
+            ]);
+        }
+
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Song, 'title' => 'First Planned Song', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Sermon, 'title' => 'An Undetected Sermon', 'confidence' => 0.9],
+        ]);
+
+        $this->service->project($log);
+
+        $items = $churchService->fresh()->items()->orderBy('position')->get();
+
+        $this->assertCount(3, $items, 'No order-of-service item may be dropped by a detected run.');
+        $this->assertSame('First Planned Song', $items[0]->title);
+        $this->assertSame('Second Planned Song', $items[1]->title);
+        $this->assertSame(ChurchServiceItemSource::OpenLp, $items[1]->source);
+        $this->assertSame('An Undetected Sermon', $items[2]->title);
+        $this->assertSame(ChurchServiceItemSource::Livestream, $items[2]->source);
+    }
+
+    #[Test]
+    public function test_merging_a_livestream_run_loses_no_public_song_usage(): void
+    {
+        $song = Song::factory()->create(['title' => 'Amazing Grace']);
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-23',
+            'service' => SermonService::Morning->value,
+            'source' => 'openlp',
+            'needs_review' => false,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Amazing Grace',
+            'song_id' => $song->id,
+            'source' => ChurchServiceItemSource::OpenLp->value,
+        ]);
+
+        $usageBefore = $this->publicSongUsageItemIds($song);
+        $this->assertNotEmpty($usageBefore, 'The fixture must qualify before the merge to be a meaningful gate.');
+
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Song, 'title' => 'Amazing Grace', 'confidence' => 0.9],
+        ]);
+
+        $this->service->project($log);
+
+        $this->assertSame(
+            $usageBefore,
+            $this->publicSongUsageItemIds($song),
+            'Projecting a livestream run onto an order-of-service must not drop qualifying song usage.',
+        );
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function publicSongUsageItemIds(Song $song): array
+    {
+        $ids = app(PublicSongUsageService::class)
+            ->usageHistoryForSong($song)
+            ->pluck('id')
+            ->all();
+
+        sort($ids);
+
+        return array_values(array_map('intval', $ids));
     }
 
     #[Test]

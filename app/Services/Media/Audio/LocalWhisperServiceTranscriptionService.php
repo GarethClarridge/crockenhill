@@ -43,8 +43,9 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
 
         try {
             $transcript = $this->requestVerboseTranscription($audioPath, $processingId);
-            ($this->artifactStorage ?? app(ServiceArtifactStorage::class))
-                ->archiveAudio($processingId, $audioPath);
+            $this->artifacts()->archiveAudio($processingId, $audioPath, [
+                'profile' => TranscriptionAudioProfile::fallback() + ['codec' => 'mp3'],
+            ]);
 
             $this->logger->logProcessingStep(
                 $processingId,
@@ -62,6 +63,34 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
                 unlink($audioPath);
             }
         }
+    }
+
+    private function artifacts(): ServiceArtifactStorage
+    {
+        return $this->artifactStorage ?? app(ServiceArtifactStorage::class);
+    }
+
+    /**
+     * Whether the server actually returned word timings, however it labels them.
+     *
+     * WP-A3 degrades to "confirmed unavailable" rather than blocking, so this is
+     * recorded as run metadata instead of being asserted.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function payloadCarriesWordTimestamps(array $payload): bool
+    {
+        if (is_array($payload['words'] ?? null) && $payload['words'] !== []) {
+            return true;
+        }
+
+        foreach (is_array($payload['segments'] ?? null) ? $payload['segments'] : [] as $segment) {
+            if (is_array($segment) && is_array($segment['words'] ?? null) && $segment['words'] !== []) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function requestVerboseTranscription(string $audioPath, string $processingId): ChurchServiceTranscript
@@ -137,8 +166,14 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
             throw new TranscriptionException('Local Whisper verbose_json response contained no timestamped segments');
         }
 
-        ($this->artifactStorage ?? app(ServiceArtifactStorage::class))
-            ->putJson($processingId, 'raw', $payload);
+        $this->artifacts()->putJson($processingId, 'raw', $payload, [
+            'transcription_service' => 'local_whisper',
+            'model' => (string) config('media-processing.transcription.local_whisper_model', 'small'),
+            'endpoint' => $endpoint,
+            'response_format' => 'verbose_json',
+            'word_timestamps_requested' => true,
+            'word_timestamps_present' => $this->payloadCarriesWordTimestamps($payload),
+        ]);
 
         $cues = [];
 

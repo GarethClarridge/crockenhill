@@ -72,12 +72,12 @@ class ChurchServiceItemSyncService
 
                 if ($match !== null) {
                     $existingSource = $this->sourceForExistingItem($match);
-                    $preserveOpenLpSongMetadata = $this->shouldPreserveOpenLpSongMetadata($match, $incomingSource);
+                    $preserveExistingSongIdentity = $this->shouldPreserveExistingSongIdentity($match, $incomingSource);
                     $matchConflicts = $this->conflictsForMatchedItem(
                         $match,
                         $incomingItem,
                         $incomingSource,
-                        $preserveOpenLpSongMetadata,
+                        $preserveExistingSongIdentity,
                     );
                     $conflicts = [...$conflicts, ...$matchConflicts];
                     $pendingUpdates[] = [
@@ -324,17 +324,17 @@ class ChurchServiceItemSyncService
         }
 
         $existingSource = $this->sourceForExistingItem($existingItem);
-        $preserveOpenLpSongMetadata = $this->shouldPreserveOpenLpSongMetadata($existingItem, $incomingSource);
+        $preserveExistingSongIdentity = $this->shouldPreserveExistingSongIdentity($existingItem, $incomingSource);
 
         $fillData = [
             'position' => $position,
             'type' => $incomingItem['type'],
             'section_type' => $incomingItem['section_type'],
             'source' => $this->resolveSource($existingItem, $incomingSource)->value,
-            'title' => $this->resolveTitle($existingItem, $incomingItem, $preserveOpenLpSongMetadata),
+            'title' => $this->resolveTitle($existingItem, $incomingItem, $preserveExistingSongIdentity),
             'source_title' => $this->resolveSourceTitle($existingItem, $incomingItem, $incomingSource),
-            'openlp_search_title' => $this->resolveOpenLpSearchTitle($existingItem, $incomingItem, $preserveOpenLpSongMetadata),
-            'song_id' => $this->resolveSongId($existingItem, $incomingItem, $preserveOpenLpSongMetadata),
+            'openlp_search_title' => $this->resolveOpenLpSearchTitle($existingItem, $incomingItem, $preserveExistingSongIdentity),
+            'song_id' => $this->resolveSongId($existingItem, $incomingItem, $preserveExistingSongIdentity),
             'metadata' => $this->resolveMetadata($existingItem, $incomingItem, $existingSource, $incomingSource),
         ];
 
@@ -477,9 +477,9 @@ class ChurchServiceItemSyncService
     private function resolveOpenLpSearchTitle(
         ChurchServiceItem $existingItem,
         array $incomingItem,
-        bool $preserveOpenLpSongMetadata
+        bool $preserveExistingSongIdentity
     ): ?string {
-        if ($preserveOpenLpSongMetadata) {
+        if ($preserveExistingSongIdentity) {
             return $existingItem->openlp_search_title ?? $incomingItem['openlp_search_title'];
         }
 
@@ -492,9 +492,9 @@ class ChurchServiceItemSyncService
     private function resolveTitle(
         ChurchServiceItem $existingItem,
         array $incomingItem,
-        bool $preserveOpenLpSongMetadata
+        bool $preserveExistingSongIdentity
     ): string {
-        if ($preserveOpenLpSongMetadata) {
+        if ($preserveExistingSongIdentity) {
             return $existingItem->title;
         }
 
@@ -523,6 +523,10 @@ class ChurchServiceItemSyncService
             return $incomingItem['source_title'] ?? $existingItem->source_title;
         }
 
+        if ($incomingSource->isDetected() && ! $this->sourcesShareMergeAuthority($existingSource, $incomingSource)) {
+            return $existingItem->source_title ?? $incomingItem['source_title'];
+        }
+
         return $incomingItem['source_title'];
     }
 
@@ -532,9 +536,9 @@ class ChurchServiceItemSyncService
     private function resolveSongId(
         ChurchServiceItem $existingItem,
         array $incomingItem,
-        bool $preserveOpenLpSongMetadata
+        bool $preserveExistingSongIdentity
     ): ?int {
-        if ($preserveOpenLpSongMetadata) {
+        if ($preserveExistingSongIdentity) {
             return $existingItem->song_id ?? $incomingItem['song_id'];
         }
 
@@ -579,6 +583,16 @@ class ChurchServiceItemSyncService
             $this->isSongType($existingItem->type)
             && $incomingSource->isHumanProvided()
             && $existingSource === ChurchServiceItemSource::OpenLp
+        ) {
+            return $this->mergeMetadata($incomingMetadata, $existingMetadata);
+        }
+
+        // A detected run contributes its own metadata (confidence, timings) but must
+        // not drop what the order of service already recorded against the entry.
+        if (
+            $this->isSongType($existingItem->type)
+            && $incomingSource->isDetected()
+            && ! $this->sourcesShareMergeAuthority($existingSource, $incomingSource)
         ) {
             return $this->mergeMetadata($incomingMetadata, $existingMetadata);
         }
@@ -652,13 +666,31 @@ class ChurchServiceItemSyncService
         };
     }
 
-    private function shouldPreserveOpenLpSongMetadata(
+    /**
+     * Whether the existing song entry owns its identity against this incoming source.
+     *
+     * A detected (livestream) run infers songs from audio; the order of service is
+     * the record of what was actually planned and sung. So a livestream run fills
+     * gaps in the order of service and attaches its own provenance, but never
+     * rewrites the title, search title, song link or metadata of an entry another
+     * source already owns.
+     */
+    private function shouldPreserveExistingSongIdentity(
         ChurchServiceItem $existingItem,
         ChurchServiceItemSource $incomingSource
     ): bool {
-        return $this->isSongType($existingItem->type)
-            && $incomingSource->isHumanProvided()
-            && $this->sourceForExistingItem($existingItem) === ChurchServiceItemSource::OpenLp;
+        if (! $this->isSongType($existingItem->type)) {
+            return false;
+        }
+
+        $existingSource = $this->sourceForExistingItem($existingItem);
+
+        if ($incomingSource->isDetected()) {
+            return ! $this->sourcesShareMergeAuthority($existingSource, $incomingSource);
+        }
+
+        return $incomingSource->isHumanProvided()
+            && $existingSource === ChurchServiceItemSource::OpenLp;
     }
 
     private function sourcesShareMergeAuthority(
@@ -806,6 +838,13 @@ class ChurchServiceItemSyncService
         ChurchServiceItem $existingItem,
         ChurchServiceItemSource $incomingSource
     ): bool {
+        // A detected run not finding a planned song is the expected, lossy case —
+        // it is what "fills gaps in the order of service" means. Flagging it would
+        // send every merged service to the review inbox for no reviewable reason.
+        if ($incomingSource->isDetected()) {
+            return false;
+        }
+
         return $this->isSongType($existingItem->type)
             && ! $this->sourcesShareMergeAuthority($this->sourceForExistingItem($existingItem), $incomingSource);
     }
@@ -818,9 +857,15 @@ class ChurchServiceItemSyncService
         ChurchServiceItem $existingItem,
         array $incomingItem,
         ChurchServiceItemSource $incomingSource,
-        bool $preserveOpenLpSongMetadata
+        bool $preserveExistingSongIdentity
     ): array {
-        if (! $preserveOpenLpSongMetadata) {
+        if (! $preserveExistingSongIdentity) {
+            return [];
+        }
+
+        // Deferring to the order of service is the designed outcome for a detected
+        // run, not a disagreement a reviewer needs to adjudicate.
+        if ($incomingSource->isDetected()) {
             return [];
         }
 

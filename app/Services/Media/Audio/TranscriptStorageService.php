@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Media\Audio;
 
-use App\Support\HistoricImportAssetPath;
 use App\Traits\SanitizesLogData;
 use Exception;
 use Illuminate\Support\Facades\Log;
@@ -28,12 +27,10 @@ class TranscriptStorageService
      *
      * @throws Exception When storage fails
      */
-    public function storeTranscript(int $sermonId, string $transcript, ?string $processingId = null): string
+    public function storeTranscript(int $sermonId, string $transcript): string
     {
-        $filePath = $processingId !== null && HistoricImportAssetPath::isHistoricProcessing($processingId)
-            ? HistoricImportAssetPath::transcript($processingId)
-            : self::TRANSCRIPT_DIRECTORY.'/'.$this->getTranscriptFilename($sermonId);
-        $directory = dirname($filePath);
+        $filePath = self::TRANSCRIPT_DIRECTORY.'/'.$this->getTranscriptFilename($sermonId);
+        $directory = self::TRANSCRIPT_DIRECTORY;
         $disk = $this->transcriptDisk();
         $storage = Storage::disk($disk);
 

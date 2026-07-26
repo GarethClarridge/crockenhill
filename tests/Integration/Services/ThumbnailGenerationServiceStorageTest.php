@@ -102,7 +102,7 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
     }
 
     #[Test]
-    public function it_uses_the_processing_id_namespace_for_historic_import_thumbnails(): void
+    public function it_stores_historic_import_thumbnails_in_the_ordinary_layout(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
             'processing_metadata' => [
@@ -117,10 +117,10 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
 
         $result = $this->service->storeThumbnail($tempPath, $sermon, 'plain');
 
-        $this->assertSame(
-            "historic-imports/{$log->processing_id}/sermon/thumbnails/plain.webp",
-            $result,
-        );
+        $this->assertStringContainsString("sermon_{$sermon->id}_", (string) $result);
+        $this->assertStringContainsString('_plain.webp', (string) $result);
+        $this->assertStringNotContainsString('historic-imports', (string) $result);
+        $this->assertStringNotContainsString($log->processing_id, (string) $result);
         Storage::disk('public')->assertExists((string) $result);
     }
 

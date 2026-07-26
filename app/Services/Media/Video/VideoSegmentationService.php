@@ -9,6 +9,7 @@ use App\Enums\LivestreamSegmentClassification;
 use App\Exceptions\SegmentationException;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Processing\StorageAdapterHelper;
+use App\Support\ServiceArtifactDisk;
 use FFMpeg\FFProbe;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -132,12 +133,16 @@ class VideoSegmentationService
      */
     public function analyzeSegments(string $rmsLogPath): array
     {
+        // GenerateRmsLog archives the log to the transcript disk and records that
+        // durable key, so this cannot assume the temp disk it wrote the raw log to.
+        $rmsDisk = ServiceArtifactDisk::for($rmsLogPath);
+
         try {
-            if (! $this->storageAdapter->fileExists($rmsLogPath, $this->tempDisk)) {
+            if (! $this->storageAdapter->fileExists($rmsLogPath, $rmsDisk)) {
                 throw new SegmentationException('RMS log file not found: '.$rmsLogPath);
             }
 
-            $logContent = $this->storageAdapter->getFileContents($this->tempDisk, $rmsLogPath);
+            $logContent = $this->storageAdapter->getFileContents($rmsDisk, $rmsLogPath);
 
             $thresholdResult = $this->rmsAnalysisService->determineThreshold($logContent);
 

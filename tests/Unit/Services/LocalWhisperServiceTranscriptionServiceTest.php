@@ -6,17 +6,23 @@ namespace Tests\Unit\Services;
 
 use App\Data\ChurchServiceTranscript;
 use App\Exceptions\TranscriptionException;
+use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\AudioChunkingService;
 use App\Services\Media\Audio\LocalWhisperServiceTranscriptionService;
+use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Processing\SermonProcessingLogger;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class LocalWhisperServiceTranscriptionServiceTest extends TestCase
 {
+    use RefreshDatabase;
+
     private LocalWhisperServiceTranscriptionService $service;
 
     private mixed $chunkingService;
@@ -141,6 +147,104 @@ class LocalWhisperServiceTranscriptionServiceTest extends TestCase
         $this->expectExceptionMessage('HTTP 500');
 
         $this->service->transcribeService($sourcePath, 'proc-local-3');
+    }
+
+    /**
+     * WP-A2/A3/A6: the archive must be able to recover the exact bytes the
+     * transcription service returned, and know which model produced them.
+     */
+    #[Test]
+    public function it_archives_the_raw_payload_with_its_provenance_and_the_service_audio(): void
+    {
+        Storage::fake('public');
+        Config::set('media-processing.storage.transcript_disk', 'public');
+        Config::set('media-processing.storage.sermon_disk', 'public');
+        Config::set('media-processing.transcription.local_whisper_model', 'large-v3-turbo');
+
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-03-22',
+        ]);
+
+        $sourcePath = $this->makeTempFile('source video bytes');
+        $compressedPath = $this->makeTempFile('compressed audio');
+
+        $this->chunkingService->shouldReceive('compressAudioForTranscription')
+            ->once()
+            ->andReturn($compressedPath);
+
+        Http::fake([
+            'whisper:8000/v1/audio/transcriptions' => Http::response([
+                'duration' => 30.0,
+                'text' => 'Good morning.',
+                'segments' => [[
+                    'id' => 0,
+                    'start' => 0.0,
+                    'end' => 30.0,
+                    'text' => ' Good morning. ',
+                    'words' => [['word' => ' Good', 'start' => 0.0, 'end' => 0.4]],
+                ]],
+            ]),
+        ]);
+
+        $this->service->transcribeService($sourcePath, $log->processing_id);
+
+        $artifacts = collect(ServiceArtifactStorage::recordedFor($log->refresh()))
+            ->keyBy('kind');
+
+        $this->assertTrue($artifacts->has('raw'), 'The unmodified payload must be archived.');
+        $this->assertTrue($artifacts->has('audio'), 'The compressed service audio must be archived.');
+
+        Storage::disk('public')->assertExists($artifacts['raw']['path']);
+        Storage::disk('public')->assertExists($artifacts['audio']['path']);
+
+        // The raw payload is the untouched response, words and all.
+        $raw = json_decode((string) Storage::disk('public')->get($artifacts['raw']['path']), true);
+        $this->assertSame(' Good morning. ', $raw['segments'][0]['text']);
+        $this->assertSame(0.4, $raw['segments'][0]['words'][0]['end']);
+
+        $recorded = collect($log->processing_metadata->toArray()[ServiceArtifactStorage::METADATA_KEY])
+            ->firstWhere('kind', 'raw');
+
+        $this->assertSame('local_whisper', $recorded['transcription_service']);
+        $this->assertSame('large-v3-turbo', $recorded['model']);
+        $this->assertStringContainsString('whisper:8000', $recorded['endpoint']);
+        $this->assertTrue($recorded['word_timestamps_requested']);
+        $this->assertTrue($recorded['word_timestamps_present']);
+    }
+
+    #[Test]
+    public function it_records_word_timestamps_as_unavailable_when_the_server_omits_them(): void
+    {
+        Storage::fake('public');
+        Config::set('media-processing.storage.transcript_disk', 'public');
+        Config::set('media-processing.storage.sermon_disk', 'public');
+
+        $log = MediaProcessingLog::factory()->livestream()->create();
+
+        $sourcePath = $this->makeTempFile('source video bytes');
+        $compressedPath = $this->makeTempFile('compressed audio');
+
+        $this->chunkingService->shouldReceive('compressAudioForTranscription')
+            ->once()
+            ->andReturn($compressedPath);
+
+        Http::fake([
+            'whisper:8000/v1/audio/transcriptions' => Http::response([
+                'duration' => 30.0,
+                'segments' => [['id' => 0, 'start' => 0.0, 'end' => 30.0, 'text' => 'Good morning.']],
+            ]),
+        ]);
+
+        $transcript = $this->service->transcribeService($sourcePath, $log->processing_id);
+
+        // WP-A3 degrades to "confirmed unavailable" rather than failing the run.
+        $this->assertCount(1, $transcript->cues);
+
+        $recorded = collect($log->refresh()->processing_metadata->toArray()[ServiceArtifactStorage::METADATA_KEY])
+            ->firstWhere('kind', 'raw');
+
+        $this->assertTrue($recorded['word_timestamps_requested']);
+        $this->assertFalse($recorded['word_timestamps_present']);
     }
 
     private function makeTempFile(string $contents): string

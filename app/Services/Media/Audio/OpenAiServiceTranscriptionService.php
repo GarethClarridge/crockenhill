@@ -54,8 +54,9 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
             $transcript = filesize($audioPath) <= $this->maxUploadBytes()
                 ? $this->transcribeWhole($audioPath, $processingId)
                 : $this->transcribeInChunks($audioPath, $processingId);
-            ($this->artifactStorage ?? app(ServiceArtifactStorage::class))
-                ->archiveAudio($processingId, $audioPath);
+            $this->artifacts()->archiveAudio($processingId, $audioPath, [
+                'profile' => TranscriptionAudioProfile::fallback() + ['codec' => 'mp3'],
+            ]);
 
             $this->logger->logProcessingStep(
                 $processingId,
@@ -73,6 +74,32 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
                 unlink($audioPath);
             }
         }
+    }
+
+    private function artifacts(): ServiceArtifactStorage
+    {
+        return $this->artifactStorage ?? app(ServiceArtifactStorage::class);
+    }
+
+    /**
+     * Whether the response actually carried word timings (WP-A3 records rather
+     * than asserts their availability).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function payloadCarriesWordTimestamps(array $payload): bool
+    {
+        if (is_array($payload['words'] ?? null) && $payload['words'] !== []) {
+            return true;
+        }
+
+        foreach (is_array($payload['segments'] ?? null) ? $payload['segments'] : [] as $segment) {
+            if (is_array($segment) && is_array($segment['words'] ?? null) && $segment['words'] !== []) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function transcribeWhole(string $audioPath, string $processingId): ChurchServiceTranscript
@@ -104,7 +131,7 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
         try {
             foreach ($chunkPaths as $index => $chunkPath) {
                 $chunkStart = $this->chunkStartSeconds($index);
-                $response = $this->requestVerboseTranscription($chunkPath, $processingId);
+                $response = $this->requestVerboseTranscription($chunkPath, $processingId, $index, $chunkStart);
 
                 foreach ($this->cuesFromResponse($response, $chunkStart) as $cue) {
                     // Cues ending inside the duplicated window were already
@@ -143,22 +170,42 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
         return (float) ($index * ($chunkDurationSeconds - $overlapSeconds) - $overlapSeconds);
     }
 
-    private function requestVerboseTranscription(string $audioPath, string $processingId): TranscriptionResponse
-    {
+    private function requestVerboseTranscription(
+        string $audioPath,
+        string $processingId,
+        ?int $chunkIndex = null,
+        float $offsetSeconds = 0.0,
+    ): TranscriptionResponse {
         $apiStartTime = microtime(true);
+        $model = (string) config('media-processing.service_structure.transcription_model', 'whisper-1');
 
         try {
             $response = OpenAI::audio()->transcribe([
                 'file' => fopen($audioPath, 'r'),
-                'model' => (string) config('media-processing.service_structure.transcription_model', 'whisper-1'),
+                'model' => $model,
                 'response_format' => 'verbose_json',
                 'timestamp_granularities' => ['word', 'segment'],
                 'language' => 'en',
                 'prompt' => (string) config('media-processing.transcription.prompts.full_service'),
             ]);
 
-            ($this->artifactStorage ?? app(ServiceArtifactStorage::class))
-                ->putJson($processingId, 'raw-'.substr(hash('sha256', basename($audioPath)), 0, 12), $response->toArray());
+            $payload = $response->toArray();
+
+            $this->artifacts()->putJson(
+                $processingId,
+                $chunkIndex === null ? 'raw' : "raw-chunk-{$chunkIndex}",
+                $payload,
+                [
+                    'transcription_service' => 'openai',
+                    'model' => $model,
+                    'endpoint' => 'audio/transcriptions',
+                    'response_format' => 'verbose_json',
+                    'chunk_index' => $chunkIndex,
+                    'offset_seconds' => $offsetSeconds,
+                    'word_timestamps_requested' => true,
+                    'word_timestamps_present' => $this->payloadCarriesWordTimestamps($payload),
+                ],
+            );
 
             $this->logger->logApiCall(
                 $processingId,

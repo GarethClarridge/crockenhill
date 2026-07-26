@@ -88,7 +88,6 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             $transcriptPath = $transcriptionService->storeTranscript(
                 $this->processingLog->sermon_id,
                 $transcript,
-                $this->processingLog->processing_id,
             );
 
             // Update processing log

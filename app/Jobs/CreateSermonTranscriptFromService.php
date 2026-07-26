@@ -49,11 +49,7 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
             throw new \RuntimeException('The full-service transcript contains no sermon text for the extracted bounds.');
         }
 
-        $transcriptPath = $transcriptStorage->storeTranscript(
-            $sermon->id,
-            $sermonText,
-            $this->processingLog->processing_id,
-        );
+        $transcriptPath = $transcriptStorage->storeTranscript($sermon->id, $sermonText);
 
         $this->processingLog->update(['transcript_file_path' => $transcriptPath]);
         $sermon->update(['transcript_file_path' => $transcriptPath]);

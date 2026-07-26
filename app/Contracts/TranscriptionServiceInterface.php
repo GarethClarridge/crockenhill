@@ -27,7 +27,7 @@ interface TranscriptionServiceInterface
      *
      * @throws \Exception When storage fails
      */
-    public function storeTranscript(int $sermonId, string $transcript, ?string $processingId = null): string;
+    public function storeTranscript(int $sermonId, string $transcript): string;
 
     /**
      * Retrieve transcript content from storage

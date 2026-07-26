@@ -18,6 +18,29 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
+/**
+ * @phpstan-type ImportMetrics array{
+ *     dispatched: int,
+ *     concatenated: int,
+ *     concatenated_reencoded: int,
+ *     enriched: int,
+ *     skipped_exists: int,
+ *     skipped_inflight: int,
+ *     skipped_pending_review: int,
+ *     skipped_small: int,
+ *     skipped_audio_dup: int,
+ *     skipped_no_date: int,
+ *     skipped_unclassified: int,
+ *     skipped_low_disk: int,
+ *     errors: int,
+ *     terminal_failed: int,
+ *     terminal_cancelled: int,
+ *     terminal_skipped: int,
+ *     timed_out: int,
+ *     bytes_processed: int,
+ *     bytes_skipped: int
+ * }
+ */
 class HistoricVideoImporter
 {
     private const TEMP_DIR = 'temp/historic-import';
@@ -38,7 +61,27 @@ class HistoricVideoImporter
 
     /**
      * @param  \Closure(string $tag, string $label, string|null $detail): void|null  $onProgress
-     * @return array<string, int>
+     * @return array{
+     *     dispatched: int,
+     *     concatenated: int,
+     *     concatenated_reencoded: int,
+     *     enriched: int,
+     *     skipped_exists: int,
+     *     skipped_inflight: int,
+     *     skipped_pending_review: int,
+     *     skipped_small: int,
+     *     skipped_audio_dup: int,
+     *     skipped_no_date: int,
+     *     skipped_unclassified: int,
+     *     skipped_low_disk: int,
+     *     errors: int,
+     *     terminal_failed: int,
+     *     terminal_cancelled: int,
+     *     terminal_skipped: int,
+     *     timed_out: int,
+     *     bytes_processed: int,
+     *     bytes_skipped: int
+     * }
      */
     public function import(
         string $directory,
@@ -98,7 +141,11 @@ class HistoricVideoImporter
             $tag = $item['tag'];
             $label = $item['label'];
             $bytes = $item['bytes'];
-            $decisions[] = ['decision' => $tag, 'label' => $label, 'assets' => []];
+            // One report entry per work item. The dispatched branch rewrites this
+            // entry rather than appending a second one, so the manifest's item
+            // count always equals the number of things the importer looked at.
+            $decisionIndex = count($decisions);
+            $decisions[] = ['decision' => $tag, 'label' => $label];
 
             if ($tag === 'skip-small') {
                 $metrics['skipped_small']++;
@@ -197,11 +244,11 @@ class HistoricVideoImporter
 
                     $processingId = $result['processing_id'];
                     $inflight[] = $processingId;
-                    $decisions[] = [
+                    $decisions[$decisionIndex] = [
                         'decision' => 'dispatched',
+                        'work_item_tag' => $tag,
                         'label' => $label,
                         'processing_id' => $processingId,
-                        'assets' => ["historic-imports/{$processingId}/"],
                     ];
 
                     match ($result['tag']) {
@@ -789,7 +836,7 @@ class HistoricVideoImporter
             return ['tag' => 'error', 'processing_id' => '', 'detail' => 'FFmpeg concat failed: '.implode(' ', array_slice($cmdOutput, -3))];
         }
 
-        $result = $this->dispatchConcatFile($outputPath, $item);
+        $result = $this->dispatchConcatFile($outputPath, $item, 'lossless');
 
         Storage::disk('local')->delete(str_replace(storage_path('app/'), '', $outputPath));
 
@@ -830,7 +877,7 @@ class HistoricVideoImporter
             return ['tag' => 'error', 'processing_id' => '', 'detail' => 'FFmpeg re-encode concat failed: '.implode(' ', array_slice($cmdOutput, -3))];
         }
 
-        $result = $this->dispatchConcatFile($outputPath, $item);
+        $result = $this->dispatchConcatFile($outputPath, $item, 're-encoded');
 
         Storage::disk('local')->delete(str_replace(storage_path('app/'), '', $outputPath));
 
@@ -843,8 +890,9 @@ class HistoricVideoImporter
 
     /**
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
+     * @param  'lossless'|'re-encoded'  $concatenation
      */
-    private function dispatchConcatFile(string $outputPath, array $item): ProcessingResult
+    private function dispatchConcatFile(string $outputPath, array $item, string $concatenation): ProcessingResult
     {
         $filename = $item['date']->format('Y-m-d').' '.$item['service']->value.'.mkv';
         $file = new UploadedFile($outputPath, $filename, null, null, true);
@@ -853,7 +901,7 @@ class HistoricVideoImporter
             type: 'livestream',
             file: $file,
             clientFileDate: $item['client_file_date'] !== '' ? $item['client_file_date'] : null,
-            options: ['processing_metadata' => $this->historicImportMetadata($item, $outputPath)],
+            options: ['processing_metadata' => $this->historicImportMetadata($item, $outputPath, $concatenation)],
         );
     }
 
@@ -935,6 +983,13 @@ class HistoricVideoImporter
         $freeBytes = disk_free_space($this->tempDiskPath());
 
         if ($freeBytes === false) {
+            // Fail closed: an unmeasurable disk is not evidence of headroom, and
+            // running out mid-import corrupts a run. But say so loudly — silently
+            // skipping every item is a batch that looks like progress and is not.
+            Log::error('Historic import cannot measure temp disk free space; skipping work', [
+                'temp_disk_path' => $this->tempDiskPath(),
+            ]);
+
             return false;
         }
 
@@ -979,36 +1034,65 @@ class HistoricVideoImporter
             }
         }
 
-        return array_fill_keys($processingIds, 'timed_out');
+        // Past the deadline only the runs still moving are timed out. Marking the
+        // whole batch would inflate `errors` with runs that finished cleanly while
+        // one slow neighbour held the poll open.
+        $statuses = MediaProcessingLog::query()
+            ->whereIn('processing_id', $processingIds)
+            ->pluck('status', 'processing_id')
+            ->map(fn (ProcessingStatus|string $status): string => $status instanceof ProcessingStatus ? $status->value : $status)
+            ->all();
+
+        $outcomes = [];
+
+        foreach ($processingIds as $processingId) {
+            $status = $statuses[$processingId] ?? null;
+            $outcomes[$processingId] = in_array($status, [
+                ProcessingStatus::Pending->value,
+                ProcessingStatus::Started->value,
+                ProcessingStatus::Processing->value,
+            ], true) || $status === null
+                ? 'timed_out'
+                : $status;
+        }
+
+        return $outcomes;
     }
 
     /**
-     * @param  array<string, int>  $metrics
+     * @param  ImportMetrics  $metrics
      * @param  array<string, string>  $outcomes
      */
     private function recordTerminalOutcomes(array &$metrics, array $outcomes): void
     {
         foreach ($outcomes as $status) {
-            $metric = match ($status) {
-                ProcessingStatus::Failed->value => 'terminal_failed',
-                ProcessingStatus::Cancelled->value => 'terminal_cancelled',
-                ProcessingStatus::Skipped->value => 'terminal_skipped',
-                'timed_out' => 'timed_out',
-                default => null,
-            };
-
-            if ($metric !== null) {
-                $metrics[$metric]++;
-                $metrics['errors']++;
+            // Static keys throughout: a computed offset would erase the literal
+            // shape import() declares, which is what the callers type against.
+            if ($status === ProcessingStatus::Failed->value) {
+                $metrics['terminal_failed']++;
+            } elseif ($status === ProcessingStatus::Cancelled->value) {
+                $metrics['terminal_cancelled']++;
+            } elseif ($status === ProcessingStatus::Skipped->value) {
+                $metrics['terminal_skipped']++;
+            } elseif ($status === 'timed_out') {
+                $metrics['timed_out']++;
+            } else {
+                continue;
             }
+
+            $metrics['errors']++;
         }
     }
 
     /**
+     * WP-A4: enough provenance to identify a service's source files on the drive
+     * by hash, long after the drive is unmounted.
+     *
      * @param  array{tag: string, label: string, files: list<string>}  $item
+     * @param  'none'|'lossless'|'re-encoded'  $concatenation  How the dispatched file was produced
      * @return array{historic_import: array<string, mixed>}
      */
-    private function historicImportMetadata(array $item, string $path): array
+    private function historicImportMetadata(array $item, string $path, string $concatenation = 'none'): array
     {
         $sources = array_map(
             static fn (string $sourcePath): array => [
@@ -1024,9 +1108,7 @@ class HistoricVideoImporter
             'tag' => $item['tag'],
             'label' => $item['label'],
             'sources' => $sources,
-            'concatenation' => count($item['files']) > 1
-                ? ($path === $item['files'][0] ? 'none' : 'pipeline-generated')
-                : 'none',
+            'concatenation' => $concatenation,
             'codec_fingerprint' => $this->probeCodecInfo($path),
             'drive_volume' => $this->driveVolume($item['files'][0]),
             'imported_at' => now()->toISOString(),
@@ -1043,8 +1125,8 @@ class HistoricVideoImporter
     }
 
     /**
-     * @param  array<string, int>  $metrics
-     * @param  list<array{decision: string, label: string, assets: list<string>}>  $decisions
+     * @param  ImportMetrics  $metrics
+     * @param  list<array{decision: string, label: string, work_item_tag?: string, processing_id?: string}>  $decisions
      */
     private function writeReport(string $path, array $metrics, array $decisions): void
     {

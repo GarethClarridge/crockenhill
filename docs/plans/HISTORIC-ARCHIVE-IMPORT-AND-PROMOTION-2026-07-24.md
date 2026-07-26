@@ -546,9 +546,30 @@ longer mounted. **WP0–WP7** are the Stage B promotion work.
 | WP-A5 | Retain the RMS log for the duration of the import | pipeline change | WP-A1 |
 | WP-A6 | Keep the full-service compressed audio in Spaces (32 kbps, per Q6) | pipeline change | — |
 
-**Implemented 2026-07-25:** WP-A1–WP-A6 now use processing-ID-suffixed durable keys; raw
-payloads and compressed audio are archived before local cleanup, source provenance is attached
-before dispatch, and import decisions can be written with `--report=`.
+**Implemented 2026-07-25, corrected 2026-07-26:** WP-A1–WP-A6 use processing-ID-suffixed durable
+keys; raw payloads and compressed audio are archived before local cleanup, source provenance is
+attached before dispatch, and import decisions can be written with `--report=`.
+
+Three corrections from the 2026-07-26 review, all of which change how a reader should use this
+section:
+
+- **Artifacts are enumerable, not per-key.** Each durable artifact is appended to
+  `processing_metadata['service_artifacts']` as `{kind, disk, path, …}` rather than to the
+  kind-specific keys WP-A2/WP-A6 originally named. The OpenAI path chunks, so `raw` is genuinely
+  a list (`raw-chunk-0`, `raw-chunk-1`, … each carrying its `offset_seconds`), and both
+  `audit:historic-import-assets` and `DeleteLivestreamUpload` need to enumerate a run's artifacts
+  without knowing the key names. `ServiceArtifactStorage::recordedFor()` is the accessor.
+- **Disk resolution goes through `App\Support\ServiceArtifactDisk`.** Durable keys live on the
+  transcript disk, legacy `temp/…` keys on the temp disk, and in this environment those are
+  `do_spaces` and `local`. Every reader of `service_transcript_path` / `rms_log_path` resolves
+  through it; open-coding the prefix test is what broke `AnalyzeSegments`.
+- **There is no separate asset layout for historic imports.** An earlier pass introduced
+  `historic-imports/{processing_id}/…` for sermon video, transcript and thumbnails. It is gone:
+  imported sermons write to `sermons/{id}/…` exactly like a live run, which is what §4's "the
+  state it would be in if they were processed by today's code" requires.
+
+`media:migrate-service-transcripts` copies any surviving legacy temp-disk transcript onto the
+transcript disk (dry run by default, `--apply` to write).
 
 ### Stage B — promotion
 
@@ -569,8 +590,25 @@ improvement in its own right, it is small, and every Stage-A import run after it
 correctly-merged local data — so doing it before Stage A begins avoids re-importing services that
 were projected under the old guard.
 
-**Implemented 2026-07-25:** WP0 now merges livestream-derived items through the existing
-source-aware synchroniser instead of skipping services that already contain OpenLP or human items.
+**Implemented 2026-07-25, corrected 2026-07-26:** WP0 merges livestream-derived items through the
+existing source-aware synchroniser instead of skipping services that already contain OpenLP or
+human items.
+
+The correction matters, because removing the guard activated merge branches that had never been
+reachable for a livestream source. The order of service is authoritative and the detected run
+fills its gaps:
+
+- **Order-of-service entries keep their identity.** When a detected section matches an existing
+  OoS song, the run attaches its provenance (`livestream_processing_id`,
+  `livestream_service_section_id`) and nothing else — the title, `openlp_search_title`, `song_id`,
+  `source_title` and metadata stay as the order of service recorded them. Before the correction
+  the detected values overwrote all of these while the `source` column still read `openlp`, so a
+  replaced song link looked exactly like an untouched OoS row. That is a direct §3.1 risk.
+- **Position and ordering follow the order of service**, with detected-only items claiming the
+  next free positions after it.
+- **A clean merge does not open a review.** An OoS song the run did not detect is the expected
+  lossy case, not a conflict; flagging it sent every merged service to the inbox. `needs_review`
+  still comes from low-confidence sections, exactly as for a livestream-only service.
 
 **A note on scope discipline.** WP-A1 – WP-A6 are all live-pipeline changes, so they affect next
 Sunday as well as the historic archive. That is intentional and, in every case, an improvement:
@@ -963,12 +1001,16 @@ Work through it in order; do not start batch 1 with any item outstanding.
 
 **Code that must be merged first**
 
-1. **WP0 (landed 2026-07-25)** — verify the merge regression tests remain green.
-2. **WP-A1 – WP-A6 (landed 2026-07-25)** (§5, Stage A prerequisites) — verify their focused
-   retention tests and inspect one real canary run before starting the batch.
-   survival) is the one that changes "we must remount the drive to change anything" into "we can
-   re-run structure detection, song matching and section classification forever". If time forces a
-   subset, WP-A1, WP-A4 and WP-A6 are the ones that buy the most.
+1. **WP0 (landed 2026-07-25, corrected 2026-07-26)** — verify the merge regression tests remain
+   green, in particular that a clean detected run merging into an order of service leaves
+   `needs_review` false and does not rewrite the order of service's song identity.
+2. **WP-A1 – WP-A6 (landed 2026-07-25, corrected 2026-07-26)** (§5, Stage A prerequisites) — WP-A1
+   (transcript survival) is the one that changes "we must remount the drive to change anything"
+   into "we can re-run structure detection, song matching and section classification forever".
+   Verify their focused retention tests and inspect one real canary run before starting the batch.
+   The canary matters more than the tests here: `GenerateRmsLog` → `AnalyzeSegments` is the first
+   place a disk-resolution mistake shows up, and it only shows up when the transcript and temp
+   disks genuinely differ, which they do in this environment and did not in the original tests.
 3. **Add `THUMBNAIL_STORAGE_DISK=do_spaces` to `.env`** (WP6, Strategy A — Q5 confirmed production
    uses `do_spaces`). Thumbnails generated before that line exists stay on the local disk and will
    not promote. Verify it took effect with the `config:show` check in item 4 below rather than
@@ -1012,10 +1054,11 @@ Work through it in order; do not start batch 1 with any item outstanding.
 **Capture before you start, and between batches**
 
 8. **Save the dry-run inventory as the corpus manifest using `--report=`.** Store it securely
-   outside the public repository because it contains absolute source paths and hashes. It records
-   what
-   the drive contained as the importer saw it — including the items it classified `skip-small`,
-   `skip-no-date` and `skip-unclassified`, which leave no database trace at all.
+   outside the public repository, because it contains absolute source paths and hashes. It records
+   what the drive contained as the importer saw it — including the items it classified
+   `skip-small`, `skip-no-date` and `skip-unclassified`, which leave no database trace at all. One
+   entry per work item: a dispatched item's entry carries its `processing_id` and the
+   `work_item_tag` it was classified as, which is what `audit:historic-import-assets` reads.
 9. **Snapshot the database before batch 1 and after each batch.** All the reviewed structure that
    Stage B promotes lives only in the local database, so a lost local database means re-importing
    from the drive — the exact thing this plan is trying to do only once.
@@ -1047,7 +1090,10 @@ vendor/bin/sail artisan sermons:import-historic-videos --limit=6 --report=storag
 
 # 3. Review at /admin/services (needs-review filter), disposition each service.
 
-# 3a. Ensure every asset prefix emitted by the batch is referenced by retained data.
+# 3a. Confirm the batch actually retained what it was supposed to: for every run the
+#     report dispatched, each recorded service artifact and each derived sermon asset
+#     must still resolve on its disk. Runs that did not complete are reported as
+#     warnings, not failures. Do this while the drive is still mounted.
 vendor/bin/sail artisan audit:historic-import-assets storage/scratch/historic-import-batch-01.json
 
 # 4. Re-run the identical command. checkExistence() (:880) skips completed,

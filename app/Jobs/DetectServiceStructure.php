@@ -25,6 +25,7 @@ use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\SermonAutoExtractionPolicy;
+use App\Support\ServiceArtifactDisk;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -625,16 +626,14 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             throw new \RuntimeException('No full-service transcript recorded for this run; TranscribeFullService must run first.');
         }
 
-        $tempDisk = str_starts_with($transcriptPath, 'service-transcripts/')
-            ? (string) config('media-processing.storage.transcript_disk', 'local')
-            : (string) config('media-processing.storage.temp_disk', 'local');
+        $artifactDisk = ServiceArtifactDisk::for($transcriptPath);
 
-        if (! Storage::disk($tempDisk)->exists($transcriptPath)) {
+        if (! Storage::disk($artifactDisk)->exists($transcriptPath)) {
             throw new \RuntimeException("Full-service transcript artifact missing: {$transcriptPath}");
         }
 
         $transcript = ChurchServiceTranscript::fromArray(
-            json_decode((string) Storage::disk($tempDisk)->get($transcriptPath), true)
+            json_decode((string) Storage::disk($artifactDisk)->get($transcriptPath), true)
         );
 
         if ($transcript->isEmpty()) {
@@ -714,15 +713,13 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             return $structure;
         }
 
-        $tempDisk = str_starts_with($rmsLogPath, 'service-transcripts/')
-            ? (string) config('media-processing.storage.transcript_disk', 'local')
-            : (string) config('media-processing.storage.temp_disk', 'local');
+        $artifactDisk = ServiceArtifactDisk::for($rmsLogPath);
 
-        if (! Storage::disk($tempDisk)->exists($rmsLogPath)) {
+        if (! Storage::disk($artifactDisk)->exists($rmsLogPath)) {
             return $structure;
         }
 
-        return $snapService->snap($structure, (string) Storage::disk($tempDisk)->get($rmsLogPath));
+        return $snapService->snap($structure, (string) Storage::disk($artifactDisk)->get($rmsLogPath));
     }
 
     /**

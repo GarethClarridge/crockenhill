@@ -4,22 +4,29 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
-use App\Models\Sermon;
+use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Support\SermonAssetReferences;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Storage;
 
 /**
- * Checks an import manifest for objects that no production row references.
+ * Verifies that everything a historic import batch was supposed to retain is
+ * actually retained, while the drive is still mounted and a re-run is cheap.
  *
- * Deletion trigger: remove after the historic archive promotion and its rollback
- * window have closed and the import manifests have been retired.
+ * The batch report names the processing runs; this resolves each one and checks
+ * that the durable artifacts recorded against it, and the sermon assets derived
+ * from it, resolve to objects that exist on their configured disks.
+ *
+ * Deletion trigger: remove once the historic archive is fully promoted and the
+ * import manifests have been retired.
  */
 class AuditHistoricImportAssetsCommand extends Command
 {
     protected $signature = 'audit:historic-import-assets {report : JSON report produced by sermons:import-historic-videos}';
 
-    protected $description = 'Fail when a historic import report names an asset prefix no database row references';
+    protected $description = 'Fail when a historic import batch is missing an artifact it was supposed to retain';
 
     public function handle(): int
     {
@@ -32,45 +39,113 @@ class AuditHistoricImportAssetsCommand extends Command
             return self::FAILURE;
         }
 
-        $references = $this->references();
-        $orphans = [];
+        $processingIds = $this->dispatchedProcessingIds($payload);
 
-        foreach ($payload['items'] ?? [] as $item) {
-            foreach (is_array($item['assets'] ?? null) ? $item['assets'] : [] as $prefix) {
-                if (is_string($prefix) && ! collect($references)->contains(fn (string $path): bool => str_starts_with($path, $prefix))) {
-                    $orphans[] = $prefix;
+        if ($processingIds === []) {
+            $this->info('The report dispatched no processing runs; nothing to audit.');
+
+            return self::SUCCESS;
+        }
+
+        $missing = [];
+        $unresolved = [];
+        $incomplete = [];
+        $checked = 0;
+
+        foreach ($processingIds as $processingId) {
+            $log = MediaProcessingLog::query()
+                ->with('sermon')
+                ->where('processing_id', $processingId)
+                ->first();
+
+            if ($log === null) {
+                $unresolved[] = $processingId;
+
+                continue;
+            }
+
+            if ($log->status !== ProcessingStatus::Completed) {
+                $incomplete[] = "{$processingId} ({$log->status->value})";
+
+                continue;
+            }
+
+            foreach ($this->expectedAssets($log) as $asset) {
+                $checked++;
+
+                if (! Storage::disk($asset['disk'])->exists($asset['path'])) {
+                    $missing[] = "{$processingId} {$asset['kind']} → {$asset['disk']}:{$asset['path']}";
                 }
             }
         }
 
-        if ($orphans !== []) {
-            $this->error('Unreferenced historic import asset prefixes: '.implode(', ', array_unique($orphans)));
+        foreach ($incomplete as $entry) {
+            $this->warn("Run did not complete, so its artifacts were not audited: {$entry}");
+        }
 
+        if ($unresolved !== []) {
+            $this->error('Report names processing runs with no database row: '.implode(', ', $unresolved));
+        }
+
+        if ($missing !== []) {
+            $this->error('Retained artifacts missing from storage:');
+
+            foreach ($missing as $entry) {
+                $this->line("  - {$entry}");
+            }
+        }
+
+        if ($unresolved !== [] || $missing !== []) {
             return self::FAILURE;
         }
 
-        $this->info('Historic import manifest has no unreferenced asset prefixes.');
+        $this->info("Historic import batch is fully retained ({$checked} assets verified).");
 
         return self::SUCCESS;
     }
 
     /**
+     * @param  array<string, mixed>  $payload
      * @return list<string>
      */
-    private function references(): array
+    private function dispatchedProcessingIds(array $payload): array
     {
-        $paths = Sermon::query()->get()->flatMap(
-            fn (Sermon $sermon) => collect(SermonAssetReferences::for($sermon))->pluck('path'),
-        )->all();
+        $ids = [];
 
-        MediaProcessingLog::query()->each(function (MediaProcessingLog $log) use (&$paths): void {
-            foreach ($log->processing_metadata?->toArray() ?? [] as $value) {
-                if (is_string($value) && str_contains($value, '/')) {
-                    $paths[] = $value;
-                }
+        foreach (is_array($payload['items'] ?? null) ? $payload['items'] : [] as $item) {
+            if (! is_array($item)) {
+                continue;
             }
-        });
 
-        return array_values(array_filter($paths, 'is_string'));
+            $processingId = $item['processing_id'] ?? null;
+
+            if (is_string($processingId) && $processingId !== '') {
+                $ids[] = $processingId;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * The durable service artifacts plus every asset the derived sermon references.
+     *
+     * @return list<array{kind: string, disk: string, path: string}>
+     */
+    private function expectedAssets(MediaProcessingLog $log): array
+    {
+        $assets = ServiceArtifactStorage::recordedFor($log);
+
+        if ($log->sermon !== null) {
+            foreach (SermonAssetReferences::for($log->sermon) as $reference) {
+                $assets[] = [
+                    'kind' => 'sermon:'.$reference['kind'],
+                    'disk' => $reference['disk'],
+                    'path' => $reference['path'],
+                ];
+            }
+        }
+
+        return $assets;
     }
 }

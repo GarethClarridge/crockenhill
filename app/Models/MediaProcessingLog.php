@@ -12,6 +12,7 @@ use App\Data\SermonAnalysisCast;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
+use App\Support\ServiceArtifactDisk;
 use Database\Factories\MediaProcessingLogFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -562,7 +563,11 @@ class MediaProcessingLog extends Model
 
     /**
      * Whether the full-service transcript artifact both is recorded and still
-     * exists on the temp disk (it deliberately survives run cleanup).
+     * exists on whichever disk holds it.
+     *
+     * Current runs write a durable `service-transcripts/…` key on the transcript
+     * disk; runs completed before that recorded a temp-disk key which the daily
+     * sweep may already have taken. ServiceArtifactDisk resolves both.
      */
     public function hasStoredServiceTranscript(): bool
     {
@@ -572,11 +577,9 @@ class MediaProcessingLog extends Model
             return false;
         }
 
-        $tempDisk = str_starts_with($transcriptPath, 'service-transcripts/')
-            ? (string) config('media-processing.storage.transcript_disk', 'local')
-            : (string) config('media-processing.storage.temp_disk', 'local');
+        $artifactDisk = ServiceArtifactDisk::for($transcriptPath);
 
-        return Storage::disk($tempDisk)->exists($transcriptPath);
+        return Storage::disk($artifactDisk)->exists($transcriptPath);
     }
 
     public function putServiceTranscriptPath(string $path): void

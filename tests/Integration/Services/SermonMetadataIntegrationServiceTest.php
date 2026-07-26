@@ -235,7 +235,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_names_historic_import_videos_by_processing_id_instead_of_local_sermon_id(): void
+    public function it_stores_historic_import_videos_in_the_ordinary_sermon_layout(): void
     {
         Storage::fake('local');
         Storage::fake('public');
@@ -261,13 +261,13 @@ class SermonMetadataIntegrationServiceTest extends TestCase
 
         $finalPath = $service->storeVideoForSermon($log->processing_id, $sermon->id);
 
-        $this->assertSame("historic-imports/{$log->processing_id}/sermon/video.mp4", $finalPath);
-        $this->assertStringNotContainsString("/{$sermon->id}/", $finalPath);
+        $this->assertSame("sermons/{$sermon->id}/video.mp4", $finalPath);
+        $this->assertStringNotContainsString('historic-imports', $finalPath);
         Storage::disk('public')->assertExists($finalPath);
     }
 
     #[Test]
-    public function it_refuses_to_replace_a_different_existing_historic_video(): void
+    public function it_refuses_to_replace_an_existing_sermon_video_with_different_content(): void
     {
         Storage::fake('local');
         Storage::fake('public');
@@ -280,14 +280,10 @@ class SermonMetadataIntegrationServiceTest extends TestCase
         $sermon = Sermon::factory()->create();
         $log = MediaProcessingLog::factory()->livestream()->processing()->create([
             'video_file_path' => 'temp/sermon-video.mp4',
-            'processing_metadata' => [
-                'historic_import' => ['label' => 'archive recording'],
-            ],
         ]);
-        $finalPath = "historic-imports/{$log->processing_id}/sermon/video.mp4";
 
         Storage::disk('local')->put('temp/sermon-video.mp4', str_repeat('new-video', 128));
-        Storage::disk('public')->put($finalPath, str_repeat('different-video', 128));
+        Storage::disk('public')->put("sermons/{$sermon->id}/video.mp4", str_repeat('different-video', 128));
 
         $service = $this->partialMock(SermonMetadataIntegrationService::class, function ($mock): void {
             $mock->shouldReceive('validateVideoFile')->once()->andReturnTrue();
@@ -297,6 +293,36 @@ class SermonMetadataIntegrationServiceTest extends TestCase
         $this->expectExceptionMessage('different content');
 
         $service->storeVideoForSermon($log->processing_id, $sermon->id);
+    }
+
+    #[Test]
+    public function it_accepts_a_byte_identical_re_upload_without_rewriting_it(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+        ]);
+
+        $sermon = Sermon::factory()->create();
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'video_file_path' => 'temp/sermon-video.mp4',
+        ]);
+
+        $contents = str_repeat('identical-video', 512);
+        Storage::disk('local')->put('temp/sermon-video.mp4', $contents);
+        Storage::disk('public')->put("sermons/{$sermon->id}/video.mp4", $contents);
+
+        $service = $this->partialMock(SermonMetadataIntegrationService::class, function ($mock): void {
+            $mock->shouldReceive('validateVideoFile')->once()->andReturnTrue();
+        });
+
+        $finalPath = $service->storeVideoForSermon($log->processing_id, $sermon->id);
+
+        $this->assertSame("sermons/{$sermon->id}/video.mp4", $finalPath);
+        $this->assertSame($contents, Storage::disk('public')->get($finalPath));
     }
 
     #[Test]

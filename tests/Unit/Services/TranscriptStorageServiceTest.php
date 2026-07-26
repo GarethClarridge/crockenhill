@@ -62,7 +62,7 @@ class TranscriptStorageServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_uses_the_processing_id_for_a_historic_import_transcript(): void
+    public function it_stores_a_historic_import_transcript_in_the_ordinary_layout(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
             'processing_metadata' => [
@@ -70,10 +70,11 @@ class TranscriptStorageServiceTest extends TestCase
             ],
         ]);
 
-        $path = $this->service->storeTranscript(42, 'Historic transcript', $log->processing_id);
+        $path = $this->service->storeTranscript(42, 'Historic transcript');
 
-        $this->assertSame("historic-imports/{$log->processing_id}/sermon/transcript.md", $path);
-        $this->assertStringNotContainsString('sermon_42', $path);
+        $this->assertStringStartsWith('transcripts/', $path);
+        $this->assertStringNotContainsString($log->processing_id, $path);
+        $this->assertStringNotContainsString('historic-imports', $path);
         Storage::assertExists($path);
     }
 

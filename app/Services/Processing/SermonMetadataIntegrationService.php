@@ -8,7 +8,7 @@ use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
-use App\Support\HistoricImportAssetPath;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -94,7 +94,7 @@ class SermonMetadataIntegrationService
         ]);
 
         // Simple organization by sermon ID
-        $finalVideoPath = $this->organizeVideoFile($videoPath, $sermonId, $processingId);
+        $finalVideoPath = $this->organizeVideoFile($videoPath, $sermonId);
 
         return $finalVideoPath;
     }
@@ -188,7 +188,39 @@ class SermonMetadataIntegrationService
      * @param  int  $sermonId  The sermon ID
      * @return string The final organized path
      */
-    private function organizeVideoFile(string $videoPath, int $sermonId, string $processingId): string
+    /**
+     * Whether the object already at $finalPath is byte-identical to the local file.
+     *
+     * Hashed incrementally off the stream: a sermon video is routinely hundreds of
+     * megabytes, so reading it into a string to hash it would exhaust the worker's
+     * memory limit on exactly the re-run this check exists to make safe.
+     */
+    private function storedVideoMatches(Filesystem $sermonDisk, string $finalPath, string $videoPath): bool
+    {
+        $sourceHash = hash_file('sha256', $videoPath);
+
+        if ($sourceHash === false) {
+            return false;
+        }
+
+        $storedStream = $sermonDisk->readStream($finalPath);
+
+        if (! is_resource($storedStream)) {
+            throw new \RuntimeException("Unable to verify existing sermon video: {$finalPath}");
+        }
+
+        try {
+            $context = hash_init('sha256');
+            hash_update_stream($context, $storedStream);
+            $storedHash = hash_final($context);
+        } finally {
+            fclose($storedStream);
+        }
+
+        return hash_equals($sourceHash, $storedHash);
+    }
+
+    private function organizeVideoFile(string $videoPath, int $sermonId): string
     {
         $sermonDiskName = config('media-processing.storage.sermon_disk', 'public');
 
@@ -196,26 +228,11 @@ class SermonMetadataIntegrationService
         $sermonDisk = Storage::disk($sermonDiskName);
 
         // Create directory structure based on sermon ID
-        $finalPath = HistoricImportAssetPath::isHistoricProcessing($processingId)
-            ? HistoricImportAssetPath::video($processingId)
-            : "sermons/{$sermonId}/video.mp4";
-        $directory = dirname($finalPath);
+        $directory = "sermons/{$sermonId}";
+        $finalPath = "{$directory}/video.mp4";
 
         if ($sermonDisk->exists($finalPath)) {
-            $sourceHash = hash_file('sha256', $videoPath);
-            $storedStream = $sermonDisk->readStream($finalPath);
-
-            if (! is_resource($storedStream)) {
-                throw new \RuntimeException("Unable to verify existing sermon video: {$finalPath}");
-            }
-
-            try {
-                $storedHash = hash('sha256', stream_get_contents($storedStream) ?: '');
-            } finally {
-                fclose($storedStream);
-            }
-
-            if ($sourceHash !== false && hash_equals($sourceHash, $storedHash)) {
+            if ($this->storedVideoMatches($sermonDisk, $finalPath, $videoPath)) {
                 return $finalPath;
             }
 
@@ -232,9 +249,15 @@ class SermonMetadataIntegrationService
         }
 
         try {
-            $sermonDisk->put($finalPath, $stream);
+            $uploaded = $sermonDisk->put($finalPath, $stream);
         } finally {
             fclose($stream);
+        }
+
+        // put() is the persistence signal; re-probing with exists() here costs an
+        // extra round trip and tells us nothing put() did not already report.
+        if ($uploaded === false) {
+            throw new \RuntimeException("Failed to persist sermon video to {$sermonDiskName}: {$finalPath}");
         }
 
         $storedFileSize = $sermonDisk->size($finalPath);

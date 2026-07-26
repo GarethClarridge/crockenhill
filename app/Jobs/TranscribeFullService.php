@@ -12,6 +12,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
+use App\Support\ServiceArtifactDisk;
 use App\Support\TranscriptPromptEchoDetector;
 use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -167,14 +168,12 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
             return;
         }
 
-        $tempDisk = str_starts_with($path, 'service-transcripts/')
-            ? (string) config('media-processing.storage.transcript_disk', 'local')
-            : (string) config('media-processing.storage.temp_disk', 'local');
+        $artifactDisk = ServiceArtifactDisk::for($path);
         $transcript = ChurchServiceTranscript::fromArray(
-            json_decode((string) Storage::disk($tempDisk)->get($path), true)
+            json_decode((string) Storage::disk($artifactDisk)->get($path), true)
         );
 
-        Storage::disk($tempDisk)->put(
+        Storage::disk($artifactDisk)->put(
             $path,
             json_encode(
                 $this->filterTranscript($transcript, $detector)->toArray(),
