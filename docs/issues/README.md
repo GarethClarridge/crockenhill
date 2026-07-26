@@ -672,6 +672,7 @@ building against recurrence fields scheduled for removal in backlog item 3.5.
 | O9 · Dead `SermonValidationService` (+ Unit/Integration tests, stale config comment) | Backlog item **2.1** |
 | O14 · Dead `public/images/podcast/*.webp` artwork + unused `PageImagePresenter::headingImageSrcset()` | Backlog item **2.1** (issue-tracker intake block) |
 | O19 · Related-page cards surface legal/policy noise, out-of-season events, robotic "Learn about..." labels, and repeated title/description copy | Reassess while implementing backlog item **3.1**, which deletes/folds the current presentation path including `RelatedPagePresenter`; do not patch that scheduled-to-change seam first |
+| O52 · Spent one-shot command `ConvertJpgToWebp` and companion test `ConvertJpgToWebpCommandTest` | Backlog item **2.6** / Remainder **R8** (see [dead-code-convert-jpg-to-webp.md](dead-code-convert-jpg-to-webp.md)) |
 
 ## 🔵 Newcomer-UX opportunities — owned by the active plan
 
