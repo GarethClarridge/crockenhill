@@ -9,6 +9,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
+use App\Services\Song\SongTitleResolver;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -205,15 +206,25 @@ class ChurchServiceFormData extends Form
     }
 
     /**
+     * Catalogue candidates per item, best first.
+     *
+     * A raw LIKE over the typed title cannot see past the decoration an order of service
+     * carries — "98 Sing to God" and "NIP 'Restore O Lord'" match no row on substring alone,
+     * even though SongTitleResolver identifies both outright. So the resolver's answer leads
+     * the list, and the LIKE that follows searches its cleaned probe rather than the raw line.
+     *
      * @return array<int, array<int, array{id:int,title:string}>>
      */
     public function songSuggestions(): array
     {
         $suggestions = [];
 
+        // Built at most once per render, and only if there is a song title to look up —
+        // it loads a lookup over the whole catalogue.
+        $songTitleResolver = null;
+
         foreach ($this->items as $index => $item) {
             $title = trim($item['title']);
-            $escapedTitle = $this->escapeLike($title);
 
             if ($item['section_type'] !== ServiceSectionType::Song->value || mb_strlen($title) < 2) {
                 $suggestions[$index] = [];
@@ -221,24 +232,81 @@ class ChurchServiceFormData extends Form
                 continue;
             }
 
-            $suggestions[$index] = Song::query()
+            $songTitleResolver ??= SongTitleResolver::fromDatabase();
+
+            $resolvedSongId = $songTitleResolver->resolve($title)?->songId;
+            $probe = $songTitleResolver->searchProbe($title);
+            $escapedProbe = $this->escapeLike($probe === '' ? $title : $probe);
+
+            $matches = Song::query()
                 ->select(['id', 'title'])
-                ->where(function ($query) use ($escapedTitle): void {
-                    $query->where('title', 'like', "%{$escapedTitle}%")
-                        ->orWhere('alternate_title', 'like', "%{$escapedTitle}%")
-                        ->orWhere('canonical_key', 'like', "%{$escapedTitle}%");
+                ->where(function ($query) use ($escapedProbe): void {
+                    $query->where('title', 'like', "%{$escapedProbe}%")
+                        ->orWhere('alternate_title', 'like', "%{$escapedProbe}%")
+                        ->orWhere('canonical_key', 'like', "%{$escapedProbe}%");
                 })
+                ->when($resolvedSongId !== null, fn ($query) => $query->whereKeyNot($resolvedSongId))
                 ->orderBy('title')
                 ->limit(5)
-                ->get()
+                ->get();
+
+            // Prepended rather than sorted into the LIKE results: the resolver's answer must
+            // survive the limit even when the probe matches five other titles alphabetically first.
+            if ($resolvedSongId !== null) {
+                $resolvedSong = Song::query()->select(['id', 'title'])->find($resolvedSongId);
+
+                if ($resolvedSong instanceof Song) {
+                    $matches = $matches->prepend($resolvedSong);
+                }
+            }
+
+            $suggestions[$index] = $matches
+                ->take(5)
                 ->map(fn (Song $song): array => [
                     'id' => $song->id,
                     'title' => $song->title,
                 ])
+                ->values()
                 ->all();
         }
 
         return $suggestions;
+    }
+
+    /**
+     * Titles of the songs currently linked, keyed by item index — so a link the prefill made
+     * on the reviewer's behalf is visible and checkable rather than an unlabelled flag.
+     *
+     * @return array<int, string>
+     */
+    public function linkedSongTitles(): array
+    {
+        $songIds = collect($this->items)
+            ->pluck('song_id')
+            ->filter(fn (mixed $songId): bool => is_numeric($songId))
+            ->map(fn (mixed $songId): int => (int) $songId)
+            ->unique();
+
+        if ($songIds->isEmpty()) {
+            return [];
+        }
+
+        $titles = Song::query()
+            ->whereKey($songIds->all())
+            ->pluck('title', 'id');
+
+        $linked = [];
+
+        foreach ($this->items as $index => $item) {
+            $songId = is_numeric($item['song_id'] ?? null) ? (int) $item['song_id'] : null;
+            $title = $songId === null ? null : $titles->get($songId);
+
+            if (is_string($title)) {
+                $linked[$index] = $title;
+            }
+        }
+
+        return $linked;
     }
 
     /**

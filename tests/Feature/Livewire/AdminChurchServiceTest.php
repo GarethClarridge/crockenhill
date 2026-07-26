@@ -482,6 +482,66 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function manual_service_form_suggests_songs_a_substring_search_cannot_reach(): void
+    {
+        $this->actingAs($this->admin);
+
+        $numbered = Song::factory()->create([
+            'title' => 'Sing to God',
+            'canonical_key' => 'sing to god',
+            'praise_number' => '98',
+        ]);
+
+        Livewire::test(ManageChurchService::class)
+            ->set('form.items.0.section_type', ServiceSectionType::Song->value)
+            ->set('form.items.0.title', '98 Sing to God')
+            ->assertSee('Sing to God')
+            ->call('selectSong', 0, $numbered->id)
+            ->assertSet('form.items.0.song_id', $numbered->id);
+    }
+
+    #[Test]
+    public function manual_service_form_leads_the_suggestions_with_the_resolved_song(): void
+    {
+        $this->actingAs($this->admin);
+
+        $resolved = Song::factory()->create([
+            'title' => 'Restore O Lord',
+            'canonical_key' => 'restore o lord',
+        ]);
+
+        // Sorts before the resolved title alphabetically, so it would head a plain LIKE list.
+        Song::factory()->create([
+            'title' => 'Before you restore O Lord we wait',
+            'canonical_key' => 'before you restore o lord we wait',
+        ]);
+
+        $suggestions = Livewire::test(ManageChurchService::class)
+            ->set('form.items.0.section_type', ServiceSectionType::Song->value)
+            ->set('form.items.0.title', 'NIP ‘Restore O Lord’')
+            ->viewData('songSuggestions');
+
+        $this->assertSame($resolved->id, $suggestions[0][0]['id']);
+    }
+
+    #[Test]
+    public function manual_service_form_names_the_linked_song(): void
+    {
+        $this->actingAs($this->admin);
+
+        $song = Song::factory()->create([
+            'title' => 'Living Hope',
+            'canonical_key' => 'living hope',
+        ]);
+
+        Livewire::test(ManageChurchService::class)
+            ->set('form.items.0.section_type', ServiceSectionType::Song->value)
+            ->set('form.items.0.title', 'Living Hope')
+            ->call('selectSong', 0, $song->id)
+            ->assertSee('Linked song: Living Hope');
+    }
+
+    #[Test]
     public function manual_service_form_escapes_like_wildcards_in_song_autocomplete(): void
     {
         $this->actingAs($this->admin);

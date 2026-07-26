@@ -49,6 +49,36 @@ trait WithInboundEmailTestHelpers
         ];
     }
 
+    /**
+     * Build processing_metadata for a multi-service email. The parser stores the primary plan's
+     * fields at the top level as well, so the flattened `items` cover only the first plan.
+     *
+     * @param  array<int, array{date:string,service:string,items:array<int, array<string, mixed>>}>  $plans
+     * @return array<string, mixed>
+     */
+    protected function multiServiceProcessingMetadata(array $plans, float $confidenceScore = 0.70): array
+    {
+        $primary = $plans[0];
+        $metadata = $this->processingMetadata(
+            $primary['date'],
+            $primary['service'],
+            $primary['items'],
+            confidenceScore: $confidenceScore,
+        );
+
+        $metadata['parsing']['service_plans'] = array_map(static fn (array $plan): array => [
+            'plan_key' => "{$plan['service']}:{$plan['date']}",
+            'service' => $plan['service'],
+            'date' => $plan['date'],
+            'items' => $plan['items'],
+            'confidence' => $confidenceScore,
+            'needs_review' => false,
+            'should_import' => true,
+        ], $plans);
+
+        return $metadata;
+    }
+
     protected function bindExtractor(OosEmailItemExtractionResult $result): void
     {
         $this->app->bind(OosEmailItemExtractor::class, fn () => new class($result) implements OosEmailItemExtractor

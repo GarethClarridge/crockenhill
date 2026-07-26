@@ -33,7 +33,8 @@
         <x-admin.church-services.planned-items-editor
             :items="$items"
             :section-type-options="$sectionTypeOptions"
-            :song-suggestions="$songSuggestions" />
+            :song-suggestions="$songSuggestions"
+            :linked-song-titles="$linkedSongTitles" />
     </x-card>
 
     <x-slot:sidebar>

@@ -16,6 +16,7 @@ class OosEmailParserService
 {
     public function __construct(
         private readonly OosEmailItemExtractor $itemExtractor,
+        private readonly ExistingEmailImportLookup $existingEmailImports,
     ) {}
 
     public function parse(InboundEmail $inboundEmail): OosEmailParseResult
@@ -28,11 +29,13 @@ class OosEmailParserService
             $receivedAt->toDateString(),
         );
         $warnings = $extraction->notes;
+        $validations = [];
         $servicePlans = $this->buildServicePlans(
             $extraction,
             $inboundEmail->subject,
-            $receivedAt,
+            $inboundEmail->message_id,
             $warnings,
+            $validations,
         );
         $primary = $this->primaryPlan($servicePlans);
         $primaryDate = $primary->date;
@@ -48,10 +51,11 @@ class OosEmailParserService
             $warnings[] = 'Could not confidently infer the service type from the email.';
         }
 
-        $primaryPlausibility = $this->validateDatePlausibility(
+        // Reused rather than recomputed: the duplicate-import half of the check is a query.
+        $primaryPlausibility = $validations[$primary->key()] ?? $this->validateDatePlausibility(
             $primaryDate,
             $inboundEmail->subject,
-            $receivedAt,
+            $inboundEmail->message_id,
         );
 
         return new OosEmailParseResult(
@@ -93,13 +97,15 @@ class OosEmailParserService
 
     /**
      * @param  list<string>  $warnings
+     * @param  array<string, array{plausible:bool,warnings:list<string>,suggested_date:?string,reasons:list<string>,claimed_weekday:?string}>  $validations
      * @return non-empty-list<OosEmailServicePlan>
      */
     private function buildServicePlans(
         OosEmailItemExtractionResult $extraction,
         string $subject,
-        CarbonImmutable $receivedAt,
+        ?string $sourceMessageId,
         array &$warnings,
+        array &$validations,
     ): array {
         if ($extraction->services === []) {
             return [$this->buildPlan(
@@ -108,8 +114,9 @@ class OosEmailParserService
                 $extraction->items,
                 $extraction->confidence,
                 $subject,
-                $receivedAt,
+                $sourceMessageId,
                 $warnings,
+                $validations,
             )];
         }
 
@@ -122,8 +129,9 @@ class OosEmailParserService
                 $rawPlan['items'],
                 $rawPlan['confidence'],
                 $subject,
-                $receivedAt,
+                $sourceMessageId,
                 $warnings,
+                $validations,
             );
         }
 
@@ -133,6 +141,7 @@ class OosEmailParserService
     /**
      * @param  array<int, array{type:string,title:string}>  $rawItems
      * @param  list<string>  $warnings
+     * @param  array<string, array{plausible:bool,warnings:list<string>,suggested_date:?string,reasons:list<string>,claimed_weekday:?string}>  $validations
      */
     private function buildPlan(
         ?string $rawService,
@@ -140,8 +149,9 @@ class OosEmailParserService
         array $rawItems,
         float $rawConfidence,
         string $subject,
-        CarbonImmutable $receivedAt,
+        ?string $sourceMessageId,
         array &$warnings,
+        array &$validations,
     ): OosEmailServicePlan {
         $service = $this->validatedService($rawService);
         $date = $this->validatedDate($rawDate);
@@ -164,7 +174,7 @@ class OosEmailParserService
             $confidence = min($confidence, 0.40);
         }
 
-        $plausibility = $this->validateDatePlausibility($date, $subject, $receivedAt);
+        $plausibility = $this->validateDatePlausibility($date, $subject, $sourceMessageId);
 
         if (! $plausibility['plausible']) {
             $confidence = min($confidence, 0.74);
@@ -178,6 +188,10 @@ class OosEmailParserService
             && $date !== null
             && $service !== null
             && $items !== [];
+
+        if ($date !== null && $service !== null) {
+            $validations["{$service->value}:{$date}"] = $plausibility;
+        }
 
         return new OosEmailServicePlan(
             service: $service,
@@ -303,12 +317,20 @@ class OosEmailParserService
     }
 
     /**
+     * Hold a resolved date for review when it is not a Sunday, or when that date already
+     * carries an order of service imported from a different email.
+     *
+     * Nothing here compares the date to when the email arrived. Emails are entered by hand from
+     * the archive as well as received live, so "before the email was received" says nothing
+     * about correctness. A wrong day-of-month typo, by contrast, lands off Sunday six times in
+     * seven, and a second email for a Sunday already imported is the shape of a correction.
+     *
      * @return array{plausible:bool,warnings:list<string>,suggested_date:?string,reasons:list<string>,claimed_weekday:?string}
      */
     private function validateDatePlausibility(
         ?string $date,
         string $subject,
-        CarbonImmutable $receivedAt,
+        ?string $sourceMessageId,
     ): array {
         $plausible = [
             'plausible' => true,
@@ -332,30 +354,36 @@ class OosEmailParserService
         $plausible['claimed_weekday'] = $claimedWeekday;
         $resolvedWeekday = strtolower($resolved->englishDayOfWeek);
         $reasons = [];
+        $warnings = [];
+        $suggestedDate = null;
 
         if ($claimedWeekday !== null && $claimedWeekday !== $resolvedWeekday) {
             $reasons[] = "the email refers to a {$claimedWeekday} but {$date} is a {$resolvedWeekday}";
         }
 
-        $windowStart = $receivedAt->startOfDay();
-        $maxFutureDays = (int) config('service-tracking.email_parsing.max_future_days', 14);
-        $windowEnd = $windowStart->addDays($maxFutureDays);
+        if ($resolvedWeekday !== 'sunday') {
+            $reasons[] = "{$date} is a {$resolvedWeekday}, not a Sunday";
+        }
 
-        if ($resolved->lessThan($windowStart)) {
-            $reasons[] = "{$date} is before the email was received";
-        } elseif ($resolved->greaterThan($windowEnd)) {
-            $reasons[] = "{$date} is more than {$maxFutureDays} days after the email was received";
+        if ($reasons !== []) {
+            $suggestedDate = $this->nearestSunday($resolved);
+            $warnings[] = "Resolved service date {$date} looks implausible (".implode('; ', $reasons).').';
+
+            if ($suggestedDate !== null) {
+                $warnings[] = "The nearest Sunday is {$suggestedDate}; confirm before importing.";
+            }
+        }
+
+        $alreadyImported = $this->existingEmailImports->servicesImportedFromOtherEmails($date, $sourceMessageId);
+
+        if ($alreadyImported !== []) {
+            $reasons[] = "{$date} already has an order of service imported from another email (".implode(', ', $alreadyImported).')';
+            $warnings[] = "{$date} already has an order of service imported from another email ("
+                .implode(', ', $alreadyImported).'); check this is not a duplicate before importing.';
         }
 
         if ($reasons === []) {
             return $plausible;
-        }
-
-        $suggestedDate = $this->suggestPlausibleDate($resolved, $windowStart, $windowEnd, $claimedWeekday);
-        $warnings = ["Resolved service date {$date} looks implausible (".implode('; ', $reasons).').'];
-
-        if ($suggestedDate !== null) {
-            $warnings[] = "The email most likely refers to {$suggestedDate}; confirm before importing.";
         }
 
         return [
@@ -376,28 +404,21 @@ class OosEmailParserService
         return strtolower($matches[1]);
     }
 
-    private function suggestPlausibleDate(
-        CarbonImmutable $resolved,
-        CarbonImmutable $windowStart,
-        CarbonImmutable $windowEnd,
-        ?string $claimedWeekday,
-    ): ?string {
-        $targetDay = $resolved->day;
-        $candidates = [];
-        $cursor = $windowStart;
+    /**
+     * The Sunday a non-Sunday date most likely meant. Every weekday is strictly closer to one
+     * Sunday than the other, so this is never ambiguous; a Sunday has no suggestion to make.
+     */
+    private function nearestSunday(CarbonImmutable $resolved): ?string
+    {
+        $daysAfterSunday = (int) $resolved->dayOfWeek;
 
-        while ($cursor->lessThanOrEqualTo($windowEnd)) {
-            $matchesDayOfMonth = $cursor->day === $targetDay;
-            $matchesWeekday = $claimedWeekday === null || strtolower($cursor->englishDayOfWeek) === $claimedWeekday;
-
-            if ($matchesDayOfMonth && $matchesWeekday) {
-                $candidates[$cursor->format('Y-m-d')] = true;
-            }
-
-            $cursor = $cursor->addDay();
+        if ($daysAfterSunday === 0) {
+            return null;
         }
 
-        return count($candidates) === 1 ? (string) array_key_first($candidates) : null;
+        return $daysAfterSunday <= 3
+            ? $resolved->subDays($daysAfterSunday)->format('Y-m-d')
+            : $resolved->addDays(7 - $daysAfterSunday)->format('Y-m-d');
     }
 
     private function safeDateFromFormat(string $format, string $value): ?CarbonImmutable

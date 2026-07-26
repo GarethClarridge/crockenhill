@@ -7,14 +7,19 @@ namespace Tests\Integration\Services;
 use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
 use App\Enums\SermonService;
+use App\Models\ChurchService;
 use App\Models\InboundEmail;
+use App\Services\Email\ExistingEmailImportLookup;
 use App\Services\Email\OosEmailParserService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class OosEmailParserServiceTest extends TestCase
 {
+    use RefreshDatabase;
+
     #[Test]
     public function it_prefers_plain_text_and_returns_a_high_confidence_typed_parse(): void
     {
@@ -40,7 +45,7 @@ class OosEmailParserServiceTest extends TestCase
             }
         };
 
-        $result = (new OosEmailParserService($extractor))->parse(InboundEmail::factory()->make([
+        $result = (new OosEmailParserService($extractor, new ExistingEmailImportLookup))->parse(InboundEmail::factory()->make([
             'subject' => 'Order of Service - Sunday 15 March 2026 AM',
             'body_plain' => "Welcome\nBefore the throne of God above\nOpening prayer\nLuke 15:1-32",
             'body_html' => '<p>HTML should not be used</p>',
@@ -65,7 +70,7 @@ class OosEmailParserServiceTest extends TestCase
     public function it_marks_a_medium_confidence_typed_parse_for_review(): void
     {
         $parser = $this->parserReturning($this->extraction([
-            $this->plan('morning', '2026-03-16', 0.85, [
+            $this->plan('morning', '2026-03-15', 0.85, [
                 ['type' => 'welcome', 'title' => 'Welcome'],
                 ['type' => 'song', 'title' => 'How deep the Father\'s love for us'],
                 ['type' => 'sermon', 'title' => 'Sermon'],
@@ -73,12 +78,12 @@ class OosEmailParserServiceTest extends TestCase
         ]));
 
         $result = $parser->parse(InboundEmail::factory()->make([
-            'subject' => 'Service plan for 16 March',
+            'subject' => 'Service plan for 15 March',
             'body_plain' => "10.30am service\nWelcome\nHow deep the Father's love for us\nSermon",
             'received_at' => '2026-03-10 09:00:00',
         ]));
 
-        $this->assertSame('2026-03-16', $result->date);
+        $this->assertSame('2026-03-15', $result->date);
         $this->assertSame(SermonService::Morning, $result->service);
         $this->assertTrue($result->shouldImport);
         $this->assertTrue($result->needsReview);
@@ -88,7 +93,7 @@ class OosEmailParserServiceTest extends TestCase
     #[Test]
     public function it_uses_html_when_plain_text_is_missing(): void
     {
-        $extractor = new class($this->extraction([$this->plan('morning', '2026-03-16')])) implements OosEmailItemExtractor
+        $extractor = new class($this->extraction([$this->plan('morning', '2026-03-15')])) implements OosEmailItemExtractor
         {
             public string $capturedBody = '';
 
@@ -104,8 +109,8 @@ class OosEmailParserServiceTest extends TestCase
             }
         };
 
-        (new OosEmailParserService($extractor))->parse(InboundEmail::factory()->make([
-            'subject' => 'OoS 2026-03-16 AM',
+        (new OosEmailParserService($extractor, new ExistingEmailImportLookup))->parse(InboundEmail::factory()->make([
+            'subject' => 'OoS 2026-03-15 AM',
             'body_plain' => null,
             'body_html' => '<p>Welcome</p><p>Song one</p><div>Prayer</div>',
             'received_at' => '2026-03-10 09:00:00',
@@ -158,13 +163,13 @@ class OosEmailParserServiceTest extends TestCase
     public function it_preserves_unknown_llm_item_types_as_other_items(): void
     {
         $parser = $this->parserReturning($this->extraction([
-            $this->plan('morning', '2026-03-16', 0.92, [
+            $this->plan('morning', '2026-03-15', 0.92, [
                 ['type' => 'communion', 'title' => 'Communion'],
             ]),
         ]));
 
         $result = $parser->parse(InboundEmail::factory()->make([
-            'subject' => 'OoS 2026-03-16 AM',
+            'subject' => 'OoS 2026-03-15 AM',
             'body_plain' => 'Communion',
             'received_at' => '2026-03-10 09:00:00',
         ]));
@@ -179,11 +184,11 @@ class OosEmailParserServiceTest extends TestCase
     public static function informalDateSubjects(): array
     {
         return [
-            'ISO' => ['subject' => 'OoS 2026-03-16 AM'],
-            'UK numeric' => ['subject' => 'OoS 16/03/2026 AM'],
-            'textual day first' => ['subject' => 'OoS Sunday 16th March AM'],
-            'textual month first' => ['subject' => 'OoS March 16, 2026 AM'],
-            'fully specified hyphen' => ['subject' => 'OoS 16-03-2026 AM'],
+            'ISO' => ['subject' => 'OoS 2026-03-15 AM'],
+            'UK numeric' => ['subject' => 'OoS 15/03/2026 AM'],
+            'textual day first' => ['subject' => 'OoS Sunday 15th March AM'],
+            'textual month first' => ['subject' => 'OoS March 15, 2026 AM'],
+            'fully specified hyphen' => ['subject' => 'OoS 15-03-2026 AM'],
         ];
     }
 
@@ -192,7 +197,7 @@ class OosEmailParserServiceTest extends TestCase
     public function it_accepts_the_llm_date_for_every_existing_informal_email_fixture(string $subject): void
     {
         $parser = $this->parserReturning($this->extraction([
-            $this->plan('morning', '2026-03-16'),
+            $this->plan('morning', '2026-03-15'),
         ]));
 
         $result = $parser->parse(InboundEmail::factory()->make([
@@ -201,7 +206,7 @@ class OosEmailParserServiceTest extends TestCase
             'received_at' => '2026-03-10 09:00:00',
         ]));
 
-        $this->assertSame('2026-03-16', $result->date, $subject);
+        $this->assertSame('2026-03-15', $result->date, $subject);
     }
 
     #[Test]
@@ -247,7 +252,7 @@ class OosEmailParserServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_holds_each_out_of_window_plan_without_rewriting_its_date(): void
+    public function it_holds_each_implausible_plan_without_rewriting_its_date(): void
     {
         $parser = $this->parserReturning($this->extraction([
             $this->plan('morning', '2023-06-14'),
@@ -289,11 +294,11 @@ class OosEmailParserServiceTest extends TestCase
     public function it_uses_the_llm_service_for_a_pm_email(): void
     {
         $parser = $this->parserReturning($this->extraction([
-            $this->plan('evening', '2026-03-16'),
+            $this->plan('evening', '2026-03-15'),
         ]));
 
         $result = $parser->parse(InboundEmail::factory()->make([
-            'subject' => 'Service plan for 16 March',
+            'subject' => 'Service plan for 15 March',
             'body_plain' => "6pm service\nSong one",
             'received_at' => '2026-03-10 09:00:00',
         ]));
@@ -379,7 +384,7 @@ class OosEmailParserServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_holds_a_date_on_the_wrong_weekday_and_in_the_past(): void
+    public function it_holds_a_date_that_is_not_a_sunday_and_suggests_the_nearest_one(): void
     {
         $parser = $this->parserReturning($this->extraction([
             $this->plan('morning', '2026-06-05'),
@@ -394,7 +399,7 @@ class OosEmailParserServiceTest extends TestCase
         $this->assertSame('2026-06-05', $result->date);
         $this->assertLessThanOrEqual(0.74, $result->confidenceScore);
         $this->assertFalse($result->shouldImport);
-        $this->assertSame('2026-07-05', $result->importMetadata['date_extraction']['suggested_date']);
+        $this->assertSame('2026-06-07', $result->importMetadata['date_extraction']['suggested_date']);
         $this->assertNotEmpty(array_filter(
             $result->importMetadata['warnings'],
             static fn (string $warning): bool => str_contains(strtolower($warning), 'plausib'),
@@ -402,7 +407,26 @@ class OosEmailParserServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_holds_a_date_far_in_the_future(): void
+    public function it_imports_a_past_sunday_entered_by_hand_from_the_archive(): void
+    {
+        $parser = $this->parserReturning($this->extraction([
+            $this->plan('morning', '2026-07-12'),
+        ]));
+
+        $result = $parser->parse(InboundEmail::factory()->make([
+            'subject' => 'Manual entry',
+            'body_plain' => "Welcome\nSong one",
+            'received_at' => '2026-07-26 12:00:00',
+        ]));
+
+        $this->assertSame('2026-07-12', $result->date);
+        $this->assertGreaterThanOrEqual(0.90, $result->confidenceScore);
+        $this->assertTrue($result->shouldImport);
+        $this->assertTrue($result->importMetadata['date_extraction']['plausible']);
+    }
+
+    #[Test]
+    public function it_imports_a_sunday_far_beyond_the_usual_planning_horizon(): void
     {
         $parser = $this->parserReturning($this->extraction([
             $this->plan('morning', '2026-08-30'),
@@ -415,8 +439,86 @@ class OosEmailParserServiceTest extends TestCase
         ]));
 
         $this->assertSame('2026-08-30', $result->date);
+        $this->assertTrue($result->shouldImport);
+    }
+
+    #[Test]
+    public function it_holds_a_sunday_that_another_email_has_already_imported(): void
+    {
+        ChurchService::factory()->create([
+            'date' => '2026-07-12',
+            'service' => SermonService::Morning,
+            'source' => 'email',
+            'import_metadata' => ['source_message_id' => 'the-first-email@crockenhill.org'],
+        ]);
+
+        $parser = $this->parserReturning($this->extraction([
+            $this->plan('morning', '2026-07-12'),
+        ]));
+
+        $result = $parser->parse(InboundEmail::factory()->make([
+            'message_id' => 'a-later-correction@crockenhill.org',
+            'subject' => 'Corrected order of service - Sunday 12 July 2026',
+            'body_plain' => "Welcome\nSong one",
+            'received_at' => '2026-07-10 09:00:00',
+        ]));
+
+        $this->assertSame('2026-07-12', $result->date);
         $this->assertLessThanOrEqual(0.74, $result->confidenceScore);
         $this->assertFalse($result->shouldImport);
+        $this->assertNotEmpty(array_filter(
+            $result->importMetadata['warnings'],
+            static fn (string $warning): bool => str_contains($warning, 'already has an order of service'),
+        ));
+    }
+
+    #[Test]
+    public function it_does_not_treat_its_own_earlier_import_as_a_duplicate(): void
+    {
+        ChurchService::factory()->create([
+            'date' => '2026-07-12',
+            'service' => SermonService::Morning,
+            'source' => 'email',
+            'import_metadata' => ['source_message_id' => 'the-only-email@crockenhill.org'],
+        ]);
+
+        $parser = $this->parserReturning($this->extraction([
+            $this->plan('morning', '2026-07-12'),
+        ]));
+
+        $result = $parser->parse(InboundEmail::factory()->make([
+            'message_id' => 'the-only-email@crockenhill.org',
+            'subject' => 'Order of Service - Sunday 12 July 2026',
+            'body_plain' => "Welcome\nSong one",
+            'received_at' => '2026-07-10 09:00:00',
+        ]));
+
+        $this->assertTrue($result->shouldImport);
+        $this->assertTrue($result->importMetadata['date_extraction']['plausible']);
+    }
+
+    #[Test]
+    public function it_does_not_treat_a_livestream_service_as_an_email_import(): void
+    {
+        ChurchService::factory()->create([
+            'date' => '2026-07-12',
+            'service' => SermonService::Morning,
+            'source' => 'livestream',
+            'import_metadata' => ['parse_method' => 'livestream_detection'],
+        ]);
+
+        $parser = $this->parserReturning($this->extraction([
+            $this->plan('morning', '2026-07-12'),
+        ]));
+
+        $result = $parser->parse(InboundEmail::factory()->make([
+            'message_id' => 'the-plan-email@crockenhill.org',
+            'subject' => 'Order of Service - Sunday 12 July 2026',
+            'body_plain' => "Welcome\nSong one",
+            'received_at' => '2026-07-10 09:00:00',
+        ]));
+
+        $this->assertTrue($result->shouldImport);
     }
 
     #[Test]
@@ -439,21 +541,21 @@ class OosEmailParserServiceTest extends TestCase
     }
 
     /**
-     * @return array<string, array{receivedAt:string,resolvedDate:string,shouldHold:bool}>
+     * @return array<string, array{resolvedDate:string,shouldHold:bool}>
      */
-    public static function plausibilityWindowBoundaries(): array
+    public static function weekdayBoundaries(): array
     {
         return [
-            'same day' => ['receivedAt' => '2026-07-05 09:00:00', 'resolvedDate' => '2026-07-05', 'shouldHold' => false],
-            'plus max future days' => ['receivedAt' => '2026-07-05 09:00:00', 'resolvedDate' => '2026-07-19', 'shouldHold' => false],
-            'one day past window' => ['receivedAt' => '2026-07-05 09:00:00', 'resolvedDate' => '2026-07-20', 'shouldHold' => true],
-            'day before received' => ['receivedAt' => '2026-07-05 09:00:00', 'resolvedDate' => '2026-07-04', 'shouldHold' => true],
+            'sunday' => ['resolvedDate' => '2026-07-05', 'shouldHold' => false],
+            'the sunday before' => ['resolvedDate' => '2026-06-28', 'shouldHold' => false],
+            'monday after' => ['resolvedDate' => '2026-07-06', 'shouldHold' => true],
+            'saturday before' => ['resolvedDate' => '2026-07-04', 'shouldHold' => true],
         ];
     }
 
     #[Test]
-    #[DataProvider('plausibilityWindowBoundaries')]
-    public function it_enforces_the_received_at_window_boundaries(string $receivedAt, string $resolvedDate, bool $shouldHold): void
+    #[DataProvider('weekdayBoundaries')]
+    public function it_holds_every_resolved_date_that_is_not_a_sunday(string $resolvedDate, bool $shouldHold): void
     {
         $parser = $this->parserReturning($this->extraction([
             $this->plan('morning', $resolvedDate),
@@ -462,7 +564,7 @@ class OosEmailParserServiceTest extends TestCase
         $result = $parser->parse(InboundEmail::factory()->make([
             'subject' => "Order of Service - {$resolvedDate} AM",
             'body_plain' => "Welcome\nSong one",
-            'received_at' => $receivedAt,
+            'received_at' => '2026-07-01 09:00:00',
         ]));
 
         $this->assertSame($resolvedDate, $result->date);
@@ -488,7 +590,7 @@ class OosEmailParserServiceTest extends TestCase
             {
                 return $this->result;
             }
-        });
+        }, new ExistingEmailImportLookup);
     }
 
     /**

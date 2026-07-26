@@ -120,6 +120,19 @@ class SongTitleResolver
     }
 
     /**
+     * The cleaned text a free-text reference reduces to — leading labels ("NIP"), praise
+     * numbers, quotes and trailing parentheticals removed. Callers that run their own
+     * search (an admin typeahead's LIKE, say) use this so they query the same text the
+     * resolver matches on rather than the raw, decorated line.
+     */
+    public function searchProbe(string $searchTitle): string
+    {
+        [, $fuzzyProbe] = $this->buildProbes($searchTitle);
+
+        return $fuzzyProbe;
+    }
+
+    /**
      * @param  iterable<array{id: int, canonical_key: string, title?: ?string, praise_number?: ?string, alternate_title?: ?string, first_line_key?: ?string}>  $rows
      */
     private function buildLookups(iterable $rows): void

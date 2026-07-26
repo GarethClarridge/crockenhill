@@ -66,6 +66,7 @@ class ManageChurchService extends Component
             'sectionTypeOptions' => $this->form->sectionTypeOptions(),
             'items' => $this->form->items,
             'songSuggestions' => $this->form->songSuggestions(),
+            'linkedSongTitles' => $this->form->linkedSongTitles(),
         ])->layout('layouts.admin', [
             'title' => 'Create Service',
             'heading' => 'Create Service',

@@ -107,7 +107,7 @@ class ProcessInboundOosEmailTest extends TestCase
             confidence: 0.85,
             services: [[
                 'service' => 'morning',
-                'date' => '2026-03-16',
+                'date' => '2026-03-15',
                 'items' => [
                     ['type' => 'welcome', 'title' => 'Welcome'],
                     ['type' => 'song', 'title' => 'How deep the Father\'s love for us'],
@@ -118,7 +118,7 @@ class ProcessInboundOosEmailTest extends TestCase
         ));
 
         $email = InboundEmail::factory()->create([
-            'subject' => 'Service plan for 16 March',
+            'subject' => 'Service plan for 15 March',
             'body_plain' => "10.30am service\nWelcome\nHow deep the Father's love for us\nSermon",
             'status' => InboundEmailStatus::Pending->value,
             'received_at' => '2026-03-10 09:00:00',

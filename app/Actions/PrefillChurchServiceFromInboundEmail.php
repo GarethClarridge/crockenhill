@@ -10,6 +10,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\InboundEmail;
 use App\Services\Email\InboundEmailImportService;
 use App\Services\Email\OosEmailParserService;
+use App\Services\Song\SongTitleResolver;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
@@ -55,8 +56,14 @@ class PrefillChurchServiceFromInboundEmail
 
         $parsedItems = $plan['items'] ?? Arr::get($parseData, 'items');
         if (is_array($parsedItems)) {
+            // Built at most once per prefill, and only if there is a song title to resolve —
+            // it loads a lookup over the whole catalogue.
+            $songTitleResolver = null;
+
             $items = collect($parsedItems)
-                ->map(fn (mixed $item): ?array => is_array($item) ? $this->itemPayloadFromParsedItem($item) : null)
+                ->map(function (mixed $item) use (&$songTitleResolver): ?array {
+                    return is_array($item) ? $this->itemPayloadFromParsedItem($item, $songTitleResolver) : null;
+                })
                 ->filter()
                 ->values()
                 ->all();
@@ -114,7 +121,7 @@ class PrefillChurchServiceFromInboundEmail
      * @param  array<string, mixed>  $item
      * @return array{key:string,section_type:string,title:string,song_id:int|null}|null
      */
-    private function itemPayloadFromParsedItem(array $item): ?array
+    private function itemPayloadFromParsedItem(array $item, ?SongTitleResolver &$songTitleResolver): ?array
     {
         $title = trim((string) ($item['title'] ?? ''));
 
@@ -122,12 +129,61 @@ class PrefillChurchServiceFromInboundEmail
             return null;
         }
 
+        $sectionType = $this->resolveSectionTypeFromParsedItem($item);
+        $songId = is_int($item['song_id'] ?? null) ? $item['song_id'] : null;
+
         return [
             'key' => (string) Str::uuid(),
-            'section_type' => $this->resolveSectionTypeFromParsedItem($item)->value,
+            'section_type' => $sectionType->value,
             'title' => $title,
-            'song_id' => is_int($item['song_id'] ?? null) ? $item['song_id'] : null,
+            'song_id' => $songId ?? $this->resolveSongId($sectionType, $item, $songTitleResolver),
         ];
+    }
+
+    /**
+     * The email parser only ever extracts text, so a prefilled song arrives unlinked. Resolving
+     * it here means the reviewer confirms a link the catalogue already knows about rather than
+     * re-typing every title — the same resolver ChurchServiceSongLinker runs after the save,
+     * so the screen agrees with what saving would produce.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function resolveSongId(
+        ServiceSectionType $sectionType,
+        array $item,
+        ?SongTitleResolver &$songTitleResolver,
+    ): ?int {
+        if ($sectionType !== ServiceSectionType::Song) {
+            return null;
+        }
+
+        $searchTitle = $this->firstNonEmptyString([
+            $item['openlp_search_title'] ?? null,
+            $item['source_title'] ?? null,
+            $item['title'] ?? null,
+        ]);
+
+        if ($searchTitle === null) {
+            return null;
+        }
+
+        $songTitleResolver ??= SongTitleResolver::fromDatabase();
+
+        return $songTitleResolver->resolve($searchTitle)?->songId;
+    }
+
+    /**
+     * @param  list<mixed>  $values
+     */
+    private function firstNonEmptyString(array $values): ?string
+    {
+        foreach ($values as $value) {
+            if (is_string($value) && trim($value) !== '') {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     /**

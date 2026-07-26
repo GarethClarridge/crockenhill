@@ -1,4 +1,5 @@
 @php($preview = $item['preview'])
+@php($hasMultipleServicePlans = count($preview['service_plans']) > 1)
 
 <div class="flex flex-wrap items-start justify-between gap-4">
     <div class="min-w-0 space-y-1">
@@ -26,7 +27,11 @@
         @if($preview['can_approve'])
             <x-form-button size="xs" variant="primary" icon="check" wire:click="approveEmail({{ $item['email']->id }})" loading-label="Approving...">Approve</x-form-button>
         @endif
-        <x-form-button size="xs" variant="outline" icon="pencil-square" wire:click="editAndApproveEmail({{ $item['email']->id }})" loading-label="Loading editor...">Edit &amp; approve</x-form-button>
+        @unless($hasMultipleServicePlans)
+            {{-- The plan-less editor prefills the primary plan only, so it is offered for single-order
+                 emails and legacy flattened parses; multi-order emails get a button per plan below. --}}
+            <x-form-button size="xs" variant="outline" icon="pencil-square" wire:click="editAndApproveEmail({{ $item['email']->id }})" loading-label="Loading editor...">Edit &amp; approve</x-form-button>
+        @endunless
         <x-form-button size="xs" variant="outline" icon="arrow-path" wire:click="reparseEmail({{ $item['email']->id }})" loading-label="Re-parsing...">Re-parse</x-form-button>
         <x-form-button size="xs" variant="danger" icon="x-mark" wire:click="rejectEmail({{ $item['email']->id }})" wire:confirm="Are you sure you want to reject this email? This cannot be undone." loading-label="Rejecting...">Reject</x-form-button>
     </div>
@@ -34,9 +39,9 @@
 
 @if($preview['is_legacy_flattened'])
     <p class="mt-2 text-xs text-amber-700">Parsed before multi-service support was added — re-parse this email before approving.</p>
-@elseif(count($preview['service_plans']) > 1)
+@elseif($hasMultipleServicePlans)
     <div class="mt-3 space-y-2" wire:key="attention-email-plans-{{ $item['email']->id }}">
-        <p class="text-xs font-medium text-gray-500">This email contains {{ count($preview['service_plans']) }} service orders:</p>
+        <p class="text-xs font-medium text-gray-500">This email contains {{ count($preview['service_plans']) }} service orders — edit each order separately:</p>
         @foreach($preview['service_plans'] as $plan)
             <div class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-gray-200 bg-white px-3 py-2" wire:key="attention-email-plan-{{ $item['email']->id }}-{{ $plan['plan_key'] }}">
                 <p class="min-w-0 text-xs text-gray-600">
@@ -45,7 +50,9 @@
                     @if($plan['resolved']) · <span class="font-medium text-emerald-700">imported</span> @endif
                 </p>
                 @unless($plan['resolved'])
-                    <x-form-button size="xs" variant="outline" icon="pencil-square" wire:click="editAndApproveEmail({{ $item['email']->id }}, @js($plan['plan_key']))" loading-label="Loading editor...">Edit this order</x-form-button>
+                    {{-- Blade compiles echoes but not directives inside component tag attributes, so the
+                         plan key must be quoted with an echo of Js::from() rather than with @js(). --}}
+                    <x-form-button size="xs" variant="outline" icon="pencil-square" wire:click="editAndApproveEmail({{ $item['email']->id }}, {{ \Illuminate\Support\Js::from($plan['plan_key']) }})" loading-label="Loading editor...">Edit this order</x-form-button>
                 @endunless
             </div>
         @endforeach

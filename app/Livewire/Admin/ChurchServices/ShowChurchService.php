@@ -74,6 +74,7 @@ class ShowChurchService extends Component
             'preacherOptions' => $this->preacherOptions,
             'items' => $this->form->items,
             'songSuggestions' => $this->edit ? $this->form->songSuggestions() : [],
+            'linkedSongTitles' => $this->edit ? $this->form->linkedSongTitles() : [],
         ])
             ->layout('layouts.admin', [
                 'title' => "{$dateHeading} — {$serviceLabel}",

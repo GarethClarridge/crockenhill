@@ -9,6 +9,7 @@ use App\Data\OosEmailParseResult;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
 use App\Models\InboundEmail;
+use App\Models\Song;
 use App\Services\Email\OosEmailParserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -269,5 +270,71 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
             '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/',
             $result['items'][0]['key']
         );
+    }
+
+    #[Test]
+    public function it_links_song_items_to_the_catalogue_through_email_decoration(): void
+    {
+        $numbered = Song::factory()->create([
+            'title' => 'Sing to God',
+            'canonical_key' => 'sing to god',
+            'praise_number' => '98',
+        ]);
+
+        $labelled = Song::factory()->create([
+            'title' => 'Restore O Lord',
+            'canonical_key' => 'restore o lord',
+            'praise_number' => null,
+        ]);
+
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'recipient' => 'oos@crockenhill.org',
+                'parsing' => [
+                    'resolved_date' => '2026-07-12',
+                    'resolved_service' => SermonService::Morning->value,
+                    'items' => [
+                        ['position' => 1, 'type' => 'songs', 'title' => '98 Sing to God', 'source_title' => '98 Sing to God', 'openlp_search_title' => null, 'metadata' => null],
+                        ['position' => 2, 'type' => 'songs', 'title' => 'NIP ‘Restore O Lord’', 'source_title' => 'NIP ‘Restore O Lord’', 'openlp_search_title' => null, 'metadata' => null],
+                        ['position' => 3, 'type' => 'songs', 'title' => 'A song nobody has catalogued', 'source_title' => 'A song nobody has catalogued', 'openlp_search_title' => null, 'metadata' => null],
+                    ],
+                    'needs_review' => false,
+                    'should_import' => true,
+                ],
+            ],
+        ]);
+
+        $result = $this->action->execute($inboundEmail->id);
+
+        $this->assertSame($numbered->id, $result['items'][0]['song_id']);
+        $this->assertSame($labelled->id, $result['items'][1]['song_id']);
+        $this->assertNull($result['items'][2]['song_id']);
+    }
+
+    #[Test]
+    public function it_keeps_a_song_id_the_parse_already_carried(): void
+    {
+        $parsed = Song::factory()->create(['title' => 'Sing to God', 'canonical_key' => 'sing to god']);
+        $other = Song::factory()->create(['title' => 'Another Song', 'canonical_key' => 'another song']);
+
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'recipient' => 'oos@crockenhill.org',
+                'parsing' => [
+                    'resolved_date' => '2026-07-12',
+                    'resolved_service' => SermonService::Morning->value,
+                    'items' => [
+                        ['position' => 1, 'type' => 'songs', 'title' => 'Sing to God', 'source_title' => 'Sing to God', 'openlp_search_title' => null, 'song_id' => $other->id, 'metadata' => null],
+                    ],
+                    'needs_review' => false,
+                    'should_import' => true,
+                ],
+            ],
+        ]);
+
+        $result = $this->action->execute($inboundEmail->id);
+
+        $this->assertSame($other->id, $result['items'][0]['song_id']);
+        $this->assertNotSame($parsed->id, $result['items'][0]['song_id']);
     }
 }

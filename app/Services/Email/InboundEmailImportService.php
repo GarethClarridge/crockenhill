@@ -606,6 +606,8 @@ class InboundEmailImportService
         $resolvedKeys[] = $planKey ?? $this->planKeyForService($churchService);
         $resolvedKeys = array_values(array_unique($resolvedKeys));
 
+        $this->stampSourceMessageId($churchService, $inboundEmail);
+
         $inboundEmail->processing_metadata = $this->mergeProcessingMetadata(
             $metadata,
             [
@@ -625,6 +627,27 @@ class InboundEmailImportService
         }
 
         $inboundEmail->save();
+    }
+
+    /**
+     * Record which email a service came from when it was built through the manual-edit
+     * workbench. The automated path gets this from the parse metadata it copies wholesale;
+     * without it here, a hand-reviewed import leaves no provenance for
+     * {@see ExistingEmailImportLookup} to recognise on a later email for the same date.
+     */
+    private function stampSourceMessageId(ChurchService $churchService, InboundEmail $inboundEmail): void
+    {
+        $existingMetadata = $churchService->import_metadata?->toArray() ?? [];
+
+        if (($existingMetadata['source_message_id'] ?? null) === $inboundEmail->message_id) {
+            return;
+        }
+
+        $churchService->forceFill([
+            'import_metadata' => array_replace_recursive($existingMetadata, [
+                'source_message_id' => $inboundEmail->message_id,
+            ]),
+        ])->saveQuietly();
     }
 
     private function planKeyForService(ChurchService $churchService): string

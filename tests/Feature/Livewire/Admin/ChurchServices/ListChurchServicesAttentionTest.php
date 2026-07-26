@@ -125,6 +125,62 @@ class ListChurchServicesAttentionTest extends TestCase
     }
 
     #[Test]
+    public function per_plan_edit_buttons_wire_the_plan_key_into_the_click_expression(): void
+    {
+        $email = InboundEmail::factory()->create([
+            'status' => InboundEmailStatus::Pending->value,
+            'processing_metadata' => $this->multiServiceProcessingMetadata([
+                ['date' => '2026-06-07', 'service' => 'morning', 'items' => [['title' => 'Welcome', 'type' => 'custom']]],
+                ['date' => '2026-06-07', 'service' => 'evening', 'items' => [['title' => 'Closing hymn', 'type' => 'songs']]],
+            ]),
+        ]);
+
+        $html = html_entity_decode(Livewire::test(ListChurchServices::class)->html(), ENT_QUOTES);
+
+        $this->assertStringNotContainsString('@js(', $html, 'Blade directives are not compiled inside component tag attributes.');
+        $this->assertStringContainsString("editAndApproveEmail({$email->id}, 'morning:2026-06-07')", $html);
+        $this->assertStringContainsString("editAndApproveEmail({$email->id}, 'evening:2026-06-07')", $html);
+    }
+
+    #[Test]
+    public function multi_service_emails_do_not_offer_the_ambiguous_whole_email_editor(): void
+    {
+        $email = InboundEmail::factory()->create([
+            'status' => InboundEmailStatus::Pending->value,
+            'processing_metadata' => $this->multiServiceProcessingMetadata([
+                ['date' => '2026-06-07', 'service' => 'morning', 'items' => [['title' => 'Welcome', 'type' => 'custom']]],
+                ['date' => '2026-06-07', 'service' => 'evening', 'items' => [['title' => 'Closing hymn', 'type' => 'songs']]],
+            ]),
+        ]);
+
+        $html = html_entity_decode(Livewire::test(ListChurchServices::class)->html(), ENT_QUOTES);
+
+        // The plan-less editor only ever prefills the primary plan, silently dropping the evening
+        // order, so a multi-service email must be edited one plan at a time.
+        $this->assertStringNotContainsString("editAndApproveEmail({$email->id})", $html);
+        $this->assertStringContainsString('2 service orders — edit each order separately', $html);
+    }
+
+    #[Test]
+    public function edit_and_approve_email_targets_a_single_plan_of_a_multi_service_email(): void
+    {
+        $email = InboundEmail::factory()->create([
+            'status' => InboundEmailStatus::Pending->value,
+            'processing_metadata' => $this->multiServiceProcessingMetadata([
+                ['date' => '2026-06-07', 'service' => 'morning', 'items' => [['title' => 'Welcome', 'type' => 'custom']]],
+                ['date' => '2026-06-07', 'service' => 'evening', 'items' => [['title' => 'Closing hymn', 'type' => 'songs']]],
+            ]),
+        ]);
+
+        Livewire::test(ListChurchServices::class)
+            ->call('editAndApproveEmail', $email->id, 'evening:2026-06-07')
+            ->assertRedirect(route('admin.services.create', [
+                'inboundEmailId' => $email->id,
+                'planKey' => 'evening:2026-06-07',
+            ]));
+    }
+
+    #[Test]
     public function reparse_email_refreshes_its_preview(): void
     {
         $email = InboundEmail::factory()->create([

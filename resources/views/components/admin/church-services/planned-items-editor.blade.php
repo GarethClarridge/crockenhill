@@ -2,6 +2,7 @@
     'items',
     'sectionTypeOptions',
     'songSuggestions',
+    'linkedSongTitles' => [],
 ])
 
 <div class="space-y-4">
@@ -106,7 +107,9 @@
                     @endif
 
                     @if($item['song_id'])
-                        <p class="text-sm text-cbc-teal-dark">Linked song selected.</p>
+                        <p class="text-sm text-cbc-teal-dark">
+                            Linked song: {{ $linkedSongTitles[$index] ?? 'selected' }}
+                        </p>
                     @endif
                 </div>
             @endif

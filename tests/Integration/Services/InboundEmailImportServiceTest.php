@@ -298,4 +298,23 @@ class InboundEmailImportServiceTest extends TestCase
         $this->assertSame('manual_edit', $inboundEmail->processing_metadata['review']['mode']);
         $this->assertSame($user->id, $inboundEmail->processing_metadata['review']['approved_by_user_id']);
     }
+
+    #[Test]
+    public function test_a_manually_reviewed_import_records_which_email_it_came_from(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create([
+            'status' => InboundEmailStatus::Pending->value,
+            'message_id' => 'the-reviewed-email@crockenhill.org',
+        ]);
+        $churchService = ChurchService::factory()->create([
+            'import_metadata' => ['manual_edit' => ['item_count' => 3]],
+        ]);
+        $user = User::factory()->create();
+
+        $this->service->markAsProcessedFromManualReview($inboundEmail, $churchService, $user->id);
+
+        $churchService->refresh();
+        $this->assertSame('the-reviewed-email@crockenhill.org', $churchService->import_metadata['source_message_id']);
+        $this->assertSame(3, $churchService->import_metadata['manual_edit']['item_count']);
+    }
 }
