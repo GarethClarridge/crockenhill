@@ -136,8 +136,6 @@
             @else
                 @include('livewire.admin.church-services.partials.planned-only-list', [
                     'items' => $churchService->items,
-                    'showHeading' => false,
-                    'renderCard' => false,
                 ])
             @endif
         </x-card>

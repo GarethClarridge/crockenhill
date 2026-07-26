@@ -835,6 +835,28 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function show_component_renders_planned_items_without_a_livestream_run(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-01',
+            'service' => SermonService::Morning,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Opening Prayer',
+            'source' => ChurchServiceItemSource::Email,
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Opening Prayer');
+    }
+
+    #[Test]
     public function show_component_displays_unified_timeline_with_matched_sections(): void
     {
         $this->actingAs($this->admin);
