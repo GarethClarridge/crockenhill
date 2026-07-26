@@ -204,7 +204,7 @@ class ChurchServiceFormData extends Form
             $sourceTitle = trim((string) ($item['source_title'] ?? ''));
             $metadata = [];
 
-            $inferredSongLink = (bool) ($item['inferred_song_link'] ?? false);
+            $inferredSongLink = (bool) $item['inferred_song_link'];
 
             if (! $inferredSongLink && $songId !== null && array_key_exists($songId, $selectedSongCanonicalKeys)) {
                 $metadata['linked_song_canonical_key'] = $selectedSongCanonicalKeys[$songId];

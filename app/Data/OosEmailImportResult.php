@@ -116,6 +116,22 @@ readonly class OosEmailImportResult
     }
 
     /**
+     * The email is resolved when every plan either reached a terminal outcome or was attached
+     * to a service whose canonical merge is awaiting separate service-level review.
+     *
+     * A held plan without a service still needs email-level attention and must remain pending.
+     */
+    public function isResolvedForEmail(): bool
+    {
+        return $this->plans !== [] && array_reduce(
+            $this->plans,
+            static fn (bool $carry, OosEmailImportPlanOutcome $plan): bool => $carry
+                && ($plan->outcome->isTerminal() || $plan->churchService instanceof ChurchService),
+            true,
+        );
+    }
+
+    /**
      * @return list<array{plan_key:string,service:?string,date:?string,outcome:string,church_service_id:?int,message:?string}>
      */
     public function toArray(): array

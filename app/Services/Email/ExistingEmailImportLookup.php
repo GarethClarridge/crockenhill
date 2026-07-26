@@ -27,12 +27,13 @@ class ExistingEmailImportLookup
         string $date,
         ?string $sourceMessageId,
         ?SermonService $service = null,
-    ): array
-    {
+    ): array {
+        $serviceValue = $service?->value;
+
         /** @var list<string> $services */
         $services = ChurchService::query()
             ->whereDate('date', $date)
-            ->when($service instanceof SermonService, fn ($query) => $query->where('service', $service->value))
+            ->when($serviceValue !== null, fn ($query) => $query->where('service', $serviceValue))
             ->get(['id', 'date', 'service', 'import_metadata'])
             ->filter(static function (ChurchService $churchService) use ($sourceMessageId): bool {
                 $messageId = $churchService->import_metadata?->offsetGet('source_message_id');

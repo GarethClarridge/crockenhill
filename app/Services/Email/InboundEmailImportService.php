@@ -580,7 +580,7 @@ class InboundEmailImportService
             ],
         );
 
-        if ($result->isFullyResolved()) {
+        if ($result->isFullyResolved() || ($reviewedByUserId !== null && $result->isResolvedForEmail())) {
             $inboundEmail->status = InboundEmailStatus::Processed;
         }
 
