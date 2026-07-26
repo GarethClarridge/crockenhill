@@ -30,7 +30,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->service = new ChurchServiceItemSyncService;
+        $this->service = app(ChurchServiceItemSyncService::class);
     }
 
     #[Test]
@@ -1024,6 +1024,145 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         ], ChurchServiceItemSource::Livestream);
 
         $this->assertSame([], $result['conflicts']);
+    }
+
+    #[Test]
+    public function test_a_mistyped_email_song_anchors_to_the_planned_one_through_the_catalogue(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'Amazing Grace',
+            'canonical_key' => 'amazing grace',
+        ]);
+
+        $churchService = ChurchService::factory()->create(['source' => 'email']);
+
+        // The real sequence: the hand-typed email lands first, then OpenLP. The
+        // titles never match as text, so the catalogue link is the only thing
+        // that can pair them.
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Amazng Grace', 'Amazng Grace', null),
+        ], ChurchServiceItemSource::Email);
+
+        /** @var ChurchServiceItem $emailSong */
+        $emailSong = $churchService->items()->sole();
+        $this->assertSame($song->id, $emailSong->song_id, 'The typo must still resolve to the catalogue.');
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Amazing Grace', 'Amazing Grace', 'amazing grace@'),
+        ], ChurchServiceItemSource::OpenLp);
+
+        $this->assertCount(
+            1,
+            $churchService->items()->get(),
+            'Both titles resolve to the same catalogue song, so they are one item.',
+        );
+
+        $emailSong->refresh();
+        $this->assertSame($song->id, $emailSong->song_id);
+        $this->assertSame('Amazing Grace', $emailSong->title, 'OpenLP owns the identity once they anchor.');
+    }
+
+    #[Test]
+    public function test_an_inferred_catalogue_link_records_an_audit_trail(): void
+    {
+        Song::factory()->create([
+            'title' => 'How Deep the Fathers Love For Us',
+            'canonical_key' => 'how deep the fathers love for us',
+        ]);
+
+        $churchService = ChurchService::factory()->create(['source' => 'email']);
+
+        // A truncated email title — the containment case the resolver is tuned for.
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'How Deep the Fathers Love', 'How Deep the Fathers Love', null),
+        ], ChurchServiceItemSource::Email);
+
+        /** @var ChurchServiceItem $item */
+        $item = $churchService->items()->sole();
+
+        $this->assertNotNull($item->song_id);
+        $this->assertSame('fuzzy', $item->metadata['song_link']['match_type'] ?? null);
+    }
+
+    #[Test]
+    public function test_a_deterministic_catalogue_link_records_no_audit_trail(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'Amazing Grace',
+            'canonical_key' => 'amazing grace',
+        ]);
+
+        $churchService = ChurchService::factory()->create(['source' => 'email']);
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Amazing Grace', 'Amazing Grace', null),
+        ], ChurchServiceItemSource::Email);
+
+        /** @var ChurchServiceItem $item */
+        $item = $churchService->items()->sole();
+
+        $this->assertSame($song->id, $item->song_id);
+        $this->assertArrayNotHasKey('song_link', $item->metadata ?? []);
+    }
+
+    #[Test]
+    public function test_an_explicit_song_link_is_never_overridden_by_the_catalogue(): void
+    {
+        Song::factory()->create(['title' => 'Amazing Grace', 'canonical_key' => 'amazing grace']);
+        $chosenSong = Song::factory()->create(['title' => 'A Deliberately Different Song']);
+
+        $churchService = ChurchService::factory()->create(['source' => 'email']);
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Amazing Grace', 'Amazing Grace', null, null, $chosenSong->id),
+        ], ChurchServiceItemSource::Manual);
+
+        $this->assertSame($chosenSong->id, $churchService->items()->sole()->song_id);
+    }
+
+    #[Test]
+    public function test_a_detected_reading_anchors_to_a_planned_subrange_of_the_same_passage(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        $planned = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'bibles',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'Joshua 1',
+            'source_title' => 'Joshua 1',
+        ]);
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'bibles', 'Joshua 1:1-9', 'Joshua 1:1-9', null),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertCount(1, $churchService->items()->get(), 'A subrange of the planned passage is the same reading.');
+        $this->assertSame('Joshua 1', $planned->refresh()->title);
+    }
+
+    #[Test]
+    public function test_a_reading_that_runs_past_the_planned_one_stays_a_separate_item(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'bibles',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'Luke 18:31-43',
+            'source_title' => 'Luke 18:31-43',
+        ]);
+
+        // A crossing overlap: each side reads past the other, so these are two
+        // different readings rather than one recorded imprecisely.
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'bibles', 'Luke 18:40-50', 'Luke 18:40-50', null),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertCount(2, $churchService->items()->get());
     }
 
     #[Test]

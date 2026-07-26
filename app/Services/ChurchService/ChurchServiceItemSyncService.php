@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Data\SongTitleMatch;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
+use App\Services\Scripture\ScriptureReferenceResolver;
+use App\Services\Song\SongTitleResolver;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -28,7 +31,19 @@ class ChurchServiceItemSyncService
      */
     private const float MinimumSongAnchorCoverage = 0.5;
 
+    /**
+     * Catalogue match types that are inferred rather than deterministic, so the
+     * link they produce carries an audit trail. Mirrors ChurchServiceSongLinker.
+     *
+     * @var list<string>
+     */
+    private const array AuditedMatchTypes = [
+        SongTitleMatch::TYPE_FIRST_LINE,
+        SongTitleMatch::TYPE_FUZZY,
+    ];
+
     public function __construct(
+        private readonly ScriptureReferenceResolver $scriptureResolver,
         private readonly ServiceItemMergeOrderResolver $orderResolver = new ServiceItemMergeOrderResolver,
     ) {}
 
@@ -62,9 +77,11 @@ class ChurchServiceItemSyncService
             $conflicts = [];
             /** @var list<array<string, mixed>> $plan */
             $plan = [];
+            $songTitleResolver = null;
 
             foreach ($incomingItems as $index => $rawIncomingItem) {
                 $incomingItem = $this->normaliseIncomingItem($rawIncomingItem, $index + 1);
+                $incomingItem = $this->withResolvedCatalogueSong($incomingItem, $incomingSource, $songTitleResolver);
 
                 if (in_array($incomingItem['position'], $seenPositions, true)) {
                     throw new RuntimeException('Incoming items contain duplicate active positions.');
@@ -232,6 +249,70 @@ class ChurchServiceItemSyncService
     }
 
     /**
+     * Resolve an incoming song title against the catalogue so both sides of a
+     * merge carry a song link.
+     *
+     * The catalogue is the one vocabulary all three sources can independently
+     * reach, which makes it a far better anchor than comparing their text to each
+     * other: a hand-typed "Amazng Grace" and OpenLP's "Amazing Grace" resolve to
+     * the same row even though no string comparison would pair them.
+     *
+     * SongTitleResolver is used rather than a second matcher because it is already
+     * calibrated against this corpus — including the truncated titles emails
+     * routinely carry. A detected run is excluded: MatchSongsFromTranscript
+     * resolves those from lyrics and OCR, which is stronger evidence than the
+     * heard title, and it has already run by the refining projection.
+     *
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @return array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}
+     */
+    private function withResolvedCatalogueSong(
+        array $incomingItem,
+        ChurchServiceItemSource $incomingSource,
+        ?SongTitleResolver &$songTitleResolver,
+    ): array {
+        if ($incomingItem['song_id'] !== null || ! $this->isSongType($incomingItem['type'])) {
+            return $incomingItem;
+        }
+
+        if ($incomingSource->isDetected()) {
+            return $incomingItem;
+        }
+
+        $searchTitle = $incomingItem['openlp_search_title']
+            ?? $incomingItem['source_title']
+            ?? $incomingItem['title'];
+
+        if (trim($searchTitle) === '') {
+            return $incomingItem;
+        }
+
+        // Built at most once per sync, and only when there is something to resolve
+        // — it loads a lookup over the whole catalogue.
+        $songTitleResolver ??= SongTitleResolver::fromDatabase();
+
+        $match = $songTitleResolver->resolve($searchTitle);
+
+        if (! $match instanceof SongTitleMatch) {
+            return $incomingItem;
+        }
+
+        $incomingItem['song_id'] = $match->songId;
+
+        if (in_array($match->matchType, self::AuditedMatchTypes, true)) {
+            $incomingItem['metadata'] = [
+                ...$incomingItem['metadata'] ?? [],
+                'song_link' => [
+                    'match_type' => $match->matchType,
+                    'confidence' => $match->confidence,
+                ],
+            ];
+        }
+
+        return $incomingItem;
+    }
+
+    /**
      * @param  Collection<int, ChurchServiceItem>  $existingItems
      * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      * @param  array<int, int>  $matchedExistingItemIds
@@ -269,11 +350,15 @@ class ChurchServiceItemSyncService
                 return true;
             }
 
-            if ($this->shouldUseCrossSourceTitleMatch($existingItem, $incomingSource)) {
-                return $this->hasMatchingNormalisedTitle($existingItem, $incomingItem);
+            if (! $this->shouldUseCrossSourceTitleMatch($existingItem, $incomingSource)) {
+                return false;
             }
 
-            return false;
+            if ($this->hasMatchingNormalisedTitle($existingItem, $incomingItem)) {
+                return true;
+            }
+
+            return $this->hasAgreeingScriptureReference($existingItem, $incomingItem);
         });
 
         return $match;
@@ -363,6 +448,33 @@ class ChurchServiceItemSyncService
         ChurchServiceItemSource $incomingSource
     ): bool {
         return ! $this->sourcesShareMergeAuthority($this->sourceForExistingItem($existingItem), $incomingSource);
+    }
+
+    /**
+     * Whether two readings name the same passage.
+     *
+     * A plan writes "Joshua 1" where a run reports "Joshua 1:1-9", and neither
+     * normalised-title comparison would pair them. ScriptureReferenceResolver
+     * settles it on verse spans instead: it accepts subrange and split forms
+     * while rejecting a crossing overlap, where each side reads past the other —
+     * two genuinely different readings that must stay separate items.
+     *
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     */
+    private function hasAgreeingScriptureReference(ChurchServiceItem $existingItem, array $incomingItem): bool
+    {
+        if ($incomingItem['type'] !== 'bibles') {
+            return false;
+        }
+
+        $existingReference = $existingItem->source_title ?? $existingItem->title;
+        $incomingReference = $incomingItem['source_title'] ?? $incomingItem['title'];
+
+        if (trim($existingReference) === '' || trim($incomingReference) === '') {
+            return false;
+        }
+
+        return $this->scriptureResolver->referencesAgree($existingReference, $incomingReference);
     }
 
     /**
