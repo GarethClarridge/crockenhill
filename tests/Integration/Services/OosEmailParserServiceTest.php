@@ -523,6 +523,31 @@ class OosEmailParserServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_only_treats_another_email_for_the_same_service_slot_as_a_duplicate(): void
+    {
+        ChurchService::factory()->create([
+            'date' => '2026-07-12',
+            'service' => SermonService::Evening,
+            'source' => 'email',
+            'import_metadata' => ['source_message_id' => 'the-evening-email@crockenhill.org'],
+        ]);
+
+        $parser = $this->parserReturning($this->extraction([
+            $this->plan('morning', '2026-07-12'),
+        ]));
+
+        $result = $parser->parse(InboundEmail::factory()->make([
+            'message_id' => 'the-morning-email@crockenhill.org',
+            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
+            'body_plain' => "Welcome\nSong one",
+            'received_at' => '2026-07-10 09:00:00',
+        ]));
+
+        $this->assertTrue($result->shouldImport);
+        $this->assertTrue($result->importMetadata['date_extraction']['plausible']);
+    }
+
+    #[Test]
     public function it_does_not_treat_its_own_earlier_import_as_a_duplicate(): void
     {
         ChurchService::factory()->create([

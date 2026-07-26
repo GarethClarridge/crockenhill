@@ -511,7 +511,9 @@ class InboundEmailImportService
             $plan->key(),
             $plan->service,
             $plan->date,
-            OosEmailImportOutcome::Merged,
+            $mergeResult->wasStaged
+                ? OosEmailImportOutcome::HeldForReview
+                : OosEmailImportOutcome::Merged,
             $mergeResult->churchService,
         );
     }

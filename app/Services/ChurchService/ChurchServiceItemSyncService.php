@@ -154,6 +154,14 @@ class ChurchServiceItemSyncService
                             'existing_item' => $this->snapshotItem($existingItem),
                         ];
                     }
+
+                    if ($this->shouldFlagPreservedExistingItemConflict($existingItem, $incomingSource)) {
+                        $conflicts[] = [
+                            'type' => 'preserved_existing_item',
+                            'incoming_source' => $incomingSource->value,
+                            'existing_item' => $this->snapshotItem($existingItem),
+                        ];
+                    }
                 }
             }
 
@@ -506,8 +514,8 @@ class ChurchServiceItemSyncService
             return false;
         }
 
-        if ($incomingSource->isHumanProvided() && $existingSource === ChurchServiceItemSource::OpenLp) {
-            return true;
+        if ($existingSource === ChurchServiceItemSource::OpenLp && $incomingSource->isHumanProvided()) {
+            return $incomingSource === ChurchServiceItemSource::Manual;
         }
 
         // Everything below here was authored by a plan the run cannot see all of,
@@ -1370,6 +1378,15 @@ class ChurchServiceItemSyncService
 
         return $this->isSongType($existingItem->type)
             && ! $this->sourcesShareMergeAuthority($this->sourceForExistingItem($existingItem), $incomingSource);
+    }
+
+    private function shouldFlagPreservedExistingItemConflict(
+        ChurchServiceItem $existingItem,
+        ChurchServiceItemSource $incomingSource
+    ): bool {
+        return $incomingSource === ChurchServiceItemSource::Email
+            && $this->sourceForExistingItem($existingItem) === ChurchServiceItemSource::OpenLp
+            && ! $this->isSongType($existingItem->type);
     }
 
     /**

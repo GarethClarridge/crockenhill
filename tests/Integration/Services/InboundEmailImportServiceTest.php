@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Data\OosEmailParseResult;
+use App\Data\StructureMergeResult;
+use App\Enums\ChurchServiceItemSource;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\User;
+use App\Services\ChurchService\ChurchServiceStructureMergeService;
 use App\Services\Email\InboundEmailImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use InvalidArgumentException;
@@ -210,6 +213,45 @@ class InboundEmailImportServiceTest extends TestCase
         $this->assertInstanceOf(ChurchService::class, $churchService);
         $this->assertDatabaseCount('church_services', 1);
         $this->assertSame($existing->id, $churchService->id);
+    }
+
+    #[Test]
+    public function test_import_holds_an_existing_service_for_review_when_the_merge_is_staged(): void
+    {
+        $existing = ChurchService::factory()->create([
+            'date' => '2025-03-09',
+            'service' => SermonService::Morning,
+        ]);
+        $inboundEmail = InboundEmail::factory()->create();
+        $parseResult = new OosEmailParseResult(
+            date: '2025-03-09',
+            service: SermonService::Morning,
+            items: [
+                ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ],
+            confidenceScore: 0.9,
+            needsReview: false,
+            shouldImport: true,
+            importMetadata: [],
+        );
+
+        $this->mock(ChurchServiceStructureMergeService::class, function ($mock) use ($existing): void {
+            $mock->shouldReceive('merge')
+                ->once()
+                ->andReturn(new StructureMergeResult(
+                    churchService: $existing,
+                    incomingSource: ChurchServiceItemSource::Email,
+                    wasMerged: false,
+                    wasStaged: true,
+                    stagedConflicts: [['type' => 'type_conflict']],
+                ));
+        });
+
+        $this->service = app(InboundEmailImportService::class);
+        $result = $this->service->import($inboundEmail, $parseResult);
+
+        $this->assertSame('held_for_review', $result->plans[0]->outcome->value);
+        $this->assertFalse($result->isFullyResolved());
     }
 
     #[Test]

@@ -6,9 +6,12 @@ namespace Tests\Integration\Services;
 
 use App\Enums\SermonService;
 use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\Song;
 use App\Services\ChurchService\ImportChurchServiceFromOpenLp;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\OpenLpArchiveFactory;
@@ -100,5 +103,73 @@ class ImportChurchServiceFromOpenLpTest extends TestCase
 
         $this->assertSame('Song One Updated', $service->items[0]->title);
         $this->assertSame('Reading', $service->items[1]->title);
+    }
+
+    #[Test]
+    public function it_merges_the_archive_when_another_import_wins_the_create_race(): void
+    {
+        // RefreshDatabase wraps the test in an outer transaction. End it so the
+        // separate connection below can commit the competing insert and the
+        // importer can observe it after its savepoint rolls back.
+        DB::rollBack();
+
+        config(['database.connections.race' => config('database.connections.mysql')]);
+        DB::purge('race');
+
+        $winnerCreated = false;
+        Event::listen('eloquent.saving: '.ChurchService::class, function (ChurchService $churchService) use (&$winnerCreated): void {
+            if ($churchService->exists || $winnerCreated) {
+                return;
+            }
+
+            $winnerCreated = true;
+            $winner = (new ChurchService)->setConnection('race');
+            $winner->forceFill([
+                'date' => '2024-11-17',
+                'service' => SermonService::Morning->value,
+                'source' => 'email',
+                'needs_review' => false,
+            ])->saveQuietly();
+
+            throw new \Illuminate\Database\UniqueConstraintViolationException(
+                'mysql',
+                'INSERT INTO church_services',
+                [],
+                new \PDOException('Duplicate entry for church_services_date_service_unique'),
+            );
+        });
+
+        try {
+            $result = $this->service->import(OpenLpArchiveFactory::makeUpload(
+                archiveName: '2024-11-17 AM.osz',
+                osjName: '2024-11-17 AM.osj',
+                payload: OpenLpArchiveFactory::payload([
+                    OpenLpArchiveFactory::serviceItem(
+                        OpenLpArchiveFactory::customHeader('Notices')
+                    ),
+                ]),
+            ));
+
+            $service = ChurchService::query()->where([
+                'date' => '2024-11-17',
+                'service' => SermonService::Morning->value,
+            ])->sole();
+
+            $this->assertFalse($result->wasCreated);
+            $this->assertSame($service->id, $result->churchService->id);
+            $this->assertSame('Notices', ChurchServiceItem::query()->where('church_service_id', $service->id)->sole()->title);
+        } finally {
+            $service = ChurchService::query()->where([
+                'date' => '2024-11-17',
+                'service' => SermonService::Morning->value,
+            ])->first();
+
+            if ($service instanceof ChurchService) {
+                ChurchServiceItem::query()->where('church_service_id', $service->id)->delete();
+                $service->deleteQuietly();
+            }
+
+            DB::beginTransaction();
+        }
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use App\Data\SongTitleMatch;
 use App\Data\OosEmailParseResult;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
@@ -19,6 +20,11 @@ use Illuminate\Support\Str;
 
 class PrefillChurchServiceFromInboundEmail
 {
+    private const AUDITED_MATCH_TYPES = [
+        SongTitleMatch::TYPE_FIRST_LINE,
+        SongTitleMatch::TYPE_FUZZY,
+    ];
+
     public function __construct(
         private readonly InboundEmailImportService $importService,
         private readonly OosEmailParserService $parserService,
@@ -31,7 +37,7 @@ class PrefillChurchServiceFromInboundEmail
      * Returns a partial form state array with optional `date`, `service`, and `items` keys.
      * Callers should only apply keys that are present and non-empty.
      *
-     * @return array{date?:string,service?:string,items?:array<int,array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}>}
+     * @return array{date?:string,service?:string,items?:array<int,array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null,inferred_song_link:bool}>}
      */
     public function execute(int $inboundEmailId, ?string $planKey = null): array
     {
@@ -45,7 +51,16 @@ class PrefillChurchServiceFromInboundEmail
 
         // When a plan key is supplied, prefill from exactly that service plan so editing targets
         // one order of a multi-service email; otherwise fall back to the primary/legacy fields.
-        $plan = $planKey !== null ? $this->planFromParseData($parseData, $planKey) : null;
+        if ($planKey !== null) {
+            $plan = $this->planFromParseData($parseData, $planKey);
+
+            if ($plan === null) {
+                return [];
+            }
+        } else {
+            $plan = null;
+        }
+
         $result = [];
 
         $resolvedDate = $plan['date'] ?? Arr::get($parseData, 'resolved_date');
@@ -127,7 +142,7 @@ class PrefillChurchServiceFromInboundEmail
      * an already-clean title is a no-op, so running it twice costs nothing.
      *
      * @param  array<string, mixed>  $item
-     * @return array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}|null
+     * @return array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null,inferred_song_link:bool}|null
      */
     private function itemPayloadFromParsedItem(array $item, ?SongTitleResolver &$songTitleResolver): ?array
     {
@@ -139,6 +154,9 @@ class PrefillChurchServiceFromInboundEmail
 
         $sectionType = $this->resolveSectionTypeFromParsedItem($item);
         $songId = is_int($item['song_id'] ?? null) ? $item['song_id'] : null;
+        $songMatch = $songId === null
+            ? $this->resolveSongMatch($sectionType, $item, $songTitleResolver)
+            : null;
         $sourceTitle = $this->firstNonEmptyString([$item['source_title'] ?? null, $storedTitle]);
 
         return [
@@ -148,7 +166,9 @@ class PrefillChurchServiceFromInboundEmail
             // Always set: a prefilled item came from an email, so it always has a raw line,
             // and pinning it here is what lets the reviewer edit the title freely.
             'source_title' => $sourceTitle === null ? null : trim($sourceTitle),
-            'song_id' => $songId ?? $this->resolveSongId($sectionType, $item, $songTitleResolver),
+            'song_id' => $songId ?? $songMatch?->songId,
+            'inferred_song_link' => $songMatch instanceof SongTitleMatch
+                && in_array($songMatch->matchType, self::AUDITED_MATCH_TYPES, true),
         ];
     }
 
@@ -160,8 +180,8 @@ class PrefillChurchServiceFromInboundEmail
      * and what an auto-import of the same email would have written unattended. The email's own
      * wording is not lost; it stays on the item as `source_title`.
      *
-     * @param  array<int, array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}>  $items
-     * @return array<int, array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}>
+     * @param  array<int, array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null,inferred_song_link:bool}>  $items
+     * @return array<int, array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null,inferred_song_link:bool}>
      */
     private function withCatalogueSongTitles(array $items): array
     {
@@ -202,11 +222,11 @@ class PrefillChurchServiceFromInboundEmail
      *
      * @param  array<string, mixed>  $item
      */
-    private function resolveSongId(
+    private function resolveSongMatch(
         ServiceSectionType $sectionType,
         array $item,
         ?SongTitleResolver &$songTitleResolver,
-    ): ?int {
+    ): ?SongTitleMatch {
         if ($sectionType !== ServiceSectionType::Song) {
             return null;
         }
@@ -223,7 +243,7 @@ class PrefillChurchServiceFromInboundEmail
 
         $songTitleResolver ??= SongTitleResolver::fromDatabase();
 
-        return $songTitleResolver->resolve($searchTitle)?->songId;
+        return $songTitleResolver->resolve($searchTitle);
     }
 
     /**

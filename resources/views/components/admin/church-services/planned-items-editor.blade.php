@@ -110,7 +110,9 @@
                         <p class="text-sm text-cbc-teal-dark">
                             {{-- The title field already shows the catalogue title for a matched
                                  song, so repeating it here would say nothing. --}}
-                            @if(($linkedSongTitles[$index] ?? null) === trim((string) $item['title']))
+                            @if($item['inferred_song_link'] ?? false)
+                                Suggested from the catalogue — confirm.
+                            @elseif(($linkedSongTitles[$index] ?? null) === trim((string) $item['title']))
                                 Linked to the song catalogue.
                             @else
                                 Linked song: {{ $linkedSongTitles[$index] ?? 'selected' }}

@@ -1351,6 +1351,106 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function an_inferred_prefilled_song_link_is_not_saved_as_a_confirmed_link(): void
+    {
+        $this->actingAs($this->admin);
+
+        $song = Song::factory()->create([
+            'title' => 'How Deep the Fathers Love For Us',
+            'canonical_key' => 'how deep the fathers love for us',
+        ]);
+        $email = InboundEmail::factory()->create([
+            'status' => InboundEmailStatus::Pending->value,
+            'processing_metadata' => $this->processingMetadata(
+                resolvedDate: '2026-07-12',
+                resolvedService: SermonService::Morning->value,
+                items: [
+                    ['type' => 'songs', 'title' => 'How Deep the Fathers Love', 'source_title' => 'How Deep the Fathers Love'],
+                ],
+            ),
+        ]);
+
+        Livewire::test(ManageChurchService::class, ['inboundEmailId' => $email->id])
+            ->assertSet('form.items.0.song_id', $song->id)
+            ->assertSet('form.items.0.inferred_song_link', true)
+            ->assertSee('Suggested from the catalogue — confirm.')
+            ->call('save');
+
+        $item = ChurchServiceItem::query()
+            ->whereRelation('churchService', 'date', '2026-07-12')
+            ->sole();
+
+        $this->assertSame($song->id, $item->song_id);
+        $this->assertArrayNotHasKey('linked_song_canonical_key', $item->metadata ?? []);
+    }
+
+    #[Test]
+    public function editing_or_confirming_an_inferred_song_link_clears_the_suggestion(): void
+    {
+        $this->actingAs($this->admin);
+
+        $song = Song::factory()->create([
+            'title' => 'How Deep the Fathers Love For Us',
+            'canonical_key' => 'how deep the fathers love for us',
+        ]);
+        $email = InboundEmail::factory()->create([
+            'processing_metadata' => $this->processingMetadata(
+                resolvedDate: '2026-07-19',
+                resolvedService: SermonService::Morning->value,
+                items: [
+                    ['type' => 'songs', 'title' => 'How Deep the Fathers Love', 'source_title' => 'How Deep the Fathers Love'],
+                ],
+            ),
+        ]);
+
+        Livewire::test(ManageChurchService::class, ['inboundEmailId' => $email->id])
+            ->call('selectSong', 0, $song->id)
+            ->assertSet('form.items.0.inferred_song_link', false);
+
+        Livewire::test(ManageChurchService::class, ['inboundEmailId' => $email->id])
+            ->set('form.items.0.title', 'A corrected song title')
+            ->assertSet('form.items.0.inferred_song_link', false)
+            ->assertSet('form.items.0.song_id', null);
+    }
+
+    #[Test]
+    public function an_existing_audited_song_link_is_loaded_as_inferred_without_an_explicit_marker(): void
+    {
+        $this->actingAs($this->admin);
+
+        $song = Song::factory()->create();
+        $service = ChurchService::factory()->create([
+            'date' => '2026-07-26',
+            'service' => SermonService::Morning,
+        ]);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'songs',
+            'section_type' => ServiceSectionType::Song,
+            'title' => $song->title,
+            'song_id' => $song->id,
+            'metadata' => ['song_link' => ['match_type' => 'fuzzy', 'confidence' => 0.9]],
+        ]);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 2,
+            'type' => 'songs',
+            'section_type' => ServiceSectionType::Song,
+            'title' => $song->title,
+            'song_id' => $song->id,
+            'metadata' => [
+                'song_link' => ['match_type' => 'fuzzy', 'confidence' => 0.9],
+                'linked_song_canonical_key' => $song->canonical_key,
+            ],
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSet('form.items.0.inferred_song_link', true)
+            ->assertSet('form.items.1.inferred_song_link', false);
+    }
+
+    #[Test]
     public function saving_a_reviewed_plan_keeps_the_email_line_behind_an_edited_title(): void
     {
         $this->actingAs($this->admin);

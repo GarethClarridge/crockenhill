@@ -32,7 +32,7 @@ class ChurchServiceFormData extends Form
      * the raw text that ChurchServiceItemSyncService matches sources on. Null means the item
      * has no external source — a hand-added row — and its title stands as its own provenance.
      *
-     * @var array<int, array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}>
+     * @var array<int, array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null,inferred_song_link:bool}>
      */
     public array $items = [];
 
@@ -57,7 +57,7 @@ class ChurchServiceFormData extends Form
     }
 
     /**
-     * @param  array{date?:string,service?:string,items?:array<int,array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}>}  $prefillData
+     * @param  array{date?:string,service?:string,items?:array<int,array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null,inferred_song_link:bool}>}  $prefillData
      */
     public function applyPrefillData(array $prefillData): void
     {
@@ -138,6 +138,7 @@ class ChurchServiceFormData extends Form
         $this->items[$index]['section_type'] = ServiceSectionType::Song->value;
         $this->items[$index]['title'] = $song->title;
         $this->items[$index]['song_id'] = $song->id;
+        $this->items[$index]['inferred_song_link'] = false;
     }
 
     public function updatedItems(mixed $value, string $key): void
@@ -152,10 +153,12 @@ class ChurchServiceFormData extends Form
 
         if ($field === 'section_type' && $this->items[$index]['section_type'] !== ServiceSectionType::Song->value) {
             $this->items[$index]['song_id'] = null;
+            $this->items[$index]['inferred_song_link'] = false;
         }
 
         if ($field === 'title') {
             $this->items[$index]['song_id'] = null;
+            $this->items[$index]['inferred_song_link'] = false;
         }
     }
 
@@ -201,7 +204,9 @@ class ChurchServiceFormData extends Form
             $sourceTitle = trim((string) ($item['source_title'] ?? ''));
             $metadata = [];
 
-            if ($songId !== null && array_key_exists($songId, $selectedSongCanonicalKeys)) {
+            $inferredSongLink = (bool) ($item['inferred_song_link'] ?? false);
+
+            if (! $inferredSongLink && $songId !== null && array_key_exists($songId, $selectedSongCanonicalKeys)) {
                 $metadata['linked_song_canonical_key'] = $selectedSongCanonicalKeys[$songId];
             }
 
@@ -404,7 +409,7 @@ class ChurchServiceFormData extends Form
     }
 
     /**
-     * @return array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}
+     * @return array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null,inferred_song_link:bool}
      */
     private function blankItem(): array
     {
@@ -414,20 +419,26 @@ class ChurchServiceFormData extends Form
             'title' => '',
             'source_title' => null,
             'song_id' => null,
+            'inferred_song_link' => false,
         ];
     }
 
     /**
-     * @return array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}
+     * @return array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null,inferred_song_link:bool}
      */
     private function itemPayloadFromModel(ChurchServiceItem $item): array
     {
+        $metadata = $item->metadata ?? [];
+
         return [
             'key' => (string) Str::uuid(),
             'section_type' => $item->semanticSectionType()->value,
             'title' => $item->title,
             'source_title' => $item->source_title,
             'song_id' => $item->song_id,
+            'inferred_song_link' => $item->song_id !== null
+                && is_array($metadata['song_link'] ?? null)
+                && ! is_string($metadata['linked_song_canonical_key'] ?? null),
         ];
     }
 }

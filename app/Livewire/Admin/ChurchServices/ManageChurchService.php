@@ -41,7 +41,13 @@ class ManageChurchService extends Component
         MediaProcessingIdentityResolver $identityResolver,
     ): void {
         if (is_int($this->inboundEmailId)) {
-            $this->form->applyPrefillData($prefillAction->execute($this->inboundEmailId, $this->planKey));
+            $prefillData = $prefillAction->execute($this->inboundEmailId, $this->planKey);
+
+            if ($this->planKey !== null && $prefillData === []) {
+                $this->error('This order of service is no longer available. Re-parse the email and try again.');
+            }
+
+            $this->form->applyPrefillData($prefillData);
         } else {
             // Orphan inbox groups link here with their resolved date/slot so
             // the missing Sunday can be created and the workbench takes over.

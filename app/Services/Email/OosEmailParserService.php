@@ -177,7 +177,7 @@ class OosEmailParserService
             $confidence = min($confidence, 0.40);
         }
 
-        $plausibility = $this->validateDatePlausibility($date, $subject, $sourceMessageId);
+        $plausibility = $this->validateDatePlausibility($date, $subject, $sourceMessageId, $service);
 
         if (! $plausibility['plausible']) {
             $confidence = min($confidence, 0.74);
@@ -363,6 +363,7 @@ class OosEmailParserService
         ?string $date,
         string $subject,
         ?string $sourceMessageId,
+        ?SermonService $service = null,
     ): array {
         $plausible = [
             'plausible' => true,
@@ -406,7 +407,11 @@ class OosEmailParserService
             }
         }
 
-        $alreadyImported = $this->existingEmailImports->servicesImportedFromOtherEmails($date, $sourceMessageId);
+        $alreadyImported = $this->existingEmailImports->servicesImportedFromOtherEmails(
+            $date,
+            $sourceMessageId,
+            $service,
+        );
 
         if ($alreadyImported !== []) {
             $reasons[] = "{$date} already has an order of service imported from another email (".implode(', ', $alreadyImported).')';

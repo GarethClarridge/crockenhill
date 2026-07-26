@@ -312,6 +312,67 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
     }
 
     #[Test]
+    public function it_marks_only_audited_catalogue_matches_as_inferred(): void
+    {
+        $exact = Song::factory()->create([
+            'title' => 'Amazing Grace',
+            'canonical_key' => 'amazing grace',
+        ]);
+        $fuzzy = Song::factory()->create([
+            'title' => 'How Deep the Fathers Love For Us',
+            'canonical_key' => 'how deep the fathers love for us',
+        ]);
+
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'parsing' => [
+                    'resolved_date' => '2026-07-12',
+                    'resolved_service' => SermonService::Morning->value,
+                    'items' => [
+                        ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace', 'source_title' => 'Amazing Grace', 'openlp_search_title' => null, 'metadata' => null],
+                        ['position' => 2, 'type' => 'songs', 'title' => 'How Deep the Fathers Love', 'source_title' => 'How Deep the Fathers Love', 'openlp_search_title' => null, 'metadata' => null],
+                    ],
+                ],
+            ],
+        ]);
+
+        $result = $this->action->execute($inboundEmail->id);
+
+        $this->assertSame($exact->id, $result['items'][0]['song_id']);
+        $this->assertFalse($result['items'][0]['inferred_song_link']);
+        $this->assertSame($fuzzy->id, $result['items'][1]['song_id']);
+        $this->assertTrue($result['items'][1]['inferred_song_link']);
+    }
+
+    #[Test]
+    public function it_prefills_nothing_when_an_explicit_plan_key_is_stale(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'parsing' => [
+                    'resolved_date' => '2026-07-12',
+                    'resolved_service' => SermonService::Morning->value,
+                    'items' => [
+                        ['position' => 1, 'type' => 'custom', 'title' => 'Morning welcome', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                    ],
+                    'service_plans' => [
+                        [
+                            'plan_key' => 'morning:2026-07-12',
+                            'service' => SermonService::Morning->value,
+                            'date' => '2026-07-12',
+                            'items' => [
+                                ['position' => 1, 'type' => 'custom', 'title' => 'Morning welcome', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertSame([], $this->action->execute($inboundEmail->id, 'evening:2026-07-12'));
+    }
+
+    #[Test]
     public function it_titles_a_matched_song_from_the_catalogue_and_keeps_the_email_line(): void
     {
         $song = Song::factory()->create([

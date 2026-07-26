@@ -628,6 +628,62 @@ class ChurchServiceItemSyncServiceTest extends TestCase
     }
 
     #[Test]
+    public function test_email_preserves_unmatched_openlp_non_song_items_and_reports_a_conflict(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'source' => ChurchServiceItemSource::OpenLp->value,
+        ]);
+
+        $openLpReading = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'bibles',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'John 3:16-21',
+            'source_title' => 'John 3:16-21',
+        ]);
+
+        $result = $this->service->sync($churchService, [
+            $this->incomingItem(1, 'custom', 'Opening Prayer', 'Opening Prayer', null),
+        ], ChurchServiceItemSource::Email);
+
+        $this->assertNull($openLpReading->refresh()->deleted_at);
+        $this->assertNotNull(ChurchServiceItem::query()
+            ->where('church_service_id', $churchService->id)
+            ->where('title', 'Opening Prayer')
+            ->first());
+        $this->assertCount(1, collect($result['conflicts'])->where('type', 'preserved_existing_item'));
+    }
+
+    #[Test]
+    public function test_openlp_preserves_unmatched_email_non_song_items_without_a_conflict(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'source' => ChurchServiceItemSource::Email->value,
+        ]);
+
+        $emailPrayer = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'source' => ChurchServiceItemSource::Email->value,
+            'title' => 'Opening Prayer',
+            'source_title' => 'Opening Prayer',
+        ]);
+
+        $result = $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Amazing Grace', 'Amazing Grace', 'amazing grace@'),
+        ], ChurchServiceItemSource::OpenLp);
+
+        $this->assertNull($emailPrayer->refresh()->deleted_at);
+        $this->assertNotNull(ChurchServiceItem::query()
+            ->where('church_service_id', $churchService->id)
+            ->where('title', 'Amazing Grace')
+            ->first());
+        $this->assertSame([], $result['conflicts']);
+    }
+
+    #[Test]
     public function test_partial_openlp_merge_preserves_unmatched_human_song_and_reports_a_conflict(): void
     {
         $churchService = ChurchService::factory()->create([

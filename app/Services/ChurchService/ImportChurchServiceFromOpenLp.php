@@ -164,7 +164,8 @@ class ImportChurchServiceFromOpenLp
                 ->where('date', $parsed->date)
                 ->where('service', $parsed->service->value)
                 ->firstOrFail();
-            $wasCreated = false;
+
+            return $this->importIntoExistingService($uploadedFile, $parsed, $churchService);
         }
 
         $churchService = $this->canonicalUpdateService->finalize(

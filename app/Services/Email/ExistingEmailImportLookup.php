@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Email;
 
+use App\Enums\SermonService;
 use App\Models\ChurchService;
 
 /**
@@ -22,11 +23,16 @@ class ExistingEmailImportLookup
      *
      * @return list<string>
      */
-    public function servicesImportedFromOtherEmails(string $date, ?string $sourceMessageId): array
+    public function servicesImportedFromOtherEmails(
+        string $date,
+        ?string $sourceMessageId,
+        ?SermonService $service = null,
+    ): array
     {
         /** @var list<string> $services */
         $services = ChurchService::query()
             ->whereDate('date', $date)
+            ->when($service instanceof SermonService, fn ($query) => $query->where('service', $service->value))
             ->get(['id', 'date', 'service', 'import_metadata'])
             ->filter(static function (ChurchService $churchService) use ($sourceMessageId): bool {
                 $messageId = $churchService->import_metadata?->offsetGet('source_message_id');
