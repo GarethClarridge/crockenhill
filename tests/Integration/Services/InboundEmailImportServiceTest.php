@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Data\OosEmailParseResult;
+use App\Data\OosEmailServicePlan;
 use App\Data\StructureMergeResult;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\InboundEmailStatus;
+use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
@@ -186,6 +188,42 @@ class InboundEmailImportServiceTest extends TestCase
 
         $this->assertInstanceOf(ChurchService::class, $churchService);
         $this->assertFalse((bool) $churchService->needs_review);
+    }
+
+    #[Test]
+    public function test_manual_approval_cannot_import_a_structurally_invalid_extraction(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create();
+        $user = User::factory()->create();
+        $items = [
+            ['position' => 1, 'type' => 'songs', 'title' => 'Merged title', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+        ];
+        $invalidPlan = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2025-03-09',
+            items: $items,
+            confidence: 0.95,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::InvalidExtraction,
+            validationReasons: ['Item 1 merges separate source lines.'],
+        );
+        $parseResult = new OosEmailParseResult(
+            date: '2025-03-09',
+            service: SermonService::Morning,
+            items: $items,
+            confidenceScore: 0.95,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: [],
+            servicePlans: [$invalidPlan],
+            disposition: OosEmailParseDisposition::InvalidExtraction,
+        );
+
+        $result = $this->service->import($inboundEmail, $parseResult, reviewedByUserId: $user->id);
+
+        $this->assertSame('held_for_review', $result->plans[0]->outcome->value);
+        $this->assertDatabaseCount('church_services', 0);
     }
 
     #[Test]

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data;
 
+use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
 
 readonly class OosEmailParseResult
@@ -16,6 +17,8 @@ readonly class OosEmailParseResult
      * @param  array<int, array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>  $items
      * @param  array<string, mixed>  $importMetadata
      * @param  list<OosEmailServicePlan>  $servicePlans
+     * @param  list<string>  $validationReasons
+     * @param  list<array<string, mixed>>  $extractionAttempts
      */
     public function __construct(
         public ?string $date,
@@ -27,6 +30,10 @@ readonly class OosEmailParseResult
         public array $importMetadata,
         public array $servicePlans = [],
         public bool $isLegacyFlattened = false,
+        public OosEmailParseDisposition $disposition = OosEmailParseDisposition::AutoImportable,
+        public array $validationReasons = [],
+        public array $extractionAttempts = [],
+        public bool $consensus = false,
     ) {}
 
     /**
@@ -36,7 +43,7 @@ readonly class OosEmailParseResult
     {
         return array_values(array_filter(
             $this->servicePlans,
-            static fn (OosEmailServicePlan $plan): bool => $plan->isImportable(),
+            static fn (OosEmailServicePlan $plan): bool => $plan->isManuallyImportable(),
         ));
     }
 

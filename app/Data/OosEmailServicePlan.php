@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data;
 
+use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
 
 /**
@@ -15,6 +16,8 @@ readonly class OosEmailServicePlan
 {
     /**
      * @param  array<int, array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>  $items
+     * @param  list<string>  $validationReasons
+     * @param  array<string, mixed>  $sourceProvenance
      */
     public function __construct(
         public ?SermonService $service,
@@ -23,6 +26,9 @@ readonly class OosEmailServicePlan
         public float $confidence,
         public bool $needsReview,
         public bool $shouldImport,
+        public OosEmailParseDisposition $disposition = OosEmailParseDisposition::AutoImportable,
+        public array $validationReasons = [],
+        public array $sourceProvenance = [],
     ) {}
 
     /**
@@ -46,5 +52,17 @@ readonly class OosEmailServicePlan
             && is_string($this->date)
             && $this->date !== ''
             && $this->items !== [];
+    }
+
+    public function isAutoImportable(): bool
+    {
+        return $this->disposition === OosEmailParseDisposition::AutoImportable
+            && $this->isImportable();
+    }
+
+    public function isManuallyImportable(): bool
+    {
+        return $this->disposition !== OosEmailParseDisposition::InvalidExtraction
+            && $this->isImportable();
     }
 }

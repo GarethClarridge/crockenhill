@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\InboundEmail;
 
+use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
 use App\Models\InboundEmail;
 use App\Services\Email\InboundEmailHtmlSanitizer;
@@ -77,7 +78,7 @@ class InboundEmailPreviewFactory
                 $previewItems,
                 $parsing['resolved_date'] ?? null,
                 $parsing['resolved_service'] ?? null,
-            ),
+            ) && ! $this->containsInvalidPlan($servicePlans),
             'plain_body' => $plainBody,
             'has_plain_body' => $plainBody !== null,
             'sanitized_html' => $this->htmlSanitizer->sanitize($inboundEmail->body_html),
@@ -116,13 +117,30 @@ class InboundEmailPreviewFactory
                 'confidence' => is_numeric($plan['confidence'] ?? null) ? (float) $plan['confidence'] : null,
                 'needs_review' => (bool) ($plan['needs_review'] ?? false),
                 'should_import' => (bool) ($plan['should_import'] ?? false),
+                'disposition' => is_string($plan['disposition'] ?? null) ? $plan['disposition'] : null,
+                'validation_reasons' => array_values(array_filter(
+                    is_array($plan['validation_reasons'] ?? null) ? $plan['validation_reasons'] : [],
+                    is_string(...),
+                )),
                 'preview_items' => $items,
-                'can_approve' => $this->canApprovePreview($items, $date, $service),
+                'can_approve' => $this->canApprovePreview($items, $date, $service)
+                    && ($plan['disposition'] ?? null) !== OosEmailParseDisposition::InvalidExtraction->value,
                 'resolved' => false,
             ];
         }
 
         return $previews;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $servicePlans
+     */
+    private function containsInvalidPlan(array $servicePlans): bool
+    {
+        return collect($servicePlans)->contains(
+            static fn (array $plan): bool => ($plan['disposition'] ?? null)
+                === OosEmailParseDisposition::InvalidExtraction->value,
+        );
     }
 
     /**

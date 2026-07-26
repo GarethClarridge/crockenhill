@@ -4,53 +4,79 @@ declare(strict_types=1);
 
 namespace App\Services\Email;
 
-use App\Contracts\OosEmailItemExtractor;
+use App\Contracts\CorrectiveOosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
+use App\Data\OosEmailSourceDocument;
 use App\Support\OpenAiChatPayload;
 use App\Support\OpenAiUsageLogger;
 use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Responses\Chat\CreateResponse;
 use RuntimeException;
 
-class OpenAiOosEmailItemExtractor implements OosEmailItemExtractor
+class OpenAiOosEmailItemExtractor implements CorrectiveOosEmailItemExtractor
 {
     public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
     {
+        return $this->request($subject, $body, $receivedDate);
+    }
+
+    public function correct(
+        string $subject,
+        string $body,
+        string $receivedDate,
+        OosEmailItemExtractionResult $previousExtraction,
+        array $validationFailures,
+    ): OosEmailItemExtractionResult {
+        $previous = json_encode([
+            'service_count' => $previousExtraction->serviceCount,
+            'services' => $previousExtraction->services,
+            'ignored_lines' => $previousExtraction->ignoredLines,
+            'notes' => $previousExtraction->notes,
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $failures = implode("\n", array_map(
+            static fn (string $failure): string => "- {$failure}",
+            $validationFailures,
+        ));
+
+        return $this->request(
+            $subject,
+            $body,
+            $receivedDate,
+            correctionContext: "The first extraction failed deterministic validation.\n"
+                ."Previous extraction:\n{$previous}\n\nValidation failures:\n{$failures}\n\n"
+                .'Return one corrected extraction. Do not defend or repeat a structurally invalid result.',
+        );
+    }
+
+    private function request(
+        string $subject,
+        string $body,
+        string $receivedDate,
+        ?string $correctionContext = null,
+    ): OosEmailItemExtractionResult {
         if (empty(config('openai.api_key'))) {
             throw new RuntimeException('OpenAI API key not configured for OoS email parsing.');
         }
 
         $model = (string) config('service-tracking.email_parsing.model', 'gpt-5.4-nano');
+        $source = OosEmailSourceDocument::fromBody($body);
+        $userContent = "Email received date: {$receivedDate}\nSubject: {$subject}\n\n"
+            ."Numbered non-blank body lines:\n{$source->promptBody()}";
+
+        if ($correctionContext !== null) {
+            $userContent .= "\n\n{$correctionContext}";
+        }
+
         $response = OpenAI::chat()->create(OpenAiChatPayload::forModel([
             'model' => $model,
             'messages' => [
                 [
                     'role' => 'system',
-                    'content' => <<<'TEXT'
-You extract church service orders from email text. One email often contains BOTH a morning
-and an evening order (and occasionally a special service such as carols or Christmas).
-Return valid JSON with this shape only:
-{"services":[{"service":"morning|evening|other|unknown","date":"YYYY-MM-DD or null","items":[{"type":"welcome|prayer|notices|song|childrens_talk|bible_reading|sermon|other","title":"string"}],"confidence":0.0}],"notes":["string"]}
-Rules:
-- Emit one entry in "services" per distinct service order found. Keep morning before evening.
-- Preserve the running order of items within each service.
-- Do not invent items or merge two services into one list.
-- Use "morning" for AM/10.30 services, "evening" for PM/6pm services, "other" for specials
-  (carols, Christmas), and "unknown" only when the service time is genuinely unclear.
-- Set "date" only when a service states its own date; otherwise use null.
-- Resolve relative or yearless dates against the supplied email receipt date. These emails normally
-  describe services from the receipt date through the following two weeks; do not use a training-data year.
-- Use concise, human-readable titles. Use "song" for hymns/songs and "bible_reading" for readings.
-- Titles are stored on their own, so drop anything that only makes sense while reading the email:
-  pointers such as "(see above)", "(see PP)", "(see attached)" or "(overleaf)". Keep the words that
-  name the item itself — "Family Talk - 'Joel' (see PP)" becomes "Family Talk - 'Joel'".
-- For a bible_reading, title it with just the passage ("Joshua 5:13-6:27"), not a restatement of the
-  type ("Bible Reading: Joshua 5:13-6:27").
-- Confidence reflects how reliable that service's extracted order is.
-TEXT,
+                    'content' => $this->systemPrompt(),
                 ],
                 [
                     'role' => 'user',
-                    'content' => "Email received date: {$receivedDate}\nSubject: {$subject}\n\nBody:\n{$body}",
+                    'content' => $userContent,
                 ],
             ],
             'service_tier' => config('openai.service_tier'),
@@ -58,76 +84,158 @@ TEXT,
                 'type' => 'json_schema',
                 'json_schema' => [
                     'name' => 'oos_email_extraction',
-                    'schema' => [
-                        'type' => 'object',
-                        'additionalProperties' => false,
-                        'required' => ['services', 'notes'],
-                        'properties' => [
-                            'services' => [
-                                'type' => 'array',
-                                'items' => [
-                                    'type' => 'object',
-                                    'additionalProperties' => false,
-                                    'required' => ['service', 'date', 'items', 'confidence'],
-                                    'properties' => [
-                                        'service' => [
-                                            'type' => 'string',
-                                            'enum' => ['morning', 'evening', 'other', 'unknown'],
-                                        ],
-                                        'date' => [
-                                            'type' => ['string', 'null'],
-                                            'pattern' => '^\\d{4}-\\d{2}-\\d{2}$',
-                                        ],
-                                        'items' => [
-                                            'type' => 'array',
-                                            'items' => [
-                                                'type' => 'object',
-                                                'additionalProperties' => false,
-                                                'required' => ['type', 'title'],
-                                                'properties' => [
-                                                    'type' => [
-                                                        'type' => 'string',
-                                                        'enum' => [
-                                                            'welcome',
-                                                            'prayer',
-                                                            'notices',
-                                                            'song',
-                                                            'childrens_talk',
-                                                            'bible_reading',
-                                                            'sermon',
-                                                            'other',
-                                                        ],
-                                                    ],
-                                                    'title' => [
-                                                        'type' => 'string',
-                                                    ],
-                                                ],
-                                            ],
-                                        ],
-                                        'confidence' => [
-                                            'type' => 'number',
-                                            'minimum' => 0,
-                                            'maximum' => 1,
-                                        ],
-                                    ],
-                                ],
-                            ],
-                            'notes' => [
-                                'type' => 'array',
-                                'items' => [
-                                    'type' => 'string',
-                                ],
-                            ],
-                        ],
-                    ],
+                    'schema' => $this->schema(),
                 ],
             ],
             'temperature' => 0.1,
-            'max_completion_tokens' => 1600,
+            'max_completion_tokens' => 3000,
         ], reasoningEffort: (string) config('service-tracking.email_parsing.reasoning_effort', 'minimal')));
 
         OpenAiUsageLogger::log($response, 'oos_email_parsing', $model);
 
+        return $this->resultFromResponse($response);
+    }
+
+    private function systemPrompt(): string
+    {
+        return <<<'TEXT'
+You extract church service orders from email text. One email often contains BOTH a morning
+and an evening order (and occasionally a special service such as carols or Christmas).
+Return valid JSON with this shape only:
+{"service_count":1,"services":[{"service":"morning|evening|other|unknown","date":"YYYY-MM-DD or null","service_evidence_line_ids":[1],"items":[{"type":"welcome|prayer|notices|song|childrens_talk|bible_reading|sermon|other","title":"exact source text","source_line_ids":[2],"continuation":false}],"confidence":0.0}],"ignored_lines":[{"line_id":3,"reason":"context|forwarded_header|greeting|signature"}],"notes":["string"]}
+Rules:
+- Count the distinct service orders first. service_count MUST equal the number of entries in services.
+- A single order may have no heading. In that case service_evidence_line_ids may be empty and the
+  subject or a time in the body may identify it. Multiple orders require distinct body-line evidence
+  for each boundary, such as headings or standalone time markers.
+- A general Notices section is context, NOT a service order, even when its lines mention another
+  service, time, date, sermon or Bible passage. Put those lines in ignored_lines.
+- Use "other" only for an explicitly evidenced standalone special service such as carols, Christmas,
+  Good Friday or a baptism. Never use "other" for notices, meetings, diary entries or ambiguous prose.
+- Preserve running order. By default each non-blank item line is exactly one item. Never merge adjacent
+  item lines. Use multiple source_line_ids only for a genuinely wrapped continuation on physically
+  adjacent lines, and set continuation=true. Lines separated by a blank line are separate items.
+- Every numbered body line must appear exactly once: as service evidence, in one item's source_line_ids,
+  or in ignored_lines. Never reuse, omit, invent or reorder line IDs.
+- title must copy the complete referenced source text exactly. Do not summarise, clean or rewrite it.
+- Use "morning" for AM/10.30 services, "evening" for PM/6pm services, "other" for specials
+  (carols, Christmas), and "unknown" only when the service time is genuinely unclear.
+- Set "date" only when a service states its own date; otherwise use null.
+- Resolve relative or yearless dates against the supplied email receipt date. These emails normally
+  describe services from the receipt date through the following two weeks; do not use a training-data year.
+- Use "song" for hymns/songs and "bible_reading" for readings, while keeping their complete source
+  wording in title. Display-title cleanup happens after extraction.
+- Confidence reflects how reliable that service's extracted order is.
+TEXT;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function schema(): array
+    {
+        return [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'required' => ['service_count', 'services', 'ignored_lines', 'notes'],
+            'properties' => [
+                'service_count' => [
+                    'type' => 'integer',
+                    'minimum' => 0,
+                ],
+                'services' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'additionalProperties' => false,
+                        'required' => ['service', 'date', 'service_evidence_line_ids', 'items', 'confidence'],
+                        'properties' => [
+                            'service' => [
+                                'type' => 'string',
+                                'enum' => ['morning', 'evening', 'other', 'unknown'],
+                            ],
+                            'date' => [
+                                'type' => ['string', 'null'],
+                                'pattern' => '^\\d{4}-\\d{2}-\\d{2}$',
+                            ],
+                            'service_evidence_line_ids' => $this->lineIdArraySchema(),
+                            'items' => [
+                                'type' => 'array',
+                                'items' => [
+                                    'type' => 'object',
+                                    'additionalProperties' => false,
+                                    'required' => ['type', 'title', 'source_line_ids', 'continuation'],
+                                    'properties' => [
+                                        'type' => [
+                                            'type' => 'string',
+                                            'enum' => [
+                                                'welcome',
+                                                'prayer',
+                                                'notices',
+                                                'song',
+                                                'childrens_talk',
+                                                'bible_reading',
+                                                'sermon',
+                                                'other',
+                                            ],
+                                        ],
+                                        'title' => ['type' => 'string'],
+                                        'source_line_ids' => $this->lineIdArraySchema(minItems: 1),
+                                        'continuation' => ['type' => 'boolean'],
+                                    ],
+                                ],
+                            ],
+                            'confidence' => [
+                                'type' => 'number',
+                                'minimum' => 0,
+                                'maximum' => 1,
+                            ],
+                        ],
+                    ],
+                ],
+                'ignored_lines' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'additionalProperties' => false,
+                        'required' => ['line_id', 'reason'],
+                        'properties' => [
+                            'line_id' => [
+                                'type' => 'integer',
+                                'minimum' => 1,
+                            ],
+                            'reason' => [
+                                'type' => 'string',
+                                'enum' => ['context', 'forwarded_header', 'greeting', 'signature'],
+                            ],
+                        ],
+                    ],
+                ],
+                'notes' => [
+                    'type' => 'array',
+                    'items' => ['type' => 'string'],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function lineIdArraySchema(int $minItems = 0): array
+    {
+        return [
+            'type' => 'array',
+            'minItems' => $minItems,
+            'items' => [
+                'type' => 'integer',
+                'minimum' => 1,
+            ],
+        ];
+    }
+
+    private function resultFromResponse(CreateResponse $response): OosEmailItemExtractionResult
+    {
         $content = $response->choices[0]->message->content ?? null;
 
         if (! is_string($content) || trim($content) === '') {
@@ -151,11 +259,14 @@ TEXT,
             confidence: $this->averageConfidence($services),
             notes: $this->normaliseNotes($decoded['notes'] ?? []),
             services: $services,
+            serviceCount: is_int($decoded['service_count'] ?? null) ? $decoded['service_count'] : null,
+            ignoredLines: $this->normaliseIgnoredLines($decoded['ignored_lines'] ?? []),
+            provenanceComplete: true,
         );
     }
 
     /**
-     * @return list<array{service:?string,date:?string,items:array<int,array{type:string,title:string}>,confidence:float}>
+     * @return list<array{service:?string,date:?string,service_evidence_line_ids:list<int>,items:array<int,array{type:string,title:string,source_line_ids:list<int>,continuation:bool}>,confidence:float}>
      */
     private function normaliseServices(mixed $services): array
     {
@@ -175,6 +286,7 @@ TEXT,
             $normalised[] = [
                 'service' => $this->normaliseString($service['service'] ?? null),
                 'date' => $this->normaliseString($service['date'] ?? null),
+                'service_evidence_line_ids' => $this->normaliseLineIds($service['service_evidence_line_ids'] ?? []),
                 'items' => $this->normaliseItems($service['items'] ?? []),
                 'confidence' => is_numeric($confidence) ? max(0.0, min(1.0, (float) $confidence)) : 0.0,
             ];
@@ -184,8 +296,8 @@ TEXT,
     }
 
     /**
-     * @param  list<array{service:?string,date:?string,items:array<int,array{type:string,title:string}>,confidence:float}>  $services
-     * @return array<int, array{type:string,title:string}>
+     * @param  list<array{service:?string,date:?string,service_evidence_line_ids:list<int>,items:array<int,array{type:string,title:string,source_line_ids:list<int>,continuation:bool}>,confidence:float}>  $services
+     * @return array<int, array{type:string,title:string,source_line_ids:list<int>,continuation:bool}>
      */
     private function flattenServiceItems(array $services): array
     {
@@ -201,7 +313,7 @@ TEXT,
     }
 
     /**
-     * @param  list<array{service:?string,date:?string,items:array<int,array{type:string,title:string}>,confidence:float}>  $services
+     * @param  list<array{service:?string,date:?string,service_evidence_line_ids:list<int>,items:array<int,array{type:string,title:string,source_line_ids:list<int>,continuation:bool}>,confidence:float}>  $services
      */
     private function averageConfidence(array $services): float
     {
@@ -215,7 +327,7 @@ TEXT,
     }
 
     /**
-     * @return array<int, array{type:string,title:string}>
+     * @return array<int, array{type:string,title:string,source_line_ids:list<int>,continuation:bool}>
      */
     private function normaliseItems(mixed $items): array
     {
@@ -240,10 +352,56 @@ TEXT,
             $normalised[] = [
                 'type' => $type,
                 'title' => $title,
+                'source_line_ids' => $this->normaliseLineIds($item['source_line_ids'] ?? []),
+                'continuation' => ($item['continuation'] ?? false) === true,
             ];
         }
 
         return $normalised;
+    }
+
+    /**
+     * @return list<array{line_id:int,reason:string}>
+     */
+    private function normaliseIgnoredLines(mixed $ignoredLines): array
+    {
+        if (! is_array($ignoredLines)) {
+            return [];
+        }
+
+        $normalised = [];
+
+        foreach ($ignoredLines as $ignoredLine) {
+            if (! is_array($ignoredLine)) {
+                continue;
+            }
+
+            $lineId = $ignoredLine['line_id'] ?? null;
+            $reason = $this->normaliseString($ignoredLine['reason'] ?? null);
+
+            if (! is_int($lineId) || $reason === null) {
+                continue;
+            }
+
+            $normalised[] = [
+                'line_id' => $lineId,
+                'reason' => $reason,
+            ];
+        }
+
+        return $normalised;
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function normaliseLineIds(mixed $lineIds): array
+    {
+        if (! is_array($lineIds)) {
+            return [];
+        }
+
+        return array_values(array_filter($lineIds, is_int(...)));
     }
 
     /**

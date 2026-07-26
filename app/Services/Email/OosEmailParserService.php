@@ -4,41 +4,105 @@ declare(strict_types=1);
 
 namespace App\Services\Email;
 
+use App\Contracts\CorrectiveOosEmailItemExtractor;
 use App\Contracts\OosEmailItemExtractor;
+use App\Data\OosEmailExtractionValidationResult;
 use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailParseResult;
 use App\Data\OosEmailServicePlan;
+use App\Data\OosEmailSourceDocument;
+use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
 use App\Models\InboundEmail;
 use App\Services\ChurchService\ServiceItemTitleCleaner;
 use Carbon\CarbonImmutable;
+use Throwable;
 
 class OosEmailParserService
 {
+    private OosEmailExtractionValidator $extractionValidator;
+
     public function __construct(
         private readonly OosEmailItemExtractor $itemExtractor,
         private readonly ExistingEmailImportLookup $existingEmailImports,
         private readonly ServiceItemTitleCleaner $titleCleaner,
-    ) {}
+        ?OosEmailExtractionValidator $extractionValidator = null,
+    ) {
+        $this->extractionValidator = $extractionValidator ?? new OosEmailExtractionValidator;
+    }
 
     public function parse(InboundEmail $inboundEmail): OosEmailParseResult
     {
         $body = $this->preferredBody($inboundEmail);
+        $source = OosEmailSourceDocument::fromBody($body);
         $receivedAt = CarbonImmutable::instance($inboundEmail->received_at);
-        $extraction = $this->itemExtractor->extract(
+        $initialExtraction = $this->itemExtractor->extract(
             $inboundEmail->subject,
             $body,
             $receivedAt->toDateString(),
         );
-        $warnings = $extraction->notes;
+        $initialValidation = $this->extractionValidator->validate($source, $initialExtraction);
+        $extraction = $initialExtraction;
+        $validation = $initialValidation;
+        $attempts = [$this->attemptMetadata(1, $initialExtraction, $initialValidation, true)];
+        $consensus = false;
+        $validAttemptsDisagree = false;
+        $retryWarnings = [];
+        $retryReasons = $this->retryReasons($initialExtraction, $initialValidation);
+
+        if ($retryReasons !== [] && $this->itemExtractor instanceof CorrectiveOosEmailItemExtractor) {
+            try {
+                $correctedExtraction = $this->itemExtractor->correct(
+                    $inboundEmail->subject,
+                    $body,
+                    $receivedAt->toDateString(),
+                    $initialExtraction,
+                    $retryReasons,
+                );
+                $correctedValidation = $this->extractionValidator->validate($source, $correctedExtraction);
+                $useCorrected = $correctedValidation->reasonCount() <= $initialValidation->reasonCount();
+
+                if ($useCorrected) {
+                    $extraction = $correctedExtraction;
+                    $validation = $correctedValidation;
+                    $attempts[0]['selected'] = false;
+                }
+
+                $attempts[] = $this->attemptMetadata(2, $correctedExtraction, $correctedValidation, $useCorrected);
+                $consensus = $initialValidation->isValid()
+                    && $correctedValidation->isValid()
+                    && $this->extractionSignature($initialExtraction) === $this->extractionSignature($correctedExtraction);
+                $validAttemptsDisagree = $initialValidation->isValid()
+                    && $correctedValidation->isValid()
+                    && ! $consensus;
+
+                if ($validAttemptsDisagree) {
+                    $retryWarnings[] = 'Two structurally valid extraction attempts disagreed; human review is required.';
+                }
+            } catch (Throwable $exception) {
+                report($exception);
+                $retryWarnings[] = 'The corrective extraction attempt failed; the first result has been held for review.';
+                $attempts[] = [
+                    'attempt' => 2,
+                    'selected' => false,
+                    'error' => $exception->getMessage(),
+                ];
+            }
+        }
+
+        $warnings = array_merge($extraction->notes, $retryWarnings);
         $validations = [];
         $servicePlans = $this->buildServicePlans(
             $extraction,
+            $source,
+            $validation,
             $inboundEmail->subject,
             $inboundEmail->message_id,
             $warnings,
             $validations,
+            $consensus,
+            $validAttemptsDisagree,
         );
         $primary = $this->primaryPlan($servicePlans);
         $primaryDate = $primary->date;
@@ -91,10 +155,18 @@ class OosEmailParserService
                     'notes' => $extraction->notes,
                 ],
                 'service_plans' => $this->servicePlansMetadata($servicePlans),
+                'disposition' => $primary->disposition->value,
+                'validation_reasons' => $primary->validationReasons,
+                'extraction_attempts' => $attempts,
+                'consensus' => $consensus,
                 'source_message_id' => $inboundEmail->message_id,
                 'source_subject' => $inboundEmail->subject,
             ],
             servicePlans: $servicePlans,
+            disposition: $primary->disposition,
+            validationReasons: $primary->validationReasons,
+            extractionAttempts: $attempts,
+            consensus: $consensus,
         );
     }
 
@@ -105,36 +177,54 @@ class OosEmailParserService
      */
     private function buildServicePlans(
         OosEmailItemExtractionResult $extraction,
+        OosEmailSourceDocument $source,
+        OosEmailExtractionValidationResult $validation,
         string $subject,
         ?string $sourceMessageId,
         array &$warnings,
         array &$validations,
+        bool $consensus,
+        bool $validAttemptsDisagree,
     ): array {
         if ($extraction->services === []) {
             return [$this->buildPlan(
+                0,
                 null,
                 null,
                 $extraction->items,
                 $extraction->confidence,
+                [],
+                $source,
+                $extraction->provenanceComplete,
+                $validation->reasonsForPlan(0),
                 $subject,
                 $sourceMessageId,
                 $warnings,
                 $validations,
+                $consensus,
+                $validAttemptsDisagree,
             )];
         }
 
         $plans = [];
 
-        foreach ($extraction->services as $rawPlan) {
+        foreach ($extraction->services as $planIndex => $rawPlan) {
             $plans[] = $this->buildPlan(
+                $planIndex,
                 $rawPlan['service'],
                 $rawPlan['date'],
                 $rawPlan['items'],
                 $rawPlan['confidence'],
+                $rawPlan['service_evidence_line_ids'] ?? [],
+                $source,
+                $extraction->provenanceComplete,
+                $validation->reasonsForPlan($planIndex),
                 $subject,
                 $sourceMessageId,
                 $warnings,
                 $validations,
+                $consensus,
+                $validAttemptsDisagree,
             );
         }
 
@@ -142,23 +232,32 @@ class OosEmailParserService
     }
 
     /**
-     * @param  array<int, array{type:string,title:string}>  $rawItems
+     * @param  array<int, array{type:string,title:string,source_line_ids?:list<int>,continuation?:bool}>  $rawItems
+     * @param  list<int>  $serviceEvidenceLineIds
+     * @param  list<string>  $structuralReasons
      * @param  list<string>  $warnings
      * @param  array<string, array{plausible:bool,warnings:list<string>,suggested_date:?string,reasons:list<string>,claimed_weekday:?string}>  $validations
      */
     private function buildPlan(
+        int $planIndex,
         ?string $rawService,
         ?string $rawDate,
         array $rawItems,
         float $rawConfidence,
+        array $serviceEvidenceLineIds,
+        OosEmailSourceDocument $source,
+        bool $provenanceComplete,
+        array $structuralReasons,
         string $subject,
         ?string $sourceMessageId,
         array &$warnings,
         array &$validations,
+        bool $consensus,
+        bool $validAttemptsDisagree,
     ): OosEmailServicePlan {
         $service = $this->validatedService($rawService);
         $date = $this->validatedDate($rawDate);
-        $items = $this->normaliseItems($rawItems);
+        $items = $this->normaliseItems($rawItems, $source, $provenanceComplete);
         $confidence = round(max(0.0, min(1.0, $rawConfidence)), 2);
 
         if ($rawDate !== null && $date === null) {
@@ -187,22 +286,59 @@ class OosEmailParserService
         $confidence = round($confidence, 2);
         $reviewThreshold = (float) config('service-tracking.email_parsing.review_threshold', 0.75);
         $autoImportThreshold = (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90);
-        $shouldImport = $confidence >= $reviewThreshold
-            && $date !== null
-            && $service !== null
-            && $items !== [];
+        $validationReasons = $structuralReasons;
+
+        if ($items === []) {
+            $validationReasons[] = 'The service order contains no extractable items.';
+        }
+
+        $validationReasons = array_values(array_unique($validationReasons));
+        $disposition = $this->planDisposition(
+            $service,
+            $date,
+            $items,
+            $confidence,
+            $validationReasons,
+            $reviewThreshold,
+            $autoImportThreshold,
+            $consensus,
+            $validAttemptsDisagree,
+        );
+        if ($validAttemptsDisagree) {
+            $validationReasons[] = 'Two valid extraction attempts disagreed about the service structure.';
+        }
+        $validationReasons = array_values(array_unique($validationReasons));
+        $shouldImport = $disposition === OosEmailParseDisposition::AutoImportable;
+        $needsReview = $disposition !== OosEmailParseDisposition::AutoImportable;
 
         if ($date !== null && $service !== null) {
             $validations["{$service->value}:{$date}"] = $plausibility;
         }
+
+        $warnings = array_merge($warnings, $validationReasons);
 
         return new OosEmailServicePlan(
             service: $service,
             date: $date,
             items: $items,
             confidence: $confidence,
-            needsReview: $shouldImport && $confidence < $autoImportThreshold,
+            needsReview: $needsReview,
             shouldImport: $shouldImport,
+            disposition: $disposition,
+            validationReasons: $validationReasons,
+            sourceProvenance: [
+                'plan_index' => $planIndex,
+                'service_evidence_line_ids' => $this->integerLineIds($serviceEvidenceLineIds),
+                'items' => array_map(
+                    fn (array $item, int $index): array => [
+                        'position' => $index + 1,
+                        'source_line_ids' => $this->integerLineIds($item['source_line_ids'] ?? []),
+                        'continuation' => ($item['continuation'] ?? false) === true,
+                    ],
+                    $rawItems,
+                    array_keys($rawItems),
+                ),
+            ],
         );
     }
 
@@ -248,7 +384,7 @@ class OosEmailParserService
 
     /**
      * @param  list<OosEmailServicePlan>  $plans
-     * @return list<array{plan_key:string,service:?string,date:?string,items:array<int,array<string,mixed>>,confidence:float,needs_review:bool,should_import:bool}>
+     * @return list<array{plan_key:string,service:?string,date:?string,items:array<int,array<string,mixed>>,confidence:float,needs_review:bool,should_import:bool,disposition:string,validation_reasons:list<string>,source_provenance:array<string,mixed>}>
      */
     private function servicePlansMetadata(array $plans): array
     {
@@ -260,6 +396,9 @@ class OosEmailParserService
             'confidence' => $plan->confidence,
             'needs_review' => $plan->needsReview,
             'should_import' => $plan->shouldImport,
+            'disposition' => $plan->disposition->value,
+            'validation_reasons' => $plan->validationReasons,
+            'source_provenance' => $plan->sourceProvenance,
         ], $plans);
     }
 
@@ -288,16 +427,21 @@ class OosEmailParserService
      * carried. They are deliberately allowed to differ here: cross-source matching and song
      * resolution read `source_title`, so cleaning the display title costs no match strength.
      *
-     * @param  array<int, array{type:string,title:string}>  $items
+     * @param  array<int, array{type:string,title:string,source_line_ids?:list<int>,continuation?:bool}>  $items
      * @return array<int, array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>
      */
-    private function normaliseItems(array $items): array
-    {
+    private function normaliseItems(
+        array $items,
+        OosEmailSourceDocument $source,
+        bool $provenanceComplete,
+    ): array {
         $normalised = [];
 
         foreach ($items as $item) {
             $semanticType = $this->normaliseSemanticType($item['type']);
-            $rawTitle = $this->normaliseWhitespace($item['title']);
+            $sourceLineIds = $this->integerLineIds($item['source_line_ids'] ?? []);
+            $sourceTitle = $provenanceComplete ? $source->textFor($sourceLineIds) : null;
+            $rawTitle = $this->normaliseWhitespace($sourceTitle ?? $item['title']);
 
             if ($rawTitle === null) {
                 continue;
@@ -324,6 +468,125 @@ class OosEmailParserService
         }
 
         return $normalised;
+    }
+
+    /**
+     * @param  array<int, array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>  $items
+     * @param  list<string>  $validationReasons
+     */
+    private function planDisposition(
+        ?SermonService $service,
+        ?string $date,
+        array $items,
+        float $confidence,
+        array $validationReasons,
+        float $reviewThreshold,
+        float $autoImportThreshold,
+        bool $consensus,
+        bool $validAttemptsDisagree,
+    ): OosEmailParseDisposition {
+        if ($validationReasons !== [] || $items === []) {
+            return OosEmailParseDisposition::InvalidExtraction;
+        }
+
+        if ($validAttemptsDisagree) {
+            return OosEmailParseDisposition::ReviewRequired;
+        }
+
+        if ($service === null || $date === null || $service === SermonService::Other) {
+            return OosEmailParseDisposition::ReviewRequired;
+        }
+
+        if ($confidence >= $autoImportThreshold) {
+            return OosEmailParseDisposition::AutoImportable;
+        }
+
+        if ($consensus && $confidence >= $reviewThreshold) {
+            return OosEmailParseDisposition::AutoImportable;
+        }
+
+        return OosEmailParseDisposition::ReviewRequired;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function retryReasons(
+        OosEmailItemExtractionResult $extraction,
+        OosEmailExtractionValidationResult $validation,
+    ): array {
+        $reasons = $validation->allReasons();
+        $autoImportThreshold = (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90);
+
+        foreach ($extraction->services as $planIndex => $service) {
+            $confidence = $service['confidence'];
+
+            if ($confidence < $autoImportThreshold) {
+                $reasons[] = 'Service plan '.($planIndex + 1).' is below the automatic-import confidence threshold.';
+            }
+
+            if (($service['service'] ?? null) === 'unknown' || ($service['service'] ?? null) === 'other') {
+                $reasons[] = 'Service plan '.($planIndex + 1).' has an uncertain or special service type.';
+            }
+
+            if (($service['date'] ?? null) === null) {
+                $reasons[] = 'Service plan '.($planIndex + 1).' has no resolved date.';
+            }
+        }
+
+        return array_values(array_unique($reasons));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function attemptMetadata(
+        int $attempt,
+        OosEmailItemExtractionResult $extraction,
+        OosEmailExtractionValidationResult $validation,
+        bool $selected,
+    ): array {
+        return [
+            'attempt' => $attempt,
+            'selected' => $selected,
+            'reported_service_count' => $extraction->serviceCount,
+            'returned_service_count' => count($extraction->services),
+            'confidence' => $extraction->confidence,
+            'validation_reasons' => $validation->allReasons(),
+            'plans' => array_map(static fn (array $service): array => [
+                'service' => $service['service'] ?? null,
+                'date' => $service['date'] ?? null,
+                'confidence' => $service['confidence'],
+                'item_count' => count($service['items']),
+            ], $extraction->services),
+        ];
+    }
+
+    private function extractionSignature(OosEmailItemExtractionResult $extraction): string
+    {
+        $signature = array_map(fn (array $service): array => [
+            'service' => $service['service'] ?? null,
+            'date' => $service['date'] ?? null,
+            'evidence' => $this->integerLineIds($service['service_evidence_line_ids'] ?? []),
+            'items' => array_map(fn (array $item): array => [
+                'type' => $item['type'],
+                'source_line_ids' => $this->integerLineIds($item['source_line_ids'] ?? []),
+            ], $service['items']),
+        ], $extraction->services);
+
+        return hash('sha256', (string) json_encode($signature));
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function integerLineIds(mixed $lineIds): array
+    {
+        if (! is_array($lineIds)) {
+            return [];
+        }
+
+        return array_values(array_filter($lineIds, is_int(...)));
     }
 
     /**
@@ -468,7 +731,7 @@ class OosEmailParserService
             }
 
             return $candidate;
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }

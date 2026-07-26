@@ -123,6 +123,37 @@ class InboundEmailPreviewFactoryTest extends TestCase
     }
 
     #[Test]
+    public function it_disables_approval_for_a_structurally_invalid_service_plan(): void
+    {
+        $metadata = $this->processingMetadata(
+            resolvedDate: '2026-06-29',
+            resolvedService: SermonService::Morning->value,
+            items: [['type' => 'sermon', 'title' => 'Merged title']],
+        );
+        $metadata['parsing']['service_plans'] = [[
+            'plan_key' => 'morning:2026-06-29',
+            'service' => 'morning',
+            'date' => '2026-06-29',
+            'confidence' => 0.95,
+            'needs_review' => true,
+            'should_import' => false,
+            'disposition' => 'invalid_extraction',
+            'validation_reasons' => ['Item 1 merges separate source lines.'],
+            'items' => [['type' => 'sermon', 'title' => 'Merged title']],
+        ]];
+        $email = InboundEmail::factory()->create([
+            'status' => InboundEmailStatus::Pending->value,
+            'processing_metadata' => $metadata,
+        ]);
+
+        $preview = $this->factory->build($email);
+
+        $this->assertFalse($preview['can_approve']);
+        $this->assertFalse($preview['service_plans'][0]['can_approve']);
+        $this->assertSame(['Item 1 merges separate source lines.'], $preview['service_plans'][0]['validation_reasons']);
+    }
+
+    #[Test]
     public function it_sets_can_approve_false_when_resolved_date_is_missing(): void
     {
         $email = InboundEmail::factory()->create([

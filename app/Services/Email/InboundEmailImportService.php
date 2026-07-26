@@ -11,6 +11,7 @@ use App\Data\OosEmailServicePlan;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\InboundEmailStatus;
 use App\Enums\OosEmailImportOutcome;
+use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
@@ -110,6 +111,14 @@ class InboundEmailImportService
             ]),
             servicePlans: $servicePlans,
             isLegacyFlattened: $isLegacyFlattened,
+            disposition: $this->storedDisposition(
+                Arr::get($storedParseData, 'disposition'),
+                (bool) Arr::get($storedParseData, 'needs_review', false),
+                (bool) Arr::get($storedParseData, 'should_import', false),
+            ),
+            validationReasons: $this->storedStrings(Arr::get($storedParseData, 'validation_reasons')),
+            extractionAttempts: $this->storedAttempts(Arr::get($storedParseData, 'extraction_attempts')),
+            consensus: (bool) Arr::get($storedParseData, 'consensus', false),
         );
     }
 
@@ -152,6 +161,15 @@ class InboundEmailImportService
                 confidence: $confidence,
                 needsReview: (bool) ($storedPlan['needs_review'] ?? false),
                 shouldImport: (bool) ($storedPlan['should_import'] ?? false),
+                disposition: $this->storedDisposition(
+                    $storedPlan['disposition'] ?? null,
+                    (bool) ($storedPlan['needs_review'] ?? false),
+                    (bool) ($storedPlan['should_import'] ?? false),
+                ),
+                validationReasons: $this->storedStrings($storedPlan['validation_reasons'] ?? null),
+                sourceProvenance: is_array($storedPlan['source_provenance'] ?? null)
+                    ? $storedPlan['source_provenance']
+                    : [],
             );
         }
 
@@ -276,7 +294,9 @@ class InboundEmailImportService
     ): OosEmailImportPlanOutcome {
         // An admin approval imports any well-formed plan; the automated pipeline only imports
         // plans confident enough to auto-import, holding the rest for review.
-        $ready = $reviewedByUserId !== null ? $plan->isImportable() : $plan->shouldImport;
+        $ready = $reviewedByUserId !== null
+            ? $plan->isManuallyImportable()
+            : $plan->isAutoImportable();
 
         if (! $ready || ! $plan->isImportable()) {
             return new OosEmailImportPlanOutcome(
@@ -304,6 +324,47 @@ class InboundEmailImportService
                 message: $exception->getMessage(),
             );
         }
+    }
+
+    private function storedDisposition(mixed $value, bool $needsReview, bool $shouldImport): OosEmailParseDisposition
+    {
+        if (is_string($value)) {
+            $disposition = OosEmailParseDisposition::tryFrom($value);
+
+            if ($disposition instanceof OosEmailParseDisposition) {
+                return $disposition;
+            }
+        }
+
+        if ($shouldImport && ! $needsReview) {
+            return OosEmailParseDisposition::AutoImportable;
+        }
+
+        return OosEmailParseDisposition::ReviewRequired;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function storedStrings(mixed $values): array
+    {
+        if (! is_array($values)) {
+            return [];
+        }
+
+        return array_values(array_filter($values, is_string(...)));
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function storedAttempts(mixed $attempts): array
+    {
+        if (! is_array($attempts)) {
+            return [];
+        }
+
+        return array_values(array_filter($attempts, is_array(...)));
     }
 
     /**

@@ -96,7 +96,7 @@ class ProcessInboundOosEmailTest extends TestCase
     }
 
     #[Test]
-    public function it_imports_an_ambiguous_email_and_marks_the_service_for_review(): void
+    public function it_holds_an_ambiguous_email_for_review_without_importing_it(): void
     {
         $this->bindExtractor(new OosEmailItemExtractionResult(
             items: [
@@ -126,12 +126,12 @@ class ProcessInboundOosEmailTest extends TestCase
 
         app()->call([new ProcessInboundOosEmail($email), 'handle']);
 
-        $service = ChurchService::query()->firstOrFail();
-
-        $this->assertTrue($service->needs_review);
+        $this->assertDatabaseCount('church_services', 0);
 
         $email->refresh();
-        $this->assertSame(InboundEmailStatus::Processed, $email->status);
+        $this->assertSame(InboundEmailStatus::Pending, $email->status);
+        $this->assertFalse($email->processing_metadata['parsing']['should_import']);
+        $this->assertTrue($email->processing_metadata['parsing']['needs_review']);
         $this->assertTrue($email->processing_metadata['parsing']['confidence_score'] >= 0.75);
         $this->assertTrue($email->processing_metadata['parsing']['confidence_score'] < 0.90);
     }

@@ -38,7 +38,7 @@ class ProcessInboundOosEmail implements ShouldQueue
 
         $autoImportablePlans = array_filter(
             $parseResult->servicePlans,
-            static fn ($plan): bool => $plan->shouldImport,
+            static fn ($plan): bool => $plan->isAutoImportable(),
         );
 
         if ($autoImportablePlans === []) {

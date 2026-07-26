@@ -61,6 +61,10 @@ class OpenAiOosEmailItemExtractorTest extends TestCase
                 && $parameters['service_tier'] === 'flex'
                 && $parameters['reasoning_effort'] === 'none'
                 && str_contains($parameters['messages'][1]['content'], 'Email received date: 2026-03-07')
+                && str_contains($parameters['messages'][1]['content'], '[L001] Welcome')
+                && str_contains($parameters['messages'][0]['content'], 'A single order may have no heading')
+                && $parameters['response_format']['json_schema']['schema']['required']
+                    === ['service_count', 'services', 'ignored_lines', 'notes']
                 && $serviceSchema['service']['enum'] === ['morning', 'evening', 'other', 'unknown']
                 && $serviceSchema['date']['pattern'] === '^\\d{4}-\\d{2}-\\d{2}$'
                 && $serviceSchema['confidence']['minimum'] === 0

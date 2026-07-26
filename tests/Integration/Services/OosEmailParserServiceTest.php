@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Contracts\CorrectiveOosEmailItemExtractor;
 use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
+use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
@@ -86,8 +88,9 @@ class OosEmailParserServiceTest extends TestCase
 
         $this->assertSame('2026-03-15', $result->date);
         $this->assertSame(SermonService::Morning, $result->service);
-        $this->assertTrue($result->shouldImport);
+        $this->assertFalse($result->shouldImport);
         $this->assertTrue($result->needsReview);
+        $this->assertSame(OosEmailParseDisposition::ReviewRequired, $result->disposition);
         $this->assertSame(0.85, $result->confidenceScore);
     }
 
@@ -136,7 +139,8 @@ class OosEmailParserServiceTest extends TestCase
         $this->assertNull($result->date);
         $this->assertNull($result->service);
         $this->assertFalse($result->shouldImport);
-        $this->assertFalse($result->needsReview);
+        $this->assertTrue($result->needsReview);
+        $this->assertSame(OosEmailParseDisposition::InvalidExtraction, $result->disposition);
         $this->assertLessThan(0.75, $result->confidenceScore);
     }
 
@@ -615,6 +619,184 @@ class OosEmailParserServiceTest extends TestCase
         $this->assertNull($result->importMetadata['date_extraction']['suggested_date']);
     }
 
+    #[Test]
+    public function it_accepts_a_headerless_single_order_when_every_item_is_grounded_in_source_lines(): void
+    {
+        $body = "Welcome\nAmazing Grace\nSermon";
+        $parser = $this->parserReturning(new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.95,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'service_evidence_line_ids' => [],
+                'items' => [
+                    $this->groundedItem('welcome', 'Welcome', 1),
+                    $this->groundedItem('song', 'Amazing Grace', 2),
+                    $this->groundedItem('sermon', 'Sermon', 3),
+                ],
+                'confidence' => 0.95,
+            ]],
+            serviceCount: 1,
+            provenanceComplete: true,
+        ));
+
+        $result = $parser->parse(InboundEmail::factory()->make([
+            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
+            'body_plain' => $body,
+            'received_at' => '2026-07-10 09:00:00',
+        ]));
+
+        $this->assertSame(OosEmailParseDisposition::AutoImportable, $result->disposition);
+        $this->assertTrue($result->shouldImport);
+        $this->assertFalse($result->needsReview);
+        $this->assertSame(['Welcome', 'Amazing Grace', 'Sermon'], array_column($result->items, 'source_title'));
+    }
+
+    #[Test]
+    public function it_retries_the_real_july_twelfth_shape_when_diagnostics_and_service_plans_disagree(): void
+    {
+        $body = $this->julyTwelfthBody();
+        $corrected = $this->julyTwelfthExtraction($body);
+        $initialServices = $corrected->services;
+        $initialServices[] = [
+            'service' => 'other',
+            'date' => null,
+            'service_evidence_line_ids' => [$this->lineId($body, 'Notices')],
+            'items' => $this->itemsForSection($body, 'Notices', 'Sunday morning'),
+            'confidence' => 0.45,
+        ];
+        $initial = new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.72,
+            notes: ['The email contains a morning and evening order.'],
+            services: $initialServices,
+            serviceCount: 2,
+            provenanceComplete: true,
+        );
+        $extractor = new class($initial, $corrected) implements CorrectiveOosEmailItemExtractor
+        {
+            public int $extractCalls = 0;
+
+            public int $correctionCalls = 0;
+
+            public function __construct(
+                private readonly OosEmailItemExtractionResult $initial,
+                private readonly OosEmailItemExtractionResult $corrected,
+            ) {}
+
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                $this->extractCalls++;
+
+                return $this->initial;
+            }
+
+            public function correct(
+                string $subject,
+                string $body,
+                string $receivedDate,
+                OosEmailItemExtractionResult $previousExtraction,
+                array $validationFailures,
+            ): OosEmailItemExtractionResult {
+                $this->correctionCalls++;
+
+                return $this->corrected;
+            }
+        };
+        $parser = new OosEmailParserService(
+            $extractor,
+            new ExistingEmailImportLookup,
+            app(ServiceItemTitleCleaner::class),
+        );
+
+        $result = $parser->parse(InboundEmail::factory()->make([
+            'subject' => 'Manual entry',
+            'body_plain' => $body,
+            'received_at' => '2026-07-26 12:52:15',
+        ]));
+
+        $this->assertSame(1, $extractor->extractCalls);
+        $this->assertSame(1, $extractor->correctionCalls);
+        $this->assertCount(2, $result->servicePlans);
+        $this->assertSame(2, count($result->extractionAttempts));
+        $this->assertSame(12, count($result->servicePlans[0]->items));
+        $this->assertSame(10, count($result->servicePlans[1]->items));
+        $this->assertSame('Family Talk – “Joel” (see PP)', $result->servicePlans[0]->items[4]['source_title']);
+        $this->assertSame('Family Talk – “Joel”', $result->servicePlans[0]->items[4]['title']);
+        $this->assertSame('Bible Reading: Joshua 5:13-6:27', $result->servicePlans[0]->items[6]['source_title']);
+        $this->assertSame('Joshua 5:13-6:27', $result->servicePlans[0]->items[6]['title']);
+        $this->assertNotContains(SermonService::Other, array_map(
+            static fn ($plan) => $plan->service,
+            $result->servicePlans,
+        ));
+    }
+
+    #[Test]
+    public function it_holds_a_parse_when_a_corrective_retry_still_merges_separate_item_lines(): void
+    {
+        $body = "Welcome\n\nSermon\n\nAmazing Grace\n\nClosing prayer";
+        $invalid = new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.95,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'service_evidence_line_ids' => [],
+                'items' => [
+                    $this->groundedItem('welcome', 'Welcome', 1),
+                    $this->groundedItem('sermon', 'Sermon / Amazing Grace', [3, 5], continuation: true),
+                    $this->groundedItem('prayer', 'Closing prayer', 7),
+                ],
+                'confidence' => 0.95,
+            ]],
+            serviceCount: 1,
+            provenanceComplete: true,
+        );
+        $extractor = new class($invalid) implements CorrectiveOosEmailItemExtractor
+        {
+            public int $correctionCalls = 0;
+
+            public function __construct(
+                private readonly OosEmailItemExtractionResult $result,
+            ) {}
+
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                return $this->result;
+            }
+
+            public function correct(
+                string $subject,
+                string $body,
+                string $receivedDate,
+                OosEmailItemExtractionResult $previousExtraction,
+                array $validationFailures,
+            ): OosEmailItemExtractionResult {
+                $this->correctionCalls++;
+
+                return $this->result;
+            }
+        };
+        $parser = new OosEmailParserService(
+            $extractor,
+            new ExistingEmailImportLookup,
+            app(ServiceItemTitleCleaner::class),
+        );
+
+        $result = $parser->parse(InboundEmail::factory()->make([
+            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
+            'body_plain' => $body,
+            'received_at' => '2026-07-10 09:00:00',
+        ]));
+
+        $this->assertSame(1, $extractor->correctionCalls);
+        $this->assertSame(OosEmailParseDisposition::InvalidExtraction, $result->disposition);
+        $this->assertFalse($result->shouldImport);
+        $this->assertTrue($result->needsReview);
+        $this->assertNotEmpty($result->validationReasons);
+    }
+
     /**
      * @return array<string, array{resolvedDate:string,shouldHold:bool}>
      */
@@ -708,5 +890,187 @@ class OosEmailParserServiceTest extends TestCase
             'items' => $items ?? [['type' => 'song', 'title' => 'Song one']],
             'confidence' => $confidence,
         ];
+    }
+
+    /**
+     * @param  int|list<int>  $sourceLineIds
+     * @return array{type:string,title:string,source_line_ids:list<int>,continuation:bool}
+     */
+    private function groundedItem(
+        string $type,
+        string $title,
+        int|array $sourceLineIds,
+        bool $continuation = false,
+    ): array {
+        return [
+            'type' => $type,
+            'title' => $title,
+            'source_line_ids' => is_int($sourceLineIds) ? [$sourceLineIds] : $sourceLineIds,
+            'continuation' => $continuation,
+        ];
+    }
+
+    private function julyTwelfthBody(): string
+    {
+        return <<<'TEXT'
+Sunday 12th July 2026
+
+Notices
+
+Refreshments
+Eve service – 6pm – 1 Tim.3:1-7
+Monday - QCM @ 7:30pm
+HG’s, BB, CC.
+Wed – Slade @ 7:30pm (start 8pm) – Roman Catholicism (see slide)
+Next Sun 10, 10:30 and 6.
+
+Sunday morning
+
+Welcome
+
+Notices (see above)
+
+98 Sing to God
+
+Prayer
+
+Family Talk – “Joel” (see PP)
+
+NIP ‘Holy, Spirit, living breath of God’
+
+Bible Reading: Joshua 5:13-6:27
+
+Prayer
+
+548 ‘How sure the Scriptures are’
+
+Sermon
+
+NIP On the cross he took
+
+Closing prayer
+
+Sunday evening
+
+Welcome
+
+Call to worship
+
+Opening prayer
+
+146 ‘I’ll praise my maker’
+
+Bible Reading: 1 Timothy 3:1-17
+
+Sermon
+
+NIP ‘Restore O Lord
+
+Prayers
+
+765 ‘My times are in your hand’
+
+Closing prayer
+TEXT;
+    }
+
+    private function julyTwelfthExtraction(string $body): OosEmailItemExtractionResult
+    {
+        return new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.95,
+            notes: ['Two service orders found.'],
+            services: [
+                [
+                    'service' => 'morning',
+                    'date' => '2026-07-12',
+                    'service_evidence_line_ids' => [$this->lineId($body, 'Sunday morning')],
+                    'items' => $this->itemsForSection($body, 'Sunday morning', 'Sunday evening'),
+                    'confidence' => 0.95,
+                ],
+                [
+                    'service' => 'evening',
+                    'date' => '2026-07-12',
+                    'service_evidence_line_ids' => [$this->lineId($body, 'Sunday evening')],
+                    'items' => $this->itemsForSection($body, 'Sunday evening'),
+                    'confidence' => 0.95,
+                ],
+            ],
+            serviceCount: 2,
+            ignoredLines: array_map(
+                static fn (int $lineId): array => ['line_id' => $lineId, 'reason' => 'context'],
+                $this->lineIdsBefore($body, 'Sunday morning'),
+            ),
+            provenanceComplete: true,
+        );
+    }
+
+    /**
+     * @return list<array{type:string,title:string,source_line_ids:list<int>,continuation:bool}>
+     */
+    private function itemsForSection(string $body, string $heading, ?string $nextHeading = null): array
+    {
+        $lines = preg_split('/\R/', $body) ?: [];
+        $start = $this->lineId($body, $heading);
+        $end = $nextHeading === null ? count($lines) + 1 : $this->lineId($body, $nextHeading);
+        $items = [];
+
+        foreach ($lines as $index => $line) {
+            $lineId = $index + 1;
+            $title = trim($line);
+
+            if ($lineId <= $start || $lineId >= $end || $title === '') {
+                continue;
+            }
+
+            $type = match (true) {
+                str_contains(strtolower($title), 'reading:') => 'bible_reading',
+                str_contains(strtolower($title), 'sermon') => 'sermon',
+                str_contains(strtolower($title), 'prayer') || $title === 'Prayers' => 'prayer',
+                str_contains(strtolower($title), 'notices') => 'notices',
+                str_contains(strtolower($title), 'welcome') => 'welcome',
+                str_contains(strtolower($title), 'family talk') => 'childrens_talk',
+                preg_match('/^(?:NIP|\d{2,3}\s)/u', $title) === 1 => 'song',
+                default => 'other',
+            };
+
+            $items[] = $this->groundedItem($type, $title, $lineId);
+        }
+
+        return $items;
+    }
+
+    private function lineId(string $body, string $text): int
+    {
+        foreach (preg_split('/\R/', $body) ?: [] as $index => $line) {
+            if (trim($line) === $text) {
+                return $index + 1;
+            }
+        }
+
+        $this->fail("Could not find source line '{$text}'.");
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function lineIdsBefore(string $body, string $heading): array
+    {
+        $headingLineId = $this->lineId($body, $heading);
+        $lineIds = [];
+
+        foreach (preg_split('/\R/', $body) ?: [] as $index => $line) {
+            $lineId = $index + 1;
+
+            if ($lineId >= $headingLineId) {
+                break;
+            }
+
+            if (trim($line) !== '') {
+                $lineIds[] = $lineId;
+            }
+        }
+
+        return $lineIds;
     }
 }
