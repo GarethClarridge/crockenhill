@@ -163,21 +163,22 @@ class ListMeetingsTest extends TestCase
     #[Test]
     public function it_can_delete_a_meeting(): void
     {
+        Log::spy();
         $meeting = Meeting::factory()->create();
 
         $this->actingAs($this->admin);
-
-        Log::shouldReceive('warning')
-            ->once()
-            ->withArgs(fn ($message, $context) => str_contains($message, 'Meeting deleted') &&
-                $context['admin_id'] === $this->admin->id &&
-                $context['meeting_id'] === $meeting->id &&
-                $context['slug'] === $meeting->slug);
 
         Livewire::test(ListMeetings::class)
             ->call('delete', $meeting)
             ->assertDispatched('notify');
 
         $this->assertDatabaseMissing('meetings', ['id' => $meeting->id]);
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn ($message, $context) => str_contains($message, 'Meeting deleted') &&
+                ($context['admin_id'] ?? null) === $this->admin->id &&
+                ($context['meeting_id'] ?? null) === $meeting->id &&
+                ($context['slug'] ?? null) === $meeting->slug);
     }
 }
