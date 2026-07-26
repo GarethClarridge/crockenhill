@@ -45,3 +45,7 @@
 ## 2026-07-07 - Documenting Interface Contracts for API Clarity
 **Learning:** Interface contracts in `app/Contracts/` define the API surface and boundary between services. Providing class-level PHPDoc that explains the "why" and "purpose" of the interface, along with detailed method documentation, significantly improves developer experience when navigating service implementations.
 **Action:** Prioritize documenting interface contracts as they are the source of truth for service expectations. Ensure parameter and return descriptions clarify the domain context (e.g., OoS email components) rather than just technical types.
+
+## 2026-07-26 - Documenting Contract Interfaces for Maximum DX
+**Learning:** When documenting interface contracts (such as `SectionPublicationHandler`) that represent core architectural boundaries, high-leverage documentation must articulate the functional division of labor between its different implementations (e.g., why sermons require separate audio extraction while songs do not). Specifying exact parameter names, semantic return definitions, and explicit exception `@throws` annotations on the interface methods establishes a clear, dependable contract that guides downstream implementation.
+**Action:** Always prioritize class-level and method-level PHPDocs on interface boundaries to define the expectations and edge cases of the contracts. Use explicit `@throws` annotations to define error modes that implementing classes are expected to adhere to.
