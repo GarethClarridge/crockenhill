@@ -1027,6 +1027,84 @@ class ChurchServiceItemSyncServiceTest extends TestCase
     }
 
     #[Test]
+    public function test_detected_order_contradicting_the_plan_reports_a_conflict(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        foreach ([[1, 'Song A'], [2, 'Song B']] as [$position, $title]) {
+            ChurchServiceItem::factory()->create([
+                'church_service_id' => $churchService->id,
+                'position' => $position,
+                'type' => 'songs',
+                'source' => ChurchServiceItemSource::OpenLp->value,
+                'title' => $title,
+                'source_title' => $title,
+            ]);
+        }
+
+        // Everything anchors, so nothing is placed on guesswork — but the run
+        // says B came before A. The run wins, and that is exactly the reordering
+        // a human should confirm was real.
+        $result = $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Song B', null, null),
+            $this->incomingItem(2, 'songs', 'Song A', null, null),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertSame(['Song B', 'Song A'], $churchService->items()->orderBy('position')->pluck('title')->all());
+
+        $this->assertCount(
+            1,
+            collect($result['conflicts'])->where('type', 'detected_order_contradicts_plan'),
+            'A reordering that every anchor agrees on is still worth confirming.',
+        );
+    }
+
+    #[Test]
+    public function test_agreeing_order_reports_no_order_conflict(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        foreach ([[1, 'Song A'], [2, 'Song B']] as [$position, $title]) {
+            ChurchServiceItem::factory()->create([
+                'church_service_id' => $churchService->id,
+                'position' => $position,
+                'type' => 'songs',
+                'source' => ChurchServiceItemSource::OpenLp->value,
+                'title' => $title,
+                'source_title' => $title,
+            ]);
+        }
+
+        $result = $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Song A', null, null),
+            $this->incomingItem(2, 'songs', 'Song B', null, null),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertSame([], $result['conflicts']);
+    }
+
+    #[Test]
+    public function test_merge_evidence_can_be_suppressed_for_a_provisional_sync(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'Planned Song',
+            'source_title' => 'Planned Song',
+        ]);
+
+        $result = $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'A Completely Different Song', null, null),
+        ], ChurchServiceItemSource::Livestream, ['emit_merge_evidence' => false]);
+
+        $this->assertSame([], $result['conflicts'], 'A provisional pass must not set review state a later pass cannot clear.');
+    }
+
+    #[Test]
     public function test_detected_run_anchors_on_song_id_when_titles_disagree(): void
     {
         $song = Song::factory()->create(['title' => 'Great Is Thy Faithfulness']);

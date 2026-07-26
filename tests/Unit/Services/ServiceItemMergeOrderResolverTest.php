@@ -119,6 +119,29 @@ class ServiceItemMergeOrderResolverTest extends TestCase
     }
 
     #[Test]
+    public function test_existing_spine_keeps_incoming_items_ahead_of_the_first_anchor(): void
+    {
+        // Existing: Welcome(1), Song A(2), Prayer(3). Incoming: Video intro, Song A.
+        // The video intro precedes Song A in the incoming list, so appending it
+        // would invert the incoming list's own order.
+        $ordered = $this->resolver->resolve(
+            [
+                $this->create(),
+                $this->anchor(2),
+            ],
+            [1, 3],
+            spineIsIncoming: false,
+        );
+
+        $this->assertSame([
+            ['source' => 'preserved', 'index' => 0],
+            ['source' => 'plan', 'index' => 0],
+            ['source' => 'plan', 'index' => 1],
+            ['source' => 'preserved', 'index' => 1],
+        ], $ordered);
+    }
+
+    #[Test]
     public function test_existing_spine_appends_incoming_items_when_nothing_anchors(): void
     {
         $ordered = $this->resolver->resolve(

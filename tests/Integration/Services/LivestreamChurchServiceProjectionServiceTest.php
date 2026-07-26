@@ -500,10 +500,20 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
 
         $this->assertCount(2, $churchService->fresh()->items()->get(), 'Without a resolved song the run cannot anchor on the plan.');
 
-        // Song matching then resolves the catalogue song for that section.
+        // Song matching then resolves the catalogue song for that section. This is
+        // the exact shape MatchSongsFromTranscript writes — a nested
+        // transcript_song_match, not a promoted song_id.
         $section->refresh()->forceFill([
             'song_match_type' => ServiceSectionSongMatchType::Confirmed,
-            'metadata' => [...$section->metadata?->toArray() ?? [], 'song_id' => $song->id],
+            'metadata' => [
+                ...$section->metadata?->toArray() ?? [],
+                'transcript_song_match' => [
+                    'song_id' => $song->id,
+                    'title' => 'Great Is Thy Faithfulness',
+                    'confidence' => 0.95,
+                    'match_source' => 'title_hint_canonical',
+                ],
+            ],
         ])->save();
 
         $this->service->project($log);
@@ -514,6 +524,94 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $this->assertSame($planned->id, $items[0]->id);
         $this->assertSame('Great Is Thy Faithfulness, O God My Father', $items[0]->title, 'The order of service still owns the title.');
         $this->assertSame(ChurchServiceItemSource::OpenLp, $items[0]->source);
+    }
+
+    #[Test]
+    public function test_refining_projection_fills_a_blank_song_link_on_a_planned_item(): void
+    {
+        $song = Song::factory()->create(['title' => 'In Christ Alone']);
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-23',
+            'service' => SermonService::Morning->value,
+            'source' => 'openlp',
+            'needs_review' => false,
+        ]);
+
+        // OpenLP listed the song but never resolved it to the catalogue.
+        $planned = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'In Christ Alone',
+            'song_id' => null,
+            'source' => ChurchServiceItemSource::OpenLp->value,
+        ]);
+
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning, ProcessingStatus::Completed);
+        [$section] = $this->createSections($log, [
+            ['type' => ServiceSectionType::Song, 'title' => 'In Christ Alone', 'confidence' => 0.9],
+        ]);
+
+        $this->service->project($log, refining: false);
+
+        $section->refresh()->forceFill([
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+            'metadata' => [
+                ...$section->metadata?->toArray() ?? [],
+                'transcript_song_match' => [
+                    'song_id' => $song->id,
+                    'title' => 'In Christ Alone',
+                    'confidence' => 0.95,
+                    'match_source' => 'title_hint_canonical',
+                ],
+            ],
+        ])->save();
+
+        $this->service->project($log, refining: true);
+
+        $planned->refresh();
+
+        $this->assertSame($song->id, $planned->song_id, 'An empty song link is a gap the confirmed match may fill.');
+        $this->assertSame('In Christ Alone', $planned->title);
+        $this->assertSame(ChurchServiceItemSource::OpenLp, $planned->source);
+
+        $this->assertSame(
+            [$planned->id],
+            $this->publicSongUsageItemIds($song),
+            'The filled link must carry through to public song usage.',
+        );
+    }
+
+    #[Test]
+    public function test_provisional_projection_does_not_set_review_state(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-23',
+            'service' => SermonService::Morning->value,
+            'source' => 'openlp',
+            'needs_review' => false,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Great Is Thy Faithfulness, O God My Father',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+        ]);
+
+        // Before song matching the run only has the text it heard, so it fails to
+        // anchor and looks like a substitution. That is a working guess, not a
+        // finding — and needs_review, once set, cannot be cleared by a later pass.
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Song, 'title' => 'Great is thy faithfulness o God', 'confidence' => 0.9],
+        ]);
+
+        $this->service->project($log, refining: false);
+
+        $this->assertFalse($churchService->fresh()->needs_review);
     }
 
     #[Test]

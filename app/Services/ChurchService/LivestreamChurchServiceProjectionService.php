@@ -30,9 +30,18 @@ class LivestreamChurchServiceProjectionService
     ) {}
 
     /**
+     * Project a run's detected structure onto its canonical service.
+     *
+     * The pipeline projects twice. The first pass runs before song matching, so
+     * its anchors rest on automated title text alone and it routinely produces
+     * duplicates that the refining pass then collapses. Those are working
+     * guesses, not findings — raising merge conflicts from them would set
+     * needs_review permanently, and no later pass can clear it. So only the
+     * refining pass reports on the quality of the merge.
+     *
      * @return array{projected: bool, reason: string, church_service_id: int|null, items_projected: int}
      */
-    public function project(MediaProcessingLog $processingLog): array
+    public function project(MediaProcessingLog $processingLog, bool $refining = true): array
     {
         $identity = $this->identityResolver->resolve($processingLog);
 
@@ -64,7 +73,7 @@ class LivestreamChurchServiceProjectionService
             return $this->skipped('No projectable sections after filtering', $churchService?->id);
         }
 
-        return $this->projectItems($processingLog, $sections, $itemPayloads, $churchService, $identity, $structureContent);
+        return $this->projectItems($processingLog, $sections, $itemPayloads, $churchService, $identity, $structureContent, $refining);
     }
 
     /**
@@ -81,6 +90,7 @@ class LivestreamChurchServiceProjectionService
         ?ChurchService $churchService,
         array $identity,
         ?array $structureContent,
+        bool $refining = true,
     ): array {
         $isNewService = $churchService === null;
         $beforeSnapshot = $this->canonicalStateService->snapshot($churchService);
@@ -88,7 +98,7 @@ class LivestreamChurchServiceProjectionService
         /**
          * @var array{church_service: ChurchService, sync_result: array{conflicts: array<int, array<string, mixed>>}, needs_review: bool} $result
          */
-        $result = DB::transaction(function () use ($processingLog, $sections, $itemPayloads, $churchService, $identity, $isNewService, $structureContent): array {
+        $result = DB::transaction(function () use ($processingLog, $sections, $itemPayloads, $churchService, $identity, $isNewService, $structureContent, $refining): array {
             $projectionMetadata = [
                 'projected_at' => now()->toIso8601String(),
                 'confidence_summary' => $this->buildConfidenceSummary($itemPayloads),
@@ -126,6 +136,7 @@ class LivestreamChurchServiceProjectionService
                     $churchService,
                     $itemPayloads,
                     ChurchServiceItemSource::Livestream,
+                    ['emit_merge_evidence' => $refining],
                 );
             } catch (UniqueConstraintViolationException $exception) {
                 if (str_contains($exception->getMessage(), 'church_service_items_active_position_unique')) {

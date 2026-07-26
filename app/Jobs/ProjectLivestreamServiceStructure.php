@@ -23,8 +23,15 @@ class ProjectLivestreamServiceStructure extends ProcessingJob implements ShouldQ
 
     public int $timeout = 600;
 
+    /**
+     * @param  bool  $refining  Whether this is the pass that runs after song matching.
+     *                          The earlier pass anchors on automated title text alone,
+     *                          so its merge findings are provisional and must not set
+     *                          review state this pass would otherwise be able to clear.
+     */
     public function __construct(
-        private MediaProcessingLog $processingLog
+        private MediaProcessingLog $processingLog,
+        private bool $refining = true,
     ) {}
 
     public function handle(LivestreamChurchServiceProjectionService $projectionService): void
@@ -47,7 +54,7 @@ class ProjectLivestreamServiceStructure extends ProcessingJob implements ShouldQ
         $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::ProjectLivestreamServiceStructure->value);
         $this->logStepStart(ChurchServiceProcessingTimeline::PROJECT_LIVESTREAM_SERVICE_STRUCTURE);
 
-        $result = $projectionService->project($this->processingLog);
+        $result = $projectionService->project($this->processingLog, $this->refining);
 
         if (! $result['projected']) {
             $this->logStepSkipped(

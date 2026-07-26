@@ -135,6 +135,8 @@ class ServiceItemMergeOrderResolver
 
         /** @var array<int, list<int>> $trailing plan index of an anchor => incoming-only plan indexes */
         $trailing = [];
+        /** @var list<int> $head */
+        $head = [];
         /** @var list<int> $tail */
         $tail = [];
         $lastAnchorPlanIndex = null;
@@ -146,8 +148,17 @@ class ServiceItemMergeOrderResolver
                 continue;
             }
 
-            if (! $hasAnchor || $lastAnchorPlanIndex === null) {
+            if (! $hasAnchor) {
                 $tail[] = $planIndex;
+
+                continue;
+            }
+
+            if ($lastAnchorPlanIndex === null) {
+                // Incoming-only items ahead of the first anchor precede it in the
+                // incoming list, so they must precede it here too. Appending them
+                // would invert the incoming list's own partial order.
+                $head[] = $planIndex;
 
                 continue;
             }
@@ -156,8 +167,17 @@ class ServiceItemMergeOrderResolver
         }
 
         $ordered = [];
+        $headEmitted = false;
 
         foreach ($slots as $slot) {
+            if (! $headEmitted && $slot['source'] === 'plan') {
+                foreach ($head as $planIndex) {
+                    $ordered[] = ['source' => 'plan', 'index' => $planIndex];
+                }
+
+                $headEmitted = true;
+            }
+
             $ordered[] = ['source' => $slot['source'], 'index' => $slot['index']];
 
             if ($slot['source'] !== 'plan') {
@@ -165,6 +185,12 @@ class ServiceItemMergeOrderResolver
             }
 
             foreach ($trailing[$slot['index']] ?? [] as $planIndex) {
+                $ordered[] = ['source' => 'plan', 'index' => $planIndex];
+            }
+        }
+
+        if (! $headEmitted) {
+            foreach ($head as $planIndex) {
                 $ordered[] = ['source' => 'plan', 'index' => $planIndex];
             }
         }

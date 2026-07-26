@@ -126,15 +126,17 @@ class ProcessingPipelineBuilder
             new AnalyzeSegments($log),
             new TranscribeFullService($log),
             new DetectServiceStructure($log),
-            new ProjectLivestreamServiceStructure($log),
+            // Provisional: song matching has not run, so this pass can only anchor
+            // on automated title text and its merge findings are working guesses.
+            // It has to run here because SongContinuationMerger reads
+            // church_service_item_id to decide what it may absorb.
+            new ProjectLivestreamServiceStructure($log, refining: false),
             new MatchSongsFromTranscript($log),
             new MergeSongContinuations($log),
-            // Project a second time now that song matching has resolved catalogue
-            // songs and continuations have settled. The first pass has to run
-            // earlier because SongContinuationMerger reads church_service_item_id
-            // to decide what it may absorb; this pass is what lets the merge
-            // anchor on song identity rather than on automated title text.
-            new ProjectLivestreamServiceStructure($log),
+            // Refining: catalogue songs are resolved and continuations have
+            // settled, so this pass can anchor on song identity — and it is the
+            // one that reports on the quality of the merge.
+            new ProjectLivestreamServiceStructure($log, refining: true),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
             new EnhanceAudio($log),

@@ -15,7 +15,6 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Queries\ReviewInboxQuery;
 use App\Services\Processing\StorageAdapterHelper;
-use App\Services\Public\PublicSongUsageService;
 use App\Services\Song\SongLyricOcrService;
 use App\Services\Song\SongLyricsMatchingService;
 use App\Services\Song\UnmatchedSongReviewApplicator;
@@ -413,9 +412,9 @@ class MatchSongsFromTranscriptTest extends TestCase
     }
 
     #[Test]
-    public function it_fills_an_empty_song_id_without_retitling_an_order_of_service_item(): void
+    public function it_leaves_an_order_of_service_item_untouched(): void
     {
-        $song = Song::factory()->create([
+        Song::factory()->create([
             'title' => 'In Christ Alone',
             'canonical_key' => 'in christ alone',
             'lyrics_plain' => null,
@@ -437,40 +436,19 @@ class MatchSongsFromTranscriptTest extends TestCase
         $item->refresh();
 
         $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
-        $this->assertSame($song->id, $item->song_id, 'An empty song link is a gap the match may fill.');
         $this->assertSame(
             'In Christ Alone (My Hope Is Found)',
             $item->title,
             'OpenLP identifies songs more reliably than audio matching, so its title stands.',
         );
-    }
 
-    #[Test]
-    public function it_does_not_replace_an_existing_song_link_on_an_order_of_service_item(): void
-    {
-        Song::factory()->create([
-            'title' => 'In Christ Alone',
-            'canonical_key' => 'in christ alone',
-            'lyrics_plain' => null,
-        ]);
-
-        $plannedSong = Song::factory()->create(['title' => 'A Different Catalogue Song']);
-
-        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
-
-        $item = ChurchServiceItem::factory()->create([
-            'title' => 'A Different Catalogue Song',
-            'song_id' => $plannedSong->id,
-            'source' => ChurchServiceItemSource::OpenLp->value,
-        ]);
-
-        $this->unmatchedSongSectionFor($log, $item, 'In Christ Alone');
-
-        $this->runSongMatching($log);
-
-        $item->refresh();
-
-        $this->assertSame($plannedSong->id, $item->song_id, 'A disagreement is not a gap — the order of service keeps its song.');
+        // The song link is a merge decision, so it belongs to the projection and
+        // its authority rules. Writing it here would also let the next projection
+        // read this id back as independent corroboration of the same match.
+        $this->assertNull(
+            $item->song_id,
+            'The audio match must not attribute a catalogue song to a planned item behind the merge.',
+        );
     }
 
     private function unmatchedSongSectionFor(
@@ -837,8 +815,9 @@ class MatchSongsFromTranscriptTest extends TestCase
         $this->assertContains('song_alignment_inferred', $section->metadata['review_flags'] ?? []);
         $this->assertTrue($section->needs_manual_review);
 
-        // The linked service item gains the catalog song link.
-        $this->assertSame($song->id, $item->song_id);
+        // The planned item is left alone: the song link is a merge decision, and
+        // the refining projection applies it from the confirmed section.
+        $this->assertNull($item->song_id);
     }
 
     #[Test]
@@ -975,7 +954,11 @@ class MatchSongsFromTranscriptTest extends TestCase
         $log->forceFill(['status' => 'completed'])->save();
 
         $this->assertSame(0, app(ReviewInboxQuery::class)->build()['counts']['sections']);
-        $this->assertSame(1, app(PublicSongUsageService::class)->statsForSong($song)['usage_count']);
+
+        // The song link reaches the planned item through the refining projection,
+        // not from this job — see LivestreamChurchServiceProjectionServiceTest's
+        // end-to-end cover of the confirmed-section gap fill.
+        $this->assertNull($item->refresh()->song_id);
     }
 
     #[Test]

@@ -362,29 +362,23 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
     /**
      * Which fields an automated match may write back to a canonical item.
      *
-     * The item's source decides. A livestream-authored item is the run's own, so
-     * the match owns it outright. An item the order of service authored keeps its
-     * title — OpenLP and the emailed order identify songs more reliably than
-     * audio matching, and ChurchServiceItemSyncService defends that on every
-     * merge; writing straight to the model here would quietly undo it. Filling an
-     * empty song_id is still welcome, because that is a gap rather than a
-     * disagreement.
+     * Only items the run itself authored. Writing to an order-of-service item
+     * here would put the merge decision in two places: ChurchServiceItemSyncService
+     * already fills a blank song_id from the confirmed section on the next
+     * projection, with the full authority model applied. Worse, writing an
+     * audio-derived song_id onto a planned item would then let the next
+     * projection read that same id back as independent corroboration and anchor
+     * on it — a wrong match quietly vouching for itself.
      *
      * @return array<string, mixed>
      */
     private function itemMatchWriteback(ChurchServiceItem $item, int $songId, string $matchedTitle): array
     {
-        $itemOwnedByRun = $item->source === ChurchServiceItemSource::Livestream;
-
-        $writeback = $itemOwnedByRun
-            ? ['song_id' => $songId, 'title' => $matchedTitle]
-            : [];
-
-        if (! $itemOwnedByRun && $item->song_id === null) {
-            $writeback['song_id'] = $songId;
+        if ($item->source !== ChurchServiceItemSource::Livestream) {
+            return [];
         }
 
-        return $writeback;
+        return ['song_id' => $songId, 'title' => $matchedTitle];
     }
 
     private function applyMatch(

@@ -93,7 +93,24 @@ class LivestreamSectionToServiceItemMapper
             return null;
         }
 
-        return $section->metadata?->songId;
+        $metadata = $section->metadata;
+
+        if ($metadata?->songId !== null) {
+            return $metadata->songId;
+        }
+
+        // MatchSongsFromTranscript records its result under transcript_song_match
+        // rather than as a promoted song_id, so reading only the promoted field
+        // would leave this anchor permanently empty on the audio-matched path.
+        $transcriptMatch = $metadata?->toArray()['transcript_song_match'] ?? null;
+
+        if (! is_array($transcriptMatch)) {
+            return null;
+        }
+
+        $songId = $transcriptMatch['song_id'] ?? null;
+
+        return is_int($songId) ? $songId : null;
     }
 
     private function resolveTitle(ServiceSection $section): string

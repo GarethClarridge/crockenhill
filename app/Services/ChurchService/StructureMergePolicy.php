@@ -157,10 +157,18 @@ class StructureMergePolicy
         ];
     }
 
+    /**
+     * Whether the service carries high-confidence detected evidence.
+     *
+     * Keyed on the link to a service section, not on `source`. An item the order
+     * of service authored keeps its own provenance when a run matches it, so
+     * asking "who wrote this row" would miss exactly the rows where both a plan
+     * and a detected observation exist — the ones most in need of merge planning.
+     */
     private function hasHighConfidenceLivestreamItems(ChurchService $churchService): bool
     {
         return $churchService->items()
-            ->where('source', ChurchServiceItemSource::Livestream->value)
+            ->whereNotNull('livestream_service_section_id')
             ->with('livestreamServiceSection:id,confidence')
             ->get()
             ->contains(fn (ChurchServiceItem $item): bool => $this->itemConfidenceLevel($this->itemToSnapshot($item)) === 'high');

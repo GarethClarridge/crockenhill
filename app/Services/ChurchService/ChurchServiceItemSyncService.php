@@ -34,7 +34,7 @@ class ChurchServiceItemSyncService
 
     /**
      * @param  array<int, array<string, mixed>>  $incomingItems
-     * @param  array{replace_mode?:bool}  $options
+     * @param  array{replace_mode?:bool,emit_merge_evidence?:bool}  $options
      * @return array{
      *     conflicts: array<int, array<string, mixed>>
      * }
@@ -47,8 +47,9 @@ class ChurchServiceItemSyncService
     ): array {
         $incomingSource = $this->normaliseSource($incomingSource);
         $replaceMode = (bool) ($options['replace_mode'] ?? false);
+        $emitMergeEvidence = (bool) ($options['emit_merge_evidence'] ?? true);
 
-        return DB::transaction(function () use ($churchService, $incomingItems, $incomingSource, $replaceMode): array {
+        return DB::transaction(function () use ($churchService, $incomingItems, $incomingSource, $replaceMode, $emitMergeEvidence): array {
             $lockedService = ChurchService::query()
                 ->whereKey($churchService->id)
                 ->lockForUpdate()
@@ -156,10 +157,12 @@ class ChurchServiceItemSyncService
 
             $isCrossSourceMerge = $this->isCrossSourceMerge($plan, $preservedItems, $incomingSource);
 
-            $conflicts = [
-                ...$conflicts,
-                ...$this->mergeEvidenceConflicts($plan, $preservedItems, $incomingSource, $isCrossSourceMerge),
-            ];
+            if ($emitMergeEvidence) {
+                $conflicts = [
+                    ...$conflicts,
+                    ...$this->mergeEvidenceConflicts($plan, $preservedItems, $incomingSource, $isCrossSourceMerge),
+                ];
+            }
 
             if ($isCrossSourceMerge) {
                 $this->applyAnchoredOrder($lockedService, $plan, $preservedItems, $incomingSource);
@@ -1077,6 +1080,12 @@ class ChurchServiceItemSyncService
             ];
         }
 
+        $orderConflict = $this->contradictedOrderConflict($plan, $incomingSource);
+
+        if ($orderConflict !== null) {
+            $conflicts[] = $orderConflict;
+        }
+
         $coverageConflict = $this->thinAnchorCoverageConflict($plan, $preservedItems, $missedSongs, $incomingSource);
 
         if ($coverageConflict !== null) {
@@ -1084,6 +1093,49 @@ class ChurchServiceItemSyncService
         }
 
         return $conflicts;
+    }
+
+    /**
+     * The run and the existing list agree on which items happened but disagree on
+     * their order.
+     *
+     * The detected order wins — the run is the record of what happened. But that
+     * is precisely the case where "what happened" and "the run misread what
+     * happened" are indistinguishable from the data, and where applying the
+     * detected order rewrites a list a human may have authored deliberately. Every
+     * other anchor arrangement produces the same list under either ordering rule,
+     * so this is the only reordering worth a reviewer's attention.
+     *
+     * @param  list<array<string, mixed>>  $plan
+     * @return array<string, mixed>|null
+     */
+    private function contradictedOrderConflict(array $plan, ChurchServiceItemSource $incomingSource): ?array
+    {
+        $anchoredPositions = [];
+
+        foreach ($plan as $entry) {
+            if ($entry['kind'] === 'update') {
+                $anchoredPositions[] = (int) $entry['existing_position'];
+            }
+        }
+
+        if (count($anchoredPositions) < 2) {
+            return null;
+        }
+
+        $expectedOrder = $anchoredPositions;
+        sort($expectedOrder);
+
+        if ($expectedOrder === $anchoredPositions) {
+            return null;
+        }
+
+        return [
+            'type' => 'detected_order_contradicts_plan',
+            'incoming_source' => $incomingSource->value,
+            'existing_order' => $expectedOrder,
+            'detected_order' => $anchoredPositions,
+        ];
     }
 
     /**
