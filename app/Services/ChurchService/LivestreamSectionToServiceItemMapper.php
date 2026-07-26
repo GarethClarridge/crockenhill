@@ -28,7 +28,7 @@ class LivestreamSectionToServiceItemMapper
      * Convert classified ServiceSections into ChurchServiceItem sync payloads.
      *
      * @param  Collection<int, ServiceSection>  $sections
-     * @return list<array{position: int, type: string, section_type: string, title: string, source_title: null, openlp_search_title: null, song_id: null, livestream_processing_id: string, livestream_service_section_id: int, metadata: array<string, mixed>}>
+     * @return list<array{position: int, type: string, section_type: string, title: string, source_title: null, openlp_search_title: null, song_id: int|null, livestream_processing_id: string, livestream_service_section_id: int, metadata: array<string, mixed>}>
      */
     public function map(Collection $sections, string $processingId): array
     {
@@ -49,7 +49,7 @@ class LivestreamSectionToServiceItemMapper
                 'title' => $this->resolveTitle($section),
                 'source_title' => null,
                 'openlp_search_title' => null,
-                'song_id' => null,
+                'song_id' => $this->resolveSongId($section),
                 'livestream_processing_id' => $processingId,
                 'livestream_service_section_id' => $section->id,
                 'metadata' => $this->buildMetadata($section),
@@ -79,6 +79,21 @@ class LivestreamSectionToServiceItemMapper
             ServiceSectionType::BibleReading => 'bibles',
             default => 'custom',
         };
+    }
+
+    /**
+     * A catalogue song resolved by song matching is the strongest anchor the
+     * merge can get — far stronger than comparing an automated title against a
+     * hand-typed one. It only exists on a re-projection, since the first pass
+     * runs before matching; an unconfirmed match stays out of the canonical list.
+     */
+    private function resolveSongId(ServiceSection $section): ?int
+    {
+        if (! $section->hasConfirmedSongMatch()) {
+            return null;
+        }
+
+        return $section->metadata?->songId;
     }
 
     private function resolveTitle(ServiceSection $section): string

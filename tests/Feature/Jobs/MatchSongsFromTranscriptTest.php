@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Jobs;
 
+use App\Enums\ChurchServiceItemSource;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Jobs\MatchSongsFromTranscript;
@@ -384,7 +385,35 @@ class MatchSongsFromTranscriptTest extends TestCase
     }
 
     #[Test]
-    public function it_updates_linked_church_service_item_song_id_on_match(): void
+    public function it_updates_a_livestream_owned_item_title_and_song_id_on_match(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'In Christ Alone',
+            'canonical_key' => 'in christ alone',
+            'lyrics_plain' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $item = ChurchServiceItem::factory()->livestream()->create([
+            'title' => 'Song',
+            'song_id' => null,
+        ]);
+
+        $section = $this->unmatchedSongSectionFor($log, $item, 'In Christ Alone');
+
+        $this->runSongMatching($log);
+
+        $section->refresh();
+        $item->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
+        $this->assertSame($song->id, $item->song_id);
+        $this->assertSame('In Christ Alone', $item->title, 'The run authored this item, so the match owns its title.');
+    }
+
+    #[Test]
+    public function it_fills_an_empty_song_id_without_retitling_an_order_of_service_item(): void
     {
         $song = Song::factory()->create([
             'title' => 'In Christ Alone',
@@ -395,11 +424,61 @@ class MatchSongsFromTranscriptTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
 
         $item = ChurchServiceItem::factory()->create([
-            'title' => 'Song',
+            'title' => 'In Christ Alone (My Hope Is Found)',
             'song_id' => null,
+            'source' => ChurchServiceItemSource::OpenLp->value,
         ]);
 
-        $section = ServiceSection::factory()->create([
+        $section = $this->unmatchedSongSectionFor($log, $item, 'In Christ Alone');
+
+        $this->runSongMatching($log);
+
+        $section->refresh();
+        $item->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
+        $this->assertSame($song->id, $item->song_id, 'An empty song link is a gap the match may fill.');
+        $this->assertSame(
+            'In Christ Alone (My Hope Is Found)',
+            $item->title,
+            'OpenLP identifies songs more reliably than audio matching, so its title stands.',
+        );
+    }
+
+    #[Test]
+    public function it_does_not_replace_an_existing_song_link_on_an_order_of_service_item(): void
+    {
+        Song::factory()->create([
+            'title' => 'In Christ Alone',
+            'canonical_key' => 'in christ alone',
+            'lyrics_plain' => null,
+        ]);
+
+        $plannedSong = Song::factory()->create(['title' => 'A Different Catalogue Song']);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $item = ChurchServiceItem::factory()->create([
+            'title' => 'A Different Catalogue Song',
+            'song_id' => $plannedSong->id,
+            'source' => ChurchServiceItemSource::OpenLp->value,
+        ]);
+
+        $this->unmatchedSongSectionFor($log, $item, 'In Christ Alone');
+
+        $this->runSongMatching($log);
+
+        $item->refresh();
+
+        $this->assertSame($plannedSong->id, $item->song_id, 'A disagreement is not a gap — the order of service keeps its song.');
+    }
+
+    private function unmatchedSongSectionFor(
+        MediaProcessingLog $log,
+        ChurchServiceItem $item,
+        string $titleHint,
+    ): ServiceSection {
+        return ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'section_type' => ServiceSectionType::Song->value,
             'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
@@ -407,24 +486,20 @@ class MatchSongsFromTranscriptTest extends TestCase
             'needs_manual_review' => true,
             'metadata' => [
                 'classification_mode' => 'audio_only',
-                'song_title_hint' => 'In Christ Alone',
+                'song_title_hint' => $titleHint,
                 'review_flags' => ['unmatched_song_section'],
             ],
         ]);
+    }
 
+    private function runSongMatching(MediaProcessingLog $log): void
+    {
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
             app(StorageAdapterHelper::class),
             app(SongLyricOcrService::class),
             app(UnmatchedSongReviewApplicator::class),
         );
-
-        $section->refresh();
-        $item->refresh();
-
-        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
-        $this->assertSame($song->id, $item->song_id);
-        $this->assertSame('In Christ Alone', $item->title);
     }
 
     // ---- Title-hint fuzzy fallback ----

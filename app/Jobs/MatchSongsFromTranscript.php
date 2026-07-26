@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceSectionMetadata;
+use App\Enums\ChurchServiceItemSource;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionSongMatchType;
@@ -358,6 +359,34 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
     /**
      * Persist a song match onto the section and its linked ChurchServiceItem.
      */
+    /**
+     * Which fields an automated match may write back to a canonical item.
+     *
+     * The item's source decides. A livestream-authored item is the run's own, so
+     * the match owns it outright. An item the order of service authored keeps its
+     * title — OpenLP and the emailed order identify songs more reliably than
+     * audio matching, and ChurchServiceItemSyncService defends that on every
+     * merge; writing straight to the model here would quietly undo it. Filling an
+     * empty song_id is still welcome, because that is a gap rather than a
+     * disagreement.
+     *
+     * @return array<string, mixed>
+     */
+    private function itemMatchWriteback(ChurchServiceItem $item, int $songId, string $matchedTitle): array
+    {
+        $itemOwnedByRun = $item->source === ChurchServiceItemSource::Livestream;
+
+        $writeback = $itemOwnedByRun
+            ? ['song_id' => $songId, 'title' => $matchedTitle]
+            : [];
+
+        if (! $itemOwnedByRun && $item->song_id === null) {
+            $writeback['song_id'] = $songId;
+        }
+
+        return $writeback;
+    }
+
     private function applyMatch(
         ServiceSection $section,
         int $songId,
@@ -412,10 +441,7 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             if ($writeCatalogueTitle && $section->church_service_item_id !== null) {
                 $item = ChurchServiceItem::query()->find($section->church_service_item_id);
                 if ($item instanceof ChurchServiceItem) {
-                    $item->forceFill([
-                        'song_id' => $songId,
-                        'title' => $matchedTitle,
-                    ])->save();
+                    $item->forceFill($this->itemMatchWriteback($item, $songId, $matchedTitle))->save();
                 }
             }
         });

@@ -801,6 +801,256 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         );
     }
 
+    #[Test]
+    public function test_detected_run_interleaves_its_own_items_between_order_of_service_anchors(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        // A realistic OpenLP export carries only the slide-backed items.
+        foreach ([
+            [1, 'songs', 'Opening Song'],
+            [2, 'bibles', 'Joshua 1'],
+            [3, 'songs', 'Closing Song'],
+        ] as [$position, $type, $title]) {
+            ChurchServiceItem::factory()->create([
+                'church_service_id' => $churchService->id,
+                'position' => $position,
+                'type' => $type,
+                'source' => ChurchServiceItemSource::OpenLp->value,
+                'title' => $title,
+                'source_title' => $title,
+            ]);
+        }
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'custom', 'Welcome', null, null),
+            $this->incomingItem(2, 'songs', 'Opening Song', null, null),
+            $this->incomingItem(3, 'custom', 'Opening Prayer', null, null),
+            $this->incomingItem(4, 'bibles', 'Joshua 1', null, null),
+            $this->incomingItem(5, 'custom', 'The faithfulness of God', null, null),
+            $this->incomingItem(6, 'songs', 'Closing Song', null, null),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertSame([
+            'Welcome',
+            'Opening Song',
+            'Opening Prayer',
+            'Joshua 1',
+            'The faithfulness of God',
+            'Closing Song',
+        ], $churchService->items()->orderBy('position')->pluck('title')->all());
+    }
+
+    #[Test]
+    public function test_detected_run_does_not_duplicate_an_order_of_service_bible_reading(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        $reading = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'bibles',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'Joshua 1',
+            'source_title' => 'Joshua 1',
+        ]);
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'bibles', 'Joshua 1', null, null),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertCount(1, $churchService->items()->get(), 'A detected reading must match the planned one, not duplicate it.');
+
+        $reading->refresh();
+        $this->assertSame(ChurchServiceItemSource::OpenLp, $reading->source);
+        $this->assertSame('Joshua 1', $reading->title);
+    }
+
+    #[Test]
+    public function test_detected_run_splices_order_of_service_items_it_missed_between_anchors(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'email']);
+
+        foreach ([
+            [1, 'songs', 'Opening Song'],
+            [2, 'custom', 'Notices'],
+            [3, 'songs', 'Closing Song'],
+        ] as [$position, $type, $title]) {
+            ChurchServiceItem::factory()->create([
+                'church_service_id' => $churchService->id,
+                'position' => $position,
+                'type' => $type,
+                'source' => ChurchServiceItemSource::Email->value,
+                'title' => $title,
+                'source_title' => $title,
+            ]);
+        }
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Opening Song', null, null),
+            $this->incomingItem(2, 'songs', 'Closing Song', null, null),
+        ], ChurchServiceItemSource::Livestream);
+
+        $titles = $churchService->items()->orderBy('position')->pluck('title')->all();
+
+        $this->assertSame(['Opening Song', 'Notices', 'Closing Song'], $titles);
+    }
+
+    #[Test]
+    public function test_missed_and_unexpected_song_together_report_a_conflict(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'Planned Song',
+            'source_title' => 'Planned Song',
+        ]);
+
+        $result = $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'A Completely Different Song', null, null),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertCount(
+            1,
+            collect($result['conflicts'])->where('type', 'song_substitution_suspected'),
+            'A missed planned song alongside an unexpected detected song signals a misidentification.',
+        );
+    }
+
+    #[Test]
+    public function test_unexpected_detected_song_alone_reports_a_conflict(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'Planned Song',
+            'source_title' => 'Planned Song',
+        ]);
+
+        $result = $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Planned Song', null, null),
+            $this->incomingItem(2, 'songs', 'An Unplanned Song', null, null),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertCount(
+            1,
+            collect($result['conflicts'])->where('type', 'unexpected_detected_song'),
+            'A detected song with no counterpart in the plan is worth an eyeball.',
+        );
+    }
+
+    #[Test]
+    public function test_missed_song_alone_is_not_a_conflict(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        foreach ([[1, 'Opening Song'], [2, 'Middle Song'], [3, 'Closing Song']] as [$position, $title]) {
+            ChurchServiceItem::factory()->create([
+                'church_service_id' => $churchService->id,
+                'position' => $position,
+                'type' => 'songs',
+                'source' => ChurchServiceItemSource::OpenLp->value,
+                'title' => $title,
+                'source_title' => $title,
+            ]);
+        }
+
+        // Two of three songs anchor, so the run has enough evidence to place the
+        // one it missed — the miss alone is not reviewable.
+        $result = $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Opening Song', null, null),
+            $this->incomingItem(2, 'songs', 'Closing Song', null, null),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertSame([], $result['conflicts'], 'A lossy detected run that only misses songs is the expected case.');
+    }
+
+    #[Test]
+    public function test_thin_anchor_coverage_reports_a_conflict(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        foreach ([[1, 'Song One'], [2, 'Song Two'], [3, 'Song Three'], [4, 'Song Four']] as [$position, $title]) {
+            ChurchServiceItem::factory()->create([
+                'church_service_id' => $churchService->id,
+                'position' => $position,
+                'type' => 'songs',
+                'source' => ChurchServiceItemSource::OpenLp->value,
+                'title' => $title,
+                'source_title' => $title,
+            ]);
+        }
+
+        // Only one of four planned songs anchors — too thin to trust the detected sequence.
+        $result = $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Song One', null, null),
+            $this->incomingItem(2, 'custom', 'Sermon', null, null),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertCount(
+            1,
+            collect($result['conflicts'])->where('type', 'thin_anchor_coverage'),
+            'Too few anchors means the detected ordering was applied without enough evidence.',
+        );
+    }
+
+    #[Test]
+    public function test_sufficient_anchor_coverage_reports_no_coverage_conflict(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        foreach ([[1, 'Song One'], [2, 'Song Two']] as [$position, $title]) {
+            ChurchServiceItem::factory()->create([
+                'church_service_id' => $churchService->id,
+                'position' => $position,
+                'type' => 'songs',
+                'source' => ChurchServiceItemSource::OpenLp->value,
+                'title' => $title,
+                'source_title' => $title,
+            ]);
+        }
+
+        $result = $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Song One', null, null),
+            $this->incomingItem(2, 'songs', 'Song Two', null, null),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertSame([], $result['conflicts']);
+    }
+
+    #[Test]
+    public function test_detected_run_anchors_on_song_id_when_titles_disagree(): void
+    {
+        $song = Song::factory()->create(['title' => 'Great Is Thy Faithfulness']);
+
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        $planned = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'Great Is Thy Faithfulness, O God My Father',
+            'source_title' => 'Great Is Thy Faithfulness, O God My Father',
+            'song_id' => $song->id,
+        ]);
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Great is thy faithfulness', null, null, null, $song->id),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertCount(1, $churchService->items()->get(), 'A shared song_id is a stronger anchor than the title text.');
+        $this->assertSame('Great Is Thy Faithfulness, O God My Father', $planned->refresh()->title);
+    }
+
     /**
      * @param  array<string, mixed>|null  $metadata
      * @return array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>,section_type?:string}

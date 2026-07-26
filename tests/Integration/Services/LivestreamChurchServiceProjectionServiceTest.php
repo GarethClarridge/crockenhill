@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -300,17 +302,23 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
             'needs_review' => false,
         ]);
 
-        ChurchServiceItem::factory()->create([
-            'church_service_id' => $churchService->id,
-            'position' => 1,
-            'type' => 'songs',
-            'title' => 'OpenLP Song',
-            'source' => ChurchServiceItemSource::OpenLp->value,
-        ]);
+        foreach ([[1, 'Opening Song'], [2, 'Closing Song']] as [$position, $title]) {
+            ChurchServiceItem::factory()->create([
+                'church_service_id' => $churchService->id,
+                'position' => $position,
+                'type' => 'songs',
+                'title' => $title,
+                'source' => ChurchServiceItemSource::OpenLp->value,
+            ]);
+        }
 
+        // A genuinely clean run: it recognises both planned songs and adds only
+        // the speech items the order of service never listed.
         $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
         $this->createSections($log, [
-            ['type' => ServiceSectionType::Song, 'title' => 'Livestream Song', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Song, 'title' => 'Opening Song', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Sermon, 'title' => 'The faithfulness of God', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Song, 'title' => 'Closing Song', 'confidence' => 0.9],
         ]);
 
         $result = $this->service->project($log);
@@ -372,7 +380,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     }
 
     #[Test]
-    public function test_livestream_fills_gaps_after_the_order_of_service(): void
+    public function test_livestream_keeps_an_undetected_planned_song_beside_its_anchor(): void
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-23',
@@ -401,6 +409,10 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
 
         $items = $churchService->fresh()->items()->orderBy('position')->get();
 
+        // The run anchors only the first song, so the second planned song has a
+        // preceding anchor but no following one. With no evidence about where it
+        // sat relative to the sermon, it stays adjacent to the anchor it followed
+        // in the plan rather than being flung to the end of the list.
         $this->assertCount(3, $items, 'No order-of-service item may be dropped by a detected run.');
         $this->assertSame('First Planned Song', $items[0]->title);
         $this->assertSame('Second Planned Song', $items[1]->title);
@@ -433,9 +445,18 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $usageBefore = $this->publicSongUsageItemIds($song);
         $this->assertNotEmpty($usageBefore, 'The fixture must qualify before the merge to be a meaningful gate.');
 
-        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        // A completed run is the case Phase 6.1 governs: once one exists, an
+        // order-of-service song stays publicly listed only while a section
+        // confirms the match. Pin the status rather than inheriting the
+        // factory's random one, or this gate passes or fails by luck.
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning, ProcessingStatus::Completed);
         $this->createSections($log, [
-            ['type' => ServiceSectionType::Song, 'title' => 'Amazing Grace', 'confidence' => 0.9],
+            [
+                'type' => ServiceSectionType::Song,
+                'title' => 'Amazing Grace',
+                'confidence' => 0.9,
+                'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+            ],
         ]);
 
         $this->service->project($log);
@@ -445,6 +466,88 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
             $this->publicSongUsageItemIds($song),
             'Projecting a livestream run onto an order-of-service must not drop qualifying song usage.',
         );
+    }
+
+    #[Test]
+    public function test_reprojecting_after_song_matching_anchors_on_the_resolved_song(): void
+    {
+        $song = Song::factory()->create(['title' => 'Great Is Thy Faithfulness']);
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-23',
+            'service' => SermonService::Morning->value,
+            'source' => 'openlp',
+            'needs_review' => false,
+        ]);
+
+        $planned = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Great Is Thy Faithfulness, O God My Father',
+            'song_id' => $song->id,
+            'source' => ChurchServiceItemSource::OpenLp->value,
+        ]);
+
+        // First pass: song matching has not run, so the run only knows the text
+        // it heard, which does not match the planned title.
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        [$section] = $this->createSections($log, [
+            ['type' => ServiceSectionType::Song, 'title' => 'Great is thy faithfulness o God', 'confidence' => 0.9],
+        ]);
+
+        $this->service->project($log);
+
+        $this->assertCount(2, $churchService->fresh()->items()->get(), 'Without a resolved song the run cannot anchor on the plan.');
+
+        // Song matching then resolves the catalogue song for that section.
+        $section->refresh()->forceFill([
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+            'metadata' => [...$section->metadata?->toArray() ?? [], 'song_id' => $song->id],
+        ])->save();
+
+        $this->service->project($log);
+
+        $items = $churchService->fresh()->items()->orderBy('position')->get();
+
+        $this->assertCount(1, $items, 'The resolved song anchors the run to the planned item, collapsing the duplicate.');
+        $this->assertSame($planned->id, $items[0]->id);
+        $this->assertSame('Great Is Thy Faithfulness, O God My Father', $items[0]->title, 'The order of service still owns the title.');
+        $this->assertSame(ChurchServiceItemSource::OpenLp, $items[0]->source);
+    }
+
+    #[Test]
+    public function test_projecting_the_same_run_twice_is_idempotent(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-23',
+            'service' => SermonService::Morning->value,
+            'source' => 'openlp',
+            'needs_review' => false,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Opening Song',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+        ]);
+
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Song, 'title' => 'Opening Song', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Sermon, 'title' => 'The faithfulness of God', 'confidence' => 0.9],
+        ]);
+
+        $this->service->project($log);
+        $firstPass = $churchService->fresh()->items()->orderBy('position')->pluck('title')->all();
+
+        $this->service->project($log);
+        $secondPass = $churchService->fresh()->items()->orderBy('position')->pluck('title')->all();
+
+        $this->assertSame(['Opening Song', 'The faithfulness of God'], $firstPass);
+        $this->assertSame($firstPass, $secondPass, 'A second projection of the same run must not duplicate or reorder items.');
     }
 
     /**
@@ -715,16 +818,20 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $this->assertSame(1, $projection['confidence_summary']['low'], 'Prayer should be low');
     }
 
-    private function createProcessingLog(string $date, SermonService $service): MediaProcessingLog
-    {
-        return MediaProcessingLog::factory()->livestream()->create([
+    private function createProcessingLog(
+        string $date,
+        SermonService $service,
+        ?ProcessingStatus $status = null,
+    ): MediaProcessingLog {
+        return MediaProcessingLog::factory()->livestream()->create(array_filter([
             'extracted_date' => $date,
             'extracted_service' => $service->value,
-        ]);
+            'status' => $status,
+        ]));
     }
 
     /**
-     * @param  array<int, array{type: ServiceSectionType, title: string, confidence: float}>  $sectionData
+     * @param  array<int, array{type: ServiceSectionType, title: string, confidence: float, song_match_type?: ServiceSectionSongMatchType}>  $sectionData
      * @return list<ServiceSection>
      */
     private function createSections(MediaProcessingLog $log, array $sectionData): array
@@ -740,6 +847,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
                 'title' => $data['title'],
                 'confidence' => $data['confidence'],
                 'needs_manual_review' => false,
+                'song_match_type' => $data['song_match_type'] ?? null,
             ]);
         }
 

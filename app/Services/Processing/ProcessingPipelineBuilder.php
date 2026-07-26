@@ -129,6 +129,12 @@ class ProcessingPipelineBuilder
             new ProjectLivestreamServiceStructure($log),
             new MatchSongsFromTranscript($log),
             new MergeSongContinuations($log),
+            // Project a second time now that song matching has resolved catalogue
+            // songs and continuations have settled. The first pass has to run
+            // earlier because SongContinuationMerger reads church_service_item_id
+            // to decide what it may absorb; this pass is what lets the merge
+            // anchor on song identity rather than on automated title text.
+            new ProjectLivestreamServiceStructure($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
             new EnhanceAudio($log),

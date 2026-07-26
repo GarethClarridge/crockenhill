@@ -16,6 +16,23 @@ use RuntimeException;
 class ChurchServiceItemSyncService
 {
     /**
+     * Minimum anchors needed before a detected run's ordering is trusted to place
+     * items it never matched. Two is the floor for establishing any relative order.
+     */
+    private const int MinimumAnchorCount = 2;
+
+    /**
+     * Minimum share of the existing song list a detected run must match before its
+     * ordering is treated as well evidenced. Songs carry slides, so an order of
+     * service lists all of them — near-total coverage is a fair expectation.
+     */
+    private const float MinimumSongAnchorCoverage = 0.5;
+
+    public function __construct(
+        private readonly ServiceItemMergeOrderResolver $orderResolver = new ServiceItemMergeOrderResolver,
+    ) {}
+
+    /**
      * @param  array<int, array<string, mixed>>  $incomingItems
      * @param  array{replace_mode?:bool}  $options
      * @return array{
@@ -42,8 +59,8 @@ class ChurchServiceItemSyncService
             $matchedExistingItemIds = [];
             $seenPositions = [];
             $conflicts = [];
-            $pendingUpdates = [];
-            $pendingCreates = [];
+            /** @var list<array<string, mixed>> $plan */
+            $plan = [];
 
             foreach ($incomingItems as $index => $rawIncomingItem) {
                 $incomingItem = $this->normaliseIncomingItem($rawIncomingItem, $index + 1);
@@ -80,8 +97,10 @@ class ChurchServiceItemSyncService
                         $preserveExistingSongIdentity,
                     );
                     $conflicts = [...$conflicts, ...$matchConflicts];
-                    $pendingUpdates[] = [
+                    $plan[] = [
+                        'kind' => 'update',
                         'existing_item' => $match,
+                        'existing_position' => $match->position,
                         'incoming_item' => $incomingItem,
                         'raw_incoming_item' => $rawIncomingItem,
                         'desired_position' => $this->shouldKeepExistingPosition($existingSource, $incomingSource)
@@ -93,13 +112,17 @@ class ChurchServiceItemSyncService
                     continue;
                 }
 
-                $pendingCreates[] = [
+                $plan[] = [
+                    'kind' => 'create',
+                    'existing_position' => null,
                     'normalized_item' => $incomingItem,
                     'raw_item' => $rawIncomingItem,
+                    'desired_position' => $incomingItem['position'],
                 ];
             }
 
-            $positionsToPreserve = [];
+            /** @var list<ChurchServiceItem> $preservedItems */
+            $preservedItems = [];
             $itemsToDelete = [];
 
             foreach ($existingItems as $existingItem) {
@@ -113,7 +136,7 @@ class ChurchServiceItemSyncService
                         continue;
                     }
 
-                    $positionsToPreserve[$existingItem->position] = true;
+                    $preservedItems[] = $existingItem;
 
                     if ($this->shouldFlagPreservedSongConflict($existingItem, $incomingSource)) {
                         $conflicts[] = [
@@ -129,53 +152,19 @@ class ChurchServiceItemSyncService
                 $itemToDelete->delete();
             }
 
-            $this->stagePendingMatchedItems($lockedService, $pendingUpdates);
+            usort($preservedItems, fn (ChurchServiceItem $left, ChurchServiceItem $right): int => $left->position <=> $right->position);
 
-            foreach ($pendingUpdates as $pendingUpdate) {
-                /** @var ChurchServiceItem $existingItem */
-                $existingItem = $pendingUpdate['existing_item'];
-                /** @var array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>} $incomingItem */
-                $incomingItem = $pendingUpdate['incoming_item'];
-                /** @var array<string, mixed> $rawIncomingItem */
-                $rawIncomingItem = $pendingUpdate['raw_incoming_item'];
-                $resolvedPosition = $this->claimNextAvailablePosition(
-                    $pendingUpdate['desired_position'],
-                    $positionsToPreserve,
-                );
+            $isCrossSourceMerge = $this->isCrossSourceMerge($plan, $preservedItems, $incomingSource);
 
-                $this->updateMatchedItem($existingItem, $incomingItem, $incomingSource, $resolvedPosition, $rawIncomingItem);
-            }
+            $conflicts = [
+                ...$conflicts,
+                ...$this->mergeEvidenceConflicts($plan, $preservedItems, $incomingSource, $isCrossSourceMerge),
+            ];
 
-            foreach ($pendingCreates as $pendingCreate) {
-                /** @var array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>} $normalizedItem */
-                $normalizedItem = $pendingCreate['normalized_item'];
-                /** @var array<string, mixed> $rawItem */
-                $rawItem = $pendingCreate['raw_item'];
-                $resolvedPosition = $this->claimNextAvailablePosition($normalizedItem['position'], $positionsToPreserve);
-
-                $createData = [
-                    'position' => $resolvedPosition,
-                    'type' => $normalizedItem['type'],
-                    'section_type' => $normalizedItem['section_type'],
-                    'source' => $incomingSource->value,
-                    'title' => $normalizedItem['title'],
-                    'source_title' => $normalizedItem['source_title'],
-                    'openlp_search_title' => $normalizedItem['openlp_search_title'],
-                    'song_id' => $normalizedItem['song_id'],
-                    'metadata' => $normalizedItem['metadata'],
-                ];
-
-                if (isset($rawItem['livestream_processing_id'])) {
-                    $createData['livestream_processing_id'] = $rawItem['livestream_processing_id'];
-                }
-
-                if (isset($rawItem['livestream_service_section_id'])) {
-                    $createData['livestream_service_section_id'] = $rawItem['livestream_service_section_id'];
-                }
-
-                $created = $lockedService->items()->create($createData);
-
-                $matchedExistingItemIds[] = $created->id;
+            if ($isCrossSourceMerge) {
+                $this->applyAnchoredOrder($lockedService, $plan, $preservedItems, $incomingSource);
+            } else {
+                $this->applyIncomingPositions($lockedService, $plan, $incomingSource);
             }
 
             if ($this->hasDuplicateActivePositions($lockedService)) {
@@ -260,6 +249,13 @@ class ChurchServiceItemSyncService
                 return false;
             }
 
+            // The strongest anchor available: both sides resolved to the same
+            // catalogue song, so the titles need not agree at all.
+            $incomingSongId = $incomingItem['song_id'];
+            if ($incomingSongId !== null && $existingItem->song_id === $incomingSongId) {
+                return true;
+            }
+
             $incomingSearchTitle = $incomingItem['openlp_search_title'];
             if ($incomingSearchTitle !== null && $existingItem->openlp_search_title === $incomingSearchTitle) {
                 return true;
@@ -270,8 +266,8 @@ class ChurchServiceItemSyncService
                 return true;
             }
 
-            if ($this->shouldUseCrossSourceSongTitleMatch($existingItem, $incomingItem, $incomingSource)) {
-                return $this->hasMatchingNormalisedSongTitle($existingItem, $incomingItem);
+            if ($this->shouldUseCrossSourceTitleMatch($existingItem, $incomingSource)) {
+                return $this->hasMatchingNormalisedTitle($existingItem, $incomingItem);
             }
 
             return false;
@@ -354,24 +350,25 @@ class ChurchServiceItemSyncService
     }
 
     /**
-     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * Independently authored lists rarely share the identifier columns, so their
+     * only remaining tie is the visible title. This applies to every item type:
+     * an order of service and a detected run both name the bible reading, and
+     * without this the run would duplicate rather than match it.
      */
-    private function shouldUseCrossSourceSongTitleMatch(
+    private function shouldUseCrossSourceTitleMatch(
         ChurchServiceItem $existingItem,
-        array $incomingItem,
         ChurchServiceItemSource $incomingSource
     ): bool {
-        return $this->isSongType($incomingItem['type'])
-            && ! $this->sourcesShareMergeAuthority($this->sourceForExistingItem($existingItem), $incomingSource);
+        return ! $this->sourcesShareMergeAuthority($this->sourceForExistingItem($existingItem), $incomingSource);
     }
 
     /**
      * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      */
-    private function hasMatchingNormalisedSongTitle(ChurchServiceItem $existingItem, array $incomingItem): bool
+    private function hasMatchingNormalisedTitle(ChurchServiceItem $existingItem, array $incomingItem): bool
     {
-        $existingTitles = $this->normalisedSongTitlesForExistingItem($existingItem);
-        $incomingTitles = $this->normalisedSongTitlesForIncomingItem($incomingItem);
+        $existingTitles = $this->normalisedTitlesForExistingItem($existingItem);
+        $incomingTitles = $this->normalisedTitlesForIncomingItem($incomingItem);
 
         return $existingTitles !== [] && $incomingTitles !== [] && array_intersect($existingTitles, $incomingTitles) !== [];
     }
@@ -379,9 +376,9 @@ class ChurchServiceItemSyncService
     /**
      * @return list<string>
      */
-    private function normalisedSongTitlesForExistingItem(ChurchServiceItem $existingItem): array
+    private function normalisedTitlesForExistingItem(ChurchServiceItem $existingItem): array
     {
-        return $this->uniqueNormalisedSongTitles([
+        return $this->uniqueNormalisedTitles([
             $existingItem->title,
             $existingItem->source_title,
             $existingItem->openlp_search_title,
@@ -392,9 +389,9 @@ class ChurchServiceItemSyncService
      * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      * @return list<string>
      */
-    private function normalisedSongTitlesForIncomingItem(array $incomingItem): array
+    private function normalisedTitlesForIncomingItem(array $incomingItem): array
     {
-        return $this->uniqueNormalisedSongTitles([
+        return $this->uniqueNormalisedTitles([
             $incomingItem['title'],
             $incomingItem['source_title'],
             $incomingItem['openlp_search_title'],
@@ -402,10 +399,13 @@ class ChurchServiceItemSyncService
     }
 
     /**
+     * Uses the punctuation-insensitive comparison form so a stray comma or curly
+     * quote between two hand-authored lists never blocks an anchor.
+     *
      * @param  array<int, string|null>  $values
      * @return list<string>
      */
-    private function uniqueNormalisedSongTitles(array $values): array
+    private function uniqueNormalisedTitles(array $values): array
     {
         $normalised = [];
 
@@ -414,7 +414,7 @@ class ChurchServiceItemSyncService
                 continue;
             }
 
-            $canonical = Song::canonicalizeKey($value);
+            $canonical = Song::matchKey($value);
             if ($canonical === '' || in_array($canonical, $normalised, true)) {
                 continue;
             }
@@ -509,11 +509,15 @@ class ChurchServiceItemSyncService
         array $incomingItem,
         ChurchServiceItemSource $incomingSource
     ): ?string {
+        $existingSource = $this->sourceForExistingItem($existingItem);
+
+        if ($incomingSource->isDetected() && ! $this->sourcesShareMergeAuthority($existingSource, $incomingSource)) {
+            return $existingItem->source_title ?? $incomingItem['source_title'];
+        }
+
         if (! $this->isSongType($existingItem->type)) {
             return $incomingItem['source_title'];
         }
-
-        $existingSource = $this->sourceForExistingItem($existingItem);
 
         if ($existingSource->isHumanProvided() && $incomingSource === ChurchServiceItemSource::OpenLp) {
             return $existingItem->source_title ?? $incomingItem['source_title'];
@@ -551,7 +555,14 @@ class ChurchServiceItemSyncService
     ): ChurchServiceItemSource {
         $existingSource = $this->sourceForExistingItem($existingItem);
 
-        if ($this->isSongType($existingItem->type) && ! $this->sourcesShareMergeAuthority($existingSource, $incomingSource)) {
+        if ($this->sourcesShareMergeAuthority($existingSource, $incomingSource)) {
+            return $incomingSource;
+        }
+
+        // Observing an item does not make the run its author. Provenance drives
+        // the authority rules on the next merge, so handing it over would let a
+        // detected run quietly demote what OpenLP or the email recorded.
+        if ($incomingSource->isDetected() || $this->isSongType($existingItem->type)) {
             return $existingSource;
         }
 
@@ -590,8 +601,7 @@ class ChurchServiceItemSyncService
         // A detected run contributes its own metadata (confidence, timings) but must
         // not drop what the order of service already recorded against the entry.
         if (
-            $this->isSongType($existingItem->type)
-            && $incomingSource->isDetected()
+            $incomingSource->isDetected()
             && ! $this->sourcesShareMergeAuthority($existingSource, $incomingSource)
         ) {
             return $this->mergeMetadata($incomingMetadata, $existingMetadata);
@@ -679,17 +689,17 @@ class ChurchServiceItemSyncService
         ChurchServiceItem $existingItem,
         ChurchServiceItemSource $incomingSource
     ): bool {
-        if (! $this->isSongType($existingItem->type)) {
-            return false;
-        }
-
         $existingSource = $this->sourceForExistingItem($existingItem);
 
+        // A detected run identifies nothing more reliably than the list it is
+        // merging into — that holds for a bible reading or a notice just as much
+        // as for a song, so it never rewrites an entry another source authored.
         if ($incomingSource->isDetected()) {
             return ! $this->sourcesShareMergeAuthority($existingSource, $incomingSource);
         }
 
-        return $incomingSource->isHumanProvided()
+        return $this->isSongType($existingItem->type)
+            && $incomingSource->isHumanProvided()
             && $existingSource === ChurchServiceItemSource::OpenLp;
     }
 
@@ -782,11 +792,185 @@ class ChurchServiceItemSyncService
     }
 
     /**
-     * @param  array<int, array{existing_item:ChurchServiceItem,incoming_item:array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>},desired_position:int}>  $pendingUpdates
+     * Whether this sync merges lists that were authored independently. Only then
+     * does anchoring matter: when every surviving item shares merge authority
+     * with the incoming source, the incoming positions are simply authoritative.
+     *
+     * @param  list<array<string, mixed>>  $plan
+     * @param  list<ChurchServiceItem>  $preservedItems
      */
-    private function stagePendingMatchedItems(ChurchService $churchService, array $pendingUpdates): void
+    private function isCrossSourceMerge(
+        array $plan,
+        array $preservedItems,
+        ChurchServiceItemSource $incomingSource
+    ): bool {
+        foreach ($preservedItems as $preservedItem) {
+            if (! $this->sourcesShareMergeAuthority($this->sourceForExistingItem($preservedItem), $incomingSource)) {
+                return true;
+            }
+        }
+
+        foreach ($plan as $entry) {
+            if ($entry['kind'] !== 'update') {
+                continue;
+            }
+
+            /** @var ChurchServiceItem $existingItem */
+            $existingItem = $entry['existing_item'];
+
+            if (! $this->sourcesShareMergeAuthority($this->sourceForExistingItem($existingItem), $incomingSource)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Sequence a cross-source merge by anchoring the two lists to each other.
+     *
+     * @param  list<array<string, mixed>>  $plan
+     * @param  list<ChurchServiceItem>  $preservedItems
+     */
+    private function applyAnchoredOrder(
+        ChurchService $churchService,
+        array $plan,
+        array $preservedItems,
+        ChurchServiceItemSource $incomingSource
+    ): void {
+        $resolverPlan = array_map(
+            fn (array $entry): array => [
+                'kind' => (string) $entry['kind'],
+                'existing_position' => $entry['existing_position'] === null ? null : (int) $entry['existing_position'],
+            ],
+            $plan,
+        );
+
+        $ordered = $this->orderResolver->resolve(
+            $resolverPlan,
+            array_map(fn (ChurchServiceItem $item): int => $item->position, $preservedItems),
+            $incomingSource->isDetected(),
+        );
+
+        $this->stageExistingItems($churchService, [
+            ...$this->matchedItems($plan),
+            ...$preservedItems,
+        ]);
+
+        $position = 0;
+
+        foreach ($ordered as $slot) {
+            $position++;
+
+            if ($slot['source'] === 'preserved') {
+                $this->repositionItem($preservedItems[$slot['index']], $position);
+
+                continue;
+            }
+
+            $this->writePlanEntry($churchService, $plan[$slot['index']], $incomingSource, $position);
+        }
+    }
+
+    /**
+     * Sequence a same-authority sync, where the incoming positions are canonical.
+     *
+     * @param  list<array<string, mixed>>  $plan
+     */
+    private function applyIncomingPositions(
+        ChurchService $churchService,
+        array $plan,
+        ChurchServiceItemSource $incomingSource
+    ): void {
+        $this->stageExistingItems($churchService, $this->matchedItems($plan));
+
+        $occupiedPositions = [];
+
+        foreach ($plan as $entry) {
+            $resolvedPosition = $this->claimNextAvailablePosition((int) $entry['desired_position'], $occupiedPositions);
+
+            $this->writePlanEntry($churchService, $entry, $incomingSource, $resolvedPosition);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     */
+    private function writePlanEntry(
+        ChurchService $churchService,
+        array $entry,
+        ChurchServiceItemSource $incomingSource,
+        int $position
+    ): void {
+        if ($entry['kind'] === 'update') {
+            /** @var ChurchServiceItem $existingItem */
+            $existingItem = $entry['existing_item'];
+            /** @var array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>} $incomingItem */
+            $incomingItem = $entry['incoming_item'];
+            /** @var array<string, mixed> $rawIncomingItem */
+            $rawIncomingItem = $entry['raw_incoming_item'];
+
+            $this->updateMatchedItem($existingItem, $incomingItem, $incomingSource, $position, $rawIncomingItem);
+
+            return;
+        }
+
+        /** @var array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>} $normalizedItem */
+        $normalizedItem = $entry['normalized_item'];
+        /** @var array<string, mixed> $rawItem */
+        $rawItem = $entry['raw_item'];
+
+        $createData = [
+            'position' => $position,
+            'type' => $normalizedItem['type'],
+            'section_type' => $normalizedItem['section_type'],
+            'source' => $incomingSource->value,
+            'title' => $normalizedItem['title'],
+            'source_title' => $normalizedItem['source_title'],
+            'openlp_search_title' => $normalizedItem['openlp_search_title'],
+            'song_id' => $normalizedItem['song_id'],
+            'metadata' => $normalizedItem['metadata'],
+        ];
+
+        if (isset($rawItem['livestream_processing_id'])) {
+            $createData['livestream_processing_id'] = $rawItem['livestream_processing_id'];
+        }
+
+        if (isset($rawItem['livestream_service_section_id'])) {
+            $createData['livestream_service_section_id'] = $rawItem['livestream_service_section_id'];
+        }
+
+        $churchService->items()->create($createData);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $plan
+     * @return list<ChurchServiceItem>
+     */
+    private function matchedItems(array $plan): array
     {
-        if ($pendingUpdates === []) {
+        $matched = [];
+
+        foreach ($plan as $entry) {
+            if ($entry['kind'] === 'update') {
+                /** @var ChurchServiceItem $existingItem */
+                $existingItem = $entry['existing_item'];
+                $matched[] = $existingItem;
+            }
+        }
+
+        return $matched;
+    }
+
+    /**
+     * Park every surviving item above the current maximum before rewriting
+     * positions, so items crossing each other never trip the unique constraint.
+     *
+     * @param  list<ChurchServiceItem>  $items
+     */
+    private function stageExistingItems(ChurchService $churchService, array $items): void
+    {
+        if ($items === []) {
             return;
         }
 
@@ -794,17 +978,19 @@ class ChurchServiceItemSyncService
             ->where('church_service_id', $churchService->id)
             ->max('position');
 
-        foreach (array_values($pendingUpdates) as $index => $pendingUpdate) {
-            $temporaryPosition = $maxPosition + $index + 1;
-            $existingItem = $pendingUpdate['existing_item'];
-
-            ChurchServiceItem::query()->withTrashed()
-                ->whereKey($existingItem->id)
-                ->update(['position' => $temporaryPosition]);
-
-            $existingItem->position = $temporaryPosition;
-            $existingItem->syncOriginalAttribute('position');
+        foreach ($items as $index => $item) {
+            $this->repositionItem($item, $maxPosition + $index + 1);
         }
+    }
+
+    private function repositionItem(ChurchServiceItem $item, int $position): void
+    {
+        ChurchServiceItem::query()->withTrashed()
+            ->whereKey($item->id)
+            ->update(['position' => $position]);
+
+        $item->position = $position;
+        $item->syncOriginalAttribute('position');
     }
 
     /**
@@ -832,6 +1018,120 @@ class ChurchServiceItemSyncService
         $normalised = trim((string) preg_replace('/\s+/', ' ', $value));
 
         return $normalised === '' ? null : $normalised;
+    }
+
+    /**
+     * Review signals a detected run raises about the merge as a whole.
+     *
+     * A run that simply misses a planned song is lossy, not wrong — that is what
+     * filling gaps means. What is worth a reviewer's time is evidence the run
+     * identified something incorrectly: a planned song missing while an
+     * unexpected one appears (a substitution), an unexpected song on its own,
+     * or too few anchors to place the items it never matched.
+     *
+     * @param  list<array<string, mixed>>  $plan
+     * @param  list<ChurchServiceItem>  $preservedItems
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergeEvidenceConflicts(
+        array $plan,
+        array $preservedItems,
+        ChurchServiceItemSource $incomingSource,
+        bool $isCrossSourceMerge
+    ): array {
+        if (! $isCrossSourceMerge || ! $incomingSource->isDetected()) {
+            return [];
+        }
+
+        $missedSongs = array_values(array_filter(
+            $preservedItems,
+            fn (ChurchServiceItem $item): bool => $this->isSongType($item->type),
+        ));
+
+        $unexpectedSongs = array_values(array_filter(
+            $plan,
+            fn (array $entry): bool => $entry['kind'] === 'create'
+                && $this->isSongType((string) $entry['normalized_item']['type']),
+        ));
+
+        $conflicts = [];
+
+        if ($missedSongs !== [] && $unexpectedSongs !== []) {
+            $conflicts[] = [
+                'type' => 'song_substitution_suspected',
+                'incoming_source' => $incomingSource->value,
+                'missed_songs' => array_map(fn (ChurchServiceItem $item): array => $this->snapshotItem($item), $missedSongs),
+                'unexpected_songs' => array_map(
+                    fn (array $entry): string => (string) $entry['normalized_item']['title'],
+                    $unexpectedSongs,
+                ),
+            ];
+        } elseif ($unexpectedSongs !== []) {
+            $conflicts[] = [
+                'type' => 'unexpected_detected_song',
+                'incoming_source' => $incomingSource->value,
+                'unexpected_songs' => array_map(
+                    fn (array $entry): string => (string) $entry['normalized_item']['title'],
+                    $unexpectedSongs,
+                ),
+            ];
+        }
+
+        $coverageConflict = $this->thinAnchorCoverageConflict($plan, $preservedItems, $missedSongs, $incomingSource);
+
+        if ($coverageConflict !== null) {
+            $conflicts[] = $coverageConflict;
+        }
+
+        return $conflicts;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $plan
+     * @param  list<ChurchServiceItem>  $preservedItems
+     * @param  list<ChurchServiceItem>  $missedSongs
+     * @return array<string, mixed>|null
+     */
+    private function thinAnchorCoverageConflict(
+        array $plan,
+        array $preservedItems,
+        array $missedSongs,
+        ChurchServiceItemSource $incomingSource
+    ): ?array {
+        // With everything anchored, nothing is being placed on guesswork and the
+        // anchor count is irrelevant however small it is.
+        if ($preservedItems === []) {
+            return null;
+        }
+
+        $anchors = array_values(array_filter($plan, fn (array $entry): bool => $entry['kind'] === 'update'));
+
+        $anchoredSongs = array_values(array_filter($anchors, function (array $entry): bool {
+            /** @var ChurchServiceItem $existingItem */
+            $existingItem = $entry['existing_item'];
+
+            return $this->isSongType($existingItem->type);
+        }));
+
+        $existingSongCount = count($anchoredSongs) + count($missedSongs);
+
+        if ($existingSongCount === 0) {
+            return null;
+        }
+
+        $coverage = count($anchoredSongs) / $existingSongCount;
+
+        if (count($anchors) >= self::MinimumAnchorCount && $coverage >= self::MinimumSongAnchorCoverage) {
+            return null;
+        }
+
+        return [
+            'type' => 'thin_anchor_coverage',
+            'incoming_source' => $incomingSource->value,
+            'anchor_count' => count($anchors),
+            'song_anchor_coverage' => round($coverage, 3),
+            'unplaced_items' => array_map(fn (ChurchServiceItem $item): array => $this->snapshotItem($item), $preservedItems),
+        ];
     }
 
     private function shouldFlagPreservedSongConflict(

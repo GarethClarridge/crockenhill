@@ -547,6 +547,7 @@ class MediaUploadTest extends TestCase
             ProjectLivestreamServiceStructure::class,
             MatchSongsFromTranscript::class,
             MergeSongContinuations::class,
+            ProjectLivestreamServiceStructure::class,
             ExtractSermon::class,
             SubmitToProcessing::class,
             EnhanceAudio::class,
