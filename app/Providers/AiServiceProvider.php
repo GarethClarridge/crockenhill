@@ -28,17 +28,16 @@ class AiServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(SermonAnalysisInterface::class, function ($app): SermonAnalysisInterface {
-            $serviceType = config('media-processing.analysis.service', 'openai');
+            $serviceType = (string) config('media-processing.analysis.service', 'openai');
 
-            if ($serviceType === 'mock') {
-                return $app->make(MockSermonAnalysisService::class);
-            }
-
-            return $app->make(SermonAnalysisService::class);
+            return match ($serviceType) {
+                'mock' => $app->make(MockSermonAnalysisService::class),
+                default => $app->make(SermonAnalysisService::class),
+            };
         });
 
         $this->app->bind(TranscriptionServiceInterface::class, function ($app): TranscriptionServiceInterface {
-            $serviceType = config('media-processing.transcription.service', 'openai');
+            $serviceType = (string) config('media-processing.transcription.service', 'openai');
 
             return match ($serviceType) {
                 'mock' => $app->make(MockTranscriptionService::class),
