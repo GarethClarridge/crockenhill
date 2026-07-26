@@ -43,6 +43,9 @@ class BackfillAuditTest extends TestCase
         ]);
         ChurchServiceItem::factory()->create([
             'type' => 'songs',
+            // A clean state now means the title agrees with the catalogue as well as the
+            // link does — the linker writes both, so either one drifting is drift.
+            'title' => 'Amazing Grace #123',
             'openlp_search_title' => 'Amazing Grace@',
             'song_id' => $song->id,
             'metadata' => null,

@@ -9,6 +9,7 @@ use App\Data\OosEmailItemExtractionResult;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
+use App\Services\ChurchService\ServiceItemTitleCleaner;
 use App\Services\Email\ExistingEmailImportLookup;
 use App\Services\Email\OosEmailParserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,7 +46,7 @@ class OosEmailParserServiceTest extends TestCase
             }
         };
 
-        $result = (new OosEmailParserService($extractor, new ExistingEmailImportLookup))->parse(InboundEmail::factory()->make([
+        $result = (new OosEmailParserService($extractor, new ExistingEmailImportLookup, app(ServiceItemTitleCleaner::class)))->parse(InboundEmail::factory()->make([
             'subject' => 'Order of Service - Sunday 15 March 2026 AM',
             'body_plain' => "Welcome\nBefore the throne of God above\nOpening prayer\nLuke 15:1-32",
             'body_html' => '<p>HTML should not be used</p>',
@@ -109,7 +110,7 @@ class OosEmailParserServiceTest extends TestCase
             }
         };
 
-        (new OosEmailParserService($extractor, new ExistingEmailImportLookup))->parse(InboundEmail::factory()->make([
+        (new OosEmailParserService($extractor, new ExistingEmailImportLookup, app(ServiceItemTitleCleaner::class)))->parse(InboundEmail::factory()->make([
             'subject' => 'OoS 2026-03-15 AM',
             'body_plain' => null,
             'body_html' => '<p>Welcome</p><p>Song one</p><div>Prayer</div>',
@@ -176,6 +177,55 @@ class OosEmailParserServiceTest extends TestCase
 
         $this->assertSame('custom', $result->items[0]['type']);
         $this->assertSame('other', $result->items[0]['metadata']['email_type']);
+    }
+
+    #[Test]
+    public function it_cleans_the_item_title_while_keeping_the_email_line_as_the_source_title(): void
+    {
+        $parser = $this->parserReturning($this->extraction([
+            $this->plan('morning', '2026-07-12', 0.95, [
+                ['type' => 'notices', 'title' => 'Notices (see above)'],
+                ['type' => 'children', 'title' => 'Family Talk – “Joel” (see PP)'],
+                ['type' => 'bible_reading', 'title' => 'Bible Reading: Joshua 5:13-6:27'],
+            ]),
+        ]));
+
+        $result = $parser->parse(InboundEmail::factory()->make([
+            'subject' => 'OoS Sunday 12 July 2026 AM',
+            'body_plain' => "Notices (see above)\nFamily Talk\nBible Reading: Joshua 5:13-6:27",
+            'received_at' => '2026-07-07 09:00:00',
+        ]));
+
+        $this->assertSame('Notices', $result->items[0]['title']);
+        $this->assertSame('Family Talk – “Joel”', $result->items[1]['title']);
+        $this->assertSame('Joshua 5:13-6:27', $result->items[2]['title']);
+
+        // The raw line survives untouched: it is what ChurchServiceItemSyncService matches
+        // an email item against an OpenLP export on.
+        $this->assertSame('Notices (see above)', $result->items[0]['source_title']);
+        $this->assertSame('Family Talk – “Joel” (see PP)', $result->items[1]['source_title']);
+        $this->assertSame('Bible Reading: Joshua 5:13-6:27', $result->items[2]['source_title']);
+    }
+
+    #[Test]
+    public function it_records_the_passage_a_reading_names(): void
+    {
+        $parser = $this->parserReturning($this->extraction([
+            $this->plan('morning', '2026-07-12', 0.95, [
+                ['type' => 'bible_reading', 'title' => 'Bible Reading: Joshua 5:13-6:27'],
+                ['type' => 'bible_reading', 'title' => 'Bible Reading'],
+            ]),
+        ]));
+
+        $result = $parser->parse(InboundEmail::factory()->make([
+            'subject' => 'OoS Sunday 12 July 2026 AM',
+            'body_plain' => 'Bible Reading: Joshua 5:13-6:27',
+            'received_at' => '2026-07-07 09:00:00',
+        ]));
+
+        $this->assertSame('Joshua 5:13-6:27', $result->items[0]['metadata']['reading_reference']);
+        // A reading naming no passage records none rather than an empty key.
+        $this->assertNull($result->items[1]['metadata']);
     }
 
     /**
@@ -590,7 +640,7 @@ class OosEmailParserServiceTest extends TestCase
             {
                 return $this->result;
             }
-        }, new ExistingEmailImportLookup);
+        }, new ExistingEmailImportLookup, app(ServiceItemTitleCleaner::class));
     }
 
     /**

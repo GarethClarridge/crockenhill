@@ -12,6 +12,7 @@ use App\Enums\SermonService;
 use App\Jobs\ProcessInboundOosEmail;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
+use App\Models\Song;
 use App\Models\User;
 use App\Services\ChurchService\ChurchServiceSongLinker;
 use App\Services\Email\InboundEmailImportService;
@@ -345,5 +346,55 @@ class OosMultiServiceImportTest extends TestCase
             ['morning:2026-07-12', 'evening:2026-07-12'],
             $email->processing_metadata['resolved_plan_keys'],
         );
+    }
+
+    #[Test]
+    public function an_unattended_import_writes_the_titles_a_reviewer_would_have_seen(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'Holy Spirit, living breath of God',
+            'canonical_key' => 'holy spirit living breath of god',
+        ]);
+
+        $this->bindExtractor(new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.95,
+            services: [
+                ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
+                    ['type' => 'notices', 'title' => 'Notices (see above)'],
+                    ['type' => 'song', 'title' => 'NIP ‘Holy, Spirit, living breath of God’'],
+                    ['type' => 'bible_reading', 'title' => 'Bible Reading: Joshua 5:13-6:27'],
+                ], 'confidence' => 0.95],
+            ],
+        ));
+
+        $email = InboundEmail::factory()->create([
+            'subject' => 'Order of Service - Sunday 12 July 2026',
+            'body_plain' => "Notices (see above)\nNIP ‘Holy, Spirit, living breath of God’\nBible Reading: Joshua 5:13-6:27",
+            'status' => InboundEmailStatus::Pending->value,
+            'received_at' => '2026-07-10 09:00:00',
+        ]);
+
+        app()->call([new ProcessInboundOosEmail($email), 'handle']);
+
+        $items = ChurchService::query()->sole()->items()->orderBy('position')->get();
+
+        // Nobody reviewed this import, so it is the only proof that an unattended run and a
+        // reviewed one now agree: cleaned titles, the catalogue's name for a matched song,
+        // and the passage recorded — with every raw email line still on the item.
+        $this->assertSame(
+            ['Notices', 'Holy Spirit, living breath of God', 'Joshua 5:13-6:27'],
+            $items->pluck('title')->all(),
+        );
+        $this->assertSame(
+            [
+                'Notices (see above)',
+                'NIP ‘Holy, Spirit, living breath of God’',
+                'Bible Reading: Joshua 5:13-6:27',
+            ],
+            $items->pluck('source_title')->all(),
+        );
+        $this->assertSame($song->id, $items[1]->song_id);
+        $this->assertSame('Joshua 5:13-6:27', $items[2]->metadata['reading_reference'] ?? null);
     }
 }

@@ -75,6 +75,62 @@ class ChurchServiceSongLinkerTest extends TestCase
     }
 
     #[Test]
+    public function it_titles_a_linked_item_from_the_catalogue_and_keeps_the_raw_line(): void
+    {
+        $song = Song::factory()->create([
+            'canonical_key' => 'holy spirit living breath of god',
+            'title' => 'Holy Spirit, living breath of God',
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::Email->value,
+            'title' => 'NIP ‘Holy, Spirit, living breath of God’',
+            'source_title' => 'NIP ‘Holy, Spirit, living breath of God’',
+            'openlp_search_title' => null,
+            'song_id' => null,
+        ]);
+
+        $this->linker->linkAll();
+
+        $item->refresh();
+
+        $this->assertSame($song->id, $item->song_id);
+        $this->assertSame('Holy Spirit, living breath of God', $item->title);
+        // The order of service's own wording stays on the item, which is also what the next
+        // run matches on — so renaming the title cannot cost the link.
+        $this->assertSame('NIP ‘Holy, Spirit, living breath of God’', $item->source_title);
+    }
+
+    #[Test]
+    public function retitling_a_linked_item_is_idempotent(): void
+    {
+        $song = Song::factory()->create([
+            'canonical_key' => 'living hope',
+            'title' => 'Living Hope',
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::Email->value,
+            'title' => 'NIP ‘Living Hope’',
+            'source_title' => 'NIP ‘Living Hope’',
+            'openlp_search_title' => null,
+            'song_id' => null,
+        ]);
+
+        $first = $this->linker->linkAll();
+        $second = $this->linker->linkAll();
+
+        $this->assertSame(1, $first['updated']);
+        // Titles are compared before writing, so a second pass is a no-op rather than
+        // reporting drift forever — the backfill audit reads these counts.
+        $this->assertSame(0, $second['updated']);
+        $this->assertSame(1, $second['unchanged']);
+        $this->assertSame($song->id, ChurchServiceItem::query()->sole()->song_id);
+    }
+
+    #[Test]
     public function it_preserves_manually_selected_song_links_using_metadata_canonical_key(): void
     {
         $song = Song::factory()->create([

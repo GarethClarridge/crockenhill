@@ -312,6 +312,107 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
     }
 
     #[Test]
+    public function it_titles_a_matched_song_from_the_catalogue_and_keeps_the_email_line(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'Holy Spirit, living breath of God',
+            'canonical_key' => 'holy spirit living breath of god',
+        ]);
+
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'recipient' => 'oos@crockenhill.org',
+                'parsing' => [
+                    'resolved_date' => '2026-07-12',
+                    'resolved_service' => SermonService::Morning->value,
+                    'items' => [
+                        [
+                            'position' => 1,
+                            'type' => 'songs',
+                            'title' => 'NIP ‘Holy, Spirit, living breath of God’',
+                            'source_title' => 'NIP ‘Holy, Spirit, living breath of God’',
+                            'openlp_search_title' => null,
+                            'metadata' => null,
+                        ],
+                        [
+                            'position' => 2,
+                            'type' => 'songs',
+                            'title' => 'A song nobody has catalogued',
+                            'source_title' => 'A song nobody has catalogued',
+                            'openlp_search_title' => null,
+                            'metadata' => null,
+                        ],
+                    ],
+                    'needs_review' => false,
+                    'should_import' => true,
+                ],
+            ],
+        ]);
+
+        $result = $this->action->execute($inboundEmail->id);
+
+        $this->assertSame($song->id, $result['items'][0]['song_id']);
+        $this->assertSame('Holy Spirit, living breath of God', $result['items'][0]['title']);
+        $this->assertSame('NIP ‘Holy, Spirit, living breath of God’', $result['items'][0]['source_title']);
+
+        // An unmatched song has no catalogue title to borrow, so its line stands as the title.
+        $this->assertNull($result['items'][1]['song_id']);
+        $this->assertSame('A song nobody has catalogued', $result['items'][1]['title']);
+    }
+
+    #[Test]
+    public function it_cleans_titles_stored_by_an_earlier_parse(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'recipient' => 'oos@crockenhill.org',
+                'parsing' => [
+                    'resolved_date' => '2026-07-12',
+                    'resolved_service' => SermonService::Morning->value,
+                    'items' => [
+                        ['position' => 1, 'type' => 'custom', 'title' => 'Notices (see above)', 'source_title' => 'Notices (see above)', 'openlp_search_title' => null, 'metadata' => ['email_type' => 'notices']],
+                        ['position' => 2, 'type' => 'bibles', 'title' => 'Bible Reading: Joshua 5:13-6:27', 'source_title' => 'Bible Reading: Joshua 5:13-6:27', 'openlp_search_title' => null, 'metadata' => null],
+                    ],
+                    'needs_review' => false,
+                    'should_import' => true,
+                ],
+            ],
+        ]);
+
+        $result = $this->action->execute($inboundEmail->id);
+
+        // Plans parsed before cleaning existed still review with a readable title, so an
+        // operator does not have to re-parse an email to get one.
+        $this->assertSame('Notices', $result['items'][0]['title']);
+        $this->assertSame('Notices (see above)', $result['items'][0]['source_title']);
+        $this->assertSame('Joshua 5:13-6:27', $result['items'][1]['title']);
+        $this->assertSame('Bible Reading: Joshua 5:13-6:27', $result['items'][1]['source_title']);
+    }
+
+    #[Test]
+    public function it_falls_back_to_the_title_as_provenance_when_the_parse_stored_none(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'recipient' => 'oos@crockenhill.org',
+                'parsing' => [
+                    'resolved_date' => '2026-07-12',
+                    'resolved_service' => SermonService::Morning->value,
+                    'items' => [
+                        ['position' => 1, 'type' => 'custom', 'title' => 'Welcome', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                    ],
+                    'needs_review' => false,
+                    'should_import' => true,
+                ],
+            ],
+        ]);
+
+        $result = $this->action->execute($inboundEmail->id);
+
+        $this->assertSame('Welcome', $result['items'][0]['source_title']);
+    }
+
+    #[Test]
     public function it_keeps_a_song_id_the_parse_already_carried(): void
     {
         $parsed = Song::factory()->create(['title' => 'Sing to God', 'canonical_key' => 'sing to god']);

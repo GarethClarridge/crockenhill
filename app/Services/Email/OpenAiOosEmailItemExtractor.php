@@ -40,6 +40,11 @@ Rules:
 - Resolve relative or yearless dates against the supplied email receipt date. These emails normally
   describe services from the receipt date through the following two weeks; do not use a training-data year.
 - Use concise, human-readable titles. Use "song" for hymns/songs and "bible_reading" for readings.
+- Titles are stored on their own, so drop anything that only makes sense while reading the email:
+  pointers such as "(see above)", "(see PP)", "(see attached)" or "(overleaf)". Keep the words that
+  name the item itself — "Family Talk - 'Joel' (see PP)" becomes "Family Talk - 'Joel'".
+- For a bible_reading, title it with just the passage ("Joshua 5:13-6:27"), not a restatement of the
+  type ("Bible Reading: Joshua 5:13-6:27").
 - Confidence reflects how reliable that service's extracted order is.
 TEXT,
                 ],

@@ -9,7 +9,9 @@ use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailParseResult;
 use App\Data\OosEmailServicePlan;
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionType;
 use App\Models\InboundEmail;
+use App\Services\ChurchService\ServiceItemTitleCleaner;
 use Carbon\CarbonImmutable;
 
 class OosEmailParserService
@@ -17,6 +19,7 @@ class OosEmailParserService
     public function __construct(
         private readonly OosEmailItemExtractor $itemExtractor,
         private readonly ExistingEmailImportLookup $existingEmailImports,
+        private readonly ServiceItemTitleCleaner $titleCleaner,
     ) {}
 
     public function parse(InboundEmail $inboundEmail): OosEmailParseResult
@@ -281,6 +284,10 @@ class OosEmailParserService
     }
 
     /**
+     * `title` is the cleaned, readable form and `source_title` the line the email actually
+     * carried. They are deliberately allowed to differ here: cross-source matching and song
+     * resolution read `source_title`, so cleaning the display title costs no match strength.
+     *
      * @param  array<int, array{type:string,title:string}>  $items
      * @return array<int, array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>
      */
@@ -290,11 +297,14 @@ class OosEmailParserService
 
         foreach ($items as $item) {
             $semanticType = $this->normaliseSemanticType($item['type']);
-            $title = $this->normaliseWhitespace($item['title']);
+            $rawTitle = $this->normaliseWhitespace($item['title']);
 
-            if ($title === null) {
+            if ($rawTitle === null) {
                 continue;
             }
+
+            $sectionType = ServiceSectionType::tryFrom($semanticType) ?? ServiceSectionType::Other;
+            $title = $this->titleCleaner->displayTitle($rawTitle, $sectionType);
 
             $storageType = match ($semanticType) {
                 'song' => 'songs',
@@ -307,13 +317,35 @@ class OosEmailParserService
                 'type' => $storageType,
                 'section_type' => $semanticType,
                 'title' => $title,
-                'source_title' => $title,
+                'source_title' => $rawTitle,
                 'openlp_search_title' => null,
-                'metadata' => $storageType === 'custom' ? ['email_type' => $semanticType] : null,
+                'metadata' => $this->itemMetadata($sectionType, $semanticType, $storageType, $title, $rawTitle),
             ];
         }
 
         return $normalised;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function itemMetadata(
+        ServiceSectionType $sectionType,
+        string $semanticType,
+        string $storageType,
+        string $title,
+        string $rawTitle,
+    ): ?array {
+        // Recorded here so the passage is available to every reader of the item without
+        // re-parsing a title, matching what LLM structure detection stores for a
+        // detected reading — which is what ServiceFlowBuilder already looks for.
+        if ($sectionType === ServiceSectionType::BibleReading) {
+            $reference = $this->titleCleaner->readingReference($title, $rawTitle);
+
+            return $reference === null ? null : ['reading_reference' => $reference];
+        }
+
+        return $storageType === 'custom' ? ['email_type' => $semanticType] : null;
     }
 
     /**

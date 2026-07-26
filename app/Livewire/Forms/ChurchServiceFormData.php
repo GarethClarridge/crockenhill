@@ -9,6 +9,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
+use App\Services\ChurchService\ServiceItemTitleCleaner;
 use App\Services\Song\SongTitleResolver;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Support\Str;
@@ -26,7 +27,12 @@ class ChurchServiceFormData extends Form
     public string $service = '';
 
     /**
-     * @var array<int, array{key:string,section_type:string,title:string,song_id:int|null}>
+     * `source_title` is the line the originating source actually carried, held separately
+     * from the editable title so cleaning or relabelling what a reviewer sees never costs
+     * the raw text that ChurchServiceItemSyncService matches sources on. Null means the item
+     * has no external source — a hand-added row — and its title stands as its own provenance.
+     *
+     * @var array<int, array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}>
      */
     public array $items = [];
 
@@ -51,7 +57,7 @@ class ChurchServiceFormData extends Form
     }
 
     /**
-     * @param  array{date?:string,service?:string,items?:array<int,array{key:string,section_type:string,title:string,song_id:int|null}>}  $prefillData
+     * @param  array{date?:string,service?:string,items?:array<int,array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}>}  $prefillData
      */
     public function applyPrefillData(array $prefillData): void
     {
@@ -125,6 +131,10 @@ class ChurchServiceFormData extends Form
             return;
         }
 
+        // Confirming a catalogue match replaces the title with the canonical one, so the
+        // text being replaced becomes this item's provenance unless it already has some.
+        // Without this a hand-typed line would be lost the moment it was matched.
+        $this->items[$index]['source_title'] ??= trim((string) $this->items[$index]['title']) ?: null;
         $this->items[$index]['section_type'] = ServiceSectionType::Song->value;
         $this->items[$index]['title'] = $song->title;
         $this->items[$index]['song_id'] = $song->id;
@@ -166,6 +176,9 @@ class ChurchServiceFormData extends Form
     public function syncPayload(): array
     {
         $payload = [];
+
+        // Resolved at most once per save, and only if a reading needs a reference.
+        $titleCleaner = null;
         $selectedSongCanonicalKeys = Song::query()
             ->whereIn('id', collect($this->items)
                 ->pluck('song_id')
@@ -184,18 +197,34 @@ class ChurchServiceFormData extends Form
                 default => 'custom',
             };
             $songId = is_numeric($item['song_id'] ?? null) ? (int) $item['song_id'] : null;
+            $title = trim((string) $item['title']);
+            $sourceTitle = trim((string) ($item['source_title'] ?? ''));
             $metadata = [];
 
             if ($songId !== null && array_key_exists($songId, $selectedSongCanonicalKeys)) {
                 $metadata['linked_song_canonical_key'] = $selectedSongCanonicalKeys[$songId];
             }
 
+            // Re-derived from what is on screen rather than carried through the form: the
+            // reviewer may have corrected the passage, and a hand-added reading never had a
+            // parse to inherit from. The raw line is a fallback for a title edited to a form
+            // the parser cannot read.
+            if ($sectionType === ServiceSectionType::BibleReading) {
+                $titleCleaner ??= app(ServiceItemTitleCleaner::class);
+                $reference = $titleCleaner->readingReference($title, $sourceTitle === '' ? null : $sourceTitle);
+
+                if ($reference !== null) {
+                    $metadata['reading_reference'] = $reference;
+                }
+            }
+
             $payload[] = [
                 'position' => $index + 1,
                 'type' => $storageType,
                 'section_type' => $sectionType->value,
-                'title' => trim((string) $item['title']),
-                'source_title' => trim((string) $item['title']),
+                'title' => $title,
+                // A hand-added row has no external line, so its own title is its provenance.
+                'source_title' => $sourceTitle === '' ? $title : $sourceTitle,
                 'openlp_search_title' => null,
                 'song_id' => $songId,
                 'metadata' => $metadata !== [] ? $metadata : null,
@@ -375,7 +404,7 @@ class ChurchServiceFormData extends Form
     }
 
     /**
-     * @return array{key:string,section_type:string,title:string,song_id:int|null}
+     * @return array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}
      */
     private function blankItem(): array
     {
@@ -383,12 +412,13 @@ class ChurchServiceFormData extends Form
             'key' => (string) Str::uuid(),
             'section_type' => ServiceSectionType::Song->value,
             'title' => '',
+            'source_title' => null,
             'song_id' => null,
         ];
     }
 
     /**
-     * @return array{key:string,section_type:string,title:string,song_id:int|null}
+     * @return array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}
      */
     private function itemPayloadFromModel(ChurchServiceItem $item): array
     {
@@ -396,6 +426,7 @@ class ChurchServiceFormData extends Form
             'key' => (string) Str::uuid(),
             'section_type' => $item->semanticSectionType()->value,
             'title' => $item->title,
+            'source_title' => $item->source_title,
             'song_id' => $item->song_id,
         ];
     }

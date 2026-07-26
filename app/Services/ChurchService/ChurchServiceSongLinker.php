@@ -11,6 +11,15 @@ use App\Services\Song\SongTitleResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
+/**
+ * Links song items to the catalogue and titles them from it.
+ *
+ * Titling happens here rather than at each caller so every route into the data — an
+ * auto-imported email, an admin's manual save, an OpenLP export, the linkAll backfill —
+ * ends with the same title for the same song. What the source actually wrote is never
+ * lost: {@see resolveSearchTitle()} reads `source_title` ahead of `title`, so the raw
+ * line stays both the thing matching is done on and the item's provenance.
+ */
 class ChurchServiceSongLinker
 {
     /**
@@ -111,10 +120,16 @@ class ChurchServiceSongLinker
                 $metrics['match_types'][$match->matchType] = ($metrics['match_types'][$match->matchType] ?? 0) + 1;
 
                 $auditTrail = $this->auditTrailFor($match);
+                $catalogueTitle = $resolver->catalogueTitle($match->songId);
+                $title = $catalogueTitle ?? $item->title;
 
                 // Loose comparison: the metadata JSON round-trip turns a 1.0 confidence into
                 // the integer 1, which must still count as unchanged on the next run.
-                if ($item->song_id === $match->songId && data_get($item->metadata, 'song_link') == $auditTrail) {
+                if (
+                    $item->song_id === $match->songId
+                    && $item->title === $title
+                    && data_get($item->metadata, 'song_link') == $auditTrail
+                ) {
                     $metrics['unchanged']++;
 
                     continue;
@@ -122,6 +137,7 @@ class ChurchServiceSongLinker
 
                 if (! $dryRun) {
                     $item->song_id = $match->songId;
+                    $item->title = $title;
                     $item->metadata = $this->metadataWithAuditTrail($item, $auditTrail);
                     $item->save();
                 }

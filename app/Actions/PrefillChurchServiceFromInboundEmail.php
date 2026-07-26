@@ -8,6 +8,9 @@ use App\Data\OosEmailParseResult;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
 use App\Models\InboundEmail;
+use App\Models\Song;
+use App\Services\ChurchService\ChurchServiceSongLinker;
+use App\Services\ChurchService\ServiceItemTitleCleaner;
 use App\Services\Email\InboundEmailImportService;
 use App\Services\Email\OosEmailParserService;
 use App\Services\Song\SongTitleResolver;
@@ -19,6 +22,7 @@ class PrefillChurchServiceFromInboundEmail
     public function __construct(
         private readonly InboundEmailImportService $importService,
         private readonly OosEmailParserService $parserService,
+        private readonly ServiceItemTitleCleaner $titleCleaner,
     ) {}
 
     /**
@@ -27,7 +31,7 @@ class PrefillChurchServiceFromInboundEmail
      * Returns a partial form state array with optional `date`, `service`, and `items` keys.
      * Callers should only apply keys that are present and non-empty.
      *
-     * @return array{date?:string,service?:string,items?:array<int,array{key:string,section_type:string,title:string,song_id:int|null}>}
+     * @return array{date?:string,service?:string,items?:array<int,array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}>}
      */
     public function execute(int $inboundEmailId, ?string $planKey = null): array
     {
@@ -69,7 +73,7 @@ class PrefillChurchServiceFromInboundEmail
                 ->all();
 
             if ($items !== []) {
-                $result['items'] = $items;
+                $result['items'] = $this->withCatalogueSongTitles($items);
             }
         }
 
@@ -118,26 +122,76 @@ class PrefillChurchServiceFromInboundEmail
     }
 
     /**
+     * The title is cleaned here as well as in the parser, so a plan parsed before cleaning
+     * existed still reviews with a readable title instead of waiting on a re-parse. Cleaning
+     * an already-clean title is a no-op, so running it twice costs nothing.
+     *
      * @param  array<string, mixed>  $item
-     * @return array{key:string,section_type:string,title:string,song_id:int|null}|null
+     * @return array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}|null
      */
     private function itemPayloadFromParsedItem(array $item, ?SongTitleResolver &$songTitleResolver): ?array
     {
-        $title = trim((string) ($item['title'] ?? ''));
+        $storedTitle = trim((string) ($item['title'] ?? ''));
 
-        if ($title === '') {
+        if ($storedTitle === '') {
             return null;
         }
 
         $sectionType = $this->resolveSectionTypeFromParsedItem($item);
         $songId = is_int($item['song_id'] ?? null) ? $item['song_id'] : null;
+        $sourceTitle = $this->firstNonEmptyString([$item['source_title'] ?? null, $storedTitle]);
 
         return [
             'key' => (string) Str::uuid(),
             'section_type' => $sectionType->value,
-            'title' => $title,
+            'title' => $this->titleCleaner->displayTitle($storedTitle, $sectionType),
+            // Always set: a prefilled item came from an email, so it always has a raw line,
+            // and pinning it here is what lets the reviewer edit the title freely.
+            'source_title' => $sourceTitle === null ? null : trim($sourceTitle),
             'song_id' => $songId ?? $this->resolveSongId($sectionType, $item, $songTitleResolver),
         ];
+    }
+
+    /**
+     * Show a matched song under its catalogue title rather than the email's rendering of it.
+     *
+     * This is a preview, not a separate rule: {@see ChurchServiceSongLinker} titles song items
+     * from the catalogue on every path, so what the reviewer reads here is what saving writes —
+     * and what an auto-import of the same email would have written unattended. The email's own
+     * wording is not lost; it stays on the item as `source_title`.
+     *
+     * @param  array<int, array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}>  $items
+     * @return array<int, array{key:string,section_type:string,title:string,source_title:?string,song_id:int|null}>
+     */
+    private function withCatalogueSongTitles(array $items): array
+    {
+        $songIds = collect($items)
+            ->filter(static fn (array $item): bool => $item['section_type'] === ServiceSectionType::Song->value)
+            ->pluck('song_id')
+            ->filter(static fn (?int $songId): bool => $songId !== null)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($songIds === []) {
+            return $items;
+        }
+
+        $catalogueTitles = Song::query()->whereKey($songIds)->pluck('title', 'id');
+
+        foreach ($items as $index => $item) {
+            if ($item['section_type'] !== ServiceSectionType::Song->value || $item['song_id'] === null) {
+                continue;
+            }
+
+            $catalogueTitle = $catalogueTitles->get($item['song_id']);
+
+            if (is_string($catalogueTitle) && trim($catalogueTitle) !== '') {
+                $items[$index]['title'] = $catalogueTitle;
+            }
+        }
+
+        return $items;
     }
 
     /**

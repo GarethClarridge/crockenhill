@@ -206,6 +206,85 @@ class ChurchServiceItemSyncServiceTest extends TestCase
     }
 
     #[Test]
+    public function test_a_manual_save_reorders_items_another_source_authored(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'service' => SermonService::Morning,
+        ]);
+
+        $welcome = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'source' => ChurchServiceItemSource::Manual->value,
+            'title' => 'Welcome',
+            'source_title' => 'Welcome',
+            'openlp_search_title' => null,
+        ]);
+
+        $prayer = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 2,
+            'type' => 'custom',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'Opening Prayer',
+            'source_title' => 'Opening Prayer',
+            'openlp_search_title' => null,
+        ]);
+
+        // The admin moved the prayer above the welcome and retitled the welcome. Anchoring to
+        // the old order would put the OpenLP-sourced prayer back underneath, silently
+        // discarding a reorder the admin made while looking at the whole list.
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'custom', 'Opening Prayer', 'Opening Prayer', null),
+            $this->incomingItem(2, 'custom', 'Welcome and Notices', 'Welcome', null),
+        ], ChurchServiceItemSource::Manual);
+
+        $this->assertSame(1, $prayer->fresh()?->position);
+        $this->assertSame(2, $welcome->fresh()?->position);
+        // Matched on its raw line, so the retitled row is the same row rather than a new one.
+        $this->assertSame('Welcome and Notices', $welcome->fresh()?->title);
+        $this->assertSame(2, $churchService->items()->count());
+    }
+
+    #[Test]
+    public function test_an_openlp_import_still_anchors_to_the_existing_order(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'service' => SermonService::Morning,
+        ]);
+
+        $welcome = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'source' => ChurchServiceItemSource::Email->value,
+            'title' => 'Welcome',
+            'source_title' => 'Welcome',
+            'openlp_search_title' => null,
+        ]);
+
+        $prayer = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 2,
+            'type' => 'custom',
+            'source' => ChurchServiceItemSource::Email->value,
+            'title' => 'Opening Prayer',
+            'source_title' => 'Opening Prayer',
+            'openlp_search_title' => null,
+        ]);
+
+        // An OpenLP export carries only slide-backed items, so its sequence is not a
+        // statement about the whole list and must not reorder what the email recorded.
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'custom', 'Opening Prayer', 'Opening Prayer', null),
+        ], ChurchServiceItemSource::OpenLp);
+
+        $this->assertSame(1, $welcome->fresh()?->position);
+        $this->assertSame(2, $prayer->fresh()?->position);
+    }
+
+    #[Test]
     public function test_wraps_in_transaction(): void
     {
         $churchService = ChurchService::factory()->create();
@@ -730,6 +809,13 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $livestreamSong->refresh();
         $this->assertNull($livestreamSong->deleted_at);
         $this->assertSame(ChurchServiceItemSource::Livestream, $livestreamSong->source);
+
+        // A manual save normally states its own order, but not over a row it never listed:
+        // the preserved song has to be interleaved, so the order is anchored instead.
+        $this->assertSame(
+            ['Detected Song', 'Opening Prayer'],
+            $churchService->items()->orderBy('position')->pluck('title')->all(),
+        );
 
         $this->assertCount(1, collect($result['conflicts'])->where('type', 'preserved_existing_song'));
     }

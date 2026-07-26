@@ -32,6 +32,14 @@ class SongTitleResolver
     /** @var array<string, int> */
     private array $exact = [];
 
+    /**
+     * The catalogue's own title per song, so a caller that has resolved a match can name
+     * the song without a second query — the rows the lookups are built from carry it already.
+     *
+     * @var array<int, string>
+     */
+    private array $titles = [];
+
     /** @var array<string, int> */
     private array $number = [];
 
@@ -120,6 +128,14 @@ class SongTitleResolver
     }
 
     /**
+     * The catalogue's title for a song, or null when it is not in this resolver's rows.
+     */
+    public function catalogueTitle(int $songId): ?string
+    {
+        return $this->titles[$songId] ?? null;
+    }
+
+    /**
      * The cleaned text a free-text reference reduces to — leading labels ("NIP"), praise
      * numbers, quotes and trailing parentheticals removed. Callers that run their own
      * search (an admin typeahead's LIKE, say) use this so they query the same text the
@@ -147,6 +163,11 @@ class SongTitleResolver
             $canonicalKey = (string) $row['canonical_key'];
 
             $this->exact[$canonicalKey] = $songId;
+
+            $catalogueTitle = $row['title'] ?? null;
+            if (is_string($catalogueTitle) && trim($catalogueTitle) !== '') {
+                $this->titles[$songId] = trim($catalogueTitle);
+            }
 
             $praiseNumber = $row['praise_number'] ?? null;
             if (is_string($praiseNumber) && trim($praiseNumber) !== '') {

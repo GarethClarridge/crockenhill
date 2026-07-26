@@ -108,10 +108,24 @@
 
                     @if($item['song_id'])
                         <p class="text-sm text-cbc-teal-dark">
-                            Linked song: {{ $linkedSongTitles[$index] ?? 'selected' }}
+                            {{-- The title field already shows the catalogue title for a matched
+                                 song, so repeating it here would say nothing. --}}
+                            @if(($linkedSongTitles[$index] ?? null) === trim((string) $item['title']))
+                                Linked to the song catalogue.
+                            @else
+                                Linked song: {{ $linkedSongTitles[$index] ?? 'selected' }}
+                            @endif
                         </p>
                     @endif
                 </div>
+            @endif
+
+            {{-- The line the order of service actually carried, shown only where it differs
+                 from the title, so a cleaned or catalogue-matched title stays checkable. --}}
+            @if(filled($item['source_title'] ?? null) && trim((string) $item['source_title']) !== trim((string) $item['title']))
+                <p class="mt-3 text-xs text-gray-500">
+                    From the order of service: &ldquo;{{ $item['source_title'] }}&rdquo;
+                </p>
             @endif
         </div>
     @endforeach

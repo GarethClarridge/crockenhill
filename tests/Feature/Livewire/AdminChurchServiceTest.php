@@ -525,7 +525,7 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
-    public function manual_service_form_names_the_linked_song(): void
+    public function confirming_a_song_titles_the_item_from_the_catalogue_and_keeps_the_typed_line(): void
     {
         $this->actingAs($this->admin);
 
@@ -536,9 +536,49 @@ class AdminChurchServiceTest extends TestCase
 
         Livewire::test(ManageChurchService::class)
             ->set('form.items.0.section_type', ServiceSectionType::Song->value)
-            ->set('form.items.0.title', 'Living Hope')
+            ->set('form.items.0.title', 'NIP ‘Living Hope’')
             ->call('selectSong', 0, $song->id)
-            ->assertSee('Linked song: Living Hope');
+            ->assertSet('form.items.0.title', 'Living Hope')
+            // The line that was replaced becomes the item's provenance rather than being lost.
+            ->assertSet('form.items.0.source_title', 'NIP ‘Living Hope’')
+            ->assertSee('From the order of service')
+            // The title field now names the song, so the panel confirms the link
+            // instead of repeating the title back.
+            ->assertSee('Linked to the song catalogue.')
+            ->assertDontSee('Linked song: Living Hope');
+    }
+
+    #[Test]
+    public function editing_an_existing_service_names_a_linked_song_whose_title_differs(): void
+    {
+        $this->actingAs($this->admin);
+
+        $song = Song::factory()->create([
+            'title' => 'Holy Spirit, living breath of God',
+            'canonical_key' => 'holy spirit living breath of god',
+        ]);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-07-12',
+            'service' => SermonService::Morning,
+        ]);
+
+        ChurchServiceItem::factory()->song()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'source' => ChurchServiceItemSource::Email->value,
+            'title' => 'NIP ‘Holy, Spirit, living breath of God’',
+            'source_title' => 'NIP ‘Holy, Spirit, living breath of God’',
+            'openlp_search_title' => null,
+            'song_id' => $song->id,
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->call('startEditingOrderOfService')
+            ->assertSee('Linked song: Holy Spirit, living breath of God')
+            // This row predates title cleaning, so its title and its raw line are the same
+            // string — there is nothing for a provenance line to add.
+            ->assertDontSee('From the order of service');
     }
 
     #[Test]
@@ -1308,5 +1348,100 @@ class AdminChurchServiceTest extends TestCase
         $this->assertSame(InboundEmailStatus::Processed, $email->status);
         $this->assertSame('manual_edit', $email->processing_metadata['review']['mode'] ?? null);
         $this->assertSame($service->id, $email->processing_metadata['imported_church_service_id'] ?? null);
+    }
+
+    #[Test]
+    public function saving_a_reviewed_plan_keeps_the_email_line_behind_an_edited_title(): void
+    {
+        $this->actingAs($this->admin);
+
+        $email = InboundEmail::factory()->create([
+            'status' => InboundEmailStatus::Pending->value,
+            'processing_metadata' => $this->processingMetadata(
+                resolvedDate: '2026-07-12',
+                resolvedService: SermonService::Morning->value,
+                items: [
+                    [
+                        'type' => 'custom',
+                        'title' => 'Notices',
+                        'source_title' => 'Notices (see above)',
+                        'metadata' => ['email_type' => 'notices'],
+                    ],
+                ],
+            ),
+        ]);
+
+        Livewire::test(ManageChurchService::class, ['inboundEmailId' => $email->id])
+            ->assertSet('form.items.0.title', 'Notices')
+            ->assertSet('form.items.0.source_title', 'Notices (see above)')
+            ->set('form.items.0.title', 'Notices and welcome')
+            ->call('save');
+
+        $item = ChurchServiceItem::query()
+            ->whereRelation('churchService', 'date', '2026-07-12')
+            ->sole();
+
+        $this->assertSame('Notices and welcome', $item->title);
+        // The raw line is provenance, not a copy of the title: retitling an item must not
+        // erase the text ChurchServiceItemSyncService matches an OpenLP export against.
+        $this->assertSame('Notices (see above)', $item->source_title);
+    }
+
+    #[Test]
+    public function saving_a_reading_records_the_passage_named_on_screen(): void
+    {
+        $this->actingAs($this->admin);
+
+        $email = InboundEmail::factory()->create([
+            'status' => InboundEmailStatus::Pending->value,
+            'processing_metadata' => $this->processingMetadata(
+                resolvedDate: '2026-07-12',
+                resolvedService: SermonService::Morning->value,
+                items: [
+                    [
+                        'type' => 'bibles',
+                        'title' => 'Bible Reading: Joshua 5:13-6:27',
+                        'source_title' => 'Bible Reading: Joshua 5:13-6:27',
+                        'metadata' => null,
+                    ],
+                ],
+            ),
+        ]);
+
+        Livewire::test(ManageChurchService::class, ['inboundEmailId' => $email->id])
+            ->assertSet('form.items.0.title', 'Joshua 5:13-6:27')
+            // The reviewer corrects the passage, so the recorded reference must follow the
+            // screen rather than the parse it was prefilled from.
+            ->set('form.items.0.title', 'Joshua 6:1-20')
+            ->call('save');
+
+        $item = ChurchServiceItem::query()
+            ->whereRelation('churchService', 'date', '2026-07-12')
+            ->sole();
+
+        $this->assertSame('Joshua 6:1-20', $item->title);
+        $this->assertSame('Joshua 6:1-20', $item->metadata['reading_reference'] ?? null);
+    }
+
+    #[Test]
+    public function a_hand_added_item_stands_as_its_own_provenance(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(ManageChurchService::class)
+            ->set('form.date', '2026-07-19')
+            ->set('form.service', SermonService::Morning->value)
+            ->set('form.items.0.section_type', ServiceSectionType::Prayer->value)
+            ->set('form.items.0.title', 'Closing prayer')
+            ->call('save');
+
+        $item = ChurchServiceItem::query()
+            ->whereRelation('churchService', 'date', '2026-07-19')
+            ->sole();
+
+        // There is no external line to hold, so the title is the best provenance available —
+        // which is what source_title held for every manual save before it was split out.
+        $this->assertSame('Closing prayer', $item->title);
+        $this->assertSame('Closing prayer', $item->source_title);
     }
 }

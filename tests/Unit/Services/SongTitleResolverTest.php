@@ -185,4 +185,27 @@ class SongTitleResolverTest extends TestCase
         // Both Abide With Me hymns share every loose key, so the best two scores tie exactly.
         $this->assertNull($this->resolver()->resolve('Abide with me evening hymn'));
     }
+
+    #[Test]
+    public function it_names_the_catalogue_title_behind_a_match(): void
+    {
+        $resolver = $this->resolver();
+        $match = $resolver->resolve('299');
+
+        $this->assertInstanceOf(SongTitleMatch::class, $match);
+        $this->assertSame('How Sweet The Name Of Jesus Sounds #299', $resolver->catalogueTitle($match->songId));
+    }
+
+    #[Test]
+    public function it_has_no_catalogue_title_for_a_row_that_carried_none(): void
+    {
+        // Rows are allowed to omit a title — the songs table forbids a blank one, but
+        // fromRows() takes plain arrays, so callers must cope with the gap.
+        $resolver = SongTitleResolver::fromRows([
+            ['id' => 1, 'canonical_key' => 'speak o lord'],
+        ]);
+
+        $this->assertNull($resolver->catalogueTitle(1));
+        $this->assertNull($resolver->catalogueTitle(999));
+    }
 }

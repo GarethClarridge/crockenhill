@@ -172,7 +172,7 @@ class ChurchServiceItemSyncService
                 ];
             }
 
-            if ($isCrossSourceMerge) {
+            if ($this->shouldAnchorOrder($isCrossSourceMerge, $preservedItems, $incomingSource)) {
                 $this->applyAnchoredOrder($lockedService, $plan, $preservedItems, $incomingSource);
             } else {
                 $this->applyIncomingPositions($lockedService, $plan, $incomingSource);
@@ -523,7 +523,48 @@ class ChurchServiceItemSyncService
         ChurchServiceItemSource $existingSource,
         ChurchServiceItemSource $incomingSource
     ): bool {
+        if ($this->incomingStatesTheOrder($incomingSource)) {
+            return false;
+        }
+
         return ! $this->sourcesShareMergeAuthority($existingSource, $incomingSource);
+    }
+
+    /**
+     * Whether this source's positions are the order, whatever else the list holds.
+     *
+     * Only a manual save qualifies. The anchoring rules exist because a partial list
+     * cannot be read as a reordering of a fuller one — an OpenLP export carries only
+     * slide-backed items and a run only what it heard, so neither one's sequence may
+     * push aside an entry it never saw. A manual save is the exception on the same
+     * grounds {@see shouldDeleteUnmatchedItem()} lets it delete: the admin was looking
+     * at the whole list, in order, and dragged it into the order they wanted.
+     */
+    private function incomingStatesTheOrder(ChurchServiceItemSource $incomingSource): bool
+    {
+        return $incomingSource === ChurchServiceItemSource::Manual;
+    }
+
+    /**
+     * Whether the existing order has to be anchored to rather than replaced.
+     *
+     * A manual save states its own order (see {@see incomingStatesTheOrder()}), but only
+     * while every existing row is accounted for. A preserved row is one the save neither
+     * matched nor may delete — a livestream-detected song, say — and the incoming list has
+     * no position to offer it, so interleaving it is exactly what anchoring is for.
+     *
+     * @param  list<ChurchServiceItem>  $preservedItems
+     */
+    private function shouldAnchorOrder(
+        bool $isCrossSourceMerge,
+        array $preservedItems,
+        ChurchServiceItemSource $incomingSource
+    ): bool {
+        if (! $isCrossSourceMerge) {
+            return false;
+        }
+
+        return $preservedItems !== [] || ! $this->incomingStatesTheOrder($incomingSource);
     }
 
     /**

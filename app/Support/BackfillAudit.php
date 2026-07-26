@@ -112,7 +112,9 @@ class BackfillAudit
     /**
      * Postcondition of service-tracking:link-songs: a dry run of the linker
      * itself reports how many links it would write or clear, so any drift is
-     * measured with the linker's own matching logic.
+     * measured with the linker's own matching logic. The linker titles items
+     * from the catalogue as well as linking them, so a title that no longer
+     * matches the song it points at counts as drift too.
      */
     public function songLinkDrift(): int
     {
