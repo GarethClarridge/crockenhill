@@ -8,6 +8,7 @@ use App\Livewire\Admin\Components\MediaUploadField;
 use App\Models\Page;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -76,5 +77,29 @@ class MediaUploadFieldTest extends TestCase
         Livewire::test(MediaUploadField::class, ['model' => $page])
             ->call('remove', 99999)
             ->assertDispatched('notify', type: 'error', message: 'Media not found');
+    }
+
+    #[Test]
+    public function media_upload_field_renders_removal_ux_attributes(): void
+    {
+        $this->actingAs($this->admin);
+
+        $page = Page::factory()->create();
+
+        $directory = storage_path('framework/testing');
+        File::ensureDirectoryExists($directory);
+        $filePath = "{$directory}/test-heading.png";
+        File::put($filePath, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='));
+
+        $media = $page->addMedia($filePath)->toMediaCollection('default');
+
+        Livewire::test(MediaUploadField::class, [
+            'model' => $page,
+            'collection' => 'default',
+        ])
+            ->assertSee('wire:loading.class="opacity-50 pointer-events-none"', false)
+            ->assertSee('wire:target="remove('.$media->id.')"', false)
+            ->assertSee('wire:loading.attr="disabled"', false)
+            ->assertSee('wire:loading.class="opacity-100"', false);
     }
 }

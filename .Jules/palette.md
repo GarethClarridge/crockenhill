@@ -44,7 +44,7 @@
 **Action:** Use the `x-admin.filter-bar` to automatically handle filter-clearing logic. Provide a `resetAction` prop to allow customization when the default `resetFilters` method is not used.
 
 ## 2026-04-09 - Accessible Smooth Scrolling and Navigation
-**Learning:** Large pages (like date-grouped sermon lists) benefit from "Back to top" functionality to reduce scroll fatigue. Implementing this with `scroll-behavior: smooth` provides a pleasant transition, but it MUST be wrapped in a `@media (prefers-reduced-motion: no-preference)` block to respect accessibility settings for users with motion sensitivities. Using Alpine.js to show/hide the button based on a scroll threshold (e.g., 400px) keeps the UI clean and ensures the button is only present when useful.
+**Learning:** Large pages (like date-grouped sermon lists) benefit from "Back to top" functionality to reduce scroll fatigue. Implementing this with `scroll-behavior: smooth` provides a pleasant transition, but it MUST be wrapped in a `@media (prefers-reduced-motion: no-preference)` block to respect accessibility settings for users with motion sensitivities. Using Alpine.js to show/hide the button based on a scroll threshold (e.g., 400px) keeps the UI clean and ensure the button is only present when useful.
 **Action:** Always wrap `scroll-behavior: smooth` in a media query checking for `no-preference`. Use Alpine.js for scroll-based visibility transitions and ensure the button is fully keyboard accessible with proper ARIA labels.
 
 ## 2026-04-10 - Refined Focus States and Form Accessibility Fallbacks
@@ -62,3 +62,7 @@
 ## 2026-07-17 - Table Row Locking with `pointer-events-none`
 **Learning:** During asynchronous row-level actions in admin tables (such as deleting a record or toggling roles/status), reducing row opacity via `opacity-50` is a good visual indicator, but users can still interact with other buttons or links in the row (like Edit or View) before the request finishes. This can lead to race conditions, double submissions, or confusing 404 errors when navigating to a resource that is currently being deleted. Appending `pointer-events-none` to the row's `wire:loading.class` safely locks the row and all its interactive child elements during the in-flight request.
 **Action:** Always pair row-level loading states (like `wire:loading.class="opacity-50"`) with `pointer-events-none` to prevent any secondary user interactions while an asynchronous action is in progress.
+
+## 2026-07-26 - Scoped Deletion Feedback for Media Items
+**Learning:** In media-upload-field interfaces containing uploaded list items, removing a single image previously had no individual loading feedback. Adding `wire:loading` and `wire:target="remove({{ $media->id }})"` directly to the remove button and list item wrapper, while locking pointer events via `pointer-events-none`, guarantees a secure, stutter-free interface on average connections. Swapping the remove icon for an animated spinner keeps the interaction scoped specifically to the item being modified.
+**Action:** Implement precise `wire:target` targeting and spinner indicators for list-item deletion components, coupled with pointer locking to avoid parallel request race conditions.

@@ -3,17 +3,24 @@
     @if($existingMedia->isNotEmpty())
         <div class="flex flex-wrap gap-4 mb-4" role="list" aria-label="Uploaded images">
             @foreach($existingMedia as $media)
-                <div class="relative group" role="listitem">
+                <div class="relative group" role="listitem" wire:loading.class="opacity-50 pointer-events-none" wire:target="remove({{ $media->id }})">
                     <img src="{{ $media->getUrl('thumbnail') }}"
                          alt="Uploaded image: {{ $media->name }}"
                          class="w-24 h-24 object-cover rounded-lg"
                          loading="lazy" />
                     <button type="button"
                             wire:click="remove({{ $media->id }})"
+                            wire:target="remove({{ $media->id }})"
+                            wire:loading.attr="disabled"
+                            wire:loading.class="opacity-100"
                             wire:confirm="Remove this image?"
                             aria-label="Remove image: {{ $media->name }}"
-                            class="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                        <x-heroicon-o-x-mark class="w-3 h-3" aria-hidden="true" />
+                            class="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:pointer-events-none">
+                        <x-heroicon-o-x-mark wire:loading.remove wire:target="remove({{ $media->id }})" class="w-3 h-3" aria-hidden="true" />
+                        <svg wire:loading wire:target="remove({{ $media->id }})" class="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
                     </button>
                 </div>
             @endforeach
