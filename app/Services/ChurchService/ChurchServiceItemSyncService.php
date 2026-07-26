@@ -52,6 +52,8 @@ class ChurchServiceItemSyncService
         $replaceMode = (bool) ($options['replace_mode'] ?? false);
         $emitMergeEvidence = (bool) ($options['emit_merge_evidence'] ?? true);
 
+        $incomingItems = $this->collapseAdjacentBibleReadingWrappers($incomingItems);
+
         // Ahead of the lock: a caller that already classified this merge resolved the
         // same links, so this is usually a no-op, but a direct sync must not depend on
         // that.
@@ -199,6 +201,51 @@ class ChurchServiceItemSyncService
     }
 
     /**
+     * OpenLP can export a generic custom slide immediately before the Bible
+     * plugin's detailed reference. Together they describe one reading.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array<int, array<string, mixed>>
+     */
+    private function collapseAdjacentBibleReadingWrappers(array $items): array
+    {
+        $items = array_values($items);
+        $collapsed = [];
+
+        for ($index = 0; $index < count($items); $index++) {
+            $item = $items[$index];
+            $next = $items[$index + 1] ?? null;
+            $title = $this->normaliseString($item['title'] ?? null);
+
+            if (
+                is_array($next)
+                && is_string($title)
+                && in_array(strtolower($title), ['bible reading', 'scripture reading'], true)
+                && strtolower((string) ($next['type'] ?? '')) === 'bibles'
+            ) {
+                $nextMetadata = is_array($next['metadata'] ?? null) ? $next['metadata'] : [];
+                $nextMetadata['additional_source_titles'] = [
+                    ...($nextMetadata['additional_source_titles'] ?? []),
+                    $title,
+                    $this->normaliseString($item['source_title'] ?? null),
+                ];
+                $collapsed[] = [
+                    ...$next,
+                    'position' => $item['position'] ?? $index + 1,
+                    'metadata' => $nextMetadata,
+                ];
+                $index++;
+
+                continue;
+            }
+
+            $collapsed[] = $item;
+        }
+
+        return $collapsed;
+    }
+
+    /**
      * @param  array<string, mixed>  $item
      * @return array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}
      */
@@ -267,7 +314,7 @@ class ChurchServiceItemSyncService
     ): ?ChurchServiceItem {
         $candidates = $existingItems->filter(
             fn (ChurchServiceItem $existingItem): bool => ! in_array($existingItem->id, $matchedExistingItemIds, true)
-                && $existingItem->type === $incomingItem['type']
+                && $this->typesCanDescribeTheSameItem($existingItem, $incomingItem)
         );
 
         if ($candidates->isEmpty()) {
@@ -291,6 +338,9 @@ class ChurchServiceItemSyncService
 
             fn (ChurchServiceItem $existingItem): bool => $this->shouldUseCrossSourceTitleMatch($existingItem, $incomingSource)
                 && $this->hasAgreeingScriptureReference($existingItem, $incomingItem),
+
+            fn (ChurchServiceItem $existingItem): bool => $this->shouldUseCrossSourceTitleMatch($existingItem, $incomingSource)
+                && $this->hasMatchingAssetFingerprint($existingItem, $incomingItem),
         ];
 
         foreach ($tiers as $matchesTier) {
@@ -350,13 +400,18 @@ class ChurchServiceItemSyncService
 
         $existingSource = $this->sourceForExistingItem($existingItem);
         $preserveExistingSongIdentity = $this->shouldPreserveExistingSongIdentity($existingItem, $incomingSource);
+        $preserveExistingPresentationIdentity = $this->shouldPreserveExistingPresentationIdentity($existingItem, $incomingItem);
 
         $fillData = [
             'position' => $position,
-            'type' => $incomingItem['type'],
-            'section_type' => $incomingItem['section_type'],
+            'type' => $preserveExistingPresentationIdentity ? $existingItem->type : $incomingItem['type'],
+            'section_type' => $this->resolveMergedSectionType($existingItem, $incomingItem),
             'source' => $this->resolveSource($existingItem, $incomingSource)->value,
-            'title' => $this->resolveTitle($existingItem, $incomingItem, $preserveExistingSongIdentity),
+            'title' => $this->resolveTitle(
+                $existingItem,
+                $incomingItem,
+                $preserveExistingSongIdentity || $preserveExistingPresentationIdentity,
+            ),
             'source_title' => $this->resolveSourceTitle($existingItem, $incomingItem, $incomingSource),
             'openlp_search_title' => $this->resolveOpenLpSearchTitle($existingItem, $incomingItem, $preserveExistingSongIdentity),
             'song_id' => $this->resolveSongId($existingItem, $incomingItem, $preserveExistingSongIdentity),
@@ -376,6 +431,35 @@ class ChurchServiceItemSyncService
         $existingItem->fill($fillData);
 
         $existingItem->save();
+    }
+
+    /**
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     */
+    private function shouldPreserveExistingPresentationIdentity(
+        ChurchServiceItem $existingItem,
+        array $incomingItem,
+    ): bool {
+        return $this->isVisualAssetType($incomingItem['type'])
+            && ! $this->isVisualAssetType($existingItem->type)
+            && $existingItem->semanticSectionType() !== ServiceSectionType::Other;
+    }
+
+    /**
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     */
+    private function resolveMergedSectionType(
+        ChurchServiceItem $existingItem,
+        array $incomingItem,
+    ): string {
+        $incomingSectionType = ServiceSectionType::from($incomingItem['section_type']);
+        $existingSectionType = $existingItem->semanticSectionType();
+
+        if ($incomingSectionType === ServiceSectionType::Other && $existingSectionType !== ServiceSectionType::Other) {
+            return $existingSectionType->value;
+        }
+
+        return $incomingSectionType->value;
     }
 
     /**
@@ -426,6 +510,94 @@ class ChurchServiceItemSyncService
         $incomingTitles = $this->normalisedTitlesForIncomingItem($incomingItem);
 
         return $existingTitles !== [] && $incomingTitles !== [] && array_intersect($existingTitles, $incomingTitles) !== [];
+    }
+
+    /**
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     */
+    private function typesCanDescribeTheSameItem(ChurchServiceItem $existingItem, array $incomingItem): bool
+    {
+        if ($existingItem->type === $incomingItem['type']) {
+            return true;
+        }
+
+        $existingSectionType = $existingItem->semanticSectionType();
+        $incomingSectionType = ServiceSectionType::from($incomingItem['section_type']);
+
+        if ($existingSectionType !== ServiceSectionType::Other && $existingSectionType === $incomingSectionType) {
+            return true;
+        }
+
+        return $this->isVisualAssetType($existingItem->type)
+            || $this->isVisualAssetType($incomingItem['type']);
+    }
+
+    /**
+     * OpenLP often names a slide by filename while the email names its purpose.
+     * This deliberately narrow fingerprint only applies when one side is a visual
+     * asset and the other is a children's-talk entry.
+     *
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     */
+    private function hasMatchingAssetFingerprint(ChurchServiceItem $existingItem, array $incomingItem): bool
+    {
+        if (! $this->isVisualAssetType($existingItem->type) && ! $this->isVisualAssetType($incomingItem['type'])) {
+            return false;
+        }
+
+        $existingSectionType = $existingItem->semanticSectionType();
+        $incomingSectionType = ServiceSectionType::from($incomingItem['section_type']);
+
+        if (! in_array(ServiceSectionType::ChildrensTalk, [$existingSectionType, $incomingSectionType], true)) {
+            return false;
+        }
+
+        $existingFingerprints = $this->assetFingerprints([$existingItem->title, $existingItem->source_title]);
+        $incomingFingerprints = $this->assetFingerprints([$incomingItem['title'], $incomingItem['source_title']]);
+
+        return $existingFingerprints !== []
+            && $incomingFingerprints !== []
+            && array_intersect($existingFingerprints, $incomingFingerprints) !== [];
+    }
+
+    /**
+     * @param  array<int, string|null>  $titles
+     * @return list<string>
+     */
+    private function assetFingerprints(array $titles): array
+    {
+        $ignoredTokens = [
+            'family', 'talk', 'child', 'children', 'childrens', 'see', 'pp',
+            'presentation', 'presentations', 'slide', 'slides', 'image', 'images',
+            'january', 'february', 'march', 'april', 'may', 'june', 'july',
+            'august', 'september', 'october', 'november', 'december',
+        ];
+        $fingerprints = [];
+
+        foreach ($titles as $title) {
+            if (! is_string($title) || trim($title) === '') {
+                continue;
+            }
+
+            $withBoundaries = preg_replace('/(?<=[a-z])(?=[A-Z0-9])|(?<=[0-9])(?=[A-Za-z])/', ' ', $title) ?? $title;
+            $tokens = preg_split('/[^a-z0-9]+/', strtolower($withBoundaries), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            $tokens = array_values(array_filter(
+                $tokens,
+                fn (string $token): bool => ! ctype_digit($token) && ! in_array($token, $ignoredTokens, true),
+            ));
+            $fingerprint = implode(' ', $tokens);
+
+            if ($fingerprint !== '' && ! in_array($fingerprint, $fingerprints, true)) {
+                $fingerprints[] = $fingerprint;
+            }
+        }
+
+        return $fingerprints;
+    }
+
+    private function isVisualAssetType(string $type): bool
+    {
+        return in_array(strtolower($type), ['images', 'presentations'], true);
     }
 
     /**
@@ -697,7 +869,11 @@ class ChurchServiceItemSyncService
         // Observing an item does not make the run its author. Provenance drives
         // the authority rules on the next merge, so handing it over would let a
         // detected run quietly demote what OpenLP or the email recorded.
-        if ($incomingSource->isDetected() || $this->isSongType($existingItem->type)) {
+        if (
+            $incomingSource->isDetected()
+            || $this->isSongType($existingItem->type)
+            || ($incomingSource === ChurchServiceItemSource::OpenLp && $existingSource->isHumanProvided())
+        ) {
             return $existingSource;
         }
 
@@ -706,19 +882,105 @@ class ChurchServiceItemSyncService
 
     /**
      * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
-     * @return array<string, mixed>|null
+     * @return array<string, mixed>
      */
     private function resolveMetadata(
         ChurchServiceItem $existingItem,
         array $incomingItem,
         ChurchServiceItemSource $existingSource,
         ChurchServiceItemSource $incomingSource
-    ): ?array {
-        return $this->withSurvivingExplicitSongLink(
+    ): array {
+        $metadata = $this->withSurvivingExplicitSongLink(
             $this->mergeMetadataForSources($existingItem, $incomingItem, $existingSource, $incomingSource),
             $existingItem,
             $incomingItem,
         );
+
+        return $this->withSourceEvidence($metadata, $existingItem, $incomingItem, $incomingSource);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $metadata
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @return array<string, mixed>
+     */
+    private function withSourceEvidence(
+        ?array $metadata,
+        ChurchServiceItem $existingItem,
+        array $incomingItem,
+        ChurchServiceItemSource $incomingSource,
+    ): array {
+        $metadata ??= [];
+        $evidence = $this->sourceEvidenceFromMetadata($existingItem->metadata);
+        $existingSource = $this->sourceForExistingItem($existingItem);
+
+        if (! isset($evidence[$existingSource->value])) {
+            $evidence[$existingSource->value] = [
+                'titles' => $this->uniqueEvidenceTitles([$existingItem->title, $existingItem->source_title]),
+            ];
+        }
+
+        $incomingEvidence = $this->sourceEvidenceFromMetadata($incomingItem['metadata']);
+        $evidence = array_replace_recursive($evidence, $incomingEvidence);
+        $incomingTitles = [
+            ...($evidence[$incomingSource->value]['titles'] ?? []),
+            $incomingItem['title'],
+            $incomingItem['source_title'],
+            ...($incomingItem['metadata']['additional_source_titles'] ?? []),
+        ];
+        $evidence[$incomingSource->value] = [
+            'titles' => $this->uniqueEvidenceTitles($incomingTitles),
+        ];
+
+        unset($metadata['additional_source_titles']);
+        $metadata['source_evidence'] = $evidence;
+
+        return $metadata;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $metadata
+     * @return array<string, array{titles:list<string>}>
+     */
+    private function sourceEvidenceFromMetadata(?array $metadata): array
+    {
+        $rawEvidence = $metadata['source_evidence'] ?? null;
+
+        if (! is_array($rawEvidence)) {
+            return [];
+        }
+
+        $evidence = [];
+
+        foreach ($rawEvidence as $source => $entry) {
+            if (! is_string($source) || ! is_array($entry)) {
+                continue;
+            }
+
+            $titles = is_array($entry['titles'] ?? null) ? $entry['titles'] : [];
+            $evidence[$source] = ['titles' => $this->uniqueEvidenceTitles($titles)];
+        }
+
+        return $evidence;
+    }
+
+    /**
+     * @param  array<int, mixed>  $titles
+     * @return list<string>
+     */
+    private function uniqueEvidenceTitles(array $titles): array
+    {
+        $unique = [];
+
+        foreach ($titles as $title) {
+            $normalised = $this->normaliseString($title);
+
+            if ($normalised !== null && ! in_array($normalised, $unique, true)) {
+                $unique[] = $normalised;
+            }
+        }
+
+        return $unique;
     }
 
     /**
@@ -1111,7 +1373,7 @@ class ChurchServiceItemSyncService
             'source_title' => $normalizedItem['source_title'],
             'openlp_search_title' => $normalizedItem['openlp_search_title'],
             'song_id' => $normalizedItem['song_id'],
-            'metadata' => $normalizedItem['metadata'],
+            'metadata' => $this->metadataWithInitialSourceEvidence($normalizedItem, $incomingSource),
         ];
 
         if (isset($rawItem['livestream_processing_id'])) {
@@ -1123,6 +1385,30 @@ class ChurchServiceItemSyncService
         }
 
         $churchService->items()->create($createData);
+    }
+
+    /**
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $item
+     * @return array<string, mixed>
+     */
+    private function metadataWithInitialSourceEvidence(
+        array $item,
+        ChurchServiceItemSource $source,
+    ): array {
+        $metadata = $item['metadata'] ?? [];
+        $evidence = $this->sourceEvidenceFromMetadata($metadata);
+        $titles = [
+            ...($evidence[$source->value]['titles'] ?? []),
+            $item['title'],
+            $item['source_title'],
+            ...($metadata['additional_source_titles'] ?? []),
+        ];
+        $evidence[$source->value] = ['titles' => $this->uniqueEvidenceTitles($titles)];
+
+        unset($metadata['additional_source_titles']);
+        $metadata['source_evidence'] = $evidence;
+
+        return $metadata;
     }
 
     /**

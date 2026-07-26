@@ -7,6 +7,7 @@ namespace App\Presenters;
 use App\Data\ChurchServiceProcessingRunView;
 use App\Data\ChurchServiceShowReadModel;
 use App\Data\ChurchServiceStatusSummary;
+use App\Enums\ChurchServiceItemSource;
 use App\Enums\ChurchServiceRollupStatus;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ChurchService;
@@ -20,7 +21,6 @@ use App\Queries\ServiceReviewDashboardQuery;
 use App\Services\ChurchService\ProcessingRunTimelineBuilder;
 use App\Services\ChurchService\ServiceFlowBuilder;
 use App\Services\Media\Video\VideoStorageService;
-use BackedEnum;
 use Illuminate\Database\Eloquent\Collection;
 
 class ChurchServiceShowPresenter
@@ -85,6 +85,7 @@ class ChurchServiceShowPresenter
                 $primaryProcessingRunView,
             ),
             attentionCount: $rollup['attention_count'],
+            planSourceLabel: $this->planSourceLabel($items),
             planSourceNote: $this->planSourceNote($items),
             reviewNeedsAttention: $rollup['attention_count'] > 0,
             sectionReviewPanels: $this->sectionReviewPanels($processingRuns),
@@ -165,27 +166,54 @@ class ChurchServiceShowPresenter
      */
     private function planSourceNote(Collection $items): string
     {
-        $sources = $items
-            ->pluck('source')
-            ->map(fn (mixed $source): mixed => $source instanceof BackedEnum ? $source->value : $source)
-            ->filter(fn (mixed $source): bool => is_string($source) && $source !== '')
-            ->map(fn (string $source): string => strtolower($source))
-            ->unique()
-            ->values();
-
-        if ($sources->contains(fn (string $source): bool => str_contains($source, 'openlp'))) {
-            return 'Presentation plan from OpenLP. It usually contains slide-backed items only, so other parts of the service may appear only in the recording.';
-        }
-
-        if ($sources->contains(fn (string $source): bool => str_contains($source, 'email'))) {
-            return 'Plan imported from an email. It may describe more of the service than the presentation slides.';
-        }
+        $sources = collect($this->planSources($items));
 
         if ($sources->count() > 1) {
             return 'This plan combines items from more than one source. Recording-only sections are expected where the plan does not describe the whole service.';
         }
 
+        if ($sources->contains(ChurchServiceItemSource::OpenLp)) {
+            return 'Presentation plan from OpenLP. It usually contains slide-backed items only, so other parts of the service may appear only in the recording.';
+        }
+
+        if ($sources->contains(ChurchServiceItemSource::Email)) {
+            return 'Plan imported from an email. It may describe more of the service than the presentation slides.';
+        }
+
         return 'This service plan was entered manually. It may not describe every part of the recording.';
+    }
+
+    /**
+     * @param  Collection<int, ChurchServiceItem>  $items
+     */
+    private function planSourceLabel(Collection $items): string
+    {
+        $label = collect($this->planSources($items))
+            ->map(fn (ChurchServiceItemSource $source): string => $source->label())
+            ->implode(' + ');
+
+        return $label !== '' ? $label.' plan' : 'Service plan';
+    }
+
+    /**
+     * @param  Collection<int, ChurchServiceItem>  $items
+     * @return list<ChurchServiceItemSource>
+     */
+    private function planSources(Collection $items): array
+    {
+        $sources = [];
+
+        foreach ($items as $item) {
+            foreach ($item->provenanceSources() as $source) {
+                $sources[$source->value] = $source;
+            }
+        }
+
+        if (count($sources) > 1) {
+            unset($sources[ChurchServiceItemSource::Manual->value]);
+        }
+
+        return array_values($sources);
     }
 
     /**

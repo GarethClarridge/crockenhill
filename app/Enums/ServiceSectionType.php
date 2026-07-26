@@ -54,7 +54,8 @@ enum ServiceSectionType: string
         $lower = Str::lower($title);
 
         return match (true) {
-            str_contains($lower, 'children') => self::ChildrensTalk,
+            str_contains($lower, 'children'), str_contains($lower, 'family talk') => self::ChildrensTalk,
+            str_contains($lower, 'bible reading'), str_contains($lower, 'scripture reading') => self::BibleReading,
             str_contains($lower, 'prayer') => self::Prayer,
             str_contains($lower, 'notice'), str_contains($lower, 'announcement') => self::Notices,
             str_contains($lower, 'welcome') => self::Welcome,

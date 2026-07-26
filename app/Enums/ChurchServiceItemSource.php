@@ -15,6 +15,16 @@ enum ChurchServiceItemSource: string
     case Manual = 'manual';
     case Livestream = 'livestream';
 
+    public function label(): string
+    {
+        return match ($this) {
+            self::Email => 'Email',
+            self::OpenLp => 'OpenLP',
+            self::Manual => 'Entered manually',
+            self::Livestream => 'Recording',
+        };
+    }
+
     public function isHumanProvided(): bool
     {
         return match ($this) {

@@ -1364,7 +1364,7 @@ class AdminChurchServiceTest extends TestCase
 
         $component->assertRedirect(route('admin.services.show', $service));
 
-        $this->assertSame('manual', $service->source);
+        $this->assertSame('email', $service->source);
 
         $email->refresh();
         $this->assertSame(InboundEmailStatus::Processed, $email->status);

@@ -21,21 +21,19 @@
 
                 <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
-                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ match($item->type) {
-                            'songs' => 'bg-green-100 text-green-800',
-                            'bibles' => 'bg-blue-100 text-blue-800',
-                            'presentations' => 'bg-slate-100 text-slate-800',
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ match($item->semanticSectionType()) {
+                            \App\Enums\ServiceSectionType::Song => 'bg-green-100 text-green-800',
+                            \App\Enums\ServiceSectionType::BibleReading => 'bg-blue-100 text-blue-800',
                             default => 'bg-gray-100 text-gray-800',
                         } }}">
-                            {{ ucfirst($item->type) }}
+                            {{ $item->semanticSectionType()->label() }}
                         </span>
 
-                        @if($item->source)
-                            {{-- Source is inert provenance metadata — neutral, so colour keeps its meaning --}}
+                        @foreach($item->provenanceSources() as $source)
                             <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                                {{ strtoupper($item->source->value) }}
+                                {{ $source->label() }}
                             </span>
-                        @endif
+                        @endforeach
                     </div>
 
                     <p class="mt-1 text-sm font-medium text-gray-900">{{ $item->title }}</p>

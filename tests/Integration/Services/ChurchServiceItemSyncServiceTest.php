@@ -623,7 +623,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
 
         $this->assertSame(ChurchServiceItemSource::Email, $prayer->source);
         $this->assertSame('Opening Prayer', $prayer->title);
-        $this->assertSame(['speaker' => 'Leader'], $prayer->metadata);
+        $this->assertSame('Leader', $prayer->metadata['speaker']);
         $this->assertCount(2, $churchService->items()->get());
     }
 
@@ -681,6 +681,176 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             ->where('title', 'Amazing Grace')
             ->first());
         $this->assertSame([], $result['conflicts']);
+    }
+
+    #[Test]
+    public function test_cross_source_notices_with_different_raw_types_merge_and_keep_both_sources(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'email']);
+
+        $emailNotices = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'section_type' => ServiceSectionType::Notices,
+            'source' => ChurchServiceItemSource::Email,
+            'title' => 'Notices',
+            'source_title' => 'Notices (see above)',
+        ]);
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(
+                1,
+                'images',
+                'Notices',
+                'Notices',
+                null,
+                sectionType: ServiceSectionType::Notices->value,
+            ),
+        ], ChurchServiceItemSource::OpenLp);
+
+        $emailNotices->refresh();
+
+        $this->assertDatabaseCount('church_service_items', 1);
+        $this->assertSame('custom', $emailNotices->type);
+        $this->assertSame(ServiceSectionType::Notices, $emailNotices->section_type);
+        $this->assertSame(
+            [ChurchServiceItemSource::Email, ChurchServiceItemSource::OpenLp],
+            $emailNotices->provenanceSources(),
+        );
+    }
+
+    #[Test]
+    public function test_openlp_asset_filename_merges_with_a_descriptive_email_childrens_talk(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'email']);
+
+        $emailTalk = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'section_type' => ServiceSectionType::ChildrensTalk,
+            'source' => ChurchServiceItemSource::Email,
+            'title' => 'Family Talk - "Joel"',
+            'source_title' => 'Family Talk - "Joel" (see PP)',
+        ]);
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'images', 'Joel12July', 'Joel12July', null),
+        ], ChurchServiceItemSource::OpenLp);
+
+        $emailTalk->refresh();
+
+        $this->assertDatabaseCount('church_service_items', 1);
+        $this->assertSame('Family Talk - "Joel"', $emailTalk->title);
+        $this->assertSame(ServiceSectionType::ChildrensTalk, $emailTalk->section_type);
+        $this->assertSame(
+            [ChurchServiceItemSource::Email, ChurchServiceItemSource::OpenLp],
+            $emailTalk->provenanceSources(),
+        );
+    }
+
+    #[Test]
+    public function test_different_childrens_talk_assets_are_not_fuzzily_merged(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'email']);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'section_type' => ServiceSectionType::ChildrensTalk,
+            'source' => ChurchServiceItemSource::Email,
+            'title' => 'Family Talk - "Joel"',
+        ]);
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'images', 'Ruth12July', 'Ruth12July', null),
+        ], ChurchServiceItemSource::OpenLp);
+
+        $this->assertDatabaseCount('church_service_items', 2);
+        $this->assertDatabaseHas('church_service_items', ['title' => 'Family Talk - "Joel"']);
+        $this->assertDatabaseHas('church_service_items', ['title' => 'Ruth12July']);
+    }
+
+    #[Test]
+    public function test_adjacent_generic_and_detailed_openlp_bible_rows_become_one_reading(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'email']);
+
+        $emailReading = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'section_type' => ServiceSectionType::BibleReading,
+            'source' => ChurchServiceItemSource::Email,
+            'title' => 'Joshua 5:13-6:27',
+            'source_title' => 'Bible Reading - Joshua 5:13-6:27',
+        ]);
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'custom', 'Bible Reading', 'Bible Reading', null),
+            $this->incomingItem(
+                2,
+                'bibles',
+                'Joshua 5:13-15, 6:1-27',
+                'Joshua 5:13-15, 6:1-27',
+                null,
+                sectionType: ServiceSectionType::BibleReading->value,
+            ),
+        ], ChurchServiceItemSource::OpenLp);
+
+        $emailReading->refresh();
+
+        $this->assertDatabaseCount('church_service_items', 1);
+        $this->assertSame(ServiceSectionType::BibleReading, $emailReading->section_type);
+        $this->assertSame(
+            [ChurchServiceItemSource::Email, ChurchServiceItemSource::OpenLp],
+            $emailReading->provenanceSources(),
+        );
+        $this->assertContains('Bible Reading', $emailReading->metadata['source_evidence']['openlp']['titles']);
+        $this->assertContains('Joshua 5:13-15, 6:1-27', $emailReading->metadata['source_evidence']['openlp']['titles']);
+    }
+
+    #[Test]
+    public function test_livestream_adds_recording_provenance_to_an_existing_cross_source_item(): void
+    {
+        $churchService = ChurchService::factory()->create();
+
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'section_type' => ServiceSectionType::Notices,
+            'source' => ChurchServiceItemSource::Email,
+            'title' => 'Notices',
+            'metadata' => [
+                'source_evidence' => [
+                    'email' => ['titles' => ['Notices']],
+                    'openlp' => ['titles' => ['Notices']],
+                ],
+            ],
+        ]);
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(
+                1,
+                'custom',
+                'Notices',
+                'Notices',
+                null,
+                sectionType: ServiceSectionType::Notices->value,
+            ),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertSame(
+            [
+                ChurchServiceItemSource::Email,
+                ChurchServiceItemSource::OpenLp,
+                ChurchServiceItemSource::Livestream,
+            ],
+            $item->refresh()->provenanceSources(),
+        );
     }
 
     #[Test]

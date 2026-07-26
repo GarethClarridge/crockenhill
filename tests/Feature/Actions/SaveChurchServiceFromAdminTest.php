@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Actions;
 
 use App\Actions\SaveChurchServiceFromAdmin;
+use App\Enums\ChurchServiceItemSource;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
@@ -231,7 +232,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
             'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
         ]];
 
-        $this->action->execute(
+        $churchService = $this->action->execute(
             validated: ['date' => '2026-06-15', 'service' => SermonService::Morning->value],
             syncPayload: $payload,
             churchService: null,
@@ -241,6 +242,11 @@ class SaveChurchServiceFromAdminTest extends TestCase
 
         $inboundEmail->refresh();
         $this->assertNotSame(InboundEmailStatus::Pending->value, $inboundEmail->status->value);
+        $this->assertSame(ChurchServiceItemSource::Email->value, $churchService->source);
+        $this->assertSame(
+            [ChurchServiceItemSource::Email],
+            $churchService->items->firstOrFail()->provenanceSources(),
+        );
     }
 
     #[Test]

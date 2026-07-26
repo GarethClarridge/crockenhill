@@ -31,6 +31,8 @@ class ServiceSectionTypeTest extends TestCase
         $this->assertSame(ServiceSectionType::Notices, ServiceSectionType::inferFromTitle('Weekly Notices'));
         $this->assertSame(ServiceSectionType::Notices, ServiceSectionType::inferFromTitle('Announcements'));
         $this->assertSame(ServiceSectionType::ChildrensTalk, ServiceSectionType::inferFromTitle("Children's Corner"));
+        $this->assertSame(ServiceSectionType::ChildrensTalk, ServiceSectionType::inferFromTitle('Family Talk - "Joel"'));
+        $this->assertSame(ServiceSectionType::BibleReading, ServiceSectionType::inferFromTitle('Bible Reading'));
         $this->assertSame(ServiceSectionType::Sermon, ServiceSectionType::inferFromTitle('Morning Sermon'));
         $this->assertSame(ServiceSectionType::Sermon, ServiceSectionType::inferFromTitle('Today\'s Message'));
         $this->assertSame(ServiceSectionType::Other, ServiceSectionType::inferFromTitle('Communion'));

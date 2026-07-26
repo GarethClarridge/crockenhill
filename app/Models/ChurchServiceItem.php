@@ -170,6 +170,37 @@ class ChurchServiceItem extends Model
     }
 
     /**
+     * Every independent source that contributed evidence for this item.
+     *
+     * @return list<ChurchServiceItemSource>
+     */
+    public function provenanceSources(): array
+    {
+        $evidence = $this->metadata['source_evidence'] ?? null;
+
+        if (! is_array($evidence)) {
+            return $this->source instanceof ChurchServiceItemSource ? [$this->source] : [];
+        }
+
+        $sources = [];
+
+        foreach (ChurchServiceItemSource::cases() as $source) {
+            if (array_key_exists($source->value, $evidence)) {
+                $sources[] = $source;
+            }
+        }
+
+        return $sources;
+    }
+
+    public function provenanceLabel(): string
+    {
+        return collect($this->provenanceSources())
+            ->map(fn (ChurchServiceItemSource $source): string => $source->label())
+            ->implode(' + ');
+    }
+
+    /**
      * @return BelongsTo<ChurchService, $this>
      */
     public function churchService(): BelongsTo

@@ -6,6 +6,7 @@ namespace Tests\Feature\Livewire\Admin\ChurchServices;
 
 use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Actions\SaveChurchServiceFromAdmin;
+use App\Enums\ChurchServiceItemSource;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
@@ -112,6 +113,35 @@ class ShowChurchServiceTest extends TestCase
         Livewire::actingAs($this->admin)
             ->test(ShowChurchService::class, ['churchService' => $emailService])
             ->assertSee('Plan imported from an email. It may describe more of the service');
+    }
+
+    #[Test]
+    public function it_shows_every_source_that_contributed_to_a_planned_item(): void
+    {
+        $service = ChurchService::factory()->create(['source' => 'manual']);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'source' => ChurchServiceItemSource::Manual,
+            'section_type' => ServiceSectionType::Notices,
+            'title' => 'Notices',
+            'metadata' => [
+                'source_evidence' => [
+                    'email' => ['titles' => ['Notices (see above)']],
+                    'openlp' => ['titles' => ['Notices']],
+                    'livestream' => ['titles' => ['Notices']],
+                ],
+            ],
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Email + OpenLP + Recording plan')
+            ->assertSee('Email')
+            ->assertSee('OpenLP')
+            ->assertSee('Recording')
+            ->assertDontSee('MANUAL')
+            ->assertSee('This plan combines items from more than one source.');
     }
 
     #[Test]

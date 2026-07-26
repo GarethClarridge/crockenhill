@@ -30,7 +30,7 @@
                     <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusSummary->status->badgeClasses() }}">
                         {{ $statusSummary->status->label() }}
                     </span>
-                    <span class="text-sm text-gray-500">{{ ucfirst($churchService->source) }} plan</span>
+                    <span class="text-sm text-gray-500">{{ $planSourceLabel }}</span>
                     <span class="text-sm text-gray-400">Last updated {{ $churchService->updated_at?->format('j F Y, H:i') }}</span>
                 </div>
                 <p class="max-w-3xl text-sm text-gray-700" @if($statusSummary->status === \App\Enums\ChurchServiceRollupStatus::Processing) wire:poll.5s @endif>

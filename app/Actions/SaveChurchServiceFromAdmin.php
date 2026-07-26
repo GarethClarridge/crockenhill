@@ -50,18 +50,24 @@ class SaveChurchServiceFromAdmin
         ?string $planKey = null,
     ): ChurchService {
         $beforeSnapshot = $this->canonicalStateService->snapshot($churchService);
+        $inboundEmail = $inboundEmailId !== null
+            ? InboundEmail::query()->find($inboundEmailId)
+            : null;
+        $incomingSource = $inboundEmail instanceof InboundEmail
+            ? ChurchServiceItemSource::Email
+            : ChurchServiceItemSource::Manual;
 
         /**
          * @var array{0: ChurchService, 1: array{conflicts: array<int, array<string, mixed>>}} $transactionResult
          */
-        $transactionResult = DB::transaction(function () use ($validated, $syncPayload, $churchService, $userId): array {
+        $transactionResult = DB::transaction(function () use ($validated, $syncPayload, $churchService, $userId, $incomingSource): array {
             $model = $churchService ?? new ChurchService;
             $existingMetadata = $model->import_metadata?->toArray() ?? [];
 
             $model->fill([
                 'date' => $validated['date'],
                 'service' => $validated['service'],
-                'source' => ChurchServiceItemSource::Manual->value,
+                'source' => $incomingSource->value,
                 'needs_review' => false,
                 'import_metadata' => array_replace_recursive($existingMetadata, [
                     'manual_edit' => [
@@ -74,7 +80,7 @@ class SaveChurchServiceFromAdmin
             $model->save();
 
             try {
-                $syncResult = $this->itemSyncService->sync($model, $syncPayload, ChurchServiceItemSource::Manual);
+                $syncResult = $this->itemSyncService->sync($model, $syncPayload, $incomingSource);
             } catch (UniqueConstraintViolationException $exception) {
                 if (str_contains($exception->getMessage(), 'church_service_items_active_position_unique')) {
                     throw new RuntimeException('Service item ordering conflict: the service could not be saved because two items share the same position. Please reload and try again.');
@@ -93,7 +99,7 @@ class SaveChurchServiceFromAdmin
         $churchService = $this->canonicalUpdateService->finalize(
             $churchService,
             $beforeSnapshot,
-            ChurchServiceItemSource::Manual,
+            $incomingSource,
             $syncResult,
         );
 
@@ -105,12 +111,8 @@ class SaveChurchServiceFromAdmin
             'item_count' => count($syncPayload),
         ]));
 
-        if ($inboundEmailId !== null) {
-            $inboundEmail = InboundEmail::query()->find($inboundEmailId);
-
-            if ($inboundEmail instanceof InboundEmail) {
-                $this->inboundEmailImportService->markAsProcessedFromManualReview($inboundEmail, $churchService, $userId, $planKey);
-            }
+        if ($inboundEmail instanceof InboundEmail) {
+            $this->inboundEmailImportService->markAsProcessedFromManualReview($inboundEmail, $churchService, $userId, $planKey);
         }
 
         return $churchService;
