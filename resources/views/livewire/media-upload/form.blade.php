@@ -136,12 +136,12 @@
                                     </svg>
 
                                     @if($mediaFile)
-                                        <p class="text-sm text-gray-600 mb-2">File selected: <strong>{{ $mediaFile->getClientOriginalName() }}</strong></p>
-                                        <p class="text-sm text-gray-500">Ready to upload</p>
+                                        <p id="media-file-help" class="text-sm text-gray-600 mb-2">File selected: <strong>{{ $mediaFile->getClientOriginalName() }}</strong>. Ready to upload.</p>
                                     @else
                                         <p class="text-lg text-gray-600 mb-2">Drop your file here or click to browse</p>
-                                        <p class="text-sm text-gray-500">Maximum file size: {{ $maxFileSize ?? 'N/A' }}</p>
-                                        <p class="text-sm text-gray-500">Accepted formats: {{ $allowedExtensions ?? 'N/A' }}</p>
+                                        <p id="media-file-help" class="text-sm text-gray-500">
+                                            Maximum file size: {{ $maxFileSize ?? 'N/A' }}. Accepted formats: {{ $allowedExtensions ?? 'N/A' }}.
+                                        </p>
                                     @endif
                                 </div>
 
@@ -162,6 +162,8 @@
                                     class="sr-only"
                                     accept="{{ $acceptAttribute }}"
                                     x-on:change="handleFileInputChange($event)"
+                                    aria-describedby="media-file-help{{ $errors->has('mediaFile') ? ' media-file-error' : '' }}"
+                                    @if($errors->has('mediaFile')) aria-invalid="true" @endif
                                 />
                                 <input type="hidden" x-model="fileModifiedDate" />
                                 <label for="media-file" class="cursor-pointer inline-block align-middle">
@@ -172,7 +174,7 @@
                             </div>
 
                             @error('mediaFile')
-                                <p class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</p>
+                                <p id="media-file-error" class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</p>
                             @enderror
                         </div>
 

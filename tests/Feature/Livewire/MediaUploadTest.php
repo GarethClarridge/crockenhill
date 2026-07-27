@@ -139,6 +139,30 @@ class MediaUploadTest extends TestCase
     }
 
     #[Test]
+    public function it_renders_correct_accessibility_attributes_on_file_upload_input(): void
+    {
+        $this->actingAs($this->admin);
+
+        // When Idle/No errors
+        Livewire::test(MediaUpload::class)
+            ->set('mediaType', 'audio')
+            ->assertSeeHtml('id="media-file-help"')
+            ->assertSee('aria-describedby="media-file-help"', false)
+            ->assertDontSee('aria-invalid="true"', false);
+
+        // When file validation fails
+        $invalidFile = UploadedFile::fake()->create('test.txt', 100);
+        Livewire::test(MediaUpload::class)
+            ->set('mediaType', 'audio')
+            ->set('mediaFile', $invalidFile)
+            ->call('uploadComplete')
+            ->assertHasErrors(['mediaFile'])
+            ->assertSeeHtml('id="media-file-error"')
+            ->assertSee('aria-describedby="media-file-help media-file-error"', false)
+            ->assertSee('aria-invalid="true"', false);
+    }
+
+    #[Test]
     public function it_starts_processing_after_successful_upload()
     {
         $this->actingAs($this->admin);
