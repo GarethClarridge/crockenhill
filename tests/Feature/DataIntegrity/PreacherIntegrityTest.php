@@ -46,6 +46,27 @@ class PreacherIntegrityTest extends TestCase
     }
 
     #[Test]
+    public function it_synchronizes_is_active_validation_rules_in_livewire(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $createRules = Livewire::actingAs($admin)
+            ->test(CreatePreacher::class)
+            ->instance()
+            ->rules();
+
+        $this->assertEquals(Preacher::validationRules()['is_active'], $createRules['isActive']);
+
+        $preacher = Preacher::factory()->create();
+        $editRules = Livewire::actingAs($admin)
+            ->test(EditPreacher::class, ['preacher' => $preacher])
+            ->instance()
+            ->rules();
+
+        $this->assertEquals(Preacher::validationRules($preacher)['is_active'], $editRules['isActive']);
+    }
+
+    #[Test]
     public function it_allows_updating_preacher_keeping_same_name(): void
     {
         $admin = User::factory()->create(['is_admin' => true]);

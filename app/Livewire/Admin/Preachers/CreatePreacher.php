@@ -26,7 +26,7 @@ class CreatePreacher extends Component
     /**
      * @return array<string, mixed>
      */
-    protected function rules(): array
+    public function rules(): array
     {
         $modelRules = Preacher::validationRules();
 
@@ -34,7 +34,7 @@ class CreatePreacher extends Component
             'name' => $modelRules['name'],
             'slug' => $modelRules['slug'],
             'bio' => $modelRules['bio'],
-            'isActive' => 'boolean',
+            'isActive' => $modelRules['is_active'],
         ];
     }
 

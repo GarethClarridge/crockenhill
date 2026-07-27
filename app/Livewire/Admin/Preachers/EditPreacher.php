@@ -43,7 +43,7 @@ class EditPreacher extends Component
     /**
      * @return array<string, mixed>
      */
-    protected function rules(): array
+    public function rules(): array
     {
         $modelRules = Preacher::validationRules($this->preacher);
 
@@ -51,7 +51,7 @@ class EditPreacher extends Component
             'name' => $modelRules['name'],
             'slug' => $modelRules['slug'],
             'bio' => $modelRules['bio'],
-            'isActive' => 'boolean',
+            'isActive' => $modelRules['is_active'],
             'newAlias' => 'nullable|string|max:255',
         ];
     }
