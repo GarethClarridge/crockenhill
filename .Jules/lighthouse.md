@@ -13,3 +13,7 @@
 ## 2026-06-25 - [Schema.org] Church is a Place, not an Organization
 **Learning:** Schema.org `Church` sits under `Place > CivicStructure > PlaceOfWorship`, **not** under `Organization`. Properties whose expected range is an organization — `publisher`, `worksFor`, `organizer` — require `Organization` (or `Person`); supplying a `Church` (a Place) there makes Google's rich-result parsers ignore or flag the value. `Church` is only appropriate for the standalone place/organization entity node itself (e.g. a `LocalBusiness`/`Place` block with address and geo).
 **Action:** Keep `@type: Organization` for `publisher`/`worksFor`/`organizer` relationship values. Reserve `Church` for the dedicated place entity, not for organization references.
+
+## 2026-07-27 - [Schema.org] Representing Church and Organization via @graph
+**Learning:** To resolve the conflict where a Church (Place) is needed for physical/location parameters (address, geo, opening hours) but an Organization is required for corporate relationships (taxID, worksFor, publisher), we can bundle both into a Schema.org `@graph` container. This allows defining distinct nodes `#organization` and `#church` that cleanly link to one another (e.g. via `parentOrganization`).
+**Action:** Implement a dual node `@graph` format in `organization.blade.php` to define the legal `Organization` and the physical `Church` of worship in perfect harmony.
