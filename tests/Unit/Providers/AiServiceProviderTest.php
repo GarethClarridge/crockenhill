@@ -12,11 +12,14 @@ use App\Contracts\TranscriptionServiceInterface;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
 use App\Services\ChurchService\Structure\OpenAiServiceStructureService;
 use App\Services\Email\OpenAiOosEmailItemExtractor;
+use App\Services\Media\Audio\AudioTranscriptionService;
 use App\Services\Media\Audio\LocalWhisperServiceTranscriptionService;
+use App\Services\Media\Audio\LocalWhisperTranscriptionService;
 use App\Services\Media\Audio\MockServiceTranscriptionService;
 use App\Services\Media\Audio\MockTranscriptionService;
 use App\Services\Media\Audio\OpenAiServiceTranscriptionService;
 use App\Services\Sermon\MockSermonAnalysisService;
+use App\Services\Sermon\SermonAnalysisService;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -33,12 +36,64 @@ class AiServiceProviderTest extends TestCase
     }
 
     #[Test]
+    public function sermon_analysis_interface_resolves_to_openai_when_configured(): void
+    {
+        config()->set('media-processing.analysis.service', 'openai');
+        config()->set('media-processing.analysis.openai_api_key', 'test-key-123');
+        $this->app->forgetInstance(SermonAnalysisInterface::class);
+
+        $this->assertInstanceOf(SermonAnalysisService::class, $this->app->make(SermonAnalysisInterface::class));
+    }
+
+    #[Test]
+    public function sermon_analysis_interface_throws_on_an_unknown_service(): void
+    {
+        config()->set('media-processing.analysis.service', 'carrier-pigeon');
+        $this->app->forgetInstance(SermonAnalysisInterface::class);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('carrier-pigeon');
+
+        $this->app->make(SermonAnalysisInterface::class);
+    }
+
+    #[Test]
     public function transcription_service_interface_resolves_to_mock_when_configured(): void
     {
         config()->set('media-processing.transcription.service', 'mock');
         $this->app->forgetInstance(TranscriptionServiceInterface::class);
 
         $this->assertInstanceOf(MockTranscriptionService::class, $this->app->make(TranscriptionServiceInterface::class));
+    }
+
+    #[Test]
+    public function transcription_service_interface_resolves_to_local_when_configured(): void
+    {
+        config()->set('media-processing.transcription.service', 'local');
+        $this->app->forgetInstance(TranscriptionServiceInterface::class);
+
+        $this->assertInstanceOf(LocalWhisperTranscriptionService::class, $this->app->make(TranscriptionServiceInterface::class));
+    }
+
+    #[Test]
+    public function transcription_service_interface_resolves_to_openai_when_configured(): void
+    {
+        config()->set('media-processing.transcription.service', 'openai');
+        $this->app->forgetInstance(TranscriptionServiceInterface::class);
+
+        $this->assertInstanceOf(AudioTranscriptionService::class, $this->app->make(TranscriptionServiceInterface::class));
+    }
+
+    #[Test]
+    public function transcription_service_interface_throws_on_an_unknown_service(): void
+    {
+        config()->set('media-processing.transcription.service', 'carrier-pigeon');
+        $this->app->forgetInstance(TranscriptionServiceInterface::class);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('carrier-pigeon');
+
+        $this->app->make(TranscriptionServiceInterface::class);
     }
 
     #[Test]
