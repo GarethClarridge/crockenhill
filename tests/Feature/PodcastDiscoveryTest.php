@@ -26,8 +26,8 @@ class PodcastDiscoveryTest extends TestCase
         foreach ($pages as $page) {
             $response = $this->get($page);
             $response->assertOk();
-            $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="'.route('podcast.feed', 'morning').'">', false);
-            $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Evening Sermons" href="'.route('podcast.feed', 'evening').'">', false);
+            $this->assertHasPodcastDiscoveryLink($response->getContent(), 'Sunday Morning Sermons', route('podcast.feed', 'morning'));
+            $this->assertHasPodcastDiscoveryLink($response->getContent(), 'Sunday Evening Sermons', route('podcast.feed', 'evening'));
         }
     }
 
@@ -37,14 +37,14 @@ class PodcastDiscoveryTest extends TestCase
         // Morning service page
         $response = $this->get(route('sermons.service', 'morning'));
         $response->assertOk();
-        $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Morning Services Podcast" href="'.route('podcast.feed', 'morning').'">', false);
-        $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Evening Sermons" href="'.route('podcast.feed', 'evening').'">', false);
+        $this->assertHasPodcastDiscoveryLink($response->getContent(), 'Sunday Morning Services Podcast', route('podcast.feed', 'morning'));
+        $this->assertHasPodcastDiscoveryLink($response->getContent(), 'Sunday Evening Sermons', route('podcast.feed', 'evening'));
 
         // Evening service page
         $response = $this->get(route('sermons.service', 'evening'));
         $response->assertOk();
-        $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="'.route('podcast.feed', 'morning').'">', false);
-        $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Evening Services Podcast" href="'.route('podcast.feed', 'evening').'">', false);
+        $this->assertHasPodcastDiscoveryLink($response->getContent(), 'Sunday Morning Sermons', route('podcast.feed', 'morning'));
+        $this->assertHasPodcastDiscoveryLink($response->getContent(), 'Sunday Evening Services Podcast', route('podcast.feed', 'evening'));
     }
 
     #[Test]
@@ -52,7 +52,27 @@ class PodcastDiscoveryTest extends TestCase
     {
         $response = $this->get(route('sermons.index'));
         $response->assertOk();
-        $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="'.route('podcast.feed', 'morning').'">', false);
-        $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Evening Sermons" href="'.route('podcast.feed', 'evening').'">', false);
+        $this->assertHasPodcastDiscoveryLink($response->getContent(), 'Sunday Morning Sermons', route('podcast.feed', 'morning'));
+        $this->assertHasPodcastDiscoveryLink($response->getContent(), 'Sunday Evening Sermons', route('podcast.feed', 'evening'));
+    }
+
+    private function assertHasPodcastDiscoveryLink(string $content, string $title, string $href): void
+    {
+        $escapedTitle = preg_quote($title, '/');
+        $escapedHref = preg_quote($href, '/');
+
+        // Lookahead to make sure all expected attributes exist within the same <link> tag
+        $pattern = '/<link\b'
+            .'(?=[^>]*?\brel\s*=\s*["\']alternate["\'])'
+            .'(?=[^>]*?\btype\s*=\s*["\']application\/rss\+xml["\'])'
+            .'(?=[^>]*?\btitle\s*=\s*["\']'.$escapedTitle.'["\'])'
+            .'(?=[^>]*?\bhref\s*=\s*["\']'.$escapedHref.'["\'])'
+            .'[^>]*>/i';
+
+        $this->assertMatchesRegularExpression(
+            $pattern,
+            $content,
+            sprintf('Page is missing podcast discovery link with title "%s" and href "%s"', $title, $href)
+        );
     }
 }

@@ -9,6 +9,7 @@ use App\Enums\ProcessingStatus;
 use App\Models\SermonProcessingStep;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -22,6 +23,8 @@ class GetMediaProcessingStatusTest extends TestCase
     #[Test]
     public function it_returns_durable_processing_diagnostics(): void
     {
+        Carbon::setTestNow('2026-05-27 10:00:00');
+
         $admin = $this->actingAsVerifiedAdmin();
         $processingId = Str::uuid()->toString();
 

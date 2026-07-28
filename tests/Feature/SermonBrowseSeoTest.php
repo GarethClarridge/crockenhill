@@ -27,9 +27,9 @@ class SermonBrowseSeoTest extends TestCase
         $response = $this->get('/christ/sermons');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Sermons | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Explore the sermon archive at Crockenhill Baptist Church. Watch or listen to Bible teaching from our Sunday services, filtered by scripture, preacher, or series.">', false);
-        $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons">', false);
+        $this->assertHasTitle($response->getContent(), 'Sermons | Crockenhill Baptist Church');
+        $this->assertHasMetaDescription($response->getContent(), 'Explore the sermon archive at Crockenhill Baptist Church. Watch or listen to Bible teaching from our Sunday services, filtered by scripture, preacher, or series.');
+        $this->assertHasCanonicalLink($response->getContent(), 'http://localhost/christ/sermons');
     }
 
     public function test_filtered_archive_renders_dynamic_presenter_seo_in_the_head(): void
@@ -37,9 +37,9 @@ class SermonBrowseSeoTest extends TestCase
         $response = $this->get('/christ/sermons?book=John&chapter=3');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>John 3 | Sermons | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Watch or listen to Bible-based sermons on John 3 from Crockenhill Baptist Church. Explore recent teaching from our morning and evening services.">', false);
-        $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons?book=John&amp;chapter=3">', false);
+        $this->assertHasTitle($response->getContent(), 'John 3 | Sermons | Crockenhill Baptist Church');
+        $this->assertHasMetaDescription($response->getContent(), 'Watch or listen to Bible-based sermons on John 3 from Crockenhill Baptist Church. Explore recent teaching from our morning and evening services.');
+        $this->assertHasCanonicalLink($response->getContent(), 'http://localhost/christ/sermons?book=John&chapter=3');
     }
 
     public function test_individual_sermon_page_renders_canonical_and_title_in_the_head(): void
@@ -55,7 +55,29 @@ class SermonBrowseSeoTest extends TestCase
         $response = $this->get($canonicalUrl);
 
         $response->assertStatus(200);
-        $response->assertSee('<title>The Glory of Christ | John Owen | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<link rel="canonical" href="'.$canonicalUrl.'">', false);
+        $this->assertHasTitle($response->getContent(), 'The Glory of Christ | John Owen | Crockenhill Baptist Church');
+        $this->assertHasCanonicalLink($response->getContent(), $canonicalUrl);
+    }
+
+    private function assertHasTitle(string $content, string $expectedTitle): void
+    {
+        $escapedTitle = preg_quote($expectedTitle, '/');
+        $pattern = '/<title>\s*'.$escapedTitle.'\s*<\/title>/i';
+        $this->assertMatchesRegularExpression($pattern, $content, 'Page is missing the correct title.');
+    }
+
+    private function assertHasMetaDescription(string $content, string $expectedDescription): void
+    {
+        $escapedDescription = preg_quote($expectedDescription, '/');
+        $pattern = '/<meta\b(?=[^>]*?\bname\s*=\s*["\']description["\'])(?=[^>]*?\bcontent\s*=\s*["\']'.$escapedDescription.'["\'])[^>]*>/i';
+        $this->assertMatchesRegularExpression($pattern, $content, 'Page is missing the correct meta description.');
+    }
+
+    private function assertHasCanonicalLink(string $content, string $expectedUrl): void
+    {
+        $escapedUrl = preg_quote($expectedUrl, '/');
+        $escapedUrlWithAmp = str_replace('&', '(?:&|&amp;|%26)', $escapedUrl);
+        $pattern = '/<link\b(?=[^>]*?\brel\s*=\s*["\']canonical["\'])(?=[^>]*?\bhref\s*=\s*["\']'.$escapedUrlWithAmp.'["\'])[^>]*>/i';
+        $this->assertMatchesRegularExpression($pattern, $content, 'Page is missing the correct canonical link.');
     }
 }
