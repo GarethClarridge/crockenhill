@@ -1,4 +1,4 @@
-{{-- Organization Schema.org JSON-LD markup for SEO --}}
+{{-- Organization and Church Schema.org JSON-LD markup for SEO --}}
 @php
     $openingHours = [];
     foreach (config('church.opening_hours', []) as $day => $slots) {
@@ -15,44 +15,69 @@
 
     $schema = [
         '@' . 'context' => 'https://schema.org',
-        '@type' => 'Church',
-        'name' => config('church.name'),
-        'taxID' => config('church.charity_number'),
-        '@id' => config('app.url').'/#organization',
-        'url' => config('app.url'),
-        'logo' => [
-            '@type' => 'ImageObject',
-            'url' => asset('images/Primary.png'),
-            'width' => 444,
-            'height' => 481,
-        ],
-        'description' => config('church.description'),
-        'address' => [
-            '@type' => 'PostalAddress',
-            'streetAddress' => config('church.address.street'),
-            'addressLocality' => config('church.address.locality'),
-            'addressRegion' => config('church.address.region'),
-            'postalCode' => config('church.address.postal_code'),
-            'addressCountry' => config('church.address.country'),
-        ],
-        'geo' => [
-            '@type' => 'GeoCoordinates',
-            'latitude' => config('church.geo.latitude'),
-            'longitude' => config('church.geo.longitude'),
-        ],
-        'telephone' => config('church.phone'),
-        'email' => config('church.email_admin'),
-        'contactPoint' => [
-            '@type' => 'ContactPoint',
-            'telephone' => config('church.phone'),
-            'contactType' => 'administrative',
-            'email' => config('church.email_admin'),
-        ],
-        'sameAs' => array_values(config('church.social')),
+        '@graph' => [
+            [
+                '@type' => 'Organization',
+                '@id' => config('app.url').'/#organization',
+                'name' => config('church.name'),
+                'url' => config('app.url'),
+                'logo' => [
+                    '@type' => 'ImageObject',
+                    'url' => asset('images/Primary.png'),
+                    'width' => 444,
+                    'height' => 481,
+                ],
+                'taxID' => config('church.charity_number'),
+                'sameAs' => array_values(config('church.social')),
+                'location' => [
+                    '@type' => 'Church',
+                    '@id' => config('app.url').'/#church',
+                ],
+            ],
+            [
+                '@type' => 'Church',
+                '@id' => config('app.url').'/#church',
+                'name' => config('church.name'),
+                'url' => config('app.url'),
+                'description' => config('church.description'),
+                'logo' => [
+                    '@type' => 'ImageObject',
+                    'url' => asset('images/Primary.png'),
+                    'width' => 444,
+                    'height' => 481,
+                ],
+                'address' => [
+                    '@type' => 'PostalAddress',
+                    'streetAddress' => config('church.address.street'),
+                    'addressLocality' => config('church.address.locality'),
+                    'addressRegion' => config('church.address.region'),
+                    'postalCode' => config('church.address.postal_code'),
+                    'addressCountry' => config('church.address.country'),
+                ],
+                'geo' => [
+                    '@type' => 'GeoCoordinates',
+                    'latitude' => config('church.geo.latitude'),
+                    'longitude' => config('church.geo.longitude'),
+                ],
+                'telephone' => config('church.phone'),
+                'email' => config('church.email_admin'),
+                'contactPoint' => [
+                    '@type' => 'ContactPoint',
+                    'telephone' => config('church.phone'),
+                    'contactType' => 'administrative',
+                    'email' => config('church.email_admin'),
+                ],
+                'sameAs' => array_values(config('church.social')),
+                'parentOrganization' => [
+                    '@type' => 'Organization',
+                    '@id' => config('app.url').'/#organization',
+                ],
+            ]
+        ]
     ];
 
     if (!empty($openingHours)) {
-        $schema['openingHoursSpecification'] = $openingHours;
+        $schema['@graph'][1]['openingHoursSpecification'] = $openingHours;
     }
 @endphp
 

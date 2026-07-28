@@ -13,3 +13,7 @@
 ## 2026-06-25 - [Schema.org] Church is a Place, not an Organization
 **Learning:** Schema.org `Church` sits under `Place > CivicStructure > PlaceOfWorship`, **not** under `Organization`. Properties whose expected range is an organization — `publisher`, `worksFor`, `organizer` — require `Organization` (or `Person`); supplying a `Church` (a Place) there makes Google's rich-result parsers ignore or flag the value. `Church` is only appropriate for the standalone place/organization entity node itself (e.g. a `LocalBusiness`/`Place` block with address and geo).
 **Action:** Keep `@type: Organization` for `publisher`/`worksFor`/`organizer` relationship values. Reserve `Church` for the dedicated place entity, not for organization references.
+
+## 2026-07-20 - [Local Schema] Multi-Entity Linked @graph Structure
+**Learning:** To satisfy Schema.org requirements where some fields expect an Organization (like publishers or organizers) while keeping specific local business/religious place data (like address and geo), we should represent the entity as a bi-directionally linked `@graph` structure with both an `Organization` node (using `#organization`) and a `Church` node (using `#church`). This keeps search parsers happy and ensures semantically correct metadata.
+**Action:** Always construct local organisation schemas using a linked `@graph` that defines the Organization and its physical Place separately and references them bi-directionally via `location` and `parentOrganization`.
