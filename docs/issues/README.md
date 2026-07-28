@@ -662,6 +662,23 @@ also only a name, with no postcode or directions link.
 data, then verify the card renders it. Coordinate any address/map treatment with O17. Avoid
 building against recurrence fields scheduled for removal in backlog item 3.5.
 
+### O52 · [P2] Preachers listing page contains relative links resulting in 404
+
+The preachers listing page (`/christ/sermons/preachers`) contains relative links (`preachers/{{ $preacher->slug }}`) inside the `<x-clickable-card>` component. Because the page URL ends with `/preachers`, clicking on any preacher's card attempts to navigate to `/christ/sermons/preachers/preachers/{slug}`, which does not exist and returns a 404 error.
+
+**Who benefits:** Visitors trying to browse sermons by specific preachers.
+**What observably improves:** Visitors can click on any preacher card and successfully navigate to the preacher's dedicated sermons list instead of encountering a 404 page.
+
+**Verification:** Programmatic crawler `scripts/crawl.php` requested `/christ/sermons/preachers` and resolved the parsed relative URLs against the page path, confirming 404 statuses for the following links:
+- `preachers/mark-drury` -> `/christ/sermons/preachers/preachers/mark-drury` (404)
+- `preachers/john-smith` -> `/christ/sermons/preachers/preachers/john-smith` (404)
+- `preachers/david-johnson` -> `/christ/sermons/preachers/preachers/david-johnson` (404)
+- `preachers/michael-brown` -> `/christ/sermons/preachers/preachers/michael-brown` (404)
+- `preachers/paul-wilson` -> `/christ/sermons/preachers/preachers/paul-wilson` (404)
+- `preachers/visiting-speaker` -> `/christ/sermons/preachers/preachers/visiting-speaker` (404)
+
+**Suggested action:** Update `resources/views/sermons/preachers.blade.php` to use the named route helper instead of a relative path: `link="{{ route('sermons.preacher', $preacher->slug) }}"`.
+
 ## 🟡 Open — owned by the July 2026 backlog (do not fix separately)
 
 | Issue | Where it lives now |
