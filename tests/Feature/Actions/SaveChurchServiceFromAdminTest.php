@@ -242,11 +242,56 @@ class SaveChurchServiceFromAdminTest extends TestCase
 
         $inboundEmail->refresh();
         $this->assertNotSame(InboundEmailStatus::Pending->value, $inboundEmail->status->value);
-        $this->assertSame(ChurchServiceItemSource::Email->value, $churchService->source);
+
+        // Finishing an email in the workbench is still a person stating the whole
+        // list, so the write carries manual authority — that is what lets the save
+        // delete and reorder, and what stops a later re-import redoing it.
+        $this->assertSame(ChurchServiceItemSource::Manual->value, $churchService->source);
         $this->assertSame(
-            [ChurchServiceItemSource::Email],
+            [ChurchServiceItemSource::Manual],
             $churchService->items->firstOrFail()->provenanceSources(),
         );
+    }
+
+    #[Test]
+    public function it_removes_an_item_the_reviewer_deleted_while_finishing_an_inbound_email(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create([
+            'status' => InboundEmailStatus::Pending->value,
+        ]);
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-06-22',
+            'service' => SermonService::Morning->value,
+            'source' => ChurchServiceItemSource::Livestream->value,
+        ]);
+
+        $detectedNotices = ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Notices',
+            'source_title' => 'Notices',
+        ]);
+
+        // The reviewer saw the detected notices on screen and took them off the list.
+        $this->action->execute(
+            validated: ['date' => '2026-06-22', 'service' => SermonService::Morning->value],
+            syncPayload: [[
+                'position' => 1,
+                'type' => 'custom',
+                'title' => 'Welcome',
+                'source_title' => 'Welcome',
+                'openlp_search_title' => null,
+                'song_id' => null,
+                'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
+            ]],
+            churchService: $churchService,
+            userId: $this->admin->id,
+            inboundEmailId: $inboundEmail->id,
+        );
+
+        $this->assertNotNull($detectedNotices->refresh()->deleted_at);
     }
 
     #[Test]

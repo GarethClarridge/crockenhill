@@ -20,7 +20,6 @@ use App\Services\ChurchService\ChurchServiceItemSyncService;
 use App\Services\ChurchService\ChurchServiceSongLinker;
 use App\Services\ChurchService\ChurchServiceStructureMergeService;
 use App\Traits\SanitizesLogData;
-use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -40,14 +39,27 @@ class InboundEmailImportService
 
     public function storeParseResult(InboundEmail $inboundEmail, OosEmailParseResult $parseResult, bool $isReparse = false): void
     {
+        // The validation fields are written from the result's own properties rather than trusted
+        // to be present in importMetadata: a stored disposition is what tells a later restore
+        // that the parse was checked by OosEmailExtractionValidator at all. They are removed from
+        // the parser's bag first because array_replace_recursive merges lists by index, so a
+        // shorter validation_reasons would otherwise leave the parser's stale tail behind.
+        $authoritative = [
+            'resolved_date' => $parseResult->date,
+            'resolved_service' => $parseResult->service?->value,
+            'items' => $parseResult->items,
+            'needs_review' => $parseResult->needsReview,
+            'should_import' => $parseResult->shouldImport,
+            'disposition' => $parseResult->disposition->value,
+            'validation_reasons' => $parseResult->validationReasons,
+            'consensus' => $parseResult->consensus,
+        ];
+
         $metadata = [
-            'parsing' => array_replace_recursive($parseResult->importMetadata, [
-                'resolved_date' => $parseResult->date,
-                'resolved_service' => $parseResult->service?->value,
-                'items' => $parseResult->items,
-                'needs_review' => $parseResult->needsReview,
-                'should_import' => $parseResult->shouldImport,
-            ]),
+            'parsing' => array_replace(
+                Arr::except($parseResult->importMetadata, array_keys($authoritative)),
+                $authoritative,
+            ),
         ];
 
         if ($isReparse) {
@@ -111,11 +123,7 @@ class InboundEmailImportService
             ]),
             servicePlans: $servicePlans,
             isLegacyFlattened: $isLegacyFlattened,
-            disposition: $this->storedDisposition(
-                Arr::get($storedParseData, 'disposition'),
-                (bool) Arr::get($storedParseData, 'needs_review', false),
-                (bool) Arr::get($storedParseData, 'should_import', false),
-            ),
+            disposition: $this->storedDisposition(Arr::get($storedParseData, 'disposition')),
             validationReasons: $this->storedStrings(Arr::get($storedParseData, 'validation_reasons')),
             extractionAttempts: $this->storedAttempts(Arr::get($storedParseData, 'extraction_attempts')),
             consensus: (bool) Arr::get($storedParseData, 'consensus', false),
@@ -134,7 +142,17 @@ class InboundEmailImportService
         bool $needsReview,
         bool $shouldImport,
     ): array {
-        return [new OosEmailServicePlan($service, $date, $items, $confidence, $needsReview, $shouldImport)];
+        return [new OosEmailServicePlan(
+            service: $service,
+            date: $date,
+            items: $items,
+            confidence: $confidence,
+            needsReview: $needsReview,
+            shouldImport: $shouldImport,
+            // A flattened payload predates per-plan dispositions entirely, so it can never be
+            // auto-imported unattended; ApproveInboundEmailImport re-parses it for an admin.
+            disposition: OosEmailParseDisposition::ReviewRequired,
+        )];
     }
 
     /**
@@ -161,11 +179,7 @@ class InboundEmailImportService
                 confidence: $confidence,
                 needsReview: (bool) ($storedPlan['needs_review'] ?? false),
                 shouldImport: (bool) ($storedPlan['should_import'] ?? false),
-                disposition: $this->storedDisposition(
-                    $storedPlan['disposition'] ?? null,
-                    (bool) ($storedPlan['needs_review'] ?? false),
-                    (bool) ($storedPlan['should_import'] ?? false),
-                ),
+                disposition: $this->storedDisposition($storedPlan['disposition'] ?? null),
                 validationReasons: $this->storedStrings($storedPlan['validation_reasons'] ?? null),
                 sourceProvenance: is_array($storedPlan['source_provenance'] ?? null)
                     ? $storedPlan['source_provenance']
@@ -214,9 +228,9 @@ class InboundEmailImportService
     }
 
     /**
-     * Import every service plan in the parse result. Create-only never overwrites an existing
-     * date+service slot; the normal path merges into an existing service or creates a new one.
-     * The email is only marked Processed when every plan reaches a terminal outcome.
+     * Import every service plan in the parse result: each plan merges into the existing service
+     * for its date+service slot, or creates one. The email is only marked Processed when every
+     * plan reaches a terminal outcome.
      *
      * Pass `$onlyPlanKeys` to restrict the import to specific plans — the archive backfill uses
      * this to import only the plans its ground truth actually corroborates, so an extra plan the
@@ -231,7 +245,6 @@ class InboundEmailImportService
         OosEmailParseResult $parseResult,
         ?int $reviewedByUserId = null,
         string $reviewMode = 'direct_approve',
-        bool $createOnly = false,
         ?array $onlyPlanKeys = null,
     ): OosEmailImportResult {
         $plans = $this->plansForImport($parseResult);
@@ -250,7 +263,12 @@ class InboundEmailImportService
         $outcomes = [];
 
         foreach ($plans as $plan) {
-            $outcomes[] = $this->importPlan($parseResult, $plan, $reviewedByUserId, $reviewMode, $createOnly);
+            $outcomes[] = $this->importPlan(
+                $parseResult,
+                $plan,
+                $reviewedByUserId,
+                $reviewMode,
+            );
         }
 
         $result = new OosEmailImportResult($outcomes);
@@ -279,6 +297,8 @@ class InboundEmailImportService
                 confidence: $parseResult->confidenceScore,
                 needsReview: $parseResult->needsReview,
                 shouldImport: $parseResult->shouldImport,
+                disposition: $parseResult->disposition,
+                validationReasons: $parseResult->validationReasons,
             )];
         }
 
@@ -290,7 +310,6 @@ class InboundEmailImportService
         OosEmailServicePlan $plan,
         ?int $reviewedByUserId,
         string $reviewMode,
-        bool $createOnly,
     ): OosEmailImportPlanOutcome {
         // An admin approval imports any well-formed plan; the automated pipeline only imports
         // plans confident enough to auto-import, holding the rest for review.
@@ -310,9 +329,7 @@ class InboundEmailImportService
         $importMetadata = $this->planImportMetadata($parseResult, $plan, $reviewedByUserId, $reviewMode);
 
         try {
-            return $createOnly
-                ? $this->createOnlyPlan($plan, $importMetadata)
-                : $this->mergeOrCreatePlan($plan, $importMetadata, $reviewedByUserId);
+            return $this->mergeOrCreatePlan($plan, $importMetadata, $reviewedByUserId);
         } catch (Throwable $exception) {
             report($exception);
 
@@ -326,7 +343,13 @@ class InboundEmailImportService
         }
     }
 
-    private function storedDisposition(mixed $value, bool $needsReview, bool $shouldImport): OosEmailParseDisposition
+    /**
+     * A stored parse with no disposition predates OosEmailExtractionValidator, so it carries no
+     * source-line grounding and no validation reasons — its confidence was never checked against
+     * the email body. Never infer AutoImportable from that: an admin can still approve it, and a
+     * re-parse replaces the payload outright.
+     */
+    private function storedDisposition(mixed $value): OosEmailParseDisposition
     {
         if (is_string($value)) {
             $disposition = OosEmailParseDisposition::tryFrom($value);
@@ -334,10 +357,6 @@ class InboundEmailImportService
             if ($disposition instanceof OosEmailParseDisposition) {
                 return $disposition;
             }
-        }
-
-        if ($shouldImport && ! $needsReview) {
-            return OosEmailParseDisposition::AutoImportable;
         }
 
         return OosEmailParseDisposition::ReviewRequired;
@@ -370,60 +389,6 @@ class InboundEmailImportService
     /**
      * @param  array<string, mixed>  $importMetadata
      */
-    private function createOnlyPlan(OosEmailServicePlan $plan, array $importMetadata): OosEmailImportPlanOutcome
-    {
-        /** @var SermonService $service */
-        $service = $plan->service;
-        $existed = false;
-
-        try {
-            $churchService = DB::transaction(function () use ($plan, $service, $importMetadata, &$existed): ChurchService {
-                $existingService = ChurchService::query()
-                    ->where('date', $plan->date)
-                    ->where('service', $service->value)
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($existingService instanceof ChurchService) {
-                    $existed = true;
-
-                    return $existingService;
-                }
-
-                return $this->createServiceFromPlan($plan, $service, $importMetadata);
-            });
-        } catch (UniqueConstraintViolationException $exception) {
-            // Under create-only semantics a race loser and a pre-existing service are identical.
-            $existingService = ChurchService::query()
-                ->where('date', $plan->date)
-                ->where('service', $service->value)
-                ->first();
-
-            if (! $existingService instanceof ChurchService) {
-                throw $exception;
-            }
-
-            return new OosEmailImportPlanOutcome(
-                $plan->key(),
-                $service,
-                $plan->date,
-                OosEmailImportOutcome::SkippedExisting,
-                $existingService,
-            );
-        }
-
-        return new OosEmailImportPlanOutcome(
-            $plan->key(),
-            $service,
-            $plan->date,
-            $existed ? OosEmailImportOutcome::SkippedExisting : OosEmailImportOutcome::Created,
-            $churchService,
-        );
-    }
-
-    /**
-     * @param  array<string, mixed>  $importMetadata
-     */
     private function mergeOrCreatePlan(OosEmailServicePlan $plan, array $importMetadata, ?int $reviewedByUserId): OosEmailImportPlanOutcome
     {
         /** @var SermonService $service */
@@ -446,35 +411,6 @@ class InboundEmailImportService
             $plan->date,
             OosEmailImportOutcome::Created,
             $churchService,
-        );
-    }
-
-    /**
-     * @param  array<string, mixed>  $importMetadata
-     */
-    private function createServiceFromPlan(OosEmailServicePlan $plan, SermonService $service, array $importMetadata): ChurchService
-    {
-        $churchService = new ChurchService;
-        $churchService->fill([
-            'date' => $plan->date,
-            'service' => $service->value,
-            'source' => ChurchServiceItemSource::Email->value,
-            'needs_review' => $plan->needsReview,
-            'import_metadata' => $importMetadata,
-        ]);
-        $churchService->save();
-
-        $syncResult = $this->itemSyncService->sync($churchService, $plan->items, ChurchServiceItemSource::Email);
-        $this->songLinker->linkForService($churchService);
-
-        /** @var ChurchService $freshChurchService */
-        $freshChurchService = $churchService->fresh(['items']) ?? $churchService;
-
-        return $this->canonicalUpdateService->finalize(
-            $freshChurchService,
-            [],
-            ChurchServiceItemSource::Email,
-            $syncResult,
         );
     }
 

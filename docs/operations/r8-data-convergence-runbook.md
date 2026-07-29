@@ -20,11 +20,41 @@ Authorities by domain:
 |---|---|---|---|
 | Song catalogue | Current OpenLP songs SQLite | Sync from the checksummed SQLite | Sync from the identical SQLite |
 | Historic service plans | Original OpenLP `.osz` archive | Import the complete checksummed directory | Import/rehearse the same directory |
-| Historic email OoS | Original Markdown archive | Evaluate, then create-only import | Already imported; rerun only from the same/newer artifact |
+| Historic email OoS | Original Markdown archive | Evaluate, then import in batches through the live pipeline | Already imported; rerun only from the same/newer artifact |
 | Legacy MP3 sermons | Local processed records plus their verified Spaces objects and source hashes | Promote selected local-only records through a purpose-built create-only bundle; do not upload or reprocess the audio again | Preserve until every local-only candidate is classified and promoted/rejected |
 | Other sermons/video | Original media plus its metadata | Re-import selected material through the current pipeline when no safe portable record exists | Preserve until every local-only candidate is classified |
 | Legacy song usage | Production `play_date` IDs | Dump and import in production | Do not import the production dump locally |
 | Runtime/auth data | Production | Keep in production | Never copy raw users, tokens, sessions or real inbound email bodies |
+
+### What local rehearsal does and does not buy
+
+Local runs first for two reasons: processing is free here, and a mistake here is not a mistake in
+production. This runbook currently delivers the second in full and the first only in part, and the
+difference is worth stating plainly before anyone reads a local result as a prediction.
+
+| Work | Where it happens | Consequence |
+|---|---|---|
+| OpenLP `.osz` parsing | Both, deterministic | Local outcome predicts production exactly. |
+| Legacy MP3 sermons | Locally only; promoted as a create-only bundle (Phase 6) | The intended shape: expensive work done once, its result shipped. |
+| Markdown OoS extraction | Both; the extractor runs again in production | 101 further model calls, and production may parse an entry differently from the copy the operator reviewed locally. |
+| Historic video | Both; re-processed through the production pipeline | Transcription and structure detection paid for twice, and the production run may not reproduce the local one. |
+
+The parse cache that would avoid the second row lives per-row in
+`inbound_emails.processing_metadata.parsing`, keyed by `input_hash` + `PARSER_VERSION`
+(`ImportOosArchiveCommand`), so it is reused across re-runs in one environment but has no portable
+export. There is no equivalent for a processed video.
+
+Until a portable form exists, treat the local run as a **rehearsal, not a projection**: it proves
+the commands, the counts and the operator's decisions, and it does not guarantee that production
+will extract the same plan from the same markdown. §7.1 and §7.2 are the checks that catch a
+divergence after the fact.
+
+Closing the gap is planned separately, in
+[LOCAL-PROCESSING-PORTABILITY-2026-07-28.md](../plans/LOCAL-PROCESSING-PORTABILITY-2026-07-28.md):
+WP1 ships the reviewed OoS parses so production reuses them instead of re-extracting, and the video
+half belongs to the [historic archive import and promotion plan](../plans/HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)'s
+Stage B. Neither has landed. Until WP1 does, run §5.4 expecting production to spend the model calls
+again and to be capable of returning a different plan for an entry.
 
 ### Never run the old sermon patch
 
@@ -79,6 +109,7 @@ Do not start a real production mutation when any of these is true:
 
 - The current OpenLP SQLite or original `.osz` archive cannot be identified.
 - A staged artifact checksum differs from its source checksum.
+- The curated `.osz` directory does not hold exactly 428 archives, in either environment (§1.3).
 - The `.osz` dry run reports unexpected updates, review items or any failures.
 - A song-link dry run proposes unexpected clears.
 - A fresh production DB backup cannot be located, decrypted and tied to a tested restore path.
@@ -88,8 +119,10 @@ Do not start a real production mutation when any of these is true:
 - The sermon ledger still relies on counts rather than per-identity classification.
 - Local and production do not produce the same non-secret Spaces location fingerprint, or a
   selected asset fails existence, size or hash verification.
-- The temporary sermon promotion exporter/importer described in Phase 6 has not been implemented,
-  reviewed, tested and deployed. The old SQL patch is not a fallback.
+- The deployed production release does not carry the sermon promotion exporter/importer described in
+  Phase 6, or its eligibility guard does not cover the rows being promoted. The commands exist in
+  the repository; what has to be confirmed is that production is running a release containing them.
+  The old SQL patch is not a fallback.
 
 The default local `storage/mnt/services` directory contained zero `.osz` files on 2026-07-20, but
 the original archive was subsequently located on the operator's external drive. Its 536 files
@@ -98,6 +131,15 @@ curation retains 428 imports after 7 explicit date/service aliases and 3 explici
 Use the private curated manifest from the 2026-07-20 evidence directory; the database rows are not
 a substitute for those source files. The external source was verified through a read-only Sail
 mount because copying the roughly 9 GiB recursive archive would exhaust the local system disk.
+
+**Curation happens on the filesystem, not in the importer.**
+`service-tracking:import-openlp-services` takes a directory and imports every `.osz` beneath it. It
+has no manifest, deduplication, alias or exclusion option, and it derives each service's
+`(date, service)` from the *upload* filename, falling back to the embedded `.osj` name. Pointing it
+at the raw 536-file tree would import the duplicate set, the three excluded archives and the seven
+misnamed ones under their wrong identities. §1.3 builds the 428-file curated directory that every
+later step — local rehearsal, production transfer, production import — must use. Nothing in this
+runbook may be run against `$OPENLP_OSZ_SOURCE` directly.
 
 Keep SQL dumps, manifests, import reports and archive contents private. `oos:import-archive`
 reports can contain subjects, message IDs and unmatched titles. Store local evidence under
@@ -218,7 +260,60 @@ shasum -a 256 "$R8_EVIDENCE/openlp-osz.sha256"
 Stop if this source set cannot account for the historic local import. Do not reverse-engineer
 `.osz` files from the local database.
 
-### 1.3 Capture local sermon identities and duplicates
+### 1.3 Build the curated `.osz` directory
+
+Everything downstream imports this directory. Build it once, gate it on the expected count, and
+treat its manifest — not the raw archive's — as the artifact to transfer and re-verify.
+
+```bash
+OPENLP_OSZ_CURATED="storage/scratch/r8-input/openlp-osz"
+rm -rf "$OPENLP_OSZ_CURATED"
+mkdir -p "$OPENLP_OSZ_CURATED"
+
+# One file per distinct SHA-256, first path in sorted order. This collapses the
+# byte-identical nested duplicate set to the 431 unique sources.
+awk '{ hash = $1; sub(/^[^ ]+  /, ""); if (! seen[hash]++) { print } }' \
+  "$R8_EVIDENCE/openlp-osz.sha256" \
+  > "$R8_EVIDENCE/openlp-osz-unique.txt"
+
+wc -l < "$R8_EVIDENCE/openlp-osz-unique.txt"   # expect 431
+
+while IFS= read -r archive
+do
+  install -D -m 600 "$OPENLP_OSZ_SOURCE/$archive" "$OPENLP_OSZ_CURATED/$archive"
+done < "$R8_EVIDENCE/openlp-osz-unique.txt"
+```
+
+Now apply the curation decisions from the private 2026-07-20 manifest, which is the only record of
+which archive each one refers to:
+
+- delete the 3 excluded archives from `$OPENLP_OSZ_CURATED`;
+- rename the 7 aliased archives to their corrected `YYYY-MM-DD-<morning|evening>.osz` identity.
+
+Renaming is how an alias is applied: the parser reads the upload filename first. It also compares
+that against the embedded `.osj` name, so each of the 7 will import with a
+`filename_mismatch` warning and arrive flagged for review. That is the intended outcome — the
+operator asserted the identity, and the flag is the record of it. Then gate the result:
+
+```bash
+find "$OPENLP_OSZ_CURATED" -type f -iname '*.osz' | wc -l   # must be 428
+
+(
+  cd "$OPENLP_OSZ_CURATED"
+  find . -type f -iname '*.osz' -print | LC_ALL=C sort | while IFS= read -r archive
+  do
+    shasum -a 256 "$archive"
+  done
+) > "$R8_EVIDENCE/openlp-osz-curated.sha256"
+
+shasum -a 256 "$R8_EVIDENCE/openlp-osz-curated.sha256"
+```
+
+Stop if the count is not 428. A different number means the source archive, the duplicate set or the
+curation decisions have changed since 2026-07-20, and the manifest has to be redone before any
+import — local or production — is meaningful.
+
+### 1.4 Capture local sermon identities and duplicates
 
 ```bash
 local_dbq "
@@ -273,9 +368,10 @@ Do not include titles, paths or detailed manifests in a public issue or PR.
 
 ## Phase 2 — Stage and verify production inputs
 
-From the Mac, transfer the current SQLite, Markdown archive and complete `.osz` source to a
-private directory on the production host using the configured SSH-key login. Replace the host
-placeholder; do not weaken SSH authentication for this transfer.
+From the Mac, transfer the current SQLite, Markdown archive and the **curated** `.osz` directory
+built in §1.3 to a private directory on the production host using the configured SSH-key login.
+Replace the host placeholder; do not weaken SSH authentication for this transfer. Production must
+receive the curated 428, never the raw archive: the importer would take everything it is given.
 
 ```bash
 ssh <production-user>@<production-host> \
@@ -287,12 +383,15 @@ scp "storage/scratch/songs (1).sqlite" \
 scp storage/scratch/crockenhill_orders_of_service_archive.md \
   <production-user>@<production-host>:/srv/crockenhill/storage/scratch/r8-input/oos-archive.md
 
-rsync -a "$OPENLP_OSZ_SOURCE/" \
+rsync -a --delete "$OPENLP_OSZ_CURATED/" \
   <production-user>@<production-host>:/srv/crockenhill/storage/scratch/r8-input/openlp-osz/
 
-scp "$R8_EVIDENCE/openlp-osz.sha256" \
+scp "$R8_EVIDENCE/openlp-osz-curated.sha256" \
   <production-user>@<production-host>:/srv/crockenhill/storage/scratch/r8-input/openlp-osz.sha256
 ```
+
+`--delete` matters: a previous attempt's uncurated copy left in that directory would be imported
+alongside the curated set.
 
 On production, copy the artifacts into the persisted app temp volume immediately before the run:
 
@@ -326,9 +425,12 @@ dc exec -T -u www app sh -lc '
 diff -u \
   /srv/crockenhill/storage/scratch/r8-input/openlp-osz.sha256 \
   "$R8_HOST_EVIDENCE/openlp-osz.sha256"
+
+dc exec -T -u www app sh -lc 'find "$1" -type f -iname "*.osz" | wc -l' sh "$R8_STAGE/openlp-osz"
 ```
 
-`diff` must produce no output. The relative filenames and hashes must match exactly.
+`diff` must produce no output. The relative filenames and hashes must match exactly, and the count
+must be 428 — the same gate as §1.3, re-asserted on the copy that production will actually import.
 
 ### 2.1 Capture production sermon identities
 
@@ -463,12 +565,11 @@ The final count must remain zero.
 
 ### 3.2 Historic OpenLP services
 
-Copy the authoritative `.osz` set under `storage/scratch/r8-input/openlp-osz` so Sail can see it,
-then run:
+§1.3 already built the curated directory at `storage/scratch/r8-input/openlp-osz`, where Sail can
+see it. Confirm it is still the curated 428 rather than a re-copied raw tree, then run:
 
 ```bash
-mkdir -p storage/scratch/r8-input/openlp-osz
-rsync -a "$OPENLP_OSZ_SOURCE/" storage/scratch/r8-input/openlp-osz/
+find "$OPENLP_OSZ_CURATED" -type f -iname '*.osz' | wc -l   # must be 428
 
 local_art service-tracking:import-openlp-services \
   --path=/var/www/html/storage/scratch/r8-input/openlp-osz \
@@ -506,7 +607,8 @@ local_art oos:import-archive \
 preview. A run without `--dry-run` or `--import` invokes the extractor and writes/synchronises
 synthetic `InboundEmail` rows. Do not rerun evaluation/import locally unless the source hash or
 parser has changed. If it has, back up first, evaluate, privately review the JSON report, then run
-`--import`; the import is create-only.
+`--import`; the import merges into whatever service already occupies each date+service slot (see
+§5.4).
 
 ### 3.4 Local linking and other local drift
 
@@ -612,9 +714,40 @@ art media-processing:backfill-extracted-identity --dry-run \
   | tee "$R8_HOST_EVIDENCE/prod-media-identity-dry-run.txt"
 ```
 
-The `.osz` import must precede the Markdown import. Production has only two OpenLP services while
-local has 395; importing the create-only Markdown archive first would let the lower-fidelity email
-source occupy slots that should be represented by OpenLP.
+### 4.1 Why this order, and what it does and does not decide
+
+The aim is the state week-by-week operation would have reached, where the email plan arrives first,
+the OpenLP export is made for the service, and the recording is processed afterwards. This runbook
+imports OpenLP before the Markdown archive and the historic video last, which is not that
+chronology, so the difference has to be accounted for rather than assumed away.
+
+**What the arrival order no longer decides.** `ChurchServiceItemSyncService` resolves item identity
+from the accumulated `metadata.source_evidence` rather than from the row's `source` column, so:
+
+- a song or reading that OpenLP has identified keeps that identification against any email merge,
+  whichever import ran first, and against a re-import of the same email afterwards;
+- no machine source deletes another's items — only a manual save, a source restating its own
+  earlier import, or an explicit replace states a complete list;
+- a row a person has reviewed is not rewritten or removed by any later machine import.
+
+`ChurchServiceItemSyncServiceTest::test_the_reading_is_the_same_whichever_of_the_two_plans_imported_first`
+is the executable form of that claim. If it is ever deleted or weakened, this ordering argument
+lapses with it.
+
+**What the arrival order still decides.** Three things, all of them visible rather than silent:
+
+1. `church_services.source` records the last source to apply items, so the same service ends up
+   labelled `openlp` in one order and `email` in the other. It is provenance for a human reader; no
+   merge rule consults it.
+2. Which source *creates* a service row. Production has 2 OpenLP services against 428 incoming, so
+   importing `.osz` first means almost every slot is created from a filename-derived
+   `(date, service)` rather than from an AI-parsed date.
+3. Which conflicts get recorded. An email merging into an OpenLP service flags every unmatched
+   OpenLP non-song item as `preserved_existing_item`; an OpenLP merge into an email service raises
+   no equivalent flag. So this order produces more review signal, not less — count it after the
+   import (§5.4) rather than being surprised by it.
+
+None of those changes what survives in the item list, which is why the order below is kept.
 
 ### 4.1 Make the production `play_date` source dump
 
@@ -728,7 +861,9 @@ WHERE canonical_key IS NULL
 
 The count must be zero. Stop with the site in maintenance and Horizon paused if it is not.
 
-### 5.3 Import the complete historic `.osz` archive
+### 5.3 Import the curated historic `.osz` archive
+
+This imports the 428-file curated directory verified in Phase 2, not the raw archive.
 
 ```bash
 art service-tracking:import-openlp-services \
@@ -749,10 +884,71 @@ manual review before declaring the archive final. Compare the actual created/upd
 metrics with the dry run and explain any difference caused by the now-reconciled song catalogue;
 the earlier dry run against the legacy catalogue is not by itself acceptance evidence.
 
-### 5.4 Evaluate and create-only import the Markdown OoS archive
+The import count is its own gate. 428 archives must be accounted for as created plus updated plus
+failed; a total of 431 or 536 means an uncurated directory was staged and the run has to be
+assessed against the pre-import backup rather than continued.
+
+#### 5.3.1 Clear staged structure merges before the next source
+
+Run this after §5.3, after §5.4 and after §6.5. A service can hold only one pending proposal, so a
+second source staging against the same recording pushes the first into
+`superseded_proposals` — kept for audit, but no longer what the review screen offers:
+
+```bash
+dbq "
+SELECT id, date, service, pending_structure_merge_source,
+       JSON_LENGTH(JSON_EXTRACT(import_metadata, '\$.pending_structure_merge.superseded_proposals'))
+FROM church_services
+WHERE pending_structure_merge_source IS NOT NULL
+ORDER BY date;
+" | tee "$R8_HOST_EVIDENCE/prod-pending-structure-merges-after-<stage>.txt"
+```
+
+Resolve each row from the service review screen before starting the next import. A non-zero
+superseded count means an earlier proposal was already displaced and the reviewer has to read it
+out of `import_metadata` before accepting or rejecting the current one. Zero rows is the intended
+state at every stage boundary; carrying rows forward is a deliberate, recorded decision.
+
+### 5.4 Evaluate and import the Markdown OoS archive
+
+The archive import processes historic entries as if the current email pipeline had handled them at
+the time. Each entry becomes a synthetic inbound email and takes one of three routes:
+
+| Route | Report disposition | Email status | Meaning |
+| --- | --- | --- | --- |
+| Blocked | `blocked` | `archive_eval` | The markdown contradicts itself about the date (`weekday_mismatch`, `date_discrepancy`, `source_date_discrepancy`, `multi_date`). Correct the archive text before anything else can be done — deliberately kept out of the inbox. |
+| Held for review | `held_for_review` | `pending` | The ground truth does not corroborate the parse, or the parse did not clear the live auto-import bar. The entry sits in the review inbox and is finished in the normal edit-and-approve workbench. |
+| Imported | `created` / `merged` | `processed` | The plan cleared the auto-import bar and was merged into the existing service for its date+service slot, or created one. |
+
+`unresolved` (no date at all) and `import_failed` are the two remaining dispositions; an evaluation
+run reports `eligible` where an import run would have attempted the import.
+
+Three consequences of the merge model to hold onto:
+
+- An archive email **merges into an existing OpenLP or livestream service** rather than skipping
+  it, adding the prayers, notices and sermon an OpenLP export structurally cannot carry. Existing
+  song identity is preserved by the merge policy; a conflict is staged, not applied.
+- A re-run **repairs automatically**. There is no `--repair-existing` flag: re-running the same
+  entry re-merges, and a re-parse that no longer clears the bar returns a previously processed
+  email to the inbox instead of leaving it silently `processed`.
+- **A livestream import arriving last applies rather than stages.**
+  `StructureMergePolicy::requiresMergePlanning()` only stages a merge when the *existing* items are
+  high-confidence livestream detections and the incoming source is something else. A livestream
+  import arriving last therefore merges directly: it still cannot delete email or OpenLP items and
+  cannot rewrite their identification, but nothing pauses for human adjudication of a disagreement.
+  §6.5 imports the historic video after both plans, so those services reach the reviewer as a
+  merged list plus whatever conflicts the sync recorded — not as a staged proposal. Import a video
+  batch before the email pass for any date where you want the disagreement staged instead.
+- **A second staged proposal no longer discards the first.** There is one
+  `pending_structure_merge` slot per service, so where a recording already exists and both plans
+  conflict with it, the email proposal supersedes the OpenLP one. The superseded proposal is kept
+  in `pending_structure_merge.superseded_proposals` with its own source and timestamp, but only the
+  newest is what the review screen offers to accept. Resolve staged merges between import stages
+  (§5.3.1) rather than letting them queue.
 
 Evaluation is mutating: it writes/synchronises synthetic inbound emails and invokes the extractor.
-It is run after the backup and before `--import` so the private report can be reviewed.
+It does *not* change email status — only an `--import` run releases entries into the operator's
+inbox — so it is run after the backup and before `--import` and its private report reviewed first.
 For the one-entry API preflight, replace `YYYY-MM-DD` with a resolved date selected from the
 structural report.
 
@@ -779,7 +975,39 @@ dc cp "app:$R8_STAGE/oos-evaluate.json" \
 ```
 
 The preflight dispositions must not contain `failed`; otherwise stop before the full evaluation.
-Privately inspect the full aggregate, blocked entries, failures and eligible plans. Then:
+Privately inspect the full aggregate, blocked entries, failures and eligible plans. Then import.
+
+**Do not review the inbox yet.** Import every source first — OpenLP (§5.3), this archive, song
+usage (§5.5), links (§5.6) and the historic video batch (§6.5) — and review once, at the end.
+
+The reason is no longer that an early review would be *destroyed*: a reviewed row is now protected.
+A save from the workbench carries manual authority even when it is finishing an inbound email
+(`SaveChurchServiceFromAdmin`), so it states the whole list — it deletes and reorders — and
+`ChurchServiceItemSyncService::shouldPreserveExistingIdentity()` then stops every later machine
+import rewriting or removing what the reviewer settled.
+
+That protection is exactly why the review still goes last. A row reviewed before the OpenLP export
+lands is frozen against OpenLP's identification of it: the export can still add items the reviewer
+never saw, but it will not correct the song or reading on a row a person has already signed off. So
+an early review does not lose work — it loses the corroboration the later source was going to
+supply, and the reviewer adjudicates two sources where they could have adjudicated three. A pending
+email has created nothing and costs a table row; a service reviewed twice costs a person an
+evening.
+
+Batching the *import* is still useful — a per-batch report is easier to inspect and a failure is
+easier to attribute — and `--date`, `--from`, `--to` and `--limit` all select entries, so no extra
+flag is needed:
+
+```bash
+art oos:import-archive "$R8_STAGE/oos-archive.md" \
+  --import \
+  --from=2022-01-01 --to=2022-12-31 \
+  --report="$R8_STAGE/oos-import-2022.json" \
+  | tee "$R8_HOST_EVIDENCE/prod-oos-import-2022.txt"
+```
+
+The commands below take the whole corpus in one pass and are the shape of each batch; substitute
+the date window when running for real.
 
 ```bash
 art oos:import-archive "$R8_STAGE/oos-archive.md" \
@@ -824,8 +1052,55 @@ ORDER BY source;
 ```
 
 The first report must contain no `failed` or `import_failed` disposition. The second must contain
-no `created`, `failed` or `import_failed`; eligible occupied slots should report
-`skipped_existing`. The console summary alone is not sufficient evidence.
+no `created`, `failed` or `import_failed`: a re-run re-merges, so every entry that imported the
+first time must report `merged` the second. The console summary alone is not sufficient evidence.
+
+The email status counts are the check that the three-way split behaved. `archive_eval` must equal
+the number of `blocked` entries and no more — anything else means an entry that a human could act
+on is being withheld from the inbox. Then confirm the merges were safe:
+
+```bash
+dbq "
+SELECT cs.id, cs.date, cs.service, cs.source, cs.needs_review, COUNT(csi.id) AS items,
+       SUM(csi.song_id IS NOT NULL) AS linked_songs
+FROM church_services cs
+LEFT JOIN church_service_items csi
+    ON csi.church_service_id = cs.id AND csi.deleted_at IS NULL
+GROUP BY cs.id
+ORDER BY cs.date;
+"
+```
+
+Run it before and after each batch. Item counts must not grow on the second (idempotency) pass and
+no service may lose a `song_id` — the email is the completeness authority, OpenLP the identification
+authority, so a merge adds items and never drops song identity. A service left with
+`needs_review = 1` and a `pending_structure_merge` key in `import_metadata` has had its merge
+*staged* rather than applied: that is the correct outcome for a conflict against high-confidence
+livestream items, not a failure, and it is resolved from the service review screen.
+
+Also count the review signal this pass produced, because importing OpenLP before email is what
+generates it (§4.1) and a batch that flags nearly everything is worth understanding before the next
+one runs:
+
+```bash
+dbq "
+SELECT COUNT(*)
+FROM church_services
+WHERE JSON_SEARCH(import_metadata, 'one', 'preserved_existing_item') IS NOT NULL;
+" | tee "$R8_HOST_EVIDENCE/prod-preserved-existing-item-count.txt"
+```
+
+Each of those is an OpenLP item the email plan did not mention. A handful is the expected shape —
+the two lists genuinely differ. A count approaching the number of imported services means the two
+sides are failing to match rather than genuinely disagreeing, and the reading and song resolvers
+should be checked against a sample before the operator spends an evening confirming false
+disagreements.
+
+If a later parser change invalidates cached parses (`PARSER_VERSION` in `ImportOosArchiveCommand`),
+re-running the import re-parses and re-merges: no separate repair mode exists. An entry whose new
+parse the structural validator rejects is held for review instead, and its email returns to the
+inbox — the service built from the old parse is left exactly as it is, pending a manual comparison
+against the archive.
 
 ### 5.5 Import production legacy song usage
 
@@ -1011,19 +1286,33 @@ diff -u \
 `diff` must produce no output. If it differs, stop: the objects need an explicit server-side
 bucket copy plus verification before their rows can be promoted.
 
-### 6.1 Engineering prerequisite: portable sermon promotion commands
+### 6.1 The portable sermon promotion commands
 
-There is no safe command for this operation in the repository yet. Implement, review and deploy a
-temporary pair before any production write. The names below are the required interface, not
-commands that can be run from the current release:
+**These now exist** — this section was a build specification when the runbook was written and is
+now an acceptance checklist. `sermons:export-promotion-bundle` and
+`sermons:import-promotion-bundle` are in the repository, backed by
+`app/Services/Sermon/SermonPromotionBundle{Exporter,Importer,Validator,Files}.php` and
+`SermonPromotionAssets.php`, with `tests/Feature/Console/SermonPromotionBundleCommandTest.php`
+covering create-only import, preacher alias resolution, slug/asset-hash/processing-UUID collisions,
+missing assets, streamed hash mismatch, transaction rollback and the second-run idempotency result.
 
 ```text
 sermons:export-promotion-bundle --ids=<comma-separated-local-ids> --output=<private-json-path>
 sermons:import-promotion-bundle --path=<private-json-path> [--verify-hashes] [--apply]
 ```
 
-Both command docblocks must state their deletion trigger: delete them with their tests after the
+Confirm before use, rather than assuming, that the deployed release is the one carrying them
+(`art list sermons` on the production host) and that the exporter's eligibility guard still matches
+the rows being promoted — it accepts `audio_upload` sermons with an audio path only, and rejects
+livestream-sourced rows by design. Historic *video* promotion is a different bundle and belongs to
+the [historic archive import and promotion plan](../plans/HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md),
+whose Stage B copies this pair as a template rather than widening it in place.
+
+Both command docblocks state their deletion trigger: delete them with their tests after the
 R8 ledger has no unresolved/promote entries and the production idempotency run passes.
+
+The requirements below are what those classes were built to, and remain the acceptance criteria for
+any change to them.
 
 The versioned JSON bundle must be portable domain data, not SQL. For each selected sermon it must
 contain:
@@ -1207,6 +1496,15 @@ art sermons:import-historic-videos \
 See [LLM structure promotion soak](llm-structure-promotion-soak.md) for staging, disk-space and
 end-to-end review details. Keep this importer through R12's bulk backfill.
 
+**This is the fallback path, not the intended one.** Re-processing in production pays for
+transcription and structure detection a second time and can produce a different result from the
+local run the operator reviewed. The
+[historic archive import and promotion plan](../plans/HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)'s
+Stage B replaces it with a create-only promotion bundle — `project()` needs only the processing log,
+its `service_sections` and `processing_metadata`, so the service graph is rebuildable in production
+from portable data with no media. Delete §6.4 and §6.5 in favour of it once Stage B lands; until
+then this section stands, and §6.0's Spaces fingerprint check is what keeps it honest.
+
 ### 6.6 Manual and children's-talk records
 
 Use the supported admin/upload flow for genuinely metadata-only records and children's talks.
@@ -1314,6 +1612,70 @@ historic source range require an explicit explanation. Record intentional local 
 production-only live services and the production-only `play_date` usage as allowed differences.
 Source hashes alone are not a parity result.
 
+### 7.2 Compare what the services actually contain
+
+`(date, service)` coverage says a slot was filled, not that it was filled with the right thing. A
+service can hold the correct key and the wrong items, the wrong reading, or a plan that no source
+ever corroborated. Run this in both environments and compare the two files:
+
+```bash
+# In each environment, substituting local_dbq / dbq and the evidence directory.
+dbq "
+SELECT
+    CONCAT_WS('|', DATE_FORMAT(cs.date, '%Y-%m-%d'), cs.service),
+    COUNT(csi.id),
+    SUM(csi.type = 'songs'),
+    SUM(csi.type = 'bibles'),
+    SUM(csi.song_id IS NOT NULL),
+    SUM(JSON_CONTAINS_PATH(csi.metadata, 'one', '\$.source_evidence.livestream')),
+    SUM(JSON_CONTAINS_PATH(csi.metadata, 'one', '\$.source_evidence.openlp')),
+    SUM(JSON_CONTAINS_PATH(csi.metadata, 'one', '\$.source_evidence.email'))
+FROM church_services cs
+LEFT JOIN church_service_items csi
+    ON csi.church_service_id = cs.id AND csi.deleted_at IS NULL
+GROUP BY cs.date, cs.service
+ORDER BY cs.date, cs.service;
+" > "$R8_HOST_EVIDENCE/prod-service-composition.tsv"
+```
+
+`metadata.source_evidence` accumulates every source that has ever asserted an item, so those last
+three columns are the corroboration record: an item with `livestream` evidence was observed
+happening, one without it was only ever planned, and one with two or three is agreed by that many
+independent sources. A service whose items carry no livestream evidence at all is a plan, not a
+record of what happened — correct for a date with no recording, and worth a second look on a date
+that has one.
+
+Differences between the two environments in item counts, song-link counts or evidence coverage need
+the same explicit explanation as a missing key. Record them beside the key comparison.
+
+### 7.3 Closeout gate
+
+Do not declare the convergence finished, and do not delete an importer, while any of these is
+outstanding. Each is a query, not a judgement:
+
+```bash
+# Archive entries a person could still act on.
+dbq "SELECT status, COUNT(*) FROM inbound_emails
+     WHERE message_id LIKE '%oos-archive-%' GROUP BY status;"
+
+# Staged proposals nobody adjudicated.
+dbq "SELECT COUNT(*) FROM church_services WHERE pending_structure_merge_source IS NOT NULL;"
+
+# Services still asking for attention, and why.
+dbq "SELECT review_reason, COUNT(*) FROM church_services
+     WHERE needs_review = 1 GROUP BY review_reason ORDER BY COUNT(*) DESC;"
+```
+
+Require:
+
+- `pending` archive emails are zero, and every `archive_eval` entry is a `blocked` one whose
+  markdown genuinely contradicts itself;
+- zero pending structure merges, with every `superseded_proposals` entry read before its parent was
+  resolved;
+- every remaining `needs_review` service has a recorded reason the operator accepted — including the
+  seven aliased `.osz` imports, which arrive flagged by design (§1.3);
+- §7.2's composition comparison has an explanation for every difference.
+
 ## Remaining non-data R8 checks
 
 - `PreacherCutoverCommand`: passed; production null `preacher_id` count is zero. Recheck after
@@ -1365,8 +1727,12 @@ through the database only and never delete its shared pre-existing Spaces object
 
 - [ ] Source SQLite, `.osz`, Markdown, Tape Index, portable sermon bundles and any fallback-media
       checksums recorded privately.
-- [ ] Complete `.osz` archive imported/reviewed in production and rehearsed locally.
+- [ ] Curated 428-file `.osz` directory built (§1.3), count-gated in both environments, imported and
+      reviewed in production and rehearsed locally.
 - [ ] Markdown OoS import and idempotency rerun passed in production.
+- [ ] §7.3 closeout gate passed: zero actionable archive emails, zero pending structure merges,
+      every remaining `needs_review` service explained.
+- [ ] §7.2 service-composition comparison run in both environments and every difference explained.
 - [ ] Song canonical-key count is zero in production and local.
 - [ ] Production `play_date` accounting count is zero.
 - [ ] Production and local song-link drift are zero.

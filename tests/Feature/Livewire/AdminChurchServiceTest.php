@@ -1364,7 +1364,9 @@ class AdminChurchServiceTest extends TestCase
 
         $component->assertRedirect(route('admin.services.show', $service));
 
-        $this->assertSame('email', $service->source);
+        // The plan came from the email; this list was stated by the person who
+        // reviewed it, and a later re-import of the same email must not redo it.
+        $this->assertSame('manual', $service->source);
 
         $email->refresh();
         $this->assertSame(InboundEmailStatus::Processed, $email->status);

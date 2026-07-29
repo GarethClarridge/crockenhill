@@ -20,12 +20,32 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Throwable;
 
+/**
+ * Process the historic order-of-service archive as if the current email pipeline had handled it
+ * at the time. Each archive entry becomes an ordinary synthetic inbound email and takes one of
+ * three routes:
+ *
+ * - **blocked** — the markdown contradicts itself about the date. The email stays
+ *   {@see InboundEmailStatus::ArchiveEval} and is reported, because no human can act on it
+ *   either until the archive text is corrected.
+ * - **held for review** — the ground truth does not corroborate the parse. The email becomes
+ *   Pending and appears in the review inbox, where the existing edit-and-approve workbench
+ *   handles it exactly as it would a live email.
+ * - **imported** — the entry runs through {@see InboundEmailImportService::import()}, which
+ *   merges into an existing service or creates one. Whether it imports unattended is decided by
+ *   the live auto-import bar, not by this command; anything below it stays Pending in the inbox.
+ */
 class ImportOosArchiveCommand extends Command
 {
-    /** Bump when the parsing pipeline changes shape (v5: month-day-scoped fallback, hyphen dates need a year) to invalidate cached parses. */
-    private const PARSER_VERSION = 'archive-v5';
+    /** Bump when the parsing pipeline changes shape (v6: structural provenance validation via OosEmailExtractionValidator — source-line grounding, corrective retry and per-plan dispositions, none of which a v5 parse carries) to invalidate cached parses. */
+    private const PARSER_VERSION = 'archive-v6';
 
-    /** @var list<string> */
+    /**
+     * Archive-text problems: the entry's own date cannot be trusted, so nobody — human or
+     * pipeline — can act on it until the markdown is corrected. The email stays ArchiveEval.
+     *
+     * @var list<string>
+     */
     private const BLOCKING_FLAGS = [
         'weekday_mismatch',
         'date_discrepancy',
@@ -36,7 +56,7 @@ class ImportOosArchiveCommand extends Command
     protected $signature = 'oos:import-archive
                             {path? : Archive markdown path}
                             {--dry-run : Split and validate only, without database or extractor access}
-                            {--import : Create eligible missing church services}
+                            {--import : Import eligible entries through the live email pipeline}
                             {--fresh-parse : Ignore cached parse results}
                             {--limit= : Maximum entries to process}
                             {--date=* : Include only these ground-truth dates}
@@ -92,16 +112,28 @@ class ImportOosArchiveCommand extends Command
             try {
                 [$inboundEmail, $sourceUpdatedAfterImport] = $this->synchroniseEmail($entry);
                 $parseResult = $this->parseResult($entry, $inboundEmail, $emailParser, $importService);
-                $gateReasons = $this->gateReasons($entry, $parseResult, $sourceUpdatedAfterImport);
                 $eligiblePlanKeys = $this->groundTruthPlanKeys($entry, $parseResult);
-                $disposition = $gateReasons === [] ? 'eligible' : 'skipped';
+                $blockingReasons = $this->blockingReasons($entry);
+                $reviewReasons = $blockingReasons === []
+                    ? $this->reviewReasons($entry, $parseResult, $sourceUpdatedAfterImport, $eligiblePlanKeys)
+                    : [];
+                $gateReasons = array_values(array_unique([...$blockingReasons, ...$reviewReasons]));
                 $importError = null;
 
-                if ($shouldImport && $gateReasons === []) {
+                if ($blockingReasons !== []) {
+                    $disposition = 'blocked';
+                } elseif ($reviewReasons !== []) {
+                    // The archive text is sound but its ground truth does not corroborate the
+                    // parse: hand the entry to the review inbox rather than importing it.
+                    $disposition = 'held_for_review';
+                    $this->releaseToInbox($inboundEmail, $shouldImport);
+                } elseif (! $shouldImport) {
+                    $disposition = 'eligible';
+                } else {
+                    $this->releaseToInbox($inboundEmail, $shouldImport);
                     $importResult = $importService->import(
                         $inboundEmail,
                         $parseResult,
-                        createOnly: true,
                         onlyPlanKeys: $eligiblePlanKeys,
                     );
 
@@ -115,7 +147,13 @@ class ImportOosArchiveCommand extends Command
                         ));
                         $this->warn("Import failure for #{$entry->index}: {$importError}");
                     } else {
-                        $disposition = $importResult->created() !== [] ? 'created' : 'skipped_existing';
+                        $disposition = match (true) {
+                            $importResult->created() !== [] => 'created',
+                            $importResult->merged() !== [] => 'merged',
+                            // Below the auto-import bar, or a structure merge staged for review:
+                            // the email stays Pending and the inbox picks it up.
+                            default => 'held_for_review',
+                        };
                     }
                 }
 
@@ -132,6 +170,8 @@ class ImportOosArchiveCommand extends Command
                 if ($sourceUpdatedAfterImport) {
                     $result['flags'][] = 'source_updated_after_import';
                 }
+
+                $result['parse_flags'] = $this->parseFlags($entry, $parseResult);
 
                 $results[] = $result;
             } catch (Throwable $throwable) {
@@ -281,18 +321,14 @@ class ImportOosArchiveCommand extends Command
     }
 
     /**
+     * Reasons the archive markdown itself has to be corrected first. Nothing downstream can act
+     * on an entry whose date is contradicted, so it never leaves ArchiveEval.
+     *
      * @return list<string>
      */
-    private function gateReasons(
-        OosArchiveEntry $entry,
-        OosEmailParseResult $parseResult,
-        bool $sourceUpdatedAfterImport,
-    ): array {
+    private function blockingReasons(OosArchiveEntry $entry): array
+    {
         $reasons = [];
-
-        if ($entry->labelQuality !== 'full') {
-            $reasons[] = 'unverified_service_ground_truth';
-        }
 
         foreach (self::BLOCKING_FLAGS as $flag) {
             if (in_array($flag, $entry->flags, true)) {
@@ -300,58 +336,130 @@ class ImportOosArchiveCommand extends Command
             }
         }
 
+        return array_values(array_unique($reasons));
+    }
+
+    /**
+     * Reasons to hand the entry to a human rather than import it unattended. Unlike the blocking
+     * reasons these say nothing against the archive text — `unverified_service_ground_truth` only
+     * means the markdown entry carries no `####` service sub-headings — so the entry becomes an
+     * ordinary Pending email and the existing edit-and-approve workbench takes it from there.
+     *
+     * @param  list<string>  $eligiblePlanKeys
+     * @return list<string>
+     */
+    private function reviewReasons(
+        OosArchiveEntry $entry,
+        OosEmailParseResult $parseResult,
+        bool $sourceUpdatedAfterImport,
+        array $eligiblePlanKeys,
+    ): array {
+        $reasons = [];
+
+        if ($entry->labelQuality !== 'full') {
+            $reasons[] = 'unverified_service_ground_truth';
+        }
+
+        if ($entry->servicesPresent !== []
+            && $parseResult->service instanceof SermonService
+            && ! in_array($parseResult->service->value, $entry->servicesPresent, true)) {
+            $reasons[] = 'service_not_in_ground_truth';
+        }
+
         if ($sourceUpdatedAfterImport) {
             $reasons[] = 'source_updated_after_import';
         }
 
-        if ($parseResult->date === null || ! $this->isValidDate($parseResult->date) || $parseResult->date !== $entry->groundTruthDate) {
-            $reasons[] = 'date_mismatch';
-        }
-
-        if (! $parseResult->service instanceof SermonService) {
-            $reasons[] = 'invalid_service';
-        } elseif (! in_array($parseResult->service->value, $entry->servicesPresent, true)) {
-            $reasons[] = 'service_not_in_ground_truth';
-        }
-
-        if ($parseResult->items === []) {
-            $reasons[] = 'empty_items';
-        }
-
-        $threshold = (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90);
-        if ($parseResult->confidenceScore < $threshold) {
-            $reasons[] = 'low_confidence';
+        // No plan the ground truth corroborates — either the entry records no services at all or
+        // no parsed plan matches the ones it does. Importing would write a service the archive
+        // does not evidence, and import() rejects an empty plan list outright.
+        if ($eligiblePlanKeys === []) {
+            $reasons[] = 'no_corroborated_plan';
         }
 
         return array_values(array_unique($reasons));
     }
 
     /**
-     * Keys of the parsed plans that pass the per-plan archive gates: corroborated by the entry's
-     * ground truth (its date and one of its recorded services), non-empty, and at or above the
-     * auto-import confidence threshold. The entry-level gate only checks the primary plan, but
-     * the multi-service parser can produce a second plan the ground truth does not support (an
-     * invented service) or does not trust enough (a corroborated plan in the review band) — this
-     * keeps both out of the create-only import.
+     * Parse-quality signals that no longer gate the import. The live pipeline already handles
+     * each of them by holding the plan and leaving the email in the inbox, so the archive must
+     * not park the entry over them — but the evaluation report still reports them.
+     *
+     * @return list<string>
+     */
+    private function parseFlags(OosArchiveEntry $entry, OosEmailParseResult $parseResult): array
+    {
+        $flags = [];
+
+        if ($parseResult->date === null || ! $this->isValidDate($parseResult->date) || $parseResult->date !== $entry->groundTruthDate) {
+            $flags[] = 'date_mismatch';
+        }
+
+        if (! $parseResult->service instanceof SermonService) {
+            $flags[] = 'invalid_service';
+        }
+
+        if ($parseResult->items === []) {
+            $flags[] = 'empty_items';
+        }
+
+        $threshold = (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90);
+        if ($parseResult->confidenceScore < $threshold) {
+            $flags[] = 'low_confidence';
+        }
+
+        return array_values(array_unique($flags));
+    }
+
+    /**
+     * Keys of the parsed plans the entry's ground truth corroborates: its date and one of its
+     * recorded services, with items. The multi-service parser can produce a second plan the
+     * ground truth does not support — an invented service — and this keeps it out of the import
+     * without also deciding confidence, which is the live auto-import bar's job.
+     *
+     * An empty result means nothing is corroborated, including for an entry that records no
+     * services at all; {@see self::reviewReasons()} turns that into a review, so the import is
+     * never called with a plan list it would reject.
      *
      * @return list<string>
      */
     private function groundTruthPlanKeys(OosArchiveEntry $entry, OosEmailParseResult $parseResult): array
     {
-        $threshold = (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90);
         $keys = [];
 
         foreach ($parseResult->servicePlans as $plan) {
             if ($plan->date === $entry->groundTruthDate
                 && $plan->service instanceof SermonService
                 && in_array($plan->service->value, $entry->servicesPresent, true)
-                && $plan->items !== []
-                && $plan->confidence >= $threshold) {
+                && $plan->items !== []) {
                 $keys[] = $plan->key();
             }
         }
 
         return array_values(array_unique($keys));
+    }
+
+    /**
+     * Take the synthetic email out of the archive-only ArchiveEval status so it behaves like any
+     * other inbound email — reachable from the review inbox, approvable, editable.
+     *
+     * Only an `--import` run does this: an evaluation run is meant to produce a report for
+     * private inspection, not to drop eighty entries into the operator's inbox.
+     *
+     * An already-processed email is pushed back to Pending as well, because
+     * {@see InboundEmailImportService::recordImportOutcome()} only ever promotes: without this a
+     * re-run whose re-parse now holds every plan — a changed source, or an extraction the
+     * validator has since learnt to reject — would stay silently Processed and unreachable. The
+     * promotion back to Processed happens inside the import when every plan resolves.
+     */
+    private function releaseToInbox(InboundEmail $inboundEmail, bool $shouldImport): void
+    {
+        if (! $shouldImport || $inboundEmail->status === InboundEmailStatus::Pending) {
+            return;
+        }
+
+        $inboundEmail->status = InboundEmailStatus::Pending;
+        $inboundEmail->save();
     }
 
     private function isValidDate(string $date): bool

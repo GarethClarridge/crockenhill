@@ -1731,6 +1731,112 @@ class ChurchServiceItemSyncServiceTest extends TestCase
     }
 
     #[Test]
+    public function test_an_email_merge_does_not_rewrite_the_reading_openlp_identified(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'source' => ChurchServiceItemSource::OpenLp->value,
+        ]);
+
+        $reading = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'bibles',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'Joshua 1:1-9',
+            'source_title' => 'Joshua 1:1-9 (NIV)',
+        ]);
+
+        // The plan named the chapter; the export named the verses actually on the
+        // slides. Identification is OpenLP's axis whichever import happens to run
+        // last, so the merge must record the email's wording without adopting it.
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'bibles', 'Joshua 1', 'Joshua 1', null),
+        ], ChurchServiceItemSource::Email);
+
+        $reading->refresh();
+
+        $this->assertSame('Joshua 1:1-9', $reading->title);
+        $this->assertSame('Joshua 1:1-9 (NIV)', $reading->source_title);
+        $this->assertSame(ChurchServiceItemSource::OpenLp, $reading->source);
+        $this->assertDatabaseCount('church_service_items', 1);
+        $this->assertSame(
+            [ChurchServiceItemSource::Email, ChurchServiceItemSource::OpenLp],
+            $reading->provenanceSources(),
+        );
+    }
+
+    #[Test]
+    public function test_the_reading_is_the_same_whichever_of_the_two_plans_imported_first(): void
+    {
+        $openLpFirst = ChurchService::factory()->create(['date' => '2026-03-01']);
+        $emailFirst = ChurchService::factory()->create(['date' => '2026-03-08']);
+
+        $openLpReading = fn (): array => $this->incomingItem(1, 'bibles', 'Joshua 1:1-9', 'Joshua 1:1-9 (NIV)', null);
+        $emailReading = fn (): array => $this->incomingItem(1, 'bibles', 'Joshua 1', 'Joshua 1', null);
+
+        $this->service->sync($openLpFirst, [$openLpReading()], ChurchServiceItemSource::OpenLp);
+        $this->service->sync($openLpFirst, [$emailReading()], ChurchServiceItemSource::Email);
+
+        $this->service->sync($emailFirst, [$emailReading()], ChurchServiceItemSource::Email);
+        $this->service->sync($emailFirst, [$openLpReading()], ChurchServiceItemSource::OpenLp);
+        // The historic import re-runs to prove idempotency, so the plan reaches the
+        // corrected row a second time.
+        $this->service->sync($emailFirst, [$emailReading()], ChurchServiceItemSource::Email);
+
+        $this->assertSame('Joshua 1:1-9', $openLpFirst->items()->sole()->title);
+        $this->assertSame('Joshua 1:1-9', $emailFirst->items()->sole()->title);
+    }
+
+    #[Test]
+    public function test_an_email_import_neither_deletes_nor_rewrites_a_reviewed_manual_item(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'source' => ChurchServiceItemSource::Manual->value,
+        ]);
+
+        $reviewerAddition = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'source' => ChurchServiceItemSource::Manual->value,
+            'title' => 'Baptism',
+            'source_title' => 'Baptism',
+        ]);
+
+        $reviewerCorrection = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 2,
+            'type' => 'bibles',
+            'source' => ChurchServiceItemSource::Manual->value,
+            'title' => 'Joshua 1:1-9',
+            'source_title' => 'Joshua 1:1-9',
+        ]);
+
+        // Re-importing the archive re-parses every entry, so the email plan reaches
+        // an already-reviewed service. It may still add what the reviewer never saw,
+        // but a person looked at this list: it is not a draft for the parser to redo.
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'bibles', 'Joshua 1', 'Joshua 1', null),
+            $this->incomingItem(2, 'custom', 'Opening Prayer', 'Opening Prayer', null),
+        ], ChurchServiceItemSource::Email);
+
+        $reviewerAddition->refresh();
+        $reviewerCorrection->refresh();
+
+        $this->assertNull($reviewerAddition->deleted_at);
+        $this->assertSame(ChurchServiceItemSource::Manual, $reviewerAddition->source);
+
+        $this->assertSame('Joshua 1:1-9', $reviewerCorrection->title);
+        $this->assertSame('Joshua 1:1-9', $reviewerCorrection->source_title);
+        $this->assertSame(ChurchServiceItemSource::Manual, $reviewerCorrection->source);
+
+        $this->assertNotNull(ChurchServiceItem::query()
+            ->where('church_service_id', $churchService->id)
+            ->where('title', 'Opening Prayer')
+            ->first());
+    }
+
+    #[Test]
     public function test_email_preserves_an_unmatched_detected_item(): void
     {
         $churchService = ChurchService::factory()->create(['source' => 'livestream']);

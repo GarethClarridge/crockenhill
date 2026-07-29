@@ -63,7 +63,7 @@ class ImportOosArchiveCommandTest extends TestCase
     }
 
     #[Test]
-    public function parse_runs_are_idempotent_hash_aware_and_hidden_from_admin_attention(): void
+    public function parse_runs_are_idempotent_and_hash_aware(): void
     {
         $extractor = new class implements OosEmailItemExtractor
         {
@@ -97,9 +97,11 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertDatabaseCount('inbound_emails', 1);
         $email = InboundEmail::query()->firstOrFail();
         $originalHash = $email->processing_metadata['archive']['input_hash'];
+
+        // An evaluation run produces a report for private inspection; only an --import run
+        // releases entries into the operator's inbox.
         $this->assertSame(InboundEmailStatus::ArchiveEval, $email->status);
         $this->assertSame(0, app(AdminAttentionCounts::class)->counts()['pending_emails']);
-        $this->assertSame(0, app(ReviewInboxQuery::class)->build()['counts']['emails']);
 
         file_put_contents($archive, $this->fullEntry('Sunday 12 July 2026', 'Changed song'));
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
@@ -110,14 +112,120 @@ class ImportOosArchiveCommandTest extends TestCase
     }
 
     #[Test]
-    public function import_respects_ground_truth_gates_skips_openlp_and_creates_only_gap_slots(): void
+    public function a_stale_parser_version_forces_a_reparse_even_when_the_input_hash_matches(): void
+    {
+        $extractor = new class implements OosEmailItemExtractor
+        {
+            public int $calls = 0;
+
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                $this->calls++;
+
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
+                    confidence: 0.99,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => '2026-07-12',
+                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                        'confidence' => 0.99,
+                    ]],
+                );
+            }
+        };
+        $this->app->instance(OosEmailItemExtractor::class, $extractor);
+        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $arguments = ['path' => $archive, '--report' => $this->temporaryPath('json')];
+
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+        $this->assertSame(1, $extractor->calls);
+
+        $email = InboundEmail::query()->firstOrFail();
+        $currentVersion = $email->processing_metadata['parsing']['parser_version'];
+        $this->assertNotNull($currentVersion);
+
+        // Age the cache the way an unbumped parser rewrite does: the archive text is untouched, so
+        // the input hash still matches and only the version can invalidate the stored parse.
+        $metadata = $email->processing_metadata;
+        $metadata['parsing']['parser_version'] = 'archive-v1';
+        $email->processing_metadata = $metadata;
+        $email->save();
+
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+
+        $this->assertSame(2, $extractor->calls);
+        $refreshed = $email->fresh()->processing_metadata['parsing'];
+        $this->assertSame($currentVersion, $refreshed['parser_version']);
+        $this->assertNotNull($refreshed['disposition']);
+    }
+
+    #[Test]
+    public function import_merges_into_an_existing_service_and_creates_gap_slots(): void
+    {
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                $date = str_contains($subject, '19 July') ? '2026-07-19' : '2026-07-12';
+
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
+                    confidence: 1.0,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => $date,
+                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                        'confidence' => 1.0,
+                    ]],
+                );
+            }
+        });
+
+        // An OpenLP export identifies the service but cannot carry prayers, notices or a sermon:
+        // the archive email is the completeness authority and merges into it.
+        $existing = ChurchService::factory()->create([
+            'date' => '2026-07-12',
+            'service' => 'morning',
+            'source' => 'openlp',
+            'import_metadata' => ['preserve' => true],
+        ]);
+        $archive = $this->writeArchive(
+            $this->fullEntry('Sunday 12 July 2026')
+            .$this->fullEntry('Sunday 19 July 2026')
+        );
+        $report = $this->temporaryPath('json');
+
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--import' => true,
+            '--report' => $report,
+        ])->assertExitCode(0);
+
+        $this->assertDatabaseCount('church_services', 2);
+        $this->assertSame('email', $existing->fresh()->source);
+        $this->assertSame('Amazing Grace', $existing->items()->firstOrFail()->title);
+        $this->assertTrue($existing->fresh()->import_metadata->toArray()['preserve']);
+        $this->assertDatabaseHas('church_services', [
+            'date' => '2026-07-19',
+            'service' => 'morning',
+            'source' => 'email',
+        ]);
+
+        $payload = $this->readReport($report);
+        $this->assertSame(['merged', 'created'], array_column($payload['entries'], 'disposition'));
+        $this->assertSame(2, InboundEmail::query()->where('status', InboundEmailStatus::Processed)->count());
+    }
+
+    #[Test]
+    public function an_import_blocks_a_contradicted_entry_and_sends_the_rest_to_the_review_inbox(): void
     {
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
         {
             public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
                 $date = match (true) {
-                    str_contains($subject, '19 July') => '2026-07-19',
+                    str_contains($subject, '13 July') => '2026-07-13',
                     str_contains($subject, '26 July') => '2026-07-26',
                     default => '2026-07-12',
                 };
@@ -134,15 +242,12 @@ class ImportOosArchiveCommandTest extends TestCase
                 );
             }
         });
-        $existing = ChurchService::factory()->create([
-            'date' => '2026-07-12',
-            'service' => 'morning',
-            'source' => 'openlp',
-            'import_metadata' => ['preserve' => true],
-        ]);
+
+        // 13 July 2026 is a Monday, so the second heading contradicts itself: the archive text
+        // must be corrected before anyone — human or pipeline — can act on it.
         $archive = $this->writeArchive(
             $this->fullEntry('Sunday 12 July 2026')
-            .$this->fullEntry('Sunday 19 July 2026')
+            .$this->fullEntry('Sunday 13 July 2026')
             .$this->unverifiedEntry('Sunday 26 July 2026')
         );
         $report = $this->temporaryPath('json');
@@ -153,21 +258,121 @@ class ImportOosArchiveCommandTest extends TestCase
             '--report' => $report,
         ])->assertExitCode(0);
 
-        $this->assertDatabaseCount('church_services', 2);
-        $this->assertSame('openlp', $existing->fresh()->source);
-        $this->assertSame(['preserve' => true], $existing->fresh()->import_metadata->toArray());
-        $this->assertDatabaseHas('church_services', [
-            'date' => '2026-07-19',
-            'service' => 'morning',
-            'source' => 'email',
-        ]);
-        $this->assertDatabaseMissing('church_services', ['date' => '2026-07-26']);
-
         $payload = $this->readReport($report);
-        $this->assertSame(['skipped_existing', 'created', 'skipped'], array_column($payload['entries'], 'disposition'));
+        $this->assertSame(['created', 'blocked', 'held_for_review'], array_column($payload['entries'], 'disposition'));
+        $this->assertContains('weekday_mismatch', $payload['entries'][1]['gate_reasons']);
         $this->assertContains('unverified_service_ground_truth', $payload['entries'][2]['gate_reasons']);
-        $this->assertSame(2, InboundEmail::query()->where('status', InboundEmailStatus::Processed)->count());
-        $this->assertSame(1, InboundEmail::query()->where('status', InboundEmailStatus::ArchiveEval)->count());
+
+        // Only the corroborated entry became a service; the other two wrote nothing.
+        $this->assertDatabaseCount('church_services', 1);
+        $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
+
+        $blocked = $this->emailForEntry($payload, 1);
+        $reviewable = $this->emailForEntry($payload, 2);
+        $this->assertSame(InboundEmailStatus::ArchiveEval, $blocked->status);
+        $this->assertSame(InboundEmailStatus::Pending, $reviewable->status);
+
+        // The reviewable entry is now reachable by exactly the route a live email would take.
+        $this->assertSame(1, app(AdminAttentionCounts::class)->counts()['pending_emails']);
+        $this->assertSame(1, app(ReviewInboxQuery::class)->build()['counts']['emails']);
+    }
+
+    #[Test]
+    public function re_running_the_import_merges_idempotently(): void
+    {
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                $items = [
+                    ['type' => 'song', 'title' => 'Amazing Grace'],
+                    ['type' => 'sermon', 'title' => 'The Good Shepherd'],
+                ];
+
+                return new OosEmailItemExtractionResult(
+                    items: $items,
+                    confidence: 1.0,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => '2026-07-12',
+                        'items' => $items,
+                        'confidence' => 1.0,
+                    ]],
+                );
+            }
+        });
+        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $arguments = ['path' => $archive, '--import' => true, '--report' => $this->temporaryPath('json')];
+
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+
+        $service = ChurchService::query()->where('date', '2026-07-12')->firstOrFail();
+        $firstPass = $service->items()->orderBy('position')->pluck('title')->all();
+        $this->assertCount(2, $firstPass);
+
+        $report = $this->temporaryPath('json');
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--import' => true,
+            '--fresh-parse' => true,
+            '--report' => $report,
+        ])->assertExitCode(0);
+
+        $this->assertDatabaseCount('church_services', 1);
+        $this->assertSame($firstPass, $service->items()->orderBy('position')->pluck('title')->all());
+        $this->assertSame('merged', $this->readReport($report)['entries'][0]['disposition']);
+    }
+
+    #[Test]
+    public function a_reparse_that_holds_every_plan_returns_a_processed_entry_to_the_inbox(): void
+    {
+        // Exactly the shape of an invalidated cache: the archive text is untouched, but the
+        // re-parse no longer clears the auto-import bar. Nothing is applied to the service the
+        // earlier run built, so the entry has to become visible again rather than stay Processed.
+        $extractor = new class implements OosEmailItemExtractor
+        {
+            public float $confidence = 1.0;
+
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
+                    confidence: $this->confidence,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => '2026-07-12',
+                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                        'confidence' => $this->confidence,
+                    ]],
+                );
+            }
+        };
+        $this->app->instance(OosEmailItemExtractor::class, $extractor);
+        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--import' => true,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $this->assertSame(InboundEmailStatus::Processed, InboundEmail::query()->firstOrFail()->status);
+        $service = ChurchService::query()->where('date', '2026-07-12')->firstOrFail();
+
+        $extractor->confidence = 0.4;
+        $report = $this->temporaryPath('json');
+
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--import' => true,
+            '--fresh-parse' => true,
+            '--report' => $report,
+        ])->assertExitCode(0);
+
+        $this->assertSame('held_for_review', $this->readReport($report)['entries'][0]['disposition']);
+        $this->assertSame(InboundEmailStatus::Pending, InboundEmail::query()->firstOrFail()->status);
+        $this->assertSame(1, app(ReviewInboxQuery::class)->build()['counts']['emails']);
+        $this->assertSame('Amazing Grace', $service->items()->firstOrFail()->title);
     }
 
     #[Test]
@@ -245,14 +450,16 @@ class ImportOosArchiveCommandTest extends TestCase
         $payload = $this->readReport($report);
         $this->assertSame('import_failed', $payload['entries'][0]['disposition']);
         $this->assertStringContainsString('song sync exploded', (string) $payload['entries'][0]['error']);
-        $this->assertSame(InboundEmailStatus::ArchiveEval, InboundEmail::query()->firstOrFail()->status);
+        // A failed import leaves the email in the inbox, exactly as a live email would be.
+        $this->assertSame(InboundEmailStatus::Pending, InboundEmail::query()->firstOrFail()->status);
     }
 
     #[Test]
     public function a_corroborated_plan_below_the_auto_import_threshold_is_not_created(): void
     {
-        // Both services are in the ground truth, but the evening plan's confidence lands in the
-        // 0.75-0.89 review band. The archive gate is per-plan >= 0.90: only morning may import.
+        // Both services are in the ground truth, so the archive corroborates both plans. Whether
+        // either imports unattended is the live auto-import bar's decision, and the evening plan
+        // is below it: it is held for review while morning imports.
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
         {
             public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
@@ -364,7 +571,11 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertSame($originalItems, $service->items()->pluck('title')->all());
         $payload = $this->readReport($report);
         $this->assertContains('source_updated_after_import', $payload['entries'][0]['flags']);
-        $this->assertSame('skipped', $payload['entries'][0]['disposition']);
+        $this->assertSame('held_for_review', $payload['entries'][0]['disposition']);
+
+        // Corrected archive text after an import is precisely what a human must re-check, so the
+        // already-processed email is pushed back into the inbox rather than silently re-imported.
+        $this->assertSame(InboundEmailStatus::Pending, InboundEmail::query()->firstOrFail()->status);
     }
 
     private function fullEntry(string $heading, string $item = 'Amazing Grace'): string
@@ -431,6 +642,14 @@ MARKDOWN;
         $this->temporaryPaths[] = $path;
 
         return $path;
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function emailForEntry(array $payload, int $entryIndex): InboundEmail
+    {
+        return InboundEmail::query()
+            ->where('message_id', $payload['entries'][$entryIndex]['message_id'])
+            ->firstOrFail();
     }
 
     /** @return array<string, mixed> */

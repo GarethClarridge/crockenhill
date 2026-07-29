@@ -267,6 +267,34 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
         $this->assertNotEmpty($pending['classification']['review_required']);
     }
 
+    #[Test]
+    public function test_a_second_staged_proposal_does_not_discard_the_first(): void
+    {
+        $churchService = $this->createLivestreamService([
+            ['type' => 'songs', 'title' => 'Song A', 'confidence' => 'high'],
+            ['type' => 'custom', 'title' => 'Sermon', 'section_type' => ServiceSectionType::Sermon, 'confidence' => 'high'],
+        ]);
+
+        $this->service->merge($churchService, [
+            ['position' => 1, 'type' => 'songs', 'title' => 'OpenLP Song', 'source_title' => null, 'openlp_search_title' => 'openlp song@', 'song_id' => null, 'metadata' => null],
+        ], ChurchServiceItemSource::OpenLp);
+
+        // Importing every source before reviewing is the efficient order, so two
+        // proposals can queue against the same recording. Losing the first would
+        // lose exactly the three-source comparison the review exists to make.
+        $this->service->merge($churchService->fresh(), [
+            ['position' => 1, 'type' => 'songs', 'title' => 'Email Song', 'source_title' => null, 'openlp_search_title' => 'email song@', 'song_id' => null, 'metadata' => null],
+        ], ChurchServiceItemSource::Email);
+
+        $churchService->refresh();
+        $pending = $churchService->import_metadata?->toArray()['pending_structure_merge'] ?? [];
+
+        $this->assertSame('email', $churchService->pending_structure_merge_source);
+        $this->assertCount(1, $pending['superseded_proposals']);
+        $this->assertSame('openlp', $pending['superseded_proposals'][0]['incoming_source']);
+        $this->assertNotEmpty($pending['superseded_proposals'][0]['proposed_items']);
+    }
+
     /**
      * @param  list<array{type: string, title: string, confidence: string, section_type?: ServiceSectionType, song_id?: int|null}>  $items
      */

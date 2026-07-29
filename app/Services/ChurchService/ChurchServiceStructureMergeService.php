@@ -143,6 +143,8 @@ class ChurchServiceStructureMergeService
             $classification,
         );
 
+        $importMetadata = $churchService->import_metadata?->toArray() ?? [];
+
         $pendingMerge = [
             'created_at' => now()->toIso8601String(),
             'confidence' => [
@@ -152,9 +154,9 @@ class ChurchServiceStructureMergeService
             'conflicts' => $stagedConflicts,
             'proposed_items' => array_values($incomingItems),
             'classification' => $classification,
+            'superseded_proposals' => $this->supersededProposals($churchService, $importMetadata),
         ];
 
-        $importMetadata = $churchService->import_metadata?->toArray() ?? [];
         $importMetadata['pending_structure_merge'] = $pendingMerge;
 
         $churchService->forceFill([
@@ -179,6 +181,43 @@ class ChurchServiceStructureMergeService
             stagedConflicts: $stagedConflicts,
             reason: 'Staged for review: high-confidence livestream items conflict with incoming '.$incomingSource->value.' data',
         );
+    }
+
+    /**
+     * Proposals already waiting on this service, carried forward under the new one.
+     *
+     * There is one pending slot, so a second source staging against the same
+     * recording would otherwise overwrite the first without trace — and it is
+     * exactly the services with two staged proposals where the three-source
+     * comparison matters most. The reviewer resolves the newest proposal; the
+     * earlier ones stay readable beside it rather than disappearing.
+     *
+     * @param  array<string, mixed>  $importMetadata
+     * @return list<array<string, mixed>>
+     */
+    private function supersededProposals(ChurchService $churchService, array $importMetadata): array
+    {
+        $existing = $importMetadata['pending_structure_merge'] ?? null;
+
+        if (! is_array($existing)) {
+            return [];
+        }
+
+        $carriedForward = array_values(array_filter(
+            is_array($existing['superseded_proposals'] ?? null) ? $existing['superseded_proposals'] : [],
+            'is_array',
+        ));
+
+        unset($existing['superseded_proposals']);
+        $existing['incoming_source'] = $churchService->pending_structure_merge_source;
+        $existing['superseded_at'] = now()->toIso8601String();
+
+        Log::info('Structure merge: earlier proposal superseded', [
+            'church_service_id' => $churchService->id,
+            'superseded_source' => $churchService->pending_structure_merge_source,
+        ]);
+
+        return [...$carriedForward, $existing];
     }
 
     /**

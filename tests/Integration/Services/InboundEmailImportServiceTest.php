@@ -13,6 +13,7 @@ use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
+use App\Models\Song;
 use App\Models\User;
 use App\Services\ChurchService\ChurchServiceStructureMergeService;
 use App\Services\Email\InboundEmailImportService;
@@ -64,6 +65,113 @@ class InboundEmailImportServiceTest extends TestCase
         $this->assertSame(0.92, $restored->confidenceScore);
         $this->assertFalse($restored->needsReview);
         $this->assertTrue($restored->shouldImport);
+    }
+
+    #[Test]
+    public function test_stores_the_validation_fields_from_the_parse_result_itself(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create();
+
+        $parseResult = new OosEmailParseResult(
+            date: '2025-03-09',
+            service: SermonService::Morning,
+            items: [
+                ['position' => 1, 'type' => 'songs', 'title' => 'In Christ Alone', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ],
+            confidenceScore: 0.92,
+            needsReview: true,
+            shouldImport: false,
+            // Deliberately empty: the stored payload must come from the result's own fields
+            // rather than relying on the parser having duplicated them into this bag.
+            importMetadata: ['confidence_score' => 0.92],
+            disposition: OosEmailParseDisposition::InvalidExtraction,
+            validationReasons: ['item_line_reused'],
+            consensus: true,
+        );
+
+        $this->service->storeParseResult($inboundEmail, $parseResult);
+
+        $stored = $inboundEmail->fresh()->processing_metadata['parsing'];
+
+        $this->assertSame('invalid_extraction', $stored['disposition']);
+        $this->assertSame(['item_line_reused'], $stored['validation_reasons']);
+        $this->assertTrue($stored['consensus']);
+
+        $restored = $this->service->storedParseResult($inboundEmail->fresh());
+
+        $this->assertNotNull($restored);
+        $this->assertSame(OosEmailParseDisposition::InvalidExtraction, $restored->disposition);
+        $this->assertSame(['item_line_reused'], $restored->validationReasons);
+        $this->assertTrue($restored->consensus);
+    }
+
+    #[Test]
+    public function test_a_stored_parse_without_a_disposition_is_never_auto_importable(): void
+    {
+        // Shaped like a pre-validator cache: high confidence, should_import true and
+        // needs_review false, but no disposition, no validation reasons, no provenance.
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'parsing' => [
+                    'resolved_date' => '2025-03-09',
+                    'resolved_service' => 'morning',
+                    'items' => [
+                        ['position' => 1, 'type' => 'songs', 'title' => 'In Christ Alone', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                    ],
+                    'confidence_score' => 0.92,
+                    'needs_review' => false,
+                    'should_import' => true,
+                    'service_plans' => [
+                        [
+                            'plan_key' => 'morning:2025-03-09',
+                            'service' => 'morning',
+                            'date' => '2025-03-09',
+                            'items' => [
+                                ['position' => 1, 'type' => 'songs', 'title' => 'In Christ Alone', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                            ],
+                            'confidence' => 0.92,
+                            'needs_review' => false,
+                            'should_import' => true,
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $restored = $this->service->storedParseResult($inboundEmail);
+
+        $this->assertNotNull($restored);
+        $this->assertSame(OosEmailParseDisposition::ReviewRequired, $restored->disposition);
+        $this->assertSame(OosEmailParseDisposition::ReviewRequired, $restored->servicePlans[0]->disposition);
+        $this->assertFalse($restored->servicePlans[0]->isAutoImportable());
+        $this->assertTrue($restored->servicePlans[0]->isManuallyImportable());
+    }
+
+    #[Test]
+    public function test_an_unattended_import_holds_a_parse_that_predates_the_validator(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'parsing' => [
+                    'resolved_date' => '2025-03-09',
+                    'resolved_service' => 'morning',
+                    'items' => [
+                        ['position' => 1, 'type' => 'songs', 'title' => 'In Christ Alone', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                    ],
+                    'confidence_score' => 0.92,
+                    'needs_review' => false,
+                    'should_import' => true,
+                ],
+            ],
+        ]);
+
+        $restored = $this->service->storedParseResult($inboundEmail);
+        $this->assertNotNull($restored);
+
+        $result = $this->service->import($inboundEmail, $restored);
+
+        $this->assertSame('held_for_review', $result->plans[0]->outcome->value);
+        $this->assertDatabaseCount('church_services', 0);
     }
 
     #[Test]
@@ -293,20 +401,32 @@ class InboundEmailImportServiceTest extends TestCase
     }
 
     #[Test]
-    public function test_create_only_import_leaves_an_existing_openlp_service_untouched(): void
+    public function test_import_merges_into_an_existing_openlp_service_and_keeps_its_song_links(): void
     {
+        // OpenLP is the identification authority — its song links are the trustworthy part of
+        // the record — while the email is the completeness authority. Merging must therefore add
+        // the email's items without dropping the song identity OpenLP established.
+        $song = Song::factory()->create(['title' => 'In Christ Alone']);
         $existing = ChurchService::factory()->create([
             'date' => '2025-03-09',
             'service' => 'morning',
             'source' => 'openlp',
             'import_metadata' => ['original' => true],
         ]);
-        $inboundEmail = InboundEmail::factory()->create(['status' => InboundEmailStatus::ArchiveEval]);
+        $existing->items()->create([
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'In Christ Alone',
+            'song_id' => $song->id,
+            'source' => ChurchServiceItemSource::OpenLp->value,
+        ]);
+        $inboundEmail = InboundEmail::factory()->create(['status' => InboundEmailStatus::Pending]);
         $parseResult = new OosEmailParseResult(
             date: '2025-03-09',
             service: SermonService::Morning,
             items: [
-                ['position' => 1, 'type' => 'songs', 'title' => 'Replacement', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                ['position' => 1, 'type' => 'songs', 'title' => 'In Christ Alone', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                ['position' => 2, 'type' => 'sermon', 'title' => 'The Good Shepherd', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
             ],
             confidenceScore: 0.99,
             needsReview: false,
@@ -314,12 +434,20 @@ class InboundEmailImportServiceTest extends TestCase
             importMetadata: ['confidence_score' => 0.99],
         );
 
-        $result = $this->service->import($inboundEmail, $parseResult, createOnly: true);
+        $result = $this->service->import($inboundEmail, $parseResult);
 
         $this->assertSame($existing->id, $result->firstResolvedService()?->id);
-        $this->assertSame('openlp', $existing->fresh()->source);
-        $this->assertSame(['original' => true], $existing->fresh()->import_metadata->toArray());
-        $this->assertDatabaseCount('church_service_items', 0);
+        $this->assertSame([], $result->created());
+        $this->assertCount(1, $result->merged());
+        $this->assertDatabaseCount('church_services', 1);
+        $this->assertSame('email', $existing->fresh()->source);
+
+        // The email adds the sermon an OpenLP export structurally cannot carry, and the song
+        // keeps the catalogue link it already had.
+        $items = $existing->items()->orderBy('position')->get();
+        $this->assertSame(['In Christ Alone', 'The Good Shepherd'], $items->pluck('title')->all());
+        $this->assertSame($song->id, $items->firstOrFail()->song_id);
+        $this->assertTrue($existing->fresh()->import_metadata->toArray()['original']);
         $this->assertSame(InboundEmailStatus::Processed, $inboundEmail->fresh()->status);
     }
 

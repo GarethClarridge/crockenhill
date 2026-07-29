@@ -100,12 +100,12 @@ class ChurchServiceItemSyncService
 
                 if ($match !== null) {
                     $existingSource = $this->sourceForExistingItem($match);
-                    $preserveExistingSongIdentity = $this->shouldPreserveExistingSongIdentity($match, $incomingSource);
+                    $preserveExistingIdentity = $this->shouldPreserveExistingIdentity($match, $incomingSource);
                     $matchConflicts = $this->conflictsForMatchedItem(
                         $match,
                         $incomingItem,
                         $incomingSource,
-                        $preserveExistingSongIdentity,
+                        $preserveExistingIdentity,
                     );
                     $conflicts = [...$conflicts, ...$matchConflicts];
                     $plan[] = [
@@ -399,23 +399,23 @@ class ChurchServiceItemSyncService
         }
 
         $existingSource = $this->sourceForExistingItem($existingItem);
-        $preserveExistingSongIdentity = $this->shouldPreserveExistingSongIdentity($existingItem, $incomingSource);
+        $preserveExistingIdentity = $this->shouldPreserveExistingIdentity($existingItem, $incomingSource);
         $preserveExistingPresentationIdentity = $this->shouldPreserveExistingPresentationIdentity($existingItem, $incomingItem);
 
         $fillData = [
             'position' => $position,
             'type' => $preserveExistingPresentationIdentity ? $existingItem->type : $incomingItem['type'],
             'section_type' => $this->resolveMergedSectionType($existingItem, $incomingItem),
-            'source' => $this->resolveSource($existingItem, $incomingSource)->value,
+            'source' => $this->resolveSource($existingItem, $incomingSource, $preserveExistingIdentity)->value,
             'title' => $this->resolveTitle(
                 $existingItem,
                 $incomingItem,
-                $preserveExistingSongIdentity || $preserveExistingPresentationIdentity,
+                $preserveExistingIdentity || $preserveExistingPresentationIdentity,
             ),
-            'source_title' => $this->resolveSourceTitle($existingItem, $incomingItem, $incomingSource),
-            'openlp_search_title' => $this->resolveOpenLpSearchTitle($existingItem, $incomingItem, $preserveExistingSongIdentity),
-            'song_id' => $this->resolveSongId($existingItem, $incomingItem, $preserveExistingSongIdentity),
-            'metadata' => $this->resolveMetadata($existingItem, $incomingItem, $existingSource, $incomingSource),
+            'source_title' => $this->resolveSourceTitle($existingItem, $incomingItem, $preserveExistingIdentity),
+            'openlp_search_title' => $this->resolveOpenLpSearchTitle($existingItem, $incomingItem, $preserveExistingIdentity),
+            'song_id' => $this->resolveSongId($existingItem, $incomingItem, $preserveExistingIdentity),
+            'metadata' => $this->resolveMetadata($existingItem, $incomingItem, $existingSource, $incomingSource, $preserveExistingIdentity),
         ];
 
         if ($rawIncomingItem !== null) {
@@ -657,46 +657,35 @@ class ChurchServiceItemSyncService
         return $this->sourcesShareMergeAuthority($this->sourceForExistingItem($existingItem), $incomingSource);
     }
 
+    /**
+     * Whether an existing row the incoming list never mentioned should go.
+     *
+     * Silence only means absence when the writer was stating the whole list. An
+     * OpenLP export carries slide-backed items only, an email plan predates the
+     * service, and a run reports what it heard — none of the three is trying to be
+     * complete, so none of them may read another's entry as deleted. Three writes
+     * do state a complete list: an explicit replace, a source restating its own
+     * earlier import, and a manual save, where the admin saw the row on screen and
+     * took it off.
+     */
     private function shouldDeleteUnmatchedItem(
         ChurchServiceItem $existingItem,
         ChurchServiceItemSource $incomingSource,
         bool $replaceMode
     ): bool {
-        $existingSource = $this->sourceForExistingItem($existingItem);
-
-        if ($this->sourcesShareMergeAuthority($existingSource, $incomingSource)) {
+        if ($replaceMode) {
             return true;
         }
 
-        if ($this->isSongType($existingItem->type)) {
-            return $replaceMode;
+        $existingSource = $this->sourceForExistingItem($existingItem);
+
+        if ($incomingSource === ChurchServiceItemSource::Manual) {
+            // Except a song the run heard: the admin was reading a plan, and the
+            // recording is the better witness to what was actually sung.
+            return ! ($existingSource->isDetected() && $this->isSongType($existingItem->type));
         }
 
-        // The run is the record of what actually happened, so its silence-free
-        // observations outlive lists that were never trying to be complete: an
-        // OpenLP export carries only slide-backed items, and an email plan predates
-        // the service. Only a manual save states the whole list — the admin saw the
-        // item on screen and removed it — and only an explicit replace discards it
-        // wholesale.
-        if ($existingSource->isDetected()) {
-            return $replaceMode || $incomingSource === ChurchServiceItemSource::Manual;
-        }
-
-        if ($incomingSource === ChurchServiceItemSource::OpenLp && $existingSource->isHumanProvided()) {
-            return false;
-        }
-
-        if ($existingSource === ChurchServiceItemSource::OpenLp && $incomingSource->isHumanProvided()) {
-            return $incomingSource === ChurchServiceItemSource::Manual;
-        }
-
-        // Everything below here was authored by a plan the run cannot see all of,
-        // so an observation that missed it is not evidence it never happened.
-        if ($incomingSource->isDetected()) {
-            return false;
-        }
-
-        return true;
+        return $existingSource === $incomingSource;
     }
 
     private function shouldKeepExistingPosition(
@@ -753,9 +742,9 @@ class ChurchServiceItemSyncService
     private function resolveOpenLpSearchTitle(
         ChurchServiceItem $existingItem,
         array $incomingItem,
-        bool $preserveExistingSongIdentity
+        bool $preserveExistingIdentity
     ): ?string {
-        if ($preserveExistingSongIdentity) {
+        if ($preserveExistingIdentity) {
             return $existingItem->openlp_search_title ?? $incomingItem['openlp_search_title'];
         }
 
@@ -768,9 +757,9 @@ class ChurchServiceItemSyncService
     private function resolveTitle(
         ChurchServiceItem $existingItem,
         array $incomingItem,
-        bool $preserveExistingSongIdentity
+        bool $preserveExistingIdentity
     ): string {
-        if ($preserveExistingSongIdentity) {
+        if ($preserveExistingIdentity) {
             return $existingItem->title;
         }
 
@@ -783,28 +772,14 @@ class ChurchServiceItemSyncService
     private function resolveSourceTitle(
         ChurchServiceItem $existingItem,
         array $incomingItem,
-        ChurchServiceItemSource $incomingSource
+        bool $preserveExistingIdentity
     ): ?string {
-        $existingSource = $this->sourceForExistingItem($existingItem);
-
-        if ($incomingSource->isDetected() && ! $this->sourcesShareMergeAuthority($existingSource, $incomingSource)) {
+        if ($preserveExistingIdentity) {
             return $existingItem->source_title ?? $incomingItem['source_title'];
         }
 
-        if (! $this->isSongType($existingItem->type)) {
-            return $incomingItem['source_title'];
-        }
-
-        if ($existingSource->isHumanProvided() && $incomingSource === ChurchServiceItemSource::OpenLp) {
-            return $existingItem->source_title ?? $incomingItem['source_title'];
-        }
-
-        if ($existingSource === ChurchServiceItemSource::OpenLp && $incomingSource->isHumanProvided()) {
+        if ($this->isSongType($existingItem->type)) {
             return $incomingItem['source_title'] ?? $existingItem->source_title;
-        }
-
-        if ($incomingSource->isDetected() && ! $this->sourcesShareMergeAuthority($existingSource, $incomingSource)) {
-            return $existingItem->source_title ?? $incomingItem['source_title'];
         }
 
         return $incomingItem['source_title'];
@@ -816,7 +791,7 @@ class ChurchServiceItemSyncService
     private function resolveSongId(
         ChurchServiceItem $existingItem,
         array $incomingItem,
-        bool $preserveExistingSongIdentity
+        bool $preserveExistingIdentity
     ): ?int {
         $incomingIsExplicit = $this->hasExplicitSongLink($incomingItem['metadata']);
         $existingIsExplicit = $this->hasExplicitSongLink($existingItem->metadata);
@@ -832,7 +807,7 @@ class ChurchServiceItemSyncService
             return $existingItem->song_id;
         }
 
-        if ($preserveExistingSongIdentity) {
+        if ($preserveExistingIdentity) {
             return $existingItem->song_id ?? $incomingItem['song_id'];
         }
 
@@ -858,7 +833,8 @@ class ChurchServiceItemSyncService
 
     private function resolveSource(
         ChurchServiceItem $existingItem,
-        ChurchServiceItemSource $incomingSource
+        ChurchServiceItemSource $incomingSource,
+        bool $preserveExistingIdentity
     ): ChurchServiceItemSource {
         $existingSource = $this->sourceForExistingItem($existingItem);
 
@@ -868,9 +844,11 @@ class ChurchServiceItemSyncService
 
         // Observing an item does not make the run its author. Provenance drives
         // the authority rules on the next merge, so handing it over would let a
-        // detected run quietly demote what OpenLP or the email recorded.
+        // detected run quietly demote what OpenLP or the email recorded — or let a
+        // re-parsed email inherit a row a person had already settled.
         if (
-            $incomingSource->isDetected()
+            $preserveExistingIdentity
+            || $incomingSource->isDetected()
             || $this->isSongType($existingItem->type)
             || ($incomingSource === ChurchServiceItemSource::OpenLp && $existingSource->isHumanProvided())
         ) {
@@ -888,10 +866,11 @@ class ChurchServiceItemSyncService
         ChurchServiceItem $existingItem,
         array $incomingItem,
         ChurchServiceItemSource $existingSource,
-        ChurchServiceItemSource $incomingSource
+        ChurchServiceItemSource $incomingSource,
+        bool $preserveExistingIdentity
     ): array {
         $metadata = $this->withSurvivingExplicitSongLink(
-            $this->mergeMetadataForSources($existingItem, $incomingItem, $existingSource, $incomingSource),
+            $this->mergeMetadataForSources($existingItem, $incomingItem, $existingSource, $incomingSource, $preserveExistingIdentity),
             $existingItem,
             $incomingItem,
         );
@@ -1021,10 +1000,17 @@ class ChurchServiceItemSyncService
         ChurchServiceItem $existingItem,
         array $incomingItem,
         ChurchServiceItemSource $existingSource,
-        ChurchServiceItemSource $incomingSource
+        ChurchServiceItemSource $incomingSource,
+        bool $preserveExistingIdentity
     ): ?array {
         $existingMetadata = is_array($existingItem->metadata) ? $existingItem->metadata : null;
         $incomingMetadata = $incomingItem['metadata'];
+
+        // The incoming source still contributes what the existing row has no value
+        // for; it just cannot overwrite the keys the owning source already set.
+        if ($preserveExistingIdentity) {
+            return $this->mergeMetadata($incomingMetadata, $existingMetadata);
+        }
 
         if (
             $this->isSongType($existingItem->type)
@@ -1121,38 +1107,70 @@ class ChurchServiceItemSyncService
     }
 
     /**
-     * Whether the existing song entry owns its identity against this incoming source.
+     * Whether the existing entry owns its identity against this incoming source.
      *
-     * A detected (livestream) run infers songs from audio; the order of service is
-     * the record of what was actually planned and sung. So a livestream run fills
-     * gaps in the order of service and attaches its own provenance, but never
-     * rewrites the title, search title, song link or metadata of an entry another
-     * source already owns.
+     * Identity is the axis each source is separately good at, and the answer must
+     * not depend on which import happened to run last:
+     *
+     *  - a detected run infers everything it names from audio, so it never rewrites
+     *    an entry another source authored — a reading or a notice as much as a song;
+     *  - OpenLP identifies the songs and readings it puts on the screen, where the
+     *    email plan is typed by hand ahead of the service and is often approximate;
+     *  - a row a person reviewed is not a draft for the next re-parse of the same
+     *    email to redo.
+     *
+     * A manual save is absent from the list on purpose: it is the one write allowed
+     * to correct any of them.
      */
-    private function shouldPreserveExistingSongIdentity(
+    private function shouldPreserveExistingIdentity(
         ChurchServiceItem $existingItem,
         ChurchServiceItemSource $incomingSource
     ): bool {
         $existingSource = $this->sourceForExistingItem($existingItem);
 
-        // A detected run identifies nothing more reliably than the list it is
-        // merging into — that holds for a bible reading or a notice just as much
-        // as for a song, so it never rewrites an entry another source authored.
         if ($incomingSource->isDetected()) {
-            return ! $this->sourcesShareMergeAuthority($existingSource, $incomingSource);
+            return $existingSource !== $incomingSource;
         }
 
-        return $this->isSongType($existingItem->type)
-            && $incomingSource->isHumanProvided()
-            && $existingSource === ChurchServiceItemSource::OpenLp;
+        // Asked of the evidence rather than the `source` column, because the column
+        // names whoever created the row and provenance never transfers on a match.
+        // An OpenLP export that corrected an emailed song leaves the row saying
+        // "email", and reading only that would let the next parse of the same email
+        // undo the correction — the arrival order deciding the outcome after all.
+        $evidence = $existingItem->provenanceSources();
+
+        if (
+            in_array(ChurchServiceItemSource::Manual, $evidence, true)
+            && $incomingSource !== ChurchServiceItemSource::Manual
+        ) {
+            return true;
+        }
+
+        return $incomingSource === ChurchServiceItemSource::Email
+            && $this->isIdentifiedType($existingItem->type)
+            && in_array(ChurchServiceItemSource::OpenLp, $evidence, true);
     }
 
+    /**
+     * The item types OpenLP puts on a slide, and therefore identifies exactly.
+     */
+    private function isIdentifiedType(string $type): bool
+    {
+        return in_array($type, ['songs', 'bibles'], true);
+    }
+
+    /**
+     * Whether two sources are writing the same list rather than merging two lists.
+     *
+     * Only a source restating its own earlier import qualifies. Positional and
+     * wholesale-replacement reasoning is sound within one list and unsound between
+     * two independently authored ones, which is every other pairing here.
+     */
     private function sourcesShareMergeAuthority(
         ChurchServiceItemSource $existingSource,
         ChurchServiceItemSource $incomingSource
     ): bool {
-        return $existingSource === $incomingSource
-            || ($existingSource->isHumanProvided() && $incomingSource->isHumanProvided());
+        return $existingSource === $incomingSource;
     }
 
     private function sourceForExistingItem(ChurchServiceItem $existingItem): ChurchServiceItemSource
@@ -1683,9 +1701,16 @@ class ChurchServiceItemSyncService
         ChurchServiceItem $existingItem,
         array $incomingItem,
         ChurchServiceItemSource $incomingSource,
-        bool $preserveExistingSongIdentity
+        bool $preserveExistingIdentity
     ): array {
-        if (! $preserveExistingSongIdentity) {
+        if (! $preserveExistingIdentity) {
+            return [];
+        }
+
+        // Scoped to songs on purpose. A plan naming the chapter where the export
+        // names the verses is the normal shape of a corroborated reading, not a
+        // disagreement — flagging it would send most services to the inbox.
+        if (! $this->isSongType($existingItem->type)) {
             return [];
         }
 

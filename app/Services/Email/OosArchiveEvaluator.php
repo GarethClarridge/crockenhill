@@ -61,6 +61,9 @@ class OosArchiveEvaluator
             'input_hash' => $entry->inputHash,
             'label_quality' => $entry->labelQuality,
             'flags' => $entry->flags,
+            // Parse-quality signals; filled in by the caller, which owns the thresholds. Present
+            // and empty on entries that were never parsed, so the report shape stays uniform.
+            'parse_flags' => [],
             'error' => $error,
             'date' => [
                 'expected' => $entry->groundTruthDate,

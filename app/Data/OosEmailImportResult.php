@@ -31,6 +31,19 @@ readonly class OosEmailImportResult
         ));
     }
 
+    /**
+     * Plans applied to a service that already existed, as opposed to one this import created.
+     *
+     * @return list<OosEmailImportPlanOutcome>
+     */
+    public function merged(): array
+    {
+        return array_values(array_filter(
+            $this->plans,
+            static fn (OosEmailImportPlanOutcome $plan): bool => $plan->outcome === OosEmailImportOutcome::Merged,
+        ));
+    }
+
     public function firstCreatedService(): ?ChurchService
     {
         foreach ($this->plans as $plan) {
@@ -44,7 +57,7 @@ readonly class OosEmailImportResult
 
     /**
      * The service a caller should surface after importing: the first created service, else the
-     * first plan that resolved to any service (merged/skipped), so redirects still land somewhere.
+     * first plan that resolved to any service (merged or staged), so redirects still land somewhere.
      */
     public function primaryService(): ?ChurchService
     {
@@ -104,7 +117,7 @@ readonly class OosEmailImportResult
     }
 
     /**
-     * Every plan reached a terminal outcome (created/merged/skipped) and there was at least one.
+     * Every plan reached a terminal outcome (created/merged) and there was at least one.
      */
     public function isFullyResolved(): bool
     {

@@ -53,9 +53,16 @@ class SaveChurchServiceFromAdmin
         $inboundEmail = $inboundEmailId !== null
             ? InboundEmail::query()->find($inboundEmailId)
             : null;
-        $incomingSource = $inboundEmail instanceof InboundEmail
-            ? ChurchServiceItemSource::Email
-            : ChurchServiceItemSource::Manual;
+
+        /**
+         * Always manual, including when an inbound email is being finished off.
+         * The email is where the plan came from, but this write is a person stating
+         * the whole list from the screen — which is what lets the save delete and
+         * reorder rows other sources authored, and what stops the next re-parse of
+         * the same email undoing the review. The email link itself is preserved by
+         * markAsProcessedFromManualReview() below.
+         */
+        $incomingSource = ChurchServiceItemSource::Manual;
 
         /**
          * @var array{0: ChurchService, 1: array{conflicts: array<int, array<string, mixed>>}} $transactionResult
