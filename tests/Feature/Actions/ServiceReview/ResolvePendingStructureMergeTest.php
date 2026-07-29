@@ -204,6 +204,48 @@ class ResolvePendingStructureMergeTest extends TestCase
         $this->assertArrayHasKey('openlp_import', $metadata);
     }
 
+    #[Test]
+    public function resolution_records_the_resulting_revision_as_reviewed(): void
+    {
+        $service = $this->createServiceWithPendingMerge();
+
+        $result = $this->action->execute(
+            $service,
+            'accept_incoming',
+            $this->admin->id,
+            $service->canonical_revision,
+        );
+
+        $result->churchService->refresh();
+
+        $this->assertSame(
+            $result->churchService->canonical_revision,
+            $result->churchService->reviewed_canonical_revision,
+        );
+        $this->assertSame('manual', $result->churchService->source_summary);
+    }
+
+    #[Test]
+    public function stale_resolution_fails_without_clearing_the_proposal(): void
+    {
+        $service = $this->createServiceWithPendingMerge();
+
+        $result = $this->action->execute(
+            $service,
+            'accept_incoming',
+            $this->admin->id,
+            $service->canonical_revision + 1,
+        );
+
+        $this->assertFalse($result->applied);
+        $this->assertStringContainsString('changed since you opened', $result->reason);
+        $this->assertNotNull($service->fresh()->pending_structure_merge_source);
+        $this->assertArrayHasKey(
+            'pending_structure_merge',
+            $service->fresh()->import_metadata?->toArray() ?? [],
+        );
+    }
+
     /**
      * @param  array<string, mixed>  $extraMetadata
      */

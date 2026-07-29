@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature\R8;
 
+use App\Actions\IngestChurchServiceSourceRevision;
 use App\Actions\SaveChurchServiceFromAdmin;
+use App\Data\ChurchServiceSourceRevision;
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\ChurchServiceSource;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\User;
-use App\Services\ChurchService\ChurchServiceItemSyncService;
+use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\Test;
@@ -32,7 +35,7 @@ class DataConvergenceCorrectnessTest extends TestCase
     {
         $service = $this->reviewedServiceWithSong(ChurchServiceItemSource::Email);
 
-        app(ChurchServiceItemSyncService::class)->sync($service, [], ChurchServiceItemSource::Email);
+        $this->ingest($service, ChurchServiceSource::Email, []);
 
         $this->assertSame(['Reviewed Song'], $this->canonicalTitles($service));
         $this->assertProposalExists($service, ChurchServiceItemSource::Email);
@@ -43,7 +46,7 @@ class DataConvergenceCorrectnessTest extends TestCase
     {
         $service = $this->reviewedServiceWithSong(ChurchServiceItemSource::OpenLp);
 
-        app(ChurchServiceItemSyncService::class)->sync($service, [], ChurchServiceItemSource::OpenLp);
+        $this->ingest($service, ChurchServiceSource::OpenLp, []);
 
         $this->assertSame(['Reviewed Song'], $this->canonicalTitles($service));
         $this->assertProposalExists($service, ChurchServiceItemSource::OpenLp);
@@ -55,10 +58,10 @@ class DataConvergenceCorrectnessTest extends TestCase
         $service = $this->reviewedServiceWithSong(ChurchServiceItemSource::Email);
         $before = $this->canonicalManifest($service);
 
-        app(ChurchServiceItemSyncService::class)->sync($service, [
+        $this->ingest($service, ChurchServiceSource::Livestream, [
             $this->item(1, 'songs', 'Changed Song'),
             $this->item(2, 'custom', 'Machine Addition'),
-        ], ChurchServiceItemSource::Livestream);
+        ]);
 
         $this->assertSame($before, $this->canonicalManifest($service));
         $this->assertProposalExists($service, ChurchServiceItemSource::Livestream);
@@ -67,9 +70,18 @@ class DataConvergenceCorrectnessTest extends TestCase
     #[Test]
     public function resolving_one_source_proposal_does_not_remove_another_source_proposal(): void
     {
-        $this->assertNormalizedEvidenceSchemaExists();
+        $service = $this->reviewedServiceWithSong(ChurchServiceItemSource::Email);
+        $this->ingest($service, ChurchServiceSource::Email, []);
+        $emailProposal = $service->mergeProposals()->latest('id')->firstOrFail();
+        $this->ingest($service, ChurchServiceSource::OpenLp, [
+            $this->item(1, 'songs', 'OpenLP proposal'),
+        ]);
+        $openLpProposal = $service->mergeProposals()->latest('id')->firstOrFail();
 
-        $this->fail('OpenLP and Email proposals must remain independently resolvable and auditable.');
+        $emailProposal->update(['status' => 'accepted']);
+
+        $this->assertDatabaseHas('church_service_merge_proposals', ['id' => $emailProposal->id, 'status' => 'accepted']);
+        $this->assertDatabaseHas('church_service_merge_proposals', ['id' => $openLpProposal->id, 'status' => 'pending']);
     }
 
     #[Test]
@@ -82,41 +94,69 @@ class DataConvergenceCorrectnessTest extends TestCase
             $service = ChurchService::factory()->create(['date' => "2026-08-0{$day}"]);
 
             foreach ($sources as $source) {
-                app(ChurchServiceItemSyncService::class)->sync(
+                $this->ingest(
                     $service,
+                    ChurchServiceSource::from($source->value),
                     $this->sourceItems($source),
-                    $source,
                 );
             }
 
-            $manifests[] = $this->canonicalManifest($service);
+            $manifests[] = $service->fresh()->canonical_hash;
         }
 
-        $this->assertCount(1, array_unique($manifests));
+        $this->assertCount(1, array_unique($manifests), json_encode($manifests, JSON_THROW_ON_ERROR));
     }
 
     #[Test]
     public function livestream_service_content_is_order_independent_reviewable_and_hashed(): void
     {
-        $this->assertNormalizedEvidenceSchemaExists();
+        $service = $this->reviewedServiceWithSong(ChurchServiceItemSource::Email);
+        $before = $this->canonicalManifest($service);
+        $content = [
+            'summary' => 'Machine summary',
+            'notices' => [['title' => 'Notice', 'details' => null]],
+            'chapter_markers' => [['title' => 'Sermon', 'start_time' => 120, 'end_time' => 900]],
+        ];
 
-        $this->fail('Livestream summary, notices, and chapter markers must enter review and the canonical hash.');
+        $this->ingest($service, ChurchServiceSource::Livestream, $this->sourceItems(ChurchServiceItemSource::Livestream), $content);
+
+        $this->assertSame($before, $this->canonicalManifest($service));
+        $proposal = $service->mergeProposals()->latest('id')->firstOrFail();
+        $this->assertNotSame($service->canonical_hash, $proposal->proposed_hash);
+        $this->assertEquals($content, $proposal->triggerSourceRecord->service_content);
     }
 
     #[Test]
     public function ingesting_an_identical_source_revision_writes_nothing(): void
     {
-        $this->assertNormalizedEvidenceSchemaExists();
+        $service = ChurchService::factory()->create();
+        $items = $this->sourceItems(ChurchServiceItemSource::Email);
 
-        $this->fail('An identical source revision must not create records, proposals, or canonical writes.');
+        $this->ingest($service, ChurchServiceSource::Email, $items);
+        $revision = $service->fresh()->canonical_revision;
+        $this->ingest($service, ChurchServiceSource::Email, $items);
+
+        $this->assertSame(1, $service->sourceRecords()->count());
+        $this->assertSame(0, $service->mergeProposals()->count());
+        $this->assertSame($revision, $service->fresh()->canonical_revision);
     }
 
     #[Test]
     public function concurrent_source_writes_preserve_both_revisions_and_both_proposals(): void
     {
-        $this->assertNormalizedEvidenceSchemaExists();
+        $service = $this->reviewedServiceWithSong(ChurchServiceItemSource::Email);
 
-        $this->fail('Concurrent source ingestion must preserve both immutable revisions and proposals.');
+        $this->ingest($service, ChurchServiceSource::Email, []);
+        $this->ingest($service, ChurchServiceSource::OpenLp, [
+            $this->item(1, 'songs', 'OpenLP proposal'),
+        ]);
+
+        $this->assertSame(3, $service->sourceRecords()->count());
+        $this->assertSame(2, $service->mergeProposals()->count());
+        $this->assertSame(
+            ['pending', 'stale'],
+            $service->mergeProposals()->pluck('status')->map->value->sort()->values()->all(),
+        );
     }
 
     #[Test]
@@ -229,6 +269,57 @@ class DataConvergenceCorrectnessTest extends TestCase
                 && Schema::hasTable('church_service_item_assertions')
                 && Schema::hasTable('church_service_merge_proposals'),
             'The immutable evidence and proposal schema required by the convergence contract does not exist yet.',
+        );
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
+     * @param  array<string, mixed>|null  $serviceContent
+     */
+    private function ingest(
+        ChurchService $service,
+        ChurchServiceSource $source,
+        array $items,
+        ?array $serviceContent = null,
+    ): void {
+        $assertions = collect($items)
+            ->values()
+            ->map(function (array $item, int $index): array {
+                $position = (int) ($item['position'] ?? $index + 1);
+                $title = (string) ($item['title'] ?? '');
+
+                return [
+                    'assertion_key' => (string) $position,
+                    'source_position' => $position,
+                    'evidence_kind' => 'planned',
+                    'type' => $item['type'],
+                    'section_type' => null,
+                    'title' => $title,
+                    'source_title' => $item['source_title'] ?? $title,
+                    'normalized_title' => strtolower($title),
+                    'song_id' => $item['song_id'] ?? null,
+                    'song_canonical_key' => null,
+                    'scripture_reference' => null,
+                    'normalized_scripture_key' => null,
+                    'start_seconds' => null,
+                    'end_seconds' => null,
+                    'confidence' => null,
+                    'metadata' => $item['metadata'] ?? null,
+                ];
+            })
+            ->all();
+        $inputHash = CanonicalJson::hash([$assertions, $serviceContent]);
+
+        app(IngestChurchServiceSourceRevision::class)->execute(
+            $service,
+            new ChurchServiceSourceRevision(
+                source: $source,
+                sourceKey: "contract-{$service->date->toDateString()}-{$service->service->value}-{$source->value}",
+                inputHash: $inputHash,
+                assertions: $assertions,
+                processingFingerprint: ['format' => 'contract-test', 'version' => 1],
+                serviceContent: $serviceContent,
+            ),
         );
     }
 

@@ -67,9 +67,13 @@ trait EditsPlannedItems
                 userId: Auth::user()->id ?? abort(403),
                 inboundEmailId: $this->inboundEmailIdForPlannedItems(),
                 planKey: $this->planKeyForPlannedItems(),
+                expectedCanonicalRevision: $existingChurchService?->canonical_revision,
             );
         } catch (RuntimeException $exception) {
-            if (str_contains($exception->getMessage(), 'ordering conflict')) {
+            if (
+                str_contains($exception->getMessage(), 'ordering conflict')
+                || str_contains($exception->getMessage(), 'changed since you opened')
+            ) {
                 $this->addError('form.items', $exception->getMessage());
 
                 return null;

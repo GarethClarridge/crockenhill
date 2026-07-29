@@ -51,9 +51,8 @@ class SaveChurchServiceFromAdmin
         int $userId,
         ?int $inboundEmailId = null,
         ?string $planKey = null,
+        ?int $expectedCanonicalRevision = null,
     ): ChurchService {
-        $beforeSnapshot = $this->canonicalStateService->snapshot($churchService);
-        $beforeCanonicalHash = $churchService?->canonical_hash;
         $inboundEmail = $inboundEmailId !== null
             ? InboundEmail::query()->find($inboundEmailId)
             : null;
@@ -68,11 +67,28 @@ class SaveChurchServiceFromAdmin
          */
         $incomingSource = ChurchServiceItemSource::Manual;
 
-        /**
-         * @var array{0: ChurchService, 1: array{conflicts: array<int, array<string, mixed>>}} $transactionResult
-         */
-        $transactionResult = DB::transaction(function () use ($validated, $syncPayload, $churchService, $userId, $incomingSource): array {
-            $model = $churchService ?? new ChurchService;
+        $churchService = DB::transaction(function () use (
+            $validated,
+            $syncPayload,
+            $churchService,
+            $userId,
+            $incomingSource,
+            $expectedCanonicalRevision,
+        ): ChurchService {
+            $model = $churchService instanceof ChurchService
+                ? ChurchService::query()
+                    ->whereKey($churchService->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail()
+                : new ChurchService;
+            $loadedRevision = $expectedCanonicalRevision
+                ?? ($churchService instanceof ChurchService ? $churchService->canonical_revision : 0);
+
+            if ($model->exists && $model->canonical_revision !== $loadedRevision) {
+                throw new RuntimeException('This service changed since you opened it. Reload the page and review the latest version before saving.');
+            }
+
+            $beforeSnapshot = $this->canonicalStateService->snapshot($model);
             $existingMetadata = $model->import_metadata?->toArray() ?? [];
 
             $model->fill([
@@ -114,24 +130,20 @@ class SaveChurchServiceFromAdmin
                 ),
             );
 
-            return [$model->fresh(['items']) ?? $model, $syncResult];
+            $model = $this->canonicalUpdateService->finalize(
+                $model,
+                $beforeSnapshot,
+                $incomingSource,
+                $syncResult,
+            );
+            $model->forceFill([
+                'reviewed_canonical_revision' => $model->canonical_revision,
+                'source_summary' => 'manual',
+                'source' => ChurchServiceItemSource::Manual->value,
+            ])->saveQuietly();
+
+            return $model->fresh(['items']) ?? $model;
         });
-
-        [$churchService, $syncResult] = $transactionResult;
-
-        if (
-            is_string($beforeCanonicalHash)
-            && hash_equals($beforeCanonicalHash, (string) $churchService->canonical_hash)
-        ) {
-            $beforeSnapshot = $this->canonicalStateService->snapshot($churchService);
-        }
-
-        $churchService = $this->canonicalUpdateService->finalize(
-            $churchService,
-            $beforeSnapshot,
-            $incomingSource,
-            $syncResult,
-        );
 
         Log::warning('Church service saved by admin', $this->sanitizeArrayForLog([
             'admin_id' => $userId,

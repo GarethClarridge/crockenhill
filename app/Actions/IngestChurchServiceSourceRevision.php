@@ -6,11 +6,15 @@ namespace App\Actions;
 
 use App\Data\ChurchServiceSourceIngestionResult;
 use App\Data\ChurchServiceSourceRevision;
+use App\Enums\ChurchServiceProposalStatus;
+use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
+use App\Models\ChurchServiceMergeProposal;
 use App\Models\ChurchServiceSourceRecord;
 use App\Services\ChurchService\ChurchServiceProjectionPersister;
 use App\Services\ChurchService\ChurchServiceProjector;
 use App\Support\CanonicalJson;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
@@ -79,7 +83,14 @@ class IngestChurchServiceSourceRevision
                     ->whereNotIn('source', $normalizedSources)
                     ->exists();
 
-                if (! $hasUnnormalizedLegacyItems) {
+                $isMachineRevisionAfterReview = $revision->source !== ChurchServiceSource::Manual
+                    && $lockedService->reviewed_canonical_revision !== null;
+                $isStagedMachineRevision = $revision->source !== ChurchServiceSource::Manual
+                    && $lockedService->pending_structure_merge_source !== null;
+
+                if ($isMachineRevisionAfterReview || $isStagedMachineRevision) {
+                    $this->stageProposal($lockedService, $sourceRecord, $records);
+                } elseif (! $hasUnnormalizedLegacyItems) {
                     $this->persister->apply($lockedService, $this->projector->project($records));
                 }
 
@@ -101,6 +112,41 @@ class IngestChurchServiceSourceRevision
 
             return new ChurchServiceSourceIngestionResult($existing, false);
         }
+    }
+
+    /**
+     * @param  Collection<int, ChurchServiceSourceRecord>  $records
+     */
+    private function stageProposal(
+        ChurchService $churchService,
+        ChurchServiceSourceRecord $triggerSourceRecord,
+        Collection $records,
+    ): void {
+        $machineRecords = $records
+            ->reject(fn (ChurchServiceSourceRecord $record): bool => $record->source === ChurchServiceSource::Manual)
+            ->values();
+        $projection = $this->projector->project($machineRecords);
+
+        if ($churchService->canonical_hash === $projection->hash) {
+            return;
+        }
+
+        ChurchServiceMergeProposal::query()
+            ->whereBelongsTo($churchService)
+            ->where('status', ChurchServiceProposalStatus::Pending)
+            ->update(['status' => ChurchServiceProposalStatus::Stale->value]);
+
+        $churchService->mergeProposals()->create([
+            'trigger_source_record_id' => $triggerSourceRecord->id,
+            'base_canonical_revision' => $churchService->canonical_revision,
+            'base_canonical_hash' => $churchService->canonical_hash,
+            'included_source_hashes' => $machineRecords->pluck('revision_hash')->sort()->values()->all(),
+            'proposed_items' => $projection->items,
+            'proposed_hash' => $projection->hash,
+            'field_decisions' => [],
+            'conflicts' => [],
+            'status' => ChurchServiceProposalStatus::Pending,
+        ]);
     }
 
     private function dualWriteSourceEvidence(

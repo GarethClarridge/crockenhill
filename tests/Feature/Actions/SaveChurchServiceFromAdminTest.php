@@ -320,6 +320,63 @@ class SaveChurchServiceFromAdminTest extends TestCase
     }
 
     #[Test]
+    public function it_records_the_complete_manual_revision_as_reviewed(): void
+    {
+        $service = ChurchService::factory()->create([
+            'summary' => 'Reviewed summary',
+            'notices' => ['Bring lunch'],
+            'chapter_markers' => [['title' => 'Sermon', 'start' => 120]],
+        ]);
+
+        $saved = $this->action->execute(
+            validated: ['date' => '2026-07-01', 'service' => SermonService::Morning->value],
+            syncPayload: [[
+                'position' => 1,
+                'type' => 'custom',
+                'title' => 'Welcome',
+                'source_title' => 'Welcome',
+                'openlp_search_title' => null,
+                'song_id' => null,
+                'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
+            ]],
+            churchService: $service,
+            userId: $this->admin->id,
+            expectedCanonicalRevision: $service->canonical_revision,
+        )->refresh();
+
+        $manualRecord = $saved->sourceRecords()->where('source', 'manual')->latest('id')->firstOrFail();
+
+        $this->assertSame($saved->canonical_revision, $saved->reviewed_canonical_revision);
+        $this->assertEquals([
+            'summary' => 'Reviewed summary',
+            'notices' => ['Bring lunch'],
+            'chapter_markers' => [['title' => 'Sermon', 'start' => 120]],
+        ], $manualRecord->service_content);
+    }
+
+    #[Test]
+    public function it_rejects_a_stale_manual_save_without_mutating_the_service(): void
+    {
+        $service = ChurchService::factory()->create(['canonical_revision' => 2]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('changed since you opened');
+
+        try {
+            $this->action->execute(
+                validated: ['date' => '2026-07-01', 'service' => SermonService::Morning->value],
+                syncPayload: [],
+                churchService: $service,
+                userId: $this->admin->id,
+                expectedCanonicalRevision: 1,
+            );
+        } finally {
+            $this->assertSame(2, $service->fresh()->canonical_revision);
+            $this->assertDatabaseCount('church_service_source_records', 0);
+        }
+    }
+
+    #[Test]
     public function it_throws_when_items_constraint_violation_escapes_sync(): void
     {
         $churchService = ChurchService::factory()->create();

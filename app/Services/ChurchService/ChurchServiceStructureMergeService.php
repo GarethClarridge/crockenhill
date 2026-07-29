@@ -56,6 +56,23 @@ class ChurchServiceStructureMergeService
         // resolves to, and the resolution never runs.
         $incomingItems = $this->catalogueSongResolver->resolveAll($incomingItems, $incomingSource);
 
+        if ($churchService->reviewed_canonical_revision !== null) {
+            $existingSnapshots = $this->canonicalStateService->snapshot($churchService);
+            $classification = $this->policy->classifyIncomingItems(
+                $existingSnapshots,
+                $incomingItems,
+                $incomingSource,
+            );
+
+            return $this->stageForReview(
+                $churchService,
+                $incomingItems,
+                $incomingSource,
+                $existingSnapshots,
+                $classification,
+            );
+        }
+
         if (! $this->policy->requiresMergePlanning($churchService, $incomingSource)) {
             return $this->directMerge($churchService, $incomingItems, $incomingSource);
         }

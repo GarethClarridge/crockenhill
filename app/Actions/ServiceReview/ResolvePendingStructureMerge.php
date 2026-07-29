@@ -34,30 +34,48 @@ class ResolvePendingStructureMerge
         ChurchService $churchService,
         string $resolution,
         int $userId,
+        ?int $expectedCanonicalRevision = null,
     ): StructureMergeResolution {
-        $pendingMerge = $churchService->import_metadata?->pendingStructureMerge;
-        $incomingSource = $churchService->pending_structure_merge_source;
+        return DB::transaction(function () use ($churchService, $resolution, $userId, $expectedCanonicalRevision): StructureMergeResolution {
+            $lockedService = ChurchService::query()
+                ->whereKey($churchService->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+            $loadedRevision = $expectedCanonicalRevision ?? $churchService->canonical_revision;
 
-        if (blank($pendingMerge) || blank($incomingSource)) {
-            return new StructureMergeResolution(
-                churchService: $churchService,
-                resolution: $resolution,
-                applied: false,
-                reason: 'No pending structure merge found',
-            );
-        }
+            if ($lockedService->canonical_revision !== $loadedRevision) {
+                return new StructureMergeResolution(
+                    churchService: $lockedService,
+                    resolution: $resolution,
+                    applied: false,
+                    reason: 'This service changed since you opened it. Reload the page and recompute the proposal before resolving it.',
+                );
+            }
 
-        $incomingSource = trim($incomingSource);
+            $pendingMerge = $lockedService->import_metadata?->pendingStructureMerge;
+            $incomingSource = $lockedService->pending_structure_merge_source;
 
-        return DB::transaction(fn (): StructureMergeResolution => match ($resolution) {
-            'accept_incoming' => $this->acceptIncoming($churchService, $pendingMerge->proposedItems, $incomingSource, $userId),
-            'keep_current' => $this->keepCurrent($churchService, $userId),
-            default => new StructureMergeResolution(
-                churchService: $churchService,
-                resolution: $resolution,
-                applied: false,
-                reason: 'Unknown resolution: '.$resolution,
-            ),
+            if (blank($pendingMerge) || blank($incomingSource)) {
+                return new StructureMergeResolution(
+                    churchService: $lockedService,
+                    resolution: $resolution,
+                    applied: false,
+                    reason: 'No pending structure merge found',
+                );
+            }
+
+            $incomingSource = trim($incomingSource);
+
+            return match ($resolution) {
+                'accept_incoming' => $this->acceptIncoming($lockedService, $pendingMerge->proposedItems, $incomingSource, $userId),
+                'keep_current' => $this->keepCurrent($lockedService, $userId),
+                default => new StructureMergeResolution(
+                    churchService: $lockedService,
+                    resolution: $resolution,
+                    applied: false,
+                    reason: 'Unknown resolution: '.$resolution,
+                ),
+            };
         });
     }
 
@@ -96,7 +114,7 @@ class ResolvePendingStructureMerge
         $reviewReopened = isset($importMetadata['manual_review']['reopened_at']);
 
         $this->clearPendingMerge($churchService, 'accept_incoming', $userId, preserveNeedsReview: $reviewReopened);
-        $this->ingestManualRevision($churchService, $proposedItems, $userId);
+        $churchService = $this->ingestManualRevision($churchService, $proposedItems, $userId);
 
         Log::info('Pending structure merge resolved: accepted incoming', [
             'church_service_id' => $churchService->id,
@@ -135,7 +153,7 @@ class ResolvePendingStructureMerge
                 'metadata',
             ]))
             ->all();
-        $this->ingestManualRevision($churchService, $items, $userId);
+        $churchService = $this->ingestManualRevision($churchService, $items, $userId);
 
         Log::info('Pending structure merge resolved: kept current', [
             'church_service_id' => $churchService->id,
@@ -195,7 +213,7 @@ class ResolvePendingStructureMerge
     /**
      * @param  array<int, array<string, mixed>>  $items
      */
-    private function ingestManualRevision(ChurchService $churchService, array $items, int $userId): void
+    private function ingestManualRevision(ChurchService $churchService, array $items, int $userId): ChurchService
     {
         $this->ingestSourceRevision->execute(
             $churchService,
@@ -209,5 +227,14 @@ class ResolvePendingStructureMerge
                 ],
             ),
         );
+
+        $churchService = $churchService->fresh() ?? $churchService;
+        $churchService->forceFill([
+            'reviewed_canonical_revision' => $churchService->canonical_revision,
+            'source_summary' => 'manual',
+            'source' => ChurchServiceItemSource::Manual->value,
+        ])->saveQuietly();
+
+        return $churchService;
     }
 }

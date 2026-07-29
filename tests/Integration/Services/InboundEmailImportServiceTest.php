@@ -440,7 +440,7 @@ class InboundEmailImportServiceTest extends TestCase
         $this->assertSame([], $result->created());
         $this->assertCount(1, $result->merged());
         $this->assertDatabaseCount('church_services', 1);
-        $this->assertSame('email', $existing->fresh()->source);
+        $this->assertSame('openlp', $existing->fresh()->source);
 
         // The email adds the sermon an OpenLP export structurally cannot carry, and the song
         // keeps the catalogue link it already had.

@@ -222,6 +222,7 @@ class ShowChurchService extends Component
             $this->churchService,
             $resolution,
             $userId,
+            $this->churchService->canonical_revision,
         );
 
         if (! $result->applied) {

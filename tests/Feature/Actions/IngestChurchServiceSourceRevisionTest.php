@@ -8,6 +8,7 @@ use App\Actions\IngestChurchServiceSourceRevision;
 use App\Data\ChurchServiceSourceRevision;
 use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\ChurchServiceSourceRecord;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -102,6 +103,37 @@ class IngestChurchServiceSourceRevisionTest extends TestCase
             $this->assertDatabaseCount('church_service_source_records', 0);
             $this->assertDatabaseCount('church_service_item_assertions', 0);
         }
+    }
+
+    #[Test]
+    public function a_machine_revision_cannot_change_a_reviewed_canonical_revision(): void
+    {
+        $service = ChurchService::factory()->create([
+            'canonical_revision' => 4,
+            'canonical_hash' => str_repeat('b', 64),
+            'reviewed_canonical_revision' => 4,
+            'summary' => 'Reviewed summary',
+        ]);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'title' => 'Reviewed item',
+        ]);
+
+        app(IngestChurchServiceSourceRevision::class)->execute($service, $this->revision());
+
+        $service->refresh();
+
+        $this->assertSame(4, $service->canonical_revision);
+        $this->assertSame(str_repeat('b', 64), $service->canonical_hash);
+        $this->assertSame('Reviewed summary', $service->summary);
+        $this->assertSame(['Reviewed item'], $service->items()->pluck('title')->all());
+        $this->assertDatabaseHas('church_service_merge_proposals', [
+            'church_service_id' => $service->id,
+            'base_canonical_revision' => 4,
+            'base_canonical_hash' => str_repeat('b', 64),
+            'status' => 'pending',
+        ]);
     }
 
     /**

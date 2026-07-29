@@ -326,9 +326,9 @@ class StructureMergeIntegrationTest extends TestCase
 
         $importResult = app(ImportChurchServiceFromOpenLp::class)->import($upload);
 
-        // Service source must remain 'livestream' while merge is staged
+        // Staging must not rewrite compatibility source or canonical items.
         $churchService->refresh();
-        $this->assertSame(ChurchServiceItemSource::Livestream->value, $churchService->source, 'Source must not change to openlp while merge is staged');
+        $this->assertSame(ChurchServiceItemSource::Livestream->value, $churchService->source);
         $this->assertTrue($churchService->needs_review);
         $this->assertNotNull($churchService->pending_structure_merge_source);
 
@@ -344,7 +344,7 @@ class StructureMergeIntegrationTest extends TestCase
         $this->assertTrue($resolution->applied);
 
         $fresh = $resolution->churchService;
-        $this->assertSame(ChurchServiceItemSource::OpenLp->value, $fresh->source, 'Source must be openlp after accepting incoming');
+        $this->assertSame(ChurchServiceItemSource::Manual->value, $fresh->source);
         $this->assertFalse($fresh->needs_review);
         $this->assertNull($fresh->pending_structure_merge_source);
 
@@ -392,8 +392,7 @@ class StructureMergeIntegrationTest extends TestCase
         $this->assertTrue($resolution->applied);
 
         $fresh = $resolution->churchService;
-        // Source stays livestream when incoming items are rejected
-        $this->assertSame(ChurchServiceItemSource::Livestream->value, $fresh->source, 'Source must remain livestream when keeping current items');
+        $this->assertSame(ChurchServiceItemSource::Manual->value, $fresh->source);
         $this->assertFalse($fresh->needs_review);
 
         $finalItems = $fresh->items()->orderBy('position')->get();

@@ -65,6 +65,13 @@ class ChurchServiceItemSyncService
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            if (
+                $incomingSource !== ChurchServiceItemSource::Manual
+                && $lockedService->reviewed_canonical_revision !== null
+            ) {
+                return ['conflicts' => []];
+            }
+
             /** @var Collection<int, ChurchServiceItem> $existingItems */
             $existingItems = $lockedService->items()->withTrashed()->orderBy('id')->get();
             $matchedExistingItemIds = [];

@@ -71,7 +71,10 @@ class LivestreamChurchServiceProjectionService
             // state (an all-OTHER or all-low-confidence run is the run most in
             // need of a reviewer) — link and roll up before skipping.
             if ($churchService !== null) {
-                $this->persistStructureContent($churchService, $structureContent);
+                if ($churchService->reviewed_canonical_revision === null) {
+                    $this->persistStructureContent($churchService, $structureContent);
+                }
+
                 $this->linkProcessingLogToService($processingLog, $churchService);
                 $this->reviewSynchronizer->openReviewFromSections($churchService, $sections);
             }
@@ -102,7 +105,7 @@ class LivestreamChurchServiceProjectionService
         $beforeSnapshot = $this->canonicalStateService->snapshot($churchService);
 
         /**
-         * @var array{church_service: ChurchService, sync_result: array{conflicts: array<int, array<string, mixed>>}, needs_review: bool} $result
+         * @var array{church_service: ChurchService, sync_result: array{conflicts: array<int, array<string, mixed>>}, needs_review: bool, staged: bool} $result
          */
         $result = DB::transaction(function () use ($processingLog, $sections, $itemPayloads, $churchService, $identity, $isNewService, $structureContent, $refining): array {
             $projectionMetadata = [
@@ -125,17 +128,37 @@ class LivestreamChurchServiceProjectionService
                 ]);
             } else {
                 /** @var ChurchService $churchService */
-                $churchService->forceFill(array_merge([
+                $serviceUpdates = [
                     'import_metadata' => array_replace_recursive(
                         $churchService->import_metadata?->toArray() ?? [],
                         [
                             'livestream_projection' => $projectionMetadata,
                         ]
                     ),
-                ], $contentFields))->saveQuietly();
+                ];
+
+                if ($churchService->reviewed_canonical_revision === null) {
+                    $serviceUpdates = array_merge($serviceUpdates, $contentFields);
+                }
+
+                $churchService->forceFill($serviceUpdates)->saveQuietly();
             }
 
             $this->linkProcessingLogToService($processingLog, $churchService);
+
+            if ($churchService->reviewed_canonical_revision !== null) {
+                $this->ingestSourceRevision->execute(
+                    $churchService,
+                    $this->sourceAdapter->adapt($processingLog, $itemPayloads, $structureContent),
+                );
+
+                return [
+                    'church_service' => $churchService->fresh() ?? $churchService,
+                    'sync_result' => [],
+                    'needs_review' => true,
+                    'staged' => true,
+                ];
+            }
 
             try {
                 $syncResult = $this->itemSyncService->sync(
@@ -182,19 +205,22 @@ class LivestreamChurchServiceProjectionService
                 'church_service' => $freshService,
                 'sync_result' => $syncResult,
                 'needs_review' => $needsReview,
+                'staged' => false,
             ];
         });
 
         $churchService = $result['church_service'];
         $needsReview = $result['needs_review'];
 
-        $churchService = $this->canonicalUpdateService->finalize(
-            $churchService,
-            $beforeSnapshot,
-            ChurchServiceItemSource::Livestream,
-            $result['sync_result'],
-            recordReviewState: $refining,
-        );
+        if (! $result['staged']) {
+            $churchService = $this->canonicalUpdateService->finalize(
+                $churchService,
+                $beforeSnapshot,
+                ChurchServiceItemSource::Livestream,
+                $result['sync_result'],
+                recordReviewState: $refining,
+            );
+        }
 
         $itemCount = $churchService->items()->count();
 
@@ -207,8 +233,10 @@ class LivestreamChurchServiceProjectionService
         ]);
 
         return [
-            'projected' => true,
-            'reason' => $isNewService ? 'Created new service from livestream projection' : 'Refreshed existing livestream-only service',
+            'projected' => ! $result['staged'],
+            'reason' => $result['staged']
+                ? 'Staged livestream evidence for review without changing the reviewed service'
+                : ($isNewService ? 'Created new service from livestream projection' : 'Refreshed existing livestream-only service'),
             'church_service_id' => $churchService->id,
             'items_projected' => $itemCount,
         ];
