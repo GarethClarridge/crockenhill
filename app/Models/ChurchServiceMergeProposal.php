@@ -10,6 +10,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property list<array<string, mixed>> $proposed_items
+ */
 class ChurchServiceMergeProposal extends Model
 {
     /** @use HasFactory<ChurchServiceMergeProposalFactory> */

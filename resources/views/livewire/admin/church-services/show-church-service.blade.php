@@ -81,7 +81,12 @@
         @endif
     </x-card>
 
-    @if($pendingMerge)
+    @if($evidenceProposals->isNotEmpty())
+        @include('livewire.admin.church-services.partials.evidence-review', [
+            'proposals' => $evidenceProposals,
+            'changedSinceLoad' => $evidenceChangedSinceLoad,
+        ])
+    @elseif($pendingMerge)
         @include('livewire.admin.church-services.partials.pending-structure-merge', [
             'pendingMerge' => $pendingMerge,
             'pendingMergeSource' => $pendingMergeSource,
