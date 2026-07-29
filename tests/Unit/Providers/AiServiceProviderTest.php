@@ -33,12 +33,36 @@ class AiServiceProviderTest extends TestCase
     }
 
     #[Test]
+    public function sermon_analysis_interface_throws_on_an_unknown_service(): void
+    {
+        config()->set('media-processing.analysis.service', 'carrier-pigeon');
+        $this->app->forgetInstance(SermonAnalysisInterface::class);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('carrier-pigeon');
+
+        $this->app->make(SermonAnalysisInterface::class);
+    }
+
+    #[Test]
     public function transcription_service_interface_resolves_to_mock_when_configured(): void
     {
         config()->set('media-processing.transcription.service', 'mock');
         $this->app->forgetInstance(TranscriptionServiceInterface::class);
 
         $this->assertInstanceOf(MockTranscriptionService::class, $this->app->make(TranscriptionServiceInterface::class));
+    }
+
+    #[Test]
+    public function transcription_service_interface_throws_on_an_unknown_service(): void
+    {
+        config()->set('media-processing.transcription.service', 'carrier-pigeon');
+        $this->app->forgetInstance(TranscriptionServiceInterface::class);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('carrier-pigeon');
+
+        $this->app->make(TranscriptionServiceInterface::class);
     }
 
     #[Test]
