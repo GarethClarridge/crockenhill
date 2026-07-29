@@ -8,12 +8,19 @@ use App\Data\ChurchServiceSourceIngestionResult;
 use App\Data\ChurchServiceSourceRevision;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceSourceRecord;
+use App\Services\ChurchService\ChurchServiceProjectionPersister;
+use App\Services\ChurchService\ChurchServiceProjector;
 use App\Support\CanonicalJson;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 class IngestChurchServiceSourceRevision
 {
+    public function __construct(
+        private readonly ChurchServiceProjector $projector,
+        private readonly ChurchServiceProjectionPersister $persister,
+    ) {}
+
     public function execute(
         ChurchService $churchService,
         ChurchServiceSourceRevision $revision,
@@ -63,6 +70,18 @@ class IngestChurchServiceSourceRevision
 
                 $sourceRecord->assertions()->createMany($revision->assertions);
                 $this->dualWriteSourceEvidence($lockedService, $revision);
+                $records = $lockedService->sourceRecords()
+                    ->with(['assertions', 'assertions.sourceRecord'])
+                    ->get();
+                $normalizedSources = $records->pluck('source')->map->value->unique();
+                $hasUnnormalizedLegacyItems = $lockedService->items()
+                    ->whereNotNull('source')
+                    ->whereNotIn('source', $normalizedSources)
+                    ->exists();
+
+                if (! $hasUnnormalizedLegacyItems) {
+                    $this->persister->apply($lockedService, $this->projector->project($records));
+                }
 
                 return new ChurchServiceSourceIngestionResult(
                     $sourceRecord->load('assertions'),

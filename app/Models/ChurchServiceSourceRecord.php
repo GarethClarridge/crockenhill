@@ -6,11 +6,22 @@ namespace App\Models;
 
 use App\Enums\ChurchServiceSource;
 use Database\Factories\ChurchServiceSourceRecordFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property ChurchServiceSource $source
+ * @property string $source_key
+ * @property string $revision_hash
+ * @property array<string, mixed>|null $service_content
+ * @property Carbon|null $captured_at
+ * @property-read Collection<int, ChurchServiceItemAssertion> $assertions
+ */
 class ChurchServiceSourceRecord extends Model
 {
     /** @use HasFactory<ChurchServiceSourceRecordFactory> */

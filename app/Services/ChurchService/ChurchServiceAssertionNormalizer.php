@@ -23,6 +23,16 @@ class ChurchServiceAssertionNormalizer
             $title = trim((string) ($item['title'] ?? ''));
             $sourceTitle = is_string($item['source_title'] ?? null) ? trim($item['source_title']) : null;
             $metadata = is_array($item['metadata'] ?? null) ? $item['metadata'] : null;
+            if (is_array($metadata)) {
+                unset($metadata['source_assertion_hashes'], $metadata['source_evidence']);
+            }
+            $metadata = array_filter([
+                ...($metadata ?? []),
+                'livestream_processing_id' => $item['livestream_processing_id'] ?? null,
+                'livestream_service_section_id' => $item['livestream_service_section_id'] ?? null,
+                'openlp_search_title' => $item['openlp_search_title'] ?? null,
+            ], fn (mixed $value): bool => $value !== null);
+            $metadata = $metadata === [] ? null : $metadata;
 
             $assertions[] = [
                 'assertion_key' => $this->assertionKey($position, $item, $title),

@@ -450,7 +450,7 @@ class InboundEmailImportService
             $this->songLinker->linkForService($churchService);
             $this->ingestSourceRevision->execute(
                 $churchService,
-                $this->sourceAdapter->adapt($inboundEmail, $plan),
+                $this->sourceAdapter->adapt($inboundEmail, $plan, $this->sourceItems($churchService)),
             );
 
             /** @var ChurchService $freshChurchService */
@@ -497,17 +497,14 @@ class InboundEmailImportService
                 ChurchServiceItemSource::Email,
             );
 
-            $this->ingestSourceRevision->execute(
-                $mergeResult->churchService,
-                $this->sourceAdapter->adapt($inboundEmail, $plan),
-            );
-
             if ($mergeResult->wasMerged) {
-                $mergeResult->churchService->forceFill([
-                    'source' => ChurchServiceItemSource::Email->value,
-                ])->saveQuietly();
                 $this->songLinker->linkForService($mergeResult->churchService);
             }
+
+            $this->ingestSourceRevision->execute(
+                $mergeResult->churchService,
+                $this->sourceAdapter->adapt($inboundEmail, $plan, $this->sourceItems($mergeResult->churchService)),
+            );
 
             return $mergeResult;
         });
@@ -528,6 +525,28 @@ class InboundEmailImportService
                 : OosEmailImportOutcome::Merged,
             $mergeResult->churchService,
         );
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function sourceItems(ChurchService $churchService): array
+    {
+        return array_values($churchService->items()
+            ->orderBy('position')
+            ->get()
+            ->map(fn ($item): array => [
+                'position' => $item->position,
+                'type' => $item->type,
+                'section_type' => $item->section_type?->value,
+                'title' => $item->title,
+                'source_title' => $item->source_title,
+                'openlp_search_title' => $item->openlp_search_title,
+                'song_id' => $item->song_id,
+                'metadata' => $item->metadata,
+            ])
+            ->values()
+            ->all());
     }
 
     /**

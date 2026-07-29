@@ -382,7 +382,12 @@ class DeleteLivestreamUpload
 
     private function shouldDeleteService(ChurchService $service): bool
     {
-        return $service->source === MediaType::Livestream->value
+        $hasLivestreamProjection = $service->sourceRecords()
+            ->where('source', 'livestream')
+            ->exists()
+            || is_array($service->import_metadata?->toArray()['livestream_projection'] ?? null);
+
+        return $hasLivestreamProjection
             && ! $service->items()->exists()
             && ! $service->mediaProcessingLogs()->exists();
     }

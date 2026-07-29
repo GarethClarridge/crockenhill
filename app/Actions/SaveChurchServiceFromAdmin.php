@@ -53,6 +53,7 @@ class SaveChurchServiceFromAdmin
         ?string $planKey = null,
     ): ChurchService {
         $beforeSnapshot = $this->canonicalStateService->snapshot($churchService);
+        $beforeCanonicalHash = $churchService?->canonical_hash;
         $inboundEmail = $inboundEmailId !== null
             ? InboundEmail::query()->find($inboundEmailId)
             : null;
@@ -117,6 +118,13 @@ class SaveChurchServiceFromAdmin
         });
 
         [$churchService, $syncResult] = $transactionResult;
+
+        if (
+            is_string($beforeCanonicalHash)
+            && hash_equals($beforeCanonicalHash, (string) $churchService->canonical_hash)
+        ) {
+            $beforeSnapshot = $this->canonicalStateService->snapshot($churchService);
+        }
 
         $churchService = $this->canonicalUpdateService->finalize(
             $churchService,

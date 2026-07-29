@@ -91,17 +91,18 @@ class ImportChurchServiceFromOpenLp
                 ChurchServiceItemSource::OpenLp,
             );
 
-            $this->ingestSourceRevision->execute(
-                $mergeResult->churchService,
-                $this->sourceAdapter->adapt($uploadedFile, $parsed),
-            );
-
             if ($mergeResult->wasMerged) {
-                $mergeResult->churchService->forceFill([
-                    'source' => ChurchServiceItemSource::OpenLp->value,
-                ])->saveQuietly();
                 $linkResult = $this->songLinker->linkForService($mergeResult->churchService);
             }
+
+            $this->ingestSourceRevision->execute(
+                $mergeResult->churchService,
+                $this->sourceAdapter->adapt(
+                    $uploadedFile,
+                    $parsed,
+                    $mergeResult->wasMerged ? $this->sourceItems($mergeResult->churchService) : null,
+                ),
+            );
 
             return $mergeResult;
         });
@@ -165,7 +166,7 @@ class ImportChurchServiceFromOpenLp
                 $linkResult = $this->songLinker->linkForService($churchService);
                 $this->ingestSourceRevision->execute(
                     $churchService,
-                    $this->sourceAdapter->adapt($uploadedFile, $parsed),
+                    $this->sourceAdapter->adapt($uploadedFile, $parsed, $this->sourceItems($churchService)),
                 );
 
                 return $churchService;
@@ -199,5 +200,27 @@ class ImportChurchServiceFromOpenLp
             syncResult: $syncResult,
             linkResult: $linkResult,
         );
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function sourceItems(ChurchService $churchService): array
+    {
+        return array_values($churchService->items()
+            ->orderBy('position')
+            ->get()
+            ->map(fn ($item): array => [
+                'position' => $item->position,
+                'type' => $item->type,
+                'section_type' => $item->section_type?->value,
+                'title' => $item->title,
+                'source_title' => $item->source_title,
+                'openlp_search_title' => $item->openlp_search_title,
+                'song_id' => $item->song_id,
+                'metadata' => $item->metadata,
+            ])
+            ->values()
+            ->all());
     }
 }

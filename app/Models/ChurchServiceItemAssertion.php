@@ -12,6 +12,24 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property int $source_position
+ * @property string $assertion_key
+ * @property ChurchServiceEvidenceKind $evidence_kind
+ * @property string $type
+ * @property ServiceSectionType|null $section_type
+ * @property string $title
+ * @property string|null $source_title
+ * @property string $normalized_title
+ * @property int|null $song_id
+ * @property string|null $song_canonical_key
+ * @property string|null $scripture_reference
+ * @property string|null $normalized_scripture_key
+ * @property float|null $start_seconds
+ * @property array<string, mixed>|null $metadata
+ * @property-read ChurchServiceSourceRecord $sourceRecord
+ */
 class ChurchServiceItemAssertion extends Model
 {
     /** @use HasFactory<ChurchServiceItemAssertionFactory> */
