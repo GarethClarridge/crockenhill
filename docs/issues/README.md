@@ -552,6 +552,14 @@ restore invalid conversion names.
 
 ## 🟠 Open — needs a fix, not yet owned by a plan
 
+### O52 · [Mortician] Unused `<x-admin.shell>` component duplicates standard layout logic
+
+The file `resources/views/components/admin/shell.blade.php` is completely unreferenced. It duplicates the layout container, notification alerts, and Toast notifications found inside the standard layout `resources/views/layouts/admin.blade.php`.
+
+Since the admin views have fully migrated to full-page Livewire components using the layout directive, `<x-admin.shell>` has been rendered obsolete. See `docs/issues/unused-admin-shell-component.md` for the detailed report and evidence of disuse.
+
+**Suggested fix:** Remove the obsolete `resources/views/components/admin/shell.blade.php` file.
+
 ### O11 · Footer "Listen to evening sermons" links to the unfiltered archive
 
 `resources/views/components/layout/footer.blade.php` (~line 15): the link labelled "Listen to
