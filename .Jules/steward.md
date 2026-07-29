@@ -42,3 +42,8 @@
 **Pattern:** DatabaseTransactions on unit tests.
 **Cause:** Validation tests for `unique` and `exists` rules triggered database hits, forcing the use of `DatabaseTransactions` even for non-DB logic like regex or integer bounds.
 **Fix:** Removed `DatabaseTransactions` and introduced a `filterDatabaseRules` helper to strip `exists:` and `unique:` rules. This allows pure unit testing of model validation logic in isolation, significantly improving test speed and reliability.
+
+## 2027-02-17 - Harden SEO and pagination test assertions
+**Pattern:** Brittle exact-HTML string matching for title, meta, and canonical tags.
+**Cause:** Standard exact-string assertions (such as raw `<title>` or `<meta>` tag matching) break easily when formatting, attribute ordering, or whitespace compilation changes in Blade templates.
+**Fix:** Replaced exact-HTML string matches with flexible, attribute-order-independent, and whitespace-tolerant regular expressions using lookaheads (`assertMatchesRegularExpression`). This keeps SEO assertions highly effective while protecting them against layout, tag attribute, or styling refactors in the `<head>` block.

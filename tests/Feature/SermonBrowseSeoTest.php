@@ -27,9 +27,24 @@ class SermonBrowseSeoTest extends TestCase
         $response = $this->get('/christ/sermons');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Sermons | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Explore the sermon archive at Crockenhill Baptist Church. Watch or listen to Bible teaching from our Sunday services, filtered by scripture, preacher, or series.">', false);
-        $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons">', false);
+
+        // Assert title tag is present with correct content, allowing whitespace variation
+        $this->assertMatchesRegularExpression(
+            '/<title>\s*Sermons \| Crockenhill Baptist Church\s*<\/title>/i',
+            $response->getContent()
+        );
+
+        // Assert meta description is present in an attribute-order-independent manner
+        $this->assertMatchesRegularExpression(
+            '/<meta\s+(?=[^>]*name="description")(?=[^>]*content="Explore the sermon archive at Crockenhill Baptist Church\. Watch or listen to Bible teaching from our Sunday services, filtered by scripture, preacher, or series\.")/i',
+            $response->getContent()
+        );
+
+        // Assert canonical link is present in an attribute-order-independent manner
+        $this->assertMatchesRegularExpression(
+            '/<link\s+(?=[^>]*rel="canonical")(?=[^>]*href="http:\/\/localhost\/christ\/sermons")/i',
+            $response->getContent()
+        );
     }
 
     public function test_filtered_archive_renders_dynamic_presenter_seo_in_the_head(): void
@@ -37,9 +52,24 @@ class SermonBrowseSeoTest extends TestCase
         $response = $this->get('/christ/sermons?book=John&chapter=3');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>John 3 | Sermons | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Watch or listen to Bible-based sermons on John 3 from Crockenhill Baptist Church. Explore recent teaching from our morning and evening services.">', false);
-        $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons?book=John&amp;chapter=3">', false);
+
+        // Assert title tag is present with correct content, allowing whitespace variation
+        $this->assertMatchesRegularExpression(
+            '/<title>\s*John 3 \| Sermons \| Crockenhill Baptist Church\s*<\/title>/i',
+            $response->getContent()
+        );
+
+        // Assert meta description is present in an attribute-order-independent manner
+        $this->assertMatchesRegularExpression(
+            '/<meta\s+(?=[^>]*name="description")(?=[^>]*content="Watch or listen to Bible-based sermons on John 3 from Crockenhill Baptist Church\. Explore recent teaching from our morning and evening services\.")/i',
+            $response->getContent()
+        );
+
+        // Assert canonical link is present, tolerating either escaped or raw ampersands
+        $this->assertMatchesRegularExpression(
+            '/<link\s+(?=[^>]*rel="canonical")(?=[^>]*href="http:\/\/localhost\/christ\/sermons\?book=John(&amp;|&)chapter=3")/i',
+            $response->getContent()
+        );
     }
 
     public function test_individual_sermon_page_renders_canonical_and_title_in_the_head(): void
@@ -55,7 +85,17 @@ class SermonBrowseSeoTest extends TestCase
         $response = $this->get($canonicalUrl);
 
         $response->assertStatus(200);
-        $response->assertSee('<title>The Glory of Christ | John Owen | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<link rel="canonical" href="'.$canonicalUrl.'">', false);
+
+        // Assert title tag is present with correct content, allowing whitespace variation
+        $this->assertMatchesRegularExpression(
+            '/<title>\s*The Glory of Christ \| John Owen \| Crockenhill Baptist Church\s*<\/title>/i',
+            $response->getContent()
+        );
+
+        // Assert canonical link is present in an attribute-order-independent manner
+        $this->assertMatchesRegularExpression(
+            '/<link\s+(?=[^>]*rel="canonical")(?=[^>]*href="'.preg_quote($canonicalUrl, '/').'")/i',
+            $response->getContent()
+        );
     }
 }
