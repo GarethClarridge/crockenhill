@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\ChurchServiceOccurrenceState;
 use App\Enums\MediaType;
 use App\Enums\ServiceSectionType;
 use Database\Factories\ChurchServiceItemFactory;
@@ -33,6 +34,9 @@ use Illuminate\Validation\Rule;
  * @property array<string, mixed>|null $metadata
  * @property string|null $livestream_processing_id
  * @property int|null $livestream_service_section_id
+ * @property string|null $canonical_identity
+ * @property ChurchServiceOccurrenceState|null $occurrence_state
+ * @property bool|null $manual_occurrence_decision
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
@@ -71,6 +75,9 @@ class ChurchServiceItem extends Model
         'metadata',
         'livestream_processing_id',
         'livestream_service_section_id',
+        'canonical_identity',
+        'occurrence_state',
+        'manual_occurrence_decision',
     ];
 
     /**
@@ -87,6 +94,8 @@ class ChurchServiceItem extends Model
             'song_id' => 'integer',
             'livestream_service_section_id' => 'integer',
             'metadata' => 'array',
+            'occurrence_state' => ChurchServiceOccurrenceState::class,
+            'manual_occurrence_decision' => 'boolean',
         ];
     }
 

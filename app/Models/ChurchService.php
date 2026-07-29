@@ -36,10 +36,17 @@ use Illuminate\Validation\Rule;
  * @property string|null $manual_review_reopened_by_source
  * @property ChurchServiceImportMetadata|null $import_metadata
  * @property string|null $pending_structure_merge_source
+ * @property int $canonical_revision
+ * @property string|null $canonical_hash
+ * @property int|null $reviewed_canonical_revision
+ * @property string|null $source_summary
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, ChurchServiceItem> $items
  * @property-read Collection<int, MediaProcessingLog> $mediaProcessingLogs
+ * @property-read Collection<int, ChurchServiceSourceRecord> $sourceRecords
+ * @property-read Collection<int, ChurchServiceMergeProposal> $mergeProposals
+ * @property-read Collection<int, ChurchServiceReviewSession> $reviewSessions
  * @property-read User|null $manualReviewedBy
  *
  * @method static \Database\Factories\ChurchServiceFactory factory(...$parameters)
@@ -53,6 +60,10 @@ class ChurchService extends Model
 {
     /** @use HasFactory<ChurchServiceFactory> */
     use HasFactory;
+
+    protected $attributes = [
+        'canonical_revision' => 0,
+    ];
 
     /**
      * @var list<string>
@@ -74,6 +85,10 @@ class ChurchService extends Model
         'manual_review_reopened_by_source',
         'import_metadata',
         'pending_structure_merge_source',
+        'canonical_revision',
+        'canonical_hash',
+        'reviewed_canonical_revision',
+        'source_summary',
     ];
 
     /**
@@ -93,6 +108,8 @@ class ChurchService extends Model
             'manual_reviewed_by_user_id' => 'integer',
             'manual_review_reopened_at' => 'datetime',
             'import_metadata' => ChurchServiceImportMetadataCast::class,
+            'canonical_revision' => 'integer',
+            'reviewed_canonical_revision' => 'integer',
         ];
     }
 
@@ -130,6 +147,24 @@ class ChurchService extends Model
     public function mediaProcessingLogs(): HasMany
     {
         return $this->hasMany(MediaProcessingLog::class);
+    }
+
+    /** @return HasMany<ChurchServiceSourceRecord, $this> */
+    public function sourceRecords(): HasMany
+    {
+        return $this->hasMany(ChurchServiceSourceRecord::class);
+    }
+
+    /** @return HasMany<ChurchServiceMergeProposal, $this> */
+    public function mergeProposals(): HasMany
+    {
+        return $this->hasMany(ChurchServiceMergeProposal::class);
+    }
+
+    /** @return HasMany<ChurchServiceReviewSession, $this> */
+    public function reviewSessions(): HasMany
+    {
+        return $this->hasMany(ChurchServiceReviewSession::class);
     }
 
     /**
