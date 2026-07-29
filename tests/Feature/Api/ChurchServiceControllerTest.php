@@ -621,6 +621,40 @@ class ChurchServiceControllerTest extends TestCase
             ->assertForbidden();
     }
 
+    #[Test]
+    public function upload_returns_404_when_service_tracking_is_disabled(): void
+    {
+        config(['service-tracking.enabled' => false]);
+
+        $upload = $this->validOpenLpUpload();
+
+        $this->withToken($this->serviceTokenFor($this->admin))
+            ->postJson('/api/services/openlp', ['file' => $upload])
+            ->assertNotFound();
+    }
+
+    #[Test]
+    public function next_returns_404_when_service_tracking_is_disabled(): void
+    {
+        config(['service-tracking.enabled' => false]);
+
+        $this->withToken($this->serviceTokenFor($this->admin))
+            ->getJson('/api/services/next')
+            ->assertNotFound();
+    }
+
+    #[Test]
+    public function show_returns_404_when_service_tracking_is_disabled(): void
+    {
+        config(['service-tracking.enabled' => false]);
+
+        $churchService = ChurchService::factory()->create();
+
+        $this->withToken($this->serviceTokenFor($this->admin))
+            ->getJson("/api/services/{$churchService->id}")
+            ->assertNotFound();
+    }
+
     private function serviceTokenFor(User $user): string
     {
         return $user->createToken('service-token', [ApiTokenAbility::ServiceUpload->value])->plainTextToken;

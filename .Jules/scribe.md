@@ -33,3 +33,7 @@
 ## 2026-07-15 - Unit Testing Model Validation Rules
 **Learning:** To unit test model `validationRules()` without a database connection, use `Validator::make()` but filter out database-dependent rules (e.g., `exists`, `unique`) from the rule array. Filtering must account for both string-based rules (e.g., `'exists:table,column'`) and object-based rules (e.g., `Rule::unique()`). To verify rule configuration, cast the rule to a string (e.g., `unique:users,email,"123",id`) before filtering.
 **Action:** Use a `filterDatabaseRules` helper in unit tests to strip DB-dependent rules before passing them to the Validator. Assert the configuration of `unique` rules by casting the rule object to a string.
+
+## 2026-07-20 - [Testing Optional Feature Flags on API Controllers]
+**Learning:** When API controllers implement a global guard method (such as `abortIfDisabled()`) to conditionally 404 entire route segments based on feature configurations, each individual endpoint (store, index, show, etc.) must have dedicated feature tests verifying the disabled flow. It is unsafe to rely on a single endpoint check, as route changes, controller refactors, or custom middleware registration can bypass the guard on specific methods.
+**Action:** Always write individual 404 assertion tests for every controller route covered by a feature-flag guard when testing the disabled state.
