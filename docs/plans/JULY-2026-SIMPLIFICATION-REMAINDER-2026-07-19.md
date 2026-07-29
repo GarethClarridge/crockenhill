@@ -1,6 +1,6 @@
 # July 2026 Simplification Backlog — Remainder Implementation Plan
 
-> **Progress update (2026-07-24): R1–R11 are merged; R12–R15 remain.** Verified against the live
+> **Progress update (amended 2026-07-29): R1–R11 are merged; R12–R15 remain.** Verified against the live
 > code, not against commit messages: the 11 heuristic services and 6 jobs are gone,
 > `ServiceStructureMode` has only `Shadow`/`Primary`, `scripts/section-extraction/` is gone
 > (R9); `VisualAnalysisService`/`SongClusteringService`/`PerformVisualAnalysis`/`ExtractVideoFrames`
@@ -65,16 +65,16 @@
 Suggested batching: **R1 → {R2, R3, R4, R5, R7, R8 in parallel} → R9 → R10 → R11 → R12 → R13/R14 → R15.**
 R6 slots wherever its sequencing decision lands.
 
-**R12 ownership (2026-07-24).** R12's "process the ~500-item historic backlog" *is* Stage A of
+**R12 ownership (amended 2026-07-29).** R12's "process the ~500-item historic backlog" is local
+media acquisition in
 [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md),
-which supersedes this section with a fuller design: the import now has an artifact-durability
-prerequisite (WP-A1–WP-A6 — today's pipeline sweeps the full-service transcript 24h after each
-run) and a promotion stage that this plan never contemplated. **Do the work from that plan, not
-from R12's paragraph.** R8's `ImportHistoricVideoBatchCommand` + `HistoricVideoImporter` row still
-closes last, after that plan's Stage A is declared finished. R8's `LegacySermonImporter`,
-`GenerateProdSermonPatchCommand` and `ImportOosArchiveCommand` rows are also entangled with it —
-the promotion bundle exporter/importer built during the R8 local checkpoint
-(`SermonPromotionBundleExporter`/`Importer`) is the mechanism that plan's Stage B extends.
+whose artifact-retention baseline has landed. Its remaining HM work adds isolated processing,
+explicit source identity, complete output readiness and portable Bundle A. **Do the acquisition
+work from that plan, not from R12's paragraph.** Canonical Email/OpenLP/Livestream projection,
+Bundle B review transfer and the sole production sequence belong to
+[R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md](R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md).
+`ImportHistoricVideoBatchCommand` and `HistoricVideoImporter` close only after Bundle A and Bundle B
+promote, exact audits pass and the rollback window expires.
 
 **R14 note (2026-07-24):** the workbench redesign deliberately routed its new coverage into
 `tests/Feature/Livewire/Admin/ChurchServices/` in preparation for this fold-in, but it also

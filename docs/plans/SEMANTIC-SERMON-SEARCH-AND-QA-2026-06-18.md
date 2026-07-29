@@ -21,9 +21,9 @@
 >   If that plan runs first, this one inherits both; neither exists in the schema yet (verified
 >   2026-07-24 — no themes or embeddings migration).
 > - [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
->   WP-A1/WP-A3 decide whether full-service transcripts and word-level timestamps are **retained at
->   all** (today the full-service transcript is swept 24h after each run). The archive backfill this
->   plan needs is materially cheaper if that plan's retention work lands first.
+>   records that durable full-service transcripts/raw word timing and related service artifacts
+>   have landed. Its remaining Bundle A work must preserve them across databases; this plan may
+>   consume the promoted corpus only after that exact artifact audit passes.
 >
 > **Status (2026-07-05): not started — deliberately queued behind the July backlog. Do not start
 > until the gates below clear, and re-plan Phase 1 first.**
