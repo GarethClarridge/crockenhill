@@ -11,6 +11,7 @@ use App\Services\ChurchService\ChurchServiceCanonicalStateService;
 use App\Services\ChurchService\ChurchServiceCanonicalUpdateService;
 use App\Services\ChurchService\ChurchServiceItemSyncService;
 use App\Services\ChurchService\ChurchServiceSongLinker;
+use App\Services\ChurchService\SourceAdapters\ManualSourceAdapter;
 use App\Services\Email\InboundEmailImportService;
 use App\Traits\SanitizesLogData;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -28,6 +29,8 @@ class SaveChurchServiceFromAdmin
         private readonly ChurchServiceItemSyncService $itemSyncService,
         private readonly ChurchServiceSongLinker $songLinker,
         private readonly InboundEmailImportService $inboundEmailImportService,
+        private readonly IngestChurchServiceSourceRevision $ingestSourceRevision,
+        private readonly ManualSourceAdapter $manualSourceAdapter,
     ) {}
 
     /**
@@ -97,6 +100,18 @@ class SaveChurchServiceFromAdmin
             }
 
             $this->songLinker->linkForService($model);
+            $this->ingestSourceRevision->execute(
+                $model,
+                $this->manualSourceAdapter->adapt(
+                    array_values($syncPayload),
+                    $userId,
+                    [
+                        'summary' => $model->summary,
+                        'notices' => $model->notices,
+                        'chapter_markers' => $model->chapter_markers,
+                    ],
+                ),
+            );
 
             return [$model->fresh(['items']) ?? $model, $syncResult];
         });

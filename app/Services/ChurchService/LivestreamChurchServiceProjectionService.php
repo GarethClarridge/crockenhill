@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Actions\IngestChurchServiceSourceRevision;
 use App\Data\ServiceStructure;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\SermonService;
@@ -11,6 +12,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\SourceAdapters\LivestreamSourceAdapter;
 use App\Services\Processing\MediaProcessingIdentityResolver;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -27,6 +29,8 @@ class LivestreamChurchServiceProjectionService
         private readonly ChurchServiceCanonicalUpdateService $canonicalUpdateService,
         private readonly ChurchServiceReviewSynchronizer $reviewSynchronizer,
         private readonly ProcessingRunSupersessionService $supersessionService,
+        private readonly IngestChurchServiceSourceRevision $ingestSourceRevision,
+        private readonly LivestreamSourceAdapter $sourceAdapter,
     ) {}
 
     /**
@@ -152,6 +156,11 @@ class LivestreamChurchServiceProjectionService
 
                 throw $exception;
             }
+
+            $this->ingestSourceRevision->execute(
+                $churchService,
+                $this->sourceAdapter->adapt($processingLog, $itemPayloads, $structureContent),
+            );
 
             $freshService = $churchService->fresh() ?? $churchService;
 

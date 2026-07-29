@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Email;
 
+use App\Actions\IngestChurchServiceSourceRevision;
 use App\Data\OosEmailImportPlanOutcome;
 use App\Data\OosEmailImportResult;
 use App\Data\OosEmailParseResult;
@@ -19,6 +20,7 @@ use App\Services\ChurchService\ChurchServiceCanonicalUpdateService;
 use App\Services\ChurchService\ChurchServiceItemSyncService;
 use App\Services\ChurchService\ChurchServiceSongLinker;
 use App\Services\ChurchService\ChurchServiceStructureMergeService;
+use App\Services\ChurchService\SourceAdapters\EmailSourceAdapter;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +37,8 @@ class InboundEmailImportService
         private readonly ChurchServiceItemSyncService $itemSyncService,
         private readonly ChurchServiceSongLinker $songLinker,
         private readonly ChurchServiceStructureMergeService $mergeService,
+        private readonly IngestChurchServiceSourceRevision $ingestSourceRevision,
+        private readonly EmailSourceAdapter $sourceAdapter,
     ) {}
 
     public function storeParseResult(InboundEmail $inboundEmail, OosEmailParseResult $parseResult, bool $isReparse = false): void
@@ -264,6 +268,7 @@ class InboundEmailImportService
 
         foreach ($plans as $plan) {
             $outcomes[] = $this->importPlan(
+                $inboundEmail,
                 $parseResult,
                 $plan,
                 $reviewedByUserId,
@@ -306,6 +311,7 @@ class InboundEmailImportService
     }
 
     private function importPlan(
+        InboundEmail $inboundEmail,
         OosEmailParseResult $parseResult,
         OosEmailServicePlan $plan,
         ?int $reviewedByUserId,
@@ -329,7 +335,7 @@ class InboundEmailImportService
         $importMetadata = $this->planImportMetadata($parseResult, $plan, $reviewedByUserId, $reviewMode);
 
         try {
-            return $this->mergeOrCreatePlan($plan, $importMetadata, $reviewedByUserId);
+            return $this->mergeOrCreatePlan($inboundEmail, $plan, $importMetadata, $reviewedByUserId);
         } catch (Throwable $exception) {
             report($exception);
 
@@ -389,7 +395,7 @@ class InboundEmailImportService
     /**
      * @param  array<string, mixed>  $importMetadata
      */
-    private function mergeOrCreatePlan(OosEmailServicePlan $plan, array $importMetadata, ?int $reviewedByUserId): OosEmailImportPlanOutcome
+    private function mergeOrCreatePlan(InboundEmail $inboundEmail, OosEmailServicePlan $plan, array $importMetadata, ?int $reviewedByUserId): OosEmailImportPlanOutcome
     {
         /** @var SermonService $service */
         $service = $plan->service;
@@ -400,10 +406,10 @@ class InboundEmailImportService
             ->first();
 
         if ($existingService instanceof ChurchService) {
-            return $this->mergePlanIntoExistingService($plan, $existingService, $importMetadata, $reviewedByUserId);
+            return $this->mergePlanIntoExistingService($inboundEmail, $plan, $existingService, $importMetadata, $reviewedByUserId);
         }
 
-        $churchService = $this->createNewServiceFromPlan($plan, $service, $importMetadata, $reviewedByUserId);
+        $churchService = $this->createNewServiceFromPlan($inboundEmail, $plan, $service, $importMetadata, $reviewedByUserId);
 
         return new OosEmailImportPlanOutcome(
             $plan->key(),
@@ -418,6 +424,7 @@ class InboundEmailImportService
      * @param  array<string, mixed>  $importMetadata
      */
     private function createNewServiceFromPlan(
+        InboundEmail $inboundEmail,
         OosEmailServicePlan $plan,
         SermonService $service,
         array $importMetadata,
@@ -425,7 +432,7 @@ class InboundEmailImportService
     ): ChurchService {
         $syncResult = [];
 
-        $churchService = DB::transaction(function () use ($plan, $service, $importMetadata, $reviewedByUserId, &$syncResult): ChurchService {
+        $churchService = DB::transaction(function () use ($inboundEmail, $plan, $service, $importMetadata, $reviewedByUserId, &$syncResult): ChurchService {
             $churchService = ChurchService::query()->firstOrNew([
                 'date' => $plan->date,
                 'service' => $service->value,
@@ -441,6 +448,10 @@ class InboundEmailImportService
 
             $syncResult = $this->itemSyncService->sync($churchService, $plan->items, ChurchServiceItemSource::Email);
             $this->songLinker->linkForService($churchService);
+            $this->ingestSourceRevision->execute(
+                $churchService,
+                $this->sourceAdapter->adapt($inboundEmail, $plan),
+            );
 
             /** @var ChurchService $freshChurchService */
             $freshChurchService = $churchService->fresh(['items']) ?? $churchService;
@@ -466,36 +477,40 @@ class InboundEmailImportService
      * @param  array<string, mixed>  $importMetadata
      */
     private function mergePlanIntoExistingService(
+        InboundEmail $inboundEmail,
         OosEmailServicePlan $plan,
         ChurchService $existingService,
         array $importMetadata,
         ?int $reviewedByUserId,
     ): OosEmailImportPlanOutcome {
-        $existingMetadata = $existingService->import_metadata?->toArray() ?? [];
+        $mergeResult = DB::transaction(function () use ($inboundEmail, $plan, $existingService, $importMetadata, $reviewedByUserId) {
+            $existingMetadata = $existingService->import_metadata?->toArray() ?? [];
+            $existingService->fill([
+                'needs_review' => $reviewedByUserId === null ? $plan->needsReview : false,
+                'import_metadata' => array_replace_recursive($existingMetadata, $importMetadata),
+            ]);
+            $existingService->save();
 
-        // Update import provenance metadata, but defer the source field update until after
-        // the merge decision — if the merge is staged for review the service items are still
-        // livestream-derived and source should continue to reflect their actual provenance.
-        $existingService->fill([
-            'needs_review' => $reviewedByUserId === null ? $plan->needsReview : false,
-            'import_metadata' => array_replace_recursive($existingMetadata, $importMetadata),
-        ]);
-        $existingService->save();
+            $mergeResult = $this->mergeService->merge(
+                $existingService,
+                $plan->items,
+                ChurchServiceItemSource::Email,
+            );
 
-        $mergeResult = $this->mergeService->merge(
-            $existingService,
-            $plan->items,
-            ChurchServiceItemSource::Email,
-        );
+            $this->ingestSourceRevision->execute(
+                $mergeResult->churchService,
+                $this->sourceAdapter->adapt($inboundEmail, $plan),
+            );
 
-        if ($mergeResult->wasMerged) {
-            // Only update source to email once items have actually been applied.
-            $mergeResult->churchService->forceFill([
-                'source' => ChurchServiceItemSource::Email->value,
-            ])->saveQuietly();
+            if ($mergeResult->wasMerged) {
+                $mergeResult->churchService->forceFill([
+                    'source' => ChurchServiceItemSource::Email->value,
+                ])->saveQuietly();
+                $this->songLinker->linkForService($mergeResult->churchService);
+            }
 
-            $this->songLinker->linkForService($mergeResult->churchService);
-        }
+            return $mergeResult;
+        });
 
         Log::warning('Church service imported from email (existing)', $this->sanitizeArrayForLog([
             'admin_id' => $reviewedByUserId,
