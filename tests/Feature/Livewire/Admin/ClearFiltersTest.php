@@ -39,7 +39,8 @@ class ClearFiltersTest extends TestCase
             ->assertSet('search', '')
             ->assertSet('serviceFilter', null)
             ->assertSet('last12Months', true)
-            ->assertSet('hasFilters', false);
+            ->assertSet('hasFilters', false)
+            ->assertDispatched('notify', type: 'success', message: 'Filters cleared');
     }
 
     public function test_can_reset_page_filters(): void
@@ -52,7 +53,8 @@ class ClearFiltersTest extends TestCase
             ->call('resetFilters')
             ->assertSet('search', '')
             ->assertSet('areaFilter', null)
-            ->assertSet('hasFilters', false);
+            ->assertSet('hasFilters', false)
+            ->assertDispatched('notify', type: 'success', message: 'Filters cleared');
     }
 
     public function test_can_reset_meeting_filters(): void
@@ -65,7 +67,8 @@ class ClearFiltersTest extends TestCase
             ->call('resetFilters')
             ->assertSet('search', '')
             ->assertSet('typeFilter', null)
-            ->assertSet('hasFilters', false);
+            ->assertSet('hasFilters', false)
+            ->assertDispatched('notify', type: 'success', message: 'Filters cleared');
     }
 
     public function test_can_reset_user_filters(): void
@@ -80,7 +83,8 @@ class ClearFiltersTest extends TestCase
             ->assertSet('search', '')
             ->assertSet('verifiedFilter', null)
             ->assertSet('adminFilter', null)
-            ->assertSet('hasFilters', false);
+            ->assertSet('hasFilters', false)
+            ->assertDispatched('notify', type: 'success', message: 'Filters cleared');
     }
 
     public function test_can_reset_preacher_filters(): void
@@ -93,7 +97,8 @@ class ClearFiltersTest extends TestCase
             ->call('resetFilters')
             ->assertSet('search', '')
             ->assertSet('activeFilter', null)
-            ->assertSet('hasFilters', false);
+            ->assertSet('hasFilters', false)
+            ->assertDispatched('notify', type: 'success', message: 'Filters cleared');
     }
 
     public function test_can_reset_calendar_event_filters(): void
@@ -110,6 +115,7 @@ class ClearFiltersTest extends TestCase
             ->assertSet('meetingFilter', null)
             ->assertSet('uncategorizedOnly', false)
             ->assertSet('upcomingOnly', true)
-            ->assertSet('hasFilters', false);
+            ->assertSet('hasFilters', false)
+            ->assertDispatched('notify', type: 'success', message: 'Filters cleared');
     }
 }

@@ -51,6 +51,10 @@ trait WithFilterableListing
     {
         $this->reset(array_keys($this->filterProperties()));
         $this->resetPage();
+
+        if (method_exists($this, 'success')) { // @phpstan-ignore-line
+            $this->success('Filters cleared');
+        }
     }
 
     protected function computeHasFilters(): void
