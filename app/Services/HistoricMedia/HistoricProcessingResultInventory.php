@@ -22,11 +22,11 @@ class HistoricProcessingResultInventory
      * @return array{
      *     processing_key: string,
      *     run: array<string, mixed>,
-     *     steps: list<array<string, mixed>>,
-     *     segments: list<array<string, mixed>>,
-     *     sections: list<array<string, mixed>>,
-     *     publications: list<array<string, mixed>>,
-     *     song_videos: list<array<string, mixed>>,
+     *     steps: array<int, array<string, mixed>>,
+     *     segments: array<int, array<string, mixed>>,
+     *     sections: array<int, array<string, mixed>>,
+     *     publications: array<int, array<string, mixed>>,
+     *     song_videos: array<int, array<string, mixed>>,
      *     metadata: array<string, mixed>,
      *     logical_hash: string
      * }
@@ -36,6 +36,7 @@ class HistoricProcessingResultInventory
         $processingLog->loadMissing([
             'processingSteps',
             'segments',
+            'sermon.preacherProfile',
             'serviceSections.publishedSermon.preacherProfile',
         ]);
 
@@ -49,7 +50,7 @@ class HistoricProcessingResultInventory
             'processing_key' => $processingLog->processing_id,
             'run' => $this->run($processingLog),
             'steps' => $processingLog->processingSteps
-                ->sortBy(fn ($step): string => "{$step->step}\0{$step->created_at?->toISOString()}")
+                ->sortBy(fn ($step): string => "{$step->step}\0{$step->created_at->toISOString()}")
                 ->map(fn ($step): array => [
                     'step' => $step->step,
                     'status' => $step->status->value,
@@ -154,34 +155,62 @@ class HistoricProcessingResultInventory
 
     /**
      * @param  Collection<int, ServiceSection>  $sections
-     * @return list<array<string, mixed>>
+     * @return array<int, array<string, mixed>>
      */
     private function publications(MediaProcessingLog $log, Collection $sections): array
     {
-        return $sections
-            ->filter(fn (ServiceSection $section): bool => $section->publishedSermon !== null)
-            ->map(fn (ServiceSection $section): array => [
-                'publication_key' => $this->sectionKey($log, $section).':'.$section->publishedSermon->content_type->value,
+        $publications = [];
+
+        $primarySermon = $log->sermon;
+
+        if ($primarySermon !== null) {
+            $publications[] = [
+                'publication_key' => "{$log->processing_id}:main:{$primarySermon->content_type->value}",
+                'section_key' => null,
+                'content_type' => $primarySermon->content_type->value,
+                'date' => $primarySermon->date->toDateString(),
+                'service' => $primarySermon->service?->value,
+                'slug' => $primarySermon->slug,
+                'title' => $primarySermon->title,
+                'reference' => $primarySermon->reference,
+                'preacher_slug' => $primarySermon->preacherProfile?->slug,
+                'audio_file_path' => $primarySermon->audio_file_path,
+                'video_file_path' => $primarySermon->video_file_path,
+                'transcript_file_path' => $primarySermon->transcript_file_path,
+                'thumbnail_file_path' => $primarySermon->thumbnail_file_path,
+            ];
+        }
+
+        foreach ($sections as $section) {
+            $sermon = $section->publishedSermon;
+
+            if ($sermon === null) {
+                continue;
+            }
+
+            $publications[] = [
+                'publication_key' => $this->sectionKey($log, $section).':'.$sermon->content_type->value,
                 'section_key' => $this->sectionKey($log, $section),
-                'content_type' => $section->publishedSermon->content_type->value,
-                'date' => $section->publishedSermon->date->toDateString(),
-                'service' => $section->publishedSermon->service?->value,
-                'slug' => $section->publishedSermon->slug,
-                'title' => $section->publishedSermon->title,
-                'reference' => $section->publishedSermon->reference,
-                'preacher_slug' => $section->publishedSermon->preacherProfile?->slug,
-                'audio_file_path' => $section->publishedSermon->audio_file_path,
-                'video_file_path' => $section->publishedSermon->video_file_path,
-                'transcript_file_path' => $section->publishedSermon->transcript_file_path,
-                'thumbnail_file_path' => $section->publishedSermon->thumbnail_file_path,
-            ])
-            ->values()
-            ->all();
+                'content_type' => $sermon->content_type->value,
+                'date' => $sermon->date->toDateString(),
+                'service' => $sermon->service?->value,
+                'slug' => $sermon->slug,
+                'title' => $sermon->title,
+                'reference' => $sermon->reference,
+                'preacher_slug' => $sermon->preacherProfile?->slug,
+                'audio_file_path' => $sermon->audio_file_path,
+                'video_file_path' => $sermon->video_file_path,
+                'transcript_file_path' => $sermon->transcript_file_path,
+                'thumbnail_file_path' => $sermon->thumbnail_file_path,
+            ];
+        }
+
+        return $publications;
     }
 
     /**
      * @param  Collection<int, ServiceSection>  $sections
-     * @return list<array<string, mixed>>
+     * @return array<int, array<string, mixed>>
      */
     private function songVideos(MediaProcessingLog $log, Collection $sections): array
     {
@@ -189,7 +218,7 @@ class HistoricProcessingResultInventory
             fn (ServiceSection $section): array => [$section->id => $this->sectionKey($log, $section)],
         );
 
-        return SongVideo::query()
+        return array_values(SongVideo::query()
             ->with('song:id,canonical_key')
             ->whereIn('service_section_id', $sectionKeys->keys())
             ->orderBy('service_section_id')
@@ -202,7 +231,7 @@ class HistoricProcessingResultInventory
                 'recorded_date' => $video->recorded_date?->toDateString(),
                 'is_featured' => $video->is_featured,
             ])
-            ->all();
+            ->all());
     }
 
     private function segmentKey(MediaProcessingLog $log, LivestreamSegment $segment): string

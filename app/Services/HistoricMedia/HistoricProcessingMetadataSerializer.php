@@ -68,14 +68,18 @@ class HistoricProcessingMetadataSerializer
      */
     private function portableHistoricImport(array $historicImport): array
     {
-        $sources = collect($historicImport['sources'] ?? [])
-            ->filter(fn (mixed $source): bool => is_array($source))
-            ->map(fn (array $source): array => [
+        $sources = [];
+
+        foreach ($historicImport['sources'] ?? [] as $source) {
+            if (! is_array($source)) {
+                continue;
+            }
+
+            $sources[] = [
                 'sha256' => $source['sha256'] ?? null,
                 'size' => $source['size'] ?? null,
-            ])
-            ->values()
-            ->all();
+            ];
+        }
 
         return array_filter([
             'tag' => $historicImport['tag'] ?? null,

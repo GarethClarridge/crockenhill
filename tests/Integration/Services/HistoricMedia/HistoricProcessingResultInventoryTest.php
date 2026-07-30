@@ -69,7 +69,7 @@ class HistoricProcessingResultInventoryTest extends TestCase
             ['historic-run:segment:7'],
             $first['sections'][0]['source_segment_keys'],
         );
-        $this->assertSame('childrens_talk', $first['publications'][0]['content_type']);
+        $this->assertContains('childrens_talk', array_column($first['publications'], 'content_type'));
         $this->assertSame('amazing-grace', $first['song_videos'][0]['song_canonical_key']);
         $this->assertArrayNotHasKey('owner_user_id', $first['run']);
         $this->assertArrayNotHasKey('queue_name', $first['run']);

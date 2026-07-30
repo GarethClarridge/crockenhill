@@ -153,7 +153,10 @@ class HistoricProcessingResultBundle
         }
     }
 
-    /** @param array<string, mixed> $value */
+    /**
+     * @param  array<string, mixed>  $value
+     * @param  list<string>  $keys
+     */
     private function requireExactKeys(array $value, array $keys, string $path): void
     {
         $actual = array_keys($value);
