@@ -702,6 +702,8 @@ class HistoricVideoImporter
                 file: $file,
                 clientFileDate: $item['client_file_date'] !== '' ? $item['client_file_date'] : null,
                 options: ['processing_metadata' => $this->historicImportMetadata($item, $path)],
+                serviceOverride: $item['service'],
+                serviceDateOverride: $item['date']->toDateString(),
             );
 
             if (! $result->success) {
@@ -902,6 +904,8 @@ class HistoricVideoImporter
             file: $file,
             clientFileDate: $item['client_file_date'] !== '' ? $item['client_file_date'] : null,
             options: ['processing_metadata' => $this->historicImportMetadata($item, $outputPath, $concatenation)],
+            serviceOverride: $item['service'],
+            serviceDateOverride: $item['date']->toDateString(),
         );
     }
 

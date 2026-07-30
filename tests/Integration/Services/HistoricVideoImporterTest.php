@@ -147,6 +147,59 @@ class HistoricVideoImporterTest extends TestCase
     }
 
     #[Test]
+    public function it_dispatches_the_approved_service_identity_as_explicit_overrides(): void
+    {
+        $path = $this->temporaryDirectory.'/2022-01-16 18-38-15.mkv';
+        $this->createFakeVideo($path);
+        $capturedService = null;
+        $capturedDate = null;
+
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->once()
+            ->withArgs(function (
+                string $type,
+                mixed $file,
+                ?string $clientFileDate,
+                array $options,
+                ?SermonService $serviceOverride,
+                ?string $serviceDateOverride,
+            ) use (&$capturedService, &$capturedDate): bool {
+                $capturedService = $serviceOverride;
+                $capturedDate = $serviceDateOverride;
+
+                return $type === 'livestream'
+                    && $clientFileDate !== null
+                    && isset($options['processing_metadata']['historic_import']);
+            })
+            ->andReturnUsing(function (): ProcessingResult {
+                $processingId = 'historic-'.uniqid();
+                MediaProcessingLog::factory()->livestream()->completed()->create([
+                    'processing_id' => $processingId,
+                ]);
+
+                return ProcessingResult::success($processingId, 'ok');
+            });
+
+        $this->runImportWithProcessor($processor);
+
+        $this->assertSame(SermonService::Evening, $capturedService);
+        $this->assertSame('2022-01-16', $capturedDate);
+    }
+
+    #[Test]
+    public function historic_staging_has_no_public_url_and_uses_a_private_root(): void
+    {
+        $configuration = config('filesystems.disks.historic_staging');
+
+        $this->assertIsArray($configuration);
+        $this->assertArrayNotHasKey('url', $configuration);
+        $this->assertSame('private', $configuration['visibility']);
+        $this->assertStringContainsString('/private/historic-staging', $configuration['root']);
+        $this->assertSame('historic_staging', config('media-processing.storage.historic_staging_disk'));
+    }
+
+    #[Test]
     public function it_counts_a_failed_pipeline_as_an_import_error(): void
     {
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');

@@ -55,6 +55,13 @@ return [
             'visibility' => 'public',
         ],
 
+        'historic_staging' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/historic-staging'),
+            'visibility' => 'private',
+            'throw' => true,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_KEY'),

@@ -54,6 +54,7 @@ return [
         'sermon_disk' => env('SERMON_STORAGE_DISK', env('FILESYSTEM_DISK', 'local')),
         // TRANSCRIPT_STORAGE_DISK is the canonical key; falls back to sermon disk, then filesystem disk.
         'transcript_disk' => env('TRANSCRIPT_STORAGE_DISK', env('SERMON_STORAGE_DISK', env('FILESYSTEM_DISK', 'local'))),
+        'historic_staging_disk' => env('HISTORIC_STAGING_DISK', 'historic_staging'),
         'temp_disk' => 'local',
         'metadata_cache_ttl' => (int) env('SERMON_METADATA_CACHE_TTL', 3600),
         // Shared minimum free-space floor (GB) for the local temp disk — the genuine
