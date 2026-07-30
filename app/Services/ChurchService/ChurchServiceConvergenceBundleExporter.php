@@ -110,6 +110,26 @@ class ChurchServiceConvergenceBundleExporter
     /** @return array<string, mixed> */
     private function manualRevision(ChurchServiceSourceRecord $record): array
     {
+        $assertions = $record->assertions->sortBy('assertion_key')->map(
+            fn (ChurchServiceItemAssertion $assertion): array => [
+                'assertion_key' => $assertion->assertion_key,
+                'source_position' => $assertion->source_position,
+                'evidence_kind' => $assertion->evidence_kind->value,
+                'type' => $assertion->type,
+                'section_type' => $assertion->section_type?->value,
+                'title' => $assertion->title,
+                'source_title' => $assertion->source_title,
+                'normalized_title' => $assertion->normalized_title,
+                'song_canonical_key' => $assertion->song_canonical_key,
+                'scripture_reference' => $assertion->scripture_reference,
+                'normalized_scripture_key' => $assertion->normalized_scripture_key,
+                'start_seconds' => $assertion->start_seconds,
+                'end_seconds' => $assertion->end_seconds,
+                'confidence' => $assertion->confidence === null ? null : (float) $assertion->confidence,
+                'metadata' => $this->portableAssertionMetadata($assertion->metadata),
+            ],
+        )->values()->all();
+
         return [
             'source_key' => $record->source_key,
             'revision_hash' => $record->revision_hash,
@@ -119,25 +139,23 @@ class ChurchServiceConvergenceBundleExporter
             'service_content' => $record->service_content,
             'payload_complete' => $record->payload_complete,
             'captured_at' => $record->captured_at?->toISOString(),
-            'assertions' => $record->assertions->sortBy('assertion_key')->map(
-                fn (ChurchServiceItemAssertion $assertion): array => [
-                    'assertion_key' => $assertion->assertion_key,
-                    'source_position' => $assertion->source_position,
-                    'evidence_kind' => $assertion->evidence_kind->value,
-                    'type' => $assertion->type,
-                    'section_type' => $assertion->section_type?->value,
-                    'title' => $assertion->title,
-                    'source_title' => $assertion->source_title,
-                    'normalized_title' => $assertion->normalized_title,
-                    'song_canonical_key' => $assertion->song_canonical_key,
-                    'scripture_reference' => $assertion->scripture_reference,
-                    'normalized_scripture_key' => $assertion->normalized_scripture_key,
-                    'start_seconds' => $assertion->start_seconds,
-                    'end_seconds' => $assertion->end_seconds,
-                    'confidence' => $assertion->confidence,
-                ],
-            )->values()->all(),
+            'assertions' => $assertions,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $metadata
+     * @return array<string, mixed>|null
+     */
+    private function portableAssertionMetadata(?array $metadata): ?array
+    {
+        if ($metadata === null) {
+            return null;
+        }
+
+        unset($metadata['livestream_service_section_id'], $metadata['oos_item_id']);
+
+        return $metadata;
     }
 
     /** @return array<string, mixed> */

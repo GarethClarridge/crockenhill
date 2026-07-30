@@ -30,7 +30,7 @@ class IngestChurchServiceSourceRevision
         ChurchServiceSourceRevision $revision,
     ): ChurchServiceSourceIngestionResult {
         $revisionHash = CanonicalJson::hash([
-            'assertions' => $revision->assertions,
+            'assertions' => $this->portableAssertions($revision->assertions),
             'service_content' => $revision->serviceContent,
         ]);
 
@@ -112,6 +112,29 @@ class IngestChurchServiceSourceRevision
 
             return new ChurchServiceSourceIngestionResult($existing, false);
         }
+    }
+
+    /**
+     * Database IDs are persisted for live relationships but cannot participate
+     * in immutable source identity because bundles cross databases.
+     *
+     * @param  list<array<string, mixed>>  $assertions
+     * @return list<array<string, mixed>>
+     */
+    private function portableAssertions(array $assertions): array
+    {
+        return array_map(function (array $assertion): array {
+            unset($assertion['song_id']);
+
+            if (is_array($assertion['metadata'] ?? null)) {
+                unset(
+                    $assertion['metadata']['livestream_service_section_id'],
+                    $assertion['metadata']['oos_item_id'],
+                );
+            }
+
+            return $assertion;
+        }, $assertions);
     }
 
     /**
