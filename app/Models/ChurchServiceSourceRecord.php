@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property ChurchServiceSource $source
  * @property string $source_key
  * @property string $revision_hash
+ * @property array<string, mixed> $processing_fingerprint
  * @property array<string, mixed>|null $service_content
  * @property Carbon|null $captured_at
  * @property-read Collection<int, ChurchServiceItemAssertion> $assertions
