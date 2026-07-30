@@ -69,18 +69,18 @@ class ChurchServiceProjectorTest extends TestCase
 
         $this->assertSame(
             ChurchServiceOccurrenceState::PlannedAndObserved,
-            $items['song:opening-song']->occurrence_state,
+            $items['song:opening-song#1']->occurrence_state,
         );
-        $this->assertSame('OpenLP song title', $items['song:opening-song']->title);
+        $this->assertSame('OpenLP song title', $items['song:opening-song#1']->title);
         $this->assertSame(
             ChurchServiceOccurrenceState::ObservedOnly,
-            $items['custom:welcome']->occurrence_state,
+            $items['custom:welcome#1']->occurrence_state,
         );
         $this->assertSame(
             ChurchServiceOccurrenceState::PlannedOnly,
-            $items['bibles:john 3:16']->occurrence_state,
+            $items['bibles:john 3:16#1']->occurrence_state,
         );
-        $this->assertSame('Email sermon title', $items['custom:sermon']->title);
+        $this->assertSame('Email sermon title', $items['custom:sermon#1']->title);
         $this->assertSame('mixed', $service->fresh()->source_summary);
     }
 

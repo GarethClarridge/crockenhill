@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use App\Data\ChurchServiceProjection;
 use App\Data\ChurchServiceSourceIngestionResult;
 use App\Data\ChurchServiceSourceRevision;
 use App\Enums\ChurchServiceProposalStatus;
@@ -83,15 +84,18 @@ class IngestChurchServiceSourceRevision
                     ->whereNotIn('source', $normalizedSources)
                     ->exists();
 
-                $isMachineRevisionAfterReview = $revision->source !== ChurchServiceSource::Manual
-                    && $lockedService->reviewed_canonical_revision !== null;
-                $isStagedMachineRevision = $revision->source !== ChurchServiceSource::Manual
-                    && $lockedService->pending_structure_merge_source !== null;
+                $projection = $this->projector->project($records);
+                $stagingReasons = $this->stagingReasons(
+                    $lockedService,
+                    $revision,
+                    $projection,
+                    $hasUnnormalizedLegacyItems,
+                );
 
-                if ($isMachineRevisionAfterReview || $isStagedMachineRevision) {
-                    $this->stageProposal($lockedService, $sourceRecord, $records);
-                } elseif (! $hasUnnormalizedLegacyItems) {
-                    $this->persister->apply($lockedService, $this->projector->project($records));
+                if ($stagingReasons !== []) {
+                    $this->stageProposal($lockedService, $sourceRecord, $records, $stagingReasons);
+                } else {
+                    $this->persister->apply($lockedService, $projection);
                 }
 
                 return new ChurchServiceSourceIngestionResult(
@@ -138,12 +142,57 @@ class IngestChurchServiceSourceRevision
     }
 
     /**
+     * Every reason a machine revision must not write canonical rows on its own. An
+     * empty list is the only licence to project directly; anything else has to reach a
+     * reviewer, so no ingress may end without either applying or staging.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function stagingReasons(
+        ChurchService $churchService,
+        ChurchServiceSourceRevision $revision,
+        ChurchServiceProjection $projection,
+        bool $hasUnnormalizedLegacyItems,
+    ): array {
+        if ($revision->source === ChurchServiceSource::Manual) {
+            return [];
+        }
+
+        $reasons = [];
+
+        if ($churchService->reviewed_canonical_revision !== null) {
+            $reasons[] = [
+                'kind' => 'reviewed_service',
+                'reason' => 'A person has reviewed this service, so later machine evidence stages for review instead of writing canonical items.',
+            ];
+        }
+
+        if ($churchService->pending_structure_merge_source !== null) {
+            $reasons[] = [
+                'kind' => 'pending_structure_merge',
+                'reason' => 'An earlier structure merge is still awaiting resolution.',
+            ];
+        }
+
+        if ($hasUnnormalizedLegacyItems) {
+            $reasons[] = [
+                'kind' => 'unnormalized_legacy_items',
+                'reason' => 'This service still holds legacy items from a source with no normalized evidence, so projecting would delete items no source can account for.',
+            ];
+        }
+
+        return [...$reasons, ...$projection->conflicts];
+    }
+
+    /**
      * @param  Collection<int, ChurchServiceSourceRecord>  $records
+     * @param  list<array<string, mixed>>  $stagingReasons
      */
     private function stageProposal(
         ChurchService $churchService,
         ChurchServiceSourceRecord $triggerSourceRecord,
         Collection $records,
+        array $stagingReasons,
     ): void {
         $machineRecords = $records
             ->reject(fn (ChurchServiceSourceRecord $record): bool => $record->source === ChurchServiceSource::Manual)
@@ -166,8 +215,8 @@ class IngestChurchServiceSourceRevision
             'included_source_hashes' => $machineRecords->pluck('revision_hash')->sort()->values()->all(),
             'proposed_items' => $projection->items,
             'proposed_hash' => $projection->hash,
-            'field_decisions' => [],
-            'conflicts' => [],
+            'field_decisions' => $projection->fieldDecisions,
+            'conflicts' => $stagingReasons,
             'status' => ChurchServiceProposalStatus::Pending,
         ]);
     }

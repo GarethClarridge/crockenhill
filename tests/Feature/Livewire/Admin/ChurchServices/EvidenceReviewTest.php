@@ -74,6 +74,50 @@ class EvidenceReviewTest extends TestCase
     }
 
     #[Test]
+    public function it_shows_the_recorded_match_explanation_and_never_invents_one(): void
+    {
+        $service = ChurchService::factory()->create();
+        $proposal = $this->createProposal($service, ChurchServiceSource::Email, 'Email item');
+        $record = $proposal->triggerSourceRecord;
+        $proposal->forceFill([
+            'field_decisions' => [
+                "{$record->revision_hash}:item-1" => [
+                    'assertion_key' => 'item-1',
+                    'source' => 'email',
+                    'source_key' => $record->source_key,
+                    'canonical_identity' => 'custom:email item#1',
+                    'match_method' => 'normalized_title',
+                    'selected_fields' => ['title'],
+                    'explanation' => 'Matched by normalised title and occurrence order only.',
+                ],
+            ],
+            'conflicts' => [[
+                'kind' => 'ambiguous_repeat_match',
+                'reason' => 'Sources disagree about how many times this item occurred.',
+            ]],
+        ])->save();
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Matched by normalised title and occurrence order only.')
+            ->assertSee('Ambiguous repeat match')
+            ->assertSee('Sources disagree about how many times this item occurred.')
+            ->assertDontSee('Matched deterministically by identity and source authority.');
+    }
+
+    #[Test]
+    public function an_assertion_with_no_recorded_decision_is_shown_as_unexplained(): void
+    {
+        $service = ChurchService::factory()->create();
+        $this->createProposal($service, ChurchServiceSource::Email, 'Email item');
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('No recorded match explanation — check this assertion yourself.')
+            ->assertDontSee('Matched deterministically by identity and source authority.');
+    }
+
+    #[Test]
     public function it_resolves_only_the_selected_proposals_and_preserves_all_history(): void
     {
         $service = ChurchService::factory()->create();

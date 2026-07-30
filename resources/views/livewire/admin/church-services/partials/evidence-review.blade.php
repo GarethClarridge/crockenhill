@@ -78,6 +78,20 @@
                                 </div>
                             </div>
 
+                            @if(filled($proposal->conflicts))
+                                <div class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
+                                    <strong>This proposal needs a decision the projector would not make for you.</strong>
+                                    <ul class="mt-2 list-disc space-y-1 pl-5">
+                                        @foreach($proposal->conflicts as $conflict)
+                                            <li wire:key="conflict-{{ $proposal->id }}-{{ $loop->index }}">
+                                                <span class="font-medium">{{ str($conflict['kind'] ?? 'unknown')->replace('_', ' ')->ucfirst() }}</span>
+                                                — {{ $conflict['reason'] ?? 'No reason recorded.' }}
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
+
                             <div class="overflow-x-auto rounded-lg border border-gray-200">
                                 <table class="min-w-full divide-y divide-gray-200 text-sm">
                                     <thead class="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-500">
@@ -91,10 +105,18 @@
                                     <tbody class="divide-y divide-gray-200 bg-white">
                                         @foreach($record->assertions as $assertion)
                                             @php
-                                                $currentItem = $churchService->items->first(
-                                                    fn ($item) => $item->song_id !== null && $item->song_id === $assertion->song_id
-                                                        || mb_strtolower($item->title) === mb_strtolower($assertion->title)
-                                                );
+                                                $decision = $proposal->field_decisions[$record->revision_hash.':'.$assertion->assertion_key] ?? null;
+
+                                                // Without a recorded decision the only honest fallback is an
+                                                // unambiguous one: a single matching item. Two candidates mean
+                                                // this assertion's canonical item is genuinely unknown.
+                                                $candidates = $decision !== null
+                                                    ? $churchService->items->where('canonical_identity', $decision['canonical_identity'])
+                                                    : $churchService->items->filter(
+                                                        fn ($item) => ($assertion->song_id !== null && $item->song_id === $assertion->song_id)
+                                                            || mb_strtolower((string) $item->title) === mb_strtolower($assertion->title)
+                                                    );
+                                                $currentItem = $candidates->count() === 1 ? $candidates->first() : null;
                                                 $occurrence = $currentItem?->occurrence_state?->value
                                                     ?? ($assertion->evidence_kind->value === 'observed' ? 'observed_only' : 'planned_only');
                                                 $badgeClasses = match ($occurrence) {
@@ -116,7 +138,17 @@
                                                 </td>
                                                 <td class="px-3 py-3 text-gray-700">{{ $currentItem?->title ?? 'Not currently included' }}</td>
                                                 <td class="px-3 py-3 text-gray-600">
-                                                    {{ $proposal->field_decisions[$assertion->assertion_key]['explanation'] ?? 'Matched deterministically by identity and source authority.' }}
+                                                    @if($decision === null)
+                                                        <span class="font-medium text-amber-800">
+                                                            No recorded match explanation — check this assertion yourself.
+                                                        </span>
+                                                    @else
+                                                        <p>{{ $decision['explanation'] }}</p>
+                                                        <p class="mt-1 text-xs text-gray-500">
+                                                            {{ str($decision['match_method'])->replace('_', ' ')->ucfirst() }}
+                                                            · {{ $decision['canonical_identity'] }}
+                                                        </p>
+                                                    @endif
                                                 </td>
                                             </tr>
                                         @endforeach
