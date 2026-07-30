@@ -35,7 +35,7 @@ class ImportChurchServiceFromOpenLp
     /**
      * @throws ModelNotFoundException
      */
-    public function import(UploadedFile $uploadedFile): OpenLpImportResult
+    public function import(UploadedFile $uploadedFile, ?string $batchHash = null): OpenLpImportResult
     {
         $parsed = $this->parser->parse($uploadedFile);
 
@@ -45,10 +45,10 @@ class ImportChurchServiceFromOpenLp
             ->first();
 
         if ($existingService instanceof ChurchService) {
-            return $this->importIntoExistingService($uploadedFile, $parsed, $existingService);
+            return $this->importIntoExistingService($uploadedFile, $parsed, $existingService, $batchHash);
         }
 
-        return $this->importAsNewService($uploadedFile, $parsed);
+        return $this->importAsNewService($uploadedFile, $parsed, $batchHash);
     }
 
     /**
@@ -58,6 +58,7 @@ class ImportChurchServiceFromOpenLp
         UploadedFile $uploadedFile,
         OpenLpParseResult $parsed,
         ChurchService $existingService,
+        ?string $batchHash,
     ): OpenLpImportResult {
         $linkResult = [
             'dry_run' => false,
@@ -70,7 +71,7 @@ class ImportChurchServiceFromOpenLp
             'match_types' => [],
         ];
 
-        $mergeResult = DB::transaction(function () use ($uploadedFile, $parsed, $existingService, &$linkResult) {
+        $mergeResult = DB::transaction(function () use ($uploadedFile, $parsed, $existingService, $batchHash, &$linkResult) {
             try {
                 $existingMetadata = $existingService->import_metadata?->toArray() ?? [];
                 $existingService->fill([
@@ -101,6 +102,7 @@ class ImportChurchServiceFromOpenLp
                     $uploadedFile,
                     $parsed,
                     $mergeResult->wasMerged ? $this->sourceItems($mergeResult->churchService) : null,
+                    $batchHash,
                 ),
             );
 
@@ -129,6 +131,7 @@ class ImportChurchServiceFromOpenLp
     private function importAsNewService(
         UploadedFile $uploadedFile,
         OpenLpParseResult $parsed,
+        ?string $batchHash,
     ): OpenLpImportResult {
         $beforeSnapshot = [];
         $wasCreated = false;
@@ -145,7 +148,7 @@ class ImportChurchServiceFromOpenLp
         ];
 
         try {
-            $churchService = DB::transaction(function () use ($uploadedFile, $parsed, &$wasCreated, &$syncResult, &$linkResult): ChurchService {
+            $churchService = DB::transaction(function () use ($uploadedFile, $parsed, $batchHash, &$wasCreated, &$syncResult, &$linkResult): ChurchService {
                 $churchService = ChurchService::query()->firstOrNew([
                     'date' => $parsed->date,
                     'service' => $parsed->service->value,
@@ -166,7 +169,7 @@ class ImportChurchServiceFromOpenLp
                 $linkResult = $this->songLinker->linkForService($churchService);
                 $this->ingestSourceRevision->execute(
                     $churchService,
-                    $this->sourceAdapter->adapt($uploadedFile, $parsed, $this->sourceItems($churchService)),
+                    $this->sourceAdapter->adapt($uploadedFile, $parsed, $this->sourceItems($churchService), $batchHash),
                 );
 
                 return $churchService;
@@ -177,7 +180,7 @@ class ImportChurchServiceFromOpenLp
                 ->where('service', $parsed->service->value)
                 ->firstOrFail();
 
-            return $this->importIntoExistingService($uploadedFile, $parsed, $churchService);
+            return $this->importIntoExistingService($uploadedFile, $parsed, $churchService, $batchHash);
         }
 
         $churchService = $this->canonicalUpdateService->finalize(

@@ -9,6 +9,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
 use App\Services\ChurchService\ImportChurchServiceFromOpenLp;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -63,6 +64,25 @@ class ImportChurchServiceFromOpenLpTest extends TestCase
         $this->assertSame(1, $result->linkResult['matched']);
         $this->assertSame($song->id, $result->churchService->items->firstWhere('type', 'songs')?->song_id);
         $this->assertSame([], $result->syncResult['conflicts'] ?? []);
+    }
+
+    #[Test]
+    public function it_persists_the_curation_manifest_hash_on_the_openlp_source_record(): void
+    {
+        $batchHash = hash('sha256', 'private curation manifest');
+        $upload = OpenLpArchiveFactory::makeUpload(
+            archiveName: '2024-11-17 AM.osz',
+            osjName: '2024-11-17 AM.osj',
+        );
+
+        $result = $this->service->import($upload, $batchHash);
+
+        $this->assertDatabaseHas('church_service_source_records', [
+            'church_service_id' => $result->churchService->id,
+            'source' => 'openlp',
+            'input_hash' => hash_file('sha256', $upload->getRealPath()),
+            'batch_hash' => $batchHash,
+        ]);
     }
 
     #[Test]
@@ -131,7 +151,7 @@ class ImportChurchServiceFromOpenLpTest extends TestCase
                 'needs_review' => false,
             ])->saveQuietly();
 
-            throw new \Illuminate\Database\UniqueConstraintViolationException(
+            throw new UniqueConstraintViolationException(
                 'mysql',
                 'INSERT INTO church_services',
                 [],

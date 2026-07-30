@@ -76,8 +76,8 @@ class OpenLpServiceParser
             $this->throwValidation('The OpenLP .osj file must contain a JSON array.');
         }
 
-        $uploadIdentity = $this->inferIdentityFromFilename($file->getClientOriginalName());
-        $embeddedIdentity = $this->inferIdentityFromFilename($osjEntryName);
+        $uploadIdentity = $this->identityFromFilename($file->getClientOriginalName());
+        $embeddedIdentity = $this->identityFromFilename($osjEntryName);
 
         if ($uploadIdentity === null && $embeddedIdentity === null) {
             $this->throwValidation('Could not infer a service date from the uploaded filename or embedded .osj filename.');
@@ -247,7 +247,7 @@ class OpenLpServiceParser
     /**
      * @return array{date: string, service: SermonService, slot_known: bool}|null
      */
-    private function inferIdentityFromFilename(string $filename): ?array
+    public function identityFromFilename(string $filename): ?array
     {
         $stem = pathinfo($filename, PATHINFO_FILENAME);
 

@@ -5,26 +5,40 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Data\OpenLpImportResult;
+use App\Enums\ChurchServiceSource;
+use App\Models\ChurchServiceSourceRecord;
 use App\Services\ChurchService\ImportChurchServiceFromOpenLp;
+use App\Services\ChurchService\OpenLpCurationManifest;
+use App\Support\CanonicalJson;
 use Illuminate\Console\Command;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
-use RuntimeException;
 use Throwable;
 
+/**
+ * Temporary R8 one-shot. Delete this command and its tests after the production OpenLP
+ * convergence apply is ledgered, parity is accepted and WP11 closeout has passed.
+ */
 class ImportOpenLpDirectoryCommand extends Command
 {
     protected $signature = 'service-tracking:import-openlp-services
                             {--path= : Path to a directory containing OpenLP .osz archives}
-                            {--dry-run : Preview the bulk import without writing any database changes}';
+                            {--manifest= : Path to the private crockenhill-openlp-curation manifest}
+                            {--dry-run : Validate and write the canonical import plan without database changes}
+                            {--apply : Apply the previously validated canonical import plan}
+                            {--plan-hash= : Exact plan_hash emitted by the dry run}
+                            {--report= : Dry-run report path (defaults beside the manifest)}';
 
     protected $description = 'Bulk import historic OpenLP church service archives from a directory';
 
-    public function handle(ImportChurchServiceFromOpenLp $importer): int
-    {
+    public function handle(
+        ImportChurchServiceFromOpenLp $importer,
+        OpenLpCurationManifest $curationManifest,
+    ): int {
         $pathOption = $this->option('path');
         $dryRun = (bool) $this->option('dry-run');
+        $apply = (bool) $this->option('apply');
+        $manifestOption = $this->option('manifest');
 
         if (! is_string($pathOption) || trim($pathOption) === '') {
             $this->error('Please provide a directory path with --path=');
@@ -40,29 +54,63 @@ class ImportOpenLpDirectoryCommand extends Command
             return self::FAILURE;
         }
 
-        $archives = $this->discoverArchives($path);
+        if ($dryRun === $apply) {
+            $this->error('Choose exactly one mode: --dry-run or --apply.');
 
-        if ($archives === []) {
-            $this->error("No .osz archives were found in {$path}");
+            return self::FAILURE;
+        }
+
+        if (! is_string($manifestOption) || trim($manifestOption) === '') {
+            $this->error('A private curation manifest is required with --manifest=');
+
+            return self::FAILURE;
+        }
+
+        try {
+            $plan = $curationManifest->plan($path, $manifestOption);
+        } catch (Throwable $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
+
+        if ($dryRun) {
+            return $this->writeDryRunReport($plan->report(), $manifestOption);
+        }
+
+        $providedPlanHash = $this->option('plan-hash');
+
+        if (! is_string($providedPlanHash) || ! hash_equals($plan->planHash, $providedPlanHash)) {
+            $this->error('The supplied --plan-hash does not match the current canonical import plan.');
 
             return self::FAILURE;
         }
 
         $metrics = [
-            'archives_found' => count($archives),
+            'archives_found' => count($plan->includes),
             'archives_processed' => 0,
+            'already_present' => 0,
             'services_created' => 0,
             'services_updated' => 0,
             'needs_review' => 0,
             'failures' => 0,
         ];
 
-        foreach ($archives as $archivePath) {
+        foreach ($plan->includes as $entry) {
+            $archivePath = "{$path}/{$entry['relative_path']}";
+
+            if ($this->alreadyPresent($entry['sha256'], $plan->manifestHash)) {
+                $metrics['already_present']++;
+
+                continue;
+            }
+
             try {
                 $result = $this->importArchive(
                     archivePath: $archivePath,
+                    logicalFilename: $entry['logical_upload_filename'],
                     importer: $importer,
-                    dryRun: $dryRun,
+                    batchHash: $plan->manifestHash,
                 );
 
                 $metrics['archives_processed']++;
@@ -78,17 +126,16 @@ class ImportOpenLpDirectoryCommand extends Command
         }
 
         $this->info('OpenLP archive import completed.');
-        $this->line('Path: '.$path);
-
-        if ($dryRun) {
-            $this->warn('Dry run enabled. No database changes were written.');
-        }
+        $this->line("Path: {$path}");
+        $this->line("Manifest hash: {$plan->manifestHash}");
+        $this->line("Plan hash: {$plan->planHash}");
 
         $this->table(
             ['Metric', 'Value'],
             [
                 ['Archives found', (string) $metrics['archives_found']],
                 ['Archives processed', (string) $metrics['archives_processed']],
+                ['Already present / no-op', (string) $metrics['already_present']],
                 ['Services created', (string) $metrics['services_created']],
                 ['Services updated', (string) $metrics['services_updated']],
                 ['Imports flagged for review', (string) $metrics['needs_review']],
@@ -99,24 +146,44 @@ class ImportOpenLpDirectoryCommand extends Command
         return $metrics['failures'] > 0 ? self::FAILURE : self::SUCCESS;
     }
 
-    /**
-     * @return list<string>
-     */
-    private function discoverArchives(string $path): array
+    /** @param array<string, mixed> $report */
+    private function writeDryRunReport(array $report, string $manifestPath): int
     {
-        return array_values(collect(File::allFiles($path))
-            ->map(static fn (\SplFileInfo $file): string => $file->getPathname())
-            ->filter(static fn (string $filePath): bool => strtolower(pathinfo($filePath, PATHINFO_EXTENSION)) === 'osz')
-            ->sort()
-            ->values()
-            ->all());
+        $reportOption = $this->option('report');
+        $reportPath = is_string($reportOption) && trim($reportOption) !== ''
+            ? $reportOption
+            : "{$manifestPath}.plan.json";
+        $reportDirectory = dirname($reportPath);
+
+        if (! is_dir($reportDirectory) || ! is_writable($reportDirectory)) {
+            $this->error("Dry-run report directory is not writable: {$reportDirectory}");
+
+            return self::FAILURE;
+        }
+
+        $json = CanonicalJson::encode($report).PHP_EOL;
+
+        if (file_put_contents($reportPath, $json, LOCK_EX) === false) {
+            $this->error("Unable to write dry-run report: {$reportPath}");
+
+            return self::FAILURE;
+        }
+
+        @chmod($reportPath, 0600);
+
+        $this->info('OpenLP curation preflight passed. No database changes were written.');
+        $this->line("Manifest hash: {$report['manifest_hash']}");
+        $this->line("Plan hash: {$report['plan_hash']}");
+        $this->line("Report: {$reportPath}");
+
+        return self::SUCCESS;
     }
 
-    private function uploadedFileForArchive(string $archivePath): UploadedFile
+    private function uploadedFileForArchive(string $archivePath, string $logicalFilename): UploadedFile
     {
         return new UploadedFile(
             path: $archivePath,
-            originalName: basename($archivePath),
+            originalName: $logicalFilename,
             mimeType: 'application/zip',
             test: true,
         );
@@ -124,36 +191,23 @@ class ImportOpenLpDirectoryCommand extends Command
 
     private function importArchive(
         string $archivePath,
+        string $logicalFilename,
         ImportChurchServiceFromOpenLp $importer,
-        bool $dryRun,
+        string $batchHash,
     ): OpenLpImportResult {
-        $uploadedFile = $this->uploadedFileForArchive($archivePath);
+        $uploadedFile = $this->uploadedFileForArchive($archivePath, $logicalFilename);
 
-        if (! $dryRun) {
-            return $importer->import($uploadedFile);
-        }
+        return DB::transaction(
+            fn (): OpenLpImportResult => $importer->import($uploadedFile, $batchHash),
+        );
+    }
 
-        $result = new class
-        {
-            public ?OpenLpImportResult $value = null;
-        };
-
-        try {
-            DB::transaction(function () use ($importer, $uploadedFile, $result): void {
-                $result->value = $importer->import($uploadedFile);
-
-                throw new DryRunRollbackException;
-            });
-        } catch (DryRunRollbackException) {
-            // Roll back the previewed import while keeping the computed result.
-        }
-
-        if (! $result->value instanceof OpenLpImportResult) {
-            throw new RuntimeException('Dry run did not produce an import result.');
-        }
-
-        return $result->value;
+    private function alreadyPresent(string $inputHash, string $batchHash): bool
+    {
+        return ChurchServiceSourceRecord::query()
+            ->where('source', ChurchServiceSource::OpenLp->value)
+            ->where('input_hash', $inputHash)
+            ->where('batch_hash', $batchHash)
+            ->exists();
     }
 }
-
-class DryRunRollbackException extends RuntimeException {}

@@ -25,6 +25,7 @@ class OpenLpSourceAdapter
         UploadedFile $file,
         OpenLpParseResult $parsed,
         ?array $resolvedItems = null,
+        ?string $batchHash = null,
     ): ChurchServiceSourceRevision {
         $hash = hash_file('sha256', $file->getRealPath());
 
@@ -41,6 +42,7 @@ class OpenLpSourceAdapter
                 'format' => 'openlp-osz',
                 'version' => 1,
             ],
+            batchHash: $batchHash,
         );
     }
 }
