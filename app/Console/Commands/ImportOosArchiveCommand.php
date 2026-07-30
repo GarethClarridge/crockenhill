@@ -10,6 +10,7 @@ use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
 use App\Models\InboundEmail;
 use App\Services\Email\InboundEmailImportService;
+use App\Services\Email\OosArchiveAssertionBundle;
 use App\Services\Email\OosArchiveEvaluator;
 use App\Services\Email\OosArchiveMarkdownParser;
 use App\Services\Email\OosEmailParserService;
@@ -62,6 +63,9 @@ class ImportOosArchiveCommand extends Command
                             {--date=* : Include only these ground-truth dates}
                             {--from= : Include dates on or after this date}
                             {--to= : Include dates on or before this date}
+                            {--export-bundle= : Export normalized assertions to a private bundle}
+                            {--import-bundle= : Preflight and stage a private assertion bundle}
+                            {--apply-bundle= : Apply an already-staged private assertion bundle}
                             {--report= : JSON report path}';
 
     protected $description = 'Evaluate and conservatively import the order-of-service email archive';
@@ -71,6 +75,7 @@ class ImportOosArchiveCommand extends Command
         OosEmailParserService $emailParser,
         InboundEmailImportService $importService,
         OosArchiveEvaluator $evaluator,
+        OosArchiveAssertionBundle $assertionBundle,
     ): int {
         $path = $this->resolvePath($this->argument('path'));
 
@@ -89,6 +94,33 @@ class ImportOosArchiveCommand extends Command
 
         $allEntries = $archiveParser->parse($markdown);
         $entries = $this->filteredEntries($allEntries);
+        $archiveHash = hash('sha256', $markdown);
+
+        try {
+            if ($this->stringOption('import-bundle') !== null || $this->stringOption('apply-bundle') !== null) {
+                $bundlePath = $this->stringOption('import-bundle') ?? $this->stringOption('apply-bundle');
+                $bundle = $this->readBundle((string) $bundlePath);
+                $preflight = $assertionBundle->preflight($bundle, $entries, $archiveHash, self::PARSER_VERSION);
+
+                if ($this->stringOption('import-bundle') !== null) {
+                    $assertionBundle->stage($preflight);
+                    $this->info(sprintf(
+                        'Staged %d valid and %d review-held OoS assertion entries.',
+                        count($preflight['valid']),
+                        count($preflight['invalid']),
+                    ));
+                } else {
+                    $assertionBundle->apply($preflight);
+                    $this->info(sprintf('Applied %d OoS assertion entries.', count($preflight['valid'])));
+                }
+
+                return self::SUCCESS;
+            }
+        } catch (Throwable $throwable) {
+            $this->error($throwable->getMessage());
+
+            return self::FAILURE;
+        }
         $dryRun = (bool) $this->option('dry-run');
         $shouldImport = (bool) $this->option('import') && ! $dryRun;
         $songTitleResolver = $dryRun ? null : SongTitleResolver::fromDatabase();
@@ -202,6 +234,18 @@ class ImportOosArchiveCommand extends Command
             'entries' => $results,
             'aggregate' => $evaluator->aggregate($results),
         ];
+
+        try {
+            $exportPath = $this->stringOption('export-bundle');
+            if ($exportPath !== null) {
+                $bundle = $assertionBundle->export($entries, $archiveHash, self::PARSER_VERSION);
+                $this->writeJson($this->privateScratchPath($exportPath), $bundle);
+            }
+        } catch (Throwable $throwable) {
+            $this->error("Could not export assertion bundle: {$throwable->getMessage()}");
+
+            return self::FAILURE;
+        }
 
         $this->renderSummary($report);
 
@@ -554,6 +598,48 @@ class ImportOosArchiveCommand extends Command
         }
 
         return $path;
+    }
+
+    /** @return array<string, mixed> */
+    private function readBundle(string $path): array
+    {
+        $resolved = $this->privateScratchPath($path);
+        $payload = json_decode((string) file_get_contents($resolved), true, flags: JSON_THROW_ON_ERROR);
+
+        if (! is_array($payload)) {
+            throw new \RuntimeException('OoS assertion bundle must contain a JSON object.');
+        }
+
+        return $payload;
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function writeJson(string $path, array $payload): void
+    {
+        $directory = dirname($path);
+
+        if (! is_dir($directory) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
+            throw new \RuntimeException("Could not create bundle directory: {$directory}");
+        }
+
+        $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+
+        if (file_put_contents($path, $json."\n") === false) {
+            throw new \RuntimeException("Could not write bundle file: {$path}");
+        }
+    }
+
+    private function privateScratchPath(string $path): string
+    {
+        $resolved = $this->resolvePath($path);
+        $scratch = realpath(storage_path('scratch')) ?: storage_path('scratch');
+        $directory = realpath(dirname($resolved)) ?: dirname($resolved);
+
+        if ($directory !== $scratch && ! str_starts_with($directory, $scratch.DIRECTORY_SEPARATOR)) {
+            throw new \RuntimeException('OoS assertion bundles must stay under storage/scratch.');
+        }
+
+        return $resolved;
     }
 
     private function resolvePath(mixed $path): string

@@ -12,6 +12,7 @@ use App\Models\InboundEmail;
 use App\Queries\AdminAttentionCounts;
 use App\Queries\ReviewInboxQuery;
 use App\Services\ChurchService\ChurchServiceSongLinker;
+use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
@@ -576,6 +577,211 @@ class ImportOosArchiveCommandTest extends TestCase
         // Corrected archive text after an import is precisely what a human must re-check, so the
         // already-processed email is pushed back into the inbox rather than silently re-imported.
         $this->assertSame(InboundEmailStatus::Pending, InboundEmail::query()->firstOrFail()->status);
+    }
+
+    #[Test]
+    public function portable_assertions_round_trip_without_ids_or_extractor_calls_and_apply_idempotently(): void
+    {
+        $this->bindPortableExtractor();
+        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $bundle = storage_path('scratch/tests/oos-portable-'.uniqid().'.json');
+        $this->temporaryPaths[] = $bundle;
+
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--export-bundle' => $bundle,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $payload = $this->readReport($bundle);
+        $this->assertSame('crockenhill-oos-assertions', $payload['format']);
+        $this->assertStringNotContainsString('"id":', (string) file_get_contents($bundle));
+        $this->assertStringNotContainsString('inbound_email_id', (string) file_get_contents($bundle));
+
+        InboundEmail::query()->delete();
+        InboundEmail::factory()->create(['message_id' => '<different-primary-key@example.test>']);
+        $this->app->bind(OosEmailItemExtractor::class, fn () => new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                throw new RuntimeException('Portable bundle modes must not call the extractor.');
+            }
+        });
+
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--import-bundle' => $bundle,
+        ])->assertExitCode(0);
+        $this->assertDatabaseCount('church_services', 0);
+        $this->assertNotSame(1, InboundEmail::query()->where('message_id', 'like', '<oos-archive-%')->firstOrFail()->id);
+
+        $arguments = ['path' => $archive, '--apply-bundle' => $bundle];
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+
+        $this->assertDatabaseCount('church_services', 1);
+        $this->assertDatabaseCount('church_service_items', 1);
+        $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
+    }
+
+    #[Test]
+    public function bundle_preflight_rejects_entry_hash_fingerprint_and_markdown_mismatches_before_mutation(): void
+    {
+        $this->bindPortableExtractor();
+        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $bundle = storage_path('scratch/tests/oos-tamper-'.uniqid().'.json');
+        $this->temporaryPaths[] = $bundle;
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--export-bundle' => $bundle,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+        InboundEmail::query()->delete();
+
+        $payload = $this->readReport($bundle);
+        $payload['entries'][0]['fingerprints']['model_id'] = 'different-model';
+        $payload['entries'][0]['payload_hash'] = CanonicalJson::hash(
+            array_diff_key($payload['entries'][0], ['payload_hash' => true]),
+        );
+        $payload['bundle_hash'] = CanonicalJson::hash(array_diff_key($payload, ['bundle_hash' => true]));
+        file_put_contents($bundle, json_encode($payload, JSON_THROW_ON_ERROR));
+
+        $this->artisan('oos:import-archive', ['path' => $archive, '--import-bundle' => $bundle])
+            ->assertExitCode(1);
+        $this->assertDatabaseCount('inbound_emails', 0);
+        $this->assertDatabaseCount('church_services', 0);
+
+        $payload['entries'][0]['fingerprints']['model_id'] = (string) config('service-tracking.email_parsing.model');
+        $payload['entries'][0]['payload_hash'] = CanonicalJson::hash(
+            array_diff_key($payload['entries'][0], ['payload_hash' => true]),
+        );
+        $payload['bundle_hash'] = CanonicalJson::hash(array_diff_key($payload, ['bundle_hash' => true]));
+        file_put_contents($bundle, json_encode($payload, JSON_THROW_ON_ERROR));
+        file_put_contents($archive, $this->fullEntry('Sunday 12 July 2026', 'Changed source'));
+
+        $this->artisan('oos:import-archive', ['path' => $archive, '--import-bundle' => $bundle])
+            ->assertExitCode(1);
+        $this->assertDatabaseCount('inbound_emails', 0);
+    }
+
+    #[Test]
+    public function production_revalidation_holds_a_structurally_invalid_shipped_entry_without_a_canonical_write(): void
+    {
+        $this->bindPortableExtractor();
+        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $bundle = storage_path('scratch/tests/oos-invalid-'.uniqid().'.json');
+        $this->temporaryPaths[] = $bundle;
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--export-bundle' => $bundle,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+        InboundEmail::query()->delete();
+
+        $payload = $this->readReport($bundle);
+        $payload['entries'][0]['parse']['service_plans'][0]['source_provenance']['items'][0]['source_line_ids'] = [999];
+        $payload['entries'][0]['payload_hash'] = CanonicalJson::hash(
+            array_diff_key($payload['entries'][0], ['payload_hash' => true]),
+        );
+        $payload['bundle_hash'] = CanonicalJson::hash(array_diff_key($payload, ['bundle_hash' => true]));
+        file_put_contents($bundle, json_encode($payload, JSON_THROW_ON_ERROR));
+
+        $this->artisan('oos:import-archive', ['path' => $archive, '--import-bundle' => $bundle])
+            ->assertExitCode(0);
+
+        $this->assertDatabaseCount('church_services', 0);
+        $this->assertSame(InboundEmailStatus::Pending, InboundEmail::query()->firstOrFail()->status);
+        $this->artisan('oos:import-archive', ['path' => $archive, '--apply-bundle' => $bundle])
+            ->assertExitCode(1);
+        $this->assertDatabaseCount('church_services', 0);
+    }
+
+    #[Test]
+    public function a_multi_entry_bundle_apply_rolls_back_when_any_entry_fails(): void
+    {
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                $date = str_contains($subject, '19 July') ? '2026-07-19' : '2026-07-12';
+                $item = [
+                    'type' => 'song',
+                    'title' => 'Amazing Grace',
+                    'source_line_ids' => [2],
+                    'continuation' => false,
+                ];
+
+                return new OosEmailItemExtractionResult(
+                    items: [$item],
+                    confidence: 1.0,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => $date,
+                        'service_evidence_line_ids' => [1],
+                        'items' => [$item],
+                        'confidence' => 1.0,
+                    ]],
+                    serviceCount: 1,
+                    provenanceComplete: true,
+                );
+            }
+        });
+        $archive = $this->writeArchive(
+            $this->fullEntry('Sunday 12 July 2026')
+            .$this->fullEntry('Sunday 19 July 2026'),
+        );
+        $bundle = storage_path('scratch/tests/oos-rollback-'.uniqid().'.json');
+        $this->temporaryPaths[] = $bundle;
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--export-bundle' => $bundle,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+        InboundEmail::query()->delete();
+        $this->artisan('oos:import-archive', ['path' => $archive, '--import-bundle' => $bundle])
+            ->assertExitCode(0);
+
+        $this->mock(ChurchServiceSongLinker::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('linkForService')
+                ->once()
+                ->andThrow(new RuntimeException('bundle entry failed'));
+        });
+
+        $this->artisan('oos:import-archive', ['path' => $archive, '--apply-bundle' => $bundle])
+            ->assertExitCode(1);
+
+        $this->assertDatabaseCount('church_services', 0);
+        $this->assertDatabaseCount('church_service_items', 0);
+    }
+
+    private function bindPortableExtractor(): void
+    {
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                $item = [
+                    'type' => 'song',
+                    'title' => 'Amazing Grace',
+                    'source_line_ids' => [2],
+                    'continuation' => false,
+                ];
+
+                return new OosEmailItemExtractionResult(
+                    items: [$item],
+                    confidence: 1.0,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => '2026-07-12',
+                        'service_evidence_line_ids' => [1],
+                        'items' => [$item],
+                        'confidence' => 1.0,
+                    ]],
+                    serviceCount: 1,
+                    provenanceComplete: true,
+                );
+            }
+        });
     }
 
     private function fullEntry(string $heading, string $item = 'Amazing Grace'): string
