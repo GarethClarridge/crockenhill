@@ -120,14 +120,20 @@ class HistoricProcessingResultBundleExporter
             ])->all()),
             'pre_review_hash' => $review->base_canonical_hash,
             'media_graph' => $mediaGraph,
-            'livestream_source_revision' => $this->sourceRevision($livestream),
+            'livestream_source_revision' => $this->sourceRevision($livestream, $run, $mediaGraph),
             'assets' => $this->assets($mediaGraph),
         ];
     }
 
-    /** @return array<string, mixed> */
-    private function sourceRevision(ChurchServiceSourceRecord $record): array
-    {
+    /**
+     * @param  array<string, mixed>  $mediaGraph
+     * @return array<string, mixed>
+     */
+    private function sourceRevision(
+        ChurchServiceSourceRecord $record,
+        MediaProcessingLog $run,
+        array $mediaGraph,
+    ): array {
         return [
             'source_key' => $record->source_key,
             'revision_hash' => $record->revision_hash,
@@ -137,23 +143,52 @@ class HistoricProcessingResultBundleExporter
             'service_content' => $record->service_content,
             'payload_complete' => $record->payload_complete,
             'captured_at' => $record->captured_at?->toISOString(),
-            'assertions' => $record->assertions->sortBy('assertion_key')->map(fn ($assertion): array => [
-                'assertion_key' => $assertion->assertion_key,
-                'source_position' => $assertion->source_position,
-                'evidence_kind' => $assertion->evidence_kind->value,
-                'type' => $assertion->type,
-                'section_type' => $assertion->section_type?->value,
-                'title' => $assertion->title,
-                'source_title' => $assertion->source_title,
-                'normalized_title' => $assertion->normalized_title,
-                'song_canonical_key' => $assertion->song_canonical_key,
-                'scripture_reference' => $assertion->scripture_reference,
-                'normalized_scripture_key' => $assertion->normalized_scripture_key,
-                'start_seconds' => $assertion->start_seconds,
-                'end_seconds' => $assertion->end_seconds,
-                'confidence' => $assertion->confidence,
-                'metadata' => $assertion->metadata,
-            ])->values()->all(),
+            'assertions' => $record->assertions->sortBy('assertion_key')->map(function ($assertion) use ($run, $mediaGraph): array {
+                $metadata = $assertion->metadata ?? [];
+                $localSectionId = $metadata['livestream_service_section_id'] ?? null;
+                unset($metadata['livestream_service_section_id'], $metadata['oos_item_id']);
+
+                if (is_numeric($localSectionId)) {
+                    $section = $run->serviceSections->firstWhere('id', (int) $localSectionId);
+
+                    if ($section === null) {
+                        throw new RuntimeException("Livestream assertion {$assertion->assertion_key} references a section outside its run.");
+                    }
+
+                    $portableSection = null;
+
+                    foreach ($mediaGraph['sections'] as $candidate) {
+                        if (is_array($candidate) && ($candidate['section_order'] ?? null) === $section->section_order) {
+                            $portableSection = $candidate;
+                            break;
+                        }
+                    }
+
+                    if (! is_array($portableSection)) {
+                        throw new RuntimeException("Livestream assertion {$assertion->assertion_key} has no portable section identity.");
+                    }
+
+                    $metadata['livestream_service_section_key'] = $portableSection['section_key'];
+                }
+
+                return [
+                    'assertion_key' => $assertion->assertion_key,
+                    'source_position' => $assertion->source_position,
+                    'evidence_kind' => $assertion->evidence_kind->value,
+                    'type' => $assertion->type,
+                    'section_type' => $assertion->section_type?->value,
+                    'title' => $assertion->title,
+                    'source_title' => $assertion->source_title,
+                    'normalized_title' => $assertion->normalized_title,
+                    'song_canonical_key' => $assertion->song_canonical_key,
+                    'scripture_reference' => $assertion->scripture_reference,
+                    'normalized_scripture_key' => $assertion->normalized_scripture_key,
+                    'start_seconds' => $assertion->start_seconds,
+                    'end_seconds' => $assertion->end_seconds,
+                    'confidence' => $assertion->confidence === null ? null : (float) $assertion->confidence,
+                    'metadata' => $metadata === [] ? null : $metadata,
+                ];
+            })->values()->all(),
         ];
     }
 

@@ -49,7 +49,7 @@ class ChurchServiceProjector
             ? ChurchServiceSource::Manual->value
             : $this->machineSourceSummary($activeRecords);
         $hash = CanonicalJson::hash([
-            'items' => $items,
+            'items' => $this->portableHashItems($items),
             'service_content' => $serviceContent,
         ]);
 
@@ -59,6 +59,30 @@ class ChurchServiceProjector
             sourceSummary: $sourceSummary,
             hash: $hash,
         );
+    }
+
+    /**
+     * Database identifiers remain on projected items for relationship updates,
+     * but canonical identity must survive export into another database.
+     *
+     * @param  list<array<string, mixed>>  $items
+     * @return list<array<string, mixed>>
+     */
+    private function portableHashItems(array $items): array
+    {
+        return array_map(function (array $item): array {
+            unset($item['song_id'], $item['livestream_service_section_id']);
+
+            if (is_array($item['metadata'] ?? null)) {
+                unset(
+                    $item['metadata']['song_id'],
+                    $item['metadata']['oos_item_id'],
+                    $item['metadata']['livestream_service_section_id'],
+                );
+            }
+
+            return $item;
+        }, $items);
     }
 
     /**
