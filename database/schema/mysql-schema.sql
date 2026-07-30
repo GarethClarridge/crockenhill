@@ -35,6 +35,40 @@ CREATE TABLE `calendar_events` (
   CONSTRAINT `calendar_events_title_format_check` CHECK (((cast(`title` as char charset binary) = trim(`title`)) and (`title` <> _utf8mb4'')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `church_service_item_assertions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `church_service_item_assertions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `source_record_id` bigint unsigned NOT NULL,
+  `assertion_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_position` int unsigned NOT NULL,
+  `evidence_kind` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `section_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_title` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `normalized_title` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `song_id` int unsigned DEFAULT NULL,
+  `song_canonical_key` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `scripture_reference` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `normalized_scripture_key` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `start_seconds` decimal(10,3) DEFAULT NULL,
+  `end_seconds` decimal(10,3) DEFAULT NULL,
+  `confidence` decimal(5,4) DEFAULT NULL,
+  `metadata` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `church_service_item_assertions_record_key_unique` (`source_record_id`,`assertion_key`),
+  KEY `service_assertions_record_position_index` (`source_record_id`,`source_position`),
+  KEY `church_service_item_assertions_song_canonical_key_index` (`song_canonical_key`),
+  KEY `church_service_item_assertions_normalized_scripture_key_index` (`normalized_scripture_key`),
+  KEY `church_service_item_assertions_song_id_foreign` (`song_id`),
+  CONSTRAINT `church_service_item_assertions_song_id_foreign` FOREIGN KEY (`song_id`) REFERENCES `songs` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `church_service_item_assertions_source_record_id_foreign` FOREIGN KEY (`source_record_id`) REFERENCES `church_service_source_records` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `church_service_items`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -56,6 +90,9 @@ CREATE TABLE `church_service_items` (
   `updated_at` timestamp NULL DEFAULT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL,
   `active_position` int GENERATED ALWAYS AS ((case when (`deleted_at` is null) then `position` else NULL end)) STORED,
+  `canonical_identity` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `occurrence_state` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `manual_occurrence_decision` tinyint(1) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `church_service_items_active_position_unique` (`church_service_id`,`active_position`),
   KEY `church_service_items_church_service_id_position_index` (`church_service_id`,`position`),
@@ -65,6 +102,7 @@ CREATE TABLE `church_service_items` (
   KEY `church_service_items_section_type_index` (`section_type`),
   KEY `church_service_items_livestream_service_section_id_foreign` (`livestream_service_section_id`),
   KEY `church_service_items_livestream_processing_id_index` (`livestream_processing_id`),
+  KEY `church_service_items_canonical_identity_index` (`canonical_identity`),
   CONSTRAINT `church_service_items_church_service_id_foreign` FOREIGN KEY (`church_service_id`) REFERENCES `church_services` (`id`) ON DELETE CASCADE,
   CONSTRAINT `church_service_items_livestream_service_section_id_foreign` FOREIGN KEY (`livestream_service_section_id`) REFERENCES `service_sections` (`id`) ON DELETE SET NULL,
   CONSTRAINT `church_service_items_song_id_foreign` FOREIGN KEY (`song_id`) REFERENCES `songs` (`id`) ON DELETE SET NULL,
@@ -72,6 +110,119 @@ CREATE TABLE `church_service_items` (
   CONSTRAINT `church_service_items_source_title_format_check` CHECK (((`source_title` is null) or ((cast(`source_title` as char charset binary) = trim(`source_title`)) and (`source_title` <> _utf8mb4'')))),
   CONSTRAINT `church_service_items_title_format_check` CHECK (((cast(`title` as char charset binary) = trim(`title`)) and (`title` <> _utf8mb4''))),
   CONSTRAINT `church_service_items_type_format_check` CHECK (((cast(`type` as char charset binary) = trim(`type`)) and (`type` <> _utf8mb4'')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `church_service_merge_proposals`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `church_service_merge_proposals` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `church_service_id` bigint unsigned NOT NULL,
+  `trigger_source_record_id` bigint unsigned NOT NULL,
+  `base_canonical_revision` int unsigned NOT NULL,
+  `base_canonical_hash` char(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `included_source_hashes` json NOT NULL,
+  `proposed_items` json NOT NULL,
+  `proposed_hash` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `field_decisions` json NOT NULL,
+  `conflicts` json NOT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `resolved_by_user_id` int unsigned DEFAULT NULL,
+  `resolved_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `church_service_merge_proposals_trigger_source_record_id_foreign` (`trigger_source_record_id`),
+  KEY `church_service_merge_proposals_church_service_id_status_index` (`church_service_id`,`status`),
+  KEY `church_service_merge_proposals_proposed_hash_index` (`proposed_hash`),
+  KEY `church_service_merge_proposals_resolved_by_user_id_foreign` (`resolved_by_user_id`),
+  CONSTRAINT `church_service_merge_proposals_church_service_id_foreign` FOREIGN KEY (`church_service_id`) REFERENCES `church_services` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `church_service_merge_proposals_resolved_by_user_id_foreign` FOREIGN KEY (`resolved_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `church_service_merge_proposals_trigger_source_record_id_foreign` FOREIGN KEY (`trigger_source_record_id`) REFERENCES `church_service_source_records` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `church_service_review_decisions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `church_service_review_decisions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `review_session_id` bigint unsigned NOT NULL,
+  `selected_assertion_id` bigint unsigned DEFAULT NULL,
+  `included` tinyint(1) NOT NULL,
+  `final_position` int unsigned DEFAULT NULL,
+  `custom_value` json DEFAULT NULL,
+  `song_id` int unsigned DEFAULT NULL,
+  `song_canonical_key` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `scripture_reference` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `occurrence_decision` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `rationale` text COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `church_service_review_decisions_selected_assertion_id_foreign` (`selected_assertion_id`),
+  KEY `service_review_decisions_position_index` (`review_session_id`,`final_position`),
+  KEY `church_service_review_decisions_song_id_foreign` (`song_id`),
+  CONSTRAINT `church_service_review_decisions_review_session_id_foreign` FOREIGN KEY (`review_session_id`) REFERENCES `church_service_review_sessions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `church_service_review_decisions_selected_assertion_id_foreign` FOREIGN KEY (`selected_assertion_id`) REFERENCES `church_service_item_assertions` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `church_service_review_decisions_song_id_foreign` FOREIGN KEY (`song_id`) REFERENCES `songs` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `church_service_review_sessions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `church_service_review_sessions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `review_uuid` char(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `church_service_id` bigint unsigned NOT NULL,
+  `base_canonical_revision` int unsigned NOT NULL,
+  `base_canonical_hash` char(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `included_proposal_ids` json NOT NULL,
+  `service_field_decisions` json NOT NULL,
+  `manual_source_record_id` bigint unsigned DEFAULT NULL,
+  `resulting_canonical_revision` int unsigned DEFAULT NULL,
+  `resulting_canonical_hash` char(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reviewed_by_user_id` int unsigned NOT NULL,
+  `completed_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `church_service_review_sessions_review_uuid_unique` (`review_uuid`),
+  KEY `church_service_review_sessions_manual_source_record_id_foreign` (`manual_source_record_id`),
+  KEY `service_review_sessions_created_index` (`church_service_id`,`created_at`),
+  KEY `church_service_review_sessions_reviewed_by_user_id_foreign` (`reviewed_by_user_id`),
+  CONSTRAINT `church_service_review_sessions_church_service_id_foreign` FOREIGN KEY (`church_service_id`) REFERENCES `church_services` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `church_service_review_sessions_manual_source_record_id_foreign` FOREIGN KEY (`manual_source_record_id`) REFERENCES `church_service_source_records` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `church_service_review_sessions_reviewed_by_user_id_foreign` FOREIGN KEY (`reviewed_by_user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `church_service_source_records`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `church_service_source_records` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `church_service_id` bigint unsigned NOT NULL,
+  `source` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `revision_hash` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `input_hash` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `supersedes_id` bigint unsigned DEFAULT NULL,
+  `batch_hash` char(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `processing_fingerprint` json NOT NULL,
+  `service_content` json DEFAULT NULL,
+  `payload_complete` tinyint(1) NOT NULL DEFAULT '1',
+  `captured_at` timestamp NOT NULL,
+  `created_by_user_id` int unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `church_service_source_records_revision_unique` (`source`,`source_key`,`revision_hash`),
+  KEY `church_service_source_records_supersedes_id_foreign` (`supersedes_id`),
+  KEY `church_service_source_records_service_source_index` (`church_service_id`,`source`,`captured_at`),
+  KEY `church_service_source_records_batch_hash_index` (`batch_hash`),
+  KEY `church_service_source_records_created_by_user_id_foreign` (`created_by_user_id`),
+  CONSTRAINT `church_service_source_records_church_service_id_foreign` FOREIGN KEY (`church_service_id`) REFERENCES `church_services` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `church_service_source_records_created_by_user_id_foreign` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `church_service_source_records_supersedes_id_foreign` FOREIGN KEY (`supersedes_id`) REFERENCES `church_service_source_records` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `church_services`;
@@ -103,6 +254,10 @@ CREATE TABLE `church_services` (
   `pending_structure_merge_source` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
+  `canonical_revision` int unsigned NOT NULL DEFAULT '0',
+  `canonical_hash` char(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reviewed_canonical_revision` int unsigned DEFAULT NULL,
+  `source_summary` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `church_services_date_service_unique` (`date`,`service`),
   KEY `church_services_needs_review_index` (`needs_review`),
@@ -1233,3 +1388,5 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_20_124817_add_r
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_20_124837_backfill_church_service_review_reasons',83);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_21_000000_add_llm_content_fields_to_church_service_tables',84);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_22_211419_add_superseded_at_to_media_processing_logs',84);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_29_210105_create_church_service_evidence_tables',85);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_29_210107_add_canonical_columns_to_church_service_tables',85);
