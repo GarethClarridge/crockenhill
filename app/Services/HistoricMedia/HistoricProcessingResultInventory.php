@@ -6,6 +6,7 @@ namespace App\Services\HistoricMedia;
 
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Support\CanonicalJson;
@@ -36,8 +37,10 @@ class HistoricProcessingResultInventory
         $processingLog->loadMissing([
             'processingSteps',
             'segments',
-            'sermon.preacherProfile',
-            'serviceSections.publishedSermon.preacherProfile',
+            'sermon.preacherProfile.aliases',
+            'sermon.scriptureFilters',
+            'serviceSections.publishedSermon.preacherProfile.aliases',
+            'serviceSections.publishedSermon.scriptureFilters',
         ]);
 
         $segments = $processingLog->segments->sortBy('segment_index')->values();
@@ -164,21 +167,11 @@ class HistoricProcessingResultInventory
         $primarySermon = $log->sermon;
 
         if ($primarySermon !== null) {
-            $publications[] = [
-                'publication_key' => "{$log->processing_id}:main:{$primarySermon->content_type->value}",
-                'section_key' => null,
-                'content_type' => $primarySermon->content_type->value,
-                'date' => $primarySermon->date->toDateString(),
-                'service' => $primarySermon->service?->value,
-                'slug' => $primarySermon->slug,
-                'title' => $primarySermon->title,
-                'reference' => $primarySermon->reference,
-                'preacher_slug' => $primarySermon->preacherProfile?->slug,
-                'audio_file_path' => $primarySermon->audio_file_path,
-                'video_file_path' => $primarySermon->video_file_path,
-                'transcript_file_path' => $primarySermon->transcript_file_path,
-                'thumbnail_file_path' => $primarySermon->thumbnail_file_path,
-            ];
+            $publications[] = $this->publication(
+                "{$log->processing_id}:main:{$primarySermon->content_type->value}",
+                null,
+                $primarySermon,
+            );
         }
 
         foreach ($sections as $section) {
@@ -188,24 +181,56 @@ class HistoricProcessingResultInventory
                 continue;
             }
 
-            $publications[] = [
-                'publication_key' => $this->sectionKey($log, $section).':'.$sermon->content_type->value,
-                'section_key' => $this->sectionKey($log, $section),
-                'content_type' => $sermon->content_type->value,
-                'date' => $sermon->date->toDateString(),
-                'service' => $sermon->service?->value,
-                'slug' => $sermon->slug,
-                'title' => $sermon->title,
-                'reference' => $sermon->reference,
-                'preacher_slug' => $sermon->preacherProfile?->slug,
-                'audio_file_path' => $sermon->audio_file_path,
-                'video_file_path' => $sermon->video_file_path,
-                'transcript_file_path' => $sermon->transcript_file_path,
-                'thumbnail_file_path' => $sermon->thumbnail_file_path,
-            ];
+            $publications[] = $this->publication(
+                $this->sectionKey($log, $section).':'.$sermon->content_type->value,
+                $this->sectionKey($log, $section),
+                $sermon,
+            );
         }
 
         return $publications;
+    }
+
+    /** @return array<string, mixed> */
+    private function publication(string $key, ?string $sectionKey, Sermon $sermon): array
+    {
+        $preacher = $sermon->preacherProfile;
+
+        return [
+            'publication_key' => $key,
+            'section_key' => $sectionKey,
+            'content_type' => $sermon->content_type->value,
+            'date' => $sermon->date->toDateString(),
+            'service' => $sermon->service?->value,
+            'slug' => $sermon->slug,
+            'title' => $sermon->title,
+            'reference' => $sermon->reference,
+            'series' => $sermon->series,
+            'summary' => $sermon->summary,
+            'meta_description' => $sermon->getAttribute('meta_description'),
+            'points' => $sermon->points,
+            'show_summary' => $sermon->show_summary,
+            'show_points' => $sermon->show_points,
+            'duration' => $sermon->duration,
+            'segment_start_time' => $sermon->segment_start_time,
+            'segment_end_time' => $sermon->segment_end_time,
+            'preacher' => $preacher === null ? null : [
+                'name' => $preacher->name,
+                'slug' => $preacher->slug,
+                'aliases' => $preacher->aliases->pluck('alias')->sort()->values()->all(),
+            ],
+            'scripture_filters' => $sermon->scriptureFilters
+                ->map(fn ($filter): array => [
+                    'bible_book' => $filter->bible_book,
+                    'bible_chapter' => $filter->bible_chapter,
+                ])
+                ->values()
+                ->all(),
+            'audio_file_path' => $sermon->audio_file_path,
+            'video_file_path' => $sermon->video_file_path,
+            'transcript_file_path' => $sermon->transcript_file_path,
+            'thumbnail_file_path' => $sermon->thumbnail_file_path,
+        ];
     }
 
     /**

@@ -180,7 +180,7 @@ class HistoricProcessingResultBundleExporter
         foreach (data_get($graph, 'metadata.service_artifacts', []) as $artifact) {
             if (is_array($artifact) && is_string($artifact['path'] ?? null)) {
                 $paths->push([
-                    'role' => 'service_artifact:'.($artifact['kind'] ?? 'unknown'),
+                    'role' => 'service_artifact:'.($artifact['kind'] ?? 'unknown').':'.($artifact['sha256'] ?? hash('sha256', $artifact['path'])),
                     'path' => $artifact['path'],
                     'disk' => ServiceArtifactDisk::for($artifact['path']),
                 ]);

@@ -7,6 +7,7 @@ namespace App\Services\HistoricMedia;
 use App\Data\HistoricProcessingResultImportPlan;
 use App\Models\MediaProcessingLog;
 use App\Support\CanonicalJson;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class HistoricProcessingResultBundleImporter
@@ -15,6 +16,7 @@ class HistoricProcessingResultBundleImporter
         private readonly HistoricProcessingResultBundle $bundles,
         private readonly HistoricProcessingResultAssetTransfer $assets,
         private readonly HistoricProcessingResultInventory $inventory,
+        private readonly HistoricMediaGraphPersister $persister,
     ) {}
 
     /** @param array<string, mixed> $bundle */
@@ -51,6 +53,59 @@ class HistoricProcessingResultBundleImporter
     }
 
     /**
+     * Persist inside the caller's transaction. The returned asset list must be
+     * passed to cleanup if a later outer-transaction gate fails.
+     *
+     * @return array{processing_log: MediaProcessingLog, created_assets: list<string>}
+     */
+    public function persistPreparedService(
+        HistoricProcessingResultImportPlan $plan,
+        string $planHash,
+    ): array {
+        if (! hash_equals($plan->planHash, $planHash)) {
+            throw new RuntimeException('Historic processing import plan hash does not match.');
+        }
+
+        if ($plan->classification === 'already_present' && $plan->existingProcessingLogId !== null) {
+            $existing = MediaProcessingLog::query()->findOrFail($plan->existingProcessingLogId);
+
+            return ['processing_log' => $existing, 'created_assets' => []];
+        }
+
+        if ($plan->classification !== 'create') {
+            throw new RuntimeException("Historic processing import is {$plan->classification}: {$plan->reason}");
+        }
+
+        return $this->persister->persist($plan);
+    }
+
+    /**
+     * Standalone rehearsal entry point. Production convergence uses
+     * prepareService() and persistPreparedService() inside WP9's transaction.
+     *
+     * @param  array<string, mixed>  $bundle
+     * @return array{processing_log: MediaProcessingLog, created_assets: list<string>}
+     */
+    public function importService(array $bundle, string $planHash, int $serviceIndex = 0): array
+    {
+        $plan = $this->prepareService($bundle, $serviceIndex);
+        $createdAssets = [];
+
+        try {
+            return DB::transaction(function () use ($plan, $planHash, &$createdAssets): array {
+                $result = $this->persistPreparedService($plan, $planHash);
+                $createdAssets = $result['created_assets'];
+
+                return $result;
+            });
+        } catch (\Throwable $exception) {
+            $this->assets->cleanup($createdAssets);
+
+            throw $exception;
+        }
+    }
+
+    /**
      * @param  array<string, mixed>  $service
      * @return array{classification: 'already_present'|'create'|'blocked_difference'|'conflict', reason: string, existing_processing_log_id: int|null}
      */
@@ -66,7 +121,11 @@ class HistoricProcessingResultBundleImporter
             : null;
 
         if ($existing instanceof MediaProcessingLog) {
-            $existingHash = $this->inventory->build($existing)['logical_hash'];
+            $existingHash = data_get(
+                $existing->processing_metadata?->toArray(),
+                'historic_promotion.logical_hash',
+            );
+            $existingHash ??= $this->inventory->build($existing)['logical_hash'];
 
             return $existingHash === $graph['logical_hash']
                 ? [

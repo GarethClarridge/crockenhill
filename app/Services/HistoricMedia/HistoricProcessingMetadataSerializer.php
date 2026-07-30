@@ -10,6 +10,7 @@ class HistoricProcessingMetadataSerializer
 {
     private const PORTABLE_KEYS = [
         'historic_import',
+        'historic_promotion',
         'rms_log_path',
         'service_artifacts',
         'service_structure',
