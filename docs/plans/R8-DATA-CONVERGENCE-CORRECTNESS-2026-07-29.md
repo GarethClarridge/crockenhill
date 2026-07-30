@@ -1,7 +1,9 @@
 # R8 Data Convergence Correctness Plan
 
-> **Status (2026-07-29): drafted, not started. Production convergence is blocked until WP0–WP10
-> are implemented and deployed, and WP11's rehearsal passes.**
+> **Status (2026-07-30): WP0–WP10 and the WP11 command surface are implemented on `master`.
+> Production convergence remains blocked until the implementation is deployed, the complete local
+> WP11 rehearsal passes, the private parity/closeout reports are accepted and every applicable R8
+> operator gate is closed. No production convergence mutation has run.**
 >
 > This plan supersedes
 > [`LOCAL-PROCESSING-PORTABILITY-2026-07-28.md`](../archived-plans/LOCAL-PROCESSING-PORTABILITY-2026-07-28.md)
@@ -769,6 +771,15 @@ Intentional production-only live services and fixtures use an explicit private a
 natural identity and reason. Counts are never an allowlist.
 
 ### WP11 — Runbook rewrite, rehearsal and production gate
+
+Implementation checkpoint (2026-07-30):
+
+- Bundle A export: `historic:export-processing-results`;
+- Bundle B export: `service-tracking:export-convergence`;
+- per-service dry-run/token/apply: `service-tracking:converge-historic-service`;
+- exact Bundle B closeout comparison: `service-tracking:audit-convergence`;
+- the local rehearsal, deployment, weekly WP6 soak, production maintenance window and post-run
+  rollback soak remain operator work and have not run.
 
 Rewrite the R8 service sequence around bundles and exact manifests:
 

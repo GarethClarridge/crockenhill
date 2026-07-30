@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property list<array<string, mixed>> $proposed_items
+ * @property ChurchServiceProposalStatus $status
  */
 class ChurchServiceMergeProposal extends Model
 {

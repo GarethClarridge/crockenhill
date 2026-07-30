@@ -1,13 +1,19 @@
 # R8 data convergence and one-shot retirement runbook
 
-> **Status (revised 2026-07-29): design skeleton, not executable.**
+> **Status (revised 2026-07-30): command surface implemented; rehearsal and production execution
+> not started.**
 >
-> Do not run the production mutation sequence until
+> WP0–WP10 and the WP11 export/convergence/audit commands are implemented on `master`. Do not run
+> the production mutation sequence until those commits are deployed, the full local rehearsal
+> below passes, the private reports are accepted and the remaining operator gates are closed.
+> In particular, do not treat an individual command's successful dry run as approval for the
+> production maintenance window.
+>
+> The governing correctness requirements remain in
 > [R8 Data Convergence Correctness](../plans/R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md)
-> WP0–WP10 are deployed and WP11 has replaced every planned placeholder below with the implemented,
-> tested command and expected output. The previous runbook re-ran OoS extraction and historic-video
-> processing in production and used aggregate parity checks; that sequence is superseded and remains
-> only in git history.
+> and must be checked as one operation. The previous runbook re-ran OoS extraction and
+> historic-video processing in production and used aggregate parity checks; that sequence is
+> superseded and remains only in git history.
 >
 > **Production has not been mutated for this operation.**
 
@@ -225,10 +231,47 @@ The abandoned `storage/app/sermon-patch.sql` must never be applied or regenerate
 
 No production apply begins until the entire operation—not merely the first batch—passes preflight.
 
-## 7. Production apply
+### 6.1 Implemented bundle commands
 
-The implemented WP11 runbook must replace each generic step with the tested command and expected
-output.
+All paths below must be private and must refer to the exact retained rehearsal artifacts.
+Substitute the recorded values; do not reconstruct hashes during the production window.
+
+Export Bundle A after readiness and technical review pass:
+
+```bash
+vendor/bin/sail artisan historic:export-processing-results \
+  --processing-ids="<comma-separated-processing-uuids>" \
+  --batch-hash="<approved-source-batch-sha256>" \
+  --fingerprint='<approved-fingerprint-json>' \
+  --output="<private-absolute-path>/bundle-a.json"
+```
+
+Export Bundle B only after final combined canonical review:
+
+```bash
+vendor/bin/sail artisan service-tracking:export-convergence \
+  --service-ids="<comma-separated-reviewed-service-ids>" \
+  --batch-hash="<approved-source-batch-sha256>" \
+  --media-bundle-hash="<bundle-a-sha256>" \
+  --fingerprint='<same-approved-fingerprint-json>' \
+  --output="<private-absolute-path>/bundle-b.json"
+```
+
+For each matching Bundle A/Bundle B service index, validate the pair and record the printed plan
+hash. This command performs no database or asset writes without `--apply`:
+
+```bash
+vendor/bin/sail artisan service-tracking:converge-historic-service \
+  "<private-absolute-path>/bundle-a.json" \
+  "<private-absolute-path>/bundle-b.json" \
+  --media-index=<zero-based-index> \
+  --convergence-index=<zero-based-index>
+```
+
+The plan hash is bound to both exact bundle hashes and both service indexes. Any artifact or index
+change requires a fresh dry run and approval.
+
+## 7. Production apply
 
 1. Apply the song catalogue sync.
 2. Apply legacy `play_date` and media-identity convergence where their individual gates pass.
@@ -248,6 +291,21 @@ output.
    - dispatch no jobs/external calls and emit events only after the outer commit.
 7. Run cross-service exact media/canonical audits.
 8. Rerun every source and bundle; require all `already_present`/no-op.
+
+For each approved service, apply only the exact dry-run token:
+
+```bash
+vendor/bin/sail artisan service-tracking:converge-historic-service \
+  "<private-absolute-path>/bundle-a.json" \
+  "<private-absolute-path>/bundle-b.json" \
+  --media-index=<zero-based-index> \
+  --convergence-index=<zero-based-index> \
+  --apply \
+  --plan-hash="<recorded-dry-run-plan-hash>"
+```
+
+Expected success output identifies the natural service identity, canonical hash and created-asset
+count. Stop on the first non-zero exit. Do not generate a replacement token during an apply run.
 
 A failure at any per-service step rolls back all database writes for that service and removes only
 final assets created by that attempt from its exact manifest. Never overwrite different existing
@@ -282,6 +340,21 @@ The audit exits non-zero for:
 
 Intentional production-only fixtures/live services require the private natural-key allowlist and
 reason. Counts are never an allowlist.
+
+Run the exact Bundle B comparison after all services apply and again after the required no-op
+rerun:
+
+```bash
+vendor/bin/sail artisan service-tracking:audit-convergence \
+  "<private-absolute-path>/bundle-b.json" \
+  --report="r8/<run-identity>/convergence-audit.json"
+```
+
+The command is read-only. It exits non-zero and emits dotted field paths for canonical item/order
+differences, service-content drift, evidence-set drift, missing/incomplete review sessions,
+pending/stale proposals, `needs_review`, or reviewed-revision mismatch. Bundle A readiness,
+media-graph and asset equality remain separate hard gates owned by the historic-processing
+inventory/importer; a passing Bundle B audit does not replace them.
 
 ## 9. Rollback
 
