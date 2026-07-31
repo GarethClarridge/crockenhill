@@ -10,6 +10,7 @@ use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\TempDiskSpace;
 use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Http\UploadedFile;
@@ -57,6 +58,7 @@ class HistoricVideoImporter
 
     public function __construct(
         private readonly UnifiedMediaProcessor $processor,
+        private readonly HistoricStagingGuard $stagingGuard,
     ) {}
 
     /**
@@ -103,6 +105,10 @@ class HistoricVideoImporter
         ?Carbon $until = null,
         ?string $reportPath = null,
     ): array {
+        if (! $dryRun) {
+            $this->stagingGuard->assertLocalProcessingIsIsolated();
+        }
+
         $metrics = [
             'dispatched' => 0,
             'concatenated' => 0,

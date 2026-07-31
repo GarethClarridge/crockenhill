@@ -25,6 +25,14 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
 
         $this->temporaryDirectory = sys_get_temp_dir().'/historic-video-import-test-'.uniqid();
         mkdir($this->temporaryDirectory, 0755, true);
+
+        // The batch refuses to dispatch unless media output is isolated on the private
+        // staging disk, so every applying run below configures it.
+        config([
+            'media-processing.storage.historic_staging_disk' => 'historic_staging',
+            'media-processing.storage.sermon_disk' => 'historic_staging',
+            'media-processing.storage.transcript_disk' => 'historic_staging',
+        ]);
     }
 
     protected function tearDown(): void
@@ -97,8 +105,6 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function dry_run_outputs_plan_without_dispatching(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
-
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 18-38-15.mkv');
 
         $this->artisan('sermons:import-historic-videos', [
@@ -116,8 +122,6 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function it_skips_completed_livestream_for_same_date_and_service(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
-
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
 
         MediaProcessingLog::factory()->create([
@@ -140,8 +144,6 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function it_skips_in_flight_livestream_for_same_date_and_service(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
-
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
 
         MediaProcessingLog::factory()->create([
@@ -162,8 +164,6 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function it_skips_pending_manual_review_for_same_date_and_service(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
-
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
 
         MediaProcessingLog::factory()->create([
@@ -191,8 +191,6 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function force_flag_bypasses_skip_checks(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
-
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
 
         MediaProcessingLog::factory()->create([
@@ -225,7 +223,6 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function it_skips_small_files(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
 
         // Create a very small file (less than 30MB default)
         $path = $this->temporaryDirectory.'/2022-01-16 10-38-15.mkv';
@@ -242,8 +239,6 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function it_skips_files_with_unparseable_dates(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
-
         $this->createFakeVideo($this->temporaryDirectory.'/YouTubeDownloads/26 April_ Sermon.mp4');
 
         $this->artisan('sermons:import-historic-videos', [
@@ -257,8 +252,6 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function default_year_flag_allows_month_day_only_youtube_filenames(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
-
         $this->createFakeVideo($this->temporaryDirectory.'/YouTubeDownloads/12 April Sermon.mp4');
 
         $this->mock(HistoricVideoImporter::class)
@@ -283,8 +276,6 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function it_shows_summary_table_on_completion(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
-
         $this->artisan('sermons:import-historic-videos', [
             '--dir' => $this->temporaryDirectory,
             '--allow-local-storage' => true,
@@ -298,8 +289,6 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     #[Test]
     public function it_exits_with_failure_code_when_errors_occur(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
-
         $this->mock(HistoricVideoImporter::class)
             ->shouldReceive('import')
             ->once()

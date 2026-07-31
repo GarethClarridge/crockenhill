@@ -175,10 +175,17 @@ class ImportHistoricVideoBatchCommand extends Command
             return false;
         }
 
+        // The private staging disk is the sanctioned destination for a historic batch,
+        // so it satisfies this check on its own. Recommending a shared S3 disk here is
+        // what would put local output into production's canonical asset namespace.
+        if ($sermonDisk === (string) config('media-processing.storage.historic_staging_disk')) {
+            return true;
+        }
+
         if ($diskConfiguration['driver'] === 'local' && ! $this->option('allow-local-storage')) {
             $this->error(
                 "SERMON_STORAGE_DISK '{$sermonDisk}' uses the local filesystem driver. Importing the archive may fill local disk."
-                .PHP_EOL.'Configure an S3-compatible disk, or pass --allow-local-storage to override.'
+                .PHP_EOL.'Point it at the private historic staging disk, or pass --allow-local-storage to override.'
             );
 
             return false;

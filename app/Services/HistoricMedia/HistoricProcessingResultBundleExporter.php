@@ -20,6 +20,7 @@ class HistoricProcessingResultBundleExporter
         private readonly HistoricProcessingResultReadinessService $readiness,
         private readonly HistoricProcessingResultBundle $bundles,
         private readonly HistoricProcessingResultBundleFiles $files,
+        private readonly HistoricStagingGuard $stagingGuard,
     ) {}
 
     /**
@@ -261,6 +262,16 @@ class HistoricProcessingResultBundleExporter
                 ]);
             }
         }
+
+        $exportDisks = [];
+
+        foreach ($paths as $asset) {
+            if (is_array($asset) && is_string($asset['disk'] ?? null)) {
+                $exportDisks[] = $asset['disk'];
+            }
+        }
+
+        $this->stagingGuard->assertExportSourcesArePrivate($exportDisks);
 
         $manifest = $paths->unique('path')->sortBy('path')->map(function (array $asset): array {
             if (! is_string($asset['disk'] ?? null) || ! is_string($asset['path'] ?? null) || ! is_string($asset['role'] ?? null)) {

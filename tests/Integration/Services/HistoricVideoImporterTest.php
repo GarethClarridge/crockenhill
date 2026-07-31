@@ -10,12 +10,14 @@ use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\Video\HistoricVideoImporter;
 use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\TestCase;
 
 class HistoricVideoImporterTest extends TestCase
@@ -30,6 +32,14 @@ class HistoricVideoImporterTest extends TestCase
 
         $this->temporaryDirectory = sys_get_temp_dir().'/historic-importer-test-'.uniqid();
         mkdir($this->temporaryDirectory, 0755, true);
+
+        // A historic batch may only run with media output isolated on the private
+        // staging disk; every dispatch case below assumes that configuration.
+        config([
+            'media-processing.storage.historic_staging_disk' => 'historic_staging',
+            'media-processing.storage.sermon_disk' => 'historic_staging',
+            'media-processing.storage.transcript_disk' => 'historic_staging',
+        ]);
     }
 
     protected function tearDown(): void
@@ -185,6 +195,35 @@ class HistoricVideoImporterTest extends TestCase
 
         $this->assertSame(SermonService::Evening, $capturedService);
         $this->assertSame('2022-01-16', $capturedDate);
+    }
+
+    #[Test]
+    public function it_refuses_to_dispatch_when_media_output_would_land_on_the_production_disk(): void
+    {
+        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
+        $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 Morning Service.mkv');
+
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldNotReceive('process');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("Historic processing would write sermon_disk to the 'do_spaces' disk.");
+
+        $this->runImportWithProcessor($processor);
+    }
+
+    #[Test]
+    public function a_dry_run_inventory_still_works_without_isolated_storage(): void
+    {
+        config(['media-processing.storage.sermon_disk' => 'do_spaces']);
+        $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 Morning Service.mkv');
+
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldNotReceive('process');
+
+        $metrics = $this->runImportWithProcessor($processor, dryRun: true);
+
+        $this->assertSame(0, $metrics['errors']);
     }
 
     #[Test]
@@ -634,7 +673,7 @@ class HistoricVideoImporterTest extends TestCase
         bool $force = false,
         ?string $reportPath = null,
     ): array {
-        $importer = new HistoricVideoImporter($processor);
+        $importer = new HistoricVideoImporter($processor, app(HistoricStagingGuard::class));
 
         return $importer->import(
             directory: $this->temporaryDirectory,
