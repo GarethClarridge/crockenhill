@@ -326,7 +326,24 @@ Write and demonstrate a failing regression for every B1–B20 issue, especially:
 - The canary manifest is stable and complete.
 - Removing a required field/relationship fails the contract.
 - All known blockers have red reproducers.
-- Exporter/importer behavior is not changed in this first package.
+- Exporter/importer behavior is not changed in this first package, except for the deliberate Bundle A
+  portable-section-identity cutover below.
+
+### Bundle A portable-section-identity cutover
+
+WP0 introduces a portable Bundle A section identity in place of the legacy export key's database-ID
+inputs, using service-item and children's-talk-speaker identities instead. This necessarily changes
+every affected `section_key`, its derived publication keys and the enclosing logical hash. **All
+Bundle A archives exported before this cutover are void**: do not import or audit them. Regenerate
+them from the source processing result only after the WP4 Bundle A schema/round-trip work is ready.
+This is the sole intentional exporter/importer compatibility break in WP0; Bundle B's canonical
+manifest remains unchanged.
+
+The portable Bundle A key is deliberately distinct from `ServiceSection::classificationSignature()`.
+The latter remains a live approval/provenance fingerprint, including local mutation state so a
+changed association invalidates an approved publication. Reusing it for Bundle A would reintroduce
+the non-portable identity defect. The portable key independently retains children's-talk speaker
+name/slug/source, so a speaker change remains distinct without copying a local preacher ID.
 
 ### Immediate crash/scale repair tranche
 
