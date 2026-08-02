@@ -5,6 +5,12 @@
 > WP11 rehearsal passes, the private parity/closeout reports are accepted and every applicable R8
 > operator gate is closed. No production convergence mutation has run.**
 >
+> **Superseded as an implementation plan (2026-07-31):** the audit found release-blocking defects in
+> source independence, active revision selection, anchored projection, automatic finalisation,
+> proposal transport and binding preflight. [Historic Archive Import Readiness Remediation](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md)
+> is now the single implementation sequence and production gate. This document is retained only as
+> a decision record and detailed convergence prior art; do not execute its R8 work-package numbering.
+>
 > This plan supersedes
 > [`LOCAL-PROCESSING-PORTABILITY-2026-07-28.md`](../archived-plans/LOCAL-PROCESSING-PORTABILITY-2026-07-28.md)
 > and owns the correctness work discovered while

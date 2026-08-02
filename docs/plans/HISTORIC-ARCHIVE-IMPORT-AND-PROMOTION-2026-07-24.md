@@ -5,6 +5,12 @@
 > [R8 Data Convergence Correctness](R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md) WP0–WP10 and its
 > WP11 rehearsal.**
 >
+> **Superseded as an implementation plan (2026-07-31):** the audit found release-blocking defects in
+> the normal-output contract, portable graph, asset roles, persistence order, streaming and exact
+> verification. [Historic Archive Import Readiness Remediation](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md)
+> is now the single implementation sequence and production gate. This document is retained only as
+> a decision record and detailed Bundle A prior art; do not execute its HM work-package numbering.
+>
 > This revision replaces the original Stage B design. Git history preserves that design; it is not
 > an implementation reference. In particular, do not replay the legacy livestream projector in
 > production, transplant item links by title/position, copy review columns or local user IDs, write

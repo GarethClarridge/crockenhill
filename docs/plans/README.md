@@ -1,7 +1,9 @@
 # Plans index
 
-Reconciled **2026-07-24**, amended **2026-07-29** (R8 convergence correctness plan added; the
-local-processing portability draft folded into it), against the live code (not against commit
+Reconciled **2026-07-24**, amended **2026-07-31** (historic archive readiness remediation added;
+R8/historic production readiness remains blocked) and **2026-08-02** (business-design amendment to
+that plan: value case, review-load automation loop, current-era re-projection, public service
+history ships first, no calendar-time gates), against the live code (not against commit
 messages — every status below was checked by looking for the class, migration, config key or test
 it claims). This directory holds only **active** plans; completed or superseded plans move to
 `docs/archived-plans/` with an archival header explaining what superseded them. Open audit findings
@@ -94,11 +96,10 @@ Definition-of-done boxes are now ticked. The remainder plan is authoritative for
 ## Dependency map
 
 ```
-R8 WP0–WP8 + HISTORIC HM0–HM3 ──▶ complete local Email/OpenLP/Livestream evidence
-complete local evidence ──▶ one Manual review
-one Manual review ──▶ HISTORIC HM4 / Bundle A + R8 WP10 / Bundle B
-HISTORIC HM5 + R8 WP9 integration ──▶ production import seam ready
-Bundle A + Bundle B + production import seam ──▶ R8 WP11 convergence + exact closeout
+READINESS WP0–WP6 ──▶ verified evidence/projector/review + portable Bundle A/B import seam
+READINESS WP7 + G5 ──▶ complete local corpus + different-PK rehearsal + no-op rerun
+READINESS G6–G8 ──▶ accepted production operation
+READINESS G9 ──▶ exact closeout, public-service-history follow-up and cleanup release
 
 CHILDRENS-TALK-STORAGE ──▶ HISTORIC retention baseline    [both landed]
 SENTRY ──(release-tagged errors during the long import)──▶ Bundle A/B production apply
@@ -119,13 +120,24 @@ backlog 3.1 (merged) ──▶ NEWCOMER-UX O19                              [gat
 DESIGN-SYSTEM-REFRESH ⇄ SERVICE-WORKBENCH step E  (Playwright baseline churn — see order note)
 ```
 
+## Consolidated historic-import decision records
+
+The following are no longer executable plans. Their invariants and useful prior art are consolidated
+into the readiness-remediation plan below. They remain at their existing paths temporarily because
+the R8 runbook and remainder plan cite them as decision records:
+
+- [R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md](R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md)
+- [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
+
+Their former index slots 0–1 are intentionally not reassigned; this avoids another renumbering of
+the unrelated active plans.
+
 ## Active plans, in recommended implementation order
 
 | # | Plan | Status (verified 2026-07-29) | Why here |
 |---|---|---|---|
-| 0 | [R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md](R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md) | Drafted; not started; production R8 service mutation blocked on WP0–WP10 plus WP11 rehearsal | Makes source assertions immutable, canonical projection deterministic and Manual review final; requires exact OpenLP/OoS evidence, privately-staged Bundle A media results, Bundle B reviewed convergence and item-level local/production parity. It supersedes the historic plan's old canonical projection/review-transfer/production sequence. The one-shot commands may receive whatever work correctness requires. |
-| 1 | [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md) | Revised; retention baseline landed; HM0–HM7 not started; production owned by R8 | Runs approved recordings once through today's normal livestream pipeline. Remaining work adds isolated private staging, explicit manifest date/service overrides, fan-out/output readiness, a complete durable-output contract and portable Bundle A—including segments, sections, processing history, published sermons/children's talks, song videos and assets. Technical media review stays here; final Email/OpenLP/Livestream review and Bundle B stay in R8. |
-| 2 | [SENTRY-ERROR-TRACKING.md](SENTRY-ERROR-TRACKING.md) | Not started; no dependencies; **not installed** (no `sentry/sentry-laravel` in `composer.json`) | Its original motivation — land before the `SERVICE_STRUCTURE_MODE` flip — is spent; the flip happened 2026-07-19. Its **new** motivation is the long, unattended, irreversible-in-practice production bundle apply. Land it before R8 WP11, not after |
+| Gate | [HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md) | Audit complete; implementation not started; read-only manifest work only. **Business-design amendment 2026-08-02** | Sole implementation plan for historic archive readiness: repairs evidence, projection, exceptional review, portable Bundle A/B, persistence, streaming, binding preflight and rehearsal before production mutation. The 2026-08-02 amendment adds the value case, makes review load a designed-down quantity with an automate-first census loop (§9.4), brings current-era re-projection into scope (§12.4), moves public service history to **ship first** against existing data, replaces every calendar-time gate with an evidence gate, and adds bulk-pass throughput and per-era accuracy sampling. Editorial/copyright/consent policy is deferred and recorded in §14.4. |
+| 2 | [SENTRY-ERROR-TRACKING.md](SENTRY-ERROR-TRACKING.md) | Not started; no dependencies; **not installed** (no `sentry/sentry-laravel` in `composer.json`) | Its original motivation — land before the `SERVICE_STRUCTURE_MODE` flip — is spent; the flip happened 2026-07-19. Its **new** motivation is the long, unattended, irreversible-in-practice production bundle apply. Land it before readiness Gate G8, not after |
 | 3 | [CODE-QUALITY-REMEDIATION-2026-07-19.md](CODE-QUALITY-REMEDIATION-2026-07-19.md) | **WP2.1 + WP6.1 done 2026-07-24**; rest not started; **WP7's gate is now released** | WP2.1 (the `#[Computed]` perf fix) and its WP6.1 query-duplication guard have landed — remaining WP2 items are 2.2–2.8, and WP6.2's structural test is still open. WP1 is now routine drift (its CVE premise was a stale local vendor tree — the lock has carried medialibrary 11.23.1 since 2026-07-03). WP2/WP3/WP6 any time; WP4 as maintainer answers arrive; WP5 rides R8; **WP7 (PHPStan level 9, ~800 errors, `phpstan.neon` still at `level: 8`) is unblocked now that R9–R11 have merged** — only Q4 sign-off stands in front of it |
 | 4 | [SERVICE-WORKBENCH-REDESIGN-2026-07-23.md](SERVICE-WORKBENCH-REDESIGN-2026-07-23.md) | **Steps A–D implemented** (`98dd4cab5`, `473ba42c9`); step E outstanding | Remaining: Dusk coverage for edit-plan/review-row/technical-details/keyboard operation, a deterministic Playwright fixture at desktop and mobile widths, and deletion of the now-orphaned `partials/processing-run-header.blade.php` (no include, no PHP, no test references it). Sequence with plan 9: doing the design refresh first means generating the workbench's Playwright baselines once, against the final tokens |
 | 5 | [NEWCOMER-UX-BACKLOG-2026-07-11.md](NEWCOMER-UX-BACKLOG-2026-07-11.md) | Approved; not started; **O19's gate released** | Highest visitor-facing value per hour in the directory, and Phase 0 is mostly production content rather than code. Start with O16/O20/O21 (production/data + copy), then O17 (address + map), then the newcomer path (N1/N2/N5). O19 can now be reassessed — backlog 3.1 landed 2026-07-16 and `RelatedPagePresenter` survived at `app/Presenters/`. O18/N3/N4 still need maintainer input |
@@ -144,7 +156,7 @@ DESIGN-SYSTEM-REFRESH ⇄ SERVICE-WORKBENCH step E  (Playwright baseline churn �
 | **Decide whether to delete the retained thumbnail sources on `public`** | archived sermon-asset disk-migration plan, §9.6 | ~61 files under production's `storage/app/public/sermons/thumbnails`. WP2 copied rather than moved, so these are its rollback — deleting them gives that up deliberately, and is not tidying. No deadline: they sit on a mounted volume and cost only disk. Reasonable trigger is having seen thumbnails render across the archive, not just the smoke-tested sermons |
 | **Verify `app-livestream` survives two deploys** | archived children's-talk plan, WP0 | The last unverified piece of that plan. Upload a recording, deploy, confirm the source file is still there. `app-private` no longer needs proving — it was removed once WP1 showed it had never held anything |
 | **Remove the orphaned `crockenhill_app-private` volume** | archived children's-talk plan; `docs/operations/production.md` | Dropping the mount does not delete the volume. After a post-removal deploy is up: `docker volume rm crockenhill_app-private`. Verified empty by WP1 |
-| R8 data convergence — song catalogue sync, `play_date` import, media identity backfill, OpenLP/OoS evidence, Bundle A media results and Bundle B reviewed convergence | R8 correctness plan + historic-media plan + remainder R8 + `docs/operations/r8-data-convergence-runbook.md` | Production mutation is blocked until normalized evidence/projector, isolated staging, complete media-output transport, two-bundle hash gates and exact parity are implemented and rehearsed. Production has not been touched. |
+| Historic/R8 data convergence — song catalogue sync, `play_date` import, media identity backfill, OpenLP/OoS evidence, Bundle A media results and Bundle B convergence | Historic archive readiness-remediation plan + remainder R8 + `docs/operations/r8-data-convergence-runbook.md` | Production mutation is blocked until readiness G8. The predecessor R8/historic plans are decision records, not executable sequences. Production has not been touched. |
 | Run `CleanupReviewQueueNoiseCommand` against production | archived review-queue-noise plan, OD3 | The command shipped 2026-07-20 (dry-run-first, counts-only). No record it has been run in production |
 | Answer D1 (song familiarity: "sung exactly once in 5 years") | plan 11 | Blocks the whole plan; the draft defaults it to amber |
 | Answer Q3/Q4 (podcast `enabled` key; PHPStan ratchet sequencing) | plan 4 | Q4 is the last thing in front of WP7 |

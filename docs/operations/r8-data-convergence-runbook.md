@@ -3,19 +3,22 @@
 > **Status (revised 2026-07-30): command surface implemented; rehearsal and production execution
 > not started.**
 >
-> WP0–WP10 and the WP11 export/convergence/audit commands are implemented on `master`. Do not run
-> the production mutation sequence until those commits are deployed, the full local rehearsal
-> below passes, the private reports are accepted and the remaining operator gates are closed.
-> In particular, do not treat an individual command's successful dry run as approval for the
-> production maintenance window.
+> The original WP0–WP10 and WP11 export/convergence/audit command surfaces exist on `master`, but
+> the 2026-07-31 readiness audit found release-blocking defects. Do not run the production mutation
+> sequence until the remediation plan reaches Gate G8. In particular, do not treat an individual
+> command's successful dry run as approval for the production maintenance window.
 >
-> The governing correctness requirements remain in
+> The governing implementation requirements now live in
+> [Historic Archive Import Readiness Remediation](../plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md).
 > [R8 Data Convergence Correctness](../plans/R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md)
-> and must be checked as one operation. The previous runbook re-ran OoS extraction and
-> historic-video processing in production and used aggregate parity checks; that sequence is
-> superseded and remains only in git history.
+> is retained as a decision/prior-art record. The previous runbook re-ran OoS extraction and
+> historic-video processing in production and used aggregate parity checks; that sequence remains
+> superseded in git history.
 >
 > **Production has not been mutated for this operation.**
+>
+> This remains the sole production operator runbook. References below to R8/HM work-package
+> numbers are retained as historical decision context, not independent release gates.
 
 This runbook closes R8 items 2.4 and 2.6 in the
 [July 2026 simplification remainder plan](../plans/JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md).
