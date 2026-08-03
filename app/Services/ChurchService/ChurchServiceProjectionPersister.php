@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Data\ChurchServiceProjection;
+use App\Enums\ChurchServiceCanonicalFinalization;
+use App\Enums\ChurchServiceSource;
 use App\Events\ChurchServiceCanonicalListChanged;
 use App\Models\ChurchService;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +28,24 @@ class ChurchServiceProjectionPersister
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            $finalization = $projection->sourceSummary === ChurchServiceSource::Manual->value
+                ? ChurchServiceCanonicalFinalization::Manual
+                : ChurchServiceCanonicalFinalization::Automatic;
+            $policyVersion = $projection->policyFingerprint['version'];
+
+            $state = [
+                'canonical_finalization' => $finalization,
+                'projection_policy_version' => (int) $policyVersion,
+            ];
+
             if ($lockedService->canonical_hash === $projection->hash) {
+                if (
+                    $lockedService->canonical_finalization !== $finalization
+                    || $lockedService->projection_policy_version !== (int) $policyVersion
+                ) {
+                    $lockedService->forceFill($state)->saveQuietly();
+                }
+
                 return $lockedService;
             }
 
@@ -100,6 +119,7 @@ class ChurchServiceProjectionPersister
                 'source' => $projection->sourceSummary,
                 'canonical_revision' => $lockedService->canonical_revision + 1,
                 'canonical_hash' => $projection->hash,
+                ...$state,
             ])->saveQuietly();
 
             $freshService = $lockedService->fresh(['items']) ?? $lockedService;

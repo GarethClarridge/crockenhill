@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
-use App\Enums\ChurchServiceSource;
+use App\Enums\ChurchServiceCanonicalFinalization;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItemAssertion;
+use App\Models\ChurchServiceMergeProposal;
 use App\Models\ChurchServiceReviewDecision;
 use App\Models\ChurchServiceReviewSession;
 use App\Models\ChurchServiceSourceRecord;
-use App\Support\CanonicalJson;
 use RuntimeException;
 
 class ChurchServiceConvergenceBundleExporter
@@ -18,6 +18,8 @@ class ChurchServiceConvergenceBundleExporter
     public function __construct(
         private readonly ChurchServiceConvergenceBundle $bundles,
         private readonly ChurchServiceCanonicalManifest $manifests,
+        private readonly ChurchServiceProjector $projector,
+        private readonly ChurchServiceEvidenceSet $evidenceSet,
     ) {}
 
     /**
@@ -66,14 +68,51 @@ class ChurchServiceConvergenceBundleExporter
     /** @return array<string, mixed> */
     private function service(ChurchService $service): array
     {
+        $sourceRecords = $service->sourceRecords;
+        $projection = $this->projector->project($sourceRecords);
         $review = $service->reviewSessions
             ->whereNotNull('completed_at')
             ->sortByDesc('completed_at')
             ->first();
-        $manual = $service->sourceRecords
-            ->where('source', ChurchServiceSource::Manual)
-            ->sortByDesc('captured_at')
-            ->first();
+        $manual = $this->projector->activeManualSourceRecord($sourceRecords);
+
+        $common = [
+            'date' => $service->date->toDateString(),
+            'service' => $service->service->value,
+            'evidence_set_hash' => $this->evidenceSet->hash($sourceRecords),
+            'resulting_canonical_hash' => $service->canonical_hash,
+            'projection_policy' => $projection->policyFingerprint,
+            'canonical_manifest' => $this->manifests->build($service),
+        ];
+
+        if ($service->canonical_finalization === ChurchServiceCanonicalFinalization::Automatic) {
+            if (
+                $manual instanceof ChurchServiceSourceRecord
+                || $service->needs_review
+                || $this->hasUnresolvedProposals($service)
+                || blank($service->canonical_hash)
+                || $service->canonical_hash !== $projection->hash
+                || $service->projection_policy_version !== $projection->policyFingerprint['version']
+                || ! $this->projector->hasCompleteAudit($sourceRecords, $projection)
+            ) {
+                throw new RuntimeException("Service {$service->date->toDateString()} {$service->service->value} is not conflict-free and machine-final.");
+            }
+
+            return [
+                ...$common,
+                'finalization' => ChurchServiceCanonicalFinalization::Automatic->value,
+                'pre_review_hash' => $service->canonical_hash,
+                'manual_revision' => null,
+                'review' => null,
+            ];
+        }
+
+        if ($service->canonical_finalization === null) {
+            throw new RuntimeException(
+                "Service {$service->date->toDateString()} {$service->service->value} has no recorded finalisation. "
+                .'Re-project it so its canonical state declares whether a machine or a person settled it.'
+            );
+        }
 
         if (
             ! $review instanceof ChurchServiceReviewSession
@@ -85,26 +124,20 @@ class ChurchServiceConvergenceBundleExporter
             throw new RuntimeException("Service {$service->date->toDateString()} {$service->service->value} has no complete final review.");
         }
 
-        $machineRecords = $service->sourceRecords
-            ->where('source', '!=', ChurchServiceSource::Manual)
-            ->sortBy('revision_hash')
-            ->values();
-
         return [
-            'date' => $service->date->toDateString(),
-            'service' => $service->service->value,
-            'evidence_set_hash' => CanonicalJson::hash($machineRecords->map(fn (ChurchServiceSourceRecord $record): array => [
-                'source' => $record->source->value,
-                'source_key' => $record->source_key,
-                'revision_hash' => $record->revision_hash,
-                'processing_fingerprint' => $record->processing_fingerprint,
-            ])->all()),
+            ...$common,
+            'finalization' => ChurchServiceCanonicalFinalization::Manual->value,
             'pre_review_hash' => $review->base_canonical_hash,
-            'resulting_canonical_hash' => $service->canonical_hash,
             'manual_revision' => $this->manualRevision($manual),
             'review' => $this->review($review),
-            'canonical_manifest' => $this->manifests->build($service),
         ];
+    }
+
+    private function hasUnresolvedProposals(ChurchService $service): bool
+    {
+        return $service->mergeProposals->contains(
+            fn (ChurchServiceMergeProposal $proposal): bool => in_array($proposal->status->value, ['pending', 'stale'], true),
+        );
     }
 
     /** @return array<string, mixed> */

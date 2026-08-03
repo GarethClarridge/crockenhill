@@ -15,15 +15,42 @@ class ChurchServiceSourceRevisionLineageInspector
      * chain. Authority comes from the explicit relationship, never from a
      * timestamp a source chose for itself.
      *
+     * The lineage must be complete: an edge pointing at a revision that was not
+     * loaded means the caller assembled the lineage wrongly.
+     *
      * @param  Collection<int, ChurchServiceSourceRecord>  $revisions  every revision of one source + source_key lineage
      */
     public function leaf(Collection $revisions): ?ChurchServiceSourceRecord
+    {
+        $revisionsById = $revisions->keyBy('id');
+
+        foreach ($revisions as $revision) {
+            if ($revision->supersedes_id !== null && ! $revisionsById->has($revision->supersedes_id)) {
+                throw new RuntimeException('A source revision supersedes a record outside its source lineage.');
+            }
+        }
+
+        return $this->activeLeaf($revisions, $revisions);
+    }
+
+    /**
+     * Resolve a lineage's leaf inside a set that may already have been pruned to
+     * active leaves, so that pruning twice is the same as pruning once. An edge
+     * whose predecessor is absent from the whole loaded set is a pruned
+     * ancestor; an edge whose predecessor is loaded under a different lineage is
+     * still a corruption and is refused.
+     *
+     * @param  Collection<int, ChurchServiceSourceRecord>  $revisions  the loaded revisions of one lineage
+     * @param  Collection<int, ChurchServiceSourceRecord>  $loaded  every revision loaded alongside them
+     */
+    public function activeLeaf(Collection $revisions, Collection $loaded): ?ChurchServiceSourceRecord
     {
         if ($revisions->isEmpty()) {
             return null;
         }
 
         $revisionsById = $revisions->keyBy('id');
+        $loadedById = $loaded->keyBy('id');
         $supersededIds = [];
 
         foreach ($revisions as $revision) {
@@ -31,11 +58,15 @@ class ChurchServiceSourceRevisionLineageInspector
                 continue;
             }
 
-            if (! $revisionsById->has($revision->supersedes_id)) {
-                throw new RuntimeException('A source revision supersedes a record outside its source lineage.');
+            if ($revisionsById->has($revision->supersedes_id)) {
+                $supersededIds[$revision->supersedes_id] = true;
+
+                continue;
             }
 
-            $supersededIds[$revision->supersedes_id] = true;
+            if ($loadedById->has($revision->supersedes_id)) {
+                throw new RuntimeException('A source revision supersedes a record outside its source lineage.');
+            }
         }
 
         $leaves = $revisions->reject(

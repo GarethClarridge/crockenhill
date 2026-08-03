@@ -7,6 +7,7 @@ namespace App\Actions;
 use App\Data\ChurchServiceProjection;
 use App\Data\ChurchServiceSourceIngestionResult;
 use App\Data\ChurchServiceSourceRevision;
+use App\Enums\ChurchServiceCanonicalFinalization;
 use App\Enums\ChurchServiceProposalStatus;
 use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
@@ -106,6 +107,7 @@ class IngestChurchServiceSourceRevision
                 $stagingReasons = $this->stagingReasons(
                     $lockedService,
                     $revision,
+                    $records,
                     $projection,
                     $hasUnnormalizedLegacyItems,
                 );
@@ -208,11 +210,13 @@ class IngestChurchServiceSourceRevision
      * empty list is the only licence to project directly; anything else has to reach a
      * reviewer, so no ingress may end without either applying or staging.
      *
+     * @param  Collection<int, ChurchServiceSourceRecord>  $records
      * @return list<array<string, mixed>>
      */
     private function stagingReasons(
         ChurchService $churchService,
         ChurchServiceSourceRevision $revision,
+        Collection $records,
         ChurchServiceProjection $projection,
         bool $hasUnnormalizedLegacyItems,
     ): array {
@@ -243,6 +247,13 @@ class IngestChurchServiceSourceRevision
             ];
         }
 
+        if (! $this->projector->hasCompleteAudit($records, $projection)) {
+            $reasons[] = [
+                'kind' => 'incomplete_projection_audit',
+                'reason' => 'The active evidence set does not have a complete portable projection audit, so canonical finalisation must wait for review.',
+            ];
+        }
+
         return [...$reasons, ...$projection->conflicts];
     }
 
@@ -261,8 +272,25 @@ class IngestChurchServiceSourceRevision
             ->values();
         $projection = $this->projector->project($machineRecords);
 
-        if ($churchService->canonical_hash === $projection->hash) {
+        // A staging reason exists, so this service is not settled by machine alone
+        // any more. Retract the claim before deciding whether a proposal is also
+        // needed, otherwise a no-op revision leaves the service still advertising
+        // itself as machine-final and exportable without review.
+        $wasAutomatic = $churchService->canonical_finalization === ChurchServiceCanonicalFinalization::Automatic;
+
+        if ($wasAutomatic) {
+            $churchService->forceFill(['canonical_finalization' => null])->saveQuietly();
+        }
+
+        if ($churchService->canonical_hash === $projection->hash && $projection->conflicts === []) {
             return;
+        }
+
+        if ($wasAutomatic) {
+            $churchService->forceFill([
+                'needs_review' => true,
+                'review_reason' => 'projection_requires_review',
+            ])->saveQuietly();
         }
 
         ChurchServiceMergeProposal::query()

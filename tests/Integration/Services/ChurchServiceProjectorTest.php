@@ -14,8 +14,15 @@ use App\Models\ChurchServiceItemAssertion;
 use App\Models\ChurchServiceSourceRecord;
 use App\Services\ChurchService\ChurchServiceAssertionNormalizer;
 use App\Services\ChurchService\ChurchServiceProjector;
+use App\Services\ChurchService\ChurchServiceSourceRevisionLineageInspector;
 use App\Support\CanonicalJson;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -89,6 +96,140 @@ class ChurchServiceProjectorTest extends TestCase
             [ChurchServiceSource::Email->value, ChurchServiceSource::Livestream->value, ChurchServiceSource::OpenLp->value],
             collect($items['song:opening-song#1']->provenanceSources())->map->value->sort()->values()->all(),
         );
+    }
+
+    #[Test]
+    public function planned_only_items_are_inserted_between_observed_plan_anchors(): void
+    {
+        $service = ChurchService::factory()->create();
+
+        $this->ingestItems($service, ChurchServiceSource::Email, [
+            $this->item(1, 'custom', 'Welcome', 'welcome'),
+            $this->item(2, 'custom', 'Prayer', 'prayer'),
+            $this->item(3, 'custom', 'Sermon', 'sermon'),
+        ]);
+        $this->ingestItems($service, ChurchServiceSource::Livestream, [
+            [...$this->item(1, 'custom', 'Welcome', 'welcome'), 'start_seconds' => 10.0],
+            [...$this->item(2, 'custom', 'Sermon', 'sermon'), 'start_seconds' => 50.0],
+        ], ChurchServiceEvidenceKind::Observed);
+
+        $this->assertSame(
+            ['Welcome', 'Prayer', 'Sermon'],
+            $service->fresh()->items()->orderBy('position')->pluck('title')->all(),
+        );
+    }
+
+    #[Test]
+    public function compatible_incomplete_sources_match_without_a_proposal(): void
+    {
+        $service = ChurchService::factory()->create();
+
+        $this->ingestItems($service, ChurchServiceSource::Email, [[
+            ...$this->item(1, 'songs', 'Come Thou Fount', 'come thou fount'),
+            'song_canonical_key' => null,
+        ]]);
+        $this->ingestItems($service, ChurchServiceSource::OpenLp, [[
+            ...$this->item(1, 'songs', 'Come Thou Fount of Every Blessing', 'come thou fount'),
+            'song_canonical_key' => 'come-thou-fount',
+        ]]);
+
+        $service = $service->fresh();
+
+        $this->assertCount(1, $service->items);
+        $this->assertSame('song:come-thou-fount#1', $service->items->sole()->canonical_identity);
+        $this->assertSame([], $service->mergeProposals()->get()->all());
+    }
+
+    #[Test]
+    public function projection_policy_version_is_disjoint_from_processing_fingerprints(): void
+    {
+        $service = ChurchService::factory()->create();
+        $this->ingest($service, ChurchServiceSource::Email);
+        $this->ingest($service, ChurchServiceSource::Livestream);
+        $records = $this->loadedRecords($service);
+        $processingFingerprints = $this->storedProcessingFingerprints($service);
+
+        // §9.4's loop advances the projector repeatedly over a corpus processed
+        // exactly once, so re-projection must never touch media, a queue or a
+        // provider. These fakes are the regression guard, not decoration.
+        Bus::fake();
+        Queue::fake();
+        Http::preventStrayRequests();
+        Event::fake();
+
+        $defaultProjector = app(ChurchServiceProjector::class);
+        $changedPolicyProjector = new ChurchServiceProjector(
+            app(ChurchServiceSourceRevisionLineageInspector::class),
+            ChurchServiceProjector::PROJECTION_POLICY_VERSION + 1,
+        );
+
+        $defaultProjection = $defaultProjector->project($records);
+        $changedProjection = $changedPolicyProjector->project($records);
+
+        Bus::assertNothingDispatched();
+        Queue::assertNothingPushed();
+
+        $this->assertNotSame($defaultProjection->policyFingerprint, $changedProjection->policyFingerprint);
+        $this->assertSame($defaultProjection->items, $changedProjection->items);
+        $this->assertSame($defaultProjection->hash, $changedProjection->hash);
+
+        // Re-read from the database: comparing the same in-memory models to
+        // themselves could not detect a write.
+        $this->assertSame($processingFingerprints, $this->storedProcessingFingerprints($service));
+    }
+
+    #[Test]
+    public function projecting_already_active_records_is_the_same_as_projecting_every_revision(): void
+    {
+        $service = ChurchService::factory()->create();
+        $normalizer = app(ChurchServiceAssertionNormalizer::class);
+
+        foreach (['Welcome', 'Welcome Everyone'] as $title) {
+            $assertions = $normalizer->normalize(
+                [$this->item(1, 'custom', $title, Str::slug($title))],
+                ChurchServiceEvidenceKind::Planned,
+            );
+
+            app(IngestChurchServiceSourceRevision::class)->execute($service, new ChurchServiceSourceRevision(
+                source: ChurchServiceSource::Email,
+                sourceKey: 'message-1|corrected',
+                inputHash: CanonicalJson::hash($assertions),
+                assertions: $assertions,
+                processingFingerprint: ['format' => 'test', 'version' => 1],
+            ));
+        }
+
+        $projector = app(ChurchServiceProjector::class);
+        $records = $this->loadedRecords($service);
+
+        $this->assertCount(2, $records);
+
+        $fromEveryRevision = $projector->project($records);
+        $fromActiveRevisions = $projector->project($projector->activeSourceRecords($records));
+
+        $this->assertSame(['Welcome Everyone'], array_column($fromEveryRevision->items, 'title'));
+        $this->assertSame($fromEveryRevision->hash, $fromActiveRevisions->hash);
+        $this->assertSame($fromEveryRevision->fieldDecisions, $fromActiveRevisions->fieldDecisions);
+        $this->assertTrue($projector->hasCompleteAudit($projector->activeSourceRecords($records), $fromActiveRevisions));
+    }
+
+    /** @return Collection<int, ChurchServiceSourceRecord> */
+    private function loadedRecords(ChurchService $service): Collection
+    {
+        return ChurchServiceSourceRecord::query()
+            ->whereBelongsTo($service, 'churchService')
+            ->with('assertions.sourceRecord')
+            ->get();
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function storedProcessingFingerprints(ChurchService $service): array
+    {
+        return ChurchServiceSourceRecord::query()
+            ->whereBelongsTo($service, 'churchService')
+            ->orderBy('id')
+            ->pluck('processing_fingerprint')
+            ->all();
     }
 
     #[Test]
@@ -226,6 +367,27 @@ class ChurchServiceProjectorTest extends TestCase
         app(IngestChurchServiceSourceRevision::class)->execute(
             $service,
             $this->revision($source, (string) $service->getKey()),
+        );
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
+     */
+    private function ingestItems(
+        ChurchService $service,
+        ChurchServiceSource $source,
+        array $items,
+        ChurchServiceEvidenceKind $evidenceKind = ChurchServiceEvidenceKind::Planned,
+    ): void {
+        app(IngestChurchServiceSourceRevision::class)->execute(
+            $service,
+            new ChurchServiceSourceRevision(
+                source: $source,
+                sourceKey: "{$source->value}-{$service->getKey()}",
+                inputHash: CanonicalJson::hash($items),
+                assertions: app(ChurchServiceAssertionNormalizer::class)->normalize($items, $evidenceKind),
+                processingFingerprint: ['format' => 'test', 'version' => 1],
+            ),
         );
     }
 

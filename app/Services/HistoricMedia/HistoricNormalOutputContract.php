@@ -426,7 +426,8 @@ class HistoricNormalOutputContract
                     'canonical_conflict_reviewed_previously', 'canonical_conflict_canonical_changed',
                     'canonical_conflict_reason', 'import_metadata', 'pending_structure_merge_source',
                     'created_at', 'updated_at', 'canonical_revision', 'canonical_hash',
-                    'reviewed_canonical_revision', 'source_summary',
+                    'reviewed_canonical_revision', 'source_summary', 'canonical_finalization',
+                    'projection_policy_version',
                 ],
             ),
             'church_service_items' => $this->table(

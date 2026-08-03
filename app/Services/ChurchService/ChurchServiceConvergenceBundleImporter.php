@@ -7,6 +7,7 @@ namespace App\Services\ChurchService;
 use App\Actions\IngestChurchServiceSourceRevision;
 use App\Data\ChurchServiceConvergenceImportPlan;
 use App\Data\ChurchServiceSourceRevision;
+use App\Enums\ChurchServiceCanonicalFinalization;
 use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItemAssertion;
@@ -24,6 +25,9 @@ class ChurchServiceConvergenceBundleImporter
         private readonly ChurchServiceConvergenceBundle $bundles,
         private readonly ChurchServiceCanonicalManifest $manifests,
         private readonly IngestChurchServiceSourceRevision $ingestSourceRevision,
+        private readonly ChurchServiceProjector $projector,
+        private readonly ChurchServiceProjectionPersister $persister,
+        private readonly ChurchServiceEvidenceSet $evidenceSet,
     ) {}
 
     /** @param array<string, mixed> $bundle */
@@ -46,8 +50,13 @@ class ChurchServiceConvergenceBundleImporter
         }
 
         $service = $matches->firstOrFail();
-        $reviewer = $this->resolveReviewer($payload['review']['reviewer_email_hash']);
-        $classification = $this->classify($service, $payload, $reviewer);
+        $automatic = $payload['finalization'] === ChurchServiceCanonicalFinalization::Automatic->value;
+        $reviewer = $automatic
+            ? null
+            : $this->resolveReviewer($payload['review']['reviewer_email_hash']);
+        $classification = $automatic
+            ? $this->classifyAutomatic($service, $payload)
+            : $this->classify($service, $payload, $reviewer);
         $planHash = CanonicalJson::hash([
             'bundle_hash' => $bundle['bundle_hash'],
             'service' => [$payload['date'], $payload['service']],
@@ -78,11 +87,20 @@ class ChurchServiceConvergenceBundleImporter
             return $plan->churchService->fresh() ?? $plan->churchService;
         }
 
-        if ($plan->classification !== 'apply' || ! $plan->reviewer instanceof User) {
+        if ($plan->classification !== 'apply') {
             throw new RuntimeException("Convergence import is {$plan->classification}: {$plan->reason}");
         }
 
         $payload = $plan->servicePayload;
+
+        if ($payload['finalization'] === ChurchServiceCanonicalFinalization::Automatic->value) {
+            return $this->persistAutomatic($plan);
+        }
+
+        if (! $plan->reviewer instanceof User) {
+            throw new RuntimeException("Convergence import is {$plan->classification}: {$plan->reason}");
+        }
+
         $manual = $payload['manual_revision'];
         $expectedRevisionHash = CanonicalJson::hash([
             'assertions' => $manual['assertions'],
@@ -133,6 +151,69 @@ class ChurchServiceConvergenceBundleImporter
     }
 
     /**
+     * A machine-final service carries no human decision to replay. The bundle is
+     * a claim that this evidence set projects to this canonical state, so the
+     * import verifies the claim against production's own evidence and re-runs
+     * the projector; it never copies canonical rows across.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{classification: 'already_present'|'apply'|'blocked_difference'|'conflict', reason: string}
+     */
+    private function classifyAutomatic(ChurchService $service, array $payload): array
+    {
+        if ($this->projector->activeManualSourceRecord($service->sourceRecords) instanceof ChurchServiceSourceRecord) {
+            return ['classification' => 'conflict', 'reason' => 'Production holds a Manual revision, so this service is not machine-final there.'];
+        }
+
+        if ($this->evidenceSet->hash($service->sourceRecords) !== $payload['evidence_set_hash']) {
+            return ['classification' => 'blocked_difference', 'reason' => 'Production machine evidence differs from the exported evidence set.'];
+        }
+
+        if ($payload['projection_policy'] !== $this->projector->policyFingerprint()) {
+            return ['classification' => 'blocked_difference', 'reason' => 'Production projection policy differs from the policy that produced this bundle.'];
+        }
+
+        $projection = $this->projector->project($service->sourceRecords);
+
+        if ($projection->hash !== $payload['resulting_canonical_hash']) {
+            return ['classification' => 'blocked_difference', 'reason' => 'Re-projecting production evidence does not reproduce the exported canonical hash.'];
+        }
+
+        if (! $this->projector->hasCompleteAudit($service->sourceRecords, $projection)) {
+            return ['classification' => 'blocked_difference', 'reason' => 'Re-projecting production evidence does not yield a complete projection audit.'];
+        }
+
+        $alreadyPresent = $service->canonical_hash === $payload['resulting_canonical_hash']
+            && $service->canonical_finalization === ChurchServiceCanonicalFinalization::Automatic
+            && $service->projection_policy_version === $payload['projection_policy']['version']
+            && $this->manifests->build($service) === $payload['canonical_manifest'];
+
+        return $alreadyPresent
+            ? ['classification' => 'already_present', 'reason' => 'The exact machine-final convergence is already present.']
+            : ['classification' => 'apply', 'reason' => 'Production evidence reproduces the exported projection and is ready to persist.'];
+    }
+
+    private function persistAutomatic(ChurchServiceConvergenceImportPlan $plan): ChurchService
+    {
+        $payload = $plan->servicePayload;
+        $service = $plan->churchService;
+        $projection = $this->projector->project($service->sourceRecords);
+
+        $this->persister->apply($service, $projection, $projection->sourceSummary);
+        $service = $service->fresh(['items.song']) ?? $service;
+
+        if ($service->canonical_hash !== $payload['resulting_canonical_hash']) {
+            throw new RuntimeException('Re-projected machine evidence did not reproduce the exported canonical hash.');
+        }
+
+        if ($this->manifests->build($service) !== $payload['canonical_manifest']) {
+            throw new RuntimeException('Applied convergence manifest differs from the exported machine-final manifest.');
+        }
+
+        return $service->fresh() ?? $service;
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      * @return array{classification: 'already_present'|'apply'|'blocked_difference'|'conflict', reason: string}
      */
@@ -153,7 +234,7 @@ class ChurchServiceConvergenceBundleImporter
             return ['classification' => 'conflict', 'reason' => 'Reviewer email hash does not resolve uniquely.'];
         }
 
-        if ($this->evidenceSetHash($service) !== $payload['evidence_set_hash']) {
+        if ($this->evidenceSet->hash($service->sourceRecords) !== $payload['evidence_set_hash']) {
             return ['classification' => 'blocked_difference', 'reason' => 'Production machine evidence differs from the reviewed evidence set.'];
         }
 
@@ -171,21 +252,6 @@ class ChurchServiceConvergenceBundleImporter
         );
 
         return $matches->count() === 1 ? $matches->first() : null;
-    }
-
-    private function evidenceSetHash(ChurchService $service): string
-    {
-        $records = $service->sourceRecords()
-            ->where('source', '!=', ChurchServiceSource::Manual->value)
-            ->orderBy('revision_hash')
-            ->get();
-
-        return CanonicalJson::hash($records->map(fn (ChurchServiceSourceRecord $record): array => [
-            'source' => $record->source->value,
-            'source_key' => $record->source_key,
-            'revision_hash' => $record->revision_hash,
-            'processing_fingerprint' => $record->processing_fingerprint,
-        ])->all());
     }
 
     /**

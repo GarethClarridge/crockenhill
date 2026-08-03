@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Data\ChurchServiceImportMetadata;
 use App\Data\ChurchServiceImportMetadataCast;
+use App\Enums\ChurchServiceCanonicalFinalization;
 use App\Enums\ChurchServiceReviewState;
 use App\Enums\SermonService;
 use Database\Factories\ChurchServiceFactory;
@@ -39,6 +40,8 @@ use Illuminate\Validation\Rule;
  * @property int $canonical_revision
  * @property string|null $canonical_hash
  * @property int|null $reviewed_canonical_revision
+ * @property ChurchServiceCanonicalFinalization|null $canonical_finalization
+ * @property int|null $projection_policy_version
  * @property string|null $source_summary
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -88,6 +91,8 @@ class ChurchService extends Model
         'canonical_revision',
         'canonical_hash',
         'reviewed_canonical_revision',
+        'canonical_finalization',
+        'projection_policy_version',
         'source_summary',
     ];
 
@@ -110,6 +115,8 @@ class ChurchService extends Model
             'import_metadata' => ChurchServiceImportMetadataCast::class,
             'canonical_revision' => 'integer',
             'reviewed_canonical_revision' => 'integer',
+            'canonical_finalization' => ChurchServiceCanonicalFinalization::class,
+            'projection_policy_version' => 'integer',
         ];
     }
 
@@ -183,6 +190,8 @@ class ChurchService extends Model
             'notices' => ['nullable', 'array'],
             'chapter_markers' => ['nullable', 'array'],
             'review_state' => ['required', Rule::enum(ChurchServiceReviewState::class)],
+            'canonical_finalization' => ['nullable', Rule::enum(ChurchServiceCanonicalFinalization::class)],
+            'projection_policy_version' => ['nullable', 'integer', 'min:1'],
             'manual_reviewed_by_user_id' => ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:users,id'],
             'pending_structure_merge_source' => ['nullable', 'string', 'max:255'],
         ];

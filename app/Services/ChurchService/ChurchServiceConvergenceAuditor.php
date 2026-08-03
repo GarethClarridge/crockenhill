@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Enums\ChurchServiceCanonicalFinalization;
 use App\Enums\ChurchServiceProposalStatus;
-use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceMergeProposal;
 use App\Models\ChurchServiceReviewSession;
-use App\Models\ChurchServiceSourceRecord;
-use App\Support\CanonicalJson;
 
 class ChurchServiceConvergenceAuditor
 {
     public function __construct(
         private readonly ChurchServiceConvergenceBundle $bundles,
         private readonly ChurchServiceCanonicalManifest $manifests,
+        private readonly ChurchServiceProjector $projector,
+        private readonly ChurchServiceEvidenceSet $evidenceSet,
     ) {}
 
     /**
@@ -103,30 +103,65 @@ class ChurchServiceConvergenceAuditor
             $differences,
             'evidence_set_hash',
             $payload['evidence_set_hash'],
-            $this->evidenceSetHash($service),
+            $this->evidenceSet->hash($service->sourceRecords),
         );
 
-        $review = $service->reviewSessions
-            ->firstWhere('review_uuid', $payload['review']['review_uuid']);
+        $this->compare(
+            $differences,
+            'finalization',
+            $payload['finalization'],
+            $service->canonical_finalization?->value,
+        );
+        $this->compare(
+            $differences,
+            'projection_policy',
+            $payload['projection_policy'],
+            $this->projector->policyFingerprint(),
+        );
+        $this->compare(
+            $differences,
+            'projection_policy_version',
+            $payload['projection_policy']['version'],
+            $service->projection_policy_version,
+        );
 
-        $this->compare(
-            $differences,
-            'review.review_uuid',
-            $payload['review']['review_uuid'],
-            $review?->review_uuid,
-        );
-        $this->compare(
-            $differences,
-            'review.resulting_canonical_hash',
-            $payload['resulting_canonical_hash'],
-            $review?->resulting_canonical_hash,
-        );
-        $this->compare(
-            $differences,
-            'review.completed',
-            true,
-            $review instanceof ChurchServiceReviewSession && $review->completed_at !== null,
-        );
+        $automatic = $payload['finalization'] === ChurchServiceCanonicalFinalization::Automatic->value;
+
+        if ($automatic) {
+            // A machine-final service must carry no human decision at all, so the
+            // live assertion is that no review ever completed against it — not
+            // merely that the bundle omitted one.
+            $this->compare(
+                $differences,
+                'review.completed',
+                false,
+                $service->reviewSessions->contains(
+                    fn (ChurchServiceReviewSession $session): bool => $session->completed_at !== null,
+                ),
+            );
+            $this->compare($differences, 'reviewed_canonical_revision', null, $service->reviewed_canonical_revision);
+        } else {
+            $review = $service->reviewSessions->firstWhere('review_uuid', $payload['review']['review_uuid']);
+
+            $this->compare(
+                $differences,
+                'review.review_uuid',
+                $payload['review']['review_uuid'],
+                $review?->review_uuid,
+            );
+            $this->compare(
+                $differences,
+                'review.resulting_canonical_hash',
+                $payload['resulting_canonical_hash'],
+                $review?->resulting_canonical_hash,
+            );
+            $this->compare(
+                $differences,
+                'review.completed',
+                true,
+                $review instanceof ChurchServiceReviewSession && $review->completed_at !== null,
+            );
+        }
 
         $pendingProposals = $service->mergeProposals
             ->whereIn('status', [
@@ -142,35 +177,22 @@ class ChurchServiceConvergenceAuditor
 
         $this->compare($differences, 'pending_proposals', [], $pendingProposals);
         $this->compare($differences, 'needs_review', false, $service->needs_review);
-        $this->compare(
-            $differences,
-            'reviewed_canonical_revision',
-            $service->canonical_revision,
-            $service->reviewed_canonical_revision,
-        );
+        if (! $automatic) {
+            $this->compare(
+                $differences,
+                'reviewed_canonical_revision',
+                $service->canonical_revision,
+                $service->reviewed_canonical_revision,
+            );
+        }
 
         return [
             'identity' => $identity,
             'passed' => $differences === [],
             'canonical_hash' => $service->canonical_hash,
-            'evidence_set_hash' => $this->evidenceSetHash($service),
+            'evidence_set_hash' => $this->evidenceSet->hash($service->sourceRecords),
             'differences' => $differences,
         ];
-    }
-
-    private function evidenceSetHash(ChurchService $service): string
-    {
-        return CanonicalJson::hash($service->sourceRecords
-            ->where('source', '!=', ChurchServiceSource::Manual)
-            ->sortBy('revision_hash')
-            ->map(fn (ChurchServiceSourceRecord $record): array => [
-                'source' => $record->source->value,
-                'source_key' => $record->source_key,
-                'revision_hash' => $record->revision_hash,
-                'processing_fingerprint' => $record->processing_fingerprint,
-            ])
-            ->values()
-            ->all());
     }
 
     /**

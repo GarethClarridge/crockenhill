@@ -87,7 +87,7 @@ class ChurchServiceConvergenceBundle
             foreach ([
                 'date', 'service', 'evidence_set_hash', 'pre_review_hash',
                 'resulting_canonical_hash', 'manual_revision', 'review',
-                'canonical_manifest',
+                'canonical_manifest', 'finalization', 'projection_policy',
             ] as $field) {
                 if (! array_key_exists($field, $service)) {
                     throw new RuntimeException("Convergence service {$index} is missing {$field}.");
@@ -104,6 +104,22 @@ class ChurchServiceConvergenceBundle
             $this->requireHash($service['evidence_set_hash'], "services.{$index}.evidence_set_hash");
             $this->requireHash($service['pre_review_hash'], "services.{$index}.pre_review_hash");
             $this->requireHash($service['resulting_canonical_hash'], "services.{$index}.resulting_canonical_hash");
+
+            $finalization = $service['finalization'];
+
+            if (! in_array($finalization, ['automatic', 'manual'], true)) {
+                throw new RuntimeException("Convergence service {$index} has an unsupported finalization.");
+            }
+
+            $this->validateProjectionPolicy($service['projection_policy'], $index);
+
+            if ($finalization === 'automatic' && ($service['manual_revision'] !== null || $service['review'] !== null)) {
+                throw new RuntimeException("Automatic convergence service {$index} cannot contain Manual review data.");
+            }
+
+            if ($finalization === 'manual' && (! is_array($service['manual_revision']) || ! is_array($service['review']))) {
+                throw new RuntimeException("Manual convergence service {$index} is missing review data.");
+            }
         }
 
         $this->guardPortable($bundle);
@@ -115,6 +131,18 @@ class ChurchServiceConvergenceBundle
     {
         if (! is_string($value) || preg_match('/\A[a-f0-9]{64}\z/', $value) !== 1) {
             throw new RuntimeException("{$field} must be a lowercase SHA-256.");
+        }
+    }
+
+    private function validateProjectionPolicy(mixed $value, int $serviceIndex): void
+    {
+        if (
+            ! is_array($value)
+            || ! is_string($value['format'] ?? null)
+            || ! is_int($value['version'] ?? null)
+            || $value['version'] < 1
+        ) {
+            throw new RuntimeException("Convergence service {$serviceIndex} has no valid projection policy fingerprint.");
         }
     }
 
