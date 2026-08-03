@@ -166,7 +166,6 @@ class ChurchServiceConvergenceAuditor
         $pendingProposals = $service->mergeProposals
             ->whereIn('status', [
                 ChurchServiceProposalStatus::Pending,
-                ChurchServiceProposalStatus::Stale,
             ])
             ->map(fn (ChurchServiceMergeProposal $proposal): array => [
                 'proposed_hash' => $proposal->proposed_hash,

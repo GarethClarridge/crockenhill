@@ -120,6 +120,10 @@ class ChurchServiceConvergenceBundle
             if ($finalization === 'manual' && (! is_array($service['manual_revision']) || ! is_array($service['review']))) {
                 throw new RuntimeException("Manual convergence service {$index} is missing review data.");
             }
+
+            if ($finalization === 'manual') {
+                $this->validateReview($service['review'], $index);
+            }
         }
 
         $this->guardPortable($bundle);
@@ -143,6 +147,86 @@ class ChurchServiceConvergenceBundle
             || $value['version'] < 1
         ) {
             throw new RuntimeException("Convergence service {$serviceIndex} has no valid projection policy fingerprint.");
+        }
+    }
+
+    /** @param array<string, mixed> $review */
+    private function validateReview(array $review, int $serviceIndex): void
+    {
+        foreach (['review_uuid', 'reviewer_email_hash', 'service_field_decisions', 'decisions', 'proposal_dispositions', 'decision_rules'] as $field) {
+            if (! array_key_exists($field, $review)) {
+                throw new RuntimeException("Manual convergence service {$serviceIndex} review is missing {$field}.");
+            }
+        }
+
+        if (! is_string($review['review_uuid']) || $review['review_uuid'] === '') {
+            throw new RuntimeException("Manual convergence service {$serviceIndex} review UUID is invalid.");
+        }
+
+        if (! is_string($review['reviewer_email_hash']) || preg_match('/\A[a-f0-9]{64}\z/', $review['reviewer_email_hash']) !== 1) {
+            throw new RuntimeException("Manual convergence service {$serviceIndex} reviewer identity is invalid.");
+        }
+
+        if (! is_array($review['proposal_dispositions']) || ! array_is_list($review['proposal_dispositions'])) {
+            throw new RuntimeException("Manual convergence service {$serviceIndex} proposal dispositions must be a list.");
+        }
+
+        $identities = [];
+
+        foreach ($review['proposal_dispositions'] as $dispositionIndex => $disposition) {
+            if (! is_array($disposition)
+                || ! is_string($disposition['proposal_identity'] ?? null)
+                || $disposition['proposal_identity'] === ''
+                || ! in_array($disposition['disposition'] ?? null, ['accepted', 'rejected', 'replaced'], true)
+                || (($disposition['rationale'] ?? null) !== null && ! is_string($disposition['rationale']))) {
+                throw new RuntimeException("Manual convergence service {$serviceIndex} proposal disposition {$dispositionIndex} is invalid.");
+            }
+
+            if (isset($identities[$disposition['proposal_identity']])) {
+                throw new RuntimeException("Manual convergence service {$serviceIndex} repeats a proposal disposition.");
+            }
+
+            $identities[$disposition['proposal_identity']] = true;
+        }
+
+        $this->validateDecisionRules($review['decision_rules'], $serviceIndex, $identities);
+    }
+
+    /**
+     * A rule may only name proposals this service actually dispositioned, so a bundle
+     * cannot smuggle in an authorising act for proposals it does not carry.
+     *
+     * @param  array<string, bool>  $dispositionedIdentities
+     */
+    private function validateDecisionRules(mixed $rules, int $serviceIndex, array $dispositionedIdentities): void
+    {
+        if (! is_array($rules) || ! array_is_list($rules)) {
+            throw new RuntimeException("Manual convergence service {$serviceIndex} decision rules must be a list.");
+        }
+
+        foreach ($rules as $ruleIndex => $rule) {
+            if (! is_array($rule)
+                || ! is_string($rule['class_key'] ?? null)
+                || $rule['class_key'] === ''
+                || ! in_array($rule['disposition'] ?? null, ['accepted', 'rejected', 'replaced'], true)
+                || ! is_string($rule['rationale'] ?? null)
+                || trim($rule['rationale']) === ''
+                || ! is_array($rule['proposal_identities'] ?? null)
+                || ! array_is_list($rule['proposal_identities'])
+                || (($rule['match_tier'] ?? null) !== null && ! is_int($rule['match_tier']))) {
+                throw new RuntimeException("Manual convergence service {$serviceIndex} decision rule {$ruleIndex} is invalid.");
+            }
+
+            $covered = array_filter(
+                $rule['proposal_identities'],
+                static fn (mixed $identity): bool => is_string($identity) && isset($dispositionedIdentities[$identity]),
+            );
+
+            if ($covered === []) {
+                throw new RuntimeException(
+                    "Manual convergence service {$serviceIndex} decision rule {$ruleIndex} names no proposal this service dispositioned.",
+                );
+            }
         }
     }
 

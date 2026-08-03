@@ -103,7 +103,14 @@ class ChurchServiceConvergenceBundleTest extends TestCase
             'finalization' => 'manual',
             'projection_policy' => ['format' => 'church-service-projection', 'version' => 1],
             'manual_revision' => ['source_key' => 'review:uuid', 'assertions' => []],
-            'review' => ['review_uuid' => 'uuid', 'reviewer_email_hash' => str_repeat('6', 64), 'decisions' => []],
+            'review' => [
+                'review_uuid' => 'uuid',
+                'reviewer_email_hash' => str_repeat('6', 64),
+                'service_field_decisions' => [],
+                'decisions' => [],
+                'proposal_dispositions' => [],
+                'decision_rules' => [],
+            ],
             'canonical_manifest' => ['items' => []],
         ];
     }

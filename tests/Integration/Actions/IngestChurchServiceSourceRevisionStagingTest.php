@@ -46,6 +46,8 @@ class IngestChurchServiceSourceRevisionStagingTest extends TestCase
         $proposal = $service->mergeProposals()->firstOrFail();
 
         $this->assertSame(ChurchServiceProposalStatus::Pending, $proposal->status);
+        $this->assertTrue($service->needs_review);
+        $this->assertSame('projection_requires_review', $service->review_reason);
         $this->assertContains(
             'unnormalized_legacy_items',
             array_column($proposal->conflicts, 'kind'),
@@ -81,6 +83,7 @@ class IngestChurchServiceSourceRevisionStagingTest extends TestCase
             'ambiguous_repeat_match',
             array_column($proposal->conflicts, 'kind'),
         );
+        $this->assertTrue($service->needs_review);
         $this->assertNotSame([], $proposal->field_decisions);
     }
 

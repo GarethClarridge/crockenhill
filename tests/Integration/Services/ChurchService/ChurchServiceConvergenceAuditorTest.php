@@ -55,19 +55,24 @@ class ChurchServiceConvergenceAuditorTest extends TestCase
     }
 
     #[Test]
-    public function it_fails_closeout_for_pending_or_stale_proposals(): void
+    public function it_ignores_superseded_proposals_during_closeout(): void
     {
         [$service, $bundle] = $this->reviewedBundle();
         ChurchServiceMergeProposal::factory()->create([
             'church_service_id' => $service->id,
+            'trigger_source_record_id' => $service->sourceRecords()->firstOrFail()->id,
             'status' => ChurchServiceProposalStatus::Stale,
         ]);
 
         $report = app(ChurchServiceConvergenceAuditor::class)->audit($bundle);
 
-        $this->assertFalse($report['passed']);
-        $difference = collect($report['services'][0]['differences'])->firstWhere('path', 'pending_proposals');
-        $this->assertSame('stale', $difference['actual'][0]['status']);
+        $this->assertTrue($report['passed']);
+        $this->assertSame(
+            [],
+            collect($report['services'][0]['differences'])
+                ->where('path', 'pending_proposals')
+                ->all(),
+        );
     }
 
     /** @return array{ChurchService, array<string, mixed>} */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Queries;
 
+use App\Enums\ChurchServiceProposalStatus;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
@@ -232,10 +233,20 @@ class ServiceReviewDashboardQuery
         return $this->reviewCandidateSectionsBaseQuery()->count();
     }
 
+    /**
+     * Services awaiting a merge decision, counted once each. A service can carry both
+     * a legacy structure merge and pending evidence proposals; adding the two totals
+     * would count it twice and mix services with proposals in one figure.
+     */
     public function pendingMergeCount(): int
     {
         return ChurchService::query()
-            ->whereNotNull('pending_structure_merge_source')
+            ->where(fn (Builder $query): Builder => $query
+                ->whereNotNull('pending_structure_merge_source')
+                ->orWhereHas(
+                    'mergeProposals',
+                    fn (Builder $proposals): Builder => $proposals->where('status', ChurchServiceProposalStatus::Pending),
+                ))
             ->count();
     }
 

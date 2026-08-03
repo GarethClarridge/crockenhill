@@ -21,6 +21,8 @@ class ChurchServiceReviewSession extends Model
         'base_canonical_revision',
         'base_canonical_hash',
         'included_proposal_ids',
+        'proposal_dispositions',
+        'decision_rules',
         'service_field_decisions',
         'manual_source_record_id',
         'resulting_canonical_revision',
@@ -33,6 +35,8 @@ class ChurchServiceReviewSession extends Model
     {
         return [
             'included_proposal_ids' => 'array',
+            'proposal_dispositions' => 'array',
+            'decision_rules' => 'array',
             'service_field_decisions' => 'array',
             'completed_at' => 'datetime',
         ];

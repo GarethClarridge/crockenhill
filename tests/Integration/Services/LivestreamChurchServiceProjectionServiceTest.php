@@ -325,9 +325,9 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $result = $this->service->project($log);
 
         $this->assertTrue($result['projected']);
-        $this->assertFalse(
+        $this->assertTrue(
             $churchService->fresh()->needs_review,
-            'A clean detected run filling gaps in the order of service is routine, not reviewable.',
+            'A staged evidence proposal must be visible in the attention inbox.',
         );
     }
 
@@ -377,7 +377,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $this->assertSame($sections[0]->id, $openLpItem->livestream_service_section_id);
         $this->assertSame($openLpItem->id, $sections[0]->fresh()->church_service_item_id);
 
-        $this->assertFalse($churchService->fresh()->needs_review);
+        $this->assertTrue($churchService->fresh()->needs_review);
     }
 
     #[Test]
@@ -612,7 +612,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
 
         $this->service->project($log, refining: false);
 
-        $this->assertFalse($churchService->fresh()->needs_review);
+        $this->assertTrue($churchService->fresh()->needs_review);
     }
 
     #[Test]
@@ -654,7 +654,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $fresh = $churchService->fresh();
         $importMetadata = $fresh->import_metadata?->toArray() ?? [];
 
-        $this->assertFalse($fresh->needs_review);
+        $this->assertTrue($fresh->needs_review);
         $this->assertArrayNotHasKey('reopened_at', $importMetadata['manual_review'] ?? []);
         $this->assertSame([], $importMetadata['canonical_conflict_history'] ?? []);
     }
@@ -976,7 +976,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $this->assertSame(1, $result['items_projected'], 'Only the SONG section should be projected');
 
         $churchService = ChurchService::query()->find($result['church_service_id']);
-        $this->assertFalse($churchService->needs_review, 'needs_review must not be set by the excluded OTHER section');
+        $this->assertTrue($churchService->needs_review, 'The normalized song proposal must remain visible for review.');
     }
 
     #[Test]

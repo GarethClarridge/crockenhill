@@ -3,6 +3,9 @@
     description="Plan, recording, and review status for every service"
 >
     <x-slot:actions>
+        <x-button link="{{ route('admin.services.proposals') }}" variant="outline" icon="queue-list" inline>
+            Evidence queue
+        </x-button>
         <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
             Song catalogue
         </x-button>

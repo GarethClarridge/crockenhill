@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Enums\ChurchServiceCanonicalFinalization;
+use App\Enums\ChurchServiceProposalStatus;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItemAssertion;
 use App\Models\ChurchServiceMergeProposal;
+use App\Models\ChurchServiceProposalDecisionRule;
 use App\Models\ChurchServiceReviewDecision;
 use App\Models\ChurchServiceReviewSession;
 use App\Models\ChurchServiceSourceRecord;
@@ -20,6 +22,7 @@ class ChurchServiceConvergenceBundleExporter
         private readonly ChurchServiceCanonicalManifest $manifests,
         private readonly ChurchServiceProjector $projector,
         private readonly ChurchServiceEvidenceSet $evidenceSet,
+        private readonly ChurchServiceProposalIdentity $proposalIdentity,
     ) {}
 
     /**
@@ -41,6 +44,7 @@ class ChurchServiceConvergenceBundleExporter
                 'reviewSessions.decisions.song',
                 'reviewSessions.reviewedBy',
                 'mergeProposals.triggerSourceRecord',
+                'mergeProposals.decisionRule',
             ])
             ->whereIn('id', $serviceIds)
             ->get()
@@ -119,6 +123,8 @@ class ChurchServiceConvergenceBundleExporter
             || ! $manual instanceof ChurchServiceSourceRecord
             || $review->manual_source_record_id !== $manual->id
             || $service->reviewed_canonical_revision === null
+            || $service->needs_review
+            || $this->hasUnresolvedProposals($service)
             || blank($service->canonical_hash)
         ) {
             throw new RuntimeException("Service {$service->date->toDateString()} {$service->service->value} has no complete final review.");
@@ -129,14 +135,14 @@ class ChurchServiceConvergenceBundleExporter
             'finalization' => ChurchServiceCanonicalFinalization::Manual->value,
             'pre_review_hash' => $review->base_canonical_hash,
             'manual_revision' => $this->manualRevision($manual),
-            'review' => $this->review($review),
+            'review' => $this->review($service, $review),
         ];
     }
 
     private function hasUnresolvedProposals(ChurchService $service): bool
     {
         return $service->mergeProposals->contains(
-            fn (ChurchServiceMergeProposal $proposal): bool => in_array($proposal->status->value, ['pending', 'stale'], true),
+            fn (ChurchServiceMergeProposal $proposal): bool => $proposal->status === ChurchServiceProposalStatus::Pending,
         );
     }
 
@@ -192,7 +198,7 @@ class ChurchServiceConvergenceBundleExporter
     }
 
     /** @return array<string, mixed> */
-    private function review(ChurchServiceReviewSession $review): array
+    private function review(ChurchService $service, ChurchServiceReviewSession $review): array
     {
         $reviewerEmail = $review->reviewedBy?->email;
 
@@ -204,6 +210,8 @@ class ChurchServiceConvergenceBundleExporter
             'review_uuid' => $review->review_uuid,
             'reviewer_email_hash' => hash('sha256', mb_strtolower(trim($reviewerEmail))),
             'service_field_decisions' => $review->service_field_decisions,
+            'proposal_dispositions' => $this->proposalDispositions($service, $review),
+            'decision_rules' => $this->decisionRules($service),
             'decisions' => $review->decisions->sortBy('final_position')->map(fn (ChurchServiceReviewDecision $decision): array => [
                 'selected_assertion_identity' => $decision->selectedAssertion === null
                     ? null
@@ -217,5 +225,101 @@ class ChurchServiceConvergenceBundleExporter
                 'rationale' => $decision->rationale,
             ])->values()->all(),
         ];
+    }
+
+    /** @return list<array{proposal_identity: string, disposition: string, rationale: string|null}> */
+    private function proposalDispositions(
+        ChurchService $service,
+        ChurchServiceReviewSession $review,
+    ): array {
+        $recorded = [];
+        $proposalDispositions = $review->getAttribute('proposal_dispositions');
+
+        if (is_array($proposalDispositions)) {
+            foreach ($proposalDispositions as $disposition) {
+                if (is_array($disposition) && isset($disposition['proposal_id'])) {
+                    $recorded[(string) $disposition['proposal_id']] = $disposition;
+                }
+            }
+        }
+        $activeProposals = $service->mergeProposals
+            ->filter(fn (ChurchServiceMergeProposal $proposal): bool => $proposal->status !== ChurchServiceProposalStatus::Stale)
+            ->values();
+        $includedProposalIds = [];
+        $included = $review->getAttribute('included_proposal_ids');
+
+        if (is_array($included)) {
+            foreach ($included as $proposalId) {
+                $includedProposalIds[] = (int) $proposalId;
+            }
+        }
+
+        sort($includedProposalIds);
+        $activeProposalIds = [];
+
+        foreach ($activeProposals as $proposal) {
+            $activeProposalIds[] = (int) $proposal->id;
+        }
+
+        sort($activeProposalIds);
+
+        if ($includedProposalIds !== $activeProposalIds) {
+            throw new RuntimeException('Completed convergence review does not enumerate every active proposal exactly once.');
+        }
+
+        $result = [];
+
+        foreach ($activeProposals as $proposal) {
+            $disposition = $recorded[(string) $proposal->id] ?? null;
+            $value = is_array($disposition) ? ($disposition['disposition'] ?? null) : null;
+
+            if (! is_string($value) || ! in_array($value, ['accepted', 'rejected', 'replaced'], true)) {
+                throw new RuntimeException('Completed convergence review has an unresolved proposal disposition.');
+            }
+
+            $result[] = [
+                'proposal_identity' => $this->proposalIdentity->for($proposal),
+                'disposition' => $value,
+                'rationale' => is_string($disposition['rationale'] ?? null)
+                    ? $disposition['rationale']
+                    : null,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Every authoring act behind this service's dispositions, ordered by class key so
+     * the bundle is stable. A service whose proposals fall into several classes has
+     * several rules, and dropping any of them would lose the record of who authorised
+     * what and why.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function decisionRules(ChurchService $service): array
+    {
+        $rules = [];
+
+        foreach ($service->mergeProposals as $proposal) {
+            $rule = $proposal->decisionRule;
+
+            if ($rule instanceof ChurchServiceProposalDecisionRule) {
+                $rules[(int) $rule->id] = [
+                    'class_key' => $rule->class_key,
+                    'match_tier' => $rule->match_tier,
+                    'disposition' => $rule->disposition,
+                    'proposal_identities' => $rule->proposal_identities,
+                    'rationale' => $rule->rationale,
+                ];
+            }
+        }
+
+        usort($rules, static fn (array $left, array $right): int => strcmp(
+            $left['class_key'].$left['disposition'],
+            $right['class_key'].$right['disposition'],
+        ));
+
+        return $rules;
     }
 }

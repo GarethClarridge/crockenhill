@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property list<array<string, mixed>> $proposed_items
  * @property ChurchServiceProposalStatus $status
+ * @property int|null $decision_rule_id
  */
 class ChurchServiceMergeProposal extends Model
 {
@@ -36,6 +37,7 @@ class ChurchServiceMergeProposal extends Model
         'status',
         'resolved_by_user_id',
         'resolved_at',
+        'decision_rule_id',
     ];
 
     protected function casts(): array
@@ -47,6 +49,7 @@ class ChurchServiceMergeProposal extends Model
             'conflicts' => 'array',
             'status' => ChurchServiceProposalStatus::class,
             'resolved_at' => 'datetime',
+            'decision_rule_id' => 'integer',
         ];
     }
 
@@ -66,5 +69,11 @@ class ChurchServiceMergeProposal extends Model
     public function resolvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'resolved_by_user_id');
+    }
+
+    /** @return BelongsTo<ChurchServiceProposalDecisionRule, $this> */
+    public function decisionRule(): BelongsTo
+    {
+        return $this->belongsTo(ChurchServiceProposalDecisionRule::class, 'decision_rule_id');
     }
 }

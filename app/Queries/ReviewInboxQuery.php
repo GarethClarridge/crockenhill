@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Queries;
 
 use App\Actions\InboundEmail\InboundEmailPreviewFactory;
+use App\Enums\ChurchServiceProposalStatus;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
+use App\Models\ChurchServiceMergeProposal;
 use App\Models\InboundEmail;
 use App\Models\MediaProcessingLog;
 use App\Services\Processing\MediaProcessingIdentityResolver;
@@ -228,6 +230,13 @@ class ReviewInboxQuery
             ->limit(self::SOURCE_CAP)
             ->get();
 
+        $proposals = ChurchServiceMergeProposal::query()
+            ->with(['churchService', 'triggerSourceRecord'])
+            ->where('status', ChurchServiceProposalStatus::Pending)
+            ->orderByDesc('created_at')
+            ->limit(self::SOURCE_CAP)
+            ->get();
+
         foreach ($merges as $service) {
             $this->push($groups, $service->date->toDateString(), $service->service, [
                 'kind' => 'merge',
@@ -242,7 +251,20 @@ class ReviewInboxQuery
             ], $service);
         }
 
-        return $merges->count() + $flagged->count();
+        foreach ($proposals as $proposal) {
+            $service = $proposal->churchService;
+
+            if (! $service instanceof ChurchService) {
+                continue;
+            }
+
+            $this->push($groups, $service->date, $service->service, [
+                'kind' => 'proposal',
+                'proposal' => $proposal,
+            ], $service);
+        }
+
+        return $merges->count() + $flagged->count() + $proposals->count();
     }
 
     /**

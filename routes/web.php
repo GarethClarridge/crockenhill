@@ -20,6 +20,7 @@ use App\Livewire\Admin\ChurchServices\AddToService;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
 use App\Livewire\Admin\ChurchServices\ListSongs;
 use App\Livewire\Admin\ChurchServices\ManageChurchService;
+use App\Livewire\Admin\ChurchServices\ReviewChurchServiceProposalQueue;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\ChurchServices\ShowSong;
 use App\Livewire\Admin\MediaUpload;
@@ -193,6 +194,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     // Church Services
     Route::middleware('service-tracking.enabled')->group(function () {
         Route::get('/services', ListChurchServices::class)->name('services.index');
+        Route::get('/services/proposals', ReviewChurchServiceProposalQueue::class)->name('services.proposals');
         Route::redirect('/services/inbox', '/admin/services')->name('services.inbox');
         Route::get('/services/add', AddToService::class)->name('services.add');
         Route::get('/services/create', ManageChurchService::class)->name('services.create');

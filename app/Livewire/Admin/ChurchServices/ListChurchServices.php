@@ -185,6 +185,7 @@ class ListChurchServices extends Component
                 $this->summaryPart($kindCounts['section'] ?? 0, 'section to confirm', 'sections to confirm'),
                 $this->summaryPart($kindCounts['segment'] ?? 0, 'sermon segment needs choosing', 'sermon segments need choosing'),
                 $this->summaryPart($kindCounts['merge'] ?? 0, 'plan conflict to resolve', 'plan conflicts to resolve'),
+                $this->summaryPart($kindCounts['proposal'] ?? 0, 'evidence proposal to review', 'evidence proposals to review'),
                 $this->summaryPart($kindCounts['service_flag'] ?? 0, 'service needs checking', 'service flags need checking'),
             ])->filter()->implode(' · ');
 

@@ -7,7 +7,6 @@ namespace App\Actions;
 use App\Data\ChurchServiceProjection;
 use App\Data\ChurchServiceSourceIngestionResult;
 use App\Data\ChurchServiceSourceRevision;
-use App\Enums\ChurchServiceCanonicalFinalization;
 use App\Enums\ChurchServiceProposalStatus;
 use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
@@ -276,9 +275,7 @@ class IngestChurchServiceSourceRevision
         // any more. Retract the claim before deciding whether a proposal is also
         // needed, otherwise a no-op revision leaves the service still advertising
         // itself as machine-final and exportable without review.
-        $wasAutomatic = $churchService->canonical_finalization === ChurchServiceCanonicalFinalization::Automatic;
-
-        if ($wasAutomatic) {
+        if ($churchService->canonical_finalization !== null) {
             $churchService->forceFill(['canonical_finalization' => null])->saveQuietly();
         }
 
@@ -286,12 +283,10 @@ class IngestChurchServiceSourceRevision
             return;
         }
 
-        if ($wasAutomatic) {
-            $churchService->forceFill([
-                'needs_review' => true,
-                'review_reason' => 'projection_requires_review',
-            ])->saveQuietly();
-        }
+        $churchService->forceFill([
+            'needs_review' => true,
+            'review_reason' => 'projection_requires_review',
+        ])->saveQuietly();
 
         ChurchServiceMergeProposal::query()
             ->whereBelongsTo($churchService)

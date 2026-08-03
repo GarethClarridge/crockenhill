@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire\Admin\ChurchServices;
 
+use App\Enums\ChurchServiceCanonicalFinalization;
 use App\Enums\ChurchServiceEvidenceKind;
 use App\Enums\ChurchServiceProposalStatus;
 use App\Enums\ChurchServiceSource;
@@ -14,6 +15,8 @@ use App\Models\ChurchServiceItemAssertion;
 use App\Models\ChurchServiceMergeProposal;
 use App\Models\ChurchServiceSourceRecord;
 use App\Models\User;
+use App\Queries\AdminAttentionCounts;
+use App\Queries\ReviewInboxQuery;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -118,7 +121,7 @@ class EvidenceReviewTest extends TestCase
     }
 
     #[Test]
-    public function it_resolves_only_the_selected_proposals_and_preserves_all_history(): void
+    public function partial_review_keeps_the_service_in_the_attention_inbox(): void
     {
         $service = ChurchService::factory()->create();
         ChurchServiceItem::factory()->create([
@@ -138,15 +141,48 @@ class EvidenceReviewTest extends TestCase
             ->assertDispatched(
                 'notify',
                 type: 'success',
-                message: 'Selected evidence reviewed. Source records and proposal history were preserved.',
+                message: 'Selected evidence saved. Remaining proposals still need review.',
             );
 
         $this->assertSame(ChurchServiceProposalStatus::Rejected, $email->fresh()->status);
         $this->assertSame(ChurchServiceProposalStatus::Pending, $openLp->fresh()->status);
+        $service->refresh();
+        $this->assertTrue($service->needs_review);
+        $this->assertNull($service->canonical_finalization);
+        $this->assertNull($service->reviewed_canonical_revision);
         $this->assertDatabaseCount('church_service_merge_proposals', 2);
         $this->assertDatabaseCount('church_service_source_records', 3);
         $this->assertDatabaseCount('church_service_review_sessions', 1);
-        $this->assertSame([$email->id], $service->reviewSessions()->firstOrFail()->included_proposal_ids);
+        $review = $service->reviewSessions()->firstOrFail();
+        $this->assertSame([$email->id], $review->included_proposal_ids);
+        $this->assertNull($review->completed_at);
+        $this->assertSame(1, app(AdminAttentionCounts::class)->counts()['pending_merges']);
+        $this->assertSame(2, app(ReviewInboxQuery::class)->build()['counts']['services']);
+    }
+
+    #[Test]
+    public function selected_proposal_without_an_explicit_resolution_fails_closed_and_remains_pending(): void
+    {
+        $service = ChurchService::factory()->create();
+        $proposal = $this->createProposal($service, ChurchServiceSource::Email, 'Email item');
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->call('reviewSelectedEvidence')
+            ->assertHasNoErrors()
+            ->assertDispatched(
+                'notify',
+                type: 'error',
+                message: 'Every selected proposal needs an explicit accept, reject or replace decision.',
+            );
+
+        $service->refresh();
+        $proposal->refresh();
+        $this->assertSame(ChurchServiceProposalStatus::Pending, $proposal->status);
+        $this->assertNull($proposal->resolved_by_user_id);
+        $this->assertNull($proposal->resolved_at);
+        $this->assertTrue($service->needs_review);
+        $this->assertDatabaseCount('church_service_review_sessions', 0);
     }
 
     #[Test]
@@ -159,6 +195,8 @@ class EvidenceReviewTest extends TestCase
         Livewire::actingAs($this->admin)
             ->test(ShowChurchService::class, ['churchService' => $service])
             ->set('evidenceReviewItems.0.title', 'Reviewed custom title')
+            ->set("proposalResolutions.{$email->id}", 'accepted')
+            ->set("proposalResolutions.{$openLp->id}", 'accepted')
             ->set('evidenceSummary', 'Reviewed summary')
             ->call('reviewSelectedEvidence')
             ->assertHasNoErrors();
@@ -172,6 +210,59 @@ class EvidenceReviewTest extends TestCase
         $this->assertSame(
             [ChurchServiceProposalStatus::Accepted, ChurchServiceProposalStatus::Accepted],
             [$email->fresh()->status, $openLp->fresh()->status],
+        );
+    }
+
+    #[Test]
+    public function excluded_manual_items_are_recorded_as_explicit_review_decisions(): void
+    {
+        $service = ChurchService::factory()->create();
+        $proposal = $this->createProposal($service, ChurchServiceSource::Email, 'Email item');
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->set('evidenceReviewItems.0.included', false)
+            ->set('evidenceReviewItems.0.rationale', 'This source item was a duplicate.')
+            ->set("proposalResolutions.{$proposal->id}", 'accepted')
+            ->call('reviewSelectedEvidence')
+            ->assertHasNoErrors();
+
+        $review = $service->reviewSessions()->with('decisions')->sole();
+        $decision = $review->decisions->sole();
+
+        $this->assertFalse($decision->included);
+        $this->assertNull($decision->final_position);
+        $this->assertSame('This source item was a duplicate.', $decision->rationale);
+        $this->assertCount(0, $review->manualSourceRecord->assertions);
+    }
+
+    #[Test]
+    public function a_completed_review_enumerates_prior_active_proposal_decisions(): void
+    {
+        $service = ChurchService::factory()->create();
+        $resolved = $this->createProposal($service, ChurchServiceSource::Email, 'Already resolved');
+        $pending = $this->createProposal($service, ChurchServiceSource::OpenLp, 'Still pending');
+        $resolved->forceFill([
+            'status' => ChurchServiceProposalStatus::Accepted,
+            'resolved_by_user_id' => $this->admin->id,
+            'resolved_at' => now(),
+        ])->save();
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->set("proposalResolutions.{$pending->id}", 'rejected')
+            ->call('reviewSelectedEvidence')
+            ->assertHasNoErrors();
+
+        $review = $service->reviewSessions()->sole();
+
+        $this->assertSame(
+            [$resolved->id, $pending->id],
+            collect($review->included_proposal_ids)->sort()->values()->all(),
+        );
+        $this->assertSame(
+            ['accepted', 'rejected'],
+            collect($review->proposal_dispositions)->sortBy('proposal_id')->pluck('disposition')->values()->all(),
         );
     }
 
@@ -209,11 +300,46 @@ class EvidenceReviewTest extends TestCase
         $this->assertDatabaseCount('church_service_review_sessions', 0);
     }
 
+    #[Test]
+    public function a_service_with_no_proposals_can_still_record_its_manual_revision(): void
+    {
+        $service = ChurchService::factory()->create([
+            'needs_review' => true,
+            'review_reason' => 'projection_requires_review',
+        ]);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'title' => 'Existing item',
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->set('evidenceReviewItems.0.title', 'Reviewed without any proposal')
+            ->call('reviewSelectedEvidence')
+            ->assertHasNoErrors()
+            ->assertDispatched('notify', type: 'success');
+
+        $service->refresh();
+        $this->assertFalse($service->needs_review);
+        $this->assertSame(ChurchServiceCanonicalFinalization::Manual, $service->canonical_finalization);
+
+        $review = $service->reviewSessions()->sole();
+        $this->assertSame([], $review->included_proposal_ids);
+        $this->assertSame([], $review->proposal_dispositions);
+        $this->assertNotNull($review->completed_at);
+    }
+
     private function createProposal(
         ChurchService $service,
         ChurchServiceSource $source,
         string $title,
     ): ChurchServiceMergeProposal {
+        $service->forceFill([
+            'needs_review' => true,
+            'review_reason' => 'projection_requires_review',
+        ])->saveQuietly();
+
         $record = ChurchServiceSourceRecord::factory()->create([
             'church_service_id' => $service->id,
             'source' => $source,

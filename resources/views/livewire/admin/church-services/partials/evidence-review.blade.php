@@ -71,8 +71,10 @@
                                         dusk="proposal-decision-{{ $proposal->id }}"
                                         wire:model="proposalResolutions.{{ $proposal->id }}"
                                         :options="[
+                                            ['id' => '', 'name' => 'Choose a decision'],
                                             ['id' => 'accepted', 'name' => 'Accept into Manual review'],
                                             ['id' => 'rejected', 'name' => 'Reject, preserve as history'],
+                                            ['id' => 'replaced', 'name' => 'Replace with Manual value'],
                                         ]"
                                     />
                                 </div>
@@ -201,7 +203,7 @@
                             ->values()
                             ->all();
                     @endphp
-                    <div class="grid gap-3 rounded-lg border border-gray-200 p-4 lg:grid-cols-[auto_1fr_1fr]" wire:key="manual-review-item-{{ $index }}">
+                    <div class="grid gap-3 rounded-lg border border-gray-200 p-4 lg:grid-cols-[auto_1fr_1fr_1fr]" wire:key="manual-review-item-{{ $index }}">
                         <x-toggle label="Include" wire:model="evidenceReviewItems.{{ $index }}.included" />
                         <x-select
                             label="Select source assertion"
@@ -214,6 +216,12 @@
                             dusk="final-manual-title-{{ $index }}"
                             wire:model="evidenceReviewItems.{{ $index }}.title"
                             maxlength="255"
+                        />
+                        <x-input
+                            label="Decision rationale"
+                            wire:model="evidenceReviewItems.{{ $index }}.rationale"
+                            maxlength="2000"
+                            placeholder="Optional explanation"
                         />
                     </div>
                 @endforeach

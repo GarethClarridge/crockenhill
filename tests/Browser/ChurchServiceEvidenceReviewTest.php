@@ -27,7 +27,7 @@ class ChurchServiceEvidenceReviewTest extends DuskTestCase
         $email = $this->createProposal($service, ChurchServiceSource::Email, 'Email item');
         $openLp = $this->createProposal($service, ChurchServiceSource::OpenLp, 'OpenLP item');
 
-        $this->browse(function (Browser $browser) use ($admin, $service, $email): void {
+        $this->browse(function (Browser $browser) use ($admin, $service, $email, $openLp): void {
             $browser->loginAs($admin)
                 ->visit("/admin/services/{$service->id}")
                 ->waitFor('#evidence-review')
@@ -36,6 +36,7 @@ class ChurchServiceEvidenceReviewTest extends DuskTestCase
                 ->keys('@final-manual-title-0', ['{control}', 'a'])
                 ->assertFocused('@final-manual-title-0')
                 ->select("@proposal-decision-{$email->id}", 'rejected')
+                ->select("@proposal-decision-{$openLp->id}", 'accepted')
                 ->clear('@final-manual-title-0')
                 ->type('@final-manual-title-0', 'Keyboard reviewed title')
                 ->click('@complete-evidence-review')

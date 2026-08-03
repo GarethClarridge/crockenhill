@@ -48,7 +48,7 @@ class ShowChurchService extends Component
     /** @var array<int, bool> */
     public array $selectedProposals = [];
 
-    /** @var array<int, string> */
+    /** @var array<int, string|null> */
     public array $proposalResolutions = [];
 
     /** @var list<array<string, mixed>> */
@@ -210,12 +210,13 @@ class ShowChurchService extends Component
         }
 
         $validated = $this->validate([
-            'selectedProposals' => ['required', 'array', 'min:1'],
+            'selectedProposals' => ['array'],
             'selectedProposals.*' => ['boolean'],
             'proposalResolutions' => ['array'],
-            'proposalResolutions.*' => [Rule::in(['accepted', 'rejected'])],
+            'proposalResolutions.*' => ['nullable', Rule::in(['accepted', 'rejected', 'replaced'])],
             'evidenceReviewItems' => ['array'],
             'evidenceReviewItems.*.included' => ['boolean'],
+            'evidenceReviewItems.*.rationale' => ['nullable', 'string', 'max:2000'],
             'evidenceReviewItems.*.selected_assertion_id' => ['nullable', 'integer'],
             'evidenceReviewItems.*.type' => ['required', 'string', 'max:50'],
             'evidenceReviewItems.*.section_type' => ['nullable', 'string', 'max:50'],
@@ -241,19 +242,19 @@ class ShowChurchService extends Component
             }
         }
 
-        if ($proposalIds === []) {
+        $hasPendingProposals = $this->evidenceProposals()
+            ->contains(fn (ChurchServiceMergeProposal $proposal): bool => $proposal->status === ChurchServiceProposalStatus::Pending);
+
+        // A service with nothing pending still needs a way to record its manual
+        // revision, so an empty selection is only an error when there is something
+        // to select. Otherwise the reviewer is silently locked out of the workbench.
+        if ($proposalIds === [] && $hasPendingProposals) {
             $this->addError('selectedProposals', 'Select at least one proposal to review.');
 
             return;
         }
 
-        $items = [];
-
-        foreach ($this->evidenceReviewItems as $item) {
-            if ((bool) $item['included']) {
-                $items[] = $item;
-            }
-        }
+        $items = $this->evidenceReviewItems;
 
         $notices = json_decode($this->evidenceNotices, true, flags: JSON_THROW_ON_ERROR);
         $chapterMarkers = json_decode($this->evidenceChapterMarkers, true, flags: JSON_THROW_ON_ERROR);
@@ -291,7 +292,11 @@ class ShowChurchService extends Component
             ->withOrderedItems(withSong: true)
             ->firstOrFail();
         $this->seedEvidenceReview();
-        $this->success('Selected evidence reviewed. Source records and proposal history were preserved.');
+        $this->success(
+            $result->churchService->needs_review
+                ? 'Selected evidence saved. Remaining proposals still need review.'
+                : 'Selected evidence reviewed. Source records and proposal history were preserved.',
+        );
     }
 
     public function deleteUpload(int $processingLogId): Redirector|RedirectResponse|null
@@ -400,7 +405,7 @@ class ShowChurchService extends Component
             ->mapWithKeys(fn (ChurchServiceMergeProposal $proposal): array => [$proposal->id => true])
             ->all();
         $this->proposalResolutions = $proposals
-            ->mapWithKeys(fn (ChurchServiceMergeProposal $proposal): array => [$proposal->id => 'accepted'])
+            ->mapWithKeys(fn (ChurchServiceMergeProposal $proposal): array => [$proposal->id => null])
             ->all();
 
         $proposedItems = $latestProposal instanceof ChurchServiceMergeProposal
@@ -421,6 +426,7 @@ class ShowChurchService extends Component
             $this->evidenceReviewItems[] = [
                 ...$item,
                 'included' => true,
+                'rationale' => '',
                 'selected_assertion_id' => $assertion?->id,
             ];
         }
