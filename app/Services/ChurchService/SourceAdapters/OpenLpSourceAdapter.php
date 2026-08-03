@@ -18,13 +18,9 @@ class OpenLpSourceAdapter
         private readonly ChurchServiceAssertionNormalizer $normalizer,
     ) {}
 
-    /**
-     * @param  array<int, array<string, mixed>>|null  $resolvedItems
-     */
     public function adapt(
         UploadedFile $file,
         OpenLpParseResult $parsed,
-        ?array $resolvedItems = null,
         ?string $batchHash = null,
     ): ChurchServiceSourceRevision {
         $hash = hash_file('sha256', $file->getRealPath());
@@ -37,7 +33,7 @@ class OpenLpSourceAdapter
             source: ChurchServiceSource::OpenLp,
             sourceKey: $file->getClientOriginalName(),
             inputHash: $hash,
-            assertions: $this->normalizer->normalize($resolvedItems ?? $parsed->items, ChurchServiceEvidenceKind::Planned),
+            assertions: $this->normalizer->normalize($parsed->items, ChurchServiceEvidenceKind::Planned),
             processingFingerprint: [
                 'format' => 'openlp-osz',
                 'version' => 1,

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Services\Media\Video\HistoricVideoCurationManifest;
 use App\Services\Media\Video\HistoricVideoImporter;
+use App\Support\CanonicalJson;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
@@ -14,6 +16,8 @@ class ImportHistoricVideoBatchCommand extends Command
 {
     protected $signature = 'sermons:import-historic-videos
                             {--dir= : Root directory (default: /Volumes/CBC Drive/ServiceVideos)}
+                            {--manifest= : Approved historic-video curation manifest}
+                            {--plan-hash= : Exact plan_hash emitted by the approved manifest preflight}
                             {--from= : Only files from this date (YYYY-MM-DD)}
                             {--until= : Only files up to this date (YYYY-MM-DD)}
                             {--include-unclassified : Process files outside morning (10:00-12:59) and evening (17:00-21:00) windows}
@@ -29,12 +33,12 @@ class ImportHistoricVideoBatchCommand extends Command
                             {--dry-run : Show what would happen, no work}
                             {--delay=0 : Seconds between dispatches}
                             {--limit=0 : Max sermons to import this run (0 = no limit)}
-                            {--report= : Write a permission-restricted JSON decision and asset manifest}
+                            {--report= : Write a permission-restricted JSON report (the curation plan during a manifest dry run)}
                             {--force : Bypass date/service existence and in-flight skip checks}';
 
     protected $description = 'Import historic video recordings into the livestream processing pipeline';
 
-    public function handle(HistoricVideoImporter $importer): int
+    public function handle(HistoricVideoImporter $importer, HistoricVideoCurationManifest $curationManifest): int
     {
         $dirOption = $this->option('dir');
         $directory = is_string($dirOption) && trim($dirOption) !== ''
@@ -80,8 +84,55 @@ class ImportHistoricVideoBatchCommand extends Command
             return self::FAILURE;
         }
 
+        $approvedWorkItems = null;
+        $manifestOption = $this->option('manifest');
+        $manifestPath = is_string($manifestOption) && trim($manifestOption) !== ''
+            ? trim($manifestOption)
+            : null;
+        $plan = null;
+
+        if ($manifestPath !== null) {
+            try {
+                $plan = $curationManifest->plan($directory, $manifestPath);
+            } catch (Throwable $exception) {
+                $this->error($exception->getMessage());
+
+                return self::FAILURE;
+            }
+
+            $approvedWorkItems = $plan->workItems;
+            $defaultYear = null;
+            $includeUnclassified = false;
+            $from = null;
+            $until = null;
+        }
+
+        if (! $dryRun) {
+            if ($plan === null) {
+                $this->error('An approved historic-video manifest is required before dispatch.');
+
+                return self::FAILURE;
+            }
+
+            $providedPlanHash = $this->option('plan-hash');
+
+            if (! is_string($providedPlanHash) || ! hash_equals($plan->planHash, $providedPlanHash)) {
+                $this->error('The supplied --plan-hash does not match the approved historic-video manifest plan.');
+
+                return self::FAILURE;
+            }
+        }
+
         if ($dryRun) {
             $this->warn('Dry run enabled. No files will be dispatched and no processing logs will be created.');
+
+            if ($plan !== null) {
+                if (! $this->writeDryRunPlanReport($plan->report(), $manifestPath)) {
+                    return self::FAILURE;
+                }
+
+                $reportPath = null;
+            }
         }
 
         $this->line('Directory: '.$directory);
@@ -121,6 +172,7 @@ class ImportHistoricVideoBatchCommand extends Command
                 from: $from instanceof Carbon ? $from : null,
                 until: $until instanceof Carbon ? $until : null,
                 reportPath: $reportPath,
+                approvedWorkItems: $approvedWorkItems,
             );
         } catch (Throwable $exception) {
             $this->error($exception->getMessage());
@@ -215,6 +267,37 @@ class ImportHistoricVideoBatchCommand extends Command
 
             return false;
         }
+    }
+
+    /** @param array<string, mixed> $report */
+    private function writeDryRunPlanReport(array $report, string $manifestPath): bool
+    {
+        $reportOption = $this->option('report');
+        $reportPath = is_string($reportOption) && trim($reportOption) !== ''
+            ? trim($reportOption)
+            : "{$manifestPath}.plan.json";
+        $reportDirectory = dirname($reportPath);
+
+        if (! is_dir($reportDirectory) || ! is_writable($reportDirectory)) {
+            $this->error("Dry-run report directory is not writable: {$reportDirectory}");
+
+            return false;
+        }
+
+        if (file_put_contents($reportPath, CanonicalJson::encode($report).PHP_EOL, LOCK_EX) === false) {
+            $this->error("Unable to write dry-run report: {$reportPath}");
+
+            return false;
+        }
+
+        @chmod($reportPath, 0600);
+
+        $this->info('Historic-video curation preflight passed. No files were dispatched.');
+        $this->line("Manifest hash: {$report['manifest_hash']}");
+        $this->line("Plan hash: {$report['plan_hash']}");
+        $this->line("Report: {$reportPath}");
+
+        return true;
     }
 
     private function formatBytes(int $bytes): string

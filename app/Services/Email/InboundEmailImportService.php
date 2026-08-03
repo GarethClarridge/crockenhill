@@ -9,15 +9,17 @@ use App\Data\OosEmailImportPlanOutcome;
 use App\Data\OosEmailImportResult;
 use App\Data\OosEmailParseResult;
 use App\Data\OosEmailServicePlan;
+use App\Data\StructureMergeResult;
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\ChurchServiceProposalStatus;
 use App\Enums\InboundEmailStatus;
 use App\Enums\OosEmailImportOutcome;
 use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
-use App\Services\ChurchService\ChurchServiceCanonicalUpdateService;
-use App\Services\ChurchService\ChurchServiceItemSyncService;
+use App\Services\ChurchService\ChurchServiceCompatibilityMergeDecision;
+use App\Services\ChurchService\ChurchServiceIdentityResolver;
 use App\Services\ChurchService\ChurchServiceSongLinker;
 use App\Services\ChurchService\ChurchServiceStructureMergeService;
 use App\Services\ChurchService\SourceAdapters\EmailSourceAdapter;
@@ -33,12 +35,12 @@ class InboundEmailImportService
     use SanitizesLogData;
 
     public function __construct(
-        private readonly ChurchServiceCanonicalUpdateService $canonicalUpdateService,
-        private readonly ChurchServiceItemSyncService $itemSyncService,
         private readonly ChurchServiceSongLinker $songLinker,
         private readonly ChurchServiceStructureMergeService $mergeService,
         private readonly IngestChurchServiceSourceRevision $ingestSourceRevision,
         private readonly EmailSourceAdapter $sourceAdapter,
+        private readonly ChurchServiceCompatibilityMergeDecision $compatibilityMerge,
+        private readonly ChurchServiceIdentityResolver $identityResolver,
     ) {}
 
     public function storeParseResult(InboundEmail $inboundEmail, OosEmailParseResult $parseResult, bool $isReparse = false): void
@@ -250,6 +252,7 @@ class InboundEmailImportService
         ?int $reviewedByUserId = null,
         string $reviewMode = 'direct_approve',
         ?array $onlyPlanKeys = null,
+        ?string $sourceInputHash = null,
     ): OosEmailImportResult {
         $plans = $this->plansForImport($parseResult);
 
@@ -273,6 +276,7 @@ class InboundEmailImportService
                 $plan,
                 $reviewedByUserId,
                 $reviewMode,
+                $sourceInputHash,
             );
         }
 
@@ -316,6 +320,7 @@ class InboundEmailImportService
         OosEmailServicePlan $plan,
         ?int $reviewedByUserId,
         string $reviewMode,
+        ?string $sourceInputHash,
     ): OosEmailImportPlanOutcome {
         // An admin approval imports any well-formed plan; the automated pipeline only imports
         // plans confident enough to auto-import, holding the rest for review.
@@ -335,7 +340,7 @@ class InboundEmailImportService
         $importMetadata = $this->planImportMetadata($parseResult, $plan, $reviewedByUserId, $reviewMode);
 
         try {
-            return $this->mergeOrCreatePlan($inboundEmail, $plan, $importMetadata, $reviewedByUserId);
+            return $this->mergeOrCreatePlan($inboundEmail, $plan, $importMetadata, $reviewedByUserId, $sourceInputHash);
         } catch (Throwable $exception) {
             report($exception);
 
@@ -395,21 +400,23 @@ class InboundEmailImportService
     /**
      * @param  array<string, mixed>  $importMetadata
      */
-    private function mergeOrCreatePlan(InboundEmail $inboundEmail, OosEmailServicePlan $plan, array $importMetadata, ?int $reviewedByUserId): OosEmailImportPlanOutcome
-    {
+    private function mergeOrCreatePlan(
+        InboundEmail $inboundEmail,
+        OosEmailServicePlan $plan,
+        array $importMetadata,
+        ?int $reviewedByUserId,
+        ?string $sourceInputHash,
+    ): OosEmailImportPlanOutcome {
         /** @var SermonService $service */
         $service = $plan->service;
 
-        $existingService = ChurchService::query()
-            ->where('date', $plan->date)
-            ->where('service', $service->value)
-            ->first();
+        $existingService = $this->identityResolver->resolve((string) $plan->date, $service);
 
         if ($existingService instanceof ChurchService) {
-            return $this->mergePlanIntoExistingService($inboundEmail, $plan, $existingService, $importMetadata, $reviewedByUserId);
+            return $this->mergePlanIntoExistingService($inboundEmail, $plan, $existingService, $importMetadata, $reviewedByUserId, $sourceInputHash);
         }
 
-        $churchService = $this->createNewServiceFromPlan($inboundEmail, $plan, $service, $importMetadata, $reviewedByUserId);
+        $churchService = $this->createNewServiceFromPlan($inboundEmail, $plan, $service, $importMetadata, $reviewedByUserId, $sourceInputHash);
 
         return new OosEmailImportPlanOutcome(
             $plan->key(),
@@ -429,10 +436,9 @@ class InboundEmailImportService
         SermonService $service,
         array $importMetadata,
         ?int $reviewedByUserId,
+        ?string $sourceInputHash,
     ): ChurchService {
-        $syncResult = [];
-
-        $churchService = DB::transaction(function () use ($inboundEmail, $plan, $service, $importMetadata, $reviewedByUserId, &$syncResult): ChurchService {
+        $churchService = DB::transaction(function () use ($inboundEmail, $plan, $service, $importMetadata, $reviewedByUserId, $sourceInputHash): ChurchService {
             $churchService = ChurchService::query()->firstOrNew([
                 'date' => $plan->date,
                 'service' => $service->value,
@@ -446,12 +452,11 @@ class InboundEmailImportService
             ]);
             $churchService->save();
 
-            $syncResult = $this->itemSyncService->sync($churchService, $plan->items, ChurchServiceItemSource::Email);
-            $this->songLinker->linkForService($churchService);
             $this->ingestSourceRevision->execute(
                 $churchService,
-                $this->sourceAdapter->adapt($inboundEmail, $plan, $this->sourceItems($churchService)),
+                $this->sourceAdapter->adapt($inboundEmail, $plan, $sourceInputHash),
             );
+            $this->songLinker->linkForService($churchService);
 
             /** @var ChurchService $freshChurchService */
             $freshChurchService = $churchService->fresh(['items']) ?? $churchService;
@@ -465,12 +470,7 @@ class InboundEmailImportService
             'plan_key' => $plan->key(),
         ]));
 
-        return $this->canonicalUpdateService->finalize(
-            $churchService,
-            [],
-            ChurchServiceItemSource::Email,
-            $syncResult,
-        );
+        return $churchService;
     }
 
     /**
@@ -482,8 +482,9 @@ class InboundEmailImportService
         ChurchService $existingService,
         array $importMetadata,
         ?int $reviewedByUserId,
+        ?string $sourceInputHash,
     ): OosEmailImportPlanOutcome {
-        $mergeResult = DB::transaction(function () use ($inboundEmail, $plan, $existingService, $importMetadata, $reviewedByUserId) {
+        $mergeResult = DB::transaction(function () use ($inboundEmail, $plan, $existingService, $importMetadata, $reviewedByUserId, $sourceInputHash): StructureMergeResult {
             $existingMetadata = $existingService->import_metadata?->toArray() ?? [];
             $existingService->fill([
                 'needs_review' => $reviewedByUserId === null ? $plan->needsReview : false,
@@ -491,20 +492,43 @@ class InboundEmailImportService
             ]);
             $existingService->save();
 
+            $hadCanonicalItems = $existingService->items()->exists();
+            $usesCompatibilityMerge = $this->compatibilityMerge->usesCompatibilityMerge($existingService);
+            $ingestion = $this->ingestSourceRevision->execute(
+                $existingService,
+                $this->sourceAdapter->adapt($inboundEmail, $plan, $sourceInputHash),
+                project: ! $usesCompatibilityMerge,
+            );
+
+            if (! $usesCompatibilityMerge) {
+                $churchService = $existingService->fresh(['items']) ?? $existingService;
+                $wasStaged = $churchService->mergeProposals()
+                    ->where('trigger_source_record_id', $ingestion->sourceRecord->id)
+                    ->where('status', ChurchServiceProposalStatus::Pending)
+                    ->exists();
+                $this->songLinker->linkForService($churchService);
+
+                return new StructureMergeResult(
+                    churchService: $churchService,
+                    incomingSource: ChurchServiceItemSource::Email,
+                    wasMerged: ! $wasStaged,
+                    wasStaged: $wasStaged,
+                );
+            }
+
             $mergeResult = $this->mergeService->merge(
                 $existingService,
                 $plan->items,
                 ChurchServiceItemSource::Email,
             );
 
-            if ($mergeResult->wasMerged) {
-                $this->songLinker->linkForService($mergeResult->churchService);
+            if ($mergeResult->wasMerged && ! $hadCanonicalItems) {
+                $mergeResult->churchService->forceFill([
+                    'source' => ChurchServiceItemSource::Email->value,
+                ])->saveQuietly();
             }
 
-            $this->ingestSourceRevision->execute(
-                $mergeResult->churchService,
-                $this->sourceAdapter->adapt($inboundEmail, $plan, $this->sourceItems($mergeResult->churchService)),
-            );
+            $this->songLinker->linkForService($mergeResult->churchService);
 
             return $mergeResult;
         });
@@ -525,28 +549,6 @@ class InboundEmailImportService
                 : OosEmailImportOutcome::Merged,
             $mergeResult->churchService,
         );
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function sourceItems(ChurchService $churchService): array
-    {
-        return array_values($churchService->items()
-            ->orderBy('position')
-            ->get()
-            ->map(fn ($item): array => [
-                'position' => $item->position,
-                'type' => $item->type,
-                'section_type' => $item->section_type?->value,
-                'title' => $item->title,
-                'source_title' => $item->source_title,
-                'openlp_search_title' => $item->openlp_search_title,
-                'song_id' => $item->song_id,
-                'metadata' => $item->metadata,
-            ])
-            ->values()
-            ->all());
     }
 
     /**

@@ -35,7 +35,7 @@ class IngestChurchServiceSourceRevisionStagingTest extends TestCase
             'position' => 1,
             'type' => 'custom',
             'title' => 'Legacy hand-edited item',
-            'source' => ChurchServiceItemSource::Manual,
+            'source' => ChurchServiceItemSource::Email,
         ]);
 
         $this->ingest($service, ChurchServiceSource::Email, [

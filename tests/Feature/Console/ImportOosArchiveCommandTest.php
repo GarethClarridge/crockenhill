@@ -613,7 +613,9 @@ class ImportOosArchiveCommandTest extends TestCase
             '--import-bundle' => $bundle,
         ])->assertExitCode(0);
         $this->assertDatabaseCount('church_services', 0);
-        $this->assertNotSame(1, InboundEmail::query()->where('message_id', 'like', '<oos-archive-%')->firstOrFail()->id);
+        $stagedEmail = InboundEmail::query()->where('message_id', 'like', '<oos-archive-%')->firstOrFail();
+        $this->assertNotSame(1, $stagedEmail->id);
+        $this->assertNull($stagedEmail->body_plain);
 
         $arguments = ['path' => $archive, '--apply-bundle' => $bundle];
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
@@ -622,6 +624,41 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertDatabaseCount('church_services', 1);
         $this->assertDatabaseCount('church_service_items', 1);
         $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
+    }
+
+    #[Test]
+    public function bundled_apply_uses_the_verified_payload_instead_of_mutable_staged_parse_data(): void
+    {
+        $this->bindPortableExtractor();
+        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $bundle = storage_path('scratch/tests/oos-immutable-'.uniqid().'.json');
+        $this->temporaryPaths[] = $bundle;
+
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--export-bundle' => $bundle,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+        InboundEmail::query()->delete();
+
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--import-bundle' => $bundle,
+        ])->assertExitCode(0);
+
+        $stagedEmail = InboundEmail::query()->where('message_id', 'like', '<oos-archive-%')->firstOrFail();
+        $metadata = $stagedEmail->processing_metadata;
+        $metadata['parsing']['items'][0]['title'] = 'Tampered staged title';
+        $metadata['parsing']['service_plans'][0]['items'][0]['title'] = 'Tampered staged title';
+        $stagedEmail->processing_metadata = $metadata;
+        $stagedEmail->save();
+
+        $this->artisan('oos:import-archive', [
+            'path' => $archive,
+            '--apply-bundle' => $bundle,
+        ])->assertExitCode(0);
+
+        $this->assertSame('Amazing Grace', ChurchService::query()->firstOrFail()->items()->sole()->title);
     }
 
     #[Test]

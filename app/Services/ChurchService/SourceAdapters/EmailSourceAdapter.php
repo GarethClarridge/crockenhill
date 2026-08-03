@@ -18,23 +18,20 @@ class EmailSourceAdapter
         private readonly ChurchServiceAssertionNormalizer $normalizer,
     ) {}
 
-    /**
-     * @param  array<int, array<string, mixed>>|null  $resolvedItems
-     */
     public function adapt(
         InboundEmail $email,
         OosEmailServicePlan $plan,
-        ?array $resolvedItems = null,
+        ?string $inputHash = null,
     ): ChurchServiceSourceRevision {
         return new ChurchServiceSourceRevision(
             source: ChurchServiceSource::Email,
             sourceKey: $email->message_id.'|'.$plan->key(),
-            inputHash: CanonicalJson::hash([
+            inputHash: $inputHash ?? CanonicalJson::hash([
                 'body_html' => $email->body_html,
                 'body_plain' => $email->body_plain,
                 'subject' => $email->subject,
             ]),
-            assertions: $this->normalizer->normalize($resolvedItems ?? $plan->items, ChurchServiceEvidenceKind::Planned),
+            assertions: $this->normalizer->normalize($plan->items, ChurchServiceEvidenceKind::Planned),
             processingFingerprint: [
                 'format' => 'email-plan',
                 'version' => 1,

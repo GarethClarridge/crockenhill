@@ -13,9 +13,14 @@ use App\Models\ChurchServiceSourceRecord;
 use App\Support\CanonicalJson;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class ChurchServiceProjector
 {
+    public function __construct(
+        private readonly ChurchServiceSourceRevisionLineageInspector $lineageInspector,
+    ) {}
+
     /**
      * @param  Collection<int, ChurchServiceSourceRecord>  $sourceRecords
      */
@@ -98,9 +103,9 @@ class ChurchServiceProjector
     private function activeRecords(Collection $records): Collection
     {
         return $records
-            ->sortBy(fn (ChurchServiceSourceRecord $record): string => $this->recordOrder($record))
             ->groupBy(fn (ChurchServiceSourceRecord $record): string => "{$record->source->value}\0{$record->source_key}")
-            ->map(fn (Collection $revisions): ChurchServiceSourceRecord => $revisions->reverse()->firstOrFail())
+            ->map(fn (Collection $revisions): ChurchServiceSourceRecord => $this->lineageInspector->leaf($revisions)
+                ?? throw new RuntimeException('A source revision lineage must have exactly one active leaf.'))
             ->sortBy(fn (ChurchServiceSourceRecord $record): string => "{$record->source->value}\0{$record->source_key}")
             ->values();
     }
@@ -156,10 +161,6 @@ class ChurchServiceProjector
     {
         if (filled($assertion->song_canonical_key)) {
             return 'song:'.mb_strtolower((string) $assertion->song_canonical_key);
-        }
-
-        if ($assertion->song_id !== null) {
-            return "song-id:{$assertion->song_id}";
         }
 
         if (filled($assertion->normalized_scripture_key)) {
@@ -230,6 +231,12 @@ class ChurchServiceProjector
                 ...$observedMetadata,
                 'source_assertion_hashes' => $assertions
                     ->map(fn (ChurchServiceItemAssertion $assertion): string => $assertion->sourceRecord->revision_hash.':'.$assertion->assertion_key)
+                    ->sort()
+                    ->values()
+                    ->all(),
+                'source_assertion_sources' => $assertions
+                    ->map(fn (ChurchServiceItemAssertion $assertion): string => $assertion->sourceRecord->source->value)
+                    ->unique()
                     ->sort()
                     ->values()
                     ->all(),

@@ -7,9 +7,11 @@ namespace App\Services\Email;
 use App\Data\OosArchiveEntry;
 use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailParseResult;
+use App\Data\OosEmailServicePlan;
 use App\Data\OosEmailSourceDocument;
 use App\Enums\InboundEmailStatus;
 use App\Enums\OosEmailParseDisposition;
+use App\Enums\SermonService;
 use App\Models\InboundEmail;
 use App\Support\CanonicalJson;
 use Illuminate\Support\Arr;
@@ -203,7 +205,7 @@ class OosArchiveAssertionBundle
             $email->fill([
                 'from' => 'Order of Service Archive <archive@crockenhill.local>',
                 'subject' => $entry->subject,
-                'body_plain' => $entry->bodyPlain,
+                'body_plain' => null,
                 'body_html' => null,
                 'received_at' => $entry->syntheticReceivedAt,
                 'status' => $reasons === [] ? InboundEmailStatus::ArchiveEval : InboundEmailStatus::Pending,
@@ -239,8 +241,7 @@ class OosArchiveAssertionBundle
                     ->where('message_id', $entry->syntheticMessageId)
                     ->lockForUpdate()
                     ->firstOrFail();
-                $parseResult = $this->importService->storedParseResult($email)
-                    ?? throw new RuntimeException("Staged parse payload is missing for entry {$entry->index}.");
+                $parseResult = $this->parseResultFromPayload($record['payload']);
 
                 $email->status = InboundEmailStatus::Pending;
                 $email->save();
@@ -248,6 +249,7 @@ class OosArchiveAssertionBundle
                     $email,
                     $parseResult,
                     onlyPlanKeys: $this->eligiblePlanKeys($entry, $parseResult),
+                    sourceInputHash: (string) $record['payload']['input_hash'],
                 );
 
                 if ($result->hasFailures()) {
@@ -371,6 +373,133 @@ class OosArchiveAssertionBundle
     {
         return $entry->groundTruthDate === null
             || array_intersect($entry->flags, ['weekday_mismatch', 'date_discrepancy', 'source_date_discrepancy', 'multi_date']) !== [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function parseResultFromPayload(array $payload): OosEmailParseResult
+    {
+        $parse = $payload['parse'] ?? null;
+
+        if (! is_array($parse)) {
+            throw new RuntimeException('OoS assertion payload has no parse result.');
+        }
+
+        $plans = [];
+
+        foreach ($parse['service_plans'] ?? [] as $plan) {
+            if (! is_array($plan)) {
+                throw new RuntimeException('OoS assertion payload has an invalid service plan.');
+            }
+
+            $plans[] = new OosEmailServicePlan(
+                service: SermonService::tryFrom((string) ($plan['service'] ?? '')),
+                date: $this->nullableString($plan['date'] ?? null),
+                items: $this->items($plan['items'] ?? null),
+                confidence: is_numeric($plan['confidence'] ?? null) ? (float) $plan['confidence'] : 0.0,
+                needsReview: (bool) ($plan['needs_review'] ?? false),
+                shouldImport: (bool) ($plan['should_import'] ?? false),
+                disposition: $this->disposition($plan['disposition'] ?? null),
+                validationReasons: $this->strings($plan['validation_reasons'] ?? null),
+                sourceProvenance: is_array($plan['source_provenance'] ?? null) ? $plan['source_provenance'] : [],
+            );
+        }
+
+        return new OosEmailParseResult(
+            date: $this->nullableString($parse['resolved_date'] ?? null),
+            service: SermonService::tryFrom((string) ($parse['resolved_service'] ?? '')),
+            items: $this->items($parse['items'] ?? null),
+            confidenceScore: is_numeric($parse['confidence_score'] ?? null) ? (float) $parse['confidence_score'] : 0.0,
+            needsReview: (bool) ($parse['needs_review'] ?? false),
+            shouldImport: (bool) ($parse['should_import'] ?? false),
+            // The approved payload carries the parse's own provenance, and a replay
+            // has to record what a live import would have recorded. The identity and
+            // item fields are dropped because they are represented above.
+            importMetadata: Arr::except($parse, [
+                'resolved_date',
+                'resolved_service',
+                'items',
+                'needs_review',
+                'should_import',
+                'service_plans',
+            ]),
+            servicePlans: $plans,
+            disposition: $this->disposition($parse['disposition'] ?? null),
+            validationReasons: $this->strings($parse['validation_reasons'] ?? null),
+            extractionAttempts: $this->arrays($parse['extraction_attempts'] ?? null),
+            consensus: (bool) ($parse['consensus'] ?? false),
+        );
+    }
+
+    private function disposition(mixed $value): OosEmailParseDisposition
+    {
+        return is_string($value)
+            ? OosEmailParseDisposition::tryFrom($value) ?? OosEmailParseDisposition::ReviewRequired
+            : OosEmailParseDisposition::ReviewRequired;
+    }
+
+    /**
+     * @return list<array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>
+     */
+    private function items(mixed $items): array
+    {
+        if (! is_array($items) || ! array_is_list($items)) {
+            throw new RuntimeException('OoS assertion payload items must be a list.');
+        }
+
+        $normalized = [];
+
+        foreach ($items as $item) {
+            if (! is_array($item)
+                || ! is_int($item['position'] ?? null)
+                || ! is_string($item['type'] ?? null)
+                || ! is_string($item['title'] ?? null)) {
+                throw new RuntimeException('OoS assertion payload contains an invalid service item.');
+            }
+
+            $metadata = $item['metadata'] ?? null;
+
+            if ($metadata !== null && ! is_array($metadata)) {
+                throw new RuntimeException('OoS assertion payload item metadata must be an object or null.');
+            }
+
+            $normalized[] = [
+                'position' => $item['position'],
+                'type' => $item['type'],
+                'title' => $item['title'],
+                'source_title' => $this->nullableString($item['source_title'] ?? null),
+                'openlp_search_title' => $this->nullableString($item['openlp_search_title'] ?? null),
+                'metadata' => $metadata,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /** @return list<string> */
+    private function strings(mixed $values): array
+    {
+        if (! is_array($values)) {
+            return [];
+        }
+
+        return array_values(array_filter($values, is_string(...)));
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function arrays(mixed $values): array
+    {
+        if (! is_array($values) || ! array_is_list($values)) {
+            return [];
+        }
+
+        return array_values(array_filter($values, is_array(...)));
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     private function gitCommit(): string

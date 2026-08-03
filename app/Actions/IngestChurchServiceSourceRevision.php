@@ -10,25 +10,30 @@ use App\Data\ChurchServiceSourceRevision;
 use App\Enums\ChurchServiceProposalStatus;
 use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\ChurchServiceMergeProposal;
 use App\Models\ChurchServiceSourceRecord;
 use App\Services\ChurchService\ChurchServiceProjectionPersister;
 use App\Services\ChurchService\ChurchServiceProjector;
+use App\Services\ChurchService\ChurchServiceSourceRevisionLineageInspector;
 use App\Support\CanonicalJson;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 class IngestChurchServiceSourceRevision
 {
     public function __construct(
         private readonly ChurchServiceProjector $projector,
         private readonly ChurchServiceProjectionPersister $persister,
+        private readonly ChurchServiceSourceRevisionLineageInspector $lineageInspector,
     ) {}
 
     public function execute(
         ChurchService $churchService,
         ChurchServiceSourceRevision $revision,
+        bool $project = true,
     ): ChurchServiceSourceIngestionResult {
         $revisionHash = CanonicalJson::hash([
             'assertions' => $this->portableAssertions($revision->assertions),
@@ -36,28 +41,36 @@ class IngestChurchServiceSourceRevision
         ]);
 
         try {
-            return DB::transaction(function () use ($churchService, $revision, $revisionHash): ChurchServiceSourceIngestionResult {
+            return DB::transaction(function () use ($churchService, $revision, $revisionHash, $project): ChurchServiceSourceIngestionResult {
                 $lockedService = ChurchService::query()
                     ->whereKey($churchService->getKey())
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                $existing = ChurchServiceSourceRecord::query()
+                $claimedElsewhere = ChurchServiceSourceRecord::query()
                     ->where('source', $revision->source->value)
                     ->where('source_key', $revision->sourceKey)
-                    ->where('revision_hash', $revisionHash)
-                    ->first();
+                    ->where('church_service_id', '!=', $lockedService->getKey())
+                    ->exists();
 
-                if ($existing instanceof ChurchServiceSourceRecord) {
-                    return new ChurchServiceSourceIngestionResult($existing, false);
+                if ($claimedElsewhere) {
+                    throw new RuntimeException('A source revision key is already attached to a different church service.');
                 }
 
-                $superseded = ChurchServiceSourceRecord::query()
-                    ->whereBelongsTo($lockedService)
-                    ->where('source', $revision->source->value)
-                    ->where('source_key', $revision->sourceKey)
-                    ->latest('id')
-                    ->first();
+                $serviceRevisions = $lockedService->sourceRecords()->lockForUpdate()->get();
+                $this->lineageInspector->assertNoCrossLineageSupersession($serviceRevisions);
+
+                $revisions = $serviceRevisions
+                    ->filter(fn (ChurchServiceSourceRecord $record): bool => $record->source === $revision->source
+                        && $record->source_key === $revision->sourceKey)
+                    ->values();
+                $superseded = $this->lineageInspector->leaf($revisions);
+
+                if ($superseded?->revision_hash === $revisionHash) {
+                    return new ChurchServiceSourceIngestionResult($superseded, false);
+                }
+
+                $this->assertPayloadIsNotSuperseded($revisions, $revisionHash);
 
                 $sourceRecord = $lockedService->sourceRecords()->create([
                     'source' => $revision->source,
@@ -74,15 +87,20 @@ class IngestChurchServiceSourceRevision
                 ]);
 
                 $sourceRecord->assertions()->createMany($revision->assertions);
-                $this->dualWriteSourceEvidence($lockedService, $revision);
+
+                if (! $project) {
+                    return new ChurchServiceSourceIngestionResult(
+                        $sourceRecord->load('assertions'),
+                        true,
+                    );
+                }
+
                 $records = $lockedService->sourceRecords()
                     ->with(['assertions', 'assertions.sourceRecord'])
                     ->get();
-                $normalizedSources = $records->pluck('source')->map->value->unique();
                 $hasUnnormalizedLegacyItems = $lockedService->items()
-                    ->whereNotNull('source')
-                    ->whereNotIn('source', $normalizedSources)
-                    ->exists();
+                    ->get(['id', 'metadata'])
+                    ->contains(fn (ChurchServiceItem $item): bool => ! $this->hasNormalizedEvidence($item->metadata));
 
                 $projection = $this->projector->project($records);
                 $stagingReasons = $this->stagingReasons(
@@ -95,7 +113,7 @@ class IngestChurchServiceSourceRevision
                 if ($stagingReasons !== []) {
                     $this->stageProposal($lockedService, $sourceRecord, $records, $stagingReasons);
                 } else {
-                    $this->persister->apply($lockedService, $projection);
+                    $this->persister->apply($lockedService, $projection, $revision->source->value);
                 }
 
                 return new ChurchServiceSourceIngestionResult(
@@ -104,18 +122,54 @@ class IngestChurchServiceSourceRevision
                 );
             });
         } catch (UniqueConstraintViolationException $exception) {
-            $existing = ChurchServiceSourceRecord::query()
+            // A concurrent writer committed this exact payload between our read and
+            // insert. Re-resolve the lineage so the outcome matches the in-transaction
+            // path: the current leaf is an idempotent no-op, anything else is a revert.
+            $revisions = ChurchServiceSourceRecord::query()
                 ->where('source', $revision->source->value)
                 ->where('source_key', $revision->sourceKey)
-                ->where('revision_hash', $revisionHash)
-                ->first();
+                ->get();
+            $existing = $revisions->firstWhere('revision_hash', $revisionHash);
 
             if (! $existing instanceof ChurchServiceSourceRecord) {
                 throw $exception;
             }
 
+            if ($existing->church_service_id !== $churchService->id) {
+                throw new RuntimeException('A source revision key is already attached to a different church service.', previous: $exception);
+            }
+
+            $leaf = $this->lineageInspector->leaf($revisions);
+
+            if (! $existing->is($leaf)) {
+                $this->assertPayloadIsNotSuperseded($revisions, $revisionHash);
+            }
+
             return new ChurchServiceSourceIngestionResult($existing, false);
         }
+    }
+
+    /**
+     * Revision identity within a lineage is the payload hash, so a lineage cannot
+     * express a revert to a payload it has already superseded. Refusing loudly
+     * keeps the operator's options open; silently returning the superseded record
+     * would drop the incoming evidence and leave canonical state on the
+     * correction the source has just withdrawn.
+     *
+     * @param  Collection<int, ChurchServiceSourceRecord>  $revisions
+     */
+    private function assertPayloadIsNotSuperseded(Collection $revisions, string $revisionHash): void
+    {
+        $superseded = $revisions->firstWhere('revision_hash', $revisionHash);
+
+        if (! $superseded instanceof ChurchServiceSourceRecord) {
+            return;
+        }
+
+        throw new RuntimeException(
+            "This payload is identical to source revision {$superseded->id}, which has already been superseded in "
+            .'this lineage. Record the intended content through a manual revision instead of replaying a withdrawn one.',
+        );
     }
 
     /**
@@ -139,6 +193,14 @@ class IngestChurchServiceSourceRevision
 
             return $assertion;
         }, $assertions);
+    }
+
+    /** @param array<string, mixed>|null $metadata */
+    private function hasNormalizedEvidence(?array $metadata): bool
+    {
+        $hashes = $metadata['source_assertion_hashes'] ?? null;
+
+        return is_array($hashes) && $hashes !== [];
     }
 
     /**
@@ -219,35 +281,5 @@ class IngestChurchServiceSourceRevision
             'conflicts' => $stagingReasons,
             'status' => ChurchServiceProposalStatus::Pending,
         ]);
-    }
-
-    private function dualWriteSourceEvidence(
-        ChurchService $churchService,
-        ChurchServiceSourceRevision $revision,
-    ): void {
-        $assertionsByPosition = collect($revision->assertions)->keyBy('source_position');
-
-        foreach ($churchService->items()->get() as $item) {
-            $assertion = $assertionsByPosition->get($item->position);
-
-            if (! is_array($assertion)) {
-                continue;
-            }
-
-            $metadata = $item->metadata ?? [];
-            $existingTitles = $metadata['source_evidence'][$revision->source->value]['titles'] ?? [];
-            $titles = is_array($existingTitles) ? $existingTitles : [];
-            $titles[] = $assertion['title'];
-
-            if (is_string($assertion['source_title'] ?? null)) {
-                $titles[] = $assertion['source_title'];
-            }
-
-            $metadata['source_evidence'][$revision->source->value] = [
-                'titles' => array_values(array_unique(array_filter($titles, is_string(...)))),
-            ];
-
-            $item->forceFill(['metadata' => $metadata])->saveQuietly();
-        }
     }
 }

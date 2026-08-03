@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Data\OpenLpImportResult;
 use App\Enums\ChurchServiceSource;
+use App\Enums\SermonService;
 use App\Models\ChurchServiceSourceRecord;
 use App\Services\ChurchService\ImportChurchServiceFromOpenLp;
 use App\Services\ChurchService\OpenLpCurationManifest;
@@ -75,6 +76,14 @@ class ImportOpenLpDirectoryCommand extends Command
         }
 
         if ($dryRun) {
+            try {
+                $curationManifest->validateIncludesForDryRun($path, $plan);
+            } catch (Throwable $exception) {
+                $this->error($exception->getMessage());
+
+                return self::FAILURE;
+            }
+
             return $this->writeDryRunReport($plan->report(), $manifestOption);
         }
 
@@ -82,6 +91,14 @@ class ImportOpenLpDirectoryCommand extends Command
 
         if (! is_string($providedPlanHash) || ! hash_equals($plan->planHash, $providedPlanHash)) {
             $this->error('The supplied --plan-hash does not match the current canonical import plan.');
+
+            return self::FAILURE;
+        }
+
+        try {
+            $archivePaths = $curationManifest->verifyIncludes($path, $plan);
+        } catch (Throwable $exception) {
+            $this->error($exception->getMessage());
 
             return self::FAILURE;
         }
@@ -97,7 +114,7 @@ class ImportOpenLpDirectoryCommand extends Command
         ];
 
         foreach ($plan->includes as $entry) {
-            $archivePath = "{$path}/{$entry['relative_path']}";
+            $archivePath = $archivePaths[$entry['relative_path']];
 
             if ($this->alreadyPresent($entry['sha256'], $plan->manifestHash)) {
                 $metrics['already_present']++;
@@ -107,9 +124,10 @@ class ImportOpenLpDirectoryCommand extends Command
 
             try {
                 $result = $this->importArchive(
-                    archivePath: $archivePath,
-                    logicalFilename: $entry['logical_upload_filename'],
+                    rawDirectory: $path,
+                    entry: $entry,
                     importer: $importer,
+                    curationManifest: $curationManifest,
                     batchHash: $plan->manifestHash,
                 );
 
@@ -189,17 +207,29 @@ class ImportOpenLpDirectoryCommand extends Command
         );
     }
 
+    /**
+     * @param  array{relative_path:string,sha256:string,byte_size:int,logical_upload_filename:string,resolved_date:string,resolved_service:string,alias_reason:?string}  $entry
+     */
     private function importArchive(
-        string $archivePath,
-        string $logicalFilename,
+        string $rawDirectory,
+        array $entry,
         ImportChurchServiceFromOpenLp $importer,
+        OpenLpCurationManifest $curationManifest,
         string $batchHash,
     ): OpenLpImportResult {
-        $uploadedFile = $this->uploadedFileForArchive($archivePath, $logicalFilename);
+        return DB::transaction(function () use ($rawDirectory, $entry, $importer, $curationManifest, $batchHash): OpenLpImportResult {
+            // Revalidate the preflighted bytes while the per-service apply
+            // transaction is held, so a replacement cannot reach source ingestion.
+            $archivePath = $curationManifest->verifyInclude($rawDirectory, $entry);
+            $uploadedFile = $this->uploadedFileForArchive($archivePath, $entry['logical_upload_filename']);
 
-        return DB::transaction(
-            fn (): OpenLpImportResult => $importer->import($uploadedFile, $batchHash),
-        );
+            return $importer->import(
+                $uploadedFile,
+                $batchHash,
+                $entry['resolved_date'],
+                SermonService::from($entry['resolved_service']),
+            );
+        });
     }
 
     private function alreadyPresent(string $inputHash, string $batchHash): bool

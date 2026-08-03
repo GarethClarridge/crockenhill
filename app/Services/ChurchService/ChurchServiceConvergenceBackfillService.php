@@ -265,15 +265,22 @@ class ChurchServiceConvergenceBackfillService
         ])->saveQuietly();
     }
 
+    /**
+     * A projected item already carries its occurrence state as a column, so trust
+     * that over any reconstruction. Only legacy rows — written before the
+     * projector existed — need their state inferred from provenance metadata.
+     */
     private function occurrenceState(ChurchServiceItem $item): ChurchServiceOccurrenceState
     {
+        if ($item->occurrence_state instanceof ChurchServiceOccurrenceState) {
+            return $item->occurrence_state;
+        }
+
         if ($item->manual_occurrence_decision !== null || $item->source?->value === ChurchServiceSource::Manual->value) {
             return ChurchServiceOccurrenceState::ManuallyConfirmed;
         }
 
-        $sources = array_keys(is_array($item->metadata['source_evidence'] ?? null)
-            ? $item->metadata['source_evidence']
-            : []);
+        $sources = $this->legacyProvenanceSources($item);
         $planned = in_array(ChurchServiceSource::Email->value, $sources, true)
             || in_array(ChurchServiceSource::OpenLp->value, $sources, true);
         $observed = in_array(ChurchServiceSource::Livestream->value, $sources, true);
@@ -283,6 +290,26 @@ class ChurchServiceConvergenceBackfillService
             $observed => ChurchServiceOccurrenceState::ObservedOnly,
             default => ChurchServiceOccurrenceState::PlannedOnly,
         };
+    }
+
+    /**
+     * WP1 replaced the per-source `source_evidence` bag with a flat list of the
+     * sources that asserted the item. Read both so the auditor does not report a
+     * difference on every item the new projector has written.
+     *
+     * @return list<string>
+     */
+    private function legacyProvenanceSources(ChurchServiceItem $item): array
+    {
+        $assertionSources = $item->metadata['source_assertion_sources'] ?? null;
+
+        if (is_array($assertionSources)) {
+            return array_values(array_filter($assertionSources, is_string(...)));
+        }
+
+        $evidence = $item->metadata['source_evidence'] ?? null;
+
+        return is_array($evidence) ? array_map(strval(...), array_keys($evidence)) : [];
     }
 
     private function provesCompletedManualReview(ChurchService $service): bool

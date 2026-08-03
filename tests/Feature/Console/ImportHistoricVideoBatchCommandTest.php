@@ -8,9 +8,11 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
+use App\Services\Media\Video\HistoricVideoCurationManifest;
 use App\Services\Media\Video\HistoricVideoImporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\TestCase;
 
 class ImportHistoricVideoBatchCommandTest extends TestCase
@@ -18,6 +20,9 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     use RefreshDatabase;
 
     private string $temporaryDirectory;
+
+    /** @var list<string> */
+    private array $temporaryManifestPaths = [];
 
     protected function setUp(): void
     {
@@ -37,6 +42,12 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
 
     protected function tearDown(): void
     {
+        foreach ($this->temporaryManifestPaths as $path) {
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+
         $this->removeDirectory($this->temporaryDirectory);
         parent::tearDown();
     }
@@ -120,6 +131,35 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     }
 
     #[Test]
+    public function a_manifest_dry_run_writes_the_plan_hash_required_for_dispatch(): void
+    {
+        $relativePath = 'unparseable-archive-name.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}");
+        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'evening');
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+        $reportPath = sys_get_temp_dir().'/historic-video-plan-'.uniqid().'.json';
+        $this->temporaryManifestPaths[] = $reportPath;
+
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--dry-run' => true,
+            '--manifest' => $manifestPath,
+            '--report' => $reportPath,
+        ])
+            ->assertExitCode(0)
+            ->expectsOutputToContain("Plan hash: {$plan->planHash}");
+
+        $report = json_decode((string) file_get_contents($reportPath), true, flags: JSON_THROW_ON_ERROR);
+
+        self::assertSame($plan->planHash, $report['plan_hash']);
+        self::assertSame($plan->manifestHash, $report['manifest_hash']);
+        self::assertSame('2021-04-12', $report['items'][0]['date']);
+        self::assertSame('evening', $report['items'][0]['service']);
+        $this->assertDatabaseCount('media_processing_logs', 0);
+    }
+
+    #[Test]
     public function it_skips_completed_livestream_for_same_date_and_service(): void
     {
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
@@ -134,6 +174,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $this->artisan('sermons:import-historic-videos', [
             '--dir' => $this->temporaryDirectory,
             '--allow-local-storage' => true,
+            '--dry-run' => true,
         ])
             ->assertExitCode(0)
             ->expectsOutputToContain('[skip-exists]');
@@ -156,6 +197,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $this->artisan('sermons:import-historic-videos', [
             '--dir' => $this->temporaryDirectory,
             '--allow-local-storage' => true,
+            '--dry-run' => true,
         ])
             ->assertExitCode(0)
             ->expectsOutputToContain('[skip-inflight]');
@@ -183,6 +225,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $this->artisan('sermons:import-historic-videos', [
             '--dir' => $this->temporaryDirectory,
             '--allow-local-storage' => true,
+            '--dry-run' => true,
         ])
             ->assertExitCode(0)
             ->expectsOutputToContain('[skip-pending-review]');
@@ -192,6 +235,8 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     public function force_flag_bypasses_skip_checks(): void
     {
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
+        $manifestPath = $this->historicManifest('2022-01-16 10-38-15.mkv', '2022-01-16', 'morning');
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
 
         MediaProcessingLog::factory()->create([
             'processing_type' => MediaType::Livestream,
@@ -216,6 +261,8 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             '--dir' => $this->temporaryDirectory,
             '--allow-local-storage' => true,
             '--force' => true,
+            '--manifest' => $manifestPath,
+            '--plan-hash' => $plan->planHash,
         ])
             ->assertExitCode(0);
     }
@@ -231,6 +278,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $this->artisan('sermons:import-historic-videos', [
             '--dir' => $this->temporaryDirectory,
             '--allow-local-storage' => true,
+            '--dry-run' => true,
         ])
             ->assertExitCode(0)
             ->expectsOutputToContain('[skip-small]');
@@ -244,6 +292,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $this->artisan('sermons:import-historic-videos', [
             '--dir' => $this->temporaryDirectory,
             '--allow-local-storage' => true,
+            '--dry-run' => true,
         ])
             ->assertExitCode(0)
             ->expectsOutputToContain('[skip-no-date]');
@@ -253,6 +302,8 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     public function default_year_flag_allows_month_day_only_youtube_filenames(): void
     {
         $this->createFakeVideo($this->temporaryDirectory.'/YouTubeDownloads/12 April Sermon.mp4');
+        $manifestPath = $this->historicManifest('YouTubeDownloads/12 April Sermon.mp4', '2021-04-12', 'morning');
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
 
         $this->mock(HistoricVideoImporter::class)
             ->shouldReceive('import')
@@ -268,9 +319,50 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $this->artisan('sermons:import-historic-videos', [
             '--dir' => $this->temporaryDirectory,
             '--allow-local-storage' => true,
-            '--default-year' => '2021',
+            '--manifest' => $manifestPath,
+            '--plan-hash' => $plan->planHash,
         ])
             ->assertExitCode(0);
+    }
+
+    #[Test]
+    public function every_dispatch_uses_the_approved_manifest_identity_not_filename_inference(): void
+    {
+        $relativePath = 'unparseable-archive-name.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}");
+        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'evening');
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+        $approvedWorkItems = null;
+
+        $this->mock(HistoricVideoImporter::class)
+            ->shouldReceive('import')
+            ->once()
+            ->andReturnUsing(function (...$arguments) use (&$approvedWorkItems): array {
+                $approvedWorkItems = $arguments[18] ?? null;
+
+                return [
+                    'dispatched' => 1, 'concatenated' => 0, 'concatenated_reencoded' => 0,
+                    'enriched' => 0, 'skipped_exists' => 0, 'skipped_inflight' => 0,
+                    'skipped_pending_review' => 0, 'skipped_small' => 0, 'skipped_audio_dup' => 0,
+                    'skipped_no_date' => 0, 'skipped_unclassified' => 0, 'skipped_low_disk' => 0,
+                    'errors' => 0, 'bytes_processed' => 1024, 'bytes_skipped' => 0,
+                ];
+            });
+
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--manifest' => $manifestPath,
+            '--plan-hash' => $plan->planHash,
+            '--default-year' => 2030,
+            '--from' => '2025-01-01',
+        ])->assertExitCode(0);
+
+        self::assertIsArray($approvedWorkItems);
+        self::assertCount(1, $approvedWorkItems);
+        self::assertSame('2021-04-12', $approvedWorkItems[0]['date']->toDateString());
+        self::assertSame(SermonService::Evening, $approvedWorkItems[0]['service']);
+        self::assertSame(["{$this->temporaryDirectory}/{$relativePath}"], $approvedWorkItems[0]['files']);
     }
 
     #[Test]
@@ -279,6 +371,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $this->artisan('sermons:import-historic-videos', [
             '--dir' => $this->temporaryDirectory,
             '--allow-local-storage' => true,
+            '--dry-run' => true,
         ])
             ->assertExitCode(0)
             ->expectsOutputToContain('Dispatched')
@@ -303,8 +396,107 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $this->artisan('sermons:import-historic-videos', [
             '--dir' => $this->temporaryDirectory,
             '--allow-local-storage' => true,
+            '--dry-run' => true,
         ])
             ->assertExitCode(1);
+    }
+
+    #[Test]
+    public function the_manifest_rejects_a_recording_nobody_curated(): void
+    {
+        $this->createFakeVideo("{$this->temporaryDirectory}/2021-04-12 18-02-00.mkv");
+        $manifestPath = $this->historicManifest('2021-04-12 18-02-00.mkv', '2021-04-12', 'evening');
+        $this->createFakeVideo("{$this->temporaryDirectory}/2021-04-19 18-02-00.mkv");
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('unmanifested files: 2021-04-19 18-02-00.mkv');
+
+        app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+    }
+
+    /**
+     * The corpus lives on a removable drive that macOS and Windows both litter
+     * with their own metadata. Demanding a curation decision for those would make
+     * every plan unrunnable against the real drive.
+     */
+    #[Test]
+    public function the_manifest_ignores_operating_system_metadata_beside_the_recordings(): void
+    {
+        $this->createFakeVideo("{$this->temporaryDirectory}/2021-04-12 18-02-00.mkv");
+        $manifestPath = $this->historicManifest('2021-04-12 18-02-00.mkv', '2021-04-12', 'evening');
+
+        file_put_contents("{$this->temporaryDirectory}/.DS_Store", 'x');
+        file_put_contents("{$this->temporaryDirectory}/._2021-04-12 18-02-00.mkv", 'x');
+        file_put_contents("{$this->temporaryDirectory}/Thumbs.db", 'x');
+        mkdir("{$this->temporaryDirectory}/.Spotlight-V100");
+        file_put_contents("{$this->temporaryDirectory}/.Spotlight-V100/store.db", 'x');
+
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+
+        $this->assertCount(1, $plan->workItems);
+    }
+
+    #[Test]
+    public function the_manifest_rejects_a_recording_replaced_after_approval(): void
+    {
+        $relativePath = '2021-04-12 18-02-00.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}");
+        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'evening');
+
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}", 36 * 1024 * 1024);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("Historic video source changed: {$relativePath}");
+
+        app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+    }
+
+    #[Test]
+    public function the_manifest_rejects_a_segment_count_that_contradicts_its_files(): void
+    {
+        $relativePath = '2021-04-12 18-02-00.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}");
+        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'evening', [
+            'expected_occurrence_count' => 2,
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('expects 2 occurrences but declares 1 source files');
+
+        app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+    }
+
+    #[Test]
+    public function the_manifest_rejects_a_duplicate_of_an_undeclared_item(): void
+    {
+        $relativePath = '2021-04-12 18-02-00.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}");
+        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'evening', [
+            'disposition' => 'exclude',
+            'exclusion_reason' => 'duplicate upload',
+            'duplicate_of' => 'an-item-key-that-was-never-declared',
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('duplicates undeclared item key an-item-key-that-was-never-declared');
+
+        app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+    }
+
+    #[Test]
+    public function the_manifest_rejects_an_exclusion_without_a_reason(): void
+    {
+        $relativePath = '2021-04-12 18-02-00.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}");
+        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'evening', [
+            'disposition' => 'exclude',
+            'exclusion_reason' => null,
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('is excluded without a reason');
+
+        app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
     }
 
     private function createFakeVideo(string $path, int $sizeBytes = 35 * 1024 * 1024): void
@@ -323,6 +515,40 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             fwrite($handle, "\0");
             fclose($handle);
         }
+    }
+
+    /** @param array<string, mixed> $overrides */
+    private function historicManifest(string $relativePath, string $date, string $service, array $overrides = []): string
+    {
+        $path = "{$this->temporaryDirectory}/{$relativePath}";
+        $manifestPath = sys_get_temp_dir().'/historic-video-manifest-'.uniqid().'.json';
+        $this->temporaryManifestPaths[] = $manifestPath;
+        $manifest = [
+            'format' => 'crockenhill-historic-video-curation',
+            'version' => 1,
+            'entries' => [[
+                'item_key' => 'approved-'.hash('sha256', $relativePath),
+                'source_kind' => 'livestream',
+                'disposition' => 'include',
+                'exclusion_reason' => null,
+                'duplicate_of' => null,
+                'date' => $date,
+                'service' => $service,
+                'concatenation' => 'single',
+                'client_file_date' => "{$date} 12:00:00",
+                'expected_occurrence_count' => 1,
+                'decision' => ['approved_rule_version' => 'test-v1'],
+                'files' => [[
+                    'relative_path' => $relativePath,
+                    'sha256' => hash_file('sha256', $path),
+                    'byte_size' => filesize($path),
+                ]],
+                ...$overrides,
+            ]],
+        ];
+        file_put_contents($manifestPath, json_encode($manifest, JSON_THROW_ON_ERROR));
+
+        return $manifestPath;
     }
 
     private function removeDirectory(string $directory): void

@@ -63,6 +63,18 @@ class HistoricVideoImporter
 
     /**
      * @param  \Closure(string $tag, string $label, string|null $detail): void|null  $onProgress
+     * @param  list<array{
+     *     manifest_item_key:string,
+     *     tag:string,
+     *     label:string,
+     *     files:list<string>,
+     *     source_files:list<array{relative_path:string,sha256:string,byte_size:int}>,
+     *     date:Carbon,
+     *     service:SermonService,
+     *     client_file_date:string,
+     *     bytes:int,
+     *     manifest_concatenation:string
+     * }>|null  $approvedWorkItems
      * @return array{
      *     dispatched: int,
      *     concatenated: int,
@@ -104,6 +116,7 @@ class HistoricVideoImporter
         ?Carbon $from = null,
         ?Carbon $until = null,
         ?string $reportPath = null,
+        ?array $approvedWorkItems = null,
     ): array {
         if (! $dryRun) {
             $this->stagingGuard->assertLocalProcessingIsIsolated();
@@ -135,9 +148,11 @@ class HistoricVideoImporter
         $dispatched = 0;
         $decisions = [];
 
-        $workItems = $this->prioritiseWorkItems(
-            iterator_to_array($this->buildWorkItems($directory, $minSizeMb, $includeUnclassified, $defaultYear), false),
-        );
+        $workItems = $approvedWorkItems === null
+            ? $this->prioritiseWorkItems(
+                iterator_to_array($this->buildWorkItems($directory, $minSizeMb, $includeUnclassified, $defaultYear), false),
+            )
+            : $this->prioritiseWorkItems($approvedWorkItems);
 
         foreach ($workItems as $item) {
             if ($limit > 0 && $dispatched >= $limit) {
@@ -343,7 +358,7 @@ class HistoricVideoImporter
     }
 
     /**
-     * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
+     * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int, manifest_concatenation?:string}  $item
      */
     private function processableRank(array $item): int
     {
@@ -687,18 +702,40 @@ class HistoricVideoImporter
     /**
      * Dispatch a single work item through the livestream pipeline.
      *
-     * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
+     * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int, manifest_concatenation?:string}  $item
      * @return list<array{tag: string, processing_id: string, detail: string|null}>
      */
     private function dispatchItem(array $item, bool $noConcat, bool $reEncodeMismatched): array
     {
         $files = $item['files'];
 
+        if (isset($item['manifest_concatenation'])) {
+            if (count($files) === 1) {
+                return $this->dispatchFiles($item, $files);
+            }
+
+            return [match ($item['manifest_concatenation']) {
+                'lossless' => $this->concatLossless($item),
+                'reencoded' => $this->concatWithReencode($item),
+                default => ['tag' => 'error', 'processing_id' => '', 'detail' => 'invalid manifest concatenation decision'],
+            }];
+        }
+
         if (count($files) > 1 && ! $noConcat) {
             return [$this->dispatchMultiSegment($item, $reEncodeMismatched)];
         }
 
         // With --no-concat, dispatch every segment individually so none are silently dropped.
+        return $this->dispatchFiles($item, $files);
+    }
+
+    /**
+     * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
+     * @param  list<string>  $files
+     * @return list<array{tag: string, processing_id: string, detail: string|null}>
+     */
+    private function dispatchFiles(array $item, array $files): array
+    {
         $results = [];
         foreach ($files as $path) {
             $file = new UploadedFile($path, basename($path), null, null, true);

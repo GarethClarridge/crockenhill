@@ -143,7 +143,12 @@ class ChurchServiceCanonicalStateService
             return $metadata;
         }
 
-        unset($metadata['section_type'], $metadata['source_evidence'], $metadata['source_assertion_hashes']);
+        unset(
+            $metadata['section_type'],
+            $metadata['source_evidence'],
+            $metadata['source_assertion_hashes'],
+            $metadata['source_assertion_sources'],
+        );
 
         return $metadata === [] ? null : $metadata;
     }

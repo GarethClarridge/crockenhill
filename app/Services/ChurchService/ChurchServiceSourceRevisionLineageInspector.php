@@ -1,0 +1,148 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\ChurchService;
+
+use App\Models\ChurchServiceSourceRecord;
+use Illuminate\Support\Collection;
+use RuntimeException;
+
+class ChurchServiceSourceRevisionLineageInspector
+{
+    /**
+     * The current revision of a lineage is the unique leaf of its supersession
+     * chain. Authority comes from the explicit relationship, never from a
+     * timestamp a source chose for itself.
+     *
+     * @param  Collection<int, ChurchServiceSourceRecord>  $revisions  every revision of one source + source_key lineage
+     */
+    public function leaf(Collection $revisions): ?ChurchServiceSourceRecord
+    {
+        if ($revisions->isEmpty()) {
+            return null;
+        }
+
+        $revisionsById = $revisions->keyBy('id');
+        $supersededIds = [];
+
+        foreach ($revisions as $revision) {
+            if ($revision->supersedes_id === null) {
+                continue;
+            }
+
+            if (! $revisionsById->has($revision->supersedes_id)) {
+                throw new RuntimeException('A source revision supersedes a record outside its source lineage.');
+            }
+
+            $supersededIds[$revision->supersedes_id] = true;
+        }
+
+        $leaves = $revisions->reject(
+            fn (ChurchServiceSourceRecord $record): bool => isset($supersededIds[$record->id]),
+        );
+
+        if ($leaves->count() !== 1) {
+            throw new RuntimeException('A source revision lineage must have exactly one active leaf.');
+        }
+
+        return $leaves->first();
+    }
+
+    /**
+     * A supersession edge is only meaningful inside one source + source_key
+     * lineage. An edge that crosses lineages would let one source's correction
+     * retire another source's evidence, so it is rejected before any leaf is
+     * resolved — the leaf walk itself cannot see the difference between a
+     * cross-lineage edge and a record it simply has not loaded.
+     *
+     * @param  Collection<int, ChurchServiceSourceRecord>  $records
+     */
+    public function assertNoCrossLineageSupersession(Collection $records): void
+    {
+        $recordsById = $records->keyBy('id');
+
+        foreach ($records as $record) {
+            if ($record->supersedes_id === null) {
+                continue;
+            }
+
+            $predecessor = $recordsById->get($record->supersedes_id);
+
+            if (! $predecessor instanceof ChurchServiceSourceRecord) {
+                continue;
+            }
+
+            if ($this->lineageKey($predecessor) !== $this->lineageKey($record)) {
+                throw new RuntimeException('A source revision supersedes a record from a different source lineage.');
+            }
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function issues(): array
+    {
+        $records = ChurchServiceSourceRecord::query()
+            ->orderBy('id')
+            ->get(['id', 'church_service_id', 'source', 'source_key', 'supersedes_id']);
+        $recordsById = $records->keyBy('id');
+        $lineageRecords = [];
+        $successorsByPredecessor = [];
+        $issues = [];
+
+        foreach ($records as $record) {
+            $lineageKey = $this->lineageKey($record);
+            $lineageRecords[$lineageKey][$record->id] = $record;
+
+            if ($record->supersedes_id === null) {
+                continue;
+            }
+
+            $predecessor = $recordsById->get($record->supersedes_id);
+
+            if (! $predecessor instanceof ChurchServiceSourceRecord) {
+                $issues[] = "Revision {$record->id} supersedes missing revision {$record->supersedes_id}. "
+                    ."Repair with: UPDATE church_service_source_records SET supersedes_id = <predecessor id> WHERE id = {$record->id};";
+
+                continue;
+            }
+
+            if ($this->lineageKey($predecessor) !== $lineageKey) {
+                $issues[] = "Revision {$record->id} supersedes revision {$predecessor->id} from another source lineage.";
+
+                continue;
+            }
+
+            $successorsByPredecessor[$predecessor->id][] = $record->id;
+        }
+
+        foreach ($successorsByPredecessor as $predecessorId => $successors) {
+            if (count($successors) > 1) {
+                $issues[] = "Revision {$predecessorId} has multiple successors: ".implode(', ', $successors).'.';
+            }
+        }
+
+        foreach ($lineageRecords as $lineageKey => $recordsByLineage) {
+            $leafIds = array_keys(array_filter(
+                $recordsByLineage,
+                fn (ChurchServiceSourceRecord $record): bool => ! isset($successorsByPredecessor[$record->id]),
+            ));
+
+            if (count($leafIds) !== 1) {
+                $issues[] = "Source revision lineage {$lineageKey} has ".count($leafIds).' active leaves ('
+                    .implode(', ', $leafIds).'). Chain them by setting supersedes_id on each revision except the current one.';
+            }
+        }
+
+        sort($issues, SORT_STRING);
+
+        return $issues;
+    }
+
+    private function lineageKey(ChurchServiceSourceRecord $record): string
+    {
+        return "{$record->church_service_id}|{$record->source->value}|{$record->source_key}";
+    }
+}

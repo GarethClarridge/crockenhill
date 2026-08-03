@@ -10,7 +10,10 @@ use App\Enums\ChurchServiceEvidenceKind;
 use App\Enums\ChurchServiceOccurrenceState;
 use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
+use App\Models\ChurchServiceItemAssertion;
+use App\Models\ChurchServiceSourceRecord;
 use App\Services\ChurchService\ChurchServiceAssertionNormalizer;
+use App\Services\ChurchService\ChurchServiceProjector;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
@@ -82,6 +85,10 @@ class ChurchServiceProjectorTest extends TestCase
         );
         $this->assertSame('Email sermon title', $items['custom:sermon#1']->title);
         $this->assertSame('mixed', $service->fresh()->source_summary);
+        $this->assertSame(
+            [ChurchServiceSource::Email->value, ChurchServiceSource::Livestream->value, ChurchServiceSource::OpenLp->value],
+            collect($items['song:opening-song#1']->provenanceSources())->map->value->sort()->values()->all(),
+        );
     }
 
     #[Test]
@@ -99,6 +106,85 @@ class ChurchServiceProjectorTest extends TestCase
         $this->assertFalse($second->wasCreated);
         $this->assertSame($first->sourceRecord->id, $second->sourceRecord->id);
         $this->assertSame($canonicalRevision, $service->fresh()->canonical_revision);
+    }
+
+    #[Test]
+    public function explicit_revision_lineage_wins_when_capture_times_match(): void
+    {
+        $service = ChurchService::factory()->create();
+        $capturedAt = now();
+        $original = ChurchServiceSourceRecord::factory()->for($service, 'churchService')->create([
+            'source' => ChurchServiceSource::Email,
+            'source_key' => 'message-1|morning:2026-07-29',
+            'revision_hash' => str_repeat('f', 64),
+            'captured_at' => $capturedAt,
+        ]);
+        $correction = ChurchServiceSourceRecord::factory()->for($service, 'churchService')->create([
+            'source' => ChurchServiceSource::Email,
+            'source_key' => 'message-1|morning:2026-07-29',
+            'revision_hash' => str_repeat('0', 64),
+            'supersedes_id' => $original->id,
+            'captured_at' => $capturedAt,
+        ]);
+        ChurchServiceItemAssertion::factory()->for($original, 'sourceRecord')->create([
+            'assertion_key' => 'original-sermon',
+            'title' => 'Original sermon',
+            'normalized_title' => 'original sermon',
+        ]);
+        ChurchServiceItemAssertion::factory()->for($correction, 'sourceRecord')->create([
+            'assertion_key' => 'corrected-sermon',
+            'title' => 'Corrected sermon',
+            'normalized_title' => 'corrected sermon',
+        ]);
+
+        $projection = app(ChurchServiceProjector::class)->project(
+            $service->sourceRecords()->with(['assertions', 'assertions.sourceRecord'])->get(),
+        );
+
+        $this->assertSame(['Corrected sermon'], array_column($projection->items, 'title'));
+    }
+
+    #[Test]
+    public function it_rejects_multiple_active_leaves_in_a_projection_lineage(): void
+    {
+        $service = ChurchService::factory()->create();
+        ChurchServiceSourceRecord::factory()->for($service, 'churchService')->create([
+            'source' => ChurchServiceSource::Email,
+            'source_key' => 'message-1',
+            'revision_hash' => str_repeat('a', 64),
+        ]);
+        ChurchServiceSourceRecord::factory()->for($service, 'churchService')->create([
+            'source' => ChurchServiceSource::Email,
+            'source_key' => 'message-1',
+            'revision_hash' => str_repeat('b', 64),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('exactly one active leaf');
+
+        app(ChurchServiceProjector::class)->project($service->sourceRecords()->with('assertions.sourceRecord')->get());
+    }
+
+    #[Test]
+    public function it_rejects_a_projection_revision_that_supersedes_another_lineage(): void
+    {
+        $service = ChurchService::factory()->create();
+        $predecessor = ChurchServiceSourceRecord::factory()->for($service, 'churchService')->create([
+            'source' => ChurchServiceSource::Email,
+            'source_key' => 'message-1',
+            'revision_hash' => str_repeat('a', 64),
+        ]);
+        ChurchServiceSourceRecord::factory()->for($service, 'churchService')->create([
+            'source' => ChurchServiceSource::Email,
+            'source_key' => 'message-2',
+            'revision_hash' => str_repeat('b', 64),
+            'supersedes_id' => $predecessor->id,
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('outside its source lineage');
+
+        app(ChurchServiceProjector::class)->project($service->sourceRecords()->with('assertions.sourceRecord')->get());
     }
 
     #[Test]

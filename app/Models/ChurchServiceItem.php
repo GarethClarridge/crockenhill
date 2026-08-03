@@ -187,19 +187,41 @@ class ChurchServiceItem extends Model
     {
         $evidence = $this->metadata['source_evidence'] ?? null;
 
-        if (! is_array($evidence)) {
-            return $this->source instanceof ChurchServiceItemSource ? [$this->source] : [];
-        }
+        if (is_array($evidence)) {
+            $sources = [];
 
-        $sources = [];
-
-        foreach (ChurchServiceItemSource::cases() as $source) {
-            if (array_key_exists($source->value, $evidence)) {
-                $sources[] = $source;
+            foreach (ChurchServiceItemSource::cases() as $source) {
+                if (array_key_exists($source->value, $evidence)) {
+                    $sources[] = $source;
+                }
             }
+
+            return $sources;
         }
 
-        return $sources;
+        $sourceValues = $this->metadata['source_assertion_sources'] ?? null;
+
+        if (is_array($sourceValues)) {
+            $sources = [];
+
+            foreach ($sourceValues as $sourceValue) {
+                if (! is_string($sourceValue)) {
+                    continue;
+                }
+
+                $source = ChurchServiceItemSource::tryFrom($sourceValue);
+
+                if ($source instanceof ChurchServiceItemSource) {
+                    $sources[$source->value] = $source;
+                }
+            }
+
+            ksort($sources, SORT_STRING);
+
+            return array_values($sources);
+        }
+
+        return $this->source instanceof ChurchServiceItemSource ? [$this->source] : [];
     }
 
     public function provenanceLabel(): string

@@ -7,7 +7,10 @@ namespace App\Services\ChurchService;
 use App\Actions\IngestChurchServiceSourceRevision;
 use App\Data\OpenLpImportResult;
 use App\Data\OpenLpParseResult;
+use App\Data\StructureMergeResult;
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\ChurchServiceProposalStatus;
+use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Services\ChurchService\SourceAdapters\OpenLpSourceAdapter;
 use App\Services\Song\OpenLpServiceParser;
@@ -17,6 +20,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 
 class ImportChurchServiceFromOpenLp
 {
@@ -24,25 +28,27 @@ class ImportChurchServiceFromOpenLp
 
     public function __construct(
         private readonly OpenLpServiceParser $parser,
-        private readonly ChurchServiceCanonicalUpdateService $canonicalUpdateService,
-        private readonly ChurchServiceItemSyncService $itemSyncService,
         private readonly ChurchServiceSongLinker $songLinker,
         private readonly ChurchServiceStructureMergeService $mergeService,
         private readonly IngestChurchServiceSourceRevision $ingestSourceRevision,
         private readonly OpenLpSourceAdapter $sourceAdapter,
+        private readonly ChurchServiceCompatibilityMergeDecision $compatibilityMerge,
+        private readonly ChurchServiceIdentityResolver $identityResolver,
     ) {}
 
     /**
      * @throws ModelNotFoundException
      */
-    public function import(UploadedFile $uploadedFile, ?string $batchHash = null): OpenLpImportResult
-    {
+    public function import(
+        UploadedFile $uploadedFile,
+        ?string $batchHash = null,
+        ?string $resolvedDate = null,
+        ?SermonService $resolvedService = null,
+    ): OpenLpImportResult {
         $parsed = $this->parser->parse($uploadedFile);
+        $parsed = $this->withManifestIdentity($parsed, $resolvedDate, $resolvedService);
 
-        $existingService = ChurchService::query()
-            ->where('date', $parsed->date)
-            ->where('service', $parsed->service->value)
-            ->first();
+        $existingService = $this->identityResolver->resolve($parsed->date, $parsed->service);
 
         if ($existingService instanceof ChurchService) {
             return $this->importIntoExistingService($uploadedFile, $parsed, $existingService, $batchHash);
@@ -71,7 +77,7 @@ class ImportChurchServiceFromOpenLp
             'match_types' => [],
         ];
 
-        $mergeResult = DB::transaction(function () use ($uploadedFile, $parsed, $existingService, $batchHash, &$linkResult) {
+        $mergeResult = DB::transaction(function () use ($uploadedFile, $parsed, $existingService, $batchHash, &$linkResult): StructureMergeResult {
             try {
                 $existingMetadata = $existingService->import_metadata?->toArray() ?? [];
                 $existingService->fill([
@@ -86,25 +92,47 @@ class ImportChurchServiceFromOpenLp
                     ->firstOrFail();
             }
 
+            $hadCanonicalItems = $existingService->items()->exists();
+            $usesCompatibilityMerge = $this->compatibilityMerge->usesCompatibilityMerge($existingService);
+            $ingestion = $this->ingestSourceRevision->execute(
+                $existingService,
+                $this->sourceAdapter->adapt(
+                    $uploadedFile,
+                    $parsed,
+                    $batchHash,
+                ),
+                project: ! $usesCompatibilityMerge,
+            );
+
+            if (! $usesCompatibilityMerge) {
+                $churchService = $existingService->fresh(['items']) ?? $existingService;
+                $wasStaged = $churchService->mergeProposals()
+                    ->where('trigger_source_record_id', $ingestion->sourceRecord->id)
+                    ->where('status', ChurchServiceProposalStatus::Pending)
+                    ->exists();
+                $linkResult = $this->songLinker->linkForService($churchService);
+
+                return new StructureMergeResult(
+                    churchService: $churchService,
+                    incomingSource: ChurchServiceItemSource::OpenLp,
+                    wasMerged: ! $wasStaged,
+                    wasStaged: $wasStaged,
+                );
+            }
+
             $mergeResult = $this->mergeService->merge(
                 $existingService,
                 $parsed->items,
                 ChurchServiceItemSource::OpenLp,
             );
 
-            if ($mergeResult->wasMerged) {
-                $linkResult = $this->songLinker->linkForService($mergeResult->churchService);
+            if ($mergeResult->wasMerged && ! $hadCanonicalItems) {
+                $mergeResult->churchService->forceFill([
+                    'source' => ChurchServiceItemSource::OpenLp->value,
+                ])->saveQuietly();
             }
 
-            $this->ingestSourceRevision->execute(
-                $mergeResult->churchService,
-                $this->sourceAdapter->adapt(
-                    $uploadedFile,
-                    $parsed,
-                    $mergeResult->wasMerged ? $this->sourceItems($mergeResult->churchService) : null,
-                    $batchHash,
-                ),
-            );
+            $linkResult = $this->songLinker->linkForService($mergeResult->churchService);
 
             return $mergeResult;
         });
@@ -125,6 +153,28 @@ class ImportChurchServiceFromOpenLp
         );
     }
 
+    private function withManifestIdentity(
+        OpenLpParseResult $parsed,
+        ?string $resolvedDate,
+        ?SermonService $resolvedService,
+    ): OpenLpParseResult {
+        if ($resolvedDate === null && ! $resolvedService instanceof SermonService) {
+            return $parsed;
+        }
+
+        if ($resolvedDate === null || ! $resolvedService instanceof SermonService) {
+            throw new InvalidArgumentException('OpenLP manifest identity must specify both date and service.');
+        }
+
+        return new OpenLpParseResult(
+            date: $resolvedDate,
+            service: $resolvedService,
+            items: $parsed->items,
+            needsReview: $parsed->needsReview,
+            importMetadata: $parsed->importMetadata,
+        );
+    }
+
     /**
      * @throws ModelNotFoundException
      */
@@ -133,9 +183,7 @@ class ImportChurchServiceFromOpenLp
         OpenLpParseResult $parsed,
         ?string $batchHash,
     ): OpenLpImportResult {
-        $beforeSnapshot = [];
         $wasCreated = false;
-        $syncResult = [];
         $linkResult = [
             'dry_run' => false,
             'processed' => 0,
@@ -148,7 +196,7 @@ class ImportChurchServiceFromOpenLp
         ];
 
         try {
-            $churchService = DB::transaction(function () use ($uploadedFile, $parsed, $batchHash, &$wasCreated, &$syncResult, &$linkResult): ChurchService {
+            $churchService = DB::transaction(function () use ($uploadedFile, $parsed, $batchHash, &$wasCreated, &$linkResult): ChurchService {
                 $churchService = ChurchService::query()->firstOrNew([
                     'date' => $parsed->date,
                     'service' => $parsed->service->value,
@@ -165,14 +213,13 @@ class ImportChurchServiceFromOpenLp
                 ]);
                 $churchService->save();
 
-                $syncResult = $this->itemSyncService->sync($churchService, $parsed->items, ChurchServiceItemSource::OpenLp);
-                $linkResult = $this->songLinker->linkForService($churchService);
                 $this->ingestSourceRevision->execute(
                     $churchService,
-                    $this->sourceAdapter->adapt($uploadedFile, $parsed, $this->sourceItems($churchService), $batchHash),
+                    $this->sourceAdapter->adapt($uploadedFile, $parsed, $batchHash),
                 );
+                $linkResult = $this->songLinker->linkForService($churchService);
 
-                return $churchService;
+                return $churchService->fresh(['items']) ?? $churchService;
             });
         } catch (UniqueConstraintViolationException) {
             $churchService = ChurchService::query()
@@ -182,13 +229,6 @@ class ImportChurchServiceFromOpenLp
 
             return $this->importIntoExistingService($uploadedFile, $parsed, $churchService, $batchHash);
         }
-
-        $churchService = $this->canonicalUpdateService->finalize(
-            $churchService,
-            $beforeSnapshot,
-            ChurchServiceItemSource::OpenLp,
-            $syncResult,
-        );
 
         Log::warning('Church service imported from OpenLP (new)', $this->sanitizeArrayForLog([
             'admin_id' => auth()->id(),
@@ -200,30 +240,8 @@ class ImportChurchServiceFromOpenLp
             churchService: $churchService,
             parseResult: $parsed,
             wasCreated: $wasCreated,
-            syncResult: $syncResult,
+            syncResult: [],
             linkResult: $linkResult,
         );
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function sourceItems(ChurchService $churchService): array
-    {
-        return array_values($churchService->items()
-            ->orderBy('position')
-            ->get()
-            ->map(fn ($item): array => [
-                'position' => $item->position,
-                'type' => $item->type,
-                'section_type' => $item->section_type?->value,
-                'title' => $item->title,
-                'source_title' => $item->source_title,
-                'openlp_search_title' => $item->openlp_search_title,
-                'song_id' => $item->song_id,
-                'metadata' => $item->metadata,
-            ])
-            ->values()
-            ->all());
     }
 }

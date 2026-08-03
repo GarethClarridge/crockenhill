@@ -5,14 +5,22 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Data\ChurchServiceProjection;
+use App\Events\ChurchServiceCanonicalListChanged;
 use App\Models\ChurchService;
 use Illuminate\Support\Facades\DB;
 
 class ChurchServiceProjectionPersister
 {
-    public function apply(ChurchService $churchService, ChurchServiceProjection $projection): ChurchService
-    {
-        return DB::transaction(function () use ($churchService, $projection): ChurchService {
+    public function __construct(
+        private readonly ChurchServiceCanonicalStateService $canonicalStateService,
+    ) {}
+
+    public function apply(
+        ChurchService $churchService,
+        ChurchServiceProjection $projection,
+        ?string $incomingSource = null,
+    ): ChurchService {
+        return DB::transaction(function () use ($churchService, $projection, $incomingSource): ChurchService {
             $lockedService = ChurchService::query()
                 ->whereKey($churchService->getKey())
                 ->lockForUpdate()
@@ -22,23 +30,42 @@ class ChurchServiceProjectionPersister
                 return $lockedService;
             }
 
-            $existingItems = $lockedService->items()->get()->keyBy('canonical_identity');
-            $unassignedItems = $lockedService->items()->get()->keyBy('id');
+            $beforeSnapshot = $this->canonicalStateService->snapshot($lockedService);
+            $items = $lockedService->items()->get();
+            $existingItems = $items->keyBy('canonical_identity');
+            $unassignedItems = $items->keyBy('id');
             $retainedIds = [];
 
             foreach ($projection->items as $item) {
                 $identity = (string) $item['canonical_identity'];
-                $existing = $existingItems->get($identity);
+                // Only an unclaimed row is a candidate. A row already rebuilt for an
+                // earlier projected item must not be claimed again, or the second
+                // write silently overwrites the first and the service loses an item.
+                $existing = $unassignedItems->get($existingItems->get($identity)?->getKey());
                 $existing ??= $unassignedItems->first(function ($candidate) use ($item): bool {
+                    // A shared catalogue song is identity on its own; every weaker
+                    // signal is a title, and titles only mean the same item when the
+                    // items are the same kind of thing.
                     if ($item['song_id'] !== null && $candidate->song_id === $item['song_id']) {
+                        return true;
+                    }
+
+                    if ($candidate->type !== $item['type']) {
+                        return false;
+                    }
+
+                    if (
+                        is_string($item['openlp_search_title'])
+                        && $item['openlp_search_title'] !== ''
+                        && $candidate->openlp_search_title === $item['openlp_search_title']
+                    ) {
                         return true;
                     }
 
                     $candidateTitles = array_filter([$candidate->title, $candidate->source_title]);
                     $projectedTitles = array_filter([$item['title'], $item['source_title']]);
 
-                    return $candidate->type === $item['type']
-                        && array_intersect($candidateTitles, $projectedTitles) !== [];
+                    return array_intersect($candidateTitles, $projectedTitles) !== [];
                 });
                 $values = [
                     ...$item,
@@ -75,7 +102,56 @@ class ChurchServiceProjectionPersister
                 'canonical_hash' => $projection->hash,
             ])->saveQuietly();
 
-            return $lockedService->fresh(['items']) ?? $lockedService;
+            $freshService = $lockedService->fresh(['items']) ?? $lockedService;
+            $changes = $this->canonicalListChanges($this->canonicalStateService->diff(
+                $beforeSnapshot,
+                $this->canonicalStateService->snapshot($freshService),
+            ));
+
+            if ($changes !== []) {
+                event(new ChurchServiceCanonicalListChanged(
+                    $freshService->id,
+                    $incomingSource ?? $projection->sourceSummary,
+                    $changes,
+                ));
+            }
+
+            return $freshService;
         });
+    }
+
+    /**
+     * Provenance and evidence metadata can change without changing the public
+     * canonical list. Consumers of this event reconcile list content, so avoid
+     * scheduling them for source-only/manual-audit changes.
+     *
+     * @param  array<int, array<string, mixed>>  $changes
+     * @return array<int, array<string, mixed>>
+     */
+    private function canonicalListChanges(array $changes): array
+    {
+        $listChanges = [];
+
+        foreach ($changes as $change) {
+            if (($change['type'] ?? null) !== 'updated_item') {
+                $listChanges[] = $change;
+
+                continue;
+            }
+
+            $fields = array_values(array_filter(
+                $change['fields'] ?? [],
+                static fn (mixed $field): bool => is_array($field)
+                    && ! in_array($field['field'] ?? null, ['source', 'metadata'], true),
+            ));
+
+            if ($fields === []) {
+                continue;
+            }
+
+            $listChanges[] = [...$change, 'fields' => $fields];
+        }
+
+        return $listChanges;
     }
 }

@@ -64,6 +64,33 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
     }
 
     #[Test]
+    public function dry_run_parses_every_included_archive_before_emitting_an_applyable_plan(): void
+    {
+        [$rawDirectory, $manifestPath, $manifest] = $this->validCurationFixture();
+        $entry = $manifest['entries'][0];
+        $path = "{$rawDirectory}/{$entry['relative_path']}";
+        file_put_contents($path, 'not an OpenLP archive');
+        $manifest['entries'][0]['sha256'] = hash_file('sha256', $path);
+        $manifest['entries'][0]['byte_size'] = filesize($path);
+        $duplicatePath = "{$rawDirectory}/{$manifest['entries'][428]['relative_path']}";
+        copy($path, $duplicatePath);
+        $manifest['entries'][428]['sha256'] = $manifest['entries'][0]['sha256'];
+        $manifest['entries'][428]['byte_size'] = $manifest['entries'][0]['byte_size'];
+        $manifest['entries'][428]['duplicate_target_hash'] = $manifest['entries'][0]['sha256'];
+        $invalidArchiveManifest = $this->writeManifest(dirname($manifestPath), $manifest, 'invalid-archive.json');
+
+        $this->artisan('service-tracking:import-openlp-services', [
+            '--path' => $rawDirectory,
+            '--manifest' => $invalidArchiveManifest,
+            '--dry-run' => true,
+        ])
+            ->assertFailed()
+            ->expectsOutputToContain('must be a valid OpenLP .osz zip archive');
+
+        $this->assertDatabaseCount('church_services', 0);
+    }
+
+    #[Test]
     public function apply_requires_the_exact_current_dry_run_plan_hash(): void
     {
         [$rawDirectory, $manifestPath] = $this->validCurationFixture();
@@ -211,6 +238,16 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
     }
 
     #[Test]
+    public function manifest_rejects_a_declared_byte_size_that_does_not_match_the_file(): void
+    {
+        [$rawDirectory, $manifestPath, $manifest] = $this->validCurationFixture();
+        $manifest['entries'][0]['byte_size']++;
+        $badSizePath = $this->writeManifest(dirname($manifestPath), $manifest, 'bad-size.json');
+
+        $this->expectManifestFailure($rawDirectory, $badSizePath, 'Byte-size mismatch');
+    }
+
+    #[Test]
     public function manifest_rejects_path_traversal_and_absolute_paths(): void
     {
         [$rawDirectory, $manifestPath, $manifest] = $this->validCurationFixture();
@@ -221,6 +258,47 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
         $manifest['entries'][0]['relative_path'] = '/tmp/outside.osz';
         $absolutePath = $this->writeManifest(dirname($manifestPath), $manifest, 'absolute.json');
         $this->expectManifestFailure($rawDirectory, $absolutePath, 'Unsafe manifest path');
+    }
+
+    #[Test]
+    public function approved_openlp_paths_are_rechecked_for_symlinks_before_apply(): void
+    {
+        [$rawDirectory, $manifestPath, $manifest] = $this->validCurationFixture();
+        $plan = app(OpenLpCurationManifest::class)->plan($rawDirectory, $manifestPath);
+        $sourcePath = "{$rawDirectory}/{$manifest['entries'][0]['relative_path']}";
+        $targetPath = "{$rawDirectory}/{$manifest['entries'][1]['relative_path']}";
+
+        unlink($sourcePath);
+        symlink($targetPath, $sourcePath);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('missing or symlinked');
+
+        app(OpenLpCurationManifest::class)->verifyIncludes($rawDirectory, $plan);
+    }
+
+    /**
+     * The window between an operator approving a plan and the batch applying it is
+     * wide enough for the corpus to be re-synced. Approved bytes are therefore
+     * re-hashed at apply time, not merely at preflight.
+     */
+    #[Test]
+    public function an_archive_replaced_after_the_dry_run_is_rejected_before_apply(): void
+    {
+        [$rawDirectory, $manifestPath] = $this->validCurationFixture();
+        $curationManifest = app(OpenLpCurationManifest::class);
+        $plan = $curationManifest->plan($rawDirectory, $manifestPath);
+        $curationManifest->validateIncludesForDryRun($rawDirectory, $plan);
+
+        $approved = $plan->includes[0];
+        $replacedPath = "{$rawDirectory}/{$approved['relative_path']}";
+        $this->writeOpenLpArchive($replacedPath, $approved['logical_upload_filename']);
+        file_put_contents($replacedPath, str_repeat('padding', 64), FILE_APPEND);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("Byte-size mismatch for {$approved['relative_path']}");
+
+        $curationManifest->verifyInclude($rawDirectory, $approved);
     }
 
     #[Test]
@@ -248,6 +326,7 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
             if ($count === 'exclude') {
                 $manifest['entries'][533]['disposition'] = 'duplicate-of';
                 $manifest['entries'][533]['sha256'] = $manifest['entries'][0]['sha256'];
+                $manifest['entries'][533]['byte_size'] = $manifest['entries'][0]['byte_size'];
                 $manifest['entries'][533]['duplicate_target_hash'] = $manifest['entries'][0]['sha256'];
                 $manifest['entries'][533]['exclusion_reason'] = null;
                 copy(
@@ -316,9 +395,9 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
                 ? "uncorrected-{$index}.osz"
                 : "{$date} AM.osz";
             $logicalFilename = "{$date} AM.osz";
-            $contents = "included archive {$index}";
-            file_put_contents("{$rawDirectory}/{$relativePath}", $contents);
-            $hash = hash('sha256', $contents);
+            $this->writeOpenLpArchive("{$rawDirectory}/{$relativePath}", $logicalFilename);
+            $hash = hash_file('sha256', "{$rawDirectory}/{$relativePath}");
+            self::assertIsString($hash);
             $includedHashes[] = $hash;
             $entries[] = $this->entry(
                 relativePath: $relativePath,
@@ -360,6 +439,13 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
             );
         }
 
+        foreach ($entries as &$entry) {
+            $size = filesize("{$rawDirectory}/{$entry['relative_path']}");
+            self::assertIsInt($size);
+            $entry['byte_size'] = $size;
+        }
+        unset($entry);
+
         $manifest = [
             'format' => 'crockenhill-openlp-curation',
             'version' => 1,
@@ -387,6 +473,7 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
         return [
             'relative_path' => $relativePath,
             'sha256' => $hash,
+            'byte_size' => null,
             'disposition' => $disposition,
             'duplicate_target_hash' => $duplicateTargetHash,
             'logical_upload_filename' => $logicalFilename,
@@ -395,6 +482,17 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
             'alias_reason' => $aliasReason,
             'exclusion_reason' => $exclusionReason,
         ];
+    }
+
+    private function writeOpenLpArchive(string $path, string $logicalFilename): void
+    {
+        $archive = new \ZipArchive;
+        self::assertTrue($archive->open($path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === true);
+        self::assertTrue($archive->addFromString(
+            str_replace('.osz', '.osj', $logicalFilename),
+            json_encode([], JSON_THROW_ON_ERROR),
+        ));
+        self::assertTrue($archive->close());
     }
 
     /** @param array<string, mixed> $manifest */

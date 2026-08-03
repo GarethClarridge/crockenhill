@@ -70,6 +70,101 @@ class IngestChurchServiceSourceRevisionTest extends TestCase
         $this->assertSame(2, ChurchServiceSourceRecord::query()->count());
     }
 
+    /**
+     * Only the leaf is the current revision. Matching an ancestor's payload used
+     * to report an idempotent no-op, which silently discarded the arriving
+     * evidence and left canonical state on the correction being withdrawn.
+     */
+    #[Test]
+    public function replaying_a_superseded_payload_is_refused_rather_than_treated_as_a_no_op(): void
+    {
+        $service = ChurchService::factory()->create();
+        $action = app(IngestChurchServiceSourceRevision::class);
+        $original = $action->execute($service, $this->revision());
+        $action->execute($service, $this->revision([
+            $this->assertion(1, 'Opening Song'),
+            $this->assertion(2, 'Changed Sermon'),
+        ]));
+
+        try {
+            $action->execute($service, $this->revision());
+            $this->fail('Replaying a superseded payload should not be accepted.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString(
+                "identical to source revision {$original->sourceRecord->id}, which has already been superseded",
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertSame(2, ChurchServiceSourceRecord::query()->count());
+        $this->assertSame(
+            'Changed Sermon',
+            $service->fresh()->items()->orderBy('position')->get()->last()->title,
+        );
+    }
+
+    #[Test]
+    public function an_identical_payload_on_the_current_leaf_stays_a_no_op(): void
+    {
+        $service = ChurchService::factory()->create();
+        $action = app(IngestChurchServiceSourceRevision::class);
+        $action->execute($service, $this->revision());
+        $changed = $this->revision([
+            $this->assertion(1, 'Opening Song'),
+            $this->assertion(2, 'Changed Sermon'),
+        ]);
+        $leaf = $action->execute($service, $changed);
+
+        $replayed = $action->execute($service, $changed);
+
+        $this->assertFalse($replayed->wasCreated);
+        $this->assertSame($leaf->sourceRecord->id, $replayed->sourceRecord->id);
+        $this->assertSame(2, ChurchServiceSourceRecord::query()->count());
+    }
+
+    #[Test]
+    public function it_rejects_a_lineage_with_multiple_active_leaves(): void
+    {
+        $service = ChurchService::factory()->create();
+        ChurchServiceSourceRecord::factory()->for($service, 'churchService')->create([
+            'source' => ChurchServiceSource::Email,
+            'source_key' => 'message-1|morning:2026-07-29',
+            'revision_hash' => str_repeat('a', 64),
+        ]);
+        ChurchServiceSourceRecord::factory()->for($service, 'churchService')->create([
+            'source' => ChurchServiceSource::Email,
+            'source_key' => 'message-1|morning:2026-07-29',
+            'revision_hash' => str_repeat('b', 64),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('exactly one active leaf');
+
+        app(IngestChurchServiceSourceRevision::class)->execute($service, $this->revision());
+    }
+
+    #[Test]
+    public function it_rejects_a_successor_from_another_source_lineage(): void
+    {
+        $service = ChurchService::factory()->create();
+        $predecessor = ChurchServiceSourceRecord::factory()->for($service, 'churchService')->create([
+            'source' => ChurchServiceSource::Email,
+            'source_key' => 'message-1|morning:2026-07-29',
+            'revision_hash' => str_repeat('a', 64),
+        ]);
+        ChurchServiceSourceRecord::factory()->for($service, 'churchService')->create([
+            'source' => ChurchServiceSource::Email,
+            'source_key' => 'different-message|morning:2026-07-29',
+            'revision_hash' => str_repeat('b', 64),
+            'supersedes_id' => $predecessor->id,
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('different source lineage');
+
+        app(IngestChurchServiceSourceRevision::class)->execute($service, $this->revision());
+    }
+
     #[Test]
     public function a_failed_assertion_insert_rolls_back_the_source_record(): void
     {

@@ -10,6 +10,7 @@ readonly class OpenLpCurationPlan
      * @param  list<array{
      *     relative_path:string,
      *     sha256:string,
+     *     byte_size:int,
      *     logical_upload_filename:string,
      *     resolved_date:string,
      *     resolved_service:string,

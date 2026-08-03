@@ -8,6 +8,7 @@ use App\Data\OpenLpCurationPlan;
 use App\Enums\SermonService;
 use App\Services\Song\OpenLpServiceParser;
 use App\Support\CanonicalJson;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
 use JsonException;
 use RuntimeException;
@@ -92,6 +93,10 @@ class OpenLpCurationManifest
             if (! hash_equals($entry['sha256'], $inventory[$entry['relative_path']])) {
                 throw new RuntimeException("SHA-256 mismatch for {$entry['relative_path']}.");
             }
+
+            if ($this->fileSize("{$rawRoot}/{$entry['relative_path']}") !== $entry['byte_size']) {
+                throw new RuntimeException("Byte-size mismatch for {$entry['relative_path']}.");
+            }
         }
 
         $this->validateDuplicateHashes($normalizedEntries);
@@ -123,6 +128,7 @@ class OpenLpCurationManifest
             $includes[] = [
                 'relative_path' => $entry['relative_path'],
                 'sha256' => $entry['sha256'],
+                'byte_size' => $entry['byte_size'],
                 'logical_upload_filename' => $entry['logical_upload_filename'],
                 'resolved_date' => $entry['resolved_date'],
                 'resolved_service' => $entry['resolved_service'],
@@ -144,6 +150,60 @@ class OpenLpCurationManifest
         ]);
 
         return new OpenLpCurationPlan($manifestHash, $planHash, $includes, $counts);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function verifyIncludes(string $rawDirectory, OpenLpCurationPlan $plan): array
+    {
+        $rawRoot = realpath($rawDirectory);
+
+        if (! is_string($rawRoot) || ! is_dir($rawRoot)) {
+            throw new RuntimeException("Raw OpenLP directory does not exist: {$rawDirectory}");
+        }
+
+        $paths = [];
+
+        foreach ($plan->includes as $entry) {
+            $paths[$entry['relative_path']] = $this->verifiedIncludePath($rawRoot, $entry);
+        }
+
+        return $paths;
+    }
+
+    /**
+     * Parse every approved archive before an operator receives an applyable plan.
+     */
+    public function validateIncludesForDryRun(string $rawDirectory, OpenLpCurationPlan $plan): void
+    {
+        foreach ($plan->includes as $entry) {
+            $path = $this->verifyInclude($rawDirectory, $entry);
+            $parsed = $this->parser->parse(new UploadedFile(
+                path: $path,
+                originalName: $entry['logical_upload_filename'],
+                mimeType: 'application/zip',
+                test: true,
+            ));
+
+            if ($parsed->date !== $entry['resolved_date'] || $parsed->service->value !== $entry['resolved_service']) {
+                throw new RuntimeException("Parsed OpenLP archive identity contradicts its approved manifest entry: {$entry['relative_path']}.");
+            }
+        }
+    }
+
+    /**
+     * @param  array{relative_path:string,sha256:string,byte_size:int,logical_upload_filename:string,resolved_date:string,resolved_service:string,alias_reason:?string}  $entry
+     */
+    public function verifyInclude(string $rawDirectory, array $entry): string
+    {
+        $rawRoot = realpath($rawDirectory);
+
+        if (! is_string($rawRoot) || ! is_dir($rawRoot)) {
+            throw new RuntimeException("Raw OpenLP directory does not exist: {$rawDirectory}");
+        }
+
+        return $this->verifiedIncludePath($rawRoot, $entry);
     }
 
     /** @return array<string, string> */
@@ -178,6 +238,7 @@ class OpenLpCurationManifest
      * @return list<array{
      *     relative_path:string,
      *     sha256:string,
+     *     byte_size:int,
      *     disposition:string,
      *     duplicate_target_hash:?string,
      *     logical_upload_filename:?string,
@@ -206,8 +267,9 @@ class OpenLpCurationManifest
 
             $seenPaths[$relativePath] = true;
             $sha256 = strtolower($this->requiredString($entry, 'sha256', $offset));
+            $byteSize = $entry['byte_size'] ?? null;
 
-            if (preg_match('/\A[0-9a-f]{64}\z/', $sha256) !== 1) {
+            if (preg_match('/\A[0-9a-f]{64}\z/', $sha256) !== 1 || ! is_int($byteSize) || $byteSize < 1) {
                 throw new RuntimeException("Invalid SHA-256 for {$relativePath}.");
             }
 
@@ -255,6 +317,7 @@ class OpenLpCurationManifest
             $normalized[] = [
                 'relative_path' => $relativePath,
                 'sha256' => $sha256,
+                'byte_size' => $byteSize,
                 'disposition' => $disposition,
                 'duplicate_target_hash' => $duplicateTargetHash === null ? null : strtolower($duplicateTargetHash),
                 'logical_upload_filename' => $logicalFilename,
@@ -285,6 +348,64 @@ class OpenLpCurationManifest
         if (is_string($resolved) && ! $this->isWithinRoot($resolved, $rawRoot)) {
             throw new RuntimeException("Manifest path escapes the raw directory: {$relativePath}");
         }
+    }
+
+    /**
+     * @param  array{relative_path:string,sha256:string,byte_size:int,logical_upload_filename:string,resolved_date:string,resolved_service:string,alias_reason:?string}  $entry
+     */
+    private function verifiedIncludePath(string $rawRoot, array $entry): string
+    {
+        $relativePath = $entry['relative_path'];
+        $this->validateRelativePath($relativePath, $rawRoot);
+        $path = "{$rawRoot}/{$relativePath}";
+
+        if (! is_file($path) || $this->containsSymlink($rawRoot, $relativePath)) {
+            throw new RuntimeException("Approved OpenLP archive is missing or symlinked: {$relativePath}");
+        }
+
+        $realPath = realpath($path);
+
+        if (! is_string($realPath) || ! $this->isWithinRoot($realPath, $rawRoot)) {
+            throw new RuntimeException("Approved OpenLP archive escapes the raw directory: {$relativePath}");
+        }
+
+        if ($this->fileSize($realPath) !== $entry['byte_size']) {
+            throw new RuntimeException("Byte-size mismatch for {$relativePath}.");
+        }
+
+        $hash = hash_file('sha256', $realPath);
+
+        if (! is_string($hash) || ! hash_equals($entry['sha256'], $hash)) {
+            throw new RuntimeException("SHA-256 mismatch for {$relativePath}.");
+        }
+
+        return $realPath;
+    }
+
+    private function containsSymlink(string $rawRoot, string $relativePath): bool
+    {
+        $path = $rawRoot;
+
+        foreach (explode('/', $relativePath) as $segment) {
+            $path .= DIRECTORY_SEPARATOR.$segment;
+
+            if (is_link($path)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function fileSize(string $path): int
+    {
+        $size = filesize($path);
+
+        if (! is_int($size)) {
+            throw new RuntimeException("Unable to determine file size: {$path}");
+        }
+
+        return $size;
     }
 
     private function validateInclude(

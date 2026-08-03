@@ -170,4 +170,46 @@ class BackfillChurchServiceConvergenceCommandTest extends TestCase
         $this->assertSame(1, $report['summary']['services_with_differences']);
         $this->assertSame('canonical_and_projected_items_differ', $report['services'][0]['differences'][0]['explanation']);
     }
+
+    /**
+     * WP1 replaced the per-source `source_evidence` bag with a flat
+     * `source_assertion_sources` list and writes `occurrence_state` as a column.
+     * An auditor that only understands the old bag reconstructs `planned_only`
+     * for every projected item and reports a difference on all of them.
+     */
+    #[Test]
+    public function projected_items_are_not_reported_as_differing_just_because_their_provenance_metadata_changed(): void
+    {
+        Storage::fake('local');
+
+        $service = ChurchService::factory()->create();
+        ChurchServiceItem::factory()->for($service)->create([
+            'position' => 1,
+            'type' => 'songs',
+            'source' => 'livestream',
+            'title' => 'Amazing Grace',
+            'occurrence_state' => ChurchServiceOccurrenceState::PlannedAndObserved,
+            'metadata' => [
+                'source_assertion_hashes' => [str_repeat('c', 64).':assertion-1'],
+                'source_assertion_sources' => ['email', 'livestream'],
+            ],
+        ]);
+
+        $this->artisan('service-tracking:backfill-convergence', [
+            '--shadow-only' => true,
+            '--report' => 'private/reports/wp6-provenance.json',
+        ])->assertSuccessful();
+
+        $report = json_decode(
+            Storage::disk('local')->get('private/reports/wp6-provenance.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        $canonical = $report['services'][0]['differences'][0]['canonical'][0];
+
+        $this->assertSame(
+            ChurchServiceOccurrenceState::PlannedAndObserved->value,
+            $canonical['occurrence_state'],
+        );
+    }
 }
