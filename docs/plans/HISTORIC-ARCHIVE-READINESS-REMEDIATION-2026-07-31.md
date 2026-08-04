@@ -1,9 +1,11 @@
 # Historic Archive Import Readiness Remediation Plan
 
-> **Status (2026-07-31): underlying evidence/bundle/review surfaces are implemented; this
-> remediation sequence has not started. Bulk local ingestion, historic-video dispatch and every
-> production mutation remain blocked.** Read-only corpus inventory, hashing and manifest curation
-> are safe to continue.
+> **Status (2026-08-04): WP0–WP4 are implemented and committed (PRs 2–13); PR1/WP8 was skipped
+> despite being scheduled first; WP5–WP10 remain to do.** The next dependency-unblocked import PR is
+> **PR14 (WP5)**, and **PR1 (WP8 public archive)** is independently pickable at any time — see the
+> Status column and "Next task to pick up" in §17. Bulk local ingestion, historic-video dispatch and
+> every production mutation remain blocked behind those later gates. Read-only corpus inventory,
+> hashing and manifest curation are safe to continue.
 >
 > **Amended 2026-08-02** after a business-design review. The engineering content of the 2026-07-31
 > audit is unchanged; what changed is everything around it:
@@ -1337,28 +1339,57 @@ change is wrong* — so that is what the sizes now describe:
 the §13.3 bulk media pass (9–18 days serial, less if the concurrency design succeeds) and the §9.4
 residual review after the automate-first loop converges. Plan against those, not against this table.
 
-| PR | Scope | Size | Depends on |
-|---|---|---|---|
-| 1 | **WP8 public service archive/detail over current-era data** | M | None |
-| 2 | WP0 canary, consolidated contract matrix and named red tests | M | None |
-| 3 | Immediate B1/B2 direct persister fixes and B17 streaming exporter/transfer | L | PR 2 |
-| 4 | Additive lineage/portable-identity schema if required | M, or XS/no-op if unnecessary | PR 2 |
-| 5 | Pure Email/OpenLP adapters and manifest schema | L | PR 4 |
-| 6 | Active revision and projector matching/cardinality/order | L | PR 5 |
-| 7 | Automatic finalisation and canonical/evidence manifests | M | PR 6 |
-| 8 | Review-state/action correctness | M | PR 7 |
-| 9 | **§9.4 proposal census, cross-service queue and rule-level dispositions** | L | PR 8 |
-| 10 | Review workbench and Dusk behavior | L | PR 9 |
-| 11 | Bundle B automatic/manual schema, proposal dispositions and `decision_rule` | L | PR 9 |
-| 12 | Remaining Bundle A graph, portable identity and path-independent hash | L | PRs 2–3 |
-| 13 | Multi-role content manifest and destination allocation | M | PR 12 |
-| 14 | Remaining persistence, shared classification and richness convergence | L | PRs 11–13 |
-| 15 | Binding preflight, ledger, orchestrator and auditor | L | PR 14 |
-| 16 | **§12.4 current-era re-projection, corpus diff and B13 reversal** | L | PR 15 |
-| 17 | Worker-safe staging, manifest-authorised dispatch and §13.3 throughput design | M | PR 15 |
-| 18 | Rehearsal discoveries with earliest-gate loop-back | Contingency; size each finding | PRs 1–17 |
-| 19 | Production-operation fixes, only if rehearsal proves them necessary | Contingency; size each finding | PR 18 |
-| 20 | Post-closeout cleanup/contract migration | M | G9 only |
+**Status added 2026-08-04.** WP0–WP4 have been implemented and committed, so the table now carries a
+Status column and a "Next task to pick up" summary below it. The work landed in **work-package order
+(WP0 → WP4)**, not in the PR order this section proposes: PRs 2–13 are all done, but **PR1 (WP8) was
+skipped even though it was scheduled to ship first.** Nothing about PR1 changed — it still depends on
+the import for nothing and is still the only visitor-visible deliverable in the programme — so it
+remains ready to pick up whenever WP8's editorial/consent questions (§14.4, current-era subset only)
+are cleared. Status values:
+
+- **Done** — merged; its blocker tests are green in the suite.
+- **Ready** — every dependency is Done, so an agent can start it now.
+- **Blocked (PR n)** — waiting only on the named predecessor.
+
+| PR | Scope | Size | Depends on | Status |
+|---|---|---|---|---|
+| 1 | **WP8 public service archive/detail over current-era data** | M | None | **Ready** (skipped though scheduled first) |
+| 2 | WP0 canary, consolidated contract matrix and named red tests | M | None | Done |
+| 3 | Immediate B1/B2 direct persister fixes and B17 streaming exporter/transfer | L | PR 2 | Done |
+| 4 | Additive lineage/portable-identity schema if required | M, or XS/no-op if unnecessary | PR 2 | Done |
+| 5 | Pure Email/OpenLP adapters and manifest schema | L | PR 4 | Done |
+| 6 | Active revision and projector matching/cardinality/order | L | PR 5 | Done |
+| 7 | Automatic finalisation and canonical/evidence manifests | M | PR 6 | Done |
+| 8 | Review-state/action correctness | M | PR 7 | Done |
+| 9 | **§9.4 proposal census, cross-service queue and rule-level dispositions** | L | PR 8 | Done |
+| 10 | Review workbench and Dusk behavior | L | PR 9 | Done |
+| 11 | Bundle B automatic/manual schema, proposal dispositions and `decision_rule` | L | PR 9 | Done |
+| 12 | Remaining Bundle A graph, portable identity and path-independent hash | L | PRs 2–3 | Done |
+| 13 | Multi-role content manifest and destination allocation | M | PR 12 | Done |
+| 14 | Remaining persistence, shared classification and richness convergence | L | PRs 11–13 | **Ready — next import PR** |
+| 15 | Binding preflight, ledger, orchestrator and auditor | L | PR 14 | Blocked (PR 14) |
+| 16 | **§12.4 current-era re-projection, corpus diff and B13 reversal** | L | PR 15 | Blocked (PR 15) |
+| 17 | Worker-safe staging, manifest-authorised dispatch and §13.3 throughput design | M | PR 15 | Blocked (PR 15) |
+| 18 | Rehearsal discoveries with earliest-gate loop-back | Contingency; size each finding | PRs 1–17 | Blocked (PRs 1–17) |
+| 19 | Production-operation fixes, only if rehearsal proves them necessary | Contingency; size each finding | PR 18 | Blocked (PR 18) |
+| 20 | Post-closeout cleanup/contract migration | M | G9 only | Blocked (G9) |
+
+### Next task to pick up
+
+Two PRs are unblocked right now; either can be handed to an agent independently.
+
+- **PR14 — remaining persistence, shared classification and richness convergence (WP5, §11).** This
+  is the next step on the import's critical path: its predecessors PRs 11–13 are all Done. It is `L`
+  because it satisfies real MySQL constraints and converges existing production records without loss.
+  Completing it unblocks PR15, which in turn unblocks PR16 and PR17. Start here to advance the import.
+- **PR1 — WP8 public service archive over current-era data (§14).** Independent of the import and the
+  only visitor-visible outcome in the programme, but it was skipped when the team implemented in
+  work-package order. It touches no import gate in either direction. The one precondition is the
+  §14.4/§19 editorial and exposure policy for the **current era** (not the historic eras), which the
+  maintainer accepts before this ships. Pick this to deliver a visible win in parallel with PR14.
+
+After PR14 lands, the critical path continues PR15 → then PR16 and PR17 in parallel. PR14 and PR1 do
+not touch each other, so they can proceed concurrently by separate agents.
 
 Three entries are new or moved relative to the 2026-07-31 sequence: PR1 moves the public archive to
 the front (§14); PR9 adds the review-load surface that makes §9.4's loop operable; PR16 adds the
