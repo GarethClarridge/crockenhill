@@ -9,7 +9,7 @@ readonly class HistoricProcessingResultImportPlan
     /**
      * @param  'already_present'|'create'|'blocked_difference'|'conflict'  $classification
      * @param  array<string, mixed>  $service
-     * @param  list<array{role: string, path: string, size: int, sha256: string}>  $assets
+     * @param  list<array{path: string, size: int, sha256: string, kind: string, roles: list<string>}>  $assets
      */
     public function __construct(
         public string $classification,

@@ -29,7 +29,7 @@ class HistoricProcessingResultBundleImporter
             throw new RuntimeException("Bundle service index {$serviceIndex} does not exist.");
         }
 
-        /** @var list<array{role: string, path: string, size: int, sha256: string}> $assetManifest */
+        /** @var list<array{path: string, size: int, sha256: string, kind: string, roles: list<string>}> $assetManifest */
         $assetManifest = $service['assets'];
         $this->assets->verifyStaged($assetManifest);
         $classification = $this->classify($service);

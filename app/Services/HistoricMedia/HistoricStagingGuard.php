@@ -76,15 +76,27 @@ class HistoricStagingGuard
     }
 
     /**
-     * Refuse to export a bundle whose assets were staged on a publicly served disk.
+     * Bundle A imports read every asset from the single staging disk. Refuse to
+     * export a bundle whose source references cannot make that round trip.
      *
      * @param  list<string>  $disks
      */
-    public function assertExportSourcesArePrivate(array $disks): void
+    public function assertExportSourcesAreStaged(array $disks): void
     {
+        $staging = $this->stagingDisk();
+
         foreach (array_unique($disks) as $disk) {
-            $this->assertNotPubliclyServed($disk);
+            if ($disk === $staging) {
+                continue;
+            }
+
+            throw new RuntimeException(
+                "Historic export source disk '{$disk}' is not the configured staging disk '{$staging}'. ".
+                'Move legacy artifacts into staging before exporting Bundle A.'
+            );
         }
+
+        $this->assertNotPubliclyServed($staging);
     }
 
     public function stagingDisk(): string

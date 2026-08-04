@@ -57,18 +57,33 @@ class HistoricStagingGuardTest extends TestCase
     #[Test]
     public function it_refuses_to_export_assets_staged_on_a_served_disk(): void
     {
+        config()->set('media-processing.storage.historic_staging_disk', 'do_spaces');
+
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage("Historic staging disk 'do_spaces' is publicly served");
 
-        app(HistoricStagingGuard::class)->assertExportSourcesArePrivate(['historic_staging', 'do_spaces']);
+        app(HistoricStagingGuard::class)->assertExportSourcesAreStaged(['do_spaces']);
     }
 
     #[Test]
-    public function it_accepts_export_assets_staged_on_private_disks(): void
+    public function it_accepts_export_assets_sourced_only_from_the_staging_disk(): void
     {
+        config()->set('media-processing.storage.historic_staging_disk', 'historic_staging');
+
         $this->expectNotToPerformAssertions();
 
-        app(HistoricStagingGuard::class)->assertExportSourcesArePrivate(['historic_staging', 'local']);
+        app(HistoricStagingGuard::class)->assertExportSourcesAreStaged(['historic_staging']);
+    }
+
+    #[Test]
+    public function it_refuses_to_export_a_source_from_a_non_staging_disk(): void
+    {
+        config()->set('media-processing.storage.historic_staging_disk', 'historic_staging');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("source disk 'local' is not the configured staging disk 'historic_staging'");
+
+        app(HistoricStagingGuard::class)->assertExportSourcesAreStaged(['local']);
     }
 
     #[Test]

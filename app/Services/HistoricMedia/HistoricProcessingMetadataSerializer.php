@@ -10,7 +10,6 @@ class HistoricProcessingMetadataSerializer
 {
     private const PORTABLE_KEYS = [
         'historic_import',
-        'historic_promotion',
         'rms_log_path',
         'service_artifacts',
         'service_structure',
@@ -22,6 +21,7 @@ class HistoricProcessingMetadataSerializer
     ];
 
     private const RUNTIME_KEYS = [
+        'historic_promotion',
         'attempt_count',
         'enhanced_audio_file_path',
         'job_id',
@@ -93,7 +93,9 @@ class HistoricProcessingMetadataSerializer
     private function guardUnknownKey(string $key, mixed $value): void
     {
         if (
-            preg_match('/(^|_)(id|ids|path|paths|token|secret|key)$/i', $key) === 1
+            HistoricProcessingResultFieldClassifier::isIdentityKey($key)
+            || HistoricProcessingResultFieldClassifier::isPathKey($key)
+            || preg_match('/(^|_)(token|secret|key)$/i', $key) === 1
             || str_contains(mb_strtolower($key), 'proposal')
             || str_contains(mb_strtolower($key), 'retry')
             || $this->containsAbsolutePath($value)
@@ -108,7 +110,7 @@ class HistoricProcessingMetadataSerializer
             throw new RuntimeException("Portable processing metadata contains an absolute path in {$key}.");
         }
 
-        if ($this->containsForbiddenNestedKey($value)) {
+        if ($this->containsForbiddenNestedKey($value, $key === 'service_artifacts')) {
             throw new RuntimeException("Portable processing metadata contains a local identity or runtime field in {$key}.");
         }
     }
@@ -134,7 +136,7 @@ class HistoricProcessingMetadataSerializer
         return false;
     }
 
-    private function containsForbiddenNestedKey(mixed $value): bool
+    private function containsForbiddenNestedKey(mixed $value, bool $allowArtifactPath = false): bool
     {
         if (! is_array($value)) {
             return false;
@@ -142,15 +144,19 @@ class HistoricProcessingMetadataSerializer
 
         foreach ($value as $key => $nested) {
             if (is_string($key) && (
-                preg_match('/(^|_)(id|ids)$/i', $key) === 1
+                HistoricProcessingResultFieldClassifier::isIdentityKey($key)
                 || in_array($key, self::RUNTIME_KEYS, true)
                 || str_contains(mb_strtolower($key), 'proposal')
                 || str_contains(mb_strtolower($key), 'retry')
+                || (
+                    HistoricProcessingResultFieldClassifier::isPathKey($key)
+                    && ! ($allowArtifactPath && $key === 'path')
+                )
             )) {
                 return true;
             }
 
-            if ($this->containsForbiddenNestedKey($nested)) {
+            if ($this->containsForbiddenNestedKey($nested, $allowArtifactPath)) {
                 return true;
             }
         }

@@ -10,6 +10,7 @@ use App\Models\MediaProcessingLog;
 use App\Support\CanonicalJson;
 use App\Support\MediaAssetPath;
 use App\Support\ServiceArtifactDisk;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
@@ -35,26 +36,37 @@ class HistoricProcessingResultBundleExporter
         string $outputPath,
     ): array {
         $processingIds = array_values(array_unique($processingIds));
-        $runs = MediaProcessingLog::query()
-            ->with(['churchService.reviewSessions', 'churchService.sourceRecords.assertions'])
-            ->whereIn('processing_id', $processingIds)
-            ->get()
-            ->keyBy('processing_id');
+        $found = MediaProcessingLog::query()->whereIn('processing_id', $processingIds)->count();
 
-        if ($processingIds === [] || $runs->count() !== count($processingIds)) {
+        if ($processingIds === [] || $found !== count($processingIds)) {
             throw new RuntimeException('Every selected historic processing run must exist exactly once.');
         }
+
+        /**
+         * Stream the batch rather than materialising every run and its eager-loaded
+         * service graph at once. Each run's models fall out of scope as the cursor
+         * advances, so peak memory tracks the largest single run, not the batch.
+         *
+         * @var array<string, array<string, mixed>> $built
+         */
+        $built = [];
+
+        MediaProcessingLog::query()
+            ->with(['churchService.reviewSessions', 'churchService.sourceRecords.assertions'])
+            ->whereIn('processing_id', $processingIds)
+            ->lazyById()
+            ->each(function (MediaProcessingLog $run) use (&$built): void {
+                $built[$run->processing_id] = $this->service($run);
+            });
 
         $services = [];
 
         foreach ($processingIds as $processingId) {
-            $run = $runs->get($processingId);
-
-            if (! $run instanceof MediaProcessingLog) {
+            if (! isset($built[$processingId])) {
                 throw new RuntimeException("Historic processing run {$processingId} could not be loaded.");
             }
 
-            $services[] = $this->service($run);
+            $services[] = $built[$processingId];
         }
 
         $bundle = $this->bundles->make($batchHash, $processingFingerprint, $services);
@@ -195,109 +207,250 @@ class HistoricProcessingResultBundleExporter
 
     /**
      * @param  array<string, mixed>  $graph
-     * @return list<array{role: string, path: string, size: int, sha256: string}>
+     * @return list<array{path: string, size: int, sha256: string, kind: string, roles: list<string>}>
      */
     private function assets(array $graph): array
     {
-        $paths = collect();
+        $references = [];
+        $roleSources = [];
 
-        foreach (['audio_file_path', 'video_file_path', 'transcript_file_path', 'rms_log_path'] as $field) {
+        $addReference = function (string $role, string $path, string $disk, string $kind) use (&$references, &$roleSources): void {
+            $this->guardAssetPath($path);
+            $source = "{$disk}\0{$path}";
+
+            if (isset($roleSources[$role]) && $roleSources[$role] !== $source) {
+                throw new RuntimeException("Historic asset role {$role} resolves to more than one source.");
+            }
+
+            $roleSources[$role] = $source;
+            $referenceKey = $source;
+
+            if (isset($references[$referenceKey])) {
+                $references[$referenceKey]['roles'][$role] = true;
+                $references[$referenceKey]['kind'] = $this->mergeAssetKinds($references[$referenceKey]['kind'], $kind);
+
+                return;
+            }
+
+            $references[$referenceKey] = [
+                'path' => $path,
+                'disk' => $disk,
+                'kind' => $kind,
+                'roles' => [$role => true],
+            ];
+        };
+
+        foreach (HistoricProcessingResultAssetRole::RUN_FIELDS as $field) {
             $path = data_get($graph, "run.{$field}");
 
             if (is_string($path) && $path !== '') {
-                $paths->push([
-                    'role' => "run_{$field}",
-                    'path' => $path,
-                    'disk' => $field === 'rms_log_path' ? ServiceArtifactDisk::for($path) : MediaAssetPath::disk(),
-                ]);
+                $addReference(
+                    HistoricProcessingResultAssetRole::run($field),
+                    $path,
+                    $field === 'rms_log_path' ? ServiceArtifactDisk::for($path) : MediaAssetPath::disk(),
+                    $this->assetKind($field),
+                );
             }
         }
 
         foreach (data_get($graph, 'metadata.service_artifacts', []) as $artifact) {
             if (is_array($artifact) && is_string($artifact['path'] ?? null)) {
-                $paths->push([
-                    'role' => 'service_artifact:'.($artifact['kind'] ?? 'unknown').':'.($artifact['sha256'] ?? hash('sha256', $artifact['path'])),
-                    'path' => $artifact['path'],
-                    'disk' => ServiceArtifactDisk::for($artifact['path']),
-                ]);
+                $addReference(
+                    HistoricProcessingResultAssetRole::serviceArtifact($artifact),
+                    $artifact['path'],
+                    ServiceArtifactDisk::for($artifact['path']),
+                    HistoricProcessingResultAssetRole::serviceArtifactKind($artifact['kind'] ?? null),
+                );
             }
         }
 
         foreach (data_get($graph, 'publications', []) as $publication) {
-            foreach (['audio_file_path', 'video_file_path', 'transcript_file_path', 'thumbnail_file_path'] as $field) {
-                $path = is_array($publication) ? ($publication[$field] ?? null) : null;
+            if (! is_array($publication) || ! is_string($publication['publication_key'] ?? null)) {
+                continue;
+            }
+
+            $publicationKey = $publication['publication_key'];
+
+            foreach (HistoricProcessingResultAssetRole::PUBLICATION_FIELDS as $field) {
+                $path = $publication[$field] ?? null;
 
                 if (is_string($path) && $path !== '') {
-                    $paths->push([
-                        'role' => 'publication:'.($publication['publication_key'] ?? 'unknown').":{$field}",
-                        'path' => $path,
-                        'disk' => MediaAssetPath::disk(),
-                    ]);
+                    $addReference(
+                        HistoricProcessingResultAssetRole::publicationField($publicationKey, $field),
+                        $path,
+                        MediaAssetPath::disk(),
+                        $this->assetKind($field),
+                    );
+                }
+            }
+
+            $thumbnailMetadata = $publication['thumbnail_metadata'] ?? null;
+
+            if (is_array($thumbnailMetadata)) {
+                foreach (HistoricProcessingResultAssetRole::THUMBNAIL_METADATA_FIELDS as $field) {
+                    $path = $thumbnailMetadata[$field] ?? null;
+
+                    if (is_string($path) && $path !== '') {
+                        $addReference(
+                            HistoricProcessingResultAssetRole::publicationThumbnailMetadata($publicationKey, $field),
+                            $path,
+                            MediaAssetPath::disk(),
+                            'thumbnail',
+                        );
+                    }
+                }
+
+                foreach (array_values($thumbnailMetadata['thumbnail_candidates'] ?? []) as $candidateIndex => $candidate) {
+                    if (! is_array($candidate)) {
+                        continue;
+                    }
+
+                    foreach (HistoricProcessingResultAssetRole::THUMBNAIL_CANDIDATE_FIELDS as $field) {
+                        $path = $candidate[$field] ?? null;
+
+                        if (is_string($path) && $path !== '') {
+                            $addReference(
+                                HistoricProcessingResultAssetRole::publicationThumbnailCandidate(
+                                    $publicationKey,
+                                    $candidateIndex,
+                                    $field,
+                                ),
+                                $path,
+                                MediaAssetPath::disk(),
+                                'thumbnail',
+                            );
+                        }
+                    }
                 }
             }
         }
 
         foreach (data_get($graph, 'sections', []) as $section) {
-            foreach (['extracted_video_path', 'extracted_audio_path'] as $field) {
-                $path = is_array($section) ? ($section[$field] ?? null) : null;
+            if (! is_array($section) || ! is_string($section['section_key'] ?? null)) {
+                continue;
+            }
+
+            foreach (HistoricProcessingResultAssetRole::SECTION_FIELDS as $field) {
+                $path = $section[$field] ?? null;
 
                 if (is_string($path) && $path !== '') {
-                    $paths->push([
-                        'role' => 'section:'.($section['section_key'] ?? 'unknown').":{$field}",
-                        'path' => $path,
-                        'disk' => MediaAssetPath::disk(),
-                    ]);
+                    $addReference(
+                        HistoricProcessingResultAssetRole::section($section['section_key'], $field),
+                        $path,
+                        MediaAssetPath::disk(),
+                        $this->assetKind($field),
+                    );
                 }
             }
         }
 
         foreach (data_get($graph, 'song_videos', []) as $songVideo) {
-            $path = is_array($songVideo) ? ($songVideo['video_file_path'] ?? null) : null;
+            if (! is_array($songVideo) || ! is_string($songVideo['section_key'] ?? null)) {
+                continue;
+            }
+
+            $path = $songVideo[HistoricProcessingResultAssetRole::SONG_VIDEO_FIELD] ?? null;
 
             if (is_string($path) && $path !== '') {
-                $paths->push([
-                    'role' => 'song_video:'.($songVideo['section_key'] ?? 'unknown'),
-                    'path' => $path,
-                    'disk' => MediaAssetPath::disk(),
-                ]);
+                $addReference(
+                    HistoricProcessingResultAssetRole::songVideo($songVideo['section_key']),
+                    $path,
+                    MediaAssetPath::disk(),
+                    'video',
+                );
             }
         }
 
-        $exportDisks = [];
+        $this->stagingGuard->assertExportSourcesAreStaged(
+            array_values(array_unique(array_column($references, 'disk'))),
+        );
 
-        foreach ($paths as $asset) {
-            if (is_array($asset) && is_string($asset['disk'] ?? null)) {
-                $exportDisks[] = $asset['disk'];
-            }
-        }
+        uasort($references, fn (array $left, array $right): int => [$left['path'], $left['disk']] <=> [$right['path'], $right['disk']]);
+        $content = [];
 
-        $this->stagingGuard->assertExportSourcesArePrivate($exportDisks);
+        foreach ($references as $reference) {
+            $storage = Storage::disk($reference['disk']);
 
-        $manifest = $paths->unique('path')->sortBy('path')->map(function (array $asset): array {
-            if (! is_string($asset['disk'] ?? null) || ! is_string($asset['path'] ?? null) || ! is_string($asset['role'] ?? null)) {
-                throw new RuntimeException('Staged asset manifest contains an invalid entry.');
-            }
-
-            $storage = Storage::disk($asset['disk']);
-
-            if (! $storage->exists($asset['path'])) {
-                throw new RuntimeException("Staged asset is missing: {$asset['path']}.");
+            if (! $storage->exists($reference['path'])) {
+                throw new RuntimeException("Staged asset is missing: {$reference['path']}.");
             }
 
-            $contents = $storage->get($asset['path']);
+            $size = $storage->size($reference['path']);
+            $sha256 = $this->hash($storage, $reference['path']);
+            $contentKey = "{$size}:{$sha256}";
+            $roles = array_keys($reference['roles']);
 
-            if (! is_string($contents)) {
-                throw new RuntimeException("Staged asset could not be read: {$asset['path']}.");
+            if (isset($content[$contentKey])) {
+                $content[$contentKey]['roles'] = array_values(array_unique([
+                    ...$content[$contentKey]['roles'],
+                    ...$roles,
+                ]));
+                sort($content[$contentKey]['roles']);
+                $content[$contentKey]['kind'] = $this->mergeAssetKinds(
+                    $content[$contentKey]['kind'],
+                    $reference['kind'],
+                );
+
+                continue;
             }
 
-            return [
-                'role' => $asset['role'],
-                'path' => $asset['path'],
-                'size' => strlen($contents),
-                'sha256' => hash('sha256', $contents),
+            sort($roles);
+            $content[$contentKey] = [
+                'path' => $reference['path'],
+                'size' => $size,
+                'sha256' => $sha256,
+                'kind' => $reference['kind'],
+                'roles' => $roles,
             ];
-        })->values()->all();
+        }
 
-        return array_values($manifest);
+        return array_values($content);
+    }
+
+    private function assetKind(string $field): string
+    {
+        return match (true) {
+            str_contains($field, 'audio') => 'audio',
+            str_contains($field, 'video') => 'video',
+            str_contains($field, 'transcript') => 'transcript',
+            str_contains($field, 'thumbnail') => 'thumbnail',
+            default => 'artifact',
+        };
+    }
+
+    private function mergeAssetKinds(string $left, string $right): string
+    {
+        return $left === $right ? $left : 'mixed';
+    }
+
+    private function guardAssetPath(string $path): void
+    {
+        if (
+            $path === ''
+            || str_starts_with($path, '/')
+            || str_contains($path, '../')
+            || str_contains($path, '\\')
+        ) {
+            throw new RuntimeException("Unsafe historic asset path: {$path}.");
+        }
+    }
+
+    private function hash(FilesystemAdapter $disk, string $path): string
+    {
+        $stream = $disk->readStream($path);
+
+        if (! is_resource($stream)) {
+            throw new RuntimeException("Staged asset could not be opened: {$path}.");
+        }
+
+        $context = hash_init('sha256');
+
+        try {
+            hash_update_stream($context, $stream);
+
+            return hash_final($context);
+        } finally {
+            fclose($stream);
+        }
     }
 }

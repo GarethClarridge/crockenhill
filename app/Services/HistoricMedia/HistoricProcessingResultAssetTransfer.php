@@ -11,7 +11,7 @@ use RuntimeException;
 class HistoricProcessingResultAssetTransfer
 {
     /**
-     * @param  list<array{role: string, path: string, size: int, sha256: string}>  $assets
+     * @param  list<array{path: string, size: int, sha256: string, kind: string, roles: list<string>}>  $assets
      */
     public function verifyStaged(array $assets): void
     {
@@ -24,20 +24,22 @@ class HistoricProcessingResultAssetTransfer
     }
 
     /**
-     * @param  list<array{role: string, path: string, size: int, sha256: string}>  $assets
+     * @param  list<array<string, mixed>>  $assets
      * @return list<string>
      */
     public function copyCreateOnly(array $assets): array
     {
-        $destinations = collect($assets)->mapWithKeys(
-            fn (array $asset): array => [$asset['role'] => $asset['path']],
-        )->all();
+        $destinations = [];
+
+        foreach ($this->expand($assets) as $asset) {
+            $destinations[$asset['role']] = $asset['path'];
+        }
 
         return $this->copyToDestinations($assets, $destinations);
     }
 
     /**
-     * @param  list<array{role: string, path: string, size: int, sha256: string}>  $assets
+     * @param  list<array<string, mixed>>  $assets
      * @param  array<string, string>  $destinations
      * @return list<string>
      */
@@ -47,32 +49,49 @@ class HistoricProcessingResultAssetTransfer
         $target = Storage::disk((string) config('media-processing.storage.sermon_disk'));
         $created = [];
 
-        foreach ($assets as $asset) {
-            $this->verify($source, $asset);
-            $targetPath = $destinations[$asset['role']] ?? null;
+        try {
+            foreach ($assets as $asset) {
+                $this->verify($source, $asset);
 
-            if (! is_string($targetPath)) {
-                $this->cleanup($created);
-                throw new RuntimeException("No production path was allocated for asset role {$asset['role']}.");
+                foreach ($this->roles($asset) as $role) {
+                    $targetPath = $destinations[$role] ?? null;
+
+                    if (! is_string($targetPath)) {
+                        throw new RuntimeException("No production path was allocated for asset role {$role}.");
+                    }
+
+                    if ($target->exists($targetPath)) {
+                        $this->verifyAtPath($target, $targetPath, $asset);
+
+                        continue;
+                    }
+
+                    $stream = $source->readStream($asset['path']);
+
+                    if (! is_resource($stream)) {
+                        throw new RuntimeException("Unable to open verified asset {$asset['path']} for copying.");
+                    }
+
+                    try {
+                        $created[] = $targetPath;
+
+                        if (! $target->writeStream($targetPath, $stream)) {
+                            throw new RuntimeException("Unable to copy verified asset {$asset['path']} to {$targetPath}.");
+                        }
+                    } finally {
+                        fclose($stream);
+                    }
+
+                    $this->verifyAtPath($target, $targetPath, $asset);
+                }
             }
+        } catch (\Throwable $exception) {
+            $this->cleanup($created);
 
-            if ($target->exists($targetPath)) {
-                $this->verifyAtPath($target, $targetPath, $asset);
-
-                continue;
-            }
-
-            $contents = $source->get($asset['path']);
-
-            if (! is_string($contents) || ! $target->put($targetPath, $contents)) {
-                $this->cleanup($created);
-                throw new RuntimeException("Unable to copy verified asset {$asset['path']} to {$targetPath}.");
-            }
-
-            $created[] = $targetPath;
+            throw $exception;
         }
 
-        return $created;
+        return array_values(array_unique($created));
     }
 
     /** @param list<string> $paths */
@@ -86,28 +105,80 @@ class HistoricProcessingResultAssetTransfer
     }
 
     /**
-     * @param  array{role: string, path: string, size: int, sha256: string}  $asset
+     * Convert the grouped Bundle A manifest into logical role records for
+     * destination allocation and legacy callers. No media bytes are loaded.
+     *
+     * @param  list<array<string, mixed>>  $assets
+     * @return list<array{role: string, path: string, size: int, sha256: string, kind: string}>
+     */
+    public function expand(array $assets): array
+    {
+        $expanded = [];
+
+        foreach ($assets as $asset) {
+            foreach ($this->roles($asset) as $role) {
+                $expanded[] = [
+                    'role' => $role,
+                    'path' => $asset['path'],
+                    'size' => $asset['size'],
+                    'sha256' => $asset['sha256'],
+                    'kind' => $asset['kind'] ?? 'unknown',
+                ];
+            }
+        }
+
+        return $expanded;
+    }
+
+    /**
+     * @param  array<string, mixed>  $asset
+     * @return list<string>
+     */
+    public function roles(array $asset): array
+    {
+        if (is_array($asset['roles'] ?? null)) {
+            return array_values(array_filter($asset['roles'], 'is_string'));
+        }
+
+        return is_string($asset['role'] ?? null) ? [$asset['role']] : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $asset
      */
     private function verify(FilesystemAdapter $disk, array $asset): void
     {
         $this->verifyAtPath($disk, $asset['path'], $asset);
     }
 
-    /** @param array{role: string, path: string, size: int, sha256: string} $asset */
+    /** @param array<string, mixed> $asset */
     private function verifyAtPath(FilesystemAdapter $disk, string $path, array $asset): void
     {
         if (! $disk->exists($path)) {
             throw new RuntimeException("Verified bundle asset is missing: {$asset['path']}.");
         }
 
-        $contents = $disk->get($path);
-
-        if (
-            ! is_string($contents)
-            || strlen($contents) !== $asset['size']
-            || ! hash_equals($asset['sha256'], hash('sha256', $contents))
-        ) {
+        if ($disk->size($path) !== $asset['size'] || ! hash_equals($asset['sha256'], $this->hash($disk, $path))) {
             throw new RuntimeException("Verified bundle asset differs from its manifest: {$asset['path']}.");
+        }
+    }
+
+    private function hash(FilesystemAdapter $disk, string $path): string
+    {
+        $stream = $disk->readStream($path);
+
+        if (! is_resource($stream)) {
+            throw new RuntimeException("Verified bundle asset could not be opened for hashing: {$path}.");
+        }
+
+        $context = hash_init('sha256');
+
+        try {
+            hash_update_stream($context, $stream);
+
+            return hash_final($context);
+        } finally {
+            fclose($stream);
         }
     }
 

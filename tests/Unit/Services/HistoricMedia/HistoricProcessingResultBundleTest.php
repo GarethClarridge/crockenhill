@@ -70,6 +70,58 @@ class HistoricProcessingResultBundleTest extends TestCase
         );
     }
 
+    #[Test]
+    public function it_rejects_an_unclassified_relative_path_field(): void
+    {
+        $service = $this->service();
+        $service['media_graph']['sections'][0]['unexpected_path'] = 'historic/structure.json';
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('unclassified path field');
+
+        (new HistoricProcessingResultBundle)->make(
+            str_repeat('a', 64),
+            ['pipeline_version' => 1],
+            [$service],
+        );
+    }
+
+    #[Test]
+    public function it_represents_shared_physical_content_once_with_all_logical_roles(): void
+    {
+        $contentHash = hash('sha256', 'shared media');
+        $bundle = (new HistoricProcessingResultBundle)->make(
+            str_repeat('a', 64),
+            ['pipeline_version' => 1],
+            [[
+                ...$this->service(),
+                'assets' => [
+                    [
+                        'role' => 'run_audio_file_path',
+                        'path' => 'historic/batch/full.mp3',
+                        'size' => 12,
+                        'sha256' => $contentHash,
+                    ],
+                    [
+                        'role' => 'publication:main:audio_file_path',
+                        'path' => 'historic/batch/sermon.mp3',
+                        'size' => 12,
+                        'sha256' => $contentHash,
+                    ],
+                ],
+            ]],
+        );
+
+        $assets = $bundle['services'][0]['assets'];
+
+        $this->assertCount(1, $assets);
+        $this->assertSame([
+            'publication:main:audio_file_path',
+            'run_audio_file_path',
+        ], $assets[0]['roles']);
+        $this->assertSame('unknown', $assets[0]['kind']);
+    }
+
     /** @return array<string, mixed> */
     private function service(string $processingKey = 'historic-run'): array
     {

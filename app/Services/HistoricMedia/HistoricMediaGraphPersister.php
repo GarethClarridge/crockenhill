@@ -66,6 +66,7 @@ class HistoricMediaGraphPersister
                 'service' => $publication['service'],
                 'content_type' => $publication['content_type'],
                 'slug' => $publication['slug'],
+                'filetype' => $publication['filetype'] ?? 'mp3',
                 'reference' => $publication['reference'],
                 'series' => $publication['series'] ?? null,
                 'summary' => $publication['summary'] ?? null,
@@ -76,6 +77,16 @@ class HistoricMediaGraphPersister
                 'duration' => $publication['duration'] ?? null,
                 'segment_start_time' => $publication['segment_start_time'] ?? null,
                 'segment_end_time' => $publication['segment_end_time'] ?? null,
+                'preacher_source' => $publication['preacher_source'] ?? null,
+                'preacher_confidence' => $publication['preacher_confidence'] ?? null,
+                'needs_preacher_review' => $publication['needs_preacher_review'] ?? false,
+                'source_type' => $publication['source_type'] ?? null,
+                'video_quality_status' => $publication['video_quality_status'] ?? null,
+                'video_quality_reason' => $publication['video_quality_reason'] ?? null,
+                'video_visibility_override' => $publication['video_visibility_override'] ?? null,
+                'video_quality_assessed_at' => $publication['video_quality_assessed_at'] ?? null,
+                'thumbnail_generated_at' => $publication['thumbnail_generated_at'] ?? null,
+                'thumbnail_metadata' => $publication['thumbnail_metadata'] ?? null,
                 'preacher' => $preacher?->name,
                 'preacher_id' => $preacher?->id,
                 'livestream_processing_id' => $processingId,
@@ -261,34 +272,47 @@ class HistoricMediaGraphPersister
         array $publications,
     ): array {
         $destinations = [];
+        $allocatedContent = [];
 
-        foreach ($plan->assets as $asset) {
+        foreach ($this->assets->expand($plan->assets) as $asset) {
             $role = $asset['role'];
             $extension = pathinfo($asset['path'], PATHINFO_EXTENSION) ?: 'bin';
 
             if (str_starts_with($role, 'publication:')) {
-                $field = Str::afterLast($role, ':');
-                $publicationKey = Str::beforeLast(Str::after($role, 'publication:'), ':');
-                $key = str_contains($publicationKey, ':main:') ? 'main' : Str::beforeLast($publicationKey, ':');
-                $publication = $publications[$key] ?? null;
+                $publicationRole = HistoricProcessingResultAssetRole::parsePublication($role);
+                $publication = $publicationRole === null
+                    ? null
+                    : $this->publicationForRole($publicationRole['publication_key'], $publications);
 
                 if (! $publication instanceof Sermon) {
                     throw new RuntimeException("Cannot allocate publication asset role {$role}.");
                 }
 
-                $destinations[$role] = "sermons/{$publication->id}/".$this->assetFilename($field, $extension);
+                $variant = $publicationRole['type'] === 'field'
+                    ? null
+                    : HistoricProcessingResultAssetRole::thumbnailVariant($publicationRole['field']);
+                $filename = match ($publicationRole['type']) {
+                    'field' => $this->assetFilename($publicationRole['field'], $extension),
+                    'thumbnail_metadata' => "thumbnail-{$variant}.{$extension}",
+                    'thumbnail_candidate' => "thumbnail-candidate-{$publicationRole['candidate_index']}-{$variant}.{$extension}",
+                };
+
+                $destinations[$role] = "sermons/{$publication->id}/{$filename}";
             } elseif (str_starts_with($role, 'section:')) {
-                $field = str_ends_with($role, ':extracted_audio_path') ? 'audio' : 'video';
-                $sectionKey = Str::beforeLast(Str::after($role, 'section:'), ':extracted_');
-                $section = $sections[$sectionKey] ?? null;
+                $sectionRole = HistoricProcessingResultAssetRole::parseSection($role);
+                $section = $sectionRole === null ? null : $sections[$sectionRole['section_key']] ?? null;
 
                 if (! $section instanceof ServiceSection) {
                     throw new RuntimeException("Cannot allocate section asset role {$role}.");
                 }
 
+                $field = $sectionRole['field'] === 'extracted_audio_path' ? 'audio' : 'video';
                 $destinations[$role] = "sermons/sections/{$section->id}/{$field}.{$extension}";
             } elseif (str_starts_with($role, 'song_video:')) {
-                $section = $sections[Str::after($role, 'song_video:')] ?? null;
+                $songVideoRole = HistoricProcessingResultAssetRole::parseSongVideo($role);
+                $section = $songVideoRole === null
+                    ? null
+                    : $sections[$songVideoRole['section_key']] ?? null;
                 $video = $section?->id !== null
                     ? SongVideo::query()->where('service_section_id', $section->id)->first()
                     : null;
@@ -301,6 +325,23 @@ class HistoricMediaGraphPersister
             } else {
                 $destinations[$role] = "service-transcripts/{$run->processing_id}/".basename($asset['path']);
             }
+
+            /**
+             * Two roles may legitimately share a destination when they name the same
+             * physical content. Two different content objects landing on one key would
+             * silently overwrite each other, so refuse it where it happens rather than
+             * letting the copy fail later as an unexplained manifest mismatch.
+             */
+            $destination = $destinations[$role];
+            $existing = $allocatedContent[$destination] ?? null;
+
+            if ($existing !== null && $existing !== $asset['sha256']) {
+                throw new RuntimeException(
+                    "Asset role {$role} allocates destination {$destination}, which is already allocated to different content."
+                );
+            }
+
+            $allocatedContent[$destination] = $asset['sha256'];
         }
 
         return $destinations;
@@ -318,7 +359,16 @@ class HistoricMediaGraphPersister
         array $publications,
         array $destinations,
     ): void {
-        foreach ($plan->assets as $asset) {
+        /**
+         * Accumulate every remap in memory and write each record once. A sermon can
+         * own a dozen thumbnail roles, and saving per role turned one publication
+         * into a dozen round trips inside the import transaction.
+         */
+        $touchedPublications = [];
+        $thumbnailMetadata = [];
+        $touchedSections = [];
+
+        foreach ($this->assets->expand($plan->assets) as $asset) {
             $role = $asset['role'];
             $path = $destinations[$role];
 
@@ -326,55 +376,126 @@ class HistoricMediaGraphPersister
                 $run->setAttribute(Str::after($role, 'run_'), $path);
             }
 
-            foreach ($publications as $sermon) {
-                $publicationRole = $sermon === ($publications['main'] ?? null)
-                    ? 'publication:'.$plan->service['media_graph']['processing_key'].":main:{$sermon->content_type->value}:"
-                    : null;
-                $matchesPublication = $publicationRole !== null
-                    ? str_starts_with($role, $publicationRole)
-                    : collect($publications)
-                        ->filter(fn (Sermon $candidate): bool => $candidate->is($sermon))
-                        ->keys()
-                        ->contains(fn (string $key): bool => str_starts_with($role, "publication:{$key}:"));
+            $publicationRole = HistoricProcessingResultAssetRole::parsePublication($role);
 
-                if ($matchesPublication) {
-                    $field = Str::afterLast($role, ':');
-                    $sermon->setAttribute($field, $path)->save();
+            if ($publicationRole !== null) {
+                $publicationKey = $publicationRole['publication_key'];
+                $publication = $this->publicationForRole($publicationKey, $publications);
+
+                if (! $publication instanceof Sermon) {
+                    throw new RuntimeException("Cannot apply publication asset role {$role}.");
                 }
+
+                $touchedPublications[$publicationKey] = $publication;
+
+                if ($publicationRole['type'] === 'field') {
+                    $publication->setAttribute($publicationRole['field'], $path);
+                } else {
+                    $metadata = $thumbnailMetadata[$publicationKey]
+                        ?? $publication->thumbnail_metadata?->toArray()
+                        ?? [];
+
+                    if ($publicationRole['type'] === 'thumbnail_metadata') {
+                        $metadata[$publicationRole['field']] = $path;
+                    } else {
+                        $candidates = $metadata['thumbnail_candidates'] ?? null;
+
+                        if (! is_array($candidates)) {
+                            throw new RuntimeException("Cannot apply thumbnail candidate asset role {$role}.");
+                        }
+
+                        $candidates = array_values($candidates);
+
+                        if (! isset($candidates[$publicationRole['candidate_index']])) {
+                            throw new RuntimeException("Cannot apply thumbnail candidate asset role {$role}.");
+                        }
+
+                        $candidates[$publicationRole['candidate_index']][$publicationRole['field']] = $path;
+                        $metadata['thumbnail_candidates'] = $candidates;
+                    }
+
+                    $thumbnailMetadata[$publicationKey] = $metadata;
+                }
+
+                continue;
             }
 
-            foreach ($sections as $sectionKey => $section) {
-                if (str_starts_with($role, "section:{$sectionKey}:")) {
-                    $section->setAttribute(Str::afterLast($role, ':'), $path)->save();
-                }
+            $sectionRole = HistoricProcessingResultAssetRole::parseSection($role);
 
-                if ($role === "song_video:{$sectionKey}") {
-                    SongVideo::query()->where('service_section_id', $section->id)->update(['video_file_path' => $path]);
-                }
+            if ($sectionRole !== null && isset($sections[$sectionRole['section_key']])) {
+                $section = $sections[$sectionRole['section_key']];
+                $section->setAttribute($sectionRole['field'], $path);
+                $touchedSections[$sectionRole['section_key']] = $section;
+
+                continue;
+            }
+
+            $songVideoRole = HistoricProcessingResultAssetRole::parseSongVideo($role);
+
+            if ($songVideoRole !== null && isset($sections[$songVideoRole['section_key']])) {
+                SongVideo::query()
+                    ->where('service_section_id', $sections[$songVideoRole['section_key']]->id)
+                    ->update(['video_file_path' => $path]);
             }
         }
 
+        foreach ($touchedPublications as $publicationKey => $publication) {
+            if (isset($thumbnailMetadata[$publicationKey])) {
+                $publication->setAttribute('thumbnail_metadata', $thumbnailMetadata[$publicationKey]);
+            }
+
+            $publication->save();
+        }
+
+        foreach ($touchedSections as $section) {
+            $section->save();
+        }
+
+        $this->applyServiceArtifactPaths($run, $destinations);
+        $run->save();
+    }
+
+    /**
+     * Rewrite recorded service-artifact paths to the destinations allocated for
+     * their roles. A missing destination means the role this run derives and the
+     * role the exporter emitted have diverged, which would otherwise leave a
+     * staging path recorded against production media.
+     *
+     * @param  array<string, string>  $destinations
+     */
+    private function applyServiceArtifactPaths(MediaProcessingLog $run, array $destinations): void
+    {
         $metadata = $run->processing_metadata?->toArray() ?? [];
         $serviceArtifacts = $metadata['service_artifacts'] ?? [];
 
-        if (is_array($serviceArtifacts)) {
-            foreach ($serviceArtifacts as $index => $artifact) {
-                if (! is_array($artifact)) {
-                    continue;
-                }
-
-                $role = 'service_artifact:'.($artifact['kind'] ?? 'unknown').':'.($artifact['sha256'] ?? hash('sha256', (string) ($artifact['path'] ?? '')));
-
-                if (isset($destinations[$role])) {
-                    $serviceArtifacts[$index]['path'] = $destinations[$role];
-                }
-            }
-
-            $metadata['service_artifacts'] = $serviceArtifacts;
-            $run->setAttribute('processing_metadata', $metadata);
+        if (! is_array($serviceArtifacts)) {
+            return;
         }
 
-        $run->save();
+        foreach ($serviceArtifacts as $index => $artifact) {
+            if (! is_array($artifact) || ! is_string($artifact['path'] ?? null)) {
+                continue;
+            }
+
+            $role = HistoricProcessingResultAssetRole::serviceArtifact($artifact);
+
+            if (! isset($destinations[$role])) {
+                throw new RuntimeException("No production path was allocated for asset role {$role}.");
+            }
+
+            $serviceArtifacts[$index]['path'] = $destinations[$role];
+        }
+
+        $metadata['service_artifacts'] = $serviceArtifacts;
+        $run->setAttribute('processing_metadata', $metadata);
+    }
+
+    /** @param array<string, Sermon> $publications */
+    private function publicationForRole(string $publicationKey, array $publications): ?Sermon
+    {
+        $key = str_contains($publicationKey, ':main:') ? 'main' : Str::beforeLast($publicationKey, ':');
+
+        return $publications[$key] ?? null;
     }
 
     private function assetFilename(string $field, string $extension): string
@@ -384,7 +505,7 @@ class HistoricMediaGraphPersister
             'video_file_path' => "video.{$extension}",
             'transcript_file_path' => "transcript.{$extension}",
             'thumbnail_file_path' => "thumbnail.{$extension}",
-            default => "asset.{$extension}",
+            default => throw new RuntimeException("Unknown publication asset field {$field}."),
         };
     }
 }

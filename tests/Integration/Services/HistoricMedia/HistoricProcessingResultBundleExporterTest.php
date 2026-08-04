@@ -29,6 +29,7 @@ class HistoricProcessingResultBundleExporterTest extends TestCase
         Storage::fake('local');
         config()->set('media-processing.storage.sermon_disk', 'local');
         config()->set('media-processing.storage.transcript_disk', 'local');
+        config()->set('media-processing.storage.historic_staging_disk', 'local');
 
         $service = ChurchService::factory()->create([
             'date' => '2026-08-02',
@@ -56,7 +57,7 @@ class HistoricProcessingResultBundleExporterTest extends TestCase
             'assertion_key' => 'historic-processing:section:1',
         ]);
         $sermon = Sermon::factory()->create([
-            'audio_file_path' => 'historic-staging/sermon/audio.mp3',
+            'audio_file_path' => 'shared/full-service.mp3',
             'video_file_path' => 'historic-staging/sermon/video.mp4',
             'transcript_file_path' => 'historic-staging/sermon/transcript.txt',
             'thumbnail_file_path' => 'historic-staging/sermon/thumbnail.webp',
@@ -65,7 +66,7 @@ class HistoricProcessingResultBundleExporterTest extends TestCase
             'processing_id' => 'historic-processing',
             'church_service_id' => $service->id,
             'sermon_id' => $sermon->id,
-            'audio_file_path' => 'historic-staging/run/full-service.mp3',
+            'audio_file_path' => 'shared/full-service.mp3',
             'processing_metadata' => [
                 'historic_import' => [
                     'tag' => 'livestream',
@@ -110,6 +111,14 @@ class HistoricProcessingResultBundleExporterTest extends TestCase
             $this->assertSame(0600, fileperms($path) & 0777);
 
             $json = File::get($path);
+            $bundle = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
+            $sharedAsset = collect($bundle['services'][0]['assets'])
+                ->sole(fn (array $asset): bool => $asset['path'] === 'shared/full-service.mp3');
+
+            $this->assertSame([
+                'publication:historic-processing:main:sermon:audio_file_path',
+                'run_audio_file_path',
+            ], $sharedAsset['roles']);
             $this->assertStringNotContainsString('/Volumes/', $json);
             $this->assertStringNotContainsString('owner_user_id', $json);
         } finally {

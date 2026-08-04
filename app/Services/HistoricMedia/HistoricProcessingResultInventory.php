@@ -11,6 +11,7 @@ use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Models\SongVideo;
 use App\Support\CanonicalJson;
 use Illuminate\Database\Eloquent\Collection;
@@ -97,7 +98,7 @@ class HistoricProcessingResultInventory
                 'is_sermon_candidate' => $segment->is_sermon_candidate,
                 'is_sermon_segment' => $segment->is_sermon_segment,
                 'segment_order' => $segment->segment_order,
-                'metadata' => $segment->metadata,
+                'metadata' => $this->portableMetadata($segment->metadata),
             ])->all(),
             'sections' => $sections->map(
                 fn (ServiceSection $section): array => $this->section(
@@ -112,7 +113,7 @@ class HistoricProcessingResultInventory
             'metadata' => $this->metadataSerializer->serialize($processingLog->processing_metadata?->toArray() ?? []),
         ];
 
-        $inventory['logical_hash'] = CanonicalJson::hash($inventory);
+        $inventory['logical_hash'] = CanonicalJson::hash($this->portableHashProjection($inventory));
 
         return $inventory;
     }
@@ -174,7 +175,7 @@ class HistoricProcessingResultInventory
             'section_type' => $section->section_type->value,
             'title' => $section->title,
             'summary' => $section->summary,
-            'metadata' => $this->sectionMetadata($section),
+            'metadata' => $this->sectionMetadata($section, $serviceItems),
             'start_time' => $section->start_time,
             'end_time' => $section->end_time,
             'duration' => $section->duration,
@@ -269,7 +270,7 @@ class HistoricProcessingResultInventory
             'video_visibility_override' => $sermon->videoVisibilityOverride()->value,
             'video_quality_assessed_at' => $sermon->video_quality_assessed_at?->toISOString(),
             'thumbnail_generated_at' => $sermon->thumbnail_generated_at?->toISOString(),
-            'thumbnail_metadata' => $sermon->thumbnail_metadata?->toArray(),
+            'thumbnail_metadata' => $this->thumbnailMetadata($sermon->thumbnail_metadata?->toArray()),
             'preacher_display_name' => $sermon->preacher,
             'preacher' => $preacher === null ? null : [
                 'name' => $preacher->name,
@@ -344,14 +345,240 @@ class HistoricProcessingResultInventory
         return $service->date->toDateString().'|'.$service->service->value;
     }
 
-    /** @return array<string, mixed>|null */
-    private function sectionMetadata(ServiceSection $section): ?array
+    /**
+     * @param  Collection<int|string, ChurchServiceItem>  $serviceItems
+     * @return array<string, mixed>|null
+     */
+    private function sectionMetadata(ServiceSection $section, Collection $serviceItems): ?array
     {
         if ($section->getRawOriginal('metadata') === null) {
             return null;
         }
 
-        return $section->metadata?->toArray();
+        $metadata = $section->metadata?->toArray();
+
+        if ($metadata === null) {
+            return null;
+        }
+
+        return $this->portableMetadata($metadata, $serviceItems);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $metadata
+     * @return array<string, mixed>|null
+     */
+    private function thumbnailMetadata(?array $metadata): ?array
+    {
+        if ($metadata === null) {
+            return null;
+        }
+
+        return $this->portableMetadata($metadata, allowAssetPaths: true);
+    }
+
+    /**
+     * Metadata is part of the durable graph, but its JSON values can contain
+     * local foreign keys from review-time data. Keep the known portable form
+     * and fail closed for any other ID/path-shaped field.
+     *
+     * @param  Collection<int|string, ChurchServiceItem>|null  $serviceItems
+     * @return array<string, mixed>|null
+     */
+    private function portableMetadata(
+        mixed $metadata,
+        ?Collection $serviceItems = null,
+        bool $allowAssetPaths = false,
+    ): ?array {
+        if ($metadata === null) {
+            return null;
+        }
+
+        if (! is_array($metadata)) {
+            throw new RuntimeException('Historic durable metadata must be an object or null.');
+        }
+
+        return $this->portableMetadataValue($metadata, $serviceItems, $allowAssetPaths);
+    }
+
+    /**
+     * @param  Collection<int|string, ChurchServiceItem>|null  $serviceItems
+     * @param  array<string, mixed>  $metadata
+     * @return array<string, mixed>
+     */
+    private function portableMetadataValue(
+        array $metadata,
+        ?Collection $serviceItems,
+        bool $allowAssetPaths,
+    ): array {
+        $portable = [];
+
+        foreach ($metadata as $key => $value) {
+            if (str_ends_with($key, '_user_id')) {
+                continue;
+            }
+
+            if ($key === 'preacher_id') {
+                $preacherName = $metadata['preacher_name'] ?? null;
+
+                if ($value !== null && (! is_numeric($value) || ! is_string($preacherName) || trim($preacherName) === '')) {
+                    throw new RuntimeException('Historic durable metadata contains an unresolved preacher identity.');
+                }
+
+                if (is_string($preacherName) && trim($preacherName) !== '') {
+                    $portable['preacher_slug'] = str($preacherName)->slug()->toString();
+                }
+
+                continue;
+            }
+
+            if ($key === 'song_id') {
+                $songKey = $this->songCanonicalKey(is_numeric($value) ? (int) $value : null, $serviceItems);
+
+                if ($value !== null && $songKey === null) {
+                    throw new RuntimeException('Historic durable metadata contains an unresolved song identity.');
+                }
+
+                if ($songKey !== null) {
+                    $portable['song_canonical_key'] = $songKey;
+                }
+
+                continue;
+            }
+
+            if ($key === 'base_church_service_item_id') {
+                $itemId = is_numeric($value) ? (int) $value : null;
+                $identity = $itemId === null
+                    ? null
+                    : $serviceItems?->get($itemId)?->canonical_identity;
+                $identity ??= $itemId === null
+                    ? null
+                    : ChurchServiceItem::query()->whereKey($itemId)->value('canonical_identity');
+
+                if ($value !== null && (! is_string($identity) || $identity === '')) {
+                    throw new RuntimeException('Historic durable metadata contains an unresolved service item identity.');
+                }
+
+                if ($identity !== null) {
+                    $portable['base_church_service_item_identity'] = $identity;
+                }
+
+                continue;
+            }
+
+            if (
+                HistoricProcessingResultFieldClassifier::isPathKey($key)
+                && (! $allowAssetPaths || ! in_array($key, [
+                    'plain_thumbnail_path',
+                    'card_thumbnail_path',
+                    'overlay_thumbnail_path',
+                    'plain_path',
+                    'card_path',
+                    'overlay_path',
+                ], true))
+            ) {
+                throw new RuntimeException("Historic durable metadata contains an unclassified path field: {$key}.");
+            }
+
+            if (HistoricProcessingResultFieldClassifier::isIdentityKey($key) && ! $this->isKnownPortableIdentityKey($key, $allowAssetPaths)) {
+                throw new RuntimeException("Historic durable metadata contains an unclassified identity field: {$key}.");
+            }
+
+            if (is_array($value)) {
+                $portable[$key] = array_is_list($value)
+                    ? array_map(
+                        fn (mixed $item): mixed => is_array($item)
+                            ? $this->portableMetadataValue($item, $serviceItems, $allowAssetPaths)
+                            : $item,
+                        $value,
+                    )
+                    : $this->portableMetadataValue($value, $serviceItems, $allowAssetPaths);
+
+                continue;
+            }
+
+            $portable[$key] = $value;
+        }
+
+        return $portable;
+    }
+
+    /** @param Collection<int|string, ChurchServiceItem>|null $serviceItems */
+    private function songCanonicalKey(?int $songId, ?Collection $serviceItems): ?string
+    {
+        if ($songId === null) {
+            return null;
+        }
+
+        if ($serviceItems !== null) {
+            foreach ($serviceItems as $item) {
+                if ($item->song_id === $songId && is_string($item->song?->canonical_key)) {
+                    return $item->song->canonical_key;
+                }
+            }
+        }
+
+        $canonicalKey = Song::query()->whereKey($songId)->value('canonical_key');
+
+        return is_string($canonicalKey) ? $canonicalKey : null;
+    }
+
+    private function isKnownPortableIdentityKey(string $key, bool $allowAssetPaths): bool
+    {
+        return $allowAssetPaths && in_array($key, [
+            'selected_thumbnail_candidate_id',
+            'id',
+        ], true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $inventory
+     * @return array<string, mixed>
+     */
+    private function portableHashProjection(array $inventory): array
+    {
+        $projection = $this->portableHashValue($inventory);
+        unset($projection['logical_hash']);
+
+        return $projection;
+    }
+
+    private function portableHashValue(mixed $value, string $path = ''): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        $portable = [];
+
+        foreach ($value as $nestedKey => $nestedValue) {
+            if ($nestedKey === 'historic_promotion') {
+                continue;
+            }
+
+            if (is_string($nestedKey) && HistoricProcessingResultFieldClassifier::isPathKey($nestedKey)) {
+                $portable[$nestedKey] = null;
+
+                continue;
+            }
+
+            if (
+                is_string($nestedKey)
+                && HistoricProcessingResultFieldClassifier::isIdentityKey($nestedKey)
+                && $nestedKey !== 'processing_id'
+                && ! (
+                    $nestedKey === 'selected_thumbnail_candidate_id'
+                    || ($nestedKey === 'id' && str_contains($path, 'thumbnail_candidates'))
+                )
+            ) {
+                continue;
+            }
+
+            $nestedPath = $path === '' ? (string) $nestedKey : "{$path}.{$nestedKey}";
+            $portable[$nestedKey] = $this->portableHashValue($nestedValue, $nestedPath);
+        }
+
+        return array_is_list($value) ? array_values($portable) : $portable;
     }
 
     private function segmentKey(MediaProcessingLog $log, LivestreamSegment $segment): string

@@ -6,6 +6,8 @@ namespace Tests\Unit\Services\HistoricMedia;
 
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\Song;
+use App\Models\SongVideo;
 use App\Services\HistoricMedia\HistoricProcessingResultAssetTransfer;
 use App\Services\HistoricMedia\HistoricProcessingResultBundle;
 use App\Services\HistoricMedia\HistoricProcessingResultBundleImporter;
@@ -115,6 +117,29 @@ class HistoricProcessingResultBundleImporterTest extends TestCase
     }
 
     #[Test]
+    public function it_persists_and_remaps_the_explicit_song_video_asset_role(): void
+    {
+        Storage::disk('historic_staging')->put('historic/run/audio.mp3', 'audio');
+        Storage::disk('historic_staging')->put('historic/run/song.mp4', 'song video');
+        $song = Song::factory()->create(['canonical_key' => 'portable-song-video']);
+        $bundle = $this->graphBundle('portable-song-video');
+        $plan = app(HistoricProcessingResultBundleImporter::class)->prepareService($bundle);
+
+        $result = app(HistoricProcessingResultBundleImporter::class)->importService($bundle, $plan->planHash);
+        $songVideo = SongVideo::query()->sole();
+
+        $this->assertSame($song->id, $songVideo->song_id);
+        $this->assertSame(
+            "sermons/songs/{$song->id}/{$songVideo->service_section_id}.mp4",
+            $songVideo->video_file_path,
+        );
+        $this->assertSame('service-transcripts/imported-run/song.mp4', $result['processing_log']->video_file_path);
+        Storage::disk('local')->assertExists($songVideo->video_file_path);
+        Storage::disk('local')->assertExists($result['processing_log']->video_file_path);
+        $this->assertCount(3, $result['created_assets']);
+    }
+
+    #[Test]
     public function a_failure_after_asset_copy_rolls_back_rows_and_cleans_attempt_assets(): void
     {
         Storage::disk('historic_staging')->put('historic/run/audio.mp3', 'audio');
@@ -170,7 +195,7 @@ class HistoricProcessingResultBundleImporterTest extends TestCase
     }
 
     /** @return array<string, mixed> */
-    private function graphBundle(): array
+    private function graphBundle(?string $songCanonicalKey = null): array
     {
         $graph = [
             'processing_key' => 'imported-run',
@@ -186,7 +211,7 @@ class HistoricProcessingResultBundleImporterTest extends TestCase
                 'extracted_date' => '2026-08-02',
                 'extracted_service' => 'morning',
                 'audio_file_path' => 'historic/run/audio.mp3',
-                'video_file_path' => null,
+                'video_file_path' => $songCanonicalKey === null ? null : 'historic/run/song.mp4',
                 'transcript_file_path' => null,
                 'rms_log_path' => null,
                 'sermon_start_time' => 10.0,
@@ -239,7 +264,15 @@ class HistoricProcessingResultBundleImporterTest extends TestCase
                 'published_at' => null,
             ]],
             'publications' => [],
-            'song_videos' => [],
+            'song_videos' => $songCanonicalKey === null ? [] : [[
+                'section_key' => 'imported-run:section:1:signature',
+                'song_canonical_key' => $songCanonicalKey,
+                'church_service_identity' => null,
+                'video_file_path' => 'historic/run/song.mp4',
+                'duration' => 120.0,
+                'recorded_date' => '2026-08-02',
+                'is_featured' => false,
+            ]],
             'metadata' => [],
             'logical_hash' => str_repeat('b', 64),
         ];
@@ -251,12 +284,24 @@ class HistoricProcessingResultBundleImporterTest extends TestCase
             'pre_review_hash' => str_repeat('3', 64),
             'media_graph' => $graph,
             'livestream_source_revision' => [],
-            'assets' => [[
-                'role' => 'run_audio_file_path',
-                'path' => 'historic/run/audio.mp3',
-                'size' => 5,
-                'sha256' => hash('sha256', 'audio'),
-            ]],
+            'assets' => [
+                [
+                    'role' => 'run_audio_file_path',
+                    'path' => 'historic/run/audio.mp3',
+                    'size' => 5,
+                    'sha256' => hash('sha256', 'audio'),
+                ],
+                ...($songCanonicalKey === null ? [] : [[
+                    'path' => 'historic/run/song.mp4',
+                    'size' => 10,
+                    'sha256' => hash('sha256', 'song video'),
+                    'kind' => 'video',
+                    'roles' => [
+                        'run_video_file_path',
+                        'song_video:imported-run:section:1:signature:video_file_path',
+                    ],
+                ]]),
+            ],
         ];
 
         return (new HistoricProcessingResultBundle)->make(
