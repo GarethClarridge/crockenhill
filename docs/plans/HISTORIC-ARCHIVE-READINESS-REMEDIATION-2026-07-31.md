@@ -1,8 +1,8 @@
 # Historic Archive Import Readiness Remediation Plan
 
-> **Status (2026-08-04): WP0–WP4 are implemented and committed (PRs 2 and 4–13; PR3 is partial —
-> its B1/B2 persister crash fixes are still outstanding); PR1/WP8 was skipped despite being scheduled
-> first; WP5–WP10 remain to do.** Finish PR3's B1/B2 fixes first, then the next dependency-unblocked
+> **Status (2026-08-04): WP0–WP4 are implemented and committed (PRs 4–13; PR2 and PR3 are partial —
+> the B1/B2 blocker reproducers and persister crash fixes never landed); PR1/WP8 was skipped despite
+> being scheduled first; WP5–WP10 remain to do.** Finish the B1/B2 work first, then the next dependency-unblocked
 > import PR is **PR14 (WP5)**; **PR1 (WP8 public archive)** is independently pickable at any time — see
 > the Status column and "Next task to pick up" in §17. Bulk local ingestion, historic-video dispatch
 > and every production mutation remain blocked behind those later gates. Read-only corpus inventory,
@@ -1342,9 +1342,11 @@ residual review after the automate-first loop converges. Plan against those, not
 
 **Status added 2026-08-04.** WP0–WP4 have been implemented and committed, so the table now carries a
 Status column and a "Next task to pick up" summary below it. The work landed in **work-package order
-(WP0 → WP4)**, not in the PR order this section proposes: PRs 2 and 4–13 are done, and **PR3 is only
-partial — B17 streaming landed, but the B1/B2 persister-ordering crash fixes and their named
-regression tests are still outstanding** (see the row below). **PR1 (WP8) was skipped** even though it
+(WP0 → WP4)**, not in the PR order this section proposes: PRs 4–13 are done, and **both PR2 and PR3
+are partial around the same gap** — the B1/B2 blocker work never landed. PR3's B1/B2 persister-ordering
+crash fixes are absent, and because their named regression tests do not exist, **WP0's own §6
+acceptance ("all known blockers have red reproducers") is not yet met either**, so PR2 is complete
+only for its canary and contract matrix (see both rows below). **PR1 (WP8) was skipped** even though it
 was scheduled to ship first. Nothing about PR1 changed — it still depends on the import for nothing
 and is still the only visitor-visible deliverable in the programme — so it remains ready to pick up
 once §19's current-era exposure and indexing policy is accepted. (The §14.4 historic-era editorial,
@@ -1359,7 +1361,7 @@ copyright and consent questions are deferred to before the first *historic* era 
 | PR | Scope | Size | Depends on | Status |
 |---|---|---|---|---|
 | 1 | **WP8 public service archive/detail over current-era data** | M | None | **Ready** (skipped though scheduled first) |
-| 2 | WP0 canary, consolidated contract matrix and named red tests | M | None | Done |
+| 2 | WP0 canary, consolidated contract matrix and named red tests | M | None | **Partial — canary + matrix done; B1/B2 red reproducers missing** |
 | 3 | Immediate B1/B2 direct persister fixes and B17 streaming exporter/transfer | L | PR 2 | **Partial — B17 done; B1/B2 outstanding** |
 | 4 | Additive lineage/portable-identity schema if required | M, or XS/no-op if unnecessary | PR 2 | Done |
 | 5 | Pure Email/OpenLP adapters and manifest schema | L | PR 4 | Done |
@@ -1407,19 +1409,26 @@ Two further PRs are unblocked and can be handed to an agent independently.
   PR16 and PR17.
 - **PR1 — WP8 public service archive over current-era data (§14).** Independent of the import and the
   only visitor-visible outcome in the programme, but it was skipped when the team implemented in
-  work-package order. It touches no import gate in either direction. The one precondition is §19's
+  work-package order. It does not gate *building* the import and is not gated by it (§14), so it can
+  proceed in parallel — **but it is not gate-free at the end**: §15's WP9 closeout acceptance requires
+  "the WP8 public service archive ... all work," so PR1 must land before **G9**. The whole point of
+  scheduling it first was that it would already be done by then; because it was skipped, it is now an
+  outstanding prerequisite for G9 rather than a satisfied one. The one ship precondition is §19's
   **current-era** exposure and indexing policy approval; the §14.4 historic-era editorial, copyright
   and consent questions are deferred to before the first historic era is published and do not gate
   this ship. Pick this to deliver a visible win in parallel with PR14.
 
 After PR14 lands, the critical path continues PR15 → then PR16 and PR17 in parallel. PR14 and PR1 do
-not touch each other, so they can proceed concurrently by separate agents.
+not touch each other, so they can proceed concurrently by separate agents — but PR1 must still be
+merged before G9 closeout (§15).
 
 Three entries are new or moved relative to the 2026-07-31 sequence: PR1 moves the public archive to
 the front (§14); PR9 adds the review-load surface that makes §9.4's loop operable; PR16 adds the
 current-era re-projection that §12.4 brought into scope. PR18's dependency is **PRs 2–17, not 1–17**:
-§14 states in both directions that WP8 neither gates nor is gated by the import, so the independent
-public-archive PR1 must not block the import's rehearsal-discovery slice.
+§14 states that WP8 neither gates nor is gated by the *construction* of the import, so the independent
+public-archive PR1 must not block the import's rehearsal-discovery slice. That is distinct from
+closeout: PR1 is still a prerequisite for **G9**, because §15's WP9 acceptance requires the WP8
+archive to work. PR1 blocks the final gate, not the rehearsal.
 
 **PRs 5, 6, 8 and 16 touch the live weekly path** and carry the highest blast radius in the
 programme — they change how services being created *this week* are ingested and projected, and PR16
