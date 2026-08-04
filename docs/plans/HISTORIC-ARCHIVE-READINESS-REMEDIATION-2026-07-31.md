@@ -1,10 +1,11 @@
 # Historic Archive Import Readiness Remediation Plan
 
-> **Status (2026-08-04): WP0–WP4 are implemented and committed (PRs 2–13); PR1/WP8 was skipped
-> despite being scheduled first; WP5–WP10 remain to do.** The next dependency-unblocked import PR is
-> **PR14 (WP5)**, and **PR1 (WP8 public archive)** is independently pickable at any time — see the
-> Status column and "Next task to pick up" in §17. Bulk local ingestion, historic-video dispatch and
-> every production mutation remain blocked behind those later gates. Read-only corpus inventory,
+> **Status (2026-08-04): WP0–WP4 are implemented and committed (PRs 2 and 4–13; PR3 is partial —
+> its B1/B2 persister crash fixes are still outstanding); PR1/WP8 was skipped despite being scheduled
+> first; WP5–WP10 remain to do.** Finish PR3's B1/B2 fixes first, then the next dependency-unblocked
+> import PR is **PR14 (WP5)**; **PR1 (WP8 public archive)** is independently pickable at any time — see
+> the Status column and "Next task to pick up" in §17. Bulk local ingestion, historic-video dispatch
+> and every production mutation remain blocked behind those later gates. Read-only corpus inventory,
 > hashing and manifest curation are safe to continue.
 >
 > **Amended 2026-08-02** after a business-design review. The engineering content of the 2026-07-31
@@ -1341,13 +1342,17 @@ residual review after the automate-first loop converges. Plan against those, not
 
 **Status added 2026-08-04.** WP0–WP4 have been implemented and committed, so the table now carries a
 Status column and a "Next task to pick up" summary below it. The work landed in **work-package order
-(WP0 → WP4)**, not in the PR order this section proposes: PRs 2–13 are all done, but **PR1 (WP8) was
-skipped even though it was scheduled to ship first.** Nothing about PR1 changed — it still depends on
-the import for nothing and is still the only visitor-visible deliverable in the programme — so it
-remains ready to pick up whenever WP8's editorial/consent questions (§14.4, current-era subset only)
-are cleared. Status values:
+(WP0 → WP4)**, not in the PR order this section proposes: PRs 2 and 4–13 are done, and **PR3 is only
+partial — B17 streaming landed, but the B1/B2 persister-ordering crash fixes and their named
+regression tests are still outstanding** (see the row below). **PR1 (WP8) was skipped** even though it
+was scheduled to ship first. Nothing about PR1 changed — it still depends on the import for nothing
+and is still the only visitor-visible deliverable in the programme — so it remains ready to pick up
+once §19's current-era exposure and indexing policy is accepted. (The §14.4 historic-era editorial,
+copyright and consent questions are deferred to before the first *historic* era is published; they do
+**not** gate WP8's current-era ship.) Status values:
 
 - **Done** — merged; its blocker tests are green in the suite.
+- **Partial** — some of the slice's invariants landed; the rest, named explicitly, remain open.
 - **Ready** — every dependency is Done, so an agent can start it now.
 - **Blocked (PR n)** — waiting only on the named predecessor.
 
@@ -1355,7 +1360,7 @@ are cleared. Status values:
 |---|---|---|---|---|
 | 1 | **WP8 public service archive/detail over current-era data** | M | None | **Ready** (skipped though scheduled first) |
 | 2 | WP0 canary, consolidated contract matrix and named red tests | M | None | Done |
-| 3 | Immediate B1/B2 direct persister fixes and B17 streaming exporter/transfer | L | PR 2 | Done |
+| 3 | Immediate B1/B2 direct persister fixes and B17 streaming exporter/transfer | L | PR 2 | **Partial — B17 done; B1/B2 outstanding** |
 | 4 | Additive lineage/portable-identity schema if required | M, or XS/no-op if unnecessary | PR 2 | Done |
 | 5 | Pure Email/OpenLP adapters and manifest schema | L | PR 4 | Done |
 | 6 | Active revision and projector matching/cardinality/order | L | PR 5 | Done |
@@ -1370,30 +1375,51 @@ are cleared. Status values:
 | 15 | Binding preflight, ledger, orchestrator and auditor | L | PR 14 | Blocked (PR 14) |
 | 16 | **§12.4 current-era re-projection, corpus diff and B13 reversal** | L | PR 15 | Blocked (PR 15) |
 | 17 | Worker-safe staging, manifest-authorised dispatch and §13.3 throughput design | M | PR 15 | Blocked (PR 15) |
-| 18 | Rehearsal discoveries with earliest-gate loop-back | Contingency; size each finding | PRs 1–17 | Blocked (PRs 1–17) |
+| 18 | Rehearsal discoveries with earliest-gate loop-back | Contingency; size each finding | PRs 2–17 | Blocked (PRs 2–17) |
 | 19 | Production-operation fixes, only if rehearsal proves them necessary | Contingency; size each finding | PR 18 | Blocked (PR 18) |
 | 20 | Post-closeout cleanup/contract migration | M | G9 only | Blocked (G9) |
 
 ### Next task to pick up
 
-Two PRs are unblocked right now; either can be handed to an agent independently.
+**Do first — finish PR3's outstanding B1/B2 crash fixes.** These are certain first-use MySQL failures
+that were never fixed and have no regression tests, so the persister still cannot run a batch:
+
+- **B1:** [`HistoricMediaGraphPersister::persist()`](../../app/Services/HistoricMedia/HistoricMediaGraphPersister.php#L32)
+  creates publications (line 32, writing `livestream_processing_id`) *before* `createRun()` (line 33),
+  violating the FK `sermons.livestream_processing_id → media_processing_logs.processing_id`
+  ([`mysql-schema.sql:887`](../../database/schema/mysql-schema.sql#L887)). Add
+  `HistoricMediaGraphPersisterTest::it_creates_the_run_before_linked_publications`.
+- **B2:** the same method transitions sections to a published state before `applyAllocatedPaths()`
+  supplies extraction media/timestamps. Add
+  `HistoricMediaGraphPersisterTest::it_transitions_a_section_to_published_only_after_required_media_exists`.
+
+These may be reopened as PR3 or folded into PR14, whose §11.1 persistence order already requires the
+processing log before publication FKs (step 2 before step 7) and extraction paths before publication
+status (step 8). Either way they must land before a batch runs, and are the prerequisite for PR14
+being genuinely complete.
+
+Two further PRs are unblocked and can be handed to an agent independently.
 
 - **PR14 — remaining persistence, shared classification and richness convergence (WP5, §11).** This
   is the next step on the import's critical path: its predecessors PRs 11–13 are all Done. It is `L`
-  because it satisfies real MySQL constraints and converges existing production records without loss.
-  Completing it unblocks PR15, which in turn unblocks PR16 and PR17. Start here to advance the import.
+  because it satisfies real MySQL constraints and converges existing production records without loss,
+  and it must incorporate the B1/B2 fixes above. Completing it unblocks PR15, which in turn unblocks
+  PR16 and PR17.
 - **PR1 — WP8 public service archive over current-era data (§14).** Independent of the import and the
   only visitor-visible outcome in the programme, but it was skipped when the team implemented in
-  work-package order. It touches no import gate in either direction. The one precondition is the
-  §14.4/§19 editorial and exposure policy for the **current era** (not the historic eras), which the
-  maintainer accepts before this ships. Pick this to deliver a visible win in parallel with PR14.
+  work-package order. It touches no import gate in either direction. The one precondition is §19's
+  **current-era** exposure and indexing policy approval; the §14.4 historic-era editorial, copyright
+  and consent questions are deferred to before the first historic era is published and do not gate
+  this ship. Pick this to deliver a visible win in parallel with PR14.
 
 After PR14 lands, the critical path continues PR15 → then PR16 and PR17 in parallel. PR14 and PR1 do
 not touch each other, so they can proceed concurrently by separate agents.
 
 Three entries are new or moved relative to the 2026-07-31 sequence: PR1 moves the public archive to
 the front (§14); PR9 adds the review-load surface that makes §9.4's loop operable; PR16 adds the
-current-era re-projection that §12.4 brought into scope.
+current-era re-projection that §12.4 brought into scope. PR18's dependency is **PRs 2–17, not 1–17**:
+§14 states in both directions that WP8 neither gates nor is gated by the import, so the independent
+public-archive PR1 must not block the import's rehearsal-discovery slice.
 
 **PRs 5, 6, 8 and 16 touch the live weekly path** and carry the highest blast radius in the
 programme — they change how services being created *this week* are ingested and projected, and PR16
