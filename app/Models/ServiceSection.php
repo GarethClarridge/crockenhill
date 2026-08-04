@@ -14,9 +14,11 @@ use App\Enums\ServiceSectionType;
 use App\Support\MediaAssetPath;
 use Database\Factories\ServiceSectionFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 
@@ -50,6 +52,7 @@ use Illuminate\Validation\Rule;
  * @property Carbon|null $updated_at
  * @property-read ChurchServiceItem|null $churchServiceItem
  * @property-read Sermon|null $publishedSermon
+ * @property-read Collection<int, SongVideo> $songVideos
  * @property-read MediaProcessingLog $processingLog
  *
  * @method static \Database\Factories\ServiceSectionFactory factory(...$parameters)
@@ -147,6 +150,14 @@ class ServiceSection extends Model
     public function publishedSermon(): BelongsTo
     {
         return $this->belongsTo(Sermon::class, 'published_sermon_id');
+    }
+
+    /**
+     * @return HasMany<SongVideo, $this>
+     */
+    public function songVideos(): HasMany
+    {
+        return $this->hasMany(SongVideo::class, 'service_section_id');
     }
 
     /**

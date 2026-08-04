@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Sermon;
+use App\Services\Public\PublicChurchServiceArchiveService;
 use App\Services\Public\SermonRepository;
 use App\Services\Public\SitemapService;
 use App\Services\Sermon\SermonExposurePolicy;
@@ -80,7 +81,7 @@ class SitemapGenerationResilienceTest extends TestCase
     #[Test]
     public function a_failed_generation_leaves_the_previous_sitemap_untouched(): void
     {
-        $service = new class(app(SermonExposurePolicy::class), app(SermonRepository::class), app(SermonSitemapPresenter::class)) extends SitemapService
+        $service = new class(app(SermonExposurePolicy::class), app(SermonRepository::class), app(SermonSitemapPresenter::class), app(PublicChurchServiceArchiveService::class)) extends SitemapService
         {
             protected function writeSitemapFile(Sitemap $sitemap, string $temporaryPath): void
             {

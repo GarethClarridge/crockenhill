@@ -16,6 +16,7 @@ use App\Seo\SeriesItemListPresenter;
 use App\Seo\SermonArchiveSeoPresenter;
 use App\Seo\SermonItemListPresenter;
 use App\Services\Public\PreacherListCache;
+use App\Services\Public\PublicChurchServiceArchiveService;
 use App\Services\Public\SermonRepository;
 use App\Services\Sermon\SermonExposurePolicy;
 use App\Services\Sermon\SermonPageContextService;
@@ -34,6 +35,7 @@ class SermonController extends Controller
         private readonly SermonItemListPresenter $itemListPresenter,
         private readonly SermonViewPresenter $sermonViewPresenter,
         private readonly SermonArchiveSeoPresenter $seoPresenter,
+        private readonly PublicChurchServiceArchiveService $churchServiceArchive,
     ) {}
 
     /**
@@ -135,6 +137,7 @@ class SermonController extends Controller
             'metaDescription' => $this->sermonViewPresenter->metaDescription($sermon),
             'readingReference' => $pageContext['reading_reference'],
             'readingUrl' => $pageContext['reading_url'],
+            'serviceHistoryUrl' => $this->churchServiceArchive->publicUrlForSermon($sermon),
             'area' => 'christ',
             'links' => $this->sermonLinks($sermon->slug, ['homepage']),
         ]);

@@ -94,6 +94,26 @@ class SermonExposurePolicy
     }
 
     /**
+     * Determine whether a publication attached to a public service may be shown.
+     */
+    public function shouldExposeOnChurchService(Sermon $sermon): bool
+    {
+        return $this->exposesContentTypeOnChurchService($sermon->content_type);
+    }
+
+    /**
+     * The content-type half of {@see shouldExposeOnChurchService()}, so the public
+     * service archive can push the same rule into SQL without loading sermons.
+     */
+    public function exposesContentTypeOnChurchService(SermonContentType $contentType): bool
+    {
+        return match ($contentType) {
+            SermonContentType::Sermon => true,
+            SermonContentType::ChildrensTalk => $this->childrensTalksArePublic(),
+        };
+    }
+
+    /**
      * Determine if a sermon's video should be visible to the public.
      *
      * Evaluates manual visibility overrides before falling back to automated

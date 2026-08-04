@@ -127,13 +127,20 @@
                         @forelse ($usageHistory as $usageItem)
                             <tr class="hover:bg-gray-50">
                                 <td class="px-4 py-3 text-sm text-gray-700">
-                                    {{ $usageItem->churchService?->date?->format('j M Y') ?? '-' }}
+                                    @if ($usageItem['service_url'] && $usageItem['date'])
+                                        <a href="{{ $usageItem['service_url'] }}" wire:navigate
+                                           class="rounded-sm underline decoration-cbc-teal-light underline-offset-2 hover:text-cbc-teal-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal">
+                                            {{ $usageItem['date']->format('j M Y') }}
+                                        </a>
+                                    @else
+                                        {{ $usageItem['date']?->format('j M Y') ?? '-' }}
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-700">
-                                    {{ $usageItem->churchService?->service?->label() ?? '-' }}
+                                    {{ $usageItem['service_label'] ?? '-' }}
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-700">
-                                    {{ $usageItem->title }}
+                                    {{ $usageItem['title'] }}
                                 </td>
                             </tr>
                         @empty

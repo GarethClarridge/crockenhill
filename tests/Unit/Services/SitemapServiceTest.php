@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Enums\SermonService;
+use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Services\Public\PublicChurchServiceArchiveService;
 use App\Services\Public\SermonRepository;
 use App\Services\Public\SitemapService;
 use App\Services\Sermon\SermonExposurePolicy;
@@ -28,6 +32,8 @@ class SitemapServiceTest extends TestCase
         Sermon::query()->delete();
         Preacher::query()->delete();
         Page::query()->delete();
+        ChurchServiceItem::query()->forceDelete();
+        ChurchService::query()->delete();
 
         $exposurePolicy = $this->createStub(SermonExposurePolicy::class);
         $sermonRepository = $this->createStub(SermonRepository::class);
@@ -37,6 +43,7 @@ class SitemapServiceTest extends TestCase
             $exposurePolicy,
             $sermonRepository,
             $sermonSitemapPresenter,
+            app(PublicChurchServiceArchiveService::class),
         );
     }
 
@@ -117,6 +124,7 @@ class SitemapServiceTest extends TestCase
                 $exposurePolicy,
                 $sermonRepository,
                 $this->createStub(SermonSitemapPresenter::class),
+                app(PublicChurchServiceArchiveService::class),
             ])
             ->onlyMethods(['getFilePath'])
             ->getMock();
@@ -135,5 +143,72 @@ class SitemapServiceTest extends TestCase
                 unlink($filePath);
             }
         }
+    }
+
+    #[Test]
+    public function generate_indexes_only_church_services_with_public_content(): void
+    {
+        config(['church.services.public_from' => null]);
+
+        $listed = ChurchService::factory()->create([
+            'date' => '2026-06-14',
+            'service' => SermonService::Morning,
+        ]);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $listed->id,
+            'position' => 1,
+            'title' => 'Romans 8:28-39',
+            'type' => 'bibles',
+        ]);
+
+        $withheld = ChurchService::factory()->create([
+            'date' => '2026-06-14',
+            'service' => SermonService::Evening,
+        ]);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $withheld->id,
+            'position' => 1,
+            'title' => 'ChurchNotices.odp',
+            'type' => 'presentations',
+        ]);
+
+        $filePath = tempnam(sys_get_temp_dir(), 'sitemap').'.xml';
+
+        $service = $this->getMockBuilder(SitemapService::class)
+            ->setConstructorArgs([
+                $this->createStub(SermonExposurePolicy::class),
+                $this->stubbedSermonRepository(),
+                $this->createStub(SermonSitemapPresenter::class),
+                app(PublicChurchServiceArchiveService::class),
+            ])
+            ->onlyMethods(['getFilePath'])
+            ->getMock();
+
+        $service->method('getFilePath')->willReturn($filePath);
+
+        try {
+            $service->generate();
+
+            $xml = file_get_contents($filePath);
+
+            $this->assertStringContainsString('/church/services/2026-06-14/morning', $xml);
+            $this->assertStringNotContainsString('/church/services/2026-06-14/evening', $xml);
+            $this->assertStringContainsString(route('church.services.index'), $xml);
+        } finally {
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+        }
+    }
+
+    private function stubbedSermonRepository(): SermonRepository
+    {
+        $sermonRepository = $this->createStub(SermonRepository::class);
+        $sermonRepository->method('getSermonsByService')->willReturn(collect());
+        $sermonRepository->method('getExistingSeries')->willReturn([]);
+        $sermonRepository->method('getSeriesForDisplay')->willReturn([]);
+        $sermonRepository->method('getExistingScriptureBooks')->willReturn(collect());
+
+        return $sermonRepository;
     }
 }

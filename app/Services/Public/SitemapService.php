@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Public;
 
 use App\Enums\PageArea;
+use App\Models\ChurchService;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
@@ -22,6 +23,7 @@ class SitemapService
         private readonly SermonExposurePolicy $exposurePolicy,
         private readonly SermonRepository $sermonRepository,
         private readonly SermonSitemapPresenter $sermonSitemapPresenter,
+        private readonly PublicChurchServiceArchiveService $churchServiceArchive,
     ) {}
 
     public function generate(): bool
@@ -29,6 +31,7 @@ class SitemapService
         $sitemap = Sitemap::create();
 
         $this->addStaticUrls($sitemap);
+        $this->addChurchServices($sitemap);
         $this->addSermons($sitemap);
         $this->addPages($sitemap);
         $this->addMeetings($sitemap);
@@ -99,6 +102,7 @@ class SitemapService
             route('pages.church'),
             route('pages.community'),
             route('calendar.index'),
+            route('church.services.index'),
             route('sermons.index'),
             route('sermons.preachers'),
             route('sermons.series'),
@@ -112,6 +116,24 @@ class SitemapService
 
         foreach ($urls as $url) {
             $sitemap->add(Url::create($url));
+        }
+    }
+
+    private function addChurchServices(Sitemap $sitemap): void
+    {
+        /** @var iterable<int, ChurchService> $services */
+        $services = $this->churchServiceArchive->query()
+            ->select(['church_services.id', 'church_services.date', 'church_services.service', 'church_services.updated_at'])
+            ->lazy();
+
+        foreach ($services as $churchService) {
+            $sitemap->add($this->detailUrl(
+                route('church.services.show', [
+                    'date' => $churchService->date->format('Y-m-d'),
+                    'service' => $churchService->service->value,
+                ]),
+                $churchService->updated_at,
+            ));
         }
     }
 

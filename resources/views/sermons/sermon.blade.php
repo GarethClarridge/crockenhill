@@ -328,7 +328,16 @@
                             <x-heroicon-o-clock class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
                             <div>
                                 <dt class="sr-only">Service</dt>
-                                <dd class="text-gray-900 font-medium">{{ $sermon->service instanceof \App\Enums\SermonService ? $sermon->service->label() : \Illuminate\Support\Str::title($sermon->service) }}</dd>
+                                <dd class="text-gray-900 font-medium">
+                                    @if (! empty($serviceHistoryUrl))
+                                        <a href="{{ $serviceHistoryUrl }}" wire:navigate
+                                           class="rounded-sm underline decoration-cbc-teal-light underline-offset-4 hover:text-cbc-teal-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal">
+                                            {{ $sermon->service instanceof \App\Enums\SermonService ? $sermon->service->label() : \Illuminate\Support\Str::title($sermon->service) }}
+                                        </a>
+                                    @else
+                                        {{ $sermon->service instanceof \App\Enums\SermonService ? $sermon->service->label() : \Illuminate\Support\Str::title($sermon->service) }}
+                                    @endif
+                                </dd>
                             </div>
                         </div>
                         @endif

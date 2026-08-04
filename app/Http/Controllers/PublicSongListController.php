@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\ChurchServiceItem;
 use App\Models\Song;
 use App\Seo\SongArchiveSeoPresenter;
+use App\Services\Public\PublicChurchServiceArchiveService;
 use App\Services\Public\PublicSongCatalogService;
 use App\Services\Public\PublicSongUsageService;
 use App\Services\Song\SongVideoService;
@@ -32,14 +34,25 @@ class PublicSongListController extends Controller
         ]);
     }
 
-    public function show(Song $song, PublicSongUsageService $songUsageService, SongVideoService $songVideoService): View
-    {
+    public function show(
+        Song $song,
+        PublicSongUsageService $songUsageService,
+        SongVideoService $songVideoService,
+        PublicChurchServiceArchiveService $churchServiceArchive,
+    ): View {
         $song->load([
             'authors' => fn ($query) => $query->select(['song_authors.id', 'song_authors.display_name'])->orderBy('display_name'),
         ]);
 
         $stats = $songUsageService->statsForSong($song);
-        $usageHistory = $songUsageService->usageHistoryForSong($song);
+
+        $usageHistory = $songUsageService->usageHistoryForSong($song)
+            ->map(fn (ChurchServiceItem $item): array => [
+                'date' => $item->churchService->date,
+                'service_label' => $item->churchService->service->label(),
+                'title' => $item->title,
+                'service_url' => $churchServiceArchive->publicUrlFor($item->churchService),
+            ]);
 
         $displayVideo = $songVideoService->getDisplayVideoForSong($song);
         $videoUrl = $displayVideo ? $songVideoService->getVideoUrl($displayVideo) : null;

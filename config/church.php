@@ -42,4 +42,27 @@ return [
             'public' => env('CHILDRENS_TALKS_PUBLIC', false),
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Public service history
+    |--------------------------------------------------------------------------
+    |
+    | `public_from` is the era boundary for the public service archive. Services
+    | dated before it are complete in the database but are never listed, served
+    | or indexed.
+    |
+    | This exists because the historic import will land a decade of services in
+    | one operation, and the editorial, copyright, speaker-consent and takedown
+    | questions covering historic material are open (see WP8 §14.4 of
+    | docs/plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md). The
+    | sermon-level exposure attributes withhold *media*; nothing else withheld a
+    | *service* from the listing. This does.
+    |
+    | Null means no lower bound. Set it before the import runs.
+    |
+    */
+    'services' => [
+        'public_from' => env('CHURCH_SERVICES_PUBLIC_FROM'),
+    ],
 ];

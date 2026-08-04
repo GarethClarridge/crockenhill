@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\SermonService;
 use App\Http\Controllers\Admin\SermonThumbnailCandidateController;
 use App\Http\Controllers\Admin\ServiceSectionCandidateMediaController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PodcastFeedController;
+use App\Http\Controllers\PublicChurchServiceController;
 use App\Http\Controllers\PublicSongListController;
 use App\Http\Controllers\SermonAssetController;
 use App\Http\Controllers\SermonController;
@@ -65,6 +67,16 @@ Route::get('/christ/childrens-corner', [ChildrensCornerController::class, 'index
 Route::get('/christ/childrens-corner/{sermon:slug}', [ChildrensCornerController::class, 'show'])->middleware('childrens-corner.access')->name('childrens-corner.show');
 Route::get('/church', [LandingPageController::class, 'church'])->name('pages.church');
 Route::get('/community', [LandingPageController::class, 'community'])->name('pages.community');
+
+Route::middleware('service-tracking.enabled')->prefix('church/services')->name('church.services.')->group(function () {
+    Route::get('', [PublicChurchServiceController::class, 'index'])->name('index');
+    Route::get('{date}/{service}', [PublicChurchServiceController::class, 'show'])
+        ->where([
+            'date' => '[0-9]{4}-[0-9]{2}-[0-9]{2}',
+            'service' => implode('|', array_column(SermonService::cases(), 'value')),
+        ])
+        ->name('show');
+});
 
 // High priority redirect that needs to be processed early
 Route::permanentRedirect('whats-on/buzz-club', '/community/buzz-club');
