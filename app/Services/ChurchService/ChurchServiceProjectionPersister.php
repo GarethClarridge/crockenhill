@@ -17,13 +17,21 @@ class ChurchServiceProjectionPersister
         private readonly ChurchServiceCanonicalStateService $canonicalStateService,
     ) {}
 
+    /**
+     * On the live path the stored canonical hash is a sound proxy for row state,
+     * because only this class writes canonical items. Re-projection of an existing
+     * corpus cannot assume that: a row may have drifted from the projection that
+     * produced its hash, and then the hash matches while the rows do not. Callers
+     * that have already compared the rows themselves pass $force to rebuild anyway.
+     */
     public function apply(
         ChurchService $churchService,
         ChurchServiceProjection $projection,
         ?string $incomingSource = null,
         bool $dispatchEvents = true,
+        bool $force = false,
     ): ChurchService {
-        return DB::transaction(function () use ($churchService, $projection, $incomingSource, $dispatchEvents): ChurchService {
+        return DB::transaction(function () use ($churchService, $projection, $incomingSource, $dispatchEvents, $force): ChurchService {
             $lockedService = ChurchService::query()
                 ->whereKey($churchService->getKey())
                 ->lockForUpdate()
@@ -39,7 +47,7 @@ class ChurchServiceProjectionPersister
                 'projection_policy_version' => (int) $policyVersion,
             ];
 
-            if ($lockedService->canonical_hash === $projection->hash) {
+            if (! $force && $lockedService->canonical_hash === $projection->hash) {
                 if (
                     $lockedService->canonical_finalization !== $finalization
                     || $lockedService->projection_policy_version !== (int) $policyVersion

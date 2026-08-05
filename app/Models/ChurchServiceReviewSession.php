@@ -10,6 +10,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property list<int> $included_proposal_ids
+ * @property list<array{proposal_id: int, disposition: string, rationale: string}>|null $proposal_dispositions
+ */
 class ChurchServiceReviewSession extends Model
 {
     /** @use HasFactory<ChurchServiceReviewSessionFactory> */
