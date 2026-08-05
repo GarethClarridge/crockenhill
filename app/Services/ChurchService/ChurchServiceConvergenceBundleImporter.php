@@ -10,6 +10,7 @@ use App\Data\ChurchServiceSourceRevision;
 use App\Enums\ChurchServiceCanonicalFinalization;
 use App\Enums\ChurchServiceProposalStatus;
 use App\Enums\ChurchServiceSource;
+use App\Enums\HistoricImportClassification;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItemAssertion;
 use App\Models\ChurchServiceMergeProposal;
@@ -87,11 +88,11 @@ class ChurchServiceConvergenceBundleImporter
             throw new RuntimeException('Convergence import plan hash does not match.');
         }
 
-        if ($plan->classification === 'already_present') {
+        if ($plan->classification === HistoricImportClassification::AlreadyPresent->value) {
             return $plan->churchService->fresh() ?? $plan->churchService;
         }
 
-        if ($plan->classification !== 'apply') {
+        if ($plan->classification !== HistoricImportClassification::SafeEnrichment->value) {
             throw new RuntimeException("Convergence import is {$plan->classification}: {$plan->reason}");
         }
 
@@ -167,30 +168,45 @@ class ChurchServiceConvergenceBundleImporter
      * the projector; it never copies canonical rows across.
      *
      * @param  array<string, mixed>  $payload
-     * @return array{classification: 'already_present'|'apply'|'blocked_difference'|'conflict', reason: string}
+     * @return array{classification: 'already_present'|'create'|'safe_enrichment'|'blocked_difference'|'conflict', reason: string}
      */
     private function classifyAutomatic(ChurchService $service, array $payload): array
     {
         if ($this->projector->activeManualSourceRecord($service->sourceRecords) instanceof ChurchServiceSourceRecord) {
-            return ['classification' => 'conflict', 'reason' => 'Production holds a Manual revision, so this service is not machine-final there.'];
+            return [
+                'classification' => HistoricImportClassification::Conflict->value,
+                'reason' => 'Production holds a Manual revision, so this service is not machine-final there.',
+            ];
         }
 
         if ($this->evidenceSet->hash($service->sourceRecords) !== $payload['evidence_set_hash']) {
-            return ['classification' => 'blocked_difference', 'reason' => 'Production machine evidence differs from the exported evidence set.'];
+            return [
+                'classification' => HistoricImportClassification::BlockedDifference->value,
+                'reason' => 'Production machine evidence differs from the exported evidence set.',
+            ];
         }
 
         if ($payload['projection_policy'] !== $this->projector->policyFingerprint()) {
-            return ['classification' => 'blocked_difference', 'reason' => 'Production projection policy differs from the policy that produced this bundle.'];
+            return [
+                'classification' => HistoricImportClassification::BlockedDifference->value,
+                'reason' => 'Production projection policy differs from the policy that produced this bundle.',
+            ];
         }
 
         $projection = $this->projector->project($service->sourceRecords);
 
         if ($projection->hash !== $payload['resulting_canonical_hash']) {
-            return ['classification' => 'blocked_difference', 'reason' => 'Re-projecting production evidence does not reproduce the exported canonical hash.'];
+            return [
+                'classification' => HistoricImportClassification::BlockedDifference->value,
+                'reason' => 'Re-projecting production evidence does not reproduce the exported canonical hash.',
+            ];
         }
 
         if (! $this->projector->hasCompleteAudit($service->sourceRecords, $projection)) {
-            return ['classification' => 'blocked_difference', 'reason' => 'Re-projecting production evidence does not yield a complete projection audit.'];
+            return [
+                'classification' => HistoricImportClassification::BlockedDifference->value,
+                'reason' => 'Re-projecting production evidence does not yield a complete projection audit.',
+            ];
         }
 
         $alreadyPresent = $service->canonical_hash === $payload['resulting_canonical_hash']
@@ -199,8 +215,14 @@ class ChurchServiceConvergenceBundleImporter
             && $this->manifests->build($service) === $payload['canonical_manifest'];
 
         return $alreadyPresent
-            ? ['classification' => 'already_present', 'reason' => 'The exact machine-final convergence is already present.']
-            : ['classification' => 'apply', 'reason' => 'Production evidence reproduces the exported projection and is ready to persist.'];
+            ? [
+                'classification' => HistoricImportClassification::AlreadyPresent->value,
+                'reason' => 'The exact machine-final convergence is already present.',
+            ]
+            : [
+                'classification' => HistoricImportClassification::SafeEnrichment->value,
+                'reason' => 'Production evidence reproduces the exported projection and is ready to persist.',
+            ];
     }
 
     private function persistAutomatic(ChurchServiceConvergenceImportPlan $plan): ChurchService
@@ -225,7 +247,7 @@ class ChurchServiceConvergenceBundleImporter
 
     /**
      * @param  array<string, mixed>  $payload
-     * @return array{classification: 'already_present'|'apply'|'blocked_difference'|'conflict', reason: string}
+     * @return array{classification: 'already_present'|'create'|'safe_enrichment'|'blocked_difference'|'conflict', reason: string}
      */
     private function classify(ChurchService $service, array $payload, ?User $reviewer): array
     {
@@ -236,20 +258,35 @@ class ChurchServiceConvergenceBundleImporter
         if ($existingReview instanceof ChurchServiceReviewSession) {
             return $service->canonical_hash === $payload['resulting_canonical_hash']
                 && $this->manifests->build($service) === $payload['canonical_manifest']
-                ? ['classification' => 'already_present', 'reason' => 'The exact reviewed convergence is already present.']
-                : ['classification' => 'conflict', 'reason' => 'Review UUID exists with different canonical content.'];
+                ? [
+                    'classification' => HistoricImportClassification::AlreadyPresent->value,
+                    'reason' => 'The exact reviewed convergence is already present.',
+                ]
+                : [
+                    'classification' => HistoricImportClassification::Conflict->value,
+                    'reason' => 'Review UUID exists with different canonical content.',
+                ];
         }
 
         if (! $reviewer instanceof User) {
-            return ['classification' => 'conflict', 'reason' => 'Reviewer email hash does not resolve uniquely.'];
+            return [
+                'classification' => HistoricImportClassification::Conflict->value,
+                'reason' => 'Reviewer email hash does not resolve uniquely.',
+            ];
         }
 
         if ($this->evidenceSet->hash($service->sourceRecords) !== $payload['evidence_set_hash']) {
-            return ['classification' => 'blocked_difference', 'reason' => 'Production machine evidence differs from the reviewed evidence set.'];
+            return [
+                'classification' => HistoricImportClassification::BlockedDifference->value,
+                'reason' => 'Production machine evidence differs from the reviewed evidence set.',
+            ];
         }
 
         if ($service->canonical_hash !== $payload['pre_review_hash']) {
-            return ['classification' => 'blocked_difference', 'reason' => 'Production pre-review canonical hash differs from local.'];
+            return [
+                'classification' => HistoricImportClassification::BlockedDifference->value,
+                'reason' => 'Production pre-review canonical hash differs from local.',
+            ];
         }
 
         $proposalClassification = $this->classifyProposalDispositions($service, $payload['review']['proposal_dispositions']);
@@ -258,7 +295,10 @@ class ChurchServiceConvergenceBundleImporter
             return $proposalClassification;
         }
 
-        return ['classification' => 'apply', 'reason' => 'Reviewed Manual revision is ready to apply.'];
+        return [
+            'classification' => HistoricImportClassification::SafeEnrichment->value,
+            'reason' => 'Reviewed Manual revision is ready to apply.',
+        ];
     }
 
     /**
@@ -284,7 +324,7 @@ class ChurchServiceConvergenceBundleImporter
 
         if ($expected !== $actual) {
             return [
-                'classification' => 'blocked_difference',
+                'classification' => HistoricImportClassification::BlockedDifference->value,
                 'reason' => 'Production proposal identities differ from the reviewed proposal set.',
             ];
         }
@@ -299,7 +339,7 @@ class ChurchServiceConvergenceBundleImporter
 
             if (! is_array($disposition)) {
                 return [
-                    'classification' => 'blocked_difference',
+                    'classification' => HistoricImportClassification::BlockedDifference->value,
                     'reason' => 'A reviewed proposal disposition could not be resolved in production.',
                 ];
             }
@@ -307,7 +347,7 @@ class ChurchServiceConvergenceBundleImporter
             if ($proposal->status !== ChurchServiceProposalStatus::Pending
                 && $proposal->status->value !== $disposition['disposition']) {
                 return [
-                    'classification' => 'blocked_difference',
+                    'classification' => HistoricImportClassification::BlockedDifference->value,
                     'reason' => 'Production already contains a different proposal disposition.',
                 ];
             }

@@ -40,7 +40,7 @@ class ChurchServiceConvergenceBundleImporterTest extends TestCase
         $plan = $importer->prepareService($bundle);
         $applied = $importer->persistPreparedService($plan, $plan->planHash);
 
-        $this->assertSame('apply', $plan->classification);
+        $this->assertSame('safe_enrichment', $plan->classification);
         $this->assertSame('Reviewed title', $applied->items()->sole()->title);
         $this->assertSame($reviewer->id, $applied->reviewSessions()->sole()->reviewed_by_user_id);
 
@@ -65,7 +65,7 @@ class ChurchServiceConvergenceBundleImporterTest extends TestCase
         $plan = $importer->prepareService($bundle);
         $applied = $importer->persistPreparedService($plan, $plan->planHash);
 
-        $this->assertSame('apply', $plan->classification);
+        $this->assertSame('safe_enrichment', $plan->classification);
         $this->assertSame(ChurchServiceProposalStatus::Accepted, $proposal->fresh()->status);
         $this->assertSame($reviewer->id, $proposal->fresh()->resolved_by_user_id);
         $exportedDisposition = $bundle['services'][0]['review']['proposal_dispositions'][0];
@@ -141,7 +141,7 @@ class ChurchServiceConvergenceBundleImporterTest extends TestCase
         $plan = $importer->prepareService($bundle);
         $applied = $importer->persistPreparedService($plan, $plan->planHash);
 
-        $this->assertSame('apply', $plan->classification);
+        $this->assertSame('safe_enrichment', $plan->classification);
 
         $reproducedRule = ChurchServiceProposalDecisionRule::query()->sole();
         $this->assertSame($exportedRules[0]['class_key'], $reproducedRule->class_key);

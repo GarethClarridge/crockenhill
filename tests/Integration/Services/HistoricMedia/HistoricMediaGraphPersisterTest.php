@@ -15,7 +15,10 @@ use App\Enums\SermonVideoVisibilityOverride;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
+use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\HistoricMedia\HistoricMediaGraphPersister;
@@ -47,6 +50,110 @@ class HistoricMediaGraphPersisterTest extends TestCase
         $this->assertDatabaseHas('media_processing_logs', [
             'processing_id' => $processingId,
         ]);
+    }
+
+    #[Test]
+    public function it_reuses_and_enriches_a_publication_with_the_same_source_hash(): void
+    {
+        $preacher = Preacher::factory()->create([
+            'name' => 'Persister Test Preacher',
+            'slug' => 'persister-test-preacher',
+        ]);
+        $previousRun = MediaProcessingLog::factory()->livestream()->create([
+            'processing_id' => 'previous-processing',
+            'file_hash' => str_repeat('c', 64),
+            'sermon_id' => null,
+        ]);
+        $existing = Sermon::factory()->create([
+            'date' => '2026-08-02',
+            'service' => SermonService::Morning,
+            'content_type' => SermonContentType::Sermon,
+            'slug' => 'persister-test-sermon',
+            'title' => 'Persister test sermon',
+            'reference' => null,
+            'preacher' => $preacher->name,
+            'preacher_id' => $preacher->id,
+            'series' => null,
+            'summary' => 'Existing richer summary',
+            'points' => null,
+            'show_summary' => false,
+            'show_points' => false,
+            'source_type' => SermonSourceType::Livestream,
+            'video_quality_status' => SermonVideoQualityStatus::Unassessed,
+            'video_visibility_override' => SermonVideoVisibilityOverride::Default,
+            'livestream_processing_id' => 'previous-processing',
+        ]);
+        $previousRun->update(['sermon_id' => $existing->id]);
+
+        $plan = $this->planWithGraph(
+            processingId: '00000000-0000-0000-0000-000000000015',
+            publications: [$this->publication()],
+        );
+
+        $result = app(HistoricMediaGraphPersister::class)->persist($plan);
+
+        $this->assertSame($existing->id, $result['processing_log']->sermon_id);
+        $this->assertSame(1, Sermon::query()->where('slug', 'persister-test-sermon')->count());
+        $this->assertSame('Existing richer summary', $existing->fresh()->summary);
+        $this->assertNotNull($existing->fresh()->duration);
+    }
+
+    /**
+     * A canonical item already bound to a live run is production data, not a free
+     * slot. Re-pointing it at the historic run would silently orphan the section
+     * the current-era pipeline extracted for it.
+     */
+    #[Test]
+    public function it_refuses_to_steal_a_service_item_link_from_another_run(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-08-02',
+            'service' => 'morning',
+        ]);
+        $liveRun = MediaProcessingLog::factory()->livestream()->create([
+            'processing_id' => 'live-weekly-run',
+            'church_service_id' => $service->id,
+        ]);
+        $liveSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $liveRun->id,
+            'church_service_item_id' => null,
+            'section_order' => 1,
+            'source_segment_ids' => [],
+        ]);
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'canonical_identity' => 'canonical-item-1',
+            'livestream_processing_id' => $liveRun->processing_id,
+            'livestream_service_section_id' => $liveSection->id,
+        ]);
+
+        $plan = $this->planWithGraph(
+            processingId: '00000000-0000-0000-0000-000000000016',
+            sections: [$this->section('claimed-section', [
+                'service_item_identity' => 'canonical-item-1',
+                'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+                'extracted_video_path' => null,
+                'extracted_audio_path' => null,
+                'extracted_at' => null,
+                'published_at' => null,
+            ])],
+        );
+
+        $exception = null;
+
+        try {
+            app(HistoricMediaGraphPersister::class)->persist($plan);
+        } catch (RuntimeException $caught) {
+            $exception = $caught;
+        }
+
+        $this->assertInstanceOf(RuntimeException::class, $exception);
+        $this->assertStringContainsString('canonical-item-1', $exception->getMessage());
+        $this->assertStringContainsString('live-weekly-run', $exception->getMessage());
+
+        $item->refresh();
+        $this->assertSame('live-weekly-run', $item->livestream_processing_id);
+        $this->assertSame($liveSection->id, $item->livestream_service_section_id);
     }
 
     /**

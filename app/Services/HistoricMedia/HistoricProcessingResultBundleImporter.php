@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\HistoricMedia;
 
 use App\Data\HistoricProcessingResultImportPlan;
+use App\Enums\HistoricImportClassification;
 use App\Models\MediaProcessingLog;
 use App\Support\CanonicalJson;
 use Illuminate\Support\Facades\DB;
@@ -68,11 +69,12 @@ class HistoricProcessingResultBundleImporter
 
         if ($plan->classification === 'already_present' && $plan->existingProcessingLogId !== null) {
             $existing = MediaProcessingLog::query()->findOrFail($plan->existingProcessingLogId);
+            $this->persister->verifyExisting($plan, $existing);
 
             return ['processing_log' => $existing, 'created_assets' => []];
         }
 
-        if ($plan->classification !== 'create') {
+        if ($plan->classification !== HistoricImportClassification::Create->value) {
             throw new RuntimeException("Historic processing import is {$plan->classification}: {$plan->reason}");
         }
 
@@ -107,7 +109,7 @@ class HistoricProcessingResultBundleImporter
 
     /**
      * @param  array<string, mixed>  $service
-     * @return array{classification: 'already_present'|'create'|'blocked_difference'|'conflict', reason: string, existing_processing_log_id: int|null}
+     * @return array{classification: 'already_present'|'create'|'safe_enrichment'|'blocked_difference'|'conflict', reason: string, existing_processing_log_id: int|null}
      */
     private function classify(array $service): array
     {
@@ -121,37 +123,61 @@ class HistoricProcessingResultBundleImporter
             : null;
 
         if ($existing instanceof MediaProcessingLog) {
-            $existingHash = data_get(
-                $existing->processing_metadata?->toArray(),
-                'historic_promotion.logical_hash',
-            );
-            $existingHash ??= $this->inventory->build($existing)['logical_hash'];
+            $existingHash = $this->inventory->build($existing)['logical_hash'];
 
-            return $existingHash === $graph['logical_hash']
-                ? [
-                    'classification' => 'already_present',
-                    'reason' => 'The exact portable media graph is already present.',
-                    'existing_processing_log_id' => $existing->id,
-                ]
-                : [
-                    'classification' => 'blocked_difference',
-                    'reason' => 'The processing identity exists with different durable content.',
-                    'existing_processing_log_id' => $existing->id,
-                ];
+            if ($existingHash === $graph['logical_hash']) {
+                try {
+                    $this->persister->verifyExisting($this->verificationPlan($service), $existing);
+
+                    return [
+                        'classification' => HistoricImportClassification::AlreadyPresent->value,
+                        'reason' => 'The exact portable media graph and destination assets are already present.',
+                        'existing_processing_log_id' => $existing->id,
+                    ];
+                } catch (RuntimeException $exception) {
+                    return [
+                        'classification' => HistoricImportClassification::BlockedDifference->value,
+                        'reason' => "The live media graph or destination assets differ: {$exception->getMessage()}",
+                        'existing_processing_log_id' => $existing->id,
+                    ];
+                }
+            }
+
+            return [
+                'classification' => HistoricImportClassification::BlockedDifference->value,
+                'reason' => 'The processing identity exists with different durable content.',
+                'existing_processing_log_id' => $existing->id,
+            ];
         }
 
         if ($hashMatch instanceof MediaProcessingLog) {
             return [
-                'classification' => 'conflict',
+                'classification' => HistoricImportClassification::Conflict->value,
                 'reason' => 'The source media hash belongs to a different processing identity.',
                 'existing_processing_log_id' => $hashMatch->id,
             ];
         }
 
         return [
-            'classification' => 'create',
+            'classification' => HistoricImportClassification::Create->value,
             'reason' => 'No matching production media graph exists.',
             'existing_processing_log_id' => null,
         ];
+    }
+
+    /** @param array<string, mixed> $service */
+    private function verificationPlan(array $service): HistoricProcessingResultImportPlan
+    {
+        /** @var list<array{path: string, size: int, sha256: string, kind: string, roles: list<string>}> $assets */
+        $assets = $service['assets'];
+
+        return new HistoricProcessingResultImportPlan(
+            classification: HistoricImportClassification::Create->value,
+            reason: 'Live already-present verification.',
+            planHash: str_repeat('0', 64),
+            bundleHash: str_repeat('0', 64),
+            service: $service,
+            assets: $assets,
+        );
     }
 }

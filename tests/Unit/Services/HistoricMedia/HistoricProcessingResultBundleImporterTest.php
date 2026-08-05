@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\HistoricMedia;
 
+use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
@@ -11,6 +12,7 @@ use App\Models\SongVideo;
 use App\Services\HistoricMedia\HistoricProcessingResultAssetTransfer;
 use App\Services\HistoricMedia\HistoricProcessingResultBundle;
 use App\Services\HistoricMedia\HistoricProcessingResultBundleImporter;
+use App\Services\HistoricMedia\HistoricProcessingResultInventory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -100,6 +102,14 @@ class HistoricProcessingResultBundleImporterTest extends TestCase
         $section = ServiceSection::query()->firstOrFail();
         $segment = $result['processing_log']->segments()->firstOrFail();
 
+        $bundle['services'][0]['media_graph']['logical_hash'] = app(HistoricProcessingResultInventory::class)
+            ->build($result['processing_log']->fresh())['logical_hash'];
+        $bundle = app(HistoricProcessingResultBundle::class)->make(
+            $bundle['batch_hash'],
+            $bundle['processing_fingerprint'],
+            $bundle['services'],
+        );
+
         $this->assertSame([$segment->id], $section->source_segment_ids);
         $this->assertSame(
             'service-transcripts/imported-run/audio.mp3',
@@ -114,6 +124,66 @@ class HistoricProcessingResultBundleImporterTest extends TestCase
         $this->assertSame($result['processing_log']->id, $second['processing_log']->id);
         $this->assertSame([], $second['created_assets']);
         $this->assertSame(1, MediaProcessingLog::query()->where('processing_id', 'imported-run')->count());
+    }
+
+    /**
+     * B19: `already_present` used to be decided from the import's own cached
+     * `historic_promotion.logical_hash`, so a graph or an asset that had since
+     * changed still read as an exact no-op. Both halves must be re-derived from
+     * what production currently holds.
+     */
+    #[Test]
+    public function already_present_revalidates_the_live_graph_and_destination_assets(): void
+    {
+        Storage::disk('historic_staging')->put('historic/run/audio.mp3', 'audio');
+        $bundle = $this->alreadyPresentBundle();
+        $importer = app(HistoricProcessingResultBundleImporter::class);
+
+        $this->assertSame('already_present', $importer->prepareService($bundle)->classification);
+
+        /**
+         * The live graph moved underneath a previously exact import. Only a
+         * rebuild from production catches this: the cached import hash still
+         * says the bundle was applied verbatim.
+         */
+        MediaProcessingLog::query()->where('processing_id', 'imported-run')->sole()
+            ->forceFill(['duration' => 61.0])->save();
+        $movedGraph = $importer->prepareService($bundle);
+
+        $this->assertSame('blocked_difference', $movedGraph->classification);
+        $this->assertStringContainsString('different durable content', $movedGraph->reason);
+
+        /** Graph restored, but the destination bytes are damaged. */
+        MediaProcessingLog::query()->where('processing_id', 'imported-run')->sole()
+            ->forceFill(['duration' => 60.0])->save();
+        Storage::disk('local')->put('service-transcripts/imported-run/audio.mp3', 'damaged');
+        $damagedAsset = $importer->prepareService($bundle);
+
+        $this->assertSame('blocked_difference', $damagedAsset->classification);
+        $this->assertStringContainsString('destination assets differ', $damagedAsset->reason);
+    }
+
+    /**
+     * Import the graph bundle once and return a bundle whose declared logical hash
+     * is the one production now holds, so the next prepare classifies it as the
+     * exact no-op this suite needs as its baseline.
+     *
+     * @return array<string, mixed>
+     */
+    private function alreadyPresentBundle(): array
+    {
+        $bundle = $this->graphBundle();
+        $importer = app(HistoricProcessingResultBundleImporter::class);
+        $result = $importer->importService($bundle, $importer->prepareService($bundle)->planHash);
+
+        $bundle['services'][0]['media_graph']['logical_hash'] = app(HistoricProcessingResultInventory::class)
+            ->build($result['processing_log']->fresh())['logical_hash'];
+
+        return app(HistoricProcessingResultBundle::class)->make(
+            $bundle['batch_hash'],
+            $bundle['processing_fingerprint'],
+            $bundle['services'],
+        );
     }
 
     #[Test]
@@ -137,6 +207,51 @@ class HistoricProcessingResultBundleImporterTest extends TestCase
         Storage::disk('local')->assertExists($songVideo->video_file_path);
         Storage::disk('local')->assertExists($result['processing_log']->video_file_path);
         $this->assertCount(3, $result['created_assets']);
+    }
+
+    #[Test]
+    public function it_reuses_a_song_video_for_the_same_portable_section_and_asset(): void
+    {
+        Storage::disk('historic_staging')->put('historic/run/audio.mp3', 'audio');
+        Storage::disk('historic_staging')->put('historic/run/song.mp4', 'song video');
+        Storage::disk('local')->put('historic/previous/song.mp4', 'song video');
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-08-02',
+            'service' => 'morning',
+        ]);
+        $previousRun = MediaProcessingLog::factory()->livestream()->create([
+            'processing_id' => 'previous-song-run',
+            'church_service_id' => $service->id,
+        ]);
+        $previousSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $previousRun->id,
+            'church_service_item_id' => null,
+            'section_order' => 1,
+            'section_type' => 'sermon',
+            'title' => 'Sermon',
+            'start_time' => 0.0,
+            'end_time' => 60.0,
+            'source_segment_ids' => [],
+        ]);
+        $song = Song::factory()->create(['canonical_key' => 'portable-song-video']);
+        $existing = SongVideo::factory()->featured()->create([
+            'song_id' => $song->id,
+            'service_section_id' => $previousSection->id,
+            'church_service_id' => $service->id,
+            'video_file_path' => 'historic/previous/song.mp4',
+        ]);
+
+        $bundle = $this->graphBundle('portable-song-video');
+        $plan = app(HistoricProcessingResultBundleImporter::class)->prepareService($bundle);
+        $result = app(HistoricProcessingResultBundleImporter::class)->importService($bundle, $plan->planHash);
+
+        $this->assertSame(1, SongVideo::query()->count());
+        $this->assertSame($existing->id, SongVideo::query()->sole()->id);
+        $this->assertSame($result['processing_log']->serviceSections()->sole()->id, SongVideo::query()->sole()->service_section_id);
+        $this->assertTrue(SongVideo::query()->sole()->is_featured);
+        $this->assertSame('historic/previous/song.mp4', SongVideo::query()->sole()->video_file_path);
+        $this->assertCount(2, $result['created_assets']);
     }
 
     #[Test]

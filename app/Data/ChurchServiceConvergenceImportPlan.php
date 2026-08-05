@@ -10,7 +10,7 @@ use App\Models\User;
 readonly class ChurchServiceConvergenceImportPlan
 {
     /**
-     * @param  'already_present'|'apply'|'blocked_difference'|'conflict'  $classification
+     * @param  'already_present'|'create'|'safe_enrichment'|'blocked_difference'|'conflict'  $classification
      * @param  array<string, mixed>  $servicePayload
      */
     public function __construct(

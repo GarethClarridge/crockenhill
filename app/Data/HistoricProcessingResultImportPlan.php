@@ -7,7 +7,7 @@ namespace App\Data;
 readonly class HistoricProcessingResultImportPlan
 {
     /**
-     * @param  'already_present'|'create'|'blocked_difference'|'conflict'  $classification
+     * @param  'already_present'|'create'|'safe_enrichment'|'blocked_difference'|'conflict'  $classification
      * @param  array<string, mixed>  $service
      * @param  list<array{path: string, size: int, sha256: string, kind: string, roles: list<string>}>  $assets
      */

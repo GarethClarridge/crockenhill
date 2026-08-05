@@ -675,18 +675,7 @@ class HistoricNormalOutputContractTest extends TestCase
      * Rebuild the canary graph through HistoricMediaGraphPersister so the manifest
      * describes what the real path produced rather than what a factory hand-authored.
      *
-     * Scope, so this is not read as more coverage than it is: the persister owns the
-     * media graph — run, publications, segments, sections, steps, song videos and every
-     * asset path. It does **not** yet own the church-service side of the graph, which
-     * WP5/PR14 (§11 remaining persistence) covers. This harness therefore re-attaches
-     * `media_processing_logs.church_service_id`, the sections'
-     * `church_service_item_id` / `matched_item_id` / `expected_item_id`, the items'
-     * `livestream_processing_id` / `livestream_service_section_id`, and
-     * `song_videos.church_service_id` by hand. Assertions over `service_item_identity`,
-     * `matched_item_identity`, `expected_item_identity` and `church_service_identity`
-     * are consequently asserting the *inventory's* projection of those links, not the
-     * persister's ability to create them. Delete the re-attachment block when PR14
-     * lands and the same assertions become real coverage.
+     * The persister owns the complete media graph, including its church-service links.
      *
      * @param  array<string, mixed>  $sourceGraph
      * @return array{run: MediaProcessingLog, service: ChurchService, manifest: array<string, mixed>}
@@ -737,56 +726,33 @@ class HistoricNormalOutputContractTest extends TestCase
         SermonScriptureFilter::query()->whereIn('sermon_id', $sourceSermonIds)->delete();
         Sermon::query()->whereIn('id', $sourceSermonIds)->delete();
 
+        /**
+         * Release the source run's claim on the service's canonical items too. The
+         * persister refuses to take an item already bound to another run, and the
+         * canary is re-persisting this service's graph rather than competing with
+         * it — the same reason the publication links above are released first.
+         */
+        ChurchServiceItem::query()
+            ->where('livestream_processing_id', $sourceRun->processing_id)
+            ->update([
+                'livestream_processing_id' => null,
+                'livestream_service_section_id' => null,
+            ]);
+
         $plan = new HistoricProcessingResultImportPlan(
             classification: 'create',
             reason: 'The canary exercises the real historic graph persistence path.',
             planHash: str_repeat('a', 64),
             bundleHash: str_repeat('b', 64),
-            service: ['media_graph' => $targetGraph],
+            service: [
+                'date' => $service->date->toDateString(),
+                'service' => $service->service->value,
+                'media_graph' => $targetGraph,
+            ],
             assets: $assets,
         );
         $result = app(HistoricMediaGraphPersister::class)->persist($plan);
         $run = $result['processing_log'];
-
-        $run->forceFill(['church_service_id' => $service->id])->save();
-        $targetSections = $run->serviceSections()->orderBy('section_order')->get();
-
-        foreach ($targetSections as $targetSection) {
-            $sourceSection = $sourceSections->firstWhere('section_order', $targetSection->section_order);
-
-            if (! $sourceSection instanceof ServiceSection) {
-                throw new RuntimeException("Canary section {$targetSection->section_order} has no source section.");
-            }
-
-            $targetSection->forceFill([
-                'church_service_item_id' => $sourceSection->church_service_item_id,
-                'matched_item_id' => $sourceSection->matched_item_id,
-                'expected_item_id' => $sourceSection->expected_item_id,
-            ])->save();
-        }
-
-        foreach (ChurchServiceItem::query()->where('church_service_id', $service->id)->get() as $item) {
-            $sourceSection = $sourceSections->firstWhere('id', $item->livestream_service_section_id);
-
-            if (! $sourceSection instanceof ServiceSection) {
-                continue;
-            }
-
-            $targetSection = $targetSections->firstWhere('section_order', $sourceSection->section_order);
-
-            if (! $targetSection instanceof ServiceSection) {
-                throw new RuntimeException("Canary item {$item->id} has no target section.");
-            }
-
-            $item->forceFill([
-                'livestream_processing_id' => $targetProcessingId,
-                'livestream_service_section_id' => $targetSection->id,
-            ])->save();
-        }
-
-        SongVideo::query()
-            ->whereIn('service_section_id', $targetSections->modelKeys())
-            ->update(['church_service_id' => $service->id]);
 
         $run->refresh();
         $mediaGraph = app(HistoricProcessingResultInventory::class)->build($run);

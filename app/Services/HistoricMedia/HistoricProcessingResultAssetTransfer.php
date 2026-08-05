@@ -94,6 +94,48 @@ class HistoricProcessingResultAssetTransfer
         return array_values(array_unique($created));
     }
 
+    /**
+     * Verify every logical role against its already-existing production
+     * destination. This is deliberately separate from copying: an exact
+     * no-op must prove the live bytes are still present rather than trusting
+     * the staged manifest or historic metadata.
+     *
+     * @param  list<array<string, mixed>>  $assets
+     * @param  array<string, string>  $destinations
+     */
+    public function verifyDestinations(array $assets, array $destinations): void
+    {
+        $target = Storage::disk((string) config('media-processing.storage.sermon_disk'));
+
+        foreach ($this->expand($assets) as $asset) {
+            $path = $destinations[$asset['role']] ?? null;
+
+            if (! is_string($path)) {
+                throw new RuntimeException("No production path was allocated for asset role {$asset['role']}.");
+            }
+
+            $this->verifyAtPath($target, $path, $asset);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $asset
+     */
+    public function destinationMatches(array $asset, string $path): bool
+    {
+        try {
+            $this->verifyAtPath(
+                Storage::disk((string) config('media-processing.storage.sermon_disk')),
+                $path,
+                $asset,
+            );
+
+            return true;
+        } catch (RuntimeException) {
+            return false;
+        }
+    }
+
     /** @param list<string> $paths */
     public function cleanup(array $paths): void
     {
