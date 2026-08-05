@@ -8,7 +8,10 @@ use App\Enums\ChurchServiceProposalStatus;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceMergeProposal;
 use App\Models\ChurchServiceProposalClassReview;
+use App\Models\ChurchServiceSourceRecord;
 use App\Models\User;
+use App\Services\ChurchService\ChurchServiceCorpusCompleteness;
+use App\Services\ChurchService\ChurchServiceProjector;
 use App\Services\ChurchService\ChurchServiceProposalCensus;
 use App\Services\ChurchService\ChurchServiceProposalCensusGate;
 use App\Services\ChurchService\ChurchServiceProposalRuleService;
@@ -242,7 +245,7 @@ class ChurchServiceProposalRuleServiceTest extends TestCase
         $census = app(ChurchServiceProposalCensus::class);
         $gate = app(ChurchServiceProposalCensusGate::class);
 
-        $result = $gate->evaluate($census->build());
+        $result = $gate->evaluate($census->build(), $this->completeCorpusEvidence());
         $this->assertFalse($result['passes']);
         $this->assertCount(2, $result['unclassified']);
 
@@ -260,7 +263,7 @@ class ChurchServiceProposalRuleServiceTest extends TestCase
             'marked_by_user_id' => $marker->id,
         ]);
 
-        $result = $gate->evaluate($census->build());
+        $result = $gate->evaluate($census->build(), $this->completeCorpusEvidence());
 
         $this->assertTrue($result['passes']);
         $this->assertSame([], $result['unclassified']);
@@ -283,7 +286,8 @@ class ChurchServiceProposalRuleServiceTest extends TestCase
             'marked_by_user_id' => $marker->id,
         ]);
 
-        $result = app(ChurchServiceProposalCensusGate::class)->evaluate($census->build());
+        $result = app(ChurchServiceProposalCensusGate::class)
+            ->evaluate($census->build(), $this->completeCorpusEvidence());
 
         $this->assertFalse($result['passes']);
         $this->assertCount(1, $result['irreducible_with_candidates']);
@@ -302,10 +306,26 @@ class ChurchServiceProposalRuleServiceTest extends TestCase
                 'service' => 'morning',
                 'needs_review' => true,
                 'review_reason' => 'projection_requires_review',
+                'projection_policy_version' => ChurchServiceProjector::PROJECTION_POLICY_VERSION,
             ]);
+            ChurchServiceSourceRecord::factory()->create(['church_service_id' => $service->id]);
 
             return $this->proposalFor($service, $subject, $withCandidate);
         });
+    }
+
+    /**
+     * These tests are about class accounting, so the corpus around them is set up
+     * complete: every service carrying a proposal is staged and projected at the
+     * current policy version, and the approved manifest count matches.
+     *
+     * @return array<string, mixed>
+     */
+    private function completeCorpusEvidence(): array
+    {
+        config()->set('church.historic_corpus.expected_services', ChurchService::query()->count());
+
+        return app(ChurchServiceCorpusCompleteness::class)->evidence();
     }
 
     private function proposalFor(

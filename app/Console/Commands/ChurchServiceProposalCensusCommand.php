@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\ChurchServiceProposalClassReview;
+use App\Services\ChurchService\ChurchServiceCorpusCompleteness;
 use App\Services\ChurchService\ChurchServiceProposalCensus;
 use App\Services\ChurchService\ChurchServiceProposalCensusGate;
 use Illuminate\Console\Command;
@@ -20,16 +21,18 @@ class ChurchServiceProposalCensusCommand extends Command
 {
     protected $signature = 'services:proposal-census
         {--json : Emit the full census as JSON instead of a table}
-        {--gate : Exit non-zero unless every class is accounted for}';
+        {--gate : Exit non-zero unless every class is accounted for}
+        {--expected-services= : The approved corpus manifest'."'".'s service count, overriding church.historic_corpus.expected_services}';
 
     protected $description = 'Report pending evidence proposals grouped by class, with the review-load gate';
 
     public function handle(
         ChurchServiceProposalCensus $census,
         ChurchServiceProposalCensusGate $gate,
+        ChurchServiceCorpusCompleteness $corpus,
     ): int {
         $classes = $census->build();
-        $result = $gate->evaluate($classes);
+        $result = $gate->evaluate($classes, $corpus->evidence($this->expectedServices()));
 
         if ($this->option('json')) {
             $this->line((string) json_encode(
@@ -42,10 +45,22 @@ class ChurchServiceProposalCensusCommand extends Command
 
         if ($classes === []) {
             $this->info('No pending evidence proposals. The census is empty.');
-
-            return self::SUCCESS;
+        } else {
+            $this->reportClasses($classes, $result);
         }
 
+        $this->reportCorpus($gate, $result);
+        $this->reportBlockers($result);
+
+        return $this->exitCode($result);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $classes
+     * @param  array<string, mixed>  $result
+     */
+    private function reportClasses(array $classes, array $result): void
+    {
         $this->table(
             ['Subject', 'Tier', 'Proposals', 'Services', 'Status', 'Reason'],
             array_map(static fn (array $class): array => [
@@ -66,9 +81,37 @@ class ChurchServiceProposalCensusCommand extends Command
         ));
 
         $this->reportResidual($result);
-        $this->reportBlockers($result);
+    }
 
-        return $this->exitCode($result);
+    /**
+     * Report what the census was taken over, so a clean-looking result can be read
+     * against the corpus it claims to describe rather than on its own.
+     *
+     * @param  array<string, mixed>  $result
+     */
+    private function reportCorpus(ChurchServiceProposalCensusGate $gate, array $result): void
+    {
+        $corpus = $result['corpus'];
+        $expected = $corpus['expected_services'];
+
+        $this->line(sprintf(
+            'Corpus: %d service(s) staged, %d projected at policy version %d, against %s approved.',
+            $corpus['staged_services'],
+            $corpus['projected_services'],
+            $corpus['policy_version'],
+            is_int($expected) ? (string) $expected : 'no manifest count',
+        ));
+
+        foreach ($result['corpus_blockers'] as $blocker) {
+            $this->warn($gate->describeCorpusBlocker($blocker));
+        }
+    }
+
+    private function expectedServices(): ?int
+    {
+        $option = $this->option('expected-services');
+
+        return is_numeric($option) ? (int) $option : null;
     }
 
     /** @param array<string, mixed> $result */
@@ -116,7 +159,7 @@ class ChurchServiceProposalCensusCommand extends Command
 
         if ($result['passes']) {
             $this->info(sprintf(
-                'Gate passes: every class is marked %s or %s with a reason.',
+                'Gate passes: the corpus reconciles and every class is marked %s or %s with a reason.',
                 ChurchServiceProposalClassReview::AUTOMATED,
                 ChurchServiceProposalClassReview::IRREDUCIBLE,
             ));

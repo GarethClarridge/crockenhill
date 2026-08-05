@@ -7,7 +7,9 @@ namespace Tests\Feature\Console;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceMergeProposal;
 use App\Models\ChurchServiceProposalClassReview;
+use App\Models\ChurchServiceSourceRecord;
 use App\Models\User;
+use App\Services\ChurchService\ChurchServiceProjector;
 use App\Services\ChurchService\ChurchServiceProposalCensus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
@@ -47,6 +49,44 @@ class ChurchServiceProposalCensusCommandTest extends TestCase
             ->assertSuccessful();
     }
 
+    /**
+     * The empty census is the dangerous one: it looks like a converged corpus and is
+     * produced just as readily by a corpus nothing has been staged for.
+     */
+    #[Test]
+    public function the_gate_option_fails_on_an_empty_census_over_an_unstaged_corpus(): void
+    {
+        $this->artisan('services:proposal-census --gate')
+            ->expectsOutputToContain('The census is empty.')
+            ->expectsOutputToContain('No approved corpus size is recorded')
+            ->assertFailed();
+    }
+
+    #[Test]
+    public function the_gate_option_passes_on_an_empty_census_over_a_fully_projected_corpus(): void
+    {
+        $service = ChurchService::factory()->create([
+            'projection_policy_version' => ChurchServiceProjector::PROJECTION_POLICY_VERSION,
+        ]);
+        ChurchServiceSourceRecord::factory()->create(['church_service_id' => $service->id]);
+
+        $this->artisan('services:proposal-census --gate --expected-services=1')
+            ->expectsOutputToContain('The census is empty.')
+            ->expectsOutputToContain('1 service(s) staged, 1 projected')
+            ->expectsOutputToContain('Gate passes')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function the_gate_option_fails_when_the_staged_corpus_falls_short_of_the_manifest(): void
+    {
+        $this->proposal();
+
+        $this->artisan('services:proposal-census --gate --expected-services=40')
+            ->expectsOutputToContain('Fewer services are staged than the approved manifest declares')
+            ->assertFailed();
+    }
+
     #[Test]
     public function it_emits_the_census_and_gate_as_json(): void
     {
@@ -67,7 +107,10 @@ class ChurchServiceProposalCensusCommandTest extends TestCase
             'date' => '2026-09-01',
             'service' => 'morning',
             'needs_review' => true,
+            'projection_policy_version' => ChurchServiceProjector::PROJECTION_POLICY_VERSION,
         ]);
+        ChurchServiceSourceRecord::factory()->create(['church_service_id' => $service->id]);
+        config()->set('church.historic_corpus.expected_services', 1);
 
         return ChurchServiceMergeProposal::factory()->create([
             'church_service_id' => $service->id,

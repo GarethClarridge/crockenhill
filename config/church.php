@@ -65,4 +65,21 @@ return [
     'services' => [
         'public_from' => env('CHURCH_SERVICES_PUBLIC_FROM'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Historic corpus size
+    |--------------------------------------------------------------------------
+    |
+    | The number of services the approved corpus manifest covers. The §9.4.6
+    | review-load gate reconciles the staged and projected counts against it, so
+    | that an empty proposal census cannot be mistaken for a converged one when
+    | the truth is that nothing has been staged yet.
+    |
+    | Null means no corpus has been approved, and the gate refuses to pass.
+    |
+    */
+    'historic_corpus' => [
+        'expected_services' => env('HISTORIC_CORPUS_EXPECTED_SERVICES'),
+    ],
 ];

@@ -9,7 +9,9 @@ use App\Livewire\Admin\ChurchServices\ReviewChurchServiceProposalQueue;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceMergeProposal;
 use App\Models\ChurchServiceProposalClassReview;
+use App\Models\ChurchServiceSourceRecord;
 use App\Models\User;
+use App\Services\ChurchService\ChurchServiceProjector;
 use App\Services\ChurchService\ChurchServiceProposalCensus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -163,6 +165,42 @@ class ReviewChurchServiceProposalQueueTest extends TestCase
             ->assertSee('custom:welcome')
             ->assertSee('1 Sep 2026')
             ->assertSee('Unaccounted');
+    }
+
+    /**
+     * The queue's own empty state cannot tell a converged corpus from an unstaged
+     * one, so the gate card has to say which it is looking at.
+     */
+    #[Test]
+    public function the_gate_card_reports_the_corpus_even_when_no_class_is_pending(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        Livewire::actingAs($admin)
+            ->test(ReviewChurchServiceProposalQueue::class)
+            ->assertSee('No approved corpus size is recorded')
+            ->assertSee('Corpus not reconciled')
+            ->assertSee('No pending evidence classes')
+            ->assertDontSee('Corpus reconciled, every class accounted for');
+    }
+
+    #[Test]
+    public function the_gate_card_reconciles_a_fully_staged_and_projected_corpus(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $service = ChurchService::factory()->create([
+            'projection_policy_version' => ChurchServiceProjector::PROJECTION_POLICY_VERSION,
+        ]);
+        ChurchServiceSourceRecord::factory()->create(['church_service_id' => $service->id]);
+        config()->set('church.historic_corpus.expected_services', 1);
+
+        Livewire::actingAs($admin)
+            ->test(ReviewChurchServiceProposalQueue::class)
+            ->assertSee('1 service staged,')
+            ->assertSee('projected at policy version 1')
+            ->assertSee('against 1 approved')
+            ->assertSee('Corpus reconciled, every class accounted for')
+            ->assertDontSee('No approved corpus size is recorded');
     }
 
     private function proposal(int $day = 1, string $subject = 'custom:welcome'): ChurchServiceMergeProposal

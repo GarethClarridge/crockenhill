@@ -7,6 +7,7 @@ namespace App\Livewire\Admin\ChurchServices;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchServiceProposalClassReview;
+use App\Services\ChurchService\ChurchServiceCorpusCompleteness;
 use App\Services\ChurchService\ChurchServiceProposalCensus;
 use App\Services\ChurchService\ChurchServiceProposalCensusGate;
 use App\Services\ChurchService\ChurchServiceProposalRuleService;
@@ -46,13 +47,18 @@ class ReviewChurchServiceProposalQueue extends Component
      */
     private ?array $censusClasses = null;
 
-    public function render(ChurchServiceProposalCensusGate $gate): View
+    public function render(ChurchServiceProposalCensusGate $gate, ChurchServiceCorpusCompleteness $corpus): View
     {
         $classes = $this->classes();
+        $result = $gate->evaluate($classes, $corpus->evidence());
 
         return view('livewire.admin.church-services.review-church-service-proposal-queue', [
             'classes' => $classes,
-            'gate' => $gate->evaluate($classes),
+            'gate' => $result,
+            'corpusBlockerMessages' => array_map(
+                static fn (string $blocker): string => $gate->describeCorpusBlocker($blocker),
+                $result['corpus_blockers'],
+            ),
         ])->layout('layouts.admin', [
             'title' => 'Evidence proposal queue',
             'heading' => 'Evidence proposal queue',

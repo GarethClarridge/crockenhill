@@ -8,16 +8,9 @@
         </x-button>
     </x-slot:actions>
 
-    @if($classes === [])
-        <x-card>
-            <div class="space-y-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-8 text-center" role="status">
-                <h2 class="font-display text-xl text-gray-900">No pending evidence classes</h2>
-                <p class="text-sm text-gray-600">New evidence proposals will appear here after projection.</p>
-            </div>
-        </x-card>
-    @else
-        <x-card class="mb-4">
-            <div class="flex flex-wrap items-center justify-between gap-3" role="status" dusk="census-gate">
+    <x-card class="mb-4">
+        <div class="space-y-3" role="status" dusk="census-gate">
+            <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="space-y-1">
                     <h2 class="font-display text-lg text-gray-900">Review-load gate</h2>
                     <p class="text-sm text-gray-600">
@@ -29,15 +22,43 @@
                             No class is marked irreducible yet.
                         @endif
                     </p>
+                    <p class="text-sm text-gray-600" dusk="census-corpus">
+                        Corpus: {{ $gate['corpus']['staged_services'] }} service{{ $gate['corpus']['staged_services'] === 1 ? '' : 's' }} staged,
+                        {{ $gate['corpus']['projected_services'] }} projected at policy version {{ $gate['corpus']['policy_version'] }},
+                        against {{ is_int($gate['corpus']['expected_services']) ? $gate['corpus']['expected_services'] . ' approved' : 'no approved manifest count' }}.
+                    </p>
                 </div>
                 @if($gate['passes'])
-                    <x-badge variant="success">Every class accounted for</x-badge>
+                    <x-badge variant="success">Corpus reconciled, every class accounted for</x-badge>
+                @elseif($corpusBlockerMessages !== [])
+                    <x-badge variant="warning">Corpus not reconciled</x-badge>
                 @else
                     <x-badge variant="warning">{{ count($gate['unclassified']) }} unaccounted</x-badge>
                 @endif
             </div>
-        </x-card>
 
+            @if($corpusBlockerMessages !== [])
+                <ul
+                    class="space-y-1 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+                    role="alert"
+                    dusk="census-corpus-blockers"
+                >
+                    @foreach($corpusBlockerMessages as $message)
+                        <li>{{ $message }}</li>
+                    @endforeach
+                </ul>
+            @endif
+        </div>
+    </x-card>
+
+    @if($classes === [])
+        <x-card>
+            <div class="space-y-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-8 text-center" role="status">
+                <h2 class="font-display text-xl text-gray-900">No pending evidence classes</h2>
+                <p class="text-sm text-gray-600">New evidence proposals will appear here after projection.</p>
+            </div>
+        </x-card>
+    @else
         <div
             class="space-y-4"
             wire:loading.class="opacity-60"
