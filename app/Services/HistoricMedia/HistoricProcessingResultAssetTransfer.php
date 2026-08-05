@@ -11,6 +11,22 @@ use RuntimeException;
 class HistoricProcessingResultAssetTransfer
 {
     /**
+     * Return the resolved storage identities used by the operation token.
+     * Credentials and absolute local roots are intentionally reduced to stable
+     * fingerprints; the token must distinguish disks without becoming a secret
+     * or a portable local path carrier.
+     *
+     * @return array<string, array<string, string|null>>
+     */
+    public function storageIdentity(): array
+    {
+        return [
+            'staging' => $this->diskIdentity($this->stagingName()),
+            'production' => $this->diskIdentity((string) config('media-processing.storage.sermon_disk')),
+        ];
+    }
+
+    /**
      * @param  list<array{path: string, size: int, sha256: string, kind: string, roles: list<string>}>  $assets
      */
     public function verifyStaged(array $assets): void
@@ -226,7 +242,7 @@ class HistoricProcessingResultAssetTransfer
 
     private function stagingDisk(): FilesystemAdapter
     {
-        $staging = (string) config('media-processing.storage.historic_staging_disk');
+        $staging = $this->stagingName();
         $production = (string) config('media-processing.storage.sermon_disk');
 
         if ($staging === '' || $staging === $production) {
@@ -234,6 +250,32 @@ class HistoricProcessingResultAssetTransfer
         }
 
         return Storage::disk($staging);
+    }
+
+    private function stagingName(): string
+    {
+        return (string) config('media-processing.storage.historic_staging_disk');
+    }
+
+    /** @return array<string, string|null> */
+    private function diskIdentity(string $disk): array
+    {
+        $configuration = config("filesystems.disks.{$disk}", []);
+
+        if (! is_array($configuration)) {
+            throw new RuntimeException("Storage disk '{$disk}' is not configured.");
+        }
+
+        $root = $configuration['root'] ?? null;
+        $prefix = $configuration['prefix'] ?? null;
+
+        return [
+            'name' => $disk,
+            'driver' => is_string($configuration['driver'] ?? null) ? $configuration['driver'] : null,
+            'bucket' => is_string($configuration['bucket'] ?? null) ? $configuration['bucket'] : null,
+            'prefix' => is_string($prefix) ? $prefix : null,
+            'root_fingerprint' => is_string($root) ? hash('sha256', $root) : null,
+        ];
     }
 
     private function guardPath(string $path): void

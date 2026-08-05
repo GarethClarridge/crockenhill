@@ -50,6 +50,29 @@ class HistoricProcessingResultBundleImporterTest extends TestCase
     }
 
     #[Test]
+    public function closeout_audit_preparation_does_not_require_the_private_staging_disk(): void
+    {
+        Storage::disk('historic_staging')->put('historic/run/audio.mp3', 'audio');
+        $bundle = $this->graphBundle();
+        $importer = app(HistoricProcessingResultBundleImporter::class);
+        $plan = $importer->prepareService($bundle);
+        $result = $importer->importService($bundle, $plan->planHash);
+
+        $bundle['services'][0]['media_graph']['logical_hash'] = app(HistoricProcessingResultInventory::class)
+            ->build($result['processing_log']->fresh())['logical_hash'];
+        $bundle = app(HistoricProcessingResultBundle::class)->make(
+            $bundle['batch_hash'],
+            $bundle['processing_fingerprint'],
+            $bundle['services'],
+        );
+        Storage::disk('historic_staging')->delete('historic/run/audio.mp3');
+
+        $auditPlan = $importer->prepareServiceForAudit($bundle);
+
+        $this->assertSame('already_present', $auditPlan->classification);
+    }
+
+    #[Test]
     public function it_rejects_a_staged_asset_hash_mismatch(): void
     {
         Storage::disk('historic_staging')->put('historic/run/video.mp4', 'different');

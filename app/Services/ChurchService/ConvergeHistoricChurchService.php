@@ -5,19 +5,25 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Actions\IngestChurchServiceSourceRevision;
+use App\Data\ChurchServiceConvergenceImportPlan;
 use App\Data\ChurchServiceSourceRevision;
+use App\Data\HistoricConvergenceOperationPlan;
+use App\Data\HistoricProcessingResultImportPlan;
 use App\Enums\ChurchServiceSource;
+use App\Enums\HistoricImportClassification;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
+use App\Models\User;
 use App\Services\HistoricMedia\HistoricProcessingResultAssetTransfer;
 use App\Services\HistoricMedia\HistoricProcessingResultBundle;
 use App\Services\HistoricMedia\HistoricProcessingResultBundleImporter;
 use App\Services\HistoricMedia\HistoricProcessingResultInventory;
 use App\Support\CanonicalJson;
+use DateTimeImmutable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -25,6 +31,31 @@ use Throwable;
 
 class ConvergeHistoricChurchService
 {
+    /**
+     * The apply phases, recorded in the ledger so a stopped batch explains
+     * itself without carrying the failure text. Every phase name is a fixed
+     * token authored here, never derived from an exception message.
+     */
+    private const PHASE_PREFLIGHT = 'preflight';
+
+    private const PHASE_LOCK_SERVICE = 'lock_service';
+
+    private const PHASE_PERSIST_MEDIA = 'persist_media_graph';
+
+    private const PHASE_LINK_RUN = 'link_run_to_service';
+
+    private const PHASE_RESOLVE_SECTIONS = 'resolve_portable_sections';
+
+    private const PHASE_INGEST_LIVESTREAM = 'ingest_livestream_revision';
+
+    private const PHASE_PERSIST_CONVERGENCE = 'persist_convergence';
+
+    private const PHASE_LINK_SECTIONS = 'link_sections_and_song_videos';
+
+    private const PHASE_VERIFY_GRAPH = 'verify_media_graph';
+
+    private const PHASE_COMMIT = 'commit';
+
     public function __construct(
         private readonly HistoricProcessingResultBundle $mediaBundles,
         private readonly ChurchServiceConvergenceBundle $convergenceBundles,
@@ -33,7 +64,191 @@ class ConvergeHistoricChurchService
         private readonly HistoricProcessingResultAssetTransfer $assets,
         private readonly HistoricProcessingResultInventory $inventory,
         private readonly IngestChurchServiceSourceRevision $ingestSourceRevision,
+        private readonly ?HistoricConvergenceLedger $ledger = null,
+        private readonly ?ChurchServiceProposalIdentity $proposalIdentity = null,
+        private readonly ?HistoricConvergenceDispatchGuard $dispatchGuard = null,
     ) {}
+
+    /**
+     * Prepare one service without changing the database or destination media.
+     * The returned operation plan is the only state an apply is allowed to use.
+     *
+     * @param  array<string, mixed>  $mediaBundle
+     * @param  array<string, mixed>  $convergenceBundle
+     */
+    public function prepare(
+        array $mediaBundle,
+        array $convergenceBundle,
+        int $mediaServiceIndex = 0,
+        int $convergenceServiceIndex = 0,
+        ?string $operationId = null,
+        ?string $expiresAt = null,
+    ): HistoricConvergenceOperationPlan {
+        $mediaBundle = $this->mediaBundles->validate($mediaBundle);
+        $convergenceBundle = $this->convergenceBundles->validate($convergenceBundle);
+        $this->assertBundleIdentity($mediaBundle, $convergenceBundle);
+        $this->assertServiceIdentity($mediaBundle, $convergenceBundle, $mediaServiceIndex, $convergenceServiceIndex);
+        $mediaPayload = $this->servicePayload($mediaBundle, $mediaServiceIndex, 'media');
+        $convergencePayload = $this->servicePayload($convergenceBundle, $convergenceServiceIndex, 'convergence');
+        $mediaPlan = $this->mediaImporter->prepareService($mediaBundle, $mediaServiceIndex);
+        $convergencePlan = $this->convergenceImporter->prepareServiceForHistoricImport(
+            $convergenceBundle,
+            $convergenceServiceIndex,
+            $mediaPayload['livestream_source_revision'],
+            $mediaPayload['media_graph']['processing_key'],
+        );
+        $binding = $this->bindingState($mediaPlan, $convergencePlan, $mediaPayload, $convergencePayload);
+        $operationId ??= $this->operationId($mediaBundle, $convergenceBundle, $mediaServiceIndex, $convergenceServiceIndex);
+        $expiry = $expiresAt === null ? new DateTimeImmutable('+1 hour') : new DateTimeImmutable($expiresAt);
+        $summary = [
+            ...$this->serviceSummary($binding, $mediaPlan, $convergencePlan),
+            'media_index' => $mediaServiceIndex,
+            'convergence_index' => $convergenceServiceIndex,
+        ];
+        $storage = $this->assets->storageIdentity();
+        $content = [
+            'format' => 'crockenhill-historic-convergence-operation',
+            'version' => 1,
+            'operation_id' => $operationId,
+            'batch_hash' => $mediaBundle['batch_hash'],
+            'media_bundle_hash' => $mediaBundle['bundle_hash'],
+            'convergence_bundle_hash' => $convergenceBundle['bundle_hash'],
+            'processing_fingerprint' => $mediaBundle['processing_fingerprint'],
+            'storage' => $storage,
+            'deployment_identifier' => $this->deploymentIdentifier(),
+            'services' => [$summary],
+        ];
+        $contentHash = CanonicalJson::hash($content);
+        $planHash = CanonicalJson::hash([...$content, 'expires_at' => $expiry->format(DATE_ATOM)]);
+        $plan = new HistoricConvergenceOperationPlan(
+            operationId: $operationId,
+            planHash: $planHash,
+            contentHash: $contentHash,
+            batchHash: $mediaBundle['batch_hash'],
+            mediaBundleHash: $mediaBundle['bundle_hash'],
+            convergenceBundleHash: $convergenceBundle['bundle_hash'],
+            processingFingerprint: $mediaBundle['processing_fingerprint'],
+            storageIdentity: $storage,
+            expiresAt: $expiry,
+            services: [[
+                'media_index' => $mediaServiceIndex,
+                'convergence_index' => $convergenceServiceIndex,
+                'identity' => "{$mediaPayload['date']}|{$mediaPayload['service']}",
+                'media_plan' => $mediaPlan,
+                'convergence_plan' => $convergencePlan,
+                'binding' => $binding,
+                'summary' => $summary,
+            ]],
+            summary: ['services' => [$summary], 'service_count' => 1],
+        );
+        $this->ledger()->recordPrepared($plan);
+
+        return $plan;
+    }
+
+    /**
+     * Prepare every matching service in deterministic Bundle A order.
+     *
+     * @param  array<string, mixed>  $mediaBundle
+     * @param  array<string, mixed>  $convergenceBundle
+     */
+    public function prepareBatch(
+        array $mediaBundle,
+        array $convergenceBundle,
+        ?string $operationId = null,
+        ?string $expiresAt = null,
+    ): HistoricConvergenceOperationPlan {
+        $mediaBundle = $this->mediaBundles->validate($mediaBundle);
+        $convergenceBundle = $this->convergenceBundles->validate($convergenceBundle);
+        $this->assertBundleIdentity($mediaBundle, $convergenceBundle);
+        $convergenceIndexes = [];
+
+        foreach ($convergenceBundle['services'] as $index => $payload) {
+            if (is_array($payload)) {
+                $convergenceIndexes["{$payload['date']}|{$payload['service']}"] = $index;
+            }
+        }
+
+        $services = [];
+        $summaries = [];
+
+        foreach ($mediaBundle['services'] as $mediaIndex => $mediaPayload) {
+            $identity = "{$mediaPayload['date']}|{$mediaPayload['service']}";
+            $convergenceIndex = $convergenceIndexes[$identity] ?? null;
+
+            if (! is_int($convergenceIndex)) {
+                throw new RuntimeException("No convergence service matches {$identity}.");
+            }
+
+            $mediaPlan = $this->mediaImporter->prepareService($mediaBundle, $mediaIndex);
+            $convergencePlan = $this->convergenceImporter->prepareServiceForHistoricImport(
+                $convergenceBundle,
+                $convergenceIndex,
+                $mediaPayload['livestream_source_revision'],
+                $mediaPayload['media_graph']['processing_key'],
+            );
+            $convergencePayload = $this->servicePayload($convergenceBundle, $convergenceIndex, 'convergence');
+            $binding = $this->bindingState($mediaPlan, $convergencePlan, $mediaPayload, $convergencePayload);
+            $summary = [
+                ...$this->serviceSummary($binding, $mediaPlan, $convergencePlan),
+                'media_index' => $mediaIndex,
+                'convergence_index' => $convergenceIndex,
+            ];
+            $services[] = [
+                'media_index' => $mediaIndex,
+                'convergence_index' => $convergenceIndex,
+                'identity' => $identity,
+                'media_plan' => $mediaPlan,
+                'convergence_plan' => $convergencePlan,
+                'binding' => $binding,
+                'summary' => $summary,
+            ];
+            $summaries[] = $summary;
+        }
+
+        if (count($convergenceIndexes) !== count($services)) {
+            throw new RuntimeException('Bundle A and Bundle B do not contain the same service identities.');
+        }
+
+        $operationId ??= substr(CanonicalJson::hash([
+            'batch_hash' => $mediaBundle['batch_hash'],
+            'media_bundle_hash' => $mediaBundle['bundle_hash'],
+            'convergence_bundle_hash' => $convergenceBundle['bundle_hash'],
+            'services' => array_column($summaries, 'identity'),
+        ]), 0, 32);
+        $expiry = $expiresAt === null ? new DateTimeImmutable('+1 hour') : new DateTimeImmutable($expiresAt);
+        $storage = $this->assets->storageIdentity();
+        $content = [
+            'format' => 'crockenhill-historic-convergence-operation',
+            'version' => 1,
+            'operation_id' => $operationId,
+            'batch_hash' => $mediaBundle['batch_hash'],
+            'media_bundle_hash' => $mediaBundle['bundle_hash'],
+            'convergence_bundle_hash' => $convergenceBundle['bundle_hash'],
+            'processing_fingerprint' => $mediaBundle['processing_fingerprint'],
+            'storage' => $storage,
+            'deployment_identifier' => $this->deploymentIdentifier(),
+            'services' => $summaries,
+        ];
+        $contentHash = CanonicalJson::hash($content);
+        $planHash = CanonicalJson::hash([...$content, 'expires_at' => $expiry->format(DATE_ATOM)]);
+        $plan = new HistoricConvergenceOperationPlan(
+            operationId: $operationId,
+            planHash: $planHash,
+            contentHash: $contentHash,
+            batchHash: $mediaBundle['batch_hash'],
+            mediaBundleHash: $mediaBundle['bundle_hash'],
+            convergenceBundleHash: $convergenceBundle['bundle_hash'],
+            processingFingerprint: $mediaBundle['processing_fingerprint'],
+            storageIdentity: $storage,
+            expiresAt: $expiry,
+            services: $services,
+            summary: ['services' => $summaries, 'service_count' => count($services)],
+        );
+        $this->ledger()->recordPrepared($plan);
+
+        return $plan;
+    }
 
     /**
      * @param  array<string, mixed>  $mediaBundle
@@ -45,58 +260,506 @@ class ConvergeHistoricChurchService
         array $convergenceBundle,
         int $mediaServiceIndex = 0,
         int $convergenceServiceIndex = 0,
+        ?string $expectedPlanHash = null,
+        ?HistoricConvergenceOperationPlan $prepared = null,
     ): array {
-        $mediaBundle = $this->mediaBundles->validate($mediaBundle);
-        $convergenceBundle = $this->convergenceBundles->validate($convergenceBundle);
-        $mediaPayload = $this->servicePayload($mediaBundle, $mediaServiceIndex, 'media');
-        $convergencePayload = $this->servicePayload($convergenceBundle, $convergenceServiceIndex, 'convergence');
-        $this->assertBundlesAgree($mediaBundle, $convergenceBundle, $mediaPayload, $convergencePayload);
-        $mediaPlan = $this->mediaImporter->prepareService($mediaBundle, $mediaServiceIndex);
+        $prepared ??= $this->prepare(
+            $mediaBundle,
+            $convergenceBundle,
+            $mediaServiceIndex,
+            $convergenceServiceIndex,
+        );
+
+        if ($prepared->isExpired()) {
+            throw new RuntimeException('Historic convergence plan has expired; run a new dry run.');
+        }
+
+        if ($expectedPlanHash !== null && ! hash_equals($prepared->planHash, $expectedPlanHash)) {
+            throw new RuntimeException('Historic convergence plan hash does not match the approved dry run.');
+        }
+
+        $revalidated = $this->prepare(
+            $mediaBundle,
+            $convergenceBundle,
+            $mediaServiceIndex,
+            $convergenceServiceIndex,
+            $prepared->operationId,
+            $prepared->expiresAt->format(DATE_ATOM),
+        );
+
+        if (! hash_equals($prepared->planHash, $revalidated->planHash)) {
+            throw new RuntimeException('Historic convergence plan changed before apply; no records were committed.');
+        }
+
+        $servicePlan = $revalidated->services[0] ?? null;
+
+        if (! is_array($servicePlan)) {
+            throw new RuntimeException('Historic convergence plan contains no service.');
+        }
+
+        $this->assertPlanApplicable($revalidated);
+
+        return $this->applyPreparedService($revalidated, $servicePlan, $mediaBundle);
+    }
+
+    /**
+     * @param  array<string, mixed>  $mediaBundle
+     * @param  array<string, mixed>  $convergenceBundle
+     * @return list<array{church_service: ChurchService, processing_log: MediaProcessingLog, created_assets: list<string>}>
+     */
+    public function executeBatch(
+        array $mediaBundle,
+        array $convergenceBundle,
+        ?string $expectedPlanHash = null,
+        bool $resume = false,
+        ?string $operationId = null,
+        ?string $expiresAt = null,
+        ?HistoricConvergenceOperationPlan $prepared = null,
+    ): array {
+        $approved = $prepared ?? $this->prepareBatch($mediaBundle, $convergenceBundle, $operationId, $expiresAt);
+
+        if ($approved->isExpired()) {
+            throw new RuntimeException('Historic convergence plan has expired; run a new dry run.');
+        }
+
+        if ($expectedPlanHash !== null && ! hash_equals($approved->planHash, $expectedPlanHash)) {
+            throw new RuntimeException('Historic convergence plan hash does not match the approved dry run.');
+        }
+
+        $plan = $this->prepareBatch(
+            $mediaBundle,
+            $convergenceBundle,
+            $approved->operationId,
+            $approved->expiresAt->format(DATE_ATOM),
+        );
+
+        if (! hash_equals($approved->planHash, $plan->planHash)) {
+            throw new RuntimeException('Historic convergence plan changed before apply; no records were committed.');
+        }
+
+        $this->assertPlanApplicable($plan);
+
+        $results = [];
+
+        foreach ($plan->services as $servicePlan) {
+            $identity = $servicePlan['identity'] ?? null;
+
+            if ($resume && is_string($identity) && $this->ledger()->hasCompleted($plan->operationId, $identity)) {
+                $this->assertCompletedServiceStillApplied($servicePlan, $identity);
+
+                continue;
+            }
+
+            $results[] = $this->applyPreparedService($plan, $servicePlan, $mediaBundle);
+        }
+
+        return $results;
+    }
+
+    /**
+     * A resume re-preflights every service, including the ones the ledger says
+     * already applied. Those must now classify as an exact no-op on both halves;
+     * anything else means production moved after the ledger recorded them, and
+     * skipping would silently leave the batch half-applied.
+     *
+     * @param  array<string, mixed>  $servicePlan
+     */
+    private function assertCompletedServiceStillApplied(array $servicePlan, string $identity): void
+    {
+        $mediaPlan = $servicePlan['media_plan'] ?? null;
+        $convergencePlan = $servicePlan['convergence_plan'] ?? null;
+        $alreadyPresent = HistoricImportClassification::AlreadyPresent->value;
+
+        if (! $mediaPlan instanceof HistoricProcessingResultImportPlan
+            || $mediaPlan->classification !== $alreadyPresent) {
+            $classification = $mediaPlan instanceof HistoricProcessingResultImportPlan
+                ? $mediaPlan->classification
+                : 'invalid';
+
+            throw new RuntimeException(
+                "Resumed operation cannot revalidate the completed media result for {$identity}: {$classification}.",
+            );
+        }
+
+        if (! $convergencePlan instanceof ChurchServiceConvergenceImportPlan
+            || $convergencePlan->classification !== $alreadyPresent) {
+            $classification = $convergencePlan instanceof ChurchServiceConvergenceImportPlan
+                ? $convergencePlan->classification
+                : 'invalid';
+
+            throw new RuntimeException(
+                "Resumed operation cannot revalidate the completed convergence result for {$identity}: {$classification}.",
+            );
+        }
+    }
+
+    /**
+     * The whole batch must classify as applicable before the first service
+     * writes anything. The accepted sets below are exactly what
+     * HistoricProcessingResultBundleImporter::persistPreparedService() and
+     * ChurchServiceConvergenceBundleImporter::persistPreparedService() accept —
+     * a preflight that admitted more would still abort, but only after earlier
+     * services in the batch had already committed.
+     */
+    private function assertPlanApplicable(HistoricConvergenceOperationPlan $plan): void
+    {
+        foreach ($plan->services as $servicePlan) {
+            $identity = $servicePlan['identity'] ?? 'unknown service';
+            $mediaPlan = $servicePlan['media_plan'] ?? null;
+            $convergencePlan = $servicePlan['convergence_plan'] ?? null;
+
+            if (! $mediaPlan instanceof HistoricProcessingResultImportPlan) {
+                throw new RuntimeException("Historic media preflight is invalid for {$identity}.");
+            }
+
+            $mediaApplicable = $mediaPlan->classification === HistoricImportClassification::Create->value
+                || (
+                    $mediaPlan->classification === HistoricImportClassification::AlreadyPresent->value
+                    && $mediaPlan->existingProcessingLogId !== null
+                );
+
+            if (! $mediaApplicable) {
+                throw new RuntimeException(
+                    "Historic media preflight is {$mediaPlan->classification} for {$identity}.",
+                );
+            }
+
+            if (
+                ! $convergencePlan instanceof ChurchServiceConvergenceImportPlan
+                || ! in_array($convergencePlan->classification, [
+                    HistoricImportClassification::AlreadyPresent->value,
+                    HistoricImportClassification::SafeEnrichment->value,
+                ], true)
+            ) {
+                $classification = $convergencePlan instanceof ChurchServiceConvergenceImportPlan
+                    ? $convergencePlan->classification
+                    : 'invalid';
+
+                throw new RuntimeException("Church-service convergence preflight is {$classification} for {$identity}.");
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $mediaBundle
+     * @param  array<string, mixed>  $servicePlan
+     * @return array{church_service: ChurchService, processing_log: MediaProcessingLog, created_assets: list<string>}
+     */
+    private function applyPreparedService(
+        HistoricConvergenceOperationPlan $operationPlan,
+        array $servicePlan,
+        array $mediaBundle,
+    ): array {
+        $mediaIndex = $servicePlan['media_index'] ?? null;
+        $convergenceIndex = $servicePlan['convergence_index'] ?? null;
+        $mediaPlan = $servicePlan['media_plan'] ?? null;
+        $convergencePlan = $servicePlan['convergence_plan'] ?? null;
+
+        if (! is_int($mediaIndex) || ! is_int($convergenceIndex)) {
+            throw new RuntimeException('Historic convergence plan contains invalid bundle indexes.');
+        }
+
+        if (! $mediaPlan instanceof HistoricProcessingResultImportPlan
+            || ! $convergencePlan instanceof ChurchServiceConvergenceImportPlan) {
+            throw new RuntimeException('Historic convergence plan contains invalid importer plans.');
+        }
+
+        $mediaPayload = $this->servicePayload($mediaBundle, $mediaIndex, 'media');
+        $summary = $servicePlan['summary'] ?? null;
+
+        if (! is_array($summary)
+            || ! is_string($summary['media_plan_hash'] ?? null)
+            || ! is_string($summary['convergence_plan_hash'] ?? null)
+            || ! hash_equals($summary['media_plan_hash'], $mediaPlan->planHash)
+            || ! hash_equals($summary['convergence_plan_hash'], $convergencePlan->planHash)
+        ) {
+            throw new RuntimeException('Historic convergence service plan hashes are not bound to the approved operation.');
+        }
+
+        $mediaPlanHash = $summary['media_plan_hash'];
+        $convergencePlanHash = $summary['convergence_plan_hash'];
+
         $createdAssets = [];
+        $phase = self::PHASE_PREFLIGHT;
+        $this->ledger()->recordStarted($operationPlan, $servicePlan);
 
         try {
-            return DB::transaction(function () use (
+            /**
+             * Both closures capture by reference deliberately. An arrow
+             * function would copy `$createdAssets` and `$phase` into its own
+             * scope, so the catch below would compensate an empty asset list
+             * and record the wrong phase.
+             */
+            $result = $this->dispatchGuard()->guard(function () use (
                 $mediaPlan,
                 $mediaPayload,
-                $convergenceBundle,
-                $convergenceServiceIndex,
+                $convergencePlan,
+                $mediaPlanHash,
+                $convergencePlanHash,
                 &$createdAssets,
+                &$phase,
             ): array {
-                $service = $this->lockService($mediaPayload);
-                $mediaResult = $this->mediaImporter->persistPreparedService($mediaPlan, $mediaPlan->planHash);
-                $createdAssets = $mediaResult['created_assets'];
-                $run = $mediaResult['processing_log'];
-                $this->linkRun($run, $service);
-                $sections = $this->sectionsByPortableKey($run, $mediaPayload['media_graph']['sections']);
-                $this->ingestLivestreamRevision($service, $run, $sections, $mediaPayload['livestream_source_revision']);
-
-                $convergencePlan = $this->convergenceImporter->prepareService(
-                    $convergenceBundle,
-                    $convergenceServiceIndex,
-                );
-
-                if ($convergencePlan->churchService->isNot($service)) {
-                    throw new RuntimeException('Convergence plan resolved a different church service.');
-                }
-
-                $service = $this->convergenceImporter->persistPreparedService(
+                return DB::transaction(function () use (
+                    $mediaPlan,
+                    $mediaPayload,
                     $convergencePlan,
-                    $convergencePlan->planHash,
-                );
-                $this->linkSectionsAndSongVideos($service, $sections);
-                $this->verifyMediaGraph($run, $mediaPayload['media_graph']);
+                    $mediaPlanHash,
+                    $convergencePlanHash,
+                    &$createdAssets,
+                    &$phase,
+                ): array {
+                    $phase = self::PHASE_LOCK_SERVICE;
+                    $service = $this->lockService($mediaPayload);
+                    $phase = self::PHASE_PERSIST_MEDIA;
+                    $mediaResult = $this->mediaImporter->persistPreparedService($mediaPlan, $mediaPlanHash);
+                    $createdAssets = $mediaResult['created_assets'];
+                    $run = $mediaResult['processing_log'];
+                    $phase = self::PHASE_LINK_RUN;
+                    $this->linkRun($run, $service);
+                    $phase = self::PHASE_RESOLVE_SECTIONS;
+                    $sections = $this->sectionsByPortableKey($run, $mediaPayload['media_graph']['sections']);
+                    $phase = self::PHASE_INGEST_LIVESTREAM;
+                    $this->ingestLivestreamRevision(
+                        $service,
+                        $run,
+                        $sections,
+                        $mediaPayload['livestream_source_revision'],
+                    );
 
-                return [
-                    'church_service' => $service->fresh(['items.song']) ?? $service,
-                    'processing_log' => $run->fresh() ?? $run,
-                    'created_assets' => $createdAssets,
-                ];
+                    $convergencePlan = new ChurchServiceConvergenceImportPlan(
+                        classification: $convergencePlan->classification,
+                        reason: $convergencePlan->reason,
+                        planHash: $convergencePlan->planHash,
+                        bundleHash: $convergencePlan->bundleHash,
+                        churchService: $service->fresh(['sourceRecords.assertions']) ?? $service,
+                        reviewer: $convergencePlan->reviewer,
+                        servicePayload: $convergencePlan->servicePayload,
+                    );
+
+                    if ($convergencePlan->churchService->isNot($service)) {
+                        throw new RuntimeException('Convergence plan resolved a different church service.');
+                    }
+
+                    $phase = self::PHASE_PERSIST_CONVERGENCE;
+                    $service = $this->convergenceImporter->persistPreparedService(
+                        $convergencePlan,
+                        $convergencePlanHash,
+                        false,
+                    );
+                    $phase = self::PHASE_LINK_SECTIONS;
+                    $this->linkSectionsAndSongVideos($service, $sections);
+                    $phase = self::PHASE_VERIFY_GRAPH;
+                    $this->verifyMediaGraph($run, $mediaPayload['media_graph']);
+                    $phase = self::PHASE_COMMIT;
+
+                    return [
+                        'church_service' => $service->fresh(['items.song']) ?? $service,
+                        'processing_log' => $run->fresh() ?? $run,
+                        'created_assets' => $createdAssets,
+                    ];
+                });
             });
         } catch (Throwable $exception) {
             $this->assets->cleanup($createdAssets);
+            $this->ledger()->recordFailed(
+                $operationPlan,
+                $phase,
+                $exception->getMessage(),
+                is_string($servicePlan['identity'] ?? null) ? $servicePlan['identity'] : null,
+            );
 
             throw $exception;
         }
+
+        $this->ledger()->recordCompleted($operationPlan, $servicePlan);
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $mediaBundle
+     * @param  array<string, mixed>  $convergenceBundle
+     */
+    private function assertBundleIdentity(array $mediaBundle, array $convergenceBundle): void
+    {
+        if (
+            $convergenceBundle['media_bundle_hash'] !== $mediaBundle['bundle_hash']
+            || $convergenceBundle['batch_hash'] !== $mediaBundle['batch_hash']
+            || CanonicalJson::hash($convergenceBundle['processing_fingerprint'])
+                !== CanonicalJson::hash($mediaBundle['processing_fingerprint'])
+        ) {
+            throw new RuntimeException('Historic media and reviewed convergence bundles do not describe the same service result.');
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $mediaBundle
+     * @param  array<string, mixed>  $convergenceBundle
+     */
+    private function operationId(
+        array $mediaBundle,
+        array $convergenceBundle,
+        int $mediaIndex,
+        int $convergenceIndex,
+    ): string {
+        return substr(CanonicalJson::hash([
+            'batch_hash' => $mediaBundle['batch_hash'],
+            'media_bundle_hash' => $mediaBundle['bundle_hash'],
+            'convergence_bundle_hash' => $convergenceBundle['bundle_hash'],
+            'media_index' => $mediaIndex,
+            'convergence_index' => $convergenceIndex,
+        ]), 0, 32);
+    }
+
+    /**
+     * @param  array<string, mixed>  $mediaPayload
+     * @param  array<string, mixed>  $convergencePayload
+     * @return array<string, mixed>
+     */
+    private function bindingState(
+        HistoricProcessingResultImportPlan $mediaPlan,
+        ChurchServiceConvergenceImportPlan $convergencePlan,
+        array $mediaPayload,
+        array $convergencePayload,
+    ): array {
+        $service = $convergencePlan->churchService->fresh([
+            'sourceRecords',
+            'mergeProposals.triggerSourceRecord',
+            'reviewSessions',
+        ]) ?? $convergencePlan->churchService;
+        $processingKey = $mediaPayload['media_graph']['processing_key'];
+        $existingRun = MediaProcessingLog::query()
+            ->where('processing_id', $processingKey)
+            ->first();
+        $existingGraphHash = null;
+
+        if ($existingRun instanceof MediaProcessingLog) {
+            try {
+                $existingGraphHash = $this->inventory->build($existingRun)['logical_hash'];
+            } catch (Throwable) {
+                $existingGraphHash = 'invalid-live-graph';
+            }
+        }
+
+        $sourceRecords = $service->sourceRecords
+            ->map(fn ($record): array => [
+                'source' => $record->source->value,
+                'source_key' => $record->source_key,
+                'revision_hash' => $record->revision_hash,
+                'input_hash' => $record->input_hash,
+                'payload_complete' => $record->payload_complete,
+            ])
+            ->sortBy(fn (array $record): string => implode('|', [
+                $record['source'],
+                $record['source_key'],
+                $record['revision_hash'],
+            ]))
+            ->values()
+            ->all();
+        $proposals = $service->mergeProposals
+            ->filter(fn ($proposal): bool => $proposal->status->value !== 'stale')
+            ->map(fn ($proposal): array => [
+                'identity' => $this->proposalIdentity()->for($proposal),
+                'status' => $proposal->status->value,
+                'base_canonical_revision' => $proposal->base_canonical_revision,
+                'base_canonical_hash' => $proposal->base_canonical_hash,
+            ])
+            ->sortBy('identity')
+            ->values()
+            ->all();
+        $reviews = $service->reviewSessions
+            ->map(fn ($review): array => [
+                'review_uuid' => $review->review_uuid,
+                'base_canonical_revision' => $review->base_canonical_revision,
+                'base_canonical_hash' => $review->base_canonical_hash,
+                'resulting_canonical_revision' => $review->resulting_canonical_revision,
+                'resulting_canonical_hash' => $review->resulting_canonical_hash,
+                'completed' => $review->completed_at !== null,
+            ])
+            ->sortBy('review_uuid')
+            ->values()
+            ->all();
+
+        return [
+            'service_identity' => [$mediaPayload['date'], $mediaPayload['service']],
+            'media' => [
+                'processing_key' => $processingKey,
+                'classification' => $mediaPlan->classification,
+                'reason' => $mediaPlan->reason,
+                'live_graph_hash' => $existingGraphHash,
+                'live_row_revision' => $existingRun?->updated_at?->toISOString(),
+                'asset_manifest_hash' => CanonicalJson::hash($mediaPlan->assets),
+            ],
+            'convergence' => [
+                'classification' => $convergencePlan->classification,
+                'reason' => $convergencePlan->reason,
+                'reviewer' => $convergencePlan->reviewer instanceof User
+                    ? [
+                        'email_hash' => hash('sha256', mb_strtolower(trim($convergencePlan->reviewer->email))),
+                        'updated_at' => $convergencePlan->reviewer->updated_at?->toISOString(),
+                    ]
+                    : null,
+                'canonical_revision' => $service->canonical_revision,
+                'canonical_hash' => $service->canonical_hash,
+                'updated_at' => $service->updated_at?->toISOString(),
+                'evidence_set_hash' => $convergencePayload['evidence_set_hash'],
+                'pre_review_hash' => $convergencePayload['pre_review_hash'],
+                'source_records' => $sourceRecords,
+                'proposals' => $proposals,
+                'reviews' => $reviews,
+            ],
+            'target_classification' => [
+                'media' => $mediaPlan->classification,
+                'convergence' => $convergencePlan->classification,
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $binding
+     * @return array<string, mixed>
+     */
+    private function serviceSummary(
+        array $binding,
+        HistoricProcessingResultImportPlan $mediaPlan,
+        ChurchServiceConvergenceImportPlan $convergencePlan,
+    ): array {
+        return [
+            'identity' => implode('|', $binding['service_identity']),
+            'binding_hash' => CanonicalJson::hash($binding),
+            'media_plan_hash' => $mediaPlan->planHash,
+            'media_classification' => $mediaPlan->classification,
+            'convergence_plan_hash' => $convergencePlan->planHash,
+            'convergence_classification' => $convergencePlan->classification,
+            'asset_manifest_hash' => CanonicalJson::hash($mediaPlan->assets),
+            'asset_count' => count($mediaPlan->assets),
+        ];
+    }
+
+    private function ledger(): HistoricConvergenceLedger
+    {
+        return $this->ledger ?? app(HistoricConvergenceLedger::class);
+    }
+
+    private function proposalIdentity(): ChurchServiceProposalIdentity
+    {
+        return $this->proposalIdentity ?? app(ChurchServiceProposalIdentity::class);
+    }
+
+    private function dispatchGuard(): HistoricConvergenceDispatchGuard
+    {
+        return $this->dispatchGuard ?? app(HistoricConvergenceDispatchGuard::class);
+    }
+
+    private function deploymentIdentifier(): string
+    {
+        $identifier = config('app.release_identifier');
+
+        if (! is_string($identifier) || trim($identifier) === '') {
+            throw new RuntimeException('Historic convergence requires a configured deployment identifier.');
+        }
+
+        return trim($identifier);
     }
 
     /**
@@ -117,28 +780,23 @@ class ConvergeHistoricChurchService
     /**
      * @param  array<string, mixed>  $mediaBundle
      * @param  array<string, mixed>  $convergenceBundle
-     * @param  array<string, mixed>  $media
-     * @param  array<string, mixed>  $convergence
      */
-    private function assertBundlesAgree(
+    private function assertServiceIdentity(
         array $mediaBundle,
         array $convergenceBundle,
-        array $media,
-        array $convergence,
+        int $mediaIndex,
+        int $convergenceIndex,
     ): void {
-        $checks = [
-            $convergenceBundle['media_bundle_hash'] === $mediaBundle['bundle_hash'],
-            $convergenceBundle['batch_hash'] === $mediaBundle['batch_hash'],
-            CanonicalJson::hash($convergenceBundle['processing_fingerprint'])
-                === CanonicalJson::hash($mediaBundle['processing_fingerprint']),
-            $media['date'] === $convergence['date'],
-            $media['service'] === $convergence['service'],
-            $media['evidence_set_hash'] === $convergence['evidence_set_hash'],
-            $media['pre_review_hash'] === $convergence['pre_review_hash'],
-        ];
+        $media = $this->servicePayload($mediaBundle, $mediaIndex, 'media');
+        $convergence = $this->servicePayload($convergenceBundle, $convergenceIndex, 'convergence');
 
-        if (in_array(false, $checks, true)) {
-            throw new RuntimeException('Historic media and reviewed convergence bundles do not describe the same service result.');
+        if (
+            $media['date'] !== $convergence['date']
+            || $media['service'] !== $convergence['service']
+            || $media['evidence_set_hash'] !== $convergence['evidence_set_hash']
+            || $media['pre_review_hash'] !== $convergence['pre_review_hash']
+        ) {
+            throw new RuntimeException('Historic media and reviewed convergence bundles do not identify the same service result.');
         }
     }
 
@@ -250,6 +908,7 @@ class ConvergeHistoricChurchService
                 payloadComplete: $payload['payload_complete'],
                 capturedAt: Carbon::parse($payload['captured_at']),
             ),
+            dispatchEvents: false,
         );
 
         if (! hash_equals($payload['revision_hash'], $result->sourceRecord->revision_hash)) {

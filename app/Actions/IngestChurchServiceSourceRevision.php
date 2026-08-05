@@ -34,6 +34,7 @@ class IngestChurchServiceSourceRevision
         ChurchService $churchService,
         ChurchServiceSourceRevision $revision,
         bool $project = true,
+        bool $dispatchEvents = true,
     ): ChurchServiceSourceIngestionResult {
         $revisionHash = CanonicalJson::hash([
             'assertions' => $this->portableAssertions($revision->assertions),
@@ -41,7 +42,7 @@ class IngestChurchServiceSourceRevision
         ]);
 
         try {
-            return DB::transaction(function () use ($churchService, $revision, $revisionHash, $project): ChurchServiceSourceIngestionResult {
+            return DB::transaction(function () use ($churchService, $revision, $revisionHash, $project, $dispatchEvents): ChurchServiceSourceIngestionResult {
                 $lockedService = ChurchService::query()
                     ->whereKey($churchService->getKey())
                     ->lockForUpdate()
@@ -114,7 +115,12 @@ class IngestChurchServiceSourceRevision
                 if ($stagingReasons !== []) {
                     $this->stageProposal($lockedService, $sourceRecord, $records, $stagingReasons);
                 } else {
-                    $this->persister->apply($lockedService, $projection, $revision->source->value);
+                    $this->persister->apply(
+                        $lockedService,
+                        $projection,
+                        $revision->source->value,
+                        $dispatchEvents,
+                    );
                 }
 
                 return new ChurchServiceSourceIngestionResult(

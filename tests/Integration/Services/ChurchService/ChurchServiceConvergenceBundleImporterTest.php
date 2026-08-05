@@ -9,6 +9,7 @@ use App\Data\ChurchServiceSourceRevision;
 use App\Enums\ChurchServiceEvidenceKind;
 use App\Enums\ChurchServiceProposalStatus;
 use App\Enums\ChurchServiceSource;
+use App\Events\ChurchServiceCanonicalListChanged;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceMergeProposal;
 use App\Models\ChurchServiceProposalDecisionRule;
@@ -23,6 +24,8 @@ use App\Services\ChurchService\ChurchServiceProposalIdentity;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -50,6 +53,23 @@ class ChurchServiceConvergenceBundleImporterTest extends TestCase
         $this->assertSame('already_present', $secondPlan->classification);
         $this->assertSame($applied->canonical_hash, $second->canonical_hash);
         $this->assertSame(1, $second->reviewSessions()->count());
+    }
+
+    #[Test]
+    public function historic_persistence_can_suppress_domain_reconciliation_without_disabling_model_observers(): void
+    {
+        [$service, , $bundle, $preReviewHash] = $this->reviewedBundle();
+        $this->restoreMachineBase($service, $preReviewHash);
+        Event::fake([ChurchServiceCanonicalListChanged::class]);
+        Queue::fake();
+
+        $importer = app(ChurchServiceConvergenceBundleImporter::class);
+        $plan = $importer->prepareService($bundle);
+        $importer->persistPreparedService($plan, $plan->planHash, false);
+
+        Event::assertNotDispatched(ChurchServiceCanonicalListChanged::class);
+        Queue::assertNothingPushed();
+        $this->assertNotNull($service->fresh()->canonical_hash);
     }
 
     #[Test]

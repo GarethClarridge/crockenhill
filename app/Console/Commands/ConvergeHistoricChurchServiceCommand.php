@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Data\HistoricConvergenceOperationPlan;
 use App\Services\ChurchService\ChurchServiceConvergenceBundle;
 use App\Services\ChurchService\ConvergeHistoricChurchService;
 use App\Services\HistoricMedia\HistoricProcessingResultBundle;
-use App\Support\CanonicalJson;
 use Illuminate\Console\Command;
 use RuntimeException;
 use Throwable;
@@ -21,8 +21,12 @@ class ConvergeHistoricChurchServiceCommand extends Command
     protected $signature = 'service-tracking:converge-historic-service
         {media-bundle : Private Bundle A JSON file}
         {convergence-bundle : Private Bundle B JSON file}
-        {--media-index=0 : Zero-based Bundle A service index}
-        {--convergence-index=0 : Zero-based Bundle B service index}
+        {--media-index= : Zero-based Bundle A service index (omit for a complete batch)}
+        {--convergence-index= : Zero-based Bundle B service index (omit for a complete batch)}
+        {--all : Prepare and apply every matching service in manifest order}
+        {--operation-id= : Stable operation identifier from an approved rehearsal}
+        {--expires-at= : ISO-8601 plan expiry from the approved rehearsal}
+        {--resume : Resume services completed in the private operation ledger}
         {--apply : Execute the atomic database and asset operation}
         {--plan-hash= : Exact hash printed by the dry run}';
 
@@ -38,41 +42,86 @@ class ConvergeHistoricChurchServiceCommand extends Command
             $convergenceBundle = $convergenceBundles->validate(
                 $this->readBundle((string) $this->argument('convergence-bundle')),
             );
-            $mediaIndex = $this->index('media-index');
-            $convergenceIndex = $this->index('convergence-index');
-            $this->assertServiceIdentity($mediaBundle, $convergenceBundle, $mediaIndex, $convergenceIndex);
-            $planHash = CanonicalJson::hash([
-                'media_bundle_hash' => $mediaBundle['bundle_hash'],
-                'convergence_bundle_hash' => $convergenceBundle['bundle_hash'],
-                'media_index' => $mediaIndex,
-                'convergence_index' => $convergenceIndex,
-            ]);
+            $operationId = $this->stringOption('operation-id');
+            $expiresAt = $this->stringOption('expires-at');
+            $mediaIndexOption = $this->stringOption('media-index');
+            $convergenceIndexOption = $this->stringOption('convergence-index');
+            $all = (bool) $this->option('all') || ($mediaIndexOption === null && $convergenceIndexOption === null);
+
+            if ($all && ($mediaIndexOption !== null || $convergenceIndexOption !== null)) {
+                throw new RuntimeException('Do not combine --all with a service index.');
+            }
+
+            if (! $all && ($mediaIndexOption === null || $convergenceIndexOption === null)) {
+                throw new RuntimeException('--media-index and --convergence-index must be supplied together.');
+            }
+
+            if ($this->option('apply') && $expiresAt === null) {
+                throw new RuntimeException('--apply requires --expires-at from the approved dry run.');
+            }
+
+            $mediaIndex = $all ? 0 : $this->index('media-index');
+            $convergenceIndex = $all ? 0 : $this->index('convergence-index');
+            $plan = $all
+                ? $converge->prepareBatch($mediaBundle, $convergenceBundle, $operationId, $expiresAt)
+                : $converge->prepare(
+                    $mediaBundle,
+                    $convergenceBundle,
+                    $mediaIndex,
+                    $convergenceIndex,
+                    $operationId,
+                    $expiresAt,
+                );
 
             if (! $this->option('apply')) {
                 $this->info('Historic church-service convergence bundle pair is valid.');
-                $this->line("Plan hash: {$planHash}");
-                $this->line('No data or assets were changed.');
+                $this->line("Operation ID: {$plan->operationId}");
+                $this->line("Plan hash: {$plan->planHash}");
+                $this->line("Expires at: {$plan->expiresAt->format(DATE_ATOM)}");
+                $this->line('No database records or destination assets were changed.');
+                $this->newLine();
+                $this->line('Apply this exact plan with:');
+                $this->line($this->applyInvocation($plan, $all, $mediaIndex, $convergenceIndex));
+                $this->line('All three of --operation-id, --expires-at and --plan-hash are required: the');
+                $this->line('token binds the expiry, so omitting one mints a different plan and is refused.');
 
                 return self::SUCCESS;
             }
 
-            $this->assertPlanHash($planHash);
-            $result = $converge->execute(
-                $mediaBundle,
-                $convergenceBundle,
-                $mediaIndex,
-                $convergenceIndex,
-            );
+            $this->assertPlanHash($plan->planHash);
+            $result = $all
+                ? $converge->executeBatch(
+                    $mediaBundle,
+                    $convergenceBundle,
+                    $plan->planHash,
+                    (bool) $this->option('resume'),
+                    $plan->operationId,
+                    $plan->expiresAt->format(DATE_ATOM),
+                    $plan,
+                )
+                : [$converge->execute(
+                    $mediaBundle,
+                    $convergenceBundle,
+                    $mediaIndex,
+                    $convergenceIndex,
+                    $plan->planHash,
+                    $plan,
+                )];
         } catch (Throwable $exception) {
             $this->error($exception->getMessage());
 
             return self::FAILURE;
         }
 
-        $service = $result['church_service'];
-        $this->info("Converged {$service->date->toDateString()} {$service->service->value}.");
-        $this->line("Canonical hash: {$service->canonical_hash}");
-        $this->line('Created assets: '.count($result['created_assets']));
+        $this->info('Historic church-service convergence completed.');
+        $this->line('Services applied: '.count($result));
+
+        foreach ($result as $serviceResult) {
+            $service = $serviceResult['church_service'];
+            $this->line("Converged {$service->date->toDateString()} {$service->service->value}.");
+            $this->line("Canonical hash: {$service->canonical_hash}");
+            $this->line('Created assets: '.count($serviceResult['created_assets']));
+        }
 
         return self::SUCCESS;
     }
@@ -105,32 +154,37 @@ class ConvergeHistoricChurchServiceCommand extends Command
     }
 
     /**
-     * @param  array<string, mixed>  $mediaBundle
-     * @param  array<string, mixed>  $convergenceBundle
+     * The operator has to carry the operation identifier and expiry forward by
+     * hand, because the plan hash binds them. Printing the exact invocation is
+     * cheaper than a support round trip after a refused apply.
      */
-    private function assertServiceIdentity(
-        array $mediaBundle,
-        array $convergenceBundle,
+    private function applyInvocation(
+        HistoricConvergenceOperationPlan $plan,
+        bool $all,
         int $mediaIndex,
         int $convergenceIndex,
-    ): void {
-        $media = $mediaBundle['services'][$mediaIndex] ?? null;
-        $convergence = $convergenceBundle['services'][$convergenceIndex] ?? null;
+    ): string {
+        $scope = $all
+            ? '--all'
+            : "--media-index={$mediaIndex} --convergence-index={$convergenceIndex}";
 
-        if (
-            ! is_array($media)
-            || ! is_array($convergence)
-            || $media['date'] !== $convergence['date']
-            || $media['service'] !== $convergence['service']
-            || $convergenceBundle['media_bundle_hash'] !== $mediaBundle['bundle_hash']
-            || $convergenceBundle['batch_hash'] !== $mediaBundle['batch_hash']
-            || CanonicalJson::hash($convergenceBundle['processing_fingerprint'])
-                !== CanonicalJson::hash($mediaBundle['processing_fingerprint'])
-            || $media['evidence_set_hash'] !== $convergence['evidence_set_hash']
-            || $media['pre_review_hash'] !== $convergence['pre_review_hash']
-        ) {
-            throw new RuntimeException('Bundle A and Bundle B do not identify the same approved service result.');
-        }
+        return implode(' ', [
+            '  php artisan service-tracking:converge-historic-service',
+            escapeshellarg((string) $this->argument('media-bundle')),
+            escapeshellarg((string) $this->argument('convergence-bundle')),
+            $scope,
+            "--operation-id={$plan->operationId}",
+            "--expires-at={$plan->expiresAt->format(DATE_ATOM)}",
+            "--plan-hash={$plan->planHash}",
+            '--apply',
+        ]);
+    }
+
+    private function stringOption(string $name): ?string
+    {
+        $value = $this->option($name);
+
+        return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
 
     private function assertPlanHash(string $expected): void

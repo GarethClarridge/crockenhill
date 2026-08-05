@@ -16,6 +16,7 @@ class AuditChurchServiceConvergenceCommand extends Command
 {
     protected $signature = 'service-tracking:audit-convergence
         {bundle : Private Bundle B JSON file}
+        {--media-bundle= : Optional private Bundle A JSON file for exact media-graph and asset auditing}
         {--report= : Optional JSON report path below storage/app/private}';
 
     protected $description = 'Compare production church services with an exact reviewed convergence bundle';
@@ -24,7 +25,8 @@ class AuditChurchServiceConvergenceCommand extends Command
     {
         try {
             $bundle = $this->readBundle((string) $this->argument('bundle'));
-            $report = $auditor->audit($bundle);
+            $mediaBundle = $this->mediaBundle();
+            $report = $auditor->audit($bundle, $mediaBundle);
             $json = json_encode($report, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
             $reportPath = $this->reportPath();
 
@@ -49,6 +51,18 @@ class AuditChurchServiceConvergenceCommand extends Command
         $this->info("Convergence audit passed for {$report['totals']['passed']} service(s).");
 
         return self::SUCCESS;
+    }
+
+    /** @return array<string, mixed>|null */
+    private function mediaBundle(): ?array
+    {
+        $option = $this->option('media-bundle');
+
+        if (! is_string($option) || trim($option) === '') {
+            return null;
+        }
+
+        return $this->readBundle(trim($option));
     }
 
     /** @return array<string, mixed> */
@@ -94,5 +108,7 @@ class AuditChurchServiceConvergenceCommand extends Command
         if (file_put_contents($path, $json.PHP_EOL) === false) {
             throw new RuntimeException('The convergence audit report could not be written.');
         }
+
+        @chmod($path, 0600);
     }
 }

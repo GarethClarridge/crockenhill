@@ -21,6 +21,7 @@ use App\Models\Song;
 use App\Models\User;
 use App\Support\CanonicalJson;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use RuntimeException;
 
 class ChurchServiceConvergenceBundleImporter
@@ -80,9 +81,132 @@ class ChurchServiceConvergenceBundleImporter
         );
     }
 
+    /**
+     * Prepare Bundle B against the exact Livestream revision that Bundle A will
+     * ingest, without inserting a source record or projecting canonical rows.
+     * This is required for a fresh historic service: production cannot contain
+     * the Livestream evidence until Bundle A applies, but the complete operation
+     * still has to be preflighted before its first write.
+     *
+     * `$processingKey` is Bundle A's portable run identity. The preflight has to
+     * remap the revision's assertion metadata exactly as the apply will, because
+     * the canonical hash is derived from `livestream_processing_id` — projecting
+     * the bundle's raw `livestream_service_section_key` instead would produce a
+     * hash the apply can never reproduce, and every service carrying a
+     * section-anchored assertion would stay blocked forever.
+     *
+     * @param  array<string, mixed>  $bundle
+     * @param  array<string, mixed>  $livestreamRevision
+     */
+    public function prepareServiceForHistoricImport(
+        array $bundle,
+        int $serviceIndex,
+        array $livestreamRevision,
+        string $processingKey,
+    ): ChurchServiceConvergenceImportPlan {
+        $plan = $this->prepareService($bundle, $serviceIndex);
+
+        if (! in_array($plan->classification, [
+            HistoricImportClassification::BlockedDifference->value,
+            HistoricImportClassification::Conflict->value,
+        ], true)) {
+            return $plan;
+        }
+
+        $payload = $plan->servicePayload;
+
+        if (
+            $payload['finalization'] === ChurchServiceCanonicalFinalization::Manual->value
+            && ! $plan->reviewer instanceof User
+        ) {
+            return $plan;
+        }
+
+        $service = $plan->churchService->fresh([
+            'sourceRecords.assertions',
+            'reviewSessions',
+        ]) ?? $plan->churchService;
+
+        if (
+            $payload['finalization'] === ChurchServiceCanonicalFinalization::Manual->value
+            && $service->reviewSessions->firstWhere('review_uuid', $payload['review']['review_uuid'])
+                instanceof ChurchServiceReviewSession
+        ) {
+            return $plan;
+        }
+
+        if (
+            $payload['finalization'] === ChurchServiceCanonicalFinalization::Automatic->value
+            && $this->projector->activeManualSourceRecord($service->sourceRecords) instanceof ChurchServiceSourceRecord
+        ) {
+            return $plan;
+        }
+
+        if (
+            $payload['finalization'] === ChurchServiceCanonicalFinalization::Automatic->value
+            && $payload['projection_policy'] !== $this->projector->policyFingerprint()
+        ) {
+            return $plan;
+        }
+
+        $evidenceDiffers = $this->evidenceSet->hash($service->sourceRecords) !== $payload['evidence_set_hash'];
+        $canonicalDiffers = $service->canonical_hash !== $payload['pre_review_hash'];
+
+        if (! $evidenceDiffers && ($payload['finalization'] === ChurchServiceCanonicalFinalization::Automatic->value || ! $canonicalDiffers)) {
+            return $plan;
+        }
+
+        $records = $service->sourceRecords->values();
+        $records = $this->withProspectiveLivestreamRevision($records, $livestreamRevision, $service, $processingKey);
+        $evidenceHash = $this->evidenceSet->hash($records);
+
+        if ($evidenceHash !== $payload['evidence_set_hash']) {
+            return $plan;
+        }
+
+        $projection = $this->projector->project($records);
+        $expectedHash = $payload['finalization'] === ChurchServiceCanonicalFinalization::Automatic->value
+            ? $payload['resulting_canonical_hash']
+            : $payload['pre_review_hash'];
+
+        if ($projection->hash !== $expectedHash) {
+            return $plan;
+        }
+
+        if (
+            $payload['finalization'] === ChurchServiceCanonicalFinalization::Automatic->value
+            && ! $this->projector->hasCompleteAudit($records, $projection)
+        ) {
+            return $plan;
+        }
+
+        $planHash = CanonicalJson::hash([
+            'bundle_hash' => $plan->bundleHash,
+            'service' => [$payload['date'], $payload['service']],
+            'classification' => [
+                'classification' => HistoricImportClassification::SafeEnrichment->value,
+                'reason' => 'Prospective Bundle A Livestream evidence reproduces the reviewed state.',
+                'evidence_set_hash' => $evidenceHash,
+                'projection_hash' => $projection->hash,
+            ],
+            'current_canonical_hash' => $service->canonical_hash,
+        ]);
+
+        return new ChurchServiceConvergenceImportPlan(
+            classification: HistoricImportClassification::SafeEnrichment->value,
+            reason: 'Prospective Bundle A Livestream evidence reproduces the reviewed state.',
+            planHash: $planHash,
+            bundleHash: $plan->bundleHash,
+            churchService: $service,
+            reviewer: $plan->reviewer,
+            servicePayload: $payload,
+        );
+    }
+
     public function persistPreparedService(
         ChurchServiceConvergenceImportPlan $plan,
         string $planHash,
+        bool $dispatchEvents = true,
     ): ChurchService {
         if (! hash_equals($plan->planHash, $planHash)) {
             throw new RuntimeException('Convergence import plan hash does not match.');
@@ -99,7 +223,7 @@ class ChurchServiceConvergenceBundleImporter
         $payload = $plan->servicePayload;
 
         if ($payload['finalization'] === ChurchServiceCanonicalFinalization::Automatic->value) {
-            return $this->persistAutomatic($plan);
+            return $this->persistAutomatic($plan, $dispatchEvents);
         }
 
         if (! $plan->reviewer instanceof User) {
@@ -131,6 +255,7 @@ class ChurchServiceConvergenceBundleImporter
                 capturedAt: Carbon::parse($manual['captured_at']),
                 createdByUserId: $plan->reviewer->id,
             ),
+            dispatchEvents: $dispatchEvents,
         );
         $service = $plan->churchService->fresh(['items.song']) ?? $plan->churchService;
 
@@ -225,13 +350,15 @@ class ChurchServiceConvergenceBundleImporter
             ];
     }
 
-    private function persistAutomatic(ChurchServiceConvergenceImportPlan $plan): ChurchService
-    {
+    private function persistAutomatic(
+        ChurchServiceConvergenceImportPlan $plan,
+        bool $dispatchEvents,
+    ): ChurchService {
         $payload = $plan->servicePayload;
         $service = $plan->churchService;
         $projection = $this->projector->project($service->sourceRecords);
 
-        $this->persister->apply($service, $projection, $projection->sourceSummary);
+        $this->persister->apply($service, $projection, $projection->sourceSummary, $dispatchEvents);
         $service = $service->fresh(['items.song']) ?? $service;
 
         if ($service->canonical_hash !== $payload['resulting_canonical_hash']) {
@@ -363,6 +490,100 @@ class ChurchServiceConvergenceBundleImporter
         );
 
         return $matches->count() === 1 ? $matches->first() : null;
+    }
+
+    /**
+     * @param  Collection<int, ChurchServiceSourceRecord>  $records
+     * @param  array<string, mixed>  $payload
+     * @return Collection<int, ChurchServiceSourceRecord>
+     */
+    private function withProspectiveLivestreamRevision(
+        Collection $records,
+        array $payload,
+        ChurchService $service,
+        string $processingKey,
+    ): Collection {
+        $sourceKey = $payload['source_key'] ?? null;
+        $revisionHash = $payload['revision_hash'] ?? null;
+
+        if (! is_string($sourceKey) || ! is_string($revisionHash)) {
+            return $records;
+        }
+
+        $existing = $records->first(
+            fn (ChurchServiceSourceRecord $record): bool => $record->source === ChurchServiceSource::Livestream
+                && $record->source_key === $sourceKey
+                && $record->revision_hash === $revisionHash,
+        );
+
+        if ($existing instanceof ChurchServiceSourceRecord) {
+            return $records;
+        }
+
+        $predecessor = $records
+            ->filter(fn (ChurchServiceSourceRecord $record): bool => $record->source === ChurchServiceSource::Livestream
+                && $record->source_key === $sourceKey)
+            ->sortByDesc('id')
+            ->first();
+        $record = new ChurchServiceSourceRecord;
+        $record->forceFill([
+            'id' => -1,
+            'church_service_id' => $service->id,
+            'source' => ChurchServiceSource::Livestream->value,
+            'source_key' => $sourceKey,
+            'revision_hash' => $revisionHash,
+            'input_hash' => $payload['input_hash'],
+            'supersedes_id' => $predecessor?->id,
+            'batch_hash' => $payload['batch_hash'],
+            'processing_fingerprint' => $payload['processing_fingerprint'],
+            'service_content' => $payload['service_content'],
+            'payload_complete' => $payload['payload_complete'],
+            'captured_at' => isset($payload['captured_at']) ? Carbon::parse($payload['captured_at']) : null,
+        ]);
+        $record->exists = true;
+        $assertions = [];
+
+        foreach ($payload['assertions'] as $assertionPayload) {
+            if (! is_array($assertionPayload)) {
+                continue;
+            }
+
+            $assertion = new ChurchServiceItemAssertion;
+            $assertion->forceFill([
+                ...$assertionPayload,
+                'metadata' => $this->prospectiveAssertionMetadata($assertionPayload, $processingKey),
+                'source_record_id' => -1,
+            ]);
+            $assertion->exists = true;
+            $assertion->setRelation('sourceRecord', $record);
+            $assertions[] = $assertion;
+        }
+
+        $record->setRelation('assertions', collect($assertions));
+
+        return $records->push($record)->values();
+    }
+
+    /**
+     * Mirror the metadata remapping ConvergeHistoricChurchService performs when
+     * it ingests the revision for real: the portable section key becomes the
+     * run's processing identity. The local section id it also writes is
+     * deliberately absent — the canonical hash strips it, so a preflight that
+     * cannot know it yet still projects the hash the apply will produce.
+     *
+     * @param  array<string, mixed>  $assertion
+     * @return array<string, mixed>|null
+     */
+    private function prospectiveAssertionMetadata(array $assertion, string $processingKey): ?array
+    {
+        $metadata = is_array($assertion['metadata'] ?? null) ? $assertion['metadata'] : [];
+
+        if (array_key_exists('livestream_service_section_key', $metadata)) {
+            unset($metadata['livestream_service_section_key']);
+            $metadata['livestream_processing_id'] = $processingKey;
+        }
+
+        return $metadata === [] ? null : $metadata;
     }
 
     /**

@@ -21,8 +21,9 @@ class ChurchServiceProjectionPersister
         ChurchService $churchService,
         ChurchServiceProjection $projection,
         ?string $incomingSource = null,
+        bool $dispatchEvents = true,
     ): ChurchService {
-        return DB::transaction(function () use ($churchService, $projection, $incomingSource): ChurchService {
+        return DB::transaction(function () use ($churchService, $projection, $incomingSource, $dispatchEvents): ChurchService {
             $lockedService = ChurchService::query()
                 ->whereKey($churchService->getKey())
                 ->lockForUpdate()
@@ -128,7 +129,7 @@ class ChurchServiceProjectionPersister
                 $this->canonicalStateService->snapshot($freshService),
             ));
 
-            if ($changes !== []) {
+            if ($changes !== [] && $dispatchEvents) {
                 event(new ChurchServiceCanonicalListChanged(
                     $freshService->id,
                     $incomingSource ?? $projection->sourceSummary,

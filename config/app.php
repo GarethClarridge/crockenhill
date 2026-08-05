@@ -108,6 +108,8 @@ return [
 
     'test_token' => env('TEST_TOKEN'),
 
+    'release_identifier' => env('APP_RELEASE_IDENTIFIER', 'development'),
+
     /*
     |--------------------------------------------------------------------------
     | Trusted Proxies

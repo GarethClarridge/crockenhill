@@ -23,6 +23,29 @@ class HistoricProcessingResultBundleImporter
     /** @param array<string, mixed> $bundle */
     public function prepareService(array $bundle, int $serviceIndex = 0): HistoricProcessingResultImportPlan
     {
+        return $this->prepareServiceForSource($bundle, $serviceIndex, true);
+    }
+
+    /**
+     * Prepare a service for a production closeout audit. The live graph and
+     * destination assets are the audit inputs, so the private staging disk is
+     * intentionally not required to be mounted on the production host.
+     *
+     * @param  array<string, mixed>  $bundle
+     */
+    public function prepareServiceForAudit(array $bundle, int $serviceIndex = 0): HistoricProcessingResultImportPlan
+    {
+        return $this->prepareServiceForSource($bundle, $serviceIndex, false);
+    }
+
+    /**
+     * @param  array<string, mixed>  $bundle
+     */
+    private function prepareServiceForSource(
+        array $bundle,
+        int $serviceIndex,
+        bool $verifyStaging,
+    ): HistoricProcessingResultImportPlan {
         $bundle = $this->bundles->validate($bundle);
         $service = $bundle['services'][$serviceIndex] ?? null;
 
@@ -32,7 +55,11 @@ class HistoricProcessingResultBundleImporter
 
         /** @var list<array{path: string, size: int, sha256: string, kind: string, roles: list<string>}> $assetManifest */
         $assetManifest = $service['assets'];
-        $this->assets->verifyStaged($assetManifest);
+
+        if ($verifyStaging) {
+            $this->assets->verifyStaged($assetManifest);
+        }
+
         $classification = $this->classify($service);
         $planHash = CanonicalJson::hash([
             'bundle_hash' => $bundle['bundle_hash'],

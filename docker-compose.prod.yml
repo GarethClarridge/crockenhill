@@ -28,6 +28,8 @@ services:
       - "80"
     env_file:
       - .env.production
+    environment:
+      APP_RELEASE_IDENTIFIER: ${IMAGE_TAG}
     depends_on:
       mysql:
         condition: service_healthy
