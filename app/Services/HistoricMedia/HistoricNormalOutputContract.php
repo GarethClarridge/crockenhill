@@ -8,7 +8,11 @@ use RuntimeException;
 
 class HistoricNormalOutputContract
 {
-    public const int VERSION = 3;
+    /**
+     * Version 4 reclassified publication scripture filters from portable to
+     * deterministically rebuilt.
+     */
+    public const int VERSION = 4;
 
     private const array ALLOWED_PRESENCE = ['required', 'nullable'];
 
@@ -168,7 +172,15 @@ class HistoricNormalOutputContract
                         'video_quality_assessed_at' => $this->field('nullable', 'portable', 'none'),
                         'thumbnail_generated_at' => $this->field('nullable', 'portable', 'none'),
                         'thumbnail_metadata' => $this->field('nullable', 'portable', 'asset_path'),
-                        'scripture_filters' => $this->field('required', 'portable', 'natural_key'),
+                        /**
+                         * Scripture filters are an index over `reference`, owned by
+                         * SermonObserver via SermonScriptureFilterIndexService. The importer
+                         * cannot make the bundle's rows authoritative without becoming a
+                         * second writer to that index, so they are rebuilt on arrival and
+                         * carried in the manifest as the evidence the rebuild is compared
+                         * against, not as rows to insert.
+                         */
+                        'scripture_filters' => $this->field('required', 'deterministically_rebuilt', 'none'),
                         'audio_file_path' => $this->field('nullable', 'portable', 'asset_path'),
                         'video_file_path' => $this->field('nullable', 'portable', 'asset_path'),
                         'transcript_file_path' => $this->field('nullable', 'portable', 'asset_path'),
@@ -527,8 +539,12 @@ class HistoricNormalOutputContract
                 excluded: ['id', 'created_at', 'updated_at'],
             ),
             'sermon_scripture_filters' => $this->table(
-                required: ['bible_book', 'bible_chapter'],
+                required: [],
                 nullable: [],
+                overrides: [
+                    'bible_book' => $this->field('required', 'deterministically_rebuilt', 'none'),
+                    'bible_chapter' => $this->field('required', 'deterministically_rebuilt', 'none'),
+                ],
                 excluded: ['id', 'sermon_id', 'created_at', 'updated_at'],
             ),
             'service_sections' => $this->table(

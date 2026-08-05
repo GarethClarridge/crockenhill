@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services\HistoricMedia;
 
+use App\Data\HistoricProcessingResultImportPlan;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ChurchServiceOccurrenceState;
@@ -30,8 +31,10 @@ use App\Models\SermonScriptureFilter;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
+use App\Services\HistoricMedia\HistoricMediaGraphPersister;
 use App\Services\HistoricMedia\HistoricNormalOutputContract;
 use App\Services\HistoricMedia\HistoricNormalOutputServiceManifest;
+use App\Services\HistoricMedia\HistoricProcessingResultAssetRole;
 use App\Services\HistoricMedia\HistoricProcessingResultInventory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -44,6 +47,12 @@ use Tests\TestCase;
 class HistoricNormalOutputContractTest extends TestCase
 {
     use RefreshDatabase;
+
+    /** The run the canary fixture is built as, before it is persisted for real. */
+    private const string SOURCE_PROCESSING_ID = '00000000-0000-0000-0000-000000000001';
+
+    /** The run the real persistence path creates from it. */
+    private const string TARGET_PROCESSING_ID = '00000000-0000-0000-0000-000000000002';
 
     #[Test]
     public function a_full_service_canary_has_a_stable_complete_manifest(): void
@@ -109,7 +118,7 @@ class HistoricNormalOutputContractTest extends TestCase
             $canary['manifest']['media_graph']['publications'][0]['video_visibility_override'],
         );
         $this->assertSame(
-            'shared/main-thumbnail.webp',
+            "sermons/{$canary['run']->sermon_id}/thumbnail-plain.webp",
             $canary['manifest']['media_graph']['publications'][0]['thumbnail_metadata']['plain_thumbnail_path'],
         );
         $this->assertSame(
@@ -150,6 +159,62 @@ class HistoricNormalOutputContractTest extends TestCase
                 $canary['manifest']['asset_roles'],
                 fn (array $asset): bool => $asset['path'] === 'shared/song.mp4',
             ))[0]['sha256'],
+        );
+    }
+
+    /**
+     * The exporter's four-roles-one-file fan-out becomes four separate production
+     * copies on import, one per role, because each role owns a distinct destination.
+     * The roles and their content must survive that; only the paths may diverge.
+     */
+    #[Test]
+    public function the_real_path_fans_shared_asset_content_out_to_one_copy_per_role(): void
+    {
+        $canary = $this->createCanary();
+        /**
+         * Asset roles name their run, so the only legitimate difference between the
+         * exporter's roles and the persisted ones is the processing key. Everything
+         * after it — the section natural keys especially — must be byte identical, or
+         * the real path has not reproduced the graph it was given.
+         */
+        $sharedRoles = array_map(
+            fn (string $role): string => str_replace(
+                self::SOURCE_PROCESSING_ID,
+                self::TARGET_PROCESSING_ID,
+                $role,
+            ),
+            array_column(
+                array_filter(
+                    $canary['manifest']['asset_roles'],
+                    fn (array $asset): bool => $asset['path'] === 'shared/song.mp4',
+                ),
+                'role',
+            ),
+        );
+        $persisted = array_values(array_filter(
+            $this->persistedAssetRoles($canary['run']),
+            fn (array $asset): bool => in_array($asset['role'], $sharedRoles, true),
+        ));
+
+        $this->assertCount(4, $sharedRoles);
+        $this->assertCount(4, $persisted, 'Every shared-content role must survive persistence.');
+        $this->assertCount(
+            4,
+            array_unique(array_column($persisted, 'path')),
+            'Each role owns a distinct production path.',
+        );
+        $this->assertCount(
+            1,
+            array_unique(array_column($persisted, 'sha256')),
+            'The copies must all still carry the one source content.',
+        );
+        $this->assertSame(
+            [],
+            array_values(array_filter(
+                array_column($persisted, 'path'),
+                fn (string $path): bool => str_starts_with($path, 'shared/'),
+            )),
+            'No staging path may survive against production media.',
         );
     }
 
@@ -395,14 +460,14 @@ class HistoricNormalOutputContractTest extends TestCase
             'name' => 'Canary Children Speaker',
             'slug' => 'canary-children-speaker',
         ]);
-        $processingId = '00000000-0000-0000-0000-000000000001';
+        $processingId = self::SOURCE_PROCESSING_ID;
         $mainSermon = Sermon::factory()->create([
             'date' => $date->toDateString(),
             'service' => SermonService::Morning,
             'content_type' => SermonContentType::Sermon,
             'title' => 'Canary sermon',
             'slug' => 'canary-sermon',
-            'reference' => null,
+            'reference' => 'John 3; Romans 8',
             'preacher' => $preacher->name,
             'preacher_id' => $preacher->id,
             'preacher_source' => PreacherSource::Manual,
@@ -486,12 +551,6 @@ class HistoricNormalOutputContractTest extends TestCase
             'is_degraded_completion' => false,
         ]);
         $mainSermon->update(['livestream_processing_id' => $processingId]);
-        foreach ([
-            ['sermon_id' => $mainSermon->id, 'bible_book' => 'John', 'bible_chapter' => 3],
-            ['sermon_id' => $mainSermon->id, 'bible_book' => 'Romans', 'bible_chapter' => 8],
-        ] as $filter) {
-            SermonScriptureFilter::query()->create($filter);
-        }
         $segments = collect([
             [0, 0.0, 120.0, 'song'],
             [1, 120.0, 300.0, 'speech'],
@@ -577,6 +636,8 @@ class HistoricNormalOutputContractTest extends TestCase
             'extracted_at' => $date,
             'published_at' => $date,
         ]);
+        $sectionOne->update(['published_sermon_id' => null]);
+        $sectionThree->update(['published_sermon_id' => null]);
         $sectionOne->update(['matched_item_id' => $items[0]->id]);
         $sectionThree->update(['expected_item_id' => $items[2]->id]);
         $items[0]->forceFill([
@@ -605,8 +666,131 @@ class HistoricNormalOutputContractTest extends TestCase
         ]);
         $run->loadMissing('churchService');
         $mediaGraph = app(HistoricProcessingResultInventory::class)->build($run);
-        $serviceManifest = app(HistoricNormalOutputServiceManifest::class)->build($service);
         $this->seedCanaryAssets($mediaGraph);
+
+        return $this->persistCanaryThroughRealPath($run, $service, $mediaGraph);
+    }
+
+    /**
+     * Rebuild the canary graph through HistoricMediaGraphPersister so the manifest
+     * describes what the real path produced rather than what a factory hand-authored.
+     *
+     * Scope, so this is not read as more coverage than it is: the persister owns the
+     * media graph — run, publications, segments, sections, steps, song videos and every
+     * asset path. It does **not** yet own the church-service side of the graph, which
+     * WP5/PR14 (§11 remaining persistence) covers. This harness therefore re-attaches
+     * `media_processing_logs.church_service_id`, the sections'
+     * `church_service_item_id` / `matched_item_id` / `expected_item_id`, the items'
+     * `livestream_processing_id` / `livestream_service_section_id`, and
+     * `song_videos.church_service_id` by hand. Assertions over `service_item_identity`,
+     * `matched_item_identity`, `expected_item_identity` and `church_service_identity`
+     * are consequently asserting the *inventory's* projection of those links, not the
+     * persister's ability to create them. Delete the re-attachment block when PR14
+     * lands and the same assertions become real coverage.
+     *
+     * @param  array<string, mixed>  $sourceGraph
+     * @return array{run: MediaProcessingLog, service: ChurchService, manifest: array<string, mixed>}
+     */
+    private function persistCanaryThroughRealPath(
+        MediaProcessingLog $sourceRun,
+        ChurchService $service,
+        array $sourceGraph,
+    ): array {
+        Storage::fake('historic_staging');
+        config()->set('media-processing.storage.historic_staging_disk', 'historic_staging');
+        config()->set('media-processing.storage.sermon_disk', 'local');
+
+        $targetProcessingId = self::TARGET_PROCESSING_ID;
+        $targetGraph = $this->replaceProcessingKey(
+            $sourceGraph,
+            $sourceRun->processing_id,
+            $targetProcessingId,
+        );
+        $assets = $this->realPathCanaryAssets($targetGraph);
+
+        foreach ($assets as $asset) {
+            $contents = Storage::disk('local')->get($asset['path']);
+
+            if (! is_string($contents)) {
+                throw new RuntimeException("Canary asset {$asset['path']} was not persisted.");
+            }
+
+            Storage::disk('historic_staging')->put($asset['path'], $contents);
+        }
+
+        $sourceSections = $sourceRun->serviceSections()->orderBy('section_order')->get();
+        $sourceSermonIds = $sourceSections
+            ->pluck('published_sermon_id')
+            ->push($sourceRun->sermon_id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        ServiceSection::query()
+            ->whereIn('id', $sourceSections->modelKeys())
+            ->update([
+                'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+                'published_sermon_id' => null,
+                'published_at' => null,
+            ]);
+        $sourceRun->update(['sermon_id' => null]);
+        SermonScriptureFilter::query()->whereIn('sermon_id', $sourceSermonIds)->delete();
+        Sermon::query()->whereIn('id', $sourceSermonIds)->delete();
+
+        $plan = new HistoricProcessingResultImportPlan(
+            classification: 'create',
+            reason: 'The canary exercises the real historic graph persistence path.',
+            planHash: str_repeat('a', 64),
+            bundleHash: str_repeat('b', 64),
+            service: ['media_graph' => $targetGraph],
+            assets: $assets,
+        );
+        $result = app(HistoricMediaGraphPersister::class)->persist($plan);
+        $run = $result['processing_log'];
+
+        $run->forceFill(['church_service_id' => $service->id])->save();
+        $targetSections = $run->serviceSections()->orderBy('section_order')->get();
+
+        foreach ($targetSections as $targetSection) {
+            $sourceSection = $sourceSections->firstWhere('section_order', $targetSection->section_order);
+
+            if (! $sourceSection instanceof ServiceSection) {
+                throw new RuntimeException("Canary section {$targetSection->section_order} has no source section.");
+            }
+
+            $targetSection->forceFill([
+                'church_service_item_id' => $sourceSection->church_service_item_id,
+                'matched_item_id' => $sourceSection->matched_item_id,
+                'expected_item_id' => $sourceSection->expected_item_id,
+            ])->save();
+        }
+
+        foreach (ChurchServiceItem::query()->where('church_service_id', $service->id)->get() as $item) {
+            $sourceSection = $sourceSections->firstWhere('id', $item->livestream_service_section_id);
+
+            if (! $sourceSection instanceof ServiceSection) {
+                continue;
+            }
+
+            $targetSection = $targetSections->firstWhere('section_order', $sourceSection->section_order);
+
+            if (! $targetSection instanceof ServiceSection) {
+                throw new RuntimeException("Canary item {$item->id} has no target section.");
+            }
+
+            $item->forceFill([
+                'livestream_processing_id' => $targetProcessingId,
+                'livestream_service_section_id' => $targetSection->id,
+            ])->save();
+        }
+
+        SongVideo::query()
+            ->whereIn('service_section_id', $targetSections->modelKeys())
+            ->update(['church_service_id' => $service->id]);
+
+        $run->refresh();
+        $mediaGraph = app(HistoricProcessingResultInventory::class)->build($run);
+        $serviceManifest = app(HistoricNormalOutputServiceManifest::class)->build($service->fresh());
 
         return [
             'run' => $run,
@@ -614,9 +798,177 @@ class HistoricNormalOutputContractTest extends TestCase
             'manifest' => [
                 'media_graph' => $mediaGraph,
                 'service_manifest' => $serviceManifest,
-                'asset_roles' => $this->assetRoles($mediaGraph),
+                /**
+                 * asset_roles is the *exporter* side of the contract: the roles a
+                 * bundle must carry for one physical file, which is why it is built
+                 * from the pre-persist graph. Persistence deliberately does not
+                 * preserve that shape — assetDestinations() allocates a distinct
+                 * production path per role, so one shared file becomes one copy per
+                 * role. The post-persist composition is asserted separately by
+                 * persistedAssetRoles() in the canary test.
+                 */
+                'asset_roles' => $this->assetRoles($sourceGraph),
             ],
         ];
+    }
+
+    /**
+     * The asset roles as they stand *after* persistence, for asserting what the
+     * real path produced rather than what the exporter fed it.
+     *
+     * @return list<array{role: string, path: string, size: int, sha256: string}>
+     */
+    private function persistedAssetRoles(MediaProcessingLog $run): array
+    {
+        return $this->assetRoles(app(HistoricProcessingResultInventory::class)->build($run->fresh()));
+    }
+
+    /**
+     * @param  array<string, mixed>  $graph
+     * @return list<array{path: string, size: int, sha256: string, kind: string, roles: list<string>}>
+     */
+    private function realPathCanaryAssets(array $graph): array
+    {
+        /** @var array<string, array{path: string, size: int, sha256: string, kind: string, roles: list<string>}> $assets */
+        $assets = [];
+        $add = function (string $role, mixed $path, string $kind) use (&$assets): void {
+            if (! is_string($path) || $path === '') {
+                return;
+            }
+
+            $contents = Storage::disk('local')->get($path);
+
+            if (! is_string($contents)) {
+                throw new RuntimeException("Canary asset {$path} was not persisted.");
+            }
+
+            $sha256 = hash('sha256', $contents);
+            $key = strlen($contents).":{$sha256}";
+
+            if (! isset($assets[$key])) {
+                $assets[$key] = [
+                    'path' => $path,
+                    'size' => strlen($contents),
+                    'sha256' => $sha256,
+                    'kind' => $kind,
+                    'roles' => [],
+                ];
+            }
+
+            $assets[$key]['roles'][] = $role;
+        };
+
+        foreach (HistoricProcessingResultAssetRole::RUN_FIELDS as $field) {
+            $add(
+                HistoricProcessingResultAssetRole::run($field),
+                data_get($graph, "run.{$field}"),
+                $this->canaryAssetKind($field),
+            );
+        }
+
+        foreach (data_get($graph, 'metadata.service_artifacts', []) as $artifact) {
+            if (is_array($artifact)) {
+                $add(
+                    HistoricProcessingResultAssetRole::serviceArtifact($artifact),
+                    $artifact['path'] ?? null,
+                    HistoricProcessingResultAssetRole::serviceArtifactKind($artifact['kind'] ?? null),
+                );
+            }
+        }
+
+        foreach ($graph['publications'] as $publication) {
+            foreach (HistoricProcessingResultAssetRole::PUBLICATION_FIELDS as $field) {
+                $add(
+                    HistoricProcessingResultAssetRole::publicationField($publication['publication_key'], $field),
+                    $publication[$field] ?? null,
+                    $this->canaryAssetKind($field),
+                );
+            }
+
+            $thumbnailMetadata = $publication['thumbnail_metadata'] ?? null;
+
+            if (! is_array($thumbnailMetadata)) {
+                continue;
+            }
+
+            foreach (HistoricProcessingResultAssetRole::THUMBNAIL_METADATA_FIELDS as $field) {
+                $add(
+                    HistoricProcessingResultAssetRole::publicationThumbnailMetadata(
+                        $publication['publication_key'],
+                        $field,
+                    ),
+                    $thumbnailMetadata[$field] ?? null,
+                    'thumbnail',
+                );
+            }
+
+            foreach (array_values($thumbnailMetadata['thumbnail_candidates'] ?? []) as $candidateIndex => $candidate) {
+                if (! is_array($candidate)) {
+                    continue;
+                }
+
+                foreach (HistoricProcessingResultAssetRole::THUMBNAIL_CANDIDATE_FIELDS as $field) {
+                    $add(
+                        HistoricProcessingResultAssetRole::publicationThumbnailCandidate(
+                            $publication['publication_key'],
+                            $candidateIndex,
+                            $field,
+                        ),
+                        $candidate[$field] ?? null,
+                        'thumbnail',
+                    );
+                }
+            }
+        }
+
+        foreach ($graph['sections'] as $section) {
+            foreach (HistoricProcessingResultAssetRole::SECTION_FIELDS as $field) {
+                $add(
+                    HistoricProcessingResultAssetRole::section($section['section_key'], $field),
+                    $section[$field] ?? null,
+                    $this->canaryAssetKind($field),
+                );
+            }
+        }
+
+        foreach ($graph['song_videos'] as $songVideo) {
+            $add(
+                HistoricProcessingResultAssetRole::songVideo($songVideo['section_key']),
+                $songVideo['video_file_path'] ?? null,
+                'video',
+            );
+        }
+
+        foreach ($assets as &$asset) {
+            $asset['roles'] = array_values(array_unique($asset['roles']));
+            sort($asset['roles']);
+        }
+        unset($asset);
+
+        return array_values($assets);
+    }
+
+    private function canaryAssetKind(string $field): string
+    {
+        return match (true) {
+            str_contains($field, 'audio') => 'audio',
+            str_contains($field, 'video') => 'video',
+            str_contains($field, 'transcript') => 'transcript',
+            str_contains($field, 'thumbnail') => 'thumbnail',
+            default => 'artifact',
+        };
+    }
+
+    private function replaceProcessingKey(mixed $value, string $from, string $to): mixed
+    {
+        if (is_array($value)) {
+            return array_map(
+                fn (mixed $item): mixed => $this->replaceProcessingKey($item, $from, $to),
+                $value,
+            );
+        }
+
+        return is_string($value) ? str_replace($from, $to, $value) : $value;
     }
 
     /**

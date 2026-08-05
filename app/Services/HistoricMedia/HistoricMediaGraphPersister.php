@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\HistoricMedia;
 
 use App\Data\HistoricProcessingResultImportPlan;
+use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionType;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
@@ -29,8 +31,17 @@ class HistoricMediaGraphPersister
     {
         $graph = $plan->service['media_graph'];
         $processingId = $graph['processing_key'];
+        /**
+         * The run must exist before any publication is written: sermons carry
+         * `livestream_processing_id`, whose foreign key targets
+         * `media_processing_logs.processing_id`. The run's own `sermon_id` back
+         * reference can only be filled once the main publication exists, so it
+         * is a second write rather than part of the insert.
+         */
+        $run = $this->createRun($graph);
         $publications = $this->createPublications($graph['publications'] ?? [], $processingId);
-        $run = $this->createRun($graph, $publications['main'] ?? null);
+        $run->sermon_id = $publications['main']->id ?? null;
+        $run->save();
         $segments = $this->createSegments($run, $graph['segments'] ?? []);
         $sections = $this->createSections($run, $graph['sections'] ?? [], $segments, $publications);
         $this->createSteps($processingId, $graph['steps'] ?? []);
@@ -50,6 +61,12 @@ class HistoricMediaGraphPersister
     }
 
     /**
+     * The bundle's scripture_filters are deliberately not inserted. SermonObserver
+     * owns that index and rebuilds it from `reference` on every save, so inserting
+     * the bundle's rows either collides with the observer's on the unique key or is
+     * silently replaced by them moments later. The contract classifies the field as
+     * deterministically rebuilt for exactly this reason.
+     *
      * @param  array<int, array<string, mixed>>  $publications
      * @return array<string, Sermon>
      */
@@ -91,7 +108,6 @@ class HistoricMediaGraphPersister
                 'preacher_id' => $preacher?->id,
                 'livestream_processing_id' => $processingId,
             ]);
-            $sermon->scriptureFilters()->createMany($publication['scripture_filters'] ?? []);
             $key = $publication['section_key'] ?? 'main';
             $created[$key] = $sermon;
         }
@@ -134,7 +150,7 @@ class HistoricMediaGraphPersister
     }
 
     /** @param array<string, mixed> $graph */
-    private function createRun(array $graph, ?Sermon $main): MediaProcessingLog
+    private function createRun(array $graph): MediaProcessingLog
     {
         $run = $graph['run'];
 
@@ -160,7 +176,6 @@ class HistoricMediaGraphPersister
                     'logical_hash' => $graph['logical_hash'],
                 ],
             ],
-            'sermon_id' => $main?->id,
             'started_at' => $run['started_at'],
             'completed_at' => $run['completed_at'],
             'is_degraded_completion' => $run['is_degraded_completion'],
@@ -219,10 +234,20 @@ class HistoricMediaGraphPersister
                 'status' => $payload['status'],
                 'needs_manual_review' => $payload['needs_manual_review'],
                 'source_segment_ids' => $segmentIds,
+                'metadata' => $payload['metadata'] ?? null,
                 'song_match_type' => $payload['song_match_type'],
-                'publication_status' => $payload['publication_status'],
-                'published_sermon_id' => $publications[$payload['section_key']]->id ?? null,
-                'published_at' => $payload['published_at'],
+                /**
+                 * Sections are born unpublished. `service_sections_publication_media_check`
+                 * refuses an approved or published row whose extraction media and
+                 * timestamp are absent, and those only exist once the assets have been
+                 * copied. finaliseSections() applies the bundle's real publication state
+                 * afterwards.
+                 */
+                'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+                'published_sermon_id' => null,
+                'published_at' => null,
+                'extracted_at' => null,
+                'unpublished_expires_at' => null,
             ]);
             $sections[$payload['section_key']] = $section;
         }
@@ -447,12 +472,119 @@ class HistoricMediaGraphPersister
             $publication->save();
         }
 
-        foreach ($touchedSections as $section) {
-            $section->save();
-        }
-
+        $this->finaliseSections($plan, $sections, $publications, $touchedSections);
         $this->applyServiceArtifactPaths($run, $destinations);
         $run->save();
+    }
+
+    /**
+     * Commit each section's extraction media before naming its publication state.
+     * MySQL's `service_sections_publication_media_check` refuses an approved or
+     * published row without extraction media and a timestamp, so collapsing these
+     * two passes into one save reintroduces B2.
+     *
+     * @param  array<string, ServiceSection>  $sections
+     * @param  array<string, Sermon>  $publications
+     * @param  array<string, ServiceSection>  $touchedSections
+     */
+    private function finaliseSections(
+        HistoricProcessingResultImportPlan $plan,
+        array $sections,
+        array $publications,
+        array $touchedSections,
+    ): void {
+        $payloads = [];
+
+        foreach ($plan->service['media_graph']['sections'] ?? [] as $payload) {
+            if (is_array($payload) && is_string($payload['section_key'] ?? null)) {
+                $payloads[$payload['section_key']] = $payload;
+            }
+        }
+
+        /** @var array<string, array<string, mixed>> $finalisable */
+        $finalisable = [];
+
+        foreach (array_keys($sections) as $sectionKey) {
+            $payload = $payloads[$sectionKey] ?? null;
+
+            if (! is_array($payload)) {
+                throw new RuntimeException("Cannot finalise unknown section {$sectionKey}.");
+            }
+
+            $finalisable[$sectionKey] = $payload;
+        }
+
+        foreach ($finalisable as $sectionKey => $payload) {
+            $section = $sections[$sectionKey];
+            $section->extracted_at = $payload['extracted_at'] ?? null;
+
+            if (isset($touchedSections[$sectionKey]) || $section->extracted_at !== null) {
+                $section->save();
+            }
+        }
+
+        foreach ($finalisable as $sectionKey => $payload) {
+            $section = $sections[$sectionKey];
+            $this->assertPublicationStateIsSatisfiable($section, $payload, $sectionKey);
+
+            $section->forceFill([
+                'publication_status' => $payload['publication_status'],
+                'published_sermon_id' => $publications[$sectionKey]->id ?? null,
+                'published_at' => $payload['published_at'] ?? null,
+                'unpublished_expires_at' => $payload['unpublished_expires_at'] ?? null,
+            ])->save();
+        }
+    }
+
+    /**
+     * Restate `service_sections_publication_media_check` and
+     * `service_sections_publication_link_check` in application terms before the
+     * write. A bundle that promises a published section without its extraction
+     * media is a bundle defect, and it should name the section rather than
+     * surface as an anonymous MySQL constraint number.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function assertPublicationStateIsSatisfiable(
+        ServiceSection $section,
+        array $payload,
+        string $sectionKey,
+    ): void {
+        $status = $payload['publication_status'];
+        $status = $status instanceof ServiceSectionPublicationStatus
+            ? $status
+            : ServiceSectionPublicationStatus::from($status);
+
+        if (! in_array($status, [
+            ServiceSectionPublicationStatus::Approved,
+            ServiceSectionPublicationStatus::Published,
+        ], true)) {
+            return;
+        }
+
+        $missing = [];
+
+        if ($section->extracted_video_path === null) {
+            $missing[] = 'extracted_video_path';
+        }
+
+        if ($section->extracted_at === null) {
+            $missing[] = 'extracted_at';
+        }
+
+        if ($section->section_type !== ServiceSectionType::Song && $section->extracted_audio_path === null) {
+            $missing[] = 'extracted_audio_path';
+        }
+
+        if ($status === ServiceSectionPublicationStatus::Published && ($payload['published_at'] ?? null) === null) {
+            $missing[] = 'published_at';
+        }
+
+        if ($missing !== []) {
+            throw new RuntimeException(
+                "Section {$sectionKey} cannot become {$status->value} without ".implode(', ', $missing).'.'
+            );
+        }
     }
 
     /**

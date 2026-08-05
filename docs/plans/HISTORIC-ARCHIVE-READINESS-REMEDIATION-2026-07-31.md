@@ -1,10 +1,11 @@
 # Historic Archive Import Readiness Remediation Plan
 
-> **Status (2026-08-04): WP0–WP4 merged (PRs 4–13); PR2/PR3 are partial — the B1/B2 crash fixes and
-> reproducers never landed — and a gate-acceptance audit found further coverage gaps in PRs 5, 9, 11
+> **Status (2026-08-04): WP0–WP4 merged (PRs 4–13); PR3 is complete and PR2 is Done† — the B1/B2 crash
+> fixes, reproducers and real-path media-graph canary landed, but the canary's church-service links are
+> still hand-wired pending PR14 — and a gate-acceptance audit found further coverage gaps in PRs 5, 9, 11
 > and 12; PR1/WP8 was skipped despite being scheduled first; WP5–WP10 remain to do.** "Merged" here
 > is not a gate certification — see §17's Status column and the "Acceptance and gate readiness" audit.
-> Finish the B1/B2 work first, then the next dependency-unblocked import PR is **PR14 (WP5)**; **PR1
+> The next dependency-unblocked import PR is **PR14 (WP5)**; **PR1
 > (WP8 public archive)** is independently pickable but is required before G9 closeout. Bulk local
 > ingestion, historic-video dispatch and every production mutation remain blocked behind the later
 > gates. Read-only corpus inventory, hashing and manifest curation are safe to continue.
@@ -248,8 +249,8 @@ WP0 contract canary
 ```
 
 The work-package order describes dependency ownership; the implementation order is risk-first.
-B1, B2 and B17 land immediately after the canary because they are certain first-use failures and
-small enough to repair without waiting for the full graph redesign. Their tests remain in the
+B1, B2 and B17 were landed immediately after the canary because they were certain first-use failures
+and small enough to repair without waiting for the full graph redesign. Their tests remain in the
 permanent WP0 canary suite. The fixed code still cannot be used for a batch until later gates pass.
 
 **WP8 moved to the front on 2026-08-02.** It was previously sequenced after G9 on the correct
@@ -1343,16 +1344,16 @@ residual review after the automate-first loop converges. Plan against those, not
 
 **Status added 2026-08-04.** WP0–WP4 have been implemented and committed, so the table now carries a
 Status column and a "Next task to pick up" summary below it. The work landed in **work-package order
-(WP0 → WP4)**, not in the PR order this section proposes: PRs 4–13 are done, and **both PR2 and PR3
-are partial around the same gap** — the B1/B2 blocker work never landed. PR3's B1/B2 persister-ordering
-crash fixes are absent, and because their named regression tests do not exist, **WP0's own §6
-acceptance ("all known blockers have red reproducers") is not yet met either**, so PR2 is complete
-only for its canary and contract matrix (see both rows below). **PR1 (WP8) was skipped** even though it
-was scheduled to ship first. Nothing about PR1 changed — it still depends on the import for nothing
-and is still the only visitor-visible deliverable in the programme — so it remains ready to pick up
-once §19's current-era exposure and indexing policy is accepted. (The §14.4 historic-era editorial,
-copyright and consent questions are deferred to before the first *historic* era is published; they do
-**not** gate WP8's current-era ship.) Status values:
+(WP0 → WP4)**, not in the PR order this section proposes: PRs 4–13 are done, **PR3 is complete and PR2
+is Done†**. PR3's B1/B2 persister-ordering fixes and named MySQL regression tests are all present, and
+PR2's canary now runs the media graph through the real persistence path; its church-service links are
+still hand-wired by the test harness until PR14 persists them. The remaining gate-acceptance gaps are
+listed in the audit below.
+**PR1 (WP8) was skipped** even though it was scheduled to ship first. Nothing about PR1 changed — it
+still depends on the import for nothing and is still the only visitor-visible deliverable in the
+programme — so it remains ready to pick up once §19's current-era exposure and indexing policy is
+accepted. (The §14.4 historic-era editorial, copyright and consent questions are deferred to before
+the first *historic* era is published; they do **not** gate WP8's current-era ship.) Status values:
 
 - **Done** — the slice's PR merged and its own tests pass.
 - **Done†** — merged and working, but a **gate-acceptance audit found a coverage gap** that must close
@@ -1372,8 +1373,8 @@ acceptance findings roll into that same audit list rather than changing the merg
 | PR | Scope | Size | Depends on | Status |
 |---|---|---|---|---|
 | 1 | **WP8 public service archive/detail over current-era data** | M | None | **Ready** (skipped though scheduled first) |
-| 2 | WP0 canary, consolidated contract matrix and named red tests | M | None | **Partial — B1/B2 reproducers missing; canary is factory-built, not real-path (G1)** |
-| 3 | Immediate B1/B2 direct persister fixes and B17 streaming exporter/transfer | L | PR 2 | **Partial — B17 done; B1/B2 outstanding** |
+| 2 | WP0 canary, consolidated contract matrix and named red tests | M | None | **Done†** (G1: canary's church-service links still hand-wired) |
+| 3 | Immediate B1/B2 direct persister fixes and B17 streaming exporter/transfer | L | PR 2 | **Done** |
 | 4 | Additive lineage/portable-identity schema if required | M, or XS/no-op if unnecessary | PR 2 | Done |
 | 5 | Pure Email/OpenLP adapters and manifest schema | L | PR 4 | **Done†** (G1: manifest schema incomplete) |
 | 6 | Active revision and projector matching/cardinality/order | L | PR 5 | Done |
@@ -1401,42 +1402,52 @@ gaps in landed slices belong here.
 
 | Gate | Slice | Verified gap | Close it by |
 |---|---|---|---|
-| G1 | PR2/PR3 | `HistoricMediaGraphPersister::persist()` still creates publications before the run (B1) and publishes sections before extraction media (B2); the two named regression tests do not exist. | The B1/B2 fixes + `it_creates_the_run_before_linked_publications` and `it_transitions_a_section_to_published_only_after_required_media_exists` (see "Next task"). |
-| G1 | PR2 | The canary (`HistoricNormalOutputContractTest::createCanary()`) builds the whole graph with model factories, not the real persistence chain and fan-out §6 requires, so it can stay green when the real path stops emitting a required relationship. | Rebuild the canary through the real processing/persistence path (deterministic provider fixtures allowed per §6); assert the fan-out composition is produced, not hand-authored. |
+| G1 | PR2/PR3 | **Closed 2026-08-04.** `HistoricMediaGraphPersister::persist()` now creates the run before linked publications and stages section media before final publication state; the two named regression tests pass against MySQL. | `HistoricMediaGraphPersisterTest::it_creates_the_run_before_linked_publications` and `it_transitions_a_section_to_published_only_after_required_media_exists`. |
+| G1 | PR2 | **Media graph closed 2026-08-04; church-service links still open.** The canary now persists run, publications, segments, sections, steps, song videos and every asset path through the real path, and asserts the post-persist fan-out (one shared file → one copy per role, identical content, no surviving staging path). The **church-service half is still hand-wired by the test harness** — `media_processing_logs.church_service_id`, sections' `church_service_item_id`/`matched_item_id`/`expected_item_id`, items' `livestream_processing_id`/`livestream_service_section_id`, and `song_videos.church_service_id` — so the `service_item_identity`, `matched_item_identity`, `expected_item_identity` and `church_service_identity` assertions do not yet exercise the persister. | PR14 (WP5) persisting the church-service links, then deleting the re-attachment block in `HistoricNormalOutputContractTest::persistCanaryThroughRealPath()` so those four assertions become real coverage. |
 | G1 | PR5 | `OpenLpCurationManifest::normalizeEntries()` emits only path/hash/size, disposition, duplicate target, resolved identity, alias and exclusion reason — missing §7.3's stable item/source identity, parse/concatenation decision, expected-occurrence information, and decision author/time or approved rule version. | Extend the manifest schema + validation to carry the missing §7.3 fields, so curation authority and expected occurrences are provable. |
 | G2 | PR9 | `ChurchServiceProposalCensusGate::evaluate([])` returns `passes: true`, so "nothing has been staged/projected" is indistinguishable from "the corpus projected with no proposals"; the §9.4/G2 stopping gate can be cleared without a census having run. | Require independent corpus-completeness evidence (expected staged/projected count reconciled) before the gate can pass on an empty class list. |
 | G3 | PR11 | Bundle B round-trip tests re-import into the same service with the same PKs (`already_present`); none recreates the production graph with shifted IDs, so local-ID coupling in reviewer/assertion/proposal/decision/rule resolution stays undetected. WP3 requires a different-PK round trip. | Add a Bundle B round trip that imports into a production-shaped DB with deliberately different PKs and asserts exact finalisation + per-proposal dispositions. |
 | G3 | PR12 | No test round-trips the WP0 canary through Bundle A export→import into a different-PK database (only a model-rebuild hash equality and an importer test over a hand-authored bundle). WP4 requires the canary round trip. | Once the canary is real-path (G1 above), export it to Bundle A and import into a different-PK DB, asserting identical logical hashes and no lost field/relationship/role. |
 
-The G1 rows gate the immediate crash tranche; G2 and G3 gate the later corpus and bundle work. None
-blocks starting PR14, but all block the gate they name.
+G1's crash tranche is closed; its canary row narrows to the church-service links, which PR14 closes as
+a side effect. G2 and G3 gate the later corpus and bundle work. None blocks starting PR14, but all
+block the gate they name.
 
 ### Next task to pick up
 
-**Do first — finish PR3's outstanding B1/B2 crash fixes.** These are certain first-use MySQL failures
-that were never fixed and have no regression tests, so the persister still cannot run a batch:
+**PR3 is complete and PR2 is Done†.** The B1/B2 fixes and named MySQL regression tests prove that the
+processing log exists before publication foreign keys are written and that extracted paths and
+timestamps are persisted before a section reaches approved or published state. The WP0 canary now
+runs the media graph through the real persistence path; its residual gap is the church-service links
+in the row above.
 
-- **B1:** [`HistoricMediaGraphPersister::persist()`](../../app/Services/HistoricMedia/HistoricMediaGraphPersister.php#L32)
-  creates publications (line 32, writing `livestream_processing_id`) *before* `createRun()` (line 33),
-  violating the FK `sermons.livestream_processing_id → media_processing_logs.processing_id`
-  ([`mysql-schema.sql:887`](../../database/schema/mysql-schema.sql#L887)). Add
-  `HistoricMediaGraphPersisterTest::it_creates_the_run_before_linked_publications`.
-- **B2:** the same method transitions sections to a published state before `applyAllocatedPaths()`
-  supplies extraction media/timestamps. Add
-  `HistoricMediaGraphPersisterTest::it_transitions_a_section_to_published_only_after_required_media_exists`.
+Two contract facts were established while closing this tranche and are now permanent:
 
-These may be reopened as PR3 or folded into PR14, whose §11.1 persistence order already requires the
-processing log before publication FKs (step 2 before step 7) and extraction paths before publication
-status (step 8). Either way they must land before a batch runs, and are the prerequisite for PR14
-being genuinely complete.
+- **Publication scripture filters are `deterministically_rebuilt`, not `portable`** (contract VERSION
+  4). `SermonObserver` owns that index and re-derives it from `reference` on every save, so the
+  importer cannot make bundle rows authoritative without becoming a second writer to it. The bundle
+  still carries them as the evidence a round trip is compared against. Consequence for G3: a source
+  sermon whose stored filters disagree with its own `reference` will not round-trip those rows —
+  `HistoricMediaGraphPersisterTest::it_rebuilds_publication_scripture_filters_from_the_reference`
+  pins the rule.
+- **Asset fan-out is not preserved by persistence, and must not be expected to be.** One physical file
+  carrying N roles becomes N production copies, because `assetDestinations()` allocates a distinct
+  path per role. PR12's Bundle A round trip must compare logical hashes and role/content identity, not
+  asset path counts.
+
+The next import-critical slice is **PR14 — remaining persistence, shared classification and richness
+convergence (WP5, §11)**. Its predecessors PRs 11–13 are all Done, and it must preserve the B1/B2
+ordering contracts above.
 
 Two further PRs are unblocked and can be handed to an agent independently.
 
 - **PR14 — remaining persistence, shared classification and richness convergence (WP5, §11).** This
   is the next step on the import's critical path: its predecessors PRs 11–13 are all Done. It is `L`
   because it satisfies real MySQL constraints and converges existing production records without loss,
-  and it must incorporate the B1/B2 fixes above. Completing it unblocks PR15, which in turn unblocks
-  PR16 and PR17.
+  and it must preserve the B1/B2 ordering contracts above. It also owns the church-service links the
+  persister does not yet write; landing them lets the re-attachment block in
+  `HistoricNormalOutputContractTest::persistCanaryThroughRealPath()` be deleted, which is what closes
+  PR2's remaining G1 row. Completing it unblocks PR15, which in turn unblocks PR16 and PR17.
 - **PR1 — WP8 public service archive over current-era data (§14).** Independent of the import and the
   only visitor-visible outcome in the programme, but it was skipped when the team implemented in
   work-package order. It does not gate *building* the import and is not gated by it (§14), so it can
@@ -1529,7 +1540,8 @@ Neither gates the import itself.
 ## 20. Definition of done
 
 - [ ] Public service history ships over current-era data, safe, accessible and linked (PR1).
-- [ ] WP0 canary covers the complete normal graph.
+- [ ] WP0 canary covers the complete normal graph. *(Media graph done through the real persistence
+  path; church-service links still hand-wired in the harness until PR14 — see §17's G1 canary row.)*
 - [ ] The mounted source inventory is 100% accounted for by included or approved excluded items.
 - [ ] Every included item is exact-promoted or exact-already-present; unresolved/failed count is zero.
 - [ ] Calibration forecast, checkpoint ledger and actual time/cost/capacity reports reconcile.
