@@ -19,13 +19,19 @@
 >   `service-tracking:promotion-budget` derives §15.2's five values from them. The instrument is
 >   complete; the numbers need a rehearsal apply, rollback and closeout to have run.
 >
+> - ~~**PR24 — the G8 prohibition's scope.**~~ **Done 2026-08-06.** Added after the PR22/PR23 sweep,
+>   when resolving the header ambiguity below showed the prohibition was unenforced in code and
+>   over-broad in prose. `HistoricImportProductionGuard` plus four call sites; §7.5's read-only claim
+>   corrected.
+>
 > **No scheduled code slice remains.** Everything outstanding is operator work or the rehearsal.
 >
 > **Outstanding operator work, drive-free:**
 >
-> - **Approve the OoS curation rule set.** `storage/scratch/oos-curation-manifest.draft.json` carries
->   `oos-curation-draft-v1` on 402 of 404 entries and `decided_by` on 2. §7.3 accepts a rule version
->   as mutation authority only once that rule set is approved.
+> - ~~**Approve the OoS curation rule set.**~~ **Approved 2026-08-06.** Promoted to
+>   `storage/scratch/oos-curation-manifest.json` as `oos-curation-v1`, plus seven maintainer rulings on
+>   the service enum where the draft rules contradicted themselves. Validates over all 404 entries with
+>   0 identity disagreements. See §7.5's approval record for the rulings and the manifest/plan hashes.
 > - **Set `church.historic_corpus.expected_services`** from the approved manifest. It is unset, so
 >   `ChurchServiceProposalCensusGate` fails closed on `EXPECTED_CORPUS_SIZE_UNAPPROVED` and G2 cannot
 >   be claimed.
@@ -39,8 +45,10 @@
 > the exact audit, the second no-op run and the rollback proof — are all unrun, and G4–G9 are all
 > unclaimed. That, not the remaining code, is the schedule.
 >
-> Bulk local ingestion, historic-video dispatch and every production mutation remain blocked behind
-> the later gates. Read-only corpus inventory, hashing and manifest curation are safe to continue.
+> Historic-video dispatch and every production mutation remain blocked behind the later gates. Corpus
+> inventory, hashing, manifest curation and **local Email/OpenLP evidence staging into a rehearsal
+> database** are safe to continue — the last of those is §13.5 steps 3–4 and was clarified on
+> 2026-08-06; see the G8 scope note below.
 >
 > **Amended 2026-08-02** after a business-design review. The engineering content of the 2026-07-31
 > audit is unchanged; what changed is everything around it:
@@ -79,9 +87,31 @@
 > current-pipeline acquisition and Bundle A. R8 concepts still own source convergence, final
 > canonical review, Bundle B and the only production runbook.
 >
-> **Do not run** canonical OoS/OpenLP archive imports, `sermons:import-historic-videos`, Bundle A or
-> Bundle B persistence, or the R8 production mutation sequence until Gate G8. Do not delete the
-> one-shot commands needed to complete or verify this work.
+> **Do not run, against production,** canonical OoS/OpenLP archive imports,
+> `sermons:import-historic-videos`, Bundle A or Bundle B persistence, or the R8 production mutation
+> sequence until Gate G8. Do not delete the one-shot commands needed to complete or verify this work.
+>
+> **The scope of that prohibition was decided on 2026-08-06 and is now enforced in code (PR24).** It
+> previously read as a prohibition on the *commands*, which was unexecutable: staging Email evidence
+> is only reachable through `oos:import-archive --import`, because `EmailSourceAdapter` is invoked
+> from nowhere but `InboundEmailImportService::import()`. Under the literal reading §13.5 steps 3–4 —
+> the drive-free work the plan calls next — were forbidden, and with them G5, which those steps are
+> the route to. A prohibition that blocks the only path to its own exit gate cannot have meant that.
+>
+> So the boundary is production, and `HistoricImportProductionGuard` is where it is now stated rather
+> than described: outside production it is silent, because a rehearsal database is where the corpus
+> is meant to be staged, projected and re-projected; in production it fails closed until
+> `church.historic_corpus.production_import_approval` names the approved G8 operation, which the
+> closeout report then quotes as the run's authority. Dry runs and preflights are deliberately **not**
+> blocked in production — revalidating the production-window prerequisites is what G8 is, so a guard
+> that blocked them would make the gate unreachable. The guard covers `oos:import-archive`
+> (`--import`, `--import-bundle`, `--apply-bundle`), `service-tracking:import-openlp-services
+> --apply`, `sermons:import-historic-videos` dispatch and
+> `service-tracking:converge-historic-service --apply`.
+>
+> It does not cover storage isolation, which is the per-batch staging root's job (PR17), nor an
+> operator who deliberately points a non-production `APP_ENV` at production infrastructure. It
+> catches the realistic mistake: a production `.env` in the shell a rehearsal command was typed into.
 >
 > **No dependency changes are authorised.** Do not invest in the deleted or deletion-scheduled
 > heuristic service-structure path.
@@ -606,6 +636,73 @@ The twelve proposed entries — nine revision-signal supersessions, the two corp
 matches above, and `2017-06-11`'s demotion to partial — were **confirmed by the maintainer on
 2026-08-06**. They keep the draft rule version, since a rule reached each of them.
 
+#### Rule set approved, 2026-08-06
+
+The maintainer approved the rule set on 2026-08-06. The draft was promoted to
+`storage/scratch/oos-curation-manifest.json` — `decision_rule_version: oos-curation-v1` on the same
+402 entries, `batch_key: oos-approved-2026-08-06`, and the 2 individually-decided entries untouched.
+It validates through `OosCurationManifest` over all 404 entries with **0 adjudicated identity
+disagreements**:
+
+| | |
+|---|---|
+| `manifest_hash` | `2d96938c9d54483f15c7a1bd82a123a2cfe9370634bc52be655418bd3e645330` |
+| `plan_hash` | `c13b8b67d108f0c9bc3934bd2bea5cb15bf8889dfa5ba3760fde6b2732c28ded` |
+
+Neither file is committed: `storage/scratch/*` is gitignored, the manifest carries source paths, and
+this repository is public (§3.3). This section is the retained approval record; the plan hash above is
+what an `--import` run must quote back.
+
+Promoting the rule version does not re-identify anything. `OosCurationEntryFactory::messageId()`
+derives the synthetic message id from `item_key` alone, so neither the rule version nor the batch key
+feeds it — the same corpus staged before and after approval reaches the same rows.
+
+##### The service enum: seven maintainer rulings, 2026-08-06
+
+Cross-checking `resolved_service` against the actual weekday showed the draft rules contradicting
+themselves at the liturgical edges — two Palm Sundays classified differently, and "Christmas Morning"
+resolving to `morning` in 2025 but `other` in 2020 and 2024. The maintainer settled it with a rule the
+draft never had: **a morning service is `morning` whatever the weekday, and `other` is reserved for
+services outside the Sunday morning/evening cycle.** Seven entries were overridden and now carry
+`decided_by`/`decided_at` alongside the rule version, since a rule reached every other field:
+
+| Entry | Weekday | Was | Now |
+|---|---|---|---|
+| `2026-03-29` Palm Sunday | Sun | `other` | `morning` |
+| `2021-12-26` Boxing Day | Sun | `other` | `morning` |
+| `2020-12-25` | Fri | `other` | `morning` |
+| `2022-12-25-christmas` | Sun | `other` | `morning` |
+| `2023-12-24` | Sun | `other` | `morning` |
+| `2023-12-25` | Mon | `other` | `morning` |
+| `2024-12-25` | Wed | `other` | `morning` |
+
+`2025-12-25` already resolved to `morning` and is unchanged. The five entries still on `other` are all
+Good Friday or Maundy Thursday, which genuinely sit outside the Sunday cycle:
+`2018-03-30-good-friday`, `2022-04-14-maundy-thursday`, `2023-04-06-maundy-thursday`,
+`2023-04-07-good-friday` and `2023-04-07-good-friday-revised`.
+
+Three things the rulings established that are worth carrying forward:
+
+- **`2021-12-26`'s draft `service_label` was simply wrong.** It read `Christmas Morning` for a Boxing
+  Day service whose own source subject is "BOXING DAY order of service (Sunday morning)". A filename
+  and frontmatter heuristic produced a label the source contradicts, which is the clearest available
+  argument for §7.3's rule that the approved manifest — not the heuristic — is mutation authority.
+- **`2022-12-25` holds one service, not several.** Read against the source it is a single "Christmas
+  Morning Order of Service"; nothing is being collapsed by giving it one enum value.
+- **`2023-12-24` holds three orders across two dates** — the Sunday 24th morning order (complete), the
+  Sunday 24th evening carol list (titles only, the email says the order "is to follow"), and a
+  Christmas morning order for the **25th**. It resolves to the 24th's `morning` because that is its
+  primary complete order. The evening carols are a second service on the same date and arrive through
+  §7.5's `service_beyond_manifest` path. The Christmas morning tail is dated outside the curated
+  service and will be skipped — correctly, because `2023-12-25` carries the identical order
+  authoritatively, sent on the day. Nothing is lost.
+
+`service_label` was cleared on all seven, because the schema requires it exactly when
+`resolved_service` is `other` (`OosCurationManifest.php:587`) — an invariant that caught the first
+attempt at this edit. The named identity survives in `title_override`, which is the pattern §7.5
+already describes for Easter Sunday. `2021-12-26` deliberately gets no `title_override`: its own
+frontmatter title is correct, and an override's absence means "use the source".
+
 #### 2026-02-22: the one decision a rule could not reach
 
 `2026-02-22` was the draft's only unrankable service, holding three documents. The maintainer looked
@@ -763,9 +860,27 @@ The manifest **class, its schema, its validation and its reconciliation report**
 source-kind-agnostic half of `OpenLpCurationManifest` so a third near-copy is not created. Populating
 the entries for all 261 files is curation that follows it and is likewise drive-free.
 
-Out of scope, and still blocked: running `oos:import-archive --import`. The status header forbids
-canonical OoS archive imports until G8. Dry-run and evaluation modes are read-only and are how the
-manifest's `expected_item_count` and `parse_decision` values are derived.
+Out of scope: running `oos:import-archive --import` **against production**, which the status header
+forbids until G8 and `HistoricImportProductionGuard` now refuses. Running it against a local
+rehearsal database is not out of scope — it is §13.5 step 3, and it is the only way to stage Email
+evidence at all.
+
+**Corrected 2026-08-06.** This section previously said "dry-run and evaluation modes are read-only".
+Only `--dry-run` is: it takes no database or extractor access. The three modes actually differ like
+this, and it matters, because the middle one is where `expected_item_count` and `parse_decision` are
+derived:
+
+| Mode | Writes | Creates a service? | Reaches the review inbox? |
+|---|---|---|---|
+| `--dry-run` | Nothing | No | No |
+| Evaluation (neither flag) | `InboundEmail` rows and parse caches, at `ArchiveEval` | No | No |
+| `--import` | The above, plus canonical services and items | Yes | Yes |
+
+Evaluation mode writes: `synchroniseEmail()` saves an `InboundEmail` and `parseResult()` stores the
+parse and its `parser_version`. What makes it a staging activity rather than an import is narrower
+than "read-only" — it creates no canonical service and `releaseToInbox()` returns early, so nothing
+is handed to the operator. `ImportOosArchiveCommandTest::evaluation_mode_writes_evidence_but_creates_no_service_and_releases_nothing`
+pins exactly that, so the distinction this plan relies on cannot drift.
 
 ### Tests and acceptance
 
@@ -1798,7 +1913,9 @@ residual review after the automate-first loop converges. Plan against those, not
 (WP0 → WP6, then WP8, then WP7)** rather than the PR order this section proposes, and PR1 (WP8)
 shipped last-but-one instead of first — it was skipped at the start and picked up after PR13. **Two
 code slices remain**, PR22 and PR23, both drive-free; they were identified on 2026-08-06 as
-unscheduled work in prose and are now numbered rows so they cannot be lost again. Status values:
+unscheduled work in prose and are now numbered rows so they cannot be lost again. **PR24 was added
+the same day** for the same reason — resolving the header's G8 scope showed the prohibition was
+enforced nowhere. All three are now delivered. Status values:
 
 - **Done** — the slice's PR merged and its own tests pass.
 - **Done†** — merged and working, but a **gate-acceptance audit found a coverage gap** that must close
@@ -1937,6 +2054,47 @@ be until a rehearsal apply, a rollback and a closeout have actually run — §13
 an empty ledger the command correctly fails with four unmeasured phases. G7 remains unmet, but it is
 now unmet for want of a rehearsal rather than for want of a way to measure one.
 
+#### PR24 delivered (2026-08-06)
+
+**The G8 prohibition is now a precondition rather than a sentence, and its scope is production.**
+
+This slice exists because an ambiguity in the status header had made the next drive-free task
+undecidable, and the ambiguity was itself a symptom: an unenforced rule has to be interpreted, where
+an enforced one simply answers. Two things were wrong at once. Read literally, the header forbade
+`oos:import-archive --import` outright — and since `EmailSourceAdapter` is invoked from nowhere but
+`InboundEmailImportService::import()`, that forbade the only route to staged Email evidence, hence
+§13.5 steps 3–4 and hence G5. Meanwhile nothing in the code stopped that same command being pointed
+at production, so the prose was over-broad and under-protective simultaneously.
+
+- `HistoricImportProductionGuard` (`app/Services/Import/HistoricImportProductionGuard.php`) returns
+  an operator-facing refusal, or null. Outside production it is silent. In production it fails closed
+  until `church.historic_corpus.production_import_approval` names the approved G8 operation, on the
+  same principle as `ChurchServiceProposalCensusGate`'s unset corpus size: the absence of a decision
+  is not a decision. A blank or whitespace-only approval is not an approval, so a stray `=` in an env
+  file cannot defeat the default.
+- Four call sites: `oos:import-archive` (`--import` and both bundle modes),
+  `service-tracking:import-openlp-services --apply`, `sermons:import-historic-videos` dispatch, and
+  `service-tracking:converge-historic-service --apply`.
+
+Three placement decisions a reviewer should not have to reconstruct:
+
+- **Dry runs and preflights are not guarded, in production or anywhere else.** Revalidating the
+  production-window prerequisites *is* G8, so blocking the preflight would make the gate unreachable.
+  In the convergence command the guard therefore sits after `prepare()` and inside the `--apply`
+  branch, and `the_production_preflight_is_not_blocked` pins that.
+- **The refusal precedes the plan-hash check** in the OoS and OpenLP commands, and precedes the
+  manifest requirement in the video command. An operator whose shell is pointed at production should
+  be told that, not sent away for a hash or a manifest that would not have helped.
+- **It guards the environment, not the storage or the connection string.** Storage isolation is
+  PR17's per-batch staging root; an operator who deliberately points a non-production `APP_ENV` at
+  production infrastructure is out of scope. What this catches is the realistic mistake — a
+  production `.env` in the shell a rehearsal command was typed into.
+
+The slice also corrected §7.5's claim that "dry-run and evaluation modes are read-only". Evaluation
+mode writes `InboundEmail` rows and parse caches; what makes it staging rather than importing is that
+it creates no canonical service and releases nothing to the review inbox. That narrower boundary is
+now the one the plan states, and a test pins it.
+
 ### Next task to pick up
 
 **Operator work behind the approval gate:** dispatch `production-audit.yml` for
@@ -1947,13 +2105,18 @@ counts pick one.
 source drives) and the OpenLP half of step 2 (populate the v2 curation fields). PR18/19 remain
 rehearsal contingencies and PR20 is gated on G9.
 
-**Unresolved, and it decides whether the Email half can start.** §7.5's "Scope of PR21" reads the
-status header as forbidding `oos:import-archive --import` until G8. But §13.5 steps 3 and 4 — stage
-Email evidence, then converge the §9.4 census over the Email x OpenLP population — are exactly the
-drive-free work the plan calls next, and neither can happen without staging evidence into a **local**
-database. G5 is "complete local rehearsal", so the header's prohibition is almost certainly aimed at
-production canonical imports. It does not say so, and until it does, the Email half is simultaneously
-"next" and "blocked". A maintainer decision, not an editorial one.
+**Resolved 2026-08-06 (was: does the G8 prohibition block local evidence staging?).** It does not.
+The prohibition is scoped to production, the status header now says so, and PR24's
+`HistoricImportProductionGuard` enforces it instead of leaving it to a reading. The Email half of
+§13.5 steps 2–4 is therefore **unblocked and is the next drive-free work**: populate the 404 manifest
+entries, then stage and project against a local rehearsal database. The decision record is in the
+status header; the reasoning that forced it is that `EmailSourceAdapter` has exactly one caller, so
+`--import` is the only route to staged Email evidence and a command-level prohibition would have
+forbidden G5.
+
+**So the drive-free critical path is now: §12.4's audit dispatch, the OoS rule-set approval and
+`expected_services`, then the Email half of steps 2–4.** None of the three needs the CBC drive and
+none needs the other two first.
 
 Four contract facts are now permanent and constrain everything that follows:
 
@@ -2011,9 +2174,9 @@ pinning §13.3's scope. B16 and B20 have their named tests. This closes the sche
   because faking only swaps the resolved instance; any test that fakes a disk and then enters a
   context must re-establish it afterwards or it will be reading real storage.
 
-With PR17 and PR21 merged, the only scheduled implementation left is PR22 and PR23, both small and
-drive-free. The remaining elapsed time is set by the §13.3 bulk media pass and the §9.4 residual
-review, exactly as this section's sizing preamble says.
+With PR17 and PR21 merged and PR22–PR24 delivered on 2026-08-06, no scheduled implementation remains.
+The remaining elapsed time is set by the §13.3 bulk media pass and the §9.4 residual review, exactly
+as this section's sizing preamble says.
 
 Three entries are new or moved relative to the 2026-07-31 sequence: PR1 moves the public archive to
 the front (§14); PR9 adds the review-load surface that makes §9.4's loop operable; PR16 adds the
@@ -2082,6 +2245,7 @@ Implementation may use these defaults unless changed before the named gate:
 | Service below the §13.4 accuracy threshold | Import fully; withhold media from public listing via existing exposure attributes | WP7 |
 | Bulk-pass concurrency | Establish per-stage width at calibration; re-forecast from the concurrent figure | WP7 |
 | Editorial/copyright/consent policy | Deferred 2026-08-02; required before the first historic era is published, not before WP8 ships | §14.4 |
+| Scope of the G8 import prohibition | Decided 2026-08-06: production only. Local staging into a rehearsal database is how G5 is reached, and `HistoricImportProductionGuard` enforces the boundary rather than the prose | WP7 |
 
 Before G7 the maintainer explicitly accepts the corpus manifest/exclusions, every unresolved manual
 decision, the §9.4 census stopping condition, maintenance/rollback timing and private report
