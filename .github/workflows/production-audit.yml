@@ -23,6 +23,8 @@ on:
           - section-assets
           - password-hashes
           - private-assets
+          - service-evidence-coverage
+          - source-revision-lineages
 
 permissions:
   contents: read
@@ -81,6 +83,31 @@ jobs:
             if selected section-assets private-assets; then
               echo "::group::audit:section-assets"
               run_artisan audit:section-assets || status=1
+              echo "::endgroup::"
+            fi
+
+            # §12.4 of the historic archive readiness remediation plan requires
+            # production evidence counts before current-era re-projection can be
+            # scheduled: services, services carrying a non-Manual source record,
+            # and proposals carrying a resolver. Locally 407 of 408 services have
+            # no evidence at all, and local is not a production copy.
+            #
+            # Reports counts only and always exits 0 — an unevidenced service is
+            # the measurement, not a failure, and §12.4 leaves its disposition
+            # open. Run with --details on the server to identify rows.
+            if selected service-evidence-coverage service-evidence-coverage; then
+              echo "::group::audit:service-evidence-coverage"
+              run_artisan audit:service-evidence-coverage || status=1
+              echo "::endgroup::"
+            fi
+
+            # WP1 deploy preflight: the unique-leaf lineage constraint cannot be
+            # deployed while any lineage has multiple active leaves. Defaults to
+            # defect counts; the repair text names lineage keys (email message
+            # ids, archive filenames) and stays behind --details on the server.
+            if selected source-revision-lineages source-revision-lineages; then
+              echo "::group::service-tracking:audit-source-revision-lineages"
+              run_artisan service-tracking:audit-source-revision-lineages || status=1
               echo "::endgroup::"
             fi
 

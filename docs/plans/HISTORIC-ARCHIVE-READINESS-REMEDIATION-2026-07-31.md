@@ -4,18 +4,38 @@
 > gap listed on 2026-08-06 is closed.** "Merged" is still not a gate certification — see §17's Status
 > column and the "Acceptance and gate readiness" audit.
 >
-> **Corrected later on 2026-08-06: one scheduled code slice does remain.** The status above read
-> "no scheduled code slice remains" on the strength of the v2 curation manifest being complete. It is
-> complete for **OpenLP** and for **historic video**. §7.3 requires one manifest format across Email,
-> OpenLP *and* livestream acquisition, and no Email manifest was ever built — see §7.5. That is not
-> operator data work waiting on a drive: the Email corpus is `storage/scratch/oos/`, it is on local
-> disk today, and curating it needs nothing mounted. PR21 carries it.
+> **PR21 landed 2026-08-06**, closing the Email manifest gap described in §7.5: the manifest class,
+> its schema and validation, the dry-run identity reconciliation, and `ImportOosArchiveCommand`
+> repointed at the approved plan with `OosArchiveMarkdownParser` deleted.
 >
-> Outstanding items are therefore:
+> **Two drive-free code slices remain**, both identified on 2026-08-06 and neither previously given a
+> PR number. They are now PR22 and PR23 in §17:
 >
-> - **PR21 — the Email curation manifest** (§7.5). Code. Drive-free, actionable now.
-> - **Populating the v2 OpenLP curation manifest** against the mounted source drive, which *is*
->   rehearsal step 2 for the OpenLP half. Operator work, needs the CBC drive.
+> - ~~**PR22 — §12.4 production evidence-coverage audit.**~~ **Done 2026-08-06.**
+>   `audit:service-evidence-coverage` plus the lineage preflight, both whitelisted into
+>   `production-audit.yml`. Obtaining the counts is now operator work behind the approval gate.
+> - **PR23 — §13.4 deterministic-promotion benchmark.** Per-service p95 apply time, asset-copy
+>   throughput, preflight/audit time and rollback recovery set the numeric production-window budget
+>   accepted at G7 (§15.1, §15.2). Nothing in `app/` or `tests/` measures a percentile today, so G7
+>   currently has no evidence to accept and §15.2's 60-minute cap is an unbacked default.
+>
+> **Outstanding operator work, drive-free:**
+>
+> - **Approve the OoS curation rule set.** `storage/scratch/oos-curation-manifest.draft.json` carries
+>   `oos-curation-draft-v1` on 402 of 404 entries and `decided_by` on 2. §7.3 accepts a rule version
+>   as mutation authority only once that rule set is approved.
+> - **Set `church.historic_corpus.expected_services`** from the approved manifest. It is unset, so
+>   `ChurchServiceProposalCensusGate` fails closed on `EXPECTED_CORPUS_SIZE_UNAPPROVED` and G2 cannot
+>   be claimed.
+>
+> **Outstanding operator work, needs the CBC drive:** rehearsal step 1 (protect/hash the source
+> drives), populating the v2 OpenLP curation fields, the §13.1 remeasurement of the OpenLP accounting
+> and its broken symlinks, and the historic-video manifest.
+>
+> **The rehearsal itself has not started.** §13.5 steps 3–15 — evidence staging, the §9.4 census,
+> calibration and the per-era truth set, the bulk media pass, bundle export, the different-PK import,
+> the exact audit, the second no-op run and the rollback proof — are all unrun, and G4–G9 are all
+> unclaimed. That, not the remaining code, is the schedule.
 >
 > Bulk local ingestion, historic-video dispatch and every production mutation remain blocked behind
 > the later gates. Read-only corpus inventory, hashing and manifest curation are safe to continue.
@@ -1261,8 +1281,15 @@ unique sources and 428 curated inclusions
 Those counts are a reconciliation target, not proof that every current path/symlink resolves.
 
 The Email reconciliation target is in §7.5 and is measurable today: 402 verbatim files, 261
-formatted, 247 paired, 155 verbatim-only and 14 formatted-only. Unlike the OpenLP figures, these are
-measured rather than tracked, because the source is local.
+formatted, **259 paired, 143 verbatim-only and 2 formatted-only**, totalling 404 manifest entries.
+Unlike the OpenLP figures, these are measured rather than tracked, because the source is local.
+
+**Corrected 2026-08-06.** This paragraph previously read 247 paired, 155 verbatim-only and 14
+formatted-only. Those are the first pass's filename-stem figures, which §7.5 supersedes: the two
+roots do not agree on filenames, so stem-pairing both missed real pairs and invented false ones.
+Pairing by email — same date and normalised `source_subject` — gives the figures above. Because this
+paragraph is the reconciliation gate for `discovered = included + excluded`, leaving the superseded
+numbers here would have stated a target the approved manifest is built to fail.
 
 Create a signed inventory reporting regular files, symlinks, resolved targets, missing targets,
 duplicates, bytes and hashes. A path is eligible only if it resolves inside the approved mounted
@@ -1765,10 +1792,11 @@ change is wrong* — so that is what the sizes now describe:
 the §13.3 bulk media pass (9–18 days serial, less if the concurrency design succeeds) and the §9.4
 residual review after the automate-first loop converges. Plan against those, not against this table.
 
-**Status updated 2026-08-06.** PRs 1–17 are merged and **no scheduled code slice remains**. The work
-landed in **work-package order (WP0 → WP6, then WP8, then WP7)** rather than the PR order this section
-proposes, and PR1 (WP8) shipped last-but-one instead of first — it was skipped at the start and picked
-up after PR13. The remaining gate-acceptance gaps are listed in the audit below. Status values:
+**Status updated 2026-08-06.** PRs 1–17 and PR21 are merged. The work landed in **work-package order
+(WP0 → WP6, then WP8, then WP7)** rather than the PR order this section proposes, and PR1 (WP8)
+shipped last-but-one instead of first — it was skipped at the start and picked up after PR13. **Two
+code slices remain**, PR22 and PR23, both drive-free; they were identified on 2026-08-06 as
+unscheduled work in prose and are now numbered rows so they cannot be lost again. Status values:
 
 - **Done** — the slice's PR merged and its own tests pass.
 - **Done†** — merged and working, but a **gate-acceptance audit found a coverage gap** that must close
@@ -1803,11 +1831,13 @@ acceptance findings roll into that same audit list rather than changing the merg
 | 14 | Remaining persistence, shared classification and richness convergence | L | PRs 11–13 | Done |
 | 15 | Binding preflight, ledger, orchestrator and auditor | L | PR 14 | Done |
 | 16 | **§12.4 current-era re-projection, corpus diff and B13 reversal** | L | PR 15 | Done |
-| 17 | Worker-safe staging, manifest-authorised dispatch and §13.3 throughput design | M | PR 15 | **Done** (2026-08-06; the last scheduled code slice) |
-| 18 | Rehearsal discoveries with earliest-gate loop-back | Contingency; size each finding | PRs 2–17 | **Ready once the three audit gaps close** |
+| 17 | Worker-safe staging, manifest-authorised dispatch and §13.3 throughput design | M | PR 15 | **Done** (2026-08-06; the last slice of the original sequence) |
+| 18 | Rehearsal discoveries with earliest-gate loop-back | Contingency; size each finding | PRs 2–17 | **Ready** |
 | 19 | Production-operation fixes, only if rehearsal proves them necessary | Contingency; size each finding | PR 18 | Blocked (PR 18) |
 | 20 | Post-closeout cleanup/contract migration | M | G9 only | Blocked (G9) |
-| 21 | **§7.5 Email/OoS curation manifest, shared with the OpenLP format** | M | PR 5 | **In progress** (2026-08-06; drive-free) |
+| 21 | **§7.5 Email/OoS curation manifest, shared with the OpenLP format** | M | PR 5 | **Done** (2026-08-06; class, dry-run reconciliation and command repoint merged) |
+| 22 | **§12.4 production evidence-coverage audit and lineage-audit whitelisting** | M | PR 16 | **Done** (2026-08-06; drive-free) |
+| 23 | **§13.4 deterministic-promotion benchmark (per-service p95 apply, asset-copy throughput, preflight/audit and rollback timings)** | M | PRs 11–12, 15 | **Ready** (drive-free; the only G7 evidence obtainable before the drive arrives) |
 
 ### Acceptance and gate readiness (audit)
 
@@ -1825,40 +1855,64 @@ gaps in landed slices belong here.
 | G3 | PR11 | **Closed 2026-08-06.** `ChurchServiceConvergenceBundleRoundTripTest` exports a reviewed bundle, destroys the database it came from, rebuilds an equivalent machine base on shifted auto-increments and applies the bundle to it — asserting exact finalisation (the same canonical hash), the reviewer resolved by approved email hash onto a different user id, per-proposal dispositions reproduced, the review session naming the *production* proposal ids, and a `decision_rule` reproducing with its own rationale. A proposal absent from the production graph still fails closed. Verified non-vacuous: adding `$proposal->id` to `ChurchServiceProposalIdentity::for()` fails two of the three tests. | — |
 | G3 | PR12 | **Closed 2026-08-06.** `HistoricProcessingResultBundleRoundTripTest` exports the WP0 canary — the shared fixture, now in `tests/Support/HistoricNormalOutputCanary.php`, not a second approximation — through Bundle A and imports it into a database whose auto-increments have been shifted past every id the source used. Asserts identical logical hashes, no lost field/relationship/role, identical section and publication natural keys, and that the recreated tables moved while preacher/song/service rows were *resolved* by natural key rather than duplicated. Verified non-vacuous: appending `$section->id` to the section key fails the hash equality. | — |
 
-| G1 | PR5/PR21 | **Open, found 2026-08-06 after the rows above were closed.** §7.3 mandates one manifest format across Email, OpenLP and livestream. `OpenLpCurationManifest` and `HistoricVideoCurationManifest` exist; **no Email manifest does**, so the Email corpus has no curation authority and its inclusions, exclusions, duplicates, date overrides and revision lineage are unrecorded. The rows above missed it by asking whether the manifest schema carried §7.3's fields — it does — rather than which sources had a manifest. Drive-free: the corpus is `storage/scratch/oos/`. See §7.5. | PR21: the Email manifest class, schema, validation and reconciliation report, with the source-kind-agnostic half extracted from `OpenLpCurationManifest`. |
+| G1 | PR5/PR21 | **Schema closed 2026-08-06; approval outstanding.** §7.3 mandates one manifest format across Email, OpenLP and livestream, and the Email one did not exist. PR21 built it: `OosCurationManifest`, `OosCurationPlan`, `OosCurationEntryFactory`, `validateIncludesForDryRun()` and the repointed `ImportOosArchiveCommand`, with `OosArchiveMarkdownParser` deleted. The draft manifest validates over all 404 entries with zero identity disagreements. **Still open:** 402 of those entries carry `decision_rule_version: oos-curation-draft-v1` and only 2 carry `decided_by`, so the corpus has curation authority only once the maintainer approves that rule set. | Approve the `oos-curation-draft-v1` rule set and promote the draft to the approved manifest; drive-free operator work. |
 
-**The 2026-08-06 rows above are closed; one new row is open.** G1's crash tranche, canary and OpenLP
-manifest schema; G2's empty-census gap; and G3's two different-PK round trips are all done. The Email
-manifest gap was found afterwards and is the last row.
+**Every code gap above is closed.** G1's crash tranche, canary, OpenLP manifest schema and the Email
+manifest; G2's empty-census gap; and G3's two different-PK round trips are all done. What remains in
+this table is a maintainer approval, not an implementation gap — and the two data-population rows
+(OpenLP fields, OoS rule set) are what convert schema into authority.
+
+#### PR22 delivered (2026-08-06)
+
+`audit:service-evidence-coverage` reports §12.4's three required counts — services, services carrying
+at least one non-Manual source record, and proposals carrying a resolver — plus the populations the
+decision actually turns on: Manual-only services, services with no source record at all, and of
+those, **the ones holding canonical items anyway**. That last figure is the one §12.4 says the plan
+has never asked about: a canonical result no retained evidence describes, which success criterion 1
+presumes does not exist. Source records break down by kind, proposals by status and by
+`decision_rule_id`, and projection coverage is read from the existing
+`ChurchServiceCorpusCompleteness` rather than derived a second time.
+
+It **always exits 0** when its queries complete. An unevidenced service is the measurement, not a
+failure, and §12.4 explicitly leaves its disposition open (back-fill, exclude, or accept as legacy);
+failing the run would prejudge a maintainer decision and go red on every production invocation.
+
+**Found while doing this, and fixed:** `service-tracking:audit-source-revision-lineages` could not be
+whitelisted as it stood. Its output names revision ids and lineage keys, and a lineage key is
+`{church_service_id}|{source}|{source_key}` — where `source_key` is an email message id or an archive
+filename. Whitelisting it unchanged would have published exactly what the workflow's own header
+forbids. It now follows the same `--details` convention as the asset audits: defect counts per kind
+by default, repair text on the server. `ChurchServiceSourceRevisionLineageInspector` gained
+`issueCounts()` alongside `issues()`, both built from one traversal; the projector and ingest paths
+are untouched. Its existing multi-leaf test now asserts against `--details`, and two new tests pin
+that the default output contains the defect kind and not the source key.
+
+Both commands are in `.github/workflows/production-audit.yml` as `service-evidence-coverage` and
+`source-revision-lineages`. Running them is operator work behind the environment approval gate.
 
 ### Next task to pick up
 
-**PR21 — the §7.5 Email curation manifest.** It is code, not operator work, and it needs nothing
-mounted: `storage/scratch/oos/` holds 261 formatted orders of service and `storage/scratch/oos-verbatim/`
-holds their 402 raw counterparts, all on local disk. This is the Email half of rehearsal step 2, and
-finishing it means §13.5 steps 3 and 4 — evidence staging and the §9.4 census, both explicitly
-"No media required" — can converge over the Email population while the drive is still unmounted.
+**PR23 — the §13.4 deterministic-promotion benchmark.** Drive-free, and the only G7 evidence
+obtainable before the drive arrives. Per-service p95 apply time, asset-copy throughput,
+preflight/audit time and rollback recovery set the numeric production-window budget, and §15.2's
+60-minute cap is an unbacked default until they exist. It runs on bundles, database rows and asset
+copies, so PR11/PR12's round-trip tests are the harness to scale.
+
+**Then, operator work behind the approval gate:** dispatch `production-audit.yml` for
+`service-evidence-coverage` and decide §12.4 on the result. The plan's two branches are written; the
+counts pick one.
 
 **In parallel, needing the CBC drive and an operator:** §13.5 rehearsal step 1 (protect and hash the
 source drives) and the OpenLP half of step 2 (populate the v2 curation fields). PR18/19 remain
 rehearsal contingencies and PR20 is gated on G9.
 
-Two further drive-free items were identified on 2026-08-06 and are **not** yet scheduled as PRs:
-
-- **§12.4's production counts cannot currently be obtained.** The plan requires them before §12.4 is
-  scheduled — services, services with at least one non-Manual source record, and proposals carrying a
-  resolver. `.github/workflows/production-audit.yml` whitelists only `sermon-assets`,
-  `section-assets`, `password-hashes` and `private-assets`; no command reports evidence coverage.
-  `service-tracking:audit-source-revision-lineages` has the same problem: its own docblock calls it a
-  WP1 deploy preflight that must pass in production before the lineage constraint migration deploys,
-  and it is not in the whitelist either. Both are counts-only additions.
-- **The §13.4 promotion benchmark does not exist and never needed the drive.** Per-service p95 apply
-  time, asset-copy throughput, preflight/audit time and rollback/ingress recovery time set the
-  numeric production-window budget accepted at G7 (§15.1, §15.2), and §13.4 states plainly that local
-  Whisper/AI throughput is not a proxy for them. Nothing in `app/` or `tests/` measures a percentile
-  outside RMS audio analysis. It runs on bundles, database rows and asset copies, so PR11/PR12's
-  round-trip tests are the harness to scale. This is the only G7 evidence obtainable before the drive
-  arrives.
+**Unresolved, and it decides whether the Email half can start.** §7.5's "Scope of PR21" reads the
+status header as forbidding `oos:import-archive --import` until G8. But §13.5 steps 3 and 4 — stage
+Email evidence, then converge the §9.4 census over the Email x OpenLP population — are exactly the
+drive-free work the plan calls next, and neither can happen without staging evidence into a **local**
+database. G5 is "complete local rehearsal", so the header's prohibition is almost certainly aimed at
+production canonical imports. It does not say so, and until it does, the Email half is simultaneously
+"next" and "blocked". A maintainer decision, not an editorial one.
 
 Four contract facts are now permanent and constrain everything that follows:
 
@@ -1916,8 +1970,9 @@ pinning §13.3's scope. B16 and B20 have their named tests. This closes the sche
   because faking only swaps the resolved instance; any test that fakes a disk and then enters a
   context must re-establish it afterwards or it will be reading real storage.
 
-With PR17 merged there is no more scheduled implementation. The remaining elapsed time is set by the
-§13.3 bulk media pass and the §9.4 residual review, exactly as this section's sizing preamble says.
+With PR17 and PR21 merged, the only scheduled implementation left is PR22 and PR23, both small and
+drive-free. The remaining elapsed time is set by the §13.3 bulk media pass and the §9.4 residual
+review, exactly as this section's sizing preamble says.
 
 Three entries are new or moved relative to the 2026-07-31 sequence: PR1 moves the public archive to
 the front (§14); PR9 adds the review-load surface that makes §9.4's loop operable; PR16 adds the
@@ -1998,11 +2053,13 @@ Neither gates the import itself.
 - [x] Public service history ships over current-era data, safe, accessible and linked (PR1).
 - [x] WP0 canary covers the complete normal graph. *(Media graph and church-service links both run
   through the real persistence path as of PR14 — see §17's G1 canary row.)*
-- [ ] Every source kind — Email, OpenLP and livestream acquisition — has a curation manifest in the
-  one §7.3 format. *(Email is outstanding; see §7.5.)*
+- [x] Every source kind — Email, OpenLP and livestream acquisition — has a curation manifest in the
+  one §7.3 format. *(Email closed by PR21; `OosCurationManifest`, `OpenLpCurationManifest` and
+  `HistoricVideoCurationManifest`. Having a manifest is not the same as having an approved one — the
+  OoS rule set and the OpenLP v2 fields are tracked in §17's audit table.)*
 - [ ] The mounted source inventory is 100% accounted for by included or approved excluded items.
-- [ ] The local Email inventory is 100% accounted for, including the 155 verbatim-only and 14
-  formatted-only residuals measured in §7.5.
+- [ ] The local Email inventory is 100% accounted for across all 404 manifest entries, including the
+  143 verbatim-only and 2 formatted-only residuals measured in §7.5.
 - [ ] Every included item is exact-promoted or exact-already-present; unresolved/failed count is zero.
 - [ ] Calibration forecast, checkpoint ledger and actual time/cost/capacity reports reconcile.
 - [ ] Bulk-pass concurrency is designed, measured and reflected in the forecast.

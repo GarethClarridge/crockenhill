@@ -8,6 +8,7 @@ use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceSourceRecord;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Artisan;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -34,9 +35,42 @@ class AuditChurchServiceSourceRevisionLineagesCommandTest extends TestCase
         $this->record($service, 'message-1', str_repeat('a', 64));
         $this->record($service, 'message-1', str_repeat('b', 64));
 
-        $this->artisan('service-tracking:audit-source-revision-lineages')
+        $this->artisan('service-tracking:audit-source-revision-lineages --details')
             ->assertExitCode(1)
             ->expectsOutputToContain('2 active leaves');
+    }
+
+    /**
+     * The command is whitelisted into the production audit workflow, whose output
+     * is a public Actions log. A lineage key embeds `source_key` — an email
+     * message id or an archive filename — so the default output reports the
+     * defect count and nothing that identifies a row.
+     */
+    #[Test]
+    public function it_reports_defect_counts_without_identifying_a_lineage_by_default(): void
+    {
+        $service = ChurchService::factory()->create();
+        $this->record($service, 'oos-message-id-98765', str_repeat('a', 64));
+        $this->record($service, 'oos-message-id-98765', str_repeat('b', 64));
+
+        Artisan::call('service-tracking:audit-source-revision-lineages');
+        $output = Artisan::output();
+
+        $this->assertStringContainsString('multiple_active_leaves', $output);
+        $this->assertStringNotContainsString('oos-message-id-98765', $output);
+        $this->assertStringContainsString('Re-run with --details on the server', $output);
+    }
+
+    #[Test]
+    public function details_prints_the_repair_text_that_names_the_lineage(): void
+    {
+        $service = ChurchService::factory()->create();
+        $this->record($service, 'oos-message-id-98765', str_repeat('a', 64));
+        $this->record($service, 'oos-message-id-98765', str_repeat('b', 64));
+
+        Artisan::call('service-tracking:audit-source-revision-lineages --details');
+
+        $this->assertStringContainsString('oos-message-id-98765', Artisan::output());
     }
 
     /**

@@ -111,9 +111,49 @@ class ChurchServiceSourceRevisionLineageInspector
     }
 
     /**
+     * Repair-oriented descriptions of every lineage defect, sorted for stable
+     * output. Each one names revision ids and, for a multi-leaf lineage, the
+     * lineage key — which embeds `source_key`, an email message id or an archive
+     * filename. That is what makes this identifying rather than aggregate, so
+     * callers whose output leaves the server must use issueCounts() instead.
+     *
      * @return list<string>
      */
     public function issues(): array
+    {
+        return array_map(
+            static fn (array $finding): string => $finding['message'],
+            $this->findings(),
+        );
+    }
+
+    /**
+     * The same defects as counts per kind, carrying no ids, source keys or
+     * lineage keys. Safe for a public log; this is what the production audit
+     * workflow runs.
+     *
+     * @return array<string, int>
+     */
+    public function issueCounts(): array
+    {
+        $counts = [
+            'missing_predecessor' => 0,
+            'cross_lineage_supersession' => 0,
+            'multiple_successors' => 0,
+            'multiple_active_leaves' => 0,
+        ];
+
+        foreach ($this->findings() as $finding) {
+            $counts[$finding['kind']]++;
+        }
+
+        return $counts;
+    }
+
+    /**
+     * @return list<array{kind: string, message: string}>
+     */
+    private function findings(): array
     {
         $records = ChurchServiceSourceRecord::query()
             ->orderBy('id')
@@ -134,14 +174,20 @@ class ChurchServiceSourceRevisionLineageInspector
             $predecessor = $recordsById->get($record->supersedes_id);
 
             if (! $predecessor instanceof ChurchServiceSourceRecord) {
-                $issues[] = "Revision {$record->id} supersedes missing revision {$record->supersedes_id}. "
-                    ."Repair with: UPDATE church_service_source_records SET supersedes_id = <predecessor id> WHERE id = {$record->id};";
+                $issues[] = [
+                    'kind' => 'missing_predecessor',
+                    'message' => "Revision {$record->id} supersedes missing revision {$record->supersedes_id}. "
+                        ."Repair with: UPDATE church_service_source_records SET supersedes_id = <predecessor id> WHERE id = {$record->id};",
+                ];
 
                 continue;
             }
 
             if ($this->lineageKey($predecessor) !== $lineageKey) {
-                $issues[] = "Revision {$record->id} supersedes revision {$predecessor->id} from another source lineage.";
+                $issues[] = [
+                    'kind' => 'cross_lineage_supersession',
+                    'message' => "Revision {$record->id} supersedes revision {$predecessor->id} from another source lineage.",
+                ];
 
                 continue;
             }
@@ -151,7 +197,10 @@ class ChurchServiceSourceRevisionLineageInspector
 
         foreach ($successorsByPredecessor as $predecessorId => $successors) {
             if (count($successors) > 1) {
-                $issues[] = "Revision {$predecessorId} has multiple successors: ".implode(', ', $successors).'.';
+                $issues[] = [
+                    'kind' => 'multiple_successors',
+                    'message' => "Revision {$predecessorId} has multiple successors: ".implode(', ', $successors).'.',
+                ];
             }
         }
 
@@ -162,12 +211,15 @@ class ChurchServiceSourceRevisionLineageInspector
             ));
 
             if (count($leafIds) !== 1) {
-                $issues[] = "Source revision lineage {$lineageKey} has ".count($leafIds).' active leaves ('
-                    .implode(', ', $leafIds).'). Chain them by setting supersedes_id on each revision except the current one.';
+                $issues[] = [
+                    'kind' => 'multiple_active_leaves',
+                    'message' => "Source revision lineage {$lineageKey} has ".count($leafIds).' active leaves ('
+                        .implode(', ', $leafIds).'). Chain them by setting supersedes_id on each revision except the current one.',
+                ];
             }
         }
 
-        sort($issues, SORT_STRING);
+        usort($issues, static fn (array $a, array $b): int => strcmp($a['message'], $b['message']));
 
         return $issues;
     }
