@@ -13,6 +13,7 @@ use App\Services\ChurchService\OpenLpCurationManifest;
 use App\Services\Song\OpenLpServiceParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
@@ -88,6 +89,47 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
             ->expectsOutputToContain('must be a valid OpenLP .osz zip archive');
 
         $this->assertDatabaseCount('church_services', 0);
+    }
+
+    /**
+     * The refusal comes before the plan-hash check, so an operator who has
+     * pointed a production shell at the corpus is told the real problem rather
+     * than being sent back for a hash that would not have helped.
+     */
+    #[Test]
+    public function an_unapproved_production_apply_is_refused_before_the_plan_hash_check(): void
+    {
+        [$rawDirectory, $manifestPath] = $this->validCurationFixture();
+
+        Config::set('church.historic_corpus.production_import_approval', null);
+        $this->app['env'] = 'production';
+
+        $this->artisan('service-tracking:import-openlp-services', [
+            '--path' => $rawDirectory,
+            '--manifest' => $manifestPath,
+            '--apply' => true,
+            '--plan-hash' => str_repeat('0', 64),
+        ])
+            ->assertFailed()
+            ->expectsOutputToContain('no approved G8 import operation is recorded');
+
+        $this->assertDatabaseCount('church_services', 0);
+    }
+
+    #[Test]
+    public function a_production_dry_run_is_not_blocked(): void
+    {
+        [$rawDirectory, $manifestPath] = $this->validCurationFixture();
+
+        Config::set('church.historic_corpus.production_import_approval', null);
+        $this->app['env'] = 'production';
+
+        $this->artisan('service-tracking:import-openlp-services', [
+            '--path' => $rawDirectory,
+            '--manifest' => $manifestPath,
+            '--dry-run' => true,
+            '--report' => dirname($manifestPath).'/production-preflight.json',
+        ])->assertSuccessful();
     }
 
     #[Test]

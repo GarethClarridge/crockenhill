@@ -11,6 +11,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\Media\Video\HistoricVideoCurationManifest;
 use App\Services\Media\Video\HistoricVideoImporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
@@ -58,6 +59,35 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $this->artisan('sermons:import-historic-videos', ['--dir' => '/nonexistent/path/abc123'])
             ->assertExitCode(1)
             ->expectsOutputToContain('does not exist');
+    }
+
+    /**
+     * Dispatch is a production-once operation, and the refusal comes before the
+     * manifest requirement so that "no approved import operation" is what an
+     * operator is told rather than "no manifest" — the manifest is not the
+     * problem.
+     */
+    #[Test]
+    public function an_unapproved_production_dispatch_is_refused(): void
+    {
+        Config::set('church.historic_corpus.production_import_approval', null);
+        $this->app['env'] = 'production';
+
+        $this->artisan('sermons:import-historic-videos', ['--dir' => $this->temporaryDirectory])
+            ->expectsOutputToContain('no approved G8 import operation is recorded')
+            ->assertExitCode(1);
+    }
+
+    #[Test]
+    public function a_production_dry_run_is_not_blocked(): void
+    {
+        Config::set('church.historic_corpus.production_import_approval', null);
+        $this->app['env'] = 'production';
+
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--dry-run' => true,
+        ])->assertExitCode(0);
     }
 
     #[Test]

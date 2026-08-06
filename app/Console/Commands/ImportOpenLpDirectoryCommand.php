@@ -10,6 +10,7 @@ use App\Enums\SermonService;
 use App\Models\ChurchServiceSourceRecord;
 use App\Services\ChurchService\ImportChurchServiceFromOpenLp;
 use App\Services\ChurchService\OpenLpCurationManifest;
+use App\Services\Import\HistoricImportProductionGuard;
 use App\Support\CanonicalJson;
 use Illuminate\Console\Command;
 use Illuminate\Http\UploadedFile;
@@ -37,6 +38,7 @@ class ImportOpenLpDirectoryCommand extends Command
     public function handle(
         ImportChurchServiceFromOpenLp $importer,
         OpenLpCurationManifest $curationManifest,
+        HistoricImportProductionGuard $productionGuard,
     ): int {
         $pathOption = $this->option('path');
         $dryRun = (bool) $this->option('dry-run');
@@ -87,6 +89,14 @@ class ImportOpenLpDirectoryCommand extends Command
             }
 
             return $this->writeDryRunReport($plan->report(), $manifestOption);
+        }
+
+        $refusal = $productionGuard->refusalFor('service-tracking:import-openlp-services --apply');
+
+        if ($refusal !== null) {
+            $this->error($refusal);
+
+            return self::FAILURE;
         }
 
         $providedPlanHash = $this->option('plan-hash');

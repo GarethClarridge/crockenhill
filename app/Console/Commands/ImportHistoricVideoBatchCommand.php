@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\HistoricMedia\HistoricStagingGuard;
+use App\Services\Import\HistoricImportProductionGuard;
 use App\Services\Media\Video\HistoricVideoCurationManifest;
 use App\Services\Media\Video\HistoricVideoImporter;
 use App\Support\CanonicalJson;
@@ -43,6 +44,7 @@ class ImportHistoricVideoBatchCommand extends Command
         HistoricVideoImporter $importer,
         HistoricVideoCurationManifest $curationManifest,
         HistoricStagingGuard $stagingGuard,
+        HistoricImportProductionGuard $productionGuard,
     ): int {
         $dirOption = $this->option('dir');
         $directory = is_string($dirOption) && trim($dirOption) !== ''
@@ -113,6 +115,14 @@ class ImportHistoricVideoBatchCommand extends Command
         }
 
         if (! $dryRun) {
+            $refusal = $productionGuard->refusalFor('sermons:import-historic-videos');
+
+            if ($refusal !== null) {
+                $this->error($refusal);
+
+                return self::FAILURE;
+            }
+
             if ($plan === null) {
                 $this->error('An approved historic-video manifest is required before dispatch.');
 

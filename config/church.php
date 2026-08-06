@@ -81,5 +81,25 @@ return [
     */
     'historic_corpus' => [
         'expected_services' => env('HISTORIC_CORPUS_EXPECTED_SERVICES'),
+
+        /*
+        | The approved G8 production-import operation identifier.
+        |
+        | The plan forbids canonical historic imports against production until
+        | G8. That prohibition used to live only in the plan's prose, which made
+        | it simultaneously unenforceable and over-broad: nothing stopped an
+        | operator pointing `--import` at production, while a literal reading
+        | also blocked the *local* evidence staging §13.5 steps 3-4 require —
+        | and local staging is the only route to G5.
+        |
+        | So the scope is now mechanical. Outside production the guard is
+        | silent, because a rehearsal database is where this work belongs. In
+        | production it fails closed until this names the approved operation,
+        | which the closeout report then quotes as the authority the run had.
+        |
+        | Null means production imports are unapproved. That is the correct
+        | resting state; set it only for the duration of an approved window.
+        */
+        'production_import_approval' => env('HISTORIC_IMPORT_PRODUCTION_APPROVAL'),
     ],
 ];

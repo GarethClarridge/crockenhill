@@ -8,6 +8,7 @@ use App\Data\HistoricConvergenceOperationPlan;
 use App\Services\ChurchService\ChurchServiceConvergenceBundle;
 use App\Services\ChurchService\ConvergeHistoricChurchService;
 use App\Services\HistoricMedia\HistoricProcessingResultBundle;
+use App\Services\Import\HistoricImportProductionGuard;
 use Illuminate\Console\Command;
 use RuntimeException;
 use Throwable;
@@ -36,6 +37,7 @@ class ConvergeHistoricChurchServiceCommand extends Command
         HistoricProcessingResultBundle $mediaBundles,
         ChurchServiceConvergenceBundle $convergenceBundles,
         ConvergeHistoricChurchService $converge,
+        HistoricImportProductionGuard $productionGuard,
     ): int {
         try {
             $mediaBundle = $mediaBundles->validate($this->readBundle((string) $this->argument('media-bundle')));
@@ -86,6 +88,18 @@ class ConvergeHistoricChurchServiceCommand extends Command
                 $this->line('token binds the expiry, so omitting one mints a different plan and is refused.');
 
                 return self::SUCCESS;
+            }
+
+            /**
+             * The G8 operation itself. Guarding it with the same switch is not
+             * belt-and-braces: it is what turns "production once, at G8" from a
+             * sentence in the plan into a precondition the run cannot skip, and
+             * it gives the closeout report a recorded authority to quote.
+             */
+            $productionRefusal = $productionGuard->refusalFor('service-tracking:converge-historic-service --apply');
+
+            if ($productionRefusal !== null) {
+                throw new RuntimeException($productionRefusal);
             }
 
             $this->assertPlanHash($plan->planHash);

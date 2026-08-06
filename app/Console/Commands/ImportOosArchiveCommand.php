@@ -16,6 +16,7 @@ use App\Services\Email\OosArchiveEvaluator;
 use App\Services\Email\OosCurationEntryFactory;
 use App\Services\Email\OosCurationManifest;
 use App\Services\Email\OosEmailParserService;
+use App\Services\Import\HistoricImportProductionGuard;
 use App\Services\Song\SongTitleResolver;
 use Illuminate\Console\Command;
 use Illuminate\Support\Arr;
@@ -78,6 +79,7 @@ class ImportOosArchiveCommand extends Command
         InboundEmailImportService $importService,
         OosArchiveEvaluator $evaluator,
         OosArchiveAssertionBundle $assertionBundle,
+        HistoricImportProductionGuard $productionGuard,
     ): int {
         $manifestPath = $this->stringOption('manifest');
 
@@ -111,7 +113,7 @@ class ImportOosArchiveCommand extends Command
 
         try {
             if ($this->stringOption('import-bundle') !== null || $this->stringOption('apply-bundle') !== null) {
-                return $this->runBundleMode($assertionBundle, $entries, $plan);
+                return $this->runBundleMode($assertionBundle, $entries, $plan, $productionGuard);
             }
         } catch (Throwable $throwable) {
             $this->error($throwable->getMessage());
@@ -121,6 +123,24 @@ class ImportOosArchiveCommand extends Command
 
         $dryRun = (bool) $this->option('dry-run');
         $shouldImport = (bool) $this->option('import') && ! $dryRun;
+
+        /**
+         * Only `--import` writes canonical services, so only `--import` is the
+         * production-once operation G8 gates. Evaluation mode still writes
+         * `InboundEmail` rows and parse caches — see the class docblock — but it
+         * creates no service and releases nothing to the review inbox, which is
+         * the boundary that makes staging a rehearsal activity rather than an
+         * import.
+         */
+        if ($shouldImport) {
+            $refusal = $productionGuard->refusalFor('oos:import-archive --import');
+
+            if ($refusal !== null) {
+                $this->error($refusal);
+
+                return self::FAILURE;
+            }
+        }
 
         if ($shouldImport && ! $this->planHashMatches($plan)) {
             $this->error('The supplied --plan-hash does not match the current curation plan. Re-run --dry-run and use the plan_hash it reports.');
@@ -273,7 +293,19 @@ class ImportOosArchiveCommand extends Command
         OosArchiveAssertionBundle $assertionBundle,
         array $entries,
         OosCurationPlan $plan,
+        HistoricImportProductionGuard $productionGuard,
     ): int {
+        $isApply = $this->stringOption('apply-bundle') !== null;
+        $refusal = $productionGuard->refusalFor(
+            'oos:import-archive '.($isApply ? '--apply-bundle' : '--import-bundle'),
+        );
+
+        if ($refusal !== null) {
+            $this->error($refusal);
+
+            return self::FAILURE;
+        }
+
         $bundlePath = $this->stringOption('import-bundle') ?? $this->stringOption('apply-bundle');
         $bundle = $this->readBundle((string) $bundlePath);
         $preflight = $assertionBundle->preflight($bundle, $entries, $plan->planHash, self::ParserVersion);

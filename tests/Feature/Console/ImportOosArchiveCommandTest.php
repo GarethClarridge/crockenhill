@@ -15,6 +15,7 @@ use App\Services\ChurchService\ChurchServiceSongLinker;
 use App\Services\Email\OosCurationManifest;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
@@ -270,6 +271,71 @@ class ImportOosArchiveCommandTest extends TestCase
 
         $this->assertDatabaseCount('inbound_emails', 0);
         $this->assertDatabaseCount('church_services', 0);
+    }
+
+    /**
+     * The G8 boundary, now scoped to production rather than to the command.
+     *
+     * Staging Email evidence is only reachable through `--import` — nothing else
+     * persists a `ChurchServiceSourceRevision` — so a prohibition on the command
+     * would forbid §13.5 steps 3-4 and with them G5. What is actually forbidden
+     * is doing it to production unapproved, and that is what fails here.
+     */
+    #[Test]
+    public function an_unapproved_production_import_is_refused_before_anything_is_touched(): void
+    {
+        $this->bindPortableExtractor();
+        $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $arguments = $this->importArguments(['--report' => $this->temporaryPath('json')]);
+
+        Config::set('church.historic_corpus.production_import_approval', null);
+        $this->app['env'] = 'production';
+
+        $this->artisan('oos:import-archive', $arguments)
+            ->expectsOutputToContain('no approved G8 import operation is recorded')
+            ->assertExitCode(1);
+
+        $this->assertDatabaseCount('church_services', 0);
+    }
+
+    #[Test]
+    public function an_approved_production_import_proceeds(): void
+    {
+        $this->bindPortableExtractor();
+        $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $arguments = $this->importArguments(['--report' => $this->temporaryPath('json')]);
+
+        Config::set('church.historic_corpus.production_import_approval', 'g8-2026-08-20');
+        $this->app['env'] = 'production';
+
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+
+        $this->assertDatabaseCount('church_services', 1);
+    }
+
+    /**
+     * §7.5 previously described evaluation mode as read-only, which it is not: it
+     * writes `InboundEmail` rows and parse caches. What makes it a staging rather
+     * than an importing activity is narrower and is what this pins — no canonical
+     * service, and nothing handed to the operator's inbox.
+     */
+    #[Test]
+    public function evaluation_mode_writes_evidence_but_creates_no_service_and_releases_nothing(): void
+    {
+        $this->bindPortableExtractor();
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+
+        $this->artisan('oos:import-archive', [...$corpus, '--report' => $this->temporaryPath('json')])
+            ->assertExitCode(0);
+
+        $this->assertDatabaseCount('inbound_emails', 1);
+        $this->assertDatabaseCount('church_services', 0);
+
+        $email = InboundEmail::query()->firstOrFail();
+        $this->assertSame(InboundEmailStatus::ArchiveEval, $email->status);
+        $this->assertNotNull($email->processing_metadata['parsing'] ?? null);
+        $this->assertSame(0, app(AdminAttentionCounts::class)->counts()['pending_emails']);
+        $this->assertSame(0, app(ReviewInboxQuery::class)->build()['counts']['emails']);
     }
 
     #[Test]
@@ -1085,7 +1151,7 @@ class ImportOosArchiveCommandTest extends TestCase
      */
     private function importArguments(array $extra = []): array
     {
-        return [...$this->corpusArguments, '--import' => true, '--plan-hash' => $this->planHash(), '--plan-hash' => $this->planHash(), ...$extra];
+        return [...$this->corpusArguments, '--import' => true, '--plan-hash' => $this->planHash(), ...$extra];
     }
 
     private function planHash(): string
