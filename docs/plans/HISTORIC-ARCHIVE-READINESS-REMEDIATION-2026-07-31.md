@@ -1,14 +1,13 @@
 # Historic Archive Import Readiness Remediation Plan
 
-> **Status (2026-08-06): PRs 1–17 are merged. WP0–WP8 have landed, and no scheduled code slice
-> remains.** The programme now stops being an implementation exercise and becomes the §13.5
-> rehearsal, blocked only by the audit gaps below. "Merged" here is not a gate certification — see
-> §17's Status column and the "Acceptance and gate readiness" audit. Three audit gaps remain open and
-> now block the rehearsal, not merely their own gates: the §7.3 OpenLP manifest fields (G1/PR5,
-> rehearsal step 2), and the two different-PK round trips (G3/PR11 and G3/PR12, rehearsal step 12).
-> The G2 empty-census gap is **closed as of 2026-08-05**. Bulk local ingestion, historic-video
-> dispatch and every production mutation remain blocked behind the later gates. Read-only corpus
-> inventory, hashing and manifest curation are safe to continue.
+> **Status (2026-08-06): PRs 1–17 are merged, WP0–WP8 have landed, and every gate-acceptance audit
+> gap is closed.** No scheduled code slice remains and nothing in code blocks the §13.5 rehearsal.
+> The programme has stopped being an implementation exercise. "Merged" is still not a gate
+> certification — see §17's Status column and the "Acceptance and gate readiness" audit — but the
+> punch list that audit produced is now empty. The one outstanding item is operator work: populating
+> the v2 OpenLP curation manifest against the mounted source drive, which *is* rehearsal step 2.
+> Bulk local ingestion, historic-video dispatch and every production mutation remain blocked behind
+> the later gates. Read-only corpus inventory, hashing and manifest curation are safe to continue.
 >
 > **Amended 2026-08-02** after a business-design review. The engineering content of the 2026-07-31
 > audit is unchanged; what changed is everything around it:
@@ -1402,20 +1401,21 @@ gaps in landed slices belong here.
 | G1 | PR2 | **Closed 2026-08-05.** PR14 persisted the church-service links, the re-attachment block in `HistoricNormalOutputContractTest::persistCanaryThroughRealPath()` is gone, and the `service_item_identity`, `matched_item_identity`, `expected_item_identity` and `church_service_identity` assertions now exercise the persister. The helper's remaining teardown only *releases* the source run's claim so the persister can take the items; it re-attaches nothing. | `HistoricNormalOutputContractTest` over the real-path canary. |
 | G1 | PR5 | **Schema closed 2026-08-06; data population outstanding.** The curation manifest is now version 2 and carries §7.3's missing fields: a manifest-level `batch_key`, and per entry `item_key` (unique), `source_kind`, `parse_decision`, `concatenation_decision`, `expected_item_count` and `decided_by`/`decided_at` or `decision_rule_version`. All are in the manifest and plan hashes, so an apply binds to the decision that authorised it. `validateIncludesForDryRun()` reconciles the parse against them: it fails on an item count that contradicts the manifest, and `strict` now fails closed on the embedded-`.osj` filename mismatch the parser already reports, which `manifest-authoritative` is the recorded adjudication of. **Still open:** *populating* the new fields for the real corpus needs the mounted source drive. | Populate the v2 curation fields against the mounted read-only drive as part of §13.1's remeasurement, then re-approve the manifest. |
 | G2 | PR9 | **Closed 2026-08-05.** `ChurchServiceProposalCensusGate::evaluate()` now takes corpus-completeness evidence as a required second argument and fails closed on four conditions: no approved manifest count, staged below or above it, or staged services not projected at the current policy version. `ChurchServiceCorpusCompleteness` derives staged and projected counts from source revisions and `projection_policy_version` rather than from proposals, so an unrun corpus can no longer look like a converged one. `services:proposal-census --gate` no longer short-circuits to success on an empty census. | `ChurchServiceProposalCensusGateTest`, plus the empty-corpus cases in `ChurchServiceProposalCensusCommandTest` and `ReviewChurchServiceProposalQueueTest`. |
-| G3 | PR11 | Bundle B round-trip tests re-import into the same service with the same PKs (`already_present`); none recreates the production graph with shifted IDs, so local-ID coupling in reviewer/assertion/proposal/decision/rule resolution stays undetected. WP3 requires a different-PK round trip. | Add a Bundle B round trip that imports into a production-shaped DB with deliberately different PKs and asserts exact finalisation + per-proposal dispositions. |
-| G3 | PR12 | No test round-trips the WP0 canary through Bundle A export→import into a different-PK database (only a model-rebuild hash equality and an importer test over a hand-authored bundle). WP4 requires the canary round trip. | Once the canary is real-path (G1 above), export it to Bundle A and import into a different-PK DB, asserting identical logical hashes and no lost field/relationship/role. |
+| G3 | PR11 | **Closed 2026-08-06.** `ChurchServiceConvergenceBundleRoundTripTest` exports a reviewed bundle, destroys the database it came from, rebuilds an equivalent machine base on shifted auto-increments and applies the bundle to it — asserting exact finalisation (the same canonical hash), the reviewer resolved by approved email hash onto a different user id, per-proposal dispositions reproduced, the review session naming the *production* proposal ids, and a `decision_rule` reproducing with its own rationale. A proposal absent from the production graph still fails closed. Verified non-vacuous: adding `$proposal->id` to `ChurchServiceProposalIdentity::for()` fails two of the three tests. | — |
+| G3 | PR12 | **Closed 2026-08-06.** `HistoricProcessingResultBundleRoundTripTest` exports the WP0 canary — the shared fixture, now in `tests/Support/HistoricNormalOutputCanary.php`, not a second approximation — through Bundle A and imports it into a database whose auto-increments have been shifted past every id the source used. Asserts identical logical hashes, no lost field/relationship/role, identical section and publication natural keys, and that the recreated tables moved while preacher/song/service rows were *resolved* by natural key rather than duplicated. Verified non-vacuous: appending `$section->id` to the section key fails the hash equality. | — |
 
-G1's crash tranche and canary rows are closed, and so is G2. What remains is G1's OpenLP manifest
-schema row and G3's two different-PK round trips. With PR17 merged they are the **only** thing between
-here and the §13.5 rehearsal, and they block it as well as the gate they name: the manifest fields
-gate rehearsal step 2 and the round trips gate step 12.
+**Every audit row above is now closed (2026-08-06).** G1's crash tranche, canary and OpenLP manifest
+schema; G2's empty-census gap; and G3's two different-PK round trips. The only outstanding item is
+operator work rather than code: populating the v2 curation fields against the mounted source drive,
+which is §13.1's remeasurement and part of rehearsal step 2 itself.
 
 ### Next task to pick up
 
-**PRs 1–17 are merged, so there is no scheduled code slice left.** PR18/19 are rehearsal
-contingencies and PR20 is gated on G9, which means the programme has stopped being a coding exercise
-and become the §13.5 rehearsal. The three audit gaps below are what the rehearsal is waiting on; they
-can be handed to agents independently.
+**PRs 1–17 are merged and every audit gap is closed, so there is no scheduled code slice left and no
+code blocker in front of the rehearsal.** PR18/19 are rehearsal contingencies and PR20 is gated on
+G9. The next action is **§13.5 rehearsal step 1** — protect and hash the source drives — followed by
+step 2, whose remaining work is populating the v2 curation manifest against the mounted drive.
+That needs the CBC drive connected and is operator work, not an agent task.
 
 Four contract facts are now permanent and constrain everything that follows:
 
@@ -1459,11 +1459,17 @@ pinning §13.3's scope. B16 and B20 have their named tests. This closes the sche
   hash-covered and reconciled by the dry-run parse. What is left is operator work, not code:
   populating those fields for the real corpus against the mounted read-only drive, which folds into
   §13.1's remeasurement. Rehearsal step 2 is unblocked in code and gated on that data.
-- **G3/PR11 and G3/PR12 — the two different-PK round trips.** Neither exists yet:
-  `ChurchServiceConvergenceBundleImporterTest` re-imports into the same service with the same PKs, and
-  `HistoricProcessingResultRoundTripTest` re-persists the canary within one database rather than
-  exporting it to Bundle A and importing into a shifted-PK one. These gate rehearsal step 12, which is
-  where local-ID coupling would otherwise surface for the first time — against production.
+- **G3/PR11 and G3/PR12 — the two different-PK round trips. Closed 2026-08-06** by
+  `ChurchServiceConvergenceBundleRoundTripTest` and `HistoricProcessingResultBundleRoundTripTest`, both
+  described in the audit table above. Rehearsal step 12 no longer carries the risk that local-ID
+  coupling surfaces there for the first time.
+
+  Two things the work established that are worth carrying forward. The WP0 canary now lives in
+  `tests/Support/HistoricNormalOutputCanary.php` so the contract gate and the Bundle A gate are
+  defined against **one** fixture — two would drift apart silently. And activating a staging context
+  rewrites `filesystems.disks.*` and calls `Storage::forgetDisk()`, which discards a `Storage::fake()`
+  because faking only swaps the resolved instance; any test that fakes a disk and then enters a
+  context must re-establish it afterwards or it will be reading real storage.
 
 With PR17 merged there is no more scheduled implementation. The remaining elapsed time is set by the
 §13.3 bulk media pass and the §9.4 residual review, exactly as this section's sizing preamble says.
