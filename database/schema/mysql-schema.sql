@@ -149,9 +149,9 @@ DROP TABLE IF EXISTS `church_service_proposal_class_reviews`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `church_service_proposal_class_reviews` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `class_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `reason` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `class_key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `seconds_per_decision` int unsigned DEFAULT NULL,
   `marked_by_user_id` int unsigned NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
@@ -167,11 +167,11 @@ DROP TABLE IF EXISTS `church_service_proposal_decision_rules`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `church_service_proposal_decision_rules` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `class_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `class_key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `match_tier` tinyint unsigned DEFAULT NULL,
-  `disposition` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `disposition` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `proposal_identities` json NOT NULL,
-  `rationale` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `rationale` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `reviewed_by_user_id` int unsigned NOT NULL,
   `applied_at` timestamp NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
@@ -302,7 +302,7 @@ CREATE TABLE `church_services` (
   `canonical_revision` int unsigned NOT NULL DEFAULT '0',
   `canonical_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `reviewed_canonical_revision` int unsigned DEFAULT NULL,
-  `canonical_finalization` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `canonical_finalization` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `projection_policy_version` int unsigned DEFAULT NULL,
   `source_summary` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -365,6 +365,25 @@ CREATE TABLE `health_check_result_history_items` (
   PRIMARY KEY (`id`),
   KEY `health_check_result_history_items_created_at_index` (`created_at`),
   KEY `health_check_result_history_items_batch_index` (`batch`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `import_ingress_locks`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `import_ingress_locks` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `operation_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `reason` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `blocked_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `blocked_at` timestamp NOT NULL,
+  `released_at` timestamp NULL DEFAULT NULL,
+  `queue_pause_accounting` json DEFAULT NULL,
+  `is_active` tinyint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `import_ingress_locks_operation_id_unique` (`operation_id`),
+  UNIQUE KEY `import_ingress_locks_is_active_unique` (`is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `inbound_emails`;
@@ -1442,3 +1461,5 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_03_000001_add_p
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_03_000002_add_proposal_review_metadata',86);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_03_000003_create_church_service_proposal_decision_rules',86);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_03_000004_create_church_service_proposal_class_reviews',86);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_06_121022_create_import_ingress_locks_table',87);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_06_144658_add_queue_pause_accounting_to_import_ingress_locks_table',87);
