@@ -8,6 +8,7 @@ use App\Enums\ProcessingStatus;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonTranscriptFromService;
+use App\Jobs\ExtractAudioFromVideo;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
@@ -24,6 +25,7 @@ use Illuminate\Bus\PendingBatch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Laravel\SerializableClosure\SerializableClosure;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
@@ -54,6 +56,58 @@ class ProcessingRunOrchestratorTest extends TestCase
         Bus::assertDispatched(CleanupTemporaryFiles::class, function (CleanupTemporaryFiles $job): bool {
             return $job->queue === 'audio-processing';
         });
+    }
+
+    #[Test]
+    public function it_routes_historic_chain_stages_to_their_calibrated_queues(): void
+    {
+        Queue::fake();
+        config([
+            'media-processing.historic_import.stages.ffmpeg.queue' => 'historic-ffmpeg-test',
+            'media-processing.historic_import.stages.whisper.queue' => 'historic-whisper-test',
+            'media-processing.historic_import.stages.llm.queue' => 'historic-llm-test',
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->video()->pending()->create([
+            'processing_metadata' => [
+                'historic_import' => [
+                    'job_key' => hash('sha256', 'historic-queue-routing'),
+                ],
+            ],
+        ]);
+
+        $builder = $this->mock(ProcessingPipelineBuilder::class);
+        $builder->shouldReceive('buildDirectVideoPipeline')
+            ->once()
+            ->with($processingLog)
+            ->andReturn([
+                new ExtractAudioFromVideo($processingLog),
+                new TranscribeAudio($processingLog),
+                new ProcessTranscriptWithAI($processingLog),
+            ]);
+
+        $this->assertSame(
+            hash('sha256', 'historic-queue-routing'),
+            $processingLog->processing_metadata?->toArray()['historic_import']['job_key'] ?? null,
+        );
+
+        $this->app->forgetInstance(ProcessingRunOrchestrator::class);
+
+        app(ProcessingRunOrchestrator::class)->start($processingLog);
+
+        $first = null;
+        Queue::assertPushed(ExtractAudioFromVideo::class, function (ExtractAudioFromVideo $job) use (&$first): bool {
+            $first = $job;
+
+            return true;
+        });
+
+        $this->assertInstanceOf(ExtractAudioFromVideo::class, $first);
+        $this->assertSame('historic-ffmpeg-test', $first->queue);
+        $chain = array_map(static fn (string $job): object => unserialize($job), $first->chained);
+
+        $this->assertSame('historic-whisper-test', $chain[0]->queue);
+        $this->assertSame('historic-llm-test', $chain[1]->queue);
     }
 
     #[Test]
@@ -303,6 +357,46 @@ class ProcessingRunOrchestratorTest extends TestCase
         $this->assertTrue($cancelled);
         $processingLog->refresh();
         $this->assertSame(ProcessingStatus::Cancelled, $processingLog->status);
+    }
+
+    #[Test]
+    public function it_records_stable_main_chain_and_fan_out_identities_for_historic_runs(): void
+    {
+        Bus::fake();
+
+        $jobKey = hash('sha256', 'historic-manifest-item');
+        $processingLog = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'processing_id' => 'historic-queue-identities',
+            'processing_metadata' => [
+                'historic_import' => [
+                    'job_key' => $jobKey,
+                ],
+            ],
+        ]);
+
+        app(ProcessingRunOrchestrator::class)->start($processingLog);
+
+        $pendingBatch = null;
+        Bus::assertBatched(function (PendingBatch $batch) use (&$pendingBatch): bool {
+            $pendingBatch = $batch;
+
+            return true;
+        });
+
+        $processingLog->refresh();
+        $queue = $processingLog->processing_metadata?->toArray()['historic_import']['queue'] ?? [];
+
+        $this->assertSame(hash('sha256', "historic-main-chain\0{$jobKey}"), $queue['main_chain_id']);
+        $this->assertIsString($queue['fan_out_batch_id']);
+        $this->assertArrayNotHasKey('main_chain_dispatched_at', $queue);
+
+        $thenCallback = $this->unwrapCallback($pendingBatch->thenCallbacks()[0]);
+        $thenCallback(Bus::dispatchFakeBatch('historic-queue-identities'));
+
+        $processingLog->refresh();
+        $queue = $processingLog->processing_metadata?->toArray()['historic_import']['queue'] ?? [];
+
+        $this->assertNotEmpty($queue['main_chain_dispatched_at']);
     }
 
     #[Test]

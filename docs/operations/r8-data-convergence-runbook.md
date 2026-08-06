@@ -189,6 +189,28 @@ segments, sections, accepted Livestream `summary`/`notices`/`chapter_markers` co
 publications, `song_videos`, durable artifacts and assets. It does not carry canonical review
 state.
 
+#### The manifest is immutable for the life of a batch
+
+The approved manifest's hash determines the plan hash, and the plan hash names the batch's private
+storage root (`historic-batches/<plan-hash>`) and every manifest item's dispatch identity. Amending
+the manifest — adding a discovered recording, correcting a date, changing an exclusion — changes all
+three. That is by design: a different manifest is a different approved batch.
+
+Consequences to plan for before starting a bulk pass:
+
+- Recordings already processed under the superseded manifest keep their old batch root. They are
+  **not** reprocessed, and the existence checks skip them, but they can no longer be exported in the
+  same Bundle A as anything processed afterwards.
+- `historic:export-processing-results` refuses a mixed selection and names which runs belong to which
+  plan hash. Export each plan hash as its own Bundle A, with its own `--batch-hash`, and converge
+  them as separate pairs.
+- So: settle the manifest before the pass. If an amendment is genuinely unavoidable mid-pass, export
+  the completed portion as its own Bundle A **first**, while its runs are still the only ones in the
+  selection, then amend and start the next batch.
+
+This is the §13.1 completion gate doing its job — `discovered = included + excluded` is a statement
+about one approved manifest, not about whatever the drive happened to hold on a given day.
+
 ### 5.6 Final combined review and Bundle B
 
 Only after Email, OpenLP and Livestream evidence is complete:
@@ -239,24 +261,32 @@ No production apply begins until the entire operation—not merely the first bat
 All paths below must be private and must refer to the exact retained rehearsal artifacts.
 Substitute the recorded values; do not reconstruct hashes during the production window.
 
+Neither export takes a `--fingerprint`. Bundle A reads the processing fingerprint back out of the
+runs it is exporting, so the bundle records the configuration that actually produced the media rather
+than whatever was typed at the prompt. Bundle B then reads both the media-bundle hash and that same
+fingerprint out of Bundle A. Convergence and the auditor refuse any pair whose fingerprints do not
+hash-match, so there is deliberately no way to supply them independently.
+
+`--batch-hash` must equal the approved manifest hash that authorised the runs' staging context; the
+exporter refuses otherwise.
+
 Export Bundle A after readiness and technical review pass:
 
 ```bash
 vendor/bin/sail artisan historic:export-processing-results \
   --processing-ids="<comma-separated-processing-uuids>" \
-  --batch-hash="<approved-source-batch-sha256>" \
-  --fingerprint='<approved-fingerprint-json>' \
+  --batch-hash="<approved-manifest-sha256>" \
   --output="<private-absolute-path>/bundle-a.json"
 ```
 
-Export Bundle B only after final combined canonical review:
+Export Bundle B only after final combined canonical review, pointing it at the exact Bundle A file
+written above:
 
 ```bash
 vendor/bin/sail artisan service-tracking:export-convergence \
   --service-ids="<comma-separated-reviewed-service-ids>" \
-  --batch-hash="<approved-source-batch-sha256>" \
-  --media-bundle-hash="<bundle-a-sha256>" \
-  --fingerprint='<same-approved-fingerprint-json>' \
+  --batch-hash="<approved-manifest-sha256>" \
+  --media-bundle="<private-absolute-path>/bundle-a.json" \
   --output="<private-absolute-path>/bundle-b.json"
 ```
 

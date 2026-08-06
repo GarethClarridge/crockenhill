@@ -18,7 +18,6 @@ class ExportHistoricProcessingResultsCommand extends Command
     protected $signature = 'historic:export-processing-results
                             {--processing-ids= : Comma-separated completed processing UUIDs}
                             {--batch-hash= : Approved source batch SHA-256}
-                            {--fingerprint= : JSON object pinning code, pipeline, models and configuration}
                             {--output= : Private output under storage/scratch or storage/app/private}';
 
     protected $description = 'Export verified historic processing results as a private portable Bundle A';
@@ -29,7 +28,6 @@ class ExportHistoricProcessingResultsCommand extends Command
             $result = $exporter->export(
                 $this->processingIds(),
                 $this->requiredOption('batch-hash'),
-                $this->fingerprint(),
                 $this->requiredOption('output'),
             );
         } catch (Throwable $exception) {
@@ -57,18 +55,6 @@ class ExportHistoricProcessingResultsCommand extends Command
         }
 
         return $ids;
-    }
-
-    /** @return array<string, mixed> */
-    private function fingerprint(): array
-    {
-        $fingerprint = json_decode($this->requiredOption('fingerprint'), true, flags: JSON_THROW_ON_ERROR);
-
-        if (! is_array($fingerprint) || array_is_list($fingerprint)) {
-            throw new RuntimeException('--fingerprint must be a non-empty JSON object.');
-        }
-
-        return $fingerprint;
     }
 
     private function requiredOption(string $name): string

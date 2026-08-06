@@ -333,12 +333,14 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'evening');
         $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
         $approvedWorkItems = null;
+        $stagingContext = null;
 
         $this->mock(HistoricVideoImporter::class)
             ->shouldReceive('import')
             ->once()
-            ->andReturnUsing(function (...$arguments) use (&$approvedWorkItems): array {
+            ->andReturnUsing(function (...$arguments) use (&$approvedWorkItems, &$stagingContext): array {
                 $approvedWorkItems = $arguments[18] ?? null;
+                $stagingContext = $arguments[19] ?? null;
 
                 return [
                     'dispatched' => 1, 'concatenated' => 0, 'concatenated_reencoded' => 0,
@@ -363,6 +365,8 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         self::assertSame('2021-04-12', $approvedWorkItems[0]['date']->toDateString());
         self::assertSame(SermonService::Evening, $approvedWorkItems[0]['service']);
         self::assertSame(["{$this->temporaryDirectory}/{$relativePath}"], $approvedWorkItems[0]['files']);
+        self::assertSame($plan->manifestHash, $stagingContext->manifestHash);
+        self::assertSame($plan->planHash, $stagingContext->planHash);
     }
 
     #[Test]

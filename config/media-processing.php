@@ -9,6 +9,10 @@ $videoQueue = env('MEDIA_PROCESSING_QUEUE_VIDEO', 'video-processing');
 $livestreamQueue = env('MEDIA_PROCESSING_QUEUE_LIVESTREAM', 'livestream-processing');
 $livestreamAudioQueue = env('MEDIA_PROCESSING_QUEUE_LIVESTREAM_AUDIO', $audioQueue);
 $speakerIdentificationQueue = env('MEDIA_PROCESSING_QUEUE_SPEAKER_IDENTIFICATION', 'speaker-identification');
+$historicFfmpegQueue = env('HISTORIC_MEDIA_QUEUE_FFMPEG', 'historic-ffmpeg');
+$historicWhisperQueue = env('HISTORIC_MEDIA_QUEUE_WHISPER', 'historic-whisper');
+$historicLlmQueue = env('HISTORIC_MEDIA_QUEUE_LLM', 'historic-llm');
+$historicOrchestrationQueue = env('HISTORIC_MEDIA_QUEUE_ORCHESTRATION', 'historic-orchestration');
 
 return [
     'queues' => [
@@ -85,6 +89,38 @@ return [
     'processing' => [
         'retry_attempts' => 3,
         'retry_delay' => 60,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Historic archive throughput
+    |--------------------------------------------------------------------------
+    |
+    | Historic imports use dedicated queues, so calibration can set the width
+    | of the CPU-bound, single-GPU and remote-API stages independently without
+    | changing the scheduling of the current weekly media pipeline. These values
+    | are captured in the historic processing fingerprint.
+    |
+    */
+    'historic_import' => [
+        'stages' => [
+            'ffmpeg' => [
+                'queue' => $historicFfmpegQueue,
+                'workers' => (int) env('HISTORIC_MEDIA_WORKERS_FFMPEG', 1),
+            ],
+            'whisper' => [
+                'queue' => $historicWhisperQueue,
+                'workers' => (int) env('HISTORIC_MEDIA_WORKERS_WHISPER', 1),
+            ],
+            'llm' => [
+                'queue' => $historicLlmQueue,
+                'workers' => (int) env('HISTORIC_MEDIA_WORKERS_LLM', 1),
+            ],
+            'orchestration' => [
+                'queue' => $historicOrchestrationQueue,
+                'workers' => (int) env('HISTORIC_MEDIA_WORKERS_ORCHESTRATION', 1),
+            ],
+        ],
     ],
 
     /*

@@ -97,6 +97,54 @@ class HistoricStagingGuardTest extends TestCase
         app(HistoricStagingGuard::class)->assertLocalProcessingIsIsolated();
     }
 
+    #[Test]
+    public function it_derives_a_private_per_batch_root_from_the_approved_plan(): void
+    {
+        $this->configure('historic_staging', 'historic_staging', 'historic_staging');
+
+        $context = app(HistoricStagingGuard::class)->contextForApprovedPlan(
+            str_repeat('a', 64),
+            str_repeat('b', 64),
+        );
+
+        self::assertSame('historic-batches/'.str_repeat('b', 64), $context->batchRoot);
+        self::assertSame(str_repeat('a', 64), $context->manifestHash);
+        self::assertSame(str_repeat('b', 64), $context->planHash);
+    }
+
+    #[Test]
+    public function it_refuses_a_private_alias_that_resolves_to_public_storage(): void
+    {
+        config([
+            'filesystems.disks.staging_alias' => config('filesystems.disks.public'),
+            'filesystems.disks.staging_alias.visibility' => 'private',
+            'filesystems.disks.staging_alias.url' => null,
+            'media-processing.storage.historic_staging_disk' => 'staging_alias',
+            'media-processing.storage.sermon_disk' => 'staging_alias',
+            'media-processing.storage.transcript_disk' => 'staging_alias',
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("resolves to publicly served disk 'public'");
+
+        app(HistoricStagingGuard::class)->assertLocalProcessingIsIsolated();
+    }
+
+    #[Test]
+    public function it_refuses_a_worker_with_a_different_staging_root_than_the_approved_context(): void
+    {
+        $this->configure('historic_staging', 'historic_staging', 'historic_staging');
+        $guard = app(HistoricStagingGuard::class);
+        $context = $guard->contextForApprovedPlan(str_repeat('a', 64), str_repeat('b', 64));
+
+        config(['filesystems.disks.historic_staging.root' => storage_path('app/private/other-historic-staging')]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Restart workers with the approved storage configuration.');
+
+        $guard->activate($context);
+    }
+
     private function configure(string $staging, string $sermon, string $transcript): void
     {
         config([

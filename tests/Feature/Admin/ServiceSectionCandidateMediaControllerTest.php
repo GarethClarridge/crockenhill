@@ -109,6 +109,32 @@ class ServiceSectionCandidateMediaControllerTest extends TestCase
         $response->assertStatus(404);
     }
 
+    // ── historic staging is never served over HTTP ─────────────────────────
+
+    /**
+     * A reviewer's request holds no staging context, so the refusal has to come
+     * from the disk's identity or it would never fire at all.
+     */
+    #[Test]
+    public function audio_preview_returns_404_while_candidates_live_on_the_historic_staging_disk(): void
+    {
+        Storage::fake(self::CANDIDATE_DISK);
+        config(['media-processing.storage.historic_staging_disk' => self::CANDIDATE_DISK]);
+        $admin = User::factory()->crockenhillAdmin()->create();
+
+        $path = 'section-publications/1-abcdef0123456789/audio.mp3';
+        $section = ServiceSection::factory()->create([
+            'publication_status' => ServiceSectionPublicationStatus::Approved,
+            'extracted_audio_path' => $path,
+        ]);
+
+        Storage::disk(self::CANDIDATE_DISK)->put($path, 'audio');
+
+        $response = $this->actingAs($admin)->get(route('admin.services.section-publications.preview-audio', $section));
+
+        $response->assertStatus(404);
+    }
+
     // ── published sections blocked ─────────────────────────────────────────
 
     #[Test]

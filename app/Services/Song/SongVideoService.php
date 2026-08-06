@@ -9,6 +9,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
+use App\Services\HistoricMedia\HistoricStagingUrlGuard;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -31,7 +32,10 @@ class SongVideoService
      */
     public function getVideoUrl(SongVideo $video): string
     {
-        return Storage::disk($this->sermonDisk())->url($video->video_file_path);
+        $disk = $this->sermonDisk();
+        HistoricStagingUrlGuard::assertAllowed($disk);
+
+        return Storage::disk($disk)->url($video->video_file_path);
     }
 
     /**

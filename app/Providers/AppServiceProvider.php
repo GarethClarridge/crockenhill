@@ -9,6 +9,7 @@ use App\Presenters\PageImagePresenter;
 use App\Presenters\RelatedPagePresenter;
 use App\Seo\SermonArchiveSeoPresenter;
 use App\Seo\SermonItemListPresenter;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Audio\SermonTranscriptReader;
 use App\Services\Media\Audio\TranscriptStorageService;
 use App\Services\Public\MeetingListCache;
@@ -25,7 +26,9 @@ use App\Support\BibleCanon;
 use App\Support\ParallelTestingProcessLimiter;
 use Faker\Factory as FakerFactory;
 use Faker\Generator as FakerGenerator;
+use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -61,6 +64,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(TranscriptStorageService::class);
         $this->app->scoped(SermonItemListPresenter::class);
         $this->app->scoped(SermonSitemapPresenter::class);
+        $this->app->scoped(HistoricStagingContextRegistry::class);
 
         $this->registerDeterministicFakerForVisualRegression();
     }
@@ -68,6 +72,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->freezeClockForVisualRegression();
+        $this->registerHistoricStagingQueueContext();
 
         if (config('thumbnail-generation.enabled') && ! extension_loaded('gd')) {
             throw new \RuntimeException(
@@ -88,6 +93,22 @@ class AppServiceProvider extends ServiceProvider
                 ->symbols()
                 ->uncompromised();
         });
+    }
+
+    private function registerHistoricStagingQueueContext(): void
+    {
+        Queue::createPayloadUsing(fn (): array => app(HistoricStagingContextRegistry::class)->queuePayload());
+
+        Queue::before(function (JobProcessing $event): void {
+            app(HistoricStagingContextRegistry::class)->activateQueuePayload($event->job->payload());
+        });
+
+        $deactivate = static function (): void {
+            app(HistoricStagingContextRegistry::class)->deactivate();
+        };
+
+        Queue::after($deactivate);
+        Queue::exceptionOccurred($deactivate);
     }
 
     /**

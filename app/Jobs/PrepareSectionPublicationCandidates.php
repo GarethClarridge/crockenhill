@@ -13,6 +13,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
+use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
@@ -144,7 +145,14 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
 
             if (! $handler->requiresApproval()) {
                 $section->save();
-                AutoPublishServiceSection::dispatch($section->id);
+                $autoPublish = AutoPublishServiceSection::dispatch($section->id);
+                $historicQueue = app(HistoricProcessingThroughput::class)
+                    ->historicQueueFor(AutoPublishServiceSection::class);
+
+                if ($historicQueue !== null) {
+                    $autoPublish->onQueue($historicQueue);
+                }
+
                 $autoPublishCount++;
 
                 continue;

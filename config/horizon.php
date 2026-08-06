@@ -2,6 +2,15 @@
 
 use Illuminate\Support\Str;
 
+$historicFfmpegQueue = env('HISTORIC_MEDIA_QUEUE_FFMPEG', 'historic-ffmpeg');
+$historicWhisperQueue = env('HISTORIC_MEDIA_QUEUE_WHISPER', 'historic-whisper');
+$historicLlmQueue = env('HISTORIC_MEDIA_QUEUE_LLM', 'historic-llm');
+$historicOrchestrationQueue = env('HISTORIC_MEDIA_QUEUE_ORCHESTRATION', 'historic-orchestration');
+$historicFfmpegWorkers = (int) env('HISTORIC_MEDIA_WORKERS_FFMPEG', 1);
+$historicWhisperWorkers = (int) env('HISTORIC_MEDIA_WORKERS_WHISPER', 1);
+$historicLlmWorkers = (int) env('HISTORIC_MEDIA_WORKERS_LLM', 1);
+$historicOrchestrationWorkers = (int) env('HISTORIC_MEDIA_WORKERS_ORCHESTRATION', 1);
+
 return [
 
     /*
@@ -227,6 +236,65 @@ return [
             'sleep' => 3,
             'nice' => 0,
         ],
+        // Historic archive work uses isolated queues. Calibration can widen the
+        // CPU, single-GPU and remote-API stages independently without changing
+        // the current weekly pipeline's worker allocation.
+        'supervisor-historic-ffmpeg' => [
+            'connection' => 'redis',
+            'queue' => [$historicFfmpegQueue],
+            'balance' => false,
+            'minProcesses' => $historicFfmpegWorkers,
+            'maxProcesses' => $historicFfmpegWorkers,
+            'maxTime' => 86400,
+            'maxJobs' => 500,
+            'memory' => 512,
+            'tries' => 3,
+            'timeout' => 7200,
+            'sleep' => 3,
+            'nice' => 0,
+        ],
+        'supervisor-historic-whisper' => [
+            'connection' => 'redis',
+            'queue' => [$historicWhisperQueue],
+            'balance' => false,
+            'minProcesses' => $historicWhisperWorkers,
+            'maxProcesses' => $historicWhisperWorkers,
+            'maxTime' => 86400,
+            'maxJobs' => 500,
+            'memory' => 512,
+            'tries' => 3,
+            'timeout' => 7200,
+            'sleep' => 3,
+            'nice' => 0,
+        ],
+        'supervisor-historic-llm' => [
+            'connection' => 'redis',
+            'queue' => [$historicLlmQueue],
+            'balance' => false,
+            'minProcesses' => $historicLlmWorkers,
+            'maxProcesses' => $historicLlmWorkers,
+            'maxTime' => 86400,
+            'maxJobs' => 500,
+            'memory' => 512,
+            'tries' => 3,
+            'timeout' => 7200,
+            'sleep' => 3,
+            'nice' => 0,
+        ],
+        'supervisor-historic-orchestration' => [
+            'connection' => 'redis',
+            'queue' => [$historicOrchestrationQueue],
+            'balance' => false,
+            'minProcesses' => $historicOrchestrationWorkers,
+            'maxProcesses' => $historicOrchestrationWorkers,
+            'maxTime' => 86400,
+            'maxJobs' => 500,
+            'memory' => 512,
+            'tries' => 3,
+            'timeout' => 7200,
+            'sleep' => 3,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -235,10 +303,18 @@ return [
                 'minProcesses' => 2,
                 'maxProcesses' => 2,
             ],
+            'supervisor-historic-ffmpeg' => [],
+            'supervisor-historic-whisper' => [],
+            'supervisor-historic-llm' => [],
+            'supervisor-historic-orchestration' => [],
         ],
 
         'local' => [
             'supervisor-media' => [],
+            'supervisor-historic-ffmpeg' => [],
+            'supervisor-historic-whisper' => [],
+            'supervisor-historic-llm' => [],
+            'supervisor-historic-orchestration' => [],
         ],
     ],
 

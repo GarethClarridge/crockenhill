@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\HistoricMedia;
 
+use App\Data\HistoricStagingContext;
 use App\Enums\ChurchServiceSource;
 use App\Models\ChurchServiceSourceRecord;
 use App\Models\MediaProcessingLog;
@@ -22,17 +23,21 @@ class HistoricProcessingResultBundleExporter
         private readonly HistoricProcessingResultBundle $bundles,
         private readonly HistoricProcessingResultBundleFiles $files,
         private readonly HistoricStagingGuard $stagingGuard,
+        private readonly HistoricStagingContextRegistry $stagingContextRegistry,
+        private readonly HistoricProcessingFingerprint $fingerprints,
     ) {}
 
     /**
+     * The fingerprint is read back from the runs themselves rather than passed
+     * in: an export must reveal a changed pipeline, not relabel old output with
+     * whatever the operator typed.
+     *
      * @param  list<string>  $processingIds
-     * @param  array<string, mixed>  $processingFingerprint
      * @return array{path: string, bundle_hash: string, service_count: int}
      */
     public function export(
         array $processingIds,
         string $batchHash,
-        array $processingFingerprint,
         string $outputPath,
     ): array {
         $processingIds = array_values(array_unique($processingIds));
@@ -42,6 +47,36 @@ class HistoricProcessingResultBundleExporter
             throw new RuntimeException('Every selected historic processing run must exist exactly once.');
         }
 
+        $stagingContext = $this->stagingContextFor($processingIds);
+
+        if (! $stagingContext instanceof HistoricStagingContext) {
+            throw new RuntimeException('Historic exports require every selected run to carry its approved staging context.');
+        }
+
+        if (! hash_equals($stagingContext->manifestHash, $batchHash)) {
+            throw new RuntimeException('Historic export batch hash must match the manifest that authorised its staging context.');
+        }
+
+        $persistedFingerprint = $this->persistedProcessingFingerprint($processingIds);
+        $this->fingerprints->assertPortable($persistedFingerprint);
+
+        return $this->stagingContextRegistry->within(
+            $stagingContext,
+            fn (): array => $this->exportFromActiveStorage($processingIds, $batchHash, $persistedFingerprint, $outputPath),
+        );
+    }
+
+    /**
+     * @param  list<string>  $processingIds
+     * @param  array<string, mixed>  $processingFingerprint
+     * @return array{path: string, bundle_hash: string, service_count: int}
+     */
+    private function exportFromActiveStorage(
+        array $processingIds,
+        string $batchHash,
+        array $processingFingerprint,
+        string $outputPath,
+    ): array {
         /**
          * Stream the batch rather than materialising every run and its eager-loaded
          * service graph at once. Each run's models fall out of scope as the cursor
@@ -76,6 +111,108 @@ class HistoricProcessingResultBundleExporter
             'bundle_hash' => $bundle['bundle_hash'],
             'service_count' => count($services),
         ];
+    }
+
+    /**
+     * A newly dispatched historic batch always records the context that selected
+     * its private root. A mixed export would resolve a portion of the media from
+     * the wrong root, so fail closed rather than falling back to global storage.
+     *
+     * The manifest is immutable for the life of a batch. Amending it produces a
+     * new manifest hash, hence a new plan hash, a new batch root and a new
+     * approved batch — runs from before and after an amendment are two batches
+     * and export as two bundles. The message below says so, because the
+     * alternative is an operator staring at a refusal mid-pass with no idea
+     * which runs to split out.
+     *
+     * @param  list<string>  $processingIds
+     */
+    private function stagingContextFor(array $processingIds): ?HistoricStagingContext
+    {
+        $contexts = MediaProcessingLog::query()
+            ->whereIn('processing_id', $processingIds)
+            ->get(['processing_id', 'processing_metadata'])
+            ->mapWithKeys(function (MediaProcessingLog $run): array {
+                $metadata = $run->processing_metadata?->toArray() ?? [];
+                $context = data_get($metadata, 'historic_import.staging_context');
+
+                return [$run->processing_id => is_array($context) ? $context : []];
+            })
+            ->all();
+
+        $withContext = array_filter($contexts, static fn (array $context): bool => $context !== []);
+
+        if ($withContext === []) {
+            return null;
+        }
+
+        if (count($withContext) !== count($processingIds)) {
+            $missing = array_keys(array_diff_key($contexts, $withContext));
+
+            throw new RuntimeException(
+                'Historic exports cannot mix runs with and without an approved staging context. These runs carry none: '
+                .implode(', ', $missing).'.'
+            );
+        }
+
+        $planHashes = [];
+
+        foreach ($withContext as $processingId => $context) {
+            $planHash = is_string($context['plan_hash'] ?? null) ? $context['plan_hash'] : 'unknown';
+            $planHashes[$planHash][] = $processingId;
+        }
+
+        if (count($planHashes) > 1) {
+            throw new RuntimeException(
+                'Historic exports must select runs from one approved staging context, and these runs span '
+                .count($planHashes).' of them: '
+                .implode('; ', array_map(
+                    static fn (string $planHash, array $runs): string => substr($planHash, 0, 12).' => '.implode(', ', $runs),
+                    array_keys($planHashes),
+                    $planHashes,
+                ))
+                .'. An amended manifest is a new approved batch: export each plan hash as its own Bundle A.'
+            );
+        }
+
+        return HistoricStagingContext::fromArray(array_values($withContext)[0]);
+    }
+
+    /**
+     * Every selected run must retain the exact output-affecting configuration
+     * captured at dispatch. Never rebuild this from today's config: an export
+     * must reveal a changed pipeline rather than relabel old output as new.
+     *
+     * @param  list<string>  $processingIds
+     * @return array<string, mixed>
+     */
+    private function persistedProcessingFingerprint(array $processingIds): array
+    {
+        $fingerprints = MediaProcessingLog::query()
+            ->whereIn('processing_id', $processingIds)
+            ->get(['processing_id', 'processing_metadata'])
+            ->map(function (MediaProcessingLog $run): array {
+                $metadata = $run->processing_metadata?->toArray() ?? [];
+                $fingerprint = $metadata['processing_fingerprint'] ?? null;
+
+                if (! is_array($fingerprint) || $fingerprint === []) {
+                    throw new RuntimeException("Historic processing run {$run->processing_id} has no pinned processing fingerprint.");
+                }
+
+                return $fingerprint;
+            })
+            ->all();
+
+        /** @var array<string, mixed> $first */
+        $first = $fingerprints[0];
+
+        foreach ($fingerprints as $fingerprint) {
+            if (CanonicalJson::hash($fingerprint) !== CanonicalJson::hash($first)) {
+                throw new RuntimeException('Historic exports must select runs with one pinned processing fingerprint.');
+            }
+        }
+
+        return $first;
     }
 
     /** @return array<string, mixed> */

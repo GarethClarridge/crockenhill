@@ -11,6 +11,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
+use Illuminate\Support\Facades\Bus;
 use Throwable;
 
 class HistoricProcessingResultReadinessService
@@ -31,6 +32,8 @@ class HistoricProcessingResultReadinessService
         if ($processingLog->superseded_at !== null) {
             $reasons[] = 'Processing run has been superseded.';
         }
+
+        $this->auditHistoricQueueState($processingLog, $reasons);
 
         if ($processingLog->processingSteps->contains(
             fn ($step): bool => in_array($step->status, [
@@ -109,6 +112,60 @@ class HistoricProcessingResultReadinessService
             && ! SongVideo::query()->where('service_section_id', $section->id)->exists()
         ) {
             $reasons[] = "Song section {$section->section_order} is published without a song video.";
+        }
+    }
+
+    /** @param list<string> $reasons */
+    private function auditHistoricQueueState(MediaProcessingLog $processingLog, array &$reasons): void
+    {
+        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
+        $historicImport = $metadata['historic_import'] ?? null;
+
+        if (! is_array($historicImport) || ! is_string($historicImport['job_key'] ?? null)) {
+            return;
+        }
+
+        $queue = $historicImport['queue'] ?? null;
+
+        if (! is_array($queue)) {
+            $reasons[] = 'Historic queue dispatch identity is missing.';
+
+            return;
+        }
+
+        /**
+         * This proves the chain was dispatched, not that it finished — the step
+         * checks above are what prove completion. Both are needed: a run whose
+         * chain was never dispatched has no failed steps to find.
+         */
+        if (! is_string($queue['main_chain_id'] ?? null) || ! is_string($queue['main_chain_dispatched_at'] ?? null)) {
+            $reasons[] = 'Historic main processing chain was never dispatched.';
+        }
+
+        $fanOutBatchId = $queue['fan_out_batch_id'] ?? null;
+
+        if (! is_string($fanOutBatchId) || $fanOutBatchId === '') {
+            return;
+        }
+
+        $batch = Bus::findBatch($fanOutBatchId);
+
+        if ($batch === null) {
+            $reasons[] = 'Historic fan-out batch record is unavailable.';
+
+            return;
+        }
+
+        if (! $batch->finished()) {
+            $reasons[] = 'Historic fan-out work has not settled.';
+        }
+
+        if ($batch->cancelled()) {
+            $reasons[] = 'Historic fan-out batch was cancelled.';
+        }
+
+        if ($batch->hasFailures()) {
+            $reasons[] = 'Historic fan-out batch has failed jobs.';
         }
     }
 }

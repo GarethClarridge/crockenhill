@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Sermon;
 
 use App\Models\Sermon;
+use App\Services\HistoricMedia\HistoricStagingUrlGuard;
 use App\Support\Path;
 use App\Traits\SanitizesLogData;
 use Exception;
@@ -486,6 +487,8 @@ class SermonStorageService
 
     private function resolvePublicUrl(string $disk, string $path, string $version): string
     {
+        HistoricStagingUrlGuard::assertAllowed($disk);
+
         $baseUrl = ($disk === 'do_spaces' && $this->cdnEndpoint)
             ? $this->cdnEndpoint
             : ($this->memoizedDiskUrls[$disk] ??= rtrim(Storage::disk($disk)->url('/'), '/'));

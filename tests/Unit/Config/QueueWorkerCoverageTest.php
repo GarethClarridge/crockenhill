@@ -6,6 +6,7 @@ namespace Tests\Unit\Config;
 
 use App\Jobs\GenerateThumbnail;
 use App\Models\MediaProcessingLog;
+use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -37,6 +38,35 @@ class QueueWorkerCoverageTest extends TestCase
                 "production Horizon supervisors are missing required queue [{$requiredQueue}]"
             );
         }
+    }
+
+    /**
+     * The historic processing fingerprint records each stage's worker width as
+     * reproducibility data. If compose sized its pools from a different variable
+     * than the fingerprint reads, the fingerprint would describe a pass that
+     * never happened.
+     */
+    #[Test]
+    public function historic_worker_pools_are_sized_from_the_variables_the_fingerprint_records(): void
+    {
+        $compose = file_get_contents(base_path('docker-compose.yml'));
+        $this->assertNotFalse($compose);
+
+        foreach (['FFMPEG', 'WHISPER', 'LLM', 'ORCHESTRATION'] as $stage) {
+            $this->assertStringContainsString(
+                'replicas: ${HISTORIC_MEDIA_WORKERS_'.$stage.':-1}',
+                $compose,
+                "The historic {$stage} worker pool is not sized from HISTORIC_MEDIA_WORKERS_{$stage}."
+            );
+        }
+
+        $fingerprint = app(HistoricProcessingThroughput::class)->fingerprint();
+
+        $this->assertSame(
+            ['ffmpeg', 'llm', 'orchestration', 'whisper'],
+            array_keys($fingerprint),
+            'Every historic stage must contribute its width to the fingerprint.'
+        );
     }
 
     #[Test]
@@ -77,6 +107,10 @@ class QueueWorkerCoverageTest extends TestCase
             (string) config('media-processing.queues.video'),
             (string) config('media-processing.queues.livestream'),
             (string) config('media-processing.speaker_identification.queue'),
+            (string) config('media-processing.historic_import.stages.ffmpeg.queue'),
+            (string) config('media-processing.historic_import.stages.whisper.queue'),
+            (string) config('media-processing.historic_import.stages.llm.queue'),
+            (string) config('media-processing.historic_import.stages.orchestration.queue'),
         ];
 
         return array_values(array_unique(array_filter($required)));
@@ -120,7 +154,7 @@ class QueueWorkerCoverageTest extends TestCase
 
         $queues = [];
         foreach ($matches[1] as $queueList) {
-            foreach (array_map('trim', explode(',', $queueList)) as $queue) {
+            foreach (array_map('trim', explode(',', $this->resolveComposeDefaults($queueList))) as $queue) {
                 if ($queue !== '') {
                     $queues[] = $queue;
                 }
@@ -128,5 +162,15 @@ class QueueWorkerCoverageTest extends TestCase
         }
 
         return array_values(array_unique($queues));
+    }
+
+    /**
+     * Historic worker queues are named through `${VAR:-default}` so calibration
+     * can rename them without editing compose. This test cares about the
+     * committed default, which is what runs when the variable is unset.
+     */
+    private function resolveComposeDefaults(string $value): string
+    {
+        return (string) preg_replace('/\$\{[A-Z0-9_]+:-([^}]*)\}/', '$1', $value);
     }
 }

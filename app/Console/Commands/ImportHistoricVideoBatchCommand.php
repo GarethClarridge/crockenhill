@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\Video\HistoricVideoCurationManifest;
 use App\Services\Media\Video\HistoricVideoImporter;
 use App\Support\CanonicalJson;
@@ -38,8 +39,11 @@ class ImportHistoricVideoBatchCommand extends Command
 
     protected $description = 'Import historic video recordings into the livestream processing pipeline';
 
-    public function handle(HistoricVideoImporter $importer, HistoricVideoCurationManifest $curationManifest): int
-    {
+    public function handle(
+        HistoricVideoImporter $importer,
+        HistoricVideoCurationManifest $curationManifest,
+        HistoricStagingGuard $stagingGuard,
+    ): int {
         $dirOption = $this->option('dir');
         $directory = is_string($dirOption) && trim($dirOption) !== ''
             ? (realpath($dirOption) ?: $dirOption)
@@ -90,6 +94,7 @@ class ImportHistoricVideoBatchCommand extends Command
             ? trim($manifestOption)
             : null;
         $plan = null;
+        $stagingContext = null;
 
         if ($manifestPath !== null) {
             try {
@@ -118,6 +123,14 @@ class ImportHistoricVideoBatchCommand extends Command
 
             if (! is_string($providedPlanHash) || ! hash_equals($plan->planHash, $providedPlanHash)) {
                 $this->error('The supplied --plan-hash does not match the approved historic-video manifest plan.');
+
+                return self::FAILURE;
+            }
+
+            try {
+                $stagingContext = $stagingGuard->contextForApprovedPlan($plan->manifestHash, $plan->planHash);
+            } catch (Throwable $exception) {
+                $this->error($exception->getMessage());
 
                 return self::FAILURE;
             }
@@ -173,6 +186,7 @@ class ImportHistoricVideoBatchCommand extends Command
                 until: $until instanceof Carbon ? $until : null,
                 reportPath: $reportPath,
                 approvedWorkItems: $approvedWorkItems,
+                stagingContext: $stagingContext,
             );
         } catch (Throwable $exception) {
             $this->error($exception->getMessage());

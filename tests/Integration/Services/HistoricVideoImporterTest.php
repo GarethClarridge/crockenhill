@@ -10,6 +10,8 @@ use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\HistoricMedia\HistoricProcessingFingerprint;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\Video\HistoricVideoImporter;
 use App\Services\Processing\UnifiedMediaProcessor;
@@ -128,12 +130,16 @@ class HistoricVideoImporterTest extends TestCase
         $path = $this->temporaryDirectory.'/2022-01-16 18-38-15.mkv';
         $this->createFakeVideo($path);
         $capturedMetadata = null;
+        $capturedDedupKey = null;
+        $capturedFingerprint = null;
 
         $processor = $this->mock(UnifiedMediaProcessor::class);
         $processor->shouldReceive('process')
             ->once()
-            ->withArgs(function (string $type, mixed $file, ?string $clientFileDate, array $options) use (&$capturedMetadata): bool {
+            ->withArgs(function (string $type, mixed $file, ?string $clientFileDate, array $options) use (&$capturedMetadata, &$capturedDedupKey, &$capturedFingerprint): bool {
                 $capturedMetadata = $options['processing_metadata']['historic_import'] ?? null;
+                $capturedDedupKey = $options['dedup_key'] ?? null;
+                $capturedFingerprint = $options['processing_metadata']['processing_fingerprint'] ?? null;
 
                 return $type === 'livestream' && $clientFileDate !== null;
             })
@@ -154,6 +160,13 @@ class HistoricVideoImporterTest extends TestCase
         $this->assertSame(hash_file('sha256', $path), $capturedMetadata['sources'][0]['sha256']);
         $this->assertArrayHasKey('codec_fingerprint', $capturedMetadata);
         $this->assertArrayHasKey('imported_at', $capturedMetadata);
+        $this->assertSame(hash('sha256', $this->temporaryDirectory), $capturedMetadata['manifest_hash']);
+        $this->assertSame(hash('sha256', $this->temporaryDirectory.'|plan'), $capturedMetadata['plan_hash']);
+        $this->assertArrayHasKey('staging_context', $capturedMetadata);
+        $this->assertMatchesRegularExpression('/\A[0-9a-f]{64}\z/', $capturedMetadata['job_key']);
+        $this->assertSame($capturedMetadata['job_key'], $capturedDedupKey);
+        $this->assertIsArray($capturedFingerprint);
+        $this->assertSame($capturedMetadata['manifest_hash'], $capturedFingerprint['source_manifest_hash']);
     }
 
     #[Test]
@@ -332,6 +345,39 @@ class HistoricVideoImporterTest extends TestCase
 
         // Three dispatches: two morning segments + one evening segment
         $this->assertSame(3, $metrics['dispatched']);
+    }
+
+    /**
+     * The two morning segments become two runs, so they must not share a dedup
+     * key — the duplicate lookup would otherwise return the first run's id for
+     * the second file and report a dispatch that never happened.
+     */
+    #[Test]
+    public function it_gives_every_individually_dispatched_segment_its_own_dedup_key(): void
+    {
+        $dir = $this->temporaryDirectory.'/2023-12-10';
+        mkdir($dir);
+
+        $this->createFakeVideo("{$dir}/10-23.mkv");
+        $this->createFakeVideo("{$dir}/10-44.mkv");
+
+        $dedupKeys = [];
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->twice()
+            ->withArgs(function (string $type, mixed $file, ?string $clientFileDate, array $options) use (&$dedupKeys): bool {
+                $dedupKeys[] = $options['dedup_key'] ?? null;
+
+                return true;
+            })
+            ->andReturn(ProcessingResult::success('processing-id', 'queued'));
+
+        $this->runImportWithProcessor($processor, noConcat: true);
+
+        $this->assertCount(2, $dedupKeys);
+        $this->assertNotSame($dedupKeys[0], $dedupKeys[1]);
+        $this->assertMatchesRegularExpression('/\A[0-9a-f]{64}\z/', (string) $dedupKeys[0]);
+        $this->assertMatchesRegularExpression('/\A[0-9a-f]{64}\z/', (string) $dedupKeys[1]);
     }
 
     #[Test]
@@ -673,7 +719,18 @@ class HistoricVideoImporterTest extends TestCase
         bool $force = false,
         ?string $reportPath = null,
     ): array {
-        $importer = new HistoricVideoImporter($processor, app(HistoricStagingGuard::class));
+        $stagingGuard = app(HistoricStagingGuard::class);
+        $stagingContext = $dryRun
+            ? null
+            : $stagingGuard->contextForApprovedPlan(
+                hash('sha256', $this->temporaryDirectory),
+                hash('sha256', $this->temporaryDirectory.'|plan'),
+            );
+        $importer = new HistoricVideoImporter(
+            $processor,
+            app(HistoricStagingContextRegistry::class),
+            app(HistoricProcessingFingerprint::class),
+        );
 
         return $importer->import(
             directory: $this->temporaryDirectory,
@@ -691,6 +748,7 @@ class HistoricVideoImporterTest extends TestCase
             perFileTimeoutSeconds: $perFileTimeoutSeconds,
             limit: $limit,
             reportPath: $reportPath,
+            stagingContext: $stagingContext,
         );
     }
 

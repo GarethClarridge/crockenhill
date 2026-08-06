@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ServiceSection;
+use App\Services\HistoricMedia\HistoricStagingUrlGuard;
 use App\Support\Path;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
@@ -47,6 +48,18 @@ class ServiceSectionCandidateMediaController extends Controller
         }
 
         $disk = $serviceSection->extractedAssetDisk();
+
+        /**
+         * While a historic batch has the media disks pointed at private
+         * staging, candidates are unpromoted output under keys that belong to
+         * production rows. There is no URL to redirect to that would be safe to
+         * hand out, so the asset is simply not available over HTTP.
+         */
+        abort_if(
+            HistoricStagingUrlGuard::isStagingDisk($disk),
+            404,
+            'Candidate media is held in private historic staging.',
+        );
 
         if (! Storage::disk($disk)->exists($path)) {
             abort(404, 'Candidate media not found.');

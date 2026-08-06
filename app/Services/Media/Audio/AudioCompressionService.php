@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Media\Audio;
 
 use App\Exceptions\VideoProcessingException;
+use App\Services\HistoricMedia\HistoricStagingUrlGuard;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Traits\DetectsStorageType;
 use App\Traits\RequiresFfmpeg;
@@ -165,7 +166,7 @@ class AudioCompressionService
 
                 return [
                     'audio_path' => $permanentPath,
-                    'full_path' => $useS3Processing ? Storage::disk($resolvedPermanentDisk)->url($permanentPath) : $fallbackPath,
+                    'full_path' => $useS3Processing ? $this->publicUrl($resolvedPermanentDisk, $permanentPath) : $fallbackPath,
                     'original_size' => $validation['file_size'],
                     'final_size' => $finalValidation['file_size'],
                     'compression_applied' => true,
@@ -196,7 +197,7 @@ class AudioCompressionService
 
             return [
                 'audio_path' => $permanentPath,
-                'full_path' => $useS3Processing ? Storage::disk($resolvedPermanentDisk)->url($permanentPath) : $processingPath,
+                'full_path' => $useS3Processing ? $this->publicUrl($resolvedPermanentDisk, $permanentPath) : $processingPath,
                 'original_size' => $validation['file_size'],
                 'final_size' => $validation['file_size'],
                 'compression_applied' => false,
@@ -217,6 +218,13 @@ class AudioCompressionService
 
             throw $e;
         }
+    }
+
+    private function publicUrl(string $disk, string $path): string
+    {
+        HistoricStagingUrlGuard::assertAllowed($disk);
+
+        return Storage::disk($disk)->url($path);
     }
 
     private function uploadToPermanentStorage(string $localFilePath, string $permanentPath, ?callable $uploadHandler): void

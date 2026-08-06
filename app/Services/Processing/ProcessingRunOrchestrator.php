@@ -8,6 +8,7 @@ use App\Contracts\ProvidesSafeMessage;
 use App\Data\ProcessingResult;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\Media\Video\VideoStorageService;
 use Illuminate\Bus\Batch;
 use Illuminate\Support\Facades\Bus;
@@ -31,6 +32,7 @@ class ProcessingRunOrchestrator
         private readonly ProcessingPhaseResetService $phaseResetService,
         private readonly MediaProcessingRunTransitionService $processingRunTransitions,
         private readonly VideoStorageService $videoStorageService,
+        private readonly HistoricProcessingThroughput $historicProcessingThroughput,
     ) {}
 
     /**
@@ -51,19 +53,19 @@ class ProcessingRunOrchestrator
             'audio' => $this->dispatchChain(
                 $this->pipelineBuilder->buildAudioPipeline($processingLog),
                 $this->audioQueue(),
-                $processingLog->processing_id,
+                $processingLog,
                 ProcessingRunFailureHandler::PROFILE_AUDIO
             ),
             'video' => $this->dispatchChain(
                 $this->pipelineBuilder->buildDirectVideoPipeline($processingLog),
                 $this->videoQueue(),
-                $processingLog->processing_id,
+                $processingLog,
                 ProcessingRunFailureHandler::PROFILE_VIDEO
             ),
             'video_auto_trim' => $this->dispatchChain(
                 $this->pipelineBuilder->buildAutoTrimVideoPipeline($processingLog),
                 $this->videoQueue(),
-                $processingLog->processing_id,
+                $processingLog,
                 ProcessingRunFailureHandler::PROFILE_VIDEO_AUTO_TRIM
             ),
             'livestream' => $this->dispatchLivestreamStart($processingLog),
@@ -90,13 +92,13 @@ class ProcessingRunOrchestrator
             'livestream' => $this->dispatchChain(
                 $this->pipelineBuilder->buildLivestreamPostReviewChainJobs($processingLog),
                 $this->livestreamQueue(),
-                $processingLog->processing_id,
+                $processingLog,
                 ProcessingRunFailureHandler::PROFILE_LIVESTREAM
             ),
             'video_auto_trim' => $this->dispatchChain(
                 $this->pipelineBuilder->buildAutoTrimVideoPostReviewChainJobs($processingLog),
                 $this->videoQueue(),
-                $processingLog->processing_id,
+                $processingLog,
                 ProcessingRunFailureHandler::PROFILE_VIDEO_AUTO_TRIM
             ),
             default => throw new \InvalidArgumentException('Manual sermon review is only available for segmentation-style processing runs.'),
@@ -187,13 +189,16 @@ class ProcessingRunOrchestrator
     /**
      * @param  array<int, object>  $jobs
      */
-    private function dispatchChain(array $jobs, string $queueName, string $processingId, string $failureProfile): void
+    private function dispatchChain(array $jobs, string $queueName, MediaProcessingLog $processingLog, string $failureProfile): void
     {
+        $processingId = $processingLog->processing_id;
+
         if (! $this->shouldDispatch($processingId)) {
             return;
         }
 
-        Bus::chain($jobs)
+        $mainChainId = $this->historicMainChainId($processingLog);
+        $chain = Bus::chain($mainChainId === null ? $jobs : $this->assignHistoricQueues($jobs))
             ->catch(function (\Throwable $exception) use ($processingId, $failureProfile): void {
                 /**
                  * Late-resolve the failure handler instead of capturing $this so that the
@@ -202,34 +207,44 @@ class ProcessingRunOrchestrator
                  * collaborators like swapped-in test doubles).
                  */
                 app(ProcessingRunFailureHandler::class)->handle($processingId, $exception, $failureProfile);
-            })
-            ->onQueue($queueName)
-            ->dispatch();
+            });
+
+        /**
+         * A historic chain carries a per-job queue from `assignHistoricQueues`,
+         * so naming one queue for the whole chain here would flatten the
+         * per-stage routing back into a single pool.
+         */
+        if ($mainChainId === null) {
+            $chain->onQueue($queueName);
+        }
+
+        $chain->dispatch();
+
+        $this->recordHistoricQueueDispatch($processingId, $mainChainId, mainChainDispatched: true);
     }
 
     private function dispatchLivestreamStart(MediaProcessingLog $processingLog): void
     {
         $queueName = $this->livestreamQueue();
         $processingId = $processingLog->processing_id;
+        $mainChainId = $this->historicMainChainId($processingLog);
         $parallelJobs = $this->pipelineBuilder->buildLivestreamParallelJobs($processingLog);
         $chainJobs = $this->pipelineBuilder->buildLivestreamChainJobs($processingLog);
 
-        Bus::batch($parallelJobs)
+        $batch = Bus::batch($parallelJobs)
             ->then(function (Batch $batch) use ($chainJobs, $queueName, $processingId): void {
-                if (! $this->shouldDispatch($processingId)) {
+                $processingLog = MediaProcessingLog::query()->where('processing_id', $processingId)->first();
+
+                if (! $processingLog instanceof MediaProcessingLog || ! $this->shouldDispatch($processingId)) {
                     return;
                 }
 
-                Bus::chain($chainJobs)
-                    ->catch(function (\Throwable $exception) use ($processingId): void {
-                        app(ProcessingRunFailureHandler::class)->handle(
-                            $processingId,
-                            $exception,
-                            ProcessingRunFailureHandler::PROFILE_LIVESTREAM
-                        );
-                    })
-                    ->onQueue($queueName)
-                    ->dispatch();
+                $this->dispatchChain(
+                    $chainJobs,
+                    $queueName,
+                    $processingLog,
+                    ProcessingRunFailureHandler::PROFILE_LIVESTREAM,
+                );
             })
             ->catch(function (Batch $batch, \Throwable $exception) use ($processingId): void {
                 app(ProcessingRunFailureHandler::class)->handle(
@@ -238,8 +253,12 @@ class ProcessingRunOrchestrator
                     ProcessingRunFailureHandler::PROFILE_LIVESTREAM
                 );
             })
-            ->onQueue($queueName)
+            ->onQueue($mainChainId === null ? $queueName : $this->historicProcessingThroughput->fanOutQueue())
             ->dispatch();
+
+        if ($mainChainId !== null) {
+            $this->recordHistoricQueueDispatch($processingId, $mainChainId, $batch->id);
+        }
     }
 
     private function retryWithChain(MediaProcessingLog $processingLog, string $pipeline, int $jobOffset): ProcessingResult
@@ -277,7 +296,7 @@ class ProcessingRunOrchestrator
                 'livestream' => $this->livestreamQueue(),
                 default => $this->audioQueue(),
             },
-            $processingLog->processing_id,
+            $processingLog,
             match ($pipeline) {
                 'video' => ProcessingRunFailureHandler::PROFILE_VIDEO,
                 'video_auto_trim' => ProcessingRunFailureHandler::PROFILE_VIDEO_AUTO_TRIM,
@@ -406,5 +425,83 @@ class ProcessingRunOrchestrator
         }
 
         return true;
+    }
+
+    private function historicMainChainId(MediaProcessingLog $processingLog): ?string
+    {
+        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
+        $jobKey = data_get($metadata, 'historic_import.job_key');
+
+        if (! is_string($jobKey) || $jobKey === '') {
+            return null;
+        }
+
+        return hash('sha256', "historic-main-chain\0{$jobKey}");
+    }
+
+    /**
+     * @param  array<int, object>  $jobs
+     * @return array<int, object>
+     */
+    private function assignHistoricQueues(array $jobs): array
+    {
+        foreach ($jobs as $job) {
+            if (! method_exists($job, 'onQueue')) {
+                throw new \LogicException('Historic processing job '.get_class($job).' cannot be routed to a calibrated queue.');
+            }
+
+            $job->onQueue($this->historicProcessingThroughput->queueFor($job));
+        }
+
+        return $jobs;
+    }
+
+    /**
+     * Record what a historic run was dispatched as, so the readiness auditor can
+     * wait for the whole shape of the work rather than just the parent log. The
+     * row is re-read rather than written through the caller's instance because
+     * the pipeline may have advanced it since.
+     */
+    private function recordHistoricQueueDispatch(
+        string $processingId,
+        ?string $mainChainId,
+        ?string $fanOutBatchId = null,
+        bool $mainChainDispatched = false,
+    ): void {
+        if ($mainChainId === null && $fanOutBatchId === null) {
+            return;
+        }
+
+        $processingLog = MediaProcessingLog::query()->where('processing_id', $processingId)->first();
+
+        if (! $processingLog instanceof MediaProcessingLog) {
+            return;
+        }
+
+        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
+        $historicImport = $metadata['historic_import'] ?? null;
+
+        if (! is_array($historicImport) || ! is_string($historicImport['job_key'] ?? null)) {
+            return;
+        }
+
+        $queue = $historicImport['queue'] ?? [];
+        $queue = is_array($queue) ? $queue : [];
+
+        if ($mainChainId !== null) {
+            $queue['main_chain_id'] = $mainChainId;
+        }
+
+        if ($fanOutBatchId !== null) {
+            $queue['fan_out_batch_id'] = $fanOutBatchId;
+        }
+
+        if ($mainChainDispatched) {
+            $queue['main_chain_dispatched_at'] = now()->toISOString();
+        }
+
+        $historicImport['queue'] = $queue;
+        $metadata['historic_import'] = $historicImport;
+        $processingLog->forceFill(['processing_metadata' => $metadata])->save();
     }
 }

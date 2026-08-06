@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\TestCase;
 
 class SermonStorageServiceTest extends TestCase
@@ -133,7 +134,7 @@ class SermonStorageServiceTest extends TestCase
                 $lastModifiedCalls++;
 
                 if ($lastModifiedCalls === 1) {
-                    throw new \RuntimeException('Temporary storage failure');
+                    throw new RuntimeException('Temporary storage failure');
                 }
 
                 return $lastModifiedCalls === 2 ? 100 : 200;
@@ -194,6 +195,28 @@ class SermonStorageServiceTest extends TestCase
 
         $this->assertStringContainsString('/storage/sermons/1/video.mp4', $url);
         $this->assertStringContainsString('?v=', $url);
+    }
+
+    /**
+     * A reviewer's request carries no staging context, so the disk's identity —
+     * not the presence of a running batch — has to be what refuses the URL.
+     */
+    #[Test]
+    public function it_never_generates_a_public_url_for_the_historic_staging_disk(): void
+    {
+        Storage::fake('historic_staging');
+        Config::set('media-processing.storage.historic_staging_disk', 'historic_staging');
+        Config::set('media-processing.storage.sermon_disk', 'historic_staging');
+        $this->service->clearInternalCaches();
+
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1/video.mp4',
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('cannot be exposed through a public or CDN URL');
+
+        $this->service->getVideoUrl($sermon);
     }
 
     #[Test]

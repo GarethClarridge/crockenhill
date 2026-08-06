@@ -17,7 +17,10 @@ class HistoricProcessingResultBundleFiles
         $temporary = $resolved.'.'.Str::uuid().'.tmp';
 
         try {
-            $json = json_encode($bundle, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR).PHP_EOL;
+            $json = json_encode(
+                $bundle,
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR,
+            ).PHP_EOL;
 
             if (file_put_contents($temporary, $json, LOCK_EX) === false || ! chmod($temporary, 0600)) {
                 throw new RuntimeException('Historic processing bundle could not be written securely.');

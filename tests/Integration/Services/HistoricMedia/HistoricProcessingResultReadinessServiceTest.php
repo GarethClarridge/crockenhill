@@ -90,4 +90,20 @@ class HistoricProcessingResultReadinessServiceTest extends TestCase
 
         $this->assertContains('Section 1 has an unsettled publication decision.', $result->reasons);
     }
+
+    #[Test]
+    public function a_manifest_authorised_run_cannot_export_without_its_queue_identity(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'processing_metadata' => [
+                'historic_import' => [
+                    'job_key' => hash('sha256', 'manifest-item'),
+                ],
+            ],
+        ]);
+
+        $result = app(HistoricProcessingResultReadinessService::class)->audit($run);
+
+        $this->assertContains('Historic queue dispatch identity is missing.', $result->reasons);
+    }
 }

@@ -90,6 +90,77 @@ services:
         depends_on:
             - mysql
             - redis
+    # Historic archive workers. Each stage binds on a different resource — ffmpeg
+    # on CPU, whisper on the host's single Metal GPU, LLM analysis on a remote API
+    # — so each gets its own worker pool whose width is set at calibration. These
+    # widths are recorded in the historic processing fingerprint, so the same
+    # HISTORIC_MEDIA_WORKERS_* values must be in the environment here and wherever
+    # the import command runs. Nothing here touches the weekly queues above.
+    queue.worker-historic-ffmpeg: &historic-worker
+        build:
+            context: './docker/8.4'
+            dockerfile: Dockerfile
+            args:
+                WWWGROUP: '${WWWGROUP}'
+        image: 'sail-8.4/app'
+        restart: unless-stopped
+        deploy:
+            replicas: ${HISTORIC_MEDIA_WORKERS_FFMPEG:-1}
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
+            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
+            IGNITION_LOCAL_SITES_PATH: '${PWD}'
+        volumes:
+            - '.:/var/www/html'
+            - '${CBC_SERVICE_VIDEOS_PATH:-./storage/mnt/service-videos}:/mnt/cbc-service-videos:ro'
+            - './docker/php/php.ini:/etc/php/8.4/cli/conf.d/99-livestream.ini'
+        command: >
+            php artisan queue:work redis
+            --queue=${HISTORIC_MEDIA_QUEUE_FFMPEG:-historic-ffmpeg}
+            --sleep=1
+            --tries=3
+            --timeout=7200
+            --memory=${QUEUE_WORKER_MEMORY:-2048}
+        networks:
+            - sail
+        depends_on:
+            - mysql
+            - redis
+    queue.worker-historic-whisper:
+        <<: *historic-worker
+        deploy:
+            replicas: ${HISTORIC_MEDIA_WORKERS_WHISPER:-1}
+        command: >
+            php artisan queue:work redis
+            --queue=${HISTORIC_MEDIA_QUEUE_WHISPER:-historic-whisper}
+            --sleep=1
+            --tries=3
+            --timeout=7200
+            --memory=${QUEUE_WORKER_MEMORY:-2048}
+    queue.worker-historic-llm:
+        <<: *historic-worker
+        deploy:
+            replicas: ${HISTORIC_MEDIA_WORKERS_LLM:-1}
+        command: >
+            php artisan queue:work redis
+            --queue=${HISTORIC_MEDIA_QUEUE_LLM:-historic-llm}
+            --sleep=1
+            --tries=3
+            --timeout=7200
+            --memory=${QUEUE_WORKER_MEMORY:-2048}
+    queue.worker-historic-orchestration:
+        <<: *historic-worker
+        deploy:
+            replicas: ${HISTORIC_MEDIA_WORKERS_ORCHESTRATION:-1}
+        command: >
+            php artisan queue:work redis
+            --queue=${HISTORIC_MEDIA_QUEUE_ORCHESTRATION:-historic-orchestration}
+            --sleep=1
+            --tries=3
+            --timeout=7200
+            --memory=${QUEUE_WORKER_MEMORY:-2048}
     mysql:
         image: 'mysql:8.0'
         command: >

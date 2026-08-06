@@ -50,7 +50,7 @@ class UnifiedMediaProcessor
      * @param  string  $type  The media type string (audio, video, livestream)
      * @param  UploadedFile  $file  The uploaded media file
      * @param  string|null  $clientFileDate  Optional date provided by the client
-     * @param  array{auto_trim?: bool, video_processing_mode?: string, processing_metadata?: array<string, mixed>}  $options  Processing configuration
+     * @param  array{auto_trim?: bool, video_processing_mode?: string, processing_metadata?: array<string, mixed>, dedup_key?: string}  $options  Processing configuration
      * @param  SermonService|null  $serviceOverride  Operator-selected service; when set, overrides automatic detection
      * @param  string|null  $serviceDateOverride  Server-derived service date; when set, overrides inferred recording dates
      * @return ProcessingResult The result of the initiation attempt
@@ -100,7 +100,9 @@ class UnifiedMediaProcessor
         $fileHash = $this->computeFileHash($file);
         $videoMode = VideoProcessingOptions::resolveMode($options);
         $ownerUserId = $this->authenticatedOwnerUserId();
-        $dedupKey = $fileHash !== null ? $this->buildDedupKey($fileHash, $mediaType, $videoMode, $ownerUserId) : null;
+        $dedupKey = is_string($options['dedup_key'] ?? null)
+            ? $options['dedup_key']
+            : ($fileHash !== null ? $this->buildDedupKey($fileHash, $mediaType, $videoMode, $ownerUserId) : null);
 
         $duplicate = $this->findActiveDuplicate($dedupKey);
 

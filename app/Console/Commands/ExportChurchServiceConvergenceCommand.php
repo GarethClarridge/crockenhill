@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\ChurchService\ChurchServiceConvergenceBundleExporter;
+use App\Services\HistoricMedia\HistoricProcessingResultBundle;
 use Illuminate\Console\Command;
 use RuntimeException;
 use Throwable;
@@ -18,22 +19,26 @@ class ExportChurchServiceConvergenceCommand extends Command
     protected $signature = 'service-tracking:export-convergence
         {--service-ids= : Comma-separated reviewed church-service IDs}
         {--batch-hash= : Approved source batch SHA-256}
-        {--media-bundle-hash= : Exact Bundle A SHA-256}
-        {--fingerprint= : JSON object pinning projector and processing configuration}
+        {--media-bundle= : Path to the exact Bundle A this convergence is paired with}
         {--output= : Private Bundle B path below storage/scratch or storage/app/private}';
 
     protected $description = 'Export final reviewed church-service convergence as private Bundle B';
 
-    public function handle(ChurchServiceConvergenceBundleExporter $exporter): int
-    {
+    public function handle(
+        ChurchServiceConvergenceBundleExporter $exporter,
+        HistoricProcessingResultBundle $mediaBundles,
+    ): int {
         try {
-            $bundle = $exporter->export(
-                $this->serviceIds(),
-                $this->requiredOption('batch-hash'),
-                $this->requiredOption('media-bundle-hash'),
-                $this->fingerprint(),
-            );
+            $serviceIds = $this->serviceIds();
+            $batchHash = $this->requiredOption('batch-hash');
             $path = $this->privateOutputPath();
+            $mediaBundle = $mediaBundles->decode($this->mediaBundleJson());
+            $bundle = $exporter->export(
+                $serviceIds,
+                $batchHash,
+                $mediaBundle['bundle_hash'],
+                $mediaBundle['processing_fingerprint'],
+            );
             $json = json_encode($bundle, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 
             if (file_put_contents($path, $json.PHP_EOL) === false) {
@@ -68,16 +73,27 @@ class ExportChurchServiceConvergenceCommand extends Command
         return $ids;
     }
 
-    /** @return array<string, mixed> */
-    private function fingerprint(): array
+    /**
+     * Bundle B's media-bundle hash and processing fingerprint are read out of
+     * Bundle A rather than retyped. Convergence and the auditor both refuse a
+     * pair whose fingerprints do not hash-match, so transcribing them by hand
+     * would only ever be a way to get that comparison wrong.
+     */
+    private function mediaBundleJson(): string
     {
-        $fingerprint = json_decode($this->requiredOption('fingerprint'), true, flags: JSON_THROW_ON_ERROR);
+        $path = $this->requiredOption('media-bundle');
 
-        if (! is_array($fingerprint) || array_is_list($fingerprint)) {
-            throw new RuntimeException('--fingerprint must be a non-empty JSON object.');
+        if (! is_file($path) || ! is_readable($path)) {
+            throw new RuntimeException('--media-bundle must be a readable Bundle A path.');
         }
 
-        return $fingerprint;
+        $json = file_get_contents($path);
+
+        if ($json === false) {
+            throw new RuntimeException('--media-bundle could not be read.');
+        }
+
+        return $json;
     }
 
     private function privateOutputPath(): string
