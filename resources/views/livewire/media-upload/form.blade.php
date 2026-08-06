@@ -22,10 +22,38 @@
             @endif
         </x-slot:actions>
 
+        {{-- §15.2 import window: the API refuses uploads with a 503, and this screen calls the
+             processor directly, so the operator is told before choosing a file rather than after
+             submitting one. An explanation replaces the form; greyed-out controls that cannot be
+             used would say less. --}}
+        @if($this->importIngressBlocked)
+            <x-alert type="warning" title="Uploads are paused for a scheduled archive import">
+                @if($importIngressRefused)
+                    <p class="font-semibold">Your recording was not accepted.</p>
+                @endif
+                <p @class(['mt-2' => $importIngressRefused])>
+                    New recordings are not being accepted while the import window is open. Keep your file —
+                    nothing has been lost — and upload it once the window closes.
+                </p>
+                @if($this->importIngressOperation)
+                    <p class="mt-2">
+                        Import operation: <span class="font-mono">{{ $this->importIngressOperation }}</span>
+                    </p>
+                @endif
+                <p class="mt-2">
+                    Order-of-service emails arriving now are still being stored and will process automatically
+                    when the window closes.
+                </p>
+            </x-alert>
+        @endif
+
         {{-- Upload Form --}}
         @if(
-            in_array($status, [\App\Enums\UploadState::Idle, \App\Enums\UploadState::Uploading], true)
-            || ($status === \App\Enums\UploadState::Failed && $processingId === null && $tempFilePath === null)
+            ! $this->importIngressBlocked
+            && (
+                in_array($status, [\App\Enums\UploadState::Idle, \App\Enums\UploadState::Uploading], true)
+                || ($status === \App\Enums\UploadState::Failed && $processingId === null && $tempFilePath === null)
+            )
         )
             @if($contextChurchService)
                 <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-cbc-teal/30 bg-cbc-teal/5 px-4 py-3">

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\ImportIngressLock;
+use App\Services\Import\HorizonPauseAccounting;
 use App\Services\Import\ImportIngressGate;
 use Illuminate\Console\Command;
 use Throwable;
@@ -25,6 +26,12 @@ class ImportIngressCommand extends Command
         {--by= : The operator blocking ingress}';
 
     protected $description = 'Block, release or report the import ingress lock for a production import window';
+
+    public function __construct(
+        private readonly HorizonPauseAccounting $pauseAccounting,
+    ) {
+        parent::__construct();
+    }
 
     public function handle(ImportIngressGate $gate): int
     {
@@ -61,7 +68,44 @@ class ImportIngressCommand extends Command
         $this->line('New media-processing and archive-import submissions are refused. Public reads are unaffected.');
         $this->line('Inbound order-of-service email is still staged durably and will process on release.');
 
+        $this->reportQueuePause($lock);
+
         return self::SUCCESS;
+    }
+
+    /**
+     * §15.2's fourth ingress requirement. Blocking submissions is only half of
+     * "ingress blocked" — the affected queues have to stop too, and this
+     * application cannot stop them without also stopping `default`. Naming the
+     * supervisors and the collateral here means the operator pauses the right
+     * things and knows, before the window opens, what else they are stopping.
+     */
+    private function reportQueuePause(ImportIngressLock $lock): void
+    {
+        $accounting = $lock->queue_pause_accounting ?? [];
+
+        /** @var array<string, list<string>> $supervisors */
+        $supervisors = $accounting['supervisors_to_pause'] ?? [];
+
+        if ($supervisors === []) {
+            return;
+        }
+
+        $this->newLine();
+        $this->line('Pause the affected Horizon supervisors now:');
+
+        foreach (array_keys($supervisors) as $supervisor) {
+            $this->line("  php artisan horizon:pause-supervisor {$supervisor}");
+        }
+
+        if (($accounting['queue_granular_pause_possible'] ?? false) === true) {
+            $this->line($this->pauseAccounting->summarise($accounting));
+
+            return;
+        }
+
+        $this->newLine();
+        $this->warn($this->pauseAccounting->summarise($accounting));
     }
 
     private function release(ImportIngressGate $gate): int
@@ -93,6 +137,14 @@ class ImportIngressCommand extends Command
 
         $this->line('Record this against the accepted maximum_import_ingress_blocked_minutes budget.');
 
+        $accounting = $lock->queue_pause_accounting ?? [];
+
+        if ($accounting !== []) {
+            $this->newLine();
+            $this->line('Resume the paused Horizon supervisors: php artisan horizon:continue-supervisor <name>');
+            $this->line($this->pauseAccounting->summarise($accounting));
+        }
+
         return self::SUCCESS;
     }
 
@@ -109,6 +161,12 @@ class ImportIngressCommand extends Command
         $this->warn("Import ingress is blocked by operation {$lock->operation_id}.");
         $this->line("Reason: {$lock->reason}");
         $this->line("Blocked for: {$gate->blockedMinutes()} minute(s)");
+
+        $accounting = $lock->queue_pause_accounting ?? [];
+
+        if ($accounting !== []) {
+            $this->line($this->pauseAccounting->summarise($accounting));
+        }
 
         return self::SUCCESS;
     }

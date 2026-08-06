@@ -1328,9 +1328,41 @@ is why they were still open after PR17. What exists:
 Covered by `ImportIngressGateTest` and `ImportIngressScheduleTest`, including that public reads stay
 online throughout.
 
-**Still open:** the fourth requirement — the Horizon pause accounting — and the disabled *admin*
-upload state. The API surface refuses correctly, but the admin Livewire upload screen has no
-corresponding disabled state yet, so an operator would meet the refusal only on submitting.
+#### Completed 2026-08-06 — Horizon pause accounting and the admin upload state
+
+All four requirements now hold.
+
+- **The condition §15.2 makes the extra reporting conditional on is true here, structurally.**
+  `supervisor-media` serves `default` in the same strict-priority queue list as the media queues, so
+  there is no pause that stops import work and leaves ordinary background work running. Horizon
+  pauses supervisors, not queues. `HorizonPauseAccounting` derives this from `config('horizon')` on
+  every window rather than asserting it in prose, so a future supervisor split that *does* make a
+  queue-granular pause possible is reflected in the report instead of silently contradicting it.
+- **`media-processing.queues.default` is excluded from the import-only queue set.** It resolves to
+  the application-wide `default` queue, which also carries mail, notifications and every unqueued
+  job. Counting that key as import-only would erase the whole finding, so a test pins it.
+- **The delay figure is recorded on the lock row**, in a `queue_pause_accounting` JSON column: the
+  supervisors that must pause, the collateral queues, the collateral depth at block and at release,
+  the window duration as `collateral_delay_minutes`, and `collateral_jobs_delayed`. It lives on the
+  lock because the lock already is the window's record; a delay figure separated from its window is
+  not evidence of anything. A depth that cannot be read is stored as `null` — "not measured" — never
+  as `0`, and never blocks an operator from opening a window.
+- **`import:ingress block` names the supervisors to pause and what else stops when they do**, before
+  the window opens rather than in the closeout; `release` reports the delay and how to resume them.
+- **The admin uploader refuses and says so.** The Livewire screen calls `UnifiedMediaProcessor`
+  directly and never travels the API route, so `RefuseBlockedImportIngress` never saw it: the window
+  was not actually closed on the admin path. `MediaUpload` now refuses in `uploadComplete` and
+  `startProcessing` and replaces the form with an explanation. The guard cannot live in the processor
+  — the historic importer is also one of its callers, and the window exists precisely so *that* work
+  can run — so the seam is where new outside work is admitted.
+
+Covered by `ImportIngressQueuePauseAccountingTest` and `MediaUploadImportIngressTest`.
+
+**Found while doing this, not fixed:** `sermon-processing` appears in `supervisor-media`'s queue
+list in `config/horizon.php` and nowhere else in the application — no job dispatches to it. The
+accounting therefore reports it as a collateral queue alongside `default`, which is true but noisy.
+Removing it is a production queue-topology change and needs its own check that nothing is stranded on
+it; it is not part of this requirement.
 
 The command stops admitting new services when remaining time equals the greater of **15 minutes** or
 the accepted p95 closeout/resume duration. It also refuses to start a service when its p95 apply time

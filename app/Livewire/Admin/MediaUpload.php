@@ -14,6 +14,7 @@ use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Queries\ChurchServiceProcessingRunQuery;
+use App\Services\Import\ImportIngressGate;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\Processing\MediaValidationService;
 use App\Services\Processing\UnifiedMediaProcessor;
@@ -68,6 +69,13 @@ class MediaUpload extends Component
 
     public ?string $statusMessageOverride = null;
 
+    /**
+     * True once a submission has actually been turned away by the §15.2 window,
+     * as opposed to the operator simply arriving while it is open. The two
+     * deserve different sentences: one lost a click, the other did not.
+     */
+    public bool $importIngressRefused = false;
+
     /** @var array<string, string> */
     protected array $rules = [
         'mediaType' => 'required|in:audio,video,livestream',
@@ -81,14 +89,38 @@ class MediaUpload extends Component
 
     protected ChurchServiceProcessingRunQuery $runQuery;
 
+    protected ImportIngressGate $importIngress;
+
     public function boot(
         UnifiedMediaProcessor $processor,
         MediaValidationService $validation,
         ChurchServiceProcessingRunQuery $runQuery,
+        ImportIngressGate $importIngress,
     ): void {
         $this->processor = $processor;
         $this->validation = $validation;
         $this->runQuery = $runQuery;
+        $this->importIngress = $importIngress;
+    }
+
+    /**
+     * §15.2. `RefuseBlockedImportIngress` guards the API upload route, but this
+     * screen never travels it — it calls `UnifiedMediaProcessor` directly — so
+     * without this the admin uploader would keep admitting work through a
+     * blocked window.
+     *
+     * The guard cannot live in the processor: the historic importer is also one
+     * of its callers, and blocking ingress exists precisely so *that* work can
+     * run. The seam is where new outside work is admitted, which is here.
+     */
+    public function getImportIngressBlockedProperty(): bool
+    {
+        return $this->importIngress->isBlocked();
+    }
+
+    public function getImportIngressOperationProperty(): ?string
+    {
+        return $this->importIngress->active()?->operation_id;
     }
 
     public function mount(): void
@@ -126,6 +158,10 @@ class MediaUpload extends Component
     public function uploadComplete(): void
     {
         $this->authorizeAdmin();
+
+        if ($this->refuseWhileImportIngressBlocked()) {
+            return;
+        }
 
         if ($this->status !== UploadState::Uploading && $this->status->isTerminal()) {
             return;
@@ -202,6 +238,10 @@ class MediaUpload extends Component
     public function startProcessing(): void
     {
         $this->authorizeAdmin();
+
+        if ($this->refuseWhileImportIngressBlocked()) {
+            return;
+        }
 
         if (! $this->tempFilePath) {
             $this->handleUploadError('Missing processing data');
@@ -411,6 +451,28 @@ class MediaUpload extends Component
         return $this->runQuery->matchedServiceUrl($log);
     }
 
+    /**
+     * Refuse a submission that arrives during a §15.2 import window.
+     *
+     * A page open before the window began still holds a live upload path, so the
+     * disabled state in the view is the courtesy and this is the enforcement.
+     * The refusal mirrors the API's 503: the work was not accepted, the operator
+     * still has the file, and the message says to come back.
+     */
+    private function refuseWhileImportIngressBlocked(): bool
+    {
+        if (! $this->importIngress->isBlocked()) {
+            return false;
+        }
+
+        $this->importIngressRefused = true;
+        $this->status = UploadState::Idle;
+        $this->statusMessageOverride = null;
+        $this->resetUploadState();
+
+        return true;
+    }
+
     private function defaultServiceForType(string $mediaType): string
     {
         return $mediaType === MediaType::Livestream->value
@@ -467,6 +529,7 @@ class MediaUpload extends Component
         $this->currentStep = '';
         $this->progressPercentage = 0;
         $this->statusMessageOverride = null;
+        $this->importIngressRefused = false;
     }
 
     /** @return array<string, string> */

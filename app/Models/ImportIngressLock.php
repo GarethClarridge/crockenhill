@@ -21,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $blocked_by
  * @property Carbon $blocked_at
  * @property Carbon|null $released_at
+ * @property array<string, mixed>|null $queue_pause_accounting
  * @property int|null $is_active
  */
 class ImportIngressLock extends Model
@@ -34,6 +35,7 @@ class ImportIngressLock extends Model
         'blocked_by',
         'blocked_at',
         'released_at',
+        'queue_pause_accounting',
         'is_active',
     ];
 
@@ -49,6 +51,7 @@ class ImportIngressLock extends Model
         return [
             'blocked_at' => 'datetime',
             'released_at' => 'datetime',
+            'queue_pause_accounting' => 'array',
         ];
     }
 }

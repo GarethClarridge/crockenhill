@@ -26,6 +26,10 @@ use RuntimeException;
  */
 class ImportIngressGate
 {
+    public function __construct(
+        private readonly HorizonPauseAccounting $pauseAccounting,
+    ) {}
+
     public function isBlocked(): bool
     {
         return $this->active() instanceof ImportIngressLock;
@@ -42,6 +46,11 @@ class ImportIngressGate
      * The unique index on `is_active` means a second concurrent block fails at
      * the database rather than quietly producing two locks that release
      * independently.
+     *
+     * The queue-pause accounting is captured here rather than at release because
+     * the collateral depth at the moment the window opens is only observable
+     * then; asking for it afterwards would leave the closeout report with a
+     * backlog figure and no baseline to read it against.
      */
     public function block(string $operationId, string $reason, ?string $blockedBy = null): ImportIngressLock
     {
@@ -60,6 +69,7 @@ class ImportIngressGate
                 'blocked_by' => $blockedBy,
                 'blocked_at' => now(),
                 'released_at' => null,
+                'queue_pause_accounting' => $this->pauseAccounting->atBlock(),
                 'is_active' => 1,
             ]);
         });
@@ -84,8 +94,15 @@ class ImportIngressGate
                 );
             }
 
+            $releasedAt = now();
+            $blockedMinutes = (int) $lock->blocked_at->diffInMinutes($releasedAt);
+
             $lock->forceFill([
-                'released_at' => now(),
+                'released_at' => $releasedAt,
+                'queue_pause_accounting' => $this->pauseAccounting->atRelease(
+                    $lock->queue_pause_accounting ?? $this->pauseAccounting->atBlock(),
+                    $blockedMinutes,
+                ),
                 'is_active' => null,
             ])->save();
 
