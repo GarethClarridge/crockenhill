@@ -31,7 +31,7 @@ class OosArchiveEvaluator
         $dateMethod = $parseResult === null
             ? null
             : ($parseResult->importMetadata['date_extraction']['method'] ?? null);
-        $dateMatches = $entry->groundTruthDate !== null && $detectedDate === $entry->groundTruthDate;
+        $dateMatches = $detectedDate === $entry->groundTruthDate;
 
         $detectedServices = [];
         $detectedItemCounts = [];
@@ -55,14 +55,17 @@ class OosArchiveEvaluator
 
         return [
             'index' => $entry->index,
-            'heading' => $entry->heading,
+            'item_key' => $entry->itemKey,
             'subject' => $entry->subject,
             'message_id' => $entry->syntheticMessageId,
             'input_hash' => $entry->inputHash,
-            'label_quality' => $entry->labelQuality,
-            'flags' => $entry->flags,
-            // Parse-quality signals; filled in by the caller, which owns the thresholds. Present
+            'content_scope' => $entry->contentScope,
+            // The curation decisions that authorised this entry, so a reader of the report can
+            // see on whose authority it was processed without opening the manifest.
+            'curation' => $entry->curation,
+            // Run-time observations; filled in by the caller, which owns the thresholds. Present
             // and empty on entries that were never parsed, so the report shape stays uniform.
+            'flags' => [],
             'parse_flags' => [],
             'error' => $error,
             'date' => [
@@ -126,20 +129,24 @@ class OosArchiveEvaluator
         array $eligiblePlanKeys,
     ): array {
         $service = $plan->service?->value;
-        $dateMatches = $entry->groundTruthDate !== null && $plan->date === $entry->groundTruthDate;
+        $dateMatches = $plan->date === $entry->groundTruthDate;
         $serviceMatches = $service !== null && in_array($service, $entry->servicesPresent, true);
-        $expectedLines = $service === null ? [] : ($entry->itemLines[$service] ?? []);
+        $expectedItems = $service === null ? null : ($entry->itemLineCounts[$service] ?? null);
 
         return [
             'plan_key' => $plan->key(),
             'service' => $service,
             'date' => $plan->date,
             'item_count' => count($plan->items),
+            /**
+             * Null unless a person read the source and asserted a count. §7.5 keeps heuristic
+             * counts out of the manifest, so most entries have nothing to reconcile against and
+             * say so, rather than scoring against a number nobody stands behind.
+             */
+            'expected_item_count' => $expectedItems,
+            'item_count_matches' => $expectedItems === null ? null : $expectedItems === count($plan->items),
             'confidence' => $plan->confidence,
-            'exact_correct' => $entry->labelQuality === 'full' && $dateMatches && $serviceMatches && $plan->items !== [],
-            'ordered_item_quality' => $entry->labelQuality === 'full'
-                ? $this->sequenceQuality($expectedLines, array_column($plan->items, 'title'))
-                : null,
+            'exact_correct' => $entry->assertsFullOrder() && $dateMatches && $serviceMatches && $plan->items !== [],
             'gate_eligible' => $gateReasons === [] && in_array($plan->key(), $eligiblePlanKeys, true),
         ];
     }
@@ -151,8 +158,8 @@ class OosArchiveEvaluator
     public function aggregate(array $entries): array
     {
         $dateAll = $this->dateAccuracy($entries);
-        $dateFull = $this->dateAccuracy(array_values(array_filter($entries, fn (array $entry): bool => $entry['label_quality'] === 'full')));
-        $dateUnverified = $this->dateAccuracy(array_values(array_filter($entries, fn (array $entry): bool => $entry['label_quality'] === 'unverified')));
+        $dateFull = $this->dateAccuracy(array_values(array_filter($entries, fn (array $entry): bool => $entry['content_scope'] === 'full')));
+        $datePartial = $this->dateAccuracy(array_values(array_filter($entries, fn (array $entry): bool => $entry['content_scope'] === 'partial')));
         $methods = [];
         $falseDates = [];
         $dispositions = [];
@@ -160,7 +167,9 @@ class OosArchiveEvaluator
         $songTotal = 0;
         $songMatchTypes = [];
         $unmatchedSongTitles = [];
-        $blocked = [];
+        $itemCountsChecked = 0;
+        $itemCountsMatched = 0;
+        $parseFlags = [];
 
         foreach ($entries as $entry) {
             $method = $entry['date']['method'] ?? null;
@@ -171,10 +180,19 @@ class OosArchiveEvaluator
             if (($entry['date']['detected'] ?? null) !== null && ! ($entry['date']['matches'] ?? false)) {
                 $falseDates[] = [
                     'index' => $entry['index'],
-                    'heading' => $entry['heading'],
+                    'item_key' => $entry['item_key'],
                     'expected' => $entry['date']['expected'],
                     'detected' => $entry['date']['detected'],
                 ];
+            }
+
+            foreach ($entry['plans'] ?? [] as $plan) {
+                if (($plan['item_count_matches'] ?? null) === null) {
+                    continue;
+                }
+
+                $itemCountsChecked++;
+                $itemCountsMatched += $plan['item_count_matches'] === true ? 1 : 0;
             }
 
             $disposition = (string) $entry['disposition'];
@@ -190,17 +208,14 @@ class OosArchiveEvaluator
                 $unmatchedSongTitles[$title] = ($unmatchedSongTitles[$title] ?? 0) + 1;
             }
 
-            if (($entry['date']['expected'] ?? null) === null || ($entry['flags'] ?? []) !== []) {
-                $blocked[] = [
-                    'index' => $entry['index'],
-                    'heading' => $entry['heading'],
-                    'reasons' => ($entry['flags'] ?? []) !== [] ? $entry['flags'] : ['unresolved_date'],
-                ];
+            foreach ($entry['parse_flags'] ?? [] as $flag) {
+                $parseFlags[$flag] = ($parseFlags[$flag] ?? 0) + 1;
             }
         }
 
         ksort($methods);
         ksort($dispositions);
+        ksort($parseFlags);
         ksort($songMatchTypes);
         arsort($unmatchedSongTitles);
 
@@ -208,7 +223,7 @@ class OosArchiveEvaluator
             'date_accuracy' => [
                 'all' => $dateAll,
                 'full' => $dateFull,
-                'unverified' => $dateUnverified,
+                'partial' => $datePartial,
             ],
             'date_extraction_methods' => $methods,
             'false_date_cases' => $falseDates,
@@ -219,6 +234,12 @@ class OosArchiveEvaluator
             'auto_import_precision' => $this->autoImportPrecision($entries),
             'confidence_calibration' => $this->confidenceCalibration($entries),
             'dispositions' => $dispositions,
+            /**
+             * How many entries carried each parse-quality signal. None of these gates the import,
+             * so this is where a population like `service_beyond_manifest` — an email carrying an
+             * order for a service its entry does not name — becomes a number rather than a shrug.
+             */
+            'parse_flag_counts' => $parseFlags,
             'song_link_hit_rate' => [
                 'hits' => $songHits,
                 'total' => $songTotal,
@@ -226,7 +247,16 @@ class OosArchiveEvaluator
                 'by_type' => $songMatchTypes,
                 'top_unmatched_titles' => array_slice($unmatchedSongTitles, 0, 25, preserve_keys: true),
             ],
-            'unresolved_or_blocked' => $blocked,
+            /**
+             * Measured over the plans whose entry asserts a human-verified item count, which is
+             * the only Email-side item ground truth that exists. `checked` is expected to stay
+             * small; a rate over one plan is reported honestly rather than extrapolated.
+             */
+            'item_count_reconciliation' => [
+                'matched' => $itemCountsMatched,
+                'checked' => $itemCountsChecked,
+                'rate' => $this->rate($itemCountsMatched, $itemCountsChecked),
+            ],
         ];
     }
 
@@ -253,7 +283,7 @@ class OosArchiveEvaluator
         $falseNegative = 0;
 
         foreach ($entries as $entry) {
-            if (($entry['label_quality'] ?? null) !== 'full') {
+            if (($entry['content_scope'] ?? null) !== 'full') {
                 continue;
             }
 
@@ -291,7 +321,7 @@ class OosArchiveEvaluator
         $plans = [];
 
         foreach ($entries as $entry) {
-            if (($entry['label_quality'] ?? null) !== 'full') {
+            if (($entry['content_scope'] ?? null) !== 'full') {
                 continue;
             }
 
@@ -321,8 +351,9 @@ class OosArchiveEvaluator
         ];
 
         foreach ($entries as $entry) {
-            // Accuracy per band is only measurable against verified ground truth.
-            if (($entry['label_quality'] ?? null) !== 'full') {
+            // Accuracy per band is only measurable where the manifest asserts a complete order;
+            // a partial's silence about an item is not the parser getting it wrong (§8.4).
+            if (($entry['content_scope'] ?? null) !== 'full') {
                 continue;
             }
 
@@ -349,36 +380,6 @@ class OosArchiveEvaluator
             'total' => $band['total'],
             'accuracy' => $this->rate($band['correct'], $band['total']),
         ], $bands);
-    }
-
-    /**
-     * @param  list<string>  $expected
-     * @param  list<string>  $detected
-     */
-    private function sequenceQuality(array $expected, array $detected): ?float
-    {
-        if ($expected === [] && $detected === []) {
-            return 1.0;
-        }
-
-        $denominator = max(count($expected), count($detected));
-        if ($denominator === 0) {
-            return null;
-        }
-
-        $expected = array_map($this->normaliseTitle(...), $expected);
-        $detected = array_map($this->normaliseTitle(...), $detected);
-        $matrix = array_fill(0, count($expected) + 1, array_fill(0, count($detected) + 1, 0));
-
-        for ($left = 1; $left <= count($expected); $left++) {
-            for ($right = 1; $right <= count($detected); $right++) {
-                $matrix[$left][$right] = $expected[$left - 1] === $detected[$right - 1]
-                    ? $matrix[$left - 1][$right - 1] + 1
-                    : max($matrix[$left - 1][$right], $matrix[$left][$right - 1]);
-            }
-        }
-
-        return round($matrix[count($expected)][count($detected)] / $denominator, 4);
     }
 
     /**
@@ -421,15 +422,6 @@ class OosArchiveEvaluator
             'by_type' => $byType,
             'unmatched_titles' => array_slice($unmatchedTitles, 0, 20),
         ];
-    }
-
-    private function normaliseTitle(string $title): string
-    {
-        $title = mb_strtolower($title);
-        $title = (string) preg_replace('/^\s*(?:nip|praise)?\s*\d+[a-z]?\s*[‘\'“"]?/iu', '', $title);
-        $title = (string) preg_replace('/[^\pL\pN]+/u', ' ', $title);
-
-        return trim($title);
     }
 
     private function rate(int $numerator, int $denominator): ?float

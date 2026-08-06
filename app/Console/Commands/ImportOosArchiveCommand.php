@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Data\OosArchiveEntry;
+use App\Data\OosCurationPlan;
 use App\Data\OosEmailParseResult;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
@@ -12,55 +13,55 @@ use App\Models\InboundEmail;
 use App\Services\Email\InboundEmailImportService;
 use App\Services\Email\OosArchiveAssertionBundle;
 use App\Services\Email\OosArchiveEvaluator;
-use App\Services\Email\OosArchiveMarkdownParser;
+use App\Services\Email\OosCurationEntryFactory;
+use App\Services\Email\OosCurationManifest;
 use App\Services\Email\OosEmailParserService;
 use App\Services\Song\SongTitleResolver;
-use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Throwable;
 
 /**
- * Process the historic order-of-service archive as if the current email pipeline had handled it
- * at the time. Each archive entry becomes an ordinary synthetic inbound email and takes one of
- * three routes:
+ * Process the approved §7.5 Email order-of-service corpus as if the current email pipeline had
+ * handled it at the time. Each approved manifest include becomes an ordinary synthetic inbound
+ * email and takes one of two routes:
  *
- * - **blocked** — the markdown contradicts itself about the date. The email stays
- *   {@see InboundEmailStatus::ArchiveEval} and is reported, because no human can act on it
- *   either until the archive text is corrected.
- * - **held for review** — the ground truth does not corroborate the parse. The email becomes
- *   Pending and appears in the review inbox, where the existing edit-and-approve workbench
- *   handles it exactly as it would a live email.
- * - **imported** — the entry runs through {@see InboundEmailImportService::import()}, which
- *   merges into an existing service or creates one. Whether it imports unattended is decided by
- *   the live auto-import bar, not by this command; anything below it stays Pending in the inbox.
+ * - **held for review** — the manifest does not corroborate the parse, or the source asserts only
+ *   part of an order. The email becomes Pending and appears in the review inbox, where the
+ *   existing edit-and-approve workbench handles it exactly as it would a live email.
+ * - **imported** — the entry runs through {@see InboundEmailImportService::import()}, which merges
+ *   into an existing service or creates one. Whether it imports unattended is decided by the live
+ *   auto-import bar, not by this command; anything below it stays Pending in the inbox.
+ *
+ * **There is no third, blocked route, and that is the point of the manifest.** Its predecessor
+ * read one aggregate markdown file, split it on `### ` headings and inferred each entry's date and
+ * service from the heading text — so an entry whose text contradicted itself had to be parked in a
+ * report line nobody could act on. §7.3 makes the approved manifest mutation authority instead:
+ * {@see OosCurationManifest::validateIncludesForDryRun()} compares every approved entry's resolved
+ * identity against its payload's own frontmatter before anything is touched, and a `strict`
+ * disagreement fails the whole run. A contradiction is now loud and up front rather than quiet and
+ * per-entry, and `manifest-authoritative` is the recorded adjudication of one.
  */
 class ImportOosArchiveCommand extends Command
 {
-    /** Bump when the parsing pipeline changes shape (v6: structural provenance validation via OosEmailExtractionValidator — source-line grounding, corrective retry and per-plan dispositions, none of which a v5 parse carries) to invalidate cached parses. */
-    private const PARSER_VERSION = 'archive-v6';
+    /** Bump when the parsing pipeline changes shape (v7: entries come from the §7.5 curation manifest rather than the superseded aggregate archive, so identity, completeness and the input hash all have different provenance) to invalidate cached parses. */
+    private const ParserVersion = 'archive-v7';
 
-    /**
-     * Archive-text problems: the entry's own date cannot be trusted, so nobody — human or
-     * pipeline — can act on it until the markdown is corrected. The email stays ArchiveEval.
-     *
-     * @var list<string>
-     */
-    private const BLOCKING_FLAGS = [
-        'weekday_mismatch',
-        'date_discrepancy',
-        'source_date_discrepancy',
-        'multi_date',
-    ];
+    private const DefaultVerbatimRoot = 'scratch/oos-verbatim';
+
+    private const DefaultFormattedRoot = 'scratch/oos';
 
     protected $signature = 'oos:import-archive
-                            {path? : Archive markdown path}
-                            {--dry-run : Split and validate only, without database or extractor access}
+                            {--manifest= : Path to the approved crockenhill-oos-curation manifest}
+                            {--verbatim= : Verbatim corpus root (default storage/scratch/oos-verbatim)}
+                            {--formatted= : Formatted corpus root (default storage/scratch/oos)}
+                            {--dry-run : Reconcile the manifest against the corpus, without database or extractor access}
                             {--import : Import eligible entries through the live email pipeline}
+                            {--plan-hash= : Exact plan_hash emitted by the dry run; required with --import}
                             {--fresh-parse : Ignore cached parse results}
                             {--limit= : Maximum entries to process}
-                            {--date=* : Include only these ground-truth dates}
+                            {--date=* : Include only these resolved dates}
                             {--from= : Include dates on or after this date}
                             {--to= : Include dates on or before this date}
                             {--export-bundle= : Export normalized assertions to a private bundle}
@@ -68,95 +69,87 @@ class ImportOosArchiveCommand extends Command
                             {--apply-bundle= : Apply an already-staged private assertion bundle}
                             {--report= : JSON report path}';
 
-    protected $description = 'Evaluate and conservatively import the order-of-service email archive';
+    protected $description = 'Evaluate and conservatively import the approved order-of-service email corpus';
 
     public function handle(
-        OosArchiveMarkdownParser $archiveParser,
+        OosCurationManifest $curationManifest,
+        OosCurationEntryFactory $entryFactory,
         OosEmailParserService $emailParser,
         InboundEmailImportService $importService,
         OosArchiveEvaluator $evaluator,
         OosArchiveAssertionBundle $assertionBundle,
     ): int {
-        $path = $this->resolvePath($this->argument('path'));
+        $manifestPath = $this->stringOption('manifest');
 
-        if (! is_file($path) || ! is_readable($path)) {
-            $this->error("Archive not found or unreadable: {$path}");
-
-            return self::FAILURE;
-        }
-
-        $markdown = file_get_contents($path);
-        if (! is_string($markdown)) {
-            $this->error("Could not read archive: {$path}");
+        if ($manifestPath === null) {
+            $this->error('An approved curation manifest is required with --manifest=. The corpus has no default authority.');
 
             return self::FAILURE;
         }
 
-        $allEntries = $archiveParser->parse($markdown);
+        $verbatimRoot = $this->resolvePath($this->stringOption('verbatim') ?? storage_path(self::DefaultVerbatimRoot));
+        $formattedRoot = $this->resolvePath($this->stringOption('formatted') ?? storage_path(self::DefaultFormattedRoot));
+
+        try {
+            $plan = $curationManifest->plan($verbatimRoot, $formattedRoot, $this->resolvePath($manifestPath));
+
+            /**
+             * Deterministic and free, so it runs in every mode rather than only under --dry-run:
+             * no entry is parsed, released or imported until every approved payload's own
+             * frontmatter has been reconciled against the identity the manifest assigned it.
+             */
+            $adjudicated = $curationManifest->validateIncludesForDryRun($verbatimRoot, $formattedRoot, $plan);
+            $verifiedPaths = $curationManifest->verifyIncludes($verbatimRoot, $formattedRoot, $plan);
+            $allEntries = $entryFactory->entries($plan, $verifiedPaths);
+        } catch (Throwable $throwable) {
+            $this->error($throwable->getMessage());
+
+            return self::FAILURE;
+        }
+
         $entries = $this->filteredEntries($allEntries);
-        $archiveHash = hash('sha256', $markdown);
 
         try {
             if ($this->stringOption('import-bundle') !== null || $this->stringOption('apply-bundle') !== null) {
-                $bundlePath = $this->stringOption('import-bundle') ?? $this->stringOption('apply-bundle');
-                $bundle = $this->readBundle((string) $bundlePath);
-                $preflight = $assertionBundle->preflight($bundle, $entries, $archiveHash, self::PARSER_VERSION);
-
-                if ($this->stringOption('import-bundle') !== null) {
-                    $assertionBundle->stage($preflight);
-                    $this->info(sprintf(
-                        'Staged %d valid and %d review-held OoS assertion entries.',
-                        count($preflight['valid']),
-                        count($preflight['invalid']),
-                    ));
-                } else {
-                    $assertionBundle->apply($preflight);
-                    $this->info(sprintf('Applied %d OoS assertion entries.', count($preflight['valid'])));
-                }
-
-                return self::SUCCESS;
+                return $this->runBundleMode($assertionBundle, $entries, $plan);
             }
         } catch (Throwable $throwable) {
             $this->error($throwable->getMessage());
 
             return self::FAILURE;
         }
+
         $dryRun = (bool) $this->option('dry-run');
         $shouldImport = (bool) $this->option('import') && ! $dryRun;
+
+        if ($shouldImport && ! $this->planHashMatches($plan)) {
+            $this->error('The supplied --plan-hash does not match the current curation plan. Re-run --dry-run and use the plan_hash it reports.');
+
+            return self::FAILURE;
+        }
+
         $songTitleResolver = $dryRun ? null : SongTitleResolver::fromDatabase();
         $results = [];
 
         foreach ($entries as $entry) {
-            $this->line("Evaluating #{$entry->index}: {$entry->heading}");
+            $this->line("Evaluating #{$entry->index}: {$entry->itemKey}");
 
-            if ($dryRun || $entry->groundTruthDate === null || ! $entry->syntheticReceivedAt instanceof CarbonImmutable) {
-                $reasons = $entry->groundTruthDate === null ? ['unresolved_date'] : ['dry_run'];
-                $results[] = $evaluator->evaluate(
-                    $entry,
-                    null,
-                    $entry->groundTruthDate === null ? 'unresolved' : 'dry_run',
-                    $reasons,
-                );
+            if ($dryRun) {
+                $results[] = $evaluator->evaluate($entry, null, 'dry_run', ['dry_run']);
 
                 continue;
             }
 
             try {
-                [$inboundEmail, $sourceUpdatedAfterImport] = $this->synchroniseEmail($entry);
+                [$inboundEmail, $sourceUpdatedAfterImport] = $this->synchroniseEmail($entry, $plan);
                 $parseResult = $this->parseResult($entry, $inboundEmail, $emailParser, $importService);
-                $eligiblePlanKeys = $this->groundTruthPlanKeys($entry, $parseResult);
-                $blockingReasons = $this->blockingReasons($entry);
-                $reviewReasons = $blockingReasons === []
-                    ? $this->reviewReasons($entry, $parseResult, $sourceUpdatedAfterImport, $eligiblePlanKeys)
-                    : [];
-                $gateReasons = array_values(array_unique([...$blockingReasons, ...$reviewReasons]));
+                $eligiblePlanKeys = $this->importablePlanKeys($entry, $parseResult);
+                $reviewReasons = $this->reviewReasons($entry, $parseResult, $sourceUpdatedAfterImport, $eligiblePlanKeys);
                 $importError = null;
 
-                if ($blockingReasons !== []) {
-                    $disposition = 'blocked';
-                } elseif ($reviewReasons !== []) {
-                    // The archive text is sound but its ground truth does not corroborate the
-                    // parse: hand the entry to the review inbox rather than importing it.
+                if ($reviewReasons !== []) {
+                    // The manifest is sound but does not corroborate the parse: hand the entry to
+                    // the review inbox rather than importing it.
                     $disposition = 'held_for_review';
                     $this->releaseToInbox($inboundEmail, $shouldImport);
                 } elseif (! $shouldImport) {
@@ -174,10 +167,10 @@ class ImportOosArchiveCommand extends Command
                         // outcome, not thrown — never let it masquerade as a clean import.
                         $disposition = 'import_failed';
                         $importError = implode('; ', array_map(
-                            static fn ($plan): string => "{$plan->planKey}: ".($plan->message ?? 'import failed'),
+                            static fn ($failed): string => "{$failed->planKey}: ".($failed->message ?? 'import failed'),
                             $importResult->failed(),
                         ));
-                        $this->warn("Import failure for #{$entry->index}: {$importError}");
+                        $this->warn("Import failure for {$entry->itemKey}: {$importError}");
                     } else {
                         $disposition = match (true) {
                             $importResult->created() !== [] => 'created',
@@ -193,7 +186,7 @@ class ImportOosArchiveCommand extends Command
                     $entry,
                     $parseResult,
                     $disposition,
-                    $gateReasons,
+                    $reviewReasons,
                     $songTitleResolver,
                     $importError,
                     $eligiblePlanKeys,
@@ -223,14 +216,25 @@ class ImportOosArchiveCommand extends Command
             'generated_at' => now()->toIso8601String(),
             'mode' => $dryRun ? 'dry_run' : ($shouldImport ? 'import' : 'evaluate'),
             'pipeline_mode' => 'multi_service',
-            'source_path' => $path,
-            'archive_entry_count' => count($allEntries),
+            'parser_version' => self::ParserVersion,
+            'corpus' => [
+                'verbatim_root' => $verbatimRoot,
+                'formatted_root' => $formattedRoot,
+                'manifest_path' => $this->resolvePath($manifestPath),
+            ],
+            'curation_plan' => $plan->report(),
+            /**
+             * Identity disagreements an operator has already ruled on via
+             * `parse_decision: manifest-authoritative`. Empty is the normal state; a non-empty
+             * list is the audit trail for every place the manifest overrode its own source.
+             */
+            'adjudicated_identity_disagreements' => $adjudicated,
+            'approved_entry_count' => count($allEntries),
             'selected_entry_count' => count($entries),
             'cohorts' => [
-                'full' => count(array_filter($allEntries, fn (OosArchiveEntry $entry): bool => $entry->labelQuality === 'full')),
-                'unverified' => count(array_filter($allEntries, fn (OosArchiveEntry $entry): bool => $entry->labelQuality === 'unverified')),
+                'full' => count(array_filter($allEntries, static fn (OosArchiveEntry $entry): bool => $entry->assertsFullOrder())),
+                'partial' => count(array_filter($allEntries, static fn (OosArchiveEntry $entry): bool => ! $entry->assertsFullOrder())),
             ],
-            'known_gaps' => $archiveParser->knownGaps($markdown),
             'entries' => $results,
             'aggregate' => $evaluator->aggregate($results),
         ];
@@ -238,7 +242,7 @@ class ImportOosArchiveCommand extends Command
         try {
             $exportPath = $this->stringOption('export-bundle');
             if ($exportPath !== null) {
-                $bundle = $assertionBundle->export($entries, $archiveHash, self::PARSER_VERSION);
+                $bundle = $assertionBundle->export($entries, $plan->planHash, self::ParserVersion);
                 $this->writeJson($this->privateScratchPath($exportPath), $bundle);
             }
         } catch (Throwable $throwable) {
@@ -264,6 +268,46 @@ class ImportOosArchiveCommand extends Command
 
     /**
      * @param  list<OosArchiveEntry>  $entries
+     */
+    private function runBundleMode(
+        OosArchiveAssertionBundle $assertionBundle,
+        array $entries,
+        OosCurationPlan $plan,
+    ): int {
+        $bundlePath = $this->stringOption('import-bundle') ?? $this->stringOption('apply-bundle');
+        $bundle = $this->readBundle((string) $bundlePath);
+        $preflight = $assertionBundle->preflight($bundle, $entries, $plan->planHash, self::ParserVersion);
+
+        if ($this->stringOption('import-bundle') !== null) {
+            $assertionBundle->stage($preflight);
+            $this->info(sprintf(
+                'Staged %d valid and %d review-held OoS assertion entries.',
+                count($preflight['valid']),
+                count($preflight['invalid']),
+            ));
+
+            return self::SUCCESS;
+        }
+
+        $assertionBundle->apply($preflight);
+        $this->info(sprintf('Applied %d OoS assertion entries.', count($preflight['valid'])));
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * §7.4: an import binds to the exact plan the operator reviewed, so a manifest edited between
+     * the dry run and the apply cannot slip through on the strength of the earlier reading.
+     */
+    private function planHashMatches(OosCurationPlan $plan): bool
+    {
+        $supplied = $this->stringOption('plan-hash');
+
+        return $supplied !== null && hash_equals($plan->planHash, $supplied);
+    }
+
+    /**
+     * @param  list<OosArchiveEntry>  $entries
      * @return list<OosArchiveEntry>
      */
     private function filteredEntries(array $entries): array
@@ -272,16 +316,16 @@ class ImportOosArchiveCommand extends Command
         $from = $this->stringOption('from');
         $to = $this->stringOption('to');
 
-        $entries = array_values(array_filter($entries, function (OosArchiveEntry $entry) use ($dates, $from, $to): bool {
+        $entries = array_values(array_filter($entries, static function (OosArchiveEntry $entry) use ($dates, $from, $to): bool {
             if ($dates !== [] && ! in_array($entry->groundTruthDate, $dates, true)) {
                 return false;
             }
 
-            if ($from !== null && ($entry->groundTruthDate === null || $entry->groundTruthDate < $from)) {
+            if ($from !== null && $entry->groundTruthDate < $from) {
                 return false;
             }
 
-            return ! ($to !== null && ($entry->groundTruthDate === null || $entry->groundTruthDate > $to));
+            return ! ($to !== null && $entry->groundTruthDate > $to);
         }));
 
         $limit = $this->stringOption('limit');
@@ -294,7 +338,7 @@ class ImportOosArchiveCommand extends Command
     /**
      * @return array{InboundEmail, bool}
      */
-    private function synchroniseEmail(OosArchiveEntry $entry): array
+    private function synchroniseEmail(OosArchiveEntry $entry, OosCurationPlan $plan): array
     {
         $inboundEmail = InboundEmail::query()->where('message_id', $entry->syntheticMessageId)->first();
         $wasProcessed = $inboundEmail?->status === InboundEmailStatus::Processed;
@@ -314,13 +358,11 @@ class ImportOosArchiveCommand extends Command
             $inboundEmail->subject = $entry->subject;
             $inboundEmail->body_plain = $entry->bodyPlain;
             $inboundEmail->body_html = null;
-            $receivedAt = $entry->syntheticReceivedAt
-                ?? throw new \RuntimeException('Resolved archive entries require a synthetic received date.');
-            $inboundEmail->received_at = Carbon::instance($receivedAt);
+            $inboundEmail->received_at = Carbon::instance($entry->syntheticReceivedAt);
         }
 
         $metadata = is_array($inboundEmail->processing_metadata) ? $inboundEmail->processing_metadata : [];
-        $metadata['archive'] = $this->archiveMetadata($entry);
+        $metadata['archive'] = $this->archiveMetadata($entry, $plan);
 
         if ($sourceChanged && $wasProcessed) {
             $metadata['archive']['flags'][] = 'source_updated_after_import';
@@ -342,7 +384,7 @@ class ImportOosArchiveCommand extends Command
         $cacheMatches = ! (bool) $this->option('fresh-parse')
             && is_array($parsing)
             && ($parsing['input_hash'] ?? null) === $entry->inputHash
-            && ($parsing['parser_version'] ?? null) === self::PARSER_VERSION;
+            && ($parsing['parser_version'] ?? null) === self::ParserVersion;
 
         if ($cacheMatches) {
             $stored = $importService->storedParseResult($inboundEmail);
@@ -357,7 +399,7 @@ class ImportOosArchiveCommand extends Command
         $inboundEmail->refresh();
         $metadata = $inboundEmail->processing_metadata ?? [];
         $metadata['parsing']['input_hash'] = $entry->inputHash;
-        $metadata['parsing']['parser_version'] = self::PARSER_VERSION;
+        $metadata['parsing']['parser_version'] = self::ParserVersion;
         $inboundEmail->processing_metadata = $metadata;
         $inboundEmail->save();
 
@@ -365,29 +407,10 @@ class ImportOosArchiveCommand extends Command
     }
 
     /**
-     * Reasons the archive markdown itself has to be corrected first. Nothing downstream can act
-     * on an entry whose date is contradicted, so it never leaves ArchiveEval.
-     *
-     * @return list<string>
-     */
-    private function blockingReasons(OosArchiveEntry $entry): array
-    {
-        $reasons = [];
-
-        foreach (self::BLOCKING_FLAGS as $flag) {
-            if (in_array($flag, $entry->flags, true)) {
-                $reasons[] = $flag;
-            }
-        }
-
-        return array_values(array_unique($reasons));
-    }
-
-    /**
-     * Reasons to hand the entry to a human rather than import it unattended. Unlike the blocking
-     * reasons these say nothing against the archive text — `unverified_service_ground_truth` only
-     * means the markdown entry carries no `####` service sub-headings — so the entry becomes an
-     * ordinary Pending email and the existing edit-and-approve workbench takes it from there.
+     * Reasons to hand the entry to a human rather than import it unattended. None of them says
+     * anything against the manifest — a `partial` content scope is a curated fact about the
+     * source, not a defect in it — so the entry becomes an ordinary Pending email and the
+     * existing edit-and-approve workbench takes it from there.
      *
      * @param  list<string>  $eligiblePlanKeys
      * @return list<string>
@@ -400,28 +423,48 @@ class ImportOosArchiveCommand extends Command
     ): array {
         $reasons = [];
 
-        if ($entry->labelQuality !== 'full') {
-            $reasons[] = 'unverified_service_ground_truth';
+        /**
+         * §8.4: a partial order's silence is not disagreement, so it must never import
+         * unattended as though it were the whole service.
+         */
+        if (! $entry->assertsFullOrder()) {
+            $reasons[] = 'partial_source_scope';
         }
 
-        if ($entry->servicesPresent !== []
-            && $parseResult->service instanceof SermonService
-            && ! in_array($parseResult->service->value, $entry->servicesPresent, true)) {
-            $reasons[] = 'service_not_in_ground_truth';
+        /**
+         * The manifest says which service this document is, and the parse found no order for it
+         * anywhere — not merely that some *other* service also appears, which is the ordinary
+         * shape of a Sunday email carrying both orders. A genuine identity disagreement, so a
+         * human looks before anything is written.
+         */
+        if ($parseResult->servicePlans !== [] && ! $this->parseCoversCuratedService($entry, $parseResult)) {
+            $reasons[] = 'curated_service_not_parsed';
         }
 
         if ($sourceUpdatedAfterImport) {
             $reasons[] = 'source_updated_after_import';
         }
 
-        // No plan the ground truth corroborates — either the entry records no services at all or
-        // no parsed plan matches the ones it does. Importing would write a service the archive
-        // does not evidence, and import() rejects an empty plan list outright.
+        // No plan the manifest corroborates — no parsed plan matches its resolved date and
+        // service. Importing would write a service the manifest does not approve, and import()
+        // rejects an empty plan list outright.
         if ($eligiblePlanKeys === []) {
             $reasons[] = 'no_corroborated_plan';
         }
 
         return array_values(array_unique($reasons));
+    }
+
+    private function parseCoversCuratedService(OosArchiveEntry $entry, OosEmailParseResult $parseResult): bool
+    {
+        foreach ($parseResult->servicePlans as $plan) {
+            if ($plan->service instanceof SermonService
+                && in_array($plan->service->value, $entry->servicesPresent, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -435,7 +478,7 @@ class ImportOosArchiveCommand extends Command
     {
         $flags = [];
 
-        if ($parseResult->date === null || ! $this->isValidDate($parseResult->date) || $parseResult->date !== $entry->groundTruthDate) {
+        if ($parseResult->date !== $entry->groundTruthDate) {
             $flags[] = 'date_mismatch';
         }
 
@@ -447,6 +490,21 @@ class ImportOosArchiveCommand extends Command
             $flags[] = 'empty_items';
         }
 
+        /**
+         * The email carries an order for a service beyond the one the manifest names it by — the
+         * ordinary shape of a Sunday email holding both that morning's and that evening's orders.
+         * It imports through the same path a live email would, so this is not a loss; it is
+         * curation feedback, telling the operator that `resolved_service` describes only part of
+         * what the document contains.
+         */
+        foreach ($parseResult->servicePlans as $plan) {
+            if ($plan->service instanceof SermonService
+                && $plan->items !== []
+                && ! in_array($plan->service->value, $entry->servicesPresent, true)) {
+                $flags[] = 'service_beyond_manifest';
+            }
+        }
+
         $threshold = (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90);
         if ($parseResult->confidenceScore < $threshold) {
             $flags[] = 'low_confidence';
@@ -456,25 +514,35 @@ class ImportOosArchiveCommand extends Command
     }
 
     /**
-     * Keys of the parsed plans the entry's ground truth corroborates: its date and one of its
-     * recorded services, with items. The multi-service parser can produce a second plan the
-     * ground truth does not support — an invented service — and this keeps it out of the import
-     * without also deciding confidence, which is the live auto-import bar's job.
+     * Keys of the parsed plans this entry may import: those on the manifest's resolved date, with
+     * items.
      *
-     * An empty result means nothing is corroborated, including for an entry that records no
-     * services at all; {@see self::reviewReasons()} turns that into a review, so the import is
-     * never called with a plan list it would reject.
+     * **Deliberately not filtered by the manifest's resolved service.** One email routinely
+     * carries both that Sunday's morning and evening orders, and the live pipeline already handles
+     * it — `OosEmailParserService` returns a plan per service and `import()` creates one
+     * `ChurchService` for each. Restricting the archive to the manifest's single
+     * `resolved_service` would make it lose the second order on emails the live path imports in
+     * full, which is a difference in behaviour between an email received today and the same email
+     * received in 2019.
+     *
+     * The division of authority is the same one §7.5 draws for item counts: the manifest is
+     * authority over the *source's identity* — which document this is and which date it belongs
+     * to — while how many services the document describes is parse content, produced by an LLM.
+     * Gating on parse content is what §7.5 refuses. The date gate stays because it is a manifest
+     * decision and deterministic; confidence stays the live auto-import bar's job.
+     *
+     * An empty result means nothing is importable; {@see self::reviewReasons()} turns that into a
+     * review, so import() is never called with a plan list it would reject.
      *
      * @return list<string>
      */
-    private function groundTruthPlanKeys(OosArchiveEntry $entry, OosEmailParseResult $parseResult): array
+    private function importablePlanKeys(OosArchiveEntry $entry, OosEmailParseResult $parseResult): array
     {
         $keys = [];
 
         foreach ($parseResult->servicePlans as $plan) {
             if ($plan->date === $entry->groundTruthDate
                 && $plan->service instanceof SermonService
-                && in_array($plan->service->value, $entry->servicesPresent, true)
                 && $plan->items !== []) {
                 $keys[] = $plan->key();
             }
@@ -488,7 +556,7 @@ class ImportOosArchiveCommand extends Command
      * other inbound email — reachable from the review inbox, approvable, editable.
      *
      * Only an `--import` run does this: an evaluation run is meant to produce a report for
-     * private inspection, not to drop eighty entries into the operator's inbox.
+     * private inspection, not to drop hundreds of entries into the operator's inbox.
      *
      * An already-processed email is pushed back to Pending as well, because
      * {@see InboundEmailImportService::recordImportOutcome()} only ever promotes: without this a
@@ -504,17 +572,6 @@ class ImportOosArchiveCommand extends Command
 
         $inboundEmail->status = InboundEmailStatus::Pending;
         $inboundEmail->save();
-    }
-
-    private function isValidDate(string $date): bool
-    {
-        try {
-            $candidate = CarbonImmutable::createFromFormat('!Y-m-d', $date, 'Europe/London');
-
-            return $candidate instanceof CarbonImmutable && $candidate->format('Y-m-d') === $date;
-        } catch (Throwable) {
-            return false;
-        }
     }
 
     private function recordFailure(OosArchiveEntry $entry, Throwable $throwable): void
@@ -535,19 +592,20 @@ class ImportOosArchiveCommand extends Command
     }
 
     /** @return array<string, mixed> */
-    private function archiveMetadata(OosArchiveEntry $entry): array
+    private function archiveMetadata(OosArchiveEntry $entry, OosCurationPlan $plan): array
     {
         return [
+            'item_key' => $entry->itemKey,
             'entry_index' => $entry->index,
-            'heading' => $entry->heading,
-            'heading_date' => $entry->headingDate,
-            'corrected_date' => $entry->correctedDate,
             'ground_truth_date' => $entry->groundTruthDate,
-            'label_quality' => $entry->labelQuality,
+            'content_scope' => $entry->contentScope,
             'services_present' => $entry->servicesPresent,
             'item_line_counts' => $entry->itemLineCounts,
-            'flags' => $entry->flags,
+            'curation' => $entry->curation,
+            'curation_plan_hash' => $plan->planHash,
+            'batch_key' => $plan->batchKey,
             'input_hash' => $entry->inputHash,
+            'flags' => [],
         ];
     }
 
@@ -555,15 +613,18 @@ class ImportOosArchiveCommand extends Command
     private function renderSummary(array $report): void
     {
         $aggregate = $report['aggregate'];
+        $itemCounts = $aggregate['item_count_reconciliation'];
 
         $this->table(['Metric', 'Value'], [
-            ['Archive entries', (string) $report['archive_entry_count']],
+            ['Approved entries', (string) $report['approved_entry_count']],
             ['Selected entries', (string) $report['selected_entry_count']],
-            ['Full / unverified', "{$report['cohorts']['full']} / {$report['cohorts']['unverified']}"],
+            ['Full / partial', "{$report['cohorts']['full']} / {$report['cohorts']['partial']}"],
+            ['Adjudicated identity disagreements', (string) count($report['adjudicated_identity_disagreements'])],
             ['Date accuracy', $this->percentage($aggregate['date_accuracy']['all']['rate'])],
             ['Morning recall', $this->percentage($aggregate['service_metrics']['morning']['recall'])],
             ['Evening recall', $this->percentage($aggregate['service_metrics']['evening']['recall'])],
             ['Auto-import precision', $this->percentage($aggregate['auto_import_precision']['rate'])],
+            ['Item counts reconciled', "{$itemCounts['matched']} / {$itemCounts['checked']}"],
             ['Song-link hit rate', $this->percentage($aggregate['song_link_hit_rate']['rate'])],
         ]);
 
@@ -642,12 +703,8 @@ class ImportOosArchiveCommand extends Command
         return $resolved;
     }
 
-    private function resolvePath(mixed $path): string
+    private function resolvePath(string $path): string
     {
-        $path = is_string($path) && $path !== ''
-            ? $path
-            : storage_path('scratch/crockenhill_orders_of_service_archive.md');
-
         return str_starts_with($path, '/') ? $path : base_path($path);
     }
 

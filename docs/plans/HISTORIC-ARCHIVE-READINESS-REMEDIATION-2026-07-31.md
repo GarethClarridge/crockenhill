@@ -463,15 +463,9 @@ counterpart is `storage/scratch/oos-verbatim/`, 402 files.
 The earlier aggregate `storage/scratch/crockenhill_orders_of_service_archive.md` (102 entries) is
 **superseded** and must not be curated. It survives only as the cited `source:` of 14 `oos/` files.
 
-`ImportOosArchiveCommand` still defaults to it at
-[`ImportOosArchiveCommand.php:649`](../../app/Console/Commands/ImportOosArchiveCommand.php#L649).
-That default is now wrong, and **PR21 does not fix it**: the command takes a single aggregate
-markdown path and splits it on `### ` headings, whereas the corpus is one file per service, so
-repointing it means teaching it the manifest rather than changing a string. That is the natural
-next slice once the manifest is populated — the command should take an approved plan and iterate
-its includes, which is also what removes the last filename heuristic from the Email path. Until
-then the wrong default stands, and running the command without an explicit path curates superseded
-material.
+`ImportOosArchiveCommand` **was repointed at the manifest on 2026-08-06** (see "The command now
+takes an approved plan", below). It no longer accepts an aggregate markdown path at all, and
+`OosArchiveMarkdownParser` is deleted.
 
 #### What the inventory already shows
 
@@ -661,6 +655,85 @@ cases. This moved `other` from 22 entries to 12.
 
 The payload's own frontmatter now outranks every filename inference when it names `am` or `pm` — it
 is the document telling us which service it was for, and it is what the dry run compares against.
+
+#### The command now takes an approved plan — added 2026-08-06
+
+`ImportOosArchiveCommand` reads the manifest, not markdown. It requires `--manifest=` (the corpus
+has no default authority), defaults `--verbatim=`/`--formatted=` to the two corpus roots, and
+iterates `OosCurationPlan::$includes` via a new `OosCurationEntryFactory`. `OosArchiveMarkdownParser`
+and its test are **deleted**: it inferred date, service and completeness from heading text, and the
+manifest now decides all three. That is the last filename heuristic gone from the Email path.
+
+Four consequences a reviewer should not have to discover:
+
+- **The `blocked` route is gone, and so is `unresolved_date`.** Both existed because the aggregate
+  markdown could contradict itself about a date, leaving an entry nobody could act on.
+  `validateIncludesForDryRun()` now runs in *every* mode, before any email is written, and a
+  `strict` disagreement fails the whole run. A contradiction is loud and up front instead of a
+  quiet per-entry report line. `OosArchiveEntry::$groundTruthDate` is consequently non-nullable,
+  and `OosArchiveAssertionBundle::isBlocked()` is deleted.
+- **`ordered_item_quality` is gone, because it could only have lied.** The manifest asserts item
+  *counts*, never item *lines* — §13.4's truth set is where lines belong. `sequenceQuality([], …)`
+  returns a score, not null, so every entry would have reported **0.0**: "the parse got every item
+  wrong" where the truth is "nobody said what right was". In its place each plan reports
+  `expected_item_count` / `item_count_matches`, both null unless a person asserted a count, and the
+  aggregate carries `item_count_reconciliation`. Today that measures exactly one entry.
+- **`--import` requires `--plan-hash`,** matching `ImportOpenLpDirectoryCommand`. The assertion
+  bundle's `archive_artifact_hash` becomes `curation_plan_hash`, bound to `OosCurationPlan::$planHash`
+  rather than a markdown file's digest — the §7.4 binding.
+- **The DTO uses the manifest's vocabulary.** `heading`/`headingDate`/`correctedDate`/`flags` are
+  gone; `labelQuality` (`full`/`unverified`) becomes `contentScope` (`full`/`partial`); a `curation`
+  block carries the decisions into the report. Feeding a resolved date into a field named after the
+  heading it used to be guessed from is the same defect as a heuristic count in `expected_item_count`.
+
+Re-running against the manifest creates **new** synthetic emails: message ids now derive from
+`item_key`, so rows from earlier aggregate-archive runs are orphaned rather than mutated. The
+parser version is `archive-v7`, which invalidates every cached parse — correctly, since identity,
+completeness and the input hash all have different provenance now.
+
+#### One email, two services — the manifest names the document, it does not cap it
+
+Added 2026-08-06, correcting a claim made earlier the same day. Wiring the command, the first
+reading was that a manifest entry resolves to exactly one `resolved_service` and `reconcileRoot()`
+forbids two entries claiming the same file, so an email carrying both that Sunday's orders could be
+curated as only one of them — and that roughly nine evening orders were therefore out of reach.
+
+**That was wrong, and the maintainer corrected it.** Two services in one email is the ordinary shape
+of a Crockenhill Sunday, and the live pipeline has always handled it: `OosEmailParserService` returns
+one `OosEmailServicePlan` per service, `InboundEmailImportService::import()` creates a
+`ChurchService` for each, and
+`OosMultiServiceImportTest::the_job_imports_both_morning_and_evening_orders` proves it end to end
+today. Nothing was broken. What was wrong was the *archive* path, which filters parsed plans through
+`onlyPlanKeys`: that filter was written against the old parser's multi-valued `servicesPresent`
+(read from `####` sub-headings), and re-sourcing it from the manifest's single `resolved_service`
+silently narrowed it from "one plan per curated service" to "at most one service per email".
+
+The fix is to reuse the live behaviour rather than work around it. `importablePlanKeys()` — and the
+assertion bundle's `eligiblePlanKeys()` — now gate on **the manifest's resolved date and non-empty
+items, not its resolved service**. Every plan the parser finds on the curated date goes through the
+same import the live path uses, and the live auto-import bar decides each one.
+
+**The division of authority this settles is the same one §7.5 already draws for item counts.** The
+manifest is authority over the *source's identity* — which document this is, and which date it
+belongs to. How many services the document describes is *parse content*, produced by an LLM, and
+gating on parse content is precisely what §7.5 refuses. The date gate stays, because a date is a
+manifest decision and deterministic. `resolved_service` keeps its two real jobs: identity
+reconciliation against the payload's own frontmatter (`strict` / `manifest-authoritative`), and
+naming the service for §14's public archive.
+
+Two report signals come out of it, replacing the "silent loss" flag the earlier reading called for:
+
+- `service_beyond_manifest` (parse flag, counted in the aggregate's `parse_flag_counts`) — the email
+  carries an order for a service beyond the one the manifest names it by. Not a loss; it imports.
+  It is curation feedback that `resolved_service` describes only part of the document.
+- `curated_service_not_parsed` (review reason) — the manifest says this is the morning service and
+  the parse found no morning order at all. A genuine identity disagreement, so it holds the entry
+  for a human.
+
+The nine emails identified — `2018-12-09`, `2019-08-04`, `2019-08-18`, `2019-10-27`, `2022-12-04`,
+`2023-01-22`, `2023-01-29`, `2026-02-15`, `2026-05-03`, counted as files carrying both a bare
+`Morning service` and a bare `Evening service` heading, so a floor rather than a total — need no
+schema change. They import both orders, exactly as they would have if received today.
 
 #### Scope of PR21
 

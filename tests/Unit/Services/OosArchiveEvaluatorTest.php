@@ -37,7 +37,8 @@ class OosArchiveEvaluatorTest extends TestCase
         $this->assertSame(['morning'], $result['services']['detected']);
         $this->assertTrue($result['plans'][0]['exact_correct']);
         $this->assertTrue($result['plans'][0]['gate_eligible']);
-        $this->assertSame(1.0, $result['plans'][0]['ordered_item_quality']);
+        $this->assertSame(2, $result['plans'][0]['expected_item_count']);
+        $this->assertTrue($result['plans'][0]['item_count_matches']);
         $this->assertSame(
             ['hits' => 1, 'total' => 1, 'rate' => 1.0, 'by_type' => ['exact' => 1], 'unmatched_titles' => []],
             $result['song_link'],
@@ -101,11 +102,61 @@ class OosArchiveEvaluatorTest extends TestCase
         $this->assertCount(2, $result['plans']);
         $this->assertTrue($result['plans'][1]['exact_correct']);
         $this->assertTrue($result['plans'][1]['gate_eligible']);
-        $this->assertSame(1.0, $result['plans'][1]['ordered_item_quality']);
+        $this->assertSame(1, $result['plans'][1]['expected_item_count']);
+        $this->assertTrue($result['plans'][1]['item_count_matches']);
 
         $aggregate = (new OosArchiveEvaluator)->aggregate([$result]);
         $this->assertSame(1.0, $aggregate['service_metrics']['evening']['recall']);
         $this->assertSame(['correct' => 2, 'total' => 2, 'rate' => 1.0], $aggregate['auto_import_precision']);
+        $this->assertSame(['matched' => 2, 'checked' => 2, 'rate' => 1.0], $aggregate['item_count_reconciliation']);
+    }
+
+    /**
+     * §7.5 keeps heuristic item counts out of the manifest, so almost every entry asserts none.
+     * An unasserted count must report as "not measured", never as a score: an LCS against an
+     * empty expected list scores 0.0, which reads as "the parse got every item wrong" when the
+     * truth is that nobody said what the right answer was.
+     */
+    #[Test]
+    public function it_declines_to_score_item_counts_no_one_asserted(): void
+    {
+        $evaluator = new OosArchiveEvaluator;
+
+        $result = $evaluator->evaluate(
+            $this->entry(itemLineCounts: []),
+            $this->parseResult(),
+            'eligible',
+            eligiblePlanKeys: ['morning:2026-07-12'],
+        );
+
+        $this->assertNull($result['plans'][0]['expected_item_count']);
+        $this->assertNull($result['plans'][0]['item_count_matches']);
+        $this->assertSame(2, $result['plans'][0]['item_count'], 'the detected count is still reported');
+        $this->assertTrue($result['plans'][0]['exact_correct'], 'a missing count is not a failure');
+
+        $this->assertSame(
+            ['matched' => 0, 'checked' => 0, 'rate' => null],
+            $evaluator->aggregate([$result])['item_count_reconciliation'],
+        );
+    }
+
+    #[Test]
+    public function it_reports_an_item_count_that_contradicts_the_asserted_one(): void
+    {
+        $evaluator = new OosArchiveEvaluator;
+
+        $result = $evaluator->evaluate(
+            $this->entry(itemLineCounts: ['morning' => 13]),
+            $this->parseResult(),
+            'eligible',
+        );
+
+        $this->assertSame(13, $result['plans'][0]['expected_item_count']);
+        $this->assertFalse($result['plans'][0]['item_count_matches']);
+        $this->assertSame(
+            ['matched' => 0, 'checked' => 1, 'rate' => 0.0],
+            $evaluator->aggregate([$result])['item_count_reconciliation'],
+        );
     }
 
     #[Test]
@@ -122,16 +173,16 @@ class OosArchiveEvaluatorTest extends TestCase
             $this->entry(index: 2, services: ['evening']),
             $this->parseResult(service: SermonService::Morning, date: '2026-07-19', confidence: 0.80),
             'skipped',
-            ['service_not_in_ground_truth'],
+            ['service_not_curated'],
         );
-        $unverified = $evaluator->evaluate(
-            $this->entry(index: 3, labelQuality: 'unverified', services: []),
+        $partial = $evaluator->evaluate(
+            $this->entry(index: 3, contentScope: 'partial', services: []),
             $this->parseResult(),
             'skipped',
-            ['unverified_service_ground_truth'],
+            ['partial_source_scope'],
         );
 
-        $aggregate = $evaluator->aggregate([$correct, $missedEvening, $unverified]);
+        $aggregate = $evaluator->aggregate([$correct, $missedEvening, $partial]);
 
         $this->assertSame(['correct' => 2, 'total' => 3, 'rate' => 0.6667], $aggregate['date_accuracy']['all']);
         $this->assertSame(0.5, $aggregate['service_metrics']['morning']['precision']);
@@ -141,33 +192,49 @@ class OosArchiveEvaluatorTest extends TestCase
         $this->assertSame(1, $aggregate['dispositions']['eligible']);
         $this->assertSame(2, $aggregate['dispositions']['skipped']);
         $this->assertArrayHasKey('0.90-1.00', $aggregate['confidence_calibration']);
+        $this->assertSame(
+            ['correct' => 1, 'total' => 1, 'rate' => 1.0],
+            $aggregate['date_accuracy']['partial'],
+            'a partial order still has a curated date to be right or wrong about',
+        );
     }
 
     /**
      * @param  list<string>  $services
+     * @param  array<string, int>  $itemLineCounts  only what a person asserted, which for most of
+     *                                              the real corpus is nothing at all
      */
     private function entry(
         int $index = 1,
-        string $labelQuality = 'full',
+        string $contentScope = 'full',
         array $services = ['morning', 'evening'],
+        array $itemLineCounts = ['morning' => 2, 'evening' => 1],
     ): OosArchiveEntry {
         return new OosArchiveEntry(
             index: $index,
-            heading: 'Sunday 12 July 2026',
+            itemKey: "2026-07-12-{$index}",
             subject: 'Details for Sunday 12 July 2026',
             bodyPlain: 'Morning and evening',
-            headingDate: '2026-07-12',
-            correctedDate: null,
             groundTruthDate: '2026-07-12',
-            labelQuality: $labelQuality,
+            contentScope: $contentScope,
             servicesPresent: $services,
-            itemLineCounts: ['morning' => 2, 'evening' => 1],
-            itemLines: [
-                'morning' => ['Amazing Grace', 'Prayer'],
-                'evening' => ['Welcome'],
+            itemLineCounts: $itemLineCounts,
+            curation: [
+                'date_decision' => 'explicit',
+                'date_decision_reason' => null,
+                'parse_decision' => 'strict',
+                'content_scope' => $contentScope,
+                'partial_scope_reason' => $contentScope === 'partial' ? 'hymn list only' : null,
+                'payload' => 'verbatim',
+                'service_label' => null,
+                'title_override' => null,
+                'supersedes' => null,
+                'expected_item_count' => null,
+                'decided_by' => null,
+                'decided_at' => null,
+                'decision_rule_version' => 'oos-curation-draft-v1',
             ],
-            flags: [],
-            syntheticMessageId: "<oos-archive-{$index}@crockenhill.local>",
+            syntheticMessageId: "<oos-2026-07-12-{$index}@crockenhill.local>",
             inputHash: str_repeat('a', 64),
             syntheticReceivedAt: CarbonImmutable::parse('2026-07-10 09:00', 'Europe/London'),
         );

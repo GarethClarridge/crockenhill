@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Email;
 
+use App\Console\Commands\ImportOosArchiveCommand;
 use App\Data\OosArchiveEntry;
 use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailParseResult;
@@ -36,22 +37,18 @@ class OosArchiveAssertionBundle
      * @param  list<OosArchiveEntry>  $entries
      * @return array<string, mixed>
      */
-    public function export(array $entries, string $archiveHash, string $parserVersion): array
+    public function export(array $entries, string $curationPlanHash, string $parserVersion): array
     {
         $payloadEntries = [];
 
         foreach ($entries as $entry) {
-            if ($this->isBlocked($entry)) {
-                continue;
-            }
-
             $email = InboundEmail::query()
                 ->where('message_id', $entry->syntheticMessageId)
                 ->firstOrFail();
             $parsing = Arr::get($email->processing_metadata ?? [], 'parsing');
 
             if (! is_array($parsing) || ($parsing['input_hash'] ?? null) !== $entry->inputHash) {
-                throw new RuntimeException("Archive entry {$entry->index} has no matching validated parse payload.");
+                throw new RuntimeException("Archive entry {$entry->itemKey} has no matching validated parse payload.");
             }
 
             $payload = [
@@ -84,14 +81,19 @@ class OosArchiveAssertionBundle
             $payloadEntries[] = $payload;
         }
 
-        if (count($payloadEntries) !== count(array_filter($entries, fn (OosArchiveEntry $entry): bool => ! $this->isBlocked($entry)))) {
-            throw new RuntimeException('Every non-blocked archive entry must be represented in the assertion bundle.');
+        if (count($payloadEntries) !== count($entries)) {
+            throw new RuntimeException('Every approved archive entry must be represented in the assertion bundle.');
         }
 
         $bundle = [
             'format' => self::FORMAT,
             'version' => self::VERSION,
-            'archive_artifact_hash' => $archiveHash,
+            /**
+             * §7.4: the bundle binds to the curation plan that authorised it, not to a source
+             * artefact's bytes. The plan hash covers the manifest hash, the counts and every
+             * include, so a bundle cannot be applied against a re-curated corpus.
+             */
+            'curation_plan_hash' => $curationPlanHash,
             'git_commit' => $this->gitCommit(),
             'entries' => $payloadEntries,
         ];
@@ -105,7 +107,7 @@ class OosArchiveAssertionBundle
      * @param  list<OosArchiveEntry>  $archiveEntries
      * @return array{valid:list<array{entry:OosArchiveEntry,payload:array<string,mixed>}>,invalid:list<array{entry:OosArchiveEntry,payload:array<string,mixed>,reasons:list<string>}>}
      */
-    public function preflight(array $bundle, array $archiveEntries, string $archiveHash, string $parserVersion): array
+    public function preflight(array $bundle, array $archiveEntries, string $curationPlanHash, string $parserVersion): array
     {
         $suppliedHash = $bundle['bundle_hash'] ?? null;
         $hashable = Arr::except($bundle, ['bundle_hash']);
@@ -117,20 +119,18 @@ class OosArchiveAssertionBundle
             throw new RuntimeException('OoS assertion bundle format, version or bundle hash is invalid.');
         }
 
-        if (($bundle['archive_artifact_hash'] ?? null) !== $archiveHash) {
-            throw new RuntimeException('OoS assertion bundle archive artifact hash does not match the staged Markdown.');
+        if (($bundle['curation_plan_hash'] ?? null) !== $curationPlanHash) {
+            throw new RuntimeException('OoS assertion bundle was exported against a different curation plan.');
         }
 
         $entriesByIdentity = [];
         foreach ($archiveEntries as $entry) {
-            if (! $this->isBlocked($entry)) {
-                $entriesByIdentity[$entry->syntheticMessageId] = $entry;
-            }
+            $entriesByIdentity[$entry->syntheticMessageId] = $entry;
         }
 
         $payloads = $bundle['entries'] ?? null;
         if (! is_array($payloads) || count($payloads) !== count($entriesByIdentity)) {
-            throw new RuntimeException('OoS assertion bundle does not represent every non-blocked archive entry.');
+            throw new RuntimeException('OoS assertion bundle does not represent every approved archive entry.');
         }
 
         $valid = [];
@@ -152,7 +152,7 @@ class OosArchiveAssertionBundle
                 || ($payload['parser_version'] ?? null) !== $parserVersion
                 || ($payload['projector_version'] ?? null) !== self::PROJECTOR_VERSION
                 || ($payload['fingerprints'] ?? null) !== $this->fingerprints()) {
-                throw new RuntimeException("OoS assertion bundle fingerprint mismatch for entry {$entry->index}.");
+                throw new RuntimeException("OoS assertion bundle fingerprint mismatch for entry {$entry->itemKey}.");
             }
 
             $parse = $payload['parse'] ?? null;
@@ -161,7 +161,7 @@ class OosArchiveAssertionBundle
                 || ! hash_equals(CanonicalJson::hash(Arr::except($payload, ['payload_hash'])), $payloadHash)
                 || ! is_array($parse)
                 || $this->containsDatabaseId($parse)) {
-                throw new RuntimeException("OoS assertion bundle entry {$entry->index} is invalid or contains a database ID.");
+                throw new RuntimeException("OoS assertion bundle entry {$entry->itemKey} is invalid or contains a database ID.");
             }
 
             $reasons = $this->structuralReasons($entry, $parse);
@@ -211,6 +211,7 @@ class OosArchiveAssertionBundle
                 'status' => $reasons === [] ? InboundEmailStatus::ArchiveEval : InboundEmailStatus::Pending,
                 'processing_metadata' => [
                     'archive' => [
+                        'item_key' => $entry->itemKey,
                         'entry_index' => $entry->index,
                         'input_hash' => $entry->inputHash,
                         'portable_bundle' => true,
@@ -253,7 +254,7 @@ class OosArchiveAssertionBundle
                 );
 
                 if ($result->hasFailures()) {
-                    throw new RuntimeException("OoS assertion apply failed for entry {$entry->index}.");
+                    throw new RuntimeException("OoS assertion apply failed for entry {$entry->itemKey}.");
                 }
             }
         });
@@ -367,12 +368,6 @@ class OosArchiveAssertionBundle
         }
 
         return false;
-    }
-
-    private function isBlocked(OosArchiveEntry $entry): bool
-    {
-        return $entry->groundTruthDate === null
-            || array_intersect($entry->flags, ['weekday_mismatch', 'date_discrepancy', 'source_date_discrepancy', 'multi_date']) !== [];
     }
 
     /**
@@ -517,10 +512,15 @@ class OosArchiveAssertionBundle
     {
         $keys = [];
 
+        /**
+         * Gated on the manifest's resolved date, not its resolved service: one email routinely
+         * carries both that Sunday's orders and the live pipeline imports both. See
+         * {@see ImportOosArchiveCommand::importablePlanKeys()} for why the
+         * manifest is authority over source identity rather than over service count.
+         */
         foreach ($parseResult->servicePlans as $plan) {
             if ($plan->date === $entry->groundTruthDate
                 && $plan->service !== null
-                && in_array($plan->service->value, $entry->servicesPresent, true)
                 && $plan->items !== []) {
                 $keys[] = $plan->key();
             }

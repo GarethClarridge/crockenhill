@@ -12,6 +12,7 @@ use App\Models\InboundEmail;
 use App\Queries\AdminAttentionCounts;
 use App\Queries\ReviewInboxQuery;
 use App\Services\ChurchService\ChurchServiceSongLinker;
+use App\Services\Email\OosCurationManifest;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery\MockInterface;
@@ -26,11 +27,31 @@ class ImportOosArchiveCommandTest extends TestCase
     /** @var list<string> */
     private array $temporaryPaths = [];
 
+    /** @var list<string> */
+    private array $temporaryDirectories = [];
+
+    /** @var array<string, string> */
+    private array $corpusArguments = [];
+
     protected function tearDown(): void
     {
         foreach ($this->temporaryPaths as $path) {
             if (is_file($path)) {
                 unlink($path);
+            }
+        }
+
+        foreach ($this->temporaryDirectories as $directory) {
+            foreach ((array) glob($directory.'/*/*') as $file) {
+                unlink((string) $file);
+            }
+
+            foreach ((array) glob($directory.'/*') as $child) {
+                is_dir((string) $child) ? rmdir((string) $child) : unlink((string) $child);
+            }
+
+            if (is_dir($directory)) {
+                rmdir($directory);
             }
         }
 
@@ -47,20 +68,19 @@ class ImportOosArchiveCommandTest extends TestCase
                 throw new RuntimeException('Dry run must not call the extractor.');
             }
         });
-        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $report = $this->temporaryPath('json');
 
-        $this->artisan('oos:import-archive', [
-            'path' => $archive,
-            '--dry-run' => true,
-            '--report' => $report,
-        ])->assertExitCode(0);
+        $this->artisan('oos:import-archive', [...$corpus, '--dry-run' => true, '--report' => $report])
+            ->assertExitCode(0);
 
         $this->assertDatabaseCount('inbound_emails', 0);
         $payload = $this->readReport($report);
         $this->assertSame('dry_run', $payload['mode']);
         $this->assertCount(1, $payload['entries']);
         $this->assertArrayHasKey('aggregate', $payload);
+        $this->assertSame('oos-test-batch', $payload['curation_plan']['batch_key']);
+        $this->assertSame([], $payload['adjudicated_identity_disagreements']);
     }
 
     #[Test]
@@ -87,10 +107,10 @@ class ImportOosArchiveCommandTest extends TestCase
             }
         };
         $this->app->instance(OosEmailItemExtractor::class, $extractor);
-        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $report = $this->temporaryPath('json');
 
-        $arguments = ['path' => $archive, '--report' => $report];
+        $arguments = [...$corpus, '--report' => $report];
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
 
@@ -104,7 +124,11 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertSame(InboundEmailStatus::ArchiveEval, $email->status);
         $this->assertSame(0, app(AdminAttentionCounts::class)->counts()['pending_emails']);
 
-        file_put_contents($archive, $this->fullEntry('Sunday 12 July 2026', 'Changed song'));
+        // A corrected source is a re-curation, not a file edit: changing the bytes changes the
+        // payload digest, so the manifest that approved the old bytes no longer validates.
+        $arguments = [...$this->corpus([
+            ['key' => '2026-07-12-am', 'date' => '2026-07-12', 'body' => 'Changed song'],
+        ]), '--report' => $report];
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
 
         $this->assertSame(2, $extractor->calls);
@@ -136,8 +160,8 @@ class ImportOosArchiveCommandTest extends TestCase
             }
         };
         $this->app->instance(OosEmailItemExtractor::class, $extractor);
-        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
-        $arguments = ['path' => $archive, '--report' => $this->temporaryPath('json')];
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $arguments = [...$corpus, '--report' => $this->temporaryPath('json')];
 
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
         $this->assertSame(1, $extractor->calls);
@@ -168,7 +192,7 @@ class ImportOosArchiveCommandTest extends TestCase
         {
             public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
-                $date = str_contains($subject, '19 July') ? '2026-07-19' : '2026-07-12';
+                $date = str_contains($subject, '2026-07-19') ? '2026-07-19' : '2026-07-12';
 
                 return new OosEmailItemExtractionResult(
                     items: [['type' => 'song', 'title' => 'Amazing Grace']],
@@ -191,15 +215,15 @@ class ImportOosArchiveCommandTest extends TestCase
             'source' => 'openlp',
             'import_metadata' => ['preserve' => true],
         ]);
-        $archive = $this->writeArchive(
-            $this->fullEntry('Sunday 12 July 2026')
-            .$this->fullEntry('Sunday 19 July 2026')
-        );
+        $corpus = $this->corpus([
+            ['key' => '2026-07-12-am', 'date' => '2026-07-12'],
+            ['key' => '2026-07-19-am', 'date' => '2026-07-19'],
+        ]);
         $report = $this->temporaryPath('json');
 
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
-            '--import' => true,
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
             '--report' => $report,
         ])->assertExitCode(0);
 
@@ -218,18 +242,85 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertSame(2, InboundEmail::query()->where('status', InboundEmailStatus::Processed)->count());
     }
 
+    /**
+     * The predecessor of this command had a third, "blocked" route for an entry whose own text
+     * contradicted its date. Under §7.3 the manifest is mutation authority and reconciliation
+     * happens up front, so a contradiction is no longer a quiet per-entry report line that a
+     * reader has to notice — it stops the run before a single email is written.
+     */
     #[Test]
-    public function an_import_blocks_a_contradicted_entry_and_sends_the_rest_to_the_review_inbox(): void
+    public function a_strict_identity_disagreement_fails_the_run_before_anything_is_touched(): void
+    {
+        $this->app->bind(OosEmailItemExtractor::class, fn () => new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                throw new RuntimeException('A failed reconciliation must not reach the extractor.');
+            }
+        });
+
+        // The manifest resolves this entry to the morning service; the payload itself says pm.
+        $corpus = $this->corpus([
+            ['key' => '2026-07-12-am', 'date' => '2026-07-12', 'service' => 'morning', 'frontmatter_service' => 'pm'],
+        ]);
+
+        $this->artisan('oos:import-archive', [...$corpus, '--report' => $this->temporaryPath('json')])
+            ->expectsOutputToContain('contradicts')
+            ->assertExitCode(1);
+
+        $this->assertDatabaseCount('inbound_emails', 0);
+        $this->assertDatabaseCount('church_services', 0);
+    }
+
+    #[Test]
+    public function manifest_authoritative_records_the_adjudication_and_lets_the_entry_through(): void
     {
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
         {
             public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
-                $date = match (true) {
-                    str_contains($subject, '13 July') => '2026-07-13',
-                    str_contains($subject, '26 July') => '2026-07-26',
-                    default => '2026-07-12',
-                };
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
+                    confidence: 1.0,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => '2026-07-12',
+                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                        'confidence' => 1.0,
+                    ]],
+                );
+            }
+        });
+
+        $corpus = $this->corpus([[
+            'key' => '2026-07-12-am',
+            'date' => '2026-07-12',
+            'service' => 'morning',
+            'frontmatter_service' => 'pm',
+            'parse_decision' => 'manifest-authoritative',
+        ]]);
+        $report = $this->temporaryPath('json');
+
+        $this->artisan('oos:import-archive', [...$corpus, '--report' => $report])->assertExitCode(0);
+
+        $payload = $this->readReport($report);
+        $this->assertSame([[
+            'item_key' => '2026-07-12-am',
+            'field' => 'service',
+            'manifest' => 'morning',
+            'source' => 'evening',
+        ]], $payload['adjudicated_identity_disagreements']);
+        $this->assertSame('eligible', $payload['entries'][0]['disposition']);
+    }
+
+    #[Test]
+    public function a_partial_order_is_sent_to_the_review_inbox_rather_than_imported(): void
+    {
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                $date = str_contains($body, 'Abide') ? '2026-07-26' : '2026-07-12';
 
                 return new OosEmailItemExtractionResult(
                     items: [['type' => 'song', 'title' => 'Amazing Grace']],
@@ -244,38 +335,56 @@ class ImportOosArchiveCommandTest extends TestCase
             }
         });
 
-        // 13 July 2026 is a Monday, so the second heading contradicts itself: the archive text
-        // must be corrected before anyone — human or pipeline — can act on it.
-        $archive = $this->writeArchive(
-            $this->fullEntry('Sunday 12 July 2026')
-            .$this->fullEntry('Sunday 13 July 2026')
-            .$this->unverifiedEntry('Sunday 26 July 2026')
-        );
+        // §8.4: a hymn list asserts part of an order, and its silence about the rest is not
+        // disagreement — so it must never import unattended as though it were the whole service.
+        $corpus = $this->corpus([
+            ['key' => '2026-07-12-am', 'date' => '2026-07-12'],
+            ['key' => '2026-07-26-hymns', 'date' => '2026-07-26', 'scope' => 'partial', 'body' => 'Abide With Me'],
+        ]);
         $report = $this->temporaryPath('json');
 
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
-            '--import' => true,
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
             '--report' => $report,
         ])->assertExitCode(0);
 
         $payload = $this->readReport($report);
-        $this->assertSame(['created', 'blocked', 'held_for_review'], array_column($payload['entries'], 'disposition'));
-        $this->assertContains('weekday_mismatch', $payload['entries'][1]['gate_reasons']);
-        $this->assertContains('unverified_service_ground_truth', $payload['entries'][2]['gate_reasons']);
+        $this->assertSame(['created', 'held_for_review'], array_column($payload['entries'], 'disposition'));
+        $this->assertContains('partial_source_scope', $payload['entries'][1]['gate_reasons']);
+        $this->assertSame(['full' => 1, 'partial' => 1], $payload['cohorts']);
 
-        // Only the corroborated entry became a service; the other two wrote nothing.
+        // Only the full order became a service; the partial wrote nothing.
         $this->assertDatabaseCount('church_services', 1);
         $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
 
-        $blocked = $this->emailForEntry($payload, 1);
-        $reviewable = $this->emailForEntry($payload, 2);
-        $this->assertSame(InboundEmailStatus::ArchiveEval, $blocked->status);
-        $this->assertSame(InboundEmailStatus::Pending, $reviewable->status);
-
-        // The reviewable entry is now reachable by exactly the route a live email would take.
+        // The partial is now reachable by exactly the route a live email would take.
+        $this->assertSame(InboundEmailStatus::Pending, $this->emailForEntry($payload, 1)->status);
         $this->assertSame(1, app(AdminAttentionCounts::class)->counts()['pending_emails']);
         $this->assertSame(1, app(ReviewInboxQuery::class)->build()['counts']['emails']);
+    }
+
+    #[Test]
+    public function an_import_refuses_a_plan_hash_that_does_not_match_the_current_curation(): void
+    {
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--import' => true,
+            '--plan-hash' => str_repeat('0', 64),
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(1);
+
+        $this->assertDatabaseCount('church_services', 0);
+    }
+
+    #[Test]
+    public function it_refuses_to_run_without_a_curation_manifest(): void
+    {
+        $this->artisan('oos:import-archive', ['--dry-run' => true])
+            ->expectsOutputToContain('An approved curation manifest is required')
+            ->assertExitCode(1);
     }
 
     #[Test]
@@ -302,8 +411,8 @@ class ImportOosArchiveCommandTest extends TestCase
                 );
             }
         });
-        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
-        $arguments = ['path' => $archive, '--import' => true, '--report' => $this->temporaryPath('json')];
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $arguments = [...$corpus, '--import' => true, '--plan-hash' => $this->planHash(), '--report' => $this->temporaryPath('json')];
 
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
 
@@ -313,8 +422,8 @@ class ImportOosArchiveCommandTest extends TestCase
 
         $report = $this->temporaryPath('json');
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
-            '--import' => true,
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
             '--fresh-parse' => true,
             '--report' => $report,
         ])->assertExitCode(0);
@@ -349,11 +458,11 @@ class ImportOosArchiveCommandTest extends TestCase
             }
         };
         $this->app->instance(OosEmailItemExtractor::class, $extractor);
-        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
 
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
-            '--import' => true,
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
             '--report' => $this->temporaryPath('json'),
         ])->assertExitCode(0);
 
@@ -364,8 +473,8 @@ class ImportOosArchiveCommandTest extends TestCase
         $report = $this->temporaryPath('json');
 
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
-            '--import' => true,
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
             '--fresh-parse' => true,
             '--report' => $report,
         ])->assertExitCode(0);
@@ -376,11 +485,14 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertSame('Amazing Grace', $service->items()->firstOrFail()->title);
     }
 
+    /**
+     * The manifest is authority over the source's *date*, and that gate is real: a plan the parser
+     * places on some other Sunday is not this document's order and must not be written. A second
+     * service on the curated date is a different matter entirely — see the multi-service test.
+     */
     #[Test]
-    public function import_skips_a_plan_the_ground_truth_does_not_corroborate(): void
+    public function import_skips_a_plan_dated_outside_the_curated_service(): void
     {
-        // A morning-only archive entry, but the multi-service parser also returns an evening plan.
-        // The gate only checks the primary (morning); the ungated evening plan must not be created.
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
         {
             public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
@@ -388,32 +500,33 @@ class ImportOosArchiveCommandTest extends TestCase
                 return new OosEmailItemExtractionResult(
                     items: [
                         ['type' => 'song', 'title' => 'Amazing Grace'],
-                        ['type' => 'sermon', 'title' => 'Evening Sermon'],
+                        ['type' => 'sermon', 'title' => 'Next Week'],
                     ],
                     confidence: 0.99,
                     services: [
                         ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
                             ['type' => 'song', 'title' => 'Amazing Grace'],
                         ], 'confidence' => 0.99],
-                        ['service' => 'evening', 'date' => '2026-07-12', 'items' => [
-                            ['type' => 'sermon', 'title' => 'Evening Sermon'],
+                        // A date the manifest never approved for this document.
+                        ['service' => 'evening', 'date' => '2026-07-19', 'items' => [
+                            ['type' => 'sermon', 'title' => 'Next Week'],
                         ], 'confidence' => 0.99],
                     ],
                 );
             }
         });
-        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $report = $this->temporaryPath('json');
 
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
-            '--import' => true,
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
             '--report' => $report,
         ])->assertExitCode(0);
 
         $this->assertDatabaseCount('church_services', 1);
         $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
-        $this->assertDatabaseMissing('church_services', ['service' => 'evening']);
+        $this->assertDatabaseMissing('church_services', ['date' => '2026-07-19']);
     }
 
     #[Test]
@@ -438,12 +551,12 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->mock(ChurchServiceSongLinker::class, function (MockInterface $mock): void {
             $mock->shouldReceive('linkForService')->andThrow(new RuntimeException('song sync exploded'));
         });
-        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $report = $this->temporaryPath('json');
 
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
-            '--import' => true,
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
             '--report' => $report,
         ])->assertExitCode(0);
 
@@ -482,12 +595,12 @@ class ImportOosArchiveCommandTest extends TestCase
                 );
             }
         });
-        $archive = $this->writeArchive($this->twoServiceEntry('Sunday 12 July 2026'));
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $report = $this->temporaryPath('json');
 
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
-            '--import' => true,
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
             '--report' => $report,
         ])->assertExitCode(0);
 
@@ -497,8 +610,14 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertSame('created', $this->readReport($report)['entries'][0]['disposition']);
     }
 
+    /**
+     * One email routinely carries both that Sunday's orders — at least nine in the real corpus do,
+     * and the live pipeline imports both (see OosMultiServiceImportTest). The archive must not be
+     * stingier than the live path with the very same emails, so the manifest's single
+     * `resolved_service` names the document without capping what it may contain.
+     */
     #[Test]
-    public function the_report_evaluates_every_service_plan_not_just_the_primary(): void
+    public function both_orders_in_one_email_are_imported_just_as_the_live_pipeline_does(): void
     {
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
         {
@@ -521,21 +640,77 @@ class ImportOosArchiveCommandTest extends TestCase
                 );
             }
         });
-        $archive = $this->writeArchive($this->twoServiceEntry('Sunday 12 July 2026'));
+        $corpus = $this->corpus([[
+            'key' => '2026-07-12-am',
+            'date' => '2026-07-12',
+            'body' => "Morning service\nAmazing Grace\n\nEvening service\nAbide With Me",
+        ]]);
         $report = $this->temporaryPath('json');
 
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
             '--report' => $report,
         ])->assertExitCode(0);
 
         $payload = $this->readReport($report);
         $entry = $payload['entries'][0];
+
         $this->assertSame(['morning', 'evening'], $entry['services']['detected']);
         $this->assertCount(2, $entry['plans']);
-        // json_encode drops the zero fraction, so the decoded rate is int(1).
-        $this->assertEquals(1.0, $payload['aggregate']['service_metrics']['evening']['recall']);
         $this->assertSame('multi_service', $payload['pipeline_mode']);
+        $this->assertTrue($entry['plans'][0]['gate_eligible']);
+        $this->assertTrue($entry['plans'][1]['gate_eligible']);
+
+        // Both orders become services, exactly as ProcessInboundOosEmail would have done in 2019.
+        $this->assertDatabaseCount('church_services', 2);
+        $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
+        $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'evening']);
+        $this->assertSame('created', $entry['disposition']);
+
+        // The manifest names this entry by its morning service only, and the report says so —
+        // curation feedback about an under-describing entry, not a dropped order.
+        $this->assertContains('service_beyond_manifest', $entry['parse_flags']);
+        $this->assertSame(1, $payload['aggregate']['parse_flag_counts']['service_beyond_manifest']);
+    }
+
+    /**
+     * The opposite case, and the one that still deserves a human: the manifest says this is the
+     * morning service and the parse found no morning order at all.
+     */
+    #[Test]
+    public function an_entry_whose_curated_service_the_parse_never_finds_is_held_for_review(): void
+    {
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Abide With Me']],
+                    confidence: 0.99,
+                    services: [[
+                        'service' => 'evening',
+                        'date' => '2026-07-12',
+                        'items' => [['type' => 'song', 'title' => 'Abide With Me']],
+                        'confidence' => 0.99,
+                    ]],
+                );
+            }
+        });
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12', 'service' => 'morning']]);
+        $report = $this->temporaryPath('json');
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
+            '--report' => $report,
+        ])->assertExitCode(0);
+
+        $payload = $this->readReport($report);
+        $this->assertSame('held_for_review', $payload['entries'][0]['disposition']);
+        $this->assertContains('curated_service_not_parsed', $payload['entries'][0]['gate_reasons']);
+        $this->assertDatabaseCount('church_services', 0);
+        $this->assertSame(InboundEmailStatus::Pending, $this->emailForEntry($payload, 0)->status);
     }
 
     #[Test]
@@ -559,15 +734,17 @@ class ImportOosArchiveCommandTest extends TestCase
                 );
             }
         });
-        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $report = $this->temporaryPath('json');
-        $arguments = ['path' => $archive, '--import' => true, '--report' => $report];
+        $arguments = [...$corpus, '--import' => true, '--plan-hash' => $this->planHash(), '--report' => $report];
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
         $service = ChurchService::query()->firstOrFail();
         $originalItems = $service->items()->pluck('title')->all();
 
-        file_put_contents($archive, $this->fullEntry('Sunday 12 July 2026', 'Corrected content'));
-        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+        // Re-curating the same service with corrected bytes: same item key, new payload digest.
+        $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12', 'body' => 'Corrected content']]);
+        $this->artisan('oos:import-archive', $this->importArguments(['--report' => $report]))
+            ->assertExitCode(0);
 
         $this->assertSame($originalItems, $service->items()->pluck('title')->all());
         $payload = $this->readReport($report);
@@ -583,12 +760,12 @@ class ImportOosArchiveCommandTest extends TestCase
     public function portable_assertions_round_trip_without_ids_or_extractor_calls_and_apply_idempotently(): void
     {
         $this->bindPortableExtractor();
-        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $bundle = storage_path('scratch/tests/oos-portable-'.uniqid().'.json');
         $this->temporaryPaths[] = $bundle;
 
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
+            ...$corpus,
             '--export-bundle' => $bundle,
             '--report' => $this->temporaryPath('json'),
         ])->assertExitCode(0);
@@ -609,15 +786,15 @@ class ImportOosArchiveCommandTest extends TestCase
         });
 
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
+            ...$corpus,
             '--import-bundle' => $bundle,
         ])->assertExitCode(0);
         $this->assertDatabaseCount('church_services', 0);
-        $stagedEmail = InboundEmail::query()->where('message_id', 'like', '<oos-archive-%')->firstOrFail();
+        $stagedEmail = InboundEmail::query()->where('message_id', 'like', '<oos-%')->firstOrFail();
         $this->assertNotSame(1, $stagedEmail->id);
         $this->assertNull($stagedEmail->body_plain);
 
-        $arguments = ['path' => $archive, '--apply-bundle' => $bundle];
+        $arguments = [...$corpus, '--apply-bundle' => $bundle];
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
 
@@ -630,23 +807,23 @@ class ImportOosArchiveCommandTest extends TestCase
     public function bundled_apply_uses_the_verified_payload_instead_of_mutable_staged_parse_data(): void
     {
         $this->bindPortableExtractor();
-        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $bundle = storage_path('scratch/tests/oos-immutable-'.uniqid().'.json');
         $this->temporaryPaths[] = $bundle;
 
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
+            ...$corpus,
             '--export-bundle' => $bundle,
             '--report' => $this->temporaryPath('json'),
         ])->assertExitCode(0);
         InboundEmail::query()->delete();
 
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
+            ...$corpus,
             '--import-bundle' => $bundle,
         ])->assertExitCode(0);
 
-        $stagedEmail = InboundEmail::query()->where('message_id', 'like', '<oos-archive-%')->firstOrFail();
+        $stagedEmail = InboundEmail::query()->where('message_id', 'like', '<oos-%')->firstOrFail();
         $metadata = $stagedEmail->processing_metadata;
         $metadata['parsing']['items'][0]['title'] = 'Tampered staged title';
         $metadata['parsing']['service_plans'][0]['items'][0]['title'] = 'Tampered staged title';
@@ -654,7 +831,7 @@ class ImportOosArchiveCommandTest extends TestCase
         $stagedEmail->save();
 
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
+            ...$corpus,
             '--apply-bundle' => $bundle,
         ])->assertExitCode(0);
 
@@ -665,11 +842,11 @@ class ImportOosArchiveCommandTest extends TestCase
     public function bundle_preflight_rejects_entry_hash_fingerprint_and_markdown_mismatches_before_mutation(): void
     {
         $this->bindPortableExtractor();
-        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $bundle = storage_path('scratch/tests/oos-tamper-'.uniqid().'.json');
         $this->temporaryPaths[] = $bundle;
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
+            ...$corpus,
             '--export-bundle' => $bundle,
             '--report' => $this->temporaryPath('json'),
         ])->assertExitCode(0);
@@ -683,7 +860,7 @@ class ImportOosArchiveCommandTest extends TestCase
         $payload['bundle_hash'] = CanonicalJson::hash(array_diff_key($payload, ['bundle_hash' => true]));
         file_put_contents($bundle, json_encode($payload, JSON_THROW_ON_ERROR));
 
-        $this->artisan('oos:import-archive', ['path' => $archive, '--import-bundle' => $bundle])
+        $this->artisan('oos:import-archive', [...$corpus, '--import-bundle' => $bundle])
             ->assertExitCode(1);
         $this->assertDatabaseCount('inbound_emails', 0);
         $this->assertDatabaseCount('church_services', 0);
@@ -694,9 +871,13 @@ class ImportOosArchiveCommandTest extends TestCase
         );
         $payload['bundle_hash'] = CanonicalJson::hash(array_diff_key($payload, ['bundle_hash' => true]));
         file_put_contents($bundle, json_encode($payload, JSON_THROW_ON_ERROR));
-        file_put_contents($archive, $this->fullEntry('Sunday 12 July 2026', 'Changed source'));
+        // A re-curated corpus produces a different plan hash, so a bundle exported against the
+        // earlier plan can no longer be staged against it.
+        $corpus = $this->corpus([
+            ['key' => '2026-07-12-am', 'date' => '2026-07-12', 'body' => 'Changed source'],
+        ]);
 
-        $this->artisan('oos:import-archive', ['path' => $archive, '--import-bundle' => $bundle])
+        $this->artisan('oos:import-archive', [...$corpus, '--import-bundle' => $bundle])
             ->assertExitCode(1);
         $this->assertDatabaseCount('inbound_emails', 0);
     }
@@ -705,11 +886,11 @@ class ImportOosArchiveCommandTest extends TestCase
     public function production_revalidation_holds_a_structurally_invalid_shipped_entry_without_a_canonical_write(): void
     {
         $this->bindPortableExtractor();
-        $archive = $this->writeArchive($this->fullEntry('Sunday 12 July 2026'));
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $bundle = storage_path('scratch/tests/oos-invalid-'.uniqid().'.json');
         $this->temporaryPaths[] = $bundle;
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
+            ...$corpus,
             '--export-bundle' => $bundle,
             '--report' => $this->temporaryPath('json'),
         ])->assertExitCode(0);
@@ -723,12 +904,12 @@ class ImportOosArchiveCommandTest extends TestCase
         $payload['bundle_hash'] = CanonicalJson::hash(array_diff_key($payload, ['bundle_hash' => true]));
         file_put_contents($bundle, json_encode($payload, JSON_THROW_ON_ERROR));
 
-        $this->artisan('oos:import-archive', ['path' => $archive, '--import-bundle' => $bundle])
+        $this->artisan('oos:import-archive', [...$corpus, '--import-bundle' => $bundle])
             ->assertExitCode(0);
 
         $this->assertDatabaseCount('church_services', 0);
         $this->assertSame(InboundEmailStatus::Pending, InboundEmail::query()->firstOrFail()->status);
-        $this->artisan('oos:import-archive', ['path' => $archive, '--apply-bundle' => $bundle])
+        $this->artisan('oos:import-archive', [...$corpus, '--apply-bundle' => $bundle])
             ->assertExitCode(1);
         $this->assertDatabaseCount('church_services', 0);
     }
@@ -740,7 +921,7 @@ class ImportOosArchiveCommandTest extends TestCase
         {
             public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
-                $date = str_contains($subject, '19 July') ? '2026-07-19' : '2026-07-12';
+                $date = str_contains($subject, '2026-07-19') ? '2026-07-19' : '2026-07-12';
                 $item = [
                     'type' => 'song',
                     'title' => 'Amazing Grace',
@@ -763,19 +944,19 @@ class ImportOosArchiveCommandTest extends TestCase
                 );
             }
         });
-        $archive = $this->writeArchive(
-            $this->fullEntry('Sunday 12 July 2026')
-            .$this->fullEntry('Sunday 19 July 2026'),
-        );
+        $corpus = $this->corpus([
+            ['key' => '2026-07-12-am', 'date' => '2026-07-12'],
+            ['key' => '2026-07-19-am', 'date' => '2026-07-19'],
+        ]);
         $bundle = storage_path('scratch/tests/oos-rollback-'.uniqid().'.json');
         $this->temporaryPaths[] = $bundle;
         $this->artisan('oos:import-archive', [
-            'path' => $archive,
+            ...$corpus,
             '--export-bundle' => $bundle,
             '--report' => $this->temporaryPath('json'),
         ])->assertExitCode(0);
         InboundEmail::query()->delete();
-        $this->artisan('oos:import-archive', ['path' => $archive, '--import-bundle' => $bundle])
+        $this->artisan('oos:import-archive', [...$corpus, '--import-bundle' => $bundle])
             ->assertExitCode(0);
 
         $this->mock(ChurchServiceSongLinker::class, function (MockInterface $mock): void {
@@ -784,7 +965,7 @@ class ImportOosArchiveCommandTest extends TestCase
                 ->andThrow(new RuntimeException('bundle entry failed'));
         });
 
-        $this->artisan('oos:import-archive', ['path' => $archive, '--apply-bundle' => $bundle])
+        $this->artisan('oos:import-archive', [...$corpus, '--apply-bundle' => $bundle])
             ->assertExitCode(1);
 
         $this->assertDatabaseCount('church_services', 0);
@@ -821,60 +1002,106 @@ class ImportOosArchiveCommandTest extends TestCase
         });
     }
 
-    private function fullEntry(string $heading, string $item = 'Amazing Grace'): string
+    /**
+     * Writes a two-root corpus and an approved manifest over it, and returns the arguments every
+     * invocation needs. Each entry is one payload file in the verbatim root; the formatted root
+     * exists and stays empty, which is a shape the real corpus has too (143 verbatim-only files).
+     *
+     * @param  list<array<string, mixed>>  $entries
+     * @return array<string, string>
+     */
+    private function corpus(array $entries): array
     {
-        return <<<MARKDOWN
-### {$heading}
+        $root = $this->temporaryDirectory();
+        $verbatim = $root.'/verbatim';
+        $formatted = $root.'/formatted';
+        mkdir($verbatim, 0755, true);
+        mkdir($formatted, 0755, true);
 
-**Source subject:** Details for {$heading}
+        $manifestEntries = [];
 
-#### Sunday Morning
+        foreach ($entries as $entry) {
+            $key = $entry['key'];
+            $file = "{$key}.md";
+            file_put_contents($verbatim.'/'.$file, $this->payload($entry));
 
-{$item}
+            $manifestEntries[] = array_filter([
+                'item_key' => $key,
+                'source_kind' => 'email',
+                'verbatim_relative_path' => $file,
+                'verbatim_sha256' => hash_file('sha256', $verbatim.'/'.$file),
+                'verbatim_byte_size' => filesize($verbatim.'/'.$file),
+                'disposition' => 'include',
+                'payload' => 'verbatim',
+                'resolved_date' => $entry['date'],
+                'resolved_service' => $entry['service'] ?? 'morning',
+                'date_decision' => 'explicit',
+                'content_scope' => $entry['scope'] ?? 'full',
+                'partial_scope_reason' => ($entry['scope'] ?? 'full') === 'partial' ? 'hymn list only' : null,
+                'parse_decision' => $entry['parse_decision'] ?? 'strict',
+                'expected_item_count' => $entry['expected_item_count'] ?? null,
+                'decided_by' => isset($entry['expected_item_count']) ? 'maintainer' : null,
+                'decided_at' => isset($entry['expected_item_count']) ? '2026-08-06T10:00:00+00:00' : null,
+                'decision_rule_version' => 'oos-curation-test-v1',
+            ], static fn (mixed $value): bool => $value !== null);
+        }
 
----
+        $manifest = $root.'/manifest.json';
+        file_put_contents($manifest, json_encode([
+            'format' => 'crockenhill-oos-curation',
+            'version' => 1,
+            'batch_key' => 'oos-test-batch',
+            'entries' => $manifestEntries,
+        ], JSON_THROW_ON_ERROR));
 
-MARKDOWN;
+        return $this->corpusArguments = [
+            '--manifest' => $manifest,
+            '--verbatim' => $verbatim,
+            '--formatted' => $formatted,
+        ];
     }
 
-    private function twoServiceEntry(string $heading): string
+    /** @param array<string, mixed> $entry */
+    private function payload(array $entry): string
     {
-        return <<<MARKDOWN
-### {$heading}
+        $frontmatter = ['title: "Order for '.$entry['date'].'"', 'date: '.$entry['date']];
+        $frontmatter[] = 'source_subject: "'.($entry['subject'] ?? 'Details for '.$entry['date']).'"';
 
-**Source subject:** Details for {$heading}
+        if (isset($entry['frontmatter_service'])) {
+            $frontmatter[] = 'service: '.$entry['frontmatter_service'];
+        }
 
-#### Sunday Morning
+        $body = $entry['body'] ?? "Morning service\nAmazing Grace";
 
-Amazing Grace
-
-#### Sunday Evening
-
-Abide With Me
-
----
-
-MARKDOWN;
+        return "---\n".implode("\n", $frontmatter)."\n---\n\n{$body}\n";
     }
 
-    private function unverifiedEntry(string $heading): string
+    /**
+     * §7.4 binds an import to the exact plan the operator reviewed, so every import run has to
+     * quote the plan hash back. A test that skipped it would be exercising a path no operator can.
+     *
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    private function importArguments(array $extra = []): array
     {
-        return <<<MARKDOWN
-### {$heading}
-
-**Source subject:** Morning order for {$heading}
-
-Amazing Grace
-
----
-
-MARKDOWN;
+        return [...$this->corpusArguments, '--import' => true, '--plan-hash' => $this->planHash(), '--plan-hash' => $this->planHash(), ...$extra];
     }
 
-    private function writeArchive(string $contents): string
+    private function planHash(): string
     {
-        $path = $this->temporaryPath('md');
-        file_put_contents($path, $contents);
+        return app(OosCurationManifest::class)->plan(
+            $this->corpusArguments['--verbatim'],
+            $this->corpusArguments['--formatted'],
+            $this->corpusArguments['--manifest'],
+        )->planHash;
+    }
+
+    private function temporaryDirectory(): string
+    {
+        $path = sys_get_temp_dir().'/oos_corpus_'.str_replace('.', '', uniqid('', true));
+        mkdir($path, 0755, true);
+        $this->temporaryDirectories[] = $path;
 
         return $path;
     }
