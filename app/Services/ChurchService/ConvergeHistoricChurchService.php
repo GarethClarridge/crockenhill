@@ -84,6 +84,7 @@ class ConvergeHistoricChurchService
         ?string $operationId = null,
         ?string $expiresAt = null,
     ): HistoricConvergenceOperationPlan {
+        $preparationStartedAt = hrtime(true);
         $mediaBundle = $this->mediaBundles->validate($mediaBundle);
         $convergenceBundle = $this->convergenceBundles->validate($convergenceBundle);
         $this->assertBundleIdentity($mediaBundle, $convergenceBundle);
@@ -141,7 +142,7 @@ class ConvergeHistoricChurchService
             ]],
             summary: ['services' => [$summary], 'service_count' => 1],
         );
-        $this->ledger()->recordPrepared($plan);
+        $this->ledger()->recordPrepared($plan, $this->elapsedSince($preparationStartedAt));
 
         return $plan;
     }
@@ -158,6 +159,7 @@ class ConvergeHistoricChurchService
         ?string $operationId = null,
         ?string $expiresAt = null,
     ): HistoricConvergenceOperationPlan {
+        $preparationStartedAt = hrtime(true);
         $mediaBundle = $this->mediaBundles->validate($mediaBundle);
         $convergenceBundle = $this->convergenceBundles->validate($convergenceBundle);
         $this->assertBundleIdentity($mediaBundle, $convergenceBundle);
@@ -245,7 +247,7 @@ class ConvergeHistoricChurchService
             services: $services,
             summary: ['services' => $summaries, 'service_count' => count($services)],
         );
-        $this->ledger()->recordPrepared($plan);
+        $this->ledger()->recordPrepared($plan, $this->elapsedSince($preparationStartedAt));
 
         return $plan;
     }
@@ -481,6 +483,8 @@ class ConvergeHistoricChurchService
 
         $createdAssets = [];
         $phase = self::PHASE_PREFLIGHT;
+        $applyStartedAt = hrtime(true);
+        $mediaPersistSeconds = null;
         $this->ledger()->recordStarted($operationPlan, $servicePlan);
 
         try {
@@ -498,6 +502,7 @@ class ConvergeHistoricChurchService
                 $convergencePlanHash,
                 &$createdAssets,
                 &$phase,
+                &$mediaPersistSeconds,
             ): array {
                 return DB::transaction(function () use (
                     $mediaPlan,
@@ -507,11 +512,14 @@ class ConvergeHistoricChurchService
                     $convergencePlanHash,
                     &$createdAssets,
                     &$phase,
+                    &$mediaPersistSeconds,
                 ): array {
                     $phase = self::PHASE_LOCK_SERVICE;
                     $service = $this->lockService($mediaPayload);
                     $phase = self::PHASE_PERSIST_MEDIA;
+                    $mediaPersistStartedAt = hrtime(true);
                     $mediaResult = $this->mediaImporter->persistPreparedService($mediaPlan, $mediaPlanHash);
+                    $mediaPersistSeconds = $this->elapsedSince($mediaPersistStartedAt);
                     $createdAssets = $mediaResult['created_assets'];
                     $run = $mediaResult['processing_log'];
                     $phase = self::PHASE_LINK_RUN;
@@ -566,14 +574,65 @@ class ConvergeHistoricChurchService
                 $phase,
                 $exception->getMessage(),
                 is_string($servicePlan['identity'] ?? null) ? $servicePlan['identity'] : null,
+                // Recorded after cleanup, deliberately: §15.2's rollback reserve
+                // has to cover compensating the assets, not just the failure.
+                $this->elapsedSince($applyStartedAt),
             );
 
             throw $exception;
         }
 
-        $this->ledger()->recordCompleted($operationPlan, $servicePlan);
+        $this->ledger()->recordCompleted(
+            $operationPlan,
+            $servicePlan,
+            $this->elapsedSince($applyStartedAt),
+            ...$this->assetAccounting($mediaPlan, $createdAssets, $mediaPersistSeconds),
+        );
 
         return $result;
+    }
+
+    /**
+     * Bytes written by this attempt and the time it took, for §13.4's asset-copy
+     * throughput.
+     *
+     * Two things a reader should not have to infer. The byte total is
+     * role-expanded: one physical file carrying N roles becomes N production
+     * copies, because destinations are allocated per role, so the unique asset
+     * total would understate what was actually written. And the seconds are the
+     * whole media-persistence phase, which contains the copy alongside its
+     * database writes — so the derived throughput is a *floor*, never a peak.
+     * A floor is the correct side to be wrong on when it is sizing a window.
+     *
+     * An `already_present` service copies nothing, and reporting its plan's
+     * bytes as though they had been written would inflate the throughput of
+     * every no-op rerun.
+     *
+     * @param  list<string>  $createdAssets
+     * @return array{0: int|null, 1: float|null}
+     */
+    private function assetAccounting(
+        HistoricProcessingResultImportPlan $mediaPlan,
+        array $createdAssets,
+        ?float $mediaPersistSeconds,
+    ): array {
+        if ($createdAssets === []) {
+            return [0, null];
+        }
+
+        $bytes = 0;
+
+        foreach ($this->assets->expand($mediaPlan->assets) as $asset) {
+            $bytes += $asset['size'];
+        }
+
+        return [$bytes, $mediaPersistSeconds];
+    }
+
+    /** Monotonic elapsed seconds; hrtime is immune to a clock step mid-operation. */
+    private function elapsedSince(int $startedAt): float
+    {
+        return round((hrtime(true) - $startedAt) / 1_000_000_000, 6);
     }
 
     /**

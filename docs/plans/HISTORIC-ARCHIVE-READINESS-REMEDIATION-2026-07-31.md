@@ -14,10 +14,12 @@
 > - ~~**PR22 — §12.4 production evidence-coverage audit.**~~ **Done 2026-08-06.**
 >   `audit:service-evidence-coverage` plus the lineage preflight, both whitelisted into
 >   `production-audit.yml`. Obtaining the counts is now operator work behind the approval gate.
-> - **PR23 — §13.4 deterministic-promotion benchmark.** Per-service p95 apply time, asset-copy
->   throughput, preflight/audit time and rollback recovery set the numeric production-window budget
->   accepted at G7 (§15.1, §15.2). Nothing in `app/` or `tests/` measures a percentile today, so G7
->   currently has no evidence to accept and §15.2's 60-minute cap is an unbacked default.
+> - ~~**PR23 — §13.4 deterministic-promotion benchmark.**~~ **Done 2026-08-06.** The convergence
+>   ledger now records durations — it previously carried no timestamp at all — and
+>   `service-tracking:promotion-budget` derives §15.2's five values from them. The instrument is
+>   complete; the numbers need a rehearsal apply, rollback and closeout to have run.
+>
+> **No scheduled code slice remains.** Everything outstanding is operator work or the rehearsal.
 >
 > **Outstanding operator work, drive-free:**
 >
@@ -1837,7 +1839,7 @@ acceptance findings roll into that same audit list rather than changing the merg
 | 20 | Post-closeout cleanup/contract migration | M | G9 only | Blocked (G9) |
 | 21 | **§7.5 Email/OoS curation manifest, shared with the OpenLP format** | M | PR 5 | **Done** (2026-08-06; class, dry-run reconciliation and command repoint merged) |
 | 22 | **§12.4 production evidence-coverage audit and lineage-audit whitelisting** | M | PR 16 | **Done** (2026-08-06; drive-free) |
-| 23 | **§13.4 deterministic-promotion benchmark (per-service p95 apply, asset-copy throughput, preflight/audit and rollback timings)** | M | PRs 11–12, 15 | **Ready** (drive-free; the only G7 evidence obtainable before the drive arrives) |
+| 23 | **§13.4 deterministic-promotion benchmark (per-service p95 apply, asset-copy throughput, preflight/audit and rollback timings)** | M | PRs 11–12, 15 | **Done** (2026-08-06; drive-free. Instrument landed; the numbers need a rehearsal run) |
 
 ### Acceptance and gate readiness (audit)
 
@@ -1890,15 +1892,54 @@ that the default output contains the defect kind and not the source key.
 Both commands are in `.github/workflows/production-audit.yml` as `service-evidence-coverage` and
 `source-revision-lineages`. Running them is operator work behind the environment approval gate.
 
+#### PR23 delivered (2026-08-06)
+
+**The operation now measures itself, and the §15.2 budget is computed from what it measured.**
+
+The gap was not that promotion had never been benchmarked; it was that it *could not* be. The
+convergence ledger recorded `prepared`, `service_started`, `service_completed` and `failed` and
+**carried no timestamp on any of them**, so even a completed rehearsal left no way to derive a
+per-service apply time. The measurement had to exist before the benchmark could.
+
+- `HistoricConvergenceLedger` stamps every entry with `at` centrally in `append()`, so an event
+  cannot reach the ledger without a time, and carries `duration_seconds` on prepared, completed and
+  failed events plus `asset_bytes`/`asset_seconds` on completion. A new `recordCloseout()` takes the
+  exact audit, which has no operation plan of its own because it runs after the plan is spent.
+  Durations are nullable throughout: an unmeasured event says so rather than reporting a service
+  that applied instantaneously.
+- `ConvergeHistoricChurchService` times batch preparation, each service's apply, and — deliberately
+  *after* asset cleanup — each failure, because §15.2's rollback reserve has to cover compensating
+  the assets and not merely the throw. Timing is `hrtime()`, immune to a clock step mid-operation.
+- `HistoricPromotionMeasurements` extracts samples from ledger entries; `HistoricPromotionBudget`
+  derives §15.2's five values: `maximum_import_ingress_blocked_minutes` (an input, since only the
+  maintainer accepts it), per-service p95 apply, preflight/closeout/rollback reserves, services per
+  window, the admission floor, and the latest safe start before the window closes.
+- `service-tracking:promotion-budget` reports it; `service-tracking:audit-convergence --operation-id=`
+  records the closeout sample.
+
+Four decisions a reviewer should not have to reconstruct:
+
+- **Percentiles are nearest-rank, not interpolated.** With the handful of samples a rehearsal
+  produces, interpolation invents a p95 no service actually took, and always a *smaller* one than
+  the worst observed case. A window budget must be built from durations that really happened.
+- **Asset bytes are role-expanded.** §17 already records that one physical file carrying N roles
+  becomes N production copies; the unique-asset total would understate what was written.
+- **Asset throughput is a floor, not a peak.** The measured seconds are the whole media-persistence
+  phase, which contains the copy alongside its database writes. A floor is the correct side to be
+  wrong on when sizing a window.
+- **The command fails when the budget is unacceptable** — an unmeasured phase, or a window that
+  cannot fit one service. This is the opposite of PR22's audit and deliberately so: G7 accepts
+  numbers, and exiting 0 on a budget with no measurements would let "nothing was measured" pass as
+  "the window fits".
+
+**What this does not yet give you.** The instrument is complete; the *numbers* are not, and cannot
+be until a rehearsal apply, a rollback and a closeout have actually run — §13.5 steps 12–15. Against
+an empty ledger the command correctly fails with four unmeasured phases. G7 remains unmet, but it is
+now unmet for want of a rehearsal rather than for want of a way to measure one.
+
 ### Next task to pick up
 
-**PR23 — the §13.4 deterministic-promotion benchmark.** Drive-free, and the only G7 evidence
-obtainable before the drive arrives. Per-service p95 apply time, asset-copy throughput,
-preflight/audit time and rollback recovery set the numeric production-window budget, and §15.2's
-60-minute cap is an unbacked default until they exist. It runs on bundles, database rows and asset
-copies, so PR11/PR12's round-trip tests are the harness to scale.
-
-**Then, operator work behind the approval gate:** dispatch `production-audit.yml` for
+**Operator work behind the approval gate:** dispatch `production-audit.yml` for
 `service-evidence-coverage` and decide §12.4 on the result. The plan's two branches are written; the
 counts pick one.
 

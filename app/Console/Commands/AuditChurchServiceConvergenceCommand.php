@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\ChurchService\ChurchServiceConvergenceAuditor;
+use App\Services\ChurchService\HistoricConvergenceLedger;
 use Illuminate\Console\Command;
 use JsonException;
 use RuntimeException;
@@ -17,16 +18,19 @@ class AuditChurchServiceConvergenceCommand extends Command
     protected $signature = 'service-tracking:audit-convergence
         {bundle : Private Bundle B JSON file}
         {--media-bundle= : Optional private Bundle A JSON file for exact media-graph and asset auditing}
+        {--operation-id= : Record this audit as a closeout measurement against the named operation}
         {--report= : Optional JSON report path below storage/app/private}';
 
     protected $description = 'Compare production church services with an exact reviewed convergence bundle';
 
-    public function handle(ChurchServiceConvergenceAuditor $auditor): int
+    public function handle(ChurchServiceConvergenceAuditor $auditor, HistoricConvergenceLedger $ledger): int
     {
         try {
             $bundle = $this->readBundle((string) $this->argument('bundle'));
             $mediaBundle = $this->mediaBundle();
+            $auditStartedAt = hrtime(true);
             $report = $auditor->audit($bundle, $mediaBundle);
+            $this->recordCloseout($ledger, $auditStartedAt, (bool) $report['passed']);
             $json = json_encode($report, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
             $reportPath = $this->reportPath();
 
@@ -51,6 +55,29 @@ class AuditChurchServiceConvergenceCommand extends Command
         $this->info("Convergence audit passed for {$report['totals']['passed']} service(s).");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * §15.2's closeout reserve is the exact audit plus the no-op rerun that must
+     * still fit inside the window after the last service commits. It is only
+     * recorded when an operation is named, so a routine recurring audit — this
+     * command's normal use — does not add samples to a window budget it has
+     * nothing to do with.
+     */
+    private function recordCloseout(HistoricConvergenceLedger $ledger, int $startedAt, bool $passed): void
+    {
+        $operationId = $this->option('operation-id');
+
+        if (! is_string($operationId) || trim($operationId) === '') {
+            return;
+        }
+
+        $ledger->recordCloseout(
+            trim($operationId),
+            'exact_audit',
+            round((hrtime(true) - $startedAt) / 1_000_000_000, 6),
+            $passed,
+        );
     }
 
     /** @return array<string, mixed>|null */

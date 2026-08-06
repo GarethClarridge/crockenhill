@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Data\HistoricConvergenceOperationPlan;
+use DateTimeImmutable;
 use RuntimeException;
 
 /**
@@ -19,9 +20,16 @@ class HistoricConvergenceLedger
 {
     public function __construct(private readonly ?string $path = null) {}
 
-    /** @param array<string, mixed> $entry */
+    /**
+     * Every entry is stamped here rather than by each caller, so an event cannot
+     * reach the ledger without a time. A caller-supplied `at` is preserved,
+     * which is what lets a benchmark replay a synthetic operation.
+     *
+     * @param  array<string, mixed>  $entry
+     */
     public function append(array $entry): void
     {
+        $entry = ['at' => $entry['at'] ?? (new DateTimeImmutable)->format('Y-m-d\TH:i:s.uP')] + $entry;
         $path = $this->path();
         $directory = dirname($path);
 
@@ -55,7 +63,11 @@ class HistoricConvergenceLedger
         }
     }
 
-    public function recordPrepared(HistoricConvergenceOperationPlan $plan): void
+    /**
+     * @param  float|null  $durationSeconds  measured preflight duration, when the
+     *                                       caller timed it
+     */
+    public function recordPrepared(HistoricConvergenceOperationPlan $plan, ?float $durationSeconds = null): void
     {
         $this->append([
             'event' => 'prepared',
@@ -67,6 +79,7 @@ class HistoricConvergenceLedger
             'convergence_bundle_hash' => $plan->convergenceBundleHash,
             'expires_at' => $plan->expiresAt->format(DATE_ATOM),
             'summary' => $plan->summary,
+            'duration_seconds' => $durationSeconds,
         ]);
     }
 
@@ -82,9 +95,21 @@ class HistoricConvergenceLedger
         ]);
     }
 
-    /** @param array<string, mixed> $service */
-    public function recordCompleted(HistoricConvergenceOperationPlan $plan, array $service): void
-    {
+    /**
+     * @param  array<string, mixed>  $service
+     * @param  float|null  $durationSeconds  measured apply duration for this service
+     * @param  int|null  $assetBytes  bytes actually written to destinations, which
+     *                                is the role-expanded total: one physical file
+     *                                carrying N roles becomes N production copies
+     * @param  float|null  $assetSeconds  seconds spent writing them
+     */
+    public function recordCompleted(
+        HistoricConvergenceOperationPlan $plan,
+        array $service,
+        ?float $durationSeconds = null,
+        ?int $assetBytes = null,
+        ?float $assetSeconds = null,
+    ): void {
         $this->append([
             'event' => 'service_completed',
             'operation_id' => $plan->operationId,
@@ -92,6 +117,9 @@ class HistoricConvergenceLedger
             'content_hash' => $plan->contentHash,
             'identity' => $service['identity'] ?? null,
             'classification' => $service['summary']['convergence_classification'] ?? null,
+            'duration_seconds' => $durationSeconds,
+            'asset_bytes' => $assetBytes,
+            'asset_seconds' => $assetSeconds,
         ]);
     }
 
@@ -107,6 +135,7 @@ class HistoricConvergenceLedger
         string $phase,
         string $reason,
         ?string $identity = null,
+        ?float $durationSeconds = null,
     ): void {
         $this->append([
             'event' => 'failed',
@@ -116,6 +145,30 @@ class HistoricConvergenceLedger
             'identity' => $identity,
             'phase' => $phase,
             'reason_hash' => hash('sha256', $reason),
+            // The attempt plus its compensation: §15.2's rollback/reopen-ingress
+            // reserve can only be observed on a service that actually failed.
+            'duration_seconds' => $durationSeconds,
+        ]);
+    }
+
+    /**
+     * Closeout is the other half of §15.2's window that is not applying a
+     * service: the exact audit and the no-op rerun that must still fit after
+     * the last service commits. It has no operation plan of its own — it runs
+     * after the plan is spent — so it is keyed on the operation id alone.
+     */
+    public function recordCloseout(
+        string $operationId,
+        string $kind,
+        float $durationSeconds,
+        bool $passed,
+    ): void {
+        $this->append([
+            'event' => 'closeout',
+            'operation_id' => $operationId,
+            'kind' => $kind,
+            'duration_seconds' => $durationSeconds,
+            'passed' => $passed,
         ]);
     }
 
