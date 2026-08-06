@@ -880,6 +880,43 @@ It was considered as one and rejected on 2026-08-02, because the historic corpus
 validation set for the repaired projector than waiting for live services to arrive one week at a
 time.
 
+#### Local dry run, 2026-08-06 — re-projection has almost nothing to re-project
+
+`service-tracking:reproject-current-era` was run locally, drive-free, against 408 services. It
+completed with all four report gates true, and its summary is the finding:
+
+| Classification | Services |
+|---|---|
+| `conflict` — "The service has no normalized source evidence to re-project." | 407 |
+| `already_present` — the current canonical result already matches the repaired projector | 1 |
+
+`b13_proposals_reopened` was **0**, and `services_with_item_differences` was **0**. The whole local
+database holds exactly **one** `church_service_source_records` row, against 408 services and 2,743
+items; 400 of those services carry `source = openlp` from archive-import runs that predate WP1's
+evidence ingestion.
+
+**The command is right and the assumption above may not be.** §8.1 makes projection a pure function
+of active source revisions, so a service with no normalized evidence cannot be re-projected at all —
+only refused, which is what happened, and nothing would have mutated without `--apply`. But the
+fourth bullet above predicts re-projection is "where the loop earns most of its value". If a service
+never went through evidence ingestion, it has no projection to repair, no proposal to reopen and no
+B13 disposition to reverse. It has a different and larger problem: no evidence, so its canonical
+result can never be re-derived, audited or converged from sources.
+
+**This is not yet established for production.** The local database is not a production copy, so the
+407 may be dev-state residue. Before §12.4 is scheduled, obtain the production counts — services,
+services with at least one non-Manual source record, and proposals carrying a resolver — through the
+approval-gated read-only production audit (`docs/operations/`, counts only, never ids or paths). Two
+outcomes:
+
+- **Production is mostly evidenced.** §12.4 stands as written.
+- **Production resembles local.** §12.4 is close to a no-op, and the real question this plan has not
+  asked is what happens to services that hold canonical items derived from no retained evidence.
+  They are outside the §2 success criteria as written, since criterion 1 presumes every result has
+  source revisions describing it. Decide explicitly whether they are back-filled into evidence,
+  excluded from the audit standard, or accepted as legacy — do not let the re-projection's silence
+  on them read as clearance.
+
 ### Tests and acceptance
 
 Invalidate tokens on DB/reviewer/source/bundle/asset/storage changes; prove no-write dry run and
@@ -1264,6 +1301,36 @@ Before G8, implement and test the exact ingress behavior:
 - the separate scheduler cannot enqueue affected work while the lock is active; and
 - if Horizon is paused globally rather than by affected queue, the budget/report explicitly records
   the delay imposed on unrelated default/background work.
+
+#### Implemented 2026-08-06
+
+The first three requirements have landed; §17's PR sequence never allocated a slice for them, which
+is why they were still open after PR17. What exists:
+
+- **The lock is a table, not a cache entry.** `import_ingress_locks` records operation id, reason,
+  operator, and blocked/released timestamps, with a unique index on a nullable `is_active` column so
+  "at most one active lock" is a database guarantee. A cache-backed flag would disappear on a Redis
+  restart or a `cache:clear` mid-window and reopen ingress with nothing to show it had.
+- **`ImportIngressGate`** owns `block`/`release`/`isActive`/`blockedMinutes`, driven by
+  `artisan import:ingress {block|release|status}`. Release reports the window's actual duration for
+  checking against the accepted `maximum_import_ingress_blocked_minutes`.
+- **`RefuseBlockedImportIngress`** (alias `import-ingress`) returns 503 with `Retry-After` on the
+  media upload route and the processing-retry route. Status, stream and cancel stay open: they
+  observe or stop work, and cancelling during a window is something an operator may need.
+- **The inbound Mailgun route stays lossless** by keeping its durable `firstOrCreate` staging and
+  deferring only the dispatch, answering with `202 deferred`. Refusing instead would push an order of
+  service onto Mailgun's retry schedule. `import:ingress release` sweeps the staged pending emails
+  back onto the queue, so the deferral ends by itself rather than waiting to be noticed.
+- **The scheduler skips both media cleanup commands** while the lock is held. These are the sharpest
+  case in the whole requirement: they *delete* media on an age heuristic, and a window is exactly
+  when the importer is writing assets to destinations no publication points at yet.
+
+Covered by `ImportIngressGateTest` and `ImportIngressScheduleTest`, including that public reads stay
+online throughout.
+
+**Still open:** the fourth requirement — the Horizon pause accounting — and the disabled *admin*
+upload state. The API surface refuses correctly, but the admin Livewire upload screen has no
+corresponding disabled state yet, so an operator would meet the refusal only on submitting.
 
 The command stops admitting new services when remaining time equals the greater of **15 minutes** or
 the accepted p95 closeout/resume duration. It also refuses to start a service when its p95 apply time

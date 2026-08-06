@@ -60,6 +60,7 @@ Route::prefix('media')->name('api.media.')->group(function () {
         ->middleware([
             'auth:sanctum',
             'media.process',
+            'import-ingress',
             'throttle:media-upload',
         ])
         ->name('upload');
@@ -81,8 +82,14 @@ Route::middleware(['auth:sanctum', 'media.process'])
             ->middleware('throttle:api')
             ->name('cancel');
 
+        /**
+         * A retry re-enters the pipeline, so it admits new work in exactly the
+         * sense §15.2 blocks. Status, stream and cancel stay open: they observe
+         * or stop work, and cancelling during a window is something an operator
+         * may legitimately need to do.
+         */
         Route::post('media/processing/{processingId}/retry', [MediaController::class, 'retry'])
-            ->middleware('throttle:media-retry')
+            ->middleware(['import-ingress', 'throttle:media-retry'])
             ->name('retry');
 
         Route::post('media/processing/{processingId}/confirm-segment', [MediaController::class, 'confirmSegment'])

@@ -1,0 +1,122 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Console\Commands;
+
+use App\Models\ImportIngressLock;
+use App\Services\Import\ImportIngressGate;
+use Illuminate\Console\Command;
+use Throwable;
+
+/**
+ * Operator control for §15.2's production import window.
+ *
+ * Blocking ingress is not the same as taking the site down: public reads stay
+ * online, and `artisan down` remains prohibited for this operation unless
+ * separately approved.
+ */
+class ImportIngressCommand extends Command
+{
+    protected $signature = 'import:ingress
+        {action : block, release or status}
+        {--operation= : The operation id this window runs under}
+        {--reason= : Why ingress is blocked, recorded for the closeout report}
+        {--by= : The operator blocking ingress}';
+
+    protected $description = 'Block, release or report the import ingress lock for a production import window';
+
+    public function handle(ImportIngressGate $gate): int
+    {
+        $action = (string) $this->argument('action');
+
+        return match ($action) {
+            'block' => $this->block($gate),
+            'release' => $this->release($gate),
+            'status' => $this->status($gate),
+            default => $this->invalidAction($action),
+        };
+    }
+
+    private function block(ImportIngressGate $gate): int
+    {
+        $operationId = (string) $this->option('operation');
+        $reason = (string) $this->option('reason');
+
+        if ($operationId === '' || $reason === '') {
+            $this->error('Blocking ingress requires --operation and --reason; both are recorded in the closeout report.');
+
+            return self::FAILURE;
+        }
+
+        try {
+            $lock = $gate->block($operationId, $reason, $this->option('by'));
+        } catch (Throwable $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $this->info("Import ingress blocked by operation {$lock->operation_id}.");
+        $this->line('New media-processing and archive-import submissions are refused. Public reads are unaffected.');
+        $this->line('Inbound order-of-service email is still staged durably and will process on release.');
+
+        return self::SUCCESS;
+    }
+
+    private function release(ImportIngressGate $gate): int
+    {
+        $operationId = (string) $this->option('operation');
+
+        if ($operationId === '') {
+            $this->error('Releasing ingress requires --operation, so a window cannot be reopened by mistake.');
+
+            return self::FAILURE;
+        }
+
+        try {
+            $lock = $gate->release($operationId);
+        } catch (Throwable $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $minutes = (int) $lock->blocked_at->diffInMinutes($lock->released_at);
+        $deferred = $gate->dispatchDeferredInboundEmail();
+
+        $this->info("Import ingress released after {$minutes} minute(s).");
+
+        if ($deferred > 0) {
+            $this->line("Queued {$deferred} order-of-service email(s) staged during the window.");
+        }
+
+        $this->line('Record this against the accepted maximum_import_ingress_blocked_minutes budget.');
+
+        return self::SUCCESS;
+    }
+
+    private function status(ImportIngressGate $gate): int
+    {
+        $lock = $gate->active();
+
+        if (! $lock instanceof ImportIngressLock) {
+            $this->info('Import ingress is open.');
+
+            return self::SUCCESS;
+        }
+
+        $this->warn("Import ingress is blocked by operation {$lock->operation_id}.");
+        $this->line("Reason: {$lock->reason}");
+        $this->line("Blocked for: {$gate->blockedMinutes()} minute(s)");
+
+        return self::SUCCESS;
+    }
+
+    private function invalidAction(string $action): int
+    {
+        $this->error("Unknown action '{$action}'. Use block, release or status.");
+
+        return self::FAILURE;
+    }
+}

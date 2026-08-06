@@ -7,7 +7,9 @@ use App\Http\Middleware\EnsureServiceTrackingAccess;
 use App\Http\Middleware\EnsureServiceTrackingEnabled;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureValidMailgunWebhookSignature;
+use App\Http\Middleware\RefuseBlockedImportIngress;
 use App\Http\Middleware\SecurityHeaders;
+use App\Services\Import\ImportIngressGate;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -39,15 +41,25 @@ return Application::configure(basePath: dirname(__DIR__))
             ->graceTimeInMinutes(60)
             ->onOneServer()
             ->environments(['production']);
+        /**
+         * §15.2: the scheduler must not admit affected work while a production
+         * import window holds the ingress lock. These two are the sharpest case
+         * — they *delete* media on an age heuristic, and a window is precisely
+         * when the importer is writing assets to their destinations that no
+         * publication points at yet. A sweep landing mid-operation would remove
+         * exactly the files it had just created.
+         */
         $schedule->command('media:cleanup-temp-files --hours=24')
             ->everySixHours()
             ->withoutOverlapping(60)
             ->graceTimeInMinutes(60)
+            ->skip(fn (): bool => app(ImportIngressGate::class)->isBlocked())
             ->environments(['production']);
         $schedule->command('media:cleanup-unpublished-section-assets --hours=48')
             ->everySixHours()
             ->withoutOverlapping(30)
             ->graceTimeInMinutes(30)
+            ->skip(fn (): bool => app(ImportIngressGate::class)->isBlocked())
             ->environments(['production']);
         $schedule->command('scripture:refresh-passages')
             ->daily()
@@ -131,6 +143,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'abilities' => CheckAbilities::class,
             'ability' => CheckForAnyAbility::class,
             'childrens-corner.access' => EnsureChildrensCornerAccess::class,
+            'import-ingress' => RefuseBlockedImportIngress::class,
             'mailgun.signature' => EnsureValidMailgunWebhookSignature::class,
             'media.process' => EnsureMediaProcessingAccess::class,
             'service.access' => EnsureServiceTrackingAccess::class,
