@@ -1,11 +1,22 @@
 # Historic Archive Import Readiness Remediation Plan
 
 > **Status (2026-08-06): PRs 1–17 are merged, WP0–WP8 have landed, and every gate-acceptance audit
-> gap is closed.** No scheduled code slice remains and nothing in code blocks the §13.5 rehearsal.
-> The programme has stopped being an implementation exercise. "Merged" is still not a gate
-> certification — see §17's Status column and the "Acceptance and gate readiness" audit — but the
-> punch list that audit produced is now empty. The one outstanding item is operator work: populating
-> the v2 OpenLP curation manifest against the mounted source drive, which *is* rehearsal step 2.
+> gap listed on 2026-08-06 is closed.** "Merged" is still not a gate certification — see §17's Status
+> column and the "Acceptance and gate readiness" audit.
+>
+> **Corrected later on 2026-08-06: one scheduled code slice does remain.** The status above read
+> "no scheduled code slice remains" on the strength of the v2 curation manifest being complete. It is
+> complete for **OpenLP** and for **historic video**. §7.3 requires one manifest format across Email,
+> OpenLP *and* livestream acquisition, and no Email manifest was ever built — see §7.5. That is not
+> operator data work waiting on a drive: the Email corpus is `storage/scratch/oos/`, it is on local
+> disk today, and curating it needs nothing mounted. PR21 carries it.
+>
+> Outstanding items are therefore:
+>
+> - **PR21 — the Email curation manifest** (§7.5). Code. Drive-free, actionable now.
+> - **Populating the v2 OpenLP curation manifest** against the mounted source drive, which *is*
+>   rehearsal step 2 for the OpenLP half. Operator work, needs the CBC drive.
+>
 > Bulk local ingestion, historic-video dispatch and every production mutation remain blocked behind
 > the later gates. Read-only corpus inventory, hashing and manifest curation are safe to continue.
 >
@@ -434,6 +445,98 @@ with the approved payload.
 OpenLP dry run parses every included file and validates song resolution/projected effects against a
 disposable database. It rechecks path, size and hash before staging and under the apply lock. A
 change aborts before the first canonical write.
+
+### 7.5 The Email corpus and its manifest — added 2026-08-06
+
+§7.3 says "one strict manifest format across Email, OpenLP and livestream acquisition". Two of the
+three were built — `OpenLpCurationManifest` and `HistoricVideoCurationManifest` — and the Email one
+was not. The gap survived the 2026-08-06 audit because that audit asked whether the manifest schema
+carried §7.3's curation-authority fields, and it does; it did not ask which sources had a manifest at
+all. `OpenLpCurationManifest` rejects any entry whose `source_kind` is not its own, so the class is
+structurally single-source and cannot absorb Email by configuration.
+
+**The Email corpus needs no drive.** It is `storage/scratch/oos/`: 261 markdown files, one per order
+of service, spanning 2014-09-14 to 2026, each carrying YAML frontmatter (`title`, `date`, `year`,
+`source`, `extraction`, and sometimes `service`, `source_subject`, `date_source`). Its raw
+counterpart is `storage/scratch/oos-verbatim/`, 402 files.
+
+The earlier aggregate `storage/scratch/crockenhill_orders_of_service_archive.md` (102 entries) is
+**superseded** and must not be curated. It survives only as the cited `source:` of 14 `oos/` files.
+
+`ImportOosArchiveCommand` still defaults to it at
+[`ImportOosArchiveCommand.php:649`](../../app/Console/Commands/ImportOosArchiveCommand.php#L649).
+That default is now wrong, and **PR21 does not fix it**: the command takes a single aggregate
+markdown path and splits it on `### ` headings, whereas the corpus is one file per service, so
+repointing it means teaching it the manifest rather than changing a string. That is the natural
+next slice once the manifest is populated — the command should take an approved plan and iterate
+its includes, which is also what removes the last filename heuristic from the Email path. Until
+then the wrong default stands, and running the command without an explicit path curates superseded
+material.
+
+#### What the inventory already shows
+
+Measured 2026-08-06 against the two directories. These are the reconciliation target for §13.1's
+`discovered = included + excluded`, on the Email side:
+
+| Population | Count |
+|---|---|
+| Verbatim files (`oos-verbatim/`) | 402 |
+| Formatted files (`oos/`) | 261 |
+| Formatted with a verbatim counterpart | 247 |
+| **Verbatim with no formatted counterpart** | **155** |
+| **Formatted with no verbatim counterpart** | **14** |
+
+Both residuals are real curation decisions, not tidying:
+
+- **The 155 are entirely 2022 and later** (48/44/29/16/18 across 2022–2026). Formatting covered
+  2014–2021 densely and then thinned out; `oos/` holds 37 and 47 files for 2020 and 2021 against 7
+  and 11 for 2022 and 2023. Each of the 155 is either an include the manifest must account for or an
+  exclusion carrying a reason. It cannot stay silent, because §13.1 forbids an unresolved included
+  item.
+- **The 14 derive from the superseded aggregate archive** and declare
+  `extraction: email body via Gmail (second-hand, spot-checked)`. Their `source:` frontmatter points
+  at a verbatim file that does not exist, so their provenance chain is already broken.
+
+#### Four concepts are conflated in one free-text field
+
+`service:` appears on 55 of the 261 files with **24 distinct values**, and they are not all services:
+
+| Concept | Observed values |
+|---|---|
+| Service identity | `am`, `pm`, `Easter Sunday`, `Good Friday`, `Palm Sunday`, `Remembrance Sunday`, `Christmas morning`, `Carols by Candlelight`, `Baptismal service`, `family service` |
+| Content completeness | `details`, `hymns`, `songs`, `song`, `partial order details`, `hymns and headings`, `pm hymns` |
+| Revision lineage | `revised` |
+| Extraction provenance | `order attached to email`, `email body with order attachment noted`, `Adventurers' Play`, `Adventurers participation` |
+
+Decomposing that field is most of what the Email manifest is for. `SermonService` has three cases —
+`morning`, `evening`, `other` — so every named service above resolves to `other` with the name
+preserved as a title override, and none of the completeness, lineage or provenance values is a
+service at all.
+
+The lineage row is the sharpest. `2015-12-27-revised.md` carries `service: "revised"` and is a
+*corrected revision of the same morning service* as `2015-12-27.md` — reading its own body confirms
+it ("here is the revised order of play"). Under §7.2 that is a supersession chain, and encoding it as
+a service identity would produce two canonical services on one date where one exists. 13 dates carry
+multiple files; three of them are `-revised` pairs.
+
+#### Dates inferred from the liturgical calendar
+
+Nine files declare `date_source: derived from liturgical calendar (heading carried no explicit
+date)` — Maundy Thursday and Good Friday 2023, Easter 2023/2025/2026, Christmas 2023/2024/2025.
+§7.3 already governs these: "filename/time heuristics may propose entries, but the approved manifest
+is mutation authority." Each becomes an explicit approved manifest date, with the inference recorded
+as its reason rather than trusted silently. `2026-03-15-2.md` is the same case in a louder form: its
+own title says `[email title likely intended 15 February]`.
+
+#### Scope of PR21
+
+The manifest **class, its schema, its validation and its reconciliation report**, plus extracting the
+source-kind-agnostic half of `OpenLpCurationManifest` so a third near-copy is not created. Populating
+the entries for all 261 files is curation that follows it and is likewise drive-free.
+
+Out of scope, and still blocked: running `oos:import-archive --import`. The status header forbids
+canonical OoS archive imports until G8. Dry-run and evaluation modes are read-only and are how the
+manifest's `expected_item_count` and `parse_decision` values are derived.
 
 ### Tests and acceptance
 
@@ -933,15 +1036,26 @@ compensation, a privacy-safe explanatory ledger and green exact/no-op closeout.
 
 ### 13.1 Corpus availability and completion gate
 
-The authoritative external drive is a hard dependency, not an assumed prerequisite. Previous
-operator feedback indicates some OpenLP paths/symlinks may resolve only while that drive is mounted;
-the tracked repository does not establish a reliable broken-link count. Remeasure it against the
-mounted, read-only source before approving the manifest.
+**The drive is a hard dependency for two of the three sources, not all three.** Clarified
+2026-08-06: OpenLP archives and historic video live on the external drive; the **Email corpus does
+not**. `storage/scratch/oos/` and `storage/scratch/oos-verbatim/` are on local disk, so Email
+inventory, hashing, manifest curation and — once §7.5's manifest exists — the whole Email half of
+rehearsal step 2 proceed while the drive is unmounted. §13.5's ordering already wants this: steps 3
+and 4 are marked "No media required", and the Email population is the one that reaches them first.
+
+The authoritative external drive is a hard dependency for the OpenLP and video corpora, not an
+assumed prerequisite. Previous operator feedback indicates some OpenLP paths/symlinks may resolve
+only while that drive is mounted; the tracked repository does not establish a reliable broken-link
+count. Remeasure it against the mounted, read-only source before approving the manifest.
 
 The tracked OpenLP accounting is 536 archive entries, 105 byte-identical nested duplicates, 431
 unique sources and 428 curated inclusions
 ([remainder plan](JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md#L314)).
 Those counts are a reconciliation target, not proof that every current path/symlink resolves.
+
+The Email reconciliation target is in §7.5 and is measurable today: 402 verbatim files, 261
+formatted, 247 paired, 155 verbatim-only and 14 formatted-only. Unlike the OpenLP figures, these are
+measured rather than tracked, because the source is local.
 
 Create a signed inventory reporting regular files, symlinks, resolved targets, missing targets,
 duplicates, bytes and hashes. A path is eligible only if it resolves inside the approved mounted
@@ -1486,6 +1600,7 @@ acceptance findings roll into that same audit list rather than changing the merg
 | 18 | Rehearsal discoveries with earliest-gate loop-back | Contingency; size each finding | PRs 2–17 | **Ready once the three audit gaps close** |
 | 19 | Production-operation fixes, only if rehearsal proves them necessary | Contingency; size each finding | PR 18 | Blocked (PR 18) |
 | 20 | Post-closeout cleanup/contract migration | M | G9 only | Blocked (G9) |
+| 21 | **§7.5 Email/OoS curation manifest, shared with the OpenLP format** | M | PR 5 | **In progress** (2026-08-06; drive-free) |
 
 ### Acceptance and gate readiness (audit)
 
@@ -1503,18 +1618,40 @@ gaps in landed slices belong here.
 | G3 | PR11 | **Closed 2026-08-06.** `ChurchServiceConvergenceBundleRoundTripTest` exports a reviewed bundle, destroys the database it came from, rebuilds an equivalent machine base on shifted auto-increments and applies the bundle to it — asserting exact finalisation (the same canonical hash), the reviewer resolved by approved email hash onto a different user id, per-proposal dispositions reproduced, the review session naming the *production* proposal ids, and a `decision_rule` reproducing with its own rationale. A proposal absent from the production graph still fails closed. Verified non-vacuous: adding `$proposal->id` to `ChurchServiceProposalIdentity::for()` fails two of the three tests. | — |
 | G3 | PR12 | **Closed 2026-08-06.** `HistoricProcessingResultBundleRoundTripTest` exports the WP0 canary — the shared fixture, now in `tests/Support/HistoricNormalOutputCanary.php`, not a second approximation — through Bundle A and imports it into a database whose auto-increments have been shifted past every id the source used. Asserts identical logical hashes, no lost field/relationship/role, identical section and publication natural keys, and that the recreated tables moved while preacher/song/service rows were *resolved* by natural key rather than duplicated. Verified non-vacuous: appending `$section->id` to the section key fails the hash equality. | — |
 
-**Every audit row above is now closed (2026-08-06).** G1's crash tranche, canary and OpenLP manifest
-schema; G2's empty-census gap; and G3's two different-PK round trips. The only outstanding item is
-operator work rather than code: populating the v2 curation fields against the mounted source drive,
-which is §13.1's remeasurement and part of rehearsal step 2 itself.
+| G1 | PR5/PR21 | **Open, found 2026-08-06 after the rows above were closed.** §7.3 mandates one manifest format across Email, OpenLP and livestream. `OpenLpCurationManifest` and `HistoricVideoCurationManifest` exist; **no Email manifest does**, so the Email corpus has no curation authority and its inclusions, exclusions, duplicates, date overrides and revision lineage are unrecorded. The rows above missed it by asking whether the manifest schema carried §7.3's fields — it does — rather than which sources had a manifest. Drive-free: the corpus is `storage/scratch/oos/`. See §7.5. | PR21: the Email manifest class, schema, validation and reconciliation report, with the source-kind-agnostic half extracted from `OpenLpCurationManifest`. |
+
+**The 2026-08-06 rows above are closed; one new row is open.** G1's crash tranche, canary and OpenLP
+manifest schema; G2's empty-census gap; and G3's two different-PK round trips are all done. The Email
+manifest gap was found afterwards and is the last row.
 
 ### Next task to pick up
 
-**PRs 1–17 are merged and every audit gap is closed, so there is no scheduled code slice left and no
-code blocker in front of the rehearsal.** PR18/19 are rehearsal contingencies and PR20 is gated on
-G9. The next action is **§13.5 rehearsal step 1** — protect and hash the source drives — followed by
-step 2, whose remaining work is populating the v2 curation manifest against the mounted drive.
-That needs the CBC drive connected and is operator work, not an agent task.
+**PR21 — the §7.5 Email curation manifest.** It is code, not operator work, and it needs nothing
+mounted: `storage/scratch/oos/` holds 261 formatted orders of service and `storage/scratch/oos-verbatim/`
+holds their 402 raw counterparts, all on local disk. This is the Email half of rehearsal step 2, and
+finishing it means §13.5 steps 3 and 4 — evidence staging and the §9.4 census, both explicitly
+"No media required" — can converge over the Email population while the drive is still unmounted.
+
+**In parallel, needing the CBC drive and an operator:** §13.5 rehearsal step 1 (protect and hash the
+source drives) and the OpenLP half of step 2 (populate the v2 curation fields). PR18/19 remain
+rehearsal contingencies and PR20 is gated on G9.
+
+Two further drive-free items were identified on 2026-08-06 and are **not** yet scheduled as PRs:
+
+- **§12.4's production counts cannot currently be obtained.** The plan requires them before §12.4 is
+  scheduled — services, services with at least one non-Manual source record, and proposals carrying a
+  resolver. `.github/workflows/production-audit.yml` whitelists only `sermon-assets`,
+  `section-assets`, `password-hashes` and `private-assets`; no command reports evidence coverage.
+  `service-tracking:audit-source-revision-lineages` has the same problem: its own docblock calls it a
+  WP1 deploy preflight that must pass in production before the lineage constraint migration deploys,
+  and it is not in the whitelist either. Both are counts-only additions.
+- **The §13.4 promotion benchmark does not exist and never needed the drive.** Per-service p95 apply
+  time, asset-copy throughput, preflight/audit time and rollback/ingress recovery time set the
+  numeric production-window budget accepted at G7 (§15.1, §15.2), and §13.4 states plainly that local
+  Whisper/AI throughput is not a proxy for them. Nothing in `app/` or `tests/` measures a percentile
+  outside RMS audio analysis. It runs on bundles, database rows and asset copies, so PR11/PR12's
+  round-trip tests are the harness to scale. This is the only G7 evidence obtainable before the drive
+  arrives.
 
 Four contract facts are now permanent and constrain everything that follows:
 
@@ -1557,7 +1694,9 @@ pinning §13.3's scope. B16 and B20 have their named tests. This closes the sche
   `concatenation_decision`, `expected_item_count` and the decision author/time or rule version, all
   hash-covered and reconciled by the dry-run parse. What is left is operator work, not code:
   populating those fields for the real corpus against the mounted read-only drive, which folds into
-  §13.1's remeasurement. Rehearsal step 2 is unblocked in code and gated on that data.
+  §13.1's remeasurement. The **OpenLP half** of rehearsal step 2 is unblocked in code and gated on
+  that data. The **Email half** is not unblocked in code — it has no manifest at all (§7.5, PR21) —
+  but it is not gated on the drive either.
 - **G3/PR11 and G3/PR12 — the two different-PK round trips. Closed 2026-08-06** by
   `ChurchServiceConvergenceBundleRoundTripTest` and `HistoricProcessingResultBundleRoundTripTest`, both
   described in the audit table above. Rehearsal step 12 no longer carries the risk that local-ID
@@ -1652,7 +1791,11 @@ Neither gates the import itself.
 - [x] Public service history ships over current-era data, safe, accessible and linked (PR1).
 - [x] WP0 canary covers the complete normal graph. *(Media graph and church-service links both run
   through the real persistence path as of PR14 — see §17's G1 canary row.)*
+- [ ] Every source kind — Email, OpenLP and livestream acquisition — has a curation manifest in the
+  one §7.3 format. *(Email is outstanding; see §7.5.)*
 - [ ] The mounted source inventory is 100% accounted for by included or approved excluded items.
+- [ ] The local Email inventory is 100% accounted for, including the 155 verbatim-only and 14
+  formatted-only residuals measured in §7.5.
 - [ ] Every included item is exact-promoted or exact-already-present; unresolved/failed count is zero.
 - [ ] Calibration forecast, checkpoint ledger and actual time/cost/capacity reports reconcile.
 - [ ] Bulk-pass concurrency is designed, measured and reflected in the forecast.

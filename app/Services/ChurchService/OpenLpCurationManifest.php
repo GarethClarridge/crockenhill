@@ -8,9 +8,8 @@ use App\Data\OpenLpCurationPlan;
 use App\Enums\SermonService;
 use App\Services\Song\OpenLpServiceParser;
 use App\Support\CanonicalJson;
+use App\Support\CurationManifestReader;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\File;
-use JsonException;
 use RuntimeException;
 
 /**
@@ -47,58 +46,21 @@ class OpenLpCurationManifest
      */
     private const ConcatenationDecisions = ['none', 'lossless', 'reencoded'];
 
+    private const Label = 'OpenLP';
+
     public function __construct(
         private readonly OpenLpServiceParser $parser,
+        private readonly CurationManifestReader $reader,
     ) {}
 
     public function plan(string $rawDirectory, string $manifestPath): OpenLpCurationPlan
     {
-        $rawRoot = realpath($rawDirectory);
+        $rawRoot = $this->reader->requireDirectory($rawDirectory, self::Label);
+        $envelope = $this->reader->envelope($manifestPath, self::Format, self::Version, self::Label);
+        $batchKey = $envelope['batch_key'];
+        $entries = $envelope['entries'];
 
-        if (! is_string($rawRoot) || ! is_dir($rawRoot)) {
-            throw new RuntimeException("Raw OpenLP directory does not exist: {$rawDirectory}");
-        }
-
-        $manifestRealPath = realpath($manifestPath);
-
-        if (! is_string($manifestRealPath) || ! is_file($manifestRealPath)) {
-            throw new RuntimeException("OpenLP curation manifest does not exist: {$manifestPath}");
-        }
-
-        $manifestBytes = file_get_contents($manifestRealPath);
-
-        if (! is_string($manifestBytes)) {
-            throw new RuntimeException('Unable to read the OpenLP curation manifest.');
-        }
-
-        try {
-            $manifest = json_decode($manifestBytes, true, flags: JSON_THROW_ON_ERROR);
-        } catch (JsonException $exception) {
-            throw new RuntimeException('The OpenLP curation manifest is not valid JSON.', previous: $exception);
-        }
-
-        if (! is_array($manifest)) {
-            throw new RuntimeException('The OpenLP curation manifest must be a JSON object.');
-        }
-
-        if (($manifest['format'] ?? null) !== self::Format || ($manifest['version'] ?? null) !== self::Version) {
-            throw new RuntimeException('Unsupported OpenLP curation manifest format or version.');
-        }
-
-        $batchKey = $manifest['batch_key'] ?? null;
-
-        if (! is_string($batchKey) || trim($batchKey) === '') {
-            throw new RuntimeException('The OpenLP curation manifest requires a non-empty batch_key.');
-        }
-
-        $batchKey = trim($batchKey);
-        $entries = $manifest['entries'] ?? null;
-
-        if (! is_array($entries) || ! array_is_list($entries)) {
-            throw new RuntimeException('The OpenLP curation manifest entries must be a JSON list.');
-        }
-
-        $inventory = $this->inventory($rawRoot);
+        $inventory = $this->reader->inventory($rawRoot, self::Label);
         $normalizedEntries = $this->normalizeEntries($entries, $rawRoot);
         usort(
             $normalizedEntries,
@@ -121,12 +83,12 @@ class OpenLpCurationManifest
                 throw new RuntimeException("SHA-256 mismatch for {$entry['relative_path']}.");
             }
 
-            if ($this->fileSize("{$rawRoot}/{$entry['relative_path']}") !== $entry['byte_size']) {
+            if ($this->reader->fileSize("{$rawRoot}/{$entry['relative_path']}") !== $entry['byte_size']) {
                 throw new RuntimeException("Byte-size mismatch for {$entry['relative_path']}.");
             }
         }
 
-        $this->validateDuplicateHashes($normalizedEntries);
+        $this->reader->validateDuplicateHashes($normalizedEntries);
         $this->validateLogicalIdentities($normalizedEntries);
         $counts = $this->counts($normalizedEntries);
 
@@ -202,11 +164,7 @@ class OpenLpCurationManifest
      */
     public function verifyIncludes(string $rawDirectory, OpenLpCurationPlan $plan): array
     {
-        $rawRoot = realpath($rawDirectory);
-
-        if (! is_string($rawRoot) || ! is_dir($rawRoot)) {
-            throw new RuntimeException("Raw OpenLP directory does not exist: {$rawDirectory}");
-        }
+        $rawRoot = $this->reader->requireDirectory($rawDirectory, self::Label);
 
         $paths = [];
 
@@ -268,40 +226,9 @@ class OpenLpCurationManifest
      */
     public function verifyInclude(string $rawDirectory, array $entry): string
     {
-        $rawRoot = realpath($rawDirectory);
-
-        if (! is_string($rawRoot) || ! is_dir($rawRoot)) {
-            throw new RuntimeException("Raw OpenLP directory does not exist: {$rawDirectory}");
-        }
+        $rawRoot = $this->reader->requireDirectory($rawDirectory, self::Label);
 
         return $this->verifiedIncludePath($rawRoot, $entry);
-    }
-
-    /** @return array<string, string> */
-    private function inventory(string $rawRoot): array
-    {
-        $inventory = [];
-
-        foreach (File::allFiles($rawRoot) as $file) {
-            $realPath = $file->getRealPath();
-
-            if (! is_string($realPath) || ! $this->isWithinRoot($realPath, $rawRoot)) {
-                throw new RuntimeException("Raw OpenLP inventory escapes its root: {$file->getPathname()}");
-            }
-
-            $relativePath = str_replace(DIRECTORY_SEPARATOR, '/', substr($realPath, strlen($rawRoot) + 1));
-            $hash = hash_file('sha256', $realPath);
-
-            if (! is_string($hash)) {
-                throw new RuntimeException("Unable to hash raw OpenLP file: {$relativePath}");
-            }
-
-            $inventory[$relativePath] = $hash;
-        }
-
-        ksort($inventory, SORT_STRING);
-
-        return $inventory;
     }
 
     /**
@@ -338,8 +265,8 @@ class OpenLpCurationManifest
                 throw new RuntimeException("OpenLP curation entry {$offset} must be an object.");
             }
 
-            $relativePath = $this->requiredString($entry, 'relative_path', $offset);
-            $this->validateRelativePath($relativePath, $rawRoot);
+            $relativePath = $this->reader->requiredString($entry, 'relative_path', $offset, self::Label);
+            $this->reader->validateRelativePath($relativePath, $rawRoot);
 
             if (isset($seenPaths[$relativePath])) {
                 throw new RuntimeException("Duplicate manifest path: {$relativePath}");
@@ -352,43 +279,43 @@ class OpenLpCurationManifest
              * bytes it describes: two entries over the same content must remain
              * distinguishable to the durable per-item job lock downstream.
              */
-            $itemKey = $this->requiredString($entry, 'item_key', $offset);
+            $itemKey = $this->reader->requiredString($entry, 'item_key', $offset, self::Label);
 
             if (isset($seenItemKeys[$itemKey])) {
                 throw new RuntimeException("Duplicate manifest item key: {$itemKey}");
             }
 
             $seenItemKeys[$itemKey] = true;
-            $sourceKind = $this->requiredString($entry, 'source_kind', $offset);
+            $sourceKind = $this->reader->requiredString($entry, 'source_kind', $offset, self::Label);
 
             if ($sourceKind !== self::SourceKind) {
                 throw new RuntimeException(
                     "Entry {$relativePath} declares source_kind {$sourceKind}; this manifest curates ".self::SourceKind.'.'
                 );
             }
-            $sha256 = strtolower($this->requiredString($entry, 'sha256', $offset));
+            $sha256 = strtolower($this->reader->requiredString($entry, 'sha256', $offset, self::Label));
             $byteSize = $entry['byte_size'] ?? null;
 
             if (preg_match('/\A[0-9a-f]{64}\z/', $sha256) !== 1 || ! is_int($byteSize) || $byteSize < 1) {
                 throw new RuntimeException("Invalid SHA-256 for {$relativePath}.");
             }
 
-            $disposition = $this->requiredString($entry, 'disposition', $offset);
+            $disposition = $this->reader->requiredString($entry, 'disposition', $offset, self::Label);
 
-            if (! in_array($disposition, ['include', 'duplicate-of', 'exclude'], true)) {
+            if (! in_array($disposition, CurationManifestReader::Dispositions, true)) {
                 throw new RuntimeException("Invalid disposition for {$relativePath}: {$disposition}");
             }
 
-            $logicalFilename = $this->nullableString($entry, 'logical_upload_filename');
-            $resolvedDate = $this->nullableString($entry, 'resolved_date');
-            $resolvedService = $this->nullableString($entry, 'resolved_service');
-            $aliasReason = $this->nullableString($entry, 'alias_reason');
-            $exclusionReason = $this->nullableString($entry, 'exclusion_reason');
-            $duplicateTargetHash = $this->nullableString($entry, 'duplicate_target_hash');
-            $parseDecision = $this->nullableString($entry, 'parse_decision');
-            $concatenationDecision = $this->nullableString($entry, 'concatenation_decision');
+            $logicalFilename = $this->reader->nullableString($entry, 'logical_upload_filename', self::Label);
+            $resolvedDate = $this->reader->nullableString($entry, 'resolved_date', self::Label);
+            $resolvedService = $this->reader->nullableString($entry, 'resolved_service', self::Label);
+            $aliasReason = $this->reader->nullableString($entry, 'alias_reason', self::Label);
+            $exclusionReason = $this->reader->nullableString($entry, 'exclusion_reason', self::Label);
+            $duplicateTargetHash = $this->reader->nullableString($entry, 'duplicate_target_hash', self::Label);
+            $parseDecision = $this->reader->nullableString($entry, 'parse_decision', self::Label);
+            $concatenationDecision = $this->reader->nullableString($entry, 'concatenation_decision', self::Label);
             $expectedItemCount = $entry['expected_item_count'] ?? null;
-            [$decidedBy, $decidedAt, $decisionRuleVersion] = $this->curationAuthority($entry, $relativePath);
+            [$decidedBy, $decidedAt, $decisionRuleVersion] = $this->reader->curationAuthority($entry, $relativePath, self::Label);
 
             if ($expectedItemCount !== null && (! is_int($expectedItemCount) || $expectedItemCount < 0)) {
                 throw new RuntimeException("Entry {$relativePath} has an invalid expected_item_count.");
@@ -458,81 +385,18 @@ class OpenLpCurationManifest
         return $normalized;
     }
 
-    private function validateRelativePath(string $relativePath, string $rawRoot): void
-    {
-        if (
-            $relativePath === ''
-            || str_starts_with($relativePath, '/')
-            || str_contains($relativePath, '\\')
-            || in_array('..', explode('/', $relativePath), true)
-            || in_array('', explode('/', $relativePath), true)
-        ) {
-            throw new RuntimeException("Unsafe manifest path: {$relativePath}");
-        }
-
-        $resolved = realpath("{$rawRoot}/{$relativePath}");
-
-        if (is_string($resolved) && ! $this->isWithinRoot($resolved, $rawRoot)) {
-            throw new RuntimeException("Manifest path escapes the raw directory: {$relativePath}");
-        }
-    }
-
     /**
      * @param  OpenLpCurationInclude  $entry
      */
     private function verifiedIncludePath(string $rawRoot, array $entry): string
     {
-        $relativePath = $entry['relative_path'];
-        $this->validateRelativePath($relativePath, $rawRoot);
-        $path = "{$rawRoot}/{$relativePath}";
-
-        if (! is_file($path) || $this->containsSymlink($rawRoot, $relativePath)) {
-            throw new RuntimeException("Approved OpenLP archive is missing or symlinked: {$relativePath}");
-        }
-
-        $realPath = realpath($path);
-
-        if (! is_string($realPath) || ! $this->isWithinRoot($realPath, $rawRoot)) {
-            throw new RuntimeException("Approved OpenLP archive escapes the raw directory: {$relativePath}");
-        }
-
-        if ($this->fileSize($realPath) !== $entry['byte_size']) {
-            throw new RuntimeException("Byte-size mismatch for {$relativePath}.");
-        }
-
-        $hash = hash_file('sha256', $realPath);
-
-        if (! is_string($hash) || ! hash_equals($entry['sha256'], $hash)) {
-            throw new RuntimeException("SHA-256 mismatch for {$relativePath}.");
-        }
-
-        return $realPath;
-    }
-
-    private function containsSymlink(string $rawRoot, string $relativePath): bool
-    {
-        $path = $rawRoot;
-
-        foreach (explode('/', $relativePath) as $segment) {
-            $path .= DIRECTORY_SEPARATOR.$segment;
-
-            if (is_link($path)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function fileSize(string $path): int
-    {
-        $size = filesize($path);
-
-        if (! is_int($size)) {
-            throw new RuntimeException("Unable to determine file size: {$path}");
-        }
-
-        return $size;
+        return $this->reader->verifiedPath(
+            $rawRoot,
+            $entry['relative_path'],
+            $entry['sha256'],
+            $entry['byte_size'],
+            self::Label,
+        );
     }
 
     private function validateInclude(
@@ -586,53 +450,6 @@ class OpenLpCurationManifest
         }
     }
 
-    /**
-     * §7.3 requires every entry to record who decided it and when, or the
-     * approved rule version that decided it. Without one of those the manifest
-     * is a cache of a filename heuristic rather than mutation authority.
-     *
-     * @param  array<string, mixed>  $entry
-     * @return array{0:?string,1:?string,2:?string}
-     */
-    private function curationAuthority(array $entry, string $relativePath): array
-    {
-        $decidedBy = $this->nullableString($entry, 'decided_by');
-        $decidedAt = $this->nullableString($entry, 'decided_at');
-        $decisionRuleVersion = $this->nullableString($entry, 'decision_rule_version');
-
-        if ($decidedBy === null && $decidedAt === null && $decisionRuleVersion === null) {
-            throw new RuntimeException(
-                "Entry {$relativePath} declares no curation authority: it requires decided_by with decided_at, ".
-                'or an approved decision_rule_version.'
-            );
-        }
-
-        if (($decidedBy === null) !== ($decidedAt === null)) {
-            throw new RuntimeException(
-                "Entry {$relativePath} must declare decided_by and decided_at together."
-            );
-        }
-
-        if ($decidedAt !== null && $this->isoTimestamp($decidedAt) === null) {
-            throw new RuntimeException(
-                "Entry {$relativePath} has an invalid decided_at; an ISO-8601 timestamp is required."
-            );
-        }
-
-        return [$decidedBy, $decidedAt, $decisionRuleVersion];
-    }
-
-    private function isoTimestamp(string $value): ?string
-    {
-        $parsed = \DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $value);
-
-        if ($parsed === false || $parsed->format(\DateTimeInterface::ATOM) !== $value) {
-            return null;
-        }
-
-        return $value;
-    }
-
     private function validateIncludeCurationDecisions(
         string $relativePath,
         ?string $parseDecision,
@@ -667,37 +484,11 @@ class OpenLpCurationManifest
     }
 
     /**
-     * @param  list<array<string, mixed>>  $entries
-     */
-    private function validateDuplicateHashes(array $entries): void
-    {
-        $includedHashes = collect($entries)
-            ->where('disposition', 'include')
-            ->pluck('sha256');
-        $duplicateIncludedHashes = $includedHashes->duplicates()->unique()->values();
-
-        if ($duplicateIncludedHashes->isNotEmpty()) {
-            throw new RuntimeException('Included entries contain duplicate SHA-256 hashes.');
-        }
-
-        $includedHashLookup = $includedHashes->flip();
-
-        foreach ($entries as $entry) {
-            if ($entry['disposition'] !== 'duplicate-of') {
-                continue;
-            }
-
-            if (
-                ! is_string($entry['duplicate_target_hash'])
-                || ! hash_equals($entry['sha256'], $entry['duplicate_target_hash'])
-                || ! $includedHashLookup->has($entry['duplicate_target_hash'])
-            ) {
-                throw new RuntimeException("Duplicate entry {$entry['relative_path']} does not identify an included byte-identical target.");
-            }
-        }
-    }
-
-    /**
+     * OpenLP's own logical-identity rule, deliberately *not* shared with Email:
+     * one archive is one plan, so two included archives resolving to the same
+     * date and service is a curation error. §7.5 explains why the Email corpus
+     * must permit exactly that.
+     *
      * @param  list<array<string, mixed>>  $entries
      */
     private function validateLogicalIdentities(array $entries): void
@@ -732,38 +523,5 @@ class OpenLpCurationManifest
             'exclude' => collect($entries)->where('disposition', 'exclude')->count(),
             'aliases' => collect($entries)->where('disposition', 'include')->whereNotNull('alias_reason')->count(),
         ];
-    }
-
-    /** @param array<string, mixed> $entry */
-    private function requiredString(array $entry, string $key, int $offset): string
-    {
-        $value = $entry[$key] ?? null;
-
-        if (! is_string($value) || trim($value) === '') {
-            throw new RuntimeException("OpenLP curation entry {$offset} requires {$key}.");
-        }
-
-        return trim($value);
-    }
-
-    /** @param array<string, mixed> $entry */
-    private function nullableString(array $entry, string $key): ?string
-    {
-        $value = $entry[$key] ?? null;
-
-        if ($value === null) {
-            return null;
-        }
-
-        if (! is_string($value) || trim($value) === '') {
-            throw new RuntimeException("OpenLP curation field {$key} must be a non-empty string or null.");
-        }
-
-        return trim($value);
-    }
-
-    private function isWithinRoot(string $path, string $root): bool
-    {
-        return $path !== $root && str_starts_with($path, $root.DIRECTORY_SEPARATOR);
     }
 }
