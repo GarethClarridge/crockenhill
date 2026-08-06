@@ -9,19 +9,20 @@ use App\Enums\SermonService;
 use App\Services\ChurchService\OpenLpCurationManifest;
 use App\Support\CanonicalJson;
 use App\Support\CurationManifestReader;
+use App\Support\MarkdownFrontmatter;
 use RuntimeException;
 
 /**
  * §7.3/§7.5 curation authority for the Email order-of-service corpus.
  *
- * The third of the three §7.3 manifests. Two things make it structurally
- * different from {@see OpenLpCurationManifest}, and
- * both come from the corpus rather than from taste:
+ * The third of the three §7.3 manifests. Three things make it structurally
+ * different from {@see OpenLpCurationManifest}, and all come from the corpus
+ * rather than from taste:
  *
  * **Two roots, one manifest.** The corpus is `storage/scratch/oos-verbatim/`
  * (raw email bodies) and `storage/scratch/oos/` (a formatting pass over them),
- * and the two do not correspond one-to-one: 247 entries are paired, 155 are
- * verbatim-only and 14 are formatted-only. §13.1 requires
+ * and the two do not correspond one-to-one: of 404 entries, 259 are paired, 143
+ * are verbatim-only and 2 are formatted-only. §13.1 requires
  * `discovered = included + excluded` with every exclusion carrying a reason, so
  * a manifest over either root alone would leave a residual it could not name.
  * Every file in *both* roots must therefore appear in exactly one entry.
@@ -33,6 +34,12 @@ use RuntimeException;
  * complements a full order without superseding anything. Both are legitimate,
  * so the invariant here is not uniqueness but *exactly one active leaf per
  * service among full orders*, with partials outside the chain entirely.
+ *
+ * **`expected_item_count` is optional.** An `.osz` archive parses locally, for
+ * free and deterministically, so OpenLP requires a count and reconciles it. An
+ * order of service is turned into items by an LLM, so a count here can only be
+ * asserted by someone who read the email — and is required to carry
+ * `decided_by` for exactly that reason.
  *
  * @phpstan-import-type OosCurationInclude from OosCurationPlan
  */
@@ -77,6 +84,7 @@ class OosCurationManifest
 
     public function __construct(
         private readonly CurationManifestReader $reader,
+        private readonly MarkdownFrontmatter $frontmatter,
     ) {}
 
     public function plan(string $verbatimDirectory, string $formattedDirectory, string $manifestPath): OosCurationPlan
@@ -152,6 +160,89 @@ class OosCurationManifest
         }
 
         return $paths;
+    }
+
+    /**
+     * Reconcile every approved payload against the curation decisions that
+     * authorised it, before an operator receives an applyable plan.
+     *
+     * This is the OoS analogue of OpenLP's `validateIncludesForDryRun()`, and it
+     * is deliberately **deterministic and free**: it compares the manifest's
+     * resolved identity against the payload file's own frontmatter and reads no
+     * further. An order of service is turned into items by an LLM, so item-level
+     * reconciliation cannot live here without making a dry run cost money and
+     * return a different answer each time. §7.5 records that split.
+     *
+     * `strict` fails closed when the source disagrees with the manifest;
+     * `manifest-authoritative` records that an operator has already ruled on the
+     * disagreement — which is exactly the disposition the two corrected dates in
+     * the corpus need.
+     *
+     * @return list<array{item_key:string, field:string, manifest:string, source:string}>
+     *                                                                                    the adjudicated disagreements, for the report
+     */
+    public function validateIncludesForDryRun(string $verbatimDirectory, string $formattedDirectory, OosCurationPlan $plan): array
+    {
+        $paths = $this->verifyIncludes($verbatimDirectory, $formattedDirectory, $plan);
+        $adjudicated = [];
+
+        foreach ($plan->includes as $entry) {
+            $frontmatter = $this->frontmatter->read($paths[$entry['item_key']]);
+
+            foreach ($this->identityChecks($entry, $frontmatter) as $field => [$manifestValue, $sourceValue]) {
+                if ($sourceValue === null || $sourceValue === $manifestValue) {
+                    continue;
+                }
+
+                if ($entry['parse_decision'] === 'strict') {
+                    throw new RuntimeException(
+                        "Approved OoS source {$entry['item_key']} declares {$field} {$sourceValue}, which contradicts ".
+                        "its manifest value {$manifestValue}. Record parse_decision manifest-authoritative to accept it."
+                    );
+                }
+
+                $adjudicated[] = [
+                    'item_key' => $entry['item_key'],
+                    'field' => $field,
+                    'manifest' => $manifestValue,
+                    'source' => $sourceValue,
+                ];
+            }
+
+            if (trim($this->frontmatter->body($paths[$entry['item_key']])) === '') {
+                throw new RuntimeException("Approved OoS source {$entry['item_key']} has an empty body.");
+            }
+        }
+
+        return $adjudicated;
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     * @param  array<string, string>  $frontmatter
+     * @return array<string, array{0:string,1:?string}>
+     */
+    private function identityChecks(array $entry, array $frontmatter): array
+    {
+        $sourceService = $frontmatter['service'] ?? null;
+
+        return [
+            'date' => [$entry['resolved_date'], $frontmatter['date'] ?? null],
+            /**
+             * The corpus's `service:` frontmatter is free text conflating four
+             * concepts (§7.5), so only the two values that unambiguously name a
+             * service are compared. `details`, `revised` and the rest assert
+             * nothing about which service this was.
+             */
+            'service' => [
+                $entry['resolved_service'],
+                match ($sourceService) {
+                    'am' => SermonService::Morning->value,
+                    'pm' => SermonService::Evening->value,
+                    default => null,
+                },
+            ],
+        ];
     }
 
     /**
@@ -516,8 +607,27 @@ class OosCurationManifest
             );
         }
 
-        if (! is_int($entry['expected_item_count']) || $entry['expected_item_count'] < 0) {
-            throw new RuntimeException("Included entry {$itemKey} requires a non-negative expected_item_count.");
+        /**
+         * Nullable, unlike OpenLP's. An `.osz` archive can be parsed locally
+         * for free and deterministically, so requiring a count there costs
+         * nothing and catches a dropped item. An order of service is parsed by
+         * an LLM, so a count can only be *asserted* by someone who read the
+         * email. Requiring the field would fill it with heuristic guesses
+         * recorded as decisions — a value inferred by a machine sitting in a
+         * field that means "a human decided this", which is the B13 defect in
+         * miniature. Null means "no count asserted", and §7.5's dry run then
+         * reconciles only the entries that assert one.
+         */
+        if ($entry['expected_item_count'] !== null
+            && (! is_int($entry['expected_item_count']) || $entry['expected_item_count'] < 0)) {
+            throw new RuntimeException("Included entry {$itemKey} has an invalid expected_item_count.");
+        }
+
+        if ($entry['expected_item_count'] !== null && $entry['decided_by'] === null) {
+            throw new RuntimeException(
+                "Included entry {$itemKey} asserts an expected_item_count without decided_by; ".
+                'an item count can only come from someone who read the source.'
+            );
         }
     }
 
@@ -599,10 +709,6 @@ class OosCurationManifest
                 if (! is_string($entry[$key])) {
                     throw new RuntimeException("Validated include {$entry['item_key']} is missing {$key}.");
                 }
-            }
-
-            if (! is_int($entry['expected_item_count'])) {
-                throw new RuntimeException("Validated include {$entry['item_key']} is missing expected_item_count.");
             }
 
             $payloadPath = $entry['payload'] === 'formatted'

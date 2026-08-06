@@ -7,6 +7,7 @@ namespace Tests\Unit\Services\Email;
 use App\Data\OosCurationPlan;
 use App\Services\Email\OosCurationManifest;
 use App\Support\CurationManifestReader;
+use App\Support\MarkdownFrontmatter;
 use Illuminate\Support\Facades\File;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
@@ -44,7 +45,7 @@ class OosCurationManifestTest extends TestCase
 
     private function manifest(): OosCurationManifest
     {
-        return new OosCurationManifest(new CurationManifestReader);
+        return new OosCurationManifest(new CurationManifestReader, new MarkdownFrontmatter);
     }
 
     private function plan(): OosCurationPlan
@@ -552,6 +553,142 @@ class OosCurationManifestTest extends TestCase
         $this->expectExceptionMessage('SHA-256 mismatch for 2015-12-13.md.');
 
         $this->manifest()->verifyIncludes($this->verbatimRoot, $this->formattedRoot, $plan);
+    }
+
+    #[Test]
+    public function an_item_count_may_be_omitted(): void
+    {
+        $entry = $this->pairedEntry('2015-12-13', '2015-12-13', 'morning');
+        unset($entry['expected_item_count']);
+        $this->writeManifest([$entry]);
+
+        $this->assertNull($this->plan()->includes[0]['expected_item_count']);
+    }
+
+    #[Test]
+    public function an_item_count_cannot_be_asserted_without_a_person_behind_it(): void
+    {
+        $entry = $this->pairedEntry('2015-12-13', '2015-12-13', 'morning', [
+            'expected_item_count' => 13,
+            'decision_rule_version' => 'oos-curation-draft-v1',
+        ]);
+        unset($entry['decided_by'], $entry['decided_at']);
+        $this->writeManifest([$entry]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('asserts an expected_item_count without decided_by');
+
+        $this->plan();
+    }
+
+    #[Test]
+    public function a_strict_entry_fails_closed_when_the_source_date_contradicts_the_manifest(): void
+    {
+        $this->writeSourceWithFrontmatter($this->formattedRoot, '2026-03-15-2', ['date' => '2026-03-15']);
+        $this->writeManifest([$this->frontmatterEntry('2026-03-15-2', '2026-02-15', 'morning')]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('declares date 2026-03-15, which contradicts its manifest value 2026-02-15');
+
+        $this->manifest()->validateIncludesForDryRun($this->verbatimRoot, $this->formattedRoot, $this->plan());
+    }
+
+    #[Test]
+    public function a_manifest_authoritative_entry_records_the_adjudicated_disagreement(): void
+    {
+        $this->writeSourceWithFrontmatter($this->formattedRoot, '2026-03-15-2', ['date' => '2026-03-15']);
+        $this->writeManifest([$this->frontmatterEntry('2026-03-15-2', '2026-02-15', 'morning', [
+            'parse_decision' => 'manifest-authoritative',
+        ])]);
+
+        $adjudicated = $this->manifest()->validateIncludesForDryRun($this->verbatimRoot, $this->formattedRoot, $this->plan());
+
+        $this->assertSame([[
+            'item_key' => '2026-03-15-2',
+            'field' => 'date',
+            'manifest' => '2026-02-15',
+            'source' => '2026-03-15',
+        ]], $adjudicated);
+    }
+
+    #[Test]
+    public function a_strict_entry_fails_closed_when_the_source_names_another_service(): void
+    {
+        $this->writeSourceWithFrontmatter($this->formattedRoot, '2020-01-05', ['date' => '2020-01-05', 'service' => 'pm']);
+        $this->writeManifest([$this->frontmatterEntry('2020-01-05', '2020-01-05', 'morning')]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('declares service evening, which contradicts its manifest value morning');
+
+        $this->manifest()->validateIncludesForDryRun($this->verbatimRoot, $this->formattedRoot, $this->plan());
+    }
+
+    #[Test]
+    public function the_corpus_free_text_service_frontmatter_asserts_nothing(): void
+    {
+        /**
+         * `revised` is lineage, not a service (§7.5). A strict entry must not
+         * fail merely because the corpus overloaded that field.
+         */
+        $this->writeSourceWithFrontmatter($this->formattedRoot, '2015-12-27-revised', [
+            'date' => '2015-12-27',
+            'service' => 'revised',
+        ]);
+        $this->writeManifest([$this->frontmatterEntry('2015-12-27-revised', '2015-12-27', 'morning')]);
+
+        $this->assertSame([], $this->manifest()->validateIncludesForDryRun($this->verbatimRoot, $this->formattedRoot, $this->plan()));
+    }
+
+    #[Test]
+    public function a_source_with_no_body_is_rejected(): void
+    {
+        $this->writeSourceWithFrontmatter($this->formattedRoot, '2020-01-05', ['date' => '2020-01-05'], body: "\n  \n");
+        $this->writeManifest([$this->frontmatterEntry('2020-01-05', '2020-01-05', 'morning')]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('has an empty body');
+
+        $this->manifest()->validateIncludesForDryRun($this->verbatimRoot, $this->formattedRoot, $this->plan());
+    }
+
+    /** @param array<string, string> $frontmatter */
+    private function writeSourceWithFrontmatter(string $root, string $name, array $frontmatter, string $body = "\nWelcome\n\nHymn 190\n"): void
+    {
+        $lines = ['---'];
+        foreach ($frontmatter as $key => $value) {
+            $lines[] = "{$key}: {$value}";
+        }
+        $lines[] = '---';
+
+        File::put("{$root}/{$name}.md", implode("\n", $lines).$body);
+    }
+
+    /**
+     * An entry over a file already written by writeSourceWithFrontmatter().
+     *
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function frontmatterEntry(string $itemKey, string $date, string $service, array $overrides = []): array
+    {
+        $contents = (string) file_get_contents("{$this->formattedRoot}/{$itemKey}.md");
+
+        return array_merge([
+            'item_key' => $itemKey,
+            'source_kind' => 'email',
+            'formatted_relative_path' => "{$itemKey}.md",
+            'formatted_sha256' => hash('sha256', $contents),
+            'formatted_byte_size' => strlen($contents),
+            'verbatim_absence_reason' => 'Formatted-only fixture.',
+            'disposition' => 'include',
+            'payload' => 'formatted',
+            'resolved_date' => $date,
+            'resolved_service' => $service,
+            'date_decision' => 'explicit',
+            'content_scope' => 'full',
+            'parse_decision' => 'strict',
+            'decision_rule_version' => 'oos-curation-draft-v1',
+        ], $overrides);
     }
 
     #[Test]

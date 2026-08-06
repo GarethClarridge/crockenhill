@@ -24,7 +24,7 @@ namespace App\Data;
  *     partial_scope_reason:?string,
  *     supersedes:?string,
  *     parse_decision:string,
- *     expected_item_count:int,
+ *     expected_item_count:?int,
  *     decided_by:?string,
  *     decided_at:?string,
  *     decision_rule_version:?string

@@ -575,10 +575,8 @@ claims a human decided it.
 
 Three things about the draft that a reviewer should not have to discover:
 
-- **`expected_item_count` is a heuristic line count, not a parse.** The schema requires the field.
-  Unlike OpenLP — whose `validateIncludesForDryRun()` reconciles the count against a real parse —
-  the OoS manifest has no dry-run reconciliation yet, so these numbers are unchecked proposals.
-  Building that reconciliation is the natural companion to repointing `ImportOosArchiveCommand`.
+- **`expected_item_count` is optional here, and that is a deliberate divergence from OpenLP.**
+  Resolved 2026-08-06; see the dry-run section below.
 - **Ambiguity is resolved downwards, never upwards.** Where the rules cannot rank two full orders for
   one service, the extra is demoted to `partial` rather than being asserted as a supersession.
   "This document asserts part of the service" is true of any of them, and §8.4 keeps a partial's
@@ -617,6 +615,52 @@ These two entries carry `decided_by` and `decided_at` rather than the draft rule
 person really did decide them by reading the source. The supplied order also gives the corpus its
 **first human-verified item list** — 13 items — and is worth carrying into §13.4's per-era truth set,
 where it is currently the only Email-side ground truth that exists.
+
+#### Dry-run reconciliation, and why it stops short of items
+
+Added 2026-08-06. `OosCurationManifest::validateIncludesForDryRun()` is the OoS analogue of
+OpenLP's, and it is deliberately narrower.
+
+**Item-level reconciliation cannot live in a dry run here.** OpenLP parses an `.osz` locally: free,
+deterministic, so requiring `expected_item_count` and failing on a mismatch costs nothing and catches
+a dropped item. An order of service is turned into items by an **LLM** —
+`OosEmailParserService` calls `OosEmailItemExtractor` and may issue a corrective second attempt, and
+its own code path contemplates two structurally valid attempts disagreeing. Reconciling a count
+against that would make a dry run cost money per entry and return a different answer on different
+days. A gate that fails on model weather is worse than no gate.
+
+So the two halves are split:
+
+- **Identity reconciliation — deterministic, free, runs always.** The manifest's `resolved_date` and
+  `resolved_service` are compared against the payload file's own frontmatter. `strict` fails closed
+  on a disagreement; `manifest-authoritative` records that an operator has ruled on it. This is the
+  exact analogue of OpenLP's embedded-`.osj` filename-mismatch rule. Only `am`/`pm` are compared from
+  the corpus's `service:` field, because the other 22 values in it are not services at all.
+- **`expected_item_count` is nullable, and asserting one requires `decided_by`.** Null means "no
+  count asserted". A heuristic line count recorded in this field would be a machine guess sitting in
+  a field that means "a person decided this" — the B13 defect in miniature — so the draft emits none,
+  and the generator's proposed counts stay in its report as a starting number for whoever verifies.
+  Exactly one entry asserts a count today: `2026-02-22-am-revised`, at 13, from the maintainer's
+  transcription.
+
+**The dry run passes over all 404 entries with zero disagreements**, and it found a real rule error
+on its first run — see below.
+
+#### The occasion is a theme; the service is a slot
+
+The dry run's first execution failed on `2022-11-13-remembrance`: the manifest said `other`, the
+source frontmatter said `am`. The source was right and the rule was wrong.
+
+Easter Sunday, Palm Sunday, Remembrance Sunday and Christmas morning are the **ordinary Sunday
+morning service with an occasion attached**, not separate services. The corpus agrees wherever it
+speaks — `2023-04-09-easter.md` says "Easter Sunday morning" and `2022-11-13-remembrance.md` simply
+says `am`. `other` is now reserved for services genuinely outside the morning/evening slots: Good
+Friday and Maundy Thursday fall on weekdays, and Carols by Candlelight is a distinct evening event.
+The occasion is never lost; it survives in `title_override`, and in `service_label` for the `other`
+cases. This moved `other` from 22 entries to 12.
+
+The payload's own frontmatter now outranks every filename inference when it names `am` or `pm` — it
+is the document telling us which service it was for, and it is what the dry run compares against.
 
 #### Scope of PR21
 
