@@ -475,27 +475,60 @@ material.
 
 #### What the inventory already shows
 
-Measured 2026-08-06 against the two directories. These are the reconciliation target for §13.1's
+Measured 2026-08-06 against the two directories, then corrected the same day when the draft
+generator exposed the pairing rule below. These are the reconciliation target for §13.1's
 `discovered = included + excluded`, on the Email side:
 
 | Population | Count |
 |---|---|
 | Verbatim files (`oos-verbatim/`) | 402 |
 | Formatted files (`oos/`) | 261 |
-| Formatted with a verbatim counterpart | 247 |
-| **Verbatim with no formatted counterpart** | **155** |
-| **Formatted with no verbatim counterpart** | **14** |
+| **Manifest entries** | **404** |
+| Paired (one email, both extractions) | 259 |
+| **Verbatim with no formatted counterpart** | **143** |
+| **Formatted with no verbatim counterpart** | **2** |
 
-Both residuals are real curation decisions, not tidying:
+**Pair by provenance and by email, never by filename.** A first pass paired the two roots on
+filename stem and got 247/155/14. Every one of those figures is wrong, and the way they are wrong is
+the finding.
 
-- **The 155 are entirely 2022 and later** (48/44/29/16/18 across 2022–2026). Formatting covered
-  2014–2021 densely and then thinned out; `oos/` holds 37 and 47 files for 2020 and 2021 against 7
-  and 11 for 2022 and 2023. Each of the 155 is either an include the manifest must account for or an
-  exclusion carrying a reason. It cannot stay silent, because §13.1 forbids an unresolved included
-  item.
-- **The 14 derive from the superseded aggregate archive** and declare
-  `extraction: email body via Gmail (second-hand, spot-checked)`. Their `source:` frontmatter points
-  at a verbatim file that does not exist, so their provenance chain is already broken.
+Only **161** formatted files carry a `source:` frontmatter naming a verbatim path. The other **100**
+cite the superseded aggregate archive and declare
+`extraction: email body via Gmail (second-hand, spot-checked)`. The two roots do not agree on
+filenames: the same email is filed as `2022-02-20.md` in one root and `2022-02-20-am.md` in the
+other, so stem-pairing both misses real pairs and invents false ones. Matching on the **email** —
+same date and same `source_subject` once `Re:`/`Fwd:`/`Fw:` prefixes are normalised — recovers them.
+
+Two entries had to be matched on subject alone, across a date the filename got wrong, and both are
+confirmed by a `note:` the corpus's own curator left:
+
+| Formatted file | Matched verbatim | Why |
+|---|---|---|
+| `oos/2026-03-15-2.md` | `oos-verbatim/2026-02-15.md` | Subject and body heading both read "15th March"; the email was sent Fri 13 Feb for the following Sunday. It is the **15 February** order. |
+| `oos/2026-06-05.md` | `oos-verbatim/2026-07-05.md` | Subject reads "5th June 2026"; content (Joshua 5:1-12, Andrew Wilson preaching) confirms **5 July**. 5 June 2026 is a Friday. |
+
+That fallback is only safe because it requires the subject to be **unique across the whole verbatim
+corpus**; "order of service for sunday" recurs 36 times and is excluded by construction.
+
+One stem remains a genuine collision — `2026-03-15-am` names a *different email* in each root, the
+original in verbatim and its revision in formatted. Stem-pairing merged the revision into its own
+predecessor, destroying exactly the §7.2 supersession the manifest exists to record. It is split into
+two entries.
+
+Where an email exists in both roots, **the verbatim body is the payload**: it is first-hand, whereas
+a formatted file citing the aggregate is second-hand and spot-checked. Where the formatted file
+genuinely derives from the verbatim (`source:` names it), the formatted file is the payload. Where
+the two disagree about the date, the payload's own frontmatter wins — it is the document being
+parsed that must be believed, not its companion.
+
+The residuals are real curation decisions, not tidying:
+
+- **The 144 verbatim-only files are almost entirely 2022 and later.** Formatting covered 2014–2021
+  densely and then thinned out. Each is either an include the manifest must account for or an
+  exclusion carrying a reason; §13.1 forbids an unresolved included item. Including them is what
+  makes the corpus's yearly distribution even (roughly 42–55 services a year from 2022 on) instead of
+  collapsing after 2021.
+- **The 3 formatted-only entries** have no raw body at all, and the manifest records why.
 
 #### Four concepts are conflated in one free-text field
 
@@ -527,6 +560,63 @@ date)` — Maundy Thursday and Good Friday 2023, Easter 2023/2025/2026, Christma
 is mutation authority." Each becomes an explicit approved manifest date, with the inference recorded
 as its reason rather than trusted silently. `2026-03-15-2.md` is the same case in a louder form: its
 own title says `[email title likely intended 15 February]`.
+
+#### Draft manifest, 2026-08-06
+
+A draft has been generated from filename and frontmatter signals and **validates against
+`OosCurationManifest`**: 404 entries, all `include`, 363 full and 41 partial, 10 supersessions,
+9 inferred dates. It lives at `storage/scratch/oos-curation-manifest.draft.json`, generated by
+`storage/scratch/draft_oos_manifest.php`.
+
+It carries `decision_rule_version: oos-curation-draft-v1` and **no `decided_by` on any entry**. That
+is deliberate and is what §7.3's two authority forms are for: the operator approves the *rule set*,
+which covers the bulk mechanically, and rules individually only on the residue. Nothing in the draft
+claims a human decided it.
+
+Three things about the draft that a reviewer should not have to discover:
+
+- **`expected_item_count` is a heuristic line count, not a parse.** The schema requires the field.
+  Unlike OpenLP — whose `validateIncludesForDryRun()` reconciles the count against a real parse —
+  the OoS manifest has no dry-run reconciliation yet, so these numbers are unchecked proposals.
+  Building that reconciliation is the natural companion to repointing `ImportOosArchiveCommand`.
+- **Ambiguity is resolved downwards, never upwards.** Where the rules cannot rank two full orders for
+  one service, the extra is demoted to `partial` rather than being asserted as a supersession.
+  "This document asserts part of the service" is true of any of them, and §8.4 keeps a partial's
+  silence from being read as disagreement, so the weaker claim is the safe one.
+- **A named service that has an `-am`/`-pm` suffix keeps the enum value the suffix implies.**
+  Easter Sunday morning resolves to `morning`, not `other`, with "Easter Sunday" preserved in
+  `title_override`. Whether the named-service identity should instead win is an operator call the
+  draft does not make.
+
+The twelve proposed entries — nine revision-signal supersessions, the two corpus-unique subject
+matches above, and `2017-06-11`'s demotion to partial — were **confirmed by the maintainer on
+2026-08-06**. They keep the draft rule version, since a rule reached each of them.
+
+#### 2026-02-22: the one decision a rule could not reach
+
+`2026-02-22` was the draft's only unrankable service, holding three documents. The maintainer looked
+up the original email and supplied the order, which settles it — and corrects a reading in an earlier
+revision of this section.
+
+The supplied order ends **"Hymn NIP I will glory in my Redeemer"**. That line appears in exactly one
+of the three documents:
+
+| Document | Final hymn | What it is |
+|---|---|---|
+| `oos-verbatim/2026-02-22-am.md` | `Hymn (Mark)` | the original, final hymn unresolved |
+| `oos-verbatim/2026-02-22-am-revised.md` | `Hymn NIP I Will Glory in My Redeemer` | **the active order** |
+| `oos/2026-02-22.md` | `Hymn (Mark)` | second-hand extraction of the *original* |
+
+So `oos/2026-02-22.md` is **not** a merge of both emails, as its thread subject
+`Order of Service / Revised Order of Service` implied — it carries the original's body. It is paired
+with the verbatim original as its second-hand formatting, the revision supersedes the original, and
+nothing is excluded. The automatic revision-signal rule independently proposed the same supersession
+once the third document left contention, which is a useful cross-check rather than a coincidence.
+
+These two entries carry `decided_by` and `decided_at` rather than the draft rule version, because a
+person really did decide them by reading the source. The supplied order also gives the corpus its
+**first human-verified item list** — 13 items — and is worth carrying into §13.4's per-era truth set,
+where it is currently the only Email-side ground truth that exists.
 
 #### Scope of PR21
 
