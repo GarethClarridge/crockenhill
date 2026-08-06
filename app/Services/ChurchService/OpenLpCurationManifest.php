@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\File;
 use JsonException;
 use RuntimeException;
 
+/**
+ * @phpstan-import-type OpenLpCurationInclude from \App\Data\OpenLpCurationPlan
+ */
 class OpenLpCurationManifest
 {
     private const ExpectedCounts = [
@@ -25,7 +28,24 @@ class OpenLpCurationManifest
 
     private const Format = 'crockenhill-openlp-curation';
 
-    private const Version = 1;
+    /**
+     * Version 2 adds §7.3's curation-authority fields (stable item key, source
+     * kind, parse/concatenation decision, expected occurrence count and the
+     * decision author/time or approved rule version). A v1 manifest carries no
+     * attribution at all, so it is rejected rather than defaulted.
+     */
+    private const Version = 2;
+
+    /** This manifest curates one source kind; the format is shared with Email and livestream. */
+    private const SourceKind = 'openlp';
+
+    private const ParseDecisions = ['strict', 'manifest-authoritative'];
+
+    /**
+     * Shared with the historic video dispatch vocabulary. A `.osz` archive is a
+     * single file, so only `none` is ever valid here.
+     */
+    private const ConcatenationDecisions = ['none', 'lossless', 'reencoded'];
 
     public function __construct(
         private readonly OpenLpServiceParser $parser,
@@ -65,6 +85,13 @@ class OpenLpCurationManifest
             throw new RuntimeException('Unsupported OpenLP curation manifest format or version.');
         }
 
+        $batchKey = $manifest['batch_key'] ?? null;
+
+        if (! is_string($batchKey) || trim($batchKey) === '') {
+            throw new RuntimeException('The OpenLP curation manifest requires a non-empty batch_key.');
+        }
+
+        $batchKey = trim($batchKey);
         $entries = $manifest['entries'] ?? null;
 
         if (! is_array($entries) || ! array_is_list($entries)) {
@@ -125,7 +152,17 @@ class OpenLpCurationManifest
                 throw new RuntimeException("Validated include {$entry['relative_path']} is missing canonical identity fields.");
             }
 
+            if (
+                ! is_string($entry['parse_decision'])
+                || ! is_string($entry['concatenation_decision'])
+                || ! is_int($entry['expected_item_count'])
+            ) {
+                throw new RuntimeException("Validated include {$entry['relative_path']} is missing curation decision fields.");
+            }
+
             $includes[] = [
+                'item_key' => $entry['item_key'],
+                'source_kind' => $entry['source_kind'],
                 'relative_path' => $entry['relative_path'],
                 'sha256' => $entry['sha256'],
                 'byte_size' => $entry['byte_size'],
@@ -133,23 +170,31 @@ class OpenLpCurationManifest
                 'resolved_date' => $entry['resolved_date'],
                 'resolved_service' => $entry['resolved_service'],
                 'alias_reason' => $entry['alias_reason'],
+                'parse_decision' => $entry['parse_decision'],
+                'concatenation_decision' => $entry['concatenation_decision'],
+                'expected_item_count' => $entry['expected_item_count'],
+                'decided_by' => $entry['decided_by'],
+                'decided_at' => $entry['decided_at'],
+                'decision_rule_version' => $entry['decision_rule_version'],
             ];
         }
 
         $manifestHash = CanonicalJson::hash([
             'format' => self::Format,
             'version' => self::Version,
+            'batch_key' => $batchKey,
             'entries' => $normalizedEntries,
         ]);
         $planHash = CanonicalJson::hash([
             'format' => 'crockenhill-openlp-import-plan',
-            'version' => 1,
+            'version' => 2,
+            'batch_key' => $batchKey,
             'manifest_hash' => $manifestHash,
             'counts' => $counts,
             'includes' => $includes,
         ]);
 
-        return new OpenLpCurationPlan($manifestHash, $planHash, $includes, $counts);
+        return new OpenLpCurationPlan($manifestHash, $planHash, $includes, $counts, $batchKey);
     }
 
     /**
@@ -173,7 +218,8 @@ class OpenLpCurationManifest
     }
 
     /**
-     * Parse every approved archive before an operator receives an applyable plan.
+     * Parse every approved archive before an operator receives an applyable plan,
+     * and reconcile the parse against the curation decisions that authorised it.
      */
     public function validateIncludesForDryRun(string $rawDirectory, OpenLpCurationPlan $plan): void
     {
@@ -189,11 +235,36 @@ class OpenLpCurationManifest
             if ($parsed->date !== $entry['resolved_date'] || $parsed->service->value !== $entry['resolved_service']) {
                 throw new RuntimeException("Parsed OpenLP archive identity contradicts its approved manifest entry: {$entry['relative_path']}.");
             }
+
+            /**
+             * The archive's embedded .osj name disagreeing with the approved
+             * logical filename is exactly the corrected-filename case. Under
+             * `strict` it is unadjudicated and fails closed; under
+             * `manifest-authoritative` the operator has already ruled on it.
+             */
+            if (
+                $entry['parse_decision'] === 'strict'
+                && ($parsed->importMetadata['filename_mismatch'] ?? false) === true
+            ) {
+                throw new RuntimeException(
+                    'Approved OpenLP archive has an embedded .osj identity that contradicts its logical upload '.
+                    "filename: {$entry['relative_path']}. Record parse_decision manifest-authoritative to accept it."
+                );
+            }
+
+            $parsedItemCount = count($parsed->items);
+
+            if ($parsedItemCount !== $entry['expected_item_count']) {
+                throw new RuntimeException(
+                    "Approved OpenLP archive {$entry['relative_path']} parsed {$parsedItemCount} items but its ".
+                    "manifest expected item count is {$entry['expected_item_count']}."
+                );
+            }
         }
     }
 
     /**
-     * @param  array{relative_path:string,sha256:string,byte_size:int,logical_upload_filename:string,resolved_date:string,resolved_service:string,alias_reason:?string}  $entry
+     * @param  OpenLpCurationInclude  $entry
      */
     public function verifyInclude(string $rawDirectory, array $entry): string
     {
@@ -236,6 +307,8 @@ class OpenLpCurationManifest
     /**
      * @param  list<mixed>  $entries
      * @return list<array{
+     *     item_key:string,
+     *     source_kind:string,
      *     relative_path:string,
      *     sha256:string,
      *     byte_size:int,
@@ -245,13 +318,20 @@ class OpenLpCurationManifest
      *     resolved_date:?string,
      *     resolved_service:?string,
      *     alias_reason:?string,
-     *     exclusion_reason:?string
+     *     exclusion_reason:?string,
+     *     parse_decision:?string,
+     *     concatenation_decision:?string,
+     *     expected_item_count:?int,
+     *     decided_by:?string,
+     *     decided_at:?string,
+     *     decision_rule_version:?string
      * }>
      */
     private function normalizeEntries(array $entries, string $rawRoot): array
     {
         $normalized = [];
         $seenPaths = [];
+        $seenItemKeys = [];
 
         foreach ($entries as $offset => $entry) {
             if (! is_array($entry)) {
@@ -266,6 +346,26 @@ class OpenLpCurationManifest
             }
 
             $seenPaths[$relativePath] = true;
+
+            /**
+             * The item key is curation identity, deliberately independent of the
+             * bytes it describes: two entries over the same content must remain
+             * distinguishable to the durable per-item job lock downstream.
+             */
+            $itemKey = $this->requiredString($entry, 'item_key', $offset);
+
+            if (isset($seenItemKeys[$itemKey])) {
+                throw new RuntimeException("Duplicate manifest item key: {$itemKey}");
+            }
+
+            $seenItemKeys[$itemKey] = true;
+            $sourceKind = $this->requiredString($entry, 'source_kind', $offset);
+
+            if ($sourceKind !== self::SourceKind) {
+                throw new RuntimeException(
+                    "Entry {$relativePath} declares source_kind {$sourceKind}; this manifest curates ".self::SourceKind.'.'
+                );
+            }
             $sha256 = strtolower($this->requiredString($entry, 'sha256', $offset));
             $byteSize = $entry['byte_size'] ?? null;
 
@@ -285,6 +385,14 @@ class OpenLpCurationManifest
             $aliasReason = $this->nullableString($entry, 'alias_reason');
             $exclusionReason = $this->nullableString($entry, 'exclusion_reason');
             $duplicateTargetHash = $this->nullableString($entry, 'duplicate_target_hash');
+            $parseDecision = $this->nullableString($entry, 'parse_decision');
+            $concatenationDecision = $this->nullableString($entry, 'concatenation_decision');
+            $expectedItemCount = $entry['expected_item_count'] ?? null;
+            [$decidedBy, $decidedAt, $decisionRuleVersion] = $this->curationAuthority($entry, $relativePath);
+
+            if ($expectedItemCount !== null && (! is_int($expectedItemCount) || $expectedItemCount < 0)) {
+                throw new RuntimeException("Entry {$relativePath} has an invalid expected_item_count.");
+            }
 
             if ($disposition === 'include') {
                 $this->validateInclude(
@@ -295,6 +403,17 @@ class OpenLpCurationManifest
                     $aliasReason,
                     $exclusionReason,
                     $duplicateTargetHash,
+                );
+                $this->validateIncludeCurationDecisions(
+                    $relativePath,
+                    $parseDecision,
+                    $concatenationDecision,
+                    $expectedItemCount,
+                );
+            } elseif ($parseDecision !== null || $concatenationDecision !== null || $expectedItemCount !== null) {
+                throw new RuntimeException(
+                    "Entry {$relativePath} is not imported and has contradictory disposition fields: ".
+                    'parse, concatenation and expected-count decisions apply to includes only.'
                 );
             }
 
@@ -315,6 +434,8 @@ class OpenLpCurationManifest
             }
 
             $normalized[] = [
+                'item_key' => $itemKey,
+                'source_kind' => $sourceKind,
                 'relative_path' => $relativePath,
                 'sha256' => $sha256,
                 'byte_size' => $byteSize,
@@ -325,6 +446,12 @@ class OpenLpCurationManifest
                 'resolved_service' => $resolvedService,
                 'alias_reason' => $aliasReason,
                 'exclusion_reason' => $exclusionReason,
+                'parse_decision' => $parseDecision,
+                'concatenation_decision' => $concatenationDecision,
+                'expected_item_count' => $expectedItemCount,
+                'decided_by' => $decidedBy,
+                'decided_at' => $decidedAt,
+                'decision_rule_version' => $decisionRuleVersion,
             ];
         }
 
@@ -351,7 +478,7 @@ class OpenLpCurationManifest
     }
 
     /**
-     * @param  array{relative_path:string,sha256:string,byte_size:int,logical_upload_filename:string,resolved_date:string,resolved_service:string,alias_reason:?string}  $entry
+     * @param  OpenLpCurationInclude  $entry
      */
     private function verifiedIncludePath(string $rawRoot, array $entry): string
     {
@@ -456,6 +583,86 @@ class OpenLpCurationManifest
 
         if ($exclusionReason !== null || $duplicateTargetHash !== null) {
             throw new RuntimeException("Included entry {$relativePath} has contradictory disposition fields.");
+        }
+    }
+
+    /**
+     * §7.3 requires every entry to record who decided it and when, or the
+     * approved rule version that decided it. Without one of those the manifest
+     * is a cache of a filename heuristic rather than mutation authority.
+     *
+     * @param  array<string, mixed>  $entry
+     * @return array{0:?string,1:?string,2:?string}
+     */
+    private function curationAuthority(array $entry, string $relativePath): array
+    {
+        $decidedBy = $this->nullableString($entry, 'decided_by');
+        $decidedAt = $this->nullableString($entry, 'decided_at');
+        $decisionRuleVersion = $this->nullableString($entry, 'decision_rule_version');
+
+        if ($decidedBy === null && $decidedAt === null && $decisionRuleVersion === null) {
+            throw new RuntimeException(
+                "Entry {$relativePath} declares no curation authority: it requires decided_by with decided_at, ".
+                'or an approved decision_rule_version.'
+            );
+        }
+
+        if (($decidedBy === null) !== ($decidedAt === null)) {
+            throw new RuntimeException(
+                "Entry {$relativePath} must declare decided_by and decided_at together."
+            );
+        }
+
+        if ($decidedAt !== null && $this->isoTimestamp($decidedAt) === null) {
+            throw new RuntimeException(
+                "Entry {$relativePath} has an invalid decided_at; an ISO-8601 timestamp is required."
+            );
+        }
+
+        return [$decidedBy, $decidedAt, $decisionRuleVersion];
+    }
+
+    private function isoTimestamp(string $value): ?string
+    {
+        $parsed = \DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $value);
+
+        if ($parsed === false || $parsed->format(\DateTimeInterface::ATOM) !== $value) {
+            return null;
+        }
+
+        return $value;
+    }
+
+    private function validateIncludeCurationDecisions(
+        string $relativePath,
+        ?string $parseDecision,
+        ?string $concatenationDecision,
+        ?int $expectedItemCount,
+    ): void {
+        if ($parseDecision === null || ! in_array($parseDecision, self::ParseDecisions, true)) {
+            throw new RuntimeException(
+                "Included entry {$relativePath} requires a parse_decision of ".implode(' or ', self::ParseDecisions).'.'
+            );
+        }
+
+        if ($concatenationDecision === null || ! in_array($concatenationDecision, self::ConcatenationDecisions, true)) {
+            throw new RuntimeException(
+                "Included entry {$relativePath} requires a concatenation_decision of ".
+                implode(', ', self::ConcatenationDecisions).'.'
+            );
+        }
+
+        if ($concatenationDecision !== 'none') {
+            throw new RuntimeException(
+                "Included entry {$relativePath} declares concatenation_decision {$concatenationDecision}; ".
+                'a single OpenLP archive is never concatenated.'
+            );
+        }
+
+        if ($expectedItemCount === null) {
+            throw new RuntimeException(
+                "Included entry {$relativePath} requires an expected_item_count."
+            );
         }
     }
 

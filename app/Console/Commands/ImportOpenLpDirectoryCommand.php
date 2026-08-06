@@ -19,6 +19,8 @@ use Throwable;
 /**
  * Temporary R8 one-shot. Delete this command and its tests after the production OpenLP
  * convergence apply is ledgered, parity is accepted and WP11 closeout has passed.
+ *
+ * @phpstan-import-type OpenLpCurationInclude from \App\Data\OpenLpCurationPlan
  */
 class ImportOpenLpDirectoryCommand extends Command
 {
@@ -208,7 +210,7 @@ class ImportOpenLpDirectoryCommand extends Command
     }
 
     /**
-     * @param  array{relative_path:string,sha256:string,byte_size:int,logical_upload_filename:string,resolved_date:string,resolved_service:string,alias_reason:?string}  $entry
+     * @param  OpenLpCurationInclude  $entry
      */
     private function importArchive(
         string $rawDirectory,

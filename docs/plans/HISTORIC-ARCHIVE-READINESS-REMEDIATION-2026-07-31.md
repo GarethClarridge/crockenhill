@@ -1,13 +1,14 @@
 # Historic Archive Import Readiness Remediation Plan
 
-> **Status (2026-08-05): PRs 1–16 are merged. WP0–WP6 and WP8 have landed, and the only remaining
-> scheduled code slice is PR17 (WP7 staging/dispatch/throughput).** "Merged" here is not a gate
-> certification — see §17's Status column and the "Acceptance and gate readiness" audit. Three audit
-> gaps remain open and now block the §13.5 rehearsal, not merely their own gates: the §7.3 OpenLP
-> manifest fields (G1/PR5, rehearsal step 2), and the two different-PK round trips (G3/PR11 and
-> G3/PR12, rehearsal step 12). The G2 empty-census gap is **closed as of 2026-08-05**. Bulk local
-> ingestion, historic-video dispatch and every production mutation remain blocked behind the later
-> gates. Read-only corpus inventory, hashing and manifest curation are safe to continue.
+> **Status (2026-08-06): PRs 1–17 are merged. WP0–WP8 have landed, and no scheduled code slice
+> remains.** The programme now stops being an implementation exercise and becomes the §13.5
+> rehearsal, blocked only by the audit gaps below. "Merged" here is not a gate certification — see
+> §17's Status column and the "Acceptance and gate readiness" audit. Three audit gaps remain open and
+> now block the rehearsal, not merely their own gates: the §7.3 OpenLP manifest fields (G1/PR5,
+> rehearsal step 2), and the two different-PK round trips (G3/PR11 and G3/PR12, rehearsal step 12).
+> The G2 empty-census gap is **closed as of 2026-08-05**. Bulk local ingestion, historic-video
+> dispatch and every production mutation remain blocked behind the later gates. Read-only corpus
+> inventory, hashing and manifest curation are safe to continue.
 >
 > **Amended 2026-08-02** after a business-design review. The engineering content of the 2026-07-31
 > audit is unchanged; what changed is everything around it:
@@ -1345,10 +1346,10 @@ change is wrong* — so that is what the sizes now describe:
 the §13.3 bulk media pass (9–18 days serial, less if the concurrency design succeeds) and the §9.4
 residual review after the automate-first loop converges. Plan against those, not against this table.
 
-**Status updated 2026-08-05.** PRs 1–16 are merged. The work landed in **work-package order (WP0 →
-WP6, then WP8)** rather than the PR order this section proposes, and PR1 (WP8) shipped last instead of
-first — it was skipped at the start and picked up after PR13. Only **PR17** remains of the scheduled
-code. The remaining gate-acceptance gaps are listed in the audit below. Status values:
+**Status updated 2026-08-06.** PRs 1–17 are merged and **no scheduled code slice remains**. The work
+landed in **work-package order (WP0 → WP6, then WP8, then WP7)** rather than the PR order this section
+proposes, and PR1 (WP8) shipped last-but-one instead of first — it was skipped at the start and picked
+up after PR13. The remaining gate-acceptance gaps are listed in the audit below. Status values:
 
 - **Done** — the slice's PR merged and its own tests pass.
 - **Done†** — merged and working, but a **gate-acceptance audit found a coverage gap** that must close
@@ -1383,8 +1384,8 @@ acceptance findings roll into that same audit list rather than changing the merg
 | 14 | Remaining persistence, shared classification and richness convergence | L | PRs 11–13 | Done |
 | 15 | Binding preflight, ledger, orchestrator and auditor | L | PR 14 | Done |
 | 16 | **§12.4 current-era re-projection, corpus diff and B13 reversal** | L | PR 15 | Done |
-| 17 | Worker-safe staging, manifest-authorised dispatch and §13.3 throughput design | M | PR 15 | **Ready — the last scheduled code slice** |
-| 18 | Rehearsal discoveries with earliest-gate loop-back | Contingency; size each finding | PRs 2–17 | Blocked (PRs 2–17) |
+| 17 | Worker-safe staging, manifest-authorised dispatch and §13.3 throughput design | M | PR 15 | **Done** (2026-08-06; the last scheduled code slice) |
+| 18 | Rehearsal discoveries with earliest-gate loop-back | Contingency; size each finding | PRs 2–17 | **Ready once the three audit gaps close** |
 | 19 | Production-operation fixes, only if rehearsal proves them necessary | Contingency; size each finding | PR 18 | Blocked (PR 18) |
 | 20 | Post-closeout cleanup/contract migration | M | G9 only | Blocked (G9) |
 
@@ -1399,23 +1400,24 @@ gaps in landed slices belong here.
 |---|---|---|---|
 | G1 | PR2/PR3 | **Closed 2026-08-04.** `HistoricMediaGraphPersister::persist()` now creates the run before linked publications and stages section media before final publication state; the two named regression tests pass against MySQL. | `HistoricMediaGraphPersisterTest::it_creates_the_run_before_linked_publications` and `it_transitions_a_section_to_published_only_after_required_media_exists`. |
 | G1 | PR2 | **Closed 2026-08-05.** PR14 persisted the church-service links, the re-attachment block in `HistoricNormalOutputContractTest::persistCanaryThroughRealPath()` is gone, and the `service_item_identity`, `matched_item_identity`, `expected_item_identity` and `church_service_identity` assertions now exercise the persister. The helper's remaining teardown only *releases* the source run's claim so the persister can take the items; it re-attaches nothing. | `HistoricNormalOutputContractTest` over the real-path canary. |
-| G1 | PR5 | `OpenLpCurationManifest::normalizeEntries()` emits only path/hash/size, disposition, duplicate target, resolved identity, alias and exclusion reason — missing §7.3's stable item/source identity, parse/concatenation decision, expected-occurrence information, and decision author/time or approved rule version. | Extend the manifest schema + validation to carry the missing §7.3 fields, so curation authority and expected occurrences are provable. |
+| G1 | PR5 | **Schema closed 2026-08-06; data population outstanding.** The curation manifest is now version 2 and carries §7.3's missing fields: a manifest-level `batch_key`, and per entry `item_key` (unique), `source_kind`, `parse_decision`, `concatenation_decision`, `expected_item_count` and `decided_by`/`decided_at` or `decision_rule_version`. All are in the manifest and plan hashes, so an apply binds to the decision that authorised it. `validateIncludesForDryRun()` reconciles the parse against them: it fails on an item count that contradicts the manifest, and `strict` now fails closed on the embedded-`.osj` filename mismatch the parser already reports, which `manifest-authoritative` is the recorded adjudication of. **Still open:** *populating* the new fields for the real corpus needs the mounted source drive. | Populate the v2 curation fields against the mounted read-only drive as part of §13.1's remeasurement, then re-approve the manifest. |
 | G2 | PR9 | **Closed 2026-08-05.** `ChurchServiceProposalCensusGate::evaluate()` now takes corpus-completeness evidence as a required second argument and fails closed on four conditions: no approved manifest count, staged below or above it, or staged services not projected at the current policy version. `ChurchServiceCorpusCompleteness` derives staged and projected counts from source revisions and `projection_policy_version` rather than from proposals, so an unrun corpus can no longer look like a converged one. `services:proposal-census --gate` no longer short-circuits to success on an empty census. | `ChurchServiceProposalCensusGateTest`, plus the empty-corpus cases in `ChurchServiceProposalCensusCommandTest` and `ReviewChurchServiceProposalQueueTest`. |
 | G3 | PR11 | Bundle B round-trip tests re-import into the same service with the same PKs (`already_present`); none recreates the production graph with shifted IDs, so local-ID coupling in reviewer/assertion/proposal/decision/rule resolution stays undetected. WP3 requires a different-PK round trip. | Add a Bundle B round trip that imports into a production-shaped DB with deliberately different PKs and asserts exact finalisation + per-proposal dispositions. |
 | G3 | PR12 | No test round-trips the WP0 canary through Bundle A export→import into a different-PK database (only a model-rebuild hash equality and an importer test over a hand-authored bundle). WP4 requires the canary round trip. | Once the canary is real-path (G1 above), export it to Bundle A and import into a different-PK DB, asserting identical logical hashes and no lost field/relationship/role. |
 
 G1's crash tranche and canary rows are closed, and so is G2. What remains is G1's OpenLP manifest
-schema row and G3's two different-PK round trips. None of them blocks PR17, but they now block the
-§13.5 rehearsal as well as the gate they name: the manifest fields gate rehearsal step 2 and the
-round trips gate step 12.
+schema row and G3's two different-PK round trips. With PR17 merged they are the **only** thing between
+here and the §13.5 rehearsal, and they block it as well as the gate they name: the manifest fields
+gate rehearsal step 2 and the round trips gate step 12.
 
 ### Next task to pick up
 
-**PRs 1–16 are merged, so PR17 is the last scheduled code slice.** PR18/19 are rehearsal
-contingencies and PR20 is gated on G9, which means after PR17 the programme stops being a coding
-exercise and becomes the §13.5 rehearsal.
+**PRs 1–17 are merged, so there is no scheduled code slice left.** PR18/19 are rehearsal
+contingencies and PR20 is gated on G9, which means the programme has stopped being a coding exercise
+and become the §13.5 rehearsal. The three audit gaps below are what the rehearsal is waiting on; they
+can be handed to agents independently.
 
-Three contract facts are now permanent and constrain everything that follows:
+Four contract facts are now permanent and constrain everything that follows:
 
 - **Publication scripture filters are `deterministically_rebuilt`, not `portable`** (contract VERSION
   4). `SermonObserver` owns that index and re-derives it from `reference` on every save, so the
@@ -1433,30 +1435,38 @@ Three contract facts are now permanent and constrain everything that follows:
   declared converged over a corpus that was never staged. The approved manifest count lives in
   `church.historic_corpus.expected_services` and must be set from §7.3's manifest before the loop is
   claimed complete.
+- **The dispatch path already consumes two §7.3 fields the OpenLP manifest cannot emit** (PR17).
+  `HistoricVideoImporter::manifestItemKey()` reads `manifest_item_key` and falls back to a
+  `legacy-`-prefixed hash of the source file list when it is absent; `manifest_concatenation` drives
+  the concatenation branch and errors on an unrecognised value. Those are the durable job lock's
+  identity inputs, so the fallback is a real weakening, not a formality: two manifest entries over the
+  same files are indistinguishable under it. G1/PR5 is what removes the fallback's reason to exist.
 
-The next slice, and the three open audit gaps, can be handed to agents independently.
+**PR17 delivered (2026-08-06), for the record:** the per-batch storage root and resolved
+driver/bucket/root identity comparison (`HistoricStagingContext`, `HistoricStagingContextRegistry`,
+an extended `HistoricStagingGuard` and `HistoricStagingUrlGuard`); approved staging and manifest
+identity serialised into every queued job context; the worker-executed canary proving writes stay
+below the batch root (`HistoricWorkerStorageIsolationTest` with `tests/Support/HistoricStagingCanaryJob.php`);
+stable per-manifest-item job identity and locks, using `MediaProcessingLog`'s unique `dedup_key`
+index as the durable lock so it survives a worker crash; and the per-stage concurrency design in
+`HistoricProcessingThroughput` plus `config/horizon.php`, with `HistoricProcessingFingerprint`
+pinning §13.3's scope. B16 and B20 have their named tests. This closes the scheduled code; it does
+**not** by itself pass G4/G5, which still need the rehearsal.
 
-- **PR17 — worker-safe staging, manifest-authorised dispatch and §13.3 throughput (WP7, §13.2–13.3).**
-  The critical path. `HistoricStagingGuard` already refuses non-isolated disks and publicly served
-  staging, `HistoricConvergenceDispatchGuard` already fails an apply that queues anything, and
-  `config/queue.php` already pins the `retry_after` invariant. What is missing is the per-batch
-  storage root (rather than one global historic staging disk), resolved driver/bucket/root identity
-  comparison, approved staging and manifest identity serialised into every queued job context, the
-  worker-executed canary proving writes stay below the batch root, stable per-manifest-item job
-  identity and locks, and the per-stage concurrency design that sets the schedule.
-- **G1/PR5 — §7.3 OpenLP manifest fields.** `OpenLpCurationManifest::normalizeEntries()` still emits
-  only path/hash/size, disposition, duplicate target, resolved identity, alias and exclusion reason.
-  Extending the schema and validation is pure code and can land now; *populating* the new curation
-  fields needs the mounted source drive, so the schema work and the data work are separate steps.
-  This gates rehearsal step 2.
+- **G1/PR5 — §7.3 OpenLP manifest fields. Schema landed 2026-08-06; data population remains.** The
+  manifest is now v2 with `batch_key`, `item_key`, `source_kind`, `parse_decision`,
+  `concatenation_decision`, `expected_item_count` and the decision author/time or rule version, all
+  hash-covered and reconciled by the dry-run parse. What is left is operator work, not code:
+  populating those fields for the real corpus against the mounted read-only drive, which folds into
+  §13.1's remeasurement. Rehearsal step 2 is unblocked in code and gated on that data.
 - **G3/PR11 and G3/PR12 — the two different-PK round trips.** Neither exists yet:
   `ChurchServiceConvergenceBundleImporterTest` re-imports into the same service with the same PKs, and
   `HistoricProcessingResultRoundTripTest` re-persists the canary within one database rather than
   exporting it to Bundle A and importing into a shifted-PK one. These gate rehearsal step 12, which is
   where local-ID coupling would otherwise surface for the first time — against production.
 
-After PR17 there is no more scheduled implementation. The remaining elapsed time is set by the §13.3
-bulk media pass and the §9.4 residual review, exactly as this section's sizing preamble says.
+With PR17 merged there is no more scheduled implementation. The remaining elapsed time is set by the
+§13.3 bulk media pass and the §9.4 residual review, exactly as this section's sizing preamble says.
 
 Three entries are new or moved relative to the 2026-07-31 sequence: PR1 moves the public archive to
 the front (§14); PR9 adds the review-load surface that makes §9.4's loop operable; PR16 adds the

@@ -247,6 +247,279 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
         $this->expectManifestFailure($rawDirectory, $badSizePath, 'Byte-size mismatch');
     }
 
+    /**
+     * §7.3 requires a stable item key per entry, so curation identity comes from
+     * the approved decision rather than being re-derived from the bytes it
+     * decided about. `HistoricVideoImporter::manifestItemKey()` falls back to
+     * hashing the source file list when the key is absent, which collapses two
+     * entries over the same files into one durable job lock.
+     */
+    #[Test]
+    public function manifest_requires_a_stable_unique_item_key_and_source_kind_for_every_entry(): void
+    {
+        [$rawDirectory, $manifestPath, $manifest] = $this->validCurationFixture();
+
+        $missingKey = $manifest;
+        unset($missingKey['entries'][0]['item_key']);
+        $this->expectManifestFailure(
+            $rawDirectory,
+            $this->writeManifest(dirname($manifestPath), $missingKey, 'missing-item-key.json'),
+            'requires item_key',
+        );
+
+        $duplicateKey = $manifest;
+        $duplicateKey['entries'][1]['item_key'] = $duplicateKey['entries'][0]['item_key'];
+        $this->expectManifestFailure(
+            $rawDirectory,
+            $this->writeManifest(dirname($manifestPath), $duplicateKey, 'duplicate-item-key.json'),
+            'Duplicate manifest item key',
+        );
+
+        $foreignKind = $manifest;
+        $foreignKind['entries'][0]['source_kind'] = 'livestream-video';
+        $this->expectManifestFailure(
+            $rawDirectory,
+            $this->writeManifest(dirname($manifestPath), $foreignKind, 'foreign-source-kind.json'),
+            'source_kind',
+        );
+
+        $missingBatch = $manifest;
+        unset($missingBatch['batch_key']);
+        $this->expectManifestFailure(
+            $rawDirectory,
+            $this->writeManifest(dirname($manifestPath), $missingBatch, 'missing-batch-key.json'),
+            'batch_key',
+        );
+    }
+
+    /**
+     * §7.3's "decision author/time or approved rule version" is what makes the
+     * manifest mutation authority rather than a cache of a filename heuristic.
+     */
+    #[Test]
+    public function manifest_requires_explicit_curation_authority_for_every_entry(): void
+    {
+        [$rawDirectory, $manifestPath, $manifest] = $this->validCurationFixture();
+
+        $unattributed = $manifest;
+        $unattributed['entries'][0]['decided_by'] = null;
+        $unattributed['entries'][0]['decided_at'] = null;
+        $unattributed['entries'][0]['decision_rule_version'] = null;
+        $this->expectManifestFailure(
+            $rawDirectory,
+            $this->writeManifest(dirname($manifestPath), $unattributed, 'unattributed.json'),
+            'curation authority',
+        );
+
+        $halfAttributed = $manifest;
+        $halfAttributed['entries'][0]['decided_at'] = null;
+        $this->expectManifestFailure(
+            $rawDirectory,
+            $this->writeManifest(dirname($manifestPath), $halfAttributed, 'half-attributed.json'),
+            'decided_at',
+        );
+
+        $badTimestamp = $manifest;
+        $badTimestamp['entries'][0]['decided_at'] = 'last Tuesday';
+        $this->expectManifestFailure(
+            $rawDirectory,
+            $this->writeManifest(dirname($manifestPath), $badTimestamp, 'bad-decided-at.json'),
+            'decided_at',
+        );
+
+        // An approved rule version is the documented alternative to a named author.
+        $ruleAuthorised = $manifest;
+        $ruleAuthorised['entries'][0]['decided_by'] = null;
+        $ruleAuthorised['entries'][0]['decided_at'] = null;
+        $ruleAuthorised['entries'][0]['decision_rule_version'] = 'openlp-filename-identity-v3';
+        $rulePath = $this->writeManifest(dirname($manifestPath), $ruleAuthorised, 'rule-authorised.json');
+
+        $this->assertMatchesRegularExpression(
+            '/\A[0-9a-f]{64}\z/',
+            app(OpenLpCurationManifest::class)->plan($rawDirectory, $rulePath)->planHash,
+        );
+    }
+
+    /**
+     * §7.3 requires an explicit parse/concatenation decision and expected
+     * occurrence information for every included item.
+     */
+    #[Test]
+    public function manifest_requires_parse_concatenation_and_expected_count_decisions_for_every_include(): void
+    {
+        [$rawDirectory, $manifestPath, $manifest] = $this->validCurationFixture();
+
+        $noParse = $manifest;
+        $noParse['entries'][0]['parse_decision'] = null;
+        $this->expectManifestFailure(
+            $rawDirectory,
+            $this->writeManifest(dirname($manifestPath), $noParse, 'no-parse-decision.json'),
+            'parse_decision',
+        );
+
+        $badParse = $manifest;
+        $badParse['entries'][0]['parse_decision'] = 'whatever-looks-right';
+        $this->expectManifestFailure(
+            $rawDirectory,
+            $this->writeManifest(dirname($manifestPath), $badParse, 'bad-parse-decision.json'),
+            'parse_decision',
+        );
+
+        $noConcat = $manifest;
+        $noConcat['entries'][0]['concatenation_decision'] = null;
+        $this->expectManifestFailure(
+            $rawDirectory,
+            $this->writeManifest(dirname($manifestPath), $noConcat, 'no-concat-decision.json'),
+            'concatenation_decision',
+        );
+
+        // A single .osz archive can never be a multi-file concatenation.
+        $impossibleConcat = $manifest;
+        $impossibleConcat['entries'][0]['concatenation_decision'] = 'lossless';
+        $this->expectManifestFailure(
+            $rawDirectory,
+            $this->writeManifest(dirname($manifestPath), $impossibleConcat, 'impossible-concat.json'),
+            'concatenation_decision',
+        );
+
+        $noCount = $manifest;
+        $noCount['entries'][0]['expected_item_count'] = null;
+        $this->expectManifestFailure(
+            $rawDirectory,
+            $this->writeManifest(dirname($manifestPath), $noCount, 'no-expected-count.json'),
+            'expected_item_count',
+        );
+
+        // Curation decisions are meaningless for material that is not imported.
+        $excludedWithDecisions = $manifest;
+        $excludedWithDecisions['entries'][533]['parse_decision'] = 'strict';
+        $this->expectManifestFailure(
+            $rawDirectory,
+            $this->writeManifest(dirname($manifestPath), $excludedWithDecisions, 'excluded-with-decisions.json'),
+            'contradictory disposition fields',
+        );
+    }
+
+    /**
+     * Expected occurrence information is only provable if the dry-run parse is
+     * reconciled against it; otherwise it is a decorative field.
+     */
+    #[Test]
+    public function dry_run_rejects_an_archive_whose_parsed_item_count_contradicts_the_manifest(): void
+    {
+        [$rawDirectory, $manifestPath, $manifest] = $this->validCurationFixture();
+        $manifest['entries'][0]['expected_item_count'] = 4;
+        $wrongCountPath = $this->writeManifest(dirname($manifestPath), $manifest, 'wrong-expected-count.json');
+
+        $this->artisan('service-tracking:import-openlp-services', [
+            '--path' => $rawDirectory,
+            '--manifest' => $wrongCountPath,
+            '--dry-run' => true,
+        ])
+            ->assertFailed()
+            ->expectsOutputToContain('expected item count');
+
+        $this->assertDatabaseCount('church_services', 0);
+    }
+
+    /**
+     * The alias entries in this corpus exist because historic filenames were
+     * corrected, so the archive's embedded .osj name can disagree with the
+     * approved logical filename. The parser reports that as `filename_mismatch`.
+     * `strict` must fail closed on it; `manifest-authoritative` is how an
+     * operator records that they have already adjudicated the identity.
+     */
+    #[Test]
+    public function parse_decision_governs_whether_an_embedded_filename_mismatch_fails_closed(): void
+    {
+        [$rawDirectory, $manifestPath, $manifest] = $this->validCurationFixture();
+        $entry = $manifest['entries'][0];
+        $archivePath = "{$rawDirectory}/{$entry['relative_path']}";
+
+        // Rebuild the archive so its embedded .osj claims a different service date.
+        $this->writeOpenLpArchive($archivePath, '2001-02-03 PM.osz');
+        $hash = hash_file('sha256', $archivePath);
+        self::assertIsString($hash);
+        $manifest['entries'][0]['sha256'] = $hash;
+        $manifest['entries'][0]['byte_size'] = filesize($archivePath);
+
+        // The byte-identical duplicate at 428 tracks entry 0's content.
+        $duplicatePath = "{$rawDirectory}/{$manifest['entries'][428]['relative_path']}";
+        copy($archivePath, $duplicatePath);
+        $manifest['entries'][428]['sha256'] = $hash;
+        $manifest['entries'][428]['byte_size'] = $manifest['entries'][0]['byte_size'];
+        $manifest['entries'][428]['duplicate_target_hash'] = $hash;
+
+        $strictPath = $this->writeManifest(dirname($manifestPath), $manifest, 'strict-mismatch.json');
+
+        $this->artisan('service-tracking:import-openlp-services', [
+            '--path' => $rawDirectory,
+            '--manifest' => $strictPath,
+            '--dry-run' => true,
+        ])
+            ->assertFailed()
+            ->expectsOutputToContain('embedded .osj identity');
+
+        $manifest['entries'][0]['parse_decision'] = 'manifest-authoritative';
+        $authoritativePath = $this->writeManifest(dirname($manifestPath), $manifest, 'authoritative-mismatch.json');
+
+        $this->artisan('service-tracking:import-openlp-services', [
+            '--path' => $rawDirectory,
+            '--manifest' => $authoritativePath,
+            '--dry-run' => true,
+        ])
+            ->assertSuccessful()
+            ->expectsOutputToContain('OpenLP curation preflight passed.');
+
+        $this->assertDatabaseCount('church_services', 0);
+    }
+
+    /**
+     * A curation field that does not reach the hash cannot bind an apply to the
+     * decision that authorised it.
+     */
+    #[Test]
+    public function plan_hash_covers_every_curation_authority_and_expectation_field(): void
+    {
+        [$rawDirectory, $manifestPath, $manifest] = $this->validCurationFixture();
+        $validator = app(OpenLpCurationManifest::class);
+        $baseline = $validator->plan($rawDirectory, $manifestPath)->planHash;
+
+        $variants = [
+            'item-key' => ['item_key', 'openlp-deliberately-different'],
+            'parse-decision' => ['parse_decision', 'manifest-authoritative'],
+            'expected-count' => ['expected_item_count', 9],
+            'decided-by' => ['decided_by', 'someone.else@crockenhill.test'],
+            'decided-at' => ['decided_at', '2026-08-06T11:30:00+00:00'],
+        ];
+
+        foreach ($variants as $label => [$field, $value]) {
+            $mutated = $manifest;
+            $mutated['entries'][0][$field] = $value;
+            $mutatedPath = $this->writeManifest(dirname($manifestPath), $mutated, "hash-{$label}.json");
+
+            $this->assertNotSame(
+                $baseline,
+                $validator->plan($rawDirectory, $mutatedPath)->planHash,
+                "Changing {$field} must change the plan hash.",
+            );
+        }
+    }
+
+    /**
+     * v1 manifests predate curation authority, so accepting one would let an
+     * unattributed corpus through the gate §7.3 exists to close.
+     */
+    #[Test]
+    public function manifest_rejects_the_superseded_version_one_schema(): void
+    {
+        [$rawDirectory, $manifestPath, $manifest] = $this->validCurationFixture();
+        $manifest['version'] = 1;
+        $legacyPath = $this->writeManifest(dirname($manifestPath), $manifest, 'legacy-v1.json');
+
+        $this->expectManifestFailure($rawDirectory, $legacyPath, 'Unsupported OpenLP curation manifest format or version');
+    }
+
     #[Test]
     public function manifest_rejects_path_traversal_and_absolute_paths(): void
     {
@@ -314,6 +587,9 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
                 $manifest['entries'][427]['resolved_service'] = null;
                 $manifest['entries'][427]['alias_reason'] = null;
                 $manifest['entries'][427]['exclusion_reason'] = 'Count mutation';
+                $manifest['entries'][427]['parse_decision'] = null;
+                $manifest['entries'][427]['concatenation_decision'] = null;
+                $manifest['entries'][427]['expected_item_count'] = null;
             }
 
             if ($count === 'duplicate-of') {
@@ -448,7 +724,8 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
 
         $manifest = [
             'format' => 'crockenhill-openlp-curation',
-            'version' => 1,
+            'version' => 2,
+            'batch_key' => 'openlp-archive-2026-08',
             'entries' => $entries,
         ];
         $manifestPath = $this->writeManifest($root, $manifest);
@@ -469,8 +746,16 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
         ?string $aliasReason = null,
         ?string $duplicateTargetHash = null,
         ?string $exclusionReason = null,
+        ?string $itemKey = null,
+        ?string $parseDecision = null,
+        ?string $concatenationDecision = null,
+        ?int $expectedItemCount = null,
     ): array {
+        $isInclude = $disposition === 'include';
+
         return [
+            'item_key' => $itemKey ?? 'openlp-'.substr(hash('sha256', $relativePath), 0, 16),
+            'source_kind' => 'openlp',
             'relative_path' => $relativePath,
             'sha256' => $hash,
             'byte_size' => null,
@@ -481,6 +766,12 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
             'resolved_service' => $resolvedService,
             'alias_reason' => $aliasReason,
             'exclusion_reason' => $exclusionReason,
+            'parse_decision' => $isInclude ? ($parseDecision ?? 'strict') : $parseDecision,
+            'concatenation_decision' => $isInclude ? ($concatenationDecision ?? 'none') : $concatenationDecision,
+            'expected_item_count' => $isInclude ? ($expectedItemCount ?? 0) : $expectedItemCount,
+            'decided_by' => 'curator@crockenhill.test',
+            'decided_at' => '2026-08-06T09:00:00+00:00',
+            'decision_rule_version' => null,
         ];
     }
 
