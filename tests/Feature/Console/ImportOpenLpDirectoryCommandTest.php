@@ -663,6 +663,77 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
         }
     }
 
+    /**
+     * F4. §13.1 instructs a remeasurement of the OpenLP accounting against the mounted
+     * drive and says plainly that the tracked 536/428/105/3/7 is a reconciliation
+     * target rather than proof. While those numbers lived in a class constant, any
+     * other answer was unrepresentable — so the remeasurement §13.1 asks for could only
+     * have been recorded by editing code. A differently-sized corpus must validate on
+     * the strength of its own approved declaration.
+     */
+    #[Test]
+    public function manifest_accounting_is_declared_by_the_manifest_rather_than_frozen_in_code(): void
+    {
+        [$rawDirectory, $manifestPath] = $this->validCurationFixture(
+            includeCount: 12,
+            duplicateCount: 4,
+            excludeCount: 2,
+            aliasCount: 3,
+        );
+
+        $plan = app(OpenLpCurationManifest::class)->plan($rawDirectory, $manifestPath);
+
+        $this->assertSame([
+            'raw' => 18,
+            'include' => 12,
+            'duplicate-of' => 4,
+            'exclude' => 2,
+            'aliases' => 3,
+        ], $plan->counts);
+        $this->assertCount(12, $plan->includes);
+    }
+
+    /**
+     * The declaration is what the constant was for: a manifest that has quietly lost
+     * entries between approval and apply must fail rather than succeed over a smaller
+     * corpus. Moving the numbers into the manifest keeps that property and drops only
+     * the assumption that there is exactly one right answer.
+     */
+    #[Test]
+    public function manifest_rejects_a_declaration_that_contradicts_its_own_entries(): void
+    {
+        [$rawDirectory, $manifestPath, $manifest] = $this->validCurationFixture(
+            includeCount: 12,
+            duplicateCount: 4,
+            excludeCount: 2,
+            aliasCount: 3,
+        );
+        $manifest['expected_counts']['include'] = 11;
+        $mutatedPath = $this->writeManifest(dirname($manifestPath), $manifest, 'declared-mismatch.json');
+
+        $this->expectManifestFailure($rawDirectory, $mutatedPath, 'accounting mismatch');
+    }
+
+    /**
+     * An absent declaration is not defaulted, on the same principle the class already
+     * applies to a v1 manifest: it carries no attribution, so it is rejected rather
+     * than assumed.
+     */
+    #[Test]
+    public function manifest_rejects_an_undeclared_accounting(): void
+    {
+        [$rawDirectory, $manifestPath, $manifest] = $this->validCurationFixture(
+            includeCount: 12,
+            duplicateCount: 4,
+            excludeCount: 2,
+            aliasCount: 3,
+        );
+        unset($manifest['expected_counts']);
+        $undeclaredPath = $this->writeManifest(dirname($manifestPath), $manifest, 'undeclared-counts.json');
+
+        $this->expectManifestFailure($rawDirectory, $undeclaredPath, 'declare its expected accounting');
+    }
+
     #[Test]
     public function manifest_rejects_contradictory_and_duplicate_aliases(): void
     {
@@ -698,8 +769,12 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
     /**
      * @return array{string, string, array<string, mixed>}
      */
-    private function validCurationFixture(): array
-    {
+    private function validCurationFixture(
+        int $includeCount = 428,
+        int $duplicateCount = 105,
+        int $excludeCount = 3,
+        int $aliasCount = 7,
+    ): array {
         $root = $this->makeTemporaryDirectory();
         $rawDirectory = "{$root}/raw";
         mkdir($rawDirectory);
@@ -707,9 +782,9 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
         $includedHashes = [];
         $origin = new \DateTimeImmutable('2000-01-01');
 
-        for ($index = 0; $index < 428; $index++) {
+        for ($index = 0; $index < $includeCount; $index++) {
             $date = $origin->modify("+{$index} days")->format('Y-m-d');
-            $relativePath = $index < 7
+            $relativePath = $index < $aliasCount
                 ? "uncorrected-{$index}.osz"
                 : "{$date} AM.osz";
             $logicalFilename = "{$date} AM.osz";
@@ -724,11 +799,11 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
                 logicalFilename: $logicalFilename,
                 resolvedDate: $date,
                 resolvedService: 'morning',
-                aliasReason: $index < 7 ? 'Corrected historic filename' : null,
+                aliasReason: $index < $aliasCount ? 'Corrected historic filename' : null,
             );
         }
 
-        for ($index = 0; $index < 105; $index++) {
+        for ($index = 0; $index < $duplicateCount; $index++) {
             $relativePath = "duplicates/duplicate-{$index}.osz";
             $targetPath = dirname("{$rawDirectory}/{$relativePath}");
 
@@ -745,7 +820,7 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
             );
         }
 
-        for ($index = 0; $index < 3; $index++) {
+        for ($index = 0; $index < $excludeCount; $index++) {
             $relativePath = "excluded-{$index}.osz";
             $contents = "excluded archive {$index}";
             file_put_contents("{$rawDirectory}/{$relativePath}", $contents);
@@ -766,8 +841,15 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
 
         $manifest = [
             'format' => 'crockenhill-openlp-curation',
-            'version' => 2,
+            'version' => 3,
             'batch_key' => 'openlp-archive-2026-08',
+            'expected_counts' => [
+                'raw' => $includeCount + $duplicateCount + $excludeCount,
+                'include' => $includeCount,
+                'duplicate-of' => $duplicateCount,
+                'exclude' => $excludeCount,
+                'aliases' => $aliasCount,
+            ],
             'entries' => $entries,
         ];
         $manifestPath = $this->writeManifest($root, $manifest);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceSourceRecord;
 
@@ -27,6 +28,9 @@ use App\Models\ChurchServiceSourceRecord;
  *     stale_projection_services: int,
  *     unstaged_services: int|null,
  *     policy_version: int,
+ *     staged_services_by_source: array<string, int>,
+ *     declared_source_kinds: list<string>|null,
+ *     unstaged_source_kinds: list<string>,
  * }
  */
 class ChurchServiceCorpusCompleteness
@@ -46,6 +50,8 @@ class ChurchServiceCorpusCompleteness
         $policyVersion = $this->projector->policyFingerprint()['version'];
         $staged = $this->stagedServices();
         $projected = $this->projectedServices($policyVersion);
+        $bySource = $this->stagedServicesBySource();
+        $declared = $this->declaredSourceKinds();
 
         return [
             'expected_services' => $expected,
@@ -54,6 +60,14 @@ class ChurchServiceCorpusCompleteness
             'stale_projection_services' => max(0, $staged - $projected),
             'unstaged_services' => $expected === null ? null : max(0, $expected - $staged),
             'policy_version' => $policyVersion,
+            'staged_services_by_source' => $bySource,
+            'declared_source_kinds' => $declared,
+            'unstaged_source_kinds' => $declared === null
+                ? []
+                : array_values(array_filter(
+                    $declared,
+                    static fn (string $kind): bool => ($bySource[$kind] ?? 0) === 0,
+                )),
         ];
     }
 
@@ -61,6 +75,71 @@ class ChurchServiceCorpusCompleteness
     private function stagedServices(): int
     {
         return ChurchServiceSourceRecord::query()->distinct()->count('church_service_id');
+    }
+
+    /**
+     * Distinct services carrying at least one revision of each source kind.
+     *
+     * These deliberately do **not** sum to `staged_services`: a service evidenced by
+     * both Email and OpenLP is one staged service and appears under both kinds. The
+     * total answers "how much of the corpus is evidenced at all", and this answers
+     * "by what" — which is the question §9.4.2's Email x OpenLP population turns on,
+     * and the one the total silently cannot distinguish.
+     *
+     * @return array<string, int>
+     */
+    private function stagedServicesBySource(): array
+    {
+        /** @var array<string, int> $counts */
+        $counts = ChurchServiceSourceRecord::query()
+            ->getQuery()
+            ->select('source')
+            ->selectRaw('COUNT(DISTINCT church_service_id) as services')
+            ->groupBy('source')
+            ->orderBy('source')
+            ->pluck('services', 'source')
+            ->map(static fn (mixed $count): int => (int) $count)
+            ->all();
+
+        return $counts;
+    }
+
+    /**
+     * The source kinds the census claims to cover, or null when nothing has been
+     * declared.
+     *
+     * Unset is not "all kinds" and not "no requirement" — it is an undeclared scope,
+     * which the gate refuses on the same principle it refuses an unset corpus size.
+     * An unrecognised kind is also returned as null rather than silently dropped: a
+     * typo that quietly narrowed the requirement would defeat the whole check.
+     *
+     * @return list<string>|null
+     */
+    private function declaredSourceKinds(): ?array
+    {
+        $configured = config('church.historic_corpus.census_source_kinds');
+
+        if (! is_string($configured) && ! is_array($configured)) {
+            return null;
+        }
+
+        $kinds = is_string($configured) ? explode(',', $configured) : $configured;
+        $kinds = array_values(array_filter(array_map(
+            static fn (mixed $kind): string => mb_strtolower(trim((string) $kind)),
+            $kinds,
+        ), static fn (string $kind): bool => $kind !== ''));
+
+        if ($kinds === []) {
+            return null;
+        }
+
+        foreach ($kinds as $kind) {
+            if (! ChurchServiceSource::tryFrom($kind) instanceof ChurchServiceSource) {
+                return null;
+            }
+        }
+
+        return array_values(array_unique($kinds));
     }
 
     /**

@@ -31,6 +31,10 @@ class ChurchServiceProposalCensusGate
 
     public const string PROJECTION_INCOMPLETE = 'projection_incomplete';
 
+    public const string CENSUS_SOURCE_KINDS_UNDECLARED = 'census_source_kinds_undeclared';
+
+    public const string DECLARED_SOURCE_KIND_UNSTAGED = 'declared_source_kind_unstaged';
+
     /**
      * @param  list<array<string, mixed>>  $classes
      * @param  array<string, mixed>  $corpus  Evidence from ChurchServiceCorpusCompleteness.
@@ -116,6 +120,8 @@ class ChurchServiceProposalCensusGate
             self::STAGED_BELOW_EXPECTED => 'Fewer services are staged than the approved manifest declares, so the census describes part of the corpus.',
             self::STAGED_ABOVE_EXPECTED => 'More services are staged than the approved manifest declares, so the staged corpus and the manifest disagree.',
             self::PROJECTION_INCOMPLETE => 'Some staged services carry no projection at the current policy version, so their proposals — or absence of proposals — are not yet evidence.',
+            self::CENSUS_SOURCE_KINDS_UNDECLARED => 'No valid source kinds are declared, so the census does not say which evidence it covers. Set church.historic_corpus.census_source_kinds (for example "email,openlp").',
+            self::DECLARED_SOURCE_KIND_UNSTAGED => 'A declared source kind has no staged services at all, so the census cannot have converged the population it claims to cover.',
             default => $blocker,
         };
     }
@@ -144,6 +150,16 @@ class ChurchServiceProposalCensusGate
 
         if ($projected < $staged) {
             $blockers[] = self::PROJECTION_INCOMPLETE;
+        }
+
+        // Counting services answers "is the corpus staged"; it cannot answer "staged
+        // from what". Email staging is drive-free and OpenLP staging is not, so an
+        // Email-only corpus satisfies every count above while the Email x OpenLP
+        // population §9.4.2 wants converged has not been generated at all.
+        if ($corpus['declared_source_kinds'] === null) {
+            $blockers[] = self::CENSUS_SOURCE_KINDS_UNDECLARED;
+        } elseif (($corpus['unstaged_source_kinds'] ?? []) !== []) {
+            $blockers[] = self::DECLARED_SOURCE_KIND_UNSTAGED;
         }
 
         return $blockers;

@@ -102,9 +102,51 @@ class ChurchServiceProposalCensusCommand extends Command
             is_int($expected) ? (string) $expected : 'no manifest count',
         ));
 
+        $this->reportSourceCoverage($corpus);
+
         foreach ($result['corpus_blockers'] as $blocker) {
             $this->warn($gate->describeCorpusBlocker($blocker));
         }
+    }
+
+    /**
+     * Name the evidence behind the count above.
+     *
+     * A staged-service total is the same number whether the corpus carries one source
+     * kind or three, so it cannot show that a census declared over Email and OpenLP has
+     * only ever seen Email. Every declared kind is listed, including the ones sitting
+     * at zero — those are the whole point, and omitting an empty row would hide exactly
+     * the case this reports.
+     *
+     * @param  array<string, mixed>  $corpus
+     */
+    private function reportSourceCoverage(array $corpus): void
+    {
+        /** @var array<string, int> $bySource */
+        $bySource = $corpus['staged_services_by_source'];
+        /** @var list<string>|null $declared */
+        $declared = $corpus['declared_source_kinds'];
+        $kinds = array_values(array_unique([...array_keys($bySource), ...($declared ?? [])]));
+        sort($kinds);
+
+        if ($kinds === []) {
+            $this->line('  No source evidence is staged at all.');
+
+            return;
+        }
+
+        $this->line('  Staged services by source: '.implode('  ', array_map(
+            static fn (string $kind): string => sprintf('%s %d', $kind, $bySource[$kind] ?? 0),
+            $kinds,
+        )));
+
+        if ($declared === null) {
+            $this->line('  Declared census scope: none.');
+
+            return;
+        }
+
+        $this->line('  Declared census scope: '.implode(', ', $declared).'.');
     }
 
     private function expectedServices(): ?int

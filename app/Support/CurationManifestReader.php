@@ -32,7 +32,7 @@ class CurationManifestReader
     /**
      * Read, decode and envelope-check a manifest file.
      *
-     * @return array{batch_key:string, entries:list<mixed>}
+     * @return array{batch_key:string, entries:list<mixed>, declared_counts:mixed}
      */
     public function envelope(string $manifestPath, string $format, int $version, string $label): array
     {
@@ -74,7 +74,14 @@ class CurationManifestReader
             throw new RuntimeException("The {$label} curation manifest entries must be a JSON list.");
         }
 
-        return ['batch_key' => trim($batchKey), 'entries' => $entries];
+        return [
+            'batch_key' => trim($batchKey),
+            'entries' => $entries,
+            // Optional here and validated by the caller, because only the OpenLP
+            // manifest declares an expected accounting today. The Email manifest
+            // derives its counts from its own entries and has never needed one.
+            'declared_counts' => $manifest['expected_counts'] ?? null,
+        ];
     }
 
     public function requireDirectory(string $directory, string $label): string

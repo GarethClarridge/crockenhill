@@ -101,7 +101,7 @@ class IngestChurchServiceSourceRevision
                     ->get();
                 $hasUnnormalizedLegacyItems = $lockedService->items()
                     ->get(['id', 'metadata'])
-                    ->contains(fn (ChurchServiceItem $item): bool => ! $this->hasNormalizedEvidence($item->metadata));
+                    ->contains(fn (ChurchServiceItem $item): bool => ! $item->hasNormalizedEvidence());
 
                 $projection = $this->projector->project($records);
                 $stagingReasons = $this->stagingReasons(
@@ -200,14 +200,6 @@ class IngestChurchServiceSourceRevision
 
             return $assertion;
         }, $assertions);
-    }
-
-    /** @param array<string, mixed>|null $metadata */
-    private function hasNormalizedEvidence(?array $metadata): bool
-    {
-        $hashes = $metadata['source_assertion_hashes'] ?? null;
-
-        return is_array($hashes) && $hashes !== [];
     }
 
     /**

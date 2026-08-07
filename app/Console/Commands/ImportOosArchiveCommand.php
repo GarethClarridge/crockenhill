@@ -17,6 +17,7 @@ use App\Services\Email\OosCurationEntryFactory;
 use App\Services\Email\OosCurationManifest;
 use App\Services\Email\OosEmailParserService;
 use App\Services\Import\HistoricImportProductionGuard;
+use App\Services\Import\UnevidencedCanonicalItemGuard;
 use App\Services\Song\SongTitleResolver;
 use Illuminate\Console\Command;
 use Illuminate\Support\Arr;
@@ -60,6 +61,7 @@ class ImportOosArchiveCommand extends Command
                             {--dry-run : Reconcile the manifest against the corpus, without database or extractor access}
                             {--import : Import eligible entries through the live email pipeline}
                             {--plan-hash= : Exact plan_hash emitted by the dry run; required with --import}
+                            {--accept-unevidenced-items : Stage even where curated identities already hold items no source explains (§13.5 F2)}
                             {--fresh-parse : Ignore cached parse results}
                             {--limit= : Maximum entries to process}
                             {--date=* : Include only these resolved dates}
@@ -80,6 +82,7 @@ class ImportOosArchiveCommand extends Command
         OosArchiveEvaluator $evaluator,
         OosArchiveAssertionBundle $assertionBundle,
         HistoricImportProductionGuard $productionGuard,
+        UnevidencedCanonicalItemGuard $unevidencedItemGuard,
     ): int {
         $manifestPath = $this->stringOption('manifest');
 
@@ -134,6 +137,30 @@ class ImportOosArchiveCommand extends Command
          */
         if ($shouldImport) {
             $refusal = $productionGuard->refusalFor('oos:import-archive --import');
+
+            if ($refusal !== null) {
+                $this->error($refusal);
+
+                return self::FAILURE;
+            }
+        }
+
+        /**
+         * §13.5 step 3 stages into a *clean* rehearsal database. Staging over an
+         * earlier evidence-free import of the same corpus turns every affected
+         * service into an `unnormalized_legacy_items` proposal, and the §9.4 census
+         * then measures that import rather than the projector. Checked after the
+         * production guard so an operator pointed at production hears the more
+         * serious refusal first, and only for the entries this run would stage.
+         */
+        if ($shouldImport && ! $this->option('accept-unevidenced-items')) {
+            $refusal = $unevidencedItemGuard->refusalFor(
+                'oos:import-archive --import',
+                array_map(
+                    static fn (array $include): array => [$include['resolved_date'], $include['resolved_service']],
+                    $plan->includes,
+                ),
+            );
 
             if ($refusal !== null) {
                 $this->error($refusal);

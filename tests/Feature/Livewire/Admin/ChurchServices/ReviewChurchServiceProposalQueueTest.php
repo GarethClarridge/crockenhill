@@ -193,6 +193,7 @@ class ReviewChurchServiceProposalQueueTest extends TestCase
         ]);
         ChurchServiceSourceRecord::factory()->create(['church_service_id' => $service->id]);
         config()->set('church.historic_corpus.expected_services', 1);
+        config()->set('church.historic_corpus.census_source_kinds', 'email');
 
         Livewire::actingAs($admin)
             ->test(ReviewChurchServiceProposalQueue::class)
@@ -201,6 +202,29 @@ class ReviewChurchServiceProposalQueueTest extends TestCase
             ->assertSee('against 1 approved')
             ->assertSee('Corpus reconciled, every class accounted for')
             ->assertDontSee('No approved corpus size is recorded');
+    }
+
+    /**
+     * F3 at the surface an operator actually decides convergence on. The counts all
+     * reconcile here — one service staged, one projected, one approved — and the queue
+     * must still refuse, because the census was declared over Email and OpenLP and no
+     * OpenLP evidence has ever been staged.
+     */
+    #[Test]
+    public function the_gate_card_refuses_a_corpus_missing_a_declared_source_kind(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $service = ChurchService::factory()->create([
+            'projection_policy_version' => ChurchServiceProjector::PROJECTION_POLICY_VERSION,
+        ]);
+        ChurchServiceSourceRecord::factory()->create(['church_service_id' => $service->id]);
+        config()->set('church.historic_corpus.expected_services', 1);
+        config()->set('church.historic_corpus.census_source_kinds', 'email,openlp');
+
+        Livewire::actingAs($admin)
+            ->test(ReviewChurchServiceProposalQueue::class)
+            ->assertSee('A declared source kind has no staged services at all')
+            ->assertDontSee('Corpus reconciled, every class accounted for');
     }
 
     private function proposal(int $day = 1, string $subject = 'custom:welcome'): ChurchServiceMergeProposal

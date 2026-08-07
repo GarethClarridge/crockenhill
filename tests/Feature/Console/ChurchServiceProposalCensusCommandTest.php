@@ -69,6 +69,7 @@ class ChurchServiceProposalCensusCommandTest extends TestCase
             'projection_policy_version' => ChurchServiceProjector::PROJECTION_POLICY_VERSION,
         ]);
         ChurchServiceSourceRecord::factory()->create(['church_service_id' => $service->id]);
+        config()->set('church.historic_corpus.census_source_kinds', 'email');
 
         $this->artisan('services:proposal-census --gate --expected-services=1')
             ->expectsOutputToContain('The census is empty.')
@@ -101,6 +102,34 @@ class ChurchServiceProposalCensusCommandTest extends TestCase
         $this->assertSame(1, $decoded['gate']['proposal_count']);
     }
 
+    /**
+     * The operator-facing half of F3: the corpus line has to say what it is made of,
+     * or a reviewer reading "391 services staged, 391 projected" has no way to notice
+     * that none of it is OpenLP.
+     */
+    #[Test]
+    public function the_gate_option_fails_and_names_the_unstaged_source_kind(): void
+    {
+        $this->proposal();
+        config()->set('church.historic_corpus.census_source_kinds', 'email,openlp');
+
+        $this->artisan('services:proposal-census --gate')
+            ->expectsOutputToContain('Staged services by source: email 1  openlp 0')
+            ->expectsOutputToContain('A declared source kind has no staged services at all')
+            ->assertFailed();
+    }
+
+    #[Test]
+    public function the_gate_option_fails_when_no_source_kinds_are_declared(): void
+    {
+        $this->proposal();
+        config()->set('church.historic_corpus.census_source_kinds', null);
+
+        $this->artisan('services:proposal-census --gate')
+            ->expectsOutputToContain('No valid source kinds are declared')
+            ->assertFailed();
+    }
+
     private function proposal(): ChurchServiceMergeProposal
     {
         $service = ChurchService::factory()->create([
@@ -111,6 +140,9 @@ class ChurchServiceProposalCensusCommandTest extends TestCase
         ]);
         ChurchServiceSourceRecord::factory()->create(['church_service_id' => $service->id]);
         config()->set('church.historic_corpus.expected_services', 1);
+        // The factory stages Email evidence, so an Email-scoped census is the one this
+        // fixture can honestly claim. Declaring `openlp` here would be the F3 defect.
+        config()->set('church.historic_corpus.census_source_kinds', 'email');
 
         return ChurchServiceMergeProposal::factory()->create([
             'church_service_id' => $service->id,

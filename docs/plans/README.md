@@ -1,9 +1,10 @@
 # Plans index
 
 Reconciled **2026-07-24**, amended **2026-07-31** (historic archive readiness remediation added;
-R8/historic production readiness remains blocked) and **2026-08-02** (business-design amendment to
+R8/historic production readiness remains blocked), **2026-08-02** (business-design amendment to
 that plan: value case, review-load automation loop, current-era re-projection, public service
-history ships first, no calendar-time gates), against the live code (not against commit
+history ships first, no calendar-time gates) and **2026-08-07** (readiness plan reconciled after
+PRs 1–17 and 21–24 landed; four new blockers recorded), against the live code (not against commit
 messages — every status below was checked by looking for the class, migration, config key or test
 it claims). This directory holds only **active** plans; completed or superseded plans move to
 `docs/archived-plans/` with an archival header explaining what superseded them. Open audit findings
@@ -63,6 +64,29 @@ it claims). This directory holds only **active** plans; completed or superseded 
   goal survives, but the replacement transports normalized assertions and reviewed canonical
   revisions instead of copying the per-row parse cache.
 
+## Amendment — 2026-08-07
+
+- **The historic-archive readiness plan's implementation is done; its rehearsal is not.** PRs 1–17
+  and 21–24 have all merged, so WP0–WP8 have landed and every gap the 2026-08-06 acceptance audit
+  recorded is closed. All four quality gates are green on `master`, and the approved OoS curation
+  plan hash still reproduces exactly over all 404 entries. **G2–G9 remain unclaimed** and §13.5's
+  rehearsal has not started — that, not code, is the schedule.
+- **A readiness audit found four blockers on the plan's own "drive-free critical path", and its
+  second item was not executable as written.** `expected_services` is not a number the approved
+  manifest determines (F1), because one curated email can lawfully create two services; the G2 gate
+  could not tell Email-only staging from Email + OpenLP (F3); the OpenLP manifest froze the accounting
+  §13.1 says to remeasure (F4); and staging into the working dev database would make 56% of the
+  corpus raise a proposal that is July import residue rather than projector behaviour (F2).
+- **F2, F3 and F4 were fixed the same day** as PR25, PR27 and PR28: per-source coverage in the G2
+  gate, manifest-declared OpenLP accounting at manifest version 3, and
+  `UnevidencedCanonicalItemGuard` refusing to stage over a database full of unevidenced items.
+  **F1 is the only one left and it is a maintainer decision, not an implementation** — see that
+  plan's §19.
+- **Nothing here needs the CBC drive.** The drive is still unmounted and is still a hard dependency
+  for the OpenLP and historic-video corpora only — the Email corpus is on local disk.
+- **Sentry's sequencing matters more now, not less.** It is still not installed, and the long
+  unattended production apply it was re-motivated for is the next major operation after the rehearsal.
+
 ## Do these first
 
 1. ~~**Deploy `CHILDRENS-TALK-STORAGE-TO-SPACES` WP0.**~~ **Done 2026-07-25** — deployed, audited,
@@ -72,6 +96,17 @@ it claims). This directory holds only **active** plans; completed or superseded 
    (ten call sites, not nine). The 3× multiplication was reproduced as a failing test before the
    fix and now guards it (WP6.1). Two things fell out of it: a genuine pre-render staleness hazard
    in `dispatchMetadataUpdate()`, and gapped-key `preacherOptions()` in `ReviewsServiceSections`.
+
+3. **Give `production-audit.yml` its credentials** (added 2026-08-07). Dispatched and approved that
+   day, it failed instantly with `missing server host`: the `PROD_HOST`/`PROD_USER`/`PROD_SSH_KEY`
+   secrets sit on the `production` environment while the workflow targets `production-audit`, which
+   has none — so **this audit has never successfully run**, including on 2026-07-25. Add the three
+   secrets to `production-audit` (values cannot be read back, so only the operator can). Then
+   dispatch `service-evidence-coverage`: its counts decide §12.4's two written branches, and locally
+   the same audit reports 0.2% non-Manual evidence coverage — if production resembles that, the
+   plan's unasked question (canonical items derived from no retained evidence) becomes the live one.
+4. **Decide readiness F1** — what `expected_services` reconciles. It blocks G2 and readiness PR26,
+   and no agent can settle it. See that plan's §9.4.6 and §19.
 
 Everything else is a project, not a one-sitting fix.
 
@@ -136,7 +171,7 @@ the unrelated active plans.
 
 | # | Plan | Status (verified 2026-07-29) | Why here |
 |---|---|---|---|
-| Gate | [HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md) | **WP0–WP4 merged 2026-08-04** (PRs 4–13; PR2/PR3 partial — B1/B2 crash fixes + reproducers outstanding; a gate-acceptance audit found further gaps in PRs 5/9/11/12 — see §17). "Merged" ≠ gate-passable. WP5–WP10 remain; PR1/WP8 skipped, independently pickable but required before G9 closeout (§15). Next: finish B1/B2, then PR14 (WP5). **Business-design amendment 2026-08-02** | Sole implementation plan for historic archive readiness: repairs evidence, projection, exceptional review, portable Bundle A/B, persistence, streaming, binding preflight and rehearsal before production mutation. The 2026-08-02 amendment adds the value case, makes review load a designed-down quantity with an automate-first census loop (§9.4), brings current-era re-projection into scope (§12.4), moves public service history to **ship first** against existing data, replaces every calendar-time gate with an evidence gate, and adds bulk-pass throughput and per-era accuracy sampling. Editorial/copyright/consent policy is deferred and recorded in §14.4. |
+| Gate | [HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md) | **PRs 1–17 and 21–24 merged; WP0–WP8 landed** (verified 2026-08-07). All four quality gates green on `master`: Pint clean, PHPStan 0/665, 6215 tests / 80589 assertions, Dusk 54. **"Merged" ≠ gate-passable** — G2–G9 all unclaimed, and the rehearsal (§13.5 steps 3–15) has not started. A 2026-08-07 readiness audit added **PR25–PR28**, all drive-free; **PR25 (per-source G2 coverage), PR27 (manifest-declared OpenLP accounting) and PR28 (clean-rehearsal-database guard) landed the same day**. Only **PR26** remains — the `expected_services` reconciliation rule — and it is blocked on the §19 maintainer decision, not on implementation. Next: approve the dispatched production audit, decide F1, provision a clean rehearsal database | Sole implementation plan for historic archive readiness: repairs evidence, projection, exceptional review, portable Bundle A/B, persistence, streaming, binding preflight and rehearsal before production mutation. The 2026-08-02 amendment adds the value case, makes review load a designed-down quantity with an automate-first census loop (§9.4), brings current-era re-projection into scope (§12.4), moves public service history to **ship first** against existing data, replaces every calendar-time gate with an evidence gate, and adds bulk-pass throughput and per-era accuracy sampling. Editorial/copyright/consent policy is deferred and recorded in §14.4. |
 | 2 | [SENTRY-ERROR-TRACKING.md](SENTRY-ERROR-TRACKING.md) | Not started; no dependencies; **not installed** (no `sentry/sentry-laravel` in `composer.json`) | Its original motivation — land before the `SERVICE_STRUCTURE_MODE` flip — is spent; the flip happened 2026-07-19. Its **new** motivation is the long, unattended, irreversible-in-practice production bundle apply. Land it before readiness Gate G8, not after |
 | 3 | [CODE-QUALITY-REMEDIATION-2026-07-19.md](CODE-QUALITY-REMEDIATION-2026-07-19.md) | **WP2.1 + WP6.1 done 2026-07-24**; rest not started; **WP7's gate is now released** | WP2.1 (the `#[Computed]` perf fix) and its WP6.1 query-duplication guard have landed — remaining WP2 items are 2.2–2.8, and WP6.2's structural test is still open. WP1 is now routine drift (its CVE premise was a stale local vendor tree — the lock has carried medialibrary 11.23.1 since 2026-07-03). WP2/WP3/WP6 any time; WP4 as maintainer answers arrive; WP5 rides R8; **WP7 (PHPStan level 9, ~800 errors, `phpstan.neon` still at `level: 8`) is unblocked now that R9–R11 have merged** — only Q4 sign-off stands in front of it |
 | 4 | [SERVICE-WORKBENCH-REDESIGN-2026-07-23.md](SERVICE-WORKBENCH-REDESIGN-2026-07-23.md) | **Steps A–D implemented** (`98dd4cab5`, `473ba42c9`); step E outstanding | Remaining: Dusk coverage for edit-plan/review-row/technical-details/keyboard operation, a deterministic Playwright fixture at desktop and mobile widths, and deletion of the now-orphaned `partials/processing-run-header.blade.php` (no include, no PHP, no test references it). Sequence with plan 9: doing the design refresh first means generating the workbench's Playwright baselines once, against the final tokens |
@@ -156,7 +191,13 @@ the unrelated active plans.
 | **Decide whether to delete the retained thumbnail sources on `public`** | archived sermon-asset disk-migration plan, §9.6 | ~61 files under production's `storage/app/public/sermons/thumbnails`. WP2 copied rather than moved, so these are its rollback — deleting them gives that up deliberately, and is not tidying. No deadline: they sit on a mounted volume and cost only disk. Reasonable trigger is having seen thumbnails render across the archive, not just the smoke-tested sermons |
 | **Verify `app-livestream` survives two deploys** | archived children's-talk plan, WP0 | The last unverified piece of that plan. Upload a recording, deploy, confirm the source file is still there. `app-private` no longer needs proving — it was removed once WP1 showed it had never held anything |
 | **Remove the orphaned `crockenhill_app-private` volume** | archived children's-talk plan; `docs/operations/production.md` | Dropping the mount does not delete the volume. After a post-removal deploy is up: `docker volume rm crockenhill_app-private`. Verified empty by WP1 |
-| Historic/R8 data convergence — song catalogue sync, `play_date` import, media identity backfill, OpenLP/OoS evidence, Bundle A media results and Bundle B convergence | Historic archive readiness-remediation plan + remainder R8 + `docs/operations/r8-data-convergence-runbook.md` | Production mutation is blocked until readiness G8. The predecessor R8/historic plans are decision records, not executable sequences. Production has not been touched. |
+| Historic/R8 data convergence — song catalogue sync, `play_date` import, media identity backfill, OpenLP/OoS evidence, Bundle A media results and Bundle B convergence | Historic archive readiness-remediation plan + remainder R8 + `docs/operations/r8-data-convergence-runbook.md` | Production mutation is blocked until readiness G8, now also enforced in code by `HistoricImportProductionGuard`. The predecessor R8/historic plans are decision records, not executable sequences. Production has not been touched. |
+| **Add `PROD_HOST`/`PROD_USER`/`PROD_SSH_KEY` to the `production-audit` environment** | readiness plan §12.4; `.github/workflows/production-audit.yml` | Added 2026-08-07. The secrets are on `production`; the audit workflow targets `production-audit` and has none, so it has never authenticated. Secret values cannot be read back, so only the operator can supply them. |
+| **Dispatch the read-only production evidence audit** | readiness plan §12.4 | Blocked on the row above. Approval-gated environment, so no agent can approve it either. |
+| **Decide whether `production` should carry protection rules** | `.github/workflows/deploy.yml`, `rollback.yml` | Found 2026-08-07 while diagnosing the audit. `production` has no required reviewers, so deploys and rollbacks run unapproved while the read-only audit is gated. Not a readiness-plan item; recorded so the asymmetry is a decision rather than an accident. |
+| **Decide what `expected_services` reconciles (F1)** | readiness plan §9.4.6 and §19 | Added 2026-08-07. Blocks G2 and readiness PR26. It is a decision about the gate's rule, not a value to copy from the manifest — see the amendment above. |
+| **Provide a clean rehearsal database for §13.5 step 3 (F2)** | readiness plan §13.5 | Added 2026-08-07. Either a fresh migration or a production-shaped restore. Without it the §9.4 census measures the July 2026 OpenLP import residue rather than the projector. **`oos:import-archive --import` now refuses until this is done** (PR28), so it is a step rather than a caution. |
+| **Mount the CBC drive** | readiness plan §13.1 | Unchanged and still the hard dependency for the OpenLP and historic-video corpora. `/Volumes` held only `Macintosh HD` on 2026-08-07; 890 symlinks under `storage/` point at the absent mount. |
 | Run `CleanupReviewQueueNoiseCommand` against production | archived review-queue-noise plan, OD3 | The command shipped 2026-07-20 (dry-run-first, counts-only). No record it has been run in production |
 | Answer D1 (song familiarity: "sung exactly once in 5 years") | plan 11 | Blocks the whole plan; the draft defaults it to amber |
 | Answer Q3/Q4 (podcast `enabled` key; PHPStan ratchet sequencing) | plan 4 | Q4 is the last thing in front of WP7 |

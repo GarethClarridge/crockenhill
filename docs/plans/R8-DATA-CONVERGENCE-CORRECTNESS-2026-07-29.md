@@ -11,6 +11,14 @@
 > is now the single implementation sequence and production gate. This document is retained only as
 > a decision record and detailed convergence prior art; do not execute its R8 work-package numbering.
 >
+> **Where that successor stands (2026-08-07), so this header's "implemented on `master`" is not
+> read as readiness:** the successor plan's PRs 1–17 and 21–24 have merged, which means the defects
+> listed above are *repaired* rather than merely catalogued — the code this header describes as
+> implemented is not the code that will run. Its G2–G9 are all unclaimed, its rehearsal has not
+> started, and a 2026-08-07 readiness audit added three more drive-free slices (PR25–PR27). The
+> production convergence this plan gates is still blocked, for the reasons its own paragraph above
+> gives plus those.
+>
 > This plan supersedes
 > [`LOCAL-PROCESSING-PORTABILITY-2026-07-28.md`](../archived-plans/LOCAL-PROCESSING-PORTABILITY-2026-07-28.md)
 > and owns the correctness work discovered while

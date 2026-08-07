@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services\ChurchService;
 
 use App\Enums\ChurchServiceProposalStatus;
+use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceMergeProposal;
 use App\Models\ChurchServiceProposalClassReview;
@@ -321,9 +322,20 @@ class ChurchServiceProposalRuleServiceTest extends TestCase
      *
      * @return array<string, mixed>
      */
+    /**
+     * A corpus that reconciles on every axis the gate checks, so these tests turn only
+     * on class accounting. The declared census scope is read from what is actually
+     * staged rather than hard-coded: this helper's job is "complete", and a fixed list
+     * would silently stop being that if the fixture's sources changed.
+     */
     private function completeCorpusEvidence(): array
     {
         config()->set('church.historic_corpus.expected_services', ChurchService::query()->count());
+        config()->set('church.historic_corpus.census_source_kinds', ChurchServiceSourceRecord::query()
+            ->distinct()
+            ->pluck('source')
+            ->map(static fn (ChurchServiceSource $source): string => $source->value)
+            ->implode(','));
 
         return app(ChurchServiceCorpusCompleteness::class)->evidence();
     }

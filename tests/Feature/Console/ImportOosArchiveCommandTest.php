@@ -8,6 +8,7 @@ use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
 use App\Enums\InboundEmailStatus;
 use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\InboundEmail;
 use App\Queries\AdminAttentionCounts;
 use App\Queries\ReviewInboxQuery;
@@ -1076,6 +1077,102 @@ class ImportOosArchiveCommandTest extends TestCase
      * @param  list<array<string, mixed>>  $entries
      * @return array<string, string>
      */
+    /**
+     * F2. `--import` stages into a rehearsal database, and §13.5 step 3 now requires
+     * that database to be clean. A curated identity already holding items no source
+     * explains would raise `unnormalized_legacy_items` instead of projecting, so the
+     * run is refused before it writes anything rather than producing a census that
+     * describes the previous import.
+     */
+    #[Test]
+    public function import_refuses_when_a_curated_identity_already_holds_unevidenced_items(): void
+    {
+        $this->stubMorningExtractor();
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12', 'service' => 'morning']]);
+        $service = ChurchService::factory()->create(['date' => '2026-07-12', 'service' => 'morning']);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'metadata' => ['source' => 'legacy-openlp-import'],
+        ]);
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
+        ])
+            ->expectsOutputToContain('1 of 1 curated identities already hold items with no normalized evidence')
+            ->assertFailed();
+
+        $this->assertDatabaseCount('church_service_source_records', 0);
+    }
+
+    #[Test]
+    public function import_proceeds_over_unevidenced_items_when_explicitly_accepted(): void
+    {
+        $this->stubMorningExtractor();
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12', 'service' => 'morning']]);
+        $service = ChurchService::factory()->create(['date' => '2026-07-12', 'service' => 'morning']);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'metadata' => ['source' => 'legacy-openlp-import'],
+        ]);
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
+            '--accept-unevidenced-items' => true,
+        ])->assertExitCode(0);
+
+        $this->assertDatabaseCount('church_service_source_records', 1);
+    }
+
+    /**
+     * The guard is scoped to the corpus being staged. A legacy service on an unrelated
+     * date is §12.4's population, and blocking on it would make `--import` unusable
+     * against any database that has ever held one.
+     */
+    #[Test]
+    public function import_ignores_unevidenced_items_outside_the_curated_corpus(): void
+    {
+        $this->stubMorningExtractor();
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12', 'service' => 'morning']]);
+        $unrelated = ChurchService::factory()->create(['date' => '2019-01-06', 'service' => 'evening']);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $unrelated->id,
+            'position' => 1,
+            'metadata' => ['source' => 'legacy-openlp-import'],
+        ]);
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
+        ])->assertExitCode(0);
+
+        $this->assertDatabaseCount('church_service_source_records', 1);
+    }
+
+    /** A deterministic single-service parse, so the F2 tests turn only on the guard. */
+    private function stubMorningExtractor(): void
+    {
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
+                    confidence: 0.99,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => '2026-07-12',
+                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                        'confidence' => 0.99,
+                    ]],
+                );
+            }
+        });
+    }
+
     private function corpus(array $entries): array
     {
         $root = $this->temporaryDirectory();

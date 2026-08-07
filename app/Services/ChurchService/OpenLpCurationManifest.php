@@ -17,13 +17,8 @@ use RuntimeException;
  */
 class OpenLpCurationManifest
 {
-    private const ExpectedCounts = [
-        'raw' => 536,
-        'include' => 428,
-        'duplicate-of' => 105,
-        'exclude' => 3,
-        'aliases' => 7,
-    ];
+    /** The accounting keys a manifest must declare, in report order. */
+    private const CountKeys = ['raw', 'include', 'duplicate-of', 'exclude', 'aliases'];
 
     private const Format = 'crockenhill-openlp-curation';
 
@@ -32,8 +27,25 @@ class OpenLpCurationManifest
      * kind, parse/concatenation decision, expected occurrence count and the
      * decision author/time or approved rule version). A v1 manifest carries no
      * attribution at all, so it is rejected rather than defaulted.
+     *
+     * Version 3 moves the expected accounting out of this class and into the
+     * manifest. It was previously the constant `ExpectedCounts` — 536 raw, 428
+     * include, 105 duplicate-of, 3 exclude, 7 aliases — and `plan()` threw on any
+     * other value. §13.1 instructs a remeasurement of exactly those figures against
+     * the mounted read-only drive and states that the tracked counts "are a
+     * reconciliation target, not proof that every current path/symlink resolves",
+     * so the code made the plan's own next step unrepresentable: recording what the
+     * drive actually holds would have required editing a constant. It also inverted
+     * §7.3's authority, under which the approved manifest — not code it must agree
+     * with — is mutation authority.
+     *
+     * What the constant bought is kept: a manifest that has silently lost entries
+     * between approval and apply still fails, because the declaration is checked
+     * against the entries rather than trusted. What is dropped is only the
+     * assumption that one accounting is correct for all time. A v2 manifest
+     * declares nothing, so it is rejected rather than defaulted to the old numbers.
      */
-    private const Version = 2;
+    private const Version = 3;
 
     /** This manifest curates one source kind; the format is shared with Email and livestream. */
     private const SourceKind = 'openlp';
@@ -91,11 +103,12 @@ class OpenLpCurationManifest
         $this->reader->validateDuplicateHashes($normalizedEntries);
         $this->validateLogicalIdentities($normalizedEntries);
         $counts = $this->counts($normalizedEntries);
+        $declaredCounts = $this->declaredCounts($envelope['declared_counts']);
 
-        if ($counts !== self::ExpectedCounts) {
+        if ($counts !== $declaredCounts) {
             throw new RuntimeException(
-                'OpenLP curation manifest accounting mismatch. Expected '.CanonicalJson::encode(self::ExpectedCounts).
-                ', received '.CanonicalJson::encode($counts).'.'
+                'OpenLP curation manifest accounting mismatch. The manifest declares '.CanonicalJson::encode($declaredCounts).
+                ', its entries give '.CanonicalJson::encode($counts).'.'
             );
         }
 
@@ -523,5 +536,53 @@ class OpenLpCurationManifest
             'exclude' => collect($entries)->where('disposition', 'exclude')->count(),
             'aliases' => collect($entries)->where('disposition', 'include')->whereNotNull('alias_reason')->count(),
         ];
+    }
+
+    /**
+     * The accounting the approved manifest asserts about itself.
+     *
+     * Validated strictly rather than coerced: every key present, no key extra, and
+     * every value a non-negative integer. A partial declaration would silently check
+     * less than the operator believed they had approved, which is the one failure
+     * this replacement must not introduce.
+     *
+     * @return array<string, int>
+     */
+    private function declaredCounts(mixed $declared): array
+    {
+        if (! is_array($declared)) {
+            throw new RuntimeException(
+                'The OpenLP curation manifest must declare its expected accounting in `expected_counts`.'
+            );
+        }
+
+        $declaredKeys = array_keys($declared);
+        sort($declaredKeys);
+        $requiredKeys = self::CountKeys;
+        sort($requiredKeys);
+
+        // Key *order* in a JSON object carries no meaning, so only the set is checked.
+        if ($declaredKeys !== $requiredKeys) {
+            throw new RuntimeException(
+                'The OpenLP curation manifest must declare its expected accounting as exactly '.
+                CanonicalJson::encode(self::CountKeys).'.'
+            );
+        }
+
+        $counts = [];
+
+        foreach (self::CountKeys as $key) {
+            $value = $declared[$key];
+
+            if (! is_int($value) || $value < 0) {
+                throw new RuntimeException(
+                    "The OpenLP curation manifest's declared `{$key}` must be a non-negative integer."
+                );
+            }
+
+            $counts[$key] = $value;
+        }
+
+        return $counts;
     }
 }

@@ -83,6 +83,25 @@ return [
         'expected_services' => env('HISTORIC_CORPUS_EXPECTED_SERVICES'),
 
         /*
+        | Which source kinds the §9.4 proposal census claims to cover, as a
+        | comma-separated list of `ChurchServiceSource` values ("email,openlp").
+        |
+        | The census gate previously reconciled only the *number* of staged
+        | services, which cannot distinguish an Email-only corpus from one that
+        | also carries OpenLP evidence. Email staging is drive-free and OpenLP
+        | staging is not, so that difference is the normal state of this work,
+        | not an edge case — and §9.4.2's Email x OpenLP population is precisely
+        | what an Email-only run has not generated.
+        |
+        | Null means undeclared, which the gate refuses. It is not read as "all
+        | kinds" or "no requirement", for the same reason an unset corpus size is
+        | not read as approval: the absence of a decision is not a decision. An
+        | unrecognised kind is treated as undeclared rather than dropped, so a
+        | typo cannot quietly narrow the requirement.
+        */
+        'census_source_kinds' => env('HISTORIC_CORPUS_CENSUS_SOURCE_KINDS'),
+
+        /*
         | The approved G8 production-import operation identifier.
         |
         | The plan forbids canonical historic imports against production until

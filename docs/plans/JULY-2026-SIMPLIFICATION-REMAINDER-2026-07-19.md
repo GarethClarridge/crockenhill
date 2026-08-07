@@ -15,8 +15,12 @@
 > (see `docs/operations/r8-data-convergence-runbook.md`), and several of its rows have been
 > overtaken by the historic-archive plan — see the ownership note under R12.
 >
-> **Still open:** R12 (now owned by
-> [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)),
+> **Still open:** R12 (ownership moved again on 2026-07-31 — it now belongs to
+> [HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md),
+> the single implementation plan and production gate; the historic-media and R8 documents this plan
+> used to point at are decision records only and must not be executed by their own work-package
+> numbering. As of 2026-08-07 that plan's implementation has landed but its rehearsal has not
+> started, so **R12 remains blocked and no one-shot may be deleted**),
 > R13, R14 (all five duplicate suites still present), R15. **R9–R11 merging releases the gate on
 > WP7 of [CODE-QUALITY-REMEDIATION-2026-07-19.md](CODE-QUALITY-REMEDIATION-2026-07-19.md)** (the
 > PHPStan level-9 ratchet) and on

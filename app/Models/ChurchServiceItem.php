@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\IngestChurchServiceSourceRevision;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ChurchServiceOccurrenceState;
 use App\Enums\MediaType;
 use App\Enums\ServiceSectionType;
+use App\Services\Import\UnevidencedCanonicalItemGuard;
 use Database\Factories\ChurchServiceItemFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -176,6 +178,23 @@ class ChurchServiceItem extends Model
             'bibles' => ServiceSectionType::BibleReading,
             default => ServiceSectionType::inferFromTitle($this->title),
         };
+    }
+
+    /**
+     * Whether a normalized source assertion accounts for this item.
+     *
+     * An item without one cannot be re-derived from evidence, so projecting over it
+     * would delete something no source can put back. That is why
+     * {@see IngestChurchServiceSourceRevision} stages a proposal instead,
+     * and why {@see UnevidencedCanonicalItemGuard} refuses to
+     * stage a corpus over a database full of them. Both ask the same question, so it
+     * is defined once here.
+     */
+    public function hasNormalizedEvidence(): bool
+    {
+        $hashes = $this->metadata['source_assertion_hashes'] ?? null;
+
+        return is_array($hashes) && $hashes !== [];
     }
 
     /**
