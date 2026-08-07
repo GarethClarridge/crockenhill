@@ -21,6 +21,19 @@ class ExportChurchServiceConvergenceCommandTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * The command resolves --output against `realpath(storage_path('app/private'))`
+     * before it ever looks at --media-bundle, and that directory is untracked, so a
+     * fresh checkout does not have it. Without this every path assertion in the class
+     * reports the missing-output-parent failure instead of the one it is testing.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        File::ensureDirectoryExists(storage_path('app/private'));
+    }
+
     #[Test]
     public function it_rejects_an_export_without_reviewed_service_ids(): void
     {
@@ -92,7 +105,6 @@ class ExportChurchServiceConvergenceCommandTest extends TestCase
 
     private function writeMediaBundle(): string
     {
-        File::ensureDirectoryExists(storage_path('app/private'));
         $path = storage_path('app/private/r8-bundle-a-fixture.json');
 
         $bundle = app(HistoricProcessingResultBundle::class)->make(
