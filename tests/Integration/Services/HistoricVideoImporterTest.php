@@ -16,6 +16,7 @@ use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\Video\HistoricVideoImporter;
 use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
@@ -167,6 +168,71 @@ class HistoricVideoImporterTest extends TestCase
         $this->assertSame($capturedMetadata['job_key'], $capturedDedupKey);
         $this->assertIsArray($capturedFingerprint);
         $this->assertSame($capturedMetadata['manifest_hash'], $capturedFingerprint['source_manifest_hash']);
+    }
+
+    #[Test]
+    public function an_approved_source_changed_before_dispatch_creates_no_processing_state(): void
+    {
+        $relativePath = '2022-01-16 18-38-15.mkv';
+        $path = $this->temporaryDirectory.'/'.$relativePath;
+        $this->createFakeVideo($path);
+        $approvedHash = hash_file('sha256', $path);
+        $approvedSize = filesize($path);
+        $this->assertIsString($approvedHash);
+        $this->assertIsInt($approvedSize);
+        file_put_contents($path, 'changed', FILE_APPEND);
+
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldNotReceive('process');
+        $reportPath = $this->temporaryDirectory.'/source-integrity-report.json';
+        $stagingContext = app(HistoricStagingGuard::class)->contextForApprovedPlan(
+            hash('sha256', $this->temporaryDirectory),
+            hash('sha256', $this->temporaryDirectory.'|plan'),
+        );
+        $metrics = (new HistoricVideoImporter(
+            $processor,
+            app(HistoricStagingContextRegistry::class),
+            app(HistoricProcessingFingerprint::class),
+        ))->import(
+            directory: $this->temporaryDirectory,
+            dryRun: false,
+            delay: 0,
+            force: false,
+            minSizeMb: 1,
+            includeUnclassified: false,
+            defaultYear: null,
+            noConcat: true,
+            reEncodeMismatched: false,
+            tempDiskMinFreeGb: 0,
+            parallel: 1,
+            pollIntervalSeconds: 1,
+            perFileTimeoutSeconds: 1,
+            limit: 0,
+            reportPath: $reportPath,
+            approvedWorkItems: [[
+                'manifest_item_key' => 'video-1',
+                'tag' => 'livestream',
+                'label' => $relativePath,
+                'files' => [$path],
+                'source_files' => [[
+                    'relative_path' => $relativePath,
+                    'sha256' => $approvedHash,
+                    'byte_size' => $approvedSize,
+                ]],
+                'date' => Carbon::parse('2022-01-16'),
+                'service' => SermonService::Evening,
+                'client_file_date' => '2022-01-16 18:38:15',
+                'bytes' => $approvedSize,
+                'manifest_concatenation' => 'separate',
+            ]],
+            stagingContext: $stagingContext,
+        );
+
+        $report = json_decode((string) file_get_contents($reportPath), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame(1, $metrics['errors']);
+        $this->assertSame(0, $metrics['dispatched']);
+        $this->assertSame('source_integrity_failed', $report['items'][0]['decision']);
+        $this->assertDatabaseCount('media_processing_logs', 0);
     }
 
     #[Test]

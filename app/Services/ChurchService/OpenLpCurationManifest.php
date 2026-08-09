@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Data\OpenLpCurationPlan;
+use App\Data\VerifiedSourceSnapshot;
 use App\Enums\SermonService;
 use App\Services\Song\OpenLpServiceParser;
 use App\Support\CanonicalJson;
@@ -242,6 +243,20 @@ class OpenLpCurationManifest
         $rawRoot = $this->reader->requireDirectory($rawDirectory, self::Label);
 
         return $this->verifiedIncludePath($rawRoot, $entry);
+    }
+
+    /** @param OpenLpCurationInclude $entry */
+    public function snapshotInclude(string $rawDirectory, array $entry): VerifiedSourceSnapshot
+    {
+        $rawRoot = $this->reader->requireDirectory($rawDirectory, self::Label);
+
+        return $this->reader->snapshot(
+            $rawRoot,
+            $entry['relative_path'],
+            $entry['sha256'],
+            $entry['byte_size'],
+            self::Label,
+        );
     }
 
     /**

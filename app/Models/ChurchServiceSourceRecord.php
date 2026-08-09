@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\ChurchServiceSource;
+use App\Support\ChurchServiceSourceKey;
 use Database\Factories\ChurchServiceSourceRecordFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property ChurchServiceSource $source
  * @property string $source_key
+ * @property string $source_key_hash
  * @property string $revision_hash
  * @property array<string, mixed> $processing_fingerprint
  * @property array<string, mixed>|null $service_content
@@ -37,6 +39,7 @@ class ChurchServiceSourceRecord extends Model
         'church_service_id',
         'source',
         'source_key',
+        'source_key_hash',
         'revision_hash',
         'input_hash',
         'supersedes_id',
@@ -47,6 +50,14 @@ class ChurchServiceSourceRecord extends Model
         'captured_at',
         'created_by_user_id',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $record): void {
+            $record->source_key = ChurchServiceSourceKey::canonical($record->source_key);
+            $record->source_key_hash = ChurchServiceSourceKey::identity($record->source_key);
+        });
+    }
 
     protected function casts(): array
     {

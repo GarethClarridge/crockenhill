@@ -19,7 +19,7 @@ class HistoricVideoCurationManifest
 {
     private const FORMAT = 'crockenhill-historic-video-curation';
 
-    private const VERSION = 1;
+    private const VERSION = 2;
 
     private const SUPPORTED_EXTENSIONS = ['mkv', 'mp4', 'mov'];
 
@@ -32,6 +32,7 @@ class HistoricVideoCurationManifest
         }
 
         $manifest = $this->manifest($manifestPath);
+        $batchKey = $manifest['batch_key'];
         $entries = $manifest['entries'] ?? null;
 
         if (! is_array($entries) || ! array_is_list($entries)) {
@@ -121,6 +122,7 @@ class HistoricVideoCurationManifest
         $manifestHash = CanonicalJson::hash([
             'format' => self::FORMAT,
             'version' => self::VERSION,
+            'batch_key' => $batchKey,
             'entries' => $normalizedEntries,
         ]);
         $counts = [
@@ -135,6 +137,7 @@ class HistoricVideoCurationManifest
         $planHash = CanonicalJson::hash([
             'format' => 'crockenhill-historic-video-import-plan',
             'version' => 1,
+            'batch_key' => $batchKey,
             'manifest_hash' => $manifestHash,
             'counts' => $counts,
             'items' => array_map(static fn (array $item): array => [
@@ -148,7 +151,7 @@ class HistoricVideoCurationManifest
             'exclusions' => $exclusions,
         ]);
 
-        return new HistoricVideoCurationPlan($manifestHash, $planHash, $workItems, $counts, $exclusions);
+        return new HistoricVideoCurationPlan($manifestHash, $planHash, $workItems, $counts, $exclusions, $batchKey);
     }
 
     /**
@@ -160,6 +163,8 @@ class HistoricVideoCurationManifest
      */
     private function validateDuplicateTargets(array $entries, array $declaredKeys): void
     {
+        $byKey = collect($entries)->keyBy('item_key');
+
         foreach ($entries as $entry) {
             $duplicateOf = $entry['duplicate_of'];
 
@@ -177,6 +182,32 @@ class HistoricVideoCurationManifest
 
             if (! isset($declaredKeys[$duplicateOf])) {
                 throw new RuntimeException("Historic video entry {$entry['item_key']} duplicates undeclared item key {$duplicateOf}.");
+            }
+
+            $target = $byKey->get($duplicateOf);
+
+            if (! is_array($target) || $target['disposition'] !== 'include' || $target['files'] !== $entry['files']) {
+                throw new RuntimeException("Historic video duplicate {$entry['item_key']} must name an included byte-identical target.");
+            }
+        }
+
+        foreach ($entries as $entry) {
+            $seen = [];
+            $cursor = $entry;
+
+            while ($cursor['duplicate_of'] !== null) {
+                if (isset($seen[$cursor['item_key']])) {
+                    throw new RuntimeException("Historic video duplicate chain for {$entry['item_key']} is cyclic.");
+                }
+
+                $seen[$cursor['item_key']] = true;
+                $next = $byKey->get($cursor['duplicate_of']);
+
+                if (! is_array($next)) {
+                    throw new RuntimeException("Historic video duplicate chain for {$entry['item_key']} has no target.");
+                }
+
+                $cursor = $next;
             }
         }
     }
@@ -196,9 +227,13 @@ class HistoricVideoCurationManifest
             throw new RuntimeException('Historic video curation manifest is not valid JSON.', previous: $exception);
         }
 
-        if (! is_array($manifest) || ($manifest['format'] ?? null) !== self::FORMAT || ($manifest['version'] ?? null) !== self::VERSION) {
+        if (! is_array($manifest) || ! $this->hasExactKeys($manifest, ['format', 'version', 'batch_key', 'entries'])
+            || $manifest['format'] !== self::FORMAT || $manifest['version'] !== self::VERSION
+            || ! is_string($manifest['batch_key']) || trim($manifest['batch_key']) === '') {
             throw new RuntimeException('Unsupported historic video curation manifest format or version.');
         }
+
+        $manifest['batch_key'] = trim($manifest['batch_key']);
 
         return $manifest;
     }
@@ -221,6 +256,23 @@ class HistoricVideoCurationManifest
      */
     private function normalizeEntry(array $entry, int $offset, string $rawRoot): array
     {
+        if (! $this->hasExactKeys($entry, [
+            'item_key',
+            'source_kind',
+            'disposition',
+            'exclusion_reason',
+            'duplicate_of',
+            'date',
+            'service',
+            'concatenation',
+            'client_file_date',
+            'expected_occurrence_count',
+            'decision',
+            'files',
+        ])) {
+            throw new RuntimeException("Historic video entry {$offset} has unknown or missing schema fields.");
+        }
+
         $itemKey = $this->requiredString($entry, 'item_key', $offset);
         $disposition = $this->requiredString($entry, 'disposition', $offset);
 
@@ -237,7 +289,13 @@ class HistoricVideoCurationManifest
         $date = $this->requiredString($entry, 'date', $offset);
         $service = $this->requiredString($entry, 'service', $offset);
 
-        if (preg_match('/\A\d{4}-\d{2}-\d{2}\z/', $date) !== 1 || SermonService::tryFrom($service) === null) {
+        $parsedDate = Carbon::createFromFormat('!Y-m-d', $date);
+        $dateErrors = Carbon::getLastErrors();
+
+        if (preg_match('/\A\d{4}-\d{2}-\d{2}\z/', $date) !== 1
+            || ! $parsedDate instanceof Carbon
+            || ($dateErrors !== false && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0))
+            || SermonService::tryFrom($service) === null) {
             throw new RuntimeException("Historic video entry {$itemKey} must declare an explicit valid date and service.");
         }
 
@@ -261,8 +319,21 @@ class HistoricVideoCurationManifest
 
         $decision = $entry['decision'] ?? null;
 
-        if (! is_array($decision) || (! is_string($decision['approved_rule_version'] ?? null) && ! is_string($decision['author'] ?? null))) {
-            throw new RuntimeException("Historic video entry {$itemKey} requires a decision author or approved rule version.");
+        if (! is_array($decision)) {
+            throw new RuntimeException("Historic video entry {$itemKey} requires an authorised decision.");
+        }
+
+        $hasRule = $this->hasExactKeys($decision, ['approved_rule_version'])
+            && is_string($decision['approved_rule_version'])
+            && trim($decision['approved_rule_version']) !== '';
+        $hasPerson = $this->hasExactKeys($decision, ['author', 'decided_at'])
+            && is_string($decision['author'])
+            && trim($decision['author']) !== ''
+            && is_string($decision['decided_at'])
+            && Carbon::parse($decision['decided_at'])->toIso8601String() === $decision['decided_at'];
+
+        if (! $hasRule && ! $hasPerson) {
+            throw new RuntimeException("Historic video entry {$itemKey} requires an exact authorised decision shape.");
         }
 
         $files = $entry['files'] ?? null;
@@ -288,7 +359,7 @@ class HistoricVideoCurationManifest
         $normalizedFiles = [];
 
         foreach ($files as $file) {
-            if (! is_array($file)) {
+            if (! is_array($file) || ! $this->hasExactKeys($file, ['relative_path', 'sha256', 'byte_size'])) {
                 throw new RuntimeException("Historic video entry {$itemKey} has an invalid source file.");
             }
 
@@ -323,6 +394,19 @@ class HistoricVideoCurationManifest
             'decision' => $decision,
             'files' => $normalizedFiles,
         ];
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $payload
+     * @param  list<string>  $expected
+     */
+    private function hasExactKeys(array $payload, array $expected): bool
+    {
+        $keys = array_keys($payload);
+        sort($keys);
+        sort($expected);
+
+        return $keys === $expected;
     }
 
     /**

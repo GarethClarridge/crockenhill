@@ -9,6 +9,7 @@ use App\Data\ProcessingResult;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
+use App\Exceptions\HistoricSourceIntegrityException;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\HistoricMedia\HistoricProcessingFingerprint;
@@ -300,6 +301,14 @@ class HistoricVideoImporter
                 }
             } catch (\Throwable $e) {
                 $metrics['errors']++;
+                $decisions[$decisionIndex] = [
+                    'decision' => $e instanceof HistoricSourceIntegrityException
+                        ? 'source_integrity_failed'
+                        : 'dispatch_failed',
+                    'work_item_tag' => $tag,
+                    'label' => $label,
+                    'detail' => $e->getMessage(),
+                ];
                 Log::error('Historic video import dispatch failed', [
                     'label' => $label,
                     'error' => $e->getMessage(),
@@ -737,6 +746,7 @@ class HistoricVideoImporter
         bool $reEncodeMismatched,
         HistoricStagingContext $stagingContext,
     ): array {
+        $this->assertApprovedSourceFilesAreUnchanged($item);
         $files = $item['files'];
 
         if (isset($item['manifest_concatenation'])) {
@@ -900,6 +910,7 @@ class HistoricVideoImporter
      */
     private function concatLossless(array $item, HistoricStagingContext $stagingContext): array
     {
+        $this->assertApprovedSourceFilesAreUnchanged($item);
         $concatPath = $this->buildConcatFile($item['files']);
 
         if ($concatPath === null) {
@@ -940,6 +951,7 @@ class HistoricVideoImporter
      */
     private function concatWithReencode(array $item, HistoricStagingContext $stagingContext): array
     {
+        $this->assertApprovedSourceFilesAreUnchanged($item);
         $this->ensureTempDir();
 
         $inputs = implode(' ', array_map(fn (string $f) => '-i '.escapeshellarg($f), $item['files']));
@@ -1030,6 +1042,65 @@ class HistoricVideoImporter
     private function ensureTempDir(): void
     {
         Storage::disk($this->historicTempDisk())->makeDirectory(self::TEMP_DIR);
+    }
+
+    /**
+     * A manifest plan deliberately contains portable relative paths and hashes.
+     * Reconstruct the approved root from the dispatched path and verify every
+     * segment immediately before a processor or FFmpeg can consume it.
+     *
+     * @param  array{files:list<string>,source_files?:list<array{relative_path:string,sha256:string,byte_size:int}>}  $item
+     */
+    private function assertApprovedSourceFilesAreUnchanged(array $item): void
+    {
+        $sourceFiles = $item['source_files'] ?? [];
+
+        if ($sourceFiles === []) {
+            return;
+        }
+
+        if (count($sourceFiles) !== count($item['files'])) {
+            throw new HistoricSourceIntegrityException('Historic video work item does not bind every dispatched file to approved source evidence.');
+        }
+
+        foreach ($sourceFiles as $offset => $source) {
+            $relativePath = $source['relative_path'];
+            $path = $item['files'][$offset];
+            $suffix = DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+
+            if (! str_ends_with($path, $suffix)) {
+                throw new HistoricSourceIntegrityException("Historic video source path is not the approved relative path: {$relativePath}");
+            }
+
+            $root = substr($path, 0, -strlen($suffix));
+
+            if ($root === '' || ! is_dir($root) || ! is_file($path) || $this->containsSourceSymlink($root, $relativePath)) {
+                throw new HistoricSourceIntegrityException("Historic video source integrity failure: {$relativePath}");
+            }
+
+            clearstatcache(true, $path);
+            $size = filesize($path);
+            $hash = hash_file('sha256', $path);
+
+            if ($size !== $source['byte_size'] || ! is_string($hash) || ! hash_equals($source['sha256'], $hash)) {
+                throw new HistoricSourceIntegrityException("Historic video source changed after approval: {$relativePath}");
+            }
+        }
+    }
+
+    private function containsSourceSymlink(string $root, string $relativePath): bool
+    {
+        $path = $root;
+
+        foreach (explode('/', $relativePath) as $segment) {
+            $path .= DIRECTORY_SEPARATOR.$segment;
+
+            if (is_link($path)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function checkExistence(Carbon $date, SermonService $service): ?string

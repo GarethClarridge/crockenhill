@@ -17,6 +17,7 @@ use App\Services\ChurchService\ChurchServiceProjectionPersister;
 use App\Services\ChurchService\ChurchServiceProjector;
 use App\Services\ChurchService\ChurchServiceSourceRevisionLineageInspector;
 use App\Support\CanonicalJson;
+use App\Support\ChurchServiceSourceKey;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,14 @@ class IngestChurchServiceSourceRevision
         $revisionHash = CanonicalJson::hash([
             'assertions' => $this->portableAssertions($revision->assertions),
             'service_content' => $revision->serviceContent,
+            // Content equality does not make a source authority replay-safe. A
+            // changed archive, batch or parser can yield identical assertions;
+            // retain that immutable provenance as a new linked revision without
+            // requiring the canonical projection itself to change.
+            'input_hash' => $revision->inputHash,
+            'batch_hash' => $revision->batchHash,
+            'processing_fingerprint' => $revision->processingFingerprint,
+            'payload_complete' => $revision->payloadComplete,
         ]);
 
         try {
@@ -50,7 +59,7 @@ class IngestChurchServiceSourceRevision
 
                 $claimedElsewhere = ChurchServiceSourceRecord::query()
                     ->where('source', $revision->source->value)
-                    ->where('source_key', $revision->sourceKey)
+                    ->where('source_key_hash', ChurchServiceSourceKey::identity($revision->sourceKey))
                     ->where('church_service_id', '!=', $lockedService->getKey())
                     ->exists();
 
@@ -140,7 +149,7 @@ class IngestChurchServiceSourceRevision
             // path: the current leaf is an idempotent no-op, anything else is a revert.
             $revisions = ChurchServiceSourceRecord::query()
                 ->where('source', $revision->source->value)
-                ->where('source_key', $revision->sourceKey)
+                ->where('source_key_hash', ChurchServiceSourceKey::identity($revision->sourceKey))
                 ->get();
             $existing = $revisions->firstWhere('revision_hash', $revisionHash);
 
@@ -181,7 +190,7 @@ class IngestChurchServiceSourceRevision
 
         $elsewhere = ChurchServiceSourceRecord::query()
             ->where('source', $revision->source->value)
-            ->where('source_key', $revision->supersedesSourceKey)
+            ->where('source_key_hash', ChurchServiceSourceKey::identity($revision->supersedesSourceKey))
             ->where('church_service_id', '!=', $churchService->getKey())
             ->exists();
 

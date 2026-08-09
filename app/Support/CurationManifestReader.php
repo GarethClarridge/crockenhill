@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Data\VerifiedSourceSnapshot;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Illuminate\Support\Facades\File;
@@ -180,6 +181,39 @@ class CurationManifestReader
         return $realPath;
     }
 
+    /**
+     * Read an approved source exactly once and prove that the opened file did not
+     * change while it was being consumed. Callers must parse `contents`, never
+     * reopen the returned pathname.
+     */
+    public function snapshot(string $rawRoot, string $relativePath, string $sha256, int $byteSize, string $label): VerifiedSourceSnapshot
+    {
+        $path = $this->verifiedPath($rawRoot, $relativePath, $sha256, $byteSize, $label);
+        $before = $this->fileIdentity($path, $relativePath);
+        $contents = file_get_contents($path);
+
+        if (! is_string($contents)) {
+            throw new RuntimeException("Unable to read approved {$label} source: {$relativePath}");
+        }
+
+        clearstatcache(true, $path);
+        $after = $this->fileIdentity($path, $relativePath);
+        $observedSha256 = hash('sha256', $contents);
+
+        if ($before !== $after || strlen($contents) !== $byteSize || ! hash_equals($sha256, $observedSha256)) {
+            throw new RuntimeException("Approved {$label} source changed while it was read: {$relativePath}");
+        }
+
+        return new VerifiedSourceSnapshot(
+            relativePath: $relativePath,
+            approvedSha256: $sha256,
+            observedSha256: $observedSha256,
+            byteSize: $byteSize,
+            contents: $contents,
+            fileIdentity: $after,
+        );
+    }
+
     public function containsSymlink(string $rawRoot, string $relativePath): bool
     {
         $path = $rawRoot;
@@ -204,6 +238,22 @@ class CurationManifestReader
         }
 
         return $size;
+    }
+
+    /** @return array{device:int|string,inode:int|string,size:int} */
+    private function fileIdentity(string $path, string $relativePath): array
+    {
+        $stat = stat($path);
+
+        if (! is_array($stat)) {
+            throw new RuntimeException("Unable to inspect approved source: {$relativePath}");
+        }
+
+        return [
+            'device' => $stat['dev'],
+            'inode' => $stat['ino'],
+            'size' => $stat['size'],
+        ];
     }
 
     public function isWithinRoot(string $path, string $root): bool

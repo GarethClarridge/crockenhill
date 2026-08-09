@@ -7,6 +7,7 @@ namespace App\Services\ChurchService;
 use App\Enums\ChurchServiceSource;
 use App\Models\ChurchServiceSourceRecord;
 use App\Support\CanonicalJson;
+use App\Support\ChurchServiceSourceKey;
 use Illuminate\Support\Collection;
 use RuntimeException;
 
@@ -43,7 +44,7 @@ class ChurchServiceCorpusMembership
             $records = ChurchServiceSourceRecord::query()
                 ->with('churchService')
                 ->where('source', $item['source'])
-                ->where('source_key', $item['source_key'])
+                ->where('source_key_hash', ChurchServiceSourceKey::identity($item['source_key']))
                 ->get();
             $matching = $records->filter(
                 fn (ChurchServiceSourceRecord $record): bool => $record->batch_hash === $item['batch_hash'],
@@ -68,7 +69,15 @@ class ChurchServiceCorpusMembership
             ->get(['source', 'batch_hash', 'source_key']);
 
         foreach ($actual as $record) {
-            $key = "{$record->source->value}\0{$record->batch_hash}\0{$record->source_key}";
+            if (! is_string($record->batch_hash)) {
+                continue;
+            }
+
+            $key = $this->key([
+                'source' => $record->source->value,
+                'batch_hash' => $record->batch_hash,
+                'source_key' => $record->source_key,
+            ]);
 
             if (! isset($expectedKeys[$key])) {
                 $blockers[] = 'unexpected_source_item';
@@ -146,7 +155,17 @@ class ChurchServiceCorpusMembership
             }
 
             $seen[$key] = true;
-            $items[] = $item;
+            $items[] = [
+                'source' => $item['source'],
+                'batch_hash' => $item['batch_hash'],
+                'source_key' => ChurchServiceSourceKey::canonical($item['source_key']),
+                'input_hash' => $item['input_hash'],
+                'processing_fingerprint' => $item['processing_fingerprint'],
+                'identity' => [
+                    'date' => $item['identity']['date'],
+                    'service' => $item['identity']['service'],
+                ],
+            ];
         }
 
         return $items;
@@ -199,6 +218,6 @@ class ChurchServiceCorpusMembership
     /** @param array{source:string,batch_hash:string,source_key:string} $item */
     private function key(array $item): string
     {
-        return "{$item['source']}\0{$item['batch_hash']}\0{$item['source_key']}";
+        return "{$item['source']}\0{$item['batch_hash']}\0".ChurchServiceSourceKey::identity($item['source_key']);
     }
 }

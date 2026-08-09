@@ -10,6 +10,7 @@ use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\ChurchServiceSourceRecord;
+use App\Support\ChurchServiceSourceKey;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -248,6 +249,34 @@ class IngestChurchServiceSourceRevisionTest extends TestCase
             'base_canonical_hash' => str_repeat('b', 64),
             'status' => 'pending',
         ]);
+    }
+
+    #[Test]
+    public function source_key_variants_share_one_portable_identity_for_every_ingress(): void
+    {
+        $action = app(IngestChurchServiceSourceRevision::class);
+
+        foreach ([ChurchServiceSource::Email, ChurchServiceSource::OpenLp, ChurchServiceSource::Manual] as $source) {
+            $service = ChurchService::factory()->create();
+            $firstRecordId = null;
+
+            foreach (['  CAFÉ | Sunday  ', 'cafe | sunday', 'café | sunday'] as $sourceKey) {
+                $result = $action->execute($service, new ChurchServiceSourceRevision(
+                    source: $source,
+                    sourceKey: $sourceKey,
+                    inputHash: str_repeat('a', 64),
+                    assertions: [$this->assertion(1, 'Opening Song')],
+                    processingFingerprint: ['format' => 'test', 'version' => 1],
+                ));
+
+                $firstRecordId ??= $result->sourceRecord->id;
+                $this->assertSame($firstRecordId, $result->sourceRecord->id);
+            }
+
+            $record = $service->sourceRecords()->sole();
+            $this->assertSame('cafe | sunday', $record->source_key);
+            $this->assertSame(ChurchServiceSourceKey::identity('café | sunday'), $record->source_key_hash);
+        }
     }
 
     /**

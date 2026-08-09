@@ -24,6 +24,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
+use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Models\SermonProcessingStep;
 use App\Models\SermonScriptureFilter;
@@ -122,6 +123,10 @@ class HistoricNormalOutputCanary
             'slug' => 'canary-children-speaker',
         ]);
         $processingId = self::SOURCE_PROCESSING_ID;
+        $scripturePassage = ScripturePassage::factory()->create([
+            'bible_id' => 'eng-kjv',
+            'normalized_reference' => 'John 3; Romans 8',
+        ]);
         $mainSermon = Sermon::factory()->create([
             'date' => $date->toDateString(),
             'service' => SermonService::Morning,
@@ -129,6 +134,7 @@ class HistoricNormalOutputCanary
             'title' => 'Canary sermon',
             'slug' => 'canary-sermon',
             'reference' => 'John 3; Romans 8',
+            'scripture_passage_id' => $scripturePassage->id,
             'preacher' => $preacher->name,
             'preacher_id' => $preacher->id,
             'preacher_source' => PreacherSource::Manual,

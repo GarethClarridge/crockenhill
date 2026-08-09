@@ -25,35 +25,31 @@ class MarkdownFrontmatter
      */
     public function read(string $path): array
     {
-        $handle = fopen($path, 'rb');
+        $contents = file_get_contents($path);
 
-        if ($handle === false) {
+        if (! is_string($contents)) {
             throw new RuntimeException("Unable to read markdown source: {$path}");
         }
 
-        try {
-            if (rtrim((string) fgets($handle), "\r\n") !== '---') {
-                return [];
-            }
+        return $this->parse($contents);
+    }
 
-            $frontmatter = [];
-
-            while (($line = fgets($handle)) !== false) {
-                $line = rtrim($line, "\r\n");
-
-                if ($line === '---') {
-                    break;
-                }
-
-                if (preg_match('/^([a-z_]+):\s*(.*)$/', $line, $matches) === 1) {
-                    $frontmatter[$matches[1]] = trim($matches[2], " \"'");
-                }
-            }
-
-            return $frontmatter;
-        } finally {
-            fclose($handle);
+    /** @return array<string, string> */
+    public function parse(string $contents): array
+    {
+        if (preg_match('/\A---\R(.*?)\R---(?:\R|\z)/s', $contents, $matches) !== 1) {
+            return [];
         }
+
+        $frontmatter = [];
+
+        foreach (preg_split('/\R/', $matches[1]) ?: [] as $line) {
+            if (preg_match('/^([a-z_]+):\s*(.*)$/', $line, $parts) === 1) {
+                $frontmatter[$parts[1]] = trim($parts[2], " \"'");
+            }
+        }
+
+        return $frontmatter;
     }
 
     /** Everything after the frontmatter block, or the whole file when there is none. */
@@ -65,6 +61,12 @@ class MarkdownFrontmatter
             throw new RuntimeException("Unable to read markdown source: {$path}");
         }
 
-        return (string) preg_replace('/\A---\R.*?\R---\R/s', '', $contents, 1);
+        return $this->bodyFromContents($contents);
+    }
+
+    /** Everything after the frontmatter block, or the whole supplied contents. */
+    public function bodyFromContents(string $contents): string
+    {
+        return (string) preg_replace('/\A---\R.*?\R---(?:\R|\z)/s', '', $contents, 1);
     }
 }

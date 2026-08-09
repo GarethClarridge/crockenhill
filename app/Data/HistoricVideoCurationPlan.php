@@ -32,6 +32,7 @@ readonly class HistoricVideoCurationPlan
         public array $workItems,
         public array $counts,
         public array $exclusions = [],
+        public ?string $batchKey = null,
     ) {}
 
     /** @return array<string, mixed> */
@@ -42,6 +43,7 @@ readonly class HistoricVideoCurationPlan
             'version' => 1,
             'manifest_hash' => $this->manifestHash,
             'plan_hash' => $this->planHash,
+            'batch_key' => $this->batchKey,
             'counts' => $this->counts,
             'items' => array_map(static fn (array $item): array => [
                 'item_key' => $item['manifest_item_key'],

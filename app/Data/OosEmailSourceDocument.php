@@ -30,6 +30,34 @@ readonly class OosEmailSourceDocument
     }
 
     /**
+     * @param  list<array{line_id:int,text:string}>  $records
+     */
+    public static function fromLineRecords(array $records): self
+    {
+        $lines = [];
+
+        foreach ($records as $record) {
+            $lines[$record['line_id']] = $record['text'];
+        }
+
+        return new self($lines);
+    }
+
+    /**
+     * @return list<array{line_id:int,text:string}>
+     */
+    public function lineRecords(): array
+    {
+        $records = [];
+
+        foreach ($this->lines as $lineId => $text) {
+            $records[] = ['line_id' => $lineId, 'text' => $text];
+        }
+
+        return $records;
+    }
+
+    /**
      * @return list<int>
      */
     public function lineIds(): array

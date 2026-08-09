@@ -19,6 +19,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
+use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\HistoricMedia\HistoricMediaGraphPersister;
@@ -186,6 +187,32 @@ class HistoricMediaGraphPersisterTest extends TestCase
                 ])
                 ->all(),
         );
+    }
+
+    #[Test]
+    public function it_relinks_a_scripture_passage_by_portable_natural_key(): void
+    {
+        $destinationPassage = ScripturePassage::factory()->create([
+            'bible_id' => 'destination-bible',
+            'normalized_reference' => 'John 3:16',
+        ]);
+        $publication = [
+            ...$this->publication(reference: 'John 3:16'),
+            'scripture_passage' => [
+                'bible_id' => 'destination-bible',
+                'normalized_reference' => 'John 3:16',
+            ],
+            'scripture_passage_outcome' => ['status' => 'linked'],
+        ];
+
+        app(HistoricMediaGraphPersister::class)->persist($this->planWithGraph(
+            processingId: '00000000-0000-0000-0000-000000000019',
+            publications: [$publication],
+        ));
+
+        $sermon = Sermon::query()->where('slug', 'persister-test-sermon')->sole();
+        $this->assertSame($destinationPassage->id, $sermon->scripture_passage_id);
+        $this->assertArrayNotHasKey('scripture_passage_id', $publication);
     }
 
     #[Test]

@@ -6,6 +6,7 @@ namespace App\Services\Email;
 
 use App\Data\OosArchiveEntry;
 use App\Data\OosCurationPlan;
+use App\Data\VerifiedSourceSnapshot;
 use App\Support\MarkdownFrontmatter;
 use Carbon\CarbonImmutable;
 use RuntimeException;
@@ -39,11 +40,10 @@ class OosCurationEntryFactory
     ) {}
 
     /**
-     * @param  array<string, string>  $verifiedPaths  item key => absolute payload path, as returned
-     *                                                by {@see OosCurationManifest::verifyIncludes()}
+     * @param  array<string, VerifiedSourceSnapshot|string>  $verifiedPayloads
      * @return list<OosArchiveEntry>
      */
-    public function entries(OosCurationPlan $plan, array $verifiedPaths): array
+    public function entries(OosCurationPlan $plan, array $verifiedPayloads): array
     {
         $entries = [];
         $sourceKeysByItemKey = [];
@@ -57,12 +57,24 @@ class OosCurationEntryFactory
         }
 
         foreach ($this->orderedIncludes($plan->includes) as $offset => $include) {
-            $path = $verifiedPaths[$include['item_key']] ?? throw new RuntimeException(
+            $payload = $verifiedPayloads[$include['item_key']] ?? throw new RuntimeException(
                 "No verified payload path for approved OoS entry {$include['item_key']}."
             );
 
-            $frontmatter = $this->frontmatter->read($path);
-            $body = trim($this->frontmatter->body($path));
+            if ($payload instanceof VerifiedSourceSnapshot) {
+                if (! hash_equals($include['sha256'], $payload->approvedSha256)
+                    || ! hash_equals($include['sha256'], $payload->observedSha256)
+                    || $include['byte_size'] !== $payload->byteSize) {
+                    throw new RuntimeException("Verified OoS payload snapshot does not match {$include['item_key']}. ");
+                }
+
+                $frontmatter = $this->frontmatter->parse($payload->contents);
+                $body = trim($this->frontmatter->bodyFromContents($payload->contents));
+            } else {
+                // Compatibility for callers that have already materialised a test fixture.
+                $frontmatter = $this->frontmatter->read($payload);
+                $body = trim($this->frontmatter->body($payload));
+            }
 
             if ($body === '') {
                 throw new RuntimeException("Approved OoS entry {$include['item_key']} has an empty body.");

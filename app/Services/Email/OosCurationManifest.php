@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Email;
 
 use App\Data\OosCurationPlan;
+use App\Data\VerifiedSourceSnapshot;
 use App\Enums\SermonService;
 use App\Services\ChurchService\OpenLpCurationManifest;
 use App\Support\CanonicalJson;
@@ -163,6 +164,29 @@ class OosCurationManifest
     }
 
     /**
+     * @return array<string, VerifiedSourceSnapshot> item key => immutable approved payload bytes
+     */
+    public function snapshots(string $verbatimDirectory, string $formattedDirectory, OosCurationPlan $plan): array
+    {
+        $verbatimRoot = $this->reader->requireDirectory($verbatimDirectory, self::Label.' verbatim');
+        $formattedRoot = $this->reader->requireDirectory($formattedDirectory, self::Label.' formatted');
+        $snapshots = [];
+
+        foreach ($plan->includes as $entry) {
+            $root = $entry['payload'] === 'formatted' ? $formattedRoot : $verbatimRoot;
+            $snapshots[$entry['item_key']] = $this->reader->snapshot(
+                $root,
+                $entry['relative_path'],
+                $entry['sha256'],
+                $entry['byte_size'],
+                self::Label,
+            );
+        }
+
+        return $snapshots;
+    }
+
+    /**
      * Reconcile every approved payload against the curation decisions that
      * authorised it, before an operator receives an applyable plan.
      *
@@ -183,11 +207,22 @@ class OosCurationManifest
      */
     public function validateIncludesForDryRun(string $verbatimDirectory, string $formattedDirectory, OosCurationPlan $plan): array
     {
-        $paths = $this->verifyIncludes($verbatimDirectory, $formattedDirectory, $plan);
+        return $this->validateSnapshotsForDryRun($plan, $this->snapshots($verbatimDirectory, $formattedDirectory, $plan));
+    }
+
+    /**
+     * @param  array<string, VerifiedSourceSnapshot>  $snapshots
+     * @return list<array{item_key:string, field:string, manifest:string, source:string}>
+     */
+    public function validateSnapshotsForDryRun(OosCurationPlan $plan, array $snapshots): array
+    {
         $adjudicated = [];
 
         foreach ($plan->includes as $entry) {
-            $frontmatter = $this->frontmatter->read($paths[$entry['item_key']]);
+            $snapshot = $snapshots[$entry['item_key']] ?? throw new RuntimeException(
+                "No verified payload snapshot for approved OoS entry {$entry['item_key']}."
+            );
+            $frontmatter = $this->frontmatter->parse($snapshot->contents);
 
             foreach ($this->identityChecks($entry, $frontmatter) as $field => [$manifestValue, $sourceValue]) {
                 if ($sourceValue === null || $sourceValue === $manifestValue) {
@@ -209,7 +244,7 @@ class OosCurationManifest
                 ];
             }
 
-            if (trim($this->frontmatter->body($paths[$entry['item_key']])) === '') {
+            if (trim($this->frontmatter->bodyFromContents($snapshot->contents)) === '') {
                 throw new RuntimeException("Approved OoS source {$entry['item_key']} has an empty body.");
             }
         }

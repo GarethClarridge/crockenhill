@@ -262,7 +262,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     }
 
     #[Test]
-    public function force_flag_bypasses_skip_checks(): void
+    public function definitive_manifest_runs_reject_the_generic_force_flag(): void
     {
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
         $manifestPath = $this->historicManifest('2022-01-16 10-38-15.mkv', '2022-01-16', 'morning');
@@ -275,17 +275,9 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             'status' => ProcessingStatus::Completed,
         ]);
 
-        // Mock the importer to not actually dispatch, but to not skip
         $this->mock(HistoricVideoImporter::class)
             ->shouldReceive('import')
-            ->once()
-            ->andReturn([
-                'dispatched' => 1, 'concatenated' => 0, 'concatenated_reencoded' => 0,
-                'enriched' => 0, 'skipped_exists' => 0, 'skipped_inflight' => 0,
-                'skipped_pending_review' => 0, 'skipped_small' => 0, 'skipped_audio_dup' => 0,
-                'skipped_no_date' => 0, 'skipped_unclassified' => 0, 'skipped_low_disk' => 0,
-                'errors' => 0, 'bytes_processed' => 1024, 'bytes_skipped' => 0,
-            ]);
+            ->never();
 
         $this->artisan('sermons:import-historic-videos', [
             '--dir' => $this->temporaryDirectory,
@@ -294,7 +286,8 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             '--manifest' => $manifestPath,
             '--plan-hash' => $plan->planHash,
         ])
-            ->assertExitCode(0);
+            ->expectsOutputToContain('forbid')
+            ->assertExitCode(1);
     }
 
     #[Test]
@@ -386,8 +379,6 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             '--allow-local-storage' => true,
             '--manifest' => $manifestPath,
             '--plan-hash' => $plan->planHash,
-            '--default-year' => 2030,
-            '--from' => '2025-01-01',
         ])->assertExitCode(0);
 
         self::assertIsArray($approvedWorkItems);
@@ -501,6 +492,21 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     }
 
     #[Test]
+    public function the_manifest_rejects_unknown_entry_schema_fields(): void
+    {
+        $relativePath = '2021-04-12 18-02-00.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}");
+        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'evening', [
+            'unreviewed_hint' => 'must not become mutation authority',
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('unknown or missing schema fields');
+
+        app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+    }
+
+    #[Test]
     public function the_manifest_rejects_a_duplicate_of_an_undeclared_item(): void
     {
         $relativePath = '2021-04-12 18-02-00.mkv';
@@ -559,7 +565,8 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $this->temporaryManifestPaths[] = $manifestPath;
         $manifest = [
             'format' => 'crockenhill-historic-video-curation',
-            'version' => 1,
+            'version' => 2,
+            'batch_key' => 'historic-video-test-batch',
             'entries' => [[
                 'item_key' => 'approved-'.hash('sha256', $relativePath),
                 'source_kind' => 'livestream',

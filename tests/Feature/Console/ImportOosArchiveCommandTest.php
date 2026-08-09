@@ -27,6 +27,20 @@ class ImportOosArchiveCommandTest extends TestCase
 {
     use RefreshDatabase;
 
+    #[Test]
+    public function it_refuses_missing_or_conflicting_modes_before_reading_or_mutating_the_corpus(): void
+    {
+        $this->artisan('oos:import-archive', [])
+            ->expectsOutputToContain('Choose exactly one mode')
+            ->assertExitCode(1);
+        $this->artisan('oos:import-archive', ['--dry-run' => true, '--apply-bundle' => '/not-read.json'])
+            ->expectsOutputToContain('Choose exactly one mode')
+            ->assertExitCode(1);
+
+        $this->assertDatabaseCount('inbound_emails', 0);
+        $this->assertDatabaseCount('church_services', 0);
+    }
+
     /** @var list<string> */
     private array $temporaryPaths = [];
 
@@ -79,7 +93,7 @@ class ImportOosArchiveCommandTest extends TestCase
 
         $this->assertDatabaseCount('inbound_emails', 0);
         $payload = $this->readReport($report);
-        $this->assertSame('dry_run', $payload['mode']);
+        $this->assertSame('reconcile', $payload['mode']);
         $this->assertCount(1, $payload['entries']);
         $this->assertArrayHasKey('aggregate', $payload);
         $this->assertSame('oos-test-batch', $payload['curation_plan']['batch_key']);
@@ -113,7 +127,7 @@ class ImportOosArchiveCommandTest extends TestCase
         $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $report = $this->temporaryPath('json');
 
-        $arguments = [...$corpus, '--report' => $report];
+        $arguments = [...$corpus, '--evaluate' => true, '--report' => $report];
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
 
@@ -131,7 +145,7 @@ class ImportOosArchiveCommandTest extends TestCase
         // payload digest, so the manifest that approved the old bytes no longer validates.
         $arguments = [...$this->corpus([
             ['key' => '2026-07-12-am', 'date' => '2026-07-12', 'body' => 'Changed song'],
-        ]), '--report' => $report];
+        ]), '--evaluate' => true, '--report' => $report];
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
 
         $this->assertSame(2, $extractor->calls);
@@ -164,7 +178,7 @@ class ImportOosArchiveCommandTest extends TestCase
         };
         $this->app->instance(OosEmailItemExtractor::class, $extractor);
         $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
-        $arguments = [...$corpus, '--report' => $this->temporaryPath('json')];
+        $arguments = [...$corpus, '--evaluate' => true, '--report' => $this->temporaryPath('json')];
 
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
         $this->assertSame(1, $extractor->calls);
@@ -267,7 +281,7 @@ class ImportOosArchiveCommandTest extends TestCase
             ['key' => '2026-07-12-am', 'date' => '2026-07-12', 'service' => 'morning', 'frontmatter_service' => 'pm'],
         ]);
 
-        $this->artisan('oos:import-archive', [...$corpus, '--report' => $this->temporaryPath('json')])
+        $this->artisan('oos:import-archive', [...$corpus, '--evaluate' => true, '--report' => $this->temporaryPath('json')])
             ->expectsOutputToContain('contradicts')
             ->assertExitCode(1);
 
@@ -327,7 +341,7 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->bindPortableExtractor();
         $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
 
-        $this->artisan('oos:import-archive', [...$corpus, '--report' => $this->temporaryPath('json')])
+        $this->artisan('oos:import-archive', [...$corpus, '--evaluate' => true, '--report' => $this->temporaryPath('json')])
             ->assertExitCode(0);
 
         $this->assertDatabaseCount('inbound_emails', 1);
@@ -369,7 +383,7 @@ class ImportOosArchiveCommandTest extends TestCase
         ]]);
         $report = $this->temporaryPath('json');
 
-        $this->artisan('oos:import-archive', [...$corpus, '--report' => $report])->assertExitCode(0);
+        $this->artisan('oos:import-archive', [...$corpus, '--evaluate' => true, '--report' => $report])->assertExitCode(0);
 
         $payload = $this->readReport($report);
         $this->assertSame([[
@@ -415,7 +429,7 @@ class ImportOosArchiveCommandTest extends TestCase
             ...$corpus,
             '--import' => true, '--plan-hash' => $this->planHash(),
             '--report' => $report,
-        ])->assertExitCode(0);
+        ])->assertExitCode(1);
 
         $payload = $this->readReport($report);
         $this->assertSame(['created', 'held_for_review'], array_column($payload['entries'], 'disposition'));
@@ -545,7 +559,7 @@ class ImportOosArchiveCommandTest extends TestCase
             '--import' => true, '--plan-hash' => $this->planHash(),
             '--fresh-parse' => true,
             '--report' => $report,
-        ])->assertExitCode(0);
+        ])->assertExitCode(1);
 
         $this->assertSame('held_for_review', $this->readReport($report)['entries'][0]['disposition']);
         $this->assertSame(InboundEmailStatus::Pending, InboundEmail::query()->firstOrFail()->status);
@@ -626,7 +640,7 @@ class ImportOosArchiveCommandTest extends TestCase
             ...$corpus,
             '--import' => true, '--plan-hash' => $this->planHash(),
             '--report' => $report,
-        ])->assertExitCode(0);
+        ])->assertExitCode(1);
 
         $this->assertDatabaseCount('church_services', 0);
         $payload = $this->readReport($report);
@@ -772,7 +786,7 @@ class ImportOosArchiveCommandTest extends TestCase
             ...$corpus,
             '--import' => true, '--plan-hash' => $this->planHash(),
             '--report' => $report,
-        ])->assertExitCode(0);
+        ])->assertExitCode(1);
 
         $payload = $this->readReport($report);
         $this->assertSame('held_for_review', $payload['entries'][0]['disposition']);
@@ -812,7 +826,7 @@ class ImportOosArchiveCommandTest extends TestCase
         // Re-curating the same service with corrected bytes: same item key, new payload digest.
         $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12', 'body' => 'Corrected content']]);
         $this->artisan('oos:import-archive', $this->importArguments(['--report' => $report]))
-            ->assertExitCode(0);
+            ->assertExitCode(1);
 
         $this->assertSame($originalItems, $service->items()->pluck('title')->all());
         $payload = $this->readReport($report);
@@ -989,15 +1003,11 @@ class ImportOosArchiveCommandTest extends TestCase
         );
         $payload['bundle_hash'] = CanonicalJson::hash(array_diff_key($payload, ['bundle_hash' => true]));
         file_put_contents($bundle, json_encode($payload, JSON_THROW_ON_ERROR));
-        // A re-curated corpus produces a different plan hash, so a bundle exported against the
-        // earlier plan can no longer be staged against it.
-        $corpus = $this->corpus([
-            ['key' => '2026-07-12-am', 'date' => '2026-07-12', 'body' => 'Changed source'],
-        ]);
-
-        $this->artisan('oos:import-archive', [...$corpus, '--import-bundle' => $bundle])
-            ->assertExitCode(1);
-        $this->assertDatabaseCount('inbound_emails', 0);
+        // Production-shaped staging is deliberately independent of the raw corpus: the
+        // normalized source document and curation identity travel in the verified bundle.
+        $this->artisan('oos:import-archive', ['--import-bundle' => $bundle])
+            ->assertExitCode(0);
+        $this->assertDatabaseCount('inbound_emails', 1);
     }
 
     #[Test]

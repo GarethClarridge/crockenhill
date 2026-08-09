@@ -319,7 +319,7 @@ class HistoricProcessingResultBundle
 
             if (
                 is_string($key)
-                && ! in_array($key, ['processing_id', 'source_segment_keys', 'source_assertion_hashes'], true)
+                && ! in_array($key, ['processing_id', 'source_segment_keys', 'source_assertion_hashes', 'bible_id'], true)
                 && HistoricProcessingResultFieldClassifier::isIdentityKey($key)
                 && ! ($key === 'id' && str_contains($path, 'thumbnail_candidates'))
             ) {

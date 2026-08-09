@@ -106,4 +106,40 @@ class HistoricProcessingResultReadinessServiceTest extends TestCase
 
         $this->assertContains('Historic queue dispatch identity is missing.', $result->reasons);
     }
+
+    #[Test]
+    public function historic_scripture_enrichment_requires_a_link_or_approved_terminal_absence(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'historic-scripture-sermon',
+            'reference' => 'John 3:16',
+            'scripture_passage_id' => null,
+        ]);
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'sermon_id' => $sermon->id,
+            'processing_metadata' => [
+                'historic_import' => ['job_key' => hash('sha256', 'scripture-item')],
+            ],
+        ]);
+        $readiness = app(HistoricProcessingResultReadinessService::class);
+
+        $pending = $readiness->audit($run);
+        $this->assertContains(
+            'Publication historic-scripture-sermon has unsettled Scripture Passage enrichment.',
+            $pending->reasons,
+        );
+
+        $metadata = $run->processing_metadata->toArray();
+        $metadata['historic_import']['scripture_passage_outcomes']['historic-scripture-sermon'] = [
+            'status' => 'approved_absent',
+            'reason' => 'api_disabled',
+        ];
+        $run->forceFill(['processing_metadata' => $metadata])->save();
+
+        $settled = $readiness->audit($run->fresh());
+        $this->assertNotContains(
+            'Publication historic-scripture-sermon has unsettled Scripture Passage enrichment.',
+            $settled->reasons,
+        );
+    }
 }

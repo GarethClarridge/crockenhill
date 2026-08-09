@@ -12,6 +12,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
+use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Models\SermonProcessingStep;
 use App\Models\ServiceSection;
@@ -174,6 +175,7 @@ class HistoricMediaGraphPersister
                 'slug' => $publication['slug'],
                 'filetype' => $publication['filetype'] ?? 'mp3',
                 'reference' => $publication['reference'],
+                'scripture_passage_id' => $this->resolveScripturePassageId($publication),
                 'series' => $publication['series'] ?? null,
                 'summary' => $publication['summary'] ?? null,
                 'meta_description' => $publication['meta_description'] ?? null,
@@ -236,6 +238,10 @@ class HistoricMediaGraphPersister
         /** `preacher_id` is derived from the payload's preacher block, not carried directly. */
         if (array_key_exists('preacher', $publication)) {
             $asserted[] = 'preacher_id';
+        }
+
+        if (array_key_exists('scripture_passage', $publication)) {
+            $asserted[] = 'scripture_passage_id';
         }
 
         return array_values(array_filter($asserted, 'is_string'));
@@ -329,6 +335,7 @@ class HistoricMediaGraphPersister
             'slug',
             'filetype',
             'reference',
+            'scripture_passage_id',
             'series',
             'summary',
             'meta_description',
@@ -399,6 +406,43 @@ class HistoricMediaGraphPersister
         $sermon->forceFill($updates)->save();
 
         return $sermon->fresh() ?? $sermon;
+    }
+
+    /** @param array<string, mixed> $publication */
+    private function resolveScripturePassageId(array $publication): ?int
+    {
+        $passage = $publication['scripture_passage'] ?? null;
+        $outcome = $publication['scripture_passage_outcome'] ?? null;
+
+        if ($passage === null) {
+            if ($outcome !== null
+                && (! is_array($outcome)
+                    || ($outcome['status'] ?? null) !== 'approved_absent'
+                    || ! in_array($outcome['reason'] ?? null, ['api_disabled', 'budget_exhausted', 'not_found', 'source_has_no_passage'], true))) {
+                throw new RuntimeException('Historic publication Scripture Passage absence outcome is invalid.');
+            }
+
+            return null;
+        }
+
+        if (! is_array($passage)
+            || ! is_string($passage['bible_id'] ?? null)
+            || ! is_string($passage['normalized_reference'] ?? null)
+            || ! is_array($outcome)
+            || ($outcome['status'] ?? null) !== 'linked') {
+            throw new RuntimeException('Historic publication scripture passage identity is invalid.');
+        }
+
+        $resolved = ScripturePassage::query()
+            ->where('bible_id', $passage['bible_id'])
+            ->where('normalized_reference', $passage['normalized_reference'])
+            ->first();
+
+        if (! $resolved instanceof ScripturePassage) {
+            throw new RuntimeException('Historic publication scripture passage is not available in the destination.');
+        }
+
+        return $resolved->id;
     }
 
     private function comparableValue(mixed $value, string $field): mixed

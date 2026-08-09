@@ -22,6 +22,7 @@ use App\Services\Song\SongTitleResolver;
 use Illuminate\Console\Command;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -59,6 +60,7 @@ class ImportOosArchiveCommand extends Command
                             {--verbatim= : Verbatim corpus root (default storage/scratch/oos-verbatim)}
                             {--formatted= : Formatted corpus root (default storage/scratch/oos)}
                             {--dry-run : Reconcile the manifest against the corpus, without database or extractor access}
+                            {--evaluate : Evaluate assertions without importing canonical services}
                             {--import : Import eligible entries through the live email pipeline}
                             {--plan-hash= : Exact plan_hash emitted by the dry run; required with --import}
                             {--accept-unevidenced-items : Stage even where curated identities already hold items no source explains (§13.5 F2)}
@@ -84,6 +86,39 @@ class ImportOosArchiveCommand extends Command
         HistoricImportProductionGuard $productionGuard,
         UnevidencedCanonicalItemGuard $unevidencedItemGuard,
     ): int {
+        $mode = $this->mode();
+
+        if ($mode === null) {
+            return self::FAILURE;
+        }
+
+        if (in_array($mode, ['stage_assertions', 'apply_assertions'], true)) {
+            try {
+                return $this->runPortableBundleMode($assertionBundle, $productionGuard);
+            } catch (Throwable $throwable) {
+                $this->error($throwable->getMessage());
+
+                return self::FAILURE;
+            }
+        }
+
+        if ($this->hasAdHocFilters() && ! in_array($mode, ['reconcile', 'evaluate'], true)) {
+            $this->error('Ad-hoc filters are only allowed for reconcile or evaluate mode; definitive operations require the complete approved corpus.');
+
+            return self::FAILURE;
+        }
+
+        $this->line("Mode: {$mode}");
+        $this->line('Mutation scope: '.match ($mode) {
+            'reconcile' => 'none',
+            'evaluate' => 'archive evaluation records only',
+            'import' => 'approved canonical Email evidence',
+            'export_assertions' => 'private assertion artifact only',
+            'stage_assertions' => 'private staged assertion records only',
+            'apply_assertions' => 'approved canonical assertion evidence',
+            default => throw new RuntimeException("Unknown OoS archive mode: {$mode}"),
+        });
+
         $manifestPath = $this->stringOption('manifest');
 
         if ($manifestPath === null) {
@@ -103,9 +138,9 @@ class ImportOosArchiveCommand extends Command
              * no entry is parsed, released or imported until every approved payload's own
              * frontmatter has been reconciled against the identity the manifest assigned it.
              */
-            $adjudicated = $curationManifest->validateIncludesForDryRun($verbatimRoot, $formattedRoot, $plan);
-            $verifiedPaths = $curationManifest->verifyIncludes($verbatimRoot, $formattedRoot, $plan);
-            $allEntries = $entryFactory->entries($plan, $verifiedPaths);
+            $snapshots = $curationManifest->snapshots($verbatimRoot, $formattedRoot, $plan);
+            $adjudicated = $curationManifest->validateSnapshotsForDryRun($plan, $snapshots);
+            $allEntries = $entryFactory->entries($plan, $snapshots);
         } catch (Throwable $throwable) {
             $this->error($throwable->getMessage());
 
@@ -115,7 +150,7 @@ class ImportOosArchiveCommand extends Command
         $entries = $this->filteredEntries($allEntries);
 
         try {
-            if ($this->stringOption('import-bundle') !== null || $this->stringOption('apply-bundle') !== null) {
+            if (in_array($mode, ['stage_assertions', 'apply_assertions'], true)) {
                 return $this->runBundleMode($assertionBundle, $entries, $plan, $productionGuard);
             }
         } catch (Throwable $throwable) {
@@ -124,8 +159,8 @@ class ImportOosArchiveCommand extends Command
             return self::FAILURE;
         }
 
-        $dryRun = (bool) $this->option('dry-run');
-        $shouldImport = (bool) $this->option('import') && ! $dryRun;
+        $dryRun = $mode === 'reconcile';
+        $shouldImport = $mode === 'import';
 
         /**
          * Only `--import` writes canonical services, so only `--import` is the
@@ -261,7 +296,7 @@ class ImportOosArchiveCommand extends Command
 
         $report = [
             'generated_at' => now()->toIso8601String(),
-            'mode' => $dryRun ? 'dry_run' : ($shouldImport ? 'import' : 'evaluate'),
+            'mode' => $mode,
             'pipeline_mode' => 'multi_service',
             'parser_version' => self::ParserVersion,
             'corpus' => [
@@ -287,7 +322,7 @@ class ImportOosArchiveCommand extends Command
         ];
 
         try {
-            $exportPath = $this->stringOption('export-bundle');
+            $exportPath = $mode === 'export_assertions' ? $this->stringOption('export-bundle') : null;
             if ($exportPath !== null) {
                 $bundle = $assertionBundle->export($entries, $plan->planHash, self::ParserVersion);
                 $this->writeJson($this->privateScratchPath($exportPath), $bundle);
@@ -310,7 +345,69 @@ class ImportOosArchiveCommand extends Command
 
         $this->info("Report written to {$reportPath}");
 
+        if ($this->hasUnsettledResults($mode, $results, $allEntries, $entries)) {
+            $this->error('Approved OoS corpus closeout is incomplete; no definitive operation can report success.');
+
+            return self::FAILURE;
+        }
+
         return self::SUCCESS;
+    }
+
+    private function mode(): ?string
+    {
+        $selected = [];
+
+        foreach ([
+            'reconcile' => (bool) $this->option('dry-run'),
+            'evaluate' => (bool) $this->option('evaluate'),
+            'import' => (bool) $this->option('import'),
+            'export_assertions' => $this->stringOption('export-bundle') !== null,
+            'stage_assertions' => $this->stringOption('import-bundle') !== null,
+            'apply_assertions' => $this->stringOption('apply-bundle') !== null,
+        ] as $mode => $enabled) {
+            if ($enabled) {
+                $selected[] = $mode;
+            }
+        }
+
+        if (count($selected) === 1) {
+            return $selected[0];
+        }
+
+        $this->error('Choose exactly one mode: --dry-run, --evaluate, --import, --export-bundle, --import-bundle, or --apply-bundle.');
+
+        return null;
+    }
+
+    private function hasAdHocFilters(): bool
+    {
+        return $this->stringOption('limit') !== null
+            || $this->stringOption('from') !== null
+            || $this->stringOption('to') !== null
+            || array_filter((array) $this->option('date'), 'is_string') !== [];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $results
+     * @param  list<OosArchiveEntry>  $allEntries
+     * @param  list<OosArchiveEntry>  $entries
+     */
+    private function hasUnsettledResults(string $mode, array $results, array $allEntries, array $entries): bool
+    {
+        if (! in_array($mode, ['import', 'apply_assertions'], true)) {
+            return false;
+        }
+
+        if (count($entries) !== count($allEntries)) {
+            return true;
+        }
+
+        return collect($results)->contains(static fn (array $result): bool => in_array(
+            $result['disposition'] ?? null,
+            ['failed', 'import_failed', 'held_for_review'],
+            true,
+        ));
     }
 
     /**
@@ -350,6 +447,33 @@ class ImportOosArchiveCommand extends Command
 
         $assertionBundle->apply($preflight);
         $this->info(sprintf('Applied %d OoS assertion entries.', count($preflight['valid'])));
+
+        return self::SUCCESS;
+    }
+
+    private function runPortableBundleMode(
+        OosArchiveAssertionBundle $assertionBundle,
+        HistoricImportProductionGuard $productionGuard,
+    ): int {
+        $isApply = $this->stringOption('apply-bundle') !== null;
+        $refusal = $productionGuard->refusalFor('oos:import-archive '.($isApply ? '--apply-bundle' : '--import-bundle'));
+
+        if ($refusal !== null) {
+            $this->error($refusal);
+
+            return self::FAILURE;
+        }
+
+        $path = $this->stringOption($isApply ? 'apply-bundle' : 'import-bundle');
+        $preflight = $assertionBundle->preflightPortable($this->readBundle((string) $path));
+
+        if (! $isApply) {
+            $assertionBundle->stage($preflight);
+
+            return self::SUCCESS;
+        }
+
+        $assertionBundle->apply($preflight);
 
         return self::SUCCESS;
     }
@@ -713,13 +837,13 @@ class ImportOosArchiveCommand extends Command
         $directory = dirname($path);
 
         if (! is_dir($directory) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
-            throw new \RuntimeException("Could not create report directory: {$directory}");
+            throw new RuntimeException("Could not create report directory: {$directory}");
         }
 
         $json = json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 
         if (file_put_contents($path, $json."\n") === false) {
-            throw new \RuntimeException("Could not write report file: {$path}");
+            throw new RuntimeException("Could not write report file: {$path}");
         }
 
         return $path;
@@ -732,7 +856,7 @@ class ImportOosArchiveCommand extends Command
         $payload = json_decode((string) file_get_contents($resolved), true, flags: JSON_THROW_ON_ERROR);
 
         if (! is_array($payload)) {
-            throw new \RuntimeException('OoS assertion bundle must contain a JSON object.');
+            throw new RuntimeException('OoS assertion bundle must contain a JSON object.');
         }
 
         return $payload;
@@ -744,13 +868,13 @@ class ImportOosArchiveCommand extends Command
         $directory = dirname($path);
 
         if (! is_dir($directory) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
-            throw new \RuntimeException("Could not create bundle directory: {$directory}");
+            throw new RuntimeException("Could not create bundle directory: {$directory}");
         }
 
         $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 
         if (file_put_contents($path, $json."\n") === false) {
-            throw new \RuntimeException("Could not write bundle file: {$path}");
+            throw new RuntimeException("Could not write bundle file: {$path}");
         }
     }
 
@@ -761,7 +885,7 @@ class ImportOosArchiveCommand extends Command
         $directory = realpath(dirname($resolved)) ?: dirname($resolved);
 
         if ($directory !== $scratch && ! str_starts_with($directory, $scratch.DIRECTORY_SEPARATOR)) {
-            throw new \RuntimeException('OoS assertion bundles must stay under storage/scratch.');
+            throw new RuntimeException('OoS assertion bundles must stay under storage/scratch.');
         }
 
         return $resolved;

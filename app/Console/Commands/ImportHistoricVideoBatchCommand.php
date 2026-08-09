@@ -115,6 +115,12 @@ class ImportHistoricVideoBatchCommand extends Command
         }
 
         if (! $dryRun) {
+            if ($force || $limit > 0 || $this->option('from') !== null || $this->option('until') !== null) {
+                $this->error('Definitive historic-video runs forbid --force, --limit, --from and --until; use immutable manifest checkpoints instead.');
+
+                return self::FAILURE;
+            }
+
             $refusal = $productionGuard->refusalFor('sermons:import-historic-videos');
 
             if ($refusal !== null) {
@@ -237,7 +243,13 @@ class ImportHistoricVideoBatchCommand extends Command
             ]
         );
 
-        return $metrics['errors'] > 0 ? self::FAILURE : self::SUCCESS;
+        if ($metrics['errors'] > 0 || (! $dryRun && $totalSkipped > 0)) {
+            $this->error('Approved historic-video corpus closeout is incomplete; skipped, timed-out and failed items are not exact completion.');
+
+            return self::FAILURE;
+        }
+
+        return self::SUCCESS;
     }
 
     private function checkStorageDisk(): bool

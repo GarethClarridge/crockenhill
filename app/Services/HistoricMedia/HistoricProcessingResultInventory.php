@@ -44,8 +44,10 @@ class HistoricProcessingResultInventory
             'segments',
             'sermon.preacherProfile.aliases',
             'sermon.scriptureFilters',
+            'sermon.scripturePassage',
             'serviceSections.publishedSermon.preacherProfile.aliases',
             'serviceSections.publishedSermon.scriptureFilters',
+            'serviceSections.publishedSermon.scripturePassage',
         ]);
 
         $segments = $processingLog->segments->sortBy('segment_index')->values();
@@ -207,6 +209,9 @@ class HistoricProcessingResultInventory
     private function publications(MediaProcessingLog $log, Collection $sections, Collection $serviceItems): array
     {
         $publications = [];
+        $metadata = $log->processing_metadata?->toArray() ?? [];
+        $scriptureOutcomes = data_get($metadata, 'historic_import.scripture_passage_outcomes', []);
+        $scriptureOutcomes = is_array($scriptureOutcomes) ? $scriptureOutcomes : [];
 
         $primarySermon = $log->sermon;
 
@@ -215,6 +220,7 @@ class HistoricProcessingResultInventory
                 "{$log->processing_id}:main:{$primarySermon->content_type->value}",
                 null,
                 $primarySermon,
+                $scriptureOutcomes[$primarySermon->slug] ?? null,
             );
         }
 
@@ -229,6 +235,7 @@ class HistoricProcessingResultInventory
                 $this->sectionKey($log, $section, $serviceItems).':'.$sermon->content_type->value,
                 $this->sectionKey($log, $section, $serviceItems),
                 $sermon,
+                $scriptureOutcomes[$sermon->slug] ?? null,
             );
         }
 
@@ -236,7 +243,7 @@ class HistoricProcessingResultInventory
     }
 
     /** @return array<string, mixed> */
-    private function publication(string $key, ?string $sectionKey, Sermon $sermon): array
+    private function publication(string $key, ?string $sectionKey, Sermon $sermon, mixed $scriptureOutcome): array
     {
         $preacher = $sermon->preacherProfile;
 
@@ -284,6 +291,13 @@ class HistoricProcessingResultInventory
                 ])
                 ->values()
                 ->all(),
+            'scripture_passage' => $sermon->scripturePassage === null ? null : [
+                'bible_id' => $sermon->scripturePassage->bible_id,
+                'normalized_reference' => $sermon->scripturePassage->normalized_reference,
+            ],
+            'scripture_passage_outcome' => $sermon->scripturePassage === null
+                ? $scriptureOutcome
+                : ['status' => 'linked'],
             'audio_file_path' => $sermon->audio_file_path,
             'video_file_path' => $sermon->video_file_path,
             'transcript_file_path' => $sermon->transcript_file_path,

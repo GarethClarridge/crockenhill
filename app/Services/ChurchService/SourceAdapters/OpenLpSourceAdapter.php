@@ -22,6 +22,7 @@ class OpenLpSourceAdapter
         UploadedFile $file,
         OpenLpParseResult $parsed,
         ?string $batchHash = null,
+        ?string $approvedInputHash = null,
     ): ChurchServiceSourceRevision {
         $hash = hash_file('sha256', $file->getRealPath());
 
@@ -29,10 +30,14 @@ class OpenLpSourceAdapter
             throw new RuntimeException('Unable to hash the OpenLP source archive.');
         }
 
+        if ($approvedInputHash !== null && ! hash_equals($approvedInputHash, $hash)) {
+            throw new RuntimeException('The OpenLP archive no longer matches its approved source snapshot.');
+        }
+
         return new ChurchServiceSourceRevision(
             source: ChurchServiceSource::OpenLp,
             sourceKey: $file->getClientOriginalName(),
-            inputHash: $hash,
+            inputHash: $approvedInputHash ?? $hash,
             assertions: $this->normalizer->normalize($parsed->items, ChurchServiceEvidenceKind::Planned),
             processingFingerprint: [
                 'format' => 'openlp-osz',

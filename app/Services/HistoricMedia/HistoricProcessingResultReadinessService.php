@@ -59,6 +59,8 @@ class HistoricProcessingResultReadinessService
             }
         }
 
+        $this->auditScripturePassageOutcomes($processingLog, $reasons);
+
         $artifacts = $processingLog->processing_metadata?->toArray()['service_artifacts'] ?? [];
 
         if (! is_array($artifacts) || $artifacts === []) {
@@ -86,6 +88,40 @@ class HistoricProcessingResultReadinessService
             reasons: array_values(array_unique($reasons)),
             logicalHash: $logicalHash,
         );
+    }
+
+    /** @param list<string> $reasons */
+    private function auditScripturePassageOutcomes(MediaProcessingLog $processingLog, array &$reasons): void
+    {
+        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
+        $historicImport = $metadata['historic_import'] ?? null;
+
+        if (! is_array($historicImport) || ! is_string($historicImport['job_key'] ?? null)) {
+            return;
+        }
+
+        $outcomes = is_array($historicImport['scripture_passage_outcomes'] ?? null)
+            ? $historicImport['scripture_passage_outcomes']
+            : [];
+        $sermons = collect([$processingLog->sermon])
+            ->merge($processingLog->serviceSections->pluck('publishedSermon'))
+            ->filter()
+            ->unique('id');
+
+        foreach ($sermons as $publication) {
+            if (blank($publication->reference) || $publication->scripture_passage_id !== null) {
+                continue;
+            }
+
+            $outcome = $outcomes[$publication->slug] ?? null;
+            $reason = is_array($outcome) ? ($outcome['reason'] ?? null) : null;
+
+            if (! is_array($outcome)
+                || ($outcome['status'] ?? null) !== 'approved_absent'
+                || ! in_array($reason, ['api_disabled', 'budget_exhausted', 'not_found', 'source_has_no_passage'], true)) {
+                $reasons[] = "Publication {$publication->slug} has unsettled Scripture Passage enrichment.";
+            }
+        }
     }
 
     /** @param list<string> $reasons */

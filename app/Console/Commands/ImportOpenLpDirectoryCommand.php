@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Data\OpenLpImportResult;
+use App\Data\VerifiedSourceSnapshot;
 use App\Enums\ChurchServiceSource;
 use App\Enums\SermonService;
 use App\Models\ChurchServiceSourceRecord;
@@ -230,18 +231,42 @@ class ImportOpenLpDirectoryCommand extends Command
         string $batchHash,
     ): OpenLpImportResult {
         return DB::transaction(function () use ($rawDirectory, $entry, $importer, $curationManifest, $batchHash): OpenLpImportResult {
-            // Revalidate the preflighted bytes while the per-service apply
-            // transaction is held, so a replacement cannot reach source ingestion.
-            $archivePath = $curationManifest->verifyInclude($rawDirectory, $entry);
-            $uploadedFile = $this->uploadedFileForArchive($archivePath, $entry['logical_upload_filename']);
+            $snapshot = $curationManifest->snapshotInclude($rawDirectory, $entry);
+            $archivePath = $this->temporarySnapshot($snapshot);
 
-            return $importer->import(
-                $uploadedFile,
-                $batchHash,
-                $entry['resolved_date'],
-                SermonService::from($entry['resolved_service']),
-            );
+            try {
+                $uploadedFile = $this->uploadedFileForArchive($archivePath, $entry['logical_upload_filename']);
+
+                return $importer->import(
+                    $uploadedFile,
+                    $batchHash,
+                    $entry['resolved_date'],
+                    SermonService::from($entry['resolved_service']),
+                    $snapshot->approvedSha256,
+                );
+            } finally {
+                @unlink($archivePath);
+            }
         });
+    }
+
+    private function temporarySnapshot(VerifiedSourceSnapshot $snapshot): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'openlp-approved-');
+
+        if (! is_string($path) || file_put_contents($path, $snapshot->contents, LOCK_EX) === false || ! chmod($path, 0600)) {
+            throw new \RuntimeException('Unable to materialise the verified OpenLP source snapshot.');
+        }
+
+        $hash = hash_file('sha256', $path);
+
+        if (! is_string($hash) || ! hash_equals($snapshot->approvedSha256, $hash)) {
+            @unlink($path);
+
+            throw new \RuntimeException('Verified OpenLP snapshot changed before parsing.');
+        }
+
+        return $path;
     }
 
     private function alreadyPresent(string $inputHash, string $batchHash): bool
