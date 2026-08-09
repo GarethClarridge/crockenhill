@@ -57,7 +57,7 @@ return [
 
         'historic_staging' => [
             'driver' => 'local',
-            'root' => storage_path('app/private/historic-staging'),
+            'root' => env('HISTORIC_STAGING_ROOT', storage_path('app/private/historic-staging')),
             'visibility' => 'private',
             'throw' => true,
         ],

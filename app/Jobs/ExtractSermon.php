@@ -10,6 +10,7 @@ use App\Mail\ManualReviewRequired;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Media\Video\VideoStorageService;
+use App\Services\Processing\ProcessingNotificationRouter;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Services\Sermon\SermonExtractionPlanResolver;
@@ -423,6 +424,15 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
      */
     private function notifyManualReviewRequired(string $reason, array $speechSegments): void
     {
+        if (app(ProcessingNotificationRouter::class)->suppressIfHistoric(
+            $this->processingLog,
+            'manual_review_extraction',
+            'warning',
+            ['reason' => $reason, 'speech_segments' => $speechSegments],
+        )) {
+            return;
+        }
+
         try {
             Mail::to(config('media-processing.email.admin_email'))
                 ->queue(new ManualReviewRequired($this->processingLog->processing_id, $reason, $speechSegments));

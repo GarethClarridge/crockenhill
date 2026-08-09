@@ -22,6 +22,7 @@ use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\ChurchService\Structure\ValidationContext;
 use App\Services\ChurchService\Structure\ValidationResult;
 use App\Services\Processing\MediaProcessingIdentityResolver;
+use App\Services\Processing\ProcessingNotificationRouter;
 use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\SermonAutoExtractionPolicy;
@@ -417,6 +418,15 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
      */
     private function notifyManualReviewRequired(string $reason, array $speechSegments): void
     {
+        if (app(ProcessingNotificationRouter::class)->suppressIfHistoric(
+            $this->processingLog,
+            'manual_review_structure',
+            'warning',
+            ['reason' => $reason, 'speech_segments' => $speechSegments],
+        )) {
+            return;
+        }
+
         try {
             Mail::to(config('media-processing.email.admin_email'))
                 ->queue(new ManualReviewRequired($this->processingLog->processing_id, $reason, $speechSegments));

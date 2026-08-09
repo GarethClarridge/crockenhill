@@ -28,6 +28,7 @@ use Illuminate\Validation\Rule;
 /**
  * @property int $id
  * @property string $processing_id
+ * @property int|null $historic_import_operation_id
  * @property MediaType $processing_type
  * @property ProcessingStatus $status
  * @property string|null $current_step
@@ -84,6 +85,7 @@ class MediaProcessingLog extends Model
 
     protected $fillable = [
         'processing_id',
+        'historic_import_operation_id',
         'processing_type',
         'status',
         'current_step',
@@ -194,6 +196,12 @@ class MediaProcessingLog extends Model
     public function churchService(): BelongsTo
     {
         return $this->belongsTo(ChurchService::class);
+    }
+
+    /** @return BelongsTo<HistoricImportOperation, $this> */
+    public function historicImportOperation(): BelongsTo
+    {
+        return $this->belongsTo(HistoricImportOperation::class);
     }
 
     /**

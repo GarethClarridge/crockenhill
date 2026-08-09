@@ -6,6 +6,7 @@ namespace Tests\Integration\Services\HistoricMedia;
 
 use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\SermonProcessingStep;
@@ -13,10 +14,12 @@ use App\Models\ServiceSection;
 use App\Services\HistoricMedia\HistoricProcessingResultReadinessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
 class HistoricProcessingResultReadinessServiceTest extends TestCase
 {
+    use CreatesHistoricImportOperations;
     use RefreshDatabase;
 
     #[Test]
@@ -139,6 +142,37 @@ class HistoricProcessingResultReadinessServiceTest extends TestCase
         $settled = $readiness->audit($run->fresh());
         $this->assertNotContains(
             'Publication historic-scripture-sermon has unsettled Scripture Passage enrichment.',
+            $settled->reasons,
+        );
+    }
+
+    #[Test]
+    public function nested_publication_jobs_must_be_terminal_complete_before_readiness(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'historic_import_operation_id' => $operation->id,
+        ]);
+        $nested = HistoricImportNestedJob::query()->create([
+            'historic_import_operation_id' => $operation->id,
+            'media_processing_log_id' => $run->id,
+            'job_key' => 'auto-publish-section-1',
+            'job_type' => 'auto-publish',
+            'state' => 'running',
+            'attempts' => 1,
+            'dispatched_at' => now(),
+        ]);
+
+        $pending = app(HistoricProcessingResultReadinessService::class)->audit($run);
+        $this->assertContains(
+            'Historic nested publication work is not terminal-complete: auto-publish-section-1.',
+            $pending->reasons,
+        );
+
+        $nested->update(['state' => 'completed', 'settled_at' => now()]);
+        $settled = app(HistoricProcessingResultReadinessService::class)->audit($run->fresh());
+        $this->assertNotContains(
+            'Historic nested publication work is not terminal-complete: auto-publish-section-1.',
             $settled->reasons,
         );
     }

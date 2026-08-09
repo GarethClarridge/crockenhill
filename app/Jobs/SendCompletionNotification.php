@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Processing\MediaProcessingRunTransitionService;
+use App\Services\Processing\ProcessingNotificationRouter;
 use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -39,11 +40,23 @@ class SendCompletionNotification implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(?MediaProcessingRunTransitionService $processingRunTransitions = null): void
-    {
+    public function handle(
+        ?MediaProcessingRunTransitionService $processingRunTransitions = null,
+        ?ProcessingNotificationRouter $notificationRouter = null,
+    ): void {
         $processingRunTransitions ??= app(MediaProcessingRunTransitionService::class);
+        $notificationRouter ??= app(ProcessingNotificationRouter::class);
 
         if ($this->abortIfCancelled('SendCompletionNotification')) {
+            return;
+        }
+
+        if ($notificationRouter->suppressIfHistoric($this->processingLog, 'success', 'info', [
+            'stage' => 'processing_complete',
+            'sermon_id' => $this->processingLog->sermon_id,
+        ])) {
+            $processingRunTransitions->updateStep($this->processingLog, 'notification_skipped');
+
             return;
         }
 

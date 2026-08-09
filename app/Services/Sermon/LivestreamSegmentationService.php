@@ -9,6 +9,7 @@ use App\Data\ProcessingResult;
 use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
 use App\Enums\SermonService;
+use App\Models\HistoricImportOperation;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Video\VideoSegmentationService;
@@ -108,6 +109,19 @@ class LivestreamSegmentationService
                 serviceOverride: $serviceOverride,
                 serviceDateOverride: $serviceDateOverride,
             );
+
+            $historicOperationId = data_get($processingMetadata, 'historic_import.operation_id');
+
+            if (is_string($historicOperationId)) {
+                $operation = HistoricImportOperation::query()->where('operation_id', $historicOperationId)->first();
+
+                if (! $operation instanceof HistoricImportOperation || $operation->notification_mode !== 'external_disabled') {
+                    throw new RuntimeException('Historic processing operation binding is missing or does not suppress external notifications.');
+                }
+
+                $processingLog->historic_import_operation_id = $operation->id;
+                $processingLog->save();
+            }
 
             $this->orchestrator->start($processingLog);
 

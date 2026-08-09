@@ -10,6 +10,7 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Exceptions\HistoricSourceIntegrityException;
+use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\HistoricMedia\HistoricProcessingFingerprint;
@@ -122,6 +123,7 @@ class HistoricVideoImporter
         ?string $reportPath = null,
         ?array $approvedWorkItems = null,
         ?HistoricStagingContext $stagingContext = null,
+        ?HistoricImportOperation $operation = null,
     ): array {
         if (! $dryRun) {
             if (! $stagingContext instanceof HistoricStagingContext) {
@@ -260,7 +262,7 @@ class HistoricVideoImporter
             }
 
             try {
-                $results = $this->dispatchItem($item, $noConcat, $reEncodeMismatched, $stagingContext);
+                $results = $this->dispatchItem($item, $noConcat, $reEncodeMismatched, $stagingContext, $operation);
 
                 foreach ($results as $result) {
                     if ($result['tag'] === 'error') {
@@ -725,6 +727,7 @@ class HistoricVideoImporter
         bool $noConcat,
         bool $reEncodeMismatched,
         ?HistoricStagingContext $stagingContext,
+        ?HistoricImportOperation $operation,
     ): array {
         if (! $stagingContext instanceof HistoricStagingContext) {
             throw new \RuntimeException('Historic video dispatch requires the approved staging and manifest context.');
@@ -732,7 +735,7 @@ class HistoricVideoImporter
 
         return $this->stagingContextRegistry->within(
             $stagingContext,
-            fn (): array => $this->dispatchItemWithinStagingContext($item, $noConcat, $reEncodeMismatched, $stagingContext),
+            fn (): array => $this->dispatchItemWithinStagingContext($item, $noConcat, $reEncodeMismatched, $stagingContext, $operation),
         );
     }
 
@@ -745,28 +748,29 @@ class HistoricVideoImporter
         bool $noConcat,
         bool $reEncodeMismatched,
         HistoricStagingContext $stagingContext,
+        ?HistoricImportOperation $operation,
     ): array {
         $this->assertApprovedSourceFilesAreUnchanged($item);
         $files = $item['files'];
 
         if (isset($item['manifest_concatenation'])) {
             if (count($files) === 1) {
-                return $this->dispatchFiles($item, $files, $stagingContext);
+                return $this->dispatchFiles($item, $files, $stagingContext, $operation);
             }
 
             return [match ($item['manifest_concatenation']) {
-                'lossless' => $this->concatLossless($item, $stagingContext),
-                'reencoded' => $this->concatWithReencode($item, $stagingContext),
+                'lossless' => $this->concatLossless($item, $stagingContext, $operation),
+                'reencoded' => $this->concatWithReencode($item, $stagingContext, $operation),
                 default => ['tag' => 'error', 'processing_id' => '', 'detail' => 'invalid manifest concatenation decision'],
             }];
         }
 
         if (count($files) > 1 && ! $noConcat) {
-            return [$this->dispatchMultiSegment($item, $reEncodeMismatched, $stagingContext)];
+            return [$this->dispatchMultiSegment($item, $reEncodeMismatched, $stagingContext, $operation)];
         }
 
         // With --no-concat, dispatch every segment individually so none are silently dropped.
-        return $this->dispatchFiles($item, $files, $stagingContext);
+        return $this->dispatchFiles($item, $files, $stagingContext, $operation);
     }
 
     /**
@@ -774,8 +778,12 @@ class HistoricVideoImporter
      * @param  list<string>  $files
      * @return list<array{tag: string, processing_id: string, detail: string|null}>
      */
-    private function dispatchFiles(array $item, array $files, HistoricStagingContext $stagingContext): array
-    {
+    private function dispatchFiles(
+        array $item,
+        array $files,
+        HistoricStagingContext $stagingContext,
+        ?HistoricImportOperation $operation,
+    ): array {
         $results = [];
         foreach ($files as $path) {
             $file = new UploadedFile($path, basename($path), null, null, true);
@@ -794,7 +802,7 @@ class HistoricVideoImporter
                 clientFileDate: $item['client_file_date'] !== '' ? $item['client_file_date'] : null,
                 options: [
                     'dedup_key' => $jobKey,
-                    'processing_metadata' => $this->historicImportMetadata($item, $path, 'none', $stagingContext, $jobKey),
+                    'processing_metadata' => $this->historicImportMetadata($item, $path, 'none', $stagingContext, $jobKey, $operation),
                 ],
                 serviceOverride: $item['service'],
                 serviceDateOverride: $item['date']->toDateString(),
@@ -814,8 +822,12 @@ class HistoricVideoImporter
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
      * @return array{tag: string, processing_id: string, detail: string|null}
      */
-    private function dispatchMultiSegment(array $item, bool $reEncodeMismatched, HistoricStagingContext $stagingContext): array
-    {
+    private function dispatchMultiSegment(
+        array $item,
+        bool $reEncodeMismatched,
+        HistoricStagingContext $stagingContext,
+        ?HistoricImportOperation $operation,
+    ): array {
         $files = $item['files'];
 
         if (! $this->codecsMatch($files)) {
@@ -823,10 +835,10 @@ class HistoricVideoImporter
                 return ['tag' => 'error', 'processing_id' => '', 'detail' => 'codec mismatch in segment group (use --reencode-mismatched to override)'];
             }
 
-            return $this->concatWithReencode($item, $stagingContext);
+            return $this->concatWithReencode($item, $stagingContext, $operation);
         }
 
-        return $this->concatLossless($item, $stagingContext);
+        return $this->concatLossless($item, $stagingContext, $operation);
     }
 
     /**
@@ -908,8 +920,11 @@ class HistoricVideoImporter
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
      * @return array{tag: string, processing_id: string, detail: string|null}
      */
-    private function concatLossless(array $item, HistoricStagingContext $stagingContext): array
-    {
+    private function concatLossless(
+        array $item,
+        HistoricStagingContext $stagingContext,
+        ?HistoricImportOperation $operation,
+    ): array {
         $this->assertApprovedSourceFilesAreUnchanged($item);
         $concatPath = $this->buildConcatFile($item['files']);
 
@@ -934,7 +949,7 @@ class HistoricVideoImporter
             return ['tag' => 'error', 'processing_id' => '', 'detail' => 'FFmpeg concat failed: '.implode(' ', array_slice($cmdOutput, -3))];
         }
 
-        $result = $this->dispatchConcatFile($outputPath, $item, 'lossless', $stagingContext);
+        $result = $this->dispatchConcatFile($outputPath, $item, 'lossless', $stagingContext, $operation);
 
         Storage::disk($this->historicTempDisk())->delete($outputRelativePath);
 
@@ -949,8 +964,11 @@ class HistoricVideoImporter
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
      * @return array{tag: string, processing_id: string, detail: string|null}
      */
-    private function concatWithReencode(array $item, HistoricStagingContext $stagingContext): array
-    {
+    private function concatWithReencode(
+        array $item,
+        HistoricStagingContext $stagingContext,
+        ?HistoricImportOperation $operation,
+    ): array {
         $this->assertApprovedSourceFilesAreUnchanged($item);
         $this->ensureTempDir();
 
@@ -977,7 +995,7 @@ class HistoricVideoImporter
             return ['tag' => 'error', 'processing_id' => '', 'detail' => 'FFmpeg re-encode concat failed: '.implode(' ', array_slice($cmdOutput, -3))];
         }
 
-        $result = $this->dispatchConcatFile($outputPath, $item, 're-encoded', $stagingContext);
+        $result = $this->dispatchConcatFile($outputPath, $item, 're-encoded', $stagingContext, $operation);
 
         Storage::disk($this->historicTempDisk())->delete($outputRelativePath);
 
@@ -997,6 +1015,7 @@ class HistoricVideoImporter
         array $item,
         string $concatenation,
         HistoricStagingContext $stagingContext,
+        ?HistoricImportOperation $operation,
     ): ProcessingResult {
         $filename = $item['date']->format('Y-m-d').' '.$item['service']->value.'.mkv';
         $file = new UploadedFile($outputPath, $filename, null, null, true);
@@ -1014,7 +1033,7 @@ class HistoricVideoImporter
             clientFileDate: $item['client_file_date'] !== '' ? $item['client_file_date'] : null,
             options: [
                 'dedup_key' => $jobKey,
-                'processing_metadata' => $this->historicImportMetadata($item, $outputPath, $concatenation, $stagingContext, $jobKey),
+                'processing_metadata' => $this->historicImportMetadata($item, $outputPath, $concatenation, $stagingContext, $jobKey, $operation),
             ],
             serviceOverride: $item['service'],
             serviceDateOverride: $item['date']->toDateString(),
@@ -1275,6 +1294,7 @@ class HistoricVideoImporter
         string $concatenation = 'none',
         ?HistoricStagingContext $stagingContext = null,
         ?string $jobKey = null,
+        ?HistoricImportOperation $operation = null,
     ): array {
         $sources = array_map(
             static fn (string $sourcePath): array => [
@@ -1305,6 +1325,7 @@ class HistoricVideoImporter
         $historicImport['plan_hash'] = $stagingContext->planHash;
         $historicImport['staging_context'] = $stagingContext->toArray();
         $historicImport['job_key'] = $jobKey;
+        $historicImport['operation_id'] = $operation?->operation_id;
 
         return [
             'historic_import' => $historicImport,

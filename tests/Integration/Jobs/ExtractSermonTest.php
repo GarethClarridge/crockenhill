@@ -19,10 +19,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
 class ExtractSermonTest extends TestCase
 {
+    use CreatesHistoricImportOperations;
     use RefreshDatabase;
 
     #[Test]
@@ -770,7 +772,10 @@ class ExtractSermonTest extends TestCase
     #[Test]
     public function it_marks_for_manual_review_and_stops_when_multiple_long_speech_blocks_are_similar(): void
     {
+        $operation = $this->createHistoricImportOperation();
         $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'historic_import_operation_id' => $operation->id,
+            'processing_metadata' => ['historic_import' => ['operation_id' => $operation->operation_id, 'job_key' => 'extract-review']],
             'sermon_start_time' => 300.0,
             'sermon_end_time' => 2100.0,
             'source_file_path' => 'livestreams/review-multiple.mp4',
@@ -811,7 +816,11 @@ class ExtractSermonTest extends TestCase
         $this->assertSame('failed', $log->status->value);
         $this->assertSame('manual_review_required', $log->current_step);
         $this->assertStringContainsString('Multiple speech blocks met the 20-minute sermon threshold.', $log->error_message ?? '');
-        Mail::assertQueued(ManualReviewRequired::class);
+        Mail::assertNothingQueued();
+        $this->assertDatabaseHas('historic_import_alerts', [
+            'historic_import_operation_id' => $operation->id,
+            'kind' => 'manual_review_extraction',
+        ]);
     }
 
     #[Test]

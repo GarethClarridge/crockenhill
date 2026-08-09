@@ -10,6 +10,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
 
+/**
+ * @property string $item_key
+ * @property HistoricImportItemExpectation $expectation
+ * @property HistoricImportDisposition $disposition
+ */
 class HistoricImportItemOutcome extends Model
 {
     public const UPDATED_AT = null;

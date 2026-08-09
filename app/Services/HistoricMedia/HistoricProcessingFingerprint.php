@@ -7,6 +7,7 @@ namespace App\Services\HistoricMedia;
 use App\Data\HistoricStagingContext;
 use App\Support\CanonicalJson;
 use RuntimeException;
+use Symfony\Component\Process\Process;
 
 /**
  * The durable-output inputs for an approved historic media batch. Deliberately
@@ -63,8 +64,12 @@ final class HistoricProcessingFingerprint
                 'reasoning_effort' => config('media-processing.analysis.reasoning_effort'),
             ],
             'ffmpeg' => [
-                'ffmpeg_binary_fingerprint' => hash('sha256', (string) config('media-processing.ffmpeg.ffmpeg_path')),
-                'ffprobe_binary_fingerprint' => hash('sha256', (string) config('media-processing.ffmpeg.ffprobe_path')),
+                'ffmpeg_binary' => $this->binaryEvidence((string) config('media-processing.ffmpeg.ffmpeg_path')),
+                'ffprobe_binary' => $this->binaryEvidence((string) config('media-processing.ffmpeg.ffprobe_path')),
+                'historic_concat_arguments' => [
+                    'lossless' => ['-f', 'concat', '-safe', '0', '-c', 'copy'],
+                    'reencoded' => ['-filter_complex', 'concat', '-c:v', 'libx264', '-preset', 'veryfast', '-c:a', 'aac', '-b:a', '192k'],
+                ],
                 'audio_enhancement' => config('media-processing.audio_enhancement'),
             ],
             'service_structure' => config('media-processing.service_structure'),
@@ -104,5 +109,25 @@ final class HistoricProcessingFingerprint
                 .'Projector, review, bundle, export and auditor code are covered by the projection policy version instead.'
             );
         }
+    }
+
+    /** @return array{sha256: string, version: string} */
+    private function binaryEvidence(string $path): array
+    {
+        if ($path === '' || ! is_file($path) || ! is_executable($path)) {
+            throw new RuntimeException("Historic processing binary is missing or not executable: {$path}.");
+        }
+
+        $sha256 = hash_file('sha256', $path);
+        $process = new Process([$path, '-version']);
+        $process->setTimeout(10);
+        $process->run();
+        $firstLine = strtok(trim($process->getOutput()), "\n");
+
+        if (! is_string($sha256) || ! $process->isSuccessful() || ! is_string($firstLine)) {
+            throw new RuntimeException("Historic processing binary version could not be verified: {$path}.");
+        }
+
+        return ['sha256' => $sha256, 'version' => $firstLine];
     }
 }

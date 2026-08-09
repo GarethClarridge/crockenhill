@@ -19,6 +19,7 @@ final readonly class HistoricImportOperationIdentity
         public array $manifestHashes,
         public string $planHash,
         public string $targetFingerprint,
+        public string $notificationMode = 'external_disabled',
     ) {
         if (preg_match('/\Ahistoric-[0-9a-f]{32}\z/', $operationId) !== 1) {
             throw new RuntimeException('Historic import operation id is invalid.');
@@ -30,6 +31,10 @@ final readonly class HistoricImportOperationIdentity
 
         if ($batchKey === '' || $manifestHashes === []) {
             throw new RuntimeException('Historic import identity requires a batch key and manifest hashes.');
+        }
+
+        if ($notificationMode !== 'external_disabled') {
+            throw new RuntimeException('Historic import operations must suppress external notifications.');
         }
 
         foreach ($manifestHashes as $source => $hash) {
@@ -59,6 +64,7 @@ final readonly class HistoricImportOperationIdentity
         array $manifestHashes,
         string $planHash,
         string $targetFingerprint,
+        string $notificationMode = 'external_disabled',
     ): self {
         $manifestHashes = self::sortManifestHashes($manifestHashes);
         $bindingHash = CanonicalJson::hash([
@@ -67,6 +73,7 @@ final readonly class HistoricImportOperationIdentity
             'manifest_hashes' => $manifestHashes,
             'plan_hash' => $planHash,
             'target_fingerprint' => $targetFingerprint,
+            'notification_mode' => $notificationMode,
         ]);
 
         return new self(
@@ -76,6 +83,7 @@ final readonly class HistoricImportOperationIdentity
             manifestHashes: $manifestHashes,
             planHash: $planHash,
             targetFingerprint: $targetFingerprint,
+            notificationMode: $notificationMode,
         );
     }
 
@@ -89,6 +97,7 @@ final readonly class HistoricImportOperationIdentity
             'manifest_hashes' => $this->manifestHashes,
             'plan_hash' => $this->planHash,
             'target_fingerprint' => $this->targetFingerprint,
+            'notification_mode' => $this->notificationMode,
         ];
     }
 
@@ -100,6 +109,7 @@ final readonly class HistoricImportOperationIdentity
             'manifest_hashes' => $this->manifestHashes,
             'plan_hash' => $this->planHash,
             'target_fingerprint' => $this->targetFingerprint,
+            'notification_mode' => $this->notificationMode,
         ]);
     }
 

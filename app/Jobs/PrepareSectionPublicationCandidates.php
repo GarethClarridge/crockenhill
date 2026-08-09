@@ -9,6 +9,7 @@ use App\Data\ServiceSectionMetadata;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
@@ -145,6 +146,24 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
 
             if (! $handler->requiresApproval()) {
                 $section->save();
+                $jobKey = 'auto-publish-section-'.$section->id;
+
+                if ($this->processingLog->historic_import_operation_id !== null) {
+                    HistoricImportNestedJob::query()->firstOrCreate(
+                        [
+                            'historic_import_operation_id' => $this->processingLog->historic_import_operation_id,
+                            'job_key' => $jobKey,
+                        ],
+                        [
+                            'media_processing_log_id' => $this->processingLog->id,
+                            'job_type' => AutoPublishServiceSection::class,
+                            'state' => 'queued',
+                            'attempts' => 0,
+                            'dispatched_at' => now(),
+                        ],
+                    );
+                }
+
                 $autoPublish = AutoPublishServiceSection::dispatch($section->id);
                 $historicQueue = app(HistoricProcessingThroughput::class)
                     ->historicQueueFor(AutoPublishServiceSection::class);

@@ -103,6 +103,7 @@ return [
     |
     */
     'historic_import' => [
+        'transfer_retention_days' => (int) env('HISTORIC_TRANSFER_RETENTION_DAYS', 30),
         'stages' => [
             'ffmpeg' => [
                 'queue' => $historicFfmpegQueue,

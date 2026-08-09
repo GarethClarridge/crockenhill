@@ -33,10 +33,12 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
 class DetectServiceStructureTest extends TestCase
 {
+    use CreatesHistoricImportOperations;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -839,7 +841,11 @@ class DetectServiceStructureTest extends TestCase
         Config::set('media-processing.email.admin_email', 'admin@example.com');
         Mail::fake();
 
-        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $operation = $this->createHistoricImportOperation();
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'historic_import_operation_id' => $operation->id,
+            'processing_metadata' => ['historic_import' => ['operation_id' => $operation->operation_id, 'job_key' => 'structure-review']],
+        ]);
         $this->storeTranscript($log);
         $this->coveringSegments($log);
 
@@ -876,11 +882,11 @@ class DetectServiceStructureTest extends TestCase
         $this->assertArrayNotHasKey('transcript', $proposal['sections'][0]['metadata']);
         $this->assertSame(3, LivestreamSegment::query()->where('media_processing_log_id', $log->id)->count());
 
-        Mail::assertQueued(
-            ManualReviewRequired::class,
-            fn (ManualReviewRequired $mail): bool => $mail->processingId === $log->processing_id
-                && $mail->hasTo('admin@example.com')
-        );
+        Mail::assertNothingQueued();
+        $this->assertDatabaseHas('historic_import_alerts', [
+            'historic_import_operation_id' => $operation->id,
+            'kind' => 'manual_review_structure',
+        ]);
     }
 
     #[Test]

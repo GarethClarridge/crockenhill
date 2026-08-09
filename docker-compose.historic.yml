@@ -1,0 +1,42 @@
+# Definitive historic-media override. Every image value is deliberately required
+# and must include an immutable @sha256 digest before Compose will render.
+services:
+    laravel.test: &historic-app
+        image: '${HISTORIC_APP_IMAGE:?Set HISTORIC_APP_IMAGE to a pinned @sha256 digest}'
+        environment:
+            HISTORIC_STAGING_ROOT: /var/lib/crockenhill-historic/staging
+        volumes:
+            - '${HISTORIC_RUNTIME_PATH:?Set HISTORIC_RUNTIME_PATH}/staging:/var/lib/crockenhill-historic/staging'
+            - '${HISTORIC_RUNTIME_PATH:?Set HISTORIC_RUNTIME_PATH}/artifacts:/var/www/html/storage/app/private/historic-import'
+
+    queue.worker-historic-ffmpeg:
+        <<: *historic-app
+
+    queue.worker-historic-whisper:
+        <<: *historic-app
+
+    queue.worker-historic-llm:
+        <<: *historic-app
+
+    queue.worker-historic-orchestration:
+        <<: *historic-app
+
+    mysql:
+        image: '${HISTORIC_MYSQL_IMAGE:?Set HISTORIC_MYSQL_IMAGE to a pinned @sha256 digest}'
+        command: >
+            --innodb-buffer-pool-size=256M
+            --innodb-redo-log-capacity=1G
+            --max-connections=120
+            --innodb-flush-log-at-trx-commit=1
+            --innodb-doublewrite=ON
+            --performance-schema=ON
+            --sync-binlog=1
+
+    redis:
+        image: '${HISTORIC_REDIS_IMAGE:?Set HISTORIC_REDIS_IMAGE to a pinned @sha256 digest}'
+        command: redis-server --appendonly yes --appendfsync always --aof-use-rdb-preamble yes
+
+    whisper:
+        image: '${HISTORIC_WHISPER_IMAGE:?Set HISTORIC_WHISPER_IMAGE to a pinned @sha256 digest}'
+        environment:
+            WHISPER__MODEL: '${HISTORIC_WHISPER_MODEL:?Set HISTORIC_WHISPER_MODEL to the calibrated model}'

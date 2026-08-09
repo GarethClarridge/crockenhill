@@ -8,6 +8,7 @@ use App\Data\HistoricProcessingResultReadiness;
 use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
@@ -34,6 +35,7 @@ class HistoricProcessingResultReadinessService
         }
 
         $this->auditHistoricQueueState($processingLog, $reasons);
+        $this->auditNestedJobs($processingLog, $reasons);
 
         if ($processingLog->processingSteps->contains(
             fn ($step): bool => in_array($step->status, [
@@ -202,6 +204,24 @@ class HistoricProcessingResultReadinessService
 
         if ($batch->hasFailures()) {
             $reasons[] = 'Historic fan-out batch has failed jobs.';
+        }
+    }
+
+    /** @param list<string> $reasons */
+    private function auditNestedJobs(MediaProcessingLog $processingLog, array &$reasons): void
+    {
+        if ($processingLog->historic_import_operation_id === null) {
+            return;
+        }
+
+        $unsettled = HistoricImportNestedJob::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->where('state', '!=', 'completed')
+            ->pluck('job_key')
+            ->all();
+
+        if ($unsettled !== []) {
+            $reasons[] = 'Historic nested publication work is not terminal-complete: '.implode(', ', $unsettled).'.';
         }
     }
 }

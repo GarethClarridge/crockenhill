@@ -133,6 +133,24 @@ class ProcessingRunFailureHandler
             $this->storageService->cleanupTemporaryFiles($tempFiles);
         }
 
+        if (app(ProcessingNotificationRouter::class)->suppressIfHistoric(
+            $processingLog,
+            'failure',
+            'error',
+            [
+                'stage' => $processingLog->current_step,
+                'message' => $message,
+                'exception_class' => $exception::class,
+                'exception_fingerprint' => hash('sha256', $exception->getMessage()),
+            ],
+        )) {
+            return;
+        }
+
+        if (! config('media-processing.email.send_failure_notifications')) {
+            return;
+        }
+
         try {
             Mail::to(config('media-processing.email.admin_email'))
                 ->queue(new LivestreamProcessingFailed($processingLog->processing_id, $exception));

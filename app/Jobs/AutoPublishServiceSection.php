@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Models\HistoricImportNestedJob;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -44,7 +45,21 @@ class AutoPublishServiceSection implements ShouldQueue
     public function handle(
         SectionPublicationHandlerFactory $handlerFactory,
     ): void {
+        $nestedJob = HistoricImportNestedJob::query()
+            ->where('job_key', 'auto-publish-section-'.$this->serviceSectionId)
+            ->first();
+
+        if ($nestedJob instanceof HistoricImportNestedJob) {
+            $nestedJob->state = 'running';
+            $nestedJob->attempts++;
+            $nestedJob->save();
+        }
+
         if (! (bool) config('media-processing.section_publishing.enabled', true)) {
+            if ($nestedJob instanceof HistoricImportNestedJob) {
+                throw new \RuntimeException('Section publishing was disabled after historic nested work was admitted.');
+            }
+
             return;
         }
 
@@ -69,10 +84,27 @@ class AutoPublishServiceSection implements ShouldQueue
 
             $handler->publish($section);
         });
+
+        if ($nestedJob instanceof HistoricImportNestedJob) {
+            $nestedJob->state = 'completed';
+            $nestedJob->settled_at = now();
+            $nestedJob->save();
+        }
     }
 
     public function failed(\Throwable $exception): void
     {
+        $nestedJob = HistoricImportNestedJob::query()
+            ->where('job_key', 'auto-publish-section-'.$this->serviceSectionId)
+            ->first();
+
+        if ($nestedJob instanceof HistoricImportNestedJob) {
+            $nestedJob->state = 'failed';
+            $nestedJob->error_fingerprint = hash('sha256', $exception::class."\0".$exception->getMessage());
+            $nestedJob->settled_at = now();
+            $nestedJob->save();
+        }
+
         Log::error('AutoPublishServiceSection job failed', [
             'service_section_id' => $this->serviceSectionId,
             'error' => $exception->getMessage(),
