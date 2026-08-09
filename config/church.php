@@ -82,6 +82,10 @@ return [
     'historic_corpus' => [
         'expected_services' => env('HISTORIC_CORPUS_EXPECTED_SERVICES'),
 
+        // A hash-verified, per-source-item membership artifact. The census gate
+        // refuses to certify a historic corpus without it.
+        'membership' => null,
+
         /*
         | Which source kinds the §9.4 proposal census claims to cover, as a
         | comma-separated list of `ChurchServiceSource` values ("email,openlp").

@@ -45,8 +45,8 @@ class ChurchServiceProposalCensusCommandTest extends TestCase
         ]);
 
         $this->artisan('services:proposal-census --gate')
-            ->expectsOutputToContain('Gate passes')
-            ->assertSuccessful();
+            ->expectsOutputToContain('No hash-verified, item-level corpus membership is supplied')
+            ->assertFailed();
     }
 
     /**
@@ -63,7 +63,7 @@ class ChurchServiceProposalCensusCommandTest extends TestCase
     }
 
     #[Test]
-    public function the_gate_option_passes_on_an_empty_census_over_a_fully_projected_corpus(): void
+    public function the_gate_option_fails_without_a_hash_verified_item_level_membership(): void
     {
         $service = ChurchService::factory()->create([
             'projection_policy_version' => ChurchServiceProjector::PROJECTION_POLICY_VERSION,
@@ -74,8 +74,8 @@ class ChurchServiceProposalCensusCommandTest extends TestCase
         $this->artisan('services:proposal-census --gate --expected-services=1')
             ->expectsOutputToContain('The census is empty.')
             ->expectsOutputToContain('1 service(s) staged, 1 projected')
-            ->expectsOutputToContain('Gate passes')
-            ->assertSuccessful();
+            ->expectsOutputToContain('No hash-verified, item-level corpus membership is supplied')
+            ->assertFailed();
     }
 
     #[Test]

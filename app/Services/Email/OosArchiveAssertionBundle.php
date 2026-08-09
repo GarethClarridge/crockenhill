@@ -53,6 +53,7 @@ class OosArchiveAssertionBundle
 
             $payload = [
                 'entry_identity' => $entry->syntheticMessageId,
+                'curation_plan_hash' => $curationPlanHash,
                 'input_hash' => $entry->inputHash,
                 'parser_version' => $parserVersion,
                 'projector_version' => self::PROJECTOR_VERSION,
@@ -149,6 +150,7 @@ class OosArchiveAssertionBundle
             $entry = $entriesByIdentity[$identity];
 
             if (($payload['input_hash'] ?? null) !== $entry->inputHash
+                || ($payload['curation_plan_hash'] ?? null) !== $curationPlanHash
                 || ($payload['parser_version'] ?? null) !== $parserVersion
                 || ($payload['projector_version'] ?? null) !== self::PROJECTOR_VERSION
                 || ($payload['fingerprints'] ?? null) !== $this->fingerprints()) {
@@ -214,6 +216,7 @@ class OosArchiveAssertionBundle
                         'item_key' => $entry->itemKey,
                         'entry_index' => $entry->index,
                         'input_hash' => $entry->inputHash,
+                        'curation_plan_hash' => $record['payload']['curation_plan_hash'] ?? null,
                         'portable_bundle' => true,
                     ],
                     'parsing' => array_replace($parse, [

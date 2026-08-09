@@ -13,6 +13,7 @@ use App\Models\ChurchServiceSourceRecord;
 use App\Models\User;
 use App\Services\ChurchService\ChurchServiceProjector;
 use App\Services\ChurchService\ChurchServiceProposalCensus;
+use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -191,9 +192,13 @@ class ReviewChurchServiceProposalQueueTest extends TestCase
         $service = ChurchService::factory()->create([
             'projection_policy_version' => ChurchServiceProjector::PROJECTION_POLICY_VERSION,
         ]);
-        ChurchServiceSourceRecord::factory()->create(['church_service_id' => $service->id]);
+        $record = ChurchServiceSourceRecord::factory()->create([
+            'church_service_id' => $service->id,
+            'batch_hash' => 'batch-test',
+        ]);
         config()->set('church.historic_corpus.expected_services', 1);
         config()->set('church.historic_corpus.census_source_kinds', 'email');
+        config()->set('church.historic_corpus.membership', $this->membership($record));
 
         Livewire::actingAs($admin)
             ->test(ReviewChurchServiceProposalQueue::class)
@@ -247,5 +252,29 @@ class ReviewChurchServiceProposalQueueTest extends TestCase
                 'title' => 'Welcome',
             ]],
         ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function membership(ChurchServiceSourceRecord $record): array
+    {
+        $record->load('churchService');
+        $membership = [
+            'format' => 'crockenhill-historic-corpus-membership',
+            'version' => 1,
+            'items' => [[
+                'source' => $record->source->value,
+                'batch_hash' => $record->batch_hash,
+                'source_key' => $record->source_key,
+                'input_hash' => $record->input_hash,
+                'processing_fingerprint' => $record->processing_fingerprint,
+                'identity' => [
+                    'date' => $record->churchService->date->toDateString(),
+                    'service' => $record->churchService->service->value,
+                ],
+            ]],
+        ];
+        $membership['membership_hash'] = CanonicalJson::hash($membership);
+
+        return $membership;
     }
 }

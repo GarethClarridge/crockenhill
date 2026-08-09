@@ -16,6 +16,7 @@ use App\Services\ChurchService\ChurchServiceProjector;
 use App\Services\ChurchService\ChurchServiceProposalCensus;
 use App\Services\ChurchService\ChurchServiceProposalCensusGate;
 use App\Services\ChurchService\ChurchServiceProposalRuleService;
+use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\Attributes\Test;
@@ -330,6 +331,7 @@ class ChurchServiceProposalRuleServiceTest extends TestCase
      */
     private function completeCorpusEvidence(): array
     {
+        ChurchServiceSourceRecord::query()->whereNull('batch_hash')->update(['batch_hash' => 'batch-test']);
         config()->set('church.historic_corpus.expected_services', ChurchService::query()->count());
         config()->set('church.historic_corpus.census_source_kinds', ChurchServiceSourceRecord::query()
             ->distinct()
@@ -337,7 +339,32 @@ class ChurchServiceProposalRuleServiceTest extends TestCase
             ->map(static fn (ChurchServiceSource $source): string => $source->value)
             ->implode(','));
 
-        return app(ChurchServiceCorpusCompleteness::class)->evidence();
+        return app(ChurchServiceCorpusCompleteness::class)->evidence($this->membership());
+    }
+
+    /** @return array<string, mixed> */
+    private function membership(): array
+    {
+        $items = ChurchServiceSourceRecord::query()->with('churchService')->get()
+            ->map(static fn (ChurchServiceSourceRecord $record): array => [
+                'source' => $record->source->value,
+                'batch_hash' => $record->batch_hash,
+                'source_key' => $record->source_key,
+                'input_hash' => $record->input_hash,
+                'processing_fingerprint' => $record->processing_fingerprint,
+                'identity' => [
+                    'date' => $record->churchService->date->toDateString(),
+                    'service' => $record->churchService->service->value,
+                ],
+            ])->all();
+        $membership = [
+            'format' => 'crockenhill-historic-corpus-membership',
+            'version' => 1,
+            'items' => $items,
+        ];
+        $membership['membership_hash'] = CanonicalJson::hash($membership);
+
+        return $membership;
     }
 
     private function proposalFor(

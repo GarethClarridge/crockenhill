@@ -10,7 +10,9 @@ use App\Models\ChurchServiceSourceRecord;
 use App\Services\ChurchService\ChurchServiceCorpusCompleteness;
 use App\Services\ChurchService\ChurchServiceProjector;
 use App\Services\ChurchService\ChurchServiceProposalCensusGate;
+use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -29,7 +31,7 @@ class ChurchServiceProposalCensusGateTest extends TestCase
     {
         $result = app(ChurchServiceProposalCensusGate::class)->evaluate(
             [],
-            app(ChurchServiceCorpusCompleteness::class)->evidence(),
+            $this->evidence(),
         );
 
         $this->assertFalse($result['passes']);
@@ -45,7 +47,7 @@ class ChurchServiceProposalCensusGateTest extends TestCase
 
         $result = app(ChurchServiceProposalCensusGate::class)->evaluate(
             [],
-            app(ChurchServiceCorpusCompleteness::class)->evidence(),
+            $this->evidence(),
         );
 
         $this->assertSame([], $result['corpus_blockers']);
@@ -97,11 +99,12 @@ class ChurchServiceProposalCensusGateTest extends TestCase
 
         $result = app(ChurchServiceProposalCensusGate::class)->evaluate(
             [],
-            app(ChurchServiceCorpusCompleteness::class)->evidence(),
+            $this->evidence(),
         );
 
         $this->assertFalse($result['passes']);
-        $this->assertContains('projection_incomplete', $result['corpus_blockers']);
+        $this->assertContains('membership_mismatch', $result['corpus_blockers']);
+        $this->assertContains('source_item_projection_stale', $result['corpus']['membership']['blockers']);
         $this->assertSame(2, $result['corpus']['projected_services']);
         $this->assertSame(1, $result['corpus']['stale_projection_services']);
     }
@@ -115,11 +118,12 @@ class ChurchServiceProposalCensusGateTest extends TestCase
 
         $result = app(ChurchServiceProposalCensusGate::class)->evaluate(
             [],
-            app(ChurchServiceCorpusCompleteness::class)->evidence(),
+            $this->evidence(),
         );
 
         $this->assertFalse($result['passes']);
-        $this->assertContains('projection_incomplete', $result['corpus_blockers']);
+        $this->assertContains('membership_mismatch', $result['corpus_blockers']);
+        $this->assertContains('source_item_projection_stale', $result['corpus']['membership']['blockers']);
         $this->assertSame(1, $result['corpus']['stale_projection_services']);
     }
 
@@ -131,7 +135,7 @@ class ChurchServiceProposalCensusGateTest extends TestCase
 
         $result = app(ChurchServiceProposalCensusGate::class)->evaluate(
             [],
-            app(ChurchServiceCorpusCompleteness::class)->evidence(),
+            $this->evidence(),
         );
 
         $this->assertFalse($result['passes']);
@@ -154,7 +158,7 @@ class ChurchServiceProposalCensusGateTest extends TestCase
 
         $result = app(ChurchServiceProposalCensusGate::class)->evaluate(
             [],
-            app(ChurchServiceCorpusCompleteness::class)->evidence(),
+            $this->evidence(),
         );
 
         $this->assertFalse($result['passes']);
@@ -170,18 +174,43 @@ class ChurchServiceProposalCensusGateTest extends TestCase
         ChurchServiceSourceRecord::factory()->create([
             'church_service_id' => ChurchService::query()->orderBy('id')->value('id'),
             'source' => ChurchServiceSource::OpenLp,
+            'batch_hash' => 'batch-openlp',
         ]);
         config()->set('church.historic_corpus.expected_services', 2);
         config()->set('church.historic_corpus.census_source_kinds', 'email,openlp');
 
         $result = app(ChurchServiceProposalCensusGate::class)->evaluate(
             [],
-            app(ChurchServiceCorpusCompleteness::class)->evidence(),
+            $this->evidence(),
         );
 
         $this->assertSame([], $result['corpus_blockers']);
         $this->assertTrue($result['passes']);
         $this->assertSame(['email' => 2, 'openlp' => 1], $result['corpus']['staged_services_by_source']);
+    }
+
+    #[Test]
+    public function an_unapproved_openlp_item_cannot_be_hidden_by_matching_global_service_counts(): void
+    {
+        $this->stageAndProject(2, ChurchServiceSource::Email);
+        ChurchServiceSourceRecord::factory()->create([
+            'church_service_id' => ChurchService::query()->orderBy('id')->value('id'),
+            'source' => ChurchServiceSource::OpenLp,
+            'batch_hash' => 'batch-openlp',
+        ]);
+        config()->set('church.historic_corpus.expected_services', 2);
+        config()->set('church.historic_corpus.census_source_kinds', 'email,openlp');
+
+        $membership = $this->membership(
+            ChurchServiceSourceRecord::query()->where('source', ChurchServiceSource::Email)->with('churchService')->get(),
+        );
+        $result = app(ChurchServiceProposalCensusGate::class)->evaluate(
+            [],
+            app(ChurchServiceCorpusCompleteness::class)->evidence($membership),
+        );
+
+        $this->assertFalse($result['passes']);
+        $this->assertContains('membership_source_kind_unapproved', $result['corpus_blockers']);
     }
 
     /**
@@ -195,9 +224,10 @@ class ChurchServiceProposalCensusGateTest extends TestCase
         ChurchServiceSourceRecord::factory()->create([
             'church_service_id' => ChurchService::query()->orderBy('id')->value('id'),
             'source' => ChurchServiceSource::OpenLp,
+            'batch_hash' => 'batch-openlp',
         ]);
 
-        $evidence = app(ChurchServiceCorpusCompleteness::class)->evidence();
+        $evidence = $this->evidence();
 
         $this->assertSame(1, $evidence['staged_services']);
         $this->assertSame(['email' => 1, 'openlp' => 1], $evidence['staged_services_by_source']);
@@ -212,7 +242,7 @@ class ChurchServiceProposalCensusGateTest extends TestCase
 
         $result = app(ChurchServiceProposalCensusGate::class)->evaluate(
             [],
-            app(ChurchServiceCorpusCompleteness::class)->evidence(),
+            $this->evidence(),
         );
 
         $this->assertFalse($result['passes']);
@@ -234,7 +264,47 @@ class ChurchServiceProposalCensusGateTest extends TestCase
             ChurchServiceSourceRecord::factory()->create([
                 'church_service_id' => $service->id,
                 ...($source instanceof ChurchServiceSource ? ['source' => $source] : []),
+                'batch_hash' => 'batch-'.($source?->value ?? ChurchServiceSource::Email->value),
             ]);
         }
+    }
+
+    /** @return array<string, mixed> */
+    private function evidence(): array
+    {
+        $records = ChurchServiceSourceRecord::query()
+            ->with('churchService')
+            ->get();
+
+        return app(ChurchServiceCorpusCompleteness::class)->evidence(
+            $records->isEmpty() ? null : $this->membership($records),
+        );
+    }
+
+    /** @param Collection<int, ChurchServiceSourceRecord> $records */
+    private function membership(Collection $records): array
+    {
+        $items = $records
+            ->map(static fn (ChurchServiceSourceRecord $record): array => [
+                'source' => $record->source->value,
+                'batch_hash' => $record->batch_hash,
+                'source_key' => $record->source_key,
+                'input_hash' => $record->input_hash,
+                'processing_fingerprint' => $record->processing_fingerprint,
+                'identity' => [
+                    'date' => $record->churchService->date->toDateString(),
+                    'service' => $record->churchService->service->value,
+                ],
+            ])
+            ->all();
+
+        $membership = [
+            'format' => 'crockenhill-historic-corpus-membership',
+            'version' => 1,
+            'items' => $items,
+        ];
+        $membership['membership_hash'] = CanonicalJson::hash($membership);
+
+        return $membership;
     }
 }

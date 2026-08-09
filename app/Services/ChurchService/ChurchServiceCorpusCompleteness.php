@@ -31,22 +31,26 @@ use App\Models\ChurchServiceSourceRecord;
  *     staged_services_by_source: array<string, int>,
  *     declared_source_kinds: list<string>|null,
  *     unstaged_source_kinds: list<string>,
+ *     membership: array<string, mixed>,
  * }
  */
 class ChurchServiceCorpusCompleteness
 {
     public function __construct(
         private readonly ChurchServiceProjector $projector,
+        private readonly ChurchServiceCorpusMembership $membership,
     ) {}
 
     /**
+     * @param  array<string, mixed>|null  $expectedMembership  Hash-verified source-item membership.
      * @param  int|null  $expectedServices  The approved manifest's service count; falls
      *                                      back to the configured value when omitted.
      * @return CorpusEvidence
      */
-    public function evidence(?int $expectedServices = null): array
+    public function evidence(?array $expectedMembership = null, ?int $expectedServices = null): array
     {
         $expected = $expectedServices ?? $this->configuredExpectedServices();
+        $expectedMembership ??= $this->configuredMembership();
         $policyVersion = $this->projector->policyFingerprint()['version'];
         $staged = $this->stagedServices();
         $projected = $this->projectedServices($policyVersion);
@@ -68,6 +72,7 @@ class ChurchServiceCorpusCompleteness
                     $declared,
                     static fn (string $kind): bool => ($bySource[$kind] ?? 0) === 0,
                 )),
+            'membership' => $this->membership->certify($expectedMembership, $policyVersion),
         ];
     }
 
@@ -160,5 +165,13 @@ class ChurchServiceCorpusCompleteness
         $configured = config('church.historic_corpus.expected_services');
 
         return is_numeric($configured) ? (int) $configured : null;
+    }
+
+    /** @return array<string, mixed>|null */
+    private function configuredMembership(): ?array
+    {
+        $configured = config('church.historic_corpus.membership');
+
+        return is_array($configured) ? $configured : null;
     }
 }

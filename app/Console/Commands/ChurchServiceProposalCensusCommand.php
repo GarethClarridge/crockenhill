@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Models\ChurchServiceProposalClassReview;
 use App\Services\ChurchService\ChurchServiceCorpusCompleteness;
+use App\Services\ChurchService\ChurchServiceCorpusMembership;
 use App\Services\ChurchService\ChurchServiceProposalCensus;
 use App\Services\ChurchService\ChurchServiceProposalCensusGate;
 use Illuminate\Console\Command;
@@ -22,6 +23,7 @@ class ChurchServiceProposalCensusCommand extends Command
     protected $signature = 'services:proposal-census
         {--json : Emit the full census as JSON instead of a table}
         {--gate : Exit non-zero unless every class is accounted for}
+        {--membership= : Hash-verified item-level historic corpus membership JSON}
         {--expected-services= : The approved corpus manifest'."'".'s service count, overriding church.historic_corpus.expected_services}';
 
     protected $description = 'Report pending evidence proposals grouped by class, with the review-load gate';
@@ -30,9 +32,13 @@ class ChurchServiceProposalCensusCommand extends Command
         ChurchServiceProposalCensus $census,
         ChurchServiceProposalCensusGate $gate,
         ChurchServiceCorpusCompleteness $corpus,
+        ChurchServiceCorpusMembership $membership,
     ): int {
         $classes = $census->build();
-        $result = $gate->evaluate($classes, $corpus->evidence($this->expectedServices()));
+        $result = $gate->evaluate($classes, $corpus->evidence(
+            $this->membership($membership),
+            $this->expectedServices(),
+        ));
 
         if ($this->option('json')) {
             $this->line((string) json_encode(
@@ -103,6 +109,7 @@ class ChurchServiceProposalCensusCommand extends Command
         ));
 
         $this->reportSourceCoverage($corpus);
+        $this->reportMembership($corpus);
 
         foreach ($result['corpus_blockers'] as $blocker) {
             $this->warn($gate->describeCorpusBlocker($blocker));
@@ -147,6 +154,37 @@ class ChurchServiceProposalCensusCommand extends Command
         }
 
         $this->line('  Declared census scope: '.implode(', ', $declared).'.');
+    }
+
+    /** @param array<string, mixed> $corpus */
+    private function reportMembership(array $corpus): void
+    {
+        $membership = $corpus['membership'] ?? [];
+
+        if (! ($membership['approved'] ?? false)) {
+            $this->line('  Item-level membership: not supplied.');
+
+            return;
+        }
+
+        $issues = $membership['blockers'] ?? [];
+        $this->line(sprintf(
+            '  Item-level membership: %d approved source item(s), %s.',
+            count($membership['items'] ?? []),
+            $issues === [] ? 'certified' : 'mismatches: '.implode(', ', $issues),
+        ));
+    }
+
+    /** @return array<string, mixed>|null */
+    private function membership(ChurchServiceCorpusMembership $membership): ?array
+    {
+        $path = $this->option('membership');
+
+        if (! is_string($path) || trim($path) === '') {
+            return null;
+        }
+
+        return $membership->fromFile($path);
     }
 
     private function expectedServices(): ?int
