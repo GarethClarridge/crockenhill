@@ -71,12 +71,12 @@ R6 slots wherever its sequencing decision lands.
 
 **R12 ownership (amended 2026-07-29).** R12's "process the ~500-item historic backlog" is local
 media acquisition in
-[HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md),
+[HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](../archived-plans/HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md),
 whose artifact-retention baseline has landed. Its remaining HM work adds isolated processing,
 explicit source identity, complete output readiness and portable Bundle A. **Do the acquisition
 work from that plan, not from R12's paragraph.** Canonical Email/OpenLP/Livestream projection,
 Bundle B review transfer and the sole production sequence belong to
-[R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md](R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md).
+[R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md](../archived-plans/R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md).
 `ImportHistoricVideoBatchCommand` and `HistoricVideoImporter` close only after Bundle A and Bundle B
 promote, exact audits pass and the rollback window expires.
 

@@ -172,7 +172,7 @@
 > (c) run WP2's migration before WP3's observer-hook removal has landed (§4 WP2, ordering trap);
 > (d) treat WP0 as optional — it is what stops the bleeding while the rest lands.
 >
-> **Related:** [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](../plans/HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
+> **Related:** [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
 > §2.6 and WP8. Under the superseded design that plan's WP8 "mostly evaporated". Under this one it
 > **disappears entirely** — see §5.1.
 

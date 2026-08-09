@@ -7,23 +7,22 @@ Rules for using this folder, written for AI agents as much as humans:
    documents class-by-class behaviour — read the code and tests for that.
 2. **Every document carries a date.** Distrust anything that contradicts the code, and fix or
    delete it when you notice.
-3. **One active tracker.** All current work flows from
-   [`plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md`](plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md),
-   executed via its remainder plan
-   [`plans/JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md`](plans/JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md)
-   (which corrects the backlog's stale statuses) — start at [`plans/README.md`](plans/README.md).
+3. **One index for current work.** Start at [`plans/README.md`](plans/README.md). The historic
+   archive's top-level authority is the
+   [`HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS`](plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md)
+   plan; the July simplification remainder remains a separate active spine until R15 closes it.
 
 ## Map
 
 | Location | What it is |
 |---|---|
-| [`plans/`](plans/README.md) | **Active plans only.** The README is the index; the July 2026 backlog is the spine. |
+| [`plans/`](plans/README.md) | **Active plans only.** The README is the authoritative index and ordering. |
 | [`issues/README.md`](issues/README.md) | Consolidated open-issues tracker (audit findings from Mortician/Pathfinder runs land here, then the source reports are deleted). |
 | `reports/` | Recent decision-support reports (currently: service automation opportunities, 2026-07-05). |
 | [`design-style-guide.md`](design-style-guide.md) | **Read before any UI work.** Brand tokens, components, anti-patterns. Screenshots in `design-references/` (gitignored; regenerate per the guide). |
 | [`api/media-processing.md`](api/media-processing.md) | API reference for the media/services/webhook endpoints (`routes/api.php` wins on conflict). |
 | [`operations/production.md`](operations/production.md) | Production stack, Horizon queues, scheduler, deploy/rollback. |
-| [`operations/r8-data-convergence-runbook.md`](operations/r8-data-convergence-runbook.md) | Local/production source reconciliation and gated R8 one-shot retirement. |
+| [`operations/r8-data-convergence-runbook.md`](operations/r8-data-convergence-runbook.md) | Historic source reconciliation runbook; currently non-executable pending the final-readiness plan's replacement and rehearsal. |
 | [`operations/SEO_SETUP_GUIDE.md`](operations/SEO_SETUP_GUIDE.md) | Manual Search Console / GA4 setup steps (maintainer tasks). |
 | [`operations/section-extraction-testing.md`](operations/section-extraction-testing.md) | Local-only regression harness for section extraction against real recordings (with `structure-eval-manifest.example.json`). |
 | [`operations/horizon-staging-smoke-test.md`](operations/horizon-staging-smoke-test.md) | Outstanding one-time staging verification. |
@@ -39,5 +38,5 @@ Rules for using this folder, written for AI agents as much as humans:
   saying what superseded them — or are simply deleted (git history is the real archive).
   Point-in-time review/audit reports should be deleted once their findings are folded into
   `issues/README.md` or a plan.
-- Docs were last reconciled against the codebase **2026-07-05** (this cleanup removed ~50 stale
-  files; see git history for anything referenced by an old conversation or commit).
+- The plans index was last reconciled against the codebase **2026-08-08**. The broader docs cleanup
+  was last performed **2026-07-05** (it removed ~50 stale files; use git history for older material).

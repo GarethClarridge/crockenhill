@@ -1,7 +1,7 @@
 # Local Processing Portability Plan
 
 > **Archived 2026-07-29 — superseded before implementation by**
-> [`R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md`](../plans/R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md).
+> [`R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md`](R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md).
 > The replacement keeps the local-processing goal but transports normalized source assertions and
 > reviewed canonical revisions rather than copying the per-row parse cache. The historic-video
 > dependency remains owned by `HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md`.
@@ -19,7 +19,7 @@
 >
 > **Agents must not, without maintainer input:** (a) run any command against production;
 > (b) start WP2 — it is a dependency statement, not a work package to implement here; the video half
-> belongs to [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](../plans/HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
+> belongs to [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
 > and must not be re-designed in parallel; (c) widen `SermonPromotionBundleExporter` in place — it
 > is a marked R8 one-shot (that plan's §2.1 explains why it is copied, not widened).
 
@@ -147,7 +147,7 @@ oos:import-archive <path> --parse-cache=<private-json-path> [--import]
 ## 3. WP2 — Historic video: a dependency, not new work here
 
 The video half is **already designed** in
-[HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](../plans/HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md).
+[HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md).
 Its Stage B (WP2–WP7) is precisely "process locally, promote the result to production as a
 create-only bundle", built by copying the sermon promotion pair as a template. Its §2.3 establishes
 the key fact that makes it work: `LivestreamChurchServiceProjectionService::project()` reads only

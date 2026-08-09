@@ -1,24 +1,28 @@
 # R8 data convergence and one-shot retirement runbook
 
-> **Status (revised 2026-07-30): command surface implemented; rehearsal and production execution
-> not started.**
+> **Status (revised 2026-08-08): command surface implemented, but this runbook is not executable as
+> written; rehearsal and production execution have not started.**
 >
 > The original WP0–WP10 and WP11 export/convergence/audit command surfaces exist on `master`, but
 > the 2026-07-31 readiness audit found release-blocking defects. Do not run the production mutation
 > sequence until the remediation plan reaches Gate G8. In particular, do not treat an individual
 > command's successful dry run as approval for the production maintenance window.
 >
-> The governing implementation requirements now live in
+> The complete-operation authority is the
+> [Historic Archive Final Import Readiness Plan](../plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md).
+> Its supporting implementation contracts live in
 > [Historic Archive Import Readiness Remediation](../plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md).
-> [R8 Data Convergence Correctness](../plans/R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md)
+> [R8 Data Convergence Correctness](../archived-plans/R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md)
 > is retained as a decision/prior-art record. The previous runbook re-ran OoS extraction and
 > historic-video processing in production and used aggregate parity checks; that sequence remains
 > superseded in git history.
 >
 > **Production has not been mutated for this operation.**
 >
-> This remains the sole production operator runbook. References below to R8/HM work-package
-> numbers are retained as historical decision context, not independent release gates.
+> This remains the intended location of the sole production operator runbook, but it does not
+> become production authority until the final-readiness plan's replacement sequence is written and
+> executed verbatim in the required rehearsal. References below to R8/HM work-package numbers are
+> retained as historical decision context, not independent release gates.
 
 This runbook closes R8 items 2.4 and 2.6 in the
 [July 2026 simplification remainder plan](../plans/JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md).
@@ -46,7 +50,7 @@ It coordinates:
 | Legacy song usage | Production `play_date` source identities | Import with zero-loss audit |
 | Runtime/auth state | Production | Never copy users, tokens, sessions or raw private email bodies |
 
-[Historic Media Acquisition and Result Promotion](../plans/HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
+[Historic Media Acquisition and Result Promotion](../archived-plans/HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
 owns local drive processing, technical media review and Bundle A. R8 owns source evidence,
 projection, Bundle B and this production sequence.
 

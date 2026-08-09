@@ -1,5 +1,12 @@
 # Historic Media Acquisition and Result Promotion Plan
 
+> **Archived 2026-08-08 — superseded as an executable plan by**
+> [Historic Archive Import Readiness Remediation](../plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md),
+> with final go/no-go authority now held by the
+> [Historic Archive Final Import Readiness Plan](../plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md).
+> Keep this file only as the detailed Bundle A and media-acquisition decision record; do not execute
+> its HM work-package sequence.
+
 > **Status (revised 2026-07-29): Stage A retention prerequisites are implemented; the remaining
 > acquisition and promotion work is not started. Production promotion is blocked on
 > [R8 Data Convergence Correctness](R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md) WP0–WP10 and its
@@ -7,7 +14,7 @@
 >
 > **Superseded as an implementation plan (2026-07-31):** the audit found release-blocking defects in
 > the normal-output contract, portable graph, asset roles, persistence order, streaming and exact
-> verification. [Historic Archive Import Readiness Remediation](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md)
+> verification. [Historic Archive Import Readiness Remediation](../plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md)
 > is now the single implementation sequence and production gate. This document is retained only as
 > a decision record and detailed Bundle A prior art; do not execute its HM work-package numbering.
 >

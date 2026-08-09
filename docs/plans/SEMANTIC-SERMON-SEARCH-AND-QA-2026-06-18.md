@@ -20,7 +20,7 @@
 >   [SONG-SCRIPTURE-AND-THEME-SEARCH-2026-07-20.md](SONG-SCRIPTURE-AND-THEME-SEARCH-2026-07-20.md).
 >   If that plan runs first, this one inherits both; neither exists in the schema yet (verified
 >   2026-07-24 — no themes or embeddings migration).
-> - [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
+> - [HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md](../archived-plans/HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
 >   records that durable full-service transcripts/raw word timing and related service artifacts
 >   have landed. Its remaining Bundle A work must preserve them across databases; this plan may
 >   consume the promoted corpus only after that exact artifact audit passes.

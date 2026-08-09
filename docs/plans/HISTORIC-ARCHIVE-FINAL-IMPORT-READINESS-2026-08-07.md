@@ -1,0 +1,1068 @@
+# Historic Archive Final Import Readiness Plan
+
+> **Status (investigation complete, including the 2026-08-08 continuation): NO-GO. Do not connect
+> the archive drive for an
+> import run and do not perform any production historic mutation.** Connecting it read-only for the
+> inventory work described here is not the import run, but even that should wait until the source-
+> handling protocol and destination capacity are agreed.
+>
+> This document is the remaining-work and final go/no-go layer over
+> [Historic Archive Import Readiness Remediation](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md).
+> It does not replace that plan's technical contracts, gates G0-G9, or work-package detail. The
+> remediation plan remains the implementation record; this plan closes gaps found by auditing the
+> complete path from an unmounted drive to public production, including business decisions and
+> operational evidence that the remediation plan intentionally deferred.
+>
+> **Investigation record:** findings were added here as their evidence was verified. Every finding
+> below is an open gate unless a later dated entry explicitly closes it.
+
+## 1. Current verdict
+
+The project is **not ready for its one-time import**.
+
+The existing plan itself records that the rehearsal has not started, G2-G9 are unclaimed, the
+mounted source inventory and manifests are incomplete, a clean rehearsal database has not been
+provisioned, deterministic promotion has no measured production-window budget, and the exact
+different-database/no-op/rollback exercises have not run. Its F1 corpus-reconciliation rule is
+still undecided and PR26 is therefore unimplemented.
+
+This audit found thirty-one additional findings, F29-F59; twenty-nine remain blockers after the
+maintainer's 2026-08-08 scope decision accepted F42-F43. They span source and manifest integrity,
+Email/convergence correctness, false-success command semantics, ephemeral staging and resume state,
+checkpoint/recovery, unbound processing environments, event/notification containment, exact corpus
+and closeout binding, restore/change control, access boundaries and missing service identity. Most
+urgently, the application cannot
+guarantee that imported historic sermons remain private: the service-archive date gate does not
+gate the sermon archive, podcast, sitemap, or ordinary sermon audio/transcript delivery. That
+contradicts the governing business assumption that import must not expand the audience; with the
+current read paths, production import can itself publish.
+
+This verdict changes only when every item in the final go/no-go checklist is evidenced. A green
+test suite or a successful dry run is necessary but not sufficient.
+
+## 2. Relationship to existing plans and runbooks
+
+Use the documents in this order:
+
+1. **This plan** decides whether the complete one-time operation is ready and records the remaining
+   technical, operational and business gates.
+2. The [readiness-remediation plan](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md) defines the
+   implementation contracts, G0-G9, Bundle A/B semantics, rehearsal loop and exact closeout.
+3. [Historic Media Acquisition and Result Promotion](../archived-plans/HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
+   and [R8 Data Convergence Correctness](../archived-plans/R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md) are archived prior-art
+   decision records only; their work-package sequences are superseded.
+4. [`docs/operations/r8-data-convergence-runbook.md`](../operations/r8-data-convergence-runbook.md)
+   is intended to be the sole production runbook, but is **not executable as written**. It still
+   hard-codes the superseded OpenLP 536/105/3/428/7 accounting, requires a completed Manual review
+   for every multi-source service where automatic finalisation is now valid, omits the current
+   operation-id/expiry requirements from its apply example, and does not encode the newer
+   G2-G8 evidence gates. Replacing it with a command-exact, rehearsed runbook is work in this plan.
+
+No operator should assemble a sequence by combining steps from these documents at the prompt.
+
+## 3. Evidence log
+
+### 2026-08-07 — baseline and carried blockers
+
+- Repository state inspected at `d9aebe1a0` (`master`, one commit ahead of `origin/master`, clean
+  worktree at the start of this audit).
+- The remediation plan's header and definition of done confirm that the rehearsal has not started,
+  G2-G9 are unclaimed, and most operation-level acceptance boxes remain open.
+- F1 remains open: the approved Email manifest yields 391 curated `(date, service)` identities, but
+  up to 35 documents may validly produce another service. The current integer
+  `historic_corpus.expected_services` cannot reconcile that without the rule and PR26 described in
+  remediation plan sections 9.4.6, 17 and 19.
+- The approval-gated production evidence audit has never reached production because the
+  `production-audit` environment lacks `PROD_HOST`, `PROD_USER` and `PROD_SSH_KEY`. Production's
+  retained-evidence population and the required current-era disposition are therefore unknown.
+- The CBC drive is unmounted. OpenLP re-inventory, v3 manifest population/approval, symlink
+  materialisation, video inventory/manifest approval, byte totals and source hashes are unverified.
+- The sole production runbook predates material changes in the remediation plan and is internally
+  stale. It cannot be the authority for a once-only operation until rewritten and executed verbatim
+  in rehearsal.
+
+### 2026-08-08 — continuation audit scope and completion
+
+The first audit's technical, operational and business agents exhausted their usage after delivering
+their incremental findings but before final exhaustive syntheses. F29-F47 retain those verified
+findings. This continuation completed the unexhausted surfaces: every public/API/search/cache/feed/
+notification path; every Email/OpenLP/video/Bundle A/B branch and nested job; schema/identity/
+collision behavior; and static production/runtime/runbook assumptions. It added F48-F59. F42-F43
+remain accepted and non-blocking under the maintainer's existing-audience/existing-processing
+decision. Production state and the unmounted drive remain evidence gates, not facts this code-only
+continuation can invent.
+
+### 2026-08-07 — F29: production import can publish historic sermons immediately
+
+**State: open; G8 blocker; newly discovered outside the remediation plan's implementation list.**
+
+The governing business decision is that the material already exists under the project's existing
+authority and access arrangements, so import does not trigger a fresh rights or consent review. The
+technical requirement is narrower: import must not expand its audience. That boundary is not
+currently enforced for sermons:
+
+- `config/church.php`'s `services.public_from` lower bound applies to the public **service** archive.
+- That service cutoff is itself fail-open when unset/empty, and `CHURCH_SERVICES_PUBLIC_FROM` is
+  absent from the checked environment/deployment examples; any song or Bible item can otherwise
+  make a historic service eligible for its public index/detail.
+- `SermonRepository::basePublicSermonQuery()` has no whole-sermon publication or historic-
+  era predicate.
+- `PodcastFeedService` consumes that public query, and `SitemapService` includes slugged sermons.
+- ordinary sermon audio and transcript delivery is not governed by the service date gate; the
+  current exposure policy primarily governs video/thumbnail quality and children's-talk handling.
+- the configured Spaces sermon disk is public/CDN-backed, so route authorization alone cannot
+  revoke an object URL that has already been revealed.
+
+A Bundle A apply that creates a historic sermon can therefore expose its page, audio, transcript,
+podcast entry and sitemap URL even while its parent service remains hidden. A video-quality override
+does not quarantine the sermon as a whole.
+
+**Required outcome:** add one fail-closed, whole-content publication state/policy that can quarantine
+an imported batch or era before any production write. The default for historic imports is private.
+Every read surface must consume the same decision: sermon index/detail and canonical metadata,
+podcast/RSS, sitemap, service-to-sermon and song-to-media links, audio/video/thumbnail/transcript
+controllers, storage/CDN URLs, search/related-content jobs, and any API/resource surface. Direct
+asset access must not bypass it: quarantined assets belong on private storage/a private prefix and
+are served only through controlled, revocable delivery. Promotion must preserve the reviewed
+publication decision rather than infer public status from the presence of a slug or asset.
+
+**Proof required:** feature/policy tests for every surface above; a production-shaped rehearsal in
+which a quarantined historic sermon and all of its assets return the agreed non-public behaviour;
+then a separately authorised release exercise proving that an approved item becomes public without
+re-importing or changing provenance. Production preflight must also prove the resolved, config-
+cached service cutoff and fail closed when it is absent; anonymous service index/detail/sitemap
+tests remain required even though the preferred control is the explicit per-record/batch state.
+
+Until this exists, the project's “no newly visible content” assumption is not true in the running
+application.
+
+### 2026-08-07 — F30: approved OoS supersession is not applied to evidence lineage
+
+**State: open; G2 blocker; newly discovered outside the remediation plan's blocker list.**
+
+The approved OoS manifest validates and hash-covers each entry's `supersedes` decision, including
+the ten curated corrections described in the remediation plan. The runtime import paths do not turn
+that authority into `church_service_source_records.supersedes_id`:
+
+- `OosCurationEntryFactory` copies `supersedes` only into the entry's report-oriented `curation`
+  metadata and assigns every manifest item a distinct synthetic message ID.
+- `EmailSourceAdapter` constructs `source_key` from that message ID plus the parsed service-plan key.
+- `IngestChurchServiceSourceRevision` creates a supersession only within an already-identical
+  `source + source_key` lineage. Because predecessor and correction have different message IDs,
+  they are different lineages and neither supersedes the other.
+- The portable assertion-bundle path likewise has no runtime read that maps the manifest item-level
+  predecessor to the imported revision. Existing tests prove manifest-chain validity but do not
+  assert the imported database lineage or active projection.
+
+The likely result is two active full Email revisions for a corrected service. Both may contribute to
+projection, producing duplicate or stale planned items while every manifest hash still passes.
+
+**Required outcome:** define a portable, service-plan-level predecessor identity in the Email
+assertion contract. Direct local import and assertion-bundle apply must resolve the predecessor,
+create the exact `supersedes_id`, and fail before canonical writes when it is absent, ambiguous,
+cross-service or already superseded incompatibly. If one source document yields multiple service
+plans, the rule must state which plan(s) the document-level manifest decision supersedes; it must not
+guess by database ID or arrival time.
+
+**Proof required:** retain a red-to-green end-to-end test that imports an original plus correction
+through both the normal archive path and exported assertion bundle, then asserts one active leaf,
+the exact predecessor link, only the correction in the active evidence set/canonical projection,
+portable different-PK round trip, idempotent replay and fail-closed missing/ambiguous predecessor.
+Run that proof over all ten real manifest chains during rehearsal and include the lineage result in
+the private report.
+
+### 2026-08-07 — F31: historic-video bytes are not re-verified at dispatch
+
+**State: open; G1/G5 blocker; newly discovered outside the remediation plan's blocker list.**
+
+`HistoricVideoCurationManifest::plan()` verifies each included recording's root containment,
+non-symlink status, byte size and SHA-256 while constructing the plan. It then hands absolute paths
+to `HistoricVideoImporter`. A checkpointed bulk pass may consume those paths hours or days later.
+The importer does not compare them with the approved `source_files`; it hashes whichever bytes are
+present into provenance metadata and dispatches them under the already-approved manifest/plan
+identity.
+
+A changed file, remounted replacement volume, retargeted path or corruption after preflight can
+therefore be processed and attributed to the approved hash. The OpenLP path already performs an
+apply-time include verification; video needs the same invariant.
+
+**Required outcome:** before each single-file dispatch and before reading any segment for
+concatenation, re-resolve the approved root and exact relative path and recheck regular-file type,
+every path component for symlinks, byte size and SHA-256 against that work item's hash-covered
+`source_files`. Abort the item before creating a processing log, temporary concatenation output or
+queue work on any difference. Bind processing provenance to the approved digest, while separately
+recording the equal observed digest. Operate from a read-only source mount or an independently
+verified immutable acquisition copy so the bytes cannot change during the subsequent long read.
+Compare the copy-to-processing-storage size/hash and every final durable asset/artifact hash before
+an item becomes checkpoint-complete.
+
+**Proof required:** a test builds a valid plan, replaces or mutates a source before its turn, and
+asserts zero processing rows/jobs/temp output; cover single, lossless-concatenated and re-encoded
+items, symlink/remount substitution, and a later checkpoint after earlier items succeeded. The
+checkpoint report must classify the item as a hard source-integrity failure, never merely a skipped
+or terminal processing failure.
+
+### 2026-08-07 — F32: import commands can report success without complete corpus success
+
+**State: open; G2/G5/G8 blocker; newly discovered.**
+
+`ImportOosArchiveCommand` catches per-entry exceptions and records `failed` or `import_failed`, but
+then writes its report and returns exit code zero. The regression suite currently asserts that
+behaviour for an exploded song sync. It also filters entries before bundle export/preflight;
+`--limit`, `--date`, `--from` and `--to` can therefore produce or apply a partial bundle carrying the
+same full curation-plan hash. Preflight proves only that the bundle matches the *selected* entries,
+not that every approved entry is represented.
+
+The historic-video path has the same outcome-level defect. The command succeeds whenever its
+`errors` counter is zero, even when approved items were skipped for low disk, in-flight work,
+pending review, broad date/service existence, or `--limit`. Its pre-dedup existence test treats any
+completed livestream for the date/service as sufficient and `--force` changes that result without
+being bound into the approved plan. Neither outcome proves `approved = exact-complete + exact-
+already-present`.
+
+**Required outcome:** define one machine-enforced corpus closeout invariant per source. Mutation mode
+must return non-zero for failed/import-failed/unaccounted items. Every approved item must end in an
+allowlisted terminal disposition tied to its exact manifest item/source/output hashes; review-held
+and unresolved are not complete. Final bundles must either cover the entire approved identity set or
+belong to immutable, hash-covered checkpoint partitions. Ad-hoc filters and generic `--force` are
+forbidden in the definitive run.
+
+**Proof required:** failure, zero-limit, subset, held-review, broad-existing, timeout and interrupted
+checkpoint tests all fail closeout; a complete exact replay succeeds and the second run reports only
+hash-equal already-present/no-op outcomes.
+
+### 2026-08-07 — F33: the portable OoS bundle still requires the raw corpus in production
+
+**State: open; G3/G8 portability blocker; newly discovered.**
+
+Every bundle mode first rebuilds the curation plan, verifies the raw/formatted payloads and creates
+entries from them. `OosArchiveAssertionBundle::preflight()` then calls `structuralReasons()`, which
+validates against `OosEmailSourceDocument::fromBody($entry->bodyPlain)`. Production therefore needs
+the historic email corpus even though the remediation plan says the normalized assertion bundle is
+portable and raw bodies do not enter production.
+
+**Required outcome:** make the approved production artifact self-contained for identity, input hash,
+validated normalized assertions and source-validation proof, while containing no raw body, absolute
+path or database ID. Perform raw-text semantic validation at controlled export/rehearsal time; at
+production, cryptographically verify the approved manifest snapshot, complete identity set,
+fingerprints and bundle without opening the raw corpus. If this cannot be achieved, explicitly
+change the portability design and define the raw-corpus transfer/cleanup procedure; do not silently
+contradict the contract.
+
+### 2026-08-07 — F34: private import artifacts do not meet their privacy contract
+
+**State: open; G3/G5 blocker; newly discovered.**
+
+The plan requires one unique `0700` batch root and `0600` files. OoS reports and bundles create
+directories with `0755` and use default-umask file permissions. Bundle B also plain-writes without a
+permission check. OpenLP/video paths chmod some files but do not enforce the common private root.
+Reports can contain email subjects, absolute paths, message IDs, failures and curation metadata.
+
+**Required outcome:** route every manifest, report, Bundle A/B, OoS assertion bundle, checkpoint,
+ledger and acceptance index through one atomic private-artifact writer. It must constrain output to
+the approved batch root; reject symlink/pre-existing-unsafe targets; create directories/files as
+`0700`/`0600` independent of umask; fsync/rename atomically; redact secrets and unnecessary personal
+data; encrypt at rest and in transit; and test actual permissions and tamper behaviour.
+
+### 2026-08-07 — F35: production staging and the resume ledger are ephemeral
+
+**State: open; G5/G8 recovery blocker; newly discovered.**
+
+`historic_staging` and the convergence JSONL ledger default below `storage/app/private`, but the
+production compose file does not mount that directory. A restart or deployment can lose both. The
+media result bundle references already-staged assets rather than carrying them, and the repository
+contains no defined checksummed local-to-production staging transfer. The JSONL ledger can also be
+torn between `fwrite`/`fflush` and a host crash; its reader rejects a malformed line wholesale.
+
+**Required outcome:** provision persistent private staging and an operation journal outside the
+replaceable container. Prefer a database-backed transactional journal or a framed, fsynced,
+hash-chained ledger with an independently mirrored copy and explicit repair rules. Implement an
+encrypted, resumable, checksummed asset transfer and inventory, with retention and cleanup. Prove
+restart/redeploy/crash survival at the boundaries before copy, after copy, after DB commit, before
+and after journal append, and during audit-report creation.
+
+### 2026-08-07 — F36: source acquisition and inventory are not forensically complete
+
+**State: open; pre-G1/G5 blocker; newly discovered.**
+
+The current controls start at an importer-friendly directory. They do not define chain of custody,
+write-blocking, drive-health/read-error handling, malware quarantine or a verified preservation
+copy. Video inventory only recognises non-hidden `mkv`, `mp4` and `mov`; ordinary configuration also
+accepts AVI/WebM, and other historic audio/video/sidecars, hidden files, directories and some links
+are invisible to `discovered = include + exclude`. The host command default `/Volumes/CBC
+Drive/ServiceVideos` also differs from Sail's `/mnt/cbc-service-videos` mount.
+
+**Required outcome:** before opening corpus files, record physical drive/volume identity,
+filesystem, health/read errors and custody; mount the original OS-level read-only with
+`noexec,nosuid,nodev` where supported and prove writes fail. Create two verified copies in
+independent storage, preserving a filesystem image or metadata-faithful evidence copy plus a
+separate materialised working tree. Inventory every path, file type, link/target, size, hash,
+timestamp, xattr/read error and explicit disposition, including unsupported extensions. Detect
+case-only and Unicode-normalisation collisions across macOS/Docker/Linux. Malware-scan the isolated
+copy, quarantine rather than execute, sign/timestamp the inventory, and process only the working
+copy through the correct container path. Unreadable sectors, inventory holes or processing the sole
+copy are hard stops.
+
+### 2026-08-07 — F37: the video manifest is not yet strict mutation authority
+
+**State: open; G1 blocker; newly discovered.**
+
+`HistoricVideoCurationManifest` remains version 1 with no batch key. Decision authority accepts any
+author string without `decided_at`, or any rule string. Duplicate validation proves only that the
+named key exists and the duplicate is excluded: it does not require an included, byte-identical
+target or reject cycles. Date validation is regex-only before Carbon normalization, so overflow
+dates can become a different day.
+
+**Required outcome:** implement the plan's strict schema: exact keys/types, batch identity,
+real-calendar dates, authorized decision shape/timestamp, complete inventory accounting and
+duplicate target that is included, hash-equal and acyclic. Reject unknown keys and all ambiguous or
+lossy authority. Test excluded-to-excluded cycles, nonidentical duplicates, overflow dates and
+decision omissions before drive curation.
+
+### 2026-08-07 — F38: bulk processing has no crash-safe checkpoint protocol
+
+**State: open; G5 blocker; newly discovered.**
+
+The video command exposes only an undifferentiated `--limit` and writes its report after the whole
+invocation. It has no immutable checkpoint IDs, no durable pre/post-dispatch records and continues
+after individual failures. When waiting times out it clears the in-memory in-flight list and keeps
+dispatching while old jobs may still run, so real concurrency can exceed `--parallel`. A nested
+`AutoPublishServiceSection` job is also outside the main chain/batch tracked by readiness; cleanup
+can mark a run completed and Bundle A can export while publication still mutates the graph.
+Per-file video deduplication also includes the absolute mount path, so the same approved manifest
+remounted at a different root after a crash can receive a different key and duplicate an in-flight
+run.
+
+**Required outcome:** derive immutable ordered checkpoint membership from the manifest (maximum 25
+recordings or 12 forecast hours), journal before/after every dispatch, stop admission at the first
+dispatch/terminal/timeout anomaly, and never dispatch while timed-out work remains live. Track every
+nested publication job to terminal state. Provide explicit reconcile/adjudicate/resume commands
+that repeat binding preflight. Rehearse worker/Redis/MySQL/Docker kills and confirm no lost,
+duplicated or premature-ready item. Include a two-root/same-manifest crash-resume test proving
+deduplication derives from portable approved identity, never the host mount path.
+
+### 2026-08-07 — F39: durable output is not bound to the real processing environment
+
+**State: open; G4/G5 blocker; newly discovered.**
+
+Several processing providers default to `mock`, some are absent from `.env.example`, and the video
+import does not preflight provider choice, credentials, API project or connectivity. A mock result
+can therefore become durable. The fingerprint hashes the configured FFmpeg *path string*, not the
+binary/version, and omits output-affecting prompt/schema code, concat codecs/arguments and parts of
+song/section matching. Cost usage is only partly present in rotating logs; there is no durable
+per-item budget ledger, provider rate limiter or demonstrated 429/`Retry-After` behaviour.
+
+**Required outcome:** before calibration and every resume, fail closed on the exact commit/image,
+schema, resolved DB/bucket/prefix/staging identities, non-mock provider allowlist, credentials/API
+project, model/reasoning/prompt/schema hashes, every output-affecting algorithm/config, real
+FFmpeg/ffprobe binary versions/hashes/arguments, queue/supervisor widths, free space, clock and an
+outbound probe. Create a durable per-item/checkpoint calls/tokens/audio-minutes/cost ledger, accepted
+forecast with contingency, rate/backoff tests, spending alerts and numeric abort thresholds.
+
+### 2026-08-07 — F40: later machine evidence can silently erase Manual final authority
+
+**State: open; G2 blocker; newly discovered.**
+
+`IngestChurchServiceSourceRevision::stageProposal()` unconditionally clears a non-null
+`canonical_finalization` before checking whether the new machine projection is identical. If the
+hash is unchanged and there are no conflicts, it returns without a proposal or review flag. A
+manually finalised service can therefore retain its reviewed revision while silently losing the
+Manual finalization marker, contrary to the plan's Manual-authority invariant.
+
+**Required outcome:** identical machine evidence must preserve Manual final authority. Changed
+machine evidence may create an explicit review proposal but may never silently supersede or erase a
+Manual decision. Add red-to-green ingestion and full rehearsal tests for identical, complementary
+and conflicting later evidence.
+
+### 2026-08-07 — F41: convergence applies stale plans and has no enforced window split
+
+**State: open; G7/G8 blocker; newly discovered.**
+
+`executeBatch()` re-prepares the batch once, then applies services sequentially. It locks a service
+only inside its transaction and does not rebuild/compare that service's binding or reclassify under
+the lock. A source revision, proposal, finalization, reviewer or canonical edit arriving after the
+batch preflight can therefore be overwritten by the stale prepared plan. Plan expiry is also
+checked only before the loop. `HistoricPromotionBudget` reports a budget, but apply does not consume
+an accepted deadline and will admit every remaining service even after the safe ingress/rollback
+reserve is exhausted.
+
+**Required outcome:** under the natural-identity/row locks, rebuild each service's complete binding,
+classification and plan hash immediately before its first asset/DB mutation. Abort that service on
+any mismatch. Bind the accepted rehearsal-derived deadline/budget into the operation; before each
+service, enforce the admission floor plus p95 apply/rollback reserve, finish only the current atomic
+service, journal the planned split and exit resumably. Add concurrency-hook and clock-controlled
+tests.
+
+### 2026-08-07 — F42: “members only” is only self-registration plus email verification
+
+**State: accepted/non-blocking by maintainer decision on 2026-08-08.**
+
+Any person can register, is signed in immediately and gains song access after verifying the email.
+`User` has no membership/approval state. Song catalog/usage queries do not apply the historic
+`services.public_from` cutoff, so imported usage history appears behind this open signup wall while
+service pages remain hidden. Public service pages link songs to that authenticated route, making
+the plan's anonymous service-to-song acceptance criterion a login redirect rather than a usable
+journey. Asset redirects to public-disk/CDN URLs also mean a copied URL can outlive authentication.
+
+The maintainer accepts the existing verified-email audience for this material and does not require
+a new membership approval model for the import. This is not an import gate. The public service-to-
+song login bounce remains ordinary product follow-up. Direct public object URLs are still covered by
+F29 because they escape even the accepted existing access boundary.
+
+### 2026-08-07 — F43: external-model processing policy
+
+**State: accepted/non-blocking by maintainer decision on 2026-08-08.**
+
+OoS extraction sends source text to the configured OpenAI extractor and the service-structure path
+sends the transcript and planned order. The maintainer considers that the existing project's
+processing arrangements apply equally to the historic corpus and does not require a new rights,
+consent or DPIA exercise for this import. F39 still binds and verifies the intended provider/model/
+configuration so an accidental destination or mock provider cannot enter the definitive pass.
+
+### 2026-08-07 — F44: service identity and editorial metadata can be lost
+
+**State: open; G1 data-quality blocker; rights aspects removed by maintainer decision.**
+
+The video manifest carries bytes/date/service/concat decisions but no preacher, title, scripture or
+series. OoS `title_override`/`service_label` exist only in report curation metadata; `ChurchService` has no
+occasion/public-title field and public pages render only enum label plus date. Two distinct special
+events on one date also collapse into the single `(date, other)` unique identity. Concatenated video
+filenames are `YYYY-MM-DD {service}.mkv`; the current filename-to-title path can leave sermons titled
+only “Morning” or “Evening”.
+
+**Required outcome:** decide whether the service identity model must support multiple same-day
+special events; otherwise fail the inventory on collisions rather than merge them. Preserve known
+occasion/title/speaker/scripture/series facts in a portable curation artifact so they survive the
+one-time import. Title/slug and special-occasion QA may be post-import editorial work provided the
+raw fact is retained and the imported content remains under F29's existing-audience boundary.
+
+### 2026-08-07 — F45: backup success does not prove import rollback
+
+**State: open; G5/G8 recovery blocker; newly discovered.**
+
+Nightly backup intentionally excludes the roughly 200GB sermon-media tree, archive verification is
+disabled, and the deploy backup is an on-host DB-only dump. The rollback workflow redeploys an image
+and leaves database restore manual. The current test proves an encrypted DB archive can be created,
+not that this operation's database, object assets, staging and journal can be restored consistently.
+
+**Required outcome:** take transaction-consistent, timestamped on-host and independent off-host DB
+backups with hashes and table/row manifests; restore the exact artifact into disposable MySQL and
+measure RTO. Obtain destination object versioning/snapshot/retention evidence or prove a create-only
+rollback ledger covering every attempted object, including copy-before-commit failures. Exercise
+mid-service and cross-service failure, apply compensation, full restore and repeat apply. Preserve
+source, bundles, results, private staging and journals independently through the acceptance and
+rollback windows. `backup:run` exit zero is not restore evidence.
+
+The current asset transfer's `exists()` followed by ordinary `writeStream()` is not an atomic
+create-only operation: a concurrent object can appear between them, be overwritten, and then be
+blindly deleted by compensation. Use conditional create/version/ETag semantics or immutable
+operation-owned keys, verify ownership/version again before deletion, and fault-inject the between-
+check/write and write/cleanup races.
+
+### 2026-08-07 — F46: production identity, change control and monitoring are not operation-safe
+
+**State: open; G8 blocker; newly discovered.**
+
+`HistoricImportProductionGuard` cannot detect a non-production `APP_ENV` pointed at production and
+checks only environment plus a nonblank approval ID. Production has no required reviewers while
+pushes to master auto-deploy. The ingress gate pauses import submissions and stages inbound email,
+but not ordinary admin edits to targeted data. Error tracking is explicitly uninstalled, rotating
+logs are not a durable operation record, and pause/resume instructions do not prove workers,
+scheduled jobs or delayed/reserved queues reached the intended state.
+
+**Required outcome:** bind approval to resolved DB identity, bucket/prefix, staging root, commit/image,
+schema/config/fingerprints and operation ID—not `APP_ENV`. Freeze deploy/rollback/config/manifest and
+targeted admin/data mutations from final preflight through closeout. Protect the production approval
+environment or explicitly accept the risk. Assign an incident commander, operator, independent
+verifier and monitoring owner; pre-authorise numeric abort thresholds. Use Sentry or a formally
+accepted live alternative and retain an external watchboard covering queues/job age, live/failed/
+timed-out IDs, workers, DB locks/connections, resource/free-space growth, API 429/5xx/cost and app
+exceptions. Release the freeze only after exact audit, public/admin smoke, queue/scheduler recovery
+and deferred-email reconciliation. Approval must also enumerate the permitted command and phase;
+one token for convergence must not authorize direct OoS, OpenLP or video mutation commands.
+
+### 2026-08-07 — F47: the local definitive-processing runtime is tuned for disposable development
+
+**State: open; G4/G5 blocker; newly discovered.**
+
+The Sail MySQL configuration uses `innodb_flush_log_at_trx_commit=2`, disables doublewrite and sets
+`sync_binlog=0`; local Redis has no AOF; the optional Whisper image floats on `latest-cpu`. A host or
+Docker crash can lose acknowledged work/queued jobs or change the model between checkpoints. That
+is unsuitable for media outputs intended never to be recomputed.
+
+**Required outcome:** define and pin a “historic definitive” runtime with durable MySQL settings,
+Redis AOF/recovery, image digests, package lock, FFmpeg/ffprobe/model versions, resource limits,
+storage-health monitoring and Mac sleep/update/restart controls; use a UPS where practicable.
+Calibrate under those exact settings. Force-kill MySQL, Redis, worker, Docker and the orchestration
+command in rehearsal and prove exact reconciliation/resume.
+
+### 2026-08-08 — F48: OoS command modes do not make mutation intent unambiguous
+
+**State: open; G2/G8 command-safety blocker; continuation-audit finding.**
+
+`ImportOosArchiveCommand` has no exactly-one-mode validation. Bundle handling runs before
+`--dry-run` is evaluated, so `--dry-run --apply-bundle` applies the bundle rather than remaining
+read-only. Supplying both `--import-bundle` and `--apply-bundle` selects one path by option precedence
+instead of refusing the contradiction. Supplying no mode performs the database-writing evaluation
+mode, while `--import`, `--export-bundle`, bundle flags and filters have other combinations that are
+ignored or composed without one documented authority. Tests do not cover these conflicts.
+
+**Required outcome:** define an explicit mutually exclusive mode enum/matrix—reconcile-only,
+evaluate, import, export assertions, stage assertions or apply assertions—and reject zero or multiple
+modes before reading the corpus, accessing the extractor or writing anything. `--dry-run`/reconcile
+must be provably non-mutating in every combination. Bind allowed filters to a complete immutable
+checkpoint partition (F32), reject ad-hoc filters for final export/apply, and print the selected mode
+and mutation scope before execution.
+
+**Proof required:** table-driven command tests cover every single valid mode and every conflicting/
+missing combination, especially `--dry-run --apply-bundle`, both bundle flags, implicit evaluation,
+import plus bundle/export, and filters outside an approved checkpoint; every refused invocation has
+zero database, extractor, file and queue effects.
+
+### 2026-08-08 — F49: OoS payload verification and consumption use different reads
+
+**State: open; G1/G2 source-integrity blocker; continuation-audit finding.**
+
+`OosCurationManifest::verifyIncludes()` hashes each approved payload and returns its path.
+`OosCurationEntryFactory` later opens that path once for frontmatter and again for the body. The
+command verifies all entries before the factory begins reading them, so a replacement/remount/edit
+between verification and either read can be parsed and imported while `OosArchiveEntry::inputHash`
+still carries the manifest's old digest. The earlier deterministic identity check also performs its
+own verify/read sequence and does not make the later consumption atomic. Existing tests change the
+corpus between separate command invocations, not between verification and consumption in one run.
+
+**Required outcome:** consume each approved payload from one verified immutable byte snapshot. Open
+the regular non-symlink file under its approved root, read once, verify pre/post file identity and
+size plus SHA-256 against the manifest, then parse frontmatter/body from those exact bytes. Better,
+use F36's immutable working copy and still retain this per-entry check. The observed equal digest,
+approved digest, parsed content and cache/source-revision input hash must be one binding; any change
+fails before creating/updating `InboundEmail`, invoking the extractor, exporting assertions or
+ingesting source evidence.
+
+**Proof required:** deterministic hooks replace/truncate/retarget a payload after planning, after
+the batch verify and between frontmatter/body reads; direct evaluate/import and assertion export all
+fail with zero DB/extractor/bundle effects. Cover a later entry after earlier entries were evaluated
+and require the whole checkpoint to remain incomplete under F32.
+
+### 2026-08-08 — F50: OpenLP verification, parsing and provenance hash can see different archives
+
+**State: open; G1/G2 source-integrity blocker; continuation-audit finding.**
+
+`ImportOpenLpDirectoryCommand::importArchive()` calls `verifyInclude()` inside the per-service DB
+transaction, but that returns a path. `OpenLpServiceParser` subsequently opens the path as a ZIP,
+and `OpenLpSourceAdapter` later hashes the path again. The adapter records whatever hash it observes
+without comparing it to the manifest include. A replacement/remount/edit between these operations
+can therefore make the approved digest, parsed service/items and persisted source-revision
+`input_hash` describe different archive versions. Holding a database transaction does not lock a
+filesystem path. Existing tests verify replacement before apply, not at these intra-apply seams.
+
+**Required outcome:** create one immutable per-entry snapshot after resolving the approved regular
+non-symlink path. Verify its exact size/SHA against the manifest, parse that snapshot and pass the
+same approved/observed digest into the source adapter; the adapter must compare rather than reassign
+authority. Delete the snapshot after commit/rollback and record no source evidence or canonical
+change on mismatch. The containing F36 working copy remains read-only but is not a substitute for
+the binding.
+
+**Proof required:** deterministic hooks replace the source after `verifyInclude()`, while the ZIP is
+opened, and before source adaptation. Each case fails with zero service/source/assertion writes and
+an incomplete checkpoint; the persisted input hash in the green path equals both manifest and
+snapshot hash. Cover a correction of the same logical filename and an earlier successful item in
+the batch.
+
+### 2026-08-08 — F51: convergence can commit before observer side effects finish
+
+**State: open; G6/G8 atomicity and mutation-boundary blocker; continuation-audit finding.**
+
+`HistoricConvergenceDispatchGuard` rejects queued jobs, mail and notifications but deliberately
+leaves model observers active. `HistoricMediaGraphPersister` creates ordinary `Sermon` and preacher-
+alias models and relies on observers for derived work. `SermonObserver` and `PreacherAliasObserver`
+handle events after commit; the latter calls `SermonIdentitySyncService`, which can update every
+pre-existing unassigned sermon matching the new alias, not just the service in the approved plan.
+Laravel commits the PDO transaction before running after-commit callbacks. If a callback fails,
+`ConvergeHistoricChurchService` can report apply failure and compensate by deleting copied assets
+even though the database rows have already committed and may reference those assets.
+
+The result violates both halves of the convergence contract: a successful apply can mutate
+unrelated production sermons outside its prepared hash/audit, and a reported failed apply can leave
+committed graph rows pointing at compensated objects.
+
+**Required outcome:** production convergence uses event-quiet persistence. Every required scripture-
+filter, identity and other derived write is explicit, bounded to the locked service transaction and
+included in the prepared plan, binding hash and exact audit. Global alias backfill is forbidden in
+the import; if wanted, it becomes a separate planned and rehearsed operation. Any cache closeout
+outside the transaction must be non-authoritative, durable and resumable. The operation fails before
+mutation if an unmodelled observer/domain event would run.
+
+**Proof required:** an imported preacher alias cannot change an unrelated existing sermon; injected
+scripture/identity/cache failures cannot produce committed rows whose assets were removed; apply
+emits zero model/domain events as well as zero jobs, mail and notifications; the exact audit covers
+aliases and scripture filters and includes an unrelated-row/database-diff assertion.
+
+### 2026-08-08 — F52: historic processing cannot reliably suppress outbound notifications
+
+**State: open; G4/G5 operational-safety blocker; continuation-audit finding.**
+
+Historic videos enter the ordinary livestream job chain, including service-structure detection,
+sermon extraction and completion notification. Only the completion email respects
+`email.send_success_notifications`. Both manual-review branches queue `ManualReviewRequired`
+unconditionally, and `ProcessingRunFailureHandler` queues `LivestreamProcessingFailed`
+unconditionally. Although configuration defines `email.send_failure_notifications`, no production
+code reads it. A definitive runtime using the real mail transport can therefore produce a bulk
+review/failure mail storm, queue pressure and obscured live alerts even when the operator believes
+historic notifications are disabled.
+
+**Required outcome:** bind an explicit no-external-notifications mode or isolated mail transport to
+the immutable historic operation. It must cover success, manual-review and failure paths while
+retaining the same facts in the private durable journal/watchboard. Preflight proves the transport
+and operation binding; ordinary current processing continues to alert normally.
+
+**Proof required:** exercise historic success, both review branches and processing failure while
+global live notifications are enabled and assert no outbound message; retain the corresponding
+private alert records. Add a current-run control proving ordinary alerts still send and a test that
+the documented failure-notification toggle is effective rather than dead configuration.
+
+### 2026-08-08 — F53: the corpus gate can pass on unrelated global evidence
+
+**State: open; G2 corpus-certification blocker; continuation-audit finding.**
+
+`ChurchServiceCorpusCompleteness` counts source records and service identities across the whole
+database and treats a source kind as staged when its count is merely greater than zero.
+`ChurchServiceProposalCensusGate` then compares the global identity union to one scalar expected
+service count. The test suite explicitly permits two Email services plus only one OpenLP record to
+pass. Consequently current-era evidence, a prior batch or a single OpenLP row can satisfy a historic
+gate even when most approved OpenLP entries were never staged. F1's explained-excess rule cannot
+repair a gate that does not know the approved per-source membership.
+
+**Required outcome:** G2 certifies the exact approved manifest/bundle membership per batch and source
+kind: each source item key maps to its expected service identity or explicitly approved identities,
+current active leaf, input hash, processing fingerprint and projection. Missing, extra, stale, old-
+batch and cross-batch evidence all fail; source-specific expected sets replace “count > 0” and the
+single global-count shortcut.
+
+**Proof required:** 391 complete Email identities plus 1 of 428 approved OpenLP entries fails;
+unrelated/current-era and prior-batch rows cannot help; the exact source-specific sets pass; stale
+input hash, active leaf or projection binding fails. Retain the complete item-level certification in
+the acceptance index.
+
+### 2026-08-08 — F54: normalized-content no-op can reuse stale immutable provenance
+
+**State: open; G2/G8 provenance and idempotency blocker; continuation-audit finding.**
+
+`IngestChurchServiceSourceRevision` defines its revision hash from normalized assertions and service
+content, then immediately returns the old leaf when that hash matches. Yet the source row also holds
+the input hash, batch hash, processing fingerprint, payload completeness, captured time and author.
+The same normalized service produced from changed raw bytes, a different approved batch or a
+different processing fingerprint can therefore be reported successful while the returned evidence
+still records the old authority. Exact rerun and corpus certification may never converge on the
+artifact actually applied.
+
+**Required outcome:** distinguish content equality from immutable evidence identity. A no-op is
+valid only when every authority/provenance field required by the operation also matches. Otherwise
+append a correctly linked immutable provenance revision or association without needlessly changing
+the canonical projection. Every importer must assert that the returned record has the exact
+manifest input/batch/fingerprint/completeness binding it supplied.
+
+**Proof required:** repeat identical assertions with a different input hash, fingerprint, batch and
+payload completeness and retain each exact provenance transition; an exact replay alone is a no-op.
+Old-batch evidence cannot satisfy the new operation, through either direct OpenLP/Email import or
+portable bundle apply.
+
+### 2026-08-08 — F55: source-key equality differs between MySQL and PHP
+
+**State: open; G2 portability/identity blocker; continuation-audit finding.**
+
+The evidence schema stores source keys under MySQL's default case/accent-insensitive Unicode
+collation and makes `(source, source_key, revision_hash)` unique. Lineage construction, projection
+and the lineage auditor use byte-strict PHP array/string equality. Case variants, accents, composed
+versus decomposed Unicode and trailing spaces can therefore be one database identity but multiple
+PHP lineages, causing unique-key failures, missed successors or order-dependent selection. F36's
+filesystem collision inventory does not cover Email/manual/live keys or repair this schema/runtime
+disagreement.
+
+**Required outcome:** define one canonical, portable source-key encoding or binary/hash identity and
+use it consistently in PHP, bundle contracts, schema constraints and audits. Audit existing rows
+before an additive migration; reject rather than silently merge ambiguous legacy variants.
+
+**Proof required:** case, accent, composed/decomposed Unicode and trailing-space variants behave
+identically and deterministically through OpenLP, Email and Manual ingestion, database uniqueness,
+successor lookup, projection, bundle round trip and lineage audit.
+
+### 2026-08-08 — F56: ingress reopening sweeps the ordinary pending-email inbox
+
+**State: open; G8 freeze/release and recovery blocker; continuation-audit finding.**
+
+During the import window the webhook stores deferred mail as ordinary `Pending` rows with no
+operation identifier. `Pending` is also the normal state for held/manual-review messages and failed
+redelivery. Release then opens the ingress gate and dispatches every pending row; the database lock
+is released before the unscoped sweep. A partial failure leaves ingress open, ordinary review mail
+queued, and no durable cursor by which the operation's deferred set can be resumed exactly.
+
+**Required outcome:** create operation-scoped deferred/outbox records atomically with webhook
+receipt. Release selects only that operation's set, marks it durably and dispatches uniquely and
+resumably after commit; existing pending/review messages are never swept. Reopening ingress and
+draining its outbox must be separately observable and retry-safe.
+
+**Proof required:** cover a pre-existing held pending email, arrivals during the closed window,
+duplicate webhook delivery, failure after N dispatches, crash after reopening but before dispatch,
+retry and sequential import windows. Each deferred message processes once, ordinary pending rows do
+not move, and the operation cannot close until its outbox reconciles exactly.
+
+### 2026-08-08 — F57: “exact audit” can close an incomplete or unrelated operation
+
+**State: open; G8 exact-closeout blocker; continuation-audit finding.**
+
+`AuditChurchServiceConvergenceCommand` makes Bundle A optional, and the auditor simply skips media
+checks when it is absent. With `--operation-id`, any nonblank value is written to the ledger without
+resolving the prepared/applied operation or checking its Bundle A/Bundle B hashes and target. The
+command also appends a passed `exact_audit` ledger sample before validating, encoding and writing
+the report. An unwritable report can therefore return failure while the ledger claims that the
+operation passed; a canonical-only Bundle B audit can masquerade as full promotion closeout.
+
+**Required outcome:** operation-closeout mode requires both exact bundles and resolves a prepared,
+applied ledger operation whose operation ID, target, bundle hashes and fingerprints match. Write the
+report atomically, hash it and verify its durable location first; only then append a passed closeout
+event referencing that digest. A routine canonical-only audit remains available but can never write
+an operation closeout.
+
+**Proof required:** missing Bundle A plus operation ID, arbitrary/mismatched operation, wrong target,
+corrupt/missing asset and report-write failure all produce no passed ledger event. The green event
+binds the applied operation, both bundle hashes, target/fingerprint and durable report digest, and a
+later audit verifies that report before accepting G8.
+
+### 2026-08-08 — F58: the production-window budget omits and misclassifies the no-op rerun
+
+**State: open; G6/G7 capacity blocker; continuation-audit finding.**
+
+The audit command describes its closeout reserve as exact audit plus the mandatory full no-op rerun,
+but records only `exact_audit`. Every already-present service in the rerun is instead recorded as an
+ordinary `service_completed` sample, and `HistoricPromotionMeasurements` includes those samples in
+apply throughput. That distorts apply p95 downward while the sequential audit-plus-rerun time is not
+reserved at all. A deadline derived from these measurements can admit another mutation batch without
+enough time to execute the required closeout or rollback decision.
+
+**Required outcome:** add an explicit batch-level exact-no-op closeout event with operation/bundle
+binding, duration and exact result. Exclude `already_present` reruns from mutation/apply samples and
+services-applied counts. Budget the sequential combined exact audit and full no-op rerun using a
+measured conservative bound before admitting the next production checkpoint.
+
+**Proof required:** no-op services never enter apply measurements; a complete exact batch rerun is
+counted once in closeout; partial, changed or non-no-op reruns fail; budget tests use audit plus rerun
+and leave the accepted rollback reserve.
+
+### 2026-08-08 — F59: Bundle A can lose Scripture Passage linkage
+
+**State: open; G4/G5/G8 normal-output completeness blocker; continuation-audit finding.**
+
+Sermon AI processing dispatches scripture enrichment independently of the main chain. Historic
+throughput/readiness does not track that job to settlement. Bundle A carries a reference and the
+derived scripture-filter index, but intentionally excludes `scripture_passage_id` and carries no
+portable passage natural key/content/outcome; its production persister does not relink it. A sermon
+that had a working “Read passage” relationship after definitive processing can therefore be
+exported before enrichment finishes or imported without that public relationship. Existing sermon
+promotion code already demonstrates that a natural reference can be remapped across different
+database IDs, so this is a missing historic-output contract rather than unavoidable PK portability.
+
+**Required outcome:** choose and document a portable natural-key/re-fetch policy. Track enrichment
+lineage and terminal outcome in historic readiness, carry the expected passage identity/outcome in
+Bundle A, then deterministically relink an existing production passage or perform an idempotent,
+tracked enrichment. Exact audit verifies the link or the approved terminal absence reason.
+
+**Proof required:** pending/failed enrichment blocks export unless it has an explicitly approved
+terminal outcome; an existing passage remaps across deliberately different IDs; absent/API-disabled/
+budget/not-found results follow the approved policy; closeout catches missing/wrong relationships and
+the public “Read passage” journey is preserved.
+
+### 2026-08-08 — continuation coverage record
+
+The continuation inspected the remaining code paths to exhaustion. The following checks produced no
+additional finding distinct from F29-F59; this is positive scoping evidence, not evidence that the
+open gates have passed:
+
+- anonymous sermon/service routes, APIs, route-model binding, feeds, sitemap, taxonomy/count pages,
+  JSON-LD, caches and direct audio/video/transcript/thumbnail/storage URLs all reinforce F29; no
+  separate push, newsletter, websocket, search-index or import-time analytics fanout was found;
+- authenticated/verified song and member screens remain within accepted F42, and the checked admin
+  routes, middleware, policies and service APIs introduced no separate import-specific boundary;
+- OoS direct/evaluate/export/stage/apply, OpenLP plan/apply, historic video single/concat/timeout/
+  resume, the full queue graph, Bundle A/B, convergence, audit and no-op branches are represented by
+  F30-F35, F38-F41 and F48-F59; queue retry-after exceeds the scanned worker/job timeouts and the
+  required historic queues have configured supervisors;
+- song soft-delete/restoration and slug lookup include deleted records where needed, song sync is
+  transactional, pivot rows are deduplicated, multiple same-day sermons appear intentional, and the
+  source-lineage one-successor constraint exists; none closes F44's separate same-day service issue;
+- no further static production-volume, Redis AOF, timeout-ordering or scheduler-ingress defect was
+  found beyond F35/F45-F47/F56.
+
+This was a static, read-only investigation: no importer, extractor, mutation or test suite was run.
+The drive is unmounted, so actual corpus membership, bytes, links, permissions, filesystem health,
+mount portability and capacity remain unverified. Production DB/schema/data, object versioning,
+bucket contents, queue/workers, resolved config/secrets, provider quotas/API availability, backup
+restore and live report/journal durability likewise require the gated production audit and
+production-shaped rehearsal. These are explicit evidence dependencies, not unchecked code areas.
+
+## 4. Required sequence and remaining workstreams
+
+This is the dependency order. A later phase must not be used to discover whether an earlier gate
+was actually met.
+
+| Phase | May start when | Exit evidence |
+|---|---|---|
+| 0. Decide and design | Now; no corpus access | F1 and all business decisions have named owners; F29-F59 have accepted designs and testable acceptance criteria |
+| 1. Harden code/runtime | Phase 0 decisions affecting schemas/contracts are made | Required fixes pass focused/full quality gates; operation artifacts and runtime are version-pinned |
+| 2. Acquire and curate | F36 protocol, capacity, protected copies and malware tooling are ready | Signed whole-drive inventory; original protected; approved OpenLP/OoS/video manifests with zero unaccounted paths |
+| 3. Definitive local processing | F31-F39, F47-F50, F52-F55 and F59 are green; manifests are approved | Every checkpoint exact-complete; output/cost/capacity ledgers reconcile; no unresolved live/timed-out work |
+| 4. Production-shaped rehearsal | G1-G5 plus clean different-PK environment | Exact Bundle A/B apply, audit, complete no-op rerun, crash/resume, restore/rollback and public/private smoke all pass |
+| 5. Production apply | G6/G7 accepted; every open F29-F59 finding green; command-exact runbook approved | One mutation pass, exact audit/no-op closeout, recovery evidence retained, no audience expansion |
+| 6. Editorial follow-up | Exact import accepted | Titles/occasions and ordinary corrections improve without re-importing or changing source provenance |
+
+### A. Close the known engineering and data gates
+
+**The phase table above governs ordering.** Each item below names the earliest phase its finding
+must be green for; where the two could be read differently, the table wins. An item that also
+appears in a later phase's work is doing implementation there, not relaxing its gate.
+
+1. Decide F1 using the remediation plan's preferred reconciliation rule: 391 manifest identities
+   form the baseline, every additional staged service must be traced to a hash-covered
+   `service_beyond_manifest` result, and unexplained extra or missing services fail closed.
+2. Implement PR26 with red-to-green gate, command and end-to-end census tests.
+3. Fix F30 before any Email staging or proposal census, with direct-import and portable-bundle
+   lineage tests. Re-approve the assertion/bundle contract and invalidate any rehearsal Email
+   evidence produced before the fix.
+4. Fix F31-F39, F47-F50, F52-F55 and F59 before definitive local processing (phase 3), because each
+   one can corrupt or misattribute output that is never recomputed: exact apply-time byte
+   verification and post-copy/output hashes; complete/fail-closed outcomes; genuinely portable
+   bundles; private artifacts; persistent staging/journal/transfer; strict manifests; crash-safe
+   checkpoints; nested-job readiness; complete environment/fingerprint/cost binding; isolated
+   historic notifications; exact batch/source membership certification; exact input/batch/
+   fingerprint provenance on unchanged normalized content; one canonical source-key identity; and
+   settled Scripture Passage enrichment before any Bundle A export.
+5. Fix F40-F41 and F51 before convergence rehearsal (phase 4): preserve Manual final authority,
+   make apply event-quiet with every derived write bounded and audited, and rebind/reclassify each
+   service under lock while enforcing the measured window split.
+6. Fix F56 before production-shaped operations: make ingress deferral/release operation-scoped,
+   durable and exactly resumable. F52's notification isolation is required earlier, at item 4.
+7. Add F57-F59 to a single operation closeout command/report which fails unless every approved source item,
+   checkpoint, source revision, review decision, staged asset, promoted object and canonical result
+   has one exact acceptable disposition. It must reconcile Email/OpenLP/video/Bundle A/Bundle B and
+   the operation journal, require the exact media and canonical bundles, settle/relink Scripture
+   Passage enrichment, and reserve/measure the complete exact audit plus no-op rerun rather than
+   trusting the exit code of an individual command.
+8. Configure the approval-gated production audit environment, run the counts-only evidence and
+   lineage audits, retain their run identifiers, and decide whether unevidenced current-era
+   services are backfilled, explicitly accepted as legacy, or excluded from exact re-projection.
+9. Provision a clean, production-shaped rehearsal database with deliberately different primary
+   keys and a documented refresh/reset procedure. Do not use the contaminated working database and
+   do not use `--accept-unevidenced-items` merely to get past the guard.
+10. Complete the mounted-drive OpenLP and video inventories and approve the final immutable manifests
+   before any bulk processing.
+11. Run focused tests, PHPStan, Pint and the full parallel suite for each release candidate. Run
+    Dusk/read-side tests for the unchanged visibility boundary and editorial corrections.
+12. Run the full remediation-plan rehearsal, including census convergence, calibration, checkpointed
+   media processing, residual review, linked Bundle A/B export, different-PK import, exact audit,
+   complete second no-op run, backup restore and apply/rollback repetition.
+
+### B. Preserve the existing visibility boundary and source facts
+
+The maintainer's decision is that this is a backfill of existing material under existing access and
+processing arrangements. It does not trigger a fresh rights, consent, licensing, DPIA or membership
+review. Those topics are not import gates.
+
+1. Implement and prove F29 as an **audience-preservation** control. Imported material must not be
+   reachable by a broader audience than the equivalent existing material through page, feed,
+   sitemap, controller, object URL or CDN cache. It may be quarantined until the exact audit and then
+   assigned the already-accepted existing visibility; this is not a new publication approval.
+2. Record the accepted F42 verified-email audience and F43 existing external-processing arrangement
+   in the operation artifact so later operators do not reopen them or accidentally configure a
+   different audience/provider.
+3. Resolve F44's same-day special-service collision before manifest approval and preserve known
+   title/occasion/speaker/scripture/series facts through the one-time import. Presentation cleanup
+   can happen afterwards because it does not require source reprocessing.
+4. Prove that corrections/unpublishing supported by the existing application remain possible without
+   deleting import provenance or rerunning the corpus.
+
+### C. Replace the stale runbook with an executable one-operation specification
+
+1. Rewrite the sole production runbook from the actual command signatures and current G2-G9 plus
+   F29-F59 gates. Delete obsolete fixed counts, mandatory-Manual assumptions and commands missing
+   current operation ID/expiry arguments.
+2. Include exact commands, arguments, artifact paths, expected output/exit code, operator, witness,
+   evidence captured, abort condition and rollback action for every step.
+3. Remove superseded fixed counts and Manual-review assumptions; all counts come from the approved
+   manifests and reconciliations.
+4. Include T-minus preparation, source/staging transfer, backups and restore proof, ingress/admin/
+   deploy freeze, queue/scheduler snapshots, per-checkpoint admission, monitoring cadence, crash/
+   restart/resume, exact audit, no-op closeout, release and evidence retention.
+5. Make the batch/manifest/operation/deploy/config/fingerprint relationship explicit. No value is
+   reconstructed during the production window. Every path shown must be the path visible in the
+   process/container that executes it.
+6. Include a decision tree for source/hash mismatch, low space, timeout/live work, failed job,
+   provider/rate/cost breach, DB/object failure, expired token, plan drift, concurrent edit and
+   missed deadline. State which cases stop, resume, compensate or restore; never improvise.
+7. Have a second operator walk through it, then rehearse the document verbatim with timings and
+   screenshots/reports. Any prompt-time improvisation or undocumented command makes the
+   runbook unapproved and returns the operation to rehearsal.
+
+### D. Source acquisition, custody and preservation
+
+1. Write the F36 acquisition procedure and capacity plan before connecting the drive. Name the
+   custodian, witness, evidence locations and disposition for a failing/unreadable source.
+2. Connect only for read-only acquisition: identify the physical device and filesystem; record
+   health/read errors; prove the original is non-writable/non-executable; make and independently
+   verify two protected copies. Never point an importer at the original.
+3. Produce a whole-filesystem inventory, not an importer extension-filter inventory. Every regular,
+   hidden, unsupported, sidecar, directory, symlink/alias/hard link and read error receives an
+   explicit, signed disposition. Preserve raw path bytes/Unicode form and detect case/normalization
+   collisions.
+4. Malware-scan in isolation. Preserve an untouched evidence image/copy and generate a separately
+   hashed working tree; materialize approved symlinks only in that working tree with a signed map.
+5. Build strict source manifests from the complete inventory, adjudicate every include/exclude/
+   duplicate/correction/identity collision, obtain two-person approval and freeze them. Bind the
+   working-copy/drive identity into the operation context.
+6. After processing, keep the original and both protected copies read-only until exact production
+   acceptance plus the rollback/takedown observation window. Record when and by whom they may later
+   be deleted or returned.
+
+### E. Capacity, cost, observability and production recovery
+
+1. Build F47's pinned durable local runtime and F35's persistent private staging/journal/transfer.
+   Prove source-before-copy, destination-after-copy and final durable-output hashes.
+2. Calibrate a stratified sample under the exact definitive runtime: short/long, single/concat,
+   lossless/re-encode, old/new codec/resolution, low quality, multiple services, children/special,
+   existing-production collision and known failure. Measure p50/p95/max per stage, source/temp/final
+   bytes, DB growth, CPU/RAM/GPU, API calls/tokens/minutes/cost and human review time.
+3. Forecast every checkpoint and total operation with at least the approved contingency. Reserve
+   source working-copy space, worst-case simultaneous temp/concat/output/staging, DB/index/log/backup
+   growth and rollback copy. Define warning/stop thresholds before work starts.
+4. Use immutable checkpoint IDs/membership and the durable journal. After each accepted checkpoint,
+   reconcile elapsed/cost/capacity forecast, jobs/queues, output hashes, DB, staging and backup;
+   reforecast before admitting the next. Never continue past live timed-out work or a hard error.
+5. Implement F45 backups/restores and F46 binding/freeze/monitoring. Rehearse crash/torn-write,
+   provider outage/429, low disk, worker loss, DB restart, object-copy failure, deploy interruption,
+   mid-service compensation and full restore. Record achieved RPO/RTO and compare with the accepted
+   window.
+6. Create one immutable acceptance-evidence index: acquisition/inventory/manifests; code/schema/
+   config/binary/model/prompt fingerprints; checkpoint/cost ledgers; failed-job dispositions;
+   DB/object/staging backup and restore evidence; different-PK/no-op/restart/rollback results; G7/G8
+   approvals; every report; pause/release snapshots; public/admin smoke; exclusions. Encrypt,
+   checksum/sign and retain two independent copies with owner, retention and destruction date.
+
+### F. Content quality, identity and business acceptance
+
+1. Before bulk processing, define a blinded/hand-verified truth set stratified by era, source type,
+   quality/codec, morning/evening/special, single/concatenated, multi-service email, correction chain,
+   duplicate, existing-production collision, guest/preacher alias, children/talk, repeated song and
+   incomplete service. The single currently verified Email service is not representative.
+2. Set numeric acceptance thresholds *before* seeing results. Exact identity/hash/accounting,
+   supersession and visibility-boundary enforcement must be 100%; no source loss, wrong service or
+   broader-audience exposure is waivable. Set separate thresholds for item precision/recall/order, sermon/talk boundaries,
+   transcript quality, preacher/scripture/title/series extraction and song matching. Define the
+   sample size, confidence/strata, adjudicator and what happens below threshold.
+3. Run editorial QA for low-information/duplicate titles and slugs, special occasions, two same-day
+   `other` events, unknown speakers, scripture/series, planned-versus-actually-observed items,
+   incomplete recordings and conflicting sources. Never present a planned item as observed fact.
+4. Define the archive product acceptance journeys: browse by year/date/service/occasion; find by
+   preacher, scripture and song; distinguish complete/incomplete/planned-only history; open a
+   sermon/song from a service without a misleading auth bounce; understand private omissions;
+   request correction/takedown; and retain stable canonical URLs after edits.
+5. Verify responsive/keyboard/screen-reader behaviour, captions/transcript usability, meaningful
+   titles, no empty/duplicate search noise, feed/sitemap/cache correctness and honest 404/private
+   responses. Test the application's existing public, verified-email and operator audiences.
+6. Prove bulk writes do not send unintended notifications, flood feeds/sitemaps/search, trigger
+   analytics as new content, or expose hundreds of items at once. Release is a controlled editorial
+   batch with owner, rollback and observation period—not a side effect of import.
+
+## 5. Decisions required from the maintainer or church
+
+| Decision | Owner | Needed by | Default if undecided |
+|---|---|---|---|
+| F1 explained-excess corpus reconciliation | Maintainer | G2 / PR26 | No-go |
+| Disposition of production services with canonical items but no retained evidence | Maintainer | Current-era rehearsal/G7 | No-go |
+| Exact existing visibility assigned to imported sermons/assets | Maintainer | Before production rehearsal because of F29 | No broader audience/no-go |
+| Existing verified-email audience and existing external-model arrangement | Maintainer | **Decided 2026-08-08; accepted as-is (F42/F43)** | Accepted/non-blocking |
+| Same-day special-service identity and retained occasion/title facts | Maintainer + editorial owner | Before final manifests (F44) | Unresolved items excluded/no-go |
+| Scripture Passage remap/refetch and approved terminal-absence policy | Maintainer + editorial owner | Before Bundle A contract freeze (F59) | No export/no-go |
+| Final include/exclude/duplicate/identity decisions in OpenLP/video manifests | Maintainer | G1/G5 | Exclude/unresolved; no processing |
+| Accepted accuracy threshold and treatment below it | Church governance + maintainer | Calibration/G7 | Private |
+| Maximum local checkpoint, production ingress window, split and rollback thresholds | Maintainer/operator | Before calibration/G7 | No-go |
+| Backup/object rollback design, RPO/RTO and retention window | Maintainer/operator | Before G5/G8 | No-go |
+| Production deploy/admin/config freeze and approval protection | Maintainer/operator | Before G8 | No-go until explicit decision |
+| Evidence retention and source-drive custody duration | Maintainer/operator | Before acquisition | Retain securely; no destruction |
+
+## 6. Final go/no-go checklist
+
+This is the final checklist for the investigation. No single person may waive a failed technical
+invariant during the production window.
+
+- [ ] F1 decided, PR26 implemented, and G2 certified against all declared source kinds.
+- [ ] F30 manifest-authorised Email supersession produces one exact active lineage through direct
+      import and portable bundle apply.
+- [ ] F31 re-verifies each approved video source immediately before reading/dispatch and fails with
+      zero downstream state on any change; copied and final outputs are hash-verified.
+- [ ] F32's per-source and whole-operation closeout accounts for every approved item; no failure,
+      held/unresolved item, ad-hoc subset or generic existence skip can report success.
+- [ ] F33 bundle apply is genuinely portable without raw email bodies in production, or a changed
+      operational design explicitly supplies and cleans up the corpus.
+- [ ] F34 artifacts are atomically created in a private `0700` root as `0600`, encrypted/redacted
+      and protected against symlink/tamper/pre-existing-file cases.
+- [ ] F35 persistent staging, asset transfer and crash-safe operation journal survive restart,
+      redeploy and every rehearsed transaction boundary.
+- [ ] F36 whole-drive acquisition produces two verified protected copies and a signed, complete
+      inventory with every path/read error explicitly disposed.
+- [ ] F37 strict OpenLP/OoS/video manifests reject unknown schema, invalid authority, bad dates,
+      nonidentical/cyclic duplicates and all unaccounted files.
+- [ ] F38 immutable checkpoints stop on anomalies, never exceed concurrency after timeout, and wait
+      for every nested job before declaring durable readiness; remounting the same manifest cannot
+      change deduplication identity.
+- [ ] F39 exact non-mock providers, environment, binaries, prompts/algorithms/config and cost controls
+      are fingerprinted, preflighted and bound to every checkpoint/resume.
+- [ ] F40 preserves Manual final authority; F41 rebinds each service under lock and enforces the
+      accepted time/rollback reserve.
+- [ ] Production evidence audit succeeded and the current-era disposition is implemented/rehearsed.
+- [ ] F29 whole-content quarantine covers every read, feed, index and direct asset surface.
+- [x] F42 existing verified-email audience accepted by maintainer; no new membership model required.
+- [x] F43 existing external-model processing arrangement accepted; no new rights/DPIA gate required.
+- [ ] F44 special-service identity and title/occasion handling preserve all curated source facts.
+- [ ] Source drive protocol, complete inventories and immutable approved manifests are signed off.
+- [ ] F45 exact DB/object/staging/journal backup was restored successfully; compensation and full
+      rollback/re-apply were timed and met accepted RPO/RTO; conditional object creation/cleanup
+      cannot overwrite or delete a foreign concurrent version.
+- [ ] F46 operation binding, deploy/admin/config freeze, alerting/watchboard and two-person control
+      passed rehearsal; F47 durable local runtime passed forced-crash recovery.
+- [ ] F48 every OoS invocation selects exactly one explicit mode before any read, extraction or
+      mutation; conflicting/missing modes and ad-hoc definitive subsets fail with zero effects.
+- [ ] F49/F50 bind OoS and OpenLP parsing, provenance and mutation to one immutable byte snapshot
+      whose observed hash equals the approved manifest hash.
+- [ ] F51 convergence emits no model/domain events or after-commit authoritative work; every derived
+      write is bounded, transactional and audited, with no change to unrelated rows.
+- [ ] F52 historic success/review/failure paths produce no external notification while retaining
+      durable private alert facts; ordinary current processing still alerts.
+- [ ] F53 certifies exact source-item/batch membership rather than global counts; F54 records the
+      exact input/batch/fingerprint provenance even when normalized content is unchanged; F55 uses
+      one source-key identity in PHP, bundles and MySQL.
+- [ ] F56 ingress release drains only the operation-scoped deferred outbox exactly once and never
+      sweeps the ordinary pending/review inbox.
+- [ ] F57 closeout requires and binds both exact bundles, the applied operation and a durable report
+      digest; no passed event can predate or outlive its report.
+- [ ] F58 apply timings exclude no-ops and the accepted window reserves the measured full exact
+      audit plus complete no-op rerun and rollback floor.
+- [ ] F59 settles Scripture Passage enrichment before Bundle A export and portably relinks or
+      records the approved terminal absence; exact audit and the public journey prove it.
+- [ ] Clean production-shaped full rehearsal, exact audit, full no-op rerun and restore/rollback
+      repetition all pass on the release candidate.
+- [ ] Measured throughput, cost, capacity and production-window/rollback budgets are accepted.
+- [ ] Command-exact production runbook was executed verbatim in rehearsal and independently checked.
+- [ ] Private batch ledger contains every manifest, hash, fingerprint, approval, backup, report and
+      run identifier, with no secrets or inappropriate personal data.
+- [ ] G3-G8 are evidenced on the exact release and operation; production approval is time-bounded and
+      names that operation.
+- [ ] Named operator, witness, incident decision-maker, pastoral/content owner and takedown owner are
+      available for the window and closeout.
+- [ ] Editorial truth-set thresholds and all user journeys pass; import does not broaden the
+      audience beyond the existing accepted visibility.
+
+## 7. Out of scope for this investigation
+
+- Running an importer, extractor, media processor or production mutation.
+- Connecting or mounting the CBC drive.
+- Changing application code, configuration, dependencies or infrastructure.
+- Treating later cleanup/one-shot deletion as import readiness; cleanup remains gated by G9.

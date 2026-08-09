@@ -115,8 +115,8 @@
 >
 > This is the **single implementation plan of record** discovered by the 2026-07-31 readiness
 > audit. It consolidates and preserves the goals and ownership boundary of
-> [Historic Media Acquisition and Result Promotion](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
-> and [R8 Data Convergence Correctness](R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md), but
+> [Historic Media Acquisition and Result Promotion](../archived-plans/HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
+> and [R8 Data Convergence Correctness](../archived-plans/R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md), but
 > supersedes their work-package numbering, implementation-readiness claims and implementation
 > sequence. Those documents are retained as decision records and detailed prior art only; do not
 > execute their HM/R8 work packages independently. Historic-media concepts still own
@@ -1622,7 +1622,7 @@ different durable media output?** It must therefore pin only the inputs that det
 - source file hashes.
 
 It must **not** pin the git commit, and the predecessor plan's wording that it "pins the git commit"
-([historic plan, invariant 4](HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)) is superseded
+([historic plan, invariant 4](../archived-plans/HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)) is superseded
 here. A commit-scoped fingerprint changes when the projector, review UI, bundle exporter or any
 unrelated code changes, which would mark correctly-processed media stale and force reprocessing for
 a change that cannot affect it. Under the §9.4 loop — which iterates the projector deliberately and
