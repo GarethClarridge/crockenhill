@@ -11,6 +11,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
+use App\Models\SongUsageReport;
 use App\Services\Public\PublicSongUsageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -52,6 +53,50 @@ class PublicSongUsageServiceTest extends TestCase
             'usage_count' => 2,
             'last_sung_date' => '2025-03-09',
         ], $this->service->statsForSong($song));
+    }
+
+    #[Test]
+    public function it_includes_unresolved_date_only_reports_without_inventing_a_service(): void
+    {
+        $song = Song::factory()->create();
+        SongUsageReport::factory()->create([
+            'song_id' => $song->id,
+            'used_on' => '2007-06-17',
+            'reported_service' => null,
+            'reported_title' => 'Historic title',
+        ]);
+
+        $this->assertSame([
+            'usage_count' => 1,
+            'last_sung_date' => '2007-06-17',
+        ], $this->service->statsForSong($song));
+
+        $occurrence = $this->service->usageHistoryForSong($song)->sole();
+
+        $this->assertSame('2007-06-17', $occurrence->date->toDateString());
+        $this->assertNull($occurrence->service);
+        $this->assertNull($occurrence->churchService);
+        $this->assertSame('Historic title', $occurrence->title);
+    }
+
+    #[Test]
+    public function it_does_not_double_count_a_report_resolved_to_a_canonical_item(): void
+    {
+        $song = Song::factory()->create();
+        $service = ChurchService::factory()->create(['date' => '2007-06-17']);
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'song_id' => $song->id,
+            'type' => 'songs',
+        ]);
+        SongUsageReport::factory()->create([
+            'song_id' => $song->id,
+            'used_on' => '2007-06-17',
+            'resolved_church_service_item_id' => $item->id,
+        ]);
+
+        $this->assertSame(1, $this->service->statsForSong($song)['usage_count']);
+        $this->assertCount(1, $this->service->usageHistoryForSong($song));
     }
 
     #[Test]
@@ -128,7 +173,7 @@ class PublicSongUsageServiceTest extends TestCase
         ]);
 
         $this->assertSame(1, $this->service->statsForSong($song)['usage_count']);
-        $this->assertSame([$item->id], $this->service->usageHistoryForSong($song)->modelKeys());
+        $this->assertSame([$item->id], $this->service->usageHistoryForSong($song)->pluck('sourceId')->all());
     }
 
     #[Test]
@@ -152,7 +197,7 @@ class PublicSongUsageServiceTest extends TestCase
         ]);
 
         $this->assertSame(1, $this->service->statsForSong($song)['usage_count']);
-        $this->assertSame([$item->id], $this->service->usageHistoryForSong($song)->modelKeys());
+        $this->assertSame([$item->id], $this->service->usageHistoryForSong($song)->pluck('sourceId')->all());
     }
 
     /** @return array<string, array{string, string}> */

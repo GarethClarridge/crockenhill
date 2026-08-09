@@ -1,6 +1,6 @@
 # Historic Archive Final Import Readiness Plan
 
-> **Status (investigation complete, including the 2026-08-08 continuation): NO-GO. Do not connect
+> **Status (investigation complete through 2026-08-08; expanded Email corpus re-inventoried 2026-08-09): NO-GO. Do not connect
 > the archive drive for an
 > import run and do not perform any production historic mutation.** Connecting it read-only for the
 > inventory work described here is not the import run, but even that should wait until the source-
@@ -37,6 +37,14 @@ gate the sermon archive, podcast, sitemap, or ordinary sermon audio/transcript d
 contradicts the governing business assumption that import must not expand the audience; with the
 current read paths, production import can itself publish.
 
+The 2026-08-09 local Email inventory also superseded the old data authority: the approved
+404-entry manifest still claims 402 verbatim files, while the roots now contain 533 verbatim and
+261 formatted files, leaving 131 non-empty verbatim files unaccounted for. The current
+reconciliation target is 535 root-level manifest entries (259 paired, 274 verbatim-only and 2
+formatted-only) before identity, exclusion, partial-order or supersession decisions. The old
+391-identity F1 baseline and its rehearsal measurements are historical; re-curation, replacement
+hashes and a new service-identity baseline must precede Email staging or F1.
+
 This verdict changes only when every item in the final go/no-go checklist is evidenced. A green
 test suite or a successful dry run is necessary but not sufficient.
 
@@ -68,8 +76,8 @@ No operator should assemble a sequence by combining steps from these documents a
   worktree at the start of this audit).
 - The remediation plan's header and definition of done confirm that the rehearsal has not started,
   G2-G9 are unclaimed, and most operation-level acceptance boxes remain open.
-- F1 remains open: the approved Email manifest yields 391 curated `(date, service)` identities, but
-  up to 35 documents may validly produce another service. The current integer
+- F1 was open at this baseline: the 2026-08-07 approved Email snapshot yielded 391 curated `(date, service)` identities, but
+  up to 35 documents in that historical snapshot may validly produce another service. The current integer
   `historic_corpus.expected_services` cannot reconcile that without the rule and PR26 described in
   remediation plan sections 9.4.6, 17 and 19.
 - The approval-gated production evidence audit has never reached production because the
@@ -80,6 +88,64 @@ No operator should assemble a sequence by combining steps from these documents a
 - The sole production runbook predates material changes in the remediation plan and is internally
   stale. It cannot be the authority for a once-only operation until rewritten and executed verbatim
   in rehearsal.
+
+### 2026-08-09 — manual current-era evidence measurement
+
+- The operator ran the read-only `audit:service-evidence-coverage --json --details` command directly
+  on production. It found 3 church services, no source records of any kind, 32 canonical items on
+  unevidenced services, and no proposals. The individual service IDs are deliberately not recorded
+  in this plan.
+- **Maintainer decision:** back-fill retained evidence for all three services. §12.4 current-era
+  re-projection remains blocked until the authoritative source material for each service has been
+  recovered and ingested through the normal source-revision path with provenance and hash coverage.
+  Do not infer or manufacture evidence from the existing canonical items. Then re-project and audit
+  the complete three-service corpus; exclusion and legacy acceptance are not permitted.
+- **Maintainer decision, 2026-08-09:** manual SSH audits are the accepted permanent operational
+  path. The `production-audit` environment does not need the three production credentials. Repeat
+  the read-only audit manually after the evidence back-fill and re-projection.
+
+### 2026-08-09 — expanded local Email corpus
+
+- The current local roots contain **533 non-empty `oos-verbatim` files** and **261 `oos` files**.
+  The previously approved manifest has **404 entries** and claims **402 verbatim files**, so **131
+  non-empty raw files are unmanifested**.
+- Reconciliation currently measures **259 paired**, **274 verbatim-only** and **2 formatted-only**
+  files, requiring **535 root-level manifest entries** before curation decisions. Every new file
+  still needs an explicit include/exclude decision with a reason where excluded.
+- The additions span **2014-08-31 through 2026-08-09**, mostly 2015–2021, and include current-era,
+  partial, revised and multi-service material. The historic/current operation boundary and
+  `(date, service)` identities therefore need to be re-established from the replacement manifest.
+- No import or dry run was performed. The old manifest/plan hashes and the old 391/219/391/56%
+  measurements remain historical evidence for the unchanged snapshot only; they are not valid
+  authority for the expanded roots.
+
+### 2026-08-09 — replacement Email authority and F1 decision
+
+- The expanded roots were reconciled and approved as 535 included entries: 259 paired, 274
+  verbatim-only and 2 formatted-only. All three current-era entries are included. The approved set
+  contains 521 distinct `(date, service)` identities and preserves all 404 prior decisions.
+- The promoted manifest validates with 0 identity disagreements. Manifest hash:
+  `928dccb5620fc3422d4c067ebc004a9ab4fbfebdf39a881d41baf8a250823e83`; plan hash:
+  `ebf486c1f5d0b927944c78af51ebf2976d557bbade2be9da0a70358a4418618a`.
+- **F1 decision:** certify the exact approved 521-identity baseline and allow additional identities
+  only where each is explicitly explained by `service_beyond_manifest`; unexplained excess fails.
+  F53 remains the implementation owner because global scalar counts cannot prove exact membership.
+
+### 2026-08-09 — date-only historic hymn usage
+
+- The reconciliation workbook contains 1,941 song/date statements without morning/evening service
+  identity. It also establishes that these rows are partial reported-sung evidence, not complete
+  service orders.
+- The application now has a separate `song_usage_reports` evidence path. It leaves the canonical
+  `(date, service)` identity and `SermonService` enum unchanged, displays `Service not recorded`,
+  and does not produce a public service URL for an ambiguous row.
+- The read-only command baseline against the current catalogue is exactly 1,941 rows: 1,867
+  catalogue-resolved and 74 retained unmatched. The exact rehearsal/apply/no-op/rollback commands
+  and abort counts are recorded in remediation plan §13.5 under “Date-only historic song usage
+  import”.
+- This implementation does **not** change the plan's NO-GO production verdict. The `--import` mode
+  remains subject to the production backup, deploy freeze, rehearsal, witness and approval gates;
+  a successful local dry run is not production authority.
 
 ### 2026-08-08 — continuation audit scope and completion
 
@@ -639,10 +705,11 @@ current active leaf, input hash, processing fingerprint and projection. Missing,
 batch and cross-batch evidence all fail; source-specific expected sets replace “count > 0” and the
 single global-count shortcut.
 
-**Proof required:** 391 complete Email identities plus 1 of 428 approved OpenLP entries fails;
-unrelated/current-era and prior-batch rows cannot help; the exact source-specific sets pass; stale
-input hash, active leaf or projection binding fails. Retain the complete item-level certification in
-the acceptance index.
+**Proof required:** the complete current approved Email identity set plus one approved OpenLP entry
+fails; unrelated/current-era and prior-batch rows cannot help; the exact source-specific sets pass;
+stale input hash, active leaf or projection binding fails. The historical regression used 391 Email
+identities and 428 OpenLP entries; those counts are not the current Email authority. Retain the
+complete item-level certification in the acceptance index.
 
 ### 2026-08-08 — F54: normalized-content no-op can reuse stale immutable provenance
 
@@ -794,8 +861,10 @@ open gates have passed:
   found beyond F35/F45-F47/F56.
 
 This was a static, read-only investigation: no importer, extractor, mutation or test suite was run.
-The drive is unmounted, so actual corpus membership, bytes, links, permissions, filesystem health,
-mount portability and capacity remain unverified. Production DB/schema/data, object versioning,
+The drive is unmounted, so OpenLP/video corpus membership, bytes, links, permissions, filesystem
+health, mount portability and capacity remain unverified. The Email roots have now been measured
+locally, but the replacement manifest and approval are still outstanding. Production DB/schema/data,
+object versioning,
 bucket contents, queue/workers, resolved config/secrets, provider quotas/API availability, backup
 restore and live report/journal durability likewise require the gated production audit and
 production-shaped rehearsal. These are explicit evidence dependencies, not unchecked code areas.
@@ -809,7 +878,7 @@ was actually met.
 |---|---|---|
 | 0. Decide and design | Now; no corpus access | F1 and all business decisions have named owners; F29-F59 have accepted designs and testable acceptance criteria |
 | 1. Harden code/runtime | Phase 0 decisions affecting schemas/contracts are made | Required fixes pass focused/full quality gates; operation artifacts and runtime are version-pinned |
-| 2. Acquire and curate | F36 protocol, capacity, protected copies and malware tooling are ready | Signed whole-drive inventory; original protected; approved OpenLP/OoS/video manifests with zero unaccounted paths |
+| 2. Acquire and curate | F36 protocol, capacity, protected copies and malware tooling are ready | Signed whole-drive inventory; original protected; approved OpenLP/OoS/video manifests with zero unaccounted paths, including the current 533/261 Email inventory |
 | 3. Definitive local processing | F31-F39, F47-F50, F52-F55 and F59 are green; manifests are approved | Every checkpoint exact-complete; output/cost/capacity ledgers reconcile; no unresolved live/timed-out work |
 | 4. Production-shaped rehearsal | G1-G5 plus clean different-PK environment | Exact Bundle A/B apply, audit, complete no-op rerun, crash/resume, restore/rollback and public/private smoke all pass |
 | 5. Production apply | G6/G7 accepted; every open F29-F59 finding green; command-exact runbook approved | One mutation pass, exact audit/no-op closeout, recovery evidence retained, no audience expansion |
@@ -821,10 +890,12 @@ was actually met.
 must be green for; where the two could be read differently, the table wins. An item that also
 appears in a later phase's work is doing implementation there, not relaxing its gate.
 
-1. Decide F1 using the remediation plan's preferred reconciliation rule: 391 manifest identities
-   form the baseline, every additional staged service must be traced to a hash-covered
-   `service_beyond_manifest` result, and unexplained extra or missing services fail closed.
-2. Implement PR26 with red-to-green gate, command and end-to-end census tests.
+1. ~~Re-inventory and re-curate the expanded local Email roots, then decide F1.~~ **Done
+   2026-08-09:** the approved replacement has 535 included entries and 521 identities, including
+   the three current-era entries. F1 uses that exact set and permits only hash-covered
+   `service_beyond_manifest` identities; unexplained extra or missing services fail closed.
+2. Implement PR26 as part of F53 exact per-batch/per-source membership, with red-to-green gate,
+   command and end-to-end census tests. Do not add a scalar-only exception.
 3. Fix F30 before any Email staging or proposal census, with direct-import and portable-bundle
    lineage tests. Re-approve the assertion/bundle contract and invalidate any rehearsal Email
    evidence produced before the fix.
@@ -1010,6 +1081,9 @@ invariant during the production window.
       inventory with every path/read error explicitly disposed.
 - [ ] F37 strict OpenLP/OoS/video manifests reject unknown schema, invalid authority, bad dates,
       nonidentical/cyclic duplicates and all unaccounted files.
+- [x] Current Email roots are fully reconciled: 533 verbatim, 261 formatted, 259 paired, 274
+      verbatim-only and 2 formatted-only are represented by the approved replacement manifest and
+      hashes, with the current-era boundary and every include/exclude decision recorded.
 - [ ] F38 immutable checkpoints stop on anomalies, never exceed concurrency after timeout, and wait
       for every nested job before declaring durable readiness; remounting the same manifest cannot
       change deduplication identity.

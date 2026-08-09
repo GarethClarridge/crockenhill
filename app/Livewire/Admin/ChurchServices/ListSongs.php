@@ -8,10 +8,11 @@ use App\Enums\SermonService;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithSortableListing;
-use App\Models\ChurchServiceItem;
 use App\Models\Song;
+use App\Services\Song\SongUsageQuery;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -61,7 +62,7 @@ class ListSongs extends Component
         ];
     }
 
-    public function render(): View
+    public function render(SongUsageQuery $songUsageQuery): View
     {
         $this->sanitizeSorting();
         $this->computeHasFilters();
@@ -76,9 +77,9 @@ class ListSongs extends Component
         $escapedSearch = $this->escapeLike($search);
         $escapedCanonicalSearch = $this->escapeLike($canonicalSearch);
 
-        $usageSubQuery = $this->usageBaseQuery()->selectRaw('COUNT(*)');
-        $servicesCountSubQuery = $this->usageBaseQuery()->selectRaw('COUNT(DISTINCT church_service_items.church_service_id)');
-        $lastUsedDateSubQuery = $this->usageBaseQuery()->selectRaw('MAX(church_services.date)');
+        $usageSubQuery = $this->usageBaseQuery($songUsageQuery)->selectRaw('COUNT(*)');
+        $servicesCountSubQuery = $this->usageBaseQuery($songUsageQuery)->selectRaw('COUNT(DISTINCT service_identity)');
+        $lastUsedDateSubQuery = $this->usageBaseQuery($songUsageQuery)->selectRaw('MAX(used_on)');
 
         /**
          * Performance Optimization: Limits retrieved columns for songs and eager-loaded
@@ -111,27 +112,21 @@ class ListSongs extends Component
         ])->layout('layouts.admin', ['title' => 'Songs', 'heading' => 'Songs']);
     }
 
-    /**
-     * @return Builder<ChurchServiceItem>
-     */
-    private function usageBaseQuery(): Builder
+    private function usageBaseQuery(SongUsageQuery $songUsageQuery): QueryBuilder
     {
-        return ChurchServiceItem::query()
-            ->join('church_services', 'church_services.id', '=', 'church_service_items.church_service_id')
-            ->whereColumn('church_service_items.song_id', 'songs.id')
-            ->whereNull('church_service_items.deleted_at')
-            ->where('church_service_items.type', 'songs')
+        return $songUsageQuery->occurrences(publicOnly: false)
+            ->whereColumn('song_usage_occurrences.song_id', 'songs.id')
             ->when(
                 $this->serviceFilter !== null && $this->serviceFilter !== '',
-                fn (Builder $query): Builder => $query->where('church_services.service', $this->serviceFilter)
+                fn (QueryBuilder $query): QueryBuilder => $query->where('reported_service', $this->serviceFilter)
             )
             ->when(
                 $this->isIsoDate($this->dateFrom),
-                fn (Builder $query): Builder => $query->whereDate('church_services.date', '>=', (string) $this->dateFrom)
+                fn (QueryBuilder $query): QueryBuilder => $query->whereDate('used_on', '>=', (string) $this->dateFrom)
             )
             ->when(
                 $this->isIsoDate($this->dateTo),
-                fn (Builder $query): Builder => $query->whereDate('church_services.date', '<=', (string) $this->dateTo)
+                fn (QueryBuilder $query): QueryBuilder => $query->whereDate('used_on', '<=', (string) $this->dateTo)
             );
     }
 

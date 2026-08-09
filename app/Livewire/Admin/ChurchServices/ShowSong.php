@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\ChurchServices;
 
 use App\Livewire\Traits\WithAdminAuthorization;
-use App\Models\ChurchServiceItem;
 use App\Models\Song;
 use App\Models\SongVideo;
+use App\Services\Song\SongUsageQuery;
 use App\Services\Song\SongVideoService;
 use App\Traits\SanitizesLogData;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -30,24 +30,22 @@ class ShowSong extends Component
         ]);
     }
 
-    public function render(SongVideoService $songVideoService): View
+    public function render(SongVideoService $songVideoService, SongUsageQuery $songUsageQuery): View
     {
         $importMetadata = is_array($this->song->import_metadata ?? null) ? $this->song->import_metadata : [];
         $parseWarnings = is_array($importMetadata['lyrics_parse_warnings'] ?? null) ? $importMetadata['lyrics_parse_warnings'] : [];
         /** @var array<string, mixed> $stats */
-        $stats = (array) ($this->usageBaseQuery()
+        $stats = (array) ($this->usageBaseQuery($songUsageQuery)
             ->selectRaw('COUNT(*) AS usage_count')
-            ->selectRaw('MAX(church_services.date) AS last_used_date')
-            ->toBase()
+            ->selectRaw('MAX(used_on) AS last_used_date')
             ->first() ?? []);
 
         $usageCount = is_numeric($stats['usage_count'] ?? null) ? (int) $stats['usage_count'] : 0;
         $lastUsedDate = is_string($stats['last_used_date'] ?? null) ? $stats['last_used_date'] : null;
-        $usageByYear = $this->usageBaseQuery()
-            ->selectRaw('YEAR(church_services.date) AS year, COUNT(*) AS count')
-            ->groupByRaw('YEAR(church_services.date)')
-            ->orderByRaw('YEAR(church_services.date)')
-            ->toBase()
+        $usageByYear = $this->usageBaseQuery($songUsageQuery)
+            ->selectRaw('YEAR(used_on) AS year, COUNT(*) AS count')
+            ->groupByRaw('YEAR(used_on)')
+            ->orderByRaw('YEAR(used_on)')
             ->get()
             ->map(fn (object $row): array => ['year' => (int) $row->year, 'count' => (int) $row->count])
             ->values()
@@ -121,15 +119,9 @@ class ShowSong extends Component
         app(SongVideoService::class)->deleteVideo($video);
     }
 
-    /**
-     * @return Builder<ChurchServiceItem>
-     */
-    private function usageBaseQuery(): Builder
+    private function usageBaseQuery(SongUsageQuery $songUsageQuery): Builder
     {
-        return ChurchServiceItem::query()
-            ->join('church_services', 'church_services.id', '=', 'church_service_items.church_service_id')
-            ->where('church_service_items.song_id', $this->song->id)
-            ->where('church_service_items.type', 'songs')
-            ->whereNull('church_service_items.deleted_at');
+        return $songUsageQuery->occurrences(publicOnly: false)
+            ->where('song_id', $this->song->id);
     }
 }

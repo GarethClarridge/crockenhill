@@ -1,7 +1,8 @@
 # Plans index
 
-Last reconciled **2026-08-08** against the live code, including the final pre-import audit and its
-2026-08-08 continuation (F29–F59). Statuses were checked from the relevant classes, migrations,
+Last reconciled **2026-08-09** against the live code and the expanded local Email corpus, including
+the final pre-import audit and its 2026-08-08 continuation (F29–F59). Statuses were checked from the
+relevant classes, migrations,
 configuration, tests and repository history rather than inferred from commit messages. This
 directory holds only **active** plans; completed or superseded plans move to
 `docs/archived-plans/` with an archival header explaining what superseded them. Open audit findings
@@ -104,18 +105,37 @@ directory holds only **active** plans; completed or superseded plans move to
   the current public/CDN sermon paths can expose imported material more broadly than intended, so
   the exact existing visibility must be enforced before production apply.
 
-## Do these first
+## Amendment — 2026-08-09
 
-1. **Give `production-audit.yml` its credentials** (added 2026-08-07). Dispatched and approved that
-   day, it failed instantly with `missing server host`: the `PROD_HOST`/`PROD_USER`/`PROD_SSH_KEY`
-   secrets sit on the `production` environment while the workflow targets `production-audit`, which
-   has none — so **this audit has never successfully run**, including on 2026-07-25. Add the three
-   secrets to `production-audit` (values cannot be read back, so only the operator can). Then
-   dispatch `service-evidence-coverage`: its counts decide §12.4's two written branches, and locally
-   the same audit reports 0.2% non-Manual evidence coverage — if production resembles that, the
-   plan's unasked question (canonical items derived from no retained evidence) becomes the live one.
-2. **Decide readiness F1** — what `expected_services` reconciles. It blocks G2 and remediation
-   PR26, and no agent can settle it. See the remediation plan's §9.4.6 and §19.
+- **The local Email corpus expanded after the 2026-08-06 curation approval.** The current
+  `storage/scratch/oos-verbatim/` inventory has 533 non-empty markdown files, not the 402 recorded in
+  the approved snapshot. The existing `storage/scratch/oos/` root still has 261 files; the approved
+  manifest still has 404 entries and claims 402 verbatim files, leaving **131 raw files completely
+  unmanifested**. The new files span 2014-08-31 through 2026-08-09 and are not a recent-only tail:
+  most of the additions are from 2015–2021.
+- **The current Email reconciliation target is 533 verbatim, 261 formatted, 259 paired, 274
+  verbatim-only and 2 formatted-only, or 535 manifest entries before any identity, exclusion,
+  partial-order or supersession decisions.** The old 404-entry manifest and its hashes remain a
+  historical approval for the unchanged 2026-08-06 snapshot; they are not authority over the current
+  directory. The old hashes must not be quoted for a new dry run, bundle or import.
+- **Re-curation is now a drive-free gate before F1 or Email staging.** Every added file must be
+  explicitly included or excluded, the current-era 2026 material must be assigned to the correct
+  historic/current operation boundary, and the resulting manifest, service-identity baseline and
+  hashes must be approved. The CBC drive remains a dependency only for the OpenLP and historic-video
+  corpora.
+
+## Do these first — completed 2026-08-09
+
+1. **The expanded local Email corpus is re-inventoried, re-curated and approved.** The replacement
+   authority accounts for all 533 verbatim and 261 formatted files as 535 included entries: 259
+   paired, 274 verbatim-only and 2 formatted-only. The maintainer explicitly included the three
+   current-era entries. It preserves all 404 prior decisions, has 0 identity disagreements and
+   yields 521 distinct `(date, service)` identities. Manifest hash: `928dccb5…823e83`; plan hash:
+   `ebf486c1…18618a`.
+2. **Readiness F1 is decided.** The approved 521-identity set is the baseline; additional staged
+   services are permitted only when each is explicitly explained by `service_beyond_manifest`, and
+   unexplained excess fails closed. Implementation must land with F53's exact per-batch/per-source
+   membership certification; a scalar count exception would retain F53's unrelated-evidence bug.
 
 Everything else is a project, not a one-sitting fix — including the historic import itself.
 
@@ -187,10 +207,10 @@ the unrelated active plans.
 
 ## Active plans, in recommended implementation order
 
-| # | Plan | Status (verified 2026-08-08) | Why here |
+| # | Plan | Status (verified 2026-08-09) | Why here |
 |---|---|---|---|
-| Gate 0 | [HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md](HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md) | **NO-GO.** F29–F59 add 31 verified findings; F42/F43 are accepted and non-blocking, leaving 29 open gates. No drive-import or production mutation is authorised. | Top-level authority for the complete one-time operation. Work its phases in order: acquisition protocol before any drive connection; implementation and integrity gates before definitive processing; then a restored, different-PK production-shaped rehearsal and command-exact runbook before production. |
-| Gate 1 | [HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md) | **PRs 1–17 and 21–25, 27 and 28 merged; WP0–WP8 landed.** G2–G9 remain unclaimed and the rehearsal (§13.5 steps 3–15) has not started. **PR26** is the only *scheduled* PR left and is blocked on the F1 `expected_services` decision; PR18/PR19 are rehearsal and production-operation contingencies sized only if the rehearsal proves them necessary, and PR20 is gated on G9. | Supporting implementation record for the contracts, G0–G9, Bundle A/B semantics, projector/review work and rehearsal loop preserved by Gate 0. It is still active, but no longer the complete go/no-go authority. |
+| Gate 0 | [HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md](HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md) | **NO-GO.** F29–F59 add 31 verified findings; F42/F43 are accepted and non-blocking, leaving 29 open gates. The expanded Email inventory adds a further unaccounted-source gate. No drive-import or production mutation is authorised. | Top-level authority for the complete one-time operation. Work its phases in order: acquire and approve the complete Email/OpenLP/video manifests; then close implementation and integrity gates; then run the restored, different-PK production-shaped rehearsal and command-exact runbook before production. |
+| Gate 1 | [HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md) | **PRs 1–17 and 21–25, 27 and 28 merged; WP0–WP8 landed.** G2–G9 remain unclaimed and the rehearsal (§13.5 steps 3–15) has not started. The expanded 535-entry Email authority and F1 rule were approved 2026-08-09; PR26 implementation is joined to final-readiness F53's exact membership work. | Supporting implementation record for the contracts, G0–G9, Bundle A/B semantics, projector/review work and rehearsal loop preserved by Gate 0. It is still active, but no longer the complete go/no-go authority. |
 | 2 | [SENTRY-ERROR-TRACKING.md](SENTRY-ERROR-TRACKING.md) | Not started; no dependencies; **not installed** (no `sentry/sentry-laravel` in `composer.json`) | Its original motivation — land before the `SERVICE_STRUCTURE_MODE` flip — is spent; the flip happened 2026-07-19. Its **new** motivation is the long, unattended, irreversible-in-practice production bundle apply. Land it before readiness Gate G8, not after |
 | 3 | [CODE-QUALITY-REMEDIATION-2026-07-19.md](CODE-QUALITY-REMEDIATION-2026-07-19.md) | **WP2.1 + WP6.1 done 2026-07-24**; rest not started; **WP7's gate is now released** | WP2.1 (the `#[Computed]` perf fix) and its WP6.1 query-duplication guard have landed — remaining WP2 items are 2.2–2.8, and WP6.2's structural test is still open. WP1 is now routine drift (its CVE premise was a stale local vendor tree — the lock has carried medialibrary 11.23.1 since 2026-07-03). WP2/WP3/WP6 any time; WP4 as maintainer answers arrive; WP5 rides R8; **WP7 (PHPStan level 9, ~800 errors, `phpstan.neon` still at `level: 8`) is unblocked now that R9–R11 have merged** — only Q4 sign-off stands in front of it |
 | 4 | [SERVICE-WORKBENCH-REDESIGN-2026-07-23.md](SERVICE-WORKBENCH-REDESIGN-2026-07-23.md) | **Steps A–D implemented** (`98dd4cab5`, `473ba42c9`); step E outstanding | Remaining: Dusk coverage for edit-plan/review-row/technical-details/keyboard operation, a deterministic Playwright fixture at desktop and mobile widths, and deletion of the now-orphaned `partials/processing-run-header.blade.php` (no include, no PHP, no test references it). Do the design-system refresh first so the workbench's Playwright baselines are generated once against the final tokens. |
@@ -210,11 +230,12 @@ the unrelated active plans.
 | **Decide whether to delete the retained thumbnail sources on `public`** | archived sermon-asset disk-migration plan, §9.6 | ~61 files under production's `storage/app/public/sermons/thumbnails`. WP2 copied rather than moved, so these are its rollback — deleting them gives that up deliberately, and is not tidying. No deadline: they sit on a mounted volume and cost only disk. Reasonable trigger is having seen thumbnails render across the archive, not just the smoke-tested sermons |
 | **Verify `app-livestream` survives two deploys** | archived children's-talk plan, WP0 | The last unverified piece of that plan. Upload a recording, deploy, confirm the source file is still there. `app-private` no longer needs proving — it was removed once WP1 showed it had never held anything |
 | **Remove the orphaned `crockenhill_app-private` volume** | archived children's-talk plan; `docs/operations/production.md` | Dropping the mount does not delete the volume. After a post-removal deploy is up: `docker volume rm crockenhill_app-private`. Verified empty by WP1 |
-| Historic/R8 data convergence — song catalogue sync, `play_date` import, media identity backfill, OpenLP/OoS evidence, Bundle A media results and Bundle B convergence | Final-readiness plan + readiness-remediation plan + remainder R8 | Production mutation is blocked until Gate 0 and remediation G8 pass, now also enforced in code by `HistoricImportProductionGuard`. The archived R8/historic plans are decision records, not executable sequences; the current runbook must be replaced and rehearsed. Production has not been touched. |
-| **Add `PROD_HOST`/`PROD_USER`/`PROD_SSH_KEY` to the `production-audit` environment** | readiness-remediation plan §12.4; `.github/workflows/production-audit.yml` | Added 2026-08-07. The secrets are on `production`; the audit workflow targets `production-audit` and has none, so it has never authenticated. Secret values cannot be read back, so only the operator can supply them. |
-| **Dispatch the read-only production evidence audit** | readiness-remediation plan §12.4 | Blocked on the row above. Approval-gated environment, so no agent can approve it either. |
+| Historic/R8 data convergence — song catalogue sync, `play_date` import, media identity backfill, OpenLP/OoS evidence, Bundle A media results and Bundle B convergence | Final-readiness plan + readiness-remediation plan + remainder R8 | Production mutation is blocked until Gate 0 and remediation G8 pass, now also enforced in code by `HistoricImportProductionGuard`. The Email side additionally requires re-curation of the expanded 533-file local corpus. The archived R8/historic plans are decision records, not executable sequences; the current runbook must be replaced and rehearsed. Production has not been touched. |
+| **Re-curate the expanded local Email corpus and approve replacement hashes** | readiness-remediation plan §7.5 and §13.1 | **Completed 2026-08-09.** All 535 entries are included, including the three current-era entries; 521 distinct identities. Manifest `928dccb5…823e83`, plan `ebf486c1…18618a`. |
+| **Back-fill retained evidence for the three current-era legacy services** | readiness-remediation plan §12.4 | **Decided 2026-08-09.** Recover each service's authoritative source material and ingest it through the normal source-revision path; do not manufacture evidence from the existing canonical items. Then re-project and audit the three-service corpus. |
+| **Repeat the read-only production evidence audit manually after the evidence back-fill and re-projection** | readiness-remediation plan §12.4 | Manual SSH audits are the accepted permanent operational path. The initial audit ran on production on 2026-08-09 (3 services, 0 retained source records, 32 canonical items on unevidenced services, 0 proposals). `production-audit.yml` may remain without production credentials. |
 | **Decide whether `production` should carry protection rules** | `.github/workflows/deploy.yml`, `rollback.yml` | Found 2026-08-07 while diagnosing the audit. `production` has no required reviewers, so deploys and rollbacks run unapproved while the read-only audit is gated. Not a readiness-plan item; recorded so the asymmetry is a decision rather than an accident. |
-| **Decide what `expected_services` reconciles (F1)** | readiness-remediation plan §9.4.6 and §19 | Added 2026-08-07. Blocks G2 and remediation PR26. It is a decision about the gate's rule, not a value to copy from the manifest. |
+| **Decide what `expected_services` reconciles (F1)** | readiness-remediation plan §9.4.6 and §19 | **Decided 2026-08-09:** exact approved 521-identity baseline plus only explicitly explained `service_beyond_manifest` identities; unexplained excess fails. Implementation is joined to F53 exact membership, not a scalar-only PR26 patch. |
 | **Provide a clean rehearsal database for §13.5 step 3 (F2)** | readiness-remediation plan §13.5 | Added 2026-08-07. Either a fresh migration or a production-shaped restore. Without it the §9.4 census measures the July 2026 OpenLP import residue rather than the projector. **`oos:import-archive --import` now refuses until this is done** (PR28), so it is a step rather than a caution. |
 | **Approve F36's acquisition/custody/capacity procedure, then connect the CBC drive read-only** | final-readiness plan F36 | The drive is a hard dependency for protected-copy acquisition of the OpenLP and historic-video corpora, but must not be connected for import. `/Volumes` held only `Macintosh HD` on 2026-08-07; 890 symlinks under `storage/` point at the absent mount. Importers will use the verified immutable working copy, never the original. |
 | Run `CleanupReviewQueueNoiseCommand` against production | archived review-queue-noise plan, OD3 | The command shipped 2026-07-20 (dry-run-first, counts-only). No record it has been run in production |

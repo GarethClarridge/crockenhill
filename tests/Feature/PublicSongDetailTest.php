@@ -13,6 +13,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
+use App\Models\SongUsageReport;
 use App\Models\SongVideo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -147,6 +148,28 @@ class PublicSongDetailTest extends TestCase
         $response->assertSee('Used in 2 services');
         $response->assertSee('Last sung 16 February 2026');
         $response->assertSee('Title in Service');
+    }
+
+    #[Test]
+    public function date_only_usage_is_labelled_without_linking_to_an_invented_service(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $song = Song::factory()->create(['slug' => 'historic-hymn']);
+        SongUsageReport::factory()->create([
+            'song_id' => $song->id,
+            'used_on' => '2007-06-17',
+            'reported_service' => null,
+            'reported_title' => 'Historic hymn title',
+        ]);
+
+        $this->get(route('church.songs.show', $song->slug))
+            ->assertOk()
+            ->assertSee('17 Jun 2007')
+            ->assertSee('Service not recorded')
+            ->assertSee('Historic hymn title')
+            ->assertSee('Used in 1 service')
+            ->assertDontSee('/church/services/2007-06-17', false);
     }
 
     #[Test]

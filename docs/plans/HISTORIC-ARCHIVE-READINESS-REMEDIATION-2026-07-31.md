@@ -1,6 +1,6 @@
 # Historic Archive Import Readiness Remediation Plan
 
-> **Status (2026-08-06): PRs 1–17 are merged, WP0–WP8 have landed, and every gate-acceptance audit
+> **Status (implementation snapshot 2026-08-06; corpus update 2026-08-09): PRs 1–17 are merged, WP0–WP8 have landed, and every gate-acceptance audit
 > gap listed on 2026-08-06 is closed.** "Merged" is still not a gate certification — see §17's Status
 > column and the "Acceptance and gate readiness" audit.
 >
@@ -38,39 +38,52 @@
 > gate instruments were exercised and fail closed exactly as documented — `services:proposal-census
 > --gate` exits 1, `service-tracking:promotion-budget` exits 1 on four unmeasured phases, and
 > `audit:service-evidence-coverage` exits 0 by design. The OoS dry run still reproduces the approved
-> `plan_hash` `c13b8b67…` over all 404 entries with 0 identity disagreements, so nothing has drifted
-> since the approval. **The blockers below are design and data gaps, not breakage.**
+> `plan_hash` `c13b8b67…` over all 404 entries with 0 identity disagreements **for the unchanged
+> 2026-08-06 corpus snapshot only**. The 2026-08-09 inventory update below adds 131 files outside
+> that authority, so the old hash cannot certify the current roots. **The blockers below are design
+> and data gaps, not breakage.**
 >
 > | # | Blocker | Where | Status |
 > |---|---|---|---|
-> | F1 | `expected_services` is not derivable from the approved manifest | §7.5, §9.4.6 | **Open — needs the §19 decision**, then PR26 |
-> | F2 | Staging into the current local database fabricates a 219-proposal census class | §13.5 step 3 | **Closed 2026-08-07** (PR28) |
+> | F1 | `expected_services` is not derivable from the approved manifest | §7.5, §9.4.6 | **Decision closed 2026-08-09** — implementation joins F53 exact membership |
+> | F2 | Staging into the current local database fabricates the historical 219-proposal census class | §13.5 step 3 | **Closed 2026-08-07** (PR28) |
 > | F3 | The G2 gate cannot distinguish Email-only staging from Email + OpenLP | §9.4.6 | **Closed 2026-08-07** (PR25) |
 > | F4 | `OpenLpCurationManifest` hard-codes the accounting §13.1 says to remeasure | §13.1 | **Closed 2026-08-07** (PR27) |
 >
 > Each is recorded in full at its own section and carries a row in §17's acceptance audit.
 >
-> **F1 is the only one left, and it is a decision rather than an implementation.** F2 was recorded as
-> a precondition needing no code; on implementation it became one, for the reason PR24 already
-> established — an unenforced precondition has to be interpreted, an enforced one simply answers. It
-> is now `UnevidencedCanonicalItemGuard`, refusing `oos:import-archive --import` when the curated
-> identities already hold items no source explains.
+> **F1's maintainer decision and replacement Email authority are now closed.** The approved
+> replacement has 535 included entries, 521 distinct identities, manifest hash
+> `928dccb5620fc3422d4c067ebc004a9ab4fbfebdf39a881d41baf8a250823e83` and plan hash
+> `ebf486c1f5d0b927944c78af51ebf2976d557bbade2be9da0a70358a4418618a`. The baseline is the exact
+> approved identity set; only identities explicitly explained by `service_beyond_manifest` may
+> exceed it. Implementation is part of F53's exact per-batch/per-source certification, because a
+> scalar exception would still allow missing identities to be offset by unrelated rows. F2 was recorded as a precondition needing no code; on
+> implementation it became one, for the reason PR24 already established — an unenforced precondition
+> has to be interpreted, an enforced one simply answers. It is now `UnevidencedCanonicalItemGuard`,
+> refusing `oos:import-archive --import` when the curated identities already hold items no source
+> explains.
 >
 > ---
 >
 > **Outstanding operator work, drive-free:**
 >
-> - ~~**Approve the OoS curation rule set.**~~ **Approved 2026-08-06.** Promoted to
->   `storage/scratch/oos-curation-manifest.json` as `oos-curation-v1`, plus seven maintainer rulings on
->   the service enum where the draft rules contradicted themselves. Validates over all 404 entries with
->   0 identity disagreements. See §7.5's approval record for the rulings and the manifest/plan hashes.
-> - **Dispatch `production-audit.yml` for `service-evidence-coverage`** and decide §12.4 on the
->   result. Both commands are whitelisted; the workflow's last run was 2026-07-25 and predates them.
->   This is the only outstanding item with nothing in front of it.
-> - **Decide the `church.historic_corpus.expected_services` rule (F1).** It is unset, so
->   `ChurchServiceProposalCensusGate` fails closed on `EXPECTED_CORPUS_SIZE_UNAPPROVED` and G2 cannot
->   be claimed — but the approved manifest does not determine the number, so this is a decision about
->   *what the gate reconciles*, not a value to copy across. See §9.4.6.
+> - ~~**Approve the OoS curation rule set.**~~ **Approved 2026-08-06 for the then-current snapshot.**
+>   Promoted to `storage/scratch/oos-curation-manifest.json` as `oos-curation-v1`, plus seven
+>   maintainer rulings on the service enum where the draft rules contradicted themselves. It validates
+>   over those 404 entries with 0 identity disagreements, but the approval is superseded as current
+>   authority by the 131 raw files added on 2026-08-09. See §7.5's retained approval record.
+> - ~~**Re-inventory and re-curate the expanded Email roots.**~~ **Completed and approved
+>   2026-08-09:** 535 included entries, 521 identities, including the three current-era entries;
+>   manifest `928dccb5…823e83`, plan `ebf486c1…18618a`.
+> - **Repeat `audit:service-evidence-coverage` manually on production** after the evidence back-fill
+>   and re-projection. The initial read-only measurement ran manually on 2026-08-09 and found 3
+>   services, 0 retained source records, 32 canonical items on unevidenced services and 0 proposals.
+>   The maintainer decided that manual SSH audits are the accepted permanent operational path;
+>   `production-audit.yml` does not need production credentials.
+> - ~~**Decide the `church.historic_corpus.expected_services` rule (F1).**~~ **Decided 2026-08-09:**
+>   reconcile exact membership against the approved 521-identity baseline and permit only explicitly
+>   explained `service_beyond_manifest` identities. F53 owns the required item-level implementation.
 >
 > **Outstanding operator work, needs the CBC drive:** rehearsal step 1 (protect/hash the source
 > drives), populating the v2 OpenLP curation fields, the §13.1 remeasurement of the OpenLP accounting
@@ -81,10 +94,11 @@
 > the exact audit, the second no-op run and the rollback proof — are all unrun, and G4–G9 are all
 > unclaimed. That, not the remaining code, is the schedule.
 >
-> Historic-video dispatch and every production mutation remain blocked behind the later gates. Corpus
-> inventory, hashing, manifest curation and **local Email/OpenLP evidence staging into a rehearsal
-> database** are safe to continue — the last of those is §13.5 steps 3–4 and was clarified on
-> 2026-08-06; see the G8 scope note below.
+> Historic-video dispatch and every production mutation remain blocked behind the later gates. The
+> expanded Email inventory, hashing and manifest curation are safe to continue drive-free. **Local
+> Email/OpenLP evidence staging into a rehearsal database is safe only after the current Email roots
+> have been re-curated and the clean-database/F1 gates are respected**; the last of those is §13.5
+> steps 3–4 and was clarified on 2026-08-06. See the G8 scope note below.
 >
 > **Amended 2026-08-02** after a business-design review. The engineering content of the 2026-07-31
 > audit is unchanged; what changed is everything around it:
@@ -543,10 +557,11 @@ carried §7.3's curation-authority fields, and it does; it did not ask which sou
 all. `OpenLpCurationManifest` rejects any entry whose `source_kind` is not its own, so the class is
 structurally single-source and cannot absorb Email by configuration.
 
-**The Email corpus needs no drive.** It is `storage/scratch/oos/`: 261 markdown files, one per order
-of service, spanning 2014-09-14 to 2026, each carrying YAML frontmatter (`title`, `date`, `year`,
+**The Email corpus needs no drive.** The formatted root is `storage/scratch/oos/`: 261 markdown files,
+one per order of service, spanning 2014-09-14 to 2026, each carrying YAML frontmatter (`title`, `date`, `year`,
 `source`, `extraction`, and sometimes `service`, `source_subject`, `date_source`). Its raw
-counterpart is `storage/scratch/oos-verbatim/`, 402 files.
+counterpart is `storage/scratch/oos-verbatim/`, now 533 files; the old 402-file count belongs to the
+historical 2026-08-06 snapshot.
 
 The earlier aggregate `storage/scratch/crockenhill_orders_of_service_archive.md` (102 entries) is
 **superseded** and must not be curated. It survives only as the cited `source:` of 14 `oos/` files.
@@ -555,7 +570,40 @@ The earlier aggregate `storage/scratch/crockenhill_orders_of_service_archive.md`
 takes an approved plan", below). It no longer accepts an aggregate markdown path at all, and
 `OosArchiveMarkdownParser` is deleted.
 
-#### What the inventory already shows
+#### Current inventory, measured 2026-08-09
+
+The 2026-08-06 approval is no longer the current Email authority. The local roots now measure:
+
+| Population | Count |
+|---|---:|
+| Verbatim files (`oos-verbatim/`) | 533 |
+| Formatted files (`oos/`) | 261 |
+| Verbatim files claimed by the approved manifest | 402 |
+| **Unmanifested verbatim files** | **131** |
+| Paired (one email, both extractions) | 259 |
+| **Verbatim with no formatted counterpart** | **274** |
+| **Formatted with no verbatim counterpart** | **2** |
+| **Root-level reconciliation target** | **535 entries** |
+
+All 131 added files are non-empty raw evidence. None has a formatted counterpart in the current
+`oos/` root, so the target is `533 + 261 - 259 = 535` entries before curation decisions. An
+exclusion is still an entry: §13.1 requires every discovered file to be explicitly included or
+excluded, with a reason. The additions span 2014-08-31 through 2026-08-09, with most new files in
+2015–2021; they therefore change the corpus's historical coverage rather than merely extending its
+latest tail.
+
+The new material also includes current-era files (`2026-08-02-am.md`, `2026-08-02-pm.md` and
+`2026-08-09.md`) and documents containing partial, revised or multiple-service content. Their
+historic/current operation boundary, resolved service identity and any supersession must be decided
+before F1's service baseline is recalculated. The old 391-identity count, 219/391 local match and
+56% rehearsal estimate below are historical measurements against the superseded snapshot.
+
+The existing `storage/scratch/oos-curation-manifest.json` and its `manifest_hash`/`plan_hash` remain
+valid only for the unchanged 2026-08-06 roots. `OosCurationManifest::plan()` must reject the current
+roots until a replacement manifest claims every file; do not quote the old `plan_hash` for a new
+dry run, bundle or import.
+
+#### Historical inventory measured 2026-08-06
 
 Measured 2026-08-06 against the two directories, then corrected the same day when the draft
 generator exposed the pairing rule below. These are the reconciliation target for §13.1's
@@ -605,13 +653,16 @@ parsed that must be believed, not its companion.
 
 The residuals are real curation decisions, not tidying:
 
-- **The 143 verbatim-only files are almost entirely 2022 and later.** Formatting covered 2014–2021
+- **In the historical 2026-08-06 snapshot, the 143 verbatim-only files were almost entirely 2022 and later.** Formatting covered 2014–2021
   densely and then thinned out. Each is either an include the manifest must account for or an
   exclusion carrying a reason; §13.1 forbids an unresolved included item. Including them is what
   makes the corpus's yearly distribution even (roughly 42–55 services a year from 2022 on) instead of
   collapsing after 2021.
 - **The 2 formatted-only entries** — `2024-11-03` and `2026-03-15-am-second-hand` — have no raw body
   at all, and the manifest records why in `verbatim_absence_reason`.
+
+The 2026-08-09 additions supersede the first bullet as a description of the current corpus: the
+new raw-only material is concentrated in 2015–2021 as well as adding a small current-era tail.
 
 *(Corrected 2026-08-07: this bullet pair previously read 144 and 3. The table above, §13.1 and the
 manifest itself all say 143 and 2, and the dry run's `counts` block agrees; the prose was the only
@@ -648,12 +699,12 @@ is mutation authority." Each becomes an explicit approved manifest date, with th
 as its reason rather than trusted silently. `2026-03-15-2.md` is the same case in a louder form: its
 own title says `[email title likely intended 15 February]`.
 
-#### Draft manifest, 2026-08-06
+#### Historical draft manifest, 2026-08-06
 
-A draft has been generated from filename and frontmatter signals and **validates against
+The historical draft was generated from filename and frontmatter signals and **validated against
 `OosCurationManifest`**: 404 entries, all `include`, 363 full and 41 partial, 10 supersessions,
 9 inferred dates. It lives at `storage/scratch/oos-curation-manifest.draft.json`, generated by
-`storage/scratch/draft_oos_manifest.php`.
+`storage/scratch/draft_oos_manifest.php`. It does not claim the 131 files added on 2026-08-09.
 
 It carries `decision_rule_version: oos-curation-draft-v1` and **no `decided_by` on any entry**. That
 is deliberate and is what §7.3's two authority forms are for: the operator approves the *rule set*,
@@ -692,7 +743,8 @@ disagreements**:
 
 Neither file is committed: `storage/scratch/*` is gitignored, the manifest carries source paths, and
 this repository is public (§3.3). This section is the retained approval record; the plan hash above is
-what an `--import` run must quote back.
+what an `--import` run for that unchanged snapshot would have had to quote back. It is not a valid
+plan hash for the expanded roots.
 
 Promoting the rule version does not re-identify anything. `OosCurationEntryFactory::messageId()`
 derives the synthetic message id from `item_key` alone, so neither the rule version nor the batch key
@@ -797,8 +849,9 @@ So the two halves are split:
   Exactly one entry asserts a count today: `2026-02-22-am-revised`, at 13, from the maintainer's
   transcription.
 
-**The dry run passes over all 404 entries with zero disagreements**, and it found a real rule error
-on its first run — see below.
+**The 2026-08-06 dry run passed over all 404 entries with zero disagreements**, and it found a real
+rule error on its first run — see below. The 2026-08-09 replacement now passes the same check over
+all 535 entries with zero disagreements; its hashes are recorded above.
 
 #### The occasion is a theme; the service is a slot
 
@@ -895,7 +948,7 @@ The nine emails identified — `2018-12-09`, `2019-08-04`, `2019-08-18`, `2019-1
 `Morning service` and a bare `Evening service` heading, so a floor rather than a total — need no
 schema change. They import both orders, exactly as they would have if received today.
 
-**Remeasured 2026-08-07: the floor is roughly a quarter of the population.** Sweeping all 404 payload
+**Remeasured 2026-08-07 for the historical 404-entry snapshot: the floor is roughly a quarter of the population.** Sweeping all 404 payload
 files for a *heading-style* line naming a morning service and another naming an evening one — the
 same criterion, widened only to accept `Sunday morning`/`Sunday evening` and `am`/`pm service`
 spellings — finds **36 such files, 35 of which the manifest names by one service only**. All nine
@@ -1204,7 +1257,11 @@ Measure per **decision**, not per service. Instrument the loop so the residual f
 from the census rather than estimated, and so a later matcher regression shows up as the census
 growing.
 
-##### F1 — the approved manifest does not determine a service count (2026-08-07)
+##### F1 — the approved manifest does not determine a service count (2026-08-07; old baseline superseded 2026-08-09)
+
+The figures and reasoning in this subsection describe the unchanged 2026-08-06/07 snapshot only.
+After the expanded Email roots are re-curated, the replacement manifest's approved identity set
+becomes the baseline; do not carry the old 391-identity number forward.
 
 The first bullet says "the approved manifest's service count is recorded". The Email manifest has no
 such number, and cannot have one.
@@ -1213,9 +1270,9 @@ such number, and cannot have one.
 entries**. But `ImportOosArchiveCommand::importablePlanKeys()` gates on the manifest's *date* and
 deliberately not its *service* — that is the division of authority §7.5 settles, and
 `ImportOosArchiveCommandTest` pins its consequence with
-`assertDatabaseCount('church_services', 2)` for a single entry. §7.5's remeasurement above puts the
-number of entries that will produce a second service at **up to 35**, and the true figure is parse
-content that only exists after the extractor has run.
+`assertDatabaseCount('church_services', 2)` for a single entry. The historical §7.5 measurement put
+the number of entries that would produce a second service at **up to 35**, and the true figure is
+parse content that only exists after the extractor has run.
 
 So `expected_services` as currently specified is unsatisfiable in both directions: 391 fails the gate
 on `STAGED_ABOVE_EXPECTED`, and the number that would pass cannot be known before the staging run it
@@ -1225,7 +1282,8 @@ two entries claiming the same source file, exactly as §7.5 says.
 
 **This needs a maintainer decision recorded in §19, not a value.** The two coherent shapes are:
 
-- **Reconciliation rule.** `expected_services` stays the manifest's 391 identities, and the gate
+- **Reconciliation rule.** `expected_services` stays the replacement manifest's approved identity
+  set (391 was the old snapshot baseline), and the gate
   accepts `staged >= expected` provided every excess service is accounted for by a
   `service_beyond_manifest` flag on the entry that produced it. The unexplained-excess case keeps
   failing closed. This preserves the "100% accounted for" property §13.1 insists on, and moves it
@@ -1472,19 +1530,27 @@ never went through evidence ingestion, it has no projection to repair, no propos
 B13 disposition to reverse. It has a different and larger problem: no evidence, so its canonical
 result can never be re-derived, audited or converged from sources.
 
-**This is not yet established for production.** The local database is not a production copy, so the
-407 may be dev-state residue. Before §12.4 is scheduled, obtain the production counts — services,
-services with at least one non-Manual source record, and proposals carrying a resolver — through the
-approval-gated read-only production audit (`docs/operations/`, counts only, never ids or paths). Two
-outcomes:
+**Production result and maintainer decision, 2026-08-09 — back-fill before re-projection.** The approval-gated workflow still
+needs its `PROD_*` credentials, but the operator ran the same read-only command directly on the
+production host. It reported 3 services, 0 services with any or non-Manual source record, 32
+canonical items on unevidenced services, and 0 proposals or resolvers. The current-era corpus is
+therefore entirely unevidenced and `service-tracking:reproject-current-era` has nothing it can
+legitimately re-project **yet**. **Decision:** back-fill retained evidence for all three services;
+do not exclude or accept them as legacy. Recover each service's authoritative source material and
+ingest it through the normal source-revision path, with its provenance and hash, rather than
+manufacturing a record from the existing canonical items. Once all three have active retained source
+revisions, run the re-projection and item-level audit over that three-service corpus. The manual
+invocation used `--details`; its service IDs are intentionally not recorded here.
+
+The production measurement resolves the uncertainty noted by the local dry run. Its two possible
+outcomes were:
 
 - **Production is mostly evidenced.** §12.4 stands as written.
-- **Production resembles local.** §12.4 is close to a no-op, and the real question this plan has not
-  asked is what happens to services that hold canonical items derived from no retained evidence.
-  They are outside the §2 success criteria as written, since criterion 1 presumes every result has
-  source revisions describing it. Decide explicitly whether they are back-filled into evidence,
-  excluded from the audit standard, or accepted as legacy — do not let the re-projection's silence
-  on them read as clearance.
+- **Production resembles local.** **Observed 2026-08-09.** §12.4 is a no-op until retained evidence
+  exists, and the services are outside the §2 success criteria because criterion 1 presumes every
+  result has source revisions describing it. **Decided 2026-08-09:** back-fill all three from their
+  recovered authoritative sources, then re-project and audit; neither exclusion nor legacy
+  acceptance is permitted.
 
 ### Tests and acceptance
 
@@ -1564,9 +1630,11 @@ Note also that `inventory()` calls `getRealPath()` and rejects anything resolvin
 so the corpus must be **materialised as real files** on drive day; a directory of valid symlinks will
 still be refused.
 
-The Email reconciliation target is in §7.5 and is measurable today: 402 verbatim files, 261
-formatted, **259 paired, 143 verbatim-only and 2 formatted-only**, totalling 404 manifest entries.
-Unlike the OpenLP figures, these are measured rather than tracked, because the source is local.
+The current Email reconciliation target is in §7.5 and is measurable locally: 533 verbatim files,
+261 formatted, **259 paired, 274 verbatim-only and 2 formatted-only**, totalling 535 manifest
+entries before curation decisions. The old 402/261/259/143/2/404 figures describe the historical
+2026-08-06 snapshot only. Unlike the OpenLP figures, these are measured rather than tracked,
+because the source is local.
 
 **Corrected 2026-08-06.** This paragraph previously read 247 paired, 155 verbatim-only and 14
 formatted-only. Those are the first pass's filename-stem figures, which §7.5 supersedes: the two
@@ -1739,6 +1807,54 @@ instead of serialising it behind 9–18 days of processing.
 14. Run the entire import again and require all no-op.
 15. Restore from backup and repeat apply/rollback proof.
 
+#### Date-only historic song usage import
+
+The 2026-08-09 hymn reconciliation workbook is a separate, media-free evidence lane. Its
+`Ambiguous Usage` sheet contains **1,941** song/date statements for which the source does not record
+morning or evening. They are not complete service orders and must not create `ChurchService` rows,
+use `SermonService::Other`, or guess a service. The dedicated `song_usage_reports` table preserves
+the statement and source coordinates; public/admin song usage reads include unresolved reports,
+while a report linked later to a canonical service item is excluded to prevent double counting.
+
+The command is dry-run-only unless `--import` is supplied. Run this lane in rehearsal first, then
+in production only after the ordinary backup, migration approval, deploy freeze and witness steps
+for the production window have passed:
+
+```bash
+vendor/bin/sail artisan migrate --force --no-interaction
+
+vendor/bin/sail artisan service-tracking:import-historic-song-usage-reports \
+  --path=storage/scratch/outputs/hymn-reconciliation-2026-08-09/hymn-service-song-reconciliation.xlsx
+```
+
+The dry run must report exactly `Rows read = 1941`, `Catalogue resolved = 1867`, `Unresolved for
+later matching = 74`, `Created = 0`, and `Already present = 0`. Any different count is plan drift:
+stop, retain the output, and reconcile the workbook and deployed song catalogue before mutation.
+The workbook's local catalogue IDs are deliberately not imported; matching is repeated against the
+deployed catalogue title so primary-key differences cannot mislink usage.
+
+After approval, persist once:
+
+```bash
+vendor/bin/sail artisan service-tracking:import-historic-song-usage-reports \
+  --path=storage/scratch/outputs/hymn-reconciliation-2026-08-09/hymn-service-song-reconciliation.xlsx \
+  --import
+```
+
+The first apply must report `Created = 1941` and `Already present = 0`. Immediately rerun the same
+`--import` command and require `Created = 0`, `Already present = 1941`; this is the idempotency
+proof. Retain both outputs with the operation evidence. Smoke-test representative matched songs and
+confirm the history shows the date, `Service not recorded`, no fabricated service link, and the
+combined usage total. Confirm the 74 unmatched reports remain stored with `song_id = null` for
+later catalogue resolution rather than being discarded or fuzzily guessed.
+
+Rollback is restore-from-backup or a separately approved deletion by this import's source
+fingerprints; do not delete or modify canonical services. Once rehearsal and production counts,
+the no-op rerun, representative UI checks, backup retention and maintainer sign-off are recorded,
+delete `ImportHistoricSongUsageReportsCommand`, `HistoricSongUsageWorkbookReader` and
+`HistoricSongUsageReportImporter` in the one-shot retirement release. Keep the table, model and
+read side: they are the durable provenance and query contract.
+
 #### F2 — "rehearsal database" has to mean a fresh one (2026-08-07)
 
 Step 3 previously said only "stage Email/OpenLP normalized evidence", and the obvious place to do
@@ -1757,7 +1873,8 @@ if ($hasUnnormalizedLegacyItems) {
 ```
 
 That rule is correct — it is what stops a projection silently deleting items. The problem is the data
-it would meet. The development database holds **408 services and 2,743 items with exactly one source
+it would meet. **The measurements in this subsection are for the historical 2026-08-06 404-entry
+snapshot and must be rerun after Email re-curation.** The development database holds **408 services and 2,743 items with exactly one source
 record in total**, residue from the 2026-07-20 OpenLP archive run that predates WP1's evidence
 ingestion. Cross-matching it against the approved manifest:
 
@@ -1768,8 +1885,9 @@ ingestion. Cross-matching it against the approved manifest:
 | Manifest identities with no local service | 172 |
 | Local services matching no manifest identity | 189 |
 
-So **56% of the corpus would stage an `unnormalized_legacy_items` proposal**, and the census's largest
-class by a wide margin would be an artifact of one dev-database import from July. §9.4.1's stopping
+So **56% of that historical corpus would stage an `unnormalized_legacy_items` proposal**, and the
+census's largest class by a wide margin would be an artifact of one dev-database import from July.
+§9.4.1's stopping
 rule — "every review point is a bug report against the projector until proven otherwise" — would spend
 its first and most expensive iteration on something that is neither a projector defect nor a property
 of the corpus.
@@ -1787,7 +1905,8 @@ made clear it had the same defect PR24 diagnosed in the G8 prohibition — an un
 has to be interpreted, an enforced one simply answers.
 `UnevidencedCanonicalItemGuard::refusalFor()` refuses `oos:import-archive --import` when the curated
 identities already hold items with no `source_assertion_hashes`, reporting the affected count against
-the corpus size ("219 of 391").
+the corpus size (historically "219 of 391"). The guard's measurement must be rerun against the
+approved 535-entry replacement manifest before the current rehearsal can be assessed.
 
 Three placement decisions:
 
@@ -2216,7 +2335,7 @@ gaps in landed slices belong here.
 | G3 | PR11 | **Closed 2026-08-06.** `ChurchServiceConvergenceBundleRoundTripTest` exports a reviewed bundle, destroys the database it came from, rebuilds an equivalent machine base on shifted auto-increments and applies the bundle to it — asserting exact finalisation (the same canonical hash), the reviewer resolved by approved email hash onto a different user id, per-proposal dispositions reproduced, the review session naming the *production* proposal ids, and a `decision_rule` reproducing with its own rationale. A proposal absent from the production graph still fails closed. Verified non-vacuous: adding `$proposal->id` to `ChurchServiceProposalIdentity::for()` fails two of the three tests. | — |
 | G3 | PR12 | **Closed 2026-08-06.** `HistoricProcessingResultBundleRoundTripTest` exports the WP0 canary — the shared fixture, now in `tests/Support/HistoricNormalOutputCanary.php`, not a second approximation — through Bundle A and imports it into a database whose auto-increments have been shifted past every id the source used. Asserts identical logical hashes, no lost field/relationship/role, identical section and publication natural keys, and that the recreated tables moved while preacher/song/service rows were *resolved* by natural key rather than duplicated. Verified non-vacuous: appending `$section->id` to the section key fails the hash equality. | — |
 
-| G1 | PR5/PR21 | **Schema closed 2026-08-06; approval outstanding.** §7.3 mandates one manifest format across Email, OpenLP and livestream, and the Email one did not exist. PR21 built it: `OosCurationManifest`, `OosCurationPlan`, `OosCurationEntryFactory`, `validateIncludesForDryRun()` and the repointed `ImportOosArchiveCommand`, with `OosArchiveMarkdownParser` deleted. The draft manifest validates over all 404 entries with zero identity disagreements. **Still open:** 402 of those entries carry `decision_rule_version: oos-curation-draft-v1` and only 2 carry `decided_by`, so the corpus has curation authority only once the maintainer approves that rule set. | Approve the `oos-curation-draft-v1` rule set and promote the draft to the approved manifest; drive-free operator work. |
+| G1 | PR5/PR21 | **Schema and Email data authority closed.** PR21 built `OosCurationManifest`, `OosCurationPlan`, `OosCurationEntryFactory`, `validateIncludesForDryRun()` and the repointed command. The 2026-08-09 replacement validates all 535 included entries with zero identity disagreements, includes the three current-era entries and yields 521 identities. Manifest `928dccb5…823e83`, plan `ebf486c1…18618a`. | Closed for Email; OpenLP/video manifest work remains under the final-readiness gates. |
 
 **Every code gap listed on 2026-08-06 is closed.** G1's crash tranche, canary, OpenLP manifest schema
 and the Email manifest; G2's empty-census gap; and G3's two different-PK round trips are all done.
@@ -2232,9 +2351,9 @@ and the approved OoS plan hash still reproduces exactly.
 
 | Gate | Finding | Verified gap | Close it by |
 |---|---|---|---|
-| G2 | **F1** — `expected_services` is not derivable from the approved manifest | The manifest yields 391 `(date, service)` identities, but `importablePlanKeys()` gates on date and not service, so one entry can create two services (`ImportOosArchiveCommandTest` asserts `assertDatabaseCount('church_services', 2)`). Up to 35 entries do this. 391 fails on `STAGED_ABOVE_EXPECTED`; the passing number is parse content and cannot precede the run it gates. `OosCurationPlan` derives no such count, and `reconcileRoot()` forbids adding the extra services as entries. | **Open.** §19 maintainer decision on the reconciliation rule, then PR26. See §9.4.6. |
+| G2 | **F1** — `expected_services` is not derivable from the approved manifest | The replacement manifest yields 521 approved identities, while a source may validly produce additional services. A scalar staged count cannot prove that every approved identity exists or that every extra belongs to this batch—the defect final-readiness F53 records. | **Decision closed 2026-08-09; implementation open with F53.** Certify exact approved membership and permit only hash-covered `service_beyond_manifest` identities; unexplained excess fails. |
 | G2 | **F3** — the gate cannot distinguish Email-only staging from Email + OpenLP | `ChurchServiceCorpusCompleteness::stagedServices()` counted distinct `church_service_id` in `church_service_source_records` and never inspected `source`. Staging Email alone against an Email-derived `expected_services` gave `staged == expected` and an empty census, so G2 would have passed over a corpus with zero OpenLP evidence — the §9.4.2 population it is meant to certify. | **Closed 2026-08-07 (PR25).** The evidence now carries `staged_services_by_source`, `declared_source_kinds` and `unstaged_source_kinds`; the gate adds `census_source_kinds_undeclared` and `declared_source_kind_unstaged`, both failing closed. `church.historic_corpus.census_source_kinds` declares the scope, and an unrecognised kind reads as undeclared so a typo cannot narrow the requirement. The census command and the review queue both name the unstaged kind. |
-| G5 | **F2** — staging into the working dev database fabricates the census's largest class | `stagingReasons()` correctly raises `unnormalized_legacy_items` when a service holds items no normalized source accounts for. 219 of the manifest's 391 identities already exist locally and **all 219 hold such items**, from the 2026-07-20 OpenLP run. 56% of the corpus would stage a proposal that is dev-state residue, and §9.4's automate-first loop would triage it first. | **Closed 2026-08-07 (PR28).** `UnevidencedCanonicalItemGuard` refuses `oos:import-archive --import` when curated identities already hold items no source explains, reporting the affected count against the corpus size. Scoped to the staged identities, so §12.4's unrelated legacy population does not block a run. `--accept-unevidenced-items` is the explicit override. |
+| G5 | **F2** — staging into the working dev database fabricates the census's largest class | In the historical 2026-08-06 snapshot, 219 of the manifest's 391 identities already existed locally and **all 219 held such items**, from the 2026-07-20 OpenLP run. 56% of that historical corpus would stage a proposal that is dev-state residue, and §9.4's automate-first loop would triage it first. The same guard must be remeasured against the replacement manifest. | **Closed 2026-08-07 (PR28).** `UnevidencedCanonicalItemGuard` refuses `oos:import-archive --import` when curated identities already hold items no source explains, reporting the affected count against the corpus size. Scoped to the staged identities, so §12.4's unrelated legacy population does not block a run. `--accept-unevidenced-items` is the explicit override. |
 | G1 | **F4** — `OpenLpCurationManifest` hard-codes the accounting §13.1 says to remeasure | `ExpectedCounts` was a private class constant (536/428/105/3/7) and `plan()` threw on any other value, while §13.1 instructs a remeasurement against the mounted drive and states the tracked counts are not proof. Since 431 already-de-duplicated symlinks are what is staged, a different answer is the expected outcome. `OosCurationManifest` has no such constant. | **Closed 2026-08-07 (PR27).** Manifest version 3 requires `expected_counts` in the envelope; the constant is gone. The declaration is validated strictly (every key, no extras, non-negative integers) and checked against the entries, so a manifest that has silently lost entries still fails — which is what the constant was for. A v2 manifest declares nothing and is rejected rather than defaulted. |
 
 #### PR22 delivered (2026-08-06)
@@ -2281,15 +2400,13 @@ repository- or organisation-level secrets to fall back on. `production-audit.yml
 `environment: production-audit`, so every `secrets.PROD_*` reference in it has always resolved to
 empty. The workflow's previous run, 2026-07-25, failed the same way.
 
-**So this audit has never successfully executed**, and PR22 whitelisted its commands into a workflow
-that could not authenticate. §12.4's decision still has no production counts behind it, and the
-"next task to pick up" below was never obtainable as written.
-
-The fix is to add the three secrets to the `production-audit` environment — operator work, since a
-secret's value cannot be read back even by its owner. Repointing the workflow at `production` would
-also work and needs no secret handling, but `production` carries no protection rules, so it would
-discard the approval gate this workflow's own header is built around. That trade is not worth making
-for a read-only audit.
+**So this audit has never successfully executed through GitHub Actions**, and PR22 whitelisted its
+commands into a workflow that could not authenticate. **Superseded for the immediate §12.4
+measurement on 2026-08-09:** the operator ran the same read-only command manually on production and
+obtained the counts recorded in §12.4. **Maintainer decision, 2026-08-09:** manual SSH audits are an
+acceptable permanent operational process. The missing workflow credentials are therefore not an
+operational gap or readiness blocker, and `production-audit.yml` may remain unable to authenticate.
+Repeat the read-only audit manually after the evidence back-fill and re-projection.
 
 **Noted while diagnosing, and outside this plan's scope:** `production` has no protection rules, so
 `deploy.yml` and `rollback.yml` currently run without review. If review before touching production
@@ -2394,31 +2511,28 @@ rehearsal contingencies and PR20 is gated on G9.
 **Resolved 2026-08-06 (was: does the G8 prohibition block local evidence staging?).** It does not.
 The prohibition is scoped to production, the status header now says so, and PR24's
 `HistoricImportProductionGuard` enforces it instead of leaving it to a reading. The Email half of
-§13.5 steps 2–4 is therefore **unblocked and is the next drive-free work**: populate the 404 manifest
-entries, then stage and project against a local rehearsal database. The decision record is in the
-status header; the reasoning that forced it is that `EmailSourceAdapter` has exactly one caller, so
-`--import` is the only route to staged Email evidence and a command-level prohibition would have
-forbidden G5.
+§13.5 steps 2–4 remains drive-free. Its expanded manifest and F1 decision are approved; staging
+still waits for F30 and F53's exact-membership implementation plus a clean rehearsal database. The decision record is in the status header; the
+reasoning that forced it is that `EmailSourceAdapter` has exactly one caller, so `--import` is the
+only route to staged Email evidence and a command-level prohibition would have forbidden G5.
 
 **Superseded 2026-08-07.** That path read: "§12.4's audit dispatch, the OoS rule-set approval and
 `expected_services`, then the Email half of steps 2–4." The rule set was approved on 2026-08-06, and
 re-verifying the remaining three against the code showed `expected_services` is not a value anyone
 can set (F1) and that the step it gates would, in the current database, measure the wrong thing (F2).
-The corrected drive-free path is:
+The corrected drive-free path, updated for the expanded Email roots, is:
 
-1. **Repair `production-audit.yml`'s credentials, then dispatch it** for
-   `service-evidence-coverage`. Dispatched and approved on 2026-08-07; it failed with
-   `missing server host`, because the three `PROD_*` secrets live on the `production` environment
-   while the workflow targets `production-audit`. Add them to `production-audit` — see PR22's
-   subsection above. Until then §12.4 has no production counts and cannot be decided.
+1. ~~**Re-inventory and re-curate the expanded Email roots.**~~ **Done 2026-08-09:** 535 included
+   entries, 521 identities, including the three current-era entries; hashes recorded above.
 2. ~~**PR25 (F3), PR27 (F4) and PR28 (F2)**~~ **Done 2026-08-07.**
-3. **Decide the F1 reconciliation rule** (§19), then **PR26**. This is now the only thing between
-   here and a claimable G2.
+3. ~~**Decide the F1 reconciliation rule** (§19).~~ **Done 2026-08-09.** Implement PR26 together
+   with F53 exact per-batch/per-source membership before G2 can be claimed.
 4. **Provision a clean rehearsal database**, then run the Email half of §13.5 steps 2–4. PR28 refuses
    the run until this is done, so it is a step rather than a caution.
 
 Step 4 depends on 3 only in the sense that the census it produces cannot be *gated* until F1 is
-settled; the staging and projection themselves can proceed as soon as the database exists.
+settled; the staging and projection themselves can proceed as soon as the replacement manifest and
+clean database exist.
 
 Two adjacent items are drive-free and worth doing alongside, though neither is on this path: extending
 the §13.4 Email-side truth set beyond its single verified service (`storage/scratch/oos-truth/`,
@@ -2569,7 +2683,7 @@ Implementation may use these defaults unless changed before the named gate:
 | Bulk-pass concurrency | Establish per-stage width at calibration; re-forecast from the concurrent figure | WP7 |
 | Editorial/copyright/consent policy | Deferred 2026-08-02; required before the first historic era is published, not before WP8 ships | §14.4 |
 | Scope of the G8 import prohibition | Decided 2026-08-06: production only. Local staging into a rehearsal database is how G5 is reached, and `HistoricImportProductionGuard` enforces the boundary rather than the prose | WP7 |
-| **What `expected_services` reconciles (F1)** | **Undecided — needed before G2.** Preferred: keep the manifest's 391 identities and accept `staged >= expected` where every excess service is explained by a `service_beyond_manifest` flag, failing closed on unexplained excess. Alternative: record it from a completed staging run, accepting that the first run is ungated. There is no third option in which a single integer copied from the manifest works — see §9.4.6 F1 | WP3 / G2 |
+| **What `expected_services` reconciles (F1)** | **Decided 2026-08-09.** Keep the replacement manifest's approved 521-identity set as the baseline; permit additional identities only when each is explicitly explained by `service_beyond_manifest`, and fail closed on unexplained excess. Implement with F53's exact batch/source membership certification, not a scalar count exception | WP3 / G2 / F53 |
 | **Which source kinds G2 certifies (F3)** | **Implemented 2026-08-07 (PR25)** on the stated default: the stopping condition may only be claimed for source kinds actually staged, declared in `church.historic_corpus.census_source_kinds`. Email-only staging cannot claim §9.4.2's Email × OpenLP convergence | WP3 / G2 |
 | **Where the OpenLP accounting is declared (F4)** | **Implemented 2026-08-07 (PR27)** on the stated default: in the approved manifest envelope at version 3, not in a class constant. §7.3 already makes the approved manifest mutation authority; the constant contradicted it | WP1 / G1 |
 | **Whether the rehearsal database must be clean (F2)** | **Implemented 2026-08-07 (PR28):** yes, enforced. `--accept-unevidenced-items` is the deliberate override | WP7 / G5 |
@@ -2590,8 +2704,9 @@ Neither gates the import itself.
   `HistoricVideoCurationManifest`. Having a manifest is not the same as having an approved one — the
   OoS rule set and the OpenLP v2 fields are tracked in §17's audit table.)*
 - [ ] The mounted source inventory is 100% accounted for by included or approved excluded items.
-- [ ] The local Email inventory is 100% accounted for across all 404 manifest entries, including the
-  143 verbatim-only and 2 formatted-only residuals measured in §7.5.
+- [ ] The local Email inventory is 100% accounted for across the current 535-entry reconciliation
+  target: 533 verbatim, 261 formatted, 259 paired, 274 verbatim-only and 2 formatted-only, including
+  an explicit decision for each of the 131 files added after the old approval.
 - [ ] Every included item is exact-promoted or exact-already-present; unresolved/failed count is zero.
 - [ ] Calibration forecast, checkpoint ledger and actual time/cost/capacity reports reconcile.
 - [ ] Bulk-pass concurrency is designed, measured and reflected in the forecast.

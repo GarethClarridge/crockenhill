@@ -4,12 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Public;
 
-use App\Enums\MediaType;
-use App\Enums\ProcessingStatus;
-use App\Enums\ServiceSectionSongMatchType;
-use App\Enums\ServiceSectionType;
-use App\Models\ChurchServiceItem;
 use App\Models\Song;
+use App\Services\Song\SongUsageQuery;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -22,6 +18,10 @@ class PublicSongCatalogService
     public const RANGE_ALL = 'all';
 
     public const RANGE_RECENT = 'recent';
+
+    public function __construct(
+        private SongUsageQuery $usageQuery,
+    ) {}
 
     /**
      * Build the catalogue query, optionally filtered and ordered by search.
@@ -57,7 +57,7 @@ class PublicSongCatalogService
                 'books' => fn ($q) => $q->select(['song_books.id', 'song_books.name'])->orderBy('song_books.name'),
             ])
             ->selectSub($this->qualifyingUsageSubquery($normalizedRange)->selectRaw('COUNT(*)'), 'usage_count')
-            ->selectSub($this->qualifyingUsageSubquery($normalizedRange)->selectRaw('MAX(church_services.date)'), 'last_sung_date');
+            ->selectSub($this->qualifyingUsageSubquery($normalizedRange)->selectRaw('MAX(used_on)'), 'last_sung_date');
 
         if ($normalizedRange === self::RANGE_RECENT) {
             $query->whereExists($this->qualifyingUsageSubquery($normalizedRange)->selectRaw('1'));
@@ -156,46 +156,13 @@ class PublicSongCatalogService
             ->orderBy('songs.title');
     }
 
-    /**
-     * @return Builder<ChurchServiceItem>
-     */
-    private function qualifyingUsageSubquery(string $range): Builder
+    private function qualifyingUsageSubquery(string $range): QueryBuilder
     {
-        return ChurchServiceItem::query()
-            ->join('church_services', 'church_services.id', '=', 'church_service_items.church_service_id')
-            ->whereNull('church_service_items.deleted_at')
-            ->where('church_service_items.type', 'songs')
-            ->whereColumn('church_service_items.song_id', 'songs.id')
+        return $this->usageQuery->occurrences(publicOnly: true)
+            ->whereColumn('song_usage_occurrences.song_id', 'songs.id')
             ->when(
                 $range === self::RANGE_RECENT,
-                fn (Builder $q): Builder => $q->where('church_services.date', '>=', now()->subYears(3)->startOfDay())
-            )
-            ->where(function (Builder $q): void {
-                // Phase 6.1 policy: OoS items remain eligible unless a completed livestream log exists for the service.
-                // Failed, pending, in-progress, or non-livestream logs leave OoS items eligible.
-                $q
-                    ->whereExists(function (QueryBuilder $logQuery): void {
-                        $logQuery->selectRaw('1')
-                            ->from('media_processing_logs')
-                            ->whereColumn('media_processing_logs.church_service_id', 'church_services.id')
-                            ->where('media_processing_logs.processing_type', MediaType::Livestream->value)
-                            ->where('media_processing_logs.status', ProcessingStatus::Completed->value)
-                            ->whereExists(function (QueryBuilder $sectionQuery): void {
-                                $sectionQuery->selectRaw('1')
-                                    ->from('service_sections')
-                                    ->whereColumn('service_sections.media_processing_log_id', 'media_processing_logs.id')
-                                    ->whereColumn('service_sections.church_service_item_id', 'church_service_items.id')
-                                    ->where('service_sections.section_type', ServiceSectionType::Song->value)
-                                    ->where('service_sections.song_match_type', ServiceSectionSongMatchType::Confirmed->value);
-                            });
-                    })
-                    ->orWhereNotExists(function (QueryBuilder $logQuery): void {
-                        $logQuery->selectRaw('1')
-                            ->from('media_processing_logs')
-                            ->whereColumn('media_processing_logs.church_service_id', 'church_services.id')
-                            ->where('media_processing_logs.processing_type', MediaType::Livestream->value)
-                            ->where('media_processing_logs.status', ProcessingStatus::Completed->value);
-                    });
-            });
+                fn (QueryBuilder $query): QueryBuilder => $query->where('used_on', '>=', now()->subYears(3)->startOfDay()),
+            );
     }
 }

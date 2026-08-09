@@ -39,6 +39,7 @@ use Illuminate\Validation\Rule;
  * @property-read Collection<int, SongAuthor> $authors
  * @property-read Collection<int, SongBook> $books
  * @property-read Collection<int, ChurchServiceItem> $churchServiceItems
+ * @property-read Collection<int, SongUsageReport> $usageReports
  * @property-read Collection<int, SongVideo> $videos
  * @property-read SongVideo|null $featuredVideo
  *
@@ -304,6 +305,12 @@ class Song extends Model
     public function churchServiceItems(): HasMany
     {
         return $this->hasMany(ChurchServiceItem::class);
+    }
+
+    /** @return HasMany<SongUsageReport, $this> */
+    public function usageReports(): HasMany
+    {
+        return $this->hasMany(SongUsageReport::class);
     }
 
     /**

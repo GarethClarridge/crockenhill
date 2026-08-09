@@ -14,6 +14,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongAuthor;
+use App\Models\SongUsageReport;
 use App\Services\Public\PublicSongCatalogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -87,6 +88,22 @@ class PublicSongCatalogServiceTest extends TestCase
         $this->assertNotNull($result);
         $this->assertSame(2, (int) $result->usage_count);
         $this->assertSame('2026-02-10', (string) $result->last_sung_date);
+    }
+
+    #[Test]
+    public function all_range_includes_date_only_reports_in_usage_stats(): void
+    {
+        $song = Song::factory()->create(['title' => 'Historic Usage Song']);
+        SongUsageReport::factory()->create([
+            'song_id' => $song->id,
+            'used_on' => '2007-06-17',
+        ]);
+
+        $result = $this->service->query('all')->firstWhere('id', $song->id);
+
+        $this->assertNotNull($result);
+        $this->assertSame(1, (int) $result->usage_count);
+        $this->assertSame('2007-06-17', (string) $result->last_sung_date);
     }
 
     #[Test]

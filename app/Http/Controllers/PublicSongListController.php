@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Models\ChurchServiceItem;
+use App\Data\SongUsageOccurrence;
 use App\Models\Song;
 use App\Seo\SongArchiveSeoPresenter;
 use App\Services\Public\PublicChurchServiceArchiveService;
@@ -47,11 +47,13 @@ class PublicSongListController extends Controller
         $stats = $songUsageService->statsForSong($song);
 
         $usageHistory = $songUsageService->usageHistoryForSong($song)
-            ->map(fn (ChurchServiceItem $item): array => [
-                'date' => $item->churchService->date,
-                'service_label' => $item->churchService->service->label(),
-                'title' => $item->title,
-                'service_url' => $churchServiceArchive->publicUrlFor($item->churchService),
+            ->map(fn (SongUsageOccurrence $occurrence): array => [
+                'date' => $occurrence->date,
+                'service_label' => $occurrence->service?->label() ?? 'Service not recorded',
+                'title' => $occurrence->title,
+                'service_url' => $occurrence->churchService === null
+                    ? null
+                    : $churchServiceArchive->publicUrlFor($occurrence->churchService),
             ]);
 
         $displayVideo = $songVideoService->getDisplayVideoForSong($song);

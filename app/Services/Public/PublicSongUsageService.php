@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Public;
 
+use App\Data\SongUsageOccurrence;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
+use App\Models\SongUsageReport;
+use App\Services\Song\SongUsageQuery;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
 
 class PublicSongUsageService
 {
@@ -16,76 +19,83 @@ class PublicSongUsageService
     public const RANGE_THIS_YEAR = 'year';
 
     public function __construct(
-        private readonly PublicServiceContentEligibility $eligibility,
+        private PublicServiceContentEligibility $eligibility,
+        private SongUsageQuery $usageQuery,
     ) {}
 
-    /**
-     * @return array{usage_count: int, last_sung_date: string|null}
-     */
+    /** @return array{usage_count: int, last_sung_date: string|null} */
     public function statsForSong(Song $song, string $range = self::RANGE_ALL): array
     {
-        /** @var array<string, mixed> $stats */
-        $stats = (array) ($this->qualifyingUsageItemsQueryForSong($song, $range)
-            ->selectRaw('COUNT(*) AS usage_count')
-            ->selectRaw('MAX(church_services.date) AS last_sung_date')
-            ->toBase()
-            ->first() ?? []);
+        $stats = $this->usageQuery->occurrences(publicOnly: true)
+            ->where('song_id', $song->id)
+            ->when(
+                $this->normalizeRange($range) === self::RANGE_THIS_YEAR,
+                fn ($query) => $query->whereYear('used_on', now()->year),
+            )
+            ->selectRaw('COUNT(*) AS usage_count, MAX(used_on) AS last_sung_date')
+            ->first();
 
         return [
-            'usage_count' => is_numeric($stats['usage_count'] ?? null) ? (int) $stats['usage_count'] : 0,
-            'last_sung_date' => is_string($stats['last_sung_date'] ?? null) ? $stats['last_sung_date'] : null,
+            'usage_count' => is_numeric($stats?->usage_count) ? (int) $stats->usage_count : 0,
+            'last_sung_date' => is_string($stats?->last_sung_date) ? $stats->last_sung_date : null,
         ];
     }
 
-    /**
-     * @return EloquentCollection<int, ChurchServiceItem>
-     */
-    public function usageHistoryForSong(Song $song, int $limit = 40): EloquentCollection
+    /** @return Collection<int, SongUsageOccurrence> */
+    public function usageHistoryForSong(Song $song, int $limit = 40): Collection
     {
-        /**
-         * Performance Optimization: Limits retrieved columns for usage history items,
-         * excluding large JSON metadata blobs to reduce memory usage.
-         */
-        return $this->qualifyingUsageItemsQueryForSong($song)
-            ->select(['church_service_items.id', 'church_service_items.church_service_id', 'church_service_items.title', 'church_service_items.position'])
-            ->with([
-                'churchService' => fn ($query) => $query->select(['id', 'date', 'service']),
-            ])
-            ->orderByDesc('church_services.date')
-            ->orderByDesc('church_service_items.position')
+        $canonical = $this->canonicalHistory($song, $limit)
+            ->map(fn (ChurchServiceItem $item): SongUsageOccurrence => new SongUsageOccurrence(
+                sourceId: $item->id,
+                sourceType: 'service_item',
+                date: $item->churchService->date,
+                service: $item->churchService->service,
+                title: $item->title,
+                churchService: $item->churchService,
+            ));
+
+        $reported = SongUsageReport::query()
+            ->where('song_id', $song->id)
+            ->whereNull('resolved_church_service_item_id')
+            ->orderByDesc('used_on')
+            ->orderByDesc('id')
             ->limit($limit)
-            ->get();
+            ->get()
+            ->map(fn (SongUsageReport $report): SongUsageOccurrence => new SongUsageOccurrence(
+                sourceId: $report->id,
+                sourceType: 'usage_report',
+                date: $report->used_on,
+                service: $report->reported_service,
+                title: $report->reported_title,
+                churchService: null,
+            ));
+
+        return $canonical
+            ->concat($reported)
+            ->sortByDesc(fn (SongUsageOccurrence $occurrence): string => $occurrence->date->format('Y-m-d').sprintf('%010d', $occurrence->sourceId))
+            ->take($limit)
+            ->values();
     }
 
     public function normalizeRange(?string $range): string
     {
-        return $range === self::RANGE_THIS_YEAR
-            ? self::RANGE_THIS_YEAR
-            : self::RANGE_ALL;
+        return $range === self::RANGE_THIS_YEAR ? self::RANGE_THIS_YEAR : self::RANGE_ALL;
     }
 
-    /**
-     * @return Builder<ChurchServiceItem>
-     */
-    private function qualifyingUsageItemsQueryForSong(Song $song, string $range = self::RANGE_ALL): Builder
-    {
-        return $this->baseQualifyingUsageItemsQuery($this->normalizeRange($range))
-            ->where('church_service_items.song_id', $song->id);
-    }
-
-    /**
-     * @return Builder<ChurchServiceItem>
-     */
-    private function baseQualifyingUsageItemsQuery(string $range): Builder
+    /** @return \Illuminate\Database\Eloquent\Collection<int, ChurchServiceItem> */
+    private function canonicalHistory(Song $song, int $limit): \Illuminate\Database\Eloquent\Collection
     {
         return ChurchServiceItem::query()
             ->join('church_services', 'church_services.id', '=', 'church_service_items.church_service_id')
+            ->where('church_service_items.song_id', $song->id)
             ->whereNull('church_service_items.deleted_at')
             ->where('church_service_items.type', 'songs')
-            ->when(
-                $range === self::RANGE_THIS_YEAR,
-                fn (Builder $query): Builder => $query->whereYear('church_services.date', now()->year)
-            )
-            ->tap(fn (Builder $query) => $this->eligibility->applySongItemEligibility($query));
+            ->tap(fn (Builder $query) => $this->eligibility->applySongItemEligibility($query))
+            ->select(['church_service_items.id', 'church_service_items.church_service_id', 'church_service_items.title', 'church_service_items.position'])
+            ->with(['churchService' => fn ($query) => $query->select(['id', 'date', 'service'])])
+            ->orderByDesc('church_services.date')
+            ->orderByDesc('church_service_items.position')
+            ->limit($limit)
+            ->get();
     }
 }
