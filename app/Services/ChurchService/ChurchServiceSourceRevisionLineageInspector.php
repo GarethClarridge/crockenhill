@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Enums\ChurchServiceSource;
 use App\Models\ChurchServiceSourceRecord;
 use Illuminate\Support\Collection;
 use RuntimeException;
@@ -81,11 +82,9 @@ class ChurchServiceSourceRevisionLineageInspector
     }
 
     /**
-     * A supersession edge is only meaningful inside one source + source_key
-     * lineage. An edge that crosses lineages would let one source's correction
-     * retire another source's evidence, so it is rejected before any leaf is
-     * resolved — the leaf walk itself cannot see the difference between a
-     * cross-lineage edge and a record it simply has not loaded.
+     * A supersession edge may cross source keys only for a manifest-authorised
+     * Email service-plan correction. It must still stay within the same source
+     * and church service; a different source cannot retire its peer's evidence.
      *
      * @param  Collection<int, ChurchServiceSourceRecord>  $records
      */
@@ -104,10 +103,22 @@ class ChurchServiceSourceRevisionLineageInspector
                 continue;
             }
 
-            if ($this->lineageKey($predecessor) !== $this->lineageKey($record)) {
+            if ($predecessor->church_service_id !== $record->church_service_id || $predecessor->source !== $record->source) {
+                throw new RuntimeException('A source revision supersedes a record from a different church service or source.');
+            }
+
+            if ($predecessor->source_key !== $record->source_key && ! $this->isManifestEmailSupersession($record, $predecessor)) {
                 throw new RuntimeException('A source revision supersedes a record from a different source lineage.');
             }
         }
+    }
+
+    private function isManifestEmailSupersession(
+        ChurchServiceSourceRecord $record,
+        ChurchServiceSourceRecord $predecessor,
+    ): bool {
+        return $record->source === ChurchServiceSource::Email
+            && ($record->processing_fingerprint['manifest_supersedes_source_key'] ?? null) === $predecessor->source_key;
     }
 
     /**

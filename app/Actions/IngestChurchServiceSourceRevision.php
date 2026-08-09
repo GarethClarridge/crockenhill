@@ -73,12 +73,18 @@ class IngestChurchServiceSourceRevision
 
                 $this->assertPayloadIsNotSuperseded($revisions, $revisionHash);
 
+                $manifestPredecessor = $this->resolveManifestPredecessor(
+                    $lockedService,
+                    $serviceRevisions,
+                    $revision,
+                );
+
                 $sourceRecord = $lockedService->sourceRecords()->create([
                     'source' => $revision->source,
                     'source_key' => $revision->sourceKey,
                     'revision_hash' => $revisionHash,
                     'input_hash' => $revision->inputHash,
-                    'supersedes_id' => $superseded?->id,
+                    'supersedes_id' => $manifestPredecessor === null ? $superseded?->id : $manifestPredecessor->id,
                     'batch_hash' => $revision->batchHash,
                     'processing_fingerprint' => $revision->processingFingerprint,
                     'service_content' => $revision->serviceContent,
@@ -154,6 +160,58 @@ class IngestChurchServiceSourceRevision
 
             return new ChurchServiceSourceIngestionResult($existing, false);
         }
+    }
+
+    /**
+     * A curated Email correction names its predecessor by the portable source
+     * key for one service plan. It never relies on a local database id or on
+     * arrival order. Resolve it while the service is locked so a correction
+     * cannot retire absent, ambiguous, or already-replaced evidence.
+     *
+     * @param  Collection<int, ChurchServiceSourceRecord>  $serviceRevisions
+     */
+    private function resolveManifestPredecessor(
+        ChurchService $churchService,
+        Collection $serviceRevisions,
+        ChurchServiceSourceRevision $revision,
+    ): ?ChurchServiceSourceRecord {
+        if ($revision->supersedesSourceKey === null) {
+            return null;
+        }
+
+        $elsewhere = ChurchServiceSourceRecord::query()
+            ->where('source', $revision->source->value)
+            ->where('source_key', $revision->supersedesSourceKey)
+            ->where('church_service_id', '!=', $churchService->getKey())
+            ->exists();
+
+        if ($elsewhere) {
+            throw new RuntimeException('The declared Email predecessor belongs to a different church service.');
+        }
+
+        $predecessors = $serviceRevisions
+            ->filter(fn (ChurchServiceSourceRecord $record): bool => $record->source === $revision->source
+                && $record->source_key === $revision->supersedesSourceKey)
+            ->values();
+
+        if ($predecessors->isEmpty()) {
+            throw new RuntimeException('The declared Email predecessor is absent from this church service.');
+        }
+
+        if ($predecessors->count() !== 1) {
+            throw new RuntimeException('The declared Email predecessor is ambiguous because its source identity has multiple revisions.');
+        }
+
+        $predecessor = $predecessors->firstOrFail();
+        $alreadySuperseded = $serviceRevisions->contains(
+            fn (ChurchServiceSourceRecord $record): bool => $record->supersedes_id === $predecessor->id,
+        );
+
+        if ($alreadySuperseded) {
+            throw new RuntimeException('The declared Email predecessor has already been superseded incompatibly.');
+        }
+
+        return $predecessor;
     }
 
     /**

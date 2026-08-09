@@ -12,6 +12,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\InboundEmail;
 use App\Queries\AdminAttentionCounts;
 use App\Queries\ReviewInboxQuery;
+use App\Services\ChurchService\ChurchServiceEvidenceSet;
 use App\Services\ChurchService\ChurchServiceSongLinker;
 use App\Services\Email\OosCurationManifest;
 use App\Support\CanonicalJson;
@@ -871,6 +872,56 @@ class ImportOosArchiveCommandTest extends TestCase
     }
 
     #[Test]
+    public function manifest_authorised_email_correction_replaces_its_predecessor_in_direct_and_portable_imports(): void
+    {
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                $title = str_contains($subject, 'Corrected') ? 'Corrected order' : 'Original order';
+                $item = ['type' => 'song', 'title' => $title, 'source_line_ids' => [2], 'continuation' => false];
+
+                return new OosEmailItemExtractionResult(
+                    items: [$item],
+                    confidence: 1.0,
+                    services: [[
+                        'service' => 'morning', 'date' => '2026-07-12', 'service_evidence_line_ids' => [1],
+                        'items' => [$item], 'confidence' => 1.0,
+                    ]],
+                    serviceCount: 1,
+                    provenanceComplete: true,
+                );
+            }
+        });
+        $corpus = $this->corpus([
+            ['key' => '2026-07-12-original', 'date' => '2026-07-12', 'subject' => 'Original order'],
+            ['key' => '2026-07-12-correction', 'date' => '2026-07-12', 'subject' => 'Corrected order', 'supersedes' => '2026-07-12-original'],
+        ]);
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus, '--import' => true, '--plan-hash' => $this->planHash(),
+        ])->assertExitCode(0);
+
+        $this->assertCorrectionLineage();
+
+        $bundle = storage_path('scratch/tests/oos-supersession-'.uniqid().'.json');
+        $this->temporaryPaths[] = $bundle;
+        $this->artisan('oos:import-archive', [
+            ...$corpus, '--export-bundle' => $bundle, '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        ChurchService::query()->delete();
+        InboundEmail::query()->delete();
+        InboundEmail::factory()->create(['message_id' => '<different-primary-key@example.test>']);
+
+        $this->artisan('oos:import-archive', [...$corpus, '--import-bundle' => $bundle])->assertExitCode(0);
+        $arguments = [...$corpus, '--apply-bundle' => $bundle];
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+
+        $this->assertCorrectionLineage();
+    }
+
+    #[Test]
     public function bundled_apply_uses_the_verified_payload_instead_of_mutable_staged_parse_data(): void
     {
         $this->bindPortableExtractor();
@@ -1173,6 +1224,21 @@ class ImportOosArchiveCommandTest extends TestCase
         });
     }
 
+    private function assertCorrectionLineage(): void
+    {
+        $service = ChurchService::query()->sole();
+        $records = $service->sourceRecords()->orderBy('id')->get();
+
+        $this->assertCount(2, $records);
+        $original = $records->firstWhere('source_key', '<oos-2026-07-12-original-'.substr(sha1('2026-07-12-original'), 0, 8).'@crockenhill.local>|morning:2026-07-12');
+        $correction = $records->firstWhere('source_key', '<oos-2026-07-12-correction-'.substr(sha1('2026-07-12-correction'), 0, 8).'@crockenhill.local>|morning:2026-07-12');
+
+        $this->assertNotNull($original);
+        $this->assertNotNull($correction);
+        $this->assertSame($original->id, $correction->supersedes_id);
+        $this->assertTrue(app(ChurchServiceEvidenceSet::class)->records($records)->sole()->is($correction));
+    }
+
     private function corpus(array $entries): array
     {
         $root = $this->temporaryDirectory();
@@ -1203,6 +1269,7 @@ class ImportOosArchiveCommandTest extends TestCase
                 'partial_scope_reason' => ($entry['scope'] ?? 'full') === 'partial' ? 'hymn list only' : null,
                 'parse_decision' => $entry['parse_decision'] ?? 'strict',
                 'expected_item_count' => $entry['expected_item_count'] ?? null,
+                'supersedes' => $entry['supersedes'] ?? null,
                 'decided_by' => isset($entry['expected_item_count']) ? 'maintainer' : null,
                 'decided_at' => isset($entry['expected_item_count']) ? '2026-08-06T10:00:00+00:00' : null,
                 'decision_rule_version' => 'oos-curation-test-v1',

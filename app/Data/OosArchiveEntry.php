@@ -67,6 +67,8 @@ readonly class OosArchiveEntry
         public array $itemLineCounts,
         public array $curation,
         public string $syntheticMessageId,
+        public string $sourceKey,
+        public ?string $supersedesSourceKey,
         public string $inputHash,
         public CarbonImmutable $syntheticReceivedAt,
     ) {}

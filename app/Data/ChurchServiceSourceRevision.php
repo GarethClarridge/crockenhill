@@ -20,6 +20,7 @@ readonly class ChurchServiceSourceRevision
         public string $inputHash,
         public array $assertions,
         public array $processingFingerprint,
+        public ?string $supersedesSourceKey = null,
         public ?array $serviceContent = null,
         public ?string $batchHash = null,
         public bool $payloadComplete = true,

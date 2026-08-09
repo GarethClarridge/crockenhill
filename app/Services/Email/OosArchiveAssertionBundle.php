@@ -58,6 +58,11 @@ class OosArchiveAssertionBundle
                 'parser_version' => $parserVersion,
                 'projector_version' => self::PROJECTOR_VERSION,
                 'fingerprints' => $this->fingerprints(),
+                'plan_identities' => [[
+                    'plan_key' => $entry->servicesPresent[0].':'.$entry->groundTruthDate,
+                    'source_key' => $entry->sourceKey,
+                    'supersedes_source_key' => $entry->supersedesSourceKey,
+                ]],
                 'plans' => $parsing['service_plans'] ?? [],
                 'parse' => Arr::only($parsing, [
                     'resolved_date',
@@ -157,6 +162,14 @@ class OosArchiveAssertionBundle
                 throw new RuntimeException("OoS assertion bundle fingerprint mismatch for entry {$entry->itemKey}.");
             }
 
+            if (($payload['plan_identities'] ?? null) !== [[
+                'plan_key' => $entry->servicesPresent[0].':'.$entry->groundTruthDate,
+                'source_key' => $entry->sourceKey,
+                'supersedes_source_key' => $entry->supersedesSourceKey,
+            ]]) {
+                throw new RuntimeException("OoS assertion bundle plan identity mismatch for entry {$entry->itemKey}.");
+            }
+
             $parse = $payload['parse'] ?? null;
             $payloadHash = $payload['payload_hash'] ?? null;
             if (! is_string($payloadHash)
@@ -218,6 +231,7 @@ class OosArchiveAssertionBundle
                         'input_hash' => $entry->inputHash,
                         'curation_plan_hash' => $record['payload']['curation_plan_hash'] ?? null,
                         'portable_bundle' => true,
+                        'plan_identities' => $record['payload']['plan_identities'],
                     ],
                     'parsing' => array_replace($parse, [
                         'input_hash' => $entry->inputHash,

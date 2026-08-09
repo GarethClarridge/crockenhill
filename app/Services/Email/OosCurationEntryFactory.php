@@ -46,8 +46,17 @@ class OosCurationEntryFactory
     public function entries(OosCurationPlan $plan, array $verifiedPaths): array
     {
         $entries = [];
+        $sourceKeysByItemKey = [];
 
-        foreach ($plan->includes as $offset => $include) {
+        foreach ($plan->includes as $include) {
+            $sourceKeysByItemKey[$include['item_key']] = $this->sourceKey(
+                $include['item_key'],
+                $include['resolved_service'],
+                $include['resolved_date'],
+            );
+        }
+
+        foreach ($this->orderedIncludes($plan->includes) as $offset => $include) {
             $path = $verifiedPaths[$include['item_key']] ?? throw new RuntimeException(
                 "No verified payload path for approved OoS entry {$include['item_key']}."
             );
@@ -86,6 +95,10 @@ class OosCurationEntryFactory
                     'decision_rule_version' => $include['decision_rule_version'],
                 ],
                 syntheticMessageId: $this->messageId($include['item_key']),
+                sourceKey: $sourceKeysByItemKey[$include['item_key']],
+                supersedesSourceKey: $include['supersedes'] === null
+                    ? null
+                    : $sourceKeysByItemKey[$include['supersedes']],
                 /**
                  * The manifest's own payload digest, so "has the source changed
                  * since the last run" is answered by the bytes the operator
@@ -134,6 +147,51 @@ class OosCurationEntryFactory
         $slug = trim((string) preg_replace('/[^a-z0-9]+/', '-', strtolower($itemKey)), '-');
 
         return sprintf('<oos-%s-%s@crockenhill.local>', $slug, substr(sha1($itemKey), 0, 8));
+    }
+
+    private function sourceKey(string $itemKey, string $service, string $date): string
+    {
+        return $this->messageId($itemKey).'|'.$service.':'.$date;
+    }
+
+    /**
+     * A correction cannot resolve a predecessor that has not reached the
+     * service yet. The manifest's include order is not lineage order, so make
+     * the dependency explicit without changing any identity field.
+     *
+     * @param  list<array<string, mixed>>  $includes
+     * @return list<array<string, mixed>>
+     */
+    private function orderedIncludes(array $includes): array
+    {
+        $byKey = [];
+        foreach ($includes as $include) {
+            $byKey[$include['item_key']] = $include;
+        }
+
+        $ordered = [];
+        $visited = [];
+        $visit = function (array $include) use (&$visit, &$ordered, &$visited, $byKey): void {
+            $itemKey = $include['item_key'];
+
+            if (isset($visited[$itemKey])) {
+                return;
+            }
+
+            $predecessor = $include['supersedes'];
+            if ($predecessor !== null) {
+                $visit($byKey[$predecessor]);
+            }
+
+            $visited[$itemKey] = true;
+            $ordered[] = $include;
+        };
+
+        foreach ($includes as $include) {
+            $visit($include);
+        }
+
+        return $ordered;
     }
 
     private function receivedAt(string $resolvedDate): CarbonImmutable

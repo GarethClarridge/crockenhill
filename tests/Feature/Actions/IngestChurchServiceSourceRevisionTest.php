@@ -153,16 +153,35 @@ class IngestChurchServiceSourceRevisionTest extends TestCase
             'revision_hash' => str_repeat('a', 64),
         ]);
         ChurchServiceSourceRecord::factory()->for($service, 'churchService')->create([
-            'source' => ChurchServiceSource::Email,
+            'source' => ChurchServiceSource::OpenLp,
             'source_key' => 'different-message|morning:2026-07-29',
             'revision_hash' => str_repeat('b', 64),
             'supersedes_id' => $predecessor->id,
         ]);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('different source lineage');
+        $this->expectExceptionMessage('different church service or source');
 
         app(IngestChurchServiceSourceRevision::class)->execute($service, $this->revision());
+    }
+
+    #[Test]
+    public function it_refuses_a_manifest_correction_when_its_declared_predecessor_is_absent(): void
+    {
+        $service = ChurchService::factory()->create();
+        $revision = new ChurchServiceSourceRevision(
+            source: ChurchServiceSource::Email,
+            sourceKey: 'correction|morning:2026-07-29',
+            inputHash: str_repeat('a', 64),
+            assertions: [$this->assertion(1, 'Corrected order')],
+            processingFingerprint: ['format' => 'test', 'version' => 1],
+            supersedesSourceKey: 'original|morning:2026-07-29',
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('declared Email predecessor is absent');
+
+        app(IngestChurchServiceSourceRevision::class)->execute($service, $revision);
     }
 
     #[Test]

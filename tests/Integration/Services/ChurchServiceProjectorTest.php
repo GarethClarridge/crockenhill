@@ -323,7 +323,7 @@ class ChurchServiceProjectorTest extends TestCase
         ]);
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('outside its source lineage');
+        $this->expectExceptionMessage('different source lineage');
 
         app(ChurchServiceProjector::class)->project($service->sourceRecords()->with('assertions.sourceRecord')->get());
     }

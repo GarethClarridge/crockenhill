@@ -235,6 +235,8 @@ class OosArchiveEvaluatorTest extends TestCase
                 'decision_rule_version' => 'oos-curation-draft-v1',
             ],
             syntheticMessageId: "<oos-2026-07-12-{$index}@crockenhill.local>",
+            sourceKey: "<oos-2026-07-12-{$index}@crockenhill.local>|morning:2026-07-12",
+            supersedesSourceKey: null,
             inputHash: str_repeat('a', 64),
             syntheticReceivedAt: CarbonImmutable::parse('2026-07-10 09:00', 'Europe/London'),
         );

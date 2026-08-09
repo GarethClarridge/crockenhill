@@ -26,6 +26,24 @@ class EmailSourceAdapter
     ): ChurchServiceSourceRevision {
         $metadata = $email->processing_metadata ?? [];
         $batchHash = Arr::get($metadata, 'archive.curation_plan_hash');
+        $sourceKey = $email->message_id.'|'.$plan->key();
+        $planIdentities = Arr::get($metadata, 'archive.plan_identities', []);
+        $supersedesSourceKey = null;
+
+        if (is_array($planIdentities)) {
+            foreach ($planIdentities as $identity) {
+                if (! is_array($identity)
+                    || ($identity['source_key'] ?? null) !== $sourceKey
+                    || ($identity['plan_key'] ?? null) !== $plan->key()) {
+                    continue;
+                }
+
+                $candidate = $identity['supersedes_source_key'] ?? null;
+                $supersedesSourceKey = is_string($candidate) && $candidate !== '' ? $candidate : null;
+
+                break;
+            }
+        }
 
         if (! is_string($batchHash) || preg_match('/^[a-f0-9]{64}$/', $batchHash) !== 1) {
             $batchHash = null;
@@ -33,7 +51,7 @@ class EmailSourceAdapter
 
         return new ChurchServiceSourceRevision(
             source: ChurchServiceSource::Email,
-            sourceKey: $email->message_id.'|'.$plan->key(),
+            sourceKey: $sourceKey,
             inputHash: $inputHash ?? CanonicalJson::hash([
                 'body_html' => $email->body_html,
                 'body_plain' => $email->body_plain,
@@ -43,7 +61,9 @@ class EmailSourceAdapter
             processingFingerprint: [
                 'format' => 'email-plan',
                 'version' => 1,
+                'manifest_supersedes_source_key' => $supersedesSourceKey,
             ],
+            supersedesSourceKey: $supersedesSourceKey,
             batchHash: $batchHash,
             capturedAt: $email->received_at,
         );

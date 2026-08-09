@@ -198,9 +198,19 @@ class ChurchServiceProjector
      */
     private function activeRecords(Collection $records): Collection
     {
-        return $records
+        $this->lineageInspector->assertNoCrossLineageSupersession($records);
+
+        $supersededIds = $records
+            ->pluck('supersedes_id')
+            ->filter()
+            ->flip();
+        $active = $records
+            ->reject(fn (ChurchServiceSourceRecord $record): bool => $supersededIds->has($record->id))
+            ->values();
+
+        return $active
             ->groupBy(fn (ChurchServiceSourceRecord $record): string => $this->sourceRecordKey($record))
-            ->map(fn (Collection $revisions): ChurchServiceSourceRecord => $this->lineageInspector->activeLeaf($revisions, $records)
+            ->map(fn (Collection $revisions): ChurchServiceSourceRecord => $this->lineageInspector->activeLeaf($revisions, $active)
                 ?? throw new RuntimeException('A source revision lineage must have exactly one active leaf.'))
             ->sortBy(fn (ChurchServiceSourceRecord $record): string => $this->sourceRecordKey($record))
             ->values();

@@ -660,6 +660,11 @@ class ImportOosArchiveCommand extends Command
             'content_scope' => $entry->contentScope,
             'services_present' => $entry->servicesPresent,
             'item_line_counts' => $entry->itemLineCounts,
+            'plan_identities' => [[
+                'plan_key' => $entry->servicesPresent[0].':'.$entry->groundTruthDate,
+                'source_key' => $entry->sourceKey,
+                'supersedes_source_key' => $entry->supersedesSourceKey,
+            ]],
             'curation' => $entry->curation,
             'curation_plan_hash' => $plan->planHash,
             'batch_key' => $plan->batchKey,
