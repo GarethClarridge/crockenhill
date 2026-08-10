@@ -204,10 +204,9 @@ source-acquisition and operator item. Specifically noted for the next session:
   not.
 - ~~`HistoricSermonPublicationService::release()` has no operator command and no batch gate.~~
   **Implemented 2026-08-10; see the entry below.** The exercise itself remains unrun.
-- `HistoricImportMutationFreeze` blocks every save and delete on eleven core models with an uncaught
-  `RuntimeException` whenever `HISTORIC_IMPORT_PRODUCTION_APPROVAL` is set. That is the intended
-  freeze, but the failure mode in a web request or queue job is a 500, not a refusal. Decide before
-  an approval artifact is ever placed on a production host.
+- ~~`HistoricImportMutationFreeze` blocks every save and delete on eleven core models with an
+  uncaught `RuntimeException`; the failure mode in a web request or queue job is a 500, not a
+  refusal.~~ **Decided and implemented 2026-08-10; see the entry below.**
 
 ### 2026-08-10 — F29 release command and batch gate
 
@@ -258,6 +257,46 @@ cross-test interaction, and the new test now flushes the shared cache in `setUp`
 quarantined item and all assets returning the agreed non-public behaviour, then an approved item
 becoming public without re-importing or changing provenance. No such rehearsal has happened, and no
 signed release authorisation exists. This entry closes no gate.
+
+### 2026-08-10 — F46 freeze failure mode decided
+
+**Maintainer decision:** the freeze presents as a clear 503 refusal, and the one scheduled task that
+writes a frozen model skips while the freeze is on. The queue is deliberately left alone.
+
+**Measured blast radius before deciding.** The freeze hooks `saving`/`deleting` on eleven models and
+is inert only in the process that called `authorize()`. Three surfaces were exposed:
+
+- *Admin web requests* — the real problem. Seventeen admin Livewire components touch those models; an
+  operator mid-window got an uncaught exception, and with error tracking uninstalled (F46) the only
+  trace was a rotating log. A deliberate freeze was indistinguishable from an outage.
+- *The scheduler* — **one** task, not three as first assumed. `media:cleanup-unpublished-section-assets`
+  transitions `ServiceSection` publication status. `media:cleanup-temp-files`, `scripture:refresh-passages`,
+  `calendar:sync` and `sitemap:generate` are read-only on frozen models, and `model:prune` is scoped to
+  two health models.
+- *Queue jobs* — smaller than it looks. `HorizonPauseAccounting` records that `supervisor-media` serves
+  `default` in the same strict-priority list, so the approval's required supervisor pause stops
+  ordinary background work too. In a correctly run window jobs accumulate rather than fail, so no
+  queue-layer change was made.
+
+**What was implemented.** `HistoricImportFrozen` carries the operation id and window end and renders
+503 with `Retry-After` for both JSON and HTML; the 503 view shows the reason in place of its generic
+maintenance copy. An elapsed window advertises **no** retry delay, because expiry does not lift the
+freeze — removing the artifact does. An unreadable approval still refuses, just without naming the
+operation: an approval that cannot be read is a reason to keep refusing.
+
+The cleanup task's skip predicate now also consults the freeze. Its existing predicate was the ingress
+gate alone, but F46 lifts the freeze only after exact audit, smoke and queue/scheduler recovery, so the
+freeze deliberately outlives the ingress release — leaving a window in which that task ran and failed.
+
+**Known limitation, asserted by test rather than left implicit.** Several API controllers wrap their
+work in a broad `catch (\Exception)` — `MediaController::upload()` is the worked example — which
+swallows the refusal and returns their own error shape instead of the 503. The security-relevant
+property still holds and is tested: the write is blocked and the response is not a 500. What is lost
+there is the operator-facing message. Narrowing those catches is ordinary follow-up, not an import gate.
+
+**Gates:** `artisan test --parallel` green (6346 tests), `composer phpstan` clean, `pint --dirty`
+applied, `artisan dusk` green (55 tests). This entry closes no gate: F46 still requires the freeze,
+approval binding, watchboard and two-person control to pass a production-shaped rehearsal.
 
 ### 2026-08-08 — continuation audit scope and completion
 
@@ -1168,7 +1207,7 @@ review. Those topics are not import gates.
 | Accepted accuracy threshold and treatment below it | Church governance + maintainer | Calibration/G7 | Private |
 | Maximum local checkpoint, production ingress window, split and rollback thresholds | Maintainer/operator | Before calibration/G7 | No-go |
 | Backup/object rollback design, RPO/RTO and retention window | Maintainer/operator | Before G5/G8 | No-go |
-| Production deploy/admin/config freeze and approval protection | Maintainer/operator | Before G8 | No-go until explicit decision |
+| Production deploy/admin/config freeze and approval protection | Maintainer/operator | Before G8 | **Freeze failure mode decided 2026-08-10 (503 refusal + scheduler skip);** approval protection still open |
 | Evidence retention and source-drive custody duration | Maintainer/operator | Before acquisition | Retain securely; no destruction |
 
 ## 6. Final go/no-go checklist

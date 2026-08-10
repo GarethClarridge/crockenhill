@@ -1,6 +1,7 @@
 <?php
 
 use App\Contracts\ProvidesSafeMessage;
+use App\Exceptions\HistoricImportFrozen;
 use App\Http\Middleware\EnsureChildrensCornerAccess;
 use App\Http\Middleware\EnsureMediaProcessingAccess;
 use App\Http\Middleware\EnsureServiceTrackingAccess;
@@ -9,6 +10,7 @@ use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureValidMailgunWebhookSignature;
 use App\Http\Middleware\RefuseBlockedImportIngress;
 use App\Http\Middleware\SecurityHeaders;
+use App\Services\Import\HistoricImportMutationFreeze;
 use App\Services\Import\ImportIngressGate;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
@@ -56,11 +58,17 @@ return Application::configure(basePath: dirname(__DIR__))
             ->graceTimeInMinutes(60)
             ->skip(fn (): bool => app(ImportIngressGate::class)->isBlocked())
             ->environments(['production']);
+        // This one transitions ServiceSection publication status, so it is the
+        // only scheduled task the mutation freeze would throw inside. The freeze
+        // deliberately outlives the ingress release (F46 lifts it only after
+        // audit, smoke and queue/scheduler recovery), so the ingress predicate
+        // alone would leave a window where this task runs and fails.
         $schedule->command('media:cleanup-unpublished-section-assets --hours=48')
             ->everySixHours()
             ->withoutOverlapping(30)
             ->graceTimeInMinutes(30)
-            ->skip(fn (): bool => app(ImportIngressGate::class)->isBlocked())
+            ->skip(fn (): bool => app(ImportIngressGate::class)->isBlocked()
+                || app(HistoricImportMutationFreeze::class)->isFrozen())
             ->environments(['production']);
         $schedule->command('scripture:refresh-passages')
             ->daily()
@@ -156,6 +164,26 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->shouldRenderJsonWhen(fn ($request, $e) => $request->expectsJson() || $request->is('api/*'));
+
+        /**
+         * A deliberate freeze must not read as an outage. Without this the
+         * refusal surfaces as HTTP 500 and an operator cannot tell the import
+         * window from an incident.
+         */
+        $exceptions->render(function (HistoricImportFrozen $e, Request $request) {
+            $headers = [];
+            $retryAfter = $e->retryAfterSeconds();
+
+            if ($retryAfter !== null) {
+                $headers['Retry-After'] = (string) $retryAfter;
+            }
+
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json(['message' => $e->getMessage()], 503, $headers);
+            }
+
+            return response()->view('errors.503', ['reason' => $e->getMessage()], 503, $headers);
+        });
 
         $exceptions->render(function (Throwable $e, Request $request) {
             if ($e instanceof ProvidesSafeMessage && ($request->expectsJson() || $request->is('api/*'))) {

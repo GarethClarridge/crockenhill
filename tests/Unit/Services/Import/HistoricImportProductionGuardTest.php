@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Import;
 
+use App\Exceptions\HistoricImportFrozen;
 use App\Models\ImportIngressLock;
 use App\Models\Sermon;
 use App\Services\Import\HistoricImportProductionGuard;
@@ -12,7 +13,6 @@ use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
-use RuntimeException;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
@@ -158,8 +158,8 @@ class HistoricImportProductionGuardTest extends TestCase
         try {
             Sermon::factory()->create();
             $this->fail('The production freeze did not block an ordinary target mutation.');
-        } catch (RuntimeException $exception) {
-            $this->assertStringContainsString('production freeze', $exception->getMessage());
+        } catch (HistoricImportFrozen $exception) {
+            $this->assertStringContainsString('paused for the historic import window', $exception->getMessage());
         }
 
         $this->assertNull($this->guard('production')->refusalFor('historic:apply'));
