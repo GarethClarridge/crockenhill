@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\HistoricImportDisposition;
 use App\Enums\HistoricImportItemExpectation;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
@@ -14,6 +15,10 @@ use LogicException;
  * @property string $item_key
  * @property HistoricImportItemExpectation $expectation
  * @property HistoricImportDisposition $disposition
+ * @property string|null $approved_source_sha256
+ * @property string|null $observed_source_sha256
+ * @property CarbonInterface|null $settled_at
+ * @property HistoricImportSourceSnapshot|null $sourceSnapshot
  */
 class HistoricImportItemOutcome extends Model
 {

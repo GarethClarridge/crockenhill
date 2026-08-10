@@ -19,6 +19,7 @@ trait CreatesHistoricImportOperations
             manifestHashes: ['video' => str_repeat('a', 64)],
             planHash: str_repeat('b', 64),
             targetFingerprint: $targetFingerprint ?? str_repeat('c', 64),
+            runtimeFingerprint: $targetFingerprint ?? str_repeat('c', 64),
         );
 
         return HistoricImportOperation::query()->create([

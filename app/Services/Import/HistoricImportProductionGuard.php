@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Import;
 
+use App\Models\ImportIngressLock;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Support\Carbon;
+use RuntimeException;
+use Throwable;
 
 /**
  * Enforces the G8 boundary the plan header previously only described.
@@ -28,13 +32,10 @@ use Illuminate\Contracts\Foundation\Application;
  *   permission, for the same reason `ChurchServiceProposalCensusGate` refuses an
  *   unset corpus size: the absence of a decision is not a decision.
  *
- * What this guard does *not* cover, so that its silence is not mistaken for
- * cover: storage isolation, which is the per-batch staging root's job
- * ({@see HistoricStagingGuard}), and an operator who deliberately points a
- * non-production `APP_ENV` at production infrastructure. This checks which
- * environment the application believes it is, which is the signal that catches
- * the realistic mistake — a production `.env` in the shell that a rehearsal
- * command was typed into.
+ * Storage isolation remains the per-batch staging root's job
+ * ({@see HistoricStagingGuard}). Production identity is resolved independently
+ * of APP_ENV: a configured production target fingerprint activates this guard
+ * even when a shell incorrectly labels the application as local.
  */
 class HistoricImportProductionGuard
 {
@@ -51,17 +52,60 @@ class HistoricImportProductionGuard
      *
      * @param  string  $operation  The invocation being guarded, as an operator would type it.
      */
-    public function refusalFor(string $operation): ?string
+    public function refusalFor(string $operation, ?string $operationId = null): ?string
     {
         if (! $this->guardsCurrentEnvironment()) {
             return null;
         }
 
-        if ($this->approvedOperationId() !== null) {
-            return null;
+        if ($this->publicServiceCutoff() === null) {
+            return implode(PHP_EOL, [
+                "Refusing to run {$operation} against production: the public service cutoff is not configured.",
+                'Set CHURCH_SERVICES_PUBLIC_FROM to the reviewed lower publication boundary before the import window.',
+            ]);
         }
 
-        return $this->describeRefusal($operation);
+        if (! $this->hasPrivateHistoricQuarantine()) {
+            return implode(PHP_EOL, [
+                "Refusing to run {$operation} against production: historic sermon quarantine storage is not private and isolated.",
+                'HISTORIC_QUARANTINE_DISK must resolve to a private disk distinct from SERMON_STORAGE_DISK.',
+            ]);
+        }
+
+        $approvalPath = config('church.historic_corpus.production_import_approval');
+
+        if (! is_string($approvalPath) || trim($approvalPath) === '') {
+            return $this->describeRefusal($operation);
+        }
+
+        try {
+            $target = app(HistoricImportTargetFingerprint::class)->hash();
+            $approval = app(HistoricImportApprovalManifest::class)->authorize(
+                trim($approvalPath),
+                $operation,
+                $target,
+                (string) config('media-processing.historic_import.evidence_signing_key'),
+            );
+
+            if ($operationId !== null && $approval['operation_id'] !== $operationId) {
+                throw new RuntimeException('The command operation id does not match the approved immutable operation.');
+            }
+
+            $lock = app(ImportIngressGate::class)->active();
+
+            if (! $lock instanceof ImportIngressLock
+                || $lock->operation_id !== $approval['operation_id']
+                || ! is_array($lock->queue_pause_accounting)
+                || ! array_key_exists('supervisors_to_pause', $lock->queue_pause_accounting)) {
+                throw new RuntimeException('The approved operation does not hold the measured ingress/queue freeze.');
+            }
+
+            app(HistoricImportMutationFreeze::class)->authorize((string) $approval['operation_id']);
+
+            return null;
+        } catch (Throwable $exception) {
+            return "Refusing to run {$operation} against production: {$exception->getMessage()}";
+        }
     }
 
     /**
@@ -72,18 +116,73 @@ class HistoricImportProductionGuard
      */
     public function approvedOperationId(): ?string
     {
-        $approval = config('church.historic_corpus.production_import_approval');
+        $path = config('church.historic_corpus.production_import_approval');
 
-        if (! is_string($approval) || trim($approval) === '') {
+        if (! is_string($path) || trim($path) === '' || ! is_file(trim($path))) {
             return null;
         }
 
-        return trim($approval);
+        try {
+            $approval = json_decode((string) file_get_contents(trim($path)), true, flags: JSON_THROW_ON_ERROR);
+        } catch (Throwable) {
+            return null;
+        }
+
+        $operationId = is_array($approval) ? ($approval['operation_id'] ?? null) : null;
+
+        return is_string($operationId) && trim($operationId) !== '' ? trim($operationId) : null;
     }
 
     public function guardsCurrentEnvironment(): bool
     {
-        return $this->application->isProduction();
+        if ($this->application->isProduction()) {
+            return true;
+        }
+
+        $productionTarget = config('church.historic_corpus.production_target_fingerprint');
+
+        if (! is_string($productionTarget) || preg_match('/\A[a-f0-9]{64}\z/', $productionTarget) !== 1) {
+            return false;
+        }
+
+        try {
+            return hash_equals($productionTarget, app(HistoricImportTargetFingerprint::class)->hash());
+        } catch (Throwable) {
+            return true;
+        }
+    }
+
+    public function publicServiceCutoff(): ?string
+    {
+        $cutoff = config('church.services.public_from');
+
+        if (! is_string($cutoff) || trim($cutoff) === '') {
+            return null;
+        }
+
+        $cutoff = trim($cutoff);
+
+        try {
+            $resolved = Carbon::createFromFormat('!Y-m-d', $cutoff);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return $resolved instanceof Carbon && $resolved->format('Y-m-d') === $cutoff
+            ? $cutoff
+            : null;
+    }
+
+    public function hasPrivateHistoricQuarantine(): bool
+    {
+        $quarantine = config('media-processing.storage.historic_quarantine_disk');
+        $public = config('media-processing.storage.sermon_disk');
+
+        if (! is_string($quarantine) || trim($quarantine) === '' || $quarantine === $public) {
+            return false;
+        }
+
+        return config("filesystems.disks.{$quarantine}.visibility") === 'private';
     }
 
     public function describeRefusal(string $operation): string
@@ -94,7 +193,7 @@ class HistoricImportProductionGuard
             're-project the corpus in a rehearsal database instead — that is what §13.5 steps 3-4 are,',
             'and this guard is silent there.',
             'If this *is* the approved production window, set HISTORIC_IMPORT_PRODUCTION_APPROVAL to the',
-            'approved operation identifier so the closeout report can quote the authority for the run.',
+            'signed approval artifact bound to the operation, target, release, commands and freeze.',
         ]);
     }
 }

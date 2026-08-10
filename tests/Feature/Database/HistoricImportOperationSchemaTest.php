@@ -28,6 +28,7 @@ class HistoricImportOperationSchemaTest extends TestCase
             'manifest_hashes',
             'plan_hash',
             'target_fingerprint',
+            'runtime_fingerprint',
             'state',
         ]));
         $this->assertTrue(Schema::hasColumns('historic_import_checkpoints', [

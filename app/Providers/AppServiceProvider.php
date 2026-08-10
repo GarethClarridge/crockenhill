@@ -4,12 +4,24 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
+use App\Models\ChurchServiceMergeProposal;
+use App\Models\ChurchServiceReviewSession;
+use App\Models\ChurchServiceSourceRecord;
+use App\Models\LivestreamSegment;
+use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
+use App\Models\SermonProcessingStep;
+use App\Models\ServiceSection;
+use App\Models\SongVideo;
 use App\Presenters\PageCardPresenter;
 use App\Presenters\PageImagePresenter;
 use App\Presenters\RelatedPagePresenter;
 use App\Seo\SermonArchiveSeoPresenter;
 use App\Seo\SermonItemListPresenter;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Services\Import\HistoricImportMutationFreeze;
 use App\Services\Media\Audio\SermonTranscriptReader;
 use App\Services\Media\Audio\TranscriptStorageService;
 use App\Services\Public\MeetingListCache;
@@ -65,6 +77,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(SermonItemListPresenter::class);
         $this->app->scoped(SermonSitemapPresenter::class);
         $this->app->scoped(HistoricStagingContextRegistry::class);
+        $this->app->scoped(HistoricImportMutationFreeze::class);
 
         $this->registerDeterministicFakerForVisualRegression();
     }
@@ -73,6 +86,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->freezeClockForVisualRegression();
         $this->registerHistoricStagingQueueContext();
+        $this->registerHistoricImportMutationFreeze();
 
         if (config('thumbnail-generation.enabled') && ! extension_loaded('gd')) {
             throw new \RuntimeException(
@@ -93,6 +107,30 @@ class AppServiceProvider extends ServiceProvider
                 ->symbols()
                 ->uncompromised();
         });
+    }
+
+    private function registerHistoricImportMutationFreeze(): void
+    {
+        $guard = static function (): void {
+            app(HistoricImportMutationFreeze::class)->assertMutationAllowed();
+        };
+
+        foreach ([
+            ChurchService::class,
+            ChurchServiceItem::class,
+            ChurchServiceMergeProposal::class,
+            ChurchServiceReviewSession::class,
+            ChurchServiceSourceRecord::class,
+            LivestreamSegment::class,
+            MediaProcessingLog::class,
+            Sermon::class,
+            SermonProcessingStep::class,
+            ServiceSection::class,
+            SongVideo::class,
+        ] as $model) {
+            $model::saving($guard);
+            $model::deleting($guard);
+        }
     }
 
     private function registerHistoricStagingQueueContext(): void

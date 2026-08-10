@@ -96,7 +96,10 @@ class ConvergeHistoricChurchServiceCommand extends Command
              * sentence in the plan into a precondition the run cannot skip, and
              * it gives the closeout report a recorded authority to quote.
              */
-            $productionRefusal = $productionGuard->refusalFor('service-tracking:converge-historic-service --apply');
+            $productionRefusal = $productionGuard->refusalFor(
+                'service-tracking:converge-historic-service --apply',
+                $plan->operationId,
+            );
 
             if ($productionRefusal !== null) {
                 throw new RuntimeException($productionRefusal);

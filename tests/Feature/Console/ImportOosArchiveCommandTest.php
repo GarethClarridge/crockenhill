@@ -315,7 +315,7 @@ class ImportOosArchiveCommandTest extends TestCase
     }
 
     #[Test]
-    public function an_approved_production_import_proceeds(): void
+    public function a_legacy_free_form_production_token_is_not_approval(): void
     {
         $this->bindPortableExtractor();
         $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
@@ -324,9 +324,11 @@ class ImportOosArchiveCommandTest extends TestCase
         Config::set('church.historic_corpus.production_import_approval', 'g8-2026-08-20');
         $this->app['env'] = 'production';
 
-        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+        $this->artisan('oos:import-archive', $arguments)
+            ->expectsOutputToContain('approval artifact is missing')
+            ->assertExitCode(1);
 
-        $this->assertDatabaseCount('church_services', 1);
+        $this->assertDatabaseCount('church_services', 0);
     }
 
     /**

@@ -52,6 +52,7 @@ class HistoricImportOperationIdentityTest extends TestCase
             manifestHashes: $identity->manifestHashes,
             planHash: $identity->planHash,
             targetFingerprint: $identity->targetFingerprint,
+            runtimeFingerprint: $identity->runtimeFingerprint,
         );
     }
 }

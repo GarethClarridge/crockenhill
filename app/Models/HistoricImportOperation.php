@@ -14,7 +14,11 @@ use LogicException;
  * @property HistoricImportOperationState $state
  * @property string $operation_id
  * @property string $binding_hash
+ * @property string $batch_key
+ * @property array<string, string> $manifest_hashes
+ * @property string $plan_hash
  * @property string $target_fingerprint
+ * @property string $runtime_fingerprint
  * @property string $notification_mode
  * @property int $max_cost_minor_units
  * @property CarbonInterface|null $accepted_deadline
@@ -29,6 +33,7 @@ class HistoricImportOperation extends Model
         'manifest_hashes',
         'plan_hash',
         'target_fingerprint',
+        'runtime_fingerprint',
         'notification_mode',
         'max_cost_minor_units',
     ];
@@ -40,6 +45,7 @@ class HistoricImportOperation extends Model
         'manifest_hashes',
         'plan_hash',
         'target_fingerprint',
+        'runtime_fingerprint',
         'notification_mode',
         'max_cost_minor_units',
         'state',
@@ -106,6 +112,12 @@ class HistoricImportOperation extends Model
     public function assetTransfers(): HasMany
     {
         return $this->hasMany(HistoricImportAssetTransfer::class);
+    }
+
+    /** @return HasMany<HistoricImportNestedJob, $this> */
+    public function nestedJobs(): HasMany
+    {
+        return $this->hasMany(HistoricImportNestedJob::class);
     }
 
     public function transitionTo(HistoricImportOperationState $next): void

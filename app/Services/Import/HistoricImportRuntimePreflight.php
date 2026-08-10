@@ -106,7 +106,11 @@ class HistoricImportRuntimePreflight
             throw new RuntimeException('Historic operation is not bound to notification isolation.');
         }
 
-        if (! hash_equals($operation->target_fingerprint, $this->fingerprint($evidence))) {
+        if (! hash_equals($operation->target_fingerprint, app(HistoricImportTargetFingerprint::class)->hash())) {
+            throw new RuntimeException('Historic import resolved target differs from the accepted operation binding.');
+        }
+
+        if (! hash_equals($operation->runtime_fingerprint, $this->fingerprint($evidence))) {
             throw new RuntimeException('Historic runtime evidence differs from the accepted operation binding.');
         }
     }
@@ -123,7 +127,7 @@ class HistoricImportRuntimePreflight
         $this->assertOperationBinding($operation, $evidence);
 
         if ($checkpoint->runtime_fingerprint !== null
-            && ! hash_equals($checkpoint->runtime_fingerprint, $operation->target_fingerprint)) {
+            && ! hash_equals($checkpoint->runtime_fingerprint, $operation->runtime_fingerprint)) {
             throw new RuntimeException('Historic checkpoint runtime binding changed after admission.');
         }
     }

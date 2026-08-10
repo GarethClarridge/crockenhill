@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withCommands()
     ->withSchedule(function (Schedule $schedule) {
         // graceTimeInMinutes mirrors each task's withoutOverlapping lock window:
         // the runtime a task is allowed before ScheduledTasksCheck reports it
