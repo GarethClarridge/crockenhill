@@ -5,19 +5,23 @@ declare(strict_types=1);
 namespace App\Services\HistoricMedia;
 
 use App\Data\HistoricProcessingResultImportPlan;
+use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\HistoricImportOperation;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Models\SermonProcessingStep;
+use App\Models\SermonScriptureFilter;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -35,6 +39,14 @@ class HistoricMediaGraphPersister
      */
     public function persist(HistoricProcessingResultImportPlan $plan): array
     {
+        return Model::withoutEvents(fn (): array => $this->persistEventQuietly($plan));
+    }
+
+    /**
+     * @return array{processing_log: MediaProcessingLog, created_assets: list<string>}
+     */
+    private function persistEventQuietly(HistoricProcessingResultImportPlan $plan): array
+    {
         $graph = $plan->service['media_graph'];
         $processingId = $graph['processing_key'];
         $churchService = $this->resolveChurchService($plan, $graph);
@@ -45,17 +57,23 @@ class HistoricMediaGraphPersister
          * reference can only be filled once the main publication exists, so it
          * is a second write rather than part of the insert.
          */
-        $run = $this->createRun($graph, $churchService);
+        $run = $this->createRun($graph, $churchService, $plan->historicImportOperationId);
         $this->createSteps($processingId, $graph['steps'] ?? []);
         $segments = $this->createSegments($run, $graph['segments'] ?? []);
         $serviceItems = $this->resolveServiceItems($churchService, $graph['sections'] ?? []);
         $sections = $this->createSections($run, $graph['sections'] ?? [], $segments, $serviceItems);
         $this->linkServiceItems($processingId, $sections);
-        $publications = $this->createPublications($graph['publications'] ?? [], $processingId, $run);
+        $publications = $this->createPublications(
+            $graph['publications'] ?? [],
+            $processingId,
+            $run,
+            $plan->historicImportOperationId,
+        );
         $run->sermon_id = $publications['main']->id ?? null;
         $run->save();
         $this->createSongVideos($plan, $sections, $churchService);
         $destinations = $this->assetDestinations($plan, $run, $sections, $publications);
+        $destinations = $this->operationOwnedDestinations($plan, $destinations);
         $createdAssets = $this->assets->copyToDestinations($plan->assets, $destinations);
 
         try {
@@ -67,6 +85,28 @@ class HistoricMediaGraphPersister
         }
 
         return ['processing_log' => $run->fresh() ?? $run, 'created_assets' => $createdAssets];
+    }
+
+    /**
+     * @param  array<string, string>  $destinations
+     * @return array<string, string>
+     */
+    private function operationOwnedDestinations(HistoricProcessingResultImportPlan $plan, array $destinations): array
+    {
+        if ($plan->historicImportOperationId === null) {
+            return $destinations;
+        }
+
+        $operation = HistoricImportOperation::query()->find($plan->historicImportOperationId);
+
+        if (! $operation instanceof HistoricImportOperation) {
+            throw new RuntimeException('Historic media graph lost its owning import operation.');
+        }
+
+        return array_map(
+            static fn (string $path): string => "historic-import/{$operation->operation_id}/{$path}",
+            $destinations,
+        );
     }
 
     /**
@@ -119,7 +159,16 @@ class HistoricMediaGraphPersister
             }
         }
 
-        $destinations = $this->assetDestinations($plan, $run, $sections, $publications);
+        /**
+         * The same operation-owned prefix the apply path allocated. Section and
+         * run-level roles are recomputed from scratch here rather than reused
+         * from the stored attribute, so without it the no-op rerun would read
+         * every one of them as a changed canonical link.
+         */
+        $destinations = $this->operationOwnedDestinations(
+            $plan,
+            $this->assetDestinations($plan, $run, $sections, $publications),
+        );
         $livePaths = $this->liveAssetPaths($plan, $run, $sections, $publications);
 
         foreach ($this->assets->expand($plan->assets) as $asset) {
@@ -134,12 +183,6 @@ class HistoricMediaGraphPersister
     }
 
     /**
-     * The bundle's scripture_filters are deliberately not inserted. SermonObserver
-     * owns that index and rebuilds it from `reference` on every save, so inserting
-     * the bundle's rows either collides with the observer's on the unique key or is
-     * silently replaced by them moments later. The contract classifies the field as
-     * deterministically rebuilt for exactly this reason.
-     *
      * @param  array<int, array<string, mixed>>  $publications
      * @return array<string, Sermon>
      */
@@ -147,6 +190,7 @@ class HistoricMediaGraphPersister
         array $publications,
         string $processingId,
         MediaProcessingLog $run,
+        ?int $historicImportOperationId,
     ): array {
         $created = [];
 
@@ -201,11 +245,68 @@ class HistoricMediaGraphPersister
             $existing = $this->resolveExistingPublication($publication, $processingId, $run, $created);
             $sermon = $existing instanceof Sermon
                 ? $this->convergePublication($existing, $attributes, $this->assertedFields($publication), $processingId)
-                : Sermon::query()->create([...$attributes, 'livestream_processing_id' => $processingId]);
+                : Sermon::query()->create([
+                    ...$attributes,
+                    'livestream_processing_id' => $processingId,
+                    'historic_import_operation_id' => $historicImportOperationId,
+                    'publication_state' => SermonPublicationState::Quarantined,
+                    'asset_disk' => $this->assets->targetDiskName(),
+                ]);
+            $this->persistScriptureFilters($sermon, $publication['scripture_filters'] ?? []);
             $created[$key] = $sermon;
         }
 
         return $created;
+    }
+
+    private function persistScriptureFilters(Sermon $sermon, mixed $payload): void
+    {
+        if (! is_array($payload)) {
+            throw new RuntimeException('Historic publication scripture filters are invalid.');
+        }
+
+        $incoming = [];
+
+        foreach ($payload as $filter) {
+            if (! is_array($filter)
+                || ! is_string($filter['bible_book'] ?? null)
+                || trim($filter['bible_book']) === ''
+                || ! is_int($filter['bible_chapter'] ?? null)
+                || $filter['bible_chapter'] < 1
+            ) {
+                throw new RuntimeException('Historic publication scripture filter is invalid.');
+            }
+
+            $incoming[] = [
+                'bible_book' => trim($filter['bible_book']),
+                'bible_chapter' => $filter['bible_chapter'],
+            ];
+        }
+
+        usort(
+            $incoming,
+            fn (array $left, array $right): int => [$left['bible_book'], $left['bible_chapter']]
+                <=> [$right['bible_book'], $right['bible_chapter']],
+        );
+        $existing = $sermon->scriptureFilters()
+            ->orderBy('bible_book')
+            ->orderBy('bible_chapter')
+            ->get(['bible_book', 'bible_chapter'])
+            ->map(fn (SermonScriptureFilter $filter): array => [
+                'bible_book' => $filter->bible_book,
+                'bible_chapter' => $filter->bible_chapter,
+            ])
+            ->all();
+
+        if ($existing === $incoming) {
+            return;
+        }
+
+        if ($existing !== []) {
+            throw new RuntimeException('Historic publication scripture filters conflict with production.');
+        }
+
+        $sermon->scriptureFilters()->createMany($incoming);
     }
 
     /**
@@ -508,12 +609,16 @@ class HistoricMediaGraphPersister
     }
 
     /** @param array<string, mixed> $graph */
-    private function createRun(array $graph, ?ChurchService $churchService): MediaProcessingLog
-    {
+    private function createRun(
+        array $graph,
+        ?ChurchService $churchService,
+        ?int $historicImportOperationId,
+    ): MediaProcessingLog {
         $run = $graph['run'];
 
         return MediaProcessingLog::query()->create([
             'processing_id' => $graph['processing_key'],
+            'historic_import_operation_id' => $historicImportOperationId,
             'processing_type' => $run['processing_type'],
             'status' => $run['status'],
             'current_step' => $run['current_step'],
@@ -805,6 +910,11 @@ class HistoricMediaGraphPersister
                 'duration' => $payload['duration'],
                 'recorded_date' => $payload['recorded_date'],
                 'is_featured' => $payload['is_featured'],
+                // Quarantined for the same reason the publications are: the
+                // bytes are on the private disk, and a later recorded_date
+                // would otherwise make this the song's public video.
+                'publication_state' => SermonPublicationState::Quarantined,
+                'historic_import_operation_id' => $plan->historicImportOperationId,
             ]);
         }
     }
@@ -1064,7 +1174,7 @@ class HistoricMediaGraphPersister
                 }
 
                 $canonicalDestination = "sermons/songs/{$video->song_id}/{$section->id}.{$extension}";
-                $productionDisk = Storage::disk((string) config('media-processing.storage.sermon_disk'));
+                $productionDisk = Storage::disk($this->assets->targetDiskName());
                 $destinations[$role] = $video->video_file_path !== ''
                     && ! isset($stagedPaths[$video->video_file_path])
                     && $productionDisk->exists($video->video_file_path)
@@ -1129,7 +1239,7 @@ class HistoricMediaGraphPersister
             }
         }
 
-        $productionDisk = Storage::disk((string) config('media-processing.storage.sermon_disk'));
+        $productionDisk = Storage::disk($this->assets->targetDiskName());
 
         return is_string($path)
             && $path !== ''

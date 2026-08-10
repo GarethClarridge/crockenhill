@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\HistoricMedia;
 
+use App\Services\Import\HistoricImportProductionGuard;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -22,7 +23,7 @@ class HistoricProcessingResultAssetTransfer
     {
         return [
             'staging' => $this->diskIdentity($this->stagingName()),
-            'production' => $this->diskIdentity((string) config('media-processing.storage.sermon_disk')),
+            'production' => $this->diskIdentity($this->targetDiskName()),
         ];
     }
 
@@ -62,7 +63,7 @@ class HistoricProcessingResultAssetTransfer
     public function copyToDestinations(array $assets, array $destinations): array
     {
         $source = $this->stagingDisk();
-        $target = Storage::disk((string) config('media-processing.storage.sermon_disk'));
+        $target = Storage::disk($this->targetDiskName());
         $created = [];
 
         try {
@@ -75,6 +76,8 @@ class HistoricProcessingResultAssetTransfer
                     if (! is_string($targetPath)) {
                         throw new RuntimeException("No production path was allocated for asset role {$role}.");
                     }
+
+                    $this->assertOperationOwnedProductionPath($targetPath);
 
                     if ($target->exists($targetPath)) {
                         $this->verifyAtPath($target, $targetPath, $asset);
@@ -121,7 +124,7 @@ class HistoricProcessingResultAssetTransfer
      */
     public function verifyDestinations(array $assets, array $destinations): void
     {
-        $target = Storage::disk((string) config('media-processing.storage.sermon_disk'));
+        $target = Storage::disk($this->targetDiskName());
 
         foreach ($this->expand($assets) as $asset) {
             $path = $destinations[$asset['role']] ?? null;
@@ -141,7 +144,7 @@ class HistoricProcessingResultAssetTransfer
     {
         try {
             $this->verifyAtPath(
-                Storage::disk((string) config('media-processing.storage.sermon_disk')),
+                Storage::disk($this->targetDiskName()),
                 $path,
                 $asset,
             );
@@ -155,9 +158,10 @@ class HistoricProcessingResultAssetTransfer
     /** @param list<string> $paths */
     public function cleanup(array $paths): void
     {
-        $target = Storage::disk((string) config('media-processing.storage.sermon_disk'));
+        $target = Storage::disk($this->targetDiskName());
 
         foreach ($paths as $path) {
+            $this->assertOperationOwnedProductionPath($path);
             $target->delete($path);
         }
     }
@@ -243,7 +247,7 @@ class HistoricProcessingResultAssetTransfer
     private function stagingDisk(): FilesystemAdapter
     {
         $staging = $this->stagingName();
-        $production = (string) config('media-processing.storage.sermon_disk');
+        $production = $this->targetDiskName();
 
         if ($staging === '' || $staging === $production) {
             throw new RuntimeException('Historic staging and production media disks must be distinct for import.');
@@ -255,6 +259,24 @@ class HistoricProcessingResultAssetTransfer
     private function stagingName(): string
     {
         return (string) config('media-processing.storage.historic_staging_disk');
+    }
+
+    /**
+     * The disk an import copies into: quarantine, not the public sermon disk.
+     * That the two are distinct and private is enforced by
+     * {@see HistoricImportProductionGuard}, before a
+     * production run starts, and again by the release step. Test and rehearsal
+     * fixtures collapse them deliberately when the subject is bundle mechanics.
+     */
+    public function targetDiskName(): string
+    {
+        $disk = config('media-processing.storage.historic_quarantine_disk');
+
+        if (! is_string($disk) || trim($disk) === '') {
+            throw new RuntimeException('Historic quarantine media disk is not configured.');
+        }
+
+        return trim($disk);
     }
 
     /** @return array<string, string|null> */
@@ -287,6 +309,13 @@ class HistoricProcessingResultAssetTransfer
             || str_contains($path, '\\')
         ) {
             throw new RuntimeException("Unsafe bundle asset path: {$path}.");
+        }
+    }
+
+    private function assertOperationOwnedProductionPath(string $path): void
+    {
+        if (app()->isProduction() && ! str_starts_with($path, 'historic-import/historic-')) {
+            throw new RuntimeException('Production historic assets require an immutable operation-owned destination key.');
         }
     }
 }

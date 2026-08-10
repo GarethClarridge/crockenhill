@@ -181,6 +181,15 @@ class HistoricNormalOutputContract
                          * against, not as rows to insert.
                          */
                         'scripture_filters' => $this->field('required', 'deterministically_rebuilt', 'none'),
+                        /**
+                         * F59: a passage is relinked at the destination by its
+                         * portable natural key, and where no passage could be
+                         * settled the approved terminal absence travels with the
+                         * publication as the reason. Both are part of the normal
+                         * output, so neither may be silently dropped by an export.
+                         */
+                        'scripture_passage' => $this->field('nullable', 'portable', 'natural_key'),
+                        'scripture_passage_outcome' => $this->field('nullable', 'portable', 'none'),
                         'audio_file_path' => $this->field('nullable', 'portable', 'asset_path'),
                         'video_file_path' => $this->field('nullable', 'portable', 'asset_path'),
                         'transcript_file_path' => $this->field('nullable', 'portable', 'asset_path'),
@@ -494,7 +503,19 @@ class HistoricNormalOutputContract
                     'thumbnail_file_path' => $this->field('nullable', 'portable', 'asset_path'),
                     'preacher_id' => $this->field('nullable', 'deterministically_rebuilt', 'natural_key'),
                 ],
-                excluded: ['id', 'scripture_passage_id', 'download_count', 'created_at', 'updated_at'],
+                /**
+                 * `publication_state`, `asset_disk` and
+                 * `historic_import_operation_id` are deliberately outside the
+                 * portable contract. The audience boundary is a destination
+                 * decision: every apply lands quarantined on the destination's
+                 * own private disk and is released by a separately authorised
+                 * step. Carrying them would let an exported bundle dictate what
+                 * the destination publishes.
+                 */
+                excluded: [
+                    'id', 'scripture_passage_id', 'download_count', 'created_at', 'updated_at',
+                    'publication_state', 'asset_disk', 'historic_import_operation_id',
+                ],
             ),
             'media_processing_logs' => $this->table(
                 required: ['processing_id', 'processing_type', 'status', 'original_filename', 'is_degraded_completion'],
@@ -517,6 +538,8 @@ class HistoricNormalOutputContract
                     'enhanced_audio_file_path', 'dedup_key', 'queue_name', 'job_id', 'attempt_count',
                     'ai_analysis', 'visual_samples', 'song_clusters', 'visual_sample_count',
                     'visual_processing_time', 'owner_user_id', 'created_at', 'updated_at',
+                    // Destination-owned: names the operation that applied this run.
+                    'historic_import_operation_id',
                 ],
             ),
             'livestream_segments' => $this->table(
@@ -576,7 +599,8 @@ class HistoricNormalOutputContract
                     'church_service_id' => $this->field('nullable', 'deterministically_rebuilt', 'local_foreign_key'),
                     'video_file_path' => $this->field('required', 'portable', 'asset_path'),
                 ],
-                excluded: ['id', 'created_at', 'updated_at'],
+                // Destination-owned audience state, for the same reason as sermons.
+                excluded: ['id', 'created_at', 'updated_at', 'publication_state', 'historic_import_operation_id'],
             ),
         ];
     }

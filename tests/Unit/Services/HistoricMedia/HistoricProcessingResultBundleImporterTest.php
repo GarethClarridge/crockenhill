@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\HistoricMedia;
 
 use App\Models\ChurchService;
+use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
@@ -13,7 +14,9 @@ use App\Services\HistoricMedia\HistoricProcessingResultAssetTransfer;
 use App\Services\HistoricMedia\HistoricProcessingResultBundle;
 use App\Services\HistoricMedia\HistoricProcessingResultBundleImporter;
 use App\Services\HistoricMedia\HistoricProcessingResultInventory;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
@@ -30,6 +33,9 @@ class HistoricProcessingResultBundleImporterTest extends TestCase
         Storage::fake('historic_staging');
         Storage::fake('local');
         config()->set('media-processing.storage.historic_staging_disk', 'historic_staging');
+        // Imports land on the quarantine disk, so leaving this at its real
+        // configured value writes bundle assets into storage/app/private.
+        config()->set('media-processing.storage.historic_quarantine_disk', 'local');
         config()->set('media-processing.storage.sermon_disk', 'local');
     }
 
@@ -147,6 +153,63 @@ class HistoricProcessingResultBundleImporterTest extends TestCase
         $this->assertSame($result['processing_log']->id, $second['processing_log']->id);
         $this->assertSame([], $second['created_assets']);
         $this->assertSame(1, MediaProcessingLog::query()->where('processing_id', 'imported-run')->count());
+    }
+
+    /**
+     * An operation-owned apply writes every asset under
+     * `historic-import/{operation_id}/`. Verification recomputes section and
+     * run-level destinations from scratch, so it has to allocate the same
+     * prefix — otherwise the exact no-op rerun the closeout depends on
+     * reclassifies every already-present service as a blocked difference.
+     */
+    #[Test]
+    public function an_operation_owned_import_reruns_as_an_exact_no_op(): void
+    {
+        Storage::disk('historic_staging')->put('historic/run/audio.mp3', 'audio');
+        $operation = $this->historicImportOperation();
+        $bundle = $this->graphBundle();
+        $importer = app(HistoricProcessingResultBundleImporter::class);
+        $plan = $importer->prepareService($bundle, 0, $operation);
+
+        $result = DB::transaction(fn (): array => $importer->persistPreparedService($plan, $plan->planHash));
+        $prefix = "historic-import/{$operation->operation_id}/";
+
+        $this->assertSame(
+            $prefix.'service-transcripts/imported-run/audio.mp3',
+            $result['processing_log']->audio_file_path,
+        );
+        Storage::disk('local')->assertExists($prefix.'service-transcripts/imported-run/audio.mp3');
+
+        $bundle['services'][0]['media_graph']['logical_hash'] = app(HistoricProcessingResultInventory::class)
+            ->build($result['processing_log']->fresh())['logical_hash'];
+        $bundle = app(HistoricProcessingResultBundle::class)->make(
+            $bundle['batch_hash'],
+            $bundle['processing_fingerprint'],
+            $bundle['services'],
+        );
+
+        $secondPlan = $importer->prepareService($bundle, 0, $operation);
+        $second = DB::transaction(fn (): array => $importer->persistPreparedService($secondPlan, $secondPlan->planHash));
+
+        $this->assertSame('already_present', $secondPlan->classification);
+        $this->assertSame($result['processing_log']->id, $second['processing_log']->id);
+        $this->assertSame([], $second['created_assets']);
+        $this->assertSame(1, MediaProcessingLog::query()->where('processing_id', 'imported-run')->count());
+    }
+
+    private function historicImportOperation(): HistoricImportOperation
+    {
+        return HistoricImportOperation::query()->create([
+            'operation_id' => 'historic-'.str_repeat('a', 32),
+            'binding_hash' => str_repeat('b', 64),
+            'batch_key' => 'bundle-importer-test',
+            'manifest_hashes' => ['video' => str_repeat('c', 64)],
+            'plan_hash' => str_repeat('d', 64),
+            'target_fingerprint' => str_repeat('e', 64),
+            'runtime_fingerprint' => str_repeat('f', 64),
+            'notification_mode' => 'external_disabled',
+            'max_cost_minor_units' => 100,
+        ]);
     }
 
     /**
@@ -285,8 +348,15 @@ class HistoricProcessingResultBundleImporterTest extends TestCase
         $importer = app(HistoricProcessingResultBundleImporter::class);
         $plan = $importer->prepareService($bundle);
 
-        MediaProcessingLog::saved(function (MediaProcessingLog $log): void {
-            if ($log->audio_file_path === 'service-transcripts/imported-run/audio.mp3') {
+        /**
+         * The persister applies allocated paths with model events disabled, so
+         * the failure has to be injected below Eloquent. This fires on the same
+         * write the old `saved` hook watched: the update that remaps the run's
+         * audio path to its allocated destination, after the copy has happened.
+         */
+        DB::listen(function (QueryExecuted $query): void {
+            if (str_starts_with(strtolower($query->sql), 'update `media_processing_logs`')
+                && in_array('service-transcripts/imported-run/audio.mp3', $query->bindings, true)) {
                 throw new RuntimeException('Failure after asset copy');
             }
         });

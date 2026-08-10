@@ -27,7 +27,9 @@ class HistoricProcessingResultAssetTransferTest extends TestCase
         Storage::fake('historic_staging');
         Storage::fake('local');
         config()->set('media-processing.storage.historic_staging_disk', 'historic_staging');
-        config()->set('media-processing.storage.sermon_disk', 'local');
+        // Transfers target the quarantine disk, not the public sermon disk.
+        config()->set('media-processing.storage.historic_quarantine_disk', 'local');
+        config()->set('media-processing.storage.sermon_disk', 'public');
     }
 
     #[Test]
@@ -223,12 +225,23 @@ class HistoricProcessingResultAssetTransferTest extends TestCase
     }
 
     #[Test]
-    public function it_refuses_to_transfer_when_staging_and_production_share_a_disk(): void
+    public function it_refuses_to_transfer_when_staging_and_the_import_target_share_a_disk(): void
     {
-        config()->set('media-processing.storage.sermon_disk', 'historic_staging');
+        config()->set('media-processing.storage.historic_quarantine_disk', 'historic_staging');
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('must be distinct for import');
+        $this->expectExceptionMessage('Historic staging and production media disks must be distinct for import.');
+
+        app(HistoricProcessingResultAssetTransfer::class)->verifyStaged([]);
+    }
+
+    #[Test]
+    public function it_refuses_to_transfer_when_the_import_target_disk_is_unconfigured(): void
+    {
+        config()->set('media-processing.storage.historic_quarantine_disk', '');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Historic quarantine media disk is not configured.');
 
         app(HistoricProcessingResultAssetTransfer::class)->verifyStaged([]);
     }

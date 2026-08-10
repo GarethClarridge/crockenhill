@@ -19,5 +19,6 @@ readonly class HistoricProcessingResultImportPlan
         public array $service,
         public array $assets,
         public ?int $existingProcessingLogId = null,
+        public ?int $historicImportOperationId = null,
     ) {}
 }

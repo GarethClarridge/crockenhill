@@ -6,6 +6,7 @@ namespace App\Services\HistoricMedia;
 
 use App\Data\HistoricProcessingResultImportPlan;
 use App\Enums\HistoricImportClassification;
+use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Support\CanonicalJson;
 use Illuminate\Support\Facades\DB;
@@ -21,9 +22,12 @@ class HistoricProcessingResultBundleImporter
     ) {}
 
     /** @param array<string, mixed> $bundle */
-    public function prepareService(array $bundle, int $serviceIndex = 0): HistoricProcessingResultImportPlan
-    {
-        return $this->prepareServiceForSource($bundle, $serviceIndex, true);
+    public function prepareService(
+        array $bundle,
+        int $serviceIndex = 0,
+        ?HistoricImportOperation $operation = null,
+    ): HistoricProcessingResultImportPlan {
+        return $this->prepareServiceForSource($bundle, $serviceIndex, true, $operation);
     }
 
     /**
@@ -35,7 +39,7 @@ class HistoricProcessingResultBundleImporter
      */
     public function prepareServiceForAudit(array $bundle, int $serviceIndex = 0): HistoricProcessingResultImportPlan
     {
-        return $this->prepareServiceForSource($bundle, $serviceIndex, false);
+        return $this->prepareServiceForSource($bundle, $serviceIndex, false, null);
     }
 
     /**
@@ -45,6 +49,7 @@ class HistoricProcessingResultBundleImporter
         array $bundle,
         int $serviceIndex,
         bool $verifyStaging,
+        ?HistoricImportOperation $operation,
     ): HistoricProcessingResultImportPlan {
         $bundle = $this->bundles->validate($bundle);
         $service = $bundle['services'][$serviceIndex] ?? null;
@@ -60,13 +65,14 @@ class HistoricProcessingResultBundleImporter
             $this->assets->verifyStaged($assetManifest);
         }
 
-        $classification = $this->classify($service);
+        $classification = $this->classify($service, $operation);
         $planHash = CanonicalJson::hash([
             'bundle_hash' => $bundle['bundle_hash'],
             'service_identity' => [$service['date'], $service['service']],
             'processing_key' => $service['media_graph']['processing_key'],
             'classification' => $classification,
             'assets' => $assetManifest,
+            'historic_import_operation' => $operation?->operation_id,
         ]);
 
         return new HistoricProcessingResultImportPlan(
@@ -77,6 +83,7 @@ class HistoricProcessingResultBundleImporter
             service: $service,
             assets: $assetManifest,
             existingProcessingLogId: $classification['existing_processing_log_id'],
+            historicImportOperationId: $operation?->id,
         );
     }
 
@@ -138,7 +145,7 @@ class HistoricProcessingResultBundleImporter
      * @param  array<string, mixed>  $service
      * @return array{classification: 'already_present'|'create'|'safe_enrichment'|'blocked_difference'|'conflict', reason: string, existing_processing_log_id: int|null}
      */
-    private function classify(array $service): array
+    private function classify(array $service, ?HistoricImportOperation $operation = null): array
     {
         $graph = $service['media_graph'];
         $run = $graph['run'];
@@ -154,7 +161,7 @@ class HistoricProcessingResultBundleImporter
 
             if ($existingHash === $graph['logical_hash']) {
                 try {
-                    $this->persister->verifyExisting($this->verificationPlan($service), $existing);
+                    $this->persister->verifyExisting($this->verificationPlan($service, $operation), $existing);
 
                     return [
                         'classification' => HistoricImportClassification::AlreadyPresent->value,
@@ -193,8 +200,10 @@ class HistoricProcessingResultBundleImporter
     }
 
     /** @param array<string, mixed> $service */
-    private function verificationPlan(array $service): HistoricProcessingResultImportPlan
-    {
+    private function verificationPlan(
+        array $service,
+        ?HistoricImportOperation $operation = null,
+    ): HistoricProcessingResultImportPlan {
         /** @var list<array{path: string, size: int, sha256: string, kind: string, roles: list<string>}> $assets */
         $assets = $service['assets'];
 
@@ -205,6 +214,10 @@ class HistoricProcessingResultBundleImporter
             bundleHash: str_repeat('0', 64),
             service: $service,
             assets: $assets,
+            // Verification has to expect the same operation-owned destination
+            // keys the apply allocated, or every already-present service
+            // reclassifies as a blocked difference.
+            historicImportOperationId: $operation?->id,
         );
     }
 }

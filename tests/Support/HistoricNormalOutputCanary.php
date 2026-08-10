@@ -354,6 +354,9 @@ class HistoricNormalOutputCanary
     ): array {
         Storage::fake('historic_staging');
         config()->set('media-processing.storage.historic_staging_disk', 'historic_staging');
+        // The real path lands imports on the quarantine disk, so the canary has
+        // to read its persisted bytes back from the same faked disk.
+        config()->set('media-processing.storage.historic_quarantine_disk', 'local');
         config()->set('media-processing.storage.sermon_disk', 'local');
 
         $targetProcessingId = self::TARGET_PROCESSING_ID;

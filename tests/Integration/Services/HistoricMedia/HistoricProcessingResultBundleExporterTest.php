@@ -32,6 +32,7 @@ class HistoricProcessingResultBundleExporterTest extends TestCase
     {
         Storage::fake('local');
         config()->set('media-processing.storage.sermon_disk', 'local');
+        config()->set('media-processing.storage.historic_quarantine_disk', 'local');
         config()->set('media-processing.storage.transcript_disk', 'local');
         config()->set('media-processing.storage.temp_disk', 'local');
         config()->set('media-processing.storage.historic_staging_disk', 'local');

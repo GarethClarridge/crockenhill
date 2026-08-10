@@ -8,6 +8,7 @@ use App\Data\HistoricProcessingResultImportPlan;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonContentType;
+use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\SermonVideoQualityStatus;
@@ -24,6 +25,7 @@ use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\HistoricMedia\HistoricMediaGraphPersister;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use ReflectionMethod;
@@ -47,6 +49,8 @@ class HistoricMediaGraphPersisterTest extends TestCase
         $sermon = Sermon::query()->where('slug', 'persister-test-sermon')->sole();
 
         $this->assertSame($processingId, $sermon->livestream_processing_id);
+        $this->assertSame(SermonPublicationState::Quarantined, $sermon->publication_state);
+        $this->assertSame('historic_quarantine', $sermon->asset_disk);
         $this->assertSame($sermon->id, $result['processing_log']->sermon_id);
         $this->assertDatabaseHas('media_processing_logs', [
             'processing_id' => $processingId,
@@ -157,13 +161,8 @@ class HistoricMediaGraphPersisterTest extends TestCase
         $this->assertSame($liveSection->id, $item->livestream_service_section_id);
     }
 
-    /**
-     * Scripture filters are classified `deterministically_rebuilt`, not `portable`.
-     * SermonObserver owns the index and re-derives it from `reference`, so a bundle
-     * whose rows disagree must lose to the rebuild rather than round-trip its own.
-     */
     #[Test]
-    public function it_rebuilds_publication_scripture_filters_from_the_reference(): void
+    public function it_persists_the_reviewed_scripture_filter_inventory_explicitly(): void
     {
         $plan = $this->planWithGraph(
             processingId: '00000000-0000-0000-0000-000000000013',
@@ -177,7 +176,7 @@ class HistoricMediaGraphPersisterTest extends TestCase
         $sermon = Sermon::query()->where('slug', 'persister-test-sermon')->sole();
 
         $this->assertSame(
-            [['bible_book' => 'John', 'bible_chapter' => 3]],
+            [['bible_book' => 'Jude', 'bible_chapter' => 1]],
             $sermon->scriptureFilters()
                 ->orderBy('bible_book')
                 ->get(['bible_book', 'bible_chapter'])
@@ -187,6 +186,35 @@ class HistoricMediaGraphPersisterTest extends TestCase
                 ])
                 ->all(),
         );
+    }
+
+    #[Test]
+    public function convergence_is_event_quiet_and_does_not_backfill_an_unrelated_alias_match(): void
+    {
+        $unrelated = Sermon::factory()->create([
+            'preacher' => 'machine alias',
+            'preacher_id' => null,
+        ]);
+        $publication = $this->publication(
+            reference: 'John 3',
+            scriptureFilters: [['bible_book' => 'John', 'bible_chapter' => 3]],
+        );
+        $publication['preacher']['aliases'] = ['machine alias'];
+        Event::fakeFor(function () use ($publication): void {
+            app(HistoricMediaGraphPersister::class)->persist($this->planWithGraph(
+                processingId: '00000000-0000-0000-0000-000000000023',
+                publications: [$publication],
+            ));
+
+            Event::assertNothingDispatched();
+        });
+        $this->assertNull($unrelated->fresh()?->preacher_id);
+        $this->assertDatabaseHas('preacher_aliases', ['alias' => 'machine alias']);
+        $this->assertDatabaseHas('sermon_scripture_filters', [
+            'sermon_id' => Sermon::query()->where('slug', 'persister-test-sermon')->value('id'),
+            'bible_book' => 'John',
+            'bible_chapter' => 3,
+        ]);
     }
 
     #[Test]
@@ -221,6 +249,7 @@ class HistoricMediaGraphPersisterTest extends TestCase
         Storage::fake('historic_staging');
         Storage::fake('local');
         config()->set('media-processing.storage.historic_staging_disk', 'historic_staging');
+        config()->set('media-processing.storage.historic_quarantine_disk', 'local');
         config()->set('media-processing.storage.sermon_disk', 'local');
 
         $sectionKey = 'unbacked-section';
@@ -247,6 +276,7 @@ class HistoricMediaGraphPersisterTest extends TestCase
         Storage::fake('historic_staging');
         Storage::fake('local');
         config()->set('media-processing.storage.historic_staging_disk', 'historic_staging');
+        config()->set('media-processing.storage.historic_quarantine_disk', 'local');
         config()->set('media-processing.storage.sermon_disk', 'local');
 
         $video = 'persister section video';

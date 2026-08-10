@@ -41,6 +41,7 @@ class HistoricPublicationConvergenceTest extends TestCase
         Storage::fake('historic_staging');
         Storage::fake('local');
         config()->set('media-processing.storage.historic_staging_disk', 'historic_staging');
+        config()->set('media-processing.storage.historic_quarantine_disk', 'local');
         config()->set('media-processing.storage.sermon_disk', 'local');
     }
 
