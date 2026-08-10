@@ -234,6 +234,10 @@ class ChurchServiceConvergenceBundleImporter
         $expectedRevisionHash = CanonicalJson::hash([
             'assertions' => $manual['assertions'],
             'service_content' => $manual['service_content'],
+            'input_hash' => $manual['input_hash'],
+            'batch_hash' => $manual['batch_hash'],
+            'processing_fingerprint' => $manual['processing_fingerprint'],
+            'payload_complete' => $manual['payload_complete'],
         ]);
 
         if (! hash_equals($manual['revision_hash'], $expectedRevisionHash)) {

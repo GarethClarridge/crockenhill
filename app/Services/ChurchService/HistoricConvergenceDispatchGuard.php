@@ -14,13 +14,13 @@ use RuntimeException;
 
 /**
  * Fail a historic convergence apply the moment it queues a job, sends mail or
- * raises a notification.
+ * raises a notification. The caller disables Eloquent events for the complete
+ * transaction, so no observer or after-commit callback can become an unplanned
+ * authoritative write.
  *
- * WP6 requires production apply to prove it caused no external fan-out, and
- * neither obvious shortcut works. Faking the event dispatcher suppresses every
- * model observer with it, so apply would persist differently from the rehearsal
- * it is supposed to reproduce. The framework's Bus/Queue/Mail/Notification fakes
- * assert through PHPUnit, which production images do not install, and their
+ * WP6 requires production apply to prove it caused no external fan-out. The
+ * framework's Bus/Queue/Mail/Notification fakes assert through PHPUnit, which
+ * production images do not install, and their
  * assertions could only run once the caller's transaction had already
  * committed — leaving rows written and their assets cleaned up.
  *

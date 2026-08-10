@@ -6,6 +6,7 @@ namespace Tests\Integration\Actions;
 
 use App\Actions\IngestChurchServiceSourceRevision;
 use App\Data\ChurchServiceSourceRevision;
+use App\Enums\ChurchServiceCanonicalFinalization;
 use App\Enums\ChurchServiceEvidenceKind;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ChurchServiceProposalStatus;
@@ -104,17 +105,72 @@ class IngestChurchServiceSourceRevisionStagingTest extends TestCase
         $this->assertSame(['Welcome', 'Sermon'], $service->items()->orderBy('position')->pluck('title')->all());
     }
 
+    #[Test]
+    public function identical_later_machine_evidence_preserves_manual_final_authority(): void
+    {
+        $service = ChurchService::factory()->create();
+        $items = [
+            $this->item(1, 'custom', 'Welcome'),
+            $this->item(2, 'custom', 'Sermon'),
+        ];
+        $this->ingest($service, ChurchServiceSource::Email, $items);
+        $service->refresh()->forceFill([
+            'reviewed_canonical_revision' => $service->canonical_revision,
+            'canonical_finalization' => ChurchServiceCanonicalFinalization::Manual,
+        ])->saveQuietly();
+        $canonicalRevision = $service->canonical_revision;
+
+        $this->ingest($service, ChurchServiceSource::Email, $items, str_repeat('d', 64));
+
+        $service->refresh();
+        $this->assertSame(ChurchServiceCanonicalFinalization::Manual, $service->canonical_finalization);
+        $this->assertSame($canonicalRevision, $service->canonical_revision);
+        $this->assertSame(['Welcome', 'Sermon'], $service->items()->orderBy('position')->pluck('title')->all());
+    }
+
+    #[Test]
+    public function changed_machine_evidence_stages_review_without_erasing_manual_authority(): void
+    {
+        $service = ChurchService::factory()->create();
+        $this->ingest($service, ChurchServiceSource::Email, [
+            $this->item(1, 'custom', 'Welcome'),
+            $this->item(2, 'custom', 'Sermon'),
+        ]);
+        $service->refresh()->forceFill([
+            'reviewed_canonical_revision' => $service->canonical_revision,
+            'canonical_finalization' => ChurchServiceCanonicalFinalization::Manual,
+        ])->saveQuietly();
+
+        $this->ingest($service, ChurchServiceSource::OpenLp, [
+            $this->item(1, 'custom', 'Welcome'),
+            $this->item(2, 'custom', 'Changed sermon'),
+            $this->item(3, 'custom', 'Closing prayer'),
+        ]);
+
+        $service->refresh();
+        $this->assertSame(ChurchServiceCanonicalFinalization::Manual, $service->canonical_finalization);
+        $this->assertTrue($service->needs_review);
+        $this->assertDatabaseHas('church_service_merge_proposals', [
+            'church_service_id' => $service->id,
+            'status' => ChurchServiceProposalStatus::Pending->value,
+        ]);
+    }
+
     /**
      * @param  list<array<string, mixed>>  $items
      */
-    private function ingest(ChurchService $service, ChurchServiceSource $source, array $items): void
-    {
+    private function ingest(
+        ChurchService $service,
+        ChurchServiceSource $source,
+        array $items,
+        ?string $inputHash = null,
+    ): void {
         app(IngestChurchServiceSourceRevision::class)->execute(
             $service,
             new ChurchServiceSourceRevision(
                 source: $source,
                 sourceKey: "{$source->value}-{$service->getKey()}",
-                inputHash: CanonicalJson::hash($items),
+                inputHash: $inputHash ?? CanonicalJson::hash($items),
                 assertions: app(ChurchServiceAssertionNormalizer::class)->normalize(
                     $items,
                     ChurchServiceEvidenceKind::Planned,

@@ -7,6 +7,7 @@ namespace App\Actions;
 use App\Data\ChurchServiceProjection;
 use App\Data\ChurchServiceSourceIngestionResult;
 use App\Data\ChurchServiceSourceRevision;
+use App\Enums\ChurchServiceCanonicalFinalization;
 use App\Enums\ChurchServiceProposalStatus;
 use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
@@ -90,7 +91,8 @@ class IngestChurchServiceSourceRevision
 
                 $sourceRecord = $lockedService->sourceRecords()->create([
                     'source' => $revision->source,
-                    'source_key' => $revision->sourceKey,
+                    'source_key' => ChurchServiceSourceKey::canonical($revision->sourceKey),
+                    'source_key_hash' => ChurchServiceSourceKey::identity($revision->sourceKey),
                     'revision_hash' => $revisionHash,
                     'input_hash' => $revision->inputHash,
                     'supersedes_id' => $manifestPredecessor === null ? $superseded?->id : $manifestPredecessor->id,
@@ -336,11 +338,11 @@ class IngestChurchServiceSourceRevision
             ->values();
         $projection = $this->projector->project($machineRecords);
 
-        // A staging reason exists, so this service is not settled by machine alone
-        // any more. Retract the claim before deciding whether a proposal is also
-        // needed, otherwise a no-op revision leaves the service still advertising
-        // itself as machine-final and exportable without review.
-        if ($churchService->canonical_finalization !== null) {
+        // Automatic finality must be retracted when machine evidence starts
+        // staging. Manual finality is a human authority boundary: identical
+        // evidence preserves it, while changed evidence stages a proposal
+        // without silently erasing or superseding the reviewed decision.
+        if ($churchService->canonical_finalization === ChurchServiceCanonicalFinalization::Automatic) {
             $churchService->forceFill(['canonical_finalization' => null])->saveQuietly();
         }
 

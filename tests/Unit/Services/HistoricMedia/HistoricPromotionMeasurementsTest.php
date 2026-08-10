@@ -27,7 +27,8 @@ class HistoricPromotionMeasurementsTest extends TestCase
             ['event' => 'service_started', 'operation_id' => 'op-1'],
             ['event' => 'service_completed', 'operation_id' => 'op-1', 'duration_seconds' => 61.0],
             ['event' => 'failed', 'operation_id' => 'op-1', 'duration_seconds' => 12.0],
-            ['event' => 'closeout', 'operation_id' => 'op-1', 'duration_seconds' => 240.0],
+            ['event' => 'exact_audit_passed', 'operation_id' => 'op-1', 'duration_seconds' => 90.0, 'passed' => true],
+            ['event' => 'exact_noop_rerun', 'operation_id' => 'op-1', 'duration_seconds' => 150.0, 'passed' => true],
         ]);
 
         $this->assertSame([300.0], $samples['preflight_seconds']);
@@ -76,7 +77,7 @@ class HistoricPromotionMeasurementsTest extends TestCase
      * no-op rerun would inflate the measured throughput.
      */
     #[Test]
-    public function a_no_op_service_contributes_an_apply_sample_but_no_throughput_sample(): void
+    public function a_no_op_service_contributes_neither_apply_nor_throughput_samples(): void
     {
         $samples = $this->measurements->fromLedgerEntries([
             [
@@ -89,8 +90,22 @@ class HistoricPromotionMeasurementsTest extends TestCase
             ],
         ]);
 
-        $this->assertSame([4.0], $samples['apply_seconds']);
+        $this->assertSame([], $samples['apply_seconds']);
         $this->assertSame([], $samples['asset_bytes']);
+        $this->assertSame(0, $samples['services_applied']);
+    }
+
+    #[Test]
+    public function only_a_complete_audit_and_exact_no_op_pair_contributes_one_closeout_sample(): void
+    {
+        $samples = $this->measurements->fromLedgerEntries([
+            ['event' => 'exact_audit_passed', 'operation_id' => 'complete', 'duration_seconds' => 20.0, 'passed' => true],
+            ['event' => 'exact_noop_rerun', 'operation_id' => 'complete', 'duration_seconds' => 30.0, 'passed' => true],
+            ['event' => 'exact_audit_passed', 'operation_id' => 'partial', 'duration_seconds' => 5.0, 'passed' => true],
+            ['event' => 'exact_noop_rerun', 'operation_id' => 'changed', 'duration_seconds' => 7.0, 'passed' => false],
+        ]);
+
+        $this->assertSame([50.0], $samples['closeout_seconds']);
     }
 
     #[Test]

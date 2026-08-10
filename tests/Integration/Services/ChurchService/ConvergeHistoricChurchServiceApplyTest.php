@@ -10,7 +10,6 @@ use App\Enums\ChurchServiceEvidenceKind;
 use App\Enums\ChurchServiceSource;
 use App\Jobs\ReconcileServiceSections;
 use App\Models\ChurchService;
-use App\Models\ChurchServiceItem;
 use App\Models\ChurchServiceReviewSession;
 use App\Models\ChurchServiceSourceRecord;
 use App\Models\MediaProcessingLog;
@@ -30,6 +29,7 @@ use App\Services\HistoricMedia\HistoricProcessingResultInventory;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
@@ -58,6 +58,7 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
         Storage::fake('historic_staging');
         Storage::fake('local');
         config()->set('media-processing.storage.historic_staging_disk', 'historic_staging');
+        config()->set('media-processing.storage.historic_quarantine_disk', 'local');
         config()->set('media-processing.storage.sermon_disk', 'local');
         config()->set('app.release_identifier', 'test-release');
 
@@ -110,6 +111,36 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
             $convergenceBundle['services'][0]['resulting_canonical_hash'],
             ChurchService::query()->sole()->canonical_hash,
         );
+    }
+
+    #[Test]
+    public function a_complete_batch_no_op_rerun_records_one_exact_bound_closeout_event(): void
+    {
+        [$mediaBundle, $convergenceBundle] = $this->corpus();
+        $converge = app(ConvergeHistoricChurchService::class);
+        $converge->executeBatch($mediaBundle, $convergenceBundle);
+        $plan = $converge->prepareBatch($mediaBundle, $convergenceBundle, 'exact-noop-operation');
+
+        $converge->executeBatch(
+            $mediaBundle,
+            $convergenceBundle,
+            $plan->planHash,
+            false,
+            null,
+            null,
+            $plan,
+        );
+
+        $events = array_values(array_filter(
+            app(HistoricConvergenceLedger::class)->entries('exact-noop-operation'),
+            static fn (array $entry): bool => ($entry['event'] ?? null) === 'exact_noop_rerun',
+        ));
+
+        $this->assertCount(1, $events);
+        $this->assertTrue($events[0]['passed']);
+        $this->assertSame(1, $events[0]['service_count']);
+        $this->assertSame($mediaBundle['bundle_hash'], $events[0]['media_bundle_hash']);
+        $this->assertSame($convergenceBundle['bundle_hash'], $events[0]['convergence_bundle_hash']);
     }
 
     #[Test]
@@ -183,8 +214,9 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
     }
 
     #[Test]
-    public function apply_fails_and_rolls_back_when_the_operation_queues_a_job(): void
+    public function apply_suppresses_model_events_that_would_queue_authoritative_work(): void
     {
+        Queue::fake();
         [$mediaBundle, $convergenceBundle] = $this->corpus();
         $converge = app(ConvergeHistoricChurchService::class);
         $plan = $converge->prepare($mediaBundle, $convergenceBundle);
@@ -193,19 +225,10 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
             ReconcileServiceSections::dispatch($log, ChurchService::query()->sole())->onQueue('livestream-processing');
         });
 
-        try {
-            $converge->execute($mediaBundle, $convergenceBundle, 0, 0, $plan->planHash, $plan);
-            $this->fail('The queued job did not fail the apply.');
-        } catch (RuntimeException $exception) {
-            $this->assertStringContainsString('attempted to dispatch a queued job', $exception->getMessage());
-        }
+        $converge->execute($mediaBundle, $convergenceBundle, 0, 0, $plan->planHash, $plan);
 
-        $this->assertDatabaseMissing('media_processing_logs', ['processing_id' => 'imported-run']);
-        Storage::disk('local')->assertMissing('service-transcripts/imported-run/audio.mp3');
-        $this->assertSame(
-            'persist_media_graph',
-            $this->ledgerEntries('failed')[0]['phase'],
-        );
+        Queue::assertNothingPushed();
+        $this->assertDatabaseHas('media_processing_logs', ['processing_id' => 'imported-run']);
     }
 
     /**
@@ -218,31 +241,37 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
         [$mediaBundle, $convergenceBundle] = $this->corpus();
         $failures = [
             'link_run_to_service' => function (object $armed): void {
-                MediaProcessingLog::created(function (MediaProcessingLog $log) use ($armed): void {
-                    if (! $armed->active || $log->processing_id !== 'imported-run') {
+                $other = ChurchService::factory()->create(['date' => '2019-01-06', 'service' => 'evening']);
+
+                DB::listen(function (object $query) use ($armed, $other): void {
+                    $sql = strtolower($query->sql);
+
+                    if (! $armed->active
+                        || ! str_contains($sql, 'insert')
+                        || ! str_contains($sql, 'media_processing_logs')
+                    ) {
                         return;
                     }
 
                     $armed->active = false;
-                    $other = ChurchService::factory()->create(['date' => '2019-01-06', 'service' => 'evening']);
                     MediaProcessingLog::query()
-                        ->whereKey($log->id)
+                        ->where('processing_id', 'imported-run')
                         ->update(['church_service_id' => $other->id]);
                 });
             },
             'resolve_portable_sections' => function (object $armed): void {
-                ServiceSection::created(function (ServiceSection $section) use ($armed): void {
-                    if (! $armed->active) {
+                DB::listen(function (object $query) use ($armed): void {
+                    if (! $armed->active || ! str_contains(strtolower($query->sql), 'insert into `service_sections`')) {
                         return;
                     }
 
                     $armed->active = false;
-                    ServiceSection::query()->whereKey($section->id)->update(['section_order' => 99]);
+                    ServiceSection::query()->orderByDesc('id')->limit(1)->update(['section_order' => 99]);
                 });
             },
             'verify_media_graph' => function (object $armed): void {
-                ChurchServiceItem::created(function () use ($armed): void {
-                    if (! $armed->active) {
+                DB::listen(function (object $query) use ($armed): void {
+                    if (! $armed->active || ! str_contains(strtolower($query->sql), 'insert into `church_service_items`')) {
                         return;
                     }
 
@@ -256,12 +285,14 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
 
         foreach ($failures as $expectedPhase => $arm) {
             $armed = (object) ['active' => true];
+            $failureMessage = null;
             $arm($armed);
 
             try {
                 app(ConvergeHistoricChurchService::class)->execute($mediaBundle, $convergenceBundle, 0, 0);
                 $this->fail("The {$expectedPhase} sabotage did not fail the apply.");
             } catch (RuntimeException $exception) {
+                $failureMessage = $exception->getMessage();
                 $this->assertStringNotContainsString('did not fail the apply', $exception->getMessage());
             } finally {
                 $armed->active = false;
@@ -269,7 +300,7 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
 
             $this->assertDatabaseMissing('media_processing_logs', ['processing_id' => 'imported-run']);
             Storage::disk('local')->assertMissing('service-transcripts/imported-run/audio.mp3');
-            $this->assertSame($expectedPhase, $this->lastLedgerFailure()['phase']);
+            $this->assertSame($expectedPhase, $this->lastLedgerFailure()['phase'], $failureMessage ?? 'No failure message.');
         }
     }
 
@@ -293,6 +324,71 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
             $this->assertDatabaseMissing('media_processing_logs', ['processing_id' => 'imported-run-2026-08-02']);
             $this->assertDatabaseMissing('media_processing_logs', ['processing_id' => 'imported-run-2026-08-09']);
             Storage::disk('local')->assertMissing('service-transcripts/imported-run-2026-08-02/audio.mp3');
+        }
+    }
+
+    #[Test]
+    public function admission_splits_before_mutation_when_p95_apply_and_rollback_reserve_will_not_fit(): void
+    {
+        [$mediaBundle, $convergenceBundle] = $this->corpus();
+        config()->set('media-processing.historic_import.convergence.apply_p95_seconds', 30.0);
+        config()->set('media-processing.historic_import.convergence.rollback_p95_seconds', 30.0);
+        $converge = app(ConvergeHistoricChurchService::class);
+        $plan = $converge->prepareBatch(
+            $mediaBundle,
+            $convergenceBundle,
+            'f41-deadline-split',
+            now()->addSeconds(20)->toIso8601String(),
+        );
+
+        $this->expectExceptionMessage('accepted deadline reserve exhausted');
+
+        try {
+            $converge->executeBatch(
+                $mediaBundle,
+                $convergenceBundle,
+                $plan->planHash,
+                false,
+                null,
+                null,
+                $plan,
+            );
+        } finally {
+            $this->assertDatabaseCount('media_processing_logs', 0);
+            $splits = app(HistoricConvergenceLedger::class)->entries('f41-deadline-split');
+            $this->assertCount(1, array_filter($splits, fn (array $entry): bool => $entry['event'] === 'batch_split'));
+        }
+    }
+
+    #[Test]
+    public function a_source_change_seen_after_the_natural_identity_lock_aborts_before_persistence(): void
+    {
+        [$mediaBundle, $convergenceBundle] = $this->corpus();
+        $converge = app(ConvergeHistoricChurchService::class);
+        $plan = $converge->prepareBatch($mediaBundle, $convergenceBundle, 'f41-rebind');
+        $armed = true;
+        DB::listen(function (object $query) use (&$armed): void {
+            $sql = strtolower($query->sql);
+
+            if ($armed && str_contains($sql, 'church_services') && str_contains($sql, 'for update')) {
+                $armed = false;
+                DB::table('church_services')->update([
+                    'canonical_hash' => str_repeat('f', 64),
+                ]);
+            }
+        });
+
+        $this->expectExceptionMessage('service binding changed while acquiring the natural-identity lock');
+
+        try {
+            $converge->executeBatch($mediaBundle, $convergenceBundle, $plan->planHash, false, null, null, $plan);
+        } finally {
+            $this->assertDatabaseCount('media_processing_logs', 0);
+            $failed = array_values(array_filter(
+                app(HistoricConvergenceLedger::class)->entries('f41-rebind'),
+                fn (array $entry): bool => $entry['event'] === 'failed',
+            ));
+            $this->assertSame('lock_service', $failed[0]['phase'] ?? null);
         }
     }
 
@@ -355,8 +451,10 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
     private function stopTheBatchOnTheSecondService(): void
     {
         $armed = (object) ['active' => true];
-        MediaProcessingLog::created(function (MediaProcessingLog $log) use ($armed): void {
-            if ($armed->active && $log->processing_id === 'imported-run-2026-08-09') {
+        DB::listen(function (object $query) use ($armed): void {
+            if ($armed->active
+                && str_contains(strtolower($query->sql), 'insert into `media_processing_logs`')
+                && str_contains(json_encode($query->bindings, JSON_THROW_ON_ERROR), 'imported-run-2026-08-09')) {
                 $armed->active = false;
 
                 throw new RuntimeException('Simulated hard failure on the second service.');
@@ -410,9 +508,9 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
 
         /** A storage change: the same operation against a different destination disk. */
         Storage::fake('other_production');
-        config()->set('media-processing.storage.sermon_disk', 'other_production');
+        config()->set('media-processing.storage.historic_quarantine_disk', 'other_production');
         $storageChanged = $converge->prepare($mediaBundle, $convergenceBundle, 0, 0, 'fixed-operation', '2099-01-01T00:00:00+00:00');
-        config()->set('media-processing.storage.sermon_disk', 'local');
+        config()->set('media-processing.storage.historic_quarantine_disk', 'local');
 
         $this->assertNotSame($sourceChanged->planHash, $storageChanged->planHash);
 

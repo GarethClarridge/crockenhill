@@ -45,6 +45,9 @@ final class HistoricPromotionMeasurements
             'services_failed' => 0,
         ];
 
+        /** @var array<string, array{audit: float|null, rerun: float|null}> $closeouts */
+        $closeouts = [];
+
         foreach ($entries as $entry) {
             $operationId = $entry['operation_id'] ?? null;
 
@@ -56,13 +59,20 @@ final class HistoricPromotionMeasurements
 
             match ($entry['event'] ?? null) {
                 'prepared' => $this->push($samples['preflight_seconds'], $duration),
-                'closeout' => $this->push($samples['closeout_seconds'], $duration),
+                'exact_audit_passed' => $this->recordCloseoutHalf($closeouts, $operationId, 'audit', $entry, $duration),
+                'exact_noop_rerun' => $this->recordCloseoutHalf($closeouts, $operationId, 'rerun', $entry, $duration),
                 'service_completed' => $this->recordCompletion($samples, $entry, $duration),
                 // A failed service is where the rollback reserve is observed: the
                 // recorded duration spans the attempt and its asset compensation.
                 'failed' => $this->recordFailure($samples, $duration),
                 default => null,
             };
+        }
+
+        foreach ($closeouts as $closeout) {
+            if ($closeout['audit'] !== null && $closeout['rerun'] !== null) {
+                $samples['closeout_seconds'][] = $closeout['audit'] + $closeout['rerun'];
+            }
         }
 
         return $samples;
@@ -74,6 +84,10 @@ final class HistoricPromotionMeasurements
      */
     private function recordCompletion(array &$samples, array $entry, ?float $duration): void
     {
+        if (($entry['classification'] ?? null) === 'already_present') {
+            return;
+        }
+
         $samples['services_applied']++;
         $this->push($samples['apply_seconds'], $duration);
 
@@ -86,6 +100,31 @@ final class HistoricPromotionMeasurements
             $samples['asset_bytes'][] = $bytes;
             $samples['asset_seconds'][] = $assetSeconds;
         }
+    }
+
+    /**
+     * @param  array<string, array{audit: float|null, rerun: float|null}>  $closeouts
+     * @param  'audit'|'rerun'  $half
+     * @param  array<string, mixed>  $entry
+     */
+    private function recordCloseoutHalf(
+        array &$closeouts,
+        mixed $operationId,
+        string $half,
+        array $entry,
+        ?float $duration,
+    ): void {
+        if (! is_string($operationId) || ($entry['passed'] ?? null) !== true || $duration === null) {
+            return;
+        }
+
+        $closeouts[$operationId] ??= ['audit' => null, 'rerun' => null];
+
+        if ($closeouts[$operationId][$half] !== null) {
+            return;
+        }
+
+        $closeouts[$operationId][$half] = $duration;
     }
 
     /** @param Samples $samples */

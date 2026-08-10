@@ -13,6 +13,7 @@ use App\Enums\ChurchServiceSource;
 use App\Enums\HistoricImportClassification;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
@@ -24,6 +25,7 @@ use App\Services\HistoricMedia\HistoricProcessingResultBundleImporter;
 use App\Services\HistoricMedia\HistoricProcessingResultInventory;
 use App\Support\CanonicalJson;
 use DateTimeImmutable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -67,6 +69,7 @@ class ConvergeHistoricChurchService
         private readonly ?HistoricConvergenceLedger $ledger = null,
         private readonly ?ChurchServiceProposalIdentity $proposalIdentity = null,
         private readonly ?HistoricConvergenceDispatchGuard $dispatchGuard = null,
+        private readonly ?HistoricConvergenceAdmission $admission = null,
     ) {}
 
     /**
@@ -91,7 +94,11 @@ class ConvergeHistoricChurchService
         $this->assertServiceIdentity($mediaBundle, $convergenceBundle, $mediaServiceIndex, $convergenceServiceIndex);
         $mediaPayload = $this->servicePayload($mediaBundle, $mediaServiceIndex, 'media');
         $convergencePayload = $this->servicePayload($convergenceBundle, $convergenceServiceIndex, 'convergence');
-        $mediaPlan = $this->mediaImporter->prepareService($mediaBundle, $mediaServiceIndex);
+        $mediaPlan = $this->mediaImporter->prepareService(
+            $mediaBundle,
+            $mediaServiceIndex,
+            $this->historicOperation($operationId),
+        );
         $convergencePlan = $this->convergenceImporter->prepareServiceForHistoricImport(
             $convergenceBundle,
             $convergenceServiceIndex,
@@ -182,7 +189,11 @@ class ConvergeHistoricChurchService
                 throw new RuntimeException("No convergence service matches {$identity}.");
             }
 
-            $mediaPlan = $this->mediaImporter->prepareService($mediaBundle, $mediaIndex);
+            $mediaPlan = $this->mediaImporter->prepareService(
+                $mediaBundle,
+                $mediaIndex,
+                $this->historicOperation($operationId),
+            );
             $convergencePlan = $this->convergenceImporter->prepareServiceForHistoricImport(
                 $convergenceBundle,
                 $convergenceIndex,
@@ -301,7 +312,9 @@ class ConvergeHistoricChurchService
 
         $this->assertPlanApplicable($revalidated);
 
-        return $this->applyPreparedService($revalidated, $servicePlan, $mediaBundle);
+        return Model::withoutEvents(
+            fn (): array => $this->applyPreparedService($revalidated, $servicePlan, $mediaBundle, $convergenceBundle),
+        );
     }
 
     /**
@@ -318,6 +331,7 @@ class ConvergeHistoricChurchService
         ?string $expiresAt = null,
         ?HistoricConvergenceOperationPlan $prepared = null,
     ): array {
+        $batchStartedAt = hrtime(true);
         $approved = $prepared ?? $this->prepareBatch($mediaBundle, $convergenceBundle, $operationId, $expiresAt);
 
         if ($approved->isExpired()) {
@@ -341,6 +355,14 @@ class ConvergeHistoricChurchService
 
         $this->assertPlanApplicable($plan);
 
+        $alreadyPresent = HistoricImportClassification::AlreadyPresent->value;
+        $isExactNoOp = collect($plan->services)->every(
+            static fn (array $service): bool => ($service['media_plan'] ?? null) instanceof HistoricProcessingResultImportPlan
+                && $service['media_plan']->classification === $alreadyPresent
+                && ($service['convergence_plan'] ?? null) instanceof ChurchServiceConvergenceImportPlan
+                && $service['convergence_plan']->classification === $alreadyPresent,
+        );
+
         $results = [];
 
         foreach ($plan->services as $servicePlan) {
@@ -352,7 +374,26 @@ class ConvergeHistoricChurchService
                 continue;
             }
 
-            $results[] = $this->applyPreparedService($plan, $servicePlan, $mediaBundle);
+            if (! is_string($identity)) {
+                throw new RuntimeException('Historic convergence service plan contains no natural identity.');
+            }
+
+            $this->assertServiceAdmission($plan, $identity);
+            $results[] = Model::withoutEvents(
+                fn (): array => $this->applyPreparedService($plan, $servicePlan, $mediaBundle, $convergenceBundle),
+            );
+        }
+
+        if ($isExactNoOp) {
+            $identities = array_map(
+                static fn (array $service): string => (string) $service['identity'],
+                $plan->services,
+            );
+            $this->ledger()->recordExactNoOpRerun(
+                $plan,
+                $this->elapsedSince($batchStartedAt),
+                $identities,
+            );
         }
 
         return $results;
@@ -444,6 +485,7 @@ class ConvergeHistoricChurchService
 
     /**
      * @param  array<string, mixed>  $mediaBundle
+     * @param  array<string, mixed>  $convergenceBundle
      * @param  array<string, mixed>  $servicePlan
      * @return array{church_service: ChurchService, processing_log: MediaProcessingLog, created_assets: list<string>}
      */
@@ -451,6 +493,7 @@ class ConvergeHistoricChurchService
         HistoricConvergenceOperationPlan $operationPlan,
         array $servicePlan,
         array $mediaBundle,
+        array $convergenceBundle,
     ): array {
         $mediaIndex = $servicePlan['media_index'] ?? null;
         $convergenceIndex = $servicePlan['convergence_index'] ?? null;
@@ -495,6 +538,10 @@ class ConvergeHistoricChurchService
              * and record the wrong phase.
              */
             $result = $this->dispatchGuard()->guard(function () use (
+                $operationPlan,
+                $servicePlan,
+                $mediaBundle,
+                $convergenceBundle,
                 $mediaPlan,
                 $mediaPayload,
                 $convergencePlan,
@@ -505,6 +552,10 @@ class ConvergeHistoricChurchService
                 &$mediaPersistSeconds,
             ): array {
                 return DB::transaction(function () use (
+                    $operationPlan,
+                    $servicePlan,
+                    $mediaBundle,
+                    $convergenceBundle,
                     $mediaPlan,
                     $mediaPayload,
                     $convergencePlan,
@@ -516,6 +567,16 @@ class ConvergeHistoricChurchService
                 ): array {
                     $phase = self::PHASE_LOCK_SERVICE;
                     $service = $this->lockService($mediaPayload);
+                    $this->assertServiceAdmission(
+                        $operationPlan,
+                        (string) ($servicePlan['identity'] ?? ''),
+                    );
+                    [$mediaPlan, $convergencePlan] = $this->reprepareAndRebindUnderLock(
+                        $operationPlan,
+                        $servicePlan,
+                        $mediaBundle,
+                        $convergenceBundle,
+                    );
                     $phase = self::PHASE_PERSIST_MEDIA;
                     $mediaPersistStartedAt = hrtime(true);
                     $mediaResult = $this->mediaImporter->persistPreparedService($mediaPlan, $mediaPlanHash);
@@ -569,15 +630,17 @@ class ConvergeHistoricChurchService
             });
         } catch (Throwable $exception) {
             $this->assets->cleanup($createdAssets);
-            $this->ledger()->recordFailed(
-                $operationPlan,
-                $phase,
-                $exception->getMessage(),
-                is_string($servicePlan['identity'] ?? null) ? $servicePlan['identity'] : null,
-                // Recorded after cleanup, deliberately: §15.2's rollback reserve
-                // has to cover compensating the assets, not just the failure.
-                $this->elapsedSince($applyStartedAt),
-            );
+            if (! $exception instanceof HistoricConvergenceBatchSplit) {
+                $this->ledger()->recordFailed(
+                    $operationPlan,
+                    $phase,
+                    $exception->getMessage(),
+                    is_string($servicePlan['identity'] ?? null) ? $servicePlan['identity'] : null,
+                    // Recorded after cleanup, deliberately: §15.2's rollback reserve
+                    // has to cover compensating the assets, not just the failure.
+                    $this->elapsedSince($applyStartedAt),
+                );
+            }
 
             throw $exception;
         }
@@ -590,6 +653,87 @@ class ConvergeHistoricChurchService
         );
 
         return $result;
+    }
+
+    /**
+     * Re-run both importer preflights after the natural-identity lock is held.
+     * The approved hashes are the rebind contract; a source or production
+     * change observed after the batch preflight therefore stops before any
+     * asset or row mutation.
+     *
+     * @param  array<string, mixed>  $servicePlan
+     * @param  array<string, mixed>  $mediaBundle
+     * @param  array<string, mixed>  $convergenceBundle
+     * @return array{0: HistoricProcessingResultImportPlan, 1: ChurchServiceConvergenceImportPlan}
+     */
+    private function reprepareAndRebindUnderLock(
+        HistoricConvergenceOperationPlan $operationPlan,
+        array $servicePlan,
+        array $mediaBundle,
+        array $convergenceBundle,
+    ): array {
+        $mediaIndex = $servicePlan['media_index'] ?? null;
+        $convergenceIndex = $servicePlan['convergence_index'] ?? null;
+
+        if (! is_int($mediaIndex) || ! is_int($convergenceIndex)) {
+            throw new RuntimeException('Historic convergence plan contains invalid bundle indexes.');
+        }
+
+        $reprepared = $this->prepare(
+            $mediaBundle,
+            $convergenceBundle,
+            $mediaIndex,
+            $convergenceIndex,
+            $operationPlan->operationId,
+            $operationPlan->expiresAt->format(DATE_ATOM),
+        );
+        $freshServicePlan = $reprepared->services[0] ?? null;
+
+        if (! is_array($freshServicePlan)
+            || ! ($freshServicePlan['media_plan'] ?? null) instanceof HistoricProcessingResultImportPlan
+            || ! ($freshServicePlan['convergence_plan'] ?? null) instanceof ChurchServiceConvergenceImportPlan
+        ) {
+            throw new RuntimeException('Historic convergence re-preflight produced an invalid service binding.');
+        }
+
+        $approvedSummary = $servicePlan['summary'] ?? null;
+        $freshSummary = $freshServicePlan['summary'] ?? null;
+
+        if (! is_array($approvedSummary) || ! is_array($freshSummary)
+            || ! is_string($approvedSummary['media_plan_hash'] ?? null)
+            || ! is_string($approvedSummary['convergence_plan_hash'] ?? null)
+            || ! is_string($freshSummary['media_plan_hash'] ?? null)
+            || ! is_string($freshSummary['convergence_plan_hash'] ?? null)
+            || ! hash_equals($approvedSummary['media_plan_hash'], $freshSummary['media_plan_hash'])
+            || ! hash_equals($approvedSummary['convergence_plan_hash'], $freshSummary['convergence_plan_hash'])
+        ) {
+            throw new RuntimeException('Historic convergence service binding changed while acquiring the natural-identity lock.');
+        }
+
+        return [$freshServicePlan['media_plan'], $freshServicePlan['convergence_plan']];
+    }
+
+    private function assertServiceAdmission(HistoricConvergenceOperationPlan $plan, string $identity): void
+    {
+        $decision = $this->admission()->decide($plan->operationId, $plan->expiresAt);
+
+        if ($decision['admitted']) {
+            return;
+        }
+
+        $this->ledger()->recordSplit($plan, $identity, [
+            'reason' => $decision['reason'],
+            'deadline' => $plan->expiresAt->format(DATE_ATOM),
+            'remaining_seconds' => $decision['remaining_seconds'],
+            'reserve_seconds' => $decision['reserve_seconds'],
+        ]);
+
+        throw new HistoricConvergenceBatchSplit("Historic convergence batch split before {$identity}: accepted deadline reserve exhausted.");
+    }
+
+    private function admission(): HistoricConvergenceAdmission
+    {
+        return $this->admission ?? app(HistoricConvergenceAdmission::class);
     }
 
     /**
@@ -798,6 +942,15 @@ class ConvergeHistoricChurchService
     private function ledger(): HistoricConvergenceLedger
     {
         return $this->ledger ?? app(HistoricConvergenceLedger::class);
+    }
+
+    private function historicOperation(?string $operationId): ?HistoricImportOperation
+    {
+        if ($operationId === null) {
+            return null;
+        }
+
+        return HistoricImportOperation::query()->where('operation_id', $operationId)->first();
     }
 
     private function proposalIdentity(): ChurchServiceProposalIdentity

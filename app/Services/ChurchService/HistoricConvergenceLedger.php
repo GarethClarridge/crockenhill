@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Data\HistoricConvergenceOperationPlan;
+use App\Services\Import\HistoricImportTargetFingerprint;
+use App\Support\CanonicalJson;
 use DateTimeImmutable;
 use RuntimeException;
 
@@ -77,6 +79,8 @@ class HistoricConvergenceLedger
             'batch_hash' => $plan->batchHash,
             'media_bundle_hash' => $plan->mediaBundleHash,
             'convergence_bundle_hash' => $plan->convergenceBundleHash,
+            'processing_fingerprint_hash' => CanonicalJson::hash($plan->processingFingerprint),
+            'target_fingerprint' => app(HistoricImportTargetFingerprint::class)->hash(),
             'expires_at' => $plan->expiresAt->format(DATE_ATOM),
             'summary' => $plan->summary,
             'duration_seconds' => $durationSeconds,
@@ -92,6 +96,22 @@ class HistoricConvergenceLedger
             'plan_hash' => $plan->planHash,
             'content_hash' => $plan->contentHash,
             'identity' => $service['identity'] ?? null,
+        ]);
+    }
+
+    /** @param array<string, mixed> $details */
+    public function recordSplit(
+        HistoricConvergenceOperationPlan $plan,
+        string $identity,
+        array $details,
+    ): void {
+        $this->append([
+            'event' => 'batch_split',
+            'operation_id' => $plan->operationId,
+            'plan_hash' => $plan->planHash,
+            'content_hash' => $plan->contentHash,
+            'identity' => $identity,
+            'details' => $details,
         ]);
     }
 
@@ -151,24 +171,43 @@ class HistoricConvergenceLedger
         ]);
     }
 
-    /**
-     * Closeout is the other half of §15.2's window that is not applying a
-     * service: the exact audit and the no-op rerun that must still fit after
-     * the last service commits. It has no operation plan of its own — it runs
-     * after the plan is spent — so it is keyed on the operation id alone.
-     */
-    public function recordCloseout(
-        string $operationId,
-        string $kind,
+    /** @param list<string> $identities */
+    public function recordExactNoOpRerun(
+        HistoricConvergenceOperationPlan $plan,
         float $durationSeconds,
-        bool $passed,
+        array $identities,
     ): void {
         $this->append([
-            'event' => 'closeout',
-            'operation_id' => $operationId,
-            'kind' => $kind,
+            'event' => 'exact_noop_rerun',
+            'operation_id' => $plan->operationId,
+            'batch_hash' => $plan->batchHash,
+            'media_bundle_hash' => $plan->mediaBundleHash,
+            'convergence_bundle_hash' => $plan->convergenceBundleHash,
+            'processing_fingerprint_hash' => CanonicalJson::hash($plan->processingFingerprint),
+            'target_fingerprint' => app(HistoricImportTargetFingerprint::class)->hash(),
+            'identity_hash' => CanonicalJson::hash($identities),
+            'service_count' => count($identities),
             'duration_seconds' => $durationSeconds,
-            'passed' => $passed,
+            'passed' => true,
+        ]);
+    }
+
+    /** @param array<string, mixed> $binding */
+    public function recordExactAuditPassed(
+        string $operationId,
+        float $durationSeconds,
+        array $binding,
+        string $reportLocator,
+        string $reportDigest,
+    ): void {
+        $this->append([
+            'event' => 'exact_audit_passed',
+            'operation_id' => $operationId,
+            ...$binding,
+            'report_locator' => $reportLocator,
+            'report_digest' => $reportDigest,
+            'duration_seconds' => $durationSeconds,
+            'passed' => true,
         ]);
     }
 

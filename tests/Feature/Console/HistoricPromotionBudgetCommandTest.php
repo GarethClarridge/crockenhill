@@ -48,7 +48,7 @@ class HistoricPromotionBudgetCommandTest extends TestCase
         }
 
         $ledger->append(['event' => 'failed', 'operation_id' => 'op-1', 'duration_seconds' => 30.0]);
-        $ledger->recordCloseout('op-1', 'exact_audit', 180.0, true);
+        $this->appendCloseout($ledger, 'op-1', 60.0, 120.0);
 
         $report = $this->jsonReport();
 
@@ -133,7 +133,7 @@ class HistoricPromotionBudgetCommandTest extends TestCase
         $ledger->append(['event' => 'prepared', 'operation_id' => 'op-1', 'duration_seconds' => 60.0]);
         $ledger->append(['event' => 'service_completed', 'operation_id' => 'op-1', 'duration_seconds' => 5_400.0]);
         $ledger->append(['event' => 'failed', 'operation_id' => 'op-1', 'duration_seconds' => 60.0]);
-        $ledger->recordCloseout('op-1', 'exact_audit', 60.0, true);
+        $this->appendCloseout($ledger, 'op-1', 20.0, 40.0);
 
         $this->artisan("service-tracking:promotion-budget --ledger={$this->ledgerPath}")
             ->expectsOutputToContain('cannot fit one service')
@@ -146,7 +146,27 @@ class HistoricPromotionBudgetCommandTest extends TestCase
         $ledger->append(['event' => 'prepared', 'operation_id' => 'op-1', 'duration_seconds' => 60.0]);
         $ledger->append(['event' => 'service_completed', 'operation_id' => 'op-1', 'duration_seconds' => 60.0]);
         $ledger->append(['event' => 'failed', 'operation_id' => 'op-1', 'duration_seconds' => 10.0]);
-        $ledger->recordCloseout('op-1', 'exact_audit', 60.0, true);
+        $this->appendCloseout($ledger, 'op-1', 20.0, 40.0);
+    }
+
+    private function appendCloseout(
+        HistoricConvergenceLedger $ledger,
+        string $operationId,
+        float $auditSeconds,
+        float $rerunSeconds,
+    ): void {
+        $ledger->append([
+            'event' => 'exact_audit_passed',
+            'operation_id' => $operationId,
+            'duration_seconds' => $auditSeconds,
+            'passed' => true,
+        ]);
+        $ledger->append([
+            'event' => 'exact_noop_rerun',
+            'operation_id' => $operationId,
+            'duration_seconds' => $rerunSeconds,
+            'passed' => true,
+        ]);
     }
 
     /** @return array<string, mixed> */
