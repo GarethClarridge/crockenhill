@@ -147,6 +147,68 @@ No operator should assemble a sequence by combining steps from these documents a
   remains subject to the production backup, deploy freeze, rehearsal, witness and approval gates;
   a successful local dry run is not production authority.
 
+### 2026-08-10 — implementation batch and its review
+
+A large implementation batch landed against F29-F58. It is **implementation evidence only**: no gate
+below is closed by it, because every one of those findings also requires rehearsal, production or
+operator evidence that this batch cannot produce.
+
+**What was implemented.** Six commits (`6e861bd85` date-only song usage, `cb8d873dd` F53 exact corpus
+membership, `b4006d1b8` F30 Email supersession lineage, `22bc9ee3b` the operation/checkpoint/journal
+schema, `332c754a8` F31/F34/F37/F49/F50/F55 source integrity, `ceaadb103` F35/F38/F39/F47/F52 durable
+runtime) plus a working-tree batch covering F29 sermon quarantine, F40/F41/F51 convergence, F44
+editorial facts, F45/F46 approval and freeze, F56 operation-scoped ingress deferral, F57 exact
+closeout and F58 window measurement.
+
+**Review findings, all fixed on the same tree.** The batch had not been run against any of the four
+quality gates. Four defects were load-bearing:
+
+- `AuditChurchServiceConvergenceCommand` did not parse — an unescaped apostrophe in `$signature`.
+  Laravel silently omits a command whose file cannot load, so `service-tracking:audit-convergence`
+  was **absent from `artisan list`** with no error, and the F57 closeout path had no entry point.
+- `HistoricConvergenceCloseout::binding()` called `->filter('is_string')`; `Collection::filter`
+  passes `($value, $key)`, so every exact-audit closeout died with `ArgumentCountError`.
+- `SermonExposurePolicy::isWholeContentPublic()` read `publication_state` as a model attribute while
+  `SitemapService` and the admin sermon list selected explicit column lists that omitted it. The
+  unloaded attribute read as "not published", so the generated sitemap emitted every sermon `<url>`
+  with no `<loc>`. The policy now throws `MissingExposureAttribute` on a persisted row whose deciding
+  column was not selected, rather than silently withholding published content.
+- `HistoricMediaGraphPersister::verifyExisting()` recomputed section and run-level destinations
+  without the `historic-import/{operation_id}/` prefix the apply allocates, so an operation-scoped
+  no-op rerun reclassified every already-present service as a blocked difference. Retained as a
+  red-to-green regression test.
+
+**Three F29 surfaces were still open and are now closed in code.** Scripture facets
+(`sermon_scripture_filters` fed the public book filter list and `SitemapService::addBooks()` with no
+publication predicate); `Song::displayVideo()` (a quarantined historic recording with a later
+`recorded_date`, or the bundle's own `is_featured`, became a song's public video); and the
+normal-output contract, which did not classify `publication_state`, `asset_disk` or
+`historic_import_operation_id`. `song_videos` now carries the same publication state as sermons.
+The audience decision is deliberately **excluded** from the portable contract: an apply always lands
+quarantined on the destination's own private disk, so no exported bundle can dictate what the
+destination publishes.
+
+**Gates on this tree:** `artisan test --parallel` green, `composer phpstan` clean, `pint --dirty`
+applied. That is necessary and not sufficient, exactly as §1 states.
+
+**Still open, unchanged by this batch:** every rehearsal, production-evidence, manifest-approval,
+source-acquisition and operator item. Specifically noted for the next session:
+
+- `CHURCH_SERVICES_PUBLIC_FROM` is now load-bearing and fails closed. `.env.example`, `phpunit.xml`
+  and `.env.dusk.ci` set an early bound so the archive behaves as it does today; **production must be
+  set explicitly before this deploys** or the public service archive goes dark. The maintainer's
+  2026-08-10 decision is an early bound, which means the import's audience boundary rests on
+  `publication_state` rather than on the service date gate.
+- F44 editorial facts are carried into `historic_import` processing metadata but nothing yet applies
+  them to a sermon's title/occasion/speaker/scripture/series. The plumbing exists; the consumer does
+  not.
+- `HistoricSermonPublicationService::release()` has no operator command and no batch gate, so the
+  "separately authorised release" F29 requires is still code-only.
+- `HistoricImportMutationFreeze` blocks every save and delete on eleven core models with an uncaught
+  `RuntimeException` whenever `HISTORIC_IMPORT_PRODUCTION_APPROVAL` is set. That is the intended
+  freeze, but the failure mode in a web request or queue job is a 500, not a refusal. Decide before
+  an approval artifact is ever placed on a production host.
+
 ### 2026-08-08 — continuation audit scope and completion
 
 The first audit's technical, operational and business agents exhausted their usage after delivering
