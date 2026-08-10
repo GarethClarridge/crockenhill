@@ -492,6 +492,53 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     }
 
     #[Test]
+    public function the_manifest_preserves_portable_editorial_facts_in_the_approved_plan(): void
+    {
+        $relativePath = '2021-12-19 18-02-00.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}");
+        $facts = [
+            'occasion' => 'Carol service',
+            'title' => 'A light in the darkness',
+            'speaker' => 'Guest preacher',
+            'scripture_reference' => 'John 1:1-14',
+            'series' => 'Christmas 2021',
+        ];
+        $manifestPath = $this->historicManifest($relativePath, '2021-12-19', 'other', [
+            'editorial_facts' => $facts,
+        ]);
+
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+
+        $this->assertSame($facts, $plan->workItems[0]['editorial_facts']);
+        $this->assertSame($facts, $plan->report()['items'][0]['editorial_facts']);
+    }
+
+    #[Test]
+    public function the_manifest_refuses_two_included_services_with_the_same_natural_identity(): void
+    {
+        $first = 'special-one.mkv';
+        $second = 'special-two.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$first}");
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$second}");
+        $manifestPath = $this->historicManifest($first, '2021-12-19', 'other');
+        $manifest = json_decode((string) file_get_contents($manifestPath), true, flags: JSON_THROW_ON_ERROR);
+        $secondEntry = $manifest['entries'][0];
+        $secondEntry['item_key'] = 'second-special-service';
+        $secondEntry['files'] = [[
+            'relative_path' => $second,
+            'sha256' => hash_file('sha256', "{$this->temporaryDirectory}/{$second}"),
+            'byte_size' => filesize("{$this->temporaryDirectory}/{$second}"),
+        ]];
+        $manifest['entries'][] = $secondEntry;
+        file_put_contents($manifestPath, json_encode($manifest, JSON_THROW_ON_ERROR));
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('multiple included services for 2021-12-19|other');
+
+        app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+    }
+
+    #[Test]
     public function the_manifest_rejects_unknown_entry_schema_fields(): void
     {
         $relativePath = '2021-04-12 18-02-00.mkv';
@@ -565,7 +612,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $this->temporaryManifestPaths[] = $manifestPath;
         $manifest = [
             'format' => 'crockenhill-historic-video-curation',
-            'version' => 2,
+            'version' => 3,
             'batch_key' => 'historic-video-test-batch',
             'entries' => [[
                 'item_key' => 'approved-'.hash('sha256', $relativePath),
@@ -579,6 +626,13 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
                 'client_file_date' => "{$date} 12:00:00",
                 'expected_occurrence_count' => 1,
                 'decision' => ['approved_rule_version' => 'test-v1'],
+                'editorial_facts' => [
+                    'occasion' => null,
+                    'title' => null,
+                    'speaker' => null,
+                    'scripture_reference' => null,
+                    'series' => null,
+                ],
                 'files' => [[
                     'relative_path' => $relativePath,
                     'sha256' => hash_file('sha256', $path),

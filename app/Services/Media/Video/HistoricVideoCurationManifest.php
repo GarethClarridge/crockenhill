@@ -19,9 +19,9 @@ class HistoricVideoCurationManifest
 {
     private const FORMAT = 'crockenhill-historic-video-curation';
 
-    private const VERSION = 2;
+    private const VERSION = 3;
 
-    private const SUPPORTED_EXTENSIONS = ['mkv', 'mp4', 'mov'];
+    private const SUPPORTED_EXTENSIONS = ['avi', 'mkv', 'mov', 'mp4', 'webm'];
 
     public function plan(string $rawDirectory, string $manifestPath): HistoricVideoCurationPlan
     {
@@ -69,6 +69,7 @@ class HistoricVideoCurationManifest
         }
 
         $this->validateDuplicateTargets($normalizedEntries, $seenKeys);
+        $this->validateServiceIdentities($normalizedEntries);
 
         $unmanifested = array_values(array_diff(array_keys($this->inventory($rawRoot)), array_keys($manifestPaths)));
 
@@ -116,6 +117,7 @@ class HistoricVideoCurationManifest
                 'bytes' => $bytes,
                 'manifest_concatenation' => $entry['concatenation'],
                 'manifest_expected_occurrence_count' => $entry['expected_occurrence_count'],
+                'editorial_facts' => $entry['editorial_facts'],
             ];
         }
 
@@ -146,6 +148,7 @@ class HistoricVideoCurationManifest
                 'service' => $item['service']->value,
                 'concatenation' => $item['manifest_concatenation'],
                 'expected_occurrence_count' => $item['manifest_expected_occurrence_count'],
+                'editorial_facts' => $item['editorial_facts'],
                 'files' => $item['source_files'],
             ], $workItems),
             'exclusions' => $exclusions,
@@ -186,7 +189,9 @@ class HistoricVideoCurationManifest
 
             $target = $byKey->get($duplicateOf);
 
-            if (! is_array($target) || $target['disposition'] !== 'include' || $target['files'] !== $entry['files']) {
+            if (! is_array($target)
+                || $target['disposition'] !== 'include'
+                || $this->fileContentIdentity($target['files']) !== $this->fileContentIdentity($entry['files'])) {
                 throw new RuntimeException("Historic video duplicate {$entry['item_key']} must name an included byte-identical target.");
             }
         }
@@ -210,6 +215,18 @@ class HistoricVideoCurationManifest
                 $cursor = $next;
             }
         }
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $files
+     * @return list<array{sha256:mixed,byte_size:mixed}>
+     */
+    private function fileContentIdentity(array $files): array
+    {
+        return array_map(static fn (array $file): array => [
+            'sha256' => $file['sha256'] ?? null,
+            'byte_size' => $file['byte_size'] ?? null,
+        ], $files);
     }
 
     /** @return array<string, mixed> */
@@ -251,6 +268,7 @@ class HistoricVideoCurationManifest
      *     client_file_date:?string,
      *     expected_occurrence_count:int,
      *     decision:array<string, mixed>,
+     *     editorial_facts:array<string, string|null>,
      *     files:list<array{relative_path:string,sha256:string,byte_size:int}>
      * }
      */
@@ -268,6 +286,7 @@ class HistoricVideoCurationManifest
             'client_file_date',
             'expected_occurrence_count',
             'decision',
+            'editorial_facts',
             'files',
         ])) {
             throw new RuntimeException("Historic video entry {$offset} has unknown or missing schema fields.");
@@ -336,6 +355,26 @@ class HistoricVideoCurationManifest
             throw new RuntimeException("Historic video entry {$itemKey} requires an exact authorised decision shape.");
         }
 
+        $editorialFacts = $entry['editorial_facts'] ?? null;
+
+        if (! is_array($editorialFacts) || ! $this->hasExactKeys($editorialFacts, [
+            'occasion',
+            'title',
+            'speaker',
+            'scripture_reference',
+            'series',
+        ])) {
+            throw new RuntimeException("Historic video entry {$itemKey} requires exact portable editorial facts.");
+        }
+
+        foreach ($editorialFacts as $field => $value) {
+            if ($value !== null && (! is_string($value) || trim($value) === '')) {
+                throw new RuntimeException("Historic video entry {$itemKey} has an invalid editorial fact: {$field}.");
+            }
+
+            $editorialFacts[$field] = is_string($value) ? trim($value) : null;
+        }
+
         $files = $entry['files'] ?? null;
 
         if (! is_array($files) || ! array_is_list($files) || $files === []) {
@@ -392,8 +431,31 @@ class HistoricVideoCurationManifest
             'client_file_date' => $this->nullableString($entry, 'client_file_date'),
             'expected_occurrence_count' => $expectedCount,
             'decision' => $decision,
+            'editorial_facts' => $editorialFacts,
             'files' => $normalizedFiles,
         ];
+    }
+
+    /** @param list<array<string, mixed>> $entries */
+    private function validateServiceIdentities(array $entries): void
+    {
+        $identities = [];
+
+        foreach ($entries as $entry) {
+            if (($entry['disposition'] ?? null) !== 'include') {
+                continue;
+            }
+
+            $identity = "{$entry['date']}|{$entry['service']}";
+
+            if (isset($identities[$identity])) {
+                throw new RuntimeException(
+                    "Historic video manifest contains multiple included services for {$identity}; curate one service or exclude the unresolved collision.",
+                );
+            }
+
+            $identities[$identity] = true;
+        }
     }
 
     /**

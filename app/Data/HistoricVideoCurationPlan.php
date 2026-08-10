@@ -21,7 +21,8 @@ readonly class HistoricVideoCurationPlan
      *     client_file_date:string,
      *     bytes:int,
      *     manifest_concatenation:string,
-     *     manifest_expected_occurrence_count:int
+     *     manifest_expected_occurrence_count:int,
+     *     editorial_facts:array<string, string|null>
      * }>  $workItems
      * @param  array<string, int>  $counts
      * @param  list<array{item_key:string, exclusion_reason:string, duplicate_of:?string}>  $exclusions
@@ -51,6 +52,7 @@ readonly class HistoricVideoCurationPlan
                 'service' => $item['service']->value,
                 'concatenation' => $item['manifest_concatenation'],
                 'expected_occurrence_count' => $item['manifest_expected_occurrence_count'],
+                'editorial_facts' => $item['editorial_facts'],
                 'files' => $item['source_files'],
             ], $this->workItems),
             'exclusions' => $this->exclusions,

@@ -1282,7 +1282,7 @@ class HistoricVideoImporter
      * WP-A4: enough provenance to identify a service's source files on the drive
      * by hash, long after the drive is unmounted.
      *
-     * @param  array{tag: string, label: string, files: list<string>}  $item
+     * @param  array{tag: string, label: string, files: list<string>, editorial_facts?: array<string, string|null>|null}  $item
      * @param  'none'|'lossless'|'re-encoded'  $concatenation  How the dispatched file was produced
      * @param  string|null  $jobKey  The dedup key this dispatch actually used; recorded so the
      *                               orchestrator derives chain identity from the same value
@@ -1314,6 +1314,9 @@ class HistoricVideoImporter
             'codec_fingerprint' => $this->probeCodecInfo($path),
             'drive_volume' => $this->driveVolume($item['files'][0]),
             'imported_at' => now()->toISOString(),
+            'editorial_facts' => is_array($item['editorial_facts'] ?? null)
+                ? $item['editorial_facts']
+                : null,
         ];
 
         if (! $stagingContext instanceof HistoricStagingContext || $jobKey === null) {
