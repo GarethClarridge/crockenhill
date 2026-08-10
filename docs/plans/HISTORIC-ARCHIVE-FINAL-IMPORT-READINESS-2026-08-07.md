@@ -202,12 +202,62 @@ source-acquisition and operator item. Specifically noted for the next session:
 - F44 editorial facts are carried into `historic_import` processing metadata but nothing yet applies
   them to a sermon's title/occasion/speaker/scripture/series. The plumbing exists; the consumer does
   not.
-- `HistoricSermonPublicationService::release()` has no operator command and no batch gate, so the
-  "separately authorised release" F29 requires is still code-only.
+- ~~`HistoricSermonPublicationService::release()` has no operator command and no batch gate.~~
+  **Implemented 2026-08-10; see the entry below.** The exercise itself remains unrun.
 - `HistoricImportMutationFreeze` blocks every save and delete on eleven core models with an uncaught
   `RuntimeException` whenever `HISTORIC_IMPORT_PRODUCTION_APPROVAL` is set. That is the intended
   freeze, but the failure mode in a web request or queue job is a 500, not a refusal. Decide before
   an approval artifact is ever placed on a production host.
+
+### 2026-08-10 — F29 release command and batch gate
+
+`CHURCH_SERVICES_PUBLIC_FROM` was set in production before this work, so the quarantine batch can
+deploy without darkening the public service archive.
+
+**What was implemented.** `historic-import:release-batch` is the operator entry point F29's
+"separately authorised release exercise" requires, backed by a new
+`HistoricSermonReleaseAuthorisation` gate and a `HistoricSermonPublicationService::releaseRecords()`
+batch path. Release is deliberately not a mode of any import command.
+
+**Why the gate is separate rather than a second use of the import approval.**
+`HistoricImportProductionGuard` requires the operation to hold the measured ingress/queue freeze,
+while `HistoricImportOperationCloseout` refuses to complete an operation whose ingress window is
+still open. Release runs after closeout, so the import approval can never authorise it — the
+separation F29 asks for is a structural consequence, not a stylistic choice. The release artifact is
+therefore its own signed document, gated on `HistoricImportOperationState::Complete`, which is
+exactly the state that proves the exact audit and complete no-op rerun passed.
+
+**What the gate requires**, all fail-closed with zero effects: HMAC signature over the canonical
+document; an operation in `Complete`; target fingerprint matching both the operation and the
+currently resolved target; the deployed release identifier; an unexpired window; a rollback owner
+whose observation period outlasts that window; three distinct named people (release owner,
+independent verifier, rollback owner); and exact enumerated membership — every named sermon and song
+video must exist, belong to that operation and still be quarantined. Declared counts are carried
+independently of the id lists so a truncated artifact cannot release a smaller batch than the one
+that was signed. `--dry-run` verifies everything and publishes nothing.
+
+**A defect in the existing quarantine work, found and fixed here.** `release()` walked only the four
+sermon asset fields. `SongVideo` has no per-record disk and `SongVideoService::getVideoUrl()` always
+builds a **sermon-disk** URL, so a released song video would have advertised a public URL for bytes
+that only exist on the private quarantine disk. Song videos now travel with their operation's
+sermons: bytes hash-verified onto the public disk, state flipped under the same lock, both journalled.
+
+Asset copying is create-only and compensated as one batch — a single missing or unsafe asset aborts
+the whole release and deletes only objects this run created, never a pre-existing identical target.
+The command journals `release_batch_started` before and `release_batch_completed` after, so an
+interrupted release is visible as started-without-completed rather than as silence, and it records
+the exact remaining quarantined counts for the operation.
+
+**Gates:** `artisan test --parallel` green (6338 tests), `composer phpstan` clean, `pint --dirty`
+applied, `artisan dusk` green (55 tests). The closeout gate was verified red-to-green by disabling it
+and watching the refusal test fail. Two `SermonPagesTest` archive assertions failed on one full-suite
+run and passed on a re-run of the same tree, with clean `master` green; that is the known intermittent
+cross-test interaction, and the new test now flushes the shared cache in `setUp` as its sibling does.
+
+**Still open:** the release exercise itself. F29 requires it run in a production-shaped rehearsal —
+quarantined item and all assets returning the agreed non-public behaviour, then an approved item
+becoming public without re-importing or changing provenance. No such rehearsal has happened, and no
+signed release authorisation exists. This entry closes no gate.
 
 ### 2026-08-08 — continuation audit scope and completion
 
