@@ -30,6 +30,11 @@ class HistoricImportAssetTransferService
         ?HistoricImportCheckpoint $checkpoint = null,
     ): HistoricImportAssetTransfer {
         $this->assertInput($operation, $checkpoint, $sourceDisk, $destinationDisk, $byteSize, $sha256);
+        $ownedPrefix = "historic-import/{$operation->operation_id}/";
+
+        if (! str_starts_with($destinationPath, $ownedPrefix)) {
+            throw new RuntimeException('Historic transfer destination must be an immutable operation-owned key.');
+        }
         $source = Storage::disk($sourceDisk);
         $destination = Storage::disk($destinationDisk);
         $this->verify($source, $sourcePath, $byteSize, $sha256, 'source');

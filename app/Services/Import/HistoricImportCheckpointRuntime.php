@@ -293,7 +293,7 @@ class HistoricImportCheckpointRuntime
 
     private function assertRuntimeBinding(HistoricImportOperation $operation, string $runtimeFingerprint): void
     {
-        if (! hash_equals($operation->target_fingerprint, $runtimeFingerprint)) {
+        if (! hash_equals($operation->runtime_fingerprint, $runtimeFingerprint)) {
             throw new RuntimeException('Historic import runtime fingerprint differs from the accepted operation binding.');
         }
 

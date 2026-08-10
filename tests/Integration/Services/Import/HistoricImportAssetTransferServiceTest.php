@@ -41,7 +41,7 @@ class HistoricImportAssetTransferServiceTest extends TestCase
             'historic_transfer_source',
             'bundle/video.mp4',
             'historic_transfer_destination',
-            'received/video.mp4',
+            "historic-import/{$operation->operation_id}/received/video.mp4",
             strlen($contents),
             hash('sha256', $contents),
         );
@@ -50,7 +50,7 @@ class HistoricImportAssetTransferServiceTest extends TestCase
             'historic_transfer_source',
             'bundle/video.mp4',
             'historic_transfer_destination',
-            'received/video.mp4',
+            "historic-import/{$operation->operation_id}/received/video.mp4",
             strlen($contents),
             hash('sha256', $contents),
         );
@@ -58,7 +58,7 @@ class HistoricImportAssetTransferServiceTest extends TestCase
         $this->assertTrue($first->is($second));
         $this->assertSame('verified', $second->state);
         $this->assertDatabaseCount('historic_import_asset_transfers', 1);
-        Storage::disk('historic_transfer_destination')->assertExists('received/video.mp4');
+        Storage::disk('historic_transfer_destination')->assertExists("historic-import/{$operation->operation_id}/received/video.mp4");
         app(HistoricImportJournal::class)->verify($operation);
     }
 
@@ -69,13 +69,14 @@ class HistoricImportAssetTransferServiceTest extends TestCase
         $contents = 'already copied bytes';
         $sha256 = hash('sha256', $contents);
         Storage::disk('historic_transfer_source')->put('bundle/audio.mp3', $contents);
-        Storage::disk('historic_transfer_destination')->put('received/audio.mp3', $contents);
+        $destinationPath = "historic-import/{$operation->operation_id}/received/audio.mp3";
+        Storage::disk('historic_transfer_destination')->put($destinationPath, $contents);
         $transferKey = CanonicalJson::hash([
             'operation_id' => $operation->operation_id,
             'source_disk' => 'historic_transfer_source',
             'source_path' => 'bundle/audio.mp3',
             'destination_disk' => 'historic_transfer_destination',
-            'destination_path' => 'received/audio.mp3',
+            'destination_path' => $destinationPath,
             'byte_size' => strlen($contents),
             'sha256' => $sha256,
         ]);
@@ -85,7 +86,7 @@ class HistoricImportAssetTransferServiceTest extends TestCase
             'source_disk' => 'historic_transfer_source',
             'source_path' => 'bundle/audio.mp3',
             'destination_disk' => 'historic_transfer_destination',
-            'destination_path' => 'received/audio.mp3',
+            'destination_path' => $destinationPath,
             'byte_size' => strlen($contents),
             'sha256' => $sha256,
             'state' => 'started',
@@ -98,7 +99,7 @@ class HistoricImportAssetTransferServiceTest extends TestCase
             'historic_transfer_source',
             'bundle/audio.mp3',
             'historic_transfer_destination',
-            'received/audio.mp3',
+            $destinationPath,
             strlen($contents),
             $sha256,
         );
@@ -112,7 +113,8 @@ class HistoricImportAssetTransferServiceTest extends TestCase
     {
         $operation = $this->createHistoricImportOperation();
         Storage::disk('historic_transfer_source')->put('bundle/audio.mp3', 'approved');
-        Storage::disk('historic_transfer_destination')->put('received/audio.mp3', 'foreign');
+        $destinationPath = "historic-import/{$operation->operation_id}/received/audio.mp3";
+        Storage::disk('historic_transfer_destination')->put($destinationPath, 'foreign');
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('refusing to overwrite');
@@ -123,12 +125,32 @@ class HistoricImportAssetTransferServiceTest extends TestCase
                 'historic_transfer_source',
                 'bundle/audio.mp3',
                 'historic_transfer_destination',
-                'received/audio.mp3',
+                $destinationPath,
                 8,
                 hash('sha256', 'approved'),
             );
         } finally {
-            $this->assertSame('foreign', Storage::disk('historic_transfer_destination')->get('received/audio.mp3'));
+            $this->assertSame('foreign', Storage::disk('historic_transfer_destination')->get($destinationPath));
         }
+    }
+
+    #[Test]
+    public function it_refuses_a_destination_not_owned_by_the_immutable_operation_namespace(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        Storage::disk('historic_transfer_source')->put('bundle/audio.mp3', 'approved');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('immutable operation-owned key');
+
+        app(HistoricImportAssetTransferService::class)->transfer(
+            $operation,
+            'historic_transfer_source',
+            'bundle/audio.mp3',
+            'historic_transfer_destination',
+            'shared/received/audio.mp3',
+            8,
+            hash('sha256', 'approved'),
+        );
     }
 }
