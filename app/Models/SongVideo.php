@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\SermonPublicationState;
 use Database\Factories\SongVideoFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -22,6 +23,8 @@ use Illuminate\Validation\Rule;
  * @property float|null $duration
  * @property Carbon|null $recorded_date
  * @property bool $is_featured
+ * @property SermonPublicationState $publication_state
+ * @property int|null $historic_import_operation_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Song $song
@@ -34,6 +37,7 @@ use Illuminate\Validation\Rule;
  * @method static Builder<SongVideo> query()
  * @method static Builder<SongVideo> featured()
  * @method static Builder<SongVideo> forSong(int $songId)
+ * @method static Builder<SongVideo> publiclyReleased()
  *
  * @mixin \Eloquent
  */
@@ -53,6 +57,8 @@ class SongVideo extends Model
         'duration',
         'recorded_date',
         'is_featured',
+        'publication_state',
+        'historic_import_operation_id',
     ];
 
     /**
@@ -64,6 +70,7 @@ class SongVideo extends Model
             'is_featured' => 'boolean',
             'recorded_date' => 'date',
             'duration' => 'float',
+            'publication_state' => SermonPublicationState::class,
         ];
     }
 
@@ -79,6 +86,19 @@ class SongVideo extends Model
     public function scopeFeatured(Builder $query): Builder
     {
         return $query->where('is_featured', true);
+    }
+
+    /**
+     * A historic import stages its song recordings on the private quarantine
+     * disk, so every public read has to consume the same whole-content
+     * publication decision the imported sermons do.
+     *
+     * @param  Builder<SongVideo>  $query
+     * @return Builder<SongVideo>
+     */
+    public function scopePubliclyReleased(Builder $query): Builder
+    {
+        return $query->where('publication_state', SermonPublicationState::Published);
     }
 
     /**

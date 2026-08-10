@@ -140,7 +140,7 @@ class SitemapService
     private function addSermons(Sitemap $sitemap): void
     {
         $sermons = Sermon::query()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'updated_at', 'audio_file_path', 'video_file_path', 'video_quality_status', 'video_visibility_override', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'summary', 'show_summary', 'duration', 'preacher', 'preacher_id', 'reference', 'series', 'meta_description', 'content_type', 'scripture_passage_id'])
+            ->select(['id', 'title', 'date', 'slug', 'service', 'updated_at', 'audio_file_path', 'video_file_path', 'video_quality_status', 'video_visibility_override', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'summary', 'show_summary', 'duration', 'preacher', 'preacher_id', 'reference', 'series', 'meta_description', 'content_type', 'publication_state', 'asset_disk', 'scripture_passage_id'])
             ->with([
                 'preacherProfile:id,name,slug,image_path',
                 'scripturePassage:id,display_reference,normalized_reference',

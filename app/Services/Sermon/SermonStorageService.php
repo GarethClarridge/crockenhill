@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Sermon;
 
+use App\Enums\SermonPublicationState;
 use App\Models\Sermon;
 use App\Services\HistoricMedia\HistoricStagingUrlGuard;
 use App\Support\Path;
@@ -105,7 +106,7 @@ class SermonStorageService
     {
         $audioPath = $sermon->audio_file_path ?? '';
 
-        return ($sermon->id ?? 'u'.spl_object_id($sermon))."_{$audioPath}";
+        return ($sermon->id ?? 'u'.spl_object_id($sermon))."_{$sermon->asset_disk}_{$audioPath}";
     }
 
     /**
@@ -120,7 +121,7 @@ class SermonStorageService
 
         return [
             'type' => 'storage',
-            'disk' => $this->sermonDisk,
+            'disk' => $this->assetDisk($sermon, $this->sermonDisk),
             'path' => $audioPath,
         ];
     }
@@ -139,10 +140,14 @@ class SermonStorageService
             return null;
         }
 
+        if ($sermon->publication_state === SermonPublicationState::Quarantined) {
+            return route('sermons.video', ['sermon' => $sermon->slug]);
+        }
+
         $this->validatePath($sermon->video_file_path, 'video file');
 
         return $this->resolvePublicUrl(
-            $this->sermonDisk,
+            $this->assetDisk($sermon, $this->sermonDisk),
             $sermon->video_file_path,
             $this->videoVersion($sermon),
         );
@@ -158,6 +163,12 @@ class SermonStorageService
      */
     public function getThumbnailUrl(Sermon $sermon): ?string
     {
+        if ($sermon->publication_state === SermonPublicationState::Quarantined) {
+            return filled($sermon->thumbnail_file_path)
+                ? route('sermons.thumbnail', ['sermon' => $sermon->slug])
+                : null;
+        }
+
         return $this->resolveThumbnailUrl($sermon, $sermon->thumbnail_file_path);
     }
 
@@ -173,6 +184,12 @@ class SermonStorageService
      */
     public function getCardThumbnailUrl(Sermon $sermon): ?string
     {
+        if ($sermon->publication_state === SermonPublicationState::Quarantined) {
+            return filled($sermon->card_thumbnail_file_path)
+                ? route('sermons.thumbnail.card', ['sermon' => $sermon->slug])
+                : null;
+        }
+
         return $this->resolveThumbnailUrl($sermon, $sermon->card_thumbnail_file_path);
     }
 
@@ -186,6 +203,12 @@ class SermonStorageService
      */
     public function getPlainThumbnailUrl(Sermon $sermon): ?string
     {
+        if ($sermon->publication_state === SermonPublicationState::Quarantined) {
+            return filled($sermon->plain_thumbnail_file_path)
+                ? route('sermons.thumbnail.plain', ['sermon' => $sermon->slug])
+                : null;
+        }
+
         return $this->resolveThumbnailUrl($sermon, $sermon->plain_thumbnail_file_path);
     }
 
@@ -270,6 +293,10 @@ class SermonStorageService
      */
     public function getPublicUrl(Sermon $sermon): string
     {
+        if ($sermon->publication_state === SermonPublicationState::Quarantined) {
+            return route('sermons.audio', ['sermon' => $sermon->slug]);
+        }
+
         $info = $this->getSermonFileInfo($sermon);
 
         return $this->resolvePublicUrl($info['disk'], $info['path'], $this->audioVersion($sermon));
@@ -438,7 +465,7 @@ class SermonStorageService
 
         // resolveThumbnailDisk() validates the path, so no separate check here.
         return $this->resolvePublicUrl(
-            $this->resolveThumbnailDisk((string) $path),
+            $this->assetDisk($sermon, $this->resolveThumbnailDisk((string) $path)),
             (string) $path,
             $this->thumbnailVersion($sermon, (string) $path),
         );
@@ -574,5 +601,10 @@ class SermonStorageService
         if (is_string($path) && Path::isUnsafe($path)) {
             throw new InvalidArgumentException("Invalid {$type} path: Unsafe path detected.");
         }
+    }
+
+    private function assetDisk(Sermon $sermon, string $fallback): string
+    {
+        return filled($sermon->asset_disk) ? (string) $sermon->asset_disk : $fallback;
     }
 }

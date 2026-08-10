@@ -7,6 +7,7 @@ namespace App\Services\Public;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonContentType;
+use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
@@ -51,7 +52,15 @@ class PublicServiceContentEligibility
             return null;
         }
 
-        return Carbon::parse($configured)->startOfDay();
+        try {
+            $resolved = Carbon::createFromFormat('!Y-m-d', $configured);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $resolved instanceof Carbon && $resolved->format('Y-m-d') === $configured
+            ? $resolved->startOfDay()
+            : null;
     }
 
     /**
@@ -69,9 +78,11 @@ class PublicServiceContentEligibility
 
         $publicFrom = $this->publicFrom();
 
-        if ($publicFrom instanceof Carbon) {
-            $query->whereDate('church_services.date', '>=', $publicFrom->toDateString());
+        if (! $publicFrom instanceof Carbon) {
+            return $query->whereRaw('1 = 0');
         }
+
+        $query->whereDate('church_services.date', '>=', $publicFrom->toDateString());
 
         return $query;
     }
@@ -177,6 +188,7 @@ class PublicServiceContentEligibility
             ->from('sermons')
             ->whereColumn('sermons.date', 'church_services.date')
             ->whereColumn('sermons.service', 'church_services.service')
+            ->where('sermons.publication_state', SermonPublicationState::Published->value)
             ->whereIn('sermons.content_type', array_map(
                 fn (SermonContentType $contentType): string => $contentType->value,
                 $this->exposableSermonContentTypes(),

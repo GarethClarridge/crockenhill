@@ -148,7 +148,7 @@ class SitemapServiceTest extends TestCase
     #[Test]
     public function generate_indexes_only_church_services_with_public_content(): void
     {
-        config(['church.services.public_from' => null]);
+        config(['church.services.public_from' => '2000-01-01']);
 
         $listed = ChurchService::factory()->create([
             'date' => '2026-06-14',

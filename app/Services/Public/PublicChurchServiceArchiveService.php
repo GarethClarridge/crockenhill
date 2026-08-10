@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Public;
 
 use App\Enums\SermonContentType;
+use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
@@ -13,6 +14,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Models\Song;
+use App\Models\SongVideo;
 use App\Presenters\SermonViewPresenter;
 use App\Services\Sermon\SermonExposurePolicy;
 use App\Services\Song\SongVideoService;
@@ -378,7 +380,8 @@ class PublicChurchServiceArchiveService
         }
 
         $video = $section->songVideos->first(
-            fn ($songVideo): bool => filled($songVideo->video_file_path)
+            fn (SongVideo $songVideo): bool => filled($songVideo->video_file_path)
+                && $songVideo->publication_state === SermonPublicationState::Published
         );
 
         return $video === null ? null : $this->songVideoService->getVideoUrl($video);
@@ -407,6 +410,7 @@ class PublicChurchServiceArchiveService
         }
 
         return Sermon::query()
+            ->publiclyReleased()
             ->where('date', $churchService->date->toDateString())
             ->where('service', $churchService->service)
             ->whereIn('content_type', $contentTypes)

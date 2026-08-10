@@ -40,6 +40,7 @@ class SermonApiController extends Controller
          * to reduce memory usage and DB I/O.
          */
         $query = Sermon::query()
+            ->publiclyReleased()
             ->whereSermon()
             ->select([
                 'id', 'title', 'slug', 'date', 'service', 'preacher', 'preacher_id',
@@ -47,6 +48,7 @@ class SermonApiController extends Controller
                 'series', 'reference', 'scripture_passage_id', 'duration', 'points', 'show_summary', 'show_points', 'audio_file_path', 'video_file_path',
                 'video_quality_status', 'video_visibility_override', 'filetype', 'thumbnail_file_path',
                 'thumbnail_metadata', 'updated_at', 'meta_description',
+                'publication_state',
             ])
             ->with([
                 'preacherProfile:id,name,slug,image_path',

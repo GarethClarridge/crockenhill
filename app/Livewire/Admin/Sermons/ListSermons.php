@@ -130,7 +130,7 @@ class ListSermons extends Component
         $escapedSearch = $this->escapeLike(trim($this->search));
 
         $query = Sermon::query()
-            ->select(['id', 'title', 'date', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'needs_preacher_review', 'audio_file_path', 'video_file_path', 'slug', 'transcript_file_path', 'content_type', 'updated_at'])
+            ->select(['id', 'title', 'date', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'needs_preacher_review', 'audio_file_path', 'video_file_path', 'slug', 'transcript_file_path', 'content_type', 'publication_state', 'asset_disk', 'updated_at'])
             ->with([
                 'preacherProfile:id,name,slug,image_path',
                 'scripturePassage:id,display_reference,normalized_reference',

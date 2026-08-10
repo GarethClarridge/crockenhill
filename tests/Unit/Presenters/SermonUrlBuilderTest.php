@@ -27,6 +27,9 @@ class SermonUrlBuilderTest extends TestCase
 
         $this->storageService = Mockery::mock(SermonStorageService::class);
         $this->exposurePolicy = Mockery::mock(SermonExposurePolicy::class);
+        // Released by default: each case below is about a per-asset rule, and
+        // the whole-content quarantine has its own test.
+        $this->exposurePolicy->shouldReceive('isWholeContentPublic')->andReturn(true)->byDefault();
         $this->builder = new SermonUrlBuilder($this->storageService, $this->exposurePolicy);
     }
 
@@ -103,5 +106,20 @@ class SermonUrlBuilderTest extends TestCase
             route('sermons.transcript', ['sermon' => 'a-sermon']),
             $this->builder->transcriptUrl($sermon),
         );
+    }
+
+    #[Test]
+    public function a_quarantined_sermon_offers_no_audio_or_transcript_url(): void
+    {
+        $sermon = Sermon::factory()->make([
+            'slug' => 'a-sermon',
+            'audio_file_path' => 'sermons/audio.mp3',
+            'transcript_file_path' => 'transcripts/a-sermon.txt',
+        ]);
+        $this->exposurePolicy->shouldReceive('isWholeContentPublic')->with($sermon)->andReturn(false);
+        $this->storageService->shouldNotReceive('getAudioDeliveryUrl');
+
+        $this->assertNull($this->builder->audioUrl($sermon));
+        $this->assertNull($this->builder->transcriptUrl($sermon));
     }
 }

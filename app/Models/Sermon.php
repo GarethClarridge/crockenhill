@@ -9,6 +9,7 @@ use App\Data\ThumbnailMetadataCast;
 use App\Enums\MediaType;
 use App\Enums\PreacherSource;
 use App\Enums\SermonContentType;
+use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\SermonVideoQualityStatus;
@@ -52,6 +53,9 @@ use Spatie\Sitemap\Tags\Url;
  * @property Carbon $date
  * @property ?SermonService $service
  * @property SermonContentType $content_type
+ * @property SermonPublicationState $publication_state
+ * @property ?string $asset_disk
+ * @property ?int $historic_import_operation_id
  * @property ?string $audio_file_path
  * @property string $filetype
  * @property string $title
@@ -122,6 +126,9 @@ class Sermon extends Model implements Sitemapable
         'date',
         'service',
         'content_type',
+        'publication_state',
+        'asset_disk',
+        'historic_import_operation_id',
         'slug',
         'series',
         'reference',
@@ -166,6 +173,7 @@ class Sermon extends Model implements Sitemapable
             'points' => 'array',
             'service' => SermonService::class,
             'content_type' => SermonContentType::class,
+            'publication_state' => SermonPublicationState::class,
             'segment_start_time' => 'float',
             'segment_end_time' => 'float',
             'thumbnail_generated_at' => 'datetime',

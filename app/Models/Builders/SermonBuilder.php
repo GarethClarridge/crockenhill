@@ -6,6 +6,7 @@ namespace App\Models\Builders;
 
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonContentType;
+use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Models\Preacher;
@@ -24,6 +25,14 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class SermonBuilder extends Builder
 {
+    public function publiclyReleased(): self
+    {
+        return $this->where(
+            $this->qualifyColumn('publication_state'),
+            SermonPublicationState::Published,
+        );
+    }
+
     public function last12Months(): self
     {
         return $this->where('date', '>=', now()->subMonths(12)->startOfDay());
@@ -69,7 +78,8 @@ class SermonBuilder extends Builder
     {
         // A sermon's canonical URL is keyed on its slug, so a record without one
         // has no public page to point to and must never reach URL generation.
-        $this->whereNotNull($this->qualifyColumn('slug'))
+        $this->publiclyReleased()
+            ->whereNotNull($this->qualifyColumn('slug'))
             ->where($this->qualifyColumn('slug'), '!=', '');
 
         if ((bool) config('church.sermons.childrens_talks.public', false)) {
@@ -166,7 +176,8 @@ class SermonBuilder extends Builder
      */
     public function forPodcast(): self
     {
-        return $this->whereNotNull('audio_file_path')
+        return $this->publiclyReleased()
+            ->whereNotNull('audio_file_path')
             ->where('audio_file_path', '!=', '')
             ->orderBy('date', 'desc');
     }

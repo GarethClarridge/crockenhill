@@ -283,7 +283,7 @@ class SermonViewPresenterTest extends TestCase
         ]);
 
         $slimmed = Sermon::query()
-            ->select(['id', 'slug', 'thumbnail_file_path', 'date', 'content_type', 'video_quality_status', 'video_visibility_override'])
+            ->select(['id', 'slug', 'thumbnail_file_path', 'date', 'content_type', 'publication_state', 'video_quality_status', 'video_visibility_override'])
             ->where('slug', 'slimmed-query-sermon')
             ->first();
 

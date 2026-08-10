@@ -9,6 +9,7 @@ use App\Support\Path;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class SermonTranscriptReader
 {
@@ -54,7 +55,9 @@ class SermonTranscriptReader
             return $cached;
         }
 
-        $transcript = $this->transcriptStorageService->readTranscriptFromPath($path);
+        $transcript = filled($sermon->asset_disk)
+            ? $this->readFromOwnedDisk((string) $sermon->asset_disk, $path)
+            : $this->transcriptStorageService->readTranscriptFromPath($path);
 
         if ($transcript !== null) {
             // Cache successful reads for 24 hours
@@ -81,5 +84,18 @@ class SermonTranscriptReader
         $timestamp = $sermon->updated_at?->getTimestamp() ?? 0;
 
         return "sermon_transcript_{$hash}_{$timestamp}";
+    }
+
+    private function readFromOwnedDisk(string $disk, string $path): ?string
+    {
+        $storage = Storage::disk($disk);
+
+        if (! $storage->exists($path)) {
+            return null;
+        }
+
+        $content = $storage->get($path);
+
+        return is_string($content) ? $content : null;
     }
 }

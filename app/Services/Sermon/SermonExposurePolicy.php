@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Sermon;
 
 use App\Enums\SermonContentType;
+use App\Enums\SermonPublicationState;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
+use App\Exceptions\MissingExposureAttribute;
 use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -31,6 +33,7 @@ class SermonExposurePolicy
      */
     public const EXPOSURE_ATTRIBUTES = [
         'content_type',
+        'publication_state',
         'video_visibility_override',
         'video_quality_status',
     ];
@@ -70,6 +73,26 @@ class SermonExposurePolicy
     }
 
     /**
+     * The whole-content publication decision, consulted by every read surface.
+     *
+     * A column-restricted `select()` that omits `publication_state` leaves the
+     * attribute unloaded, which would silently read as "not published" and
+     * withhold content that is in fact public — the failure would look like a
+     * working fail-closed gate. A persisted row missing the column is therefore
+     * a programming error rather than a quarantine decision.
+     */
+    public function isWholeContentPublic(Sermon $sermon): bool
+    {
+        if ($sermon->exists && ! array_key_exists('publication_state', $sermon->getAttributes())) {
+            throw new MissingExposureAttribute(
+                'Sermon publication_state was not loaded; add it to the query select before consulting exposure.',
+            );
+        }
+
+        return $sermon->publication_state === SermonPublicationState::Published;
+    }
+
+    /**
      * Determine if a request for a generic sermon route should be redirected.
      *
      * When Children's Talks are public, they have their own dedicated routing
@@ -78,7 +101,8 @@ class SermonExposurePolicy
      */
     public function shouldRedirectGenericSermonRoute(Sermon $sermon): bool
     {
-        return $sermon->content_type === SermonContentType::ChildrensTalk
+        return $this->isWholeContentPublic($sermon)
+            && $sermon->content_type === SermonContentType::ChildrensTalk
             && $this->childrensTalksArePublic();
     }
 
@@ -90,7 +114,8 @@ class SermonExposurePolicy
      */
     public function shouldExposeOnSermonApi(Sermon $sermon): bool
     {
-        return $sermon->content_type === SermonContentType::Sermon;
+        return $this->isWholeContentPublic($sermon)
+            && $sermon->content_type === SermonContentType::Sermon;
     }
 
     /**
@@ -98,7 +123,8 @@ class SermonExposurePolicy
      */
     public function shouldExposeOnChurchService(Sermon $sermon): bool
     {
-        return $this->exposesContentTypeOnChurchService($sermon->content_type);
+        return $this->isWholeContentPublic($sermon)
+            && $this->exposesContentTypeOnChurchService($sermon->content_type);
     }
 
     /**
@@ -122,7 +148,7 @@ class SermonExposurePolicy
      */
     public function shouldExposeVideo(Sermon $sermon): bool
     {
-        if (! $sermon->hasVideo()) {
+        if (! $this->isWholeContentPublic($sermon) || ! $sermon->hasVideo()) {
             return false;
         }
 
@@ -152,6 +178,10 @@ class SermonExposurePolicy
      */
     public function shouldExposeThumbnail(Sermon $sermon): bool
     {
+        if (! $this->isWholeContentPublic($sermon)) {
+            return false;
+        }
+
         if (! $sermon->hasVideo()) {
             return true;
         }
@@ -176,6 +206,10 @@ class SermonExposurePolicy
      */
     public function shouldIncludeInSitemap(Sermon $sermon): bool
     {
+        if (! $this->isWholeContentPublic($sermon)) {
+            return false;
+        }
+
         if ($sermon->content_type === SermonContentType::Sermon) {
             return true;
         }
@@ -211,7 +245,7 @@ class SermonExposurePolicy
      */
     public function publicUrl(Sermon $sermon): string
     {
-        if (! filled($sermon->slug)) {
+        if (! $this->isWholeContentPublic($sermon) || ! filled($sermon->slug)) {
             return '';
         }
 
@@ -225,6 +259,10 @@ class SermonExposurePolicy
      */
     public function canonicalUrl(Sermon $sermon): string
     {
+        if (! $this->isWholeContentPublic($sermon)) {
+            return '';
+        }
+
         if ($sermon->content_type === SermonContentType::ChildrensTalk) {
             return $this->publicUrl($sermon);
         }

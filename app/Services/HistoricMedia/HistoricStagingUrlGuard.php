@@ -33,7 +33,9 @@ final class HistoricStagingUrlGuard
     public static function isStagingDisk(string $disk): bool
     {
         $staging = (string) config('media-processing.storage.historic_staging_disk', '');
+        $quarantine = (string) config('media-processing.storage.historic_quarantine_disk', '');
 
-        return $staging !== '' && $disk === $staging;
+        return ($staging !== '' && $disk === $staging)
+            || ($quarantine !== '' && $disk === $quarantine);
     }
 }

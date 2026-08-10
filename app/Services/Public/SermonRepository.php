@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Public;
 
 use App\Enums\SermonContentType;
+use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Models\Builders\SermonBuilder;
 use App\Models\Preacher;
@@ -28,6 +29,7 @@ class SermonRepository
     public function basePublicSermonQuery(?SermonContentType $contentType = null): SermonBuilder
     {
         return Sermon::query()
+            ->publiclyReleased()
             ->when($contentType, fn (Builder $q) => $q->where('content_type', $contentType))
             ->select([
                 'id',
@@ -49,6 +51,7 @@ class SermonRepository
                 'thumbnail_metadata',
                 'source_type',
                 'content_type',
+                'publication_state',
                 'updated_at',
                 'meta_description',
                 'summary',
@@ -227,6 +230,7 @@ class SermonRepository
     {
         try {
             return Sermon::query()
+                ->publiclyReleased()
                 ->whereSermon()
                 ->whereNotNull('series')
                 ->where('series', '!=', '')
@@ -270,18 +274,32 @@ class SermonRepository
      */
     public function getExistingScriptureBooks(): Collection
     {
-        // Entries are only created for ContentType::Sermon, so no join is needed
-        return SermonScriptureFilter::query()
+        return $this->releasedScriptureFilterQuery()
             ->select('bible_book')
             ->distinct()
             ->pluck('bible_book');
     }
 
     /**
+     * Scripture facets are a public navigation surface: a book listed here gets
+     * a filter entry and a sitemap URL. Entries are only created for
+     * ContentType::Sermon, but a quarantined historic import owns rows too, so
+     * the join to the publication decision is what keeps an unreleased era from
+     * announcing itself through an otherwise-empty book page.
+     *
+     * @return Builder<SermonScriptureFilter>
+     */
+    private function releasedScriptureFilterQuery(): Builder
+    {
+        return SermonScriptureFilter::query()
+            ->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
+            ->where('sermons.publication_state', SermonPublicationState::Published);
+    }
+
+    /**
      * Get distinct Bible books that have associated sermons, optionally filtered by preacher or series.
      *
      * Performance Optimization: Caches the book list for 24 hours using flexible cache.
-     * If no preacher or series filters are applied, it avoids joining the sermons table.
      *
      * @return Collection<int, string>
      */
@@ -293,13 +311,11 @@ class SermonRepository
         $cacheKey = 'sermon_scripture_books_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
 
         return Cache::flexible($cacheKey, [300, 86400], function () use ($preacherId, $series): Collection {
-            $query = SermonScriptureFilter::query();
-
             if ($preacherId === null && $series === null) {
                 return $this->getExistingScriptureBooks();
             }
 
-            return $query->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
+            return $this->releasedScriptureFilterQuery()
                 ->where('sermons.content_type', SermonContentType::Sermon)
                 ->when($preacherId, fn (Builder $q) => $q->where('sermons.preacher_id', $preacherId))
                 ->when($series, fn (Builder $q) => $q->where('sermons.series', $series))
@@ -313,7 +329,6 @@ class SermonRepository
      * Get distinct chapters for a Bible book that have associated sermons, optionally filtered by preacher or series.
      *
      * Performance Optimization: Caches the chapter list for 24 hours using flexible cache.
-     * If no preacher or series filters are applied, it avoids joining the sermons table.
      *
      * @return Collection<int, int>
      */
@@ -325,7 +340,7 @@ class SermonRepository
         $cacheKey = 'sermon_scripture_chapters_'.Str::slug($book).'_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
 
         return Cache::flexible($cacheKey, [300, 86400], function () use ($book, $preacherId, $series): Collection {
-            $query = SermonScriptureFilter::query()->where('bible_book', $book);
+            $query = $this->releasedScriptureFilterQuery()->where('bible_book', $book);
 
             if ($preacherId === null && $series === null) {
                 return $query->select('bible_chapter')
@@ -334,8 +349,7 @@ class SermonRepository
                     ->pluck('bible_chapter');
             }
 
-            return $query->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
-                ->where('sermons.content_type', SermonContentType::Sermon)
+            return $query->where('sermons.content_type', SermonContentType::Sermon)
                 ->when($preacherId, fn (Builder $q) => $q->where('sermons.preacher_id', $preacherId))
                 ->when($series, fn (Builder $q) => $q->where('sermons.series', $series))
                 ->select('bible_chapter')

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\SermonPublicationState;
 use App\Models\Song;
 use App\Models\SongVideo;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -28,6 +29,7 @@ class SongVideoFactory extends Factory
             'duration' => $this->faker->randomFloat(2, 60, 600),
             'recorded_date' => $this->faker->dateTimeBetween('-2 years', 'now')->format('Y-m-d'),
             'is_featured' => false,
+            'publication_state' => SermonPublicationState::Published,
         ];
     }
 
@@ -35,6 +37,13 @@ class SongVideoFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'is_featured' => true,
+        ]);
+    }
+
+    public function quarantined(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'publication_state' => SermonPublicationState::Quarantined,
         ]);
     }
 

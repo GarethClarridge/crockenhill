@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Public;
 
+use App\Enums\SermonPublicationState;
 use App\Models\Preacher;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -43,7 +44,9 @@ class PreacherListCache
             return Preacher::query()->active()
                 ->select(['id', 'name', 'slug', 'image_path'])
                 ->withCount([
-                    'sermons' => fn (Builder $query): Builder => $query->whereSermon(),
+                    'sermons' => fn (Builder $query): Builder => $query
+                        ->where('publication_state', SermonPublicationState::Published)
+                        ->whereSermon(),
                 ])
                 ->orderByDesc('sermons_count')
                 ->orderBy('name')

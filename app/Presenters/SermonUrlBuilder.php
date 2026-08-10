@@ -23,7 +23,8 @@ class SermonUrlBuilder
 
     public function audioUrl(Sermon $sermon): ?string
     {
-        return filled($sermon->audio_file_path)
+        return $this->exposurePolicy->isWholeContentPublic($sermon)
+            && filled($sermon->audio_file_path)
             ? $this->storageService->getAudioDeliveryUrl($sermon)
             : null;
     }
@@ -109,7 +110,7 @@ class SermonUrlBuilder
 
     public function transcriptUrl(Sermon $sermon): ?string
     {
-        if (! $sermon->hasTranscript()) {
+        if (! $this->exposurePolicy->isWholeContentPublic($sermon) || ! $sermon->hasTranscript()) {
             return null;
         }
 

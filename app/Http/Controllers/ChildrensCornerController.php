@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\SermonContentType;
+use App\Enums\SermonPublicationState;
 use App\Models\Sermon;
 use App\Presenters\RelatedPagePresenter;
 use App\Presenters\SermonViewPresenter;
@@ -51,7 +52,11 @@ class ChildrensCornerController extends Controller
 
     public function show(Sermon $sermon): View
     {
-        abort_unless($sermon->content_type === SermonContentType::ChildrensTalk, 404);
+        abort_unless(
+            $sermon->content_type === SermonContentType::ChildrensTalk
+                && $sermon->publication_state === SermonPublicationState::Published,
+            404,
+        );
 
         /**
          * Performance Optimization: Limits retrieved columns for related models to

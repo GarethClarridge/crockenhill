@@ -38,7 +38,7 @@ class PublicChurchServiceArchiveTest extends TestCase
         config([
             'service-tracking.enabled' => true,
             'church.sermons.childrens_talks.public' => true,
-            'church.services.public_from' => null,
+            'church.services.public_from' => '2000-01-01',
             'media-processing.storage.sermon_disk' => 'public',
         ]);
 
@@ -196,6 +196,13 @@ class PublicChurchServiceArchiveTest extends TestCase
             ->assertOk()
             ->assertDontSee($service->date->format('j F Y'));
 
+        $this->get($this->showUrl($service))->assertNotFound();
+
+        config(['church.services.public_from' => null]);
+
+        $this->get(route('church.services.index'))
+            ->assertOk()
+            ->assertDontSee($service->date->format('j F Y'));
         $this->get($this->showUrl($service))->assertNotFound();
     }
 

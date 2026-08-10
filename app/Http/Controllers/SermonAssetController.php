@@ -16,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SermonAssetController extends Controller
 {
@@ -54,7 +55,7 @@ class SermonAssetController extends Controller
     /**
      * Serve audio file for a sermon
      */
-    public function serveAudio(Sermon $sermon): RedirectResponse
+    public function serveAudio(Sermon $sermon): RedirectResponse|StreamedResponse
     {
         $authorizationResponse = $this->authorizeAssetAccess($sermon, 'audio');
         if ($authorizationResponse instanceof RedirectResponse) {
@@ -75,10 +76,14 @@ class SermonAssetController extends Controller
             abort(404, 'Audio file not found.');
         }
 
+        if (! $this->exposurePolicy->isWholeContentPublic($sermon)) {
+            return Storage::disk($fileInfo['disk'])->download($fileInfo['path']);
+        }
+
         return redirect()->to($this->storageService->getPublicUrl($sermon));
     }
 
-    public function serveVideo(Sermon $sermon): RedirectResponse
+    public function serveVideo(Sermon $sermon): RedirectResponse|StreamedResponse
     {
         $authorizationResponse = $this->authorizeAssetAccess($sermon, 'video');
         if ($authorizationResponse instanceof RedirectResponse) {
@@ -93,10 +98,14 @@ class SermonAssetController extends Controller
             abort(404, 'Invalid video file path.');
         }
 
-        $disk = (string) config('media-processing.storage.sermon_disk', 'public');
+        $disk = $this->assetDisk($sermon, (string) config('media-processing.storage.sermon_disk', 'public'));
 
         if (! Storage::disk($disk)->exists($sermon->video_file_path)) {
             abort(404, 'Video file not found.');
+        }
+
+        if (! $this->exposurePolicy->isWholeContentPublic($sermon)) {
+            return Storage::disk($disk)->download($sermon->video_file_path);
         }
 
         return $this->redirectToAsset(
@@ -108,7 +117,7 @@ class SermonAssetController extends Controller
     /**
      * Serve thumbnail image for a sermon
      */
-    public function serveThumbnail(Sermon $sermon): RedirectResponse
+    public function serveThumbnail(Sermon $sermon): RedirectResponse|StreamedResponse
     {
         $authorizationResponse = $this->authorizeAssetAccess($sermon, 'thumbnail');
         if ($authorizationResponse instanceof RedirectResponse) {
@@ -123,16 +132,20 @@ class SermonAssetController extends Controller
             abort(404, 'Invalid thumbnail file path.');
         }
 
-        $disk = (string) config('thumbnail-generation.storage.disk', 'public');
+        $disk = $this->assetDisk($sermon, (string) config('thumbnail-generation.storage.disk', 'public'));
 
         if (! Storage::disk($disk)->exists($sermon->thumbnail_file_path)) {
             abort(404, 'Thumbnail file not found.');
         }
 
+        if (! $this->exposurePolicy->isWholeContentPublic($sermon)) {
+            return Storage::disk($disk)->download($sermon->thumbnail_file_path);
+        }
+
         return $this->redirectToAsset($this->storageService->getThumbnailUrl($sermon));
     }
 
-    public function servePlainThumbnail(Sermon $sermon): RedirectResponse
+    public function servePlainThumbnail(Sermon $sermon): RedirectResponse|StreamedResponse
     {
         $authorizationResponse = $this->authorizeAssetAccess($sermon, 'plain_thumbnail');
         if ($authorizationResponse instanceof RedirectResponse) {
@@ -149,10 +162,14 @@ class SermonAssetController extends Controller
             abort(404, 'Invalid thumbnail file path.');
         }
 
-        $disk = (string) config('thumbnail-generation.storage.disk', 'public');
+        $disk = $this->assetDisk($sermon, (string) config('thumbnail-generation.storage.disk', 'public'));
 
         if (! Storage::disk($disk)->exists($plainThumbnailPath)) {
             abort(404, 'Thumbnail file not found.');
+        }
+
+        if (! $this->exposurePolicy->isWholeContentPublic($sermon)) {
+            return Storage::disk($disk)->download($plainThumbnailPath);
         }
 
         return $this->redirectToAsset($this->storageService->getPlainThumbnailUrl($sermon));
@@ -161,7 +178,7 @@ class SermonAssetController extends Controller
     /**
      * Serve the thumbnail variant intended for compact UI cards.
      */
-    public function serveCardThumbnail(Sermon $sermon): RedirectResponse
+    public function serveCardThumbnail(Sermon $sermon): RedirectResponse|StreamedResponse
     {
         $authorizationResponse = $this->authorizeAssetAccess($sermon, 'card_thumbnail');
         if ($authorizationResponse instanceof RedirectResponse) {
@@ -178,10 +195,14 @@ class SermonAssetController extends Controller
             abort(404, 'Invalid thumbnail file path.');
         }
 
-        $disk = (string) config('thumbnail-generation.storage.disk', 'public');
+        $disk = $this->assetDisk($sermon, (string) config('thumbnail-generation.storage.disk', 'public'));
 
         if (! Storage::disk($disk)->exists($cardThumbnailPath)) {
             abort(404, 'Thumbnail file not found.');
+        }
+
+        if (! $this->exposurePolicy->isWholeContentPublic($sermon)) {
+            return Storage::disk($disk)->download($cardThumbnailPath);
         }
 
         return $this->redirectToAsset($this->storageService->getCardThumbnailUrl($sermon));
@@ -221,6 +242,10 @@ class SermonAssetController extends Controller
             return null;
         }
 
+        if (! $this->exposurePolicy->isWholeContentPublic($sermon)) {
+            abort(404, 'Asset not available.');
+        }
+
         // Security: Children's Corner access is gated by verified email (when not public).
         // This check takes precedence over other restrictions to ensure proper login redirection.
         if ($sermon->content_type === SermonContentType::ChildrensTalk) {
@@ -242,5 +267,10 @@ class SermonAssetController extends Controller
         }
 
         return null;
+    }
+
+    private function assetDisk(Sermon $sermon, string $fallback): string
+    {
+        return filled($sermon->asset_disk) ? (string) $sermon->asset_disk : $fallback;
     }
 }

@@ -329,14 +329,23 @@ class Song extends Model
         return $this->hasOne(SongVideo::class)->where('is_featured', true);
     }
 
+    /**
+     * The recording a public song page plays.
+     *
+     * Both branches are restricted to released recordings: a historic import
+     * lands its song videos quarantined on private storage, and either the
+     * bundle's own `is_featured` or a simply-later `recorded_date` would
+     * otherwise make one of them the song's public video.
+     */
     public function displayVideo(): ?SongVideo
     {
-        $featured = $this->featuredVideo()->first();
+        $featured = $this->featuredVideo()->publiclyReleased()->first();
         if (filled($featured)) {
             return $featured;
         }
 
         return $this->hasOne(SongVideo::class)
+            ->publiclyReleased()
             ->whereNotNull('recorded_date')
             ->orderByDesc('recorded_date')
             ->first();
