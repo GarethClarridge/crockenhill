@@ -11,6 +11,7 @@ use App\Jobs\ProcessInboundOosEmail;
 use App\Models\InboundEmail;
 use App\Services\Import\ImportIngressGate;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class MailgunInboundWebhookController extends Controller
 {
@@ -23,29 +24,36 @@ class MailgunInboundWebhookController extends Controller
      */
     public function __invoke(StoreMailgunInboundEmailRequest $request): JsonResponse
     {
-        $inboundEmail = InboundEmail::query()->firstOrCreate(
-            ['message_id' => (string) $request->messageId()],
-            [
-                'from' => (string) $request->input('from'),
-                'subject' => (string) $request->input('subject'),
-                'body_plain' => $request->bodyPlain(),
-                'body_html' => $request->bodyHtml(),
-                'received_at' => $request->receivedAt(),
-                'status' => InboundEmailStatus::Pending->value,
-                'processing_metadata' => $request->processingMetadata(),
-            ],
-        );
+        [$inboundEmail, $duplicate, $deferred] = DB::transaction(function () use ($request): array {
+            $lock = $this->ingress->activeForUpdate();
+            $inboundEmail = InboundEmail::query()->firstOrCreate(
+                ['message_id' => (string) $request->messageId()],
+                [
+                    'from' => (string) $request->input('from'),
+                    'subject' => (string) $request->input('subject'),
+                    'body_plain' => $request->bodyPlain(),
+                    'body_html' => $request->bodyHtml(),
+                    'received_at' => $request->receivedAt(),
+                    'status' => InboundEmailStatus::Pending->value,
+                    'processing_metadata' => $request->processingMetadata(),
+                ],
+            );
+            $duplicate = ! $inboundEmail->wasRecentlyCreated;
 
-        if (! $inboundEmail->wasRecentlyCreated) {
-            // Allow recovery: a redelivery of a previously-failed email should trigger
-            // reprocessing rather than being silently swallowed as a duplicate.
-            if ($inboundEmail->status !== InboundEmailStatus::Failed) {
-                return response()->json([
-                    'status' => 'duplicate',
-                ]);
+            if ($duplicate && $inboundEmail->status === InboundEmailStatus::Failed) {
+                $inboundEmail->update(['status' => InboundEmailStatus::Pending]);
+                $duplicate = false;
             }
 
-            $inboundEmail->update(['status' => InboundEmailStatus::Pending]);
+            if ($lock !== null) {
+                $this->ingress->deferInboundEmail($lock, $inboundEmail);
+            }
+
+            return [$inboundEmail, $duplicate, $lock !== null];
+        });
+
+        if ($duplicate) {
+            return response()->json(['status' => 'duplicate']);
         }
 
         /**
@@ -58,7 +66,7 @@ class MailgunInboundWebhookController extends Controller
          * Refusing here instead would push the order of service onto Mailgun's
          * retry schedule, which is the one thing this route must not risk.
          */
-        if ($this->ingress->isBlocked()) {
+        if ($deferred) {
             return response()->json([
                 'status' => 'deferred',
             ], 202);

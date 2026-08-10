@@ -6,15 +6,20 @@ namespace Tests\Feature;
 
 use App\Enums\InboundEmailStatus;
 use App\Jobs\ProcessInboundOosEmail;
+use App\Models\ImportDeferredInboundEmail;
 use App\Models\ImportIngressLock;
+use App\Models\InboundEmail;
 use App\Models\User;
+use App\Services\Import\HorizonPauseAccounting;
 use App\Services\Import\ImportIngressGate;
+use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Queue;
+use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
@@ -128,6 +133,10 @@ class ImportIngressGateTest extends TestCase
             ->assertSuccessful();
 
         Queue::assertPushed(ProcessInboundOosEmail::class, 1);
+        $this->assertDatabaseHas('import_deferred_inbound_emails', [
+            'operation_id' => 'historic-import-1',
+            'state' => 'dispatched',
+        ]);
     }
 
     #[Test]
@@ -214,15 +223,146 @@ class ImportIngressGateTest extends TestCase
         $this->assertDatabaseCount('import_ingress_locks', 0);
     }
 
-    /** @return array<string, string> */
-    private function inboundEmailPayload(): array
+    #[Test]
+    public function release_drains_only_its_operation_outbox_and_never_sweeps_the_ordinary_pending_inbox(): void
     {
+        Queue::fake();
+        $ordinary = InboundEmail::factory()->create(['status' => InboundEmailStatus::Pending]);
+        $gate = app(ImportIngressGate::class);
+        $gate->block('historic-import-1', 'Historic archive import window');
+        $this->postJson(route('api.webhooks.mailgun.inbound'), $this->inboundEmailPayload());
+
+        $gate->release('historic-import-1');
+        $this->assertDatabaseHas('import_deferred_inbound_emails', [
+            'operation_id' => 'historic-import-1',
+            'state' => 'pending',
+        ]);
+        $this->assertSame(1, $gate->dispatchDeferredInboundEmail('historic-import-1'));
+
+        Queue::assertPushed(ProcessInboundOosEmail::class, 1);
+        $this->assertSame(InboundEmailStatus::Pending, $ordinary->fresh()->status);
+        $gate->assertDeferredInboundEmailReconciled('historic-import-1');
+    }
+
+    #[Test]
+    public function duplicate_webhook_delivery_creates_one_operation_outbox_record(): void
+    {
+        Queue::fake();
+        app(ImportIngressGate::class)->block('historic-import-1', 'Historic archive import window');
+
+        $this->postJson(route('api.webhooks.mailgun.inbound'), $this->inboundEmailPayload())
+            ->assertJson(['status' => 'deferred']);
+        $this->postJson(route('api.webhooks.mailgun.inbound'), $this->inboundEmailPayload(token: 'ingress-window-token-redelivery'))
+            ->assertJson(['status' => 'duplicate']);
+
+        $this->assertDatabaseCount('inbound_emails', 1);
+        $this->assertDatabaseCount('import_deferred_inbound_emails', 1);
+    }
+
+    #[Test]
+    public function reopening_and_drain_are_separate_retry_safe_steps(): void
+    {
+        Queue::fake();
+        $gate = app(ImportIngressGate::class);
+        $gate->block('historic-import-1', 'Historic archive import window');
+        $this->postJson(route('api.webhooks.mailgun.inbound'), $this->inboundEmailPayload());
+
+        $gate->release('historic-import-1');
+        $this->assertFalse($gate->isBlocked());
+
+        try {
+            $gate->assertDeferredInboundEmailReconciled('historic-import-1');
+            $this->fail('Operation closeout must wait for its outbox.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('undrained', $exception->getMessage());
+        }
+
+        $this->assertSame(1, app(ImportIngressGate::class)->dispatchDeferredInboundEmail('historic-import-1'));
+        $this->assertSame(0, app(ImportIngressGate::class)->dispatchDeferredInboundEmail('historic-import-1'));
+        app(ImportIngressGate::class)->assertDeferredInboundEmailReconciled('historic-import-1');
+    }
+
+    #[Test]
+    public function a_dispatch_failure_after_one_email_resumes_from_the_durable_outbox_cursor(): void
+    {
+        Queue::fake();
+        $gate = app(ImportIngressGate::class);
+        $gate->block('historic-import-1', 'Historic archive import window');
+
+        foreach ([1, 2, 3] as $index) {
+            $this->postJson(route('api.webhooks.mailgun.inbound'), $this->inboundEmailPayload(
+                messageId: "<window-{$index}@example.com>",
+                token: "window-token-{$index}",
+            ))->assertAccepted();
+        }
+
+        $gate->release('historic-import-1');
+        $realDispatcher = app(Dispatcher::class);
+        $attempt = 0;
+        $failingDispatcher = Mockery::mock(Dispatcher::class);
+        $failingDispatcher->shouldReceive('dispatch')
+            ->twice()
+            ->andReturnUsing(function (object $job) use ($realDispatcher, &$attempt): mixed {
+                $attempt++;
+
+                if ($attempt === 2) {
+                    throw new RuntimeException('injected dispatcher failure');
+                }
+
+                return $realDispatcher->dispatch($job);
+            });
+        $failingGate = new ImportIngressGate(app(HorizonPauseAccounting::class), $failingDispatcher);
+
+        try {
+            $failingGate->dispatchDeferredInboundEmail('historic-import-1');
+            $this->fail('The injected dispatch failure was not raised.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('injected dispatcher failure', $exception->getMessage());
+        }
+
+        $this->assertSame(1, ImportDeferredInboundEmail::query()->where('state', 'dispatched')->count());
+        $this->assertSame(2, ImportDeferredInboundEmail::query()->where('state', 'pending')->count());
+        $this->assertSame(2, $gate->dispatchDeferredInboundEmail('historic-import-1'));
+        Queue::assertPushed(ProcessInboundOosEmail::class, 3);
+        $gate->assertDeferredInboundEmailReconciled('historic-import-1');
+    }
+
+    #[Test]
+    public function sequential_import_windows_keep_independent_outboxes(): void
+    {
+        Queue::fake();
+        $gate = app(ImportIngressGate::class);
+        $gate->block('historic-import-1', 'First window');
+        $this->postJson(route('api.webhooks.mailgun.inbound'), $this->inboundEmailPayload());
+        $gate->release('historic-import-1');
+
+        $payload = $this->inboundEmailPayload(
+            messageId: '<second-window@example.com>',
+            token: 'ingress-window-token-second',
+        );
+        $gate->block('historic-import-2', 'Second window');
+        $this->postJson(route('api.webhooks.mailgun.inbound'), $payload);
+        $gate->release('historic-import-2');
+
+        $this->assertSame(1, $gate->dispatchDeferredInboundEmail('historic-import-1'));
+        $this->assertSame(1, $gate->dispatchDeferredInboundEmail('historic-import-2'));
+        $this->assertSame(
+            ['historic-import-1', 'historic-import-2'],
+            ImportDeferredInboundEmail::query()->orderBy('id')->pluck('operation_id')->all(),
+        );
+    }
+
+    /** @return array<string, string> */
+    private function inboundEmailPayload(
+        string $messageId = '<staged-during-window@example.com>',
+        string $token = 'ingress-window-token',
+    ): array {
         $payload = [
             'timestamp' => (string) now()->getTimestamp(),
-            'token' => 'ingress-window-token',
+            'token' => $token,
             'from' => 'Service Planning <planning@example.com>',
             'subject' => 'Order of Service for Sunday',
-            'Message-Id' => '<staged-during-window@example.com>',
+            'Message-Id' => $messageId,
             'body-plain' => "Welcome\nSong\nPrayer",
             'recipient' => 'oos@crockenhill.org',
         ];

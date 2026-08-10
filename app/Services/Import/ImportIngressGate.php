@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Import;
 
-use App\Enums\InboundEmailStatus;
 use App\Jobs\ProcessInboundOosEmail;
+use App\Models\ImportDeferredInboundEmail;
 use App\Models\ImportIngressLock;
 use App\Models\InboundEmail;
+use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -28,6 +29,7 @@ class ImportIngressGate
 {
     public function __construct(
         private readonly HorizonPauseAccounting $pauseAccounting,
+        private readonly Dispatcher $dispatcher,
     ) {}
 
     public function isBlocked(): bool
@@ -38,6 +40,23 @@ class ImportIngressGate
     public function active(): ?ImportIngressLock
     {
         return ImportIngressLock::query()->active()->first();
+    }
+
+    public function activeForUpdate(): ?ImportIngressLock
+    {
+        return ImportIngressLock::query()->active()->lockForUpdate()->first();
+    }
+
+    public function deferInboundEmail(ImportIngressLock $lock, InboundEmail $email): ImportDeferredInboundEmail
+    {
+        if ($lock->released_at !== null || $lock->is_active !== 1) {
+            throw new RuntimeException('Inbound email cannot be deferred to a released import window.');
+        }
+
+        return ImportDeferredInboundEmail::query()->firstOrCreate(
+            ['operation_id' => $lock->operation_id, 'inbound_email_id' => $email->id],
+            ['state' => 'pending', 'dispatch_attempts' => 0, 'deferred_at' => now()],
+        );
     }
 
     /**
@@ -121,19 +140,42 @@ class ImportIngressGate
      *
      * @return int the number of emails handed back to the queue
      */
-    public function dispatchDeferredInboundEmail(): int
+    public function dispatchDeferredInboundEmail(string $operationId): int
     {
         $dispatched = 0;
 
-        InboundEmail::query()
-            ->where('status', InboundEmailStatus::Pending)
+        ImportDeferredInboundEmail::query()
+            ->with('inboundEmail')
+            ->where('operation_id', $operationId)
+            ->where('state', 'pending')
             ->orderBy('id')
-            ->each(function (InboundEmail $email) use (&$dispatched): void {
-                ProcessInboundOosEmail::dispatch($email);
+            ->each(function (ImportDeferredInboundEmail $deferred) use (&$dispatched): void {
+                $email = $deferred->inboundEmail;
+
+                if (! $email instanceof InboundEmail) {
+                    throw new RuntimeException('Deferred inbound email lost its durable source row.');
+                }
+
+                $this->dispatcher->dispatch(new ProcessInboundOosEmail($email, $deferred->id));
+                $deferred->forceFill([
+                    'state' => 'dispatched',
+                    'dispatch_attempts' => $deferred->dispatch_attempts + 1,
+                    'dispatched_at' => now(),
+                ])->save();
                 $dispatched++;
             });
 
         return $dispatched;
+    }
+
+    public function assertDeferredInboundEmailReconciled(string $operationId): void
+    {
+        if (ImportDeferredInboundEmail::query()
+            ->where('operation_id', $operationId)
+            ->whereNotIn('state', ['dispatched', 'processed'])
+            ->exists()) {
+            throw new RuntimeException('Import operation still has undrained deferred inbound email.');
+        }
     }
 
     /**

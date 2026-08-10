@@ -8,6 +8,7 @@ use Database\Factories\ImportIngressLockFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -43,6 +44,12 @@ class ImportIngressLock extends Model
     public function scopeActive(Builder $query): void
     {
         $query->whereNull('released_at');
+    }
+
+    /** @return HasMany<ImportDeferredInboundEmail, $this> */
+    public function deferredInboundEmails(): HasMany
+    {
+        return $this->hasMany(ImportDeferredInboundEmail::class, 'operation_id', 'operation_id');
     }
 
     /** @return array<string, string> */

@@ -127,7 +127,7 @@ class ImportIngressCommand extends Command
         }
 
         $minutes = (int) $lock->blocked_at->diffInMinutes($lock->released_at);
-        $deferred = $gate->dispatchDeferredInboundEmail();
+        $deferred = $gate->dispatchDeferredInboundEmail($operationId);
 
         $this->info("Import ingress released after {$minutes} minute(s).");
 

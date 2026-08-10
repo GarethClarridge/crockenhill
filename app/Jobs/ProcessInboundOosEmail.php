@@ -5,29 +5,40 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Enums\InboundEmailStatus;
+use App\Models\ImportDeferredInboundEmail;
 use App\Models\InboundEmail;
 use App\Services\Email\InboundEmailImportService;
 use App\Services\Email\OosEmailParserService;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use RuntimeException;
 
-class ProcessInboundOosEmail implements ShouldQueue
+class ProcessInboundOosEmail implements ShouldBeUnique, ShouldQueue
 {
     use InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
 
+    public int $uniqueFor = 86_400;
+
     public function __construct(
         private InboundEmail $inboundEmail,
+        private readonly ?int $deferredInboundEmailId = null,
     ) {}
 
     public function handle(
         OosEmailParserService $parser,
         InboundEmailImportService $importService,
     ): void {
+        $deferred = $this->deferredInboundEmail();
+
+        if ($deferred?->processed_at !== null) {
+            return;
+        }
+
         $inboundEmail = $this->inboundEmail->fresh();
         if (! $inboundEmail instanceof InboundEmail) {
             return;
@@ -45,6 +56,7 @@ class ProcessInboundOosEmail implements ShouldQueue
             $inboundEmail->refresh();
             $inboundEmail->status = InboundEmailStatus::Pending;
             $inboundEmail->save();
+            $this->markDeferredProcessed($deferred);
 
             return;
         }
@@ -74,6 +86,15 @@ class ProcessInboundOosEmail implements ShouldQueue
                 $inboundEmail->save();
             }
         }
+
+        $this->markDeferredProcessed($deferred);
+    }
+
+    public function uniqueId(): string
+    {
+        return $this->deferredInboundEmailId === null
+            ? (string) $this->inboundEmail->getKey()
+            : "deferred:{$this->deferredInboundEmailId}";
     }
 
     /**
@@ -106,6 +127,13 @@ class ProcessInboundOosEmail implements ShouldQueue
             ],
         );
         $inboundEmail->save();
+
+        if ($this->deferredInboundEmailId !== null) {
+            ImportDeferredInboundEmail::query()
+                ->whereKey($this->deferredInboundEmailId)
+                ->whereNull('processed_at')
+                ->update(['state' => 'pending', 'dispatched_at' => null]);
+        }
     }
 
     /**
@@ -118,5 +146,26 @@ class ProcessInboundOosEmail implements ShouldQueue
         $existingMetadata = is_array($existingMetadata) ? $existingMetadata : [];
 
         return array_replace_recursive($existingMetadata, $newMetadata);
+    }
+
+    private function deferredInboundEmail(): ?ImportDeferredInboundEmail
+    {
+        if ($this->deferredInboundEmailId === null) {
+            return null;
+        }
+
+        return ImportDeferredInboundEmail::query()->find($this->deferredInboundEmailId);
+    }
+
+    private function markDeferredProcessed(?ImportDeferredInboundEmail $deferred): void
+    {
+        if (! $deferred instanceof ImportDeferredInboundEmail) {
+            return;
+        }
+
+        $deferred->forceFill([
+            'state' => 'processed',
+            'processed_at' => now(),
+        ])->save();
     }
 }
