@@ -59,7 +59,13 @@ return [
     | sermon-level exposure attributes withhold *media*; nothing else withheld a
     | *service* from the listing. This does.
     |
-    | Null means no lower bound. Set it before the import runs.
+    | Null means the public service archive is disabled. Set it explicitly.
+    |
+    | Note what this does *not* cover: sermon pages, the podcast feed and the
+    | sitemap's sermon URLs are governed by `sermons.publication_state`, not by
+    | this date. Setting an early bound here therefore publishes the service
+    | archive in full and leaves the import's audience boundary resting on the
+    | per-record publication state alone.
     |
     */
     'services' => [
@@ -117,12 +123,14 @@ return [
         |
         | So the scope is now mechanical. Outside production the guard is
         | silent, because a rehearsal database is where this work belongs. In
-        | production it fails closed until this names the approved operation,
-        | which the closeout report then quotes as the authority the run had.
+        | production it fails closed until this points at a signed approval
+        | artifact bound to the persisted operation, resolved target, release,
+        | exact commands, freeze, roles, thresholds and monitoring.
         |
         | Null means production imports are unapproved. That is the correct
         | resting state; set it only for the duration of an approved window.
         */
         'production_import_approval' => env('HISTORIC_IMPORT_PRODUCTION_APPROVAL'),
+        'production_target_fingerprint' => env('HISTORIC_IMPORT_PRODUCTION_TARGET_FINGERPRINT'),
     ],
 ];

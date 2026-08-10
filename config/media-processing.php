@@ -59,6 +59,7 @@ return [
         // TRANSCRIPT_STORAGE_DISK is the canonical key; falls back to sermon disk, then filesystem disk.
         'transcript_disk' => env('TRANSCRIPT_STORAGE_DISK', env('SERMON_STORAGE_DISK', env('FILESYSTEM_DISK', 'local'))),
         'historic_staging_disk' => env('HISTORIC_STAGING_DISK', 'historic_staging'),
+        'historic_quarantine_disk' => env('HISTORIC_QUARANTINE_DISK', 'historic_quarantine'),
         'temp_disk' => 'local',
         'metadata_cache_ttl' => (int) env('SERMON_METADATA_CACHE_TTL', 3600),
         // Shared minimum free-space floor (GB) for the local temp disk — the genuine
@@ -103,7 +104,15 @@ return [
     |
     */
     'historic_import' => [
+        'evidence_signing_key' => env('HISTORIC_IMPORT_EVIDENCE_SIGNING_KEY'),
         'transfer_retention_days' => (int) env('HISTORIC_TRANSFER_RETENTION_DAYS', 30),
+        'convergence' => [
+            // Bootstrap values used until the operation has observed its own
+            // p95 apply and failed-apply cleanup durations.
+            'admission_floor_seconds' => (float) env('HISTORIC_CONVERGENCE_ADMISSION_FLOOR_SECONDS', 5),
+            'apply_p95_seconds' => env('HISTORIC_CONVERGENCE_APPLY_P95_SECONDS'),
+            'rollback_p95_seconds' => env('HISTORIC_CONVERGENCE_ROLLBACK_P95_SECONDS'),
+        ],
         'stages' => [
             'ffmpeg' => [
                 'queue' => $historicFfmpegQueue,

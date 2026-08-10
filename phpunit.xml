@@ -71,6 +71,12 @@
         <env name="PROCESSING_PERMANENT_DISK" value="local"/>
         <env name="PROCESSING_TEMP_DISK" value="local"/>
         <env name="SERMON_STORAGE_DISK" value="public"/>
+        <!--
+            The public service archive fails closed without a cutoff. An early
+            bound is the "no lower bound" baseline every test that is not about
+            the boundary itself expects; the boundary's own tests override it.
+        -->
+        <env name="CHURCH_SERVICES_PUBLIC_FROM" value="1980-01-01"/>
         <env name="LIVESTREAM_STORAGE_DISK" value="local"/>
         <env name="LIVESTREAM_SERMON_DISK" value="public"/>
         <env name="LEGACY_SERMON_DISK" value="public"/>

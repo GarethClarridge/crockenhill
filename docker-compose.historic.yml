@@ -5,8 +5,10 @@ services:
         image: '${HISTORIC_APP_IMAGE:?Set HISTORIC_APP_IMAGE to a pinned @sha256 digest}'
         environment:
             HISTORIC_STAGING_ROOT: /var/lib/crockenhill-historic/staging
+            HISTORIC_QUARANTINE_ROOT: /var/lib/crockenhill-historic/quarantine
         volumes:
             - '${HISTORIC_RUNTIME_PATH:?Set HISTORIC_RUNTIME_PATH}/staging:/var/lib/crockenhill-historic/staging'
+            - '${HISTORIC_RUNTIME_PATH:?Set HISTORIC_RUNTIME_PATH}/quarantine:/var/lib/crockenhill-historic/quarantine'
             - '${HISTORIC_RUNTIME_PATH:?Set HISTORIC_RUNTIME_PATH}/artifacts:/var/www/html/storage/app/private/historic-import'
 
     queue.worker-historic-ffmpeg:

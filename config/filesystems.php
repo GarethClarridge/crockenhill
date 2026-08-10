@@ -62,6 +62,13 @@ return [
             'throw' => true,
         ],
 
+        'historic_quarantine' => [
+            'driver' => 'local',
+            'root' => env('HISTORIC_QUARANTINE_ROOT', storage_path('app/private/historic-quarantine')),
+            'visibility' => 'private',
+            'throw' => true,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_KEY'),
