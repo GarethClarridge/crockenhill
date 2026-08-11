@@ -32,6 +32,7 @@ class HistoricMediaGraphPersister
     public function __construct(
         private readonly HistoricProcessingResultAssetTransfer $assets,
         private readonly HistoricProcessingResultInventory $inventory,
+        private readonly HistoricScripturePassageRequirements $scriptureRequirements,
     ) {}
 
     /**
@@ -509,34 +510,28 @@ class HistoricMediaGraphPersister
         return $sermon->fresh() ?? $sermon;
     }
 
-    /** @param array<string, mixed> $publication */
+    /**
+     * F59 relinks by natural key; it never copies licensed passage text.
+     *
+     * The identity is read through HistoricScripturePassageRequirements so that
+     * the pre-apply preflight decides it the same way. This throw stays as the
+     * last-resort guard for a destination that changed between preflight and
+     * apply — in an ordinary run the preflight has already refused the operation
+     * with every missing key named and nothing written.
+     *
+     * @param  array<string, mixed>  $publication
+     */
     private function resolveScripturePassageId(array $publication): ?int
     {
-        $passage = $publication['scripture_passage'] ?? null;
-        $outcome = $publication['scripture_passage_outcome'] ?? null;
+        $key = $this->scriptureRequirements->keyFor($publication);
 
-        if ($passage === null) {
-            if ($outcome !== null
-                && (! is_array($outcome)
-                    || ($outcome['status'] ?? null) !== 'approved_absent'
-                    || ! in_array($outcome['reason'] ?? null, ['api_disabled', 'budget_exhausted', 'not_found', 'source_has_no_passage'], true))) {
-                throw new RuntimeException('Historic publication Scripture Passage absence outcome is invalid.');
-            }
-
+        if ($key === null) {
             return null;
         }
 
-        if (! is_array($passage)
-            || ! is_string($passage['bible_id'] ?? null)
-            || ! is_string($passage['normalized_reference'] ?? null)
-            || ! is_array($outcome)
-            || ($outcome['status'] ?? null) !== 'linked') {
-            throw new RuntimeException('Historic publication scripture passage identity is invalid.');
-        }
-
         $resolved = ScripturePassage::query()
-            ->where('bible_id', $passage['bible_id'])
-            ->where('normalized_reference', $passage['normalized_reference'])
+            ->where('bible_id', $key['bible_id'])
+            ->where('normalized_reference', $key['normalized_reference'])
             ->first();
 
         if (! $resolved instanceof ScripturePassage) {

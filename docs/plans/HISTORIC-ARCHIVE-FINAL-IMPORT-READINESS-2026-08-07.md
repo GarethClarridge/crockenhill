@@ -506,12 +506,13 @@ unmanifested candidate recording while deliberately skipping OS metadata scatter
 Windows. F36's separate whole-filesystem inventory, which must dispose of every path including
 unsupported extensions and links, remains outstanding.
 
-**Work these decisions create.** Item 1 is done; the rest is not:
+**Work these decisions create.** Items 1 and 2 are done; the rest is not:
 
 1. ~~Edit the manifest for D1, revalidate, re-record both hashes in §3, re-approve (D1).~~
    **Done 2026-08-11; see the entry below.**
-2. Build the pre-apply production Scripture enrichment pass and the fail-with-zero-writes preflight
-   over the bundle's exact reference set (D3).
+2. ~~Build the pre-apply production Scripture enrichment pass and the fail-with-zero-writes preflight
+   over the bundle's exact reference set (D3).~~ **Built 2026-08-11; see the entry below. Running the
+   pass against production remains outstanding.**
 3. Record `maximum_import_ingress_blocked_minutes = 480` as the accepted budget input and the three
    rollback triggers in the operation artifact (D5).
 4. Write the pre-window backup and restore-drill procedure into the runbook, including lifting the
@@ -562,6 +563,51 @@ retained as historical evidence wherever they were recorded, marked superseded r
 **This entry closes no gate.** It makes the Email authority correct and re-approvable; F1's
 certification, F30's supersession lineage and G2 still require their rehearsal evidence against this
 manifest, none of which has run.
+
+### 2026-08-11 — D3 built: Scripture preflight and pre-apply enrichment pass
+
+**The defect, reproduced before it was fixed.** With the new preflight disabled, an apply carrying a
+publication whose passage the destination lacks reaches
+`HistoricMediaGraphPersister::resolveScripturePassageId()` and dies with *"Historic publication
+scripture passage is not available in the destination"* — after that service's run, steps, segments
+and sections are already written, and in a batch after earlier services have already committed.
+That is exactly what D3 describes, and **no test covered the relink at all** before this work: no
+HistoricMedia test referenced `scripture_passage`, which is why the throw had never surfaced.
+
+**The preflight.** `ConvergeHistoricChurchService::assertPlanApplicable()` now collects every
+publication's passage identity across the whole plan and refuses the operation before the first
+write, naming every missing key at once so a single enrichment pass can close them all. That method
+already existed for precisely this class of defect — its docblock says a preflight admitting more
+than the persisters accept "would still abort, but only after earlier services in the batch had
+already committed" — so the scripture check belongs there rather than in a gate of its own.
+
+**One canonical read, deliberately.** `HistoricScripturePassageRequirements::keyFor()` is now the
+only implementation of "what passage identity does this publication require", and the persister calls
+it too. A second copy in the preflight would have been F49's "verification and consumption use
+different reads" defect in a new place. `missing()` likewise asks for each key with the query the
+persister runs rather than fetching in bulk and diffing in PHP: under a case-insensitive collation
+MySQL matches references PHP would call different, which is F55's source-key divergence arrived at
+from the other direction.
+
+**The pass.** `historic-import:enrich-scripture-passages {bundle}` reports what the destination
+cannot satisfy and exits non-zero, which is the gate the runbook runs before the window; `--apply`
+fetches exactly the identities the bundle carries. It refuses to run with `API_BIBLE_ENABLED=false`
+rather than reporting every identity as an unremarkable `not_found` and exiting as though the pass
+had happened. Enrichment was sermon-driven and unusable here — the destination's sermons do not exist
+until the apply creates them — so `ScriptureOperatorService::ensurePassage()` was extracted as a
+passage-only path that `enrichSermon()` now also uses, sharing the fetch, sanitize, validate and
+persist steps rather than copying them.
+
+F59's relink-only contract is untouched, as D3 ratified: the bundle still carries the natural key
+only, never `html_content`, `copyright` or the per-fetch `fums_token`.
+
+**Gates:** `artisan test --parallel` green (6372 tests, 81,362 assertions), `composer phpstan` clean,
+`pint --dirty` applied, `artisan dusk` green (55 tests). The preflight was verified red-to-green by
+disabling it and watching the apply fall through to the mid-apply throw.
+
+**This entry closes no gate.** The pass has not been run against production, which is the actual
+remedy for the 18-rows-against-709-references gap; local measurement, the rehearsal proof and the
+api.bible cross-chapter watch during a real pass all remain outstanding.
 
 ### 2026-08-08 — continuation audit scope and completion
 

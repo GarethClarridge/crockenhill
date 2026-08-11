@@ -13,6 +13,8 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceReviewSession;
 use App\Models\ChurchServiceSourceRecord;
 use App\Models\MediaProcessingLog;
+use App\Models\ScripturePassage;
+use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Models\User;
 use App\Services\ChurchService\ChurchServiceAssertionNormalizer;
@@ -49,6 +51,8 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const PUBLICATION_BIBLE_ID = 'de4e12af7f28f599-02';
+
     private string $ledgerPath;
 
     protected function setUp(): void
@@ -75,6 +79,71 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
         }
 
         parent::tearDown();
+    }
+
+    /**
+     * Decision D3. Bundle A carries Scripture Passages as natural keys, so an
+     * apply relinks against passages the destination already holds. Production
+     * has effectively never run enrichment, and resolving the key per
+     * publication inside the apply throws only once the run, its steps, segments
+     * and sections have been written — and, in a batch, once earlier services
+     * have already committed. The preflight has to refuse the whole operation
+     * first.
+     */
+    #[Test]
+    public function it_refuses_the_operation_before_writing_anything_when_a_scripture_passage_is_absent(): void
+    {
+        $passage = ScripturePassage::factory()->create([
+            'bible_id' => self::PUBLICATION_BIBLE_ID,
+            'normalized_reference' => 'John 3:16',
+        ]);
+        [$mediaBundle, $convergenceBundle] = $this->corpus(['2026-08-02'], withPublication: true);
+        $converge = app(ConvergeHistoricChurchService::class);
+        $plan = $converge->prepare($mediaBundle, $convergenceBundle);
+
+        /** The destination this bundle will be applied to has never been enriched. */
+        $passage->delete();
+
+        try {
+            $converge->execute($mediaBundle, $convergenceBundle, 0, 0, $plan->planHash, $plan);
+            $this->fail('The operation applied without its Scripture Passages.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString(
+                'Scripture Passage',
+                $exception->getMessage(),
+            );
+            $this->assertStringContainsString(
+                self::PUBLICATION_BIBLE_ID.'|John 3:16',
+                $exception->getMessage(),
+            );
+            $this->assertStringContainsString(
+                'historic-import:enrich-scripture-passages',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertSame(0, MediaProcessingLog::query()->where('processing_id', 'imported-run')->count());
+        $this->assertSame(0, Sermon::query()->where('slug', 'sermon-2026-08-02')->count());
+        $this->assertSame(0, ServiceSection::query()->count());
+        Storage::disk('local')->assertMissing('service-transcripts/imported-run/audio.mp3');
+    }
+
+    #[Test]
+    public function it_applies_a_publication_that_relinks_its_scripture_passage(): void
+    {
+        $passage = ScripturePassage::factory()->create([
+            'bible_id' => self::PUBLICATION_BIBLE_ID,
+            'normalized_reference' => 'John 3:16',
+        ]);
+        [$mediaBundle, $convergenceBundle] = $this->corpus(['2026-08-02'], withPublication: true);
+        $converge = app(ConvergeHistoricChurchService::class);
+        $plan = $converge->prepare($mediaBundle, $convergenceBundle);
+
+        $converge->execute($mediaBundle, $convergenceBundle, 0, 0, $plan->planHash, $plan);
+
+        $sermon = Sermon::query()->where('slug', 'sermon-2026-08-02')->sole();
+
+        $this->assertSame($passage->id, $sermon->scripture_passage_id);
     }
 
     #[Test]
@@ -563,7 +632,7 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
      * @param  list<string>  $dates
      * @return array{0: array<string, mixed>, 1: array<string, mixed>}
      */
-    private function corpus(array $dates = ['2026-08-02']): array
+    private function corpus(array $dates = ['2026-08-02'], bool $withPublication = false): array
     {
         $batchHash = str_repeat('6', 64);
         $fingerprint = ['pipeline_version' => 1];
@@ -572,7 +641,7 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
         $serviceIds = [];
 
         foreach ($dates as $date) {
-            [$serviceId, $mediaService] = $this->buildService($date, $reviewer, count($dates) > 1, $batchHash, $fingerprint);
+            [$serviceId, $mediaService] = $this->buildService($date, $reviewer, count($dates) > 1, $batchHash, $fingerprint, $withPublication);
             $serviceIds[] = $serviceId;
             $mediaServices[] = $mediaService;
         }
@@ -657,12 +726,13 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
         bool $suffixRun,
         string $batchHash,
         array $fingerprint,
+        bool $withPublication = false,
     ): array {
         $processingId = $suffixRun ? "imported-run-{$date}" : 'imported-run';
         $assetPath = "historic/{$date}/audio.mp3";
         Storage::disk('historic_staging')->put($assetPath, "audio-{$date}");
         $mediaGraph = $this->probeGraph(
-            $this->mediaGraph($processingId, "{$processingId}:section:1:seed", $date),
+            $this->mediaGraph($processingId, "{$processingId}:section:1:seed", $date, $withPublication),
             $assetPath,
             $batchHash,
             $fingerprint,
@@ -792,8 +862,12 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
     }
 
     /** @return array<string, mixed> */
-    private function mediaGraph(string $processingId, string $sectionKey, string $date): array
-    {
+    private function mediaGraph(
+        string $processingId,
+        string $sectionKey,
+        string $date,
+        bool $withPublication = false,
+    ): array {
         return [
             'processing_key' => $processingId,
             'run' => [
@@ -860,7 +934,25 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
                 'extracted_audio_path' => null,
                 'published_at' => null,
             ]],
-            'publications' => [],
+            'publications' => $withPublication ? [[
+                'section_key' => 'main',
+                'title' => "Sermon for {$date}",
+                'date' => $date,
+                'service' => 'morning',
+                'content_type' => 'sermon',
+                'slug' => "sermon-{$date}",
+                'filetype' => 'mp3',
+                'reference' => 'John 3:16',
+                'source_type' => 'livestream',
+                'video_quality_status' => 'unassessed',
+                'video_visibility_override' => 'default',
+                'preacher' => ['name' => 'Mark Drury', 'slug' => 'mark-drury', 'aliases' => []],
+                'scripture_passage' => [
+                    'bible_id' => self::PUBLICATION_BIBLE_ID,
+                    'normalized_reference' => 'John 3:16',
+                ],
+                'scripture_passage_outcome' => ['status' => 'linked'],
+            ]] : [],
             'song_videos' => [],
             'metadata' => [],
             'logical_hash' => str_repeat('b', 64),

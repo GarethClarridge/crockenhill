@@ -23,6 +23,7 @@ use App\Services\HistoricMedia\HistoricProcessingResultAssetTransfer;
 use App\Services\HistoricMedia\HistoricProcessingResultBundle;
 use App\Services\HistoricMedia\HistoricProcessingResultBundleImporter;
 use App\Services\HistoricMedia\HistoricProcessingResultInventory;
+use App\Services\HistoricMedia\HistoricScripturePassageRequirements;
 use App\Support\CanonicalJson;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Model;
@@ -70,6 +71,7 @@ class ConvergeHistoricChurchService
         private readonly ?ChurchServiceProposalIdentity $proposalIdentity = null,
         private readonly ?HistoricConvergenceDispatchGuard $dispatchGuard = null,
         private readonly ?HistoricConvergenceAdmission $admission = null,
+        private readonly ?HistoricScripturePassageRequirements $scriptureRequirements = null,
     ) {}
 
     /**
@@ -446,6 +448,8 @@ class ConvergeHistoricChurchService
      */
     private function assertPlanApplicable(HistoricConvergenceOperationPlan $plan): void
     {
+        $scriptureKeys = [];
+
         foreach ($plan->services as $servicePlan) {
             $identity = $servicePlan['identity'] ?? 'unknown service';
             $mediaPlan = $servicePlan['media_plan'] ?? null;
@@ -480,7 +484,25 @@ class ConvergeHistoricChurchService
 
                 throw new RuntimeException("Church-service convergence preflight is {$classification} for {$identity}.");
             }
+
+            foreach ($this->scriptureRequirements()->forService($mediaPlan->service) as $key) {
+                $scriptureKeys[$this->scriptureRequirements()->identity($key)] = $key;
+            }
         }
+
+        /**
+         * Decision D3: the destination relinks Scripture Passages by natural key
+         * and holds no text of its own until enrichment has run. Resolving that
+         * per publication inside the apply would throw partway through a service
+         * that had already written its run, sections and earlier publications,
+         * so the whole batch's identities are settled here — before the first
+         * write, with every missing key named at once so one enrichment pass can
+         * close them all.
+         */
+        $this->scriptureRequirements()->assertAvailable(
+            array_values($scriptureKeys),
+            "Historic convergence operation {$plan->operationId}",
+        );
     }
 
     /**
@@ -961,6 +983,11 @@ class ConvergeHistoricChurchService
     private function dispatchGuard(): HistoricConvergenceDispatchGuard
     {
         return $this->dispatchGuard ?? app(HistoricConvergenceDispatchGuard::class);
+    }
+
+    private function scriptureRequirements(): HistoricScripturePassageRequirements
+    {
+        return $this->scriptureRequirements ?? app(HistoricScripturePassageRequirements::class);
     }
 
     private function deploymentIdentifier(): string

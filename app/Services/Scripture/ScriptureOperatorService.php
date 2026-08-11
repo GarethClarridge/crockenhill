@@ -251,21 +251,60 @@ class ScriptureOperatorService
             return 'unparseable';
         }
 
-        $bibleId = (string) config('services.api_bible.default_bible_id');
+        $outcome = $this->ensurePassage(
+            (string) config('services.api_bible.default_bible_id'),
+            $normalizedReference,
+            'FetchBibleTextForSermon',
+            ['sermon_id' => $sermon->id],
+        );
+        $passage = $outcome['passage'];
+
+        if (! $passage instanceof ScripturePassage) {
+            return $outcome['status'];
+        }
+
+        $sermon->update(['scripture_passage_id' => $passage->id]);
+
+        Log::info('FetchBibleTextForSermon: passage linked', [
+            'sermon_id' => $sermon->id,
+            'passage_id' => $passage->id,
+            'reference' => $normalizedReference,
+        ]);
+
+        return $outcome['status'];
+    }
+
+    /**
+     * Make one passage identity present and fresh, without reference to any
+     * sermon.
+     *
+     * Enrichment has always been sermon-driven, which the historic import cannot
+     * use: decision D3's pre-apply pass works from the natural keys Bundle A
+     * carries, and the sermons those keys belong to do not exist in the
+     * destination until the apply creates them. The fetch, sanitize, validate
+     * and persist steps are shared rather than copied, so the passages the
+     * import relinks against are written exactly as the ordinary path writes
+     * them.
+     *
+     * @param  array<string, mixed>  $logContext
+     * @return array{status: 'resolved'|'updated'|'not_found'|'failed', passage: ScripturePassage|null}
+     */
+    public function ensurePassage(
+        string $bibleId,
+        string $normalizedReference,
+        string $logLabel = 'scripture:ensure-passage',
+        array $logContext = [],
+    ): array {
+        $context = [...$logContext, 'reference' => $normalizedReference];
         $existing = ScripturePassage::query()
             ->where('bible_id', $bibleId)
             ->where('normalized_reference', $normalizedReference)
             ->first();
 
         if ($existing instanceof ScripturePassage && ! $existing->isStale()) {
-            $sermon->update(['scripture_passage_id' => $existing->id]);
+            Log::info("{$logLabel}: reusing fresh cached passage", [...$context, 'passage_id' => $existing->id]);
 
-            Log::info('FetchBibleTextForSermon: linked cached passage', [
-                'sermon_id' => $sermon->id,
-                'passage_id' => $existing->id,
-            ]);
-
-            return 'resolved';
+            return ['status' => 'resolved', 'passage' => $existing];
         }
 
         $result = $existing instanceof ScripturePassage && is_string($existing->api_passage_id) && $existing->api_passage_id !== ''
@@ -273,24 +312,20 @@ class ScriptureOperatorService
             : $this->client->searchPassage($normalizedReference);
 
         if ($result === null) {
-            Log::info('FetchBibleTextForSermon: passage not found (terminal — not retrying)', [
-                'sermon_id' => $sermon->id,
-                'reference' => $normalizedReference,
+            Log::info("{$logLabel}: passage not found (terminal — not retrying)", [
+                ...$context,
                 'result_category' => 'not_found',
             ]);
 
-            return 'not_found';
+            return ['status' => 'not_found', 'passage' => null];
         }
 
         $sanitizedHtml = $this->sanitizer->sanitize($result->htmlContent);
 
         if ($sanitizedHtml === null) {
-            Log::warning('FetchBibleTextForSermon: sanitized HTML was empty', [
-                'sermon_id' => $sermon->id,
-                'reference' => $normalizedReference,
-            ]);
+            Log::warning("{$logLabel}: sanitized HTML was empty", $context);
 
-            return 'failed';
+            return ['status' => 'failed', 'passage' => null];
         }
 
         $passageData = [
@@ -307,12 +342,9 @@ class ScriptureOperatorService
         try {
             $this->validatePassageData($passageData);
         } catch (ValidationException $e) {
-            Log::error('FetchBibleTextForSermon: validation failed', [
-                'sermon_id' => $sermon->id,
-                'errors' => $e->errors(),
-            ]);
+            Log::error("{$logLabel}: validation failed", [...$context, 'errors' => $e->errors()]);
 
-            return 'failed';
+            return ['status' => 'failed', 'passage' => null];
         }
 
         $passage = ScripturePassage::query()->updateOrCreate(
@@ -320,15 +352,12 @@ class ScriptureOperatorService
             $passageData
         );
 
-        $sermon->update(['scripture_passage_id' => $passage->id]);
+        Log::info("{$logLabel}: passage resolved", [...$context, 'passage_id' => $passage->id]);
 
-        Log::info('FetchBibleTextForSermon: passage resolved and linked', [
-            'sermon_id' => $sermon->id,
-            'passage_id' => $passage->id,
-            'reference' => $normalizedReference,
-        ]);
-
-        return $existing instanceof ScripturePassage ? 'updated' : 'resolved';
+        return [
+            'status' => $existing instanceof ScripturePassage ? 'updated' : 'resolved',
+            'passage' => $passage,
+        ];
     }
 
     /**
