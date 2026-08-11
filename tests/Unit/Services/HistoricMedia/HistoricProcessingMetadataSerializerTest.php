@@ -78,4 +78,67 @@ class HistoricProcessingMetadataSerializerTest extends TestCase
             'service_transcript_path' => '/tmp/local-transcript.json',
         ]);
     }
+
+    /**
+     * F44: the curated facts must survive the bundle boundary. `occasion` has no
+     * column on any model, so this block is the only thing that carries it to the
+     * destination at all.
+     */
+    #[Test]
+    public function it_carries_curated_editorial_facts_into_the_bundle(): void
+    {
+        $result = (new HistoricProcessingMetadataSerializer)->serialize([
+            'historic_import' => [
+                'concatenation' => 'none',
+                'sources' => [['sha256' => str_repeat('c', 64), 'size' => 99]],
+                'editorial_facts' => [
+                    'occasion' => 'Harvest Thanksgiving',
+                    'title' => 'The God Who Provides',
+                    'speaker' => 'Rev. Alan Brown',
+                    'scripture_reference' => 'Ruth 2:1-23',
+                    'series' => 'Ruth',
+                ],
+            ],
+        ]);
+
+        $this->assertSame([
+            'occasion' => 'Harvest Thanksgiving',
+            'title' => 'The God Who Provides',
+            'speaker' => 'Rev. Alan Brown',
+            'scripture_reference' => 'Ruth 2:1-23',
+            'series' => 'Ruth',
+        ], $result['historic_import']['editorial_facts']);
+    }
+
+    #[Test]
+    public function it_omits_editorial_facts_that_were_left_undecided(): void
+    {
+        $result = (new HistoricProcessingMetadataSerializer)->serialize([
+            'historic_import' => [
+                'concatenation' => 'none',
+                'sources' => [['sha256' => str_repeat('d', 64), 'size' => 42]],
+                'editorial_facts' => [
+                    'occasion' => null,
+                    'title' => null,
+                    'speaker' => null,
+                    'scripture_reference' => null,
+                    'series' => null,
+                ],
+            ],
+        ]);
+
+        $this->assertArrayNotHasKey('editorial_facts', $result['historic_import']);
+    }
+
+    #[Test]
+    public function it_still_rejects_an_editorial_fact_carrying_an_absolute_path(): void
+    {
+        $this->expectException(RuntimeException::class);
+
+        (new HistoricProcessingMetadataSerializer)->serialize([
+            'historic_import' => [
+                'editorial_facts' => ['title' => '/Volumes/CBC Drive/leaked.mkv'],
+            ],
+        ]);
+    }
 }

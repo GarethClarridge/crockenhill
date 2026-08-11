@@ -62,7 +62,23 @@ final readonly class SermonCreationOptions
 
         // Bypass the upsert reject path (used by the historic-video import --force flag)
         public bool $forceOverwrite = false,
+
+        // Curated historic manifest facts; outrank ID3 and AI where present (F44)
+        public ?HistoricEditorialFacts $editorialFacts = null,
     ) {}
+
+    /**
+     * Curated facts describe the service's sermon, so they must not be applied
+     * to a children's talk extracted from the same recording.
+     */
+    public function curatedFacts(): ?HistoricEditorialFacts
+    {
+        if ($this->contentType !== SermonContentType::Sermon) {
+            return null;
+        }
+
+        return $this->editorialFacts;
+    }
 
     /**
      * Create options for audio upload processing
@@ -94,6 +110,7 @@ final readonly class SermonCreationOptions
             id3Series: $id3?->series,
             id3Reference: $id3?->reference,
             duration: $log->duration,
+            editorialFacts: $log->processing_metadata?->editorialFacts,
         );
     }
 
@@ -128,6 +145,7 @@ final readonly class SermonCreationOptions
             id3Series: $id3?->series,
             id3Reference: $id3?->reference,
             duration: $log->duration,
+            editorialFacts: $log->processing_metadata?->editorialFacts,
         );
     }
 
@@ -144,6 +162,8 @@ final readonly class SermonCreationOptions
      */
     public static function fromLivestream(MediaProcessingLog $log, array $metadata): self
     {
+        $facts = $log->processing_metadata?->editorialFacts;
+
         return new self(
             audioFilePath: self::requireAudioFilePath($log->audio_file_path, $log->processing_id),
             originalFilename: $metadata['original_filename'] ?? $log->original_filename,
@@ -153,8 +173,12 @@ final readonly class SermonCreationOptions
             segmentStartTime: $metadata['segment_start_time'] ?? null,
             segmentEndTime: $metadata['segment_end_time'] ?? null,
             titleStrategy: TitleGenerationStrategy::FilenameOnly,
+            preacher: $facts?->speaker,
+            preacherSource: $facts?->speaker === null ? null : PreacherSource::Manual,
+            needsPreacherReview: $facts?->speaker === null ? null : false,
             service: $log->extracted_service,
             date: $log->extracted_date?->toDateString(),
+            editorialFacts: $facts,
         );
     }
 
@@ -165,6 +189,15 @@ final readonly class SermonCreationOptions
         SermonService $service
     ): self {
         $speaker = $section->publicationChildrensTalkSpeaker();
+        $contentType = $section->section_type === ServiceSectionType::ChildrensTalk
+            ? SermonContentType::ChildrensTalk
+            : SermonContentType::Sermon;
+
+        $facts = $contentType === SermonContentType::Sermon
+            ? $log->processing_metadata?->editorialFacts
+            : null;
+
+        $curatedSpeaker = $speaker === null ? $facts?->speaker : null;
 
         return new self(
             audioFilePath: self::requireAudioFilePath($section->extracted_audio_path, $log->processing_id),
@@ -174,19 +207,20 @@ final readonly class SermonCreationOptions
             livestreamProcessingId: $log->processing_id,
             segmentStartTime: $section->start_time,
             segmentEndTime: $section->end_time,
-            contentType: $section->section_type === ServiceSectionType::ChildrensTalk
-                ? SermonContentType::ChildrensTalk
-                : SermonContentType::Sermon,
+            contentType: $contentType,
             titleStrategy: TitleGenerationStrategy::FilenameOnly,
-            preacher: $speaker['preacher_name'] ?? null,
+            preacher: $speaker['preacher_name'] ?? $curatedSpeaker,
             preacherId: $speaker['preacher_id'] ?? null,
-            preacherSource: isset($speaker['source']) ? PreacherSource::tryFrom((string) $speaker['source']) : null,
+            preacherSource: isset($speaker['source'])
+                ? PreacherSource::tryFrom((string) $speaker['source'])
+                : ($curatedSpeaker === null ? null : PreacherSource::Manual),
             preacherConfidence: $speaker['confidence'] ?? null,
             needsPreacherReview: false,
             service: $service,
             date: $date,
             customTitle: $section->title,
             duration: (float) $section->duration,
+            editorialFacts: $facts,
         );
     }
 

@@ -71,4 +71,103 @@ class SermonCreationOptionsTest extends TestCase
         $this->assertSame(120.0, $options->segmentStartTime);
         $this->assertSame(480.0, $options->segmentEndTime);
     }
+
+    /**
+     * F44: curated manifest facts describe the service's sermon. A children's
+     * talk extracted from the same recording must not inherit them.
+     */
+    #[Test]
+    public function curated_facts_do_not_reach_a_childrens_talk_from_the_same_recording(): void
+    {
+        $processingLog = $this->historicLogWithCuratedFacts();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::ChildrensTalk,
+            'title' => "Children's Talk",
+            'extracted_audio_path' => 'sermons/audio/section-70.mp3',
+        ]);
+
+        $options = SermonCreationOptions::fromServiceSection(
+            $section,
+            $processingLog,
+            date: '2019-10-06',
+            service: SermonService::Morning
+        );
+
+        $this->assertNull($options->editorialFacts);
+        $this->assertNull($options->curatedFacts());
+        $this->assertNull($options->preacher);
+    }
+
+    #[Test]
+    public function curated_facts_reach_a_sermon_section(): void
+    {
+        $processingLog = $this->historicLogWithCuratedFacts();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::Sermon,
+            'title' => 'Sermon',
+            'extracted_audio_path' => 'sermons/audio/section-71.mp3',
+        ]);
+
+        $options = SermonCreationOptions::fromServiceSection(
+            $section,
+            $processingLog,
+            date: '2019-10-06',
+            service: SermonService::Morning
+        );
+
+        $this->assertSame('The God Who Provides', $options->curatedFacts()?->title);
+        $this->assertSame('Harvest Thanksgiving', $options->curatedFacts()?->occasion);
+        $this->assertSame('Rev. Alan Brown', $options->preacher);
+        $this->assertSame(PreacherSource::Manual, $options->preacherSource);
+    }
+
+    #[Test]
+    public function livestream_options_carry_curated_facts_and_speaker(): void
+    {
+        $processingLog = $this->historicLogWithCuratedFacts();
+
+        $options = SermonCreationOptions::fromLivestream($processingLog, []);
+
+        $this->assertSame('The God Who Provides', $options->curatedFacts()?->title);
+        $this->assertSame('Rev. Alan Brown', $options->preacher);
+        $this->assertSame(PreacherSource::Manual, $options->preacherSource);
+        $this->assertFalse($options->needsPreacherReview);
+    }
+
+    #[Test]
+    public function an_ordinary_livestream_run_carries_no_curated_facts(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'audio_file_path' => 'sermons/audio/ordinary.mp3',
+        ]);
+
+        $options = SermonCreationOptions::fromLivestream($processingLog, []);
+
+        $this->assertNull($options->editorialFacts);
+        $this->assertNull($options->preacher);
+        $this->assertNull($options->preacherSource);
+    }
+
+    private function historicLogWithCuratedFacts(): MediaProcessingLog
+    {
+        return MediaProcessingLog::factory()->livestream()->create([
+            'audio_file_path' => 'sermons/audio/historic.mp3',
+            'processing_metadata' => [
+                'historic_import' => [
+                    'tag' => 'livestream',
+                    'editorial_facts' => [
+                        'occasion' => 'Harvest Thanksgiving',
+                        'title' => 'The God Who Provides',
+                        'speaker' => 'Rev. Alan Brown',
+                        'scripture_reference' => 'Ruth 2:1-23',
+                        'series' => 'Ruth',
+                    ],
+                ],
+            ],
+        ]);
+    }
 }

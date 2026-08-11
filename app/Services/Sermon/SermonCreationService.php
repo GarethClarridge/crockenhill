@@ -427,7 +427,7 @@ class SermonCreationService
         string $sermonDate,
         SermonService $service,
     ): Sermon {
-        $title = $this->generateTitle(
+        $title = $options->curatedFacts()->title ?? $this->generateTitle(
             $options->titleStrategy,
             [
                 'ai_analysis' => $options->aiAnalysis,
@@ -498,13 +498,19 @@ class SermonCreationService
             $sermonData['livestream_processing_id'] = $options->livestreamProcessingId;
         }
 
-        if ($options->id3Series) {
+        $curated = $options->curatedFacts();
+
+        if ($curated?->series !== null) {
+            $sermonData['series'] = $curated->series;
+        } elseif ($options->id3Series) {
             $sermonData['series'] = $options->id3Series;
         } elseif ($options->aiAnalysis && isset($options->aiAnalysis['series'])) {
             $sermonData['series'] = $options->aiAnalysis['series'];
         }
 
-        if ($options->id3Reference) {
+        if ($curated?->scriptureReference !== null) {
+            $sermonData['reference'] = $curated->scriptureReference;
+        } elseif ($options->id3Reference) {
             $sermonData['reference'] = $options->id3Reference;
         } elseif ($options->aiAnalysis && isset($options->aiAnalysis['reference'])) {
             $sermonData['reference'] = $options->aiAnalysis['reference'];

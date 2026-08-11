@@ -978,4 +978,108 @@ class SermonCreationServiceTest extends TestCase
                 ->count()
         );
     }
+
+    /**
+     * F44: without the curated facts the filename strategy leaves this sermon
+     * titled only "Morning", which is the loss the readiness plan describes.
+     */
+    #[Test]
+    public function curated_historic_facts_outrank_the_filename_title(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'audio_file_path' => 'sermons/audio/2019-10-06.mp3',
+            'original_filename' => '2019-10-06 Morning.mkv',
+            'extracted_date' => '2019-10-06',
+            'extracted_service' => SermonService::Morning,
+            'processing_metadata' => [
+                'historic_import' => [
+                    'tag' => 'livestream',
+                    'editorial_facts' => [
+                        'occasion' => 'Harvest Thanksgiving',
+                        'title' => 'The God Who Provides',
+                        'speaker' => 'Alan Brown',
+                        'scripture_reference' => 'Ruth 2:1-23',
+                        'series' => 'Ruth',
+                    ],
+                ],
+            ],
+        ]);
+
+        $options = SermonCreationOptions::fromLivestream($log, []);
+        $sermon = $this->service->createSermon($log, $options);
+
+        $this->assertSame('The God Who Provides', $sermon->title);
+        $this->assertSame('Ruth', $sermon->series);
+        $this->assertSame('Ruth 2:1-23', $sermon->reference);
+        $this->assertSame('Alan Brown', $sermon->preacher);
+        $this->assertSame(PreacherSource::Manual, $sermon->preacher_source);
+        $this->assertFalse($sermon->needs_preacher_review);
+    }
+
+    #[Test]
+    public function curated_facts_outrank_id3_and_ai_analysis(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'processing_type' => 'audio',
+            'source_file_path' => 'sermons/audio/2019-10-06.mp3',
+            'original_filename' => 'harvest.mp3',
+            'extracted_date' => '2019-10-06',
+            'extracted_service' => SermonService::Morning,
+            'processing_metadata' => [
+                'id3_metadata' => [
+                    'title' => 'Track 04',
+                    'series' => 'Unsorted',
+                    'reference' => 'Ruth 1',
+                ],
+                'historic_import' => [
+                    'editorial_facts' => [
+                        'occasion' => null,
+                        'title' => 'The God Who Provides',
+                        'speaker' => null,
+                        'scripture_reference' => 'Ruth 2:1-23',
+                        'series' => 'Ruth',
+                    ],
+                ],
+            ],
+        ]);
+
+        $options = SermonCreationOptions::fromAudioUpload($log, [
+            'title' => 'An AI Guess',
+            'series' => 'AI Series',
+            'reference' => 'Ruth 3',
+            'points' => [],
+            'summary' => null,
+            'transcript' => '',
+        ]);
+        $sermon = $this->service->createSermon($log, $options);
+
+        $this->assertSame('The God Who Provides', $sermon->title);
+        $this->assertSame('Ruth', $sermon->series);
+        $this->assertSame('Ruth 2:1-23', $sermon->reference);
+    }
+
+    #[Test]
+    public function an_ordinary_run_is_unaffected_by_the_curated_fact_path(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'processing_type' => 'audio',
+            'source_file_path' => 'audio/ordinary.mp3',
+            'original_filename' => '2024-03-15-morning-sermon.mp3',
+            'processing_metadata' => [],
+        ]);
+
+        $options = SermonCreationOptions::fromAudioUpload($log, [
+            'title' => 'The Power of Prayer',
+            'series' => 'Prayer Series',
+            'reference' => 'Matthew 6:5-15',
+            'points' => [],
+            'summary' => null,
+            'transcript' => '',
+        ]);
+        $sermon = $this->service->createSermon($log, $options);
+
+        $this->assertSame('The Power of Prayer', $sermon->title);
+        $this->assertSame('Prayer Series', $sermon->series);
+        $this->assertSame('Matthew 6:5-15', $sermon->reference);
+    }
 }

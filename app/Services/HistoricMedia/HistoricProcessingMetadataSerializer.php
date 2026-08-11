@@ -87,7 +87,35 @@ class HistoricProcessingMetadataSerializer
             'concatenation' => $historicImport['concatenation'] ?? null,
             'codec_fingerprint' => $historicImport['codec_fingerprint'] ?? null,
             'sources' => $sources,
+            'editorial_facts' => $this->portableEditorialFacts($historicImport['editorial_facts'] ?? null),
         ], fn (mixed $value): bool => $value !== null);
+    }
+
+    /**
+     * F44 requires the curated occasion/title/speaker/scripture/series facts to
+     * survive the one-time import. Title, speaker, scripture and series reach the
+     * destination on the sermon itself, but `occasion` has no column anywhere, so
+     * without carrying the block the curated fact is destroyed at this boundary.
+     *
+     * @return array<string, string>|null
+     */
+    private function portableEditorialFacts(mixed $editorialFacts): ?array
+    {
+        if (! is_array($editorialFacts)) {
+            return null;
+        }
+
+        $portable = [];
+
+        foreach (['occasion', 'title', 'speaker', 'scripture_reference', 'series'] as $field) {
+            $value = $editorialFacts[$field] ?? null;
+
+            if (is_string($value) && $value !== '') {
+                $portable[$field] = $value;
+            }
+        }
+
+        return $portable === [] ? null : $portable;
     }
 
     private function guardUnknownKey(string $key, mixed $value): void

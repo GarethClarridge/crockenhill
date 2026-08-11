@@ -18,6 +18,7 @@ final readonly class ProcessingMetadata extends JsonData
         public ?array $videoQuality = null,
         public ?string $videoProcessingMode = null,
         public ?bool $trimRequested = null,
+        public ?HistoricEditorialFacts $editorialFacts = null,
         public array $raw = [],
     ) {}
 
@@ -36,11 +37,19 @@ final readonly class ProcessingMetadata extends JsonData
                 : null,
             videoProcessingMode: self::stringOrNull($payload['video_processing_mode'] ?? null),
             trimRequested: self::boolOrNull($payload['trim_requested'] ?? null),
+            editorialFacts: HistoricEditorialFacts::fromArray(
+                $payload['historic_import']['editorial_facts'] ?? null
+            ),
             raw: $payload,
         );
     }
 
     /**
+     * `editorialFacts` is deliberately absent below: it is a read-only view onto
+     * `historic_import.editorial_facts`, which `raw` already round-trips whole.
+     * Writing it back would rebuild that block and drop its sibling manifest,
+     * staging and operation keys.
+     *
      * @return array<string, mixed>
      */
     public function toArray(): array

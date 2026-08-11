@@ -243,6 +243,45 @@ class HistoricMediaGraphPersisterTest extends TestCase
         $this->assertArrayNotHasKey('scripture_passage_id', $publication);
     }
 
+    /**
+     * F44: `occasion` has no column on any model, so the destination's processing
+     * metadata is the only place the curated fact can land. Losing it here means
+     * the one-time import destroyed a fact that cannot be re-derived.
+     */
+    #[Test]
+    public function it_lands_curated_editorial_facts_on_the_destination_run(): void
+    {
+        app(HistoricMediaGraphPersister::class)->persist($this->planWithGraph(
+            processingId: '00000000-0000-0000-0000-000000000031',
+            publications: [$this->publication()],
+            metadata: [
+                'historic_import' => [
+                    'tag' => 'livestream',
+                    'editorial_facts' => [
+                        'occasion' => 'Harvest Thanksgiving',
+                        'title' => 'The God Who Provides',
+                        'speaker' => 'Alan Brown',
+                        'scripture_reference' => 'Ruth 2:1-23',
+                        'series' => 'Ruth',
+                    ],
+                ],
+            ],
+        ));
+
+        $run = MediaProcessingLog::query()
+            ->where('processing_id', '00000000-0000-0000-0000-000000000031')
+            ->sole();
+
+        $this->assertSame(
+            'Harvest Thanksgiving',
+            $run->processing_metadata?->editorialFacts?->occasion,
+        );
+        $this->assertSame(
+            'Ruth 2:1-23',
+            $run->processing_metadata?->editorialFacts?->scriptureReference,
+        );
+    }
+
     #[Test]
     public function it_names_the_section_when_a_published_state_has_no_extraction_media(): void
     {
@@ -505,6 +544,7 @@ class HistoricMediaGraphPersisterTest extends TestCase
         array $publications = [],
         array $sections = [],
         array $assets = [],
+        array $metadata = [],
     ): HistoricProcessingResultImportPlan {
         $date = '2026-08-02';
 
@@ -540,7 +580,7 @@ class HistoricMediaGraphPersisterTest extends TestCase
                         'completed_at' => "{$date}T11:00:00+00:00",
                         'is_degraded_completion' => false,
                     ],
-                    'metadata' => [],
+                    'metadata' => $metadata,
                     'logical_hash' => str_repeat('d', 64),
                     'steps' => [],
                     'segments' => [],
