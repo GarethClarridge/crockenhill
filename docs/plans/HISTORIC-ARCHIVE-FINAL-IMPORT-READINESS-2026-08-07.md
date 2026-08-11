@@ -199,9 +199,9 @@ source-acquisition and operator item. Specifically noted for the next session:
   set explicitly before this deploys** or the public service archive goes dark. The maintainer's
   2026-08-10 decision is an early bound, which means the import's audience boundary rests on
   `publication_state` rather than on the service date gate.
-- F44 editorial facts are carried into `historic_import` processing metadata but nothing yet applies
+- ~~F44 editorial facts are carried into `historic_import` processing metadata but nothing yet applies
   them to a sermon's title/occasion/speaker/scripture/series. The plumbing exists; the consumer does
-  not.
+  not.~~ **Implemented 2026-08-11; see the entry below.** The rehearsal proof remains unrun.
 - ~~`HistoricSermonPublicationService::release()` has no operator command and no batch gate.~~
   **Implemented 2026-08-10; see the entry below.** The exercise itself remains unrun.
 - ~~`HistoricImportMutationFreeze` blocks every save and delete on eleven core models with an
@@ -297,6 +297,59 @@ there is the operator-facing message. Narrowing those catches is ordinary follow
 **Gates:** `artisan test --parallel` green (6346 tests), `composer phpstan` clean, `pint --dirty`
 applied, `artisan dusk` green (55 tests). This entry closes no gate: F46 still requires the freeze,
 approval binding, watchboard and two-person control to pass a production-shaped rehearsal.
+
+### 2026-08-11 — F44 consumer implemented; two plan claims corrected
+
+**Two items this plan listed as open were already done.** Verifying before building found that
+F59's portable Scripture Passage contract is implemented (`HistoricNormalOutputContract` carries
+`scripture_passage` as a natural key, `HistoricMediaGraphPersister::resolveScripturePassageId()`
+relinks it, `HistoricProcessingResultReadinessService` gates export on settled outcomes) — the
+2026-08-10 batch entry simply never mentioned it. F44's same-day identity collision is likewise
+already guarded in both manifests: `OosCurationManifest`'s `leavesByService` permits at most one
+active non-superseded full order per `(date, service)`, and `HistoricVideoCurationManifest::
+validateServiceIdentities()` rejects any two included entries sharing that identity.
+
+**Maintainer decision, 2026-08-11:** confirm the fail-closed guard as the answer to F44's identity
+question. No `occasion` column and no widening of `UNIQUE (date, service)`. The measured basis: of
+the approved Email manifest's 14 colliding identities, ten are supersession chains and four are
+complementary partials — **zero** are two distinct same-day events. A schema change would be
+speculative; the guard converts the still-unknown video case into a refusal during curation.
+
+**What was implemented.** The curated `editorial_facts` block stopped at
+`MediaProcessingLog.metadata.historic_import.editorial_facts`: nothing applied it to a sermon, and
+`HistoricProcessingMetadataSerializer::portableHistoricImport()` is an allowlist of `tag`,
+`concatenation`, `codec_fingerprint` and `sources`, so the facts were **stripped at the Bundle A
+boundary** and never left the local machine. Now: a typed `HistoricEditorialFacts` value object is
+exposed on `ProcessingMetadata`; `SermonCreationOptions` carries it from all four factories and
+`SermonCreationService` gives it precedence over ID3 and AI for title, series and scripture
+reference, with a curated speaker resolving through the existing explicit-preacher branch as
+`PreacherSource::Manual`; and `editorial_facts` is now portable, so it reaches the destination's
+processing log.
+
+Two scoping rules are asserted by test rather than left implicit. Curated facts describe the
+service's sermon, so `curatedFacts()` withholds them from a children's talk extracted from the same
+recording, and a curated speaker never displaces a reviewed children's-talk speaker. `occasion` is
+deliberately carried as provenance only — it has no column on any model, which is precisely why
+losing it at the bundle boundary was unrecoverable.
+
+**Gates:** `artisan test --parallel` green (6357 tests), `composer phpstan` clean, `pint --dirty`
+applied, `artisan dusk` green (55 tests). The serializer test was verified red-to-green by disabling
+the allowlist entry. **This entry closes no gate:** F44 also requires the same-day identity ruling to
+survive video manifest curation against the real drive, and the curated facts to be proven end to end
+in the production-shaped rehearsal.
+
+**Curation defect found, not fixed.** `2026-06-21-am-revised` carries no `supersedes` while all ten
+other revision entries do. Its source is a `RE:` reply from `pastor@crockenhill.org` reproducing
+Laurie's order with one line changed (`Hymn (Mark to choose)` → `Hymn 868`), and its own curation note
+says so. It is a correction chain, not a complementary partial. Both entries are `content_scope:
+partial`, which is why `leavesByService` did not catch it — that guard counts only `full` leaves. The
+entry appears identically in the 404-entry `approved-2026-08-06` manifest, so the defect predates the
+expansion and was carried forward by the preserve-prior-decisions rule. Left unfixed, F30 links
+nothing for this service and the superseded placeholder survives into projection alongside hymn 868.
+**Re-curating it invalidates the recorded manifest and plan hashes in §3, so it needs an explicit
+maintainer decision.** The other three non-superseding collisions (`2017-06-11`, `2019-11-17`,
+`2020-02-16`) were checked and are genuinely complementary — different senders, different subjects,
+disjoint content.
 
 ### 2026-08-08 — continuation audit scope and completion
 
@@ -1201,7 +1254,8 @@ review. Those topics are not import gates.
 | Disposition of production services with canonical items but no retained evidence | Maintainer | Current-era rehearsal/G7 | No-go |
 | Exact existing visibility assigned to imported sermons/assets | Maintainer | Before production rehearsal because of F29 | No broader audience/no-go |
 | Existing verified-email audience and existing external-model arrangement | Maintainer | **Decided 2026-08-08; accepted as-is (F42/F43)** | Accepted/non-blocking |
-| Same-day special-service identity and retained occasion/title facts | Maintainer + editorial owner | Before final manifests (F44) | Unresolved items excluded/no-go |
+| Same-day special-service identity and retained occasion/title facts | Maintainer + editorial owner | Before final manifests (F44) | **Decided 2026-08-11: fail closed on collision, no schema change; curated facts consumed and carried.** Video manifest curation must still exercise it |
+| Re-curate `2026-06-21-am-revised` with its missing `supersedes` (invalidates recorded manifest/plan hashes) | Maintainer | Before Email staging | Undecided; two active leaves reach projection |
 | Scripture Passage remap/refetch and approved terminal-absence policy | Maintainer + editorial owner | Before Bundle A contract freeze (F59) | No export/no-go |
 | Final include/exclude/duplicate/identity decisions in OpenLP/video manifests | Maintainer | G1/G5 | Exclude/unresolved; no processing |
 | Accepted accuracy threshold and treatment below it | Church governance + maintainer | Calibration/G7 | Private |
