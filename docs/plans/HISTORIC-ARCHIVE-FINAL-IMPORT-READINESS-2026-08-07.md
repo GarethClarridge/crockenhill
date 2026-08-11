@@ -787,6 +787,43 @@ supersession hold were each verified red-to-green by disabling them.
 **This entry closes no gate.** The fixes are untested against the corpus itself: the staging run has
 not been repeated, so neither the three entries nor the 458-entry held population has moved.
 
+### 2026-08-11 — second staging run: no defects left, and the real blocker is now visible
+
+Re-run over the complete corpus into a freshly provisioned and certified database, so every entry
+re-parsed rather than reusing the first run's caches — the extractor fixes only exercise on a real
+call. Report: `storage/scratch/rehearsal-staging-2026-08-11-run2.json`.
+
+**Zero errors, down from three.** Dispositions are now 462 `held_for_review` and 72 `created`, with
+no `failed`, no `import_failed` and no entry carrying an error at all. Each fix is confirmed on the
+data that exposed it: `2018-09-23` now parses and holds at 0.74 instead of failing the identity
+column; `2020-03-29` parses and holds at 0.70 instead of losing the service to one unusable
+response; and `2026-03-15-am-second-hand` parses at **0.93 — above the auto-import bar — and is
+still held**, carrying `superseded_predecessor_not_imported`, because its predecessor held at 0.86.
+That last one is the chain rule working exactly as intended.
+
+**F1 holds again**: 90 services, of which 69 carry an approved manifest identity and 21 are
+explained excess, with **0 unexplained**.
+
+**The run still exits 1, and now for the honest reason.** `hasUnsettledResults()` counts
+`held_for_review` as unsettled, so F32's closeout refuses while any approved item awaits a human
+decision. With no defects left, the exit code is measuring exactly one thing: **462 of 534 entries
+are in the review inbox**. The corpus operation cannot complete, and step 4's census cannot be
+meaningful, until that population is worked down. That is a corpus and threshold judgement, not a
+defect to fix.
+
+**New finding — the staging outcome is not reproducible run to run.** Identical inputs, identical
+manifest and identical code produced 98 services in run 1 and 90 in run 2; date accuracy moved
+71.7% → 70.4% and auto-import precision 73.0% → 71.8%. The cause is the extractor: confidences
+vary per call, and entries near the 0.90 bar cross it in either direction. **Reruns are stable only
+because parse results are cached**, so the no-op rerun G3 requires is a property of the parse cache,
+not of the model. Any procedure that re-parses — a fresh rehearsal database, a cache invalidation, a
+`--fresh-parse`, or a `ParserVersion` bump — will produce a materially different held/created split.
+This needs stating in the runbook, because "run it again and get the same answer" is currently true
+for the wrong reason.
+
+**This entry closes no gate.** Step 3 still exits non-zero by design, and G5 remains unclaimable
+while the review population stands.
+
 ### 2026-08-08 — continuation audit scope and completion
 
 The first audit's technical, operational and business agents exhausted their usage after delivering
