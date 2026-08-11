@@ -24,6 +24,14 @@ return [
         // it defaults to the cheapest current model rather than tracking the analysis default.
         'model' => env('OOS_EMAIL_PARSING_MODEL', 'gpt-5.4-nano'),
         'reasoning_effort' => env('OOS_EMAIL_PARSING_REASONING_EFFORT', 'minimal'),
+        // Output budget for one extraction. Was a hard-coded 3000, which the
+        // 2026-08-11 staging run outgrew: identical requests for one 49-line email
+        // returned 991, 1081 and 1743 output tokens, and a truncated response
+        // surfaced only as an undiagnosable JSON decode failure.
+        'max_completion_tokens' => (int) env('OOS_EMAIL_PARSING_MAX_COMPLETION_TOKENS', 6000),
+        // Re-asks when the model returns something unusable. One flaky call used to
+        // lose a service permanently and fail the whole corpus closeout with it.
+        'extraction_attempts' => (int) env('OOS_EMAIL_PARSING_EXTRACTION_ATTEMPTS', 3),
         'review_threshold' => 0.75,
         'auto_import_threshold' => 0.90,
     ],

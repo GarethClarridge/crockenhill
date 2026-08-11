@@ -672,6 +672,121 @@ failure mode recorded on 2026-08-11 for F59 and F44. Item 2's PR26 is implemente
 maintainer accepted manual SSH audits as the permanent path and the audit had already been run. All
 three are struck below.
 
+### 2026-08-11 — first full Email staging run: refused by its own closeout
+
+§13.5 step 3 ran for the first time, over the complete approved corpus, into the freshly provisioned
+and certified rehearsal database. **It exited 1.** F32's closeout guard refused with *"Approved OoS
+corpus closeout is incomplete; no definitive operation can report success"*, because three entries
+errored. That is the guard doing exactly its job, and it is the correct outcome to record: the run
+processed all 534 entries and still must not be called a success.
+
+**What staged.** 534 `inbound_emails` (every approved entry reached the parser), 99
+`church_service_source_records`, 98 `church_services`, 1,213 `church_service_items`, **0**
+`church_service_merge_proposals`. Dispositions: 458 `held_for_review`, 72 `created`, 2
+`import_failed`, 1 `failed`, 1 `merged`. Report:
+`storage/scratch/rehearsal-staging-2026-08-11.json`.
+
+**Three distinct defects, each needing its own fix:**
+
+- `2018-09-23` — `SQLSTATE[22001]: Data too long for column 'canonical_identity'`. A schema/data
+  defect, not a parse one; some composed identity exceeds its column.
+- `2020-03-29` — *"Failed to decode OoS email parser response as JSON."* Extractor robustness; needs
+  a retry/repair path or a recorded terminal disposition, not a silent loss.
+- `2026-03-15-am-second-hand` — *"The declared Email predecessor is absent from this church
+  service."* An F30 supersession-lineage case the manifest declares and the staged corpus cannot
+  satisfy. This is curation-adjacent and may be a second instance of the D1 class.
+
+**F1 holds against real data, for the first time.** 98 canonical services were created, of which 68
+carry an approved manifest identity and **30 do not** — every one of them an `evening` service.
+All 30 are explained by an entry flagged `service_beyond_manifest`, and **zero are unexplained**, so
+F1's rule ("additional identities only where explicitly explained; unexplained excess fails")
+passes. This is the ordinary shape the flag was written for: one Sunday email carrying both that
+morning's and that evening's order. `parse_flags` totals across the corpus: `low_confidence` 398,
+`service_beyond_manifest` 175, `date_mismatch` 150, `invalid_service` 69, `empty_items` 7.
+
+**The finding that matters most for step 4: there is almost nothing to census.** Zero proposals were
+raised, and only 99 of 534 entries produced normalized evidence — 458 are parked in the review inbox
+below the 0.90 auto-import threshold. §13.5 step 4 projects the staged corpus and converges the §9.4
+census over it; with 86% of the corpus held rather than projected, the census would describe 98
+services and the automate-first loop would have no proposal population to work against. The review
+load §9.4 exists to design down is now measurable at full scale, and it is 458 entries.
+
+**Calibration, read carefully.** Date accuracy 71.7% (full 76.1%, partial 42.0%) and auto-import
+precision 73.0% both measure the *parser's unaided* extraction against the manifest, not the
+correctness of what was imported: §7.3 makes the manifest authoritative for identity, and the
+verified 68/30 split above is the actual identity outcome. These are the live weekly pipeline's
+calibration numbers, and against D4's floors they are poor — but D4's floors apply to asserted
+facts, and this run asserts the manifest's identity, not the parser's. Confidence calibration is
+0.90–1.00: 172 entries at 0.75 accuracy; 0.75–0.89: 163 at 0.687; 0.50–0.74: 247 at 0.186;
+0.00–0.49: 38 at 0.184.
+
+**A reporting trap found while reading the report.** Every entry carries both `flags` and
+`parse_flags`. `flags` is populated only for `source_updated_after_import`, so across this run it was
+empty on all 534 entries while `parse_flags` held everything — which is exactly how it was misread
+here at first. The two near-synonymous keys should be merged or renamed.
+
+**This entry closes no gate.** Step 3 is not complete — it exited 1, three entries errored and 458
+are unprojected. G5 is not claimable, and step 4 should not start until the held population is
+either automated down or explicitly re-scoped.
+
+### 2026-08-11 — the three staging defects fixed
+
+Each was reproduced by a failing test before it was fixed, and each turned out to be a general
+defect rather than a property of the entry that exposed it.
+
+**1. Unbounded parser output into bounded columns (`2018-09-23`).** The source is a conversational
+note, not an order of service — *"Peter – I have 2 videos from YouTube for my WWUTT talk…"* — and the
+parser read one 265-character line as an item title. `canonical_identity` is composed as
+`{type}:{normalized title}#{occurrence}` and stored in a `varchar(255)`, so the insert failed after
+the service's run had already begun writing.
+
+Fixed in two places, because there are two distinct overruns. `ChurchServiceProjector::boundedIdentity()`
+bounds the identity to 200 characters, keeping a readable prefix and appending a digest of the whole
+value — truncation alone would let two long titles sharing a prefix collapse into one identity and
+project as the same item, which is worse than the crash. Hashing the whole input keeps it stable
+across runs, which identity matching between revisions depends on.
+`ChurchServiceAssertionNormalizer::boundedText()` then bounds `title`, `source_title`,
+`normalized_title`, `scripture_reference` and `normalized_scripture_key` to their own 255-character
+columns; that is the adjacent crash the same corpus would have reached with a slightly longer line,
+and the normalizer is the one place every source's items pass through.
+
+**2. A transient extractor failure lost a service permanently (`2020-03-29`).** Re-running the same
+input parsed it cleanly, so the failure was not deterministic. Measuring the same 49-line email three
+times returned 991, 1,081 and 1,743 output tokens against a hard-coded 3,000 budget — a spread wide
+enough that identical requests will occasionally truncate, and a `json_schema` response format means
+truncation is essentially the only ordinary way decoding fails.
+
+Three changes. The extractor now retries a bounded number of times
+(`service-tracking.email_parsing.extraction_attempts`, default 3), because re-asking is the remedy
+the evidence supports; configuration faults are raised before the loop so they cannot be retried. A
+`finish_reason` of `length` now raises a message naming the budget instead of the undiagnosable
+"failed to decode". And the budget itself is configurable, defaulting to 6,000.
+
+**3. Correction chains were not admitted as a unit (`2026-03-15-am-second-hand`).** The predecessor
+parsed at 0.85 and was held for review, so it never received a source record; the correction parsed
+at 0.92, imported, and `IngestChurchServiceSourceRevision` refused it because the record it declares
+it supersedes was absent. The confidence gate and the supersession contract were simply independent,
+and nothing reconciled them — so this would recur anywhere in the corpus's ten chains where member
+confidences straddle 0.90.
+
+`reviewReasons()` now holds a superseding entry whose predecessor this run has not imported, under
+the reason `superseded_predecessor_not_imported`. Holding the successor was chosen over importing the
+predecessor regardless of confidence, which would let the auto-import bar be bypassed by attaching a
+correction to a held entry. A correction chain is one editorial decision, so it is now reviewed as
+one.
+
+**A behaviour change worth noting.** The retry altered what three existing extractor tests exercised:
+they supply one unusable response and expect a throw, and the retry consumed the next queued fake.
+They now pin `extraction_attempts` to 1, because they are about how a single response is validated,
+not about re-asking.
+
+**Gates:** `artisan test --parallel` green (6,392 tests, 81,413 assertions), `composer phpstan`
+clean, `pint --dirty` passed, `artisan dusk` green (55 tests). The identity bound and the
+supersession hold were each verified red-to-green by disabling them.
+
+**This entry closes no gate.** The fixes are untested against the corpus itself: the staging run has
+not been repeated, so neither the three entries nor the 458-entry held population has moved.
+
 ### 2026-08-08 — continuation audit scope and completion
 
 The first audit's technical, operational and business agents exhausted their usage after delivering

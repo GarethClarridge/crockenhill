@@ -9,6 +9,7 @@ use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailSourceDocument;
 use App\Support\OpenAiChatPayload;
 use App\Support\OpenAiUsageLogger;
+use Illuminate\Support\Facades\Log;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Chat\CreateResponse;
 use RuntimeException;
@@ -67,6 +68,38 @@ class OpenAiOosEmailItemExtractor implements CorrectiveOosEmailItemExtractor
             $userContent .= "\n\n{$correctionContext}";
         }
 
+        $attempts = max(1, (int) config('service-tracking.email_parsing.extraction_attempts', 3));
+
+        for ($attempt = 1; ; $attempt++) {
+            try {
+                return $this->attempt($model, $userContent);
+            } catch (RuntimeException $exception) {
+                /*
+                 * Every failure `attempt()` raises is "the model returned something
+                 * unusable", and asking again is the remedy — verified on the entry
+                 * the 2026-08-11 staging run lost, which parsed cleanly on the next
+                 * call with an unchanged input. Without this, one flaky call
+                 * permanently loses a service and F32's closeout then refuses the
+                 * whole corpus operation on account of it.
+                 *
+                 * Configuration faults are raised before this loop, so they cannot
+                 * be retried.
+                 */
+                if ($attempt >= $attempts) {
+                    throw $exception;
+                }
+
+                Log::warning('Retrying OoS email extraction', [
+                    'attempt' => $attempt,
+                    'attempts' => $attempts,
+                    'reason' => $exception->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    private function attempt(string $model, string $userContent): OosEmailItemExtractionResult
+    {
         $response = OpenAI::chat()->create(OpenAiChatPayload::forModel([
             'model' => $model,
             'messages' => [
@@ -88,12 +121,26 @@ class OpenAiOosEmailItemExtractor implements CorrectiveOosEmailItemExtractor
                 ],
             ],
             'temperature' => 0.1,
-            'max_completion_tokens' => 3000,
+            'max_completion_tokens' => $this->maxCompletionTokens(),
         ], reasoningEffort: (string) config('service-tracking.email_parsing.reasoning_effort', 'minimal')));
 
         OpenAiUsageLogger::log($response, 'oos_email_parsing', $model);
 
         return $this->resultFromResponse($response);
+    }
+
+    /**
+     * The completion budget one email's extraction may use.
+     *
+     * Measured on the 2026-08-11 corpus: the same 49-line email returned 991,
+     * 1,081 and 1,743 output tokens on three consecutive calls, so the spread
+     * between identical requests is wide enough that a budget sized to the
+     * typical response will occasionally truncate. Configurable because the
+     * ceiling is a property of the corpus, not of the code.
+     */
+    private function maxCompletionTokens(): int
+    {
+        return (int) config('service-tracking.email_parsing.max_completion_tokens', 6000);
     }
 
     private function systemPrompt(): string
@@ -240,6 +287,21 @@ TEXT;
 
         if (! is_string($content) || trim($content) === '') {
             throw new RuntimeException('Received empty response from OpenAI when parsing OoS email.');
+        }
+
+        /*
+         * A `json_schema` response format cannot emit malformed JSON, so the only
+         * ordinary way decoding fails is a response cut off at the completion
+         * budget. Saying so is the difference between a diagnosable failure and
+         * the bare "failed to decode" that cost the 2026-08-11 staging run an
+         * entry nobody could explain from the message alone.
+         */
+        if (($response->choices[0]->finishReason ?? null) === 'length') {
+            throw new RuntimeException(sprintf(
+                'OoS email parser response was truncated at the %d-token completion budget; raise '
+                .'service-tracking.email_parsing.max_completion_tokens or split the email.',
+                $this->maxCompletionTokens(),
+            ));
         }
 
         $decoded = json_decode($content, true);

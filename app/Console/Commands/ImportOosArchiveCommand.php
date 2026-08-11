@@ -213,6 +213,14 @@ class ImportOosArchiveCommand extends Command
         $songTitleResolver = $dryRun ? null : SongTitleResolver::fromDatabase();
         $results = [];
 
+        /**
+         * Source keys this run has given a source record, so a superseding entry can
+         * tell whether the predecessor it declares actually exists yet.
+         *
+         * @var array<string, true> $importedSourceKeys
+         */
+        $importedSourceKeys = [];
+
         foreach ($entries as $entry) {
             $this->line("Evaluating #{$entry->index}: {$entry->itemKey}");
 
@@ -226,7 +234,13 @@ class ImportOosArchiveCommand extends Command
                 [$inboundEmail, $sourceUpdatedAfterImport] = $this->synchroniseEmail($entry, $plan);
                 $parseResult = $this->parseResult($entry, $inboundEmail, $emailParser, $importService);
                 $eligiblePlanKeys = $this->importablePlanKeys($entry, $parseResult);
-                $reviewReasons = $this->reviewReasons($entry, $parseResult, $sourceUpdatedAfterImport, $eligiblePlanKeys);
+                $reviewReasons = $this->reviewReasons(
+                    $entry,
+                    $parseResult,
+                    $sourceUpdatedAfterImport,
+                    $eligiblePlanKeys,
+                    $shouldImport ? $importedSourceKeys : null,
+                );
                 $importError = null;
 
                 if ($reviewReasons !== []) {
@@ -261,6 +275,11 @@ class ImportOosArchiveCommand extends Command
                             // the email stays Pending and the inbox picks it up.
                             default => 'held_for_review',
                         };
+
+                        if ($disposition === 'created' || $disposition === 'merged') {
+                            // This entry now has a source record a later entry may supersede.
+                            $importedSourceKeys[$entry->sourceKey] = true;
+                        }
                     }
                 }
 
@@ -596,6 +615,11 @@ class ImportOosArchiveCommand extends Command
      * existing edit-and-approve workbench takes it from there.
      *
      * @param  list<string>  $eligiblePlanKeys
+     * @param  array<string, true>|null  $importedSourceKeys  Source keys already given a source
+     *                                                        record by this run; null outside
+     *                                                        import mode, where no canonical
+     *                                                        state exists for a predecessor to
+     *                                                        be absent from.
      * @return list<string>
      */
     private function reviewReasons(
@@ -603,8 +627,31 @@ class ImportOosArchiveCommand extends Command
         OosEmailParseResult $parseResult,
         bool $sourceUpdatedAfterImport,
         array $eligiblePlanKeys,
+        ?array $importedSourceKeys = null,
     ): array {
         $reasons = [];
+
+        /**
+         * A correction chain is admitted or held as a unit.
+         *
+         * The confidence gate and the supersession contract were independent, and
+         * the 2026-08-11 staging run found where that breaks: `2026-03-15-am`
+         * parsed at 0.85 and was held, its correction parsed at 0.92 and imported,
+         * and `IngestChurchServiceSourceRevision` then refused the correction
+         * because the predecessor it supersedes had no source record. The entry was
+         * lost and F32's closeout refused the whole corpus on account of it.
+         *
+         * Holding the successor keeps the chain reviewable as the single editorial
+         * decision it actually is, and never imports a correction whose base the
+         * operator has not accepted. The alternative — importing the predecessor
+         * regardless of confidence — would let the gate be bypassed by attaching a
+         * correction to it.
+         */
+        if ($importedSourceKeys !== null
+            && $entry->supersedesSourceKey !== null
+            && ! isset($importedSourceKeys[$entry->supersedesSourceKey])) {
+            $reasons[] = 'superseded_predecessor_not_imported';
+        }
 
         /**
          * §8.4: a partial order's silence is not disagreement, so it must never import

@@ -887,6 +887,65 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
     }
 
+    /**
+     * Found by the 2026-08-11 staging run, which lost `2026-03-15-am-second-hand`.
+     *
+     * The confidence gate and the supersession contract were independent: the
+     * predecessor parsed at 0.85 and was held for review, its correction parsed at
+     * 0.92 and imported, and the ingest then refused the correction because the
+     * record it supersedes did not exist. A correction chain is now admitted or
+     * held as a unit, so neither half can be imported without the other.
+     */
+    #[Test]
+    public function a_correction_is_held_when_its_predecessor_stayed_below_the_auto_import_bar(): void
+    {
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                $corrected = str_contains($subject, 'Corrected');
+                $confidence = $corrected ? 0.92 : 0.85;
+                $item = [
+                    'type' => 'song',
+                    'title' => $corrected ? 'Corrected order' : 'Original order',
+                    'source_line_ids' => [2],
+                    'continuation' => false,
+                ];
+
+                return new OosEmailItemExtractionResult(
+                    items: [$item],
+                    confidence: $confidence,
+                    services: [[
+                        'service' => 'morning', 'date' => '2026-07-12', 'service_evidence_line_ids' => [1],
+                        'items' => [$item], 'confidence' => $confidence,
+                    ]],
+                    serviceCount: 1,
+                    provenanceComplete: true,
+                );
+            }
+        });
+        $corpus = $this->corpus([
+            ['key' => '2026-07-12-original', 'date' => '2026-07-12', 'subject' => 'Original order'],
+            ['key' => '2026-07-12-correction', 'date' => '2026-07-12', 'subject' => 'Corrected order', 'supersedes' => '2026-07-12-original'],
+        ]);
+        $report = $this->temporaryPath('json');
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus, '--import' => true, '--plan-hash' => $this->planHash(), '--report' => $report,
+        ])->assertExitCode(1);
+
+        $entries = collect($this->readReport($report)['entries'])->keyBy('item_key');
+
+        $this->assertSame('held_for_review', $entries['2026-07-12-original']['disposition']);
+        $this->assertSame('held_for_review', $entries['2026-07-12-correction']['disposition']);
+        $this->assertContains(
+            'superseded_predecessor_not_imported',
+            $entries['2026-07-12-correction']['gate_reasons'],
+        );
+        // The point of holding it: nothing was written that the operator has not seen.
+        $this->assertDatabaseCount('church_service_source_records', 0);
+    }
+
     #[Test]
     public function manifest_authorised_email_correction_replaces_its_predecessor_in_direct_and_portable_imports(): void
     {

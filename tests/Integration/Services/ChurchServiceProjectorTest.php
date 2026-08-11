@@ -371,6 +371,80 @@ class ChurchServiceProjectorTest extends TestCase
     }
 
     /**
+     * Found by the 2026-08-11 Email staging run, which lost service 2018-09-23 to
+     * `SQLSTATE[22001] Data too long for column 'canonical_identity'` after that
+     * service's run had already begun writing.
+     *
+     * The source is a conversational note, not an order of service, and the parser
+     * read one 265-character line as an item title. `canonical_identity` is
+     * composed from that title but stored in a `varchar(255)`, so an unbounded
+     * input reached a bounded column and took the whole service down with it.
+     */
+    #[Test]
+    public function a_title_that_fits_but_whose_identity_would_not_still_projects(): void
+    {
+        $service = ChurchService::factory()->create();
+        // Fits `title` at 250 characters; `custom:` + the title + `#1` does not fit
+        // `canonical_identity`. This is the exact shape that lost 2018-09-23.
+        $title = rtrim(mb_substr(str_repeat('downloaded on my laptop shall I bring it or send the links ', 6), 0, 250));
+
+        $this->ingestItems($service, ChurchServiceSource::Email, [
+            ['position' => 1, 'type' => 'custom', 'title' => $title, 'source_title' => $title],
+        ]);
+
+        $item = $service->items()->sole();
+
+        $this->assertGreaterThan(248, mb_strlen($title));
+        $this->assertLessThanOrEqual(255, mb_strlen((string) $item->canonical_identity));
+        $this->assertSame($title, $item->title, 'A title that fits its column must survive untouched.');
+    }
+
+    /**
+     * The adjacent crash the same corpus will reach eventually: a title longer than
+     * the column that stores it. Bounded at the normalizer, which is the one place
+     * every source's items pass through.
+     */
+    #[Test]
+    public function a_title_longer_than_its_own_column_is_bounded_rather_than_lost(): void
+    {
+        $service = ChurchService::factory()->create();
+        $title = 'Peter I have 2 videos from YouTube for my talk and I have them '
+            .str_repeat('downloaded on my laptop shall I bring it or send the links ', 5);
+
+        $this->ingestItems($service, ChurchServiceSource::Email, [
+            ['position' => 1, 'type' => 'custom', 'title' => $title, 'source_title' => $title],
+        ]);
+
+        $item = $service->items()->sole();
+
+        $this->assertGreaterThan(255, mb_strlen($title));
+        $this->assertLessThanOrEqual(255, mb_strlen((string) $item->title));
+        $this->assertLessThanOrEqual(255, mb_strlen((string) $item->canonical_identity));
+        $this->assertStringStartsWith('Peter I have 2 videos', (string) $item->title);
+    }
+
+    /**
+     * Truncation alone would collide: two long titles sharing a prefix would claim
+     * one identity and be projected as the same item.
+     */
+    #[Test]
+    public function two_long_titles_sharing_a_prefix_keep_distinct_identities(): void
+    {
+        $service = ChurchService::factory()->create();
+        $prefix = str_repeat('the same opening words repeated at length ', 8);
+
+        $this->ingestItems($service, ChurchServiceSource::Email, [
+            ['position' => 1, 'type' => 'custom', 'title' => $prefix.'first ending', 'source_title' => $prefix.'first ending'],
+            ['position' => 2, 'type' => 'custom', 'title' => $prefix.'second ending', 'source_title' => $prefix.'second ending'],
+        ]);
+
+        $identities = $service->items()->orderBy('position')->pluck('canonical_identity')->all();
+
+        $this->assertCount(2, $identities);
+        $this->assertNotSame($identities[0], $identities[1]);
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $items
      */
     private function ingestItems(

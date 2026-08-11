@@ -27,6 +27,10 @@ class OpenAiOosEmailItemExtractorTest extends TestCase
         Config::set('openai.service_tier', 'flex');
         Config::set('service-tracking.email_parsing.model', 'gpt-5.4-nano');
         Config::set('service-tracking.email_parsing.reasoning_effort', 'minimal');
+        // Most tests here are about how one response is validated, not about
+        // re-asking, and a retry would silently consume the next queued fake.
+        // The retry tests raise this themselves.
+        Config::set('service-tracking.email_parsing.extraction_attempts', 1);
     }
 
     #[Test]
@@ -184,6 +188,70 @@ class OpenAiOosEmailItemExtractorTest extends TestCase
      * @param  list<array{service:string,date:?string,items:array<int,array{type:string,title:string}>,confidence:float}>  $services
      * @param  list<string>  $notes
      */
+    /**
+     * The 2026-08-11 staging run lost 2020-03-29 to a single unusable response.
+     * Re-asking is the remedy: the same input parsed cleanly on the next call.
+     */
+    #[Test]
+    public function an_unusable_response_is_retried_rather_than_losing_the_service(): void
+    {
+        Config::set('service-tracking.email_parsing.extraction_attempts', 3);
+        OpenAI::fake([
+            CreateResponse::fake(['choices' => [['message' => ['content' => '{"services":']]]]),
+            $this->response([
+                ['service' => 'morning', 'date' => '2026-03-09', 'items' => [
+                    ['type' => 'sermon', 'title' => 'The Prodigal Son'],
+                ], 'confidence' => 0.9],
+            ]),
+        ]);
+
+        $result = $this->extractor->extract('Order of Service', 'Sermon: The Prodigal Son', '2026-03-07');
+
+        $this->assertCount(1, $result->items);
+        OpenAI::assertSent(Chat::class, 2);
+    }
+
+    #[Test]
+    public function retries_are_bounded_and_the_last_failure_is_raised(): void
+    {
+        Config::set('service-tracking.email_parsing.extraction_attempts', 2);
+        OpenAI::fake([
+            CreateResponse::fake(['choices' => [['message' => ['content' => '{"services":']]]]),
+            CreateResponse::fake(['choices' => [['message' => ['content' => '{"services":']]]]),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Failed to decode OoS email parser response as JSON.');
+
+        try {
+            $this->extractor->extract('Order of Service', 'Sermon', '2026-03-07');
+        } finally {
+            OpenAI::assertSent(Chat::class, 2);
+        }
+    }
+
+    /**
+     * A `json_schema` response format cannot emit malformed JSON, so the realistic
+     * cause of a decode failure is truncation at the completion budget. Saying so
+     * is what makes the next occurrence diagnosable.
+     */
+    #[Test]
+    public function a_truncated_response_names_the_completion_budget(): void
+    {
+        Config::set('service-tracking.email_parsing.extraction_attempts', 1);
+        Config::set('service-tracking.email_parsing.max_completion_tokens', 1234);
+        OpenAI::fake([
+            CreateResponse::fake([
+                'choices' => [['finish_reason' => 'length', 'message' => ['content' => '{"services":']]],
+            ]),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('truncated at the 1234-token completion budget');
+
+        $this->extractor->extract('Order of Service', 'Sermon', '2026-03-07');
+    }
+
     private function response(array $services, array $notes = []): CreateResponse
     {
         return CreateResponse::fake([

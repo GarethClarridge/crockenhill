@@ -21,6 +21,15 @@ class ChurchServiceProjector
 
     public const string PROJECTION_POLICY_FORMAT = 'church-service-projection';
 
+    /**
+     * The longest base identity {@see self::boundedIdentity()} will emit.
+     *
+     * `church_service_items.canonical_identity` is a `varchar(255)`; the rest of
+     * the budget is the `#{occurrence}` suffix appended when the same base
+     * identity occurs more than once in one service.
+     */
+    private const MaxBaseIdentityLength = 200;
+
     public function __construct(
         private readonly ChurchServiceSourceRevisionLineageInspector $lineageInspector,
         private readonly int $policyVersion = self::PROJECTION_POLICY_VERSION,
@@ -583,10 +592,10 @@ class ChurchServiceProjector
         $strongIdentity = $this->strongIdentity($assertion);
 
         if ($strongIdentity !== null) {
-            return $strongIdentity;
+            return $this->boundedIdentity($strongIdentity);
         }
 
-        return mb_strtolower("{$assertion->type}:{$this->normalizedTitle($assertion)}");
+        return $this->boundedIdentity(mb_strtolower("{$assertion->type}:{$this->normalizedTitle($assertion)}"));
     }
 
     /** @param list<ChurchServiceItemAssertion> $assertions */
@@ -596,11 +605,38 @@ class ChurchServiceProjector
             $identity = $this->strongIdentity($assertion);
 
             if ($identity !== null) {
-                return $identity;
+                return $this->boundedIdentity($identity);
             }
         }
 
         return $this->baseIdentity($assertions[0]);
+    }
+
+    /**
+     * Bound an identity to the column that has to store it.
+     *
+     * A base identity is composed from a title, song key or scripture reference,
+     * none of which is length-limited, and the result is written to
+     * `church_service_items.canonical_identity` — a `varchar(255)`. The 2026-08-11
+     * Email staging run lost a whole service to that mismatch: a conversational
+     * note was parsed as an order of service, one 265-character line became an
+     * item title, and the insert failed after the service's run had begun.
+     *
+     * Truncating alone would trade a crash for something worse, because two long
+     * titles sharing a prefix would collapse into one identity and project as the
+     * same item. The digest keeps them distinct while the retained prefix keeps
+     * the identity readable in a census or conflict report, and hashing the whole
+     * input keeps it stable across runs — identities are matched between
+     * revisions, so a value that changed per run would break idempotency.
+     */
+    private function boundedIdentity(string $identity): string
+    {
+        if (mb_strlen($identity) <= self::MaxBaseIdentityLength) {
+            return $identity;
+        }
+
+        return mb_substr($identity, 0, self::MaxBaseIdentityLength - 33)
+            .'~'.substr(hash('sha256', $identity), 0, 32);
     }
 
     private function strongerMatchMethod(string $current, string $incoming): string

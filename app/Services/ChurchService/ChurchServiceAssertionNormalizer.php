@@ -11,6 +11,9 @@ use Illuminate\Support\Str;
 
 class ChurchServiceAssertionNormalizer
 {
+    /** The width of every text column on `church_service_item_assertions`. */
+    private const MaxTextLength = 255;
+
     /**
      * @param  array<int, array<string, mixed>>  $items
      * @return list<array<string, mixed>>
@@ -43,13 +46,13 @@ class ChurchServiceAssertionNormalizer
                 'evidence_kind' => $evidenceKind->value,
                 'type' => (string) ($item['type'] ?? 'custom'),
                 'section_type' => $this->scalarOrNull($item['section_type'] ?? null),
-                'title' => $title,
-                'source_title' => $sourceTitle,
-                'normalized_title' => Str::of($sourceTitle ?? $title)->lower()->squish()->value(),
+                'title' => $this->boundedText($title),
+                'source_title' => $this->boundedText($sourceTitle),
+                'normalized_title' => $this->boundedText(Str::of($sourceTitle ?? $title)->lower()->squish()->value()),
                 'song_id' => is_numeric($item['song_id'] ?? null) ? (int) $item['song_id'] : null,
                 'song_canonical_key' => $this->songCanonicalKey($item, $metadata, $canonicalKeysBySongId),
-                'scripture_reference' => $this->scriptureReference($item, $metadata),
-                'normalized_scripture_key' => $this->scalarOrNull($item['normalized_scripture_key'] ?? null),
+                'scripture_reference' => $this->boundedText($this->scriptureReference($item, $metadata)),
+                'normalized_scripture_key' => $this->boundedText($this->scalarOrNull($item['normalized_scripture_key'] ?? null)),
                 'start_seconds' => $this->numericOrNull($item['start_seconds'] ?? null),
                 'end_seconds' => $this->numericOrNull($item['end_seconds'] ?? null),
                 'confidence' => $this->confidence($item, $metadata),
@@ -75,6 +78,31 @@ class ChurchServiceAssertionNormalizer
         }
 
         return hash('sha256', "{$position}\0".(string) ($item['type'] ?? 'custom')."\0".$title);
+    }
+
+    /**
+     * Fit free text to the `varchar(255)` columns that store it.
+     *
+     * Every text column on `church_service_item_assertions` is 255 characters,
+     * and nothing upstream bounds what a parser may call a title. The 2026-08-11
+     * Email staging run met the consequence: a conversational note was read as an
+     * order of service and one long line became an item title, failing the insert
+     * partway through a service.
+     *
+     * Truncation is lossy and is still the right trade. A title this long is
+     * parser noise rather than a service item, the readable beginning is what an
+     * operator needs in order to recognise it as noise, and the alternative on
+     * offer is losing the whole service. `rtrim` keeps the result acceptable to
+     * the items table's CHECK constraint, which requires a trimmed, non-empty
+     * title.
+     */
+    private function boundedText(?string $value): ?string
+    {
+        if ($value === null || mb_strlen($value) <= self::MaxTextLength) {
+            return $value;
+        }
+
+        return rtrim(mb_substr($value, 0, self::MaxTextLength));
     }
 
     private function scalarOrNull(mixed $value): ?string
