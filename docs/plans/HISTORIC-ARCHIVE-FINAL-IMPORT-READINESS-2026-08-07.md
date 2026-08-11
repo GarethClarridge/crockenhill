@@ -23,8 +23,10 @@ The project is **not ready for its one-time import**.
 The existing plan itself records that the rehearsal has not started, G2-G9 are unclaimed, the
 mounted source inventory and manifests are incomplete, a clean rehearsal database has not been
 provisioned, deterministic promotion has no measured production-window budget, and the exact
-different-database/no-op/rollback exercises have not run. Its F1 corpus-reconciliation rule is
-still undecided and PR26 is therefore unimplemented.
+different-database/no-op/rollback exercises have not run. F1 was decided on 2026-08-09 and its
+exact-membership implementation landed with F53; the remaining §5 business decisions were all taken
+on 2026-08-11 and are recorded in §3. Deciding them closes Phase 0, not the operation: every one
+still needs its implementation and its rehearsal, production or operator evidence.
 
 This audit found thirty-one additional findings, F29-F59; twenty-nine remain blockers after the
 maintainer's 2026-08-08 scope decision accepted F42-F43. They span source and manifest integrity,
@@ -350,6 +352,169 @@ nothing for this service and the superseded placeholder survives into projection
 maintainer decision.** The other three non-superseding collisions (`2017-06-11`, `2019-11-17`,
 `2020-02-16`) were checked and are genuinely complementary — different senders, different subjects,
 disjoint content.
+
+### 2026-08-11 — the nine remaining §5 decisions taken
+
+Every open row in §5 was worked through with the maintainer and decided. **This entry closes no
+gate**: each decision still needs its implementation and its rehearsal, production or operator
+evidence. Two rows turned out to be already decided and are corrected below.
+
+**Two §5 rows were stale, not open.** F1 was decided 2026-08-09 and is implemented —
+`service_beyond_manifest` is live in `OosArchiveEvaluator` and `ChurchServiceCorpusMembership`
+carries F53's exact-membership check. The current-era disposition was decided the same day
+(back-fill all three services). Both rows still carried a "No-go" default. Corrected in §5.
+
+**D1 — `2026-06-21-am-revised`: exclude the predecessor, do not build a supersession.**
+The plan's proposed fix does not validate. `OosCurationManifest` refuses a `supersedes` on a
+`partial` entry and refuses to supersede a `partial` (both guards at the same loop), and **both**
+2026-06-21 entries are `content_scope: partial`. Adding the link therefore also requires promoting
+both to `full` — which the sources do not support: compared with a genuine `full` entry
+(`2015-06-07`: welcome and notices, call to worship, opening prayer, children's talk, closing
+prayer), the 2026-06-21 pair carries hymns, Prayers, Bible Reading, Sermon and Communion Hymn only.
+The curator's `partial` call was right, and `OosArchiveEntry` documents that a full order's silence
+is read as disagreement — so promoting it would make projection assert those items were
+authoritatively absent.
+
+Decision: flip `2026-06-21-am` to `disposition: exclude` with the reason already recorded in the
+revised entry's curation note. The revised document reproduces Laurie's order verbatim with one line
+changed (`Hymn (Mark to choose)` → `Hymn 868 'Guide me, O my Great Redeemer'`), so it is a strict
+content superset and nothing is lost. Both entries stay `partial`, so the survivor still routes to
+review via `partial_source_scope` rather than importing unattended. Re-hash and re-approve: this
+invalidates manifest `928dccb5…` and plan `ebf486c1…`.
+
+Measured correction to the finding above: the placeholder does **not** reach projection unattended.
+`ImportOosArchiveCommand::reviewReasons()` flags every partial, so both entries land in the review
+queue. The guard is a human, not a machine — which is why the entry is excluded at curation rather
+than left for a reviewer to catch across 521 identities.
+
+**D2 — imported sermons end `Published`, released in signed batches.** Same visibility as existing
+material, which is what §4.B's audience-preservation rule actually requires: all 832 existing sermons
+are public. Release stays a separately authorised `historic-import:release-batch` exercise, never a
+side effect of import. `SermonPublicationState` remains binary; no third state is introduced.
+
+Measured before deciding: the podcast feed cannot flood — `SermonBuilder::forPodcast()` is
+`orderBy('date','desc')` with `limit(config('podcast.items_limit'))` = 100, so no historic sermon
+ever enters it. There is no search index (no Scout, no indexing jobs), so bulk writes fan out
+nowhere. Children's talks stay private through the existing `CHILDRENS_TALKS_PUBLIC=false` default,
+honoured by `whereVisibleInSitemap()`. The one real effect is ~500 new sitemap `<loc>` entries,
+spread across release batches.
+
+**D3 — ratify F59's relink-only contract, and add a pre-apply enrichment pass and preflight.**
+`HistoricMediaGraphPersister::resolveScripturePassageId()` is unchanged: it relinks by
+`(bible_id, normalized_reference)` and refuses anything else, and the bundle keeps carrying the
+natural key only — never `html_content`, `copyright` or the per-fetch `fums_token`.
+
+The gap this exposes is production's, not F59's. Locally there are **18 `scripture_passages` rows
+against 709 sermons carrying a reference, with 16 linked**; the same enrichment gap is recorded for
+production. As written the apply would throw partway through. Required before the window: run
+enrichment in production across the exact reference set the bundle carries, then preflight every
+required key and **fail with zero writes** if one is missing, rather than throwing mid-apply. Watch
+the known api.bible cross-chapter reference mangling during that pass.
+
+**D4 — thresholds split precision from recall.** A wrong asserted fact goes public and is
+unrecoverable; a missing fact is honest and Phase 6 editorial follow-up fixes it without re-importing
+or touching source provenance. They are therefore not gated symmetrically.
+
+Precision floors, **batch stops below**: date/service 1.00; preacher, scripture reference, song link
+and sermon/children's-talk boundary each ≥ 0.98. Recall floors, **route to review below**: item
+recall and item order ≥ 0.85; title/series presence ≥ 0.70. Existing gates unchanged — auto-import
+0.90, review 0.75 — on the evidence of the 2026-07 eval, where calibration was 34/34 correct in the
+importable bands and 0/66 wrongly promoted from the held band. Exact identity, hashes, accounting,
+supersession and the visibility boundary remain 100% and non-waivable, as §4.F.2 already states.
+Truth set: 50 services minimum, stratified per §4.F.1, maintainer adjudicating, disagreements
+resolved against the verbatim source rather than the parse.
+
+**D5 — `maximum_import_ingress_blocked_minutes` = 480.** The maintainer accepted an eight-hour cap
+against a recommendation of 240, to complete the operation in the fewest windows and avoid repeating
+the full approval/freeze/backup/closeout ceremony. `HistoricPromotionBudget` takes this as its
+accepted-cap input and derives the applying budget from it after preflight, closeout and rollback
+reserves, stopping admission at `MINIMUM_ADMISSION_FLOOR_MINUTES` = 15.
+
+`HistoricImportCheckpointPlanner`'s existing bounds are ratified unchanged: `MaxItems` = 25,
+`MaxForecastSeconds` = 43,200. Rollback triggers: any hard-invariant violation aborts and rolls back;
+any asset-transfer verification failure aborts the batch; more than 2% of admitted services failing
+apply stops admission and goes to closeout.
+
+The eight-hour choice makes D7's controls more load-bearing, not less — an operator is alert for a
+shorter time than the window is open, and the swallowed-503 limitation recorded on 2026-08-10 already
+degrades operator-facing signal.
+
+**D6 — pre-window backup verified by an actual restore; RTO 30 minutes.** Take a
+transaction-consistent dump immediately before the window with SHA-256 and a table/row manifest, hold
+it **outside the `backup:clean` rotation**, and restore it into disposable MySQL and time it before
+the window opens. The measured database is **30.2 MB**, so the drill costs minutes and a 30-minute
+RTO is honest rather than aspirational. RPO is everything up to the freeze with zero loss: production
+is frozen, and F56 makes the deferred ingress outbox durable and exactly-once.
+
+Two facts that shaped this. F45's object-rollback half is **already satisfied**:
+`HistoricProcessingResultAssetTransfer::copyToDestinations()` confines every write to
+`historic-import/{operation_id}/` via `assertOperationOwnedProductionPath()`, hash-verifies existing
+targets instead of overwriting, and compensates only paths that run created — which is exactly F45's
+permitted "immutable operation-owned keys" alternative to conditional/ETag semantics. No bucket
+versioning is required. Second, `keep_all_backups_for_days` is 7 and `backup:clean` runs daily at
+01:00, so the pre-window backup is pruned on day 8 unless it is lifted out of the rotation. Sermon
+media (~200GB in Spaces) stays excluded from backup; asset rollback depends on the operation-owned-key
+cleanup path instead.
+
+**D7 — required reviewers on the `production` environment; log-only operation record formally
+accepted.** `deploy.yml` triggers on `push: branches: [master]` and its deploy job already declares
+`environment: production`, so required reviewers is a settings change that directly prevents the worst
+mid-window failure: a master merge redeploying production and killing in-flight Horizon jobs during an
+eight-hour frozen window.
+
+The maintainer **formally accepts rotating logs as the operation record** and declines to install
+Sentry before this operation, against a recommendation to install it. F46 permits "Sentry or a
+formally accepted live alternative"; this is that acceptance and must be recorded in the operation
+artifact rather than left silent. The accepted consequence: for the duration of the window a real
+outage and a deliberate 503 freeze are not readily distinguishable, and the broad
+`catch (\Exception)` in some API controllers still swallows the refusal's operator-facing message.
+
+**D8 — retention tiered by corpus kind; the video corpus is not retained.** F36's "two verified
+protected copies" is an acquisition-and-processing requirement so the sole copy is never processed;
+it does not imply permanent duplicate retention. Retention therefore splits by size:
+
+- **Permanent, encrypted, two independent locations, named owner** (megabytes): the OpenLP `.osz`
+  archives, the Email corpus (`oos` + `oos-verbatim`), and every manifest, hash, fingerprint, journal,
+  inventory and report.
+- **Video (unmeasured, plausibly ~1TB+)**: two copies during the operation as F36 requires; the
+  original stays read-only and is **returned to the church** on signed acceptance; the working copies
+  are **deleted once the exact audit and public smoke pass** — an evidence trigger, not a calendar
+  one, per the no-calendar-time-gates rule.
+- **Recorded assumption:** raw-video preservation then rests on the church's own drive. If F36's
+  acquisition health check shows that drive is their only copy, raise it with the church as a separate
+  preservation matter. It is not an import gate.
+
+**D9 — fail-closed adjudication over the whole corpus.** Include every recording with an unambiguous,
+hash-verified `(date, service)` identity. Exclude — always with a written reason — anything whose
+identity is ambiguous or undeterminable, and any non-identical near-duplicate (one included, the other
+excluded). Byte-identical duplicates resolve to a single included target. A recording spanning two
+services is excluded unless the split is explicitly adjudicated. Scope is the **whole drive**:
+services already present in production are curated in and reconciled against the existing record
+rather than skipped, so the manifest accounts for everything. Anything unresolved defaults to
+exclude with no processing.
+
+F37's strict schema is already in place and enforces the machine half:
+`HistoricVideoCurationManifest` is version 3 with a required `batch_key`, exact-key validation,
+ISO-8601 `decided_at`, `approved_rule_version`, and `SUPPORTED_EXTENSIONS` covering
+`avi, mkv, mov, mp4, webm` — closing F36's AVI/WebM blind spot. Its completeness sweep fails on any
+unmanifested candidate recording while deliberately skipping OS metadata scattered by macOS and
+Windows. F36's separate whole-filesystem inventory, which must dispose of every path including
+unsupported extensions and links, remains outstanding.
+
+**Work these decisions create.** None of it is done:
+
+1. Edit the manifest for D1, revalidate, re-record both hashes in §3, re-approve (D1).
+2. Build the pre-apply production Scripture enrichment pass and the fail-with-zero-writes preflight
+   over the bundle's exact reference set (D3).
+3. Record `maximum_import_ingress_blocked_minutes = 480` as the accepted budget input and the three
+   rollback triggers in the operation artifact (D5).
+4. Write the pre-window backup and restore-drill procedure into the runbook, including lifting the
+   artifact out of the `backup:clean` rotation (D6).
+5. Enable required reviewers on the GitHub `production` environment, and record the log-only
+   monitoring acceptance in the operation artifact (D7).
+6. Carry the D4 thresholds into the truth-set design and the calibration acceptance report (D4).
+7. Carry D8's retention and custody terms and D9's adjudication rule into the F36 acquisition
+   procedure before the drive is connected (D8, D9).
 
 ### 2026-08-08 — continuation audit scope and completion
 
@@ -1080,7 +1245,7 @@ was actually met.
 
 | Phase | May start when | Exit evidence |
 |---|---|---|
-| 0. Decide and design | Now; no corpus access | F1 and all business decisions have named owners; F29-F59 have accepted designs and testable acceptance criteria |
+| 0. Decide and design | Now; no corpus access | F1 and all business decisions have named owners — **all §5 rows decided 2026-08-11**; F29-F59 have accepted designs and testable acceptance criteria |
 | 1. Harden code/runtime | Phase 0 decisions affecting schemas/contracts are made | Required fixes pass focused/full quality gates; operation artifacts and runtime are version-pinned |
 | 2. Acquire and curate | F36 protocol, capacity, protected copies and malware tooling are ready | Signed whole-drive inventory; original protected; approved OpenLP/OoS/video manifests with zero unaccounted paths, including the current 533/261 Email inventory |
 | 3. Definitive local processing | F31-F39, F47-F50, F52-F55 and F59 are green; manifests are approved | Every checkpoint exact-complete; output/cost/capacity ledgers reconcile; no unresolved live/timed-out work |
@@ -1248,21 +1413,25 @@ review. Those topics are not import gates.
 
 ## 5. Decisions required from the maintainer or church
 
-| Decision | Owner | Needed by | Default if undecided |
-|---|---|---|---|
-| F1 explained-excess corpus reconciliation | Maintainer | G2 / PR26 | No-go |
-| Disposition of production services with canonical items but no retained evidence | Maintainer | Current-era rehearsal/G7 | No-go |
-| Exact existing visibility assigned to imported sermons/assets | Maintainer | Before production rehearsal because of F29 | No broader audience/no-go |
-| Existing verified-email audience and existing external-model arrangement | Maintainer | **Decided 2026-08-08; accepted as-is (F42/F43)** | Accepted/non-blocking |
-| Same-day special-service identity and retained occasion/title facts | Maintainer + editorial owner | Before final manifests (F44) | **Decided 2026-08-11: fail closed on collision, no schema change; curated facts consumed and carried.** Video manifest curation must still exercise it |
-| Re-curate `2026-06-21-am-revised` with its missing `supersedes` (invalidates recorded manifest/plan hashes) | Maintainer | Before Email staging | Undecided; two active leaves reach projection |
-| Scripture Passage remap/refetch and approved terminal-absence policy | Maintainer + editorial owner | Before Bundle A contract freeze (F59) | No export/no-go |
-| Final include/exclude/duplicate/identity decisions in OpenLP/video manifests | Maintainer | G1/G5 | Exclude/unresolved; no processing |
-| Accepted accuracy threshold and treatment below it | Church governance + maintainer | Calibration/G7 | Private |
-| Maximum local checkpoint, production ingress window, split and rollback thresholds | Maintainer/operator | Before calibration/G7 | No-go |
-| Backup/object rollback design, RPO/RTO and retention window | Maintainer/operator | Before G5/G8 | No-go |
-| Production deploy/admin/config freeze and approval protection | Maintainer/operator | Before G8 | **Freeze failure mode decided 2026-08-10 (503 refusal + scheduler skip);** approval protection still open |
-| Evidence retention and source-drive custody duration | Maintainer/operator | Before acquisition | Retain securely; no destruction |
+**All rows are now decided.** The 2026-08-11 evidence-log entry above records each decision, the
+measurements behind it and the work it creates. A decision is not a gate: every row still needs its
+implementation and its rehearsal, production or operator evidence.
+
+| Decision | Owner | Outcome |
+|---|---|---|
+| F1 explained-excess corpus reconciliation | Maintainer | **Decided 2026-08-09.** Exact approved 521-identity baseline; extra identities only where `service_beyond_manifest` explains them. Implemented; F53 owns exact membership |
+| Disposition of production services with canonical items but no retained evidence | Maintainer | **Decided 2026-08-09.** Back-fill retained evidence for all three through the normal source-revision path; no inference, exclusion or legacy acceptance |
+| Exact existing visibility assigned to imported sermons/assets | Maintainer | **Decided 2026-08-11 (D2).** `Published` — identical to existing sermons — via signed `historic-import:release-batch`, never as a side effect of import |
+| Existing verified-email audience and existing external-model arrangement | Maintainer | **Decided 2026-08-08; accepted as-is (F42/F43)** |
+| Same-day special-service identity and retained occasion/title facts | Maintainer + editorial owner | **Decided 2026-08-11.** Fail closed on collision, no schema change; curated facts consumed and carried. Video manifest curation must still exercise it |
+| Re-curate `2026-06-21-am-revised` with its missing `supersedes` (invalidates recorded manifest/plan hashes) | Maintainer | **Decided 2026-08-11 (D1).** Exclude the predecessor `2026-06-21-am` instead; both entries stay `partial`. Re-hash and re-approve |
+| Scripture Passage remap/refetch and approved terminal-absence policy | Maintainer + editorial owner | **Decided 2026-08-11 (D3).** Ratify relink-only; add a pre-apply production enrichment pass and a fail-with-zero-writes preflight |
+| Final include/exclude/duplicate/identity decisions in OpenLP/video manifests | Maintainer | **Rule decided 2026-08-11 (D9).** Fail-closed adjudication, whole-corpus scope, written reason on every exclusion. Per-file content still needs the mounted drive |
+| Accepted accuracy threshold and treatment below it | Church governance + maintainer | **Decided 2026-08-11 (D4).** Precision floors ≥ 0.98 stop the batch; recall floors ≥ 0.85 route to review; identity/hash/supersession/visibility stay 100% |
+| Maximum local checkpoint, production ingress window, split and rollback thresholds | Maintainer/operator | **Decided 2026-08-11 (D5).** `maximum_import_ingress_blocked_minutes` = 480; checkpoint bounds 25 items / 12 forecast hours ratified; three rollback triggers set |
+| Backup/object rollback design, RPO/RTO and retention window | Maintainer/operator | **Decided 2026-08-11 (D6).** Pre-window dump verified by real restore; RTO 30 min, RPO to the freeze; object rollback already met by operation-owned keys |
+| Production deploy/admin/config freeze and approval protection | Maintainer/operator | **Decided 2026-08-10 + 2026-08-11 (D7).** 503 refusal + scheduler skip; required reviewers on `production`; log-only operation record **formally accepted** in place of Sentry |
+| Evidence retention and source-drive custody duration | Maintainer/operator | **Decided 2026-08-11 (D8).** Small corpora and artifacts permanent; video original returned to the church, working copies deleted on exact audit + smoke |
 
 ## 6. Final go/no-go checklist
 
