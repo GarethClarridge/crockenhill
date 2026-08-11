@@ -129,6 +129,10 @@ No operator should assemble a sequence by combining steps from these documents a
 - The promoted manifest validates with 0 identity disagreements. Manifest hash:
   `928dccb5620fc3422d4c067ebc004a9ab4fbfebdf39a881d41baf8a250823e83`; plan hash:
   `ebf486c1f5d0b927944c78af51ebf2976d557bbade2be9da0a70358a4418618a`.
+  **Superseded 2026-08-11 by D1's re-curation:** these two hashes and the 535-included count are
+  historical evidence for the pre-D1 manifest only. The current authority is batch
+  `oos-curated-2026-08-11`, manifest `f4b6b833…ee013`, plan `03d40e46…2de8c1`, 534 included and 1
+  excluded. See the 2026-08-11 D1 entry below.
 - **F1 decision:** certify the exact approved 521-identity baseline and allow additional identities
   only where each is explicitly explained by `service_beyond_manifest`; unexplained excess fails.
   F53 remains the implementation owner because global scalar counts cannot prove exact membership.
@@ -380,7 +384,8 @@ revised entry's curation note. The revised document reproduces Laurie's order ve
 changed (`Hymn (Mark to choose)` → `Hymn 868 'Guide me, O my Great Redeemer'`), so it is a strict
 content superset and nothing is lost. Both entries stay `partial`, so the survivor still routes to
 review via `partial_source_scope` rather than importing unattended. Re-hash and re-approve: this
-invalidates manifest `928dccb5…` and plan `ebf486c1…`.
+invalidates manifest `928dccb5…` and plan `ebf486c1…`. **Applied 2026-08-11** — see the D1 entry
+below for the replacement batch key, hashes and counts.
 
 Measured correction to the finding above: the placeholder does **not** reach projection unattended.
 `ImportOosArchiveCommand::reviewReasons()` flags every partial, so both entries land in the review
@@ -501,9 +506,10 @@ unmanifested candidate recording while deliberately skipping OS metadata scatter
 Windows. F36's separate whole-filesystem inventory, which must dispose of every path including
 unsupported extensions and links, remains outstanding.
 
-**Work these decisions create.** None of it is done:
+**Work these decisions create.** Item 1 is done; the rest is not:
 
-1. Edit the manifest for D1, revalidate, re-record both hashes in §3, re-approve (D1).
+1. ~~Edit the manifest for D1, revalidate, re-record both hashes in §3, re-approve (D1).~~
+   **Done 2026-08-11; see the entry below.**
 2. Build the pre-apply production Scripture enrichment pass and the fail-with-zero-writes preflight
    over the bundle's exact reference set (D3).
 3. Record `maximum_import_ingress_blocked_minutes = 480` as the accepted budget input and the three
@@ -515,6 +521,47 @@ unsupported extensions and links, remains outstanding.
 6. Carry the D4 thresholds into the truth-set design and the calibration acceptance report (D4).
 7. Carry D8's retention and custody terms and D9's adjudication rule into the F36 acquisition
    procedure before the drive is connected (D8, D9).
+
+### 2026-08-11 — D1 applied: the Email manifest is re-curated, re-hashed and re-approved
+
+`2026-06-21-am` is now `disposition: exclude`, carrying the written reason D9 requires: the revised
+entry is a strict content superset from `pastor@crockenhill.org` that reproduces Laurie's order with
+`Hymn (Mark to choose)` resolved to `Hymn 868 'Guide me, O my Great Redeemer'`, and both entries are
+`content_scope: partial`, which `OosCurationManifest` forbids on either side of a `supersedes` link.
+
+**The replacement authority.** Batch key `oos-curated-2026-08-11` (the prior re-curation set the
+precedent that a changed approved content set takes a new key, so two different manifests never share
+a batch identity):
+
+| | Pre-D1 | Post-D1 |
+|---|---|---|
+| batch key | `oos-expanded-2026-08-09` | `oos-curated-2026-08-11` |
+| manifest hash | `928dccb5…823e83` | `f4b6b83336ef4956ff6b4feabaecde5e4de945172f592f0b29ccab3fe70ee013` |
+| plan hash | `ebf486c1…18618a` | `03d40e46f96949277dbaeab86879670a0a383b954b27cb072f9012b9032de8c1` |
+| entries / included / excluded | 535 / 535 / 0 | 535 / 534 / 1 |
+| distinct `(date, service)` identities | 521 | 521 |
+
+**F1's 521-identity baseline is unchanged by design**, because the surviving revised entry keeps the
+`2026-06-21 / morning` identity. The reconciliation target is still 535 root-level entries — every
+file remains accounted for; one is now accounted for as an exclusion rather than an inclusion. The
+whole-corpus counts are otherwise unmoved: 465 full, 69 partial, 10 superseded, 9 inferred-date, 274
+verbatim-only, 2 formatted-only. Ten supersession chains remain, confirming that the excluded entry
+was the only correction chain not expressed as one.
+
+**Both exclusion guards were proven, not assumed.** This manifest had never carried an exclusion, so
+`validateNotImported()` had never executed against this data. Restoring `content_scope` on the
+excluded entry fails with *"contradictory disposition fields: content_scope applies to includes
+only"*; removing `exclusion_reason` fails with *"Excluded entry 2026-06-21-am must declare
+exclusion_reason"*. The promoted manifest then validates clean with **0 adjudicated source
+disagreements**.
+
+**Documents re-pointed at the new authority:** this plan's §3 and §4.A, the readiness-remediation
+plan's header, §13.1 record and G1 acceptance row, and `docs/plans/README.md`. The pre-D1 hashes are
+retained as historical evidence wherever they were recorded, marked superseded rather than deleted.
+
+**This entry closes no gate.** It makes the Email authority correct and re-approvable; F1's
+certification, F30's supersession lineage and G2 still require their rehearsal evidence against this
+manifest, none of which has run.
 
 ### 2026-08-08 — continuation audit scope and completion
 
@@ -1260,9 +1307,11 @@ must be green for; where the two could be read differently, the table wins. An i
 appears in a later phase's work is doing implementation there, not relaxing its gate.
 
 1. ~~Re-inventory and re-curate the expanded local Email roots, then decide F1.~~ **Done
-   2026-08-09:** the approved replacement has 535 included entries and 521 identities, including
-   the three current-era entries. F1 uses that exact set and permits only hash-covered
-   `service_beyond_manifest` identities; unexplained extra or missing services fail closed.
+   2026-08-09, re-curated 2026-08-11 (D1):** the approved replacement holds 535 entries — 534
+   included and 1 excluded — and 521 identities, including the three current-era entries. Batch
+   `oos-curated-2026-08-11`, manifest `f4b6b833…ee013`, plan `03d40e46…2de8c1`. F1 uses that exact
+   set and permits only hash-covered `service_beyond_manifest` identities; unexplained extra or
+   missing services fail closed.
 2. Implement PR26 as part of F53 exact per-batch/per-source membership, with red-to-green gate,
    command and end-to-end census tests. Do not add a scalar-only exception.
 3. Fix F30 before any Email staging or proposal census, with direct-import and portable-bundle

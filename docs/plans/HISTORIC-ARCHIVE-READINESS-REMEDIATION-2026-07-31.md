@@ -53,9 +53,12 @@
 > Each is recorded in full at its own section and carries a row in §17's acceptance audit.
 >
 > **F1's maintainer decision and replacement Email authority are now closed.** The approved
-> replacement has 535 included entries, 521 distinct identities, manifest hash
-> `928dccb5620fc3422d4c067ebc004a9ab4fbfebdf39a881d41baf8a250823e83` and plan hash
-> `ebf486c1f5d0b927944c78af51ebf2976d557bbade2be9da0a70358a4418618a`. The baseline is the exact
+> replacement holds 535 entries — **534 included and 1 excluded after decision D1 on 2026-08-11** —
+> and 521 distinct identities, as batch `oos-curated-2026-08-11` with manifest hash
+> `f4b6b83336ef4956ff6b4feabaecde5e4de945172f592f0b29ccab3fe70ee013` and plan hash
+> `03d40e46f96949277dbaeab86879670a0a383b954b27cb072f9012b9032de8c1`. (Superseded pre-D1 authority,
+> retained as historical evidence: batch `oos-expanded-2026-08-09`, manifest `928dccb5…823e83`, plan
+> `ebf486c1…18618a`, 535 included.) The baseline is the exact
 > approved identity set; only identities explicitly explained by `service_beyond_manifest` may
 > exceed it. Implementation is part of F53's exact per-batch/per-source certification, because a
 > scalar exception would still allow missing identities to be offset by unrelated rows. F2 was recorded as a precondition needing no code; on
@@ -74,8 +77,9 @@
 >   over those 404 entries with 0 identity disagreements, but the approval is superseded as current
 >   authority by the 131 raw files added on 2026-08-09. See §7.5's retained approval record.
 > - ~~**Re-inventory and re-curate the expanded Email roots.**~~ **Completed and approved
->   2026-08-09:** 535 included entries, 521 identities, including the three current-era entries;
->   manifest `928dccb5…823e83`, plan `ebf486c1…18618a`.
+>   2026-08-09; re-curated and re-approved 2026-08-11 under decision D1:** 535 entries, 534 included
+>   and 1 excluded, 521 identities, including the three current-era entries; batch
+>   `oos-curated-2026-08-11`, manifest `f4b6b833…ee013`, plan `03d40e46…2de8c1`.
 > - **Repeat `audit:service-evidence-coverage` manually on production** after the evidence back-fill
 >   and re-projection. The initial read-only measurement ran manually on 2026-08-09 and found 3
 >   services, 0 retained source records, 32 canonical items on unevidenced services and 0 proposals.
@@ -851,7 +855,8 @@ So the two halves are split:
 
 **The 2026-08-06 dry run passed over all 404 entries with zero disagreements**, and it found a real
 rule error on its first run — see below. The 2026-08-09 replacement now passes the same check over
-all 535 entries with zero disagreements; its hashes are recorded above.
+all 535 entries with zero disagreements, as does the 2026-08-11 D1 re-curation over its 534 included
+entries; the current hashes are recorded above.
 
 #### The occasion is a theme; the service is a slot
 
@@ -2335,7 +2340,7 @@ gaps in landed slices belong here.
 | G3 | PR11 | **Closed 2026-08-06.** `ChurchServiceConvergenceBundleRoundTripTest` exports a reviewed bundle, destroys the database it came from, rebuilds an equivalent machine base on shifted auto-increments and applies the bundle to it — asserting exact finalisation (the same canonical hash), the reviewer resolved by approved email hash onto a different user id, per-proposal dispositions reproduced, the review session naming the *production* proposal ids, and a `decision_rule` reproducing with its own rationale. A proposal absent from the production graph still fails closed. Verified non-vacuous: adding `$proposal->id` to `ChurchServiceProposalIdentity::for()` fails two of the three tests. | — |
 | G3 | PR12 | **Closed 2026-08-06.** `HistoricProcessingResultBundleRoundTripTest` exports the WP0 canary — the shared fixture, now in `tests/Support/HistoricNormalOutputCanary.php`, not a second approximation — through Bundle A and imports it into a database whose auto-increments have been shifted past every id the source used. Asserts identical logical hashes, no lost field/relationship/role, identical section and publication natural keys, and that the recreated tables moved while preacher/song/service rows were *resolved* by natural key rather than duplicated. Verified non-vacuous: appending `$section->id` to the section key fails the hash equality. | — |
 
-| G1 | PR5/PR21 | **Schema and Email data authority closed.** PR21 built `OosCurationManifest`, `OosCurationPlan`, `OosCurationEntryFactory`, `validateIncludesForDryRun()` and the repointed command. The 2026-08-09 replacement validates all 535 included entries with zero identity disagreements, includes the three current-era entries and yields 521 identities. Manifest `928dccb5…823e83`, plan `ebf486c1…18618a`. | Closed for Email; OpenLP/video manifest work remains under the final-readiness gates. |
+| G1 | PR5/PR21 | **Schema and Email data authority closed.** PR21 built `OosCurationManifest`, `OosCurationPlan`, `OosCurationEntryFactory`, `validateIncludesForDryRun()` and the repointed command. The 2026-08-09 replacement, re-curated 2026-08-11 under decision D1, validates its 534 included entries (535 total, 1 excluded) with zero identity disagreements, includes the three current-era entries and yields 521 identities. Batch `oos-curated-2026-08-11`, manifest `f4b6b833…ee013`, plan `03d40e46…2de8c1`. | Closed for Email; OpenLP/video manifest work remains under the final-readiness gates. |
 
 **Every code gap listed on 2026-08-06 is closed.** G1's crash tranche, canary, OpenLP manifest schema
 and the Email manifest; G2's empty-census gap; and G3's two different-PK round trips are all done.
@@ -2522,8 +2527,9 @@ re-verifying the remaining three against the code showed `expected_services` is 
 can set (F1) and that the step it gates would, in the current database, measure the wrong thing (F2).
 The corrected drive-free path, updated for the expanded Email roots, is:
 
-1. ~~**Re-inventory and re-curate the expanded Email roots.**~~ **Done 2026-08-09:** 535 included
-   entries, 521 identities, including the three current-era entries; hashes recorded above.
+1. ~~**Re-inventory and re-curate the expanded Email roots.**~~ **Done 2026-08-09; re-curated
+   2026-08-11 (D1):** 535 entries, 534 included and 1 excluded, 521 identities, including the three
+   current-era entries; hashes recorded above.
 2. ~~**PR25 (F3), PR27 (F4) and PR28 (F2)**~~ **Done 2026-08-07.**
 3. ~~**Decide the F1 reconciliation rule** (§19).~~ **Done 2026-08-09.** Implement PR26 together
    with F53 exact per-batch/per-source membership before G2 can be claimed.
