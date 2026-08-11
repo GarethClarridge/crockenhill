@@ -59,6 +59,33 @@ return [
             ],
         ],
 
+        /*
+        | The readiness-plan §13.5 step 3 rehearsal database.
+        |
+        | Historic Email/OpenLP evidence must be staged into a database holding
+        | no canonical items for the corpus's identities, or the §9.4 proposal
+        | census measures the previous import rather than the projector (F2).
+        |
+        | This connection exists only so `historic-import:provision-rehearsal-
+        | database` can build that schema without repointing the working one.
+        | Nothing else resolves it: every importer and the target fingerprint use
+        | the *default* connection, so a staging run happens by pointing
+        | DB_DATABASE here once the schema has been provisioned and certified.
+        */
+        'rehearsal' => [
+            'driver' => 'mysql',
+            'host' => env('DB_HOST', 'localhost'),
+            'port' => env('DB_PORT', '3306'),
+            'database' => env('DB_REHEARSAL_DATABASE', 'crockenhill_rehearsal'),
+            'username' => env('DB_USERNAME', 'forge'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'engine' => null,
+        ],
+
         'pgsql' => [
             'driver' => 'pgsql',
             'host' => env('DB_HOST', 'localhost'),

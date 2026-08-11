@@ -609,6 +609,69 @@ disabling it and watching the apply fall through to the mid-apply throw.
 remedy for the 18-rows-against-709-references gap; local measurement, the rehearsal proof and the
 api.bible cross-chapter watch during a real pass all remain outstanding.
 
+### 2026-08-11 — the clean rehearsal database is provisioned; F2 re-measured
+
+**The measurement F2 demanded, rerun against the current authority.** The 219-of-391 figure was for
+the superseded 404-entry manifest. Against `oos-curated-2026-08-11`, the working database holds 408
+services, 2,743 items and **one** source record in total, and **231 of the corpus's 521 identities
+already hold items with no normalized evidence** — 44%, down from 56% only because the denominator
+grew. Every one of the 231 that exists locally holds items. The §9.4 census's largest class would
+still have been the July 2026 OpenLP import rather than the projector, so this was not a formality.
+
+The same run re-verified the approved Email authority end to end: `oos:import-archive --dry-run`
+reproduces manifest `f4b6b833…ee013` and plan `03d40e46…2de8c1` exactly, with 534 approved entries,
+521 identities, 0 adjudicated identity disagreements and D1's whole-corpus counts unmoved. (The
+manifest *file's* raw SHA-256 is a different value and always was — the recorded hash is
+`CanonicalJson::hash()` over normalized entries, not file bytes.)
+
+**What was implemented.** `historic-import:provision-rehearsal-database` drops, rebuilds and
+certifies the database §13.5 step 3 stages into, backed by `RehearsalDatabaseProvisioner` and a new
+`rehearsal` connection. It is a reset command rather than a bootstrap, because §9.4 is a loop and
+each iteration wants a database no previous iteration has touched.
+
+**Two things had to be discovered rather than assumed.**
+
+- *Laravel resolves the stored schema dump by connection name.* `MigrateCommand::schemaPath()` builds
+  `database/schema/{connection}-schema.sql`, so migrating a `rehearsal` connection looks for
+  `rehearsal-schema.sql`, silently finds nothing, and migrates from empty — which cannot build this
+  schema at all, since the migration set was pruned and no migration on disk creates a base table.
+  The command pins `--schema-path` to the default connection's dump, and a test asserts it.
+- *The application user cannot create databases.* Its grants cover only the databases named in
+  `docker/mysql/create-testing-database.sh`, which runs once when the MySQL volume is initialised.
+  The script now grants `{database}\_rehearsal%` for new environments; existing volumes need the
+  one-off root `GRANT`, which the provisioner prints verbatim in its failure message.
+
+**The guard set, which is most of the class.** This is the only command in the workstream that drops
+a database. It refuses when the shell resolves the production target — reusing
+`HistoricImportProductionGuard::guardsCurrentEnvironment()` rather than a bare `APP_ENV` check,
+because the case that loses data is a development shell pointed at production, not a process that
+knows it is production; when the name is not a plain identifier, since a database name cannot be a
+bound parameter and reaches DDL by interpolation; when the target *is* the working database, checked
+before the naming rule because an operator who has already repointed `DB_DATABASE` satisfies the
+naming rule and would still be dropping the database underneath their own shell; when the name is not
+rehearsal-named; and when the base schema dump is absent. Certification then proves the result holds
+no canonical or evidence rows — which is also what catches `DB_REHEARSAL_DATABASE` pointed at a
+database somebody else has already staged into.
+
+**Proof it unblocks the lane, not just that it runs.** Same corpus, same guard, same 521 identities:
+`UnevidencedCanonicalItemGuard` refuses against the working database (231 of 521) and passes against
+the provisioned one. The working-database guard was verified red-to-green by disabling it.
+
+**Gates:** `artisan test --parallel` green (6385 tests, 81,388 assertions), `composer phpstan` clean,
+`pint --dirty` applied, `artisan dusk` green (55 tests).
+
+**This entry closes no gate.** It removes the last drive-free precondition on §13.5 steps 3–4; the
+staging run, the census and G5 have not happened. Step 12's production-shaped database with
+deliberately different primary keys is a separate artifact and is not built by this command.
+
+**Three §4.A items were stale, not open**, found by checking the tree before building — the same
+failure mode recorded on 2026-08-11 for F59 and F44. Item 2's PR26 is implemented as
+`ChurchServiceCorpusMembership` with the census command's `--membership` option (`cb8d873dd`); item
+3's F30 landed in `b4006d1b8` with direct-import and bundle lineage tests; and item 8's
+"configure the approval-gated production audit environment" was superseded on 2026-08-09, when the
+maintainer accepted manual SSH audits as the permanent path and the audit had already been run. All
+three are struck below.
+
 ### 2026-08-08 — continuation audit scope and completion
 
 The first audit's technical, operational and business agents exhausted their usage after delivering
@@ -1358,11 +1421,14 @@ appears in a later phase's work is doing implementation there, not relaxing its 
    `oos-curated-2026-08-11`, manifest `f4b6b833…ee013`, plan `03d40e46…2de8c1`. F1 uses that exact
    set and permits only hash-covered `service_beyond_manifest` identities; unexplained extra or
    missing services fail closed.
-2. Implement PR26 as part of F53 exact per-batch/per-source membership, with red-to-green gate,
-   command and end-to-end census tests. Do not add a scalar-only exception.
-3. Fix F30 before any Email staging or proposal census, with direct-import and portable-bundle
-   lineage tests. Re-approve the assertion/bundle contract and invalidate any rehearsal Email
-   evidence produced before the fix.
+2. ~~Implement PR26 as part of F53 exact per-batch/per-source membership, with red-to-green gate,
+   command and end-to-end census tests. Do not add a scalar-only exception.~~ **Done 2026-08-09
+   (`cb8d873dd`):** `ChurchServiceCorpusMembership` plus the census command's `--membership` option.
+   No scalar-only exception was added. Its certification against the staged corpus remains unrun.
+3. ~~Fix F30 before any Email staging or proposal census, with direct-import and portable-bundle
+   lineage tests.~~ **Done 2026-08-10 (`b4006d1b8`).** Re-approve the assertion/bundle contract and
+   invalidate any rehearsal Email evidence produced before the fix — no such evidence exists yet,
+   because no staging run has happened.
 4. Fix F31-F39, F47-F50, F52-F55 and F59 before definitive local processing (phase 3), because each
    one can corrupt or misattribute output that is never recomputed: exact apply-time byte
    verification and post-copy/output hashes; complete/fail-closed outcomes; genuinely portable
@@ -1382,12 +1448,18 @@ appears in a later phase's work is doing implementation there, not relaxing its 
    the operation journal, require the exact media and canonical bundles, settle/relink Scripture
    Passage enrichment, and reserve/measure the complete exact audit plus no-op rerun rather than
    trusting the exit code of an individual command.
-8. Configure the approval-gated production audit environment, run the counts-only evidence and
-   lineage audits, retain their run identifiers, and decide whether unevidenced current-era
-   services are backfilled, explicitly accepted as legacy, or excluded from exact re-projection.
-9. Provision a clean, production-shaped rehearsal database with deliberately different primary
-   keys and a documented refresh/reset procedure. Do not use the contaminated working database and
-   do not use `--accept-unevidenced-items` merely to get past the guard.
+8. ~~Configure the approval-gated production audit environment~~ — **superseded 2026-08-09:** the
+   maintainer accepted manual read-only SSH audits as the permanent operational path, and
+   `audit:service-evidence-coverage` has been run (3 services, no source records, 32 canonical items
+   on unevidenced services). The disposition was decided the same day: back-fill retained evidence
+   for all three through the normal source-revision path. **That back-fill is still outstanding**,
+   and it is drive-free.
+9. ~~Provision a clean rehearsal database with a documented refresh/reset procedure. Do not use the
+   contaminated working database and do not use `--accept-unevidenced-items` merely to get past the
+   guard.~~ **Done 2026-08-11:** `historic-import:provision-rehearsal-database`; see the evidence
+   entry. Still open, and deliberately a **separate** artifact from the above: §13.5 step 12's
+   production-shaped destination database with deliberately different primary keys, which this
+   command does not build.
 10. Complete the mounted-drive OpenLP and video inventories and approve the final immutable manifests
    before any bulk processing.
 11. Run focused tests, PHPStan, Pint and the full parallel suite for each release candidate. Run

@@ -2533,8 +2533,12 @@ The corrected drive-free path, updated for the expanded Email roots, is:
 2. ~~**PR25 (F3), PR27 (F4) and PR28 (F2)**~~ **Done 2026-08-07.**
 3. ~~**Decide the F1 reconciliation rule** (§19).~~ **Done 2026-08-09.** Implement PR26 together
    with F53 exact per-batch/per-source membership before G2 can be claimed.
-4. **Provision a clean rehearsal database**, then run the Email half of §13.5 steps 2–4. PR28 refuses
-   the run until this is done, so it is a step rather than a caution.
+4. ~~**Provision a clean rehearsal database**~~ **Done 2026-08-11:**
+   `historic-import:provision-rehearsal-database` builds and certifies it, and
+   `UnevidencedCanonicalItemGuard` was shown passing against the result for all 521 curated
+   identities while still refusing against the working database (231 of 521 contaminated — the F2
+   re-measurement against `oos-curated-2026-08-11`). **Now run the Email half of §13.5 steps 2–4**
+   against it, with `DB_DATABASE` pointed at the provisioned database.
 
 Step 4 depends on 3 only in the sense that the census it produces cannot be *gated* until F1 is
 settled; the staging and projection themselves can proceed as soon as the replacement manifest and
