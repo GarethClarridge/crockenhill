@@ -10,6 +10,8 @@ use App\Data\OosEmailSourceDocument;
 
 class OosEmailExtractionValidator
 {
+    private const EVENING_SERVICE_PATTERN = '/(?:\bevening\b|\bpm\b|\b(?:1[6-9]|2[0-3])[:.]\d{2}\b|\b(?:6|7|8|9)\s*pm\b)/iu';
+
     /**
      * These are deliberately narrow: every `other` service requires human review, while this
      * list only distinguishes an explicit special-service anchor from ordinary notices.
@@ -90,6 +92,10 @@ class OosEmailExtractionValidator
 
             if ($serviceName === 'other' && ! $this->hasSpecialServiceEvidence($source, $evidenceLineIds)) {
                 $planReasons[$planIndex][] = 'An other service requires explicit special-service evidence; ordinary notices are not a service order.';
+            }
+
+            if ($serviceName === 'evening' && ! $this->hasEveningServiceEvidence($source, $evidenceLineIds)) {
+                $planReasons[$planIndex][] = 'An evening service requires an explicit evening or PM boundary in its evidence lines.';
             }
 
             $previousItemLineId = null;
@@ -201,6 +207,20 @@ class OosEmailExtractionValidator
             $line = $source->line($lineId);
 
             if (is_string($line) && preg_match(self::SPECIAL_SERVICE_PATTERN, $line) === 1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @param list<int> $evidenceLineIds */
+    private function hasEveningServiceEvidence(OosEmailSourceDocument $source, array $evidenceLineIds): bool
+    {
+        foreach ($evidenceLineIds as $lineId) {
+            $line = $source->line($lineId);
+
+            if (is_string($line) && preg_match(self::EVENING_SERVICE_PATTERN, $line) === 1) {
                 return true;
             }
         }

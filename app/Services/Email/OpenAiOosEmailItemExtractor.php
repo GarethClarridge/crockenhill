@@ -167,7 +167,15 @@ Rules:
 - title must copy the complete referenced source text exactly. Do not summarise, clean or rewrite it.
 - Use "morning" for AM/10.30 services, "evening" for PM/6pm services, "other" for specials
   (carols, Christmas), and "unknown" only when the service time is genuinely unclear.
+- Do not infer an evening service from the word "evening" in a notice, diary entry, forwarded
+  header or prose. An evening plan is valid only when its evidence lines contain a standalone
+  evening/PM/18:00-style heading or a clearly separated evening order with items following it.
+- Never create an evening plan merely because a morning email mentions that an evening service
+  exists. If there is no distinct evening boundary and item sequence, keep one plan and put the
+  mention in ignored_lines.
 - Set "date" only when a service states its own date; otherwise use null.
+- When a date is present but is not a Sunday, check whether it is a nearby weekday transcription
+  of the Sunday service date. Do not copy the email receipt date as the service date.
 - Resolve relative or yearless dates against the supplied email receipt date. These emails normally
   describe services from the receipt date through the following two weeks; do not use a training-data year.
 - Use "song" for hymns/songs and "bible_reading" for readings, while keeping their complete source

@@ -821,6 +821,12 @@ not of the model. Any procedure that re-parses — a fresh rehearsal database, a
 This needs stating in the runbook, because "run it again and get the same answer" is currently true
 for the wrong reason.
 
+**Runbook rule:** treat the persisted parse cache, identified by the entry input hash and parser
+version, as part of the staging evidence. A no-op rerun is only a replay of that evidence; it is not
+proof that a fresh extractor call is deterministic. Do not use `--fresh-parse`, invalidate the cache,
+or bump `ParserVersion` while comparing rehearsal outcomes. Any such change starts a new evidence
+run and requires its own report and threshold decision.
+
 **This entry closes no gate.** Step 3 still exits non-zero by design, and G5 remains unclaimable
 while the review population stands.
 

@@ -42,6 +42,7 @@ class OosEmailParserService
             $body,
             $receivedAt->toDateString(),
         );
+        $initialExtraction = $this->guardUnsupportedEveningPlans($source, $initialExtraction);
         $initialValidation = $this->extractionValidator->validate($source, $initialExtraction);
         $extraction = $initialExtraction;
         $validation = $initialValidation;
@@ -60,6 +61,7 @@ class OosEmailParserService
                     $initialExtraction,
                     $retryReasons,
                 );
+                $correctedExtraction = $this->guardUnsupportedEveningPlans($source, $correctedExtraction);
                 $correctedValidation = $this->extractionValidator->validate($source, $correctedExtraction);
                 $useCorrected = $correctedValidation->reasonCount() <= $initialValidation->reasonCount();
 
@@ -168,6 +170,56 @@ class OosEmailParserService
             extractionAttempts: $attempts,
             consensus: $consensus,
         );
+    }
+
+    private function guardUnsupportedEveningPlans(
+        OosEmailSourceDocument $source,
+        OosEmailItemExtractionResult $extraction,
+    ): OosEmailItemExtractionResult {
+        if ($extraction->services === []) {
+            return $extraction;
+        }
+
+        $services = array_map(function (array $plan) use ($source): array {
+            $evidenceLineIds = $plan['service_evidence_line_ids'] ?? [];
+
+            if ($evidenceLineIds === []) {
+                $evidenceLineIds = $source->lineIds();
+            }
+
+            if (($plan['service'] ?? null) !== 'evening'
+                || $this->hasEveningEvidence($source, $evidenceLineIds)) {
+                return $plan;
+            }
+
+            $plan['service'] = 'unknown';
+
+            return $plan;
+        }, $extraction->services);
+
+        return new OosEmailItemExtractionResult(
+            items: $extraction->items,
+            confidence: $extraction->confidence,
+            notes: $extraction->notes,
+            services: $services,
+            serviceCount: $extraction->serviceCount,
+            ignoredLines: $extraction->ignoredLines,
+            provenanceComplete: $extraction->provenanceComplete,
+        );
+    }
+
+    /** @param list<int> $lineIds */
+    private function hasEveningEvidence(OosEmailSourceDocument $source, array $lineIds): bool
+    {
+        foreach ($lineIds as $lineId) {
+            $line = $source->line($lineId);
+
+            if (is_string($line) && preg_match('/(?:\bevening\b|\bpm\b|\b(?:1[6-9]|2[0-3])[:.]\d{2}\b|\b(?:6|7|8|9)\s*pm\b)/iu', $line) === 1) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

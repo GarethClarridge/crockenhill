@@ -48,8 +48,8 @@ use Throwable;
  */
 class ImportOosArchiveCommand extends Command
 {
-    /** Bump when the parsing pipeline changes shape (v7: entries come from the §7.5 curation manifest rather than the superseded aggregate archive, so identity, completeness and the input hash all have different provenance) to invalidate cached parses. */
-    private const ParserVersion = 'archive-v7';
+    /** Bump when the parsing pipeline changes shape or deterministic guards change. */
+    private const ParserVersion = 'archive-v8';
 
     private const DefaultVerbatimRoot = 'scratch/oos-verbatim';
 
@@ -318,6 +318,11 @@ class ImportOosArchiveCommand extends Command
             'mode' => $mode,
             'pipeline_mode' => 'multi_service',
             'parser_version' => self::ParserVersion,
+            'parse_evidence' => [
+                'cache_policy' => $this->option('fresh-parse') ? 'bypassed' : 'reuse-if-input-and-parser-match',
+                'fresh_parse' => (bool) $this->option('fresh-parse'),
+                'cache_key' => ['input_hash', 'parser_version'],
+            ],
             'corpus' => [
                 'verbatim_root' => $verbatimRoot,
                 'formatted_root' => $formattedRoot,
