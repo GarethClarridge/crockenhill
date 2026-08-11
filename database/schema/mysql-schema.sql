@@ -246,6 +246,7 @@ CREATE TABLE `church_service_source_records` (
   `church_service_id` bigint unsigned NOT NULL,
   `source` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `source_key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_key_hash` char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   `revision_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `input_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `supersedes_id` bigint unsigned DEFAULT NULL,
@@ -258,13 +259,13 @@ CREATE TABLE `church_service_source_records` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `church_service_source_records_revision_unique` (`source`,`source_key`,`revision_hash`),
+  UNIQUE KEY `church_service_source_records_revision_unique` (`source`,`source_key_hash`,`revision_hash`),
   UNIQUE KEY `church_service_source_records_one_successor_unique` (`supersedes_id`),
   KEY `church_service_source_records_supersedes_id_foreign` (`supersedes_id`),
   KEY `church_service_source_records_service_source_index` (`church_service_id`,`source`,`captured_at`),
   KEY `church_service_source_records_batch_hash_index` (`batch_hash`),
   KEY `church_service_source_records_created_by_user_id_foreign` (`created_by_user_id`),
-  KEY `church_service_source_records_lineage_lookup_index` (`church_service_id`,`source`,`source_key`),
+  KEY `church_service_source_records_lineage_lookup_index` (`church_service_id`,`source`,`source_key_hash`),
   CONSTRAINT `church_service_source_records_church_service_id_foreign` FOREIGN KEY (`church_service_id`) REFERENCES `church_services` (`id`) ON DELETE CASCADE,
   CONSTRAINT `church_service_source_records_created_by_user_id_foreign` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `church_service_source_records_supersedes_id_foreign` FOREIGN KEY (`supersedes_id`) REFERENCES `church_service_source_records` (`id`) ON DELETE CASCADE
@@ -367,14 +368,279 @@ CREATE TABLE `health_check_result_history_items` (
   KEY `health_check_result_history_items_batch_index` (`batch`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `historic_import_alerts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `historic_import_alerts` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `historic_import_operation_id` bigint unsigned NOT NULL,
+  `media_processing_log_id` bigint unsigned DEFAULT NULL,
+  `alert_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `kind` varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `severity` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payload` json NOT NULL,
+  `recorded_at` timestamp NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `historic_alert_operation_key_unique` (`historic_import_operation_id`,`alert_key`),
+  KEY `historic_alert_processing_log_foreign` (`media_processing_log_id`),
+  CONSTRAINT `historic_alert_operation_foreign` FOREIGN KEY (`historic_import_operation_id`) REFERENCES `historic_import_operations` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `historic_alert_processing_log_foreign` FOREIGN KEY (`media_processing_log_id`) REFERENCES `media_processing_logs` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `historic_import_artifacts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `historic_import_artifacts` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `historic_import_operation_id` bigint unsigned NOT NULL,
+  `historic_import_checkpoint_id` bigint unsigned DEFAULT NULL,
+  `artifact_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `kind` varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `storage_disk` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `relative_path` varchar(1024) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sha256` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `byte_size` bigint unsigned NOT NULL,
+  `encrypted` tinyint(1) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `historic_artifact_operation_key_unique` (`historic_import_operation_id`,`artifact_key`),
+  KEY `historic_import_artifacts_historic_import_checkpoint_id_foreign` (`historic_import_checkpoint_id`),
+  CONSTRAINT `historic_import_artifacts_historic_import_checkpoint_id_foreign` FOREIGN KEY (`historic_import_checkpoint_id`) REFERENCES `historic_import_checkpoints` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `historic_import_artifacts_historic_import_operation_id_foreign` FOREIGN KEY (`historic_import_operation_id`) REFERENCES `historic_import_operations` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `historic_import_asset_transfers`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `historic_import_asset_transfers` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `historic_import_operation_id` bigint unsigned NOT NULL,
+  `historic_import_checkpoint_id` bigint unsigned DEFAULT NULL,
+  `transfer_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_disk` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_path` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `destination_disk` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `destination_path` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `byte_size` bigint unsigned NOT NULL,
+  `sha256` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `state` varchar(24) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `attempts` int unsigned NOT NULL DEFAULT '0',
+  `started_at` timestamp NULL DEFAULT NULL,
+  `verified_at` timestamp NULL DEFAULT NULL,
+  `retain_until` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `historic_transfer_operation_key_unique` (`historic_import_operation_id`,`transfer_key`),
+  UNIQUE KEY `historic_transfer_operation_destination_unique` (`historic_import_operation_id`,`destination_disk`,`destination_path`),
+  KEY `historic_transfer_checkpoint_foreign` (`historic_import_checkpoint_id`),
+  CONSTRAINT `historic_transfer_checkpoint_foreign` FOREIGN KEY (`historic_import_checkpoint_id`) REFERENCES `historic_import_checkpoints` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `historic_transfer_operation_foreign` FOREIGN KEY (`historic_import_operation_id`) REFERENCES `historic_import_operations` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `historic_import_checkpoints`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `historic_import_checkpoints` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `historic_import_operation_id` bigint unsigned NOT NULL,
+  `checkpoint_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ordinal` int unsigned NOT NULL,
+  `membership_hash` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `item_keys` json NOT NULL,
+  `forecast_seconds` int unsigned NOT NULL,
+  `runtime_fingerprint` char(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `accepted_cost_minor_units` bigint unsigned NOT NULL DEFAULT '0',
+  `deadline_at` timestamp NULL DEFAULT NULL,
+  `state` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'planned',
+  `admitted_at` timestamp NULL DEFAULT NULL,
+  `settled_at` timestamp NULL DEFAULT NULL,
+  `last_reconciled_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `historic_checkpoint_operation_key_unique` (`historic_import_operation_id`,`checkpoint_key`),
+  UNIQUE KEY `historic_checkpoint_operation_ordinal_unique` (`historic_import_operation_id`,`ordinal`),
+  CONSTRAINT `historic_import_checkpoints_historic_import_operation_id_foreign` FOREIGN KEY (`historic_import_operation_id`) REFERENCES `historic_import_operations` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `historic_import_item_outcomes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `historic_import_item_outcomes` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `historic_import_operation_id` bigint unsigned NOT NULL,
+  `historic_import_checkpoint_id` bigint unsigned DEFAULT NULL,
+  `historic_import_source_snapshot_id` bigint unsigned DEFAULT NULL,
+  `source_kind` varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `item_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `expectation` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `disposition` varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `approved_source_sha256` char(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `observed_source_sha256` char(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `output_hashes` json NOT NULL,
+  `reason_code` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `settled_at` timestamp NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `historic_outcome_operation_item_unique` (`historic_import_operation_id`,`source_kind`,`item_key`),
+  KEY `historic_outcome_checkpoint_foreign` (`historic_import_checkpoint_id`),
+  KEY `historic_outcome_snapshot_foreign` (`historic_import_source_snapshot_id`),
+  CONSTRAINT `historic_outcome_checkpoint_foreign` FOREIGN KEY (`historic_import_checkpoint_id`) REFERENCES `historic_import_checkpoints` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `historic_outcome_operation_foreign` FOREIGN KEY (`historic_import_operation_id`) REFERENCES `historic_import_operations` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `historic_outcome_snapshot_foreign` FOREIGN KEY (`historic_import_source_snapshot_id`) REFERENCES `historic_import_source_snapshots` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `historic_import_journal_entries`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `historic_import_journal_entries` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `historic_import_operation_id` bigint unsigned NOT NULL,
+  `historic_import_checkpoint_id` bigint unsigned DEFAULT NULL,
+  `sequence` bigint unsigned NOT NULL,
+  `event` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `disposition` varchar(40) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `payload` json NOT NULL,
+  `previous_entry_hash` char(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `entry_hash` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `recorded_at` timestamp NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `historic_journal_operation_sequence_unique` (`historic_import_operation_id`,`sequence`),
+  UNIQUE KEY `historic_import_journal_entries_entry_hash_unique` (`entry_hash`),
+  KEY `historic_journal_checkpoint_foreign` (`historic_import_checkpoint_id`),
+  CONSTRAINT `historic_journal_checkpoint_foreign` FOREIGN KEY (`historic_import_checkpoint_id`) REFERENCES `historic_import_checkpoints` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `historic_journal_operation_foreign` FOREIGN KEY (`historic_import_operation_id`) REFERENCES `historic_import_operations` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `historic_import_nested_jobs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `historic_import_nested_jobs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `historic_import_operation_id` bigint unsigned NOT NULL,
+  `media_processing_log_id` bigint unsigned NOT NULL,
+  `job_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `job_type` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `state` varchar(24) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `attempts` int unsigned NOT NULL DEFAULT '0',
+  `error_fingerprint` char(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `dispatched_at` timestamp NOT NULL,
+  `settled_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `historic_nested_operation_job_unique` (`historic_import_operation_id`,`job_key`),
+  KEY `historic_nested_processing_foreign` (`media_processing_log_id`),
+  CONSTRAINT `historic_nested_operation_foreign` FOREIGN KEY (`historic_import_operation_id`) REFERENCES `historic_import_operations` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `historic_nested_processing_foreign` FOREIGN KEY (`media_processing_log_id`) REFERENCES `media_processing_logs` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `historic_import_operations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `historic_import_operations` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `operation_id` varchar(41) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `binding_hash` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `batch_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `manifest_hashes` json NOT NULL,
+  `plan_hash` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `target_fingerprint` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `runtime_fingerprint` char(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notification_mode` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'external_disabled',
+  `max_cost_minor_units` bigint unsigned NOT NULL DEFAULT '0',
+  `state` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'planned',
+  `accepted_deadline` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `historic_import_operations_operation_id_unique` (`operation_id`),
+  UNIQUE KEY `historic_import_operations_binding_hash_unique` (`binding_hash`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `historic_import_source_snapshots`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `historic_import_source_snapshots` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `historic_import_operation_id` bigint unsigned NOT NULL,
+  `historic_import_checkpoint_id` bigint unsigned DEFAULT NULL,
+  `historic_import_artifact_id` bigint unsigned NOT NULL,
+  `source_kind` varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `item_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `file_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `relative_path` varchar(1024) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `approved_sha256` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `observed_sha256` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `byte_size` bigint unsigned NOT NULL,
+  `file_identity` json NOT NULL,
+  `captured_at` timestamp NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `historic_snapshot_operation_item_file_unique` (`historic_import_operation_id`,`source_kind`,`item_key`,`file_key`),
+  UNIQUE KEY `historic_snapshot_artifact_unique` (`historic_import_artifact_id`),
+  KEY `historic_snapshot_checkpoint_foreign` (`historic_import_checkpoint_id`),
+  CONSTRAINT `historic_snapshot_artifact_foreign` FOREIGN KEY (`historic_import_artifact_id`) REFERENCES `historic_import_artifacts` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `historic_snapshot_checkpoint_foreign` FOREIGN KEY (`historic_import_checkpoint_id`) REFERENCES `historic_import_checkpoints` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `historic_snapshot_operation_foreign` FOREIGN KEY (`historic_import_operation_id`) REFERENCES `historic_import_operations` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `historic_import_usage_entries`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `historic_import_usage_entries` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `historic_import_operation_id` bigint unsigned NOT NULL,
+  `historic_import_checkpoint_id` bigint unsigned NOT NULL,
+  `request_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `item_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `provider` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `model` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `calls` int unsigned NOT NULL DEFAULT '1',
+  `input_tokens` bigint unsigned NOT NULL DEFAULT '0',
+  `output_tokens` bigint unsigned NOT NULL DEFAULT '0',
+  `audio_seconds` bigint unsigned NOT NULL DEFAULT '0',
+  `cost_minor_units` bigint unsigned NOT NULL,
+  `currency` char(3) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `recorded_at` timestamp NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `historic_usage_operation_request_unique` (`historic_import_operation_id`,`request_key`),
+  KEY `historic_usage_checkpoint_item_index` (`historic_import_checkpoint_id`,`item_key`),
+  CONSTRAINT `historic_usage_checkpoint_foreign` FOREIGN KEY (`historic_import_checkpoint_id`) REFERENCES `historic_import_checkpoints` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `historic_usage_operation_foreign` FOREIGN KEY (`historic_import_operation_id`) REFERENCES `historic_import_operations` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `import_deferred_inbound_emails`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `import_deferred_inbound_emails` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `operation_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `inbound_email_id` bigint unsigned NOT NULL,
+  `state` varchar(24) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `dispatch_attempts` int unsigned NOT NULL DEFAULT '0',
+  `deferred_at` timestamp NOT NULL,
+  `dispatched_at` timestamp NULL DEFAULT NULL,
+  `processed_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `import_deferred_operation_email_unique` (`operation_id`,`inbound_email_id`),
+  KEY `import_deferred_inbound_emails_inbound_email_id_foreign` (`inbound_email_id`),
+  KEY `import_deferred_operation_state_index` (`operation_id`,`state`,`id`),
+  CONSTRAINT `import_deferred_inbound_emails_inbound_email_id_foreign` FOREIGN KEY (`inbound_email_id`) REFERENCES `inbound_emails` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `import_deferred_operation_foreign` FOREIGN KEY (`operation_id`) REFERENCES `import_ingress_locks` (`operation_id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `import_ingress_locks`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `import_ingress_locks` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `operation_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `reason` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `blocked_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `operation_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `blocked_by` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `blocked_at` timestamp NOT NULL,
   `released_at` timestamp NULL DEFAULT NULL,
   `queue_pause_accounting` json DEFAULT NULL,
@@ -512,6 +778,7 @@ DROP TABLE IF EXISTS `media_processing_logs`;
 CREATE TABLE `media_processing_logs` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `processing_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `historic_import_operation_id` bigint unsigned DEFAULT NULL,
   `processing_type` enum('audio','video','livestream') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `status` enum('pending','started','processing','completed','skipped','failed','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `current_step` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -568,6 +835,8 @@ CREATE TABLE `media_processing_logs` (
   KEY `media_processing_logs_original_filename_index` (`original_filename`),
   KEY `media_processing_logs_job_id_index` (`job_id`),
   KEY `media_processing_logs_superseded_at_index` (`superseded_at`),
+  KEY `media_processing_historic_operation_foreign` (`historic_import_operation_id`),
+  CONSTRAINT `media_processing_historic_operation_foreign` FOREIGN KEY (`historic_import_operation_id`) REFERENCES `historic_import_operations` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `media_processing_logs_church_service_id_foreign` FOREIGN KEY (`church_service_id`) REFERENCES `church_services` (`id`) ON DELETE SET NULL,
   CONSTRAINT `media_processing_logs_owner_user_id_foreign` FOREIGN KEY (`owner_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `media_processing_logs_sermon_id_foreign` FOREIGN KEY (`sermon_id`) REFERENCES `sermons` (`id`) ON DELETE SET NULL,
@@ -855,6 +1124,9 @@ CREATE TABLE `sermons` (
   `date` date NOT NULL,
   `service` enum('morning','evening','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `content_type` enum('sermon','childrens_talk') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'sermon',
+  `publication_state` varchar(24) COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'published',
+  `asset_disk` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `historic_import_operation_id` bigint unsigned DEFAULT NULL,
   `audio_file_path` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `video_file_path` varchar(500) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `video_quality_status` enum('unassessed','approved','rejected','needs_review') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'unassessed',
@@ -903,6 +1175,9 @@ CREATE TABLE `sermons` (
   KEY `sermons_download_count_index` (`download_count`),
   KEY `sermons_preacher_id_foreign` (`preacher_id`),
   KEY `sermons_preacher_id_date_index` (`preacher_id`,`date`),
+  KEY `sermons_historic_import_operation_id_foreign` (`historic_import_operation_id`),
+  KEY `sermons_publication_state_index` (`publication_state`),
+  CONSTRAINT `sermons_historic_import_operation_id_foreign` FOREIGN KEY (`historic_import_operation_id`) REFERENCES `historic_import_operations` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `sermons_livestream_processing_id_foreign` FOREIGN KEY (`livestream_processing_id`) REFERENCES `media_processing_logs` (`processing_id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `sermons_preacher_id_foreign` FOREIGN KEY (`preacher_id`) REFERENCES `preachers` (`id`) ON DELETE SET NULL,
   CONSTRAINT `sermons_scripture_passage_id_foreign` FOREIGN KEY (`scripture_passage_id`) REFERENCES `scripture_passages` (`id`) ON DELETE SET NULL,
@@ -1110,6 +1385,35 @@ CREATE TABLE `song_books` (
   CONSTRAINT `song_books_publisher_format_check` CHECK (((`publisher` is null) or ((cast(`publisher` as char charset binary) = trim(`publisher`)) and (`publisher` <> _utf8mb4''))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `song_usage_reports`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `song_usage_reports` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `song_id` int unsigned DEFAULT NULL,
+  `used_on` date NOT NULL,
+  `reported_service` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `resolved_church_service_item_id` bigint unsigned DEFAULT NULL,
+  `reported_title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `reported_number` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `catalog_title` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `match_method` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `source_workbook` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_sheet` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_row` int unsigned NOT NULL,
+  `source_fingerprint` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `metadata` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `song_usage_reports_source_fingerprint_unique` (`source_fingerprint`),
+  KEY `song_usage_reports_song_date_index` (`song_id`,`used_on`),
+  KEY `song_usage_reports_date_service_index` (`used_on`,`reported_service`),
+  KEY `song_usage_reports_resolved_church_service_item_id_foreign` (`resolved_church_service_item_id`),
+  CONSTRAINT `song_usage_reports_resolved_church_service_item_id_foreign` FOREIGN KEY (`resolved_church_service_item_id`) REFERENCES `church_service_items` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `song_usage_reports_song_id_foreign` FOREIGN KEY (`song_id`) REFERENCES `songs` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `song_videos`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -1122,6 +1426,8 @@ CREATE TABLE `song_videos` (
   `duration` double DEFAULT NULL,
   `recorded_date` date DEFAULT NULL,
   `is_featured` tinyint(1) NOT NULL DEFAULT '0',
+  `publication_state` varchar(24) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'published',
+  `historic_import_operation_id` bigint unsigned DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -1129,7 +1435,10 @@ CREATE TABLE `song_videos` (
   KEY `song_videos_church_service_id_foreign` (`church_service_id`),
   KEY `song_videos_song_id_is_featured_index` (`song_id`,`is_featured`),
   KEY `song_videos_song_id_recorded_date_index` (`song_id`,`recorded_date`),
+  KEY `song_videos_historic_import_operation_id_foreign` (`historic_import_operation_id`),
+  KEY `song_videos_publication_state_index` (`publication_state`),
   CONSTRAINT `song_videos_church_service_id_foreign` FOREIGN KEY (`church_service_id`) REFERENCES `church_services` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `song_videos_historic_import_operation_id_foreign` FOREIGN KEY (`historic_import_operation_id`) REFERENCES `historic_import_operations` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `song_videos_service_section_id_foreign` FOREIGN KEY (`service_section_id`) REFERENCES `service_sections` (`id`) ON DELETE SET NULL,
   CONSTRAINT `song_videos_song_id_foreign` FOREIGN KEY (`song_id`) REFERENCES `songs` (`id`) ON DELETE CASCADE,
   CONSTRAINT `song_videos_duration_check` CHECK (((`duration` >= 0) or (`duration` is null))),
@@ -1463,3 +1772,20 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_03_000003_creat
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_03_000004_create_church_service_proposal_class_reviews',86);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_06_121022_create_import_ingress_locks_table',87);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_06_144658_add_queue_pause_accounting_to_import_ingress_locks_table',87);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_120000_add_portable_source_key_identity_to_church_service_source_records',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_155251_create_song_usage_reports_table',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200000_create_historic_import_operations_table',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200001_create_historic_import_checkpoints_table',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200002_create_historic_import_artifacts_table',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200003_create_historic_import_source_snapshots_table',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200004_create_historic_import_journal_entries_table',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200005_create_historic_import_item_outcomes_table',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_210000_add_runtime_contract_to_historic_import_operations',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_210001_create_historic_import_usage_entries_table',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_210002_create_historic_import_alerts_table',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_210003_create_historic_import_nested_jobs_table',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_210004_create_historic_import_asset_transfers_table',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_220000_create_import_deferred_inbound_emails_table',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_223000_add_publication_quarantine_to_sermons_table',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_224000_add_runtime_fingerprint_to_historic_import_operations',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_10_090000_add_publication_quarantine_to_song_videos_table',88);
