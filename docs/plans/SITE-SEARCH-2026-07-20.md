@@ -4,6 +4,13 @@
 > useful without any other plan. Deliver the site-wide page and its navigation entry together as a
 > second complete feature. No Scout, external search engine, AI call, transcript search, or new
 > dependency is required.
+>
+> **Sequencing dependency:**
+> [architectural maintainability](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) **AM5 must
+> land before Delivery 1.** AM5 establishes the single server/reactive document-head contract
+> (title, description, canonical, robots). Delivery 1 consumes that shared event for its `q`/robots
+> behaviour and **must not add a second metadata updater**; this plan owns search semantics, not
+> head management.
 
 ## Ownership and boundaries
 

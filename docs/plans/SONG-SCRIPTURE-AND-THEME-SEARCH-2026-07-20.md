@@ -4,6 +4,14 @@
 > navigation before embedding infrastructure. Scripture and theme discovery are independent
 > releases. Semantic search and related songs follow behind a shared embedding foundation. The
 > public-domain Bible similarity band is optional enrichment and blocks none of the earlier value.
+>
+> **Shared document-head contract:** the URL-persisted theme filter/chips on `BrowseSongs` are song
+> filters, which
+> [architectural maintainability](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) **AM5
+> Delivery 2** names explicitly. Once AM5 lands, filter changes here must dispatch AM5's single
+> metadata event with the complete payload (title, description, canonical, robots) rather than
+> updating the browser title alone — the current song-filter behaviour AM5 exists to fix. Do not add
+> a page-specific head updater.
 
 ## Outcome
 

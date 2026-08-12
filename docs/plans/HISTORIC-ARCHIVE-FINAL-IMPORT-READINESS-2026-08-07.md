@@ -459,6 +459,18 @@ versioning is required. Second, `keep_all_backups_for_days` is 7 and `backup:cle
 media (~200GB in Spaces) stays excluded from backup; asset rollback depends on the operation-owned-key
 cleanup path instead.
 
+> **Scope correction (2026-08-12): the "already satisfied" finding covers the apply-step writer
+> only.** The 10–12 August commit review found a **second** object writer that this decision never
+> considered: `HistoricSermonPublicationService` copies out of quarantine to the **final public
+> path** — not an operation-owned key — and compensates by path, so a losing concurrent release can
+> delete the winner's published asset.
+>
+> D6's RPO/RTO, backup and restore decisions **stand and are not reopened**. Only the clause "no
+> bucket versioning is required" is now scoped to the apply step. The release step is owned by
+> [historic import safety remediation](HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md) **HIR7**,
+> whose HIR-D1 determines the required create/receipt primitive. Record HIR-D1's answer here when it
+> is taken, so both writers are visibly accounted for against F45.
+
 **D7 — required reviewers on the `production` environment; log-only operation record formally
 accepted.** `deploy.yml` triggers on `push: branches: [master]` and its deploy job already declares
 `environment: production`, so required reviewers is a settings change that directly prevents the worst
@@ -471,6 +483,20 @@ formally accepted live alternative"; this is that acceptance and must be recorde
 artifact rather than left silent. The accepted consequence: for the duration of the window a real
 outage and a deliberate 503 freeze are not readily distinguishable, and the broad
 `catch (\Exception)` in some API controllers still swallows the refusal's operator-facing message.
+
+> **Blocking correction (2026-08-12): the accepted log record does not yet exist.** The 2026-08-12
+> architectural review verified that production Laravel logging resolves `LOG_CHANNEL=stack` to the
+> `single` driver, so `storage/logs/laravel.log` **does not rotate at all** — at `LOG_LEVEL=debug`,
+> on the persistent `app-logs` volume. PHP's `error_log` likewise targets a file. Docker's
+> `json-file` rotation reaches only stdout/stderr, which today means Nginx and PHP-FPM. Scheduler and
+> Horizon are bounded by Supervisor defaults but are invisible to `docker logs`.
+>
+> D7 declined Sentry on its own merits and that stands. But the alternative D7 chose is unbuilt, so
+> the operation would open its window with **no** working monitoring control.
+> [Architectural maintainability delivery](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md)
+> **AM3 Delivery 1** is therefore a prerequisite of the operation window, and its operator evidence
+> for all four log producers must be attached to the operation artifact before D7 can be treated as
+> satisfied.
 
 **D8 — retention tiered by corpus kind; the video corpus is not retained.** F36's "two verified
 protected copies" is an acquisition-and-processing requirement so the sole copy is never processed;
@@ -2034,6 +2060,16 @@ archive-v11 staging run measures the authoritative review/evidence populations.
 measurements behind it and the work it creates. A decision is not a gate: every row still needs its
 implementation and its rehearsal, production or operator evidence.
 
+> **Citing these decisions from other plans.** This plan's D1–D8 are referred to elsewhere as
+> **FR-D1–FR-D8**, because the [safety remediation](HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md)
+> plan (HIR-D1–HIR-D5) and the
+> [architectural maintainability](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) plan
+> (AM-D1–AM-D4) each maintain their own D-numbering. An unprefixed `Dn` inside this file always means
+> this file's own decision.
+>
+> Two rows below carry post-decision scope corrections dated 2026-08-12 — see **D6** (release writer)
+> and **D7** (log record unbuilt). Neither reverses a decision; both narrow what the decision proves.
+
 | Decision | Owner | Outcome |
 |---|---|---|
 | F1 explained-excess corpus reconciliation | Maintainer | **Decided 2026-08-09.** Exact approved 521-identity baseline; extra identities only where `service_beyond_manifest` explains them. Implemented; F53 owns exact membership |
@@ -2046,8 +2082,8 @@ implementation and its rehearsal, production or operator evidence.
 | Final include/exclude/duplicate/identity decisions in OpenLP/video manifests | Maintainer | **Rule decided 2026-08-11 (D9).** Fail-closed adjudication, whole-corpus scope, written reason on every exclusion. Per-file content still needs the mounted drive |
 | Accepted accuracy threshold and treatment below it | Church governance + maintainer | **Decided 2026-08-11 (D4).** Precision floors ≥ 0.98 stop the batch; recall floors ≥ 0.85 route to review; identity/hash/supersession/visibility stay 100% |
 | Maximum local checkpoint, production ingress window, split and rollback thresholds | Maintainer/operator | **Decided 2026-08-11 (D5).** `maximum_import_ingress_blocked_minutes` = 480; checkpoint bounds 25 items / 12 forecast hours ratified; three rollback triggers set |
-| Backup/object rollback design, RPO/RTO and retention window | Maintainer/operator | **Decided 2026-08-11 (D6).** Pre-window dump verified by real restore; RTO 30 min, RPO to the freeze; object rollback already met by operation-owned keys |
-| Production deploy/admin/config freeze and approval protection | Maintainer/operator | **Decided 2026-08-10 + 2026-08-11 (D7).** 503 refusal + scheduler skip; required reviewers on `production`; log-only operation record **formally accepted** in place of Sentry |
+| Backup/object rollback design, RPO/RTO and retention window | Maintainer/operator | **Decided 2026-08-11 (D6).** Pre-window dump verified by real restore; RTO 30 min, RPO to the freeze; object rollback met by operation-owned keys **for the apply step only** — the release writer is reopened under HIR7/HIR-D1 (see D6 scope correction) |
+| Production deploy/admin/config freeze and approval protection | Maintainer/operator | **Decided 2026-08-10 + 2026-08-11 (D7).** 503 refusal + scheduler skip; required reviewers on `production`; log-only operation record **formally accepted** in place of Sentry — **but that record is unbuilt; AM3 Delivery 1 blocks the window** (see D7 blocking correction) |
 | Evidence retention and source-drive custody duration | Maintainer/operator | **Decided 2026-08-11 (D8).** Small corpora and artifacts permanent; video original returned to the church, working copies deleted on exact audit + smoke |
 
 ## 6. Final go/no-go checklist

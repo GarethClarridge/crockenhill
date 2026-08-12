@@ -6,9 +6,15 @@
 > wait until the historic production operation reaches G9 unless a final-readiness gate proves one is
 > required earlier.
 >
-> **Human authority required:** the maintainer must decide original-recording retention (D1), normal
-> rollback policy (D2), the supported runtime matrix (D3), and whether live Shadow mode remains useful
-> (D4). Production restore, rotation, rollback and startup acceptance checks are operator-run. No
+> **AM3 Delivery 1 blocks the historic production operation.** Historic final-readiness FR-D7
+> accepted rotating logs as the operation record in place of Sentry, but AM3's finding is that
+> `storage/logs/laravel.log` does not rotate at all. The operation's only accepted monitoring control
+> is therefore unbuilt. AM3 Delivery 1 is not free-running infrastructure work and must land before
+> the window opens.
+>
+> **Human authority required:** the maintainer must decide original-recording retention (AM-D1), normal
+> rollback policy (AM-D2), the supported runtime matrix (AM-D3), and whether live Shadow mode remains useful
+> (AM-D4). Production restore, rotation, rollback and startup acceptance checks are operator-run. No
 > production command is authorised by this plan.
 >
 > **No dependency changes are authorised.** AM14d may remove direct frontend dependencies only after
@@ -44,8 +50,8 @@ the work it owns, but it does not duplicate executable steps already owned elsew
 | `ChurchServiceItemSyncService` evidence/decision and the five flat test-suite fold-ins | [July simplification closeout](JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md) R13–R15 | Consume the R13b decision; do not remeasure or extend deletion-scheduled tests here |
 | Generic exception capture, Sentry privacy/noise policy and release-tagged error events | [Sentry plan](SENTRY-ERROR-TRACKING.md) | AM3 owns log transport/rotation; AM8 owns terminal state; Sentry Delivery 2 reports only the final owner |
 | Broad PHPStan/config/dependency/test-notice cleanup | [Code-quality plan](CODE-QUALITY-REMEDIATION-2026-07-19.md) | AM9 coordinates with WP2.5 but does not absorb the wider quality backlog |
-| Brand tokens, shared visual components and visual baselines | [Design-system plan](DESIGN-SYSTEM-REFRESH-2026-07-20.md) | AM5 changes metadata behavior, not visual design |
-| New `/search` behavior and SEO rules | [Site-search plan](SITE-SEARCH-2026-07-20.md) | Site search consumes AM5's shared head updater instead of creating another one |
+| Brand tokens, shared visual components and visual baselines | [Design-system plan](DESIGN-SYSTEM-REFRESH-2026-07-20.md) | AM5 changes metadata behaviour, not visual design |
+| New `/search` behaviour and SEO rules | [Site-search plan](SITE-SEARCH-2026-07-20.md) | Site search consumes AM5's shared head updater instead of creating another one |
 | Production source-recording durability, queue timing, logging, generic rollback, runtime versions and startup | This plan | Historic plans may add stricter operation-specific evidence but do not redefine these generic contracts |
 | Permanent processing, transcription, upload and admin-action ownership | This plan | Feature plans consume the settled seams |
 
@@ -72,8 +78,8 @@ Every implementation PR must state which invariant it makes true.
    updates carry the same complete payload.
 7. **State by lifetime:** JavaScript owns byte progress, cancellation listeners and EventSource
    lifetime; Livewire owns validation, accepted processing identity and durable server state.
-8. **Authorization at effects:** every admin action that persists, deletes, dispatches or calls an
-   external system authorizes directly or delegates to a boundary that does; ephemeral UI state is
+8. **Authorisation at effects:** every admin action that persists, deletes, dispatches or calls an
+   external system authorises directly or delegates to a boundary that does; ephemeral UI state is
    explicitly excluded.
 9. **Temporary means removable:** every historic-only hook, worker, command, compatibility reader,
    writer and schema field names the G9/WP10 evidence that permits its removal.
@@ -85,10 +91,10 @@ default, not permission to assume an answer.
 
 | ID | Decision | Recommendation | Blocks |
 |---|---|---|---|
-| D1 | Are original livestream uploads permanent source evidence, or a recoverability cache with finite retention? | Prefer a finite, explicit retention period after all expected derived assets pass audit, unless the church wants to fund durable private archive storage and tested restores | AM1 |
-| D2 | What may the normal rollback workflow deploy? | Only the immediately previous successful release; anything older is a database/object restore procedure | AM4b |
-| D3 | Which runtime/build matrix is supported? | PHP 8.4 remains the tested minimum/local runtime, PHP 8.5 the production runtime with production-image smoke coverage, and Node 22 the single frontend build version; pin exact Playwright package/image versions | AM12 |
-| D4 | Is live production `ServiceStructureMode::Shadow` still used for model/prompt promotion? | Delete runtime Shadow if offline corpus evaluation has replaced it; otherwise retain it with an owner and a stated next review date | AM10 |
+| AM-D1 | Are original livestream uploads permanent source evidence, or a recoverability cache with finite retention? | Prefer a finite, explicit retention period after all expected derived assets pass audit, unless the church wants to fund durable private archive storage and tested restores | AM1 |
+| AM-D2 | What may the normal rollback workflow deploy? | Only the immediately previous successful release; anything older is a database/object restore procedure | AM4b |
+| AM-D3 | Which runtime/build matrix is supported? | PHP 8.4 remains the tested minimum/local runtime, PHP 8.5 the production runtime with production-image smoke coverage, and Node 22 the single frontend build version; pin exact Playwright package/image versions | AM12 |
+| AM-D4 | Is live production `ServiceStructureMode::Shadow` still used for model/prompt promotion? | Delete runtime Shadow if offline corpus evaluation has replaced it; otherwise retain it with an owner and a named reconsideration *event* (not a calendar date) | AM10 |
 
 Calendar partial failure has a plan default: one skipped upstream event makes the command return
 non-zero after completing safe work. A different tolerance requires a maintainer decision recorded in
@@ -98,22 +104,28 @@ AM11; do not invent a silent threshold.
 
 Review-surface sizes describe human review/blast radius, not elapsed time.
 
+**No package in this plan gates on a calendar period.** Every acceptance step must name evidence
+that is obtainable on demand — a query over data already persisted, a deliberately triggered
+producer, a restart, a probe. Where a question genuinely cannot be answered from accumulated
+evidence, record that as the finding and decide conservatively (retain/keep); do not convert it into
+a soak, observation window or waiting period that silently blocks everything downstream.
+
 | Package | Outcome | Size | Gate |
 |---|---|---:|---|
 | AM0 | Baseline, decisions and invariant test homes | S | — |
-| AM1 | Original recordings have archive/restore or finite-retention proof | L | D1 |
+| AM1 | Original recordings have archive/restore or finite-retention proof | L | AM-D1 |
 | AM2 | Queue/subprocess/overlap timing contradictions are impossible | M | — |
-| AM3 | Every production log stream has proved bounded rotation | M | — |
+| AM3 | Every production log stream has proved bounded rotation | M | **Delivery 1 blocks the historic operation window (FR-D7)** |
 | AM4a | New migrations cannot couple to app code or silently mix DDL/DML | S | — |
-| AM4b | Normal rollback is schema-compatible by construction | L | D2 |
+| AM4b | Normal rollback is schema-compatible by construction | L | AM-D2 |
 | AM5 | One SSR/reactive document-head contract | M | Before Site Search Delivery 1 |
-| AM6 | Admin side-effect authorization is classified and executable | M | Prefer after R14 |
+| AM6 | Admin side-effect authorisation is classified and executable | M | Prefer after R14 |
 | AM7 | One browser owner for upload progress/cancel/SSE | M | — |
 | AM8 | One terminal media-processing failure owner | L | G9, then before Sentry Delivery 2 |
 | AM9 | Transcription and transcript storage are separate ports | M | Prefer after AM8; coordinate with code-quality WP2.5 |
-| AM10 | `DetectServiceStructure` is a queue adapter over a tested workflow | L | G9 + D4 |
+| AM10 | `DetectServiceStructure` is a queue adapter over a tested workflow | L | G9 + AM-D4 |
 | AM11 | Calendar partial failure and overlap are visible | S | — |
-| AM12 | Runtime/build versions are explicit and enforced | M | D3 |
+| AM12 | Runtime/build versions are explicit and enforced | M | AM-D3 |
 | AM13 | Container startup cost is independent of retained data size | M | AM3; preferably AM12 |
 | AM14 | Low-priority residue is deleted, fixed or explicitly kept | S slices | Per slice |
 | EX-H | Historic hooks/compatibility architecture retire | L | External G9/WP10 owner |
@@ -123,22 +135,24 @@ Review-surface sizes describe human review/blast radius, not elapsed time.
 
 ```text
 AM0 decisions/baseline
- ├─ D1 ─> AM1 source-recording policy
- ├──────> AM2 queue timing
- ├──────> AM3 rotating production logs ────────────────┐
- ├──────> AM4a migration guard ─> D2 ─> AM4b rollback │
- ├──────> AM5 document head ─> Site Search Delivery 1 │
- ├──────> AM11 calendar sync                           ├─> AM13 bounded startup
- └─ D3 ─> AM12 runtime matrix ─────────────────────────┘
+ ├─ AM-D1 ──> AM1 source-recording policy
+ ├─────────> AM2 queue timing
+ ├─────────> AM3 logs (Delivery 1, then Delivery 2) ─────────┐
+ ├─────────> AM4a migration guard ─ AM-D2 ─> AM4b rollback   │
+ ├─────────> AM5 document head ─> Site Search Delivery 1     ├─> AM13 bounded startup
+ ├─────────> AM11 calendar sync                              │
+ └─ AM-D3 ──> AM12 runtime matrix ───────────────────────────┘
 
-July R14 ─> AM6 authorization classification ─> AM14a admin residue
+July R14 ─> AM6 authorisation classification ─> AM14a admin residue
           └> July R15 closes independently; do not hold it for this plan
 
+AM3 Delivery 1 ──────────────────┐  (satisfies FR-D7's accepted log record)
+                                 v
 Historic readiness/rehearsal ─> production apply ─> G9
                                             ├─> WP10 / EX-H contraction
                                             ├─> AM8 single terminal owner ─> Sentry Delivery 2
                                             ├─> AM9 transcription/storage split
-                                            └─> D4 ─> AM10 structure-job split
+                                            └─ AM-D4 ─> AM10 structure-job split
 
 AM7 upload ownership and independent AM14 slices may run when they do not overlap an active UI PR.
 ```
@@ -157,7 +171,7 @@ Prevent implementation from silently changing scope or making unmeasured cleanup
 
 1. Reconfirm the file/line inventory in this plan against the implementation branch. Update counts,
    not conclusions, when code has moved.
-2. Record D1–D4 answers in the table above. Each decision may be committed independently.
+2. Record AM-D1–AM-D4 answers in the table above. Each decision may be committed independently.
 3. Capture current evidence without mutating production:
    - configured Horizon worker timeouts and queue `retry_after`;
    - current source-recording volume size/growth and oldest/newest files (operator-run in production);
@@ -168,7 +182,7 @@ Prevent implementation from silently changing scope or making unmeasured cleanup
 4. Record the test homes used by later packages:
    - queue/schedule/config invariants under `tests/Feature/Config/`;
    - deployment/storage/workflow invariants beside existing production configuration tests;
-   - Livewire behavior in component-owned feature tests and Dusk;
+   - Livewire behaviour in component-owned feature tests and Dusk;
    - no one-off verification scripts when a PHPUnit/Dusk test can enforce the contract.
 5. Reconfirm worktree scope before every PR. Existing unrelated changes belong to their author.
 
@@ -191,7 +205,7 @@ documented, verified retention predicate.
 ### AM1.1 — Decision and policy contract
 
 1. Use the AM0 production inventory to estimate current corpus size, monthly growth and archive cost.
-2. Record D1 as one of two contracts:
+2. Record AM-D1 as one of two contracts:
    - **Archive contract:** private durable object/archive storage, retention/lifecycle rules, named
      owner, checksum, restore frequency and off-host failure domain.
    - **Finite-retention contract:** retention duration plus a deletion predicate proving processing
@@ -206,7 +220,7 @@ documented, verified retention predicate.
 5. Extend `ProductionStoragePersistenceTest` (or a focused sibling) so a path cannot be labelled
    permanent/durable without an archive/backup policy, and a temporary path cannot omit retention.
 
-### AM1.2A — Archive implementation (only if D1 chooses archive)
+### AM1.2A — Archive implementation (only if AM-D1 chooses archive)
 
 1. Reuse the existing Flysystem/S3-compatible storage stack; no new package. Define a private source
    archive disk/prefix through config and production secrets.
@@ -220,7 +234,7 @@ documented, verified retention predicate.
 5. Add a read-only audit that reports missing/mismatched archive objects without repairing them. If
    this is a recurring operator function, make it a normal command; do not create a one-shot.
 
-### AM1.2B — Finite-retention implementation (only if D1 chooses retention)
+### AM1.2B — Finite-retention implementation (only if AM-D1 chooses retention)
 
 1. Put the duration and deletion predicate in configuration; app code uses `config()`, not `env()`.
 2. Extend the existing media cleanup command/service rather than creating a second scheduler path.
@@ -266,7 +280,7 @@ cannot boot/test green when a subprocess outlives its job or an overlap lock can
 2. Define the RMS budget once in `config/media-processing.php`. Use the existing production envelope:
    a recommended starting budget is subprocess 6,900 seconds, job 7,080, worker 7,200 and
    `retry_after` 7,260. Recheck real long-run evidence before committing these values.
-3. Set the serialized job timeout from the validated configuration at construction/dispatch time and
+3. Set the serialised job timeout from the validated configuration at construction/dispatch time and
    pass the subprocess budget into `VideoSegmentationService`; delete the hard-coded 3,600/7,200 pair.
 4. Change publication overlap expiry to `job timeout + 120 seconds` (or one named grace constant),
    covering `PrepareSectionPublicationCandidates`, `AutoPublishServiceSection` and
@@ -291,9 +305,24 @@ in the ordered chain.
 
 ## AM3 — Bounded production logs
 
-**Review finding:** the historic operation accepted rotating logs as its live record, but Laravel,
-PHP, Scheduler and Horizon currently write non-rotating files on a persistent volume. Docker's
-JSON-file rotation covers stdout/stderr only.
+**Review finding:** the historic operation accepted rotating logs as its live record, but the
+production log files are not bounded the way that acceptance assumes. Docker's JSON-file rotation
+(`max-size: 50m`, `max-file: 3`) covers stdout/stderr only, which today means Nginx and PHP-FPM.
+
+Verified against `ac1468b47`, the four producers differ and the fix must not treat them as one case:
+
+- **`storage/logs/laravel.log` is genuinely unbounded.** `config/logging.php` resolves
+  `LOG_CHANNEL=stack` to `'channels' => ['single']`, and the `single` driver never rotates. It is
+  also the highest-volume producer, because `LOG_LEVEL` defaults to `debug`.
+- **PHP's `error_log`** targets a file rather than stderr, so it never reaches Docker rotation.
+- **Scheduler and Horizon** write `storage/logs/scheduler.log` and `storage/logs/horizon.log` through
+  Supervisor `stdout_logfile` without `stdout_logfile_maxbytes`, so they inherit Supervisor's
+  defaults (roughly 50 MB × 10 backups) rather than being unbounded. They are *bounded but large and
+  invisible* to `docker logs` — a transport problem, not a runaway-growth problem.
+
+All four sit on the persistent `app-logs` volume. Do not carry "non-rotating" as a blanket claim into
+the implementation PR: the urgent correctness item is `laravel.log` plus the PHP error log; Scheduler
+and Horizon are moved for visibility and single-owner rotation.
 
 **Who benefits:** the operator during long operations and incidents. **Observable improvement:** all
 production process logs are visible through one documented command and bounded by a tested size/file
@@ -302,9 +331,16 @@ retention policy.
 ### Ownership correction
 
 This package owns transport, rotation and retention. The Sentry plan remains an optional third
-observability layer for event capture, privacy scrubbing and alerts. Historic final-readiness D7
-already accepted rotating logs instead of Sentry for the import; therefore Sentry is not an import
-gate. If Sentry is installed later, it consumes AM8's final exception owner.
+observability layer for event capture, privacy scrubbing and alerts. If Sentry is installed later,
+it consumes AM8's final exception owner.
+
+**Historic final-readiness FR-D7 accepted "rotating logs as the operation record" in place of
+Sentry. This package's finding is that the accepted control does not yet exist.** FR-D7's premise
+must not be cited as evidence that logging is settled — it is the thing AM3 has to make true.
+Sentry is still not an import gate, because FR-D7 declined it on its own merits; but the
+alternative FR-D7 chose is unbuilt, so **AM3 Delivery 1 is a prerequisite of the historic
+operation**, not free-running infrastructure work. See the loop-back note in the historic
+final-readiness plan's FR-D7 entry.
 
 ### Delivery 1 — redirect new logs, retain the old volume
 
@@ -327,7 +363,12 @@ gate. If Sentry is installed later, it consumes AM8's final exception owner.
 
 1. Operator: generate identifiable application, PHP, Scheduler and Horizon test lines; prove each is
    present through `docker logs` and rotates under the configured limit.
-2. Confirm no production process writes into `storage/logs` over an agreed observation window.
+2. Prove no production process writes into `storage/logs` by obtainable evidence, not elapsed time:
+   record the mtime and size of every file under the mount, restart the stack, exercise each of the
+   four producers deliberately (application log line, PHP error, a scheduled command, a queued job),
+   and confirm all four surfaced through `docker logs` while no file under `storage/logs` advanced.
+   A producer that cannot be triggered on demand is named as a residual risk in the same evidence
+   note; it does not convert this step into a waiting period.
 3. Remove `storage/logs` from the production persistence registry, Compose mount, Dockerfile setup and
    entrypoint ownership paths in one PR. Do not delete the Docker named volume.
 4. After the accepted evidence-retention window, the operator may separately remove the orphaned
@@ -351,7 +392,7 @@ image against a newer schema.
 
 1. Do not edit deployed migrations. Add a PHPUnit architecture test over migration PHP files that:
    - rejects imports from `App\`;
-   - rejects a file containing both schema DDL and data writes/backfill behavior;
+   - rejects a file containing both schema DDL and data writes/backfill behaviour;
    - requires an explicit forward-fix explanation where `down()` cannot be safely reversible; and
    - does not allow an ever-growing baseline.
 2. Grandfather only the currently deployed known offenders in the test's exact allowlist, including
@@ -365,7 +406,7 @@ image against a newer schema.
 
 ### AM4b — Previous-release-only rollback
 
-Depends on D2. Recommended implementation:
+Depends on AM-D2. Recommended implementation:
 
 1. During deploy, resolve the currently running image SHA before the swap. Keep it as the candidate
    previous release; do not alter the accepted manifest yet.
@@ -401,7 +442,7 @@ metadata implementation.
 improvement:** special characters render once and title/description/canonical/robots always describe
 the same URL after SSR, filtering and Livewire navigation.
 
-### Delivery 1 — characterize and fix SSR escaping
+### Delivery 1 — characterise and fix SSR escaping
 
 1. Activate `frontend-design`, `livewire-development`, `tailwindcss-development` only if markup
    classes change, and `spatie-javascript` for the shared updater.
@@ -411,8 +452,8 @@ the same URL after SSR, filtering and Livewire navigation.
 3. Use Blade's inline stack content transport (for example `@push('title', $resolvedTitle)`) to pass
    the raw scalar without rendering it. `layouts/main.blade.php` remains the only output boundary and
    escapes once with `{{ }}`.
-4. Standardize page, auth and admin shell title/description producers on the same transport. Preserve
-   JSON-LD and OpenGraph component behavior.
+4. Standardise page, auth and admin shell title/description producers on the same transport. Preserve
+   JSON-LD and OpenGraph component behaviour.
 5. Replace `BladeShellRenderingTest` assertions that bless double escaping with semantic output tests.
 
 ### Delivery 2 — one complete reactive payload/updater
@@ -424,7 +465,7 @@ the same URL after SSR, filtering and Livewire navigation.
 3. Make sermon and song filters dispatch the same named event with the complete payload. Bust Livewire
    computed metadata before reading it in batched update hooks.
 4. Update pagination/query changes that affect canonical/robots, not only search/facet changes.
-5. Amend Site Search Delivery 1 to consume this event for its `q`/robots behavior; it owns search
+5. Amend Site Search Delivery 1 to consume this event for its `q`/robots behaviour; it owns search
    semantics, not another updater.
 
 ### Tests and acceptance
@@ -435,7 +476,7 @@ the same URL after SSR, filtering and Livewire navigation.
 - production frontend build, PHPStan, Pint and full parallel PHPUnit; Dusk required;
 - no Playwright baseline update unless rendered page pixels actually change.
 
-## AM6 — Executable admin side-effect authorization
+## AM6 — Executable admin side-effect authorisation
 
 **Review finding:** every admin component is structurally required to use
 `WithAdminAuthorization`, but the documented “every mutating action” rule is ambiguous and only a few
@@ -451,7 +492,7 @@ fails unauthorized before persistence/external work.
    assertions in component-owned/structural homes.
 2. Clarify the durable contract in `WithAdminAuthorization` and `AGENTS.md`:
    - side effect = database/file mutation, delete, queue/event/mail/external dispatch or
-     authorization-relevant state;
+     authorisation-relevant state;
    - UI-only = ephemeral form/list state such as adding an unsaved point;
    - route middleware plus component trait remains defence in depth.
 3. Inventory every public method on `App\Livewire\Admin` components, excluding known Livewire
@@ -459,7 +500,7 @@ fails unauthorized before persistence/external work.
    choose the form that follows existing test conventions and creates the least production code.
 4. The structural test fails when a new public method has no classification. Side-effect entries must
    either call `authorizeAdmin()` before work or name a delegated action whose test proves the guard.
-5. Add unauthorized Livewire behavior tests for every persisted/external action touched while
+5. Add unauthorized Livewire behaviour tests for every persisted/external action touched while
    closing gaps. Verify no model, storage, queue or mail side effect occurs.
 6. Do not add `authorizeAdmin()` ceremony to harmless UI-only methods merely to satisfy a regex.
 
@@ -467,7 +508,7 @@ fails unauthorized before persistence/external work.
 
 - every admin component still uses the trait;
 - every public method is classified;
-- every side effect has focused unauthorized behavior coverage or an explicitly tested guarded
+- every side effect has focused unauthorized behaviour coverage or an explicitly tested guarded
   delegate;
 - PHPStan, Pint, full parallel suite; Dusk only if visible interaction changes.
 
@@ -482,7 +523,7 @@ server round trips.
 
 ### Steps
 
-1. Preserve the resolved O27/O28 regressions with Dusk characterization before refactoring: cancel
+1. Preserve the resolved O27/O28 regressions with Dusk characterisation before refactoring: cancel
    stops transfer/processing; failed/cancelled/manual-review states cannot expose a dead second picker;
    “Upload another” clears prior identity.
 2. Extend `resources/js/livewire/media-upload-controller.js` to own:
@@ -499,7 +540,7 @@ server round trips.
 5. Use one event payload from SSE to decide whether Livewire needs a status refresh. Coalesce bursts;
    a progress event must not cause duplicate concurrent `$wire.checkProcessingStatus()` requests.
 6. Keep the single class + Blade Livewire component. Do not create a child component for progress.
-7. Delete JavaScript source-string tests made obsolete by behavior coverage; retain PHP state-machine
+7. Delete JavaScript source-string tests made obsolete by behaviour coverage; retain PHP state-machine
    tests and Dusk interaction tests.
 
 ### Tests and acceptance
@@ -519,7 +560,7 @@ to the final owner.
 improvement:** a retryable error never appears terminal; an exhausted run produces exactly one final
 state transition, cleanup decision, dedup release, notification and optional report event.
 
-### Delivery 1 — characterize current semantics
+### Delivery 1 — characterise current semantics
 
 1. Enumerate every job catch that calls `markAsFailed`, every `failed()` callback and every chain
    catch. Classify each responsibility as step context, job-specific compensation or run-terminal
@@ -533,7 +574,7 @@ state transition, cleanup decision, dedup release, notification and optional rep
 3. Assert current externally required results, but add explicit failing assertions for one terminal
    transition/notification and no terminal state before retries exhaust.
 
-### Delivery 2 — centralize terminal ownership
+### Delivery 2 — centralise terminal ownership
 
 1. Make step jobs record local processing-step context and throw. They do not set run-terminal status,
    release cross-run deduplication or notify the operator in `catch`.
@@ -542,7 +583,7 @@ state transition, cleanup decision, dedup release, notification and optional rep
 3. Make `ProcessingRunFailureHandler` the single exhausted-chain boundary for every processing
    profile. Route audio/video and auto-trim/livestream through
    `MediaProcessingRunTransitionService` rather than mixing direct updates and transitions.
-4. Centralize cleanup, dedup release and notification there. Add an idempotency key/terminal-state
+4. Centralise cleanup, dedup release and notification there. Add an idempotency key/terminal-state
    guard so a replayed chain callback is harmless.
 5. Add structured exception context once. If Sentry Delivery 2 is active, `report($exception)` occurs
    here only; enable duplicate suppression and do not report expected manual-review/cancel/retry
@@ -551,7 +592,7 @@ state transition, cleanup decision, dedup release, notification and optional rep
 
 ### Acceptance
 
-- all profile characterization tests green;
+- all profile characterisation tests green;
 - grep shows no job catch writing run-terminal state outside the documented exception list;
 - exactly one notification/report on exhausted failure, none on successful retry;
 - status API/Livewire consumers observe monotonic non-terminal → terminal state;
@@ -568,8 +609,8 @@ storage/cleanup tests do not instantiate a provider.
 
 ### Steps
 
-1. Re-grep all `TranscriptionServiceInterface` callers and adapters. Characterize real, local and
-   mock provider behavior before changing the contract.
+1. Re-grep all `TranscriptionServiceInterface` callers and adapters. Characterise real, local and
+   mock provider behaviour before changing the contract.
 2. Reduce `TranscriptionServiceInterface` to `transcribe()` (and only another operation if the caller
    census proves it is provider-specific). Remove store/get/exists/delete/cleanup/path methods.
 3. Inject `TranscriptStorageService` directly into `TranscribeAudio` and any real storage consumer.
@@ -581,7 +622,7 @@ storage/cleanup tests do not instantiate a provider.
    mark that external item complete. Every caller supplies a real ID or an explicitly nullable typed
    value—never a sentinel string.
 6. Keep service-provider selection fail-closed per code-quality WP2.2; do not mix provider-config
-   behavior changes into this contract PR unless that work already landed.
+   behaviour changes into this contract PR unless that work already landed.
 
 ### Tests and acceptance
 
@@ -593,7 +634,7 @@ storage/cleanup tests do not instantiate a provider.
 
 ## AM10 — Thin `DetectServiceStructure` into job + workflow + comparator
 
-**Gate:** G9 and D4. Do not destabilize the historic rehearsal/operation for an internal class split.
+**Gate:** G9 and AM-D4. Do not destabilize the historic rehearsal/operation for an internal class split.
 
 **Who benefits:** developers changing service-structure detection and operators reading failures.
 **Observable improvement:** the job contains queue concerns plus one workflow call; primary workflow
@@ -601,38 +642,42 @@ outcomes and proposal comparison are testable without dispatching a job.
 
 ### AM10.1 — Resolve Shadow ownership
 
-1. Use AM0 evidence to determine whether production Shadow has run in the agreed observation window
-   and whether anyone reads its reports for model promotion.
-2. Record D4:
-   - **Retain:** name operator, trigger, report consumer and next review date.
+1. Use AM0 evidence to determine whether production Shadow has ever run and whether anyone reads its
+   reports for model promotion. Query the accumulated run metadata that already exists — the
+   presence or absence of Shadow proposals across the retained history is the evidence, and it is
+   available now. Do not open a fresh watching period.
+2. Record AM-D4:
+   - **Retain:** name operator, trigger and report consumer, plus the *event* that should trigger
+     reconsideration (for example the next model or prompt promotion). Do not set a calendar review
+     date that nobody is accountable for reaching.
    - **Delete:** remove runtime `ServiceStructureMode::Shadow`, job branch and runtime config/tests;
      keep offline evaluation commands/fixtures that still earn their place.
 3. Make the Shadow decision its own subtractive PR before moving workflow code.
 
 ### AM10.2 — Extract two coherent boundaries
 
-1. Freeze behavior with focused tests for primary success, validation/manual review, recovery,
+1. Freeze behaviour with focused tests for primary success, validation/manual review, recovery,
    transcript/OOS loading failure, sermon-confidence policy, notification and (if retained) Shadow.
 2. Add one application workflow/coordinator under the existing church-service Structure domain. It
    receives explicit dependencies and returns a typed result such as accepted, manual-review,
    recoverable failure or shadow-only result.
 3. Move the self-contained proposal/baseline diff engine into one comparator with value-object input
    and output. Do not turn each private helper into a service.
-4. `DetectServiceStructure` retains serialization, middleware, cancellation/overlap, retry policy and
+4. `DetectServiceStructure` retains serialisation, middleware, cancellation/overlap, retry policy and
    one injected workflow call. Replace late `app()` resolution inside ordinary workflow code.
 5. Keep detector, validator, sync and source-evidence seams that already exist. This PR changes
    ownership, not detection policy or prompt/schema.
-6. Split the 1,074-line job test by behavior owner: queue adapter tests, workflow tests and comparator
+6. Split the 1,074-line job test by behaviour owner: queue adapter tests, workflow tests and comparator
    tests. Delete duplicated assertions; do not reduce coverage of manual-review or recovery edges.
 
 ### Acceptance
 
-- no prompt/model/output behavior change in fixture/evaluation comparison;
+- no prompt/model/output behaviour change in fixture/evaluation comparison;
 - job source contains queue concerns and one workflow dispatch, not I/O/persistence/diff policy;
 - no late service location except framework callback boundaries that cannot receive injection;
 - PHPStan, Pint, full parallel suite; real-model evaluation only if current plan/runbook requires it.
 
-## AM11 — Visible, non-overlapping calendar synchronization
+## AM11 — Visible, non-overlapping calendar synchronisation
 
 **Who benefits:** calendar visitors and the operator. **Observable improvement:** concurrent syncs
 cannot race, and a repeatedly failing event makes schedule monitoring non-green.
@@ -643,7 +688,7 @@ cannot race, and a repeatedly failing event makes schedule monitoring non-green.
    expiry/grace, `onOneServer()` and production environment restriction.
 2. Choose a lock lifetime from measured worst-case runtime and keep it below the four-hour cadence.
    Bound the command or lock rather than allowing a stale lock to suppress the next run indefinitely.
-3. Preserve the service's safe behavior: an event returned by Google but failing locally is not
+3. Preserve the service's safe behaviour: an event returned by Google but failing locally is not
    deleted as absent.
 4. Make the command display processed, skipped, deleted and uncategorized counts. If
    `skipped_events > 0`, emit a structured warning/error and return non-zero after safe work
@@ -668,7 +713,7 @@ review-visible rather than floating silently.
 
 ### Steps
 
-1. Record D3 in one authoritative matrix in `docs/operations/production.md` and a cross-file test.
+1. Record AM-D3 in one authoritative matrix in `docs/operations/production.md` and a cross-file test.
    The recommended matrix is:
    - PHP 8.4: Composer minimum, Sail/Jules and primary PHPUnit/PHPStan;
    - PHP 8.5: production image plus production-image boot/smoke;
@@ -713,9 +758,9 @@ remains writable by `www`.
 3. Inventory existing nested ownership once in production; do not assume the root tells the whole
    story before migration.
 
-### Delivery 2 — one-time initialization, bounded steady state
+### Delivery 2 — one-time initialisation, bounded steady state
 
-1. Replace unconditional recursion with a versioned per-volume initialization marker:
+1. Replace unconditional recursion with a versioned per-volume initialisation marker:
    - marker absent: repair ownership/mode once, verify as `www`, then write marker atomically;
    - marker present: check only root/marker and fail loudly if unwritable; do not traverse contents.
 2. New volumes should be seeded with correct ownership by the Dockerfile so even first boot avoids a
@@ -753,15 +798,15 @@ decision when deletion/extraction costs more than the complexity it removes.
 2. Prefer an explicit route/controller/template selection for that one page, or add an explicit
    validated template key only if more special pages are genuinely planned.
 3. Remove filesystem probing derived from mutable area/slug. Test that changing ordinary page data
-   cannot silently select or lose bespoke behavior.
+   cannot silently select or lose bespoke behaviour.
 
 ### AM14c — Mechanical namespaces and repeated casts
 
 1. Move `LivestreamSegmentationService` from the Sermon namespace to Processing or Media, following
    the majority of its dependencies. Do this only after G9 or while all callers are already changing;
-   no behavior changes in the namespace PR.
-2. Compare all metadata casts' malformed/null/scalar behavior. Introduce one small generic/abstract
-   JSON value-object cast only if behavior is identical and the change removes real duplication.
+   no behaviour changes in the namespace PR.
+2. Compare all metadata casts' malformed/null/scalar behaviour. Introduce one small generic/abstract
+   JSON value-object cast only if behaviour is identical and the change removes real duplication.
    Otherwise record a keep decision; do not create an internal framework for five short adapters.
 
 ### AM14d — Frontend bootstrap/dependency residue
@@ -793,7 +838,7 @@ must hand back:
 3. Manual, Email/OpenLP and livestream adapters all feed
    `IngestChurchServiceSourceRevision` → `ChurchServiceProjector` →
    `ChurchServiceProjectionPersister`.
-4. Delete duplicate legacy canonical finalization and writer tests, porting only enduring behavior to
+4. Delete duplicate legacy canonical finalization and writer tests, porting only enduring behaviour to
    adapter/projector tests.
 5. Add a structural/domain test proving there is one canonical item write boundary. The persister's
    “only writer” documentation must be true in code.
@@ -812,7 +857,7 @@ from their current authority until EX-H completes.
 
 Every code/config PR:
 
-1. add or update focused tests before changing behavior; a bug fix proves red → green;
+1. add or update focused tests before changing behaviour; a bug fix proves red → green;
 2. run focused tests through Sail;
 3. `vendor/bin/sail composer phpstan` at zero errors;
 4. `vendor/bin/sail bin pint --dirty`;
@@ -824,7 +869,7 @@ Every code/config PR:
 9. no new dependency without explicit approval; and
 10. no production command from an agent. Operator acceptance evidence is recorded after execution.
 
-Deletion/refactor PRs retain characterization tests until the new owner is green, then delete tests
+Deletion/refactor PRs retain characterisation tests until the new owner is green, then delete tests
 whose subject is gone in the same PR. Do not preserve tests for removed architecture as historical
 documentation.
 
@@ -839,13 +884,13 @@ The plan is complete only when all applicable rows are evidenced, not merely cod
 | Known timing contradictions | RMS pair + three overlap locks | Zero; invariant test covers all long jobs/locks |
 | Persisted paths without archive/expiry policy | `storage/app/livestream` | Zero |
 | Production file logs without proved rotation | Laravel, PHP, Scheduler, Horizon | Zero |
-| Normal rollback targets | Arbitrary SHA | Immediately previous accepted release only, or approved compatibility manifest if D2 differs |
+| Normal rollback targets | Arbitrary SHA | Immediately previous accepted release only, or approved compatibility manifest if AM-D2 differs |
 | New migration architecture violations | Not prevented | CI fails on `App\` imports and mixed DDL/DML |
 | Reactive document-head implementations | Page-specific sermon/song paths | One payload/updater contract |
 | Upload browser state owners | Controller + Livewire mirror + inline SSE | One browser controller; Livewire durable state only |
 | Calendar partial failure visibility | Log warning + exit success | Monitored non-zero/accepted threshold |
 | Runtime/version drift | PHP, Node, Playwright, socket and floating images | Explicit matrix; every difference intentional/tested |
-| Data-size-dependent startup traversal | Every start | One-time initialization; bounded steady-state |
+| Data-size-dependent startup traversal | Every start | One-time initialisation; bounded steady-state |
 | Historic-only permanent hooks after WP10 | Boot/model/queue/scheduler/Horizon | Zero unless retained with explicit permanent owner |
 | R14 flat suites | Five / 2,992 lines at review baseline | Zero |
 
@@ -853,9 +898,9 @@ The plan is complete only when all applicable rows are evidenced, not merely cod
 
 Stop the current package and return to the maintainer when:
 
-- D1–D4 is unanswered and different answers materially change implementation;
+- AM-D1–AM-D4 is unanswered and different answers materially change implementation;
 - a proposed “cleanup” is required by an open historic G2–G9 gate;
-- a characterization test reveals the target boundary does not preserve public/admin behavior;
+- a characterisation test reveals the target boundary does not preserve public/admin behaviour;
 - an infrastructure change would remove or overwrite an unarchived volume/log/source;
 - a migration/rollback change needs production state not available through approved evidence;
 - a dependency change becomes necessary; or
@@ -867,7 +912,7 @@ After all owned AM packages and external hand-backs are accepted:
 
 1. remeasure the programme-acceptance table from code and operator evidence;
 2. fold any surviving operational rules into `AGENTS.md` and `docs/operations/production.md` without
-   copying class-by-class behavior;
+   copying class-by-class behaviour;
 3. update `docs/plans/README.md` and move this plan to `docs/archived-plans/` with a dated completion
    header; and
 4. remove any point-in-time review/report whose findings are now fully represented here or in another

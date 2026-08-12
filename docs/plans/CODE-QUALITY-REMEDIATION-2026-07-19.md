@@ -8,6 +8,12 @@
 >
 > Ownership is now narrower. Historic/convergence one-shot retirement is exclusively Gate G9/WP10
 > of the two historic-readiness plans; it is not WP5 here and must not be scheduled from this file.
+>
+> **Coordination with [architectural maintainability](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md):**
+> AM9 (transcription/transcript-storage split) overlaps **WP2.5**'s `'unknown'` processing-id
+> defaults, and AM11 (calendar sync) overlaps **WP2.7**'s Google Calendar PHPStan-ignore typing.
+> Either side may land first — WP2.5 and WP2.7 are explicitly *not* held for AM. Whichever lands
+> second marks the other item complete rather than redoing it. Do not batch these into one diff.
 > The archived simplification parent is context only. R9-R11 are complete, so level-9 remediation
 > sessions may start at level 8; maintainer Q4 blocks only the final `level: 9` config flip.
 >

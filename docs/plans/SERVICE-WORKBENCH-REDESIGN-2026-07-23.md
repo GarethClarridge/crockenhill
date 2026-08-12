@@ -5,6 +5,12 @@
 > that implementation as a redesign project. Finish the orphan cleanup and behavioural coverage
 > now; defer only the visual fixture until the design-system refresh has stabilised the shared
 > admin shell.
+>
+> **Do not confuse this plan's orphan partial with AM14a's.**
+> [Architectural maintainability](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) AM14a
+> deletes `resources/views/components/admin/shell.blade.php`, which has no rendered production
+> consumer. That is a **different** file from the orphan partial in this plan's cleanup slice. Each
+> plan deletes its own; neither slice should widen to cover the other.
 
 ## Delivered contract
 

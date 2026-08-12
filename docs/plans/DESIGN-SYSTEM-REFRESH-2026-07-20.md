@@ -9,7 +9,15 @@
 > may ship immediately. The screenshot runner has one owner—Phase 5—not an “either PR” option.
 > Broad token/prose/artwork changes should land after the currently planned site-search/newcomer
 > header and page work, then the service-workbench visual fixture is created once against the final
-> tokens. Feature plans own their information architecture; this plan owns shared tokens,
+> tokens.
+>
+> **Boundary with [architectural maintainability](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md):**
+> AM5 rewrites the document-head contract (title/description/canonical/robots escaping and reactive
+> updates). That is **metadata behaviour, not visual design** — it changes no tokens, components or
+> rendered pixels, and requires no Playwright baseline update. If an AM5 PR does change rendered
+> output, that is a defect in AM5, not a design-system change to absorb here.
+>
+> Feature plans own their information architecture; this plan owns shared tokens,
 > components and baseline regeneration.
 
 > Source review:

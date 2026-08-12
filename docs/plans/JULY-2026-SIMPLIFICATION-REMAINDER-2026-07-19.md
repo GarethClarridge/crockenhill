@@ -16,6 +16,17 @@
 > **Agents must not:** run production commands; add coverage to the five legacy flat test suites;
 > change the staged-merge policy without measured evidence; or hold R14/R15 behind the historic
 > import, which is now a separate programme.
+>
+> **Consumers of this plan's output.**
+> [Architectural maintainability](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) depends on
+> three outcomes here and owns none of them:
+>
+> - **R13b** produces the `ChurchServiceItemSyncService` caller/evidence decision that AM's EX-H
+>   consumes when defining the single canonical-writer target.
+> - **R14** should precede AM6 (admin side-effect authorisation classification), so AM6 never adds
+>   assertions to a flat suite that R14 is folding in. AM6 waits for R14; **R14 does not wait for AM6.**
+> - **R15** owns the `AGENTS.md` refresh, including deleting the stale R9/R10 do-not-invest entries.
+>   R15 closes independently and **must not be held for any AM package.**
 
 ## Outcome
 
@@ -42,11 +53,11 @@ here so completed/delegated instructions cannot be mistaken for current work.
 
 ## Recommended delivery order
 
-Start the R13 measurement window immediately, then execute R14 while the window runs. R13's two
-decisions may finish in either order. R15 is last.
+All three remaining items are answerable from evidence that already exists; none waits on a calendar
+period. R13's two decisions may finish in either order, R14 is independent of both, and R15 is last.
 
 ```text
-R13a measurement starts ────────────────┐
+R13a staged-merge query + decision ────┐
 R14 duplicate-suite fold-ins ──────────┼─> R15 archive
 R13b sync-service reassessment ────────┘
 ```
@@ -59,28 +70,36 @@ keep decision. R14 is independent of R13 and of the historic import.
 **Question:** does the pending-structure-merge workflow still earn its complexity under the
 primary pipeline?
 
-1. Agree a live measurement window with the maintainer (recommendation: four ordinary Sunday
-   cycles, extended if no merge opportunity occurs). Do not substitute bulk historic staging for
-   the weekly-path evidence: its source ordering is different.
-2. From persisted proposals/review state and operator decisions, record:
+1. **Query the evidence that already exists; do not wait for future services.** Pending-merge
+   proposals, review state and operator decisions are persisted, so the question is answerable now
+   over the accumulated live-path history. Scope the query to weekly-path revisions and exclude bulk
+   historic staging, whose source ordering differs — that is a *filter on existing rows*, not a
+   reason to start a new observation period.
+2. If, and only if, the accumulated live-path history contains too few merge events to distinguish
+   "rare and uniform" from "varied", record that as the finding and **decide `keep` on insufficient
+   evidence**. A workflow that has not been exercised enough to characterise is not one to delete.
+   Do not convert this into an open-ended wait.
+3. From persisted proposals/review state and operator decisions, record:
    - how often a pending merge was raised;
    - the source pairing and reason;
    - whether the operator accepted incoming, kept current or edited manually; and
    - whether the choice changed any publication outcome.
-3. Prefer an existing read-only query/report. Add durable instrumentation only if the current data
+4. Prefer an existing read-only query/report. Add durable instrumentation only if the current data
    cannot answer the question; do not create a one-shot command merely to count it once.
-4. Append the measured totals and decision here:
+5. Append the measured totals and decision here:
    - **simplify** when the workflow is rare and the operator consistently accepts the same policy;
      the follow-up PR may apply that policy automatically, retain `needs_review` plus a readable
      diff reason, and delete only machinery made unreachable; or
    - **keep** when real choices vary or the workflow prevents wrong canonical state. Record why and
      close the item without refactoring.
 
-The measurement note is a complete deliverable even when the decision is “keep”.
+The measurement note is a complete deliverable even when the decision is “keep”, including when
+“keep” is reached on insufficient accumulated evidence. R13a is answerable from current data and
+must not block R15.
 
 ## R13b — `ChurchServiceItemSyncService` reassessment
 
-This is a separate decision from R13a and does not wait for its measurement window.
+This is a separate decision from R13a and does not wait for it.
 
 Separate the **current pre-G9 decision** from the **permanent post-G9 target**. Historic-readiness
 may temporarily justify compatibility callers/writers; it must not make them permanent by inertia.

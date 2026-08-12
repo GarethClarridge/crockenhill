@@ -111,11 +111,11 @@ implementation uses them.
 
 | ID | Decision or discovery | Recommendation | Blocks |
 |---|---|---|---|
-| D1 | Which atomic create/object-receipt primitives do the local filesystem and production DigitalOcean Spaces adapter actually support? | Require create-if-absent. Prefer an immutable version ID for cleanup; if exact-version deletion is unavailable, failed final objects are retained as explicit orphans and never auto-deleted | HIR7 implementation and HIR8 object exercise |
-| D2 | What stable database and storage identities are observable in every environment allowed to mutate historic state? | Database server UUID + schema identity; storage endpoint/account + bucket/prefix (or local filesystem identity), all canonical-hashed without credentials | HIR1 activation |
-| D3 | Who holds the recovery-evidence signing key and what key ID/rotation rule applies? | A recovery-only HMAC key held by the independent-verifier workflow, distinct from application approval/source evidence keys; deploy verification material only for the accepted window | HIR5 |
-| D4 | Which acquisition hosts/filesystems are supported? | Explicit Darwin/APFS and production Linux filesystem adapters only; unknown platforms or unobservable mount facts fail closed | HIR4 |
-| D5 | May safety defects be fixed inside deletion-scheduled `ImportOosArchiveCommand` and companion tests? | Approve a bounded exception for HIR2/HIR8 only; put cache-binding logic in a small service and make no unrelated command/test investment | HIR2 and affected rehearsal coverage |
+| HIR-D1 | Which atomic create/object-receipt primitives do the local filesystem and production DigitalOcean Spaces adapter actually support? | Require create-if-absent. Prefer an immutable version ID for cleanup; if exact-version deletion is unavailable, failed final objects are retained as explicit orphans and never auto-deleted | HIR7 implementation and HIR8 object exercise |
+| HIR-D2 | What stable database and storage identities are observable in every environment allowed to mutate historic state? | Database server UUID + schema identity; storage endpoint/account + bucket/prefix (or local filesystem identity), all canonical-hashed without credentials | HIR1 activation |
+| HIR-D3 | Who holds the recovery-evidence signing key and what key ID/rotation rule applies? | A recovery-only HMAC key held by the independent-verifier workflow, distinct from application approval/source evidence keys; deploy verification material only for the accepted window | HIR5 |
+| HIR-D4 | Which acquisition hosts/filesystems are supported? | Explicit Darwin/APFS and production Linux filesystem adapters only; unknown platforms or unobservable mount facts fail closed | HIR4 |
+| HIR-D5 | May safety defects be fixed inside deletion-scheduled `ImportOosArchiveCommand` and companion tests? | Approve a bounded exception for HIR2/HIR8 only; put cache-binding logic in a small service and make no unrelated command/test investment | HIR2 and affected rehearsal coverage |
 
 No decision may be inferred from a test fixture. In particular, a successful local adapter test is
 not evidence that Spaces supports the same conditional write/delete semantics.
@@ -137,24 +137,24 @@ Review-surface size describes blast radius, not elapsed time.
 
 | Package | Outcome | Size | Gate impact | Depends on |
 |---|---|---:|---|---|
-| HIR0 | Baseline, red tests, governance exception and production NO-GO remain explicit | S | All | D5 for OoS work |
-| HIR1 | Stable production resource anchors fail closed under volatile drift | M | F46 / G8 | D2 |
-| HIR2 | OoS cache is bound to raw input and current entry authority | M | G1/G2/G5; F49/F53/F63 | HIR0/D5 |
+| HIR0 | Baseline, red tests, governance exception and production NO-GO remain explicit | S | All | HIR-D5 for OoS work |
+| HIR1 | Stable production resource anchors fail closed under volatile drift | M | F46 / G8 | HIR-D2 |
+| HIR2 | OoS cache is bound to raw input and current entry authority | M | G1/G2/G5; F49/F53/F63 | HIR0/HIR-D5 |
 | HIR3 | Scripture absence and API pacing contracts are exact | S | F59 / G1/G4/G5 | HIR0 |
-| HIR4 | Source custody version 2 proves independent protected copies | L | F36 / G5/G7 | D4 |
-| HIR5 | Recovery evidence version 2 is authenticated and byte-verified | L | F45 / G7/G8 | D3; HIR7 before final exercise |
+| HIR4 | Source custody version 2 proves independent protected copies | L | F36 / G5/G7 | HIR-D4 |
+| HIR5 | Recovery evidence version 2 is authenticated and byte-verified | L | F45 / G7/G8 | HIR-D3; HIR7 before final exercise |
 | HIR6 | Deferred inbound state machine blocks closeout until success | M | F56/F57 / G9 | HIR0 |
-| HIR7 | Release ledger and object-store boundary eliminate ownership races | L | F29/F45; post-closeout release | D1, HIR1 |
+| HIR7 | Release ledger and object-store boundary eliminate ownership races | L | F29/F45; post-closeout release | HIR-D1, HIR1 |
 | HIR8 | All invalidated artifacts are regenerated and the full rehearsal is repeated | L/operator | G1–G8 readiness; release exercise after exact closeout | HIR1–HIR7 |
 
 ```text
 HIR0 baseline / NO-GO / red-test homes
- ├─ D2 ─> HIR1 stable production anchors ──────────────────────────────┐
- ├─ D5 ─> HIR2 raw parse + current curation binding ─┐                │
- ├──────> HIR3 Scripture settlement + pacing ────────┴─> re-export    │
- ├─ D4 ─> HIR4 observed source custody v2 ────────────────────────────┤
- ├──────> HIR6 deferred-email completion state ───────────────────────┤
- └─ D1 ─> HIR7 durable release ownership ─> D3/HIR5 recovery v2 ─────┤
+ ├─ HIR-D2 ─> HIR1 stable production anchors ──────────────────────────┐
+ ├─ HIR-D5 ─> HIR2 raw parse + current curation binding ──┐            │
+ ├─────────> HIR3 Scripture settlement + pacing ──────────┴─> re-export┤
+ ├─ HIR-D4 ─> HIR4 observed source custody v2 ─────────────────────────┤
+ ├─────────> HIR6 deferred-email completion state ─────────────────────┤
+ └─ HIR-D1 ─> HIR7 durable release ownership ─> HIR-D3 ─> HIR5 v2 ─────┤
                                                                       v
                        HIR8 clean full rehearsal / restore / no-op / closeout
                                     └─> governing plans recertify gates
@@ -178,7 +178,7 @@ package starts with a reproducing failure and names the artifacts/gates it inval
    stale line numbers, in each PR description.
 2. Keep `HISTORIC_IMPORT_PRODUCTION_APPROVAL` unset everywhere except a separately approved window.
    Add a release-candidate check that lists no usable production import/release authorisation.
-3. Record D1–D5. D1 is a read-only capability spike against scratch keys only; it must never use a
+3. Record HIR-D1–HIR-D5. HIR-D1 is a read-only capability spike against scratch keys only; it must never use a
    real sermon key or delete a pre-existing object.
 4. Write the first failing regression test for each package before changing production code and
    prove it fails for the finding's reason. Retain every test after green.
@@ -187,7 +187,7 @@ package starts with a reproducing failure and names the artifacts/gates it inval
    version and operational-closeout report version. Do not delete them.
 6. Add a structural test for one-shot deletion triggers if an existing repository test does not
    already enforce the `AGENTS.md` rule.
-7. Resolve the do-not-invest contradiction through D5. The exception expires when HIR8 evidence is
+7. Resolve the do-not-invest contradiction through HIR-D5. The exception expires when HIR8 evidence is
    incorporated; it permits safety/correctness only, not refactoring or new features.
 
 ### Acceptance
@@ -400,7 +400,7 @@ objects. The final support proof is operator-run on the actual acquisition host 
 ### Implementation
 
 1. Introduce a `HistoricSourceFilesystemInspector` contract and immutable observation DTO. Provide
-   only the D4-approved Darwin and Linux implementations using existing PHP/Laravel process APIs—no
+   only the HIR-D4-approved Darwin and Linux implementations using existing PHP/Laravel process APIs—no
    package change.
 2. Observe for each root: canonical path, filesystem device, mount point/source identity, filesystem
    type/options, read-only status, safe write-probe result, modes, inode/link counts, actual xattrs,
@@ -426,7 +426,7 @@ objects. The final support proof is operator-run on the actual acquisition host 
 ### Rollout, rollback and acceptance
 
 No schema migration is expected. Deploy v2 verification before connecting the drive for acceptance.
-If the host cannot expose a required fact, stop and revise D4; do not add an “assume protected” flag.
+If the host cannot expose a required fact, stop and revise HIR-D4; do not add an “assume protected” flag.
 Rollback preserves v2 artifacts but production remains NO-GO because old code cannot consume them.
 
 Acceptance requires the full red matrix, a real read-only physical-source observation, two genuinely
@@ -463,7 +463,7 @@ can be reproduced from a retained artifact and disposable restore.
    mappings. A resolver streams each supplied artifact, verifies size/hash, rejects symlinks/unsafe
    paths and ensures every declared artifact is supplied exactly once. Paths are observation inputs,
    not persisted portable authority.
-4. Authenticate canonical JSON with the D3 recovery-only key and required key ID. The command
+4. Authenticate canonical JSON with the HIR-D3 recovery-only key and required key ID. The command
    verifies before reading evidence paths or writing a retained artifact.
 5. Reuse the observed storage-identity boundary from HIR4 where applicable. Prove on/off-host backup
    failure domains are distinct and each disposable restore identity is neither production nor the
@@ -483,7 +483,7 @@ workflow and do not log key material. If config/signature/artifact resolution fa
 A rollback leaves v2 retained but ineligible and production remains NO-GO.
 
 Acceptance requires all adversarial tests plus operator-run on-host and off-host restores,
-recomputed equal row manifests, the HIR7 concurrency/object exercise and measured RPO/RTO within D6
+recomputed equal row manifests, the HIR7 concurrency/object exercise and measured RPO/RTO within FR-D6
 of the final-readiness plan.
 
 ## 12. HIR6 — Deferred inbound completion state machine
@@ -574,6 +574,30 @@ winner's successfully published asset during compensation.
 two deliberately interleaved releasers leave one completed release and every advertised asset
 present; no failure path deletes a foreign or winner-owned object.
 
+### FR-D6 is reopened in part by this package
+
+Final-readiness **FR-D6** (decided 2026-08-11) records that F45's object-rollback half is "already
+satisfied", because `HistoricProcessingResultAssetTransfer::copyToDestinations()` confines every
+write to `historic-import/{operation_id}/` and compensates only paths it created — and concludes
+that "no bucket versioning is required".
+
+**That conclusion is sound for the apply-step writer and does not reach the release writer.**
+`HistoricSermonPublicationService` is a second writer: it copies out of quarantine to the **final
+public path**, which is by definition not an operation-owned key, and its compensation deletes by
+path. FR-D6's reasoning was never applied to it.
+
+Consequences to carry, without reopening anything FR-D6 actually settled:
+
+- FR-D6's RPO/RTO, backup and restore decisions stand. Do not reopen them.
+- FR-D6's **"no bucket versioning is required"** clause is now scoped to the apply step only. HIR-D1
+  may conclude that the release step needs object versioning or an equivalent receipt, which would
+  extend — not contradict — the recorded decision.
+- If HIR-D1 finds Spaces cannot return an ownership receipt usable for exact delete, the fallback is
+  retained `orphaned` ledger rows and operator reconciliation (below), **not** a revived path
+  delete and not a silent re-decision of FR-D6.
+- Record the outcome in the final-readiness plan's FR-D6 entry when HIR-D1 is answered, so the two
+  writers are visibly accounted for.
+
 ### Additive release ledger
 
 Add new tables rather than overloading the import-transfer ledger:
@@ -596,7 +620,7 @@ Introduce an injected `HistoricReleaseObjectStore` with explicit operations:
 - inspect final object and return size/hash plus provider receipt when available;
 - create final object only if absent;
 - verify the exact receipt/bytes created or observed; and
-- delete the exact created version **only where D1 proves that operation exists**.
+- delete the exact created version **only where HIR-D1 proves that operation exists**.
 
 Provide local and Spaces implementations using already installed filesystem/provider capabilities.
 Do not emulate create-if-absent with `exists()` followed by `writeStream()`. If Spaces cannot return
@@ -747,7 +771,7 @@ Never replace a programmatic test with a one-off verification script.
 
 ## 16. Definition of done
 
-- [ ] D1–D5 are recorded; production mutation/release remains disabled until final approval.
+- [ ] HIR-D1–HIR-D5 are recorded; production mutation/release remains disabled until final approval.
 - [ ] HIR1 stable database/storage anchors guard a mislabelled process under release/schema/config
       drift and bind the full target fingerprint separately.
 - [ ] HIR2 always reapplies current curation to raw cached extraction; full-to-partial never projects
