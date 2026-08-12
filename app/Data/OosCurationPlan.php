@@ -14,6 +14,7 @@ namespace App\Data;
  *     payload:string,
  *     verbatim_relative_path:?string,
  *     formatted_relative_path:?string,
+ *     source_date:?string,
  *     resolved_date:string,
  *     resolved_service:string,
  *     service_label:?string,

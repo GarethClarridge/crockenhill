@@ -9,6 +9,7 @@ use App\Actions\InboundEmail\RejectInboundEmail;
 use App\Actions\InboundEmail\ReparseInboundEmail;
 use App\Data\OosEmailImportResult;
 use App\Enums\InboundEmailStatus;
+use App\Enums\OosEmailContentScope;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use Illuminate\Support\Facades\Auth;
@@ -69,6 +70,34 @@ trait ManagesInboundEmailReview
         }
 
         return $this->redirect(route('admin.services.create', $query), navigate: true);
+    }
+
+    public function retainEmailEvidence(int $inboundEmailId, ApproveInboundEmailImport $action): mixed
+    {
+        $this->authorizeAdmin();
+
+        $inboundEmail = $this->findReviewableEmail($inboundEmailId);
+        if (! $inboundEmail instanceof InboundEmail) {
+            $this->error('Inbound email not found.');
+
+            return null;
+        }
+
+        $userId = $this->adminUserId();
+        if ($userId === null) {
+            $this->error('Unable to retain this inbound email right now.');
+
+            return null;
+        }
+
+        $result = $action->execute($inboundEmail, $userId, OosEmailContentScope::Partial);
+        if (is_string($result)) {
+            $this->error($result);
+
+            return null;
+        }
+
+        return $this->success($this->importOutcomeMessage($result));
     }
 
     public function reparseEmail(int $inboundEmailId, ReparseInboundEmail $action): void

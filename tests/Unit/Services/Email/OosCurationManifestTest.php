@@ -69,7 +69,8 @@ class OosCurationManifestTest extends TestCase
      */
     private function pairedEntry(string $itemKey, string $date, string $service, array $overrides = []): array
     {
-        [$vPath, $vHash, $vSize] = $this->writeSource($this->verbatimRoot, "{$itemKey}.md", "raw {$itemKey}");
+        $verbatim = "---\nsource_date: {$date}\n---\n\nraw {$itemKey}";
+        [$vPath, $vHash, $vSize] = $this->writeSource($this->verbatimRoot, "{$itemKey}.md", $verbatim);
         [$fPath, $fHash, $fSize] = $this->writeSource($this->formattedRoot, "{$itemKey}.md", "formatted {$itemKey}");
 
         return array_merge([
@@ -118,6 +119,7 @@ class OosCurationManifestTest extends TestCase
         $this->assertCount(2, $plan->includes);
         $this->assertSame('oos-2026-08-06', $plan->batchKey);
         $this->assertSame(2, $plan->counts['include']);
+        $this->assertSame('2015-12-13', $plan->includes[0]['source_date']);
         $this->assertSame(2, $plan->counts['full']);
         $this->assertSame(0, $plan->counts['partial']);
         $this->assertNotSame($plan->manifestHash, $plan->planHash);

@@ -18,13 +18,14 @@ enum OosEmailImportOutcome: string
 
     case Created = 'created';
     case Merged = 'merged';
+    case EvidenceRetained = 'evidence_retained';
     case HeldForReview = 'held_for_review';
     case Failed = 'failed';
 
     public function isTerminal(): bool
     {
         return match ($this) {
-            self::Created, self::Merged => true,
+            self::Created, self::Merged, self::EvidenceRetained => true,
             self::HeldForReview, self::Failed => false,
         };
     }

@@ -515,6 +515,12 @@ class OosCurationManifest
                 'formatted_relative_path' => $formattedPath,
                 'formatted_sha256' => $formattedHash,
                 'formatted_byte_size' => $formattedSize,
+                'source_date' => $this->sourceDate(
+                    $verbatimRoot,
+                    $verbatimPath,
+                    $verbatimHash,
+                    $verbatimSize,
+                ),
                 'disposition' => $disposition,
                 'duplicate_target_hash' => $this->reader->nullableString($entry, 'duplicate_target_hash', self::Label),
                 'exclusion_reason' => $this->reader->nullableString($entry, 'exclusion_reason', self::Label),
@@ -769,6 +775,7 @@ class OosCurationManifest
                 'payload' => $entry['payload'],
                 'verbatim_relative_path' => $entry['verbatim_relative_path'],
                 'formatted_relative_path' => $entry['formatted_relative_path'],
+                'source_date' => $entry['source_date'],
                 'resolved_date' => $entry['resolved_date'],
                 'resolved_service' => $entry['resolved_service'],
                 'service_label' => $entry['service_label'],
@@ -787,6 +794,41 @@ class OosCurationManifest
         }
 
         return $includes;
+    }
+
+    private function sourceDate(
+        string $verbatimRoot,
+        ?string $verbatimPath,
+        ?string $verbatimHash,
+        ?int $verbatimSize,
+    ): ?string {
+        if ($verbatimPath === null) {
+            return null;
+        }
+
+        if ($verbatimHash === null || $verbatimSize === null) {
+            throw new RuntimeException("OoS source {$verbatimPath} has no verified bytes.");
+        }
+
+        $snapshot = $this->reader->snapshot(
+            $verbatimRoot,
+            $verbatimPath,
+            $verbatimHash,
+            $verbatimSize,
+            self::Label.' verbatim',
+        );
+        $frontmatter = $this->frontmatter->parse($snapshot->contents);
+        $sourceDate = $frontmatter['source_date'] ?? null;
+
+        if ($sourceDate === null || $sourceDate === '') {
+            return null;
+        }
+
+        if (preg_match('/\A\d{4}-\d{2}-\d{2}\z/', $sourceDate) !== 1) {
+            throw new RuntimeException("OoS source {$verbatimPath} has an invalid source_date.");
+        }
+
+        return $sourceDate;
     }
 
     /**

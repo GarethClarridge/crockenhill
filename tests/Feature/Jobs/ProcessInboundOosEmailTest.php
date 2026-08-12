@@ -96,6 +96,79 @@ class ProcessInboundOosEmailTest extends TestCase
     }
 
     #[Test]
+    public function it_retains_a_high_confidence_partial_email_as_incomplete_evidence_without_projecting_it(): void
+    {
+        Event::fake([ChurchServiceCanonicalListChanged::class]);
+
+        $this->bindExtractor(new OosEmailItemExtractionResult(
+            items: [
+                ['type' => 'song', 'title' => 'Before the throne of God above'],
+                ['type' => 'bible_reading', 'title' => 'Luke 15:1-32'],
+            ],
+            confidence: 0.96,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-03-15',
+                'content_scope' => 'partial',
+                'items' => [
+                    ['type' => 'song', 'title' => 'Before the throne of God above'],
+                    ['type' => 'bible_reading', 'title' => 'Luke 15:1-32'],
+                ],
+                'confidence' => 0.96,
+            ]],
+        ));
+
+        $email = InboundEmail::factory()->create([
+            'subject' => 'Songs and reading for 15 March',
+            'body_plain' => "Before the throne of God above\nLuke 15:1-32",
+            'status' => InboundEmailStatus::Pending->value,
+            'received_at' => '2026-03-10 09:00:00',
+        ]);
+
+        app()->call([new ProcessInboundOosEmail($email), 'handle']);
+
+        $service = ChurchService::query()->sole();
+        $sourceRecord = $service->sourceRecords()->with('assertions')->sole();
+
+        $this->assertFalse($sourceRecord->payload_complete);
+        $this->assertCount(2, $sourceRecord->assertions);
+        $this->assertDatabaseCount('church_service_items', 0);
+        $this->assertSame(InboundEmailStatus::Processed, $email->fresh()->status);
+        $this->assertSame('partial', $email->fresh()->processing_metadata['parsing']['service_plans'][0]['content_scope']);
+        $this->assertSame('evidence_retained', $email->fresh()->processing_metadata['plan_outcomes'][0]['outcome']);
+        Event::assertNotDispatched(ChurchServiceCanonicalListChanged::class);
+    }
+
+    #[Test]
+    public function it_holds_an_email_with_unknown_completeness_for_review(): void
+    {
+        $this->bindExtractor(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Amazing Grace']],
+            confidence: 0.97,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-03-15',
+                'content_scope' => 'unknown',
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 0.97,
+            ]],
+        ));
+
+        $email = InboundEmail::factory()->create([
+            'subject' => 'For Sunday',
+            'body_plain' => 'Amazing Grace',
+            'status' => InboundEmailStatus::Pending->value,
+            'received_at' => '2026-03-10 09:00:00',
+        ]);
+
+        app()->call([new ProcessInboundOosEmail($email), 'handle']);
+
+        $this->assertDatabaseCount('church_services', 0);
+        $this->assertSame(InboundEmailStatus::Pending, $email->fresh()->status);
+        $this->assertSame('unknown', $email->fresh()->processing_metadata['parsing']['service_plans'][0]['content_scope']);
+    }
+
+    #[Test]
     public function it_holds_an_ambiguous_email_for_review_without_importing_it(): void
     {
         $this->bindExtractor(new OosEmailItemExtractionResult(

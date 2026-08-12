@@ -360,6 +360,22 @@ class OosEmailParserServiceTest extends TestCase
         $this->assertSame(SermonService::Evening, $result->service);
     }
 
+    #[Test]
+    public function a_single_plan_can_use_strong_evening_evidence_from_the_subject(): void
+    {
+        $parser = $this->parserReturning($this->extraction([
+            $this->plan('evening', '2026-03-15'),
+        ]));
+
+        $result = $parser->parse(InboundEmail::factory()->make([
+            'subject' => 'Afternoon service - 5pm',
+            'body_plain' => "Welcome\nSong one",
+            'received_at' => '2026-03-14 09:00:00',
+        ]));
+
+        $this->assertSame(SermonService::Evening, $result->service);
+    }
+
     /**
      * @return array<string, array{subject:string, extractedDate:string}>
      */
@@ -651,6 +667,73 @@ class OosEmailParserServiceTest extends TestCase
         $this->assertTrue($result->shouldImport);
         $this->assertFalse($result->needsReview);
         $this->assertSame(['Welcome', 'Amazing Grace', 'Sermon'], array_column($result->items, 'source_title'));
+    }
+
+    #[Test]
+    public function it_allows_non_item_context_inside_a_service_sequence(): void
+    {
+        $body = "Welcome\nJohn Smith\nhttps://example.com/slides\nAmazing Grace\nSermon";
+        $parser = $this->parserReturning(new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.95,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'service_evidence_line_ids' => [],
+                'items' => [
+                    $this->groundedItem('welcome', 'Welcome', 1),
+                    $this->groundedItem('song', 'Amazing Grace', 4),
+                    $this->groundedItem('sermon', 'Sermon', 5),
+                ],
+                'confidence' => 0.95,
+            ]],
+            serviceCount: 1,
+            ignoredLines: [
+                ['line_id' => 2, 'reason' => 'context'],
+                ['line_id' => 3, 'reason' => 'context'],
+            ],
+            provenanceComplete: true,
+        ));
+
+        $result = $parser->parse(InboundEmail::factory()->make([
+            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
+            'body_plain' => $body,
+            'received_at' => '2026-07-10 09:00:00',
+        ]));
+
+        $this->assertSame(OosEmailParseDisposition::AutoImportable, $result->disposition);
+    }
+
+    #[Test]
+    public function it_rejects_an_item_like_line_ignored_inside_a_service_sequence(): void
+    {
+        $body = "Welcome\nOpening prayer\nAmazing Grace\nSermon";
+        $parser = $this->parserReturning(new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.95,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'service_evidence_line_ids' => [],
+                'items' => [
+                    $this->groundedItem('welcome', 'Welcome', 1),
+                    $this->groundedItem('song', 'Amazing Grace', 3),
+                    $this->groundedItem('sermon', 'Sermon', 4),
+                ],
+                'confidence' => 0.95,
+            ]],
+            serviceCount: 1,
+            ignoredLines: [['line_id' => 2, 'reason' => 'context']],
+            provenanceComplete: true,
+        ));
+
+        $result = $parser->parse(InboundEmail::factory()->make([
+            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
+            'body_plain' => $body,
+            'received_at' => '2026-07-10 09:00:00',
+        ]));
+
+        $this->assertSame(OosEmailParseDisposition::InvalidExtraction, $result->disposition);
     }
 
     #[Test]

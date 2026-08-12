@@ -26,6 +26,7 @@
     <div class="flex flex-wrap items-center gap-2">
         @if($preview['can_approve'])
             <x-form-button size="xs" variant="primary" icon="check" wire:click="approveEmail({{ $item['email']->id }})" loading-label="Approving...">Approve</x-form-button>
+            <x-form-button size="xs" variant="outline" icon="archive-box-arrow-down" wire:click="retainEmailEvidence({{ $item['email']->id }})" wire:confirm="Retain these parsed items as supporting evidence without changing the service running order?" loading-label="Retaining...">Retain as evidence</x-form-button>
         @endif
         @unless($hasMultipleServicePlans)
             {{-- The plan-less editor prefills the primary plan only, so it is offered for single-order

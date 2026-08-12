@@ -141,6 +141,45 @@ class ChurchServiceProjectorTest extends TestCase
     }
 
     #[Test]
+    public function incomplete_source_records_are_retained_but_never_contribute_to_projection(): void
+    {
+        $service = ChurchService::factory()->create();
+        $normalizer = app(ChurchServiceAssertionNormalizer::class);
+
+        app(IngestChurchServiceSourceRevision::class)->execute($service, new ChurchServiceSourceRevision(
+            source: ChurchServiceSource::Email,
+            sourceKey: 'complete-message|morning:2026-07-12',
+            inputHash: hash('sha256', 'complete-message'),
+            assertions: $normalizer->normalize([
+                $this->item(1, 'custom', 'Welcome', 'welcome'),
+                $this->item(2, 'custom', 'Sermon', 'sermon'),
+            ], ChurchServiceEvidenceKind::Planned),
+            processingFingerprint: ['format' => 'test', 'version' => 1],
+        ));
+
+        app(IngestChurchServiceSourceRevision::class)->execute($service, new ChurchServiceSourceRevision(
+            source: ChurchServiceSource::Email,
+            sourceKey: 'partial-message|morning:2026-07-12',
+            inputHash: hash('sha256', 'partial-message'),
+            assertions: $normalizer->normalize([
+                $this->item(1, 'songs', 'Supporting hymn', 'supporting hymn'),
+            ], ChurchServiceEvidenceKind::Planned),
+            processingFingerprint: ['format' => 'test', 'version' => 1],
+            payloadComplete: false,
+        ), project: false);
+
+        $records = $this->loadedRecords($service);
+        $projection = app(ChurchServiceProjector::class)->project($records);
+
+        $this->assertCount(2, $records);
+        $this->assertSame(['Welcome', 'Sermon'], array_column($projection->items, 'title'));
+        $this->assertTrue(app(ChurchServiceProjector::class)->hasCompleteAudit(
+            app(ChurchServiceProjector::class)->activeSourceRecords($records),
+            $projection,
+        ));
+    }
+
+    #[Test]
     public function projection_policy_version_is_disjoint_from_processing_fingerprints(): void
     {
         $service = ChurchService::factory()->create();

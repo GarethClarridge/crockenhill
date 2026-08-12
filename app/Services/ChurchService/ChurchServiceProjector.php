@@ -17,7 +17,7 @@ use RuntimeException;
 
 class ChurchServiceProjector
 {
-    public const int PROJECTION_POLICY_VERSION = 1;
+    public const int PROJECTION_POLICY_VERSION = 2;
 
     public const string PROJECTION_POLICY_FORMAT = 'church-service-projection';
 
@@ -190,7 +190,8 @@ class ChurchServiceProjector
         }
 
         return $activeRecords
-            ->filter(fn (ChurchServiceSourceRecord $record): bool => $record->source !== ChurchServiceSource::Manual)
+            ->filter(fn (ChurchServiceSourceRecord $record): bool => $record->source !== ChurchServiceSource::Manual
+                && $record->payload_complete)
             ->values();
     }
 

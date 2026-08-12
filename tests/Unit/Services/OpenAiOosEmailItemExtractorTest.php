@@ -70,10 +70,32 @@ class OpenAiOosEmailItemExtractorTest extends TestCase
                 && $parameters['response_format']['json_schema']['schema']['required']
                     === ['service_count', 'services', 'ignored_lines', 'notes']
                 && $serviceSchema['service']['enum'] === ['morning', 'evening', 'other', 'unknown']
+                && $serviceSchema['content_scope']['enum'] === ['full', 'partial', 'unknown']
                 && $serviceSchema['date']['pattern'] === '^\\d{4}-\\d{2}-\\d{2}$'
+                && $serviceSchema['service_evidence_line_ids']['items']['enum'] === [1, 2, 3]
+                && $serviceSchema['items']['items']['properties']['source_line_ids']['items']['enum'] === [1, 2, 3]
+                && $parameters['response_format']['json_schema']['schema']['properties']['ignored_lines']['items']['properties']['line_id']['enum'] === [1, 2, 3]
+                && str_contains($parameters['messages'][0]['content'], 'service slot separately from its occasion')
+                && str_contains($parameters['messages'][0]['content'], 'Sunday evening carol service is evening')
                 && $serviceSchema['confidence']['minimum'] === 0
                 && $serviceSchema['confidence']['maximum'] === 1;
         });
+    }
+
+    #[Test]
+    public function it_preserves_the_extracted_content_scope_for_each_service_plan(): void
+    {
+        OpenAI::fake([$this->response([[
+            'service' => 'morning',
+            'date' => '2026-03-09',
+            'content_scope' => 'partial',
+            'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+            'confidence' => 0.96,
+        ]])]);
+
+        $result = $this->extractor->extract('Songs for Sunday', 'Amazing Grace', '2026-03-07');
+
+        $this->assertSame('partial', $result->services[0]['content_scope']);
     }
 
     #[Test]

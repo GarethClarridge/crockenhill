@@ -72,7 +72,7 @@ class OpenAiOosEmailItemExtractor implements CorrectiveOosEmailItemExtractor
 
         for ($attempt = 1; ; $attempt++) {
             try {
-                return $this->attempt($model, $userContent);
+                return $this->attempt($model, $userContent, $source->lineIds());
             } catch (RuntimeException $exception) {
                 /*
                  * Every failure `attempt()` raises is "the model returned something
@@ -98,7 +98,8 @@ class OpenAiOosEmailItemExtractor implements CorrectiveOosEmailItemExtractor
         }
     }
 
-    private function attempt(string $model, string $userContent): OosEmailItemExtractionResult
+    /** @param list<int> $sourceLineIds */
+    private function attempt(string $model, string $userContent, array $sourceLineIds): OosEmailItemExtractionResult
     {
         $response = OpenAI::chat()->create(OpenAiChatPayload::forModel([
             'model' => $model,
@@ -117,7 +118,7 @@ class OpenAiOosEmailItemExtractor implements CorrectiveOosEmailItemExtractor
                 'type' => 'json_schema',
                 'json_schema' => [
                     'name' => 'oos_email_extraction',
-                    'schema' => $this->schema(),
+                    'schema' => $this->schema($sourceLineIds),
                 ],
             ],
             'temperature' => 0.1,
@@ -149,24 +150,29 @@ class OpenAiOosEmailItemExtractor implements CorrectiveOosEmailItemExtractor
 You extract church service orders from email text. One email often contains BOTH a morning
 and an evening order (and occasionally a special service such as carols or Christmas).
 Return valid JSON with this shape only:
-{"service_count":1,"services":[{"service":"morning|evening|other|unknown","date":"YYYY-MM-DD or null","service_evidence_line_ids":[1],"items":[{"type":"welcome|prayer|notices|song|childrens_talk|bible_reading|sermon|other","title":"exact source text","source_line_ids":[2],"continuation":false}],"confidence":0.0}],"ignored_lines":[{"line_id":3,"reason":"context|forwarded_header|greeting|signature"}],"notes":["string"]}
+{"service_count":1,"services":[{"service":"morning|evening|other|unknown","date":"YYYY-MM-DD or null","content_scope":"full|partial|unknown","service_evidence_line_ids":[1],"items":[{"type":"welcome|prayer|notices|song|childrens_talk|bible_reading|sermon|other","title":"exact source text","source_line_ids":[2],"continuation":false}],"confidence":0.0}],"ignored_lines":[{"line_id":3,"reason":"context|forwarded_header|greeting|signature"}],"notes":["string"]}
 Rules:
 - Count the distinct service orders first. service_count MUST equal the number of entries in services.
+- Set content_scope to "full" only when the email presents the service's complete running order.
+  Use "partial" for supporting material such as selected hymns, readings, sermon details or notices
+  that does not claim to be the whole order. Use "unknown" when the email does not make completeness
+  clear. Completeness is separate from confidence: a short hymn list can be a confident partial.
 - A single order may have no heading. In that case service_evidence_line_ids may be empty and the
   subject or a time in the body may identify it. Multiple orders require distinct body-line evidence
   for each boundary, such as headings or standalone time markers.
 - A general Notices section is context, NOT a service order, even when its lines mention another
   service, time, date, sermon or Bible passage. Put those lines in ignored_lines.
-- Use "other" only for an explicitly evidenced standalone special service such as carols, Christmas,
-  Good Friday or a baptism. Never use "other" for notices, meetings, diary entries or ambiguous prose.
+- Determine the service slot separately from its occasion. A Sunday evening carol service is evening,
+  and a Sunday morning Christmas service is morning. Use "other" only when a special service has no
+  evidenced morning or evening slot. Never use it for notices, meetings, diary entries or ambiguous prose.
 - Preserve running order. By default each non-blank item line is exactly one item. Never merge adjacent
   item lines. Use multiple source_line_ids only for a genuinely wrapped continuation on physically
   adjacent lines, and set continuation=true. Lines separated by a blank line are separate items.
 - Every numbered body line must appear exactly once: as service evidence, in one item's source_line_ids,
   or in ignored_lines. Never reuse, omit, invent or reorder line IDs.
 - title must copy the complete referenced source text exactly. Do not summarise, clean or rewrite it.
-- Use "morning" for AM/10.30 services, "evening" for PM/6pm services, "other" for specials
-  (carols, Christmas), and "unknown" only when the service time is genuinely unclear.
+- Use "morning" for AM/10.30 services and "evening" for afternoon, tonight, PM or 5pm-and-later
+  services. Use "unknown" only when the service slot is genuinely unclear.
 - Do not infer an evening service from the word "evening" in a notice, diary entry, forwarded
   header or prose. An evening plan is valid only when its evidence lines contain a standalone
   evening/PM/18:00-style heading or a clearly separated evening order with items following it.
@@ -185,9 +191,10 @@ TEXT;
     }
 
     /**
+     * @param  list<int>  $sourceLineIds
      * @return array<string, mixed>
      */
-    private function schema(): array
+    private function schema(array $sourceLineIds): array
     {
         return [
             'type' => 'object',
@@ -203,7 +210,7 @@ TEXT;
                     'items' => [
                         'type' => 'object',
                         'additionalProperties' => false,
-                        'required' => ['service', 'date', 'service_evidence_line_ids', 'items', 'confidence'],
+                        'required' => ['service', 'date', 'content_scope', 'service_evidence_line_ids', 'items', 'confidence'],
                         'properties' => [
                             'service' => [
                                 'type' => 'string',
@@ -213,7 +220,11 @@ TEXT;
                                 'type' => ['string', 'null'],
                                 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$',
                             ],
-                            'service_evidence_line_ids' => $this->lineIdArraySchema(),
+                            'content_scope' => [
+                                'type' => 'string',
+                                'enum' => ['full', 'partial', 'unknown'],
+                            ],
+                            'service_evidence_line_ids' => $this->lineIdArraySchema($sourceLineIds),
                             'items' => [
                                 'type' => 'array',
                                 'items' => [
@@ -235,7 +246,7 @@ TEXT;
                                             ],
                                         ],
                                         'title' => ['type' => 'string'],
-                                        'source_line_ids' => $this->lineIdArraySchema(minItems: 1),
+                                        'source_line_ids' => $this->lineIdArraySchema($sourceLineIds, minItems: 1),
                                         'continuation' => ['type' => 'boolean'],
                                     ],
                                 ],
@@ -257,7 +268,7 @@ TEXT;
                         'properties' => [
                             'line_id' => [
                                 'type' => 'integer',
-                                'minimum' => 1,
+                                'enum' => $sourceLineIds,
                             ],
                             'reason' => [
                                 'type' => 'string',
@@ -275,16 +286,17 @@ TEXT;
     }
 
     /**
+     * @param  list<int>  $sourceLineIds
      * @return array<string, mixed>
      */
-    private function lineIdArraySchema(int $minItems = 0): array
+    private function lineIdArraySchema(array $sourceLineIds, int $minItems = 0): array
     {
         return [
             'type' => 'array',
             'minItems' => $minItems,
             'items' => [
                 'type' => 'integer',
-                'minimum' => 1,
+                'enum' => $sourceLineIds,
             ],
         ];
     }
@@ -336,7 +348,7 @@ TEXT;
     }
 
     /**
-     * @return list<array{service:?string,date:?string,service_evidence_line_ids:list<int>,items:array<int,array{type:string,title:string,source_line_ids:list<int>,continuation:bool}>,confidence:float}>
+     * @return list<array{service:?string,date:?string,content_scope:string,service_evidence_line_ids:list<int>,items:array<int,array{type:string,title:string,source_line_ids:list<int>,continuation:bool}>,confidence:float}>
      */
     private function normaliseServices(mixed $services): array
     {
@@ -356,6 +368,7 @@ TEXT;
             $normalised[] = [
                 'service' => $this->normaliseString($service['service'] ?? null),
                 'date' => $this->normaliseString($service['date'] ?? null),
+                'content_scope' => $this->normaliseContentScope($service['content_scope'] ?? null),
                 'service_evidence_line_ids' => $this->normaliseLineIds($service['service_evidence_line_ids'] ?? []),
                 'items' => $this->normaliseItems($service['items'] ?? []),
                 'confidence' => is_numeric($confidence) ? max(0.0, min(1.0, (float) $confidence)) : 0.0,
@@ -365,8 +378,19 @@ TEXT;
         return $normalised;
     }
 
+    private function normaliseContentScope(mixed $contentScope): string
+    {
+        if (! is_string($contentScope)) {
+            return 'full';
+        }
+
+        return in_array($contentScope, ['full', 'partial', 'unknown'], true)
+            ? $contentScope
+            : 'unknown';
+    }
+
     /**
-     * @param  list<array{service:?string,date:?string,service_evidence_line_ids:list<int>,items:array<int,array{type:string,title:string,source_line_ids:list<int>,continuation:bool}>,confidence:float}>  $services
+     * @param  list<array{service:?string,date:?string,content_scope:string,service_evidence_line_ids:list<int>,items:array<int,array{type:string,title:string,source_line_ids:list<int>,continuation:bool}>,confidence:float}>  $services
      * @return array<int, array{type:string,title:string,source_line_ids:list<int>,continuation:bool}>
      */
     private function flattenServiceItems(array $services): array
@@ -383,7 +407,7 @@ TEXT;
     }
 
     /**
-     * @param  list<array{service:?string,date:?string,service_evidence_line_ids:list<int>,items:array<int,array{type:string,title:string,source_line_ids:list<int>,continuation:bool}>,confidence:float}>  $services
+     * @param  list<array{service:?string,date:?string,content_scope:string,service_evidence_line_ids:list<int>,items:array<int,array{type:string,title:string,source_line_ids:list<int>,continuation:bool}>,confidence:float}>  $services
      */
     private function averageConfidence(array $services): float
     {

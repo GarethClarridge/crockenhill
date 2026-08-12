@@ -375,22 +375,16 @@ The plan's proposed fix does not validate. `OosCurationManifest` refuses a `supe
 both to `full` — which the sources do not support: compared with a genuine `full` entry
 (`2015-06-07`: welcome and notices, call to worship, opening prayer, children's talk, closing
 prayer), the 2026-06-21 pair carries hymns, Prayers, Bible Reading, Sermon and Communion Hymn only.
-The curator's `partial` call was right, and `OosArchiveEntry` documents that a full order's silence
-is read as disagreement — so promoting it would make projection assert those items were
-authoritatively absent.
+The curator's `partial` call was right: promoting it would make projection assert that omitted
+items were authoritatively absent.
 
 Decision: flip `2026-06-21-am` to `disposition: exclude` with the reason already recorded in the
 revised entry's curation note. The revised document reproduces Laurie's order verbatim with one line
 changed (`Hymn (Mark to choose)` → `Hymn 868 'Guide me, O my Great Redeemer'`), so it is a strict
-content superset and nothing is lost. Both entries stay `partial`, so the survivor still routes to
-review via `partial_source_scope` rather than importing unattended. Re-hash and re-approve: this
-invalidates manifest `928dccb5…` and plan `ebf486c1…`. **Applied 2026-08-11** — see the D1 entry
-below for the replacement batch key, hashes and counts.
-
-Measured correction to the finding above: the placeholder does **not** reach projection unattended.
-`ImportOosArchiveCommand::reviewReasons()` flags every partial, so both entries land in the review
-queue. The guard is a human, not a machine — which is why the entry is excluded at curation rather
-than left for a reviewer to catch across 521 identities.
+content superset and nothing is lost. Both entries stay `partial`; under the 2026-08-12 shared
+completeness policy, the survivor is retained as incomplete evidence and cannot project canonical
+order. Re-hash and re-approve: this invalidates manifest `928dccb5…` and plan `ebf486c1…`.
+**Applied 2026-08-11** — see the D1 entry below for the replacement batch key, hashes and counts.
 
 **D2 — imported sermons end `Published`, released in signed batches.** Same visibility as existing
 material, which is what §4.B's audience-preservation rule actually requires: all 832 existing sermons
@@ -829,6 +823,48 @@ run and requires its own report and threshold decision.
 
 **This entry closes no gate.** Step 3 still exits non-zero by design, and G5 remains unclaimable
 while the review population stands.
+
+### 2026-08-11 — archive-v8 balanced calibration sample
+
+The next operator action from the second staging-run handoff was completed without importing any
+canonical service or changing the 0.90 auto-import threshold. `oos:import-archive --evaluate` ran
+against the current 534-entry approved manifest with parser `archive-v8`. The date filters produced
+69 entries spanning every archive year from 2014 through 2026: 50 full and 19 partial records, 44
+curated morning, 19 evening and 6 other identities, 8 superseding entries and 18 dates carrying
+multiple selected entries. The run used the normal `(input_hash, parser_version)` cache policy,
+without `--fresh-parse`; the version bump therefore started a new evidence set as the runbook rule
+above requires. Report: `storage/scratch/archive-v8-balanced-sample-2026-08-11.json`.
+
+**No processing failure occurred.** All 69 entries produced a result; 32 were eligible and 37 held
+for review. Every missing or wrong date was held: date accuracy was 51/69 (73.9%), split 42/50
+(84.0%) for full records and 9/19 (47.4%) for partial records. The five non-null wrong dates and all
+thirteen null dates therefore produced no silently admitted wrong identity.
+
+**The report's raw precision figures need the same F1 interpretation as the full staging runs.** It
+reports 31/38 (81.6%) eligible-plan precision and 13/15 (86.7%) accuracy in the 0.90–1.00 confidence
+band because `exact_correct` treats every plan outside the entry's single curated service as false.
+All seven apparent eligible misses were flagged `service_beyond_manifest`. Reading their verbatim
+sources confirmed that every one is a real, separately bounded service in a multi-service email;
+the two at or above 0.90 were the explicit morning section in `2016-04-24` and explicit evening
+section in `2022-11-06`. On the approved F1 rule, adjudicated eligible-plan precision is therefore
+38/38 and the 0.90–1.00 band is 15/15. The threshold stays at **0.90**.
+
+This sample clears the immediate archive-v8 calibration question, but it does not establish the
+whole-corpus review population or complete step 3. **Do not begin mass review from this sample.**
+
+Source inspection of the 37 held entries then identified five avoidable parser defects. They are
+implemented in `archive-v9`: archive parsing now uses the corpus's recorded `source_date`; service
+slot is separated from special-service occasion; strong subject and 5pm/afternoon/tonight evidence
+can support a single evening plan; response line IDs are constrained to the source while legitimate
+in-plan context is allowed; and a single non-contradictory full plan may inherit its approved
+manifest identity. Partial sources and explicit identity contradictions still hold, and the
+auto-import threshold remains **0.90**. The 534-entry deterministic archive-v9 reconciliation passed
+on 2026-08-11.
+
+The parser-version change starts a new evidence set. The next operation is therefore a new balanced
+calibration sample using archive-v9, not a full staging run or mass review. Only after that sample
+passes should a fresh clean-database full staging run size the review inbox and decide whether step
+4's census is meaningful. This entry closes no G-gate.
 
 ### 2026-08-08 — continuation audit scope and completion
 
@@ -1735,6 +1771,33 @@ review. Those topics are not import gates.
 6. Prove bulk writes do not send unintended notifications, flood feeds/sitemaps/search, trigger
    analytics as new content, or expose hundreds of items at once. Release is a controlled editorial
    batch with owner, rollback and observation period—not a side effect of import.
+
+### 2026-08-12 — incomplete Email sources retained as shared evidence
+
+The archive-v8 sample's 19 partial sources exposed a pipeline-wide distinction, not an archive
+exception. A source can contain reliable hymns, readings, sermon details or notices without
+claiming to contain the complete running order. Discarding it loses evidence; projecting it as a
+complete plan turns silence into false absence or order.
+
+The Email extractor now returns a per-service `content_scope` of `full`, `partial` or `unknown`.
+This is independent of extraction confidence. High-confidence partial plans use the ordinary Email
+ingestion path but persist their source revision with `payload_complete=false`; their assertions
+remain attached to the resolved service identity and the terminal outcome is `evidence_retained`.
+They do not create, remove or reorder canonical service items. Unknown completeness remains in the
+review inbox, where the operator can either approve a complete plan or choose **Retain as evidence**.
+
+The rule is enforced again in `ChurchServiceProjector`: incomplete active machine records cannot
+contribute to any later projection or audit. This makes `payload_complete` a safety property rather
+than descriptive metadata. The same behavior applies to ordinary live emails. Archive-specific
+code is limited to translating the curator-approved manifest scope and service identity into that
+shared contract, plus reporting `evidence_eligible`/`evidence_retained` outcomes. Partial archive
+entries no longer produce the generic `partial_source_scope` hold.
+
+The prompt/schema and projection policies changed, so archive parsing is now `archive-v10`, the
+portable Email plan projector is `email-plan-v2`, and the normalized projection policy is version
+2. The 0.90 auto-import threshold is unchanged. Existing archive-v9 calibration evidence remains a
+historical result; the next balanced sample must use archive-v10 before any clean full staging run
+or mass review.
 
 ## 5. Decisions required from the maintainer or church
 

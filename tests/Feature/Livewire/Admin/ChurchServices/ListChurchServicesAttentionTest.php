@@ -115,6 +115,32 @@ class ListChurchServicesAttentionTest extends TestCase
     }
 
     #[Test]
+    public function reviewer_can_retain_an_uncertain_email_as_supporting_evidence(): void
+    {
+        $processingMetadata = $this->processingMetadata('2026-06-07', 'morning', [
+            ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace'],
+        ]);
+        $processingMetadata['parsing']['service_plans'][0]['content_scope'] = 'unknown';
+        $email = InboundEmail::factory()->create([
+            'status' => InboundEmailStatus::Pending->value,
+            'processing_metadata' => $processingMetadata,
+        ]);
+
+        Livewire::test(ListChurchServices::class)
+            ->assertSee('Retain as evidence')
+            ->call('retainEmailEvidence', $email->id)
+            ->assertDispatched('notify', type: 'success', message: 'Inbound email processed: 1 evidence retained.');
+
+        $service = ChurchService::query()->sole();
+        $sourceRecord = $service->sourceRecords()->with('assertions')->sole();
+
+        $this->assertFalse($sourceRecord->payload_complete);
+        $this->assertCount(1, $sourceRecord->assertions);
+        $this->assertCount(0, $service->items);
+        $this->assertSame(InboundEmailStatus::Processed, $email->fresh()->status);
+    }
+
+    #[Test]
     public function edit_and_approve_email_opens_the_prefilled_editor(): void
     {
         $email = InboundEmail::factory()->create(['status' => InboundEmailStatus::Pending->value]);
@@ -243,7 +269,7 @@ class ListChurchServicesAttentionTest extends TestCase
         $email = InboundEmail::factory()->create(['status' => InboundEmailStatus::Pending->value]);
         $this->actingAs(User::factory()->create(['is_admin' => false, 'email_verified_at' => now()]));
 
-        foreach (['approveEmail', 'editAndApproveEmail', 'reparseEmail', 'rejectEmail'] as $action) {
+        foreach (['approveEmail', 'retainEmailEvidence', 'editAndApproveEmail', 'reparseEmail', 'rejectEmail'] as $action) {
             Livewire::test(ListChurchServices::class)->call($action, $email->id)->assertForbidden();
         }
     }

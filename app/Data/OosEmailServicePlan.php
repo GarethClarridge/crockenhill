@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data;
 
+use App\Enums\OosEmailContentScope;
 use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
 
@@ -29,6 +30,7 @@ readonly class OosEmailServicePlan
         public OosEmailParseDisposition $disposition = OosEmailParseDisposition::AutoImportable,
         public array $validationReasons = [],
         public array $sourceProvenance = [],
+        public OosEmailContentScope $contentScope = OosEmailContentScope::Full,
     ) {}
 
     /**
@@ -57,6 +59,7 @@ readonly class OosEmailServicePlan
     public function isAutoImportable(): bool
     {
         return $this->disposition === OosEmailParseDisposition::AutoImportable
+            && $this->contentScope !== OosEmailContentScope::Unknown
             && $this->isImportable();
     }
 
@@ -64,5 +67,21 @@ readonly class OosEmailServicePlan
     {
         return $this->disposition !== OosEmailParseDisposition::InvalidExtraction
             && $this->isImportable();
+    }
+
+    public function withContentScope(OosEmailContentScope $contentScope): self
+    {
+        return new self(
+            service: $this->service,
+            date: $this->date,
+            items: $this->items,
+            confidence: $this->confidence,
+            needsReview: $this->needsReview,
+            shouldImport: $this->shouldImport,
+            disposition: $this->disposition,
+            validationReasons: $this->validationReasons,
+            sourceProvenance: $this->sourceProvenance,
+            contentScope: $contentScope,
+        );
     }
 }

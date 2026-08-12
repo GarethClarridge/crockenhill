@@ -259,6 +259,44 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertSame(2, InboundEmail::query()->where('status', InboundEmailStatus::Processed)->count());
     }
 
+    #[Test]
+    public function a_single_unidentified_plan_uses_the_approved_manifest_identity(): void
+    {
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
+                    confidence: 0.99,
+                    services: [[
+                        'service' => null,
+                        'date' => null,
+                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                        'confidence' => 0.99,
+                    ]],
+                );
+            }
+        });
+        $corpus = $this->corpus([[
+            'key' => '2026-07-12-pm',
+            'date' => '2026-07-12',
+            'service' => 'evening',
+            'body' => 'Amazing Grace',
+        ]]);
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--import' => true,
+            '--plan-hash' => $this->planHash(),
+        ])->assertExitCode(0);
+
+        $this->assertDatabaseHas('church_services', [
+            'date' => '2026-07-12',
+            'service' => 'evening',
+        ]);
+    }
+
     /**
      * The predecessor of this command had a third, "blocked" route for an entry whose own text
      * contradicted its date. Under §7.3 the manifest is mutation authority and reconciliation
@@ -398,7 +436,7 @@ class ImportOosArchiveCommandTest extends TestCase
     }
 
     #[Test]
-    public function a_partial_order_is_sent_to_the_review_inbox_rather_than_imported(): void
+    public function a_partial_order_is_retained_as_incomplete_evidence_without_entering_the_review_inbox(): void
     {
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
         {
@@ -419,8 +457,6 @@ class ImportOosArchiveCommandTest extends TestCase
             }
         });
 
-        // §8.4: a hymn list asserts part of an order, and its silence about the rest is not
-        // disagreement — so it must never import unattended as though it were the whole service.
         $corpus = $this->corpus([
             ['key' => '2026-07-12-am', 'date' => '2026-07-12'],
             ['key' => '2026-07-26-hymns', 'date' => '2026-07-26', 'scope' => 'partial', 'body' => 'Abide With Me'],
@@ -431,21 +467,27 @@ class ImportOosArchiveCommandTest extends TestCase
             ...$corpus,
             '--import' => true, '--plan-hash' => $this->planHash(),
             '--report' => $report,
-        ])->assertExitCode(1);
+        ])->assertExitCode(0);
 
         $payload = $this->readReport($report);
-        $this->assertSame(['created', 'held_for_review'], array_column($payload['entries'], 'disposition'));
-        $this->assertContains('partial_source_scope', $payload['entries'][1]['gate_reasons']);
+        $this->assertSame(['created', 'evidence_retained'], array_column($payload['entries'], 'disposition'));
+        $this->assertNotContains('partial_source_scope', $payload['entries'][1]['gate_reasons']);
         $this->assertSame(['full' => 1, 'partial' => 1], $payload['cohorts']);
 
-        // Only the full order became a service; the partial wrote nothing.
-        $this->assertDatabaseCount('church_services', 1);
+        $this->assertDatabaseCount('church_services', 2);
         $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
+        $partialService = ChurchService::query()
+            ->whereDate('date', '2026-07-26')
+            ->where('service', 'morning')
+            ->sole();
+        $partialSource = $partialService->sourceRecords()->with('assertions')->sole();
+        $this->assertFalse($partialSource->payload_complete);
+        $this->assertCount(1, $partialSource->assertions);
+        $this->assertCount(0, $partialService->items);
 
-        // The partial is now reachable by exactly the route a live email would take.
-        $this->assertSame(InboundEmailStatus::Pending, $this->emailForEntry($payload, 1)->status);
-        $this->assertSame(1, app(AdminAttentionCounts::class)->counts()['pending_emails']);
-        $this->assertSame(1, app(ReviewInboxQuery::class)->build()['counts']['emails']);
+        $this->assertSame(InboundEmailStatus::Processed, $this->emailForEntry($payload, 1)->status);
+        $this->assertSame(0, app(AdminAttentionCounts::class)->counts()['pending_emails']);
+        $this->assertSame(0, app(ReviewInboxQuery::class)->build()['counts']['emails']);
     }
 
     #[Test]

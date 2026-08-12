@@ -143,6 +143,17 @@ class OosCurationEntryFactoryTest extends TestCase
     }
 
     #[Test]
+    public function it_anchors_parsing_to_the_email_source_date_when_the_corpus_records_one(): void
+    {
+        $entry = $this->factory()->entries(
+            $this->plan(['source_date' => '2026-02-14']),
+            ['2026-02-15-am' => $this->payload("---\ndate: 2026-02-15\n---\n\nAmazing Grace")],
+        )[0];
+
+        $this->assertSame('2026-02-14 09:00', $entry->syntheticReceivedAt->format('Y-m-d H:i'));
+    }
+
+    #[Test]
     public function it_refuses_an_approved_entry_with_no_verified_payload_path(): void
     {
         $this->expectException(RuntimeException::class);
@@ -180,6 +191,7 @@ class OosCurationEntryFactoryTest extends TestCase
             'payload' => 'verbatim',
             'verbatim_relative_path' => '2026-02-15-am.md',
             'formatted_relative_path' => null,
+            'source_date' => null,
             'resolved_date' => '2026-02-15',
             'resolved_service' => 'morning',
             'service_label' => null,

@@ -25,12 +25,7 @@ use RuntimeException;
  */
 class OosCurationEntryFactory
 {
-    /**
-     * The corpus records no send times, so a received-at is synthesised at a
-     * fixed offset before the service. The email pipeline uses it only to
-     * date-anchor the parse, and a Friday-morning arrival is the corpus's own
-     * habit; it is not evidence and is never presented as such.
-     */
+    /** The corpus records dates but not send times, so only the hour is synthetic. */
     private const SyntheticArrivalDaysBefore = 2;
 
     private const SyntheticArrivalHour = 9;
@@ -118,7 +113,7 @@ class OosCurationEntryFactory
                  * derivative of them.
                  */
                 inputHash: $include['sha256'],
-                syntheticReceivedAt: $this->receivedAt($include['resolved_date']),
+                syntheticReceivedAt: $this->receivedAt($include['source_date'], $include['resolved_date']),
             );
         }
 
@@ -206,10 +201,12 @@ class OosCurationEntryFactory
         return $ordered;
     }
 
-    private function receivedAt(string $resolvedDate): CarbonImmutable
+    private function receivedAt(?string $sourceDate, string $resolvedDate): CarbonImmutable
     {
-        return CarbonImmutable::parse($resolvedDate, 'Europe/London')
+        $date = $sourceDate ?? CarbonImmutable::parse($resolvedDate, 'Europe/London')
             ->subDays(self::SyntheticArrivalDaysBefore)
-            ->setTime(self::SyntheticArrivalHour, 0);
+            ->toDateString();
+
+        return CarbonImmutable::parse($date, 'Europe/London')->setTime(self::SyntheticArrivalHour, 0);
     }
 }

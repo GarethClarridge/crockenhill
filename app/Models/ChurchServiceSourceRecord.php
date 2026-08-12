@@ -23,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property string $revision_hash
  * @property array<string, mixed> $processing_fingerprint
  * @property array<string, mixed>|null $service_content
+ * @property bool $payload_complete
  * @property Carbon|null $captured_at
  * @property-read Collection<int, ChurchServiceItemAssertion> $assertions
  */

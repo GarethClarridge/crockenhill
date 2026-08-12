@@ -203,7 +203,7 @@ class ReviewChurchServiceProposalQueueTest extends TestCase
         Livewire::actingAs($admin)
             ->test(ReviewChurchServiceProposalQueue::class)
             ->assertSee('1 service staged,')
-            ->assertSee('projected at policy version 1')
+            ->assertSee('projected at policy version '.ChurchServiceProjector::PROJECTION_POLICY_VERSION)
             ->assertSee('against 1 approved')
             ->assertSee('Corpus reconciled, every class accounted for')
             ->assertDontSee('No approved corpus size is recorded');

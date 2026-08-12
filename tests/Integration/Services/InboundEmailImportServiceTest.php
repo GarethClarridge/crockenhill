@@ -9,6 +9,7 @@ use App\Data\OosEmailServicePlan;
 use App\Data\StructureMergeResult;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\InboundEmailStatus;
+use App\Enums\OosEmailContentScope;
 use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
@@ -65,6 +66,52 @@ class InboundEmailImportServiceTest extends TestCase
         $this->assertSame(0.92, $restored->confidenceScore);
         $this->assertFalse($restored->needsReview);
         $this->assertTrue($restored->shouldImport);
+    }
+
+    #[Test]
+    public function test_stores_and_round_trips_a_service_plans_content_scope(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create();
+        $items = [
+            ['position' => 1, 'type' => 'songs', 'title' => 'In Christ Alone', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+        ];
+        $plan = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2025-03-09',
+            items: $items,
+            confidence: 0.95,
+            needsReview: false,
+            shouldImport: true,
+            contentScope: OosEmailContentScope::Partial,
+        );
+        $parseResult = new OosEmailParseResult(
+            date: '2025-03-09',
+            service: SermonService::Morning,
+            items: $items,
+            confidenceScore: 0.95,
+            needsReview: false,
+            shouldImport: true,
+            importMetadata: ['service_plans' => [[
+                'service' => 'morning',
+                'date' => '2025-03-09',
+                'items' => $items,
+                'confidence' => 0.95,
+                'needs_review' => false,
+                'should_import' => true,
+                'disposition' => 'auto_importable',
+                'validation_reasons' => [],
+                'source_provenance' => [],
+                'content_scope' => 'partial',
+            ]]],
+            servicePlans: [$plan],
+        );
+
+        $this->service->storeParseResult($inboundEmail, $parseResult);
+
+        $restored = $this->service->storedParseResult($inboundEmail->fresh());
+
+        $this->assertNotNull($restored);
+        $this->assertSame(OosEmailContentScope::Partial, $restored->servicePlans[0]->contentScope);
     }
 
     #[Test]

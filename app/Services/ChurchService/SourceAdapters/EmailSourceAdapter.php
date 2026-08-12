@@ -66,6 +66,7 @@ class EmailSourceAdapter
             supersedesSourceKey: $supersedesSourceKey,
             batchHash: $batchHash,
             capturedAt: $email->received_at,
+            payloadComplete: $plan->contentScope->payloadComplete(),
         );
     }
 }

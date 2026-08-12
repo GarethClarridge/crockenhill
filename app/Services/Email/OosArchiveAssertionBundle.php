@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Email;
 
-use App\Console\Commands\ImportOosArchiveCommand;
 use App\Data\OosArchiveEntry;
 use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailParseResult;
 use App\Data\OosEmailServicePlan;
 use App\Data\OosEmailSourceDocument;
 use App\Enums\InboundEmailStatus;
+use App\Enums\OosEmailContentScope;
 use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
 use App\Models\InboundEmail;
@@ -27,7 +27,7 @@ class OosArchiveAssertionBundle
 
     public const VERSION = 1;
 
-    public const PROJECTOR_VERSION = 'email-plan-v1';
+    public const PROJECTOR_VERSION = 'email-plan-v2';
 
     public function __construct(
         private readonly OosEmailExtractionValidator $validator,
@@ -466,6 +466,7 @@ class OosArchiveAssertionBundle
                         'item_key' => $entry->itemKey,
                         'entry_index' => $entry->index,
                         'input_hash' => $entry->inputHash,
+                        'content_scope' => $entry->contentScope,
                         'curation_plan_hash' => $record['payload']['curation_plan_hash'] ?? null,
                         'portable_bundle' => true,
                         'plan_identities' => $record['payload']['plan_identities'],
@@ -566,6 +567,7 @@ class OosArchiveAssertionBundle
             $services[] = [
                 'service' => $plan['service'] ?? null,
                 'date' => $plan['date'] ?? null,
+                'content_scope' => $plan['content_scope'] ?? 'full',
                 'service_evidence_line_ids' => $provenance['service_evidence_line_ids'] ?? [],
                 'items' => $items,
                 'confidence' => (float) ($plan['confidence'] ?? 0),
@@ -654,6 +656,9 @@ class OosArchiveAssertionBundle
                 disposition: $this->disposition($plan['disposition'] ?? null),
                 validationReasons: $this->strings($plan['validation_reasons'] ?? null),
                 sourceProvenance: is_array($plan['source_provenance'] ?? null) ? $plan['source_provenance'] : [],
+                contentScope: is_string($plan['content_scope'] ?? null)
+                    ? OosEmailContentScope::tryFrom($plan['content_scope']) ?? OosEmailContentScope::Unknown
+                    : OosEmailContentScope::Full,
             );
         }
 
@@ -769,15 +774,15 @@ class OosArchiveAssertionBundle
         $keys = [];
 
         /**
-         * Gated on the manifest's resolved date, not its resolved service: one email routinely
-         * carries both that Sunday's orders and the live pipeline imports both. See
-         * {@see ImportOosArchiveCommand::importablePlanKeys()} for why the
-         * manifest is authority over source identity rather than over service count.
+         * Full sources may carry both of a Sunday's orders. Partial sources are narrower: the
+         * manifest only authorizes its curated service slots as incomplete evidence.
          */
         foreach ($parseResult->servicePlans as $plan) {
             if ($plan->date === $entry->groundTruthDate
                 && $plan->service !== null
-                && $plan->items !== []) {
+                && $plan->items !== []
+                && ($entry->assertsFullOrder()
+                    || in_array($plan->service->value, $entry->servicesPresent, true))) {
                 $keys[] = $plan->key();
             }
         }

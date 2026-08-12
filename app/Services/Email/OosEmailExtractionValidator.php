@@ -10,7 +10,9 @@ use App\Data\OosEmailSourceDocument;
 
 class OosEmailExtractionValidator
 {
-    private const EVENING_SERVICE_PATTERN = '/(?:\bevening\b|\bpm\b|\b(?:1[6-9]|2[0-3])[:.]\d{2}\b|\b(?:6|7|8|9)\s*pm\b)/iu';
+    private const EVENING_SERVICE_PATTERN = '/(?:\bafternoon\b|\bevening\b|\btonight\b|\bpm\b|\b(?:1[6-9]|2[0-3])[:.]\d{2}\b|\b(?:5|6|7|8|9)\s*(?:[.:]\d{2}\s*)?pm\b)/iu';
+
+    private const SERVICE_ITEM_PATTERN = '/^\s*(?:(?:welcome|opening\s+prayer|closing\s+prayer|prayers?|notices|sermon|message|bible\s+reading|reading|communion|children(?:\x{2019}|\x{27})?s\s+talk|family\s+talk|call\s+to\s+worship)\b|(?:hymn|song)\s*:|(?:nip|ch|mp|sofp)?\s*\d{1,4}\b)/iu';
 
     /**
      * These are deliberately narrow: every `other` service requires human review, while this
@@ -21,6 +23,7 @@ class OosEmailExtractionValidator
     public function validate(
         OosEmailSourceDocument $source,
         OosEmailItemExtractionResult $extraction,
+        ?string $subject = null,
     ): OosEmailExtractionValidationResult {
         if (! $extraction->provenanceComplete) {
             return new OosEmailExtractionValidationResult;
@@ -29,7 +32,6 @@ class OosEmailExtractionValidator
         $globalReasons = [];
         $planReasons = [];
         $assignments = [];
-        $ignoredReasons = [];
         $serviceCount = count($extraction->services);
 
         if ($extraction->serviceCount !== $serviceCount) {
@@ -57,7 +59,6 @@ class OosEmailExtractionValidator
             }
 
             $this->assignLine($assignments, $lineId, 'ignored', $globalReasons);
-            $ignoredReasons[$lineId] = $reason;
         }
 
         $planStarts = $this->planStarts($extraction);
@@ -90,11 +91,17 @@ class OosEmailExtractionValidator
                 $this->assignLine($assignments, $lineId, "plan {$planIndex} evidence", $planReasons[$planIndex]);
             }
 
-            if ($serviceName === 'other' && ! $this->hasSpecialServiceEvidence($source, $evidenceLineIds)) {
+            $hasSinglePlanSubjectEvidence = $serviceCount === 1 && is_string($subject);
+
+            if ($serviceName === 'other'
+                && ! $this->hasSpecialServiceEvidence($source, $evidenceLineIds)
+                && ! ($hasSinglePlanSubjectEvidence && preg_match(self::SPECIAL_SERVICE_PATTERN, $subject) === 1)) {
                 $planReasons[$planIndex][] = 'An other service requires explicit special-service evidence; ordinary notices are not a service order.';
             }
 
-            if ($serviceName === 'evening' && ! $this->hasEveningServiceEvidence($source, $evidenceLineIds)) {
+            if ($serviceName === 'evening'
+                && ! $this->hasEveningServiceEvidence($source, $evidenceLineIds)
+                && ! ($hasSinglePlanSubjectEvidence && preg_match(self::EVENING_SERVICE_PATTERN, $subject) === 1)) {
                 $planReasons[$planIndex][] = 'An evening service requires an explicit evening or PM boundary in its evidence lines.';
             }
 
@@ -151,7 +158,6 @@ class OosEmailExtractionValidator
                 $planStarts,
                 $planItemLineIds,
                 $assignments,
-                $ignoredReasons,
                 $planReasons,
             );
         }
@@ -257,7 +263,6 @@ class OosEmailExtractionValidator
      * @param  array<int, int>  $planStarts
      * @param  list<int>  $planItemLineIds
      * @param  array<int, string>  $assignments
-     * @param  array<int, string>  $ignoredReasons
      * @param  array<int, list<string>>  $planReasons
      */
     private function validatePlanSpan(
@@ -266,7 +271,6 @@ class OosEmailExtractionValidator
         array $planStarts,
         array $planItemLineIds,
         array $assignments,
-        array $ignoredReasons,
         array &$planReasons,
     ): void {
         if ($planItemLineIds === []) {
@@ -297,11 +301,11 @@ class OosEmailExtractionValidator
                 continue;
             }
 
-            if (($ignoredReasons[$lineId] ?? null) === 'signature') {
-                continue;
-            }
+            $line = $source->line($lineId);
 
-            if ($assignments[$lineId] === 'ignored') {
+            if ($assignments[$lineId] === 'ignored'
+                && is_string($line)
+                && preg_match(self::SERVICE_ITEM_PATTERN, $line) === 1) {
                 $planReasons[$planIndex][] = "Source line {$lineId} was ignored inside a service item sequence.";
             }
         }

@@ -13,6 +13,7 @@ use App\Data\StructureMergeResult;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ChurchServiceProposalStatus;
 use App\Enums\InboundEmailStatus;
+use App\Enums\OosEmailContentScope;
 use App\Enums\OosEmailImportOutcome;
 use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
@@ -190,6 +191,9 @@ class InboundEmailImportService
                 sourceProvenance: is_array($storedPlan['source_provenance'] ?? null)
                     ? $storedPlan['source_provenance']
                     : [],
+                contentScope: is_string($storedPlan['content_scope'] ?? null)
+                    ? OosEmailContentScope::tryFrom($storedPlan['content_scope']) ?? OosEmailContentScope::Unknown
+                    : OosEmailContentScope::Full,
             );
         }
 
@@ -253,6 +257,7 @@ class InboundEmailImportService
         string $reviewMode = 'direct_approve',
         ?array $onlyPlanKeys = null,
         ?string $sourceInputHash = null,
+        ?OosEmailContentScope $reviewedContentScope = null,
     ): OosEmailImportResult {
         $plans = $this->plansForImport($parseResult);
 
@@ -277,6 +282,7 @@ class InboundEmailImportService
                 $reviewedByUserId,
                 $reviewMode,
                 $sourceInputHash,
+                $reviewedContentScope,
             );
         }
 
@@ -321,7 +327,12 @@ class InboundEmailImportService
         ?int $reviewedByUserId,
         string $reviewMode,
         ?string $sourceInputHash,
+        ?OosEmailContentScope $reviewedContentScope,
     ): OosEmailImportPlanOutcome {
+        if ($reviewedByUserId !== null && $reviewedContentScope instanceof OosEmailContentScope) {
+            $plan = $plan->withContentScope($reviewedContentScope);
+        }
+
         // An admin approval imports any well-formed plan; the automated pipeline only imports
         // plans confident enough to auto-import, holding the rest for review.
         $ready = $reviewedByUserId !== null
@@ -329,6 +340,15 @@ class InboundEmailImportService
             : $plan->isAutoImportable();
 
         if (! $ready || ! $plan->isImportable()) {
+            return new OosEmailImportPlanOutcome(
+                $plan->key(),
+                $plan->service,
+                $plan->date,
+                OosEmailImportOutcome::HeldForReview,
+            );
+        }
+
+        if ($plan->contentScope === OosEmailContentScope::Unknown) {
             return new OosEmailImportPlanOutcome(
                 $plan->key(),
                 $plan->service,
@@ -412,6 +432,18 @@ class InboundEmailImportService
 
         $existingService = $this->identityResolver->resolve((string) $plan->date, $service);
 
+        if ($plan->contentScope === OosEmailContentScope::Partial) {
+            return $this->retainPlanEvidence(
+                $inboundEmail,
+                $plan,
+                $service,
+                $existingService,
+                $importMetadata,
+                $reviewedByUserId,
+                $sourceInputHash,
+            );
+        }
+
         if ($existingService instanceof ChurchService) {
             return $this->mergePlanIntoExistingService($inboundEmail, $plan, $existingService, $importMetadata, $reviewedByUserId, $sourceInputHash);
         }
@@ -423,6 +455,60 @@ class InboundEmailImportService
             $service,
             $plan->date,
             OosEmailImportOutcome::Created,
+            $churchService,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $importMetadata
+     */
+    private function retainPlanEvidence(
+        InboundEmail $inboundEmail,
+        OosEmailServicePlan $plan,
+        SermonService $service,
+        ?ChurchService $existingService,
+        array $importMetadata,
+        ?int $reviewedByUserId,
+        ?string $sourceInputHash,
+    ): OosEmailImportPlanOutcome {
+        $churchService = DB::transaction(function () use ($inboundEmail, $plan, $service, $existingService, $importMetadata, $sourceInputHash): ChurchService {
+            $churchService = $existingService ?? ChurchService::query()->firstOrNew([
+                'date' => $plan->date,
+                'service' => $service->value,
+            ]);
+            $existingMetadata = $churchService->import_metadata?->toArray() ?? [];
+
+            $churchService->fill([
+                'source' => $churchService->exists
+                    ? $churchService->source
+                    : ChurchServiceItemSource::Email->value,
+                'needs_review' => $churchService->exists
+                    ? $churchService->needs_review
+                    : false,
+                'import_metadata' => array_replace_recursive($existingMetadata, $importMetadata),
+            ]);
+            $churchService->save();
+
+            $this->ingestSourceRevision->execute(
+                $churchService,
+                $this->sourceAdapter->adapt($inboundEmail, $plan, $sourceInputHash),
+                project: false,
+            );
+
+            return $churchService->fresh(['items']) ?? $churchService;
+        });
+
+        Log::info('Incomplete church service evidence retained from email', $this->sanitizeArrayForLog([
+            'admin_id' => $reviewedByUserId,
+            'church_service_id' => $churchService->id,
+            'plan_key' => $plan->key(),
+        ]));
+
+        return new OosEmailImportPlanOutcome(
+            $plan->key(),
+            $service,
+            $plan->date,
+            OosEmailImportOutcome::EvidenceRetained,
             $churchService,
         );
     }
@@ -566,6 +652,7 @@ class InboundEmailImportService
                 'service' => $plan->service?->value,
                 'date' => $plan->date,
                 'confidence' => $plan->confidence,
+                'content_scope' => $plan->contentScope->value,
             ],
         ]);
 

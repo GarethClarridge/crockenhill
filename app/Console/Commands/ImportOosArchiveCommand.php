@@ -13,6 +13,7 @@ use App\Models\InboundEmail;
 use App\Services\Email\InboundEmailImportService;
 use App\Services\Email\OosArchiveAssertionBundle;
 use App\Services\Email\OosArchiveEvaluator;
+use App\Services\Email\OosArchiveIdentityResolver;
 use App\Services\Email\OosCurationEntryFactory;
 use App\Services\Email\OosCurationManifest;
 use App\Services\Email\OosEmailParserService;
@@ -28,16 +29,17 @@ use Throwable;
 /**
  * Process the approved §7.5 Email order-of-service corpus as if the current email pipeline had
  * handled it at the time. Each approved manifest include becomes an ordinary synthetic inbound
- * email and takes one of two routes:
+ * email and takes one of three routes:
  *
- * - **held for review** — the manifest does not corroborate the parse, or the source asserts only
- *   part of an order. The email becomes Pending and appears in the review inbox, where the
- *   existing edit-and-approve workbench handles it exactly as it would a live email.
+ * - **held for review** — the manifest does not corroborate the parse. The email becomes Pending
+ *   and appears in the review inbox.
+ * - **evidence retained** — a partial source is stored with its assertions but cannot project a
+ *   canonical running order.
  * - **imported** — the entry runs through {@see InboundEmailImportService::import()}, which merges
  *   into an existing service or creates one. Whether it imports unattended is decided by the live
  *   auto-import bar, not by this command; anything below it stays Pending in the inbox.
  *
- * **There is no third, blocked route, and that is the point of the manifest.** Its predecessor
+ * There is no blocked report-only route. Its predecessor
  * read one aggregate markdown file, split it on `### ` headings and inferred each entry's date and
  * service from the heading text — so an entry whose text contradicted itself had to be parked in a
  * report line nobody could act on. §7.3 makes the approved manifest mutation authority instead:
@@ -49,7 +51,7 @@ use Throwable;
 class ImportOosArchiveCommand extends Command
 {
     /** Bump when the parsing pipeline changes shape or deterministic guards change. */
-    private const ParserVersion = 'archive-v8';
+    private const ParserVersion = 'archive-v10';
 
     private const DefaultVerbatimRoot = 'scratch/oos-verbatim';
 
@@ -82,6 +84,7 @@ class ImportOosArchiveCommand extends Command
         OosEmailParserService $emailParser,
         InboundEmailImportService $importService,
         OosArchiveEvaluator $evaluator,
+        OosArchiveIdentityResolver $identityResolver,
         OosArchiveAssertionBundle $assertionBundle,
         HistoricImportProductionGuard $productionGuard,
         UnevidencedCanonicalItemGuard $unevidencedItemGuard,
@@ -232,7 +235,13 @@ class ImportOosArchiveCommand extends Command
 
             try {
                 [$inboundEmail, $sourceUpdatedAfterImport] = $this->synchroniseEmail($entry, $plan);
-                $parseResult = $this->parseResult($entry, $inboundEmail, $emailParser, $importService);
+                $parseResult = $this->parseResult(
+                    $entry,
+                    $inboundEmail,
+                    $emailParser,
+                    $importService,
+                    $identityResolver,
+                );
                 $eligiblePlanKeys = $this->importablePlanKeys($entry, $parseResult);
                 $reviewReasons = $this->reviewReasons(
                     $entry,
@@ -249,7 +258,7 @@ class ImportOosArchiveCommand extends Command
                     $disposition = 'held_for_review';
                     $this->releaseToInbox($inboundEmail, $shouldImport);
                 } elseif (! $shouldImport) {
-                    $disposition = 'eligible';
+                    $disposition = $entry->assertsFullOrder() ? 'eligible' : 'evidence_eligible';
                 } else {
                     $this->releaseToInbox($inboundEmail, $shouldImport);
                     $importResult = $importService->import(
@@ -271,12 +280,13 @@ class ImportOosArchiveCommand extends Command
                         $disposition = match (true) {
                             $importResult->created() !== [] => 'created',
                             $importResult->merged() !== [] => 'merged',
+                            $importResult->evidenceRetained() !== [] => 'evidence_retained',
                             // Below the auto-import bar, or a structure merge staged for review:
                             // the email stays Pending and the inbox picks it up.
                             default => 'held_for_review',
                         };
 
-                        if ($disposition === 'created' || $disposition === 'merged') {
+                        if (in_array($disposition, ['created', 'merged', 'evidence_retained'], true)) {
                             // This entry now has a source record a later entry may supersede.
                             $importedSourceKeys[$entry->sourceKey] = true;
                         }
@@ -586,6 +596,7 @@ class ImportOosArchiveCommand extends Command
         InboundEmail $inboundEmail,
         OosEmailParserService $emailParser,
         InboundEmailImportService $importService,
+        OosArchiveIdentityResolver $identityResolver,
     ): OosEmailParseResult {
         $parsing = Arr::get($inboundEmail->processing_metadata ?? [], 'parsing', []);
         $cacheMatches = ! (bool) $this->option('fresh-parse')
@@ -601,7 +612,7 @@ class ImportOosArchiveCommand extends Command
             }
         }
 
-        $parseResult = $emailParser->parse($inboundEmail);
+        $parseResult = $identityResolver->resolve($entry, $emailParser->parse($inboundEmail));
         $importService->storeParseResult($inboundEmail, $parseResult, $parsing !== []);
         $inboundEmail->refresh();
         $metadata = $inboundEmail->processing_metadata ?? [];
@@ -614,10 +625,7 @@ class ImportOosArchiveCommand extends Command
     }
 
     /**
-     * Reasons to hand the entry to a human rather than import it unattended. None of them says
-     * anything against the manifest — a `partial` content scope is a curated fact about the
-     * source, not a defect in it — so the entry becomes an ordinary Pending email and the
-     * existing edit-and-approve workbench takes it from there.
+     * Reasons to hand the entry to a human rather than process it unattended.
      *
      * @param  list<string>  $eligiblePlanKeys
      * @param  array<string, true>|null  $importedSourceKeys  Source keys already given a source
@@ -656,14 +664,6 @@ class ImportOosArchiveCommand extends Command
             && $entry->supersedesSourceKey !== null
             && ! isset($importedSourceKeys[$entry->supersedesSourceKey])) {
             $reasons[] = 'superseded_predecessor_not_imported';
-        }
-
-        /**
-         * §8.4: a partial order's silence is not disagreement, so it must never import
-         * unattended as though it were the whole service.
-         */
-        if (! $entry->assertsFullOrder()) {
-            $reasons[] = 'partial_source_scope';
         }
 
         /**
@@ -750,7 +750,8 @@ class ImportOosArchiveCommand extends Command
 
     /**
      * Keys of the parsed plans this entry may import: those on the manifest's resolved date, with
-     * items.
+     * items. A partial manifest entry is narrower: only the curated service slots are approved as
+     * incomplete evidence.
      *
      * **Deliberately not filtered by the manifest's resolved service.** One email routinely
      * carries both that Sunday's morning and evening orders, and the live pipeline already handles
@@ -778,7 +779,9 @@ class ImportOosArchiveCommand extends Command
         foreach ($parseResult->servicePlans as $plan) {
             if ($plan->date === $entry->groundTruthDate
                 && $plan->service instanceof SermonService
-                && $plan->items !== []) {
+                && $plan->items !== []
+                && ($entry->assertsFullOrder()
+                    || in_array($plan->service->value, $entry->servicesPresent, true))) {
                 $keys[] = $plan->key();
             }
         }

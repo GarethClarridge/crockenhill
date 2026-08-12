@@ -6,6 +6,7 @@ namespace App\Actions\InboundEmail;
 
 use App\Data\OosEmailImportResult;
 use App\Data\OosEmailParseResult;
+use App\Enums\OosEmailContentScope;
 use App\Models\InboundEmail;
 use App\Services\Email\InboundEmailImportService;
 use App\Services\Email\OosEmailParserService;
@@ -24,8 +25,11 @@ class ApproveInboundEmailImport
      * Uses the stored parse result when available, falling back to a fresh parse. Returns an
      * OosEmailImportResult (per-plan outcomes) on success, or an error message string.
      */
-    public function execute(InboundEmail $inboundEmail, ?int $reviewedByUserId): OosEmailImportResult|string
-    {
+    public function execute(
+        InboundEmail $inboundEmail,
+        ?int $reviewedByUserId,
+        OosEmailContentScope $contentScope = OosEmailContentScope::Full,
+    ): OosEmailImportResult|string {
         try {
             $parseResult = $this->importService->storedParseResult($inboundEmail);
 
@@ -48,7 +52,10 @@ class ApproveInboundEmailImport
                 $inboundEmail,
                 $parseResult,
                 reviewedByUserId: $reviewedByUserId,
-                reviewMode: 'direct_approve',
+                reviewMode: $contentScope === OosEmailContentScope::Partial
+                    ? 'retain_evidence'
+                    : 'direct_approve',
+                reviewedContentScope: $contentScope,
             );
 
             // A plan that failed to import (a DB or sync error) must not pass through the success

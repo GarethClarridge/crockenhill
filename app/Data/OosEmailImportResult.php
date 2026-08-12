@@ -44,6 +44,15 @@ readonly class OosEmailImportResult
         ));
     }
 
+    /** @return list<OosEmailImportPlanOutcome> */
+    public function evidenceRetained(): array
+    {
+        return array_values(array_filter(
+            $this->plans,
+            static fn (OosEmailImportPlanOutcome $plan): bool => $plan->outcome === OosEmailImportOutcome::EvidenceRetained,
+        ));
+    }
+
     public function firstCreatedService(): ?ChurchService
     {
         foreach ($this->plans as $plan) {
