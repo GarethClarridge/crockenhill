@@ -1,4 +1,4 @@
-> **Archived 2026-07-05.** Written for Laravel 12 (Feb 2026); the project is now on Laravel 13. Item statuses were never reconciled after the June 2026 review implementation and testing remediation landed much of this work. **Do not work from this file** — the only active tracker is `docs/plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md`.
+> **Archived 2026-07-05.** Written for Laravel 12 (Feb 2026); the project is now on Laravel 13. Item statuses were never reconciled after the June 2026 review implementation and testing remediation landed much of this work. **Do not work from this file** — use `docs/plans/README.md` for current trackers.
 
 # Laravel 12 Modernization Backlog
 

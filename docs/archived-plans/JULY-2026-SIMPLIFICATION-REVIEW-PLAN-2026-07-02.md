@@ -2,7 +2,7 @@
 
 > **ARCHIVED 2026-07-05 — review complete through Phase 8.** The review produced the seven
 > findings docs in `docs/reviews/july-2026-simplification/` and the consolidated backlog at
-> [../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md),
+> [the archived July simplification parent](JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md),
 > which is now the single active tracker. **One piece of this document remains live: the Phase 9
 > session brief** (technical code-quality review), which is gated on the backlog's structural work
 > substantially landing — run it from the brief below when that gate clears.

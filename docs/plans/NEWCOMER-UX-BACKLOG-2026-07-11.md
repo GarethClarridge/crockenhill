@@ -1,20 +1,24 @@
 # Newcomer UX plan — production review 2026-07-11
 
-> **Gate update (2026-07-24): O19's dependency has cleared.** Backlog item 3.1 (one presentation
-> convention) completed 2026-07-16 as PR #1221; `RelatedPagePresenter` survived the change and now
-> lives at `app/Presenters/RelatedPagePresenter.php`. O19 is therefore ready to be reassessed and
-> fixed against the settled seam. Nothing else here has started (verified 2026-07-24 — O16–O21 are
-> still open in `docs/issues/README.md`).
+> **Comprehensive reconciliation (2026-08-12): approved and not started, with one scope
+> correction.** The homepage already states the 10:30am/6:00pm service times and has a “What to
+> expect on Sunday mornings” CTA. Phase 2 must reuse or reposition that journey, not add duplicate
+> service copy or a second CTA. O16/O20/O21 remain production-data/content checks; O17 and the
+> newcomer-labelled route remain open in code. `RelatedPagePresenter` still exists, so O19 is now
+> an independent small slice rather than a backlog-gated final phase.
+>
+> Site Search owns its search icon; this plan owns the single “New here?” information-architecture
+> entry. The design refresh owns any shared header extraction/tokens. Land header changes
+> sequentially or rebase them—none is a reason to combine search, newcomer content and design
+> tokens into one PR.
 
-**Status (2026-07-12): Approved; not started.** This plan owns verified issues O16–O21 and
-opportunities N1–N5 in `docs/issues/README.md`. O16, O20, O21, O17, and the N1/N2 newcomer path can
-start independently of the July simplification backlog. O19 must wait for backlog item 3.1 because
-that item deletes/folds the current related-page presentation seam. O18, N3, and N4 remain blocked
-on the maintainer inputs listed below.
+This plan owns verified issues O16–O21 and opportunities N1–N5 in `docs/issues/README.md`.
+O16, O20, O21, O17, O19 and the N1/N2 newcomer path can start independently. O18, N3 and N4
+remain blocked on the maintainer inputs listed below.
 
 Do not invent course dates, publish identifiable photographs/video without consent, promise weekly
 content without an owner, add a second Bible-request form, rename the existing Christ / Church /
-Community areas, or patch `RelatedPagePresenter` before backlog item 3.1.
+Community areas, or duplicate the homepage's existing Sunday-time/what-to-expect path.
 
 ## Outcome
 
@@ -65,7 +69,9 @@ Deliver **N1, N2, and N5 as one coordinated journey**, not three copy-only PRs:
 - add one top-level **New here?** entry without renaming the three existing areas;
 - create its destination from existing facts: Sunday times, what happens, children's Outback
   provision, parking/directions, and who to look for on arrival;
-- add a homepage hero service-time line and primary visit/what-to-expect CTA;
+- audit the existing homepage service-time paragraphs and what-to-expect CTA; move or surface the
+  existing journey earlier only if the first-viewport test shows it is necessary—do not add a
+  second version;
 - surface a short factual children/families reassurance on the homepage;
 - retain the three mission statements while adding visitor-question language only where it makes
   scanning clearer.
@@ -94,13 +100,14 @@ person, entrance, or activity.
   responsibility. Display dated information or an explicit freshness timestamp. Do not automate
   until the manual block proves useful.
 
-### Phase 5 — repair related-page relevance after backlog 3.1
+### Independent slice — repair related-page relevance (O19)
 
-Reassess **O19** while implementing or immediately after backlog item 3.1. At that point, define the
-new presentation seam to exclude legal/policy noise from ordinary visitor journeys, avoid stale
+Deliver **O19** against the settled `RelatedPagePresenter` seam. Define deterministic selection
+rules that exclude legal/policy noise from ordinary visitor journeys, avoid stale
 seasonal recommendations, suppress repeated title/description copy, and use human card labels.
-Test deterministic selection rules; do not preserve the current random presenter merely to patch
-its output.
+Replace random selection only on the ordinary visitor surfaces where it causes the defect; do not
+silently change admin/member or deliberately varied surfaces. This slice is independent of the
+newcomer route and may ship after the production/content repairs.
 
 ## Maintainer inputs
 
@@ -117,12 +124,12 @@ These decisions do not block Phases 0–2.
    cause).
 2. O20 + O21 copy/data consistency, with regression coverage for the rendered 10:30am detail.
 3. O17 address + directions link.
-4. N1 + N2 + N5 newcomer page, navigation entry, and homepage path.
-5. Approved N3 assets.
-6. O18 and/or N4 after their maintainer decisions.
-7. O19 with/after backlog item 3.1.
+4. O19 deterministic related-page relevance.
+5. N1 + N2 + N5 newcomer page, navigation entry, and reuse of the homepage path.
+6. Approved N3 assets.
+7. O18 and/or N4 after their maintainer decisions.
 
-Keep PRs 1–3 independent so urgent fixes do not wait for the coordinated design change.
+Keep PRs 1–4 independent so urgent fixes do not wait for the coordinated newcomer/header change.
 
 ## Verification and definition of done
 
@@ -133,7 +140,7 @@ intentional pixel-level baselines. Before merging UI work, verify mobile and des
 
 The plan is complete when:
 
-- O16–O18 and O20–O21 are closed, and O19 is closed with or after backlog 3.1;
+- O16–O21 are closed or explicitly dropped with a recorded maintainer decision;
 - a newcomer-labelled route exposes Sunday time, expectations, children, and directions;
 - homepage and Sunday details agree on the service time;
 - every invitation retained on the site has a working, maintained next step;

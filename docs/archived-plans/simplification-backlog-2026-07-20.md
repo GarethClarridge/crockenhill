@@ -5,7 +5,7 @@
 # Simplification Backlog
 
 > **Superseded (2026-07-05):** consolidated into
-> [docs/plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md).
+> [the archived July simplification parent](JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md).
 > Dispositions of the still-open items: PR 4 carried over (backlog item 4.5); PR 19 closed as moot
 > (speaker identification is already enabled and working in production — stack kept); PR 20 and the
 > parking-lot items parked to the Phase 9 code-quality review; PR 23 done (`Sync/` split landed,

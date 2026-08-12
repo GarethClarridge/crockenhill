@@ -2,7 +2,7 @@
 
 > **ARCHIVED 2026-07-05 — superseded. Do not implement from this document.** The remaining open
 > work in this plan is consolidated into
-> [../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)
+> [the archived July simplification parent](JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)
 > — Phase 9 → backlog item 2.3 (approved, gated on prod storage verification); Phase 25 → item 2.4
 > (approved, gated per item); Phase 14 → closed with revised direction (see the backlog's tracker
 > reconciliation). All other phases were complete. Backlog items 2.3/2.4 are self-contained;

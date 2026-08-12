@@ -1,61 +1,63 @@
 # Code-Quality Remediation Plan — Phase 9 follow-through
 
-> **Gate update (2026-07-24): WP7 is unblocked.** Remainder R9, R10 and R11 have all merged, so the
-> hard gate on the PHPStan level-9 ratchet is released — only maintainer answer Q4 (ratchet
-> sequencing sign-off) still stands in front of it. `phpstan.neon` is still at `level: 8`.
+> **Comprehensive reconciliation (2026-08-12).** The live code still matches the open mechanical
+> findings: `AiServiceProvider` retains its two silent fallbacks, both audio transcription methods
+> retain the `'unknown'` processing-id default, all 12 bare Google Calendar PHPStan ignores remain,
+> `spatie/laravel-data` still has eight extending DTOs, and PHPStan remains at level 8. The only
+> completed slices remain WP2.1 and WP6.1.
 >
+> Ownership is now narrower. Historic/convergence one-shot retirement is exclusively Gate G9/WP10
+> of the two historic-readiness plans; it is not WP5 here and must not be scheduled from this file.
+> The archived simplification parent is context only. R9-R11 are complete, so level-9 remediation
+> sessions may start at level 8; maintainer Q4 blocks only the final `level: 9` config flip.
+>
+> **Recommended delivery:** WP2's fail-closed bindings/signature/config fixes plus WP6.2 first;
+> WP3 and approved WP4 slices independently; level-9 sessions next; dependency refreshes in their
+> own maintenance PR, never mixed with behavioural remediation. WP4a still needs explicit
+> dependency-removal approval.
+
 > **WP2.1 and WP6.1 are DONE (2026-07-24).** The `#[Computed]` call-syntax bug is fixed and guarded
 > by a regression test that was proven to fail against the old code. See the completion notes in
 > WP2.1 and WP6 for what was verified.
 >
-> **Nothing else in this plan has started** (verified 2026-07-24):
-> `AiServiceProvider`'s `SermonAnalysisInterface` if/else and `TranscriptionServiceInterface` silent
-> `default =>` arm are unchanged, `spatie/laravel-data` is still in `composer.json`, and
-> `composer.lock` still carries medialibrary 11.23.1.
->
-> **Status (2026-07-19, amended 2026-07-20): ready to start; WP1 downgraded from urgent — its
-> security premise was a stale local vendor tree (see the WP1 correction note).** This is the
-> implementation plan for
+> WP1 remains a routine update rather than a security emergency; its original premise was a stale
+> local vendor tree (see the WP1 correction note). This is the implementation plan for
 > every finding in the Phase 9 code-quality review
 > ([../reviews/july-2026-simplification/code-quality-review-2026-07-19.md](../reviews/july-2026-simplification/code-quality-review-2026-07-19.md)
 > — "the findings doc"; F-numbers below refer to it). It is written to be executed by an agent
 > with no prior context: every item names its files, steps, tests, and acceptance check.
 >
-> **Dependencies:** the simplification remainder plan
+> **Dependencies:** the simplification closeout plan
 > [JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md](JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md)
-> is executing in parallel (R2–R15). WP7 here is **hard-gated on remainder R9–R11 merging**.
-> WP5's deletions were folded into the remainder plan's R8 table (rows added 2026-07-19) and are
-> tracked there, not here. Read `AGENTS.md` before starting any work package.
+> now contains only R13-R15 and executes independently. WP7's former R9-R11 gate is satisfied.
+> Read `AGENTS.md` before starting any work package.
 >
 > **Agents must not, without maintainer input:** (a) start WP4a (`laravel-data` removal) —
 > dependency changes need approval per AGENTS.md; (b) enable `Model::shouldBeStrict()` outside
-> the WP4b survey procedure; (c) start WP7 before remainder R9–R11 have merged; (d) delete
+> the WP4b survey procedure; (c) flip PHPStan to level 9 before Q4; (d) delete
 > `config/podcast.php`'s `enabled` key before maintainer answers open question Q3; (e) run any
-> production command — the two WP5 gates are operator-run (counts only in public output).
+> production command or delete any historic/convergence one-shot.
 >
 > **Maintainer answers needed** (each blocks only the item that cites it):
-> - **Q1:** Is the order-of-service paper archive fully imported, with no further
->   `OosArchiveEvaluator` runs planned? → gates the R8 row for `ImportOosArchiveCommand`.
-> - **Q2:** Did the production praise-number backfill (+ `service-tracking:link-songs`) run after
->   PR #1171 merged? → gates the R8 row for `BackfillSongPraiseNumbersCommand`.
 > - **Q3:** Should the podcast feed route be gateable by config, or delete the unread
 >   `podcast.enabled` key? (Recommendation: delete.) → WP2 step 4.
-> - **Q4:** Sign-off on the ratchet sequencing in WP7 (level 9 after R9–R11, no baseline).
+> - **Q4:** Sign-off on the final level-9 config flip with no baseline. The remediation sessions
+>   themselves can proceed first while CI remains pinned at level 8.
 
 ## Work-package overview and sequencing
 
 | WP | What | Kind | Blocked by |
 |---|---|---|---|
-| WP1 | medialibrary version bump (F5.1 — **downgraded 2026-07-20**, see WP1 note) | mechanical | — |
+| WP1 | Routine dependency refresh (includes medialibrary and the former WP2.8 list; no security emergency) | mechanical | dependency-change approval/review |
 | WP2 | Mechanical sweep: computed-property fix (**2.1 DONE 2026-07-24**), provider bindings, dead config, small idiom residue (F6.1, F2.3, F3.3, F2.6, F2.7, F2.2, F1.3, F5.3) | mechanical | — |
 | WP3 | PHPUnit mock-notice sweep, 124 sites (F4.2) | mechanical, wide | — |
 | WP4 | Judgment items: laravel-data removal, Eloquent strict-mode survey, test-env branch inversion, thumbnail test speed, js-yaml override, `validationRules()` relocation (F2.4, F6.2, F2.5, F4.3, F5.2, F2.2a) | design | per-item, see below |
-| WP5 | Spent one-shot deletions → **executed via remainder R8** (F3.2) | mechanical | operator gates Q1/Q2 |
+| WP5 | **Removed from this plan** — historic readiness G9/WP10 owns one-shot retirement | external | historic G9 |
 | WP6 | Regression nets: query-count assertions (**6.1 DONE 2026-07-24**) + computed-call structural test (F6.1 guard, §5 opportunity) | mechanical | WP2 item 1 |
-| WP7 | PHPStan level-9 ratchet, ~800 errors in 4 clustered sessions (F1.1, F1.3 completion) | design | **remainder R9–R11 merged** + Q4 |
+| WP7 | PHPStan level-9 ratchet in clustered sessions (F1.1, F1.3 completion) | design | Q4 blocks only final config flip |
 
-WP2+WP6 as one PR stack; WP1/WP3 any time; WP4 items independently as answers/approvals
-arrive; WP7 last.
+WP2+WP6 as one PR stack; WP3 and WP4 items independently as answers/approvals arrive; WP7 can
+start after that stack; WP1 is a separate maintenance PR and need not block the quality fixes.
 
 ## Quality gates (every PR, from AGENTS.md)
 
@@ -79,12 +81,15 @@ breakage — fix with `vendor/bin/sail down && vendor/bin/sail up -d`, do not de
 > lock change. Lesson: verify version claims against `composer.lock` (and prod), not local
 > `composer show`/`composer audit` output.
 
-What remains is routine drift, foldable into F5.3's minor/patch sweep:
+What remains is routine drift. Consolidate it with the former WP2.8 dependency sweep so there is
+one dependency-only PR, not two plans for the same lockfile change:
 
-1. `vendor/bin/sail composer update spatie/laravel-medialibrary` (11.23.1 → latest 11.x).
+1. Re-resolve the approved patch/minor Composer and npm packages, including
+   `spatie/laravel-medialibrary`; no new major and no new package.
 2. Focused tests: `vendor/bin/sail artisan test --compact --parallel --filter=Media` plus the
    meeting/page media suites (`--filter=Meeting`).
-3. Acceptance: `vendor/bin/sail composer audit` stays clean; suite green.
+3. Run the frontend build, relevant tool smoke checks and full project gates; `composer audit`
+   stays clean. Record any deliberately deferred major separately.
 
 ## WP2 — Mechanical sweep (one PR stack; commits in this order)
 
@@ -206,12 +211,7 @@ of the Google payloads here — that belongs to WP7 session 3.
 
 ### 2.8 Routine dependency bumps (F5.3)
 
-`vendor/bin/sail npm update tailwindcss @tailwindcss/vite vite laravel-vite-plugin` (all
-patch-level), `vendor/bin/sail npm run build`; `vendor/bin/sail composer update` for the ~20
-minor/patch composer packages **excluding** any new majors (symfony/http-client and
-symfony/mailgun-mailer stay on 7.4 until the framework moves). After the framework/larastan
-bumps, re-run `vendor/bin/sail artisan boost:install` per CLAUDE.md and commit the regenerated
-guideline blocks and skills together. Full suite + Dusk after the bumps.
+Owned by WP1. Do not create a second lockfile PR from this section.
 
 ## WP3 — PHPUnit mock-notice sweep (F4.2)
 
@@ -229,8 +229,8 @@ slow). For each flagged test:
    example — a test asserting only "no exception on new" adds nothing; PHPUnit-guidelines rule
    "do not remove tests without approval" applies to files, so *strengthen* rather than delete
    where in doubt, and list any outright deletions in the PR description).
-3. Skip test files on the remainder plan's deletion lists (R8/R9/R14 — check its tables) —
-   don't polish doomed tests.
+3. Skip the five legacy flat suites owned by active R14 and any one-shot tests explicitly owned by
+   historic G9—port useful assertions to their surviving homes rather than polishing doomed tests.
 
 Acceptance: full-suite notice count reported in the PR (target ≤ a handful of justified
 `#[AllowMockObjectsWithoutExpectations]` sites); zero behaviour changes.
@@ -251,11 +251,9 @@ zero validation calls, four validation attributes total. Procedure:
    `Required`/`Max` attributes to plain PHPDoc (they were never enforced — nothing calls
    validation).
 2. `composer remove spatie/laravel-data`; delete `config/data.php`.
-3. Watch `LivestreamSegment` specifically (111 references, cast-adjacent) — confirm its Eloquent
-   cast (`SongClusterCollectionCast` etc. are separate; check `MediaProcessingLog` casts) does
-   not rely on laravel-data serialization.
-4. Full gates. Coordinate with remainder R10, which deletes `SongCluster*` casts — if R10 lands
-   first, this shrinks.
+3. Watch `LivestreamSegment` specifically (cast-adjacent) and confirm its Eloquent serialization
+   does not rely on laravel-data behaviour.
+4. Full gates. R10 has already removed the song-cluster casts; do not restore or account for them.
 5. Afterwards, optionally do the `app/Data/` domain-subfolder reorganisation (platform review
    F6) in a separate PR so files move once. Apply the namespace-move checklist from AGENTS.md /
    the R5 instructions (explicit `use`, external siblings, moved files' own siblings, Blade
@@ -279,8 +277,9 @@ zero validation calls, four validation attributes total. Procedure:
   seam — read the surrounding code to pick the natural one (a config key the test sets, or a
   constructor collaborator the test fakes). The pattern to copy is whatever Phase 18 used when
   it removed the same smell elsewhere (`git log --grep="environment" --oneline` to find it).
-- Leave `VideoSegmentationService.php:60` (R10 rewrites that file) and the three
-  `AppServiceProvider` hooks (documented deliberate infrastructure).
+- R10 has landed but `VideoSegmentationService` still contains a testing-environment branch. Include
+  it in the same survey: replace it only if a natural injected/config seam exists; otherwise record
+  why it remains. Leave the three documented `AppServiceProvider` hooks alone.
 
 ### 4d. Thumbnail test-render speed (F4.3)
 
@@ -311,12 +310,12 @@ Optional finish of the model slim-down: move the 56-line static into a dedicated
 callers: `grep -rn "validationRules" app`). Skip entirely if consumers span Livewire + API +
 jobs and the move adds a class without removing complexity — record "keep" here if so.
 
-## WP5 — Spent one-shot deletions (F3.2) — tracked in remainder R8
+## WP5 — Historic/convergence one-shot retirement — external ownership
 
-Two rows were added to the remainder plan's R8 table on 2026-07-19 (`ImportOosArchiveCommand` +
-`OosArchiveEvaluator` + 2 test files, gated on Q1; `BackfillSongPraiseNumbersCommand` + test,
-gated on Q2). Execute them there under R8's commit discipline (delete tool + companion + tests
-in one commit, pre-deletion git tag in the PR description). Nothing further to do in this plan.
+No executable work remains here. The final-readiness and readiness-remediation plans own the
+operation, exact closeout, rollback window and G9/WP10 retirement release. This plan neither names
+deletion gates nor duplicates their checklist. Revisit the code-quality finding only after those
+plans report the tools deleted.
 
 ## WP6 — Regression nets (lands with WP2.1)
 
@@ -334,18 +333,19 @@ in one commit, pre-deletion git tag in the PR description). Nothing further to d
    component source or its Blade view (simple token/regex scan of the files is fine — the goal
    is preventing regression of the whole class of bug, and a string scan catches it).
 
-## WP7 — PHPStan level-9 ratchet (F1.1) — **gated on remainder R9–R11 + Q4**
+## WP7 — PHPStan level-9 ratchet (F1.1) — sessions unblocked; flip gated on Q4
 
 Current state: level 8, 0 errors, empty `phpstan-baseline.neon` (keep it empty — no baseline
-entries at any point; that is the ratchet's value). Level 9 trial on 2026-07-19: 867 errors, of
-which 67 die with R8–R12 deletions, ~90 more live in files R7/R11 rewrite. Re-run the trial
-after R9–R11 merge to get the true remaining count (expect ~600–700):
+entries at any point; that is the ratchet's value). The July count is obsolete after R9-R11 and
+the historic programme's large additions. Re-run the trial and plan from the current clusters;
+do not quote or target the old estimate:
 
 `vendor/bin/sail php vendor/bin/phpstan analyse --level=9 --memory-limit=2G --no-progress --error-format=raw > /tmp/l9.txt`
 then aggregate: `cut -d: -f1 /tmp/l9.txt | sort | uniq -c | sort -rn`.
 
-Fix in four sessions, each ending with the full quality gates at level 8 (the config flip
-happens only in session 4):
+Fix in bounded sessions, each ending with the full quality gates at level 8. The clusters below
+are starting points, not a promise that the current report still has four equal batches. Q4 is
+needed only before the final config flip:
 
 1. **Session 1 — typed job payloads** (the bug-adjacent cluster): `SendCompletionNotification`
    (~36 errors: give the notification payload a `@phpstan-type` array shape or a small DTO at
@@ -368,8 +368,9 @@ weeks of normal development.
 
 ## Closure
 
-When WP1–WP4 and WP6 are done and WP7 is either done or parked behind its gate: append a dated
+When WP1-WP4 and WP6 are done and WP7 is either done or explicitly parked at the Q4 flip: append a dated
 completion note per WP here, update the findings doc's header with "remediated by
 CODE-QUALITY-REMEDIATION-2026-07-19", and archive this plan to `docs/archived-plans/` with a
-pointer header once WP7 lands. Report any rejected/kept-as-is item (4b outcome B, 4d fallback,
+pointer header once WP7 lands. WP5 closes by reference to historic G9; it does not keep this plan
+open. Report any rejected/kept-as-is item (4b outcome B, 4d fallback,
 4f "keep") in the note rather than deleting its section.

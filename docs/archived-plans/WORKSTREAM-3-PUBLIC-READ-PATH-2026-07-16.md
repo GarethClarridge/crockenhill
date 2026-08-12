@@ -9,7 +9,7 @@
 > media URL. **Do not restore the old conversion names.**
 
 Written 2026-07-16. This is the approved just-in-time implementation plan for **delivery-order
-item 7** of `docs/plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md`: backlog items
+item 7** of the archived `JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md`: backlog items
 **3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6**, in that order. Decisions D13/D14 (2026-07-05) approved all
 removals; the four open decision points were resolved with the maintainer on 2026-07-16 (§Decisions).
 

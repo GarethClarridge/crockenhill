@@ -2,7 +2,7 @@
 
 > **ARCHIVED 2026-07-05 — Phases 1–5 complete and merged; Phase 6 superseded. Do not implement
 > Phase 6 from this document.** The promote-and-retire work now lives in
-> [../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)
+> [the archived July simplification parent](JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)
 > Workstream 1 (items 1.1–1.7), whose deletion list **corrects this document's Phase 6 list in
 > four places** (church review §4.1: the projection services are retained; the merge
 > policy/service are off the list; `SongSectionAligner` is deletable whole; two type/registry

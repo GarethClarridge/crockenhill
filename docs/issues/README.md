@@ -5,7 +5,7 @@ broken links/SEO, public UX review = visitor journeys). Last reconciled against 
 **2026-07-17** and production **2026-07-12**.
 
 Convention: agent-generated per-issue reports get folded into this file (and, where the work is
-plan-shaped, into `docs/plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md`) and the source
+plan-shaped, into the owning active plan listed by `docs/plans/README.md`) and the source
 report files are then deleted — they live in git history. Resolved items are listed at the bottom
 for provenance.
 
@@ -525,7 +525,8 @@ key or lock and test the race without asserting Laravel's internal key name.
 
 ### O51 · [P3] The Stage 7 source-of-truth documents still describe a state that did not land
 
-`JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md:504` has no **Complete / PR #1227** marker for
+The archived `JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md` parent had no
+**Complete / PR #1227** marker for
 3.6 even though #1227's commit message says it is marked on merge. The 3.5 text at lines 500–501
 also says the `large`/`small` fallback chain still serves old conversions, while #1225 deliberately
 removed those names from `PageImageCacheService` because unregistered conversions throw; the live

@@ -1,13 +1,26 @@
 # Design System Refresh (2026-07-20) — defects, consistency, and visual polish
 
-> **Status (2026-07-20): approved, not started.** Source review:
+> **Comprehensive reconciliation (2026-08-12): approved and still not started.** The defects and
+> live-code targets remain present: the ordinal title path, broken Lato bold declaration,
+> synthesised Oswald weight, `featureOutline`, mixed gray/slate ramp, centred prose and stale guide
+> all still exist. No other active plan owns those changes.
+>
+> Delivery is now split more finely. The ordinal fix and font-face repair are independent PRs and
+> may ship immediately. The screenshot runner has one owner—Phase 5—not an “either PR” option.
+> Broad token/prose/artwork changes should land after the currently planned site-search/newcomer
+> header and page work, then the service-workbench visual fixture is created once against the final
+> tokens. Feature plans own their information architecture; this plan owns shared tokens,
+> components and baseline regeneration.
+
+> Source review:
 > [../reviews/design-system-review-2026-07-20.md](../reviews/design-system-review-2026-07-20.md)
 > (finding IDs D1–D4, DR1–DR4, C1–C7, V1–V3 referenced below). All four maintainer
 > decisions are recorded there §7 and are settled — do not re-litigate them.
 >
-> **Dependencies:** none on the July simplification backlog. Phase 2's neutral-ramp alias
-> and Phase 3's prose change touch many rendered pages — coordinate with any in-flight UI
-> PR by merging this **after** it, or rebasing it, to avoid Playwright baseline churn ×2.
+> **Dependencies:** none on the simplification closeout. Phase 2's neutral-ramp alias and Phase
+> 3's prose change touch many rendered pages. Finish or merge any in-flight site-search/newcomer
+> header/page PR first, then regenerate the broad baseline set once. Workbench Dusk coverage and
+> orphan cleanup do not wait; its new Playwright fixture does.
 >
 > **What an agent must not do without maintainer input:**
 > - Remove or restyle the home-hero typewriter animation (decision: **keep**). Only the
@@ -43,14 +56,14 @@ style guide + skill so they describe the codebase that actually exists.
 2. `vendor/bin/sail composer phpstan`
 3. `vendor/bin/sail artisan test --compact --parallel` (tee the first run per AGENTS.md)
 4. `vendor/bin/sail artisan dusk`
-5. **PRs 2–4 (visual changes): regenerate Playwright visual-regression baselines** using
+5. **Visual PRs (Phases 2–4): regenerate Playwright visual-regression baselines** using
    the documented procedure (`DEBUGBAR_ENABLED=false` to avoid the 33px oscillation).
    Review the before/after diff images by eye before accepting — that diff *is* the
    review artefact for this plan.
 
 ---
 
-## Phase 1 (PR 1) — Correctness fixes [mechanical]
+## Phase 1 — Correctness fixes [two independent mechanical PRs]
 
 ### 1.1 Sermon title ordinal casing (D1)
 
@@ -78,6 +91,8 @@ requires the suffix letters, so it does).
   content types; the bug is content-type-independent.
 - Feature-test the command (factory sermons with mangled titles; assert dry-run
   changes nothing, `--force` fixes and leaves clean titles alone).
+- Its class docblock declares its deletion trigger: remove the command after the reviewed
+  production force run, one clean idempotency dry run, and the agreed rollback window.
 - **Production run is maintainer-gated** (see status header). After `--force`, clear
   the public read-model/flexible caches the same way the scripture-filter remedy does.
 
@@ -97,15 +112,15 @@ Verification beyond the suite: load `/dev/components` and confirm in devtools' n
 panel that `lato-bold.woff2` now loads for bold prose and that no face is double-served
 for weight 400.
 
-### 1.3 Screenshot reference commands (D4)
+### 1.3 Screenshot reference commands (D4; owned by Phase 5)
 
 Replace the guide's mobile headless-Chrome loop with a Playwright capture script (the
 dependency already exists for visual regression): a small `scripts/`-level or
 `package.json`-scripted runner using device emulation (`viewport: 375×812`,
 `deviceScaleFactor: 2`) writing to `docs/design-references/`. Desktop captures can stay
 on headless Chrome or move to Playwright too — one tool is simpler; prefer Playwright
-for both. This lands as part of the guide rewrite (Phase 5) if not done here; either PR
-may carry it, but the broken commands must not survive both.
+for both. This lands only with the guide rewrite in Phase 5 so there is one implementation
+and one review point for the capture procedure.
 
 ---
 
@@ -258,11 +273,13 @@ Rewrite `docs/design-style-guide.md` so every claim matches post-Phase-1–4 rea
 
 | PR | Phase | Risk | Gate |
 |---|---|---|---|
-| 1 | Correctness | Low; backfill is prod-gated | Unit+feature tests; maintainer reviews `--dry-run` output before prod `--force` |
-| 2 | Tokens/components | Medium (site-wide hue shift) | Playwright diff review — hue-only changes expected, structure identical |
-| 3 | Prose + hero bold | Medium (most visible change) | Playwright diff + maintainer eyeball of `/`, `/church`, one sermon page |
-| 4 | Artwork | Low | Contrast check + diff review |
-| 5 | Docs | None | Guide/skill/gallery agree; screenshot refs regenerated |
+| 1a | Ordinal correctness + tested backfill | Low; production run gated | Unit+feature tests; maintainer reviews `--dry-run` before `--force` |
+| 1b | Font-face repairs | Low | `/dev/components` network/weight check; no template changes |
+| 2 | Tokens/components | Medium (site-wide hue shift) | Merge after current public header/page feature PRs; visual diff is hue/component-only |
+| 3 | Prose + hero bold | Medium (most visible change) | Requires 1b; Playwright diff + maintainer eyeball |
+| 4 | Artwork | Low | Contrast check + diff review; independent of Phase 3 after shared tokens are settled |
+| 5 | Docs, skill, gallery and screenshot runner | None | Requires final Phases 2–4 state; all sources agree |
 
-PRs land in order (2 depends on 1's fonts only trivially; 3 depends on 1.2's Oswald
-600; 5 depends on all). Nothing here self-merges (standing rule).
+PR1a and PR1b may land in either order. Phase 2 does not require them but should be the first broad
+visual PR after current public feature work. Phase 3 requires PR1b; Phase 5 is last. Nothing here
+self-merges (standing rule).

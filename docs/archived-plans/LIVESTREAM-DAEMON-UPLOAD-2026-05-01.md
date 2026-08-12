@@ -4,7 +4,7 @@
 > The design assumes the heuristic analysis stack (`PerformVisualAnalysis`, visual song clusters,
 > OCR song matching, `TranscribeSpeechSegments`) that the July 2026 backlog deletes (Workstream 1
 > of
-> [../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md),
+> [the archived July simplification parent](JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md),
 > decisions D1/D4). The underlying problem — a ~5 GB 1080p browser upload over the church's slow
 > connection — remains real. If it still hurts after Workstream 1 lands, write a **fresh plan**:
 > the LLM-first pipeline needs far less from a proxy (audio adequate for one Whisper pass, plus an

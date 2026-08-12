@@ -1,5 +1,12 @@
 # July 2026 Simplification Backlog
 
+> **Archived 2026-08-12.** This is the programme's parent decision record, not an executable
+> plan. R1-R11 are complete; historic acquisition, convergence and one-shot retirement moved to
+> the two active historic-readiness plans; and the only remaining simplification work (R13, R14
+> and closeout) is self-contained in
+> [`JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md`](../plans/JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md).
+> Do not execute the delivery order or production checklist below.
+
 Created 2026-07-05 as the Phase 8 wrap-up of the July 2026 simplification review
 (`docs/archived-plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md` — archived; its Phase 9
 session brief is the one part still live). This document consolidates the seven per-domain
@@ -8,7 +15,7 @@ supersedes the overlapping items in the older trackers. It is the successor in s
 `docs/archived-plans/APRIL-2026-REVIEW-BACKLOG-2026-04-16.md`.
 
 **This is the parent decision record.** The approved remainder execution order now lives in
-[`docs/plans/JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md`](JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md);
+[`docs/plans/JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md`](../plans/JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md);
 see `docs/plans/README.md` for how the two documents relate, and `docs/issues/README.md` for the
 open audit-issue register (its plan-shaped items were folded into items 2.1 and 2.6 on 2026-07-05).
 

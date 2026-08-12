@@ -3,7 +3,7 @@
 > **ARCHIVED 2026-07-05 — superseded in full by
 > [LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md](LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md)**
 > (itself now archived with phases 1–5 shipped; the remaining retirement work is Workstream 1 of
-> [../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)).
+> [the archived July simplification parent](JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)).
 > The successor plan deliberately departs from this spike in three ways (LLM owns OoS anchoring;
 > one whole-recording Whisper pass; the heuristic cluster is a bridge to delete, not a permanent
 > fallback). Do not implement anything from this document.

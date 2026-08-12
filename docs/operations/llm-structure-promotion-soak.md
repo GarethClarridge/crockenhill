@@ -6,7 +6,7 @@
 
 Written 2026-07-18. Step-by-step instructions for the revised promotion gate
 (decision D22) from
-[../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md](../plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)
+[the archived July simplification parent](../archived-plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)
 items 1.2 (shadow wiring check) and 1.4 (flip + historic-sample soak), and for analysing the
 results. The design rationale is in the archived
 [LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md](../archived-plans/LLM-FIRST-SERVICE-STRUCTURE-PIPELINE-2026-07-01.md).
