@@ -160,9 +160,13 @@ class ImportOosArchiveCommandTest extends TestCase
         {
             public int $calls = 0;
 
+            /** @var list<string> */
+            public array $receivedDates = [];
+
             public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
             {
                 $this->calls++;
+                $this->receivedDates[] = $receivedDate;
 
                 return new OosEmailItemExtractionResult(
                     items: [['type' => 'song', 'title' => 'Amazing Grace']],
@@ -177,7 +181,11 @@ class ImportOosArchiveCommandTest extends TestCase
             }
         };
         $this->app->instance(OosEmailItemExtractor::class, $extractor);
-        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $corpus = $this->corpus([[
+            'key' => '2026-07-12-am',
+            'date' => '2026-07-12',
+            'source_date' => '2026-07-11',
+        ]]);
         $arguments = [...$corpus, '--evaluate' => true, '--report' => $this->temporaryPath('json')];
 
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
@@ -192,14 +200,63 @@ class ImportOosArchiveCommandTest extends TestCase
         $metadata = $email->processing_metadata;
         $metadata['parsing']['parser_version'] = 'archive-v1';
         $email->processing_metadata = $metadata;
+        $email->received_at = '2026-07-10 09:00:00';
         $email->save();
 
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
 
         $this->assertSame(2, $extractor->calls);
+        $this->assertSame(['2026-07-11', '2026-07-11'], $extractor->receivedDates);
         $refreshed = $email->fresh()->processing_metadata['parsing'];
         $this->assertSame($currentVersion, $refreshed['parser_version']);
         $this->assertNotNull($refreshed['disposition']);
+    }
+
+    #[Test]
+    public function a_changed_received_date_invalidates_a_same_version_cached_parse(): void
+    {
+        $extractor = new class implements OosEmailItemExtractor
+        {
+            /** @var list<string> */
+            public array $receivedDates = [];
+
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                $this->receivedDates[] = $receivedDate;
+
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
+                    confidence: 0.99,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => '2026-07-12',
+                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                        'confidence' => 0.99,
+                    ]],
+                );
+            }
+        };
+        $this->app->instance(OosEmailItemExtractor::class, $extractor);
+        $corpus = $this->corpus([[
+            'key' => '2026-07-12-am',
+            'date' => '2026-07-12',
+            'source_date' => '2026-07-11',
+        ]]);
+        $arguments = [...$corpus, '--evaluate' => true, '--report' => $this->temporaryPath('json')];
+
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+
+        $email = InboundEmail::query()->firstOrFail();
+        $metadata = $email->processing_metadata;
+        $metadata['parsing']['received_date'] = '2026-07-10';
+        $email->processing_metadata = $metadata;
+        $email->received_at = '2026-07-10 09:00:00';
+        $email->save();
+
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+
+        $this->assertSame(['2026-07-11', '2026-07-11'], $extractor->receivedDates);
+        $this->assertSame('2026-07-11', $email->fresh()->processing_metadata['parsing']['received_date']);
     }
 
     #[Test]
@@ -1409,6 +1466,10 @@ class ImportOosArchiveCommandTest extends TestCase
     {
         $frontmatter = ['title: "Order for '.$entry['date'].'"', 'date: '.$entry['date']];
         $frontmatter[] = 'source_subject: "'.($entry['subject'] ?? 'Details for '.$entry['date']).'"';
+
+        if (isset($entry['source_date'])) {
+            $frontmatter[] = 'source_date: '.$entry['source_date'];
+        }
 
         if (isset($entry['frontmatter_service'])) {
             $frontmatter[] = 'service: '.$entry['frontmatter_service'];

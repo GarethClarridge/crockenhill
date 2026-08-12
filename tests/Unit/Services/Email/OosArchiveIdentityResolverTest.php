@@ -56,11 +56,11 @@ class OosArchiveIdentityResolverTest extends TestCase
     }
 
     #[Test]
-    public function it_does_not_bind_identity_when_more_than_one_plan_was_extracted(): void
+    public function it_binds_the_manifest_date_to_each_undated_non_contradictory_plan(): void
     {
-        $result = $this->parseResult(service: null, date: null);
+        $result = $this->parseResult(service: SermonService::Morning, date: null);
         $second = new OosEmailServicePlan(
-            service: null,
+            service: SermonService::Evening,
             date: null,
             items: $result->items,
             confidence: 0.95,
@@ -69,19 +69,85 @@ class OosArchiveIdentityResolverTest extends TestCase
         );
         $result = new OosEmailParseResult(
             date: null,
-            service: null,
+            service: SermonService::Morning,
             items: $result->items,
             confidenceScore: 0.95,
             needsReview: true,
             shouldImport: false,
             importMetadata: [],
-            servicePlans: [$result->servicePlans[0], $second],
+            servicePlans: [$second, $result->servicePlans[0]],
         );
 
         $resolved = (new OosArchiveIdentityResolver)->resolve($this->entry(), $result);
 
-        $this->assertNull($resolved->service);
-        $this->assertNull($resolved->date);
+        $this->assertSame(SermonService::Morning, $resolved->service);
+        $this->assertSame('2026-07-12', $resolved->date);
+        $this->assertSame('2026-07-12', $resolved->servicePlans[0]->date);
+        $this->assertSame('2026-07-12', $resolved->servicePlans[1]->date);
+        $this->assertSame(SermonService::Evening, $resolved->servicePlans[0]->service);
+        $this->assertSame('manifest', $resolved->servicePlans[0]->sourceProvenance['archive_identity']);
+    }
+
+    #[Test]
+    public function it_does_not_replace_an_explicitly_contradictory_date_in_a_multi_plan_email(): void
+    {
+        $result = $this->parseResult(service: SermonService::Morning, date: '2026-07-19');
+        $undatedEvening = new OosEmailServicePlan(
+            service: SermonService::Evening,
+            date: null,
+            items: $result->items,
+            confidence: 0.95,
+            needsReview: true,
+            shouldImport: false,
+        );
+        $result = new OosEmailParseResult(
+            date: '2026-07-19',
+            service: SermonService::Morning,
+            items: $result->items,
+            confidenceScore: 0.95,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: [],
+            servicePlans: [$result->servicePlans[0], $undatedEvening],
+        );
+
+        $resolved = (new OosArchiveIdentityResolver)->resolve($this->entry(), $result);
+
+        $this->assertSame('2026-07-19', $resolved->servicePlans[0]->date);
+        $this->assertNull($resolved->servicePlans[1]->date);
+    }
+
+    #[Test]
+    public function an_extra_plan_with_unknown_completeness_remains_held_after_manifest_date_binding(): void
+    {
+        $curated = $this->parseResult(service: SermonService::Evening, date: null);
+        $unknownMorning = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: null,
+            items: $curated->items,
+            confidence: 0.99,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            contentScope: OosEmailContentScope::Unknown,
+        );
+        $result = new OosEmailParseResult(
+            date: null,
+            service: SermonService::Evening,
+            items: $curated->items,
+            confidenceScore: 0.95,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: [],
+            servicePlans: [$curated->servicePlans[0], $unknownMorning],
+        );
+
+        $resolved = (new OosArchiveIdentityResolver)->resolve($this->entry(), $result);
+
+        $this->assertTrue($resolved->servicePlans[0]->isAutoImportable());
+        $this->assertSame(OosEmailContentScope::Full, $resolved->servicePlans[0]->contentScope);
+        $this->assertFalse($resolved->servicePlans[1]->isAutoImportable());
+        $this->assertSame(OosEmailContentScope::Unknown, $resolved->servicePlans[1]->contentScope);
     }
 
     #[Test]

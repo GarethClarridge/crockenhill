@@ -1,8 +1,14 @@
 # Historic Archive Import Readiness Remediation Plan
 
-> **Status (implementation snapshot 2026-08-06; corpus update 2026-08-09): PRs 1–17 are merged, WP0–WP8 have landed, and every gate-acceptance audit
+> **Status (implementation snapshot 2026-08-06; read-only audit updated 2026-08-12): PRs 1–17 are merged, WP0–WP8 have landed, and every gate-acceptance audit
 > gap listed on 2026-08-06 is closed.** "Merged" is still not a gate certification — see §17's Status
 > column and the "Acceptance and gate readiness" audit.
+>
+> **2026-08-12 addendum:** the complete current working tree, including the unstaged archive-v11
+> changes, was audited read-only. Final-readiness findings F60-F63 add required work to the historic
+> hymn lane and archive-v11 scope handling. No importer, test or database command was run for that
+> audit. The next operation remains a fresh clean-database full archive-v11 staging run, but only
+> after F63; the hymn apply remains prohibited until F60-F62 are green.
 >
 > **PR21 landed 2026-08-06**, closing the Email manifest gap described in §7.5: the manifest class,
 > its schema and validation, the dry-run identity reconciliation, and `ImportOosArchiveCommand`
@@ -53,11 +59,12 @@
 > Each is recorded in full at its own section and carries a row in §17's acceptance audit.
 >
 > **F1's maintainer decision and replacement Email authority are now closed.** The approved
-> replacement holds 535 entries — **534 included and 1 excluded after decision D1 on 2026-08-11** —
-> and 521 distinct identities, as batch `oos-curated-2026-08-11` with manifest hash
-> `f4b6b83336ef4956ff6b4feabaecde5e4de945172f592f0b29ccab3fe70ee013` and plan hash
-> `03d40e46f96949277dbaeab86879670a0a383b954b27cb072f9012b9032de8c1`. (Superseded pre-D1 authority,
-> retained as historical evidence: batch `oos-expanded-2026-08-09`, manifest `928dccb5…823e83`, plan
+> replacement holds 535 entries — **534 included and 1 excluded after the 2026-08-12 correction** —
+> and 521 distinct identities, as batch `oos-curated-2026-08-12` with manifest hash
+> `474d32c44284af7d1ef35b20f5454a5feab5609dac2626e5ad7e66bfd6ed8451` and plan hash
+> `6795f1497d54d85baac353d026544445f78a151ad0c77c254cf58ce9ba016cda`. (Superseded authorities,
+> retained as historical evidence: batch `oos-curated-2026-08-11`, manifest `f4b6b833…ee013`, plan
+> `03d40e46…2de8c1`; and pre-D1 batch `oos-expanded-2026-08-09`, manifest `928dccb5…823e83`, plan
 > `ebf486c1…18618a`, 535 included.) The baseline is the exact
 > approved identity set; only identities explicitly explained by `service_beyond_manifest` may
 > exceed it. Implementation is part of F53's exact per-batch/per-source certification, because a
@@ -77,9 +84,10 @@
 >   over those 404 entries with 0 identity disagreements, but the approval is superseded as current
 >   authority by the 131 raw files added on 2026-08-09. See §7.5's retained approval record.
 > - ~~**Re-inventory and re-curate the expanded Email roots.**~~ **Completed and approved
->   2026-08-09; re-curated and re-approved 2026-08-11 under decision D1:** 535 entries, 534 included
->   and 1 excluded, 521 identities, including the three current-era entries; batch
->   `oos-curated-2026-08-11`, manifest `f4b6b833…ee013`, plan `03d40e46…2de8c1`.
+>   2026-08-09; re-curated 2026-08-11 under decision D1; corrected and re-approved
+>   2026-08-12:** 535 entries, 534 included and 1 excluded, 521 identities, including the three
+>   current-era entries; current batch `oos-curated-2026-08-12`, manifest
+>   `474d32c4…d8451`, plan `6795f149…16cda`.
 > - **Repeat `audit:service-evidence-coverage` manually on production** after the evidence back-fill
 >   and re-projection. The initial read-only measurement ran manually on 2026-08-09 and found 3
 >   services, 0 retained source records, 32 canonical items on unevidenced services and 0 proposals.
@@ -1821,9 +1829,34 @@ use `SermonService::Other`, or guess a service. The dedicated `song_usage_report
 the statement and source coordinates; public/admin song usage reads include unresolved reports,
 while a report linked later to a canonical service item is excluded to prevent double counting.
 
-The command is dry-run-only unless `--import` is supplied. Run this lane in rehearsal first, then
-in production only after the ordinary backup, migration approval, deploy freeze and witness steps
-for the production window have passed:
+**2026-08-12 audit correction (F60-F62): this subsection is not currently an executable production
+procedure.** The same workbook also contains 5,759 `Known Usage` rows, and the current importer reads
+none of them. Their workbook classifications are 1,013 already represented, 132 review on an
+existing service, 643 await pending import and 3,971 candidate new service. Every one needs an exact
+post-convergence disposition; choosing to retain or exclude that lane is a source decision, not an
+implicit consequence of hard-coding `Ambiguous Usage`.
+
+The workbook predates archive-v11 and the approved 2026-08-12 Email manifest. It must be regenerated
+after Email/OpenLP/Livestream convergence from a retained, auditable procedure. The operation binds:
+
+- all four source workbook hashes and their authoritative year/tab selection;
+- the exact converged service membership, source/bundle hashes and song-catalogue fingerprint;
+- generation/matching policy and the generated workbook hash;
+- exact row counts for every sheet and one disposition for all 7,700 usage rows; and
+- duplicate decisions across hymn workbooks, canonical service items and legacy `play_date`.
+
+The currently audited derived workbook hash is
+`4a4a7a1524b867184864a334399426f86d0c770b3ff7562cd4b0832f35e2b3b7`. It is not approved production
+authority and must not be copied into an approval merely because it is recorded here.
+
+Only after F60's regeneration/accounting is approved may the date-only lane enter rehearsal. Before
+production, F61 makes the command operation-owned: `HistoricImportProductionGuard`, signed
+operation/target/release/expiry approval, freeze state, exact workbook digest and the expected
+1,941/1,867/74 contract must all be checked before any write. Each row records an operation-owned
+outcome and the lane participates in exact closeout, visibility smoke, backup/restore and rollback.
+Without those controls, `--import` is prohibited even though the command accepts it.
+
+The eventual guarded rehearsal dry run uses:
 
 ```bash
 vendor/bin/sail artisan migrate --force --no-interaction
@@ -1833,12 +1866,13 @@ vendor/bin/sail artisan service-tracking:import-historic-song-usage-reports \
 ```
 
 The dry run must report exactly `Rows read = 1941`, `Catalogue resolved = 1867`, `Unresolved for
-later matching = 74`, `Created = 0`, and `Already present = 0`. Any different count is plan drift:
+later matching = 74`, `Created = 0`, and `Already present = 0`, unless the approved regenerated
+workbook/catalogue authority deliberately replaces those figures. Any unapproved difference is plan drift:
 stop, retain the output, and reconcile the workbook and deployed song catalogue before mutation.
 The workbook's local catalogue IDs are deliberately not imported; matching is repeated against the
 deployed catalogue title so primary-key differences cannot mislink usage.
 
-After approval, persist once:
+After exact operation approval, persist once:
 
 ```bash
 vendor/bin/sail artisan service-tracking:import-historic-song-usage-reports \
@@ -1846,12 +1880,20 @@ vendor/bin/sail artisan service-tracking:import-historic-song-usage-reports \
   --import
 ```
 
-The first apply must report `Created = 1941` and `Already present = 0`. Immediately rerun the same
-`--import` command and require `Created = 0`, `Already present = 1941`; this is the idempotency
-proof. Retain both outputs with the operation evidence. Smoke-test representative matched songs and
+The first apply must report `Created = 1941` and `Already present = 0` under the current approved
+count contract. Immediately rerun the same `--import` command and require `Created = 0`, `Already
+present = 1941` **and zero stored-field/resolution drift**. Counts alone are not idempotency proof:
+F62 requires the rerun to compare the immutable source statement and its current match against the
+stored row. Retain both outputs with the operation evidence. Smoke-test representative matched songs and
 confirm the history shows the date, `Service not recorded`, no fabricated service link, and the
 combined usage total. Confirm the 74 unmatched reports remain stored with `song_id = null` for
 later catalogue resolution rather than being discarded or fuzzily guessed.
+
+F62 also supplies the promised later-resolution workflow. It must distinguish exact no-op,
+authorised unmatched-to-matched catalogue resolution, a changed/ambiguous match, immutable source
+drift and later linkage to a canonical service item. It may update only under an explicit policy and
+must record the outcome; once linked, the report is excluded from the union so one occurrence is
+counted exactly once. A final rerun after every approved resolution/link change is entirely no-op.
 
 Rollback is restore-from-backup or a separately approved deletion by this import's source
 fingerprints; do not delete or modify canonical services. Once rehearsal and production counts,
@@ -1859,6 +1901,17 @@ the no-op rerun, representative UI checks, backup retention and maintainer sign-
 delete `ImportHistoricSongUsageReportsCommand`, `HistoricSongUsageWorkbookReader` and
 `HistoricSongUsageReportImporter` in the one-shot retirement release. Keep the table, model and
 read side: they are the durable provenance and query contract.
+
+#### Archive-v11 curated-scope ordering (F63, 2026-08-12)
+
+Before the fresh full archive-v11 staging run, compute a corroborated plan's disposition using the
+manifest-approved `full`/`partial` scope being assigned. The current working-tree implementation
+classifies the old extractor scope first, so a plan extracted as `unknown` remains held after
+curation establishes its scope. This fails safe but inflates the review population. Do not copy the
+entry scope onto an extra service not corroborated by the manifest; invalid, low-confidence,
+special-service and structurally disputed plans retain their ordinary holds. Recheck the balanced
+cohort if the correction changes it, then run the fresh complete staging operation and treat only
+that report as the review/evidence baseline.
 
 #### F2 — "rehearsal database" has to mean a fresh one (2026-08-07)
 
@@ -1977,7 +2030,11 @@ Also report, from the additions above:
   threshold;
 - the §13.3 per-stage concurrency chosen, the bottleneck stage and serial-versus-concurrent elapsed
   time; and
-- the §12.4 current-era re-projection diff, including how many proposals B13 had falsely accepted.
+- the §12.4 current-era re-projection diff, including how many proposals B13 had falsely accepted;
+- the regenerated historic hymn workbook's four input hashes, catalogue/corpus fingerprints,
+  generation policy and output hash, plus exact dispositions for all 7,700 rows; and
+- the operation-owned hymn apply/reconciliation outcomes, including true no-ops, authorised
+  catalogue matches, canonical-item links, unresolved rows and cross-source duplicates.
 
 ### Acceptance
 
@@ -1991,6 +2048,9 @@ Also report, from the additions above:
   actually used.
 - Per-era accuracy is measured against the truth set and eras below threshold are identified.
 - Included-item completion is 100% with zero unresolved items.
+- Every historic hymn source row is accounted for; the known-service lane is reconciled only after
+  the canonical corpus converges, the date-only lane is guarded/hash-bound, and its second apply is
+  an exact stored-state no-op rather than count-only success.
 - Different-PK round trip, exact audit, rollback and no-op rerun pass.
 
 ## 14. WP8 — Public service history (ships first)
@@ -2340,7 +2400,7 @@ gaps in landed slices belong here.
 | G3 | PR11 | **Closed 2026-08-06.** `ChurchServiceConvergenceBundleRoundTripTest` exports a reviewed bundle, destroys the database it came from, rebuilds an equivalent machine base on shifted auto-increments and applies the bundle to it — asserting exact finalisation (the same canonical hash), the reviewer resolved by approved email hash onto a different user id, per-proposal dispositions reproduced, the review session naming the *production* proposal ids, and a `decision_rule` reproducing with its own rationale. A proposal absent from the production graph still fails closed. Verified non-vacuous: adding `$proposal->id` to `ChurchServiceProposalIdentity::for()` fails two of the three tests. | — |
 | G3 | PR12 | **Closed 2026-08-06.** `HistoricProcessingResultBundleRoundTripTest` exports the WP0 canary — the shared fixture, now in `tests/Support/HistoricNormalOutputCanary.php`, not a second approximation — through Bundle A and imports it into a database whose auto-increments have been shifted past every id the source used. Asserts identical logical hashes, no lost field/relationship/role, identical section and publication natural keys, and that the recreated tables moved while preacher/song/service rows were *resolved* by natural key rather than duplicated. Verified non-vacuous: appending `$section->id` to the section key fails the hash equality. | — |
 
-| G1 | PR5/PR21 | **Schema and Email data authority closed.** PR21 built `OosCurationManifest`, `OosCurationPlan`, `OosCurationEntryFactory`, `validateIncludesForDryRun()` and the repointed command. The 2026-08-09 replacement, re-curated 2026-08-11 under decision D1, validates its 534 included entries (535 total, 1 excluded) with zero identity disagreements, includes the three current-era entries and yields 521 identities. Batch `oos-curated-2026-08-11`, manifest `f4b6b833…ee013`, plan `03d40e46…2de8c1`. | Closed for Email; OpenLP/video manifest work remains under the final-readiness gates. |
+| G1 | PR5/PR21 | **Schema and Email data authority closed.** PR21 built `OosCurationManifest`, `OosCurationPlan`, `OosCurationEntryFactory`, `validateIncludesForDryRun()` and the repointed command. The 2026-08-09 replacement was re-curated 2026-08-11 under decision D1, then corrected and re-approved 2026-08-12. The current authority validates its 534 included entries (535 total, 1 excluded) with zero identity disagreements, includes the three current-era entries and yields 521 identities. Batch `oos-curated-2026-08-12`, manifest `474d32c4…d8451`, plan `6795f149…16cda`. | Closed for Email data authority; F63 must close before fresh full archive-v11 staging. OpenLP/video manifest work remains under the final-readiness gates. |
 
 **Every code gap listed on 2026-08-06 is closed.** G1's crash tranche, canary, OpenLP manifest schema
 and the Email manifest; G2's empty-census gap; and G3's two different-PK round trips are all done.
@@ -2528,8 +2588,8 @@ can set (F1) and that the step it gates would, in the current database, measure 
 The corrected drive-free path, updated for the expanded Email roots, is:
 
 1. ~~**Re-inventory and re-curate the expanded Email roots.**~~ **Done 2026-08-09; re-curated
-   2026-08-11 (D1):** 535 entries, 534 included and 1 excluded, 521 identities, including the three
-   current-era entries; hashes recorded above.
+   2026-08-11 (D1); corrected and re-approved 2026-08-12:** 535 entries, 534 included and 1
+   excluded, 521 identities, including the three current-era entries; current hashes recorded above.
 2. ~~**PR25 (F3), PR27 (F4) and PR28 (F2)**~~ **Done 2026-08-07.**
 3. ~~**Decide the F1 reconciliation rule** (§19).~~ **Done 2026-08-09.** Implement PR26 together
    with F53 exact per-batch/per-source membership before G2 can be claimed.
@@ -2537,8 +2597,10 @@ The corrected drive-free path, updated for the expanded Email roots, is:
    `historic-import:provision-rehearsal-database` builds and certifies it, and
    `UnevidencedCanonicalItemGuard` was shown passing against the result for all 521 curated
    identities while still refusing against the working database (231 of 521 contaminated — the F2
-   re-measurement against `oos-curated-2026-08-11`). **Now run the Email half of §13.5 steps 2–4**
-   against it, with `DB_DATABASE` pointed at the provisioned database.
+   historical re-measurement against `oos-curated-2026-08-11`). **Before another full Email run,
+   close F63, then perform fresh full archive-v11 staging against `oos-curated-2026-08-12`** with
+   `DB_DATABASE` pointed at the provisioned clean database. Do not apply the hymn-usage lane until
+   F60-F62 are closed.
 
 Step 4 depends on 3 only in the sense that the census it produces cannot be *gated* until F1 is
 settled; the staging and projection themselves can proceed as soon as the replacement manifest and
@@ -2746,6 +2808,14 @@ Neither gates the import itself.
 - [ ] Bundle B transports exact finalisation, proposal dispositions and `decision_rule` rationale.
 - [ ] Real graph persistence passes current MySQL constraints.
 - [ ] Existing publications and song usage converge without loss.
+- [ ] The historic hymn reconciliation is reproducible and hash-bound against the exact converged
+  corpus; all 5,759 known-service and 1,941 date-only rows have one approved disposition (F60).
+- [ ] Historic hymn mutation is operation-owned, production-guarded, count/digest-verified and
+  included in visibility, rollback and exact closeout evidence (F61).
+- [ ] Historic hymn reruns compare stored state, resolve/link only under explicit policy and finish
+  entirely no-op without double-counting canonical occurrences (F62).
+- [ ] Archive plans are classified using curated scope before the fresh full archive-v11 staging
+  baseline, while extra unknown-scope plans remain held (F63).
 - [ ] Current-era services are re-projected after the repair, audited item-level, and B13's false
   acceptances are reversed rather than inherited.
 - [ ] Dry run binds every state apply can observe/mutate.

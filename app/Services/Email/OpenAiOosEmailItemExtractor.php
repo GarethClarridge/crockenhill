@@ -9,6 +9,7 @@ use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailSourceDocument;
 use App\Support\OpenAiChatPayload;
 use App\Support\OpenAiUsageLogger;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Chat\CreateResponse;
@@ -61,7 +62,7 @@ class OpenAiOosEmailItemExtractor implements CorrectiveOosEmailItemExtractor
 
         $model = (string) config('service-tracking.email_parsing.model', 'gpt-5.4-nano');
         $source = OosEmailSourceDocument::fromBody($body);
-        $userContent = "Email received date: {$receivedDate}\nSubject: {$subject}\n\n"
+        $userContent = $this->calendarContext($receivedDate)."\nSubject: {$subject}\n\n"
             ."Numbered non-blank body lines:\n{$source->promptBody()}";
 
         if ($correctionContext !== null) {
@@ -179,7 +180,11 @@ Rules:
 - Never create an evening plan merely because a morning email mentions that an evening service
   exists. If there is no distinct evening boundary and item sequence, keep one plan and put the
   mention in ignored_lines.
-- Set "date" only when a service states its own date; otherwise use null.
+- Treat a relative or named date in the subject as service evidence. Subject-level dates apply to every service plan
+  in the email unless a plan states a different date. When a subject says
+  "tomorrow", "Sunday" or another relative day, resolve it using the supplied calendar and assign
+  that date to each morning/evening plan belonging to that day. Use null only when neither the
+  subject nor the plan's body lines identify its date.
 - When a date is present but is not a Sunday, check whether it is a nearby weekday transcription
   of the Sunday service date. Do not copy the email receipt date as the service date.
 - Resolve relative or yearless dates against the supplied email receipt date. These emails normally
@@ -188,6 +193,25 @@ Rules:
   wording in title. Display-title cleanup happens after extraction.
 - Confidence reflects how reliable that service's extracted order is.
 TEXT;
+    }
+
+    private function calendarContext(string $receivedDate): string
+    {
+        $received = CarbonImmutable::createFromFormat('Y-m-d', $receivedDate);
+
+        if (! $received instanceof CarbonImmutable || $received->toDateString() !== $receivedDate) {
+            throw new RuntimeException("Invalid email received date {$receivedDate}.");
+        }
+
+        $calendar = [];
+
+        for ($dayOffset = 0; $dayOffset <= 14; $dayOffset++) {
+            $date = $received->addDays($dayOffset);
+            $calendar[] = $date->format('Y-m-d l');
+        }
+
+        return "Email received date: {$received->format('Y-m-d (l)')}\n"
+            .'Calendar from the received date: '.implode(', ', $calendar);
     }
 
     /**

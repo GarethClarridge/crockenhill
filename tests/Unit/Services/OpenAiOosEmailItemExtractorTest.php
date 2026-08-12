@@ -64,9 +64,12 @@ class OpenAiOosEmailItemExtractorTest extends TestCase
                 && $parameters['model'] === 'gpt-5.4-nano'
                 && $parameters['service_tier'] === 'flex'
                 && $parameters['reasoning_effort'] === 'none'
-                && str_contains($parameters['messages'][1]['content'], 'Email received date: 2026-03-07')
+                && str_contains($parameters['messages'][1]['content'], 'Email received date: 2026-03-07 (Saturday)')
+                && str_contains($parameters['messages'][1]['content'], '2026-03-08 Sunday')
+                && str_contains($parameters['messages'][1]['content'], '2026-03-21 Saturday')
                 && str_contains($parameters['messages'][1]['content'], '[L001] Welcome')
                 && str_contains($parameters['messages'][0]['content'], 'A single order may have no heading')
+                && str_contains($parameters['messages'][0]['content'], 'Subject-level dates apply to every service plan')
                 && $parameters['response_format']['json_schema']['schema']['required']
                     === ['service_count', 'services', 'ignored_lines', 'notes']
                 && $serviceSchema['service']['enum'] === ['morning', 'evening', 'other', 'unknown']
@@ -131,6 +134,21 @@ class OpenAiOosEmailItemExtractorTest extends TestCase
         $this->expectExceptionMessage('OpenAI API key not configured');
 
         $this->extractor->extract('Subject', 'Body', '2026-07-10');
+    }
+
+    #[Test]
+    public function it_rejects_an_invalid_received_date_before_sending_a_request(): void
+    {
+        OpenAI::fake();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid email received date 2026-02-30.');
+
+        try {
+            $this->extractor->extract('Subject', 'Body', '2026-02-30');
+        } finally {
+            OpenAI::assertSent(Chat::class, 0);
+        }
     }
 
     #[Test]

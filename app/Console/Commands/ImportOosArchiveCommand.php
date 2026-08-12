@@ -51,7 +51,7 @@ use Throwable;
 class ImportOosArchiveCommand extends Command
 {
     /** Bump when the parsing pipeline changes shape or deterministic guards change. */
-    private const ParserVersion = 'archive-v10';
+    private const ParserVersion = 'archive-v11';
 
     private const DefaultVerbatimRoot = 'scratch/oos-verbatim';
 
@@ -563,6 +563,9 @@ class ImportOosArchiveCommand extends Command
             ? Arr::get($inboundEmail->processing_metadata ?? [], 'archive.input_hash')
             : null;
         $sourceChanged = $inboundEmail instanceof InboundEmail && $previousHash !== $entry->inputHash;
+        $receivedDateChanged = $inboundEmail instanceof InboundEmail
+            && $inboundEmail->received_at->toDateString() !== $entry->syntheticReceivedAt->toDateString();
+        $archiveSourceChanged = $sourceChanged || $receivedDateChanged;
 
         if (! $inboundEmail instanceof InboundEmail) {
             $inboundEmail = new InboundEmail;
@@ -571,24 +574,22 @@ class ImportOosArchiveCommand extends Command
             $inboundEmail->from = 'Order of Service Archive <archive@crockenhill.local>';
         }
 
-        if (! $inboundEmail->exists || $sourceChanged) {
-            $inboundEmail->subject = $entry->subject;
-            $inboundEmail->body_plain = $entry->bodyPlain;
-            $inboundEmail->body_html = null;
-            $inboundEmail->received_at = Carbon::instance($entry->syntheticReceivedAt);
-        }
+        $inboundEmail->subject = $entry->subject;
+        $inboundEmail->body_plain = $entry->bodyPlain;
+        $inboundEmail->body_html = null;
+        $inboundEmail->received_at = Carbon::instance($entry->syntheticReceivedAt);
 
         $metadata = is_array($inboundEmail->processing_metadata) ? $inboundEmail->processing_metadata : [];
         $metadata['archive'] = $this->archiveMetadata($entry, $plan);
 
-        if ($sourceChanged && $wasProcessed) {
+        if ($archiveSourceChanged && $wasProcessed) {
             $metadata['archive']['flags'][] = 'source_updated_after_import';
         }
 
         $inboundEmail->processing_metadata = $metadata;
         $inboundEmail->save();
 
-        return [$inboundEmail, $sourceChanged && $wasProcessed];
+        return [$inboundEmail, $archiveSourceChanged && $wasProcessed];
     }
 
     private function parseResult(
@@ -599,10 +600,12 @@ class ImportOosArchiveCommand extends Command
         OosArchiveIdentityResolver $identityResolver,
     ): OosEmailParseResult {
         $parsing = Arr::get($inboundEmail->processing_metadata ?? [], 'parsing', []);
+        $receivedDate = $entry->syntheticReceivedAt->toDateString();
         $cacheMatches = ! (bool) $this->option('fresh-parse')
             && is_array($parsing)
             && ($parsing['input_hash'] ?? null) === $entry->inputHash
-            && ($parsing['parser_version'] ?? null) === self::ParserVersion;
+            && ($parsing['parser_version'] ?? null) === self::ParserVersion
+            && ($parsing['received_date'] ?? null) === $receivedDate;
 
         if ($cacheMatches) {
             $stored = $importService->storedParseResult($inboundEmail);
@@ -618,6 +621,7 @@ class ImportOosArchiveCommand extends Command
         $metadata = $inboundEmail->processing_metadata ?? [];
         $metadata['parsing']['input_hash'] = $entry->inputHash;
         $metadata['parsing']['parser_version'] = self::ParserVersion;
+        $metadata['parsing']['received_date'] = $receivedDate;
         $inboundEmail->processing_metadata = $metadata;
         $inboundEmail->save();
 
