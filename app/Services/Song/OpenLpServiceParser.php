@@ -95,10 +95,11 @@ class OpenLpServiceParser
         }
 
         if ($uploadIdentity !== null && $embeddedIdentity !== null) {
-            if (
-                $uploadIdentity['date'] !== $embeddedIdentity['date']
-                || $uploadIdentity['service'] !== $embeddedIdentity['service']
-            ) {
+            $dateDisagrees = $uploadIdentity['date'] !== $embeddedIdentity['date'];
+            $serviceDisagrees = $embeddedIdentity['slot_known'] === true
+                && $uploadIdentity['service'] !== $embeddedIdentity['service'];
+
+            if ($dateDisagrees || $serviceDisagrees) {
                 $filenameMismatch = true;
                 $warnings[] = 'Upload filename and embedded .osj filename identities do not match.';
                 $confidence -= 0.5;

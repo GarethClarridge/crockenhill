@@ -277,6 +277,22 @@ class OpenLpServiceParserTest extends TestCase
     }
 
     #[Test]
+    public function test_embedded_osj_without_slot_information_does_not_count_as_a_mismatch(): void
+    {
+        $upload = OpenLpArchiveFactory::makeUpload(
+            archiveName: '2023-02-05 PM.osz',
+            osjName: 'Service 2023-02-05 17-54.osj',
+            payload: OpenLpArchiveFactory::payload()
+        );
+
+        $result = $this->parser->parse($upload);
+
+        $this->assertSame(SermonService::Evening, $result->service);
+        $this->assertFalse($result->importMetadata['filename_mismatch']);
+        $this->assertFalse($result->needsReview);
+    }
+
+    #[Test]
     public function test_sets_needs_review_when_confidence_below_threshold(): void
     {
         config()->set('service-tracking.confidence.review_below', 0.95);
