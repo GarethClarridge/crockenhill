@@ -759,6 +759,43 @@ not mark queued work processed or reopen exact closeout.
 
 ## 13. HIR7 — Durable release ownership and concurrency-safe object I/O
 
+> **Complete 2026-08-13.** `historic_import_release_attempts` and
+> `historic_import_release_assets` carry the ledger; the uniqueness that matters is on
+> `destination_identity` (`sha256(disk|path)`) and is **global**, so one public destination has one
+> owner whichever operation claims it. A destination path is longer than an InnoDB key allows, and a
+> truncated prefix index would let two different long paths collide into one claim — hence the hash.
+>
+> `HistoricReleaseObjectStore` is the only way a release touches a destination.
+> `FilesystemHistoricReleaseObjectStore` creates through `fopen($path, 'x')` locally and through the
+> **raw** `S3Client` with `IfNoneMatch: '*'` on Spaces, never the Storage facade, because Flysystem
+> drops both conditional headers. **Both implementations return false from
+> `supportsExactVersionDelete()` and throw from `deleteExactVersion()`** — the local one refuses for
+> the same answer rather than a different one, so a fake cannot certify a capability production
+> lacks.
+>
+> Compensation therefore never deletes. Objects a failed attempt created are retained, recorded
+> `orphaned`, and the attempt is left `orphaned` so the batch cannot be retried over its own
+> leftovers until a human reconciles it. A pre-existing identical object is `preexisting_verified`
+> and never cleanup-owned; different bytes fail without overwriting.
+>
+> **Plan §4.2.1 is carried by `HistoricReleaseDestinationGuard`**, asked once before any claim and
+> again inside the object store. Outside production it refuses to write to a destination matching the
+> recorded production storage anchor unless `HISTORIC_IMPORT_ALLOW_NON_PRODUCTION_RELEASE_DESTINATION`
+> is set — a separately named override, so nothing that authorises the rest of the operation can
+> switch it off as a side effect. An absent or malformed anchor refuses nothing, for the same reason
+> HIR1 stays silent on an absent database anchor.
+>
+> **Membership resolution had to split in two.** "Retry after a completed release is an exact no-op"
+> and "every named record must still be quarantined" cannot both be checked before the attempt is
+> resolved, because a completed batch names published records by then. Membership now resolves against
+> the operation, the attempt decides which situation this is, and the quarantine check runs after.
+>
+> The concurrency matrix uses `PausingHistoricReleaseObjectStore`: the real store with a competing
+> writer run inside one of its windows, so a case still exercises the genuine conditional create.
+>
+> **Not yet done, and HIR8's:** the operator-run Spaces scratch capability check, and HIR5's real
+> object-recovery exercise against this implementation.
+
 **Review finding:** two release processes can both write a final path; the loser can then delete the
 winner's successfully published asset during compensation.
 
@@ -985,8 +1022,10 @@ Never replace a programmatic test with a one-off verification script.
       claim/retry and no ordinary inbox sweep. *(2026-08-13. Operational closeout evidence version 2
       under artifact key `operational-closeout-readiness-v2`. The real rehearsal email received
       during a freeze remains HIR8's.)*
-- [ ] HIR7 has one durable owner per public destination, deterministic concurrency/fault coverage and
-      no path-only cleanup.
+- [x] HIR7 has one durable owner per public destination, deterministic concurrency/fault coverage and
+      no path-only cleanup. *(2026-08-13. Compensation is retain-and-record only, because neither
+      store can delete an exact version. The production capability proof and the release exercise
+      remain HIR8's.)*
 - [ ] Fresh full staging, different-PK apply, exact audit, complete no-op, restore, rollback, deferred
       webhook and release-race exercises pass on the same release candidate.
 - [ ] Every invalidated manifest, bundle, report, fingerprint, plan and approval is regenerated and

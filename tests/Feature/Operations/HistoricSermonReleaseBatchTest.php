@@ -8,6 +8,8 @@ use App\Enums\HistoricImportOperationState;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Models\HistoricImportOperation;
+use App\Models\HistoricImportReleaseAsset;
+use App\Models\HistoricImportReleaseAttempt;
 use App\Models\Sermon;
 use App\Models\SongVideo;
 use App\Services\Import\HistoricImportTargetFingerprint;
@@ -242,6 +244,14 @@ class HistoricSermonReleaseBatchTest extends TestCase
      * One missing byte aborts the whole batch. A half-released batch would put
      * public rows in front of assets that never arrived, which is the failure
      * F29 exists to prevent.
+     *
+     * HIR7 changed what "aborts" leaves behind. The batch used to delete by path
+     * on failure, and that delete is the defect: at a final public path, the
+     * bytes it removes may be a concurrent winner's. So an object this attempt
+     * created and could not publish is **retained** and recorded `orphaned` for
+     * a human to reconcile. What still has to hold — and is what F29 is actually
+     * about — is that no record became public and every one stayed quarantined,
+     * so nothing at that path is reachable.
      */
     #[Test]
     public function a_missing_quarantined_asset_leaves_the_whole_batch_unreleased(): void
@@ -258,8 +268,23 @@ class HistoricSermonReleaseBatchTest extends TestCase
 
         $this->assertQuarantineIntact($intact);
         $this->assertQuarantineIntact($damaged);
-        Storage::disk('public')->assertMissing((string) $intact->audio_file_path);
-        Storage::disk('public')->assertMissing((string) $intact->transcript_file_path);
+        $this->get(route('sermons.audio', $intact))->assertNotFound();
+
+        $attempt = HistoricImportReleaseAttempt::query()->sole();
+        $this->assertSame(HistoricImportReleaseAttempt::StateOrphaned, $attempt->state);
+        $this->assertSame(
+            [HistoricImportReleaseAsset::StateOrphaned, HistoricImportReleaseAsset::StateOrphaned],
+            $attempt->assets()
+                ->where('record_id', $intact->id)
+                ->orderBy('destination_path')
+                ->pluck('state')
+                ->all(),
+            'The bytes this attempt created are retained under an explicit orphan record, never deleted.',
+        );
+        $this->assertSame(
+            0,
+            $attempt->assets()->where('record_id', $damaged->id)->whereNotNull('published_at')->count(),
+        );
     }
 
     #[Test]
@@ -302,6 +327,14 @@ class HistoricSermonReleaseBatchTest extends TestCase
         return $operation;
     }
 
+    /**
+     * Paths are keyed on the record, not just the operation.
+     *
+     * They used to be operation-scoped only, so two sermons in one batch named
+     * the same public destination — and each `put()` overwrote the other's
+     * bytes. HIR7's global destination uniqueness refuses that outright, and it
+     * should: two records advertising one file means one of them is wrong.
+     */
     private function quarantinedSermon(HistoricImportOperation $operation): Sermon
     {
         $sermon = Sermon::factory()->create([
@@ -311,9 +344,13 @@ class HistoricSermonReleaseBatchTest extends TestCase
             'asset_disk' => 'historic_quarantine',
             'historic_import_operation_id' => $operation->id,
             'livestream_processing_id' => null,
-            'audio_file_path' => "sermons/{$operation->id}/audio.mp3",
-            'transcript_file_path' => "sermons/{$operation->id}/transcript.md",
         ]);
+        $sermon->forceFill([
+            'audio_file_path' => "sermons/{$operation->id}/{$sermon->id}/audio.mp3",
+            'transcript_file_path' => "sermons/{$operation->id}/{$sermon->id}/transcript.md",
+            'video_file_path' => null,
+            'thumbnail_file_path' => null,
+        ])->save();
 
         foreach (['audio_file_path', 'transcript_file_path'] as $field) {
             Storage::disk('historic_quarantine')->put(
@@ -329,8 +366,10 @@ class HistoricSermonReleaseBatchTest extends TestCase
     {
         $songVideo = SongVideo::factory()->quarantined()->create([
             'historic_import_operation_id' => $operation->id,
-            'video_file_path' => "song-videos/{$operation->id}/song.mp4",
         ]);
+        $songVideo->forceFill([
+            'video_file_path' => "song-videos/{$operation->id}/{$songVideo->id}/song.mp4",
+        ])->save();
         Storage::disk('historic_quarantine')->put($songVideo->video_file_path, 'song-video-bytes');
 
         return $songVideo;

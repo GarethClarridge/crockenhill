@@ -123,6 +123,16 @@ final class HistoricImportResourceIdentity
     }
 
     /**
+     * The same anchor for a named disk, so a release can ask "is *this*
+     * destination the recorded production one" without assuming the answer is
+     * whatever `sermon_disk` currently resolves to.
+     */
+    public function anchorFor(string $disk): string
+    {
+        return CanonicalJson::hash($this->diskIdentity($disk));
+    }
+
+    /**
      * A disk reduced to what distinguishes it, with nothing that identifies an
      * account or a filesystem layout.
      *

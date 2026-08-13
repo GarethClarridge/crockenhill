@@ -7,12 +7,14 @@ namespace App\Console\Commands;
 use App\Enums\HistoricImportArtifactKind;
 use App\Enums\SermonPublicationState;
 use App\Models\HistoricImportOperation;
+use App\Models\HistoricImportReleaseAttempt;
 use App\Models\Sermon;
 use App\Models\SongVideo;
 use App\Services\Import\HistoricImportArtifactWriter;
 use App\Services\Import\HistoricImportJournal;
 use App\Services\Import\HistoricSermonPublicationService;
 use App\Services\Import\HistoricSermonReleaseAuthorisation;
+use App\Support\CanonicalJson;
 use Illuminate\Console\Command;
 use Throwable;
 
@@ -73,10 +75,16 @@ class ReleaseHistoricImportBatchCommand extends Command
                 'song_video_ids' => $authorisation['song_video_ids'],
             ]);
 
+            /**
+             * The verified authorisation travels with the batch so HIR7's
+             * attempt is bound to the exact signed authority and membership it
+             * was claimed for, not merely to a list of ids.
+             */
             $released = $publication->releaseRecords(
                 $operation,
                 $authorisation['sermon_ids'],
                 $authorisation['song_video_ids'],
+                $authorisation,
             );
             $remaining = $this->remainingQuarantine($operation);
             $artifact = $artifacts->writeJson(
@@ -95,6 +103,12 @@ class ReleaseHistoricImportBatchCommand extends Command
                     'observation_ends_at' => $authorisation['observation_ends_at'],
                     'released_sermon_ids' => array_map(static fn (Sermon $sermon): int => $sermon->id, $released['sermons']),
                     'released_song_video_ids' => array_map(static fn (SongVideo $video): int => $video->id, $released['song_videos']),
+                    /**
+                     * HIR7: which attempt owned this batch, and what it owns at
+                     * each destination. A later recovery exercise verifies its
+                     * object claims against this rather than against a count.
+                     */
+                    'release_ledger' => $this->releaseLedger($operation, $authorisation),
                     'remaining_quarantined' => $remaining,
                 ],
                 redact: false,
@@ -121,6 +135,54 @@ class ReleaseHistoricImportBatchCommand extends Command
 
             return self::FAILURE;
         }
+    }
+
+    /**
+     * HIR7's ownership record for this batch, as membership rather than counts.
+     *
+     * The attempt id and its per-destination claims are what a later recovery
+     * exercise checks its object receipts against; a total could not say which
+     * public path this batch became the owner of.
+     *
+     * @param  array<string, mixed>  $authorisation
+     * @return array<string, mixed>
+     */
+    private function releaseLedger(HistoricImportOperation $operation, array $authorisation): array
+    {
+        $attempt = HistoricImportReleaseAttempt::query()
+            ->where('historic_import_operation_id', $operation->id)
+            ->where('authorisation_id', $authorisation['authorisation_id'])
+            ->latest('id')
+            ->first();
+
+        if (! $attempt instanceof HistoricImportReleaseAttempt) {
+            return ['attempt_id' => null, 'assets' => [], 'assets_sha256' => CanonicalJson::hash([])];
+        }
+
+        $assets = [];
+
+        foreach ($attempt->assets()->orderBy('destination_identity')->get() as $asset) {
+            $assets[] = [
+                'destination_identity' => $asset->destination_identity,
+                'destination_disk' => $asset->destination_disk,
+                'destination_path' => $asset->destination_path,
+                'state' => $asset->state,
+                'create_result' => $asset->create_result,
+                'size' => $asset->size,
+                'sha256' => $asset->sha256,
+                'provider_receipt' => $asset->provider_receipt,
+                'provider_version_id' => $asset->provider_version_id,
+            ];
+        }
+
+        return [
+            'attempt_id' => $attempt->attempt_id,
+            'attempt_state' => $attempt->state,
+            'authorisation_hash' => $attempt->authorisation_hash,
+            'membership_hash' => $attempt->membership_hash,
+            'assets' => $assets,
+            'assets_sha256' => CanonicalJson::hash($assets),
+        ];
     }
 
     /**

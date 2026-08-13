@@ -152,6 +152,22 @@ return [
         'production_storage_anchor' => env('HISTORIC_IMPORT_PRODUCTION_STORAGE_ANCHOR'),
 
         /*
+        | Plan §4.2.1. Because HIR-D2 demoted the storage anchor, only the
+        | database anchor arms the production guard — so a local process aimed
+        | at the production *bucket* is not refused by it. HistoricReleaseDestinationGuard
+        | refuses that write instead, and this is the separately named override
+        | that accepts it deliberately.
+        |
+        | Separate from the import approval and the release authorisation on
+        | purpose: nothing that authorises the rest of the operation may switch
+        | this off as a side effect.
+        */
+        'allow_non_production_release_destination' => filter_var(
+            env('HISTORIC_IMPORT_ALLOW_NON_PRODUCTION_RELEASE_DESTINATION', false),
+            FILTER_VALIDATE_BOOLEAN,
+        ),
+
+        /*
         | Superseded by the two anchors above and read only to refuse. This key
         | compared the whole operation fingerprint, so a newer release or one
         | extra migration silently disarmed the production guard. Leaving it set

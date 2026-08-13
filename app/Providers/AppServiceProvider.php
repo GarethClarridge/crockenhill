@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Contracts\HistoricReleaseObjectStore;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\ChurchServiceMergeProposal;
@@ -21,6 +22,7 @@ use App\Presenters\RelatedPagePresenter;
 use App\Seo\SermonArchiveSeoPresenter;
 use App\Seo\SermonItemListPresenter;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Services\Import\FilesystemHistoricReleaseObjectStore;
 use App\Services\Import\HistoricImportMutationFreeze;
 use App\Services\Media\Audio\SermonTranscriptReader;
 use App\Services\Media\Audio\TranscriptStorageService;
@@ -60,6 +62,14 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PublicMeetingReadModelCache::class);
         $this->app->singleton(SermonArchiveSeoPresenter::class);
         $this->app->singleton(BibleCanon::class);
+
+        /**
+         * HIR7: every write to a public release destination goes through this
+         * boundary, so a test can substitute a deterministic one and production
+         * cannot accidentally get an implementation that emulates a capability
+         * the real store lacks.
+         */
+        $this->app->bind(HistoricReleaseObjectStore::class, FilesystemHistoricReleaseObjectStore::class);
 
         /**
          * Performance Optimization: These collaborators carry request-level memoization,
