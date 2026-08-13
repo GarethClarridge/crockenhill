@@ -7,9 +7,11 @@ namespace Tests\Feature\Console;
 use App\Models\ImportDeferredInboundEmail;
 use App\Models\ImportIngressLock;
 use App\Models\InboundEmail;
+use App\Models\SongUsageReport;
 use App\Services\Import\HistoricImportOperationalCloseoutEvidence;
 use App\Services\Import\HistoricImportTargetFingerprint;
 use App\Services\Import\ImportIngressGate;
+use App\Services\Song\HistoricSongUsageCloseout;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
@@ -174,6 +176,30 @@ class VerifyHistoricImportOperationalCloseoutCommandTest extends TestCase
     }
 
     /**
+     * F61: the hymn lane used to contribute nothing here, so an operation could close out
+     * exactly while its date-only song usage rows were unaccounted for.
+     */
+    #[Test]
+    public function song_usage_rows_outside_the_reported_membership_are_refused(): void
+    {
+        $operation = $this->createHistoricImportOperation(app(HistoricImportTargetFingerprint::class)->hash());
+        $lock = $this->releasedLock($operation->operation_id);
+        SongUsageReport::factory()->quarantined()->create([
+            'historic_import_operation_id' => $operation->id,
+        ]);
+        $evidence = $this->evidence($operation->operation_id, $operation->target_fingerprint, $lock);
+
+        $this->artisan('historic-import:verify-operational-closeout', [
+            'operation' => $operation->operation_id,
+            'evidence' => $this->writeJson($this->sign($evidence)),
+        ])
+            ->expectsOutput(
+                'The historic song usage lane holds rows with no import report artifact, so its membership cannot be reconciled.',
+            )
+            ->assertFailed();
+    }
+
+    /**
      * A version 1 document was signed against a gate that accepted a queue
      * handoff as completion. It is retained, but it cannot satisfy the repaired
      * closeout.
@@ -263,6 +289,12 @@ class VerifyHistoricImportOperationalCloseoutCommandTest extends TestCase
                 'processed_membership_sha256' => CanonicalJson::hash(
                     app(ImportIngressGate::class)->processedDeferredInboundMembership($operationId),
                 ),
+                'reconciled_at' => now()->toIso8601String(),
+            ],
+            /** F61: the date-only hymn lane, named rather than counted. */
+            'song_usage' => [
+                'state_counts' => app(HistoricSongUsageCloseout::class)->stateCounts($operationId),
+                'membership_sha256' => app(HistoricSongUsageCloseout::class)->membershipDigest($operationId),
                 'reconciled_at' => now()->toIso8601String(),
             ],
             'verified_by' => 'independent-verifier@example.test',

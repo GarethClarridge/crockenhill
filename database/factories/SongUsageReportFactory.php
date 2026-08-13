@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\SermonPublicationState;
 use App\Models\Song;
 use App\Models\SongUsageReport;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -30,6 +31,19 @@ class SongUsageReportFactory extends Factory
             'source_row' => $this->faker->unique()->numberBetween(1, 1000000),
             'source_fingerprint' => hash('sha256', $this->faker->unique()->uuid()),
             'metadata' => null,
+            'publication_state' => SermonPublicationState::Published,
+            'historic_import_operation_id' => null,
         ];
+    }
+
+    /**
+     * Evidence as the historic hymn importer writes it: stored, admin-visible, and absent from
+     * every public read until `historic-import:release-batch` publishes the batch.
+     */
+    public function quarantined(): static
+    {
+        return $this->state(fn (): array => [
+            'publication_state' => SermonPublicationState::Quarantined,
+        ]);
     }
 }

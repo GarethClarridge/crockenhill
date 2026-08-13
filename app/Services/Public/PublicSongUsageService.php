@@ -55,6 +55,7 @@ class PublicSongUsageService
             ));
 
         $reported = SongUsageReport::query()
+            ->publiclyReleased()
             ->where('song_id', $song->id)
             ->whereNull('resolved_church_service_item_id')
             ->orderByDesc('used_on')

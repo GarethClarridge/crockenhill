@@ -42,7 +42,8 @@ final class HistoricSermonReleaseAuthorisation
      *     batch_key: string,
      *     sermon_ids: list<int>,
      *     song_video_ids: list<int>,
-     *     declared_counts: array{sermons: int, song_videos: int},
+     *     song_usage_report_ids: list<int>,
+     *     declared_counts: array{sermons: int, song_videos: int, song_usage_reports: int},
      *     roles: array{release_owner: string, independent_verifier: string, rollback_owner: string},
      *     observation_ends_at: string,
      *     signature: array<string, mixed>
@@ -55,7 +56,7 @@ final class HistoricSermonReleaseAuthorisation
         $this->exactKeys($authorisation, [
             'format', 'version', 'authorisation_id', 'operation_id', 'target_fingerprint',
             'release_identifier', 'expires_at', 'batch_key', 'sermon_ids', 'song_video_ids',
-            'declared_counts', 'roles', 'observation_ends_at', 'signature',
+            'song_usage_report_ids', 'declared_counts', 'roles', 'observation_ends_at', 'signature',
         ], 'release authorisation');
 
         if ($authorisation['format'] !== 'crockenhill-historic-release-authorisation'
@@ -85,7 +86,7 @@ final class HistoricSermonReleaseAuthorisation
 
         $this->assertObservation($authorisation, $expiresAt);
 
-        /** @var array{format: string, version: int, authorisation_id: string, operation_id: string, target_fingerprint: string, release_identifier: string, expires_at: string, batch_key: string, sermon_ids: list<int>, song_video_ids: list<int>, declared_counts: array{sermons: int, song_videos: int}, roles: array{release_owner: string, independent_verifier: string, rollback_owner: string}, observation_ends_at: string, signature: array<string, mixed>} $authorisation */
+        /** @var array{format: string, version: int, authorisation_id: string, operation_id: string, target_fingerprint: string, release_identifier: string, expires_at: string, batch_key: string, sermon_ids: list<int>, song_video_ids: list<int>, song_usage_report_ids: list<int>, declared_counts: array{sermons: int, song_videos: int, song_usage_reports: int}, roles: array{release_owner: string, independent_verifier: string, rollback_owner: string}, observation_ends_at: string, signature: array<string, mixed>} $authorisation */
         return $authorisation;
     }
 
@@ -250,8 +251,9 @@ final class HistoricSermonReleaseAuthorisation
     {
         $sermonIds = $this->identityList($authorisation['sermon_ids'], 'sermon_ids');
         $songVideoIds = $this->identityList($authorisation['song_video_ids'], 'song_video_ids');
+        $songUsageReportIds = $this->identityList($authorisation['song_usage_report_ids'], 'song_usage_report_ids');
 
-        if ($sermonIds === [] && $songVideoIds === []) {
+        if ($sermonIds === [] && $songVideoIds === [] && $songUsageReportIds === []) {
             throw new RuntimeException('The release authorisation releases nothing.');
         }
 
@@ -261,9 +263,11 @@ final class HistoricSermonReleaseAuthorisation
             throw new RuntimeException('The release authorisation has no declared counts.');
         }
 
-        $this->exactKeys($counts, ['sermons', 'song_videos'], 'release authorisation declared counts');
+        $this->exactKeys($counts, ['sermons', 'song_videos', 'song_usage_reports'], 'release authorisation declared counts');
 
-        if ($counts['sermons'] !== count($sermonIds) || $counts['song_videos'] !== count($songVideoIds)) {
+        if ($counts['sermons'] !== count($sermonIds)
+            || $counts['song_videos'] !== count($songVideoIds)
+            || $counts['song_usage_reports'] !== count($songUsageReportIds)) {
             throw new RuntimeException('The release authorisation declared counts do not match its enumerated records.');
         }
     }

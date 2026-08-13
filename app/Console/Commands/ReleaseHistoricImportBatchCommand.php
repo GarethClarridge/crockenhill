@@ -9,6 +9,7 @@ use App\Enums\SermonPublicationState;
 use App\Models\HistoricImportOperation;
 use App\Models\HistoricImportReleaseAttempt;
 use App\Models\Sermon;
+use App\Models\SongUsageReport;
 use App\Models\SongVideo;
 use App\Services\Import\HistoricImportArtifactWriter;
 use App\Services\Import\HistoricImportJournal;
@@ -55,9 +56,10 @@ class ReleaseHistoricImportBatchCommand extends Command
             $this->line("Operation: {$operation->operation_id}");
             $this->line("Batch: {$authorisation['batch_key']} ({$authorisation['authorisation_id']})");
             $this->line(sprintf(
-                'Records: %d sermons, %d song videos',
+                'Records: %d sermons, %d song videos, %d song usage reports',
                 $authorisation['declared_counts']['sermons'],
                 $authorisation['declared_counts']['song_videos'],
+                $authorisation['declared_counts']['song_usage_reports'],
             ));
             $this->line("Release owner: {$authorisation['roles']['release_owner']}");
             $this->line("Rollback owner: {$authorisation['roles']['rollback_owner']} until {$authorisation['observation_ends_at']}");
@@ -73,6 +75,7 @@ class ReleaseHistoricImportBatchCommand extends Command
                 'batch_key' => $authorisation['batch_key'],
                 'sermon_ids' => $authorisation['sermon_ids'],
                 'song_video_ids' => $authorisation['song_video_ids'],
+                'song_usage_report_ids' => $authorisation['song_usage_report_ids'],
             ]);
 
             /**
@@ -84,6 +87,7 @@ class ReleaseHistoricImportBatchCommand extends Command
                 $operation,
                 $authorisation['sermon_ids'],
                 $authorisation['song_video_ids'],
+                $authorisation['song_usage_report_ids'],
                 $authorisation,
             );
             $remaining = $this->remainingQuarantine($operation);
@@ -103,6 +107,10 @@ class ReleaseHistoricImportBatchCommand extends Command
                     'observation_ends_at' => $authorisation['observation_ends_at'],
                     'released_sermon_ids' => array_map(static fn (Sermon $sermon): int => $sermon->id, $released['sermons']),
                     'released_song_video_ids' => array_map(static fn (SongVideo $video): int => $video->id, $released['song_videos']),
+                    'released_song_usage_report_ids' => array_map(
+                        static fn (SongUsageReport $report): int => $report->id,
+                        $released['song_usage_reports'],
+                    ),
                     /**
                      * HIR7: which attempt owned this batch, and what it owns at
                      * each destination. A later recovery exercise verifies its
@@ -122,11 +130,14 @@ class ReleaseHistoricImportBatchCommand extends Command
             ]);
 
             $this->info(sprintf(
-                'Released %d sermons and %d song videos; %d sermons and %d song videos remain quarantined.',
+                'Released %d sermons, %d song videos and %d song usage reports; %d sermons, %d song videos and '
+                .'%d song usage reports remain quarantined.',
                 count($released['sermons']),
                 count($released['song_videos']),
+                count($released['song_usage_reports']),
                 $remaining['sermons'],
                 $remaining['song_videos'],
+                $remaining['song_usage_reports'],
             ));
 
             return self::SUCCESS;
@@ -189,7 +200,7 @@ class ReleaseHistoricImportBatchCommand extends Command
      * What this operation still holds back, so a partial editorial batch leaves
      * the operator an exact number rather than an assumption.
      *
-     * @return array{sermons: int, song_videos: int}
+     * @return array{sermons: int, song_videos: int, song_usage_reports: int}
      */
     private function remainingQuarantine(HistoricImportOperation $operation): array
     {
@@ -199,6 +210,10 @@ class ReleaseHistoricImportBatchCommand extends Command
                 ->where('publication_state', SermonPublicationState::Quarantined)
                 ->count(),
             'song_videos' => SongVideo::query()
+                ->where('historic_import_operation_id', $operation->id)
+                ->where('publication_state', SermonPublicationState::Quarantined)
+                ->count(),
+            'song_usage_reports' => SongUsageReport::query()
                 ->where('historic_import_operation_id', $operation->id)
                 ->where('publication_state', SermonPublicationState::Quarantined)
                 ->count(),

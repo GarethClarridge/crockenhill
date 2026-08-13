@@ -400,6 +400,7 @@ class HistoricSermonReleaseOwnershipTest extends TestCase
                 ->get()
                 ->all()),
             [],
+            [],
             'public',
         );
 

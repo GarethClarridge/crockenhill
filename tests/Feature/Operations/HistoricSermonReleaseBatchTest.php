@@ -11,8 +11,11 @@ use App\Models\HistoricImportOperation;
 use App\Models\HistoricImportReleaseAsset;
 use App\Models\HistoricImportReleaseAttempt;
 use App\Models\Sermon;
+use App\Models\Song;
+use App\Models\SongUsageReport;
 use App\Models\SongVideo;
 use App\Services\Import\HistoricImportTargetFingerprint;
+use App\Services\Public\PublicSongUsageService;
 use App\Services\Public\SermonRepository;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -114,6 +117,67 @@ class HistoricSermonReleaseBatchTest extends TestCase
             'historic_import_operation_id' => $operation->id,
             'artifact_key' => 'release-batch-batch-one',
         ]);
+    }
+
+    /**
+     * F61: the date-only hymn lane reaches the public occurrence union through the same signed
+     * batch, and through nothing else. It owns no bytes, so this also proves a release whose
+     * membership claims no destination still commits, journals and reports.
+     */
+    #[Test]
+    public function an_authorised_batch_publishes_quarantined_song_usage_reports(): void
+    {
+        $operation = $this->completedOperation();
+        $song = Song::factory()->create();
+        $report = SongUsageReport::factory()->quarantined()->create([
+            'song_id' => $song->id,
+            'used_on' => '2007-06-17',
+            'historic_import_operation_id' => $operation->id,
+        ]);
+        $publicUsage = app(PublicSongUsageService::class);
+
+        $this->assertSame(0, $publicUsage->statsForSong($song)['usage_count']);
+
+        $path = $this->authorisation($operation, [], [], songUsageReportIds: [$report->id]);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path])
+            ->expectsOutputToContain('1 song usage reports')
+            ->assertSuccessful();
+
+        $this->assertSame(
+            SermonPublicationState::Published,
+            $report->refresh()->publication_state,
+        );
+        $this->assertSame(1, $publicUsage->statsForSong($song)['usage_count']);
+
+        $this->assertDatabaseHas('historic_import_journal_entries', [
+            'historic_import_operation_id' => $operation->id,
+            'event' => 'song_usage_report_released',
+        ]);
+        $this->assertSame(0, HistoricImportReleaseAsset::query()->count());
+    }
+
+    /** F61: an unreleased report stays out of public history however the batch fails. */
+    #[Test]
+    public function an_unsigned_batch_leaves_song_usage_reports_quarantined(): void
+    {
+        $operation = $this->completedOperation();
+        $song = Song::factory()->create();
+        $report = SongUsageReport::factory()->quarantined()->create([
+            'song_id' => $song->id,
+            'historic_import_operation_id' => $operation->id,
+        ]);
+        $path = $this->authorisation($operation, [], [], sign: false, songUsageReportIds: [$report->id]);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path])
+            ->expectsOutputToContain('signature is invalid')
+            ->assertFailed();
+
+        $this->assertSame(
+            SermonPublicationState::Quarantined,
+            $report->refresh()->publication_state,
+        );
+        $this->assertSame(0, app(PublicSongUsageService::class)->statsForSong($song)['usage_count']);
     }
 
     /**
@@ -379,6 +443,7 @@ class HistoricSermonReleaseBatchTest extends TestCase
      * @param  list<int>  $sermonIds
      * @param  list<int>  $songVideoIds
      * @param  array<string, mixed>  $overrides
+     * @param  list<int>  $songUsageReportIds
      */
     private function authorisation(
         HistoricImportOperation $operation,
@@ -386,6 +451,7 @@ class HistoricSermonReleaseBatchTest extends TestCase
         array $songVideoIds,
         bool $sign = true,
         array $overrides = [],
+        array $songUsageReportIds = [],
     ): string {
         $authorisation = [
             'format' => 'crockenhill-historic-release-authorisation',
@@ -398,9 +464,11 @@ class HistoricSermonReleaseBatchTest extends TestCase
             'batch_key' => 'batch-one',
             'sermon_ids' => $sermonIds,
             'song_video_ids' => $songVideoIds,
+            'song_usage_report_ids' => $songUsageReportIds,
             'declared_counts' => [
                 'sermons' => count($sermonIds),
                 'song_videos' => count($songVideoIds),
+                'song_usage_reports' => count($songUsageReportIds),
             ],
             'roles' => [
                 'release_owner' => 'person-one',

@@ -11,6 +11,7 @@ use App\Models\HistoricImportOperation;
 use App\Models\HistoricImportReleaseAsset;
 use App\Models\HistoricImportReleaseAttempt;
 use App\Models\Sermon;
+use App\Models\SongUsageReport;
 use App\Models\SongVideo;
 use App\Services\Song\SongVideoService;
 use App\Support\CanonicalJson;
@@ -85,7 +86,7 @@ class HistoricSermonPublicationService
 
     public function release(HistoricImportOperation $operation, Sermon $sermon): Sermon
     {
-        return $this->releaseRecords($operation, [$sermon->id], [])['sermons'][0];
+        return $this->releaseRecords($operation, [$sermon->id], [], [])['sermons'][0];
     }
 
     /**
@@ -97,21 +98,28 @@ class HistoricSermonPublicationService
      * moving would advertise a public URL for a file that only exists on the
      * private quarantine disk.
      *
+     * Date-only song usage reports travel with them too, but they own no bytes: the hymn lane
+     * writes database evidence only, so releasing one is a state flip with no destination to
+     * claim and nothing to stream.
+     *
      * @param  list<int>  $sermonIds
      * @param  list<int>  $songVideoIds
+     * @param  list<int>  $songUsageReportIds
      * @param  array<string, mixed>|null  $authorisation  the verified signed release authority
-     * @return array{sermons: list<Sermon>, song_videos: list<SongVideo>}
+     * @return array{sermons: list<Sermon>, song_videos: list<SongVideo>, song_usage_reports: list<SongUsageReport>}
      */
     public function releaseRecords(
         HistoricImportOperation $operation,
         array $sermonIds,
         array $songVideoIds,
+        array $songUsageReportIds = [],
         ?array $authorisation = null,
     ): array {
         $targetDiskName = (string) config('media-processing.storage.sermon_disk');
         $quarantineDiskName = (string) config('media-processing.storage.historic_quarantine_disk');
         $sermons = $this->operationSermons($operation, $sermonIds);
         $songVideos = $this->operationSongVideos($operation, $songVideoIds);
+        $songUsageReports = $this->operationSongUsageReports($operation, $songUsageReportIds);
 
         /**
          * Plan §4.2.1, asked once and up front. The object store refuses the
@@ -134,14 +142,15 @@ class HistoricSermonPublicationService
             $authorisation,
             $sermons,
             $songVideos,
+            $songUsageReports,
             $targetDiskName,
         );
 
         if ($attempt->state === HistoricImportReleaseAttempt::StateCompleted) {
-            return $this->alreadyReleased($attempt, $sermons, $songVideos);
+            return $this->alreadyReleased($attempt, $sermons, $songVideos, $songUsageReports);
         }
 
-        $this->assertQuarantined($sermons, $songVideos);
+        $this->assertQuarantined($sermons, $songVideos, $songUsageReports);
         $sermonPaths = [];
 
         foreach ($sermons as $sermon) {
@@ -170,6 +179,7 @@ class HistoricSermonPublicationService
                 $attempt,
                 $sermons,
                 $songVideos,
+                $songUsageReports,
                 $sermonPaths,
                 $quarantineDiskName,
                 $targetDiskName,
@@ -195,12 +205,14 @@ class HistoricSermonPublicationService
      * @param  array<string, mixed>|null  $authorisation
      * @param  list<Sermon>  $sermons
      * @param  list<SongVideo>  $songVideos
+     * @param  list<SongUsageReport>  $songUsageReports
      */
     private function claim(
         HistoricImportOperation $operation,
         ?array $authorisation,
         array $sermons,
         array $songVideos,
+        array $songUsageReports,
         string $targetDiskName,
     ): HistoricImportReleaseAttempt {
         $authorisationHash = CanonicalJson::hash(
@@ -209,6 +221,10 @@ class HistoricSermonPublicationService
         $membershipHash = CanonicalJson::hash([
             'sermon_ids' => array_map(static fn (Sermon $sermon): int => $sermon->id, $sermons),
             'song_video_ids' => array_map(static fn (SongVideo $video): int => $video->id, $songVideos),
+            'song_usage_report_ids' => array_map(
+                static fn (SongUsageReport $report): int => $report->id,
+                $songUsageReports,
+            ),
             'target_disk' => $targetDiskName,
         ]);
 
@@ -585,12 +601,14 @@ class HistoricSermonPublicationService
      *
      * @param  list<Sermon>  $sermons
      * @param  list<SongVideo>  $songVideos
-     * @return array{sermons: list<Sermon>, song_videos: list<SongVideo>}
+     * @param  list<SongUsageReport>  $songUsageReports
+     * @return array{sermons: list<Sermon>, song_videos: list<SongVideo>, song_usage_reports: list<SongUsageReport>}
      */
     private function alreadyReleased(
         HistoricImportReleaseAttempt $attempt,
         array $sermons,
         array $songVideos,
+        array $songUsageReports,
     ): array {
         foreach ($sermons as $sermon) {
             if ($sermon->publication_state !== SermonPublicationState::Published) {
@@ -610,26 +628,38 @@ class HistoricSermonPublicationService
             }
         }
 
-        return ['sermons' => $sermons, 'song_videos' => $songVideos];
+        foreach ($songUsageReports as $report) {
+            if ($report->publication_state !== SermonPublicationState::Published) {
+                throw new RuntimeException(
+                    "Release attempt {$attempt->attempt_id} completed, but song usage report {$report->id} is not "
+                    .'published. Reconcile the release ledger against the records before releasing anything else.'
+                );
+            }
+        }
+
+        return ['sermons' => $sermons, 'song_videos' => $songVideos, 'song_usage_reports' => $songUsageReports];
     }
 
     /**
      * @param  list<Sermon>  $sermons
      * @param  list<SongVideo>  $songVideos
+     * @param  list<SongUsageReport>  $songUsageReports
      * @param  array<int, list<string>>  $sermonPaths
-     * @return array{sermons: list<Sermon>, song_videos: list<SongVideo>}
+     * @return array{sermons: list<Sermon>, song_videos: list<SongVideo>, song_usage_reports: list<SongUsageReport>}
      */
     private function commit(
         HistoricImportOperation $operation,
         HistoricImportReleaseAttempt $attempt,
         array $sermons,
         array $songVideos,
+        array $songUsageReports,
         array $sermonPaths,
         string $quarantineDiskName,
         string $targetDiskName,
     ): array {
         $releasedSermons = [];
         $releasedSongVideos = [];
+        $releasedSongUsageReports = [];
 
         foreach ($sermons as $sermon) {
             $sourceDiskName = (string) $sermon->asset_disk;
@@ -678,6 +708,25 @@ class HistoricSermonPublicationService
             $releasedSongVideos[] = $locked->fresh() ?? $locked;
         }
 
+        foreach ($songUsageReports as $report) {
+            $locked = SongUsageReport::query()->whereKey($report->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->historic_import_operation_id !== $operation->id
+                || $locked->publication_state !== SermonPublicationState::Quarantined) {
+                throw new RuntimeException('Historic song usage report release binding changed before commit.');
+            }
+
+            $locked->forceFill(['publication_state' => SermonPublicationState::Published])->save();
+
+            $this->journal->append($operation, 'song_usage_report_released', [
+                'song_usage_report_id' => $locked->id,
+                'attempt_id' => $attempt->attempt_id,
+                'source_fingerprint' => $locked->source_fingerprint,
+            ]);
+
+            $releasedSongUsageReports[] = $locked->fresh() ?? $locked;
+        }
+
         $attempt->assets()->update([
             'state' => HistoricImportReleaseAsset::StatePublished,
             'published_at' => now(),
@@ -688,7 +737,11 @@ class HistoricSermonPublicationService
             'completed_at' => now(),
         ])->save();
 
-        return ['sermons' => $releasedSermons, 'song_videos' => $releasedSongVideos];
+        return [
+            'sermons' => $releasedSermons,
+            'song_videos' => $releasedSongVideos,
+            'song_usage_reports' => $releasedSongUsageReports,
+        ];
     }
 
     /**
@@ -750,10 +803,36 @@ class HistoricSermonPublicationService
     }
 
     /**
+     * @param  list<int>  $songUsageReportIds
+     * @return list<SongUsageReport>
+     */
+    private function operationSongUsageReports(HistoricImportOperation $operation, array $songUsageReportIds): array
+    {
+        if ($songUsageReportIds === []) {
+            return [];
+        }
+
+        $reports = SongUsageReport::query()
+            ->whereKey($songUsageReportIds)
+            ->where('historic_import_operation_id', $operation->id)
+            ->orderBy('id')
+            ->get();
+
+        if ($reports->count() !== count(array_unique($songUsageReportIds))) {
+            throw new RuntimeException(
+                'Release membership is not exact: every named song usage report must be a quarantined record of this operation.',
+            );
+        }
+
+        return array_values($reports->all());
+    }
+
+    /**
      * @param  list<Sermon>  $sermons
      * @param  list<SongVideo>  $songVideos
+     * @param  list<SongUsageReport>  $songUsageReports
      */
-    private function assertQuarantined(array $sermons, array $songVideos): void
+    private function assertQuarantined(array $sermons, array $songVideos, array $songUsageReports): void
     {
         foreach ($sermons as $sermon) {
             if ($sermon->publication_state !== SermonPublicationState::Quarantined) {
@@ -767,6 +846,14 @@ class HistoricSermonPublicationService
             if ($songVideo->publication_state !== SermonPublicationState::Quarantined) {
                 throw new RuntimeException(
                     'Release membership is not exact: every named song video must be a quarantined record of this operation.',
+                );
+            }
+        }
+
+        foreach ($songUsageReports as $report) {
+            if ($report->publication_state !== SermonPublicationState::Quarantined) {
+                throw new RuntimeException(
+                    'Release membership is not exact: every named song usage report must be a quarantined record of this operation.',
                 );
             }
         }

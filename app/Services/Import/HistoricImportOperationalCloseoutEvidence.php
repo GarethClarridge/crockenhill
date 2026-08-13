@@ -7,6 +7,7 @@ namespace App\Services\Import;
 use App\Models\HistoricImportOperation;
 use App\Models\ImportDeferredInboundEmail;
 use App\Models\ImportIngressLock;
+use App\Services\Song\HistoricSongUsageCloseout;
 use App\Support\CanonicalJson;
 use RuntimeException;
 
@@ -18,12 +19,17 @@ final class HistoricImportOperationalCloseoutEvidence
      * processed rows themselves. Version 1 documents are retained but cannot
      * satisfy the repaired closeout: they were signed against a gate that
      * accepted a queue handoff as completion.
+     *
+     * Version 3 (F61) adds the date-only song usage block. That lane wrote
+     * immediately and contributed nothing here, so an operation could close out
+     * exactly while its hymn rows were unaccounted for.
      */
-    public const int Version = 2;
+    public const int Version = 3;
 
     public function __construct(
         private readonly HistoricImportTargetFingerprint $target,
         private readonly ImportIngressGate $ingress,
+        private readonly HistoricSongUsageCloseout $songUsage,
     ) {}
 
     /**
@@ -35,7 +41,7 @@ final class HistoricImportOperationalCloseoutEvidence
         $this->exactKeys($evidence, [
             'format', 'version', 'operation_id', 'target_fingerprint', 'release_identifier',
             'audit_report_sha256', 'ingress_release', 'smoke', 'runtime_recovery',
-            'monitoring', 'deferred_inbound', 'verified_by', 'verified_at', 'signature',
+            'monitoring', 'deferred_inbound', 'song_usage', 'verified_by', 'verified_at', 'signature',
         ], 'operational closeout evidence');
 
         if ($evidence['format'] !== 'crockenhill-historic-import-operational-closeout'
@@ -57,6 +63,7 @@ final class HistoricImportOperationalCloseoutEvidence
         );
         $this->verifyMonitoring($evidence['monitoring']);
         $this->verifyDeferredInbound($operation, $evidence['deferred_inbound']);
+        $this->verifySongUsage($operation, $evidence['song_usage']);
 
         if (! is_string($evidence['verified_by']) || trim($evidence['verified_by']) === ''
             || ! is_string($evidence['verified_at']) || trim($evidence['verified_at']) === '') {
@@ -196,6 +203,36 @@ final class HistoricImportOperationalCloseoutEvidence
          * second, weaker definition of "finished".
          */
         $this->ingress->assertDeferredInboundEmailReconciled($operation->operation_id);
+    }
+
+    /**
+     * F61's hymn lane, on the same terms as the deferred-inbound block above: exact per-state
+     * counts and a digest naming the rows, both re-derived here rather than accepted, and the
+     * lane's own reconciliation rule invoked so closeout cannot grow a weaker second one.
+     */
+    private function verifySongUsage(HistoricImportOperation $operation, mixed $evidence): void
+    {
+        if (! is_array($evidence)) {
+            throw new RuntimeException('Operational closeout has no historic song usage evidence.');
+        }
+
+        $this->exactKeys($evidence, ['state_counts', 'membership_sha256', 'reconciled_at'], 'song usage');
+        $this->hash($evidence['membership_sha256'], 'song usage membership');
+
+        if (! is_string($evidence['reconciled_at']) || trim($evidence['reconciled_at']) === '') {
+            throw new RuntimeException('Operational closeout song usage evidence has no reconciliation timestamp.');
+        }
+
+        if (! is_array($evidence['state_counts'])
+            || $evidence['state_counts'] != $this->songUsage->stateCounts($operation->operation_id)) {
+            throw new RuntimeException('Operational closeout song usage state counts do not match the stored reports.');
+        }
+
+        if ($evidence['membership_sha256'] !== $this->songUsage->membershipDigest($operation->operation_id)) {
+            throw new RuntimeException('Operational closeout song usage evidence does not name the stored reports.');
+        }
+
+        $this->songUsage->assertReconciled($operation->operation_id);
     }
 
     /**

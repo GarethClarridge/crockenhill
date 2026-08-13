@@ -2004,7 +2004,26 @@ sheet and row; no omitted or duplicated occurrence can pass closeout.
 
 ### 2026-08-12 — F61: the hymn mutation path is outside the production operation controls
 
-**State: open; G8/change-control and immutable-input blocker. Read-only audit finding.**
+**State: closed 2026-08-13.** `--import` now requires `--operation`, calls
+`HistoricImportProductionGuard::refusalFor()`, and refuses a workbook whose SHA-256 differs from the
+owning operation's `historic_song_usage` manifest binding — checked before the read and again inside
+the write transaction. `--expect-rows/--expect-resolved/--expect-unresolved` carry the recorded
+dry-run contract and refuse count drift while the run is still a no-op. Written rows are bound to the
+operation and land `quarantined`; both public read paths
+(`SongUsageQuery::occurrences(publicOnly: true)`, `PublicSongUsageService`) filter to `published`,
+and `historic-import:release-batch` gained `song_usage_report_ids` so the lane becomes public only
+through the signed batch. Each run writes an operation-owned `song-usage-import-NNN` artifact naming
+every row; `HistoricSongUsageCloseout` re-derives that membership from the database and
+`HistoricImportOperationalCloseoutEvidence` (version 3) carries a `song_usage` block that refuses on
+any difference.
+
+**The maintainer decision this needed** — read-side visibility accepted immediately, or held to the
+operation's release point — **was taken 2026-08-13: held.** Hence the quarantine default on
+`song_usage_reports.publication_state`, which deliberately differs from the `sermons` and
+`song_videos` default of `published`: those tables hold non-historic rows that were already public,
+this one has no writer but the historic hymn importer.
+
+**Original finding, retained.**
 
 `service-tracking:import-historic-song-usage-reports --import` writes immediately. Unlike the OoS,
 OpenLP and historic-video paths, it does not call `HistoricImportProductionGuard`, bind itself to a
@@ -2028,7 +2047,16 @@ apply is an exact operation-bound no-op.
 
 ### 2026-08-12 — F62: hymn reruns do not reconcile existing or newly matchable evidence
 
-**State: open; idempotency, later-resolution and false-success blocker. Read-only audit finding.**
+**State: closed 2026-08-13.** `firstOrCreate` on `source_fingerprint` is replaced by a read-only
+planning pass over every row, then an apply pass. Each row resolves to one
+`HistoricSongUsageRowOutcome`: created, unchanged, resolution available/applied/conflict, canonical
+link available/applied/ambiguous, or source drift. Resolution conflicts and source drift refuse the
+whole run before the first write; catalogue resolution and canonical linking apply only under
+`--resolve-catalogue-matches` and `--link-canonical-occurrences`. The reported `resolved`/
+`unresolved` counts are read back from the database after the apply, which is the specific defect:
+they were previously computed from the fresh resolver call while the stored `song_id` stayed null.
+
+**Original finding, retained.**
 
 The importer calculates the current catalogue match and then uses `firstOrCreate` on only
 `source_fingerprint`. An existing row is counted as `resolved` from the new calculation and
@@ -2170,10 +2198,10 @@ invariant during the production window.
 - [ ] F60 regenerates and hash-binds the hymn reconciliation against the exact converged corpus;
       every row on `Known Usage` and `Ambiguous Usage` has one source-backed disposition, including
       cross-source duplicate handling.
-- [ ] F61 makes the hymn apply operation-owned and production-guarded, verifies the exact workbook
+- [x] F61 makes the hymn apply operation-owned and production-guarded, verifies the exact workbook
       and count contract before writes, records row-level outcomes and includes visibility,
       rollback and no-op evidence in closeout.
-- [ ] F62 proves existing hymn reports reconcile exactly: source drift fails, authorised catalogue
+- [x] F62 proves existing hymn reports reconcile exactly: source drift fails, authorised catalogue
       resolution and canonical-item linking are explicit, linked reports do not double count, and
       the second pass is a true no-op.
 - [x] F63 classifies corroborated Email plans using curated content scope without admitting extra

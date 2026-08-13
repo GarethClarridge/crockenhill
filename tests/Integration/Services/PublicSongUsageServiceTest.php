@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
@@ -13,6 +14,7 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongUsageReport;
 use App\Services\Public\PublicSongUsageService;
+use App\Services\Song\SongUsageQuery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -77,6 +79,39 @@ class PublicSongUsageServiceTest extends TestCase
         $this->assertNull($occurrence->service);
         $this->assertNull($occurrence->churchService);
         $this->assertSame('Historic title', $occurrence->title);
+    }
+
+    /**
+     * F61's read-side boundary: importing hymn evidence is not publishing it. A quarantined
+     * report is admin-visible and absent from every public read until the batch is released.
+     */
+    #[Test]
+    public function it_withholds_quarantined_date_only_reports_from_public_reads(): void
+    {
+        $song = Song::factory()->create();
+        $report = SongUsageReport::factory()->quarantined()->create([
+            'song_id' => $song->id,
+            'used_on' => '2007-06-17',
+            'reported_service' => null,
+            'reported_title' => 'Historic title',
+        ]);
+
+        $this->assertSame([
+            'usage_count' => 0,
+            'last_sung_date' => null,
+        ], $this->service->statsForSong($song));
+        $this->assertCount(0, $this->service->usageHistoryForSong($song));
+
+        $this->assertSame(
+            1,
+            app(SongUsageQuery::class)->occurrences(publicOnly: false)->where('song_id', $song->id)->count(),
+            'Admin song usage reads the evidence as soon as it is imported.',
+        );
+
+        $report->forceFill(['publication_state' => SermonPublicationState::Published])->save();
+
+        $this->assertSame(1, $this->service->statsForSong($song)['usage_count']);
+        $this->assertCount(1, $this->service->usageHistoryForSong($song));
     }
 
     #[Test]
