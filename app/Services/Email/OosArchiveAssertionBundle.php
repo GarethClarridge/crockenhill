@@ -32,6 +32,7 @@ class OosArchiveAssertionBundle
     public function __construct(
         private readonly OosEmailExtractionValidator $validator,
         private readonly InboundEmailImportService $importService,
+        private readonly OosArchiveParseCacheBinding $cacheBinding,
     ) {}
 
     /**
@@ -47,9 +48,25 @@ class OosArchiveAssertionBundle
                 ->where('message_id', $entry->syntheticMessageId)
                 ->firstOrFail();
             $parsing = Arr::get($email->processing_metadata ?? [], 'parsing');
+            $binding = Arr::get($email->processing_metadata ?? [], OosArchiveParseCacheBinding::MetadataKey);
 
-            if (! is_array($parsing) || ($parsing['input_hash'] ?? null) !== $entry->inputHash) {
+            if (! is_array($parsing) || ! is_array($binding)) {
                 throw new RuntimeException("Archive entry {$entry->itemKey} has no matching validated parse payload.");
+            }
+
+            /**
+             * The exported parse has to answer to the *current* curation, not
+             * just to the current source bytes. Before HIR2 this compared the
+             * input hash alone, so a re-curation that left the archive text
+             * untouched shipped the decision the manifest had superseded.
+             */
+            if (($binding['version'] ?? null) !== OosArchiveParseCacheBinding::Version
+                || ($binding['raw_cache_key_hash'] ?? null) !== $this->cacheBinding->rawCacheKeyHash($entry, $parserVersion)
+                || ($binding['entry_authority_hash'] ?? null) !== $this->cacheBinding->entryAuthorityHash($entry)) {
+                throw new RuntimeException(
+                    "Archive entry {$entry->itemKey} was last resolved under a different source or curation authority; "
+                    .'re-run the archive evaluation before exporting.'
+                );
             }
 
             $sourceDocument = OosEmailSourceDocument::fromBody($entry->bodyPlain)->lineRecords();

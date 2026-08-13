@@ -394,6 +394,28 @@ continues to prohibit mutation on the old release.
 
 ## 8. HIR2 — Raw parse cache with current curation binding
 
+> **Complete 2026-08-13.** `OosArchiveParseCacheBinding` (cache contract version 1) keys the **raw
+> extractor result** on input hash, parser version and received date, and `OosArchiveIdentityResolver`
+> now runs on every pass — including the ones that make no model call. Pre-HIR2 resolved-only caches
+> are version 0: retained, never reusable, reparsed once. `--fresh-parse` buys another model call and
+> nothing else. The binding records the raw cache key, raw-result hash, per-entry authority hash,
+> current plan hash and resolved-result hash, and it reaches the report as each entry's `parse_cache`.
+> `OosArchiveAssertionBundle::export()` now refuses an entry last resolved under a different source
+> **or curation** authority, where it previously compared the input hash alone.
+>
+> **Two things the red-test matrix found that the plan did not predict.**
+> `InboundEmailImportService::storedItems()` dropped `section_type`, which
+> `ChurchServiceAssertionNormalizer` reads when a parse becomes canonical assertions — so a parse
+> restored from the inbox had always produced items without one, and the raw cache surfaced it as a
+> decoded parse resolving differently from the one it was encoded from. And MySQL's JSON type
+> normalises object keys by length, so a stored cache key compared with `===` against a freshly built
+> one is never equal; the reuse decision compares canonical hashes instead.
+>
+> **§8's "added supersession" red case is not reachable and was replaced.** A same-identity pair with
+> no declared lineage is refused when the plan is built, so the archive cannot be walked from "no
+> supersession" to "supersession". The equivalent real re-curation — re-keying the predecessor an
+> existing correction names — is covered instead.
+
 **Review finding:** the archive cache key omits manifest-owned content scope and identity decisions,
 so unchanged source bytes can reuse a parse resolved under an older curation plan.
 
@@ -924,8 +946,10 @@ Never replace a programmatic test with a one-off verification script.
       drift and bind the full target fingerprint separately. *(2026-08-13. Per HIR-D2 only the
       database anchor arms the guard; the storage anchor is recorded and reported. Outstanding
       operator item: record the real production database anchor.)*
-- [ ] HIR2 always reapplies current curation to raw cached extraction; full-to-partial never projects
+- [x] HIR2 always reapplies current curation to raw cached extraction; full-to-partial never projects
       canonical items and supersession/identity changes cannot reuse stale resolution.
+      *(2026-08-13. Cache contract version 1; the assertion-bundle export now refuses a parse resolved
+      under a superseded authority. Clean full staging and Bundle B regeneration remain HIR8's.)*
 - [x] HIR3 rejects missing/null Scripture outcomes before writes and delays every actual API attempt.
       *(2026-08-13. Normal output contract version 5; the export now carries the settlement it used
       to drop.)*

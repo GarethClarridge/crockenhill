@@ -14,12 +14,14 @@ use App\Queries\AdminAttentionCounts;
 use App\Queries\ReviewInboxQuery;
 use App\Services\ChurchService\ChurchServiceEvidenceSet;
 use App\Services\ChurchService\ChurchServiceSongLinker;
+use App\Services\Email\OosArchiveParseCacheBinding;
 use App\Services\Email\OosCurationManifest;
 use App\Services\Import\HistoricImportResourceIdentity;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Mockery\MockInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
@@ -194,14 +196,12 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertSame(1, $extractor->calls);
 
         $email = InboundEmail::query()->firstOrFail();
-        $currentVersion = $email->processing_metadata['parsing']['parser_version'];
+        $currentVersion = $email->processing_metadata[OosArchiveParseCacheBinding::MetadataKey]['raw_cache_key']['parser_version'];
         $this->assertNotNull($currentVersion);
 
         // Age the cache the way an unbumped parser rewrite does: the archive text is untouched, so
-        // the input hash still matches and only the version can invalidate the stored parse.
-        $metadata = $email->processing_metadata;
-        $metadata['parsing']['parser_version'] = 'archive-v1';
-        $email->processing_metadata = $metadata;
+        // the input hash still matches and only the version can invalidate the stored extraction.
+        $this->ageRawParseCache($email, ['parser_version' => 'archive-v1']);
         $email->received_at = '2026-07-10 09:00:00';
         $email->save();
 
@@ -209,9 +209,13 @@ class ImportOosArchiveCommandTest extends TestCase
 
         $this->assertSame(2, $extractor->calls);
         $this->assertSame(['2026-07-11', '2026-07-11'], $extractor->receivedDates);
-        $refreshed = $email->fresh()->processing_metadata['parsing'];
-        $this->assertSame($currentVersion, $refreshed['parser_version']);
-        $this->assertNotNull($refreshed['disposition']);
+        $refreshed = $email->fresh()->processing_metadata;
+        $this->assertSame(
+            $currentVersion,
+            $refreshed[OosArchiveParseCacheBinding::MetadataKey]['raw_cache_key']['parser_version'],
+        );
+        $this->assertFalse($refreshed[OosArchiveParseCacheBinding::MetadataKey]['extraction_reused']);
+        $this->assertNotNull($refreshed['parsing']['disposition']);
     }
 
     #[Test]
@@ -249,16 +253,17 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
 
         $email = InboundEmail::query()->firstOrFail();
-        $metadata = $email->processing_metadata;
-        $metadata['parsing']['received_date'] = '2026-07-10';
-        $email->processing_metadata = $metadata;
+        $this->ageRawParseCache($email, ['received_date' => '2026-07-10']);
         $email->received_at = '2026-07-10 09:00:00';
         $email->save();
 
         $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
 
         $this->assertSame(['2026-07-11', '2026-07-11'], $extractor->receivedDates);
-        $this->assertSame('2026-07-11', $email->fresh()->processing_metadata['parsing']['received_date']);
+        $this->assertSame(
+            '2026-07-11',
+            $email->fresh()->processing_metadata[OosArchiveParseCacheBinding::MetadataKey]['raw_cache_key']['received_date'],
+        );
     }
 
     #[Test]
@@ -655,6 +660,279 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertFalse(
             ChurchService::query()->sole()->sourceRecords()->sole()->payload_complete,
             'A partial order must be retained as incomplete evidence, not projected as a complete one.',
+        );
+    }
+
+    /**
+     * HIR2's other re-curation cases, all sharing one shape: the archive text
+     * never changes, so the raw extraction is reused and only the manifest has
+     * moved. Each asserts that the entry's recorded authority moved with it and
+     * that the extractor was not called a second time.
+     *
+     * @param  array<string, mixed>  $recuration
+     */
+    #[Test]
+    #[DataProvider('recurationsThatMustReResolve')]
+    public function a_re_curation_re_resolves_a_reused_extraction(array $recuration): void
+    {
+        $extractor = $this->bindCountingExtractor();
+        $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $this->artisan('oos:import-archive', [
+            ...$this->corpusArguments,
+            '--evaluate' => true,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $this->assertSame(1, $extractor->calls);
+        $before = $this->parseCacheBinding();
+
+        $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12', ...$recuration]]);
+        $report = $this->temporaryPath('json');
+        $this->artisan('oos:import-archive', [
+            ...$this->corpusArguments,
+            '--evaluate' => true,
+            '--report' => $report,
+        ])->assertExitCode(0);
+
+        $after = $this->parseCacheBinding();
+
+        $this->assertSame(1, $extractor->calls, 'Unchanged source bytes must not force another model call.');
+        $this->assertTrue($after['extraction_reused']);
+        $this->assertSame($before['raw_result_hash'], $after['raw_result_hash'], 'The reused extraction must be carried forward unchanged.');
+        $this->assertNotSame(
+            $before['entry_authority_hash'],
+            $after['entry_authority_hash'],
+            'A re-curation that changes what the entry resolves to must change its recorded authority.',
+        );
+        /** Compared loosely: MySQL's JSON type reorders object keys on the way back out. */
+        $this->assertEquals(
+            $after,
+            $this->readReport($report)['entries'][0]['parse_cache'],
+            'The report must carry the binding the entry was actually resolved under.',
+        );
+    }
+
+    /** @return array<string, array{array<string, mixed>}> */
+    public static function recurationsThatMustReResolve(): array
+    {
+        return [
+            'full to partial' => [['scope' => 'partial']],
+            'a different resolved service' => [['service' => 'evening']],
+            'a parse decision overridden' => [['parse_decision' => 'manifest-authoritative']],
+            'an asserted item count' => [['expected_item_count' => 3]],
+        ];
+    }
+
+    /**
+     * A re-keyed predecessor.
+     *
+     * A same-identity pair with no declared lineage is refused when the plan is
+     * built, so "supersession added" is not a state this command can be walked
+     * through. What a maintainer really does is re-key an entry, and the
+     * correction that names it then supersedes a different source key while its
+     * own bytes never move — reused extraction, changed authority.
+     */
+    #[Test]
+    public function a_re_keyed_predecessor_re_resolves_the_correction_that_names_it(): void
+    {
+        $extractor = $this->bindCountingExtractor();
+        $corpusEntries = [
+            ['key' => '2026-07-12-original', 'date' => '2026-07-12', 'subject' => 'Original order'],
+            [
+                'key' => '2026-07-12-correction',
+                'date' => '2026-07-12',
+                'subject' => 'Corrected order',
+                'body' => "Morning service\nAmazing Grace\nCorrected",
+                'supersedes' => '2026-07-12-original',
+            ],
+        ];
+        $arguments = fn (): array => [
+            ...$this->corpusArguments,
+            '--evaluate' => true,
+            '--report' => $this->temporaryPath('json'),
+        ];
+
+        $this->corpus($corpusEntries);
+        $this->artisan('oos:import-archive', $arguments())->assertExitCode(0);
+
+        $this->assertSame(2, $extractor->calls);
+        $before = $this->parseCacheBinding($this->archiveEmailContaining('Corrected'));
+
+        $corpusEntries[0]['key'] = '2026-07-12-original-rekeyed';
+        $corpusEntries[1]['supersedes'] = '2026-07-12-original-rekeyed';
+        $this->corpus($corpusEntries);
+        $this->artisan('oos:import-archive', $arguments())->assertExitCode(0);
+
+        $after = $this->parseCacheBinding($this->archiveEmailContaining('Corrected'));
+
+        $this->assertSame(3, $extractor->calls, 'Only the re-keyed predecessor is a new entry to extract.');
+        $this->assertTrue($after['extraction_reused']);
+        $this->assertSame($before['raw_result_hash'], $after['raw_result_hash']);
+        $this->assertNotSame(
+            $before['entry_authority_hash'],
+            $after['entry_authority_hash'],
+            'The correction now supersedes a different source key, so its authority moved.',
+        );
+    }
+
+    /**
+     * A new approved plan whose entry is semantically unchanged.
+     *
+     * The plan hash moves because the batch gained an entry, so the binding
+     * records a new plan. What the entry itself resolves to has not changed, so
+     * neither its authority hash nor its extraction may.
+     */
+    #[Test]
+    public function a_new_plan_over_an_unchanged_entry_rebinds_without_re_resolving_it(): void
+    {
+        $extractor = $this->bindCountingExtractor();
+        $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $this->artisan('oos:import-archive', [
+            ...$this->corpusArguments,
+            '--evaluate' => true,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $before = $this->parseCacheBinding();
+
+        $this->corpus([
+            ['key' => '2026-07-12-am', 'date' => '2026-07-12'],
+            ['key' => '2026-07-19-am', 'date' => '2026-07-19'],
+        ]);
+        $this->artisan('oos:import-archive', [
+            ...$this->corpusArguments,
+            '--evaluate' => true,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $after = $this->parseCacheBinding();
+
+        $this->assertSame(2, $extractor->calls, 'Only the new entry may be extracted.');
+        $this->assertNotSame($before['curation_plan_hash'], $after['curation_plan_hash']);
+        $this->assertSame($before['entry_authority_hash'], $after['entry_authority_hash']);
+        $this->assertSame($before['raw_result_hash'], $after['raw_result_hash']);
+        $this->assertSame($before['resolved_result_hash'], $after['resolved_result_hash']);
+    }
+
+    /**
+     * Metadata from before HIR2 cached a *resolved* result. There is no way to
+     * recover the model output it was derived from, so the entry is reparsed
+     * once rather than guessed at, and the old block is left where it is.
+     */
+    #[Test]
+    public function a_pre_hir2_resolved_cache_is_retained_but_never_reused(): void
+    {
+        $extractor = $this->bindCountingExtractor();
+        $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $arguments = [
+            ...$this->corpusArguments,
+            '--evaluate' => true,
+            '--report' => $this->temporaryPath('json'),
+        ];
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+
+        // Roll the email back to the shape the old contract left behind: a
+        // resolved parse keyed on source bytes, parser version and date.
+        $email = InboundEmail::query()->firstOrFail();
+        $metadata = $email->processing_metadata;
+        $legacyCache = $metadata[OosArchiveParseCacheBinding::MetadataKey]['raw_cache_key'];
+        unset($metadata[OosArchiveParseCacheBinding::MetadataKey]);
+        $metadata['parsing'] = [...$metadata['parsing'], ...$legacyCache];
+        $email->processing_metadata = $metadata;
+        $email->save();
+
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+
+        $this->assertSame(2, $extractor->calls, 'A resolved-only cache cannot stand in for raw model output.');
+        $refreshed = $this->parseCacheBinding();
+        $this->assertSame(OosArchiveParseCacheBinding::Version, $refreshed['version']);
+        $this->assertFalse($refreshed['extraction_reused']);
+
+        // A third run reuses the binding the second one wrote.
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+        $this->assertSame(2, $extractor->calls);
+        $this->assertTrue($this->parseCacheBinding()['extraction_reused']);
+    }
+
+    /**
+     * `--fresh-parse` buys another model call and nothing else: the curation
+     * binding is applied and recorded exactly as it is on a reusing run.
+     */
+    #[Test]
+    public function fresh_parse_replaces_the_extraction_and_still_records_the_current_curation(): void
+    {
+        $extractor = $this->bindCountingExtractor();
+        $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $arguments = [
+            ...$this->corpusArguments,
+            '--evaluate' => true,
+            '--report' => $this->temporaryPath('json'),
+        ];
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+
+        $before = $this->parseCacheBinding();
+
+        $this->artisan('oos:import-archive', [...$arguments, '--fresh-parse' => true])->assertExitCode(0);
+
+        $after = $this->parseCacheBinding();
+
+        $this->assertSame(2, $extractor->calls);
+        $this->assertFalse($after['extraction_reused']);
+        $this->assertSame($before['raw_cache_key_hash'], $after['raw_cache_key_hash']);
+        $this->assertSame($before['entry_authority_hash'], $after['entry_authority_hash']);
+        $this->assertSame($before['resolved_result_hash'], $after['resolved_result_hash']);
+    }
+
+    /**
+     * The manifest corroborates one plan; the model proposed two. Curated scope
+     * belongs to the corroborated plan alone, so a re-curation moves that plan
+     * and leaves the extra one exactly as the parser left it — an entry's
+     * authority does not reach a plan its manifest never asserted.
+     */
+    #[Test]
+    public function an_extra_uncorroborated_plan_keeps_its_own_unknown_scope_across_a_re_resolve(): void
+    {
+        $extractor = $this->bindCountingExtractor([
+            [
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 0.99,
+            ],
+            [
+                'service' => 'morning',
+                'date' => '2026-07-19',
+                'items' => [['type' => 'song', 'title' => 'Invented Extra Hymn']],
+                'confidence' => 0.99,
+            ],
+        ]);
+        $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $arguments = [
+            ...$this->corpusArguments,
+            '--evaluate' => true,
+            '--report' => $this->temporaryPath('json'),
+        ];
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+
+        $before = $this->planContentScopesByDate();
+        $this->assertSame('full', $before['2026-07-12']);
+
+        $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12', 'scope' => 'partial']]);
+        $this->artisan('oos:import-archive', [
+            ...$this->corpusArguments,
+            '--evaluate' => true,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $this->assertSame(1, $extractor->calls);
+
+        $after = $this->planContentScopesByDate();
+
+        $this->assertSame('partial', $after['2026-07-12'], 'The corroborated plan takes the curated scope.');
+        $this->assertSame(
+            $before['2026-07-19'],
+            $after['2026-07-19'],
+            'An uncorroborated plan has no curated scope to take.',
         );
     }
 
@@ -1635,6 +1913,96 @@ class ImportOosArchiveCommandTest extends TestCase
         return InboundEmail::query()
             ->where('message_id', $payload['entries'][$entryIndex]['message_id'])
             ->firstOrFail();
+    }
+
+    /**
+     * An extractor that counts its calls, so a test can tell a reused
+     * extraction from a re-run one rather than inferring it from the output.
+     *
+     * @param  list<array<string, mixed>>|null  $services
+     */
+    private function bindCountingExtractor(?array $services = null): object
+    {
+        $services ??= [[
+            'service' => 'morning',
+            'date' => '2026-07-12',
+            'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+            'confidence' => 0.99,
+        ]];
+
+        $extractor = new class($services) implements OosEmailItemExtractor
+        {
+            public int $calls = 0;
+
+            /** @param list<array<string, mixed>> $services */
+            public function __construct(private readonly array $services) {}
+
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                $this->calls++;
+
+                return new OosEmailItemExtractionResult(
+                    items: $this->services[0]['items'],
+                    confidence: 0.99,
+                    services: $this->services,
+                );
+            }
+        };
+
+        $this->app->instance(OosEmailItemExtractor::class, $extractor);
+
+        return $extractor;
+    }
+
+    /** @return array<string, string> */
+    private function planContentScopesByDate(): array
+    {
+        $scopes = [];
+
+        foreach (InboundEmail::query()->firstOrFail()->processing_metadata['parsing']['service_plans'] as $plan) {
+            $scopes[$plan['date']] = $plan['content_scope'];
+        }
+
+        return $scopes;
+    }
+
+    /**
+     * The archive email whose body carries this fragment. Identity is derived
+     * from the item key by a rule this test has no business restating, so a
+     * fixture that needs one particular entry finds it by its own text.
+     */
+    private function archiveEmailContaining(string $fragment): InboundEmail
+    {
+        return InboundEmail::query()->where('body_plain', 'like', '%'.$fragment.'%')->sole();
+    }
+
+    /** @return array<string, mixed> */
+    private function parseCacheBinding(?InboundEmail $email = null): array
+    {
+        $email ??= InboundEmail::query()->firstOrFail();
+
+        return app(OosArchiveParseCacheBinding::class)
+            ->evidence($email->processing_metadata[OosArchiveParseCacheBinding::MetadataKey]);
+    }
+
+    /**
+     * Age the raw-extraction cache the way a parser rewrite or a re-dated
+     * source does, without touching the archive text.
+     *
+     * The key hash is what decides reuse, so a fixture that edited only the
+     * readable key would leave the cache eligible and prove nothing.
+     *
+     * @param  array<string, string>  $overrides
+     */
+    private function ageRawParseCache(InboundEmail $email, array $overrides): void
+    {
+        $metadata = $email->processing_metadata;
+        $binding = $metadata[OosArchiveParseCacheBinding::MetadataKey];
+        $binding['raw_cache_key'] = [...$binding['raw_cache_key'], ...$overrides];
+        $binding['raw_cache_key_hash'] = CanonicalJson::hash($binding['raw_cache_key']);
+        $metadata[OosArchiveParseCacheBinding::MetadataKey] = $binding;
+        $email->processing_metadata = $metadata;
+        $email->save();
     }
 
     /** @return array<string, mixed> */

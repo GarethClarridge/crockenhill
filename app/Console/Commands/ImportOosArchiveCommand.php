@@ -14,6 +14,7 @@ use App\Services\Email\InboundEmailImportService;
 use App\Services\Email\OosArchiveAssertionBundle;
 use App\Services\Email\OosArchiveEvaluator;
 use App\Services\Email\OosArchiveIdentityResolver;
+use App\Services\Email\OosArchiveParseCacheBinding;
 use App\Services\Email\OosCurationEntryFactory;
 use App\Services\Email\OosCurationManifest;
 use App\Services\Email\OosEmailParserService;
@@ -85,6 +86,7 @@ class ImportOosArchiveCommand extends Command
         InboundEmailImportService $importService,
         OosArchiveEvaluator $evaluator,
         OosArchiveIdentityResolver $identityResolver,
+        OosArchiveParseCacheBinding $cacheBinding,
         OosArchiveAssertionBundle $assertionBundle,
         HistoricImportProductionGuard $productionGuard,
         UnevidencedCanonicalItemGuard $unevidencedItemGuard,
@@ -238,9 +240,11 @@ class ImportOosArchiveCommand extends Command
                 $parseResult = $this->parseResult(
                     $entry,
                     $inboundEmail,
+                    $plan,
                     $emailParser,
                     $importService,
                     $identityResolver,
+                    $cacheBinding,
                 );
                 $eligiblePlanKeys = $this->importablePlanKeys($entry, $parseResult);
                 $reviewReasons = $this->reviewReasons(
@@ -308,6 +312,15 @@ class ImportOosArchiveCommand extends Command
                 }
 
                 $result['parse_flags'] = $this->parseFlags($entry, $parseResult);
+                /**
+                 * Which extraction this entry's outcome came from and which
+                 * curation authority resolved it. An auditor reading the report
+                 * can see that an entry's authority moved even where its source
+                 * bytes and its extraction did not.
+                 */
+                $result['parse_cache'] = $cacheBinding->evidence(
+                    Arr::get($inboundEmail->processing_metadata ?? [], OosArchiveParseCacheBinding::MetadataKey),
+                );
 
                 $results[] = $result;
             } catch (Throwable $throwable) {
@@ -329,9 +342,17 @@ class ImportOosArchiveCommand extends Command
             'pipeline_mode' => 'multi_service',
             'parser_version' => self::ParserVersion,
             'parse_evidence' => [
-                'cache_policy' => $this->option('fresh-parse') ? 'bypassed' : 'reuse-if-input-and-parser-match',
+                /**
+                 * The cache covers raw extraction only. Manifest-owned identity,
+                 * scope and supersession are re-applied on every run, so
+                 * `--fresh-parse` buys another model call and nothing else.
+                 */
+                'cache_version' => OosArchiveParseCacheBinding::Version,
+                'cache_policy' => $this->option('fresh-parse')
+                    ? 'raw-extraction-bypassed; curation always re-applied'
+                    : 'raw-extraction-reused-if-input-parser-and-received-date-match; curation always re-applied',
                 'fresh_parse' => (bool) $this->option('fresh-parse'),
-                'cache_key' => ['input_hash', 'parser_version'],
+                'cache_key' => ['input_hash', 'parser_version', 'received_date'],
             ],
             'corpus' => [
                 'verbatim_root' => $verbatimRoot,
@@ -592,36 +613,61 @@ class ImportOosArchiveCommand extends Command
         return [$inboundEmail, $archiveSourceChanged && $wasProcessed];
     }
 
+    /**
+     * The parse this entry resolves to under the manifest's *current* authority.
+     *
+     * Extraction and resolution are cached differently on purpose. The raw model
+     * output depends only on the bytes, parser and received date, so it is
+     * reused whenever those match. Identity, scope and supersession are
+     * manifest-owned, so {@see OosArchiveIdentityResolver} runs on every pass —
+     * including the ones that make no model call at all. Before HIR2 a resolved
+     * result was cached whole, and a re-curation that left the archive text
+     * untouched silently reused the decision it had superseded.
+     */
     private function parseResult(
         OosArchiveEntry $entry,
         InboundEmail $inboundEmail,
+        OosCurationPlan $plan,
         OosEmailParserService $emailParser,
         InboundEmailImportService $importService,
         OosArchiveIdentityResolver $identityResolver,
+        OosArchiveParseCacheBinding $cacheBinding,
     ): OosEmailParseResult {
-        $parsing = Arr::get($inboundEmail->processing_metadata ?? [], 'parsing', []);
-        $receivedDate = $entry->syntheticReceivedAt->toDateString();
-        $cacheMatches = ! (bool) $this->option('fresh-parse')
-            && is_array($parsing)
-            && ($parsing['input_hash'] ?? null) === $entry->inputHash
-            && ($parsing['parser_version'] ?? null) === self::ParserVersion
-            && ($parsing['received_date'] ?? null) === $receivedDate;
+        $metadata = is_array($inboundEmail->processing_metadata) ? $inboundEmail->processing_metadata : [];
+        $hadPreviousParse = is_array(Arr::get($metadata, 'parsing')) && Arr::get($metadata, 'parsing') !== [];
+        $rawPayload = (bool) $this->option('fresh-parse')
+            ? null
+            : $cacheBinding->reusableRawPayload(
+                Arr::get($metadata, OosArchiveParseCacheBinding::MetadataKey),
+                $entry,
+                self::ParserVersion,
+            );
+        $rawResult = $rawPayload === null ? null : $importService->decodeParseResult($rawPayload);
+        $extractionReused = $rawResult instanceof OosEmailParseResult;
 
-        if ($cacheMatches) {
-            $stored = $importService->storedParseResult($inboundEmail);
-
-            if ($stored instanceof OosEmailParseResult) {
-                return $stored;
-            }
+        if (! $extractionReused) {
+            $rawResult = $emailParser->parse($inboundEmail);
+            /**
+             * Re-encoded only when the extraction actually ran. A reused payload
+             * is carried forward byte for byte, so its recorded hash cannot
+             * drift across runs that made no model call.
+             */
+            $rawPayload = $importService->encodeParseResult($rawResult);
         }
 
-        $parseResult = $identityResolver->resolve($entry, $emailParser->parse($inboundEmail));
-        $importService->storeParseResult($inboundEmail, $parseResult, $parsing !== []);
+        $parseResult = $identityResolver->resolve($entry, $rawResult);
+
+        $importService->storeParseResult($inboundEmail, $parseResult, $hadPreviousParse);
         $inboundEmail->refresh();
         $metadata = $inboundEmail->processing_metadata ?? [];
-        $metadata['parsing']['input_hash'] = $entry->inputHash;
-        $metadata['parsing']['parser_version'] = self::ParserVersion;
-        $metadata['parsing']['received_date'] = $receivedDate;
+        $metadata[OosArchiveParseCacheBinding::MetadataKey] = $cacheBinding->binding(
+            entry: $entry,
+            parserVersion: self::ParserVersion,
+            planHash: $plan->planHash,
+            rawPayload: $rawPayload,
+            resolvedPayload: $importService->encodeParseResult($parseResult),
+            extractionReused: $extractionReused,
+        );
         $inboundEmail->processing_metadata = $metadata;
         $inboundEmail->save();
 

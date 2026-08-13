@@ -19,6 +19,7 @@ use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
+use App\Services\ChurchService\ChurchServiceAssertionNormalizer;
 use App\Services\ChurchService\ChurchServiceCompatibilityMergeDecision;
 use App\Services\ChurchService\ChurchServiceIdentityResolver;
 use App\Services\ChurchService\ChurchServiceSongLinker;
@@ -44,7 +45,17 @@ class InboundEmailImportService
         private readonly ChurchServiceIdentityResolver $identityResolver,
     ) {}
 
-    public function storeParseResult(InboundEmail $inboundEmail, OosEmailParseResult $parseResult, bool $isReparse = false): void
+    /**
+     * The storable form of a parse result.
+     *
+     * Split out from `storeParseResult()` so a caller that needs to keep a parse
+     * somewhere other than the `parsing` block can use the same encoding rather
+     * than inventing a second one — the archive's raw-extraction cache is the
+     * one caller that does. {@see decodeParseResult()} is its exact inverse.
+     *
+     * @return array<string, mixed>
+     */
+    public function encodeParseResult(OosEmailParseResult $parseResult): array
     {
         // The validation fields are written from the result's own properties rather than trusted
         // to be present in importMetadata: a stored disposition is what tells a later restore
@@ -62,12 +73,15 @@ class InboundEmailImportService
             'consensus' => $parseResult->consensus,
         ];
 
-        $metadata = [
-            'parsing' => array_replace(
-                Arr::except($parseResult->importMetadata, array_keys($authoritative)),
-                $authoritative,
-            ),
-        ];
+        return array_replace(
+            Arr::except($parseResult->importMetadata, array_keys($authoritative)),
+            $authoritative,
+        );
+    }
+
+    public function storeParseResult(InboundEmail $inboundEmail, OosEmailParseResult $parseResult, bool $isReparse = false): void
+    {
+        $metadata = ['parsing' => $this->encodeParseResult($parseResult)];
 
         if ($isReparse) {
             $metadata['reparsed_at'] = now()->toIso8601String();
@@ -89,8 +103,15 @@ class InboundEmailImportService
     public function storedParseResult(InboundEmail $inboundEmail): ?OosEmailParseResult
     {
         $processingMetadata = is_array($inboundEmail->processing_metadata) ? $inboundEmail->processing_metadata : [];
-        $storedParseData = Arr::get($processingMetadata, 'parsing');
 
+        return $this->decodeParseResult(Arr::get($processingMetadata, 'parsing'));
+    }
+
+    /**
+     * Rebuild a parse result from anything {@see encodeParseResult()} wrote.
+     */
+    public function decodeParseResult(mixed $storedParseData): ?OosEmailParseResult
+    {
         if (! is_array($storedParseData) || ! is_array($storedParseData['items'] ?? null)) {
             return null;
         }
@@ -201,8 +222,19 @@ class InboundEmailImportService
     }
 
     /**
+     * The whitelist is every field {@see OosEmailParserService::normaliseItems()}
+     * emits, and it has to stay that way: anything omitted here is dropped from
+     * a restored parse, so it survives the first import and disappears from
+     * every one made from the stored payload afterwards.
+     *
+     * `section_type` used to be missing, which
+     * {@see ChurchServiceAssertionNormalizer} reads
+     * when a parse becomes canonical assertions. The archive's raw-extraction
+     * cache found it, because a decoded parse then resolved differently from
+     * the one it was encoded from.
+     *
      * @param  array<int, mixed>  $items
-     * @return array<int, array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>
+     * @return array<int, array{position:int,type:string,section_type:?string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>
      */
     private function storedItems(array $items): array
     {
@@ -215,6 +247,7 @@ class InboundEmailImportService
 
             $position = $item['position'] ?? null;
             $type = $item['type'] ?? null;
+            $sectionType = $item['section_type'] ?? null;
             $title = $item['title'] ?? null;
             $sourceTitle = $item['source_title'] ?? null;
             $openLpSearchTitle = $item['openlp_search_title'] ?? null;
@@ -227,6 +260,7 @@ class InboundEmailImportService
             $storedItems[] = [
                 'position' => $position,
                 'type' => $type,
+                'section_type' => is_string($sectionType) ? $sectionType : null,
                 'title' => $title,
                 'source_title' => is_string($sourceTitle) ? $sourceTitle : null,
                 'openlp_search_title' => is_string($openLpSearchTitle) ? $openLpSearchTitle : null,

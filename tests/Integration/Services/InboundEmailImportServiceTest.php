@@ -68,6 +68,62 @@ class InboundEmailImportServiceTest extends TestCase
         $this->assertTrue($restored->shouldImport);
     }
 
+    /**
+     * The archive's raw-extraction cache re-resolves a decoded parse on every
+     * run, so any field the encoding drops changes the outcome between the run
+     * that extracted and every run afterwards.
+     *
+     * `section_type` was the one that was missing, and
+     * ChurchServiceAssertionNormalizer reads it when a parse becomes canonical
+     * assertions — so a parse restored from the inbox produced items without
+     * one long before the archive noticed.
+     */
+    #[Test]
+    public function test_encoding_a_parse_result_loses_no_item_field(): void
+    {
+        $item = [
+            'position' => 1,
+            'type' => 'songs',
+            'section_type' => 'song',
+            'title' => 'In Christ Alone',
+            'source_title' => 'In Christ Alone (v1-4)',
+            'openlp_search_title' => 'in christ alone@',
+            'metadata' => ['source' => 'email'],
+        ];
+        $parseResult = new OosEmailParseResult(
+            date: '2025-03-09',
+            service: SermonService::Morning,
+            items: [$item],
+            confidenceScore: 0.92,
+            needsReview: false,
+            shouldImport: true,
+            importMetadata: ['confidence_score' => 0.92],
+            servicePlans: [new OosEmailServicePlan(
+                service: SermonService::Morning,
+                date: '2025-03-09',
+                items: [$item],
+                confidence: 0.92,
+                needsReview: false,
+                shouldImport: true,
+                disposition: OosEmailParseDisposition::AutoImportable,
+                contentScope: OosEmailContentScope::Full,
+            )],
+            disposition: OosEmailParseDisposition::AutoImportable,
+        );
+
+        $decoded = $this->service->decodeParseResult($this->service->encodeParseResult($parseResult));
+
+        $this->assertNotNull($decoded);
+        $this->assertSame($item, $decoded->items[0]);
+        $this->assertSame($item, $decoded->servicePlans[0]->items[0]);
+
+        /** Encoding the decode again must be a fixed point, or reuse drifts. */
+        $this->assertSame(
+            $this->service->encodeParseResult($parseResult),
+            $this->service->encodeParseResult($decoded),
+        );
+    }
+
     #[Test]
     public function test_stores_and_round_trips_a_service_plans_content_scope(): void
     {
