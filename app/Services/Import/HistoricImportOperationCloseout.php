@@ -88,10 +88,16 @@ final class HistoricImportOperationCloseout
                 'recovery-rehearsal',
                 'crockenhill-historic-import-recovery',
             );
+            /**
+             * HIR6: a new artifact key, so a version 1 document signed against
+             * the gate that accepted a queue handoff as completion cannot
+             * satisfy the repaired closeout. The v1 artifact stays retained.
+             */
             $operationalEvidence = $this->assertOperationArtifact(
                 $operation,
-                'operational-closeout-readiness',
+                'operational-closeout-readiness-v2',
                 'crockenhill-historic-import-operational-closeout',
+                HistoricImportOperationalCloseoutEvidence::Version,
             );
 
             if (($operationalEvidence['audit_report_sha256'] ?? null) !== ($binding['report_digest'] ?? null)) {
@@ -166,6 +172,7 @@ final class HistoricImportOperationCloseout
         HistoricImportOperation $operation,
         string $artifactKey,
         string $format,
+        int $version = 1,
     ): array {
         $artifact = $operation->artifacts()->where('artifact_key', $artifactKey)->first();
 
@@ -181,7 +188,7 @@ final class HistoricImportOperationCloseout
 
         if (! is_array($evidence)
             || ($evidence['format'] ?? null) !== $format
-            || ($evidence['version'] ?? null) !== 1
+            || ($evidence['version'] ?? null) !== $version
             || ($evidence['operation_id'] ?? null) !== $operation->operation_id
             || ($evidence['target_fingerprint'] ?? null) !== $operation->target_fingerprint) {
             throw new RuntimeException("Exact closeout {$artifactKey} artifact lost its operation/target binding.");

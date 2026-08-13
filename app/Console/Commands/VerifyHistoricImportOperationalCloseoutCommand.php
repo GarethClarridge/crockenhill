@@ -47,9 +47,9 @@ class VerifyHistoricImportOperationalCloseoutCommand extends Command
             );
             $artifact = $artifacts->writeJson(
                 operation: $operation,
-                artifactKey: 'operational-closeout-readiness',
+                artifactKey: 'operational-closeout-readiness-v2',
                 kind: HistoricImportArtifactKind::AcceptanceReport,
-                relativePath: 'closeout/operational-readiness.json.enc',
+                relativePath: 'closeout/operational-readiness-v2.json.enc',
                 payload: $verified,
                 redact: false,
             );

@@ -12,7 +12,19 @@ use RuntimeException;
 
 final class HistoricImportOperationalCloseoutEvidence
 {
-    public function __construct(private readonly HistoricImportTargetFingerprint $target) {}
+    /**
+     * Version 2 (HIR6) replaced the deferred-inbound block's caller-asserted
+     * `pending`/`failed` zeros with exact per-state counts and a digest over the
+     * processed rows themselves. Version 1 documents are retained but cannot
+     * satisfy the repaired closeout: they were signed against a gate that
+     * accepted a queue handoff as completion.
+     */
+    public const int Version = 2;
+
+    public function __construct(
+        private readonly HistoricImportTargetFingerprint $target,
+        private readonly ImportIngressGate $ingress,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $evidence
@@ -27,7 +39,7 @@ final class HistoricImportOperationalCloseoutEvidence
         ], 'operational closeout evidence');
 
         if ($evidence['format'] !== 'crockenhill-historic-import-operational-closeout'
-            || $evidence['version'] !== 1
+            || $evidence['version'] !== self::Version
             || $evidence['operation_id'] !== $operation->operation_id
             || $evidence['target_fingerprint'] !== $operation->target_fingerprint
             || $operation->target_fingerprint !== $this->target->hash()
@@ -137,22 +149,53 @@ final class HistoricImportOperationalCloseoutEvidence
         }
     }
 
+    /**
+     * HIR6. The version 1 block asked the verifier to assert `pending = 0` and
+     * `failed = 0` and checked only that no row was outside
+     * `dispatched`/`processed` — so an operation closed out on a queue handoff,
+     * and the claimed zeros went stale the moment a job failed and returned its
+     * row to `pending`.
+     *
+     * Version 2 asks for what is actually there: exact counts for every state,
+     * and a digest over the processed rows so the evidence names *which* emails
+     * finished rather than how many the verifier believed had.
+     */
     private function verifyDeferredInbound(HistoricImportOperation $operation, mixed $evidence): void
     {
         if (! is_array($evidence)) {
             throw new RuntimeException('Operational closeout has no deferred-inbound reconciliation evidence.');
         }
 
-        $this->exactKeys($evidence, ['pending', 'failed', 'reconciled_at'], 'deferred inbound');
+        $this->exactKeys($evidence, ['state_counts', 'processed_membership_sha256', 'reconciled_at'], 'deferred inbound');
+        $this->hash($evidence['processed_membership_sha256'], 'deferred inbound processed membership');
 
-        if ($evidence['pending'] !== 0 || $evidence['failed'] !== 0
-            || ! is_string($evidence['reconciled_at']) || trim($evidence['reconciled_at']) === ''
-            || ImportDeferredInboundEmail::query()
-                ->where('operation_id', $operation->operation_id)
-                ->whereNotIn('state', ['dispatched', 'processed'])
-                ->exists()) {
-            throw new RuntimeException('Operational closeout has unresolved operation-scoped deferred inbound email.');
+        if (! is_string($evidence['reconciled_at']) || trim($evidence['reconciled_at']) === '') {
+            throw new RuntimeException('Operational closeout deferred-inbound evidence has no reconciliation timestamp.');
         }
+
+        if (! is_array($evidence['state_counts'])) {
+            throw new RuntimeException('Operational closeout deferred-inbound evidence has no exact state counts.');
+        }
+
+        $this->exactKeys($evidence['state_counts'], ImportDeferredInboundEmail::States, 'deferred inbound state counts');
+
+        $observed = $this->ingress->deferredInboundStateCounts($operation->operation_id);
+
+        if ($evidence['state_counts'] != $observed) {
+            throw new RuntimeException('Operational closeout deferred-inbound state counts do not match the outbox.');
+        }
+
+        $membership = $this->ingress->processedDeferredInboundMembership($operation->operation_id);
+
+        if ($evidence['processed_membership_sha256'] !== CanonicalJson::hash($membership)) {
+            throw new RuntimeException('Operational closeout deferred-inbound evidence does not name the processed rows.');
+        }
+
+        /**
+         * The gate owns the completion rule, so the closeout cannot drift into a
+         * second, weaker definition of "finished".
+         */
+        $this->ingress->assertDeferredInboundEmailReconciled($operation->operation_id);
     }
 
     /**

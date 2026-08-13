@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Contracts\OosEmailItemExtractor;
+use App\Data\OosEmailItemExtractionResult;
 use App\Enums\InboundEmailStatus;
 use App\Jobs\ProcessInboundOosEmail;
 use App\Models\ImportDeferredInboundEmail;
@@ -19,6 +21,7 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use Mockery;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -47,6 +50,32 @@ class ImportIngressGateTest extends TestCase
         $this->withoutMiddleware(ThrottleRequests::class);
         Config::set('service-tracking.mailgun.signing_key', 'test-signing-key');
         Cache::flush();
+
+        /**
+         * HIR6 runs the deferred job in several of these cases rather than
+         * stopping at the queue push, so the extraction the parser would
+         * otherwise reach for over the network is answered locally. One
+         * confident morning order, which is what a real order of service
+         * staged during a window looks like.
+         */
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                $items = [['type' => 'song', 'title' => 'Amazing Grace']];
+
+                return new OosEmailItemExtractionResult(
+                    items: $items,
+                    confidence: 0.99,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => $receivedDate,
+                        'items' => $items,
+                        'confidence' => 0.99,
+                    ]],
+                );
+            }
+        });
     }
 
     #[Test]
@@ -242,6 +271,13 @@ class ImportIngressGateTest extends TestCase
 
         Queue::assertPushed(ProcessInboundOosEmail::class, 1);
         $this->assertSame(InboundEmailStatus::Pending, $ordinary->fresh()->status);
+
+        /**
+         * HIR6: the drain hands the email to the queue, and the queue is where
+         * the work happens. Reconciliation only follows once the job has run.
+         */
+        $this->assertSame(1, $this->runQueuedInboundJobs());
+        $this->assertSame(InboundEmailStatus::Pending, $ordinary->fresh()->status);
         $gate->assertDeferredInboundEmailReconciled('historic-import-1');
     }
 
@@ -332,7 +368,19 @@ class ImportIngressGateTest extends TestCase
         }
 
         $this->assertSame(1, app(ImportIngressGate::class)->dispatchDeferredInboundEmail('historic-import-1'));
+
+        /** A repeated drain finds nothing claimable; the row is owned already. */
         $this->assertSame(0, app(ImportIngressGate::class)->dispatchDeferredInboundEmail('historic-import-1'));
+
+        /** Still not reconciled: the queue has the job, nothing has run it. */
+        try {
+            app(ImportIngressGate::class)->assertDeferredInboundEmailReconciled('historic-import-1');
+            $this->fail('A dispatched email is not a processed one.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('dispatched=1', $exception->getMessage());
+        }
+
+        $this->assertSame(1, $this->runQueuedInboundJobs());
         app(ImportIngressGate::class)->assertDeferredInboundEmailReconciled('historic-import-1');
     }
 
@@ -376,9 +424,213 @@ class ImportIngressGateTest extends TestCase
 
         $this->assertSame(1, ImportDeferredInboundEmail::query()->where('state', 'dispatched')->count());
         $this->assertSame(2, ImportDeferredInboundEmail::query()->where('state', 'pending')->count());
+
+        /** The claim the injected failure could not dispatch says why it came back. */
+        $released = ImportDeferredInboundEmail::query()
+            ->where('state', 'pending')
+            ->whereNotNull('last_failed_at')
+            ->sole();
+        $this->assertNull($released->dispatch_token);
+        $this->assertNull($released->lease_expires_at);
+        $this->assertSame(1, $released->failure_count);
+        $this->assertStringContainsString('injected dispatcher failure', (string) $released->last_error);
+
         $this->assertSame(2, $gate->dispatchDeferredInboundEmail('historic-import-1'));
         Queue::assertPushed(ProcessInboundOosEmail::class, 3);
+
+        $this->assertSame(3, $this->runQueuedInboundJobs());
         $gate->assertDeferredInboundEmailReconciled('historic-import-1');
+    }
+
+    /**
+     * A synchronous dispatcher runs the job inside `dispatch()`, so the row is
+     * already `processed` by the time the drain gets to its post-dispatch
+     * update. That update is conditional on the claim, so it affects zero rows
+     * rather than dragging a finished import back to `dispatched`.
+     */
+    #[Test]
+    public function a_synchronous_dispatcher_that_finishes_first_is_not_regressed_to_dispatched(): void
+    {
+        Config::set('queue.default', 'sync');
+        $gate = app(ImportIngressGate::class);
+        $gate->block('historic-import-1', 'Historic archive import window');
+        $this->postJson(route('api.webhooks.mailgun.inbound'), $this->inboundEmailPayload());
+        $gate->release('historic-import-1');
+
+        $this->assertSame(1, $gate->dispatchDeferredInboundEmail('historic-import-1'));
+
+        $deferred = ImportDeferredInboundEmail::query()->sole();
+        $this->assertSame(ImportDeferredInboundEmail::StateProcessed, $deferred->state);
+        $this->assertNotNull($deferred->processed_at);
+        $gate->assertDeferredInboundEmailReconciled('historic-import-1');
+    }
+
+    /**
+     * A drain that died between claiming a row and dispatching its job leaves
+     * `dispatching` behind. While the lease is live that claim is another
+     * drainer's, and taking it would put two jobs behind one email; once it has
+     * expired the row is recoverable.
+     */
+    #[Test]
+    public function a_live_claim_is_left_alone_and_an_expired_one_is_recovered(): void
+    {
+        Queue::fake();
+        $gate = app(ImportIngressGate::class);
+        $gate->block('historic-import-1', 'Historic archive import window');
+        $this->postJson(route('api.webhooks.mailgun.inbound'), $this->inboundEmailPayload());
+        $gate->release('historic-import-1');
+
+        $deferred = ImportDeferredInboundEmail::query()->sole();
+        $deferred->forceFill([
+            'state' => ImportDeferredInboundEmail::StateDispatching,
+            'dispatch_token' => (string) Str::uuid(),
+            'dispatch_claimed_at' => now(),
+            'lease_expires_at' => now()->addHour(),
+            'dispatch_attempts' => 1,
+        ])->save();
+
+        $this->assertSame(0, $gate->dispatchDeferredInboundEmail('historic-import-1'), 'A live claim belongs to another drainer.');
+        Queue::assertNotPushed(ProcessInboundOosEmail::class);
+
+        $deferred->forceFill(['lease_expires_at' => now()->subMinute()])->save();
+
+        $this->assertSame(1, $gate->dispatchDeferredInboundEmail('historic-import-1'));
+        Queue::assertPushed(ProcessInboundOosEmail::class, 1);
+        $this->assertSame(
+            2,
+            ImportDeferredInboundEmail::query()->sole()->dispatch_attempts,
+            'A recovered claim is a second attempt, and the count has to say so.',
+        );
+    }
+
+    /** A row already handed to the queue is nobody's to claim again. */
+    #[Test]
+    public function a_dispatched_row_is_never_dispatched_twice(): void
+    {
+        Queue::fake();
+        $gate = app(ImportIngressGate::class);
+        $gate->block('historic-import-1', 'Historic archive import window');
+        $this->postJson(route('api.webhooks.mailgun.inbound'), $this->inboundEmailPayload());
+        $gate->release('historic-import-1');
+
+        $this->assertSame(1, $gate->dispatchDeferredInboundEmail('historic-import-1'));
+        $this->assertSame(0, $gate->dispatchDeferredInboundEmail('historic-import-1'));
+
+        Queue::assertPushed(ProcessInboundOosEmail::class, 1);
+    }
+
+    /**
+     * A job that exhausts its retries returns the claim to the drain with the
+     * reason attached, and closeout stays blocked until it actually succeeds.
+     */
+    #[Test]
+    public function an_exhausted_job_failure_returns_the_row_to_pending_and_blocks_closeout(): void
+    {
+        Queue::fake();
+        $gate = app(ImportIngressGate::class);
+        $gate->block('historic-import-1', 'Historic archive import window');
+        $this->postJson(route('api.webhooks.mailgun.inbound'), $this->inboundEmailPayload());
+        $gate->release('historic-import-1');
+        $this->assertSame(1, $gate->dispatchDeferredInboundEmail('historic-import-1'));
+
+        Queue::pushed(ProcessInboundOosEmail::class)
+            ->each(fn (ProcessInboundOosEmail $job) => $job->failed(new RuntimeException('parser exploded')));
+
+        $deferred = ImportDeferredInboundEmail::query()->sole();
+        $this->assertSame(ImportDeferredInboundEmail::StatePending, $deferred->state);
+        $this->assertNull($deferred->processed_at);
+        $this->assertNull($deferred->dispatch_token);
+        $this->assertNull($deferred->dispatched_at);
+        $this->assertSame(1, $deferred->failure_count);
+        $this->assertStringContainsString('parser exploded', (string) $deferred->last_error);
+        $this->assertNotNull($deferred->last_failed_at);
+
+        try {
+            $gate->assertDeferredInboundEmailReconciled('historic-import-1');
+            $this->fail('A failed import is not a finished one.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('pending=1', $exception->getMessage());
+        }
+
+        /** And the operator can retry it without reopening the window. */
+        $this->assertSame(1, $gate->dispatchDeferredInboundEmail('historic-import-1'));
+        $this->assertSame(2, $this->runQueuedInboundJobs());
+        $gate->assertDeferredInboundEmailReconciled('historic-import-1');
+    }
+
+    /** A failure recorded after a successful attempt must not reopen the import. */
+    #[Test]
+    public function a_late_failure_does_not_reopen_an_already_processed_row(): void
+    {
+        Queue::fake();
+        $gate = app(ImportIngressGate::class);
+        $gate->block('historic-import-1', 'Historic archive import window');
+        $this->postJson(route('api.webhooks.mailgun.inbound'), $this->inboundEmailPayload());
+        $gate->release('historic-import-1');
+        $gate->dispatchDeferredInboundEmail('historic-import-1');
+        $this->runQueuedInboundJobs();
+
+        $processedAt = ImportDeferredInboundEmail::query()->sole()->processed_at;
+
+        Queue::pushed(ProcessInboundOosEmail::class)
+            ->each(fn (ProcessInboundOosEmail $job) => $job->failed(new RuntimeException('late failure')));
+
+        $deferred = ImportDeferredInboundEmail::query()->sole();
+        $this->assertSame(ImportDeferredInboundEmail::StateProcessed, $deferred->state);
+        $this->assertEquals($processedAt, $deferred->processed_at);
+        $gate->assertDeferredInboundEmailReconciled('historic-import-1');
+    }
+
+    /**
+     * The drain action is the operator's own retry. It never reopens the window
+     * and never touches an email the window did not stage.
+     */
+    #[Test]
+    public function the_drain_action_retries_one_operation_outbox_without_reopening_the_window(): void
+    {
+        Queue::fake();
+        $ordinary = InboundEmail::factory()->create(['status' => InboundEmailStatus::Pending]);
+        $gate = app(ImportIngressGate::class);
+        $gate->block('historic-import-1', 'Historic archive import window');
+        $this->postJson(route('api.webhooks.mailgun.inbound'), $this->inboundEmailPayload());
+        $gate->release('historic-import-1');
+
+        $this->artisan('import:ingress', ['action' => 'drain', '--operation' => 'historic-import-1'])
+            ->expectsOutputToContain('Queued 1 deferred order-of-service email(s)')
+            ->assertSuccessful();
+
+        $this->assertSame(InboundEmailStatus::Pending, $ordinary->fresh()->status);
+        $this->assertFalse($gate->isBlocked());
+
+        /** Idempotent: a second drain claims nothing. */
+        $this->artisan('import:ingress', ['action' => 'drain', '--operation' => 'historic-import-1'])
+            ->expectsOutputToContain('Queued 0 deferred order-of-service email(s)')
+            ->assertSuccessful();
+
+        Queue::assertPushed(ProcessInboundOosEmail::class, 1);
+    }
+
+    #[Test]
+    public function the_drain_action_requires_an_operation(): void
+    {
+        $this->artisan('import:ingress', ['action' => 'drain'])
+            ->expectsOutputToContain('requires --operation')
+            ->assertFailed();
+    }
+
+    /**
+     * The lease has to outlive the job's own uniqueness window. If it expired
+     * first a drain could reclaim a row whose job is still queued, dispatch a
+     * second one, and have `ShouldBeUnique` drop it — leaving a claim with no
+     * job behind it.
+     */
+    #[Test]
+    public function the_claim_lease_outlives_the_jobs_uniqueness_window(): void
+    {
+        $this->assertGreaterThan(
+            ProcessInboundOosEmail::UniqueForSeconds,
+            ImportIngressGate::leaseSeconds(),
+        );
     }
 
     #[Test]
@@ -407,6 +659,26 @@ class ImportIngressGateTest extends TestCase
     }
 
     /** @return array<string, string> */
+    /**
+     * Run the jobs `Queue::fake()` recorded, the way a worker would.
+     *
+     * HIR6 made `dispatched` non-terminal, so a case that stops at the push is
+     * asserting a queue handoff rather than an import. The job is idempotent, so
+     * calling this twice re-runs nothing that already finished.
+     *
+     * @return int the number of jobs executed
+     */
+    private function runQueuedInboundJobs(): int
+    {
+        $jobs = Queue::pushed(ProcessInboundOosEmail::class);
+
+        foreach ($jobs as $job) {
+            app()->call([$job, 'handle']);
+        }
+
+        return $jobs->count();
+    }
+
     private function inboundEmailPayload(
         string $messageId = '<staged-during-window@example.com>',
         string $token = 'ingress-window-token',

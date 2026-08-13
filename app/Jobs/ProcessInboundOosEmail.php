@@ -9,20 +9,32 @@ use App\Models\ImportDeferredInboundEmail;
 use App\Models\InboundEmail;
 use App\Services\Email\InboundEmailImportService;
 use App\Services\Email\OosEmailParserService;
+use App\Services\Import\ImportIngressGate;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class ProcessInboundOosEmail implements ShouldBeUnique, ShouldQueue
 {
     use InteractsWithQueue, Queueable, SerializesModels;
 
+    /**
+     * The database lease HIR6 puts on a deferred row is derived from this, so
+     * the two cannot drift apart: a lease that expired first would let a drain
+     * reclaim a row whose job is still queued.
+     *
+     * @see ImportIngressGate::leaseSeconds()
+     */
+    public const int UniqueForSeconds = 86_400;
+
     public int $tries = 3;
 
-    public int $uniqueFor = 86_400;
+    public int $uniqueFor = self::UniqueForSeconds;
 
     public function __construct(
         private InboundEmail $inboundEmail,
@@ -33,9 +45,15 @@ class ProcessInboundOosEmail implements ShouldBeUnique, ShouldQueue
         OosEmailParserService $parser,
         InboundEmailImportService $importService,
     ): void {
-        $deferred = $this->deferredInboundEmail();
+        $deferred = $this->lockedDeferredInboundEmail();
 
-        if ($deferred?->processed_at !== null) {
+        /**
+         * Already finished. A redelivered webhook, a repeated drain and a
+         * retried job all reach here, and none of them may import a second
+         * time.
+         */
+        if ($this->deferredInboundEmailId !== null
+            && ($deferred === null || $deferred->processed_at !== null)) {
             return;
         }
 
@@ -56,7 +74,7 @@ class ProcessInboundOosEmail implements ShouldBeUnique, ShouldQueue
             $inboundEmail->refresh();
             $inboundEmail->status = InboundEmailStatus::Pending;
             $inboundEmail->save();
-            $this->markDeferredProcessed($deferred);
+            $this->markDeferredProcessed();
 
             return;
         }
@@ -87,7 +105,7 @@ class ProcessInboundOosEmail implements ShouldBeUnique, ShouldQueue
             }
         }
 
-        $this->markDeferredProcessed($deferred);
+        $this->markDeferredProcessed();
     }
 
     public function uniqueId(): string
@@ -128,11 +146,26 @@ class ProcessInboundOosEmail implements ShouldBeUnique, ShouldQueue
         );
         $inboundEmail->save();
 
+        /**
+         * The claim goes back to the drain, with the reason attached. A row that
+         * already reached `processed` is left alone: a later attempt failing
+         * after a successful one must not reopen a finished import.
+         */
         if ($this->deferredInboundEmailId !== null) {
             ImportDeferredInboundEmail::query()
                 ->whereKey($this->deferredInboundEmailId)
                 ->whereNull('processed_at')
-                ->update(['state' => 'pending', 'dispatched_at' => null]);
+                ->update([
+                    'state' => ImportDeferredInboundEmail::StatePending,
+                    'dispatch_token' => null,
+                    'dispatch_claimed_at' => null,
+                    'lease_expires_at' => null,
+                    'dispatched_at' => null,
+                    'last_failed_at' => now(),
+                    'last_error' => Str::limit($exception->getMessage(), 480),
+                    'failure_count' => DB::raw('failure_count + 1'),
+                    'updated_at' => now(),
+                ]);
         }
     }
 
@@ -148,24 +181,44 @@ class ProcessInboundOosEmail implements ShouldBeUnique, ShouldQueue
         return array_replace_recursive($existingMetadata, $newMetadata);
     }
 
-    private function deferredInboundEmail(): ?ImportDeferredInboundEmail
+    /**
+     * Reload the outbox row under a lock, so two workers that both reached this
+     * job cannot both read it as unfinished. The lock is held for the read
+     * alone — the parse and import that follow are far too long to hold a row
+     * lock across.
+     */
+    private function lockedDeferredInboundEmail(): ?ImportDeferredInboundEmail
     {
         if ($this->deferredInboundEmailId === null) {
             return null;
         }
 
-        return ImportDeferredInboundEmail::query()->find($this->deferredInboundEmailId);
+        return DB::transaction(fn (): ?ImportDeferredInboundEmail => ImportDeferredInboundEmail::query()
+            ->whereKey($this->deferredInboundEmailId)
+            ->lockForUpdate()
+            ->first());
     }
 
-    private function markDeferredProcessed(?ImportDeferredInboundEmail $deferred): void
+    /**
+     * The only terminal transition. Conditional on the row not already being
+     * processed, so a retry that races a successful attempt cannot move
+     * `processed_at`.
+     */
+    private function markDeferredProcessed(): void
     {
-        if (! $deferred instanceof ImportDeferredInboundEmail) {
+        if ($this->deferredInboundEmailId === null) {
             return;
         }
 
-        $deferred->forceFill([
-            'state' => 'processed',
-            'processed_at' => now(),
-        ])->save();
+        ImportDeferredInboundEmail::query()
+            ->whereKey($this->deferredInboundEmailId)
+            ->whereNull('processed_at')
+            ->update([
+                'state' => ImportDeferredInboundEmail::StateProcessed,
+                'processed_at' => now(),
+                'dispatch_token' => null,
+                'lease_expires_at' => null,
+                'updated_at' => now(),
+            ]);
     }
 }

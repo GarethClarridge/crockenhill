@@ -656,6 +656,30 @@ of the final-readiness plan.
 
 ## 12. HIR6 — Deferred inbound completion state machine
 
+> **Complete 2026-08-13.** The state contract below is implemented as written: one additive migration
+> adds `dispatch_token`, `dispatch_claimed_at`, `lease_expires_at`, `last_failed_at`, bounded
+> `last_error` and `failure_count` plus the lease index; the drain claims one row per short
+> transaction and dispatches outside it; every state move after the claim is conditional on still
+> owning the token, so a synchronous worker that finishes first is not regressed to `dispatched`.
+> `assertDeferredInboundEmailReconciled()` now admits only `processed` with `processed_at`, and names
+> the outstanding states in its refusal. `import:ingress drain` is the operator's idempotent retry,
+> and `status`/`drain` both report exact per-state counts and the oldest outstanding lease.
+>
+> Operational closeout evidence is **version 2** under a new artifact key
+> `operational-closeout-readiness-v2`: the deferred-inbound block carries exact per-state counts and
+> a digest over the processed rows, both compared against the outbox rather than taken on the
+> verifier's word, and the gate itself owns the completion rule so the closeout cannot drift into a
+> second definition of "finished". Version 1 documents are retained and cannot satisfy it.
+>
+> **The claim lease is derived from `ProcessInboundOosEmail::UniqueForSeconds`, not chosen
+> separately** (plan item 5), and a test pins that it is strictly longer. A lease that expired first
+> would let a drain reclaim a row whose job is still queued, dispatch a second one, and have
+> `ShouldBeUnique` drop it — leaving a claim with no job behind it.
+>
+> **The three superseded cases were rebuilt, not deleted.** They now run the queued job the way a
+> worker would; a new `runQueuedInboundJobs()` helper does it, and the class binds a local extractor
+> so the job's parse never reaches the network.
+
 **Review finding:** `dispatched` is accepted as reconciled even though the job may still be queued,
 running or later fail permanently.
 
@@ -957,8 +981,10 @@ Never replace a programmatic test with a one-off verification script.
       disposition materialisation on the approved host.
 - [ ] HIR5 v2 authenticates the independent verifier and recomputes every required artifact/restore
       digest; v1 cannot satisfy closeout.
-- [ ] HIR6 closeout requires all operation-scoped deferred email to be processed, with crash-safe
-      claim/retry and no ordinary inbox sweep.
+- [x] HIR6 closeout requires all operation-scoped deferred email to be processed, with crash-safe
+      claim/retry and no ordinary inbox sweep. *(2026-08-13. Operational closeout evidence version 2
+      under artifact key `operational-closeout-readiness-v2`. The real rehearsal email received
+      during a freeze remains HIR8's.)*
 - [ ] HIR7 has one durable owner per public destination, deterministic concurrency/fault coverage and
       no path-only cleanup.
 - [ ] Fresh full staging, different-PK apply, exact audit, complete no-op, restore, rollback, deferred

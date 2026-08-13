@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Models\ImportDeferredInboundEmail;
 use App\Models\ImportIngressLock;
+use App\Models\InboundEmail;
+use App\Services\Import\HistoricImportOperationalCloseoutEvidence;
 use App\Services\Import\HistoricImportTargetFingerprint;
+use App\Services\Import\ImportIngressGate;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
@@ -47,7 +51,7 @@ class VerifyHistoricImportOperationalCloseoutCommandTest extends TestCase
         $evidence = $this->evidence($operation->operation_id, $operation->target_fingerprint, $lock);
         $path = $this->writeJson($evidence);
         $this->paths[] = storage_path(
-            "app/private/historic-import/{$operation->operation_id}/closeout/operational-readiness.json.enc",
+            "app/private/historic-import/{$operation->operation_id}/closeout/operational-readiness-v2.json.enc",
         );
 
         $this->artisan('historic-import:verify-operational-closeout', [
@@ -57,7 +61,7 @@ class VerifyHistoricImportOperationalCloseoutCommandTest extends TestCase
 
         $this->assertDatabaseHas('historic_import_artifacts', [
             'historic_import_operation_id' => $operation->id,
-            'artifact_key' => 'operational-closeout-readiness',
+            'artifact_key' => 'operational-closeout-readiness-v2',
             'kind' => 'acceptance_report',
         ]);
         $this->assertDatabaseHas('historic_import_journal_entries', [
@@ -84,7 +88,127 @@ class VerifyHistoricImportOperationalCloseoutCommandTest extends TestCase
 
         $this->assertDatabaseMissing('historic_import_artifacts', [
             'historic_import_operation_id' => $operation->id,
-            'artifact_key' => 'operational-closeout-readiness',
+            'artifact_key' => 'operational-closeout-readiness-v2',
+        ]);
+    }
+
+    /**
+     * HIR6. The version 1 block asked the verifier to assert `pending = 0` and
+     * `failed = 0`, and the gate behind it treated a queue handoff as
+     * completion. So an operation could pass this with an order of service that
+     * arrived during the freeze still queued — and the claimed zeros went stale
+     * the moment its job failed and returned the row to `pending`.
+     */
+    #[Test]
+    public function a_deferred_email_that_is_only_dispatched_fails_the_operational_closeout(): void
+    {
+        $operation = $this->createHistoricImportOperation(app(HistoricImportTargetFingerprint::class)->hash());
+        $lock = $this->releasedLock($operation->operation_id);
+        $this->deferredInboundEmail($operation->operation_id, ImportDeferredInboundEmail::StateDispatched);
+        $evidence = $this->evidence($operation->operation_id, $operation->target_fingerprint, $lock);
+
+        $this->artisan('historic-import:verify-operational-closeout', [
+            'operation' => $operation->operation_id,
+            'evidence' => $this->writeJson($evidence),
+        ])
+            ->expectsOutputToContain('undrained deferred inbound email (dispatched=1)')
+            ->assertFailed();
+
+        $this->assertDatabaseMissing('historic_import_artifacts', [
+            'historic_import_operation_id' => $operation->id,
+            'artifact_key' => 'operational-closeout-readiness-v2',
+        ]);
+    }
+
+    #[Test]
+    public function a_processed_deferred_email_satisfies_the_operational_closeout(): void
+    {
+        $operation = $this->createHistoricImportOperation(app(HistoricImportTargetFingerprint::class)->hash());
+        $lock = $this->releasedLock($operation->operation_id);
+        $this->deferredInboundEmail($operation->operation_id, ImportDeferredInboundEmail::StateProcessed);
+        $evidence = $this->evidence($operation->operation_id, $operation->target_fingerprint, $lock);
+        $this->paths[] = storage_path(
+            "app/private/historic-import/{$operation->operation_id}/closeout/operational-readiness-v2.json.enc",
+        );
+
+        $this->artisan('historic-import:verify-operational-closeout', [
+            'operation' => $operation->operation_id,
+            'evidence' => $this->writeJson($evidence),
+        ])->assertSuccessful();
+    }
+
+    /** Counts are compared against the outbox, not taken on the verifier's word. */
+    #[Test]
+    public function state_counts_that_do_not_match_the_outbox_are_refused(): void
+    {
+        $operation = $this->createHistoricImportOperation(app(HistoricImportTargetFingerprint::class)->hash());
+        $lock = $this->releasedLock($operation->operation_id);
+        $this->deferredInboundEmail($operation->operation_id, ImportDeferredInboundEmail::StateProcessed);
+        $evidence = $this->evidence($operation->operation_id, $operation->target_fingerprint, $lock);
+        $evidence['deferred_inbound']['state_counts'][ImportDeferredInboundEmail::StateProcessed] = 7;
+
+        $this->artisan('historic-import:verify-operational-closeout', [
+            'operation' => $operation->operation_id,
+            'evidence' => $this->writeJson($this->sign($evidence)),
+        ])
+            ->expectsOutput('Operational closeout deferred-inbound state counts do not match the outbox.')
+            ->assertFailed();
+    }
+
+    /** And so is the membership: which emails finished, not how many. */
+    #[Test]
+    public function a_processed_membership_digest_that_names_other_rows_is_refused(): void
+    {
+        $operation = $this->createHistoricImportOperation(app(HistoricImportTargetFingerprint::class)->hash());
+        $lock = $this->releasedLock($operation->operation_id);
+        $this->deferredInboundEmail($operation->operation_id, ImportDeferredInboundEmail::StateProcessed);
+        $evidence = $this->evidence($operation->operation_id, $operation->target_fingerprint, $lock);
+        $evidence['deferred_inbound']['processed_membership_sha256'] = str_repeat('9', 64);
+
+        $this->artisan('historic-import:verify-operational-closeout', [
+            'operation' => $operation->operation_id,
+            'evidence' => $this->writeJson($this->sign($evidence)),
+        ])
+            ->expectsOutput('Operational closeout deferred-inbound evidence does not name the processed rows.')
+            ->assertFailed();
+    }
+
+    /**
+     * A version 1 document was signed against a gate that accepted a queue
+     * handoff as completion. It is retained, but it cannot satisfy the repaired
+     * closeout.
+     */
+    #[Test]
+    public function version_one_evidence_cannot_satisfy_the_repaired_closeout(): void
+    {
+        $operation = $this->createHistoricImportOperation(app(HistoricImportTargetFingerprint::class)->hash());
+        $lock = $this->releasedLock($operation->operation_id);
+        $evidence = $this->evidence($operation->operation_id, $operation->target_fingerprint, $lock);
+        $evidence['version'] = 1;
+        $evidence['deferred_inbound'] = [
+            'pending' => 0,
+            'failed' => 0,
+            'reconciled_at' => now()->toIso8601String(),
+        ];
+
+        $this->artisan('historic-import:verify-operational-closeout', [
+            'operation' => $operation->operation_id,
+            'evidence' => $this->writeJson($this->sign($evidence)),
+        ])
+            ->expectsOutput('Operational closeout evidence is not bound to this operation, target and release.')
+            ->assertFailed();
+    }
+
+    private function deferredInboundEmail(string $operationId, string $state): ImportDeferredInboundEmail
+    {
+        return ImportDeferredInboundEmail::query()->create([
+            'operation_id' => $operationId,
+            'inbound_email_id' => InboundEmail::factory()->create()->id,
+            'state' => $state,
+            'dispatch_attempts' => 1,
+            'deferred_at' => now()->subMinutes(5),
+            'dispatched_at' => now()->subMinutes(4),
+            'processed_at' => $state === ImportDeferredInboundEmail::StateProcessed ? now()->subMinute() : null,
         ]);
     }
 
@@ -111,7 +235,7 @@ class VerifyHistoricImportOperationalCloseoutCommandTest extends TestCase
         $passed = ['passed' => true, 'evidence_sha256' => str_repeat('2', 64)];
         $evidence = [
             'format' => 'crockenhill-historic-import-operational-closeout',
-            'version' => 1,
+            'version' => HistoricImportOperationalCloseoutEvidence::Version,
             'operation_id' => $operationId,
             'target_fingerprint' => $targetFingerprint,
             'release_identifier' => 'release-closeout-test',
@@ -129,9 +253,16 @@ class VerifyHistoricImportOperationalCloseoutCommandTest extends TestCase
                 'failed_jobs' => 0,
                 'timed_out_jobs' => 0,
             ],
+            /**
+             * HIR6: exact per-state counts and a digest over the processed rows
+             * themselves, rather than the verifier's word that pending and
+             * failed were both zero.
+             */
             'deferred_inbound' => [
-                'pending' => 0,
-                'failed' => 0,
+                'state_counts' => app(ImportIngressGate::class)->deferredInboundStateCounts($operationId),
+                'processed_membership_sha256' => CanonicalJson::hash(
+                    app(ImportIngressGate::class)->processedDeferredInboundMembership($operationId),
+                ),
                 'reconciled_at' => now()->toIso8601String(),
             ],
             'verified_by' => 'independent-verifier@example.test',

@@ -11,6 +11,7 @@ use App\Enums\HistoricImportItemExpectation;
 use App\Enums\HistoricImportOperationState;
 use App\Services\ChurchService\HistoricConvergenceLedger;
 use App\Services\Import\HistoricImportArtifactWriter;
+use App\Services\Import\HistoricImportOperationalCloseoutEvidence;
 use App\Services\Import\HistoricImportOperationCloseout;
 use App\Services\Import\HistoricImportTargetFingerprint;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -130,12 +131,12 @@ class HistoricImportOperationCloseoutTest extends TestCase
         );
         $writer->writeJson(
             operation: $operation,
-            artifactKey: 'operational-closeout-readiness',
+            artifactKey: 'operational-closeout-readiness-v2',
             kind: HistoricImportArtifactKind::AcceptanceReport,
-            relativePath: 'closeout/operational-readiness.json.enc',
+            relativePath: 'closeout/operational-readiness-v2.json.enc',
             payload: [
                 'format' => 'crockenhill-historic-import-operational-closeout',
-                'version' => 1,
+                'version' => HistoricImportOperationalCloseoutEvidence::Version,
                 'operation_id' => $operation->operation_id,
                 'target_fingerprint' => $operation->target_fingerprint,
                 'audit_report_sha256' => $binding['report_digest'],
@@ -144,7 +145,7 @@ class HistoricImportOperationCloseoutTest extends TestCase
         );
         $this->artifactPaths = [
             storage_path("app/private/historic-import/{$operation->operation_id}/recovery/rehearsal.json.enc"),
-            storage_path("app/private/historic-import/{$operation->operation_id}/closeout/operational-readiness.json.enc"),
+            storage_path("app/private/historic-import/{$operation->operation_id}/closeout/operational-readiness-v2.json.enc"),
         ];
         $ledger = app(HistoricConvergenceLedger::class);
         $ledger->append([

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Models\ImportDeferredInboundEmail;
 use App\Models\ImportIngressLock;
 use App\Services\Import\HorizonPauseAccounting;
 use App\Services\Import\ImportIngressGate;
@@ -20,12 +21,12 @@ use Throwable;
 class ImportIngressCommand extends Command
 {
     protected $signature = 'import:ingress
-        {action : block, release or status}
+        {action : block, release, drain or status}
         {--operation= : The operation id this window runs under}
         {--reason= : Why ingress is blocked, recorded for the closeout report}
         {--by= : The operator blocking ingress}';
 
-    protected $description = 'Block, release or report the import ingress lock for a production import window';
+    protected $description = 'Block, release, drain or report the import ingress lock for a production import window';
 
     public function __construct(
         private readonly HorizonPauseAccounting $pauseAccounting,
@@ -40,6 +41,7 @@ class ImportIngressCommand extends Command
         return match ($action) {
             'block' => $this->block($gate),
             'release' => $this->release($gate),
+            'drain' => $this->drain($gate),
             'status' => $this->status($gate),
             default => $this->invalidAction($action),
         };
@@ -148,6 +150,69 @@ class ImportIngressCommand extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * HIR6. A released window can retry its own outbox without reopening
+     * anything: `drain` re-claims whatever is claimable — rows still pending,
+     * and rows a dead drain abandoned mid-claim — and never touches the ordinary
+     * inbox. Idempotent, so running it twice is not a second import.
+     */
+    private function drain(ImportIngressGate $gate): int
+    {
+        $operationId = (string) $this->option('operation');
+
+        if ($operationId === '') {
+            $this->error('Draining the deferred outbox requires --operation, so one window cannot drain another.');
+
+            return self::FAILURE;
+        }
+
+        try {
+            $dispatched = $gate->dispatchDeferredInboundEmail($operationId);
+        } catch (Throwable $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $this->info("Queued {$dispatched} deferred order-of-service email(s) for operation {$operationId}.");
+        $this->reportDeferredOutbox($gate, $operationId);
+        $this->line('Closeout stays blocked until every row is processed; a queued job is not a finished one.');
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Exact per-state counts, plus the oldest lease still outstanding — what an
+     * operator needs to tell "still working" from "stuck".
+     */
+    private function reportDeferredOutbox(ImportIngressGate $gate, string $operationId): void
+    {
+        $counts = $gate->deferredInboundStateCounts($operationId);
+
+        if (array_sum($counts) === 0) {
+            return;
+        }
+
+        $this->newLine();
+        $this->table(
+            ['State', 'Rows'],
+            array_map(
+                static fn (string $state, int $count): array => [$state, (string) $count],
+                array_keys($counts),
+                $counts,
+            ),
+        );
+
+        $oldestLease = ImportDeferredInboundEmail::query()
+            ->where('operation_id', $operationId)
+            ->where('state', ImportDeferredInboundEmail::StateDispatching)
+            ->min('lease_expires_at');
+
+        if ($oldestLease !== null) {
+            $this->line("Oldest outstanding claim lease expires: {$oldestLease}");
+        }
+    }
+
     private function status(ImportIngressGate $gate): int
     {
         $lock = $gate->active();
@@ -161,6 +226,7 @@ class ImportIngressCommand extends Command
         $this->warn("Import ingress is blocked by operation {$lock->operation_id}.");
         $this->line("Reason: {$lock->reason}");
         $this->line("Blocked for: {$gate->blockedMinutes()} minute(s)");
+        $this->reportDeferredOutbox($gate, $lock->operation_id);
 
         $accounting = $lock->queue_pause_accounting ?? [];
 

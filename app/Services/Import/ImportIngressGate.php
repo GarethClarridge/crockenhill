@@ -9,8 +9,11 @@ use App\Models\ImportDeferredInboundEmail;
 use App\Models\ImportIngressLock;
 use App\Models\InboundEmail;
 use Illuminate\Contracts\Bus\Dispatcher;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 /**
  * §15.2. "Ingress blocked" means new media-processing and archive-import
@@ -55,7 +58,12 @@ class ImportIngressGate
 
         return ImportDeferredInboundEmail::query()->firstOrCreate(
             ['operation_id' => $lock->operation_id, 'inbound_email_id' => $email->id],
-            ['state' => 'pending', 'dispatch_attempts' => 0, 'deferred_at' => now()],
+            [
+                'state' => ImportDeferredInboundEmail::StatePending,
+                'dispatch_attempts' => 0,
+                'failure_count' => 0,
+                'deferred_at' => now(),
+            ],
         );
     }
 
@@ -135,47 +143,221 @@ class ImportIngressGate
      * rows still exist — §15.2 wants the inbound path whole, so the deferral has
      * to end by itself rather than waiting for someone to notice.
      *
-     * Pending is the state the webhook leaves a deferred email in, and the state
-     * a redelivered failure is reset to, so it is the correct thing to sweep.
+     * Each row is claimed in its own short transaction and dispatched outside
+     * it, so no database transaction is ever open across a queue handoff. The
+     * claim is what makes a crash recoverable: a row left in `dispatching` with
+     * an expired lease is reclaimable, and one still inside its lease is not, so
+     * a second drainer never creates a second job for the same email.
      *
-     * @return int the number of emails handed back to the queue
+     * Idempotent by construction — a repeated drain finds nothing claimable.
+     *
+     * @return int the number of emails handed to the queue by this drain
      */
     public function dispatchDeferredInboundEmail(string $operationId): int
     {
         $dispatched = 0;
 
-        ImportDeferredInboundEmail::query()
-            ->with('inboundEmail')
-            ->where('operation_id', $operationId)
-            ->where('state', 'pending')
-            ->orderBy('id')
-            ->each(function (ImportDeferredInboundEmail $deferred) use (&$dispatched): void {
-                $email = $deferred->inboundEmail;
+        while (($claimed = $this->claimNextDeferredInboundEmail($operationId)) !== null) {
+            [$deferred, $token] = $claimed;
+            $email = $deferred->inboundEmail;
 
-                if (! $email instanceof InboundEmail) {
-                    throw new RuntimeException('Deferred inbound email lost its durable source row.');
-                }
+            if (! $email instanceof InboundEmail) {
+                throw new RuntimeException('Deferred inbound email lost its durable source row.');
+            }
 
+            try {
                 $this->dispatcher->dispatch(new ProcessInboundOosEmail($email, $deferred->id));
-                $deferred->forceFill([
-                    'state' => 'dispatched',
-                    'dispatch_attempts' => $deferred->dispatch_attempts + 1,
+            } catch (Throwable $exception) {
+                $this->releaseClaim($deferred->id, $token, $exception);
+
+                throw $exception;
+            }
+
+            /**
+             * Conditional on still owning the claim. A synchronous dispatcher
+             * runs the job inside `dispatch()`, so by the time this executes the
+             * row may already be `processed` — in which case this affects zero
+             * rows rather than dragging a finished email back to `dispatched`.
+             */
+            ImportDeferredInboundEmail::query()
+                ->whereKey($deferred->id)
+                ->where('dispatch_token', $token)
+                ->where('state', ImportDeferredInboundEmail::StateDispatching)
+                ->update([
+                    'state' => ImportDeferredInboundEmail::StateDispatched,
                     'dispatched_at' => now(),
-                ])->save();
-                $dispatched++;
-            });
+                    'updated_at' => now(),
+                ]);
+
+            $dispatched++;
+        }
 
         return $dispatched;
     }
 
+    /**
+     * Take ownership of one claimable row, or return null when there is none.
+     *
+     * Claimable means pending, or `dispatching` whose lease has expired — the
+     * durable trace of a drain that died between claiming and dispatching. The
+     * lease outlives the job's own uniqueness window, so a row can never become
+     * reclaimable while its job could still run.
+     *
+     * @return array{ImportDeferredInboundEmail, string}|null
+     */
+    private function claimNextDeferredInboundEmail(string $operationId): ?array
+    {
+        return DB::transaction(function () use ($operationId): ?array {
+            $deferred = ImportDeferredInboundEmail::query()
+                ->with('inboundEmail')
+                ->where('operation_id', $operationId)
+                ->where(function (Builder $query): void {
+                    $query->where('state', ImportDeferredInboundEmail::StatePending)
+                        ->orWhere(function (Builder $stale): void {
+                            $stale->where('state', ImportDeferredInboundEmail::StateDispatching)
+                                ->where('lease_expires_at', '<', now());
+                        });
+                })
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $deferred instanceof ImportDeferredInboundEmail) {
+                return null;
+            }
+
+            $token = (string) Str::uuid();
+            $deferred->forceFill([
+                'state' => ImportDeferredInboundEmail::StateDispatching,
+                'dispatch_token' => $token,
+                'dispatch_claimed_at' => now(),
+                'lease_expires_at' => now()->addSeconds(self::leaseSeconds()),
+                'dispatch_attempts' => $deferred->dispatch_attempts + 1,
+            ])->save();
+
+            return [$deferred, $token];
+        });
+    }
+
+    /**
+     * Hand a claim this drain could not dispatch back to `pending`, with the
+     * reason recorded durably so the operator sees a failed drain rather than a
+     * row that quietly stopped moving.
+     */
+    private function releaseClaim(int $deferredId, string $token, Throwable $exception): void
+    {
+        ImportDeferredInboundEmail::query()
+            ->whereKey($deferredId)
+            ->where('dispatch_token', $token)
+            ->where('state', ImportDeferredInboundEmail::StateDispatching)
+            ->update([
+                'state' => ImportDeferredInboundEmail::StatePending,
+                'dispatch_token' => null,
+                'dispatch_claimed_at' => null,
+                'lease_expires_at' => null,
+                'last_failed_at' => now(),
+                'last_error' => Str::limit($exception->getMessage(), 480),
+                'failure_count' => DB::raw('failure_count + 1'),
+                'updated_at' => now(),
+            ]);
+    }
+
+    /**
+     * How long a claim owns its row.
+     *
+     * Derived from the job's own uniqueness window rather than chosen
+     * separately: if the lease expired first, a drain could reclaim a row whose
+     * job is still queued and dispatch a second one for the same email, which
+     * `ShouldBeUnique` would then silently drop — leaving the row claimed by a
+     * drain that no longer has a job behind it.
+     */
+    public static function leaseSeconds(): int
+    {
+        return ProcessInboundOosEmail::UniqueForSeconds + 3_600;
+    }
+
+    /**
+     * Exact per-state counts for this operation, every state always present.
+     *
+     * @return array<string, int>
+     */
+    public function deferredInboundStateCounts(string $operationId): array
+    {
+        $counts = array_fill_keys(ImportDeferredInboundEmail::States, 0);
+
+        $observed = ImportDeferredInboundEmail::query()
+            ->where('operation_id', $operationId)
+            ->selectRaw('state, count(*) as total')
+            ->groupBy('state')
+            ->pluck('total', 'state');
+
+        foreach ($observed as $state => $total) {
+            $counts[(string) $state] = (int) $total;
+        }
+
+        return $counts;
+    }
+
+    /**
+     * The processed rows themselves, as membership rather than a claimed count.
+     *
+     * @return list<array{inbound_email_id: int, processed_at: string}>
+     */
+    public function processedDeferredInboundMembership(string $operationId): array
+    {
+        $membership = [];
+
+        $rows = ImportDeferredInboundEmail::query()
+            ->where('operation_id', $operationId)
+            ->where('state', ImportDeferredInboundEmail::StateProcessed)
+            ->whereNotNull('processed_at')
+            ->orderBy('inbound_email_id')
+            ->get();
+
+        foreach ($rows as $deferred) {
+            $membership[] = [
+                'inbound_email_id' => $deferred->inbound_email_id,
+                'processed_at' => $deferred->processed_at?->toIso8601String() ?? '',
+            ];
+        }
+
+        return $membership;
+    }
+
+    /**
+     * HIR6: only `processed` with a `processed_at` is terminal.
+     *
+     * `dispatched` used to satisfy this, but it records a queue handoff and
+     * nothing more — the same durable state as a job still queued, still
+     * executing, or about to fail permanently and return the row to `pending`.
+     * An operation that closed out on it could have left an order of service
+     * that arrived during the freeze unimported.
+     */
     public function assertDeferredInboundEmailReconciled(string $operationId): void
     {
-        if (ImportDeferredInboundEmail::query()
+        $unfinished = ImportDeferredInboundEmail::query()
             ->where('operation_id', $operationId)
-            ->whereNotIn('state', ['dispatched', 'processed'])
-            ->exists()) {
-            throw new RuntimeException('Import operation still has undrained deferred inbound email.');
+            ->where(function (Builder $query): void {
+                $query->where('state', '!=', ImportDeferredInboundEmail::StateProcessed)
+                    ->orWhereNull('processed_at');
+            })
+            ->get();
+
+        if ($unfinished->isEmpty()) {
+            return;
         }
+
+        $states = $unfinished
+            ->countBy(fn (ImportDeferredInboundEmail $deferred): string => $deferred->state)
+            ->map(fn (int $count, string $state): string => "{$state}={$count}")
+            ->values()
+            ->implode(', ');
+
+        throw new RuntimeException(
+            "Import operation still has undrained deferred inbound email ({$states}). "
+            .'Only a processed row with a processed_at is finished; drain the outbox with '
+            .'`import:ingress drain` and let its jobs run.'
+        );
     }
 
     /**
