@@ -20,6 +20,14 @@
 > be folded into those owners; this file is archived when all packages are incorporated and no
 > separate executable sequence remains.
 >
+> **Fold-back status (2026-08-13): HIR0–HIR7 are folded back; this file is not yet archivable.**
+> The package ledger with commits and covering tests, the §14 invalidation ledger mapped onto real
+> evidence, and the replacement staging measurement are recorded in the final-readiness plan's
+> `2026-08-13 — HIR0–HIR7 landed` entry. The gates those packages reopen — G1, G2, G3, G4, G5, G7,
+> G8 and G9 — are recorded in the readiness-remediation plan under *Gates reopened by the historic
+> import safety remediation*. What is still outstanding here is HIR8's own rehearsal sequence, which
+> is why the file stays live: **step 3 is done, steps 1, 2, 4 and 6–11 are not.**
+>
 > **Human authority required:** the maintainer/operator must supply the production resource anchors,
 > approve independent evidence-key custody, confirm the source-filesystem support envelope, and
 > explicitly permit the narrow safety work in deletion-scheduled one-shots. Production mount,
@@ -1036,6 +1044,11 @@ Before rerunning, record each invalidation explicitly:
    two observed independent protected copies. Repeat observation before consumption.
 3. Re-run archive parsing/staging from a clean database under HIR2. Reconcile full/partial/extra/
    supersession outcomes and produce new exact reports; do not reuse archive-v11 result hashes.
+   **Done 2026-08-13 for the Email corpus** — `--fresh-parse`, report
+   `storage/scratch/hir8-step3-import-20260813.json`, SHA-256 `27b0614a…a452a`, dispositions
+   106/13/415, per-entry `parse_cache` binding present on all 534 entries. **Not yet complete:** the
+   F1 adjudicated membership analysis was not recomputed and the database was subsequently destroyed
+   by a killed combined restage, so it must be redone against a reprovisioned database.
 4. Re-export affected historic media under the HIR3 output contract. Run Scripture enrichment before
    the window, settle every absence explicitly and prove destination preflight has zero missing keys.
 5. Regenerate Bundle A/B, source/result manifests, target/runtime fingerprints, plan hashes and the

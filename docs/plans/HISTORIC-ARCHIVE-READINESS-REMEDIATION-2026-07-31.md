@@ -2563,15 +2563,71 @@ mode writes `InboundEmail` rows and parse caches; what makes it staging rather t
 it creates no canonical service and releases nothing to the review inbox. That narrower boundary is
 now the one the plan states, and a test pins it.
 
+#### Gates reopened by the historic import safety remediation (2026-08-13)
+
+A review of commits `ada4b0483e`..`ac1468b472`
+(`docs/reviews/historic-import-commit-review-2026-08-12.md`) found eight defects, three High, and
+raised the [safety remediation addendum](HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md). Its code
+packages **HIR0–HIR7 are all committed** as of 2026-08-13; HIR8, the rehearsal that converts them
+into gate evidence, is not. The full package-by-package ledger, with commits and covering tests, is
+recorded once in the
+[final-readiness plan's 2026-08-13 entry](HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md#2026-08-13--hir0hir7-landed-pre-hir-evidence-invalidated-and-partly-remeasured)
+and is deliberately not duplicated here.
+
+What matters for this plan is that three of those packages change **derived output or accepted
+evidence**, which reopens gates that had previously been recorded as closed above. This is not
+breakage — the gates' code is in better shape than when they closed. It is that the evidence behind
+the closure was produced by superseded behaviour.
+
+| Gate | Reopened by | Why the earlier evidence no longer certifies it | Close it by |
+|---|---|---|---|
+| G1 | HIR3 | `HistoricNormalOutputContract` is now version 5 and `scripture_passage_outcome` is a required field. Any Bundle A export or canary result produced under version 4 states nothing about settlement, and the destination previously read that silence as approval. The metadata serializer also dropped the outcomes entirely, so exported evidence was lossy in a way no test caught. | Re-export the affected historic media under the v5 contract, run Scripture enrichment before the window, and prove destination preflight has zero missing keys |
+| G2 | HIR2 | The 2026-08-12 full staging run reused parses resolved under the old cache contract, which could not be invalidated by a re-curation. The replacement 2026-08-13 run under `--fresh-parse` produced different dispositions (106/13/415 against 109/18/407), so the source and projection populations G2 certifies against have moved. | **Partly discharged**: the staging run is redone and its report retained. Still needed — recompute the F1 adjudicated membership analysis, which was destroyed with the database it ran against |
+| G3 | HIR3 | The different-PK Bundle A round trip asserted logical hash equality over a version 4 payload. The canary fixture in `tests/Support/HistoricNormalOutputCanary.php` gained the outcome field, so the previously asserted hashes are not the hashes the current contract produces. | Re-run both round trips on the release candidate and record the new hashes |
+| G4 | HIR3 | The binding no-write preflight is the exact check HIR3 found could pass on an unsettled outcome — a null passage with no outcome returned the same answer as an approved terminal absence. A green preflight recorded before `f4341d4d4` proves nothing about settlement. | Re-run the whole-operation preflight under the v5 contract |
+| G7 / G8 | HIR4, HIR5 | Custody and recovery artifacts are both version 2 and version 1 **cannot** satisfy the repaired gates. HIR4 found two writable folders on one disk accepted as independent copies; HIR5 found one backup object presented as both the on-host and off-host restore. Any prior acceptance rested on exactly those defects. | Re-observe source custody on the acquisition host, and regenerate signed recovery evidence verified only from mapped retained artifacts |
+| G5 / G9 | HIR6, HIR7 | Closeout accepted `dispatched` as terminal, so a rehearsal could report exact closeout with an unimported order of service. Release had no durable destination ownership, so the concurrency and rollback exercises never tested the case that actually loses data. | Exercise the ingress freeze with a real signed webhook, and run two interleaved release attempts plus the signed rehearsal release and rollback |
+
+**G8's production prohibition is unchanged and still production-scoped.** Nothing here re-blocks
+local staging.
+
+**One further correction to the record above.** The `crockenhill_rehearsal` database referenced by
+the closed rows is gone. As checked on 2026-08-13 it holds 440 services, 537 source records
+(email = 110, openlp = 427) and 278 inbound emails with 200 still `pending` — the residue of a
+combined restage killed part way through the Email corpus, all timestamped within 40 minutes on
+2026-08-13. It is not the step-3 database and not any completed run. Reprovision before staging and
+do not read counts out of it.
+
 ### Next task to pick up
+
+**Updated 2026-08-13 after HIR0–HIR7 landed.** The drive-free code queue is empty: every scheduled
+slice in this plan, and every code package in the safety addendum, is committed. What remains is
+evidence, and it splits into one item that needs nothing and a set that needs infrastructure.
+
+**Drive-free and unblocked — do this first:** reprovision `crockenhill_rehearsal` (it is contaminated,
+see the correction above), restage the Email corpus under HIR2, and **recompute the F1 adjudicated
+membership analysis** against the resulting writes. That analysis is the one piece of the superseded
+2026-08-12 evidence the 2026-08-13 re-run did not replace, and G2 cannot be claimed without it. Note
+that three consecutive full-corpus Email runs have been killed by execution limits rather than by any
+defect; budget for a chunked or detached execution strategy rather than a single foreground command.
+
+**Also drive-free, and the largest remaining item by effort:** 415 of 534 Email sources are
+`held_for_review`. Adjudicating them is neither code- nor drive-blocked, nothing in HIR touches it,
+and no closeout can complete while they are unsettled.
 
 **Operator work behind the approval gate:** dispatch `production-audit.yml` for
 `service-evidence-coverage` and decide §12.4 on the result. The plan's two branches are written; the
 counts pick one.
 
-**In parallel, needing the CBC drive and an operator:** §13.5 rehearsal step 1 (protect and hash the
-source drives) and the OpenLP half of step 2 (populate the v2 curation fields). PR18/19 remain
-rehearsal contingencies and PR20 is gated on G9.
+**Needing the CBC drive and an operator:** §13.5 rehearsal step 1 (protect and hash the source
+drives) and the OpenLP half of step 2 (populate the v2 curation fields). PR18/19 remain rehearsal
+contingencies and PR20 is gated on G9. Note that the OpenLP *archives* turned out to be local at
+`storage/scratch/ServiceRecords` and have been staged and validated; it is the v2 curation field
+population and the video manifest that still need the drives.
+
+**Needing infrastructure this repository does not have:** HIR8 §14 steps 1, 2, 4 and 6–11 — a
+production-shaped deploy, an acquisition host, DO Spaces scratch keys, disposable restore targets and
+a real signed webhook during an ingress freeze.
 
 **Resolved 2026-08-06 (was: does the G8 prohibition block local evidence staging?).** It does not.
 The prohibition is scoped to production, the status header now says so, and PR24's
@@ -2597,10 +2653,13 @@ The corrected drive-free path, updated for the expanded Email roots, is:
    `historic-import:provision-rehearsal-database` builds and certifies it, and
    `UnevidencedCanonicalItemGuard` was shown passing against the result for all 521 curated
    identities while still refusing against the working database (231 of 521 contaminated — the F2
-   historical re-measurement against `oos-curated-2026-08-11`). **Before another full Email run,
-   close F63, then perform fresh full archive-v11 staging against `oos-curated-2026-08-12`** with
-   `DB_DATABASE` pointed at the provisioned clean database. Do not apply the hymn-usage lane until
-   F60-F62 are closed.
+   historical re-measurement against `oos-curated-2026-08-11`). ~~**Before another full Email run,
+   close F63, then perform fresh full archive-v11 staging against `oos-curated-2026-08-12`**~~
+   **Done 2026-08-13:** F63 closed 2026-08-12, and fresh `--fresh-parse` staging ran under HIR2 —
+   report `storage/scratch/hir8-step3-import-20260813.json`, SHA-256 `27b0614a…a452a`. F61/F62 closed
+   2026-08-13 in `789aafda9`, so the hymn-usage lane is no longer blocked by them; **F60 still is**,
+   and it needs the converged corpus. Any further run must reprovision first — the rehearsal database
+   is contaminated by a killed restage.
 
 Step 4 depends on 3 only in the sense that the census it produces cannot be *gated* until F1 is
 settled; the staging and projection themselves can proceed as soon as the replacement manifest and

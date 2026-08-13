@@ -1930,6 +1930,14 @@ review from the sample itself.
 
 ### 2026-08-12 — archive-v11 clean-database full staging run
 
+> **Superseded 2026-08-13 by HIR2. Do not cite the populations below as current.** This run predates
+> `271d68604` by a day and reused cached parses resolved under the pre-HIR2 contract, which the
+> safety addendum's invalidation ledger classifies as unusable. Pre-HIR2 cache metadata is version 0
+> — retained, never reusable. The replacement measurement, its differences from this one, and the
+> parts of this entry that are **not** yet replaced are recorded under
+> [2026-08-13 — HIR0–HIR7 landed](#2026-08-13--hir0hir7-landed-pre-hir-evidence-invalidated-and-partly-remeasured)
+> below. The report file and its hash remain valid as an archived artifact of what this run did.
+
 With explicit operator authorisation for the configured external extractor, the complete approved
 Email corpus was staged into a freshly provisioned and certified `crockenhill_rehearsal` database.
 The process-scoped `DB_DATABASE` override was resolved by Laravel before the run; the working
@@ -2101,6 +2109,115 @@ its curated identity.
 the balanced calibration is rechecked if behavior changes its cohort result, then a fresh full
 archive-v11 staging run measures the authoritative review/evidence populations.
 
+### 2026-08-13 — HIR0–HIR7 landed; pre-HIR evidence invalidated and partly remeasured
+
+The [safety remediation addendum](HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md) was raised
+because a review of commits `ada4b0483e`..`ac1468b472` found eight defects, three High. Its code
+packages **HIR0–HIR7 are all committed** as of 2026-08-13 13:20. HIR8 — the production-shaped
+rehearsal that turns those fixes into gate evidence — is not, and **production remains NO-GO**.
+
+Landing code does not close anything in this plan. The rows below record what shipped so that the
+gates can be re-evaluated by their owners; each gate stays open until all of its other pre-existing
+requirements are met too.
+
+| Package | Commit | What it closed | Verified by |
+|---|---|---|---|
+| HIR0 | `d8a171af1` | Change-control baseline. Eight non-vacuous red tests, one per review finding, each proven to fail for its own finding's reason and tagged `#[Group('hir-red')]`. No production code. Records HIR-D1/D2/D3. | `HistoricImportReleaseCandidateBaselineTest` plus the seven per-finding red tests; `phpunit.xml` group |
+| HIR1 | `8843cd245` | Finding 4. The guard compared a whole target fingerprint mixing identity with release id, migration batch/count and pipeline settings, so drift disarmed it. `HistoricImportResourceIdentity` isolates the stable half; the guard now compares the production **database** anchor alone and fails closed on a malformed anchor, one digest in both variables, a lingering `…_TARGET_FINGERPRINT`, or a driver with no stable server identity. | `HistoricImportProductionGuardTest`, `PrepareHistoricImportOperationCommandTest`, `RehearsalDatabaseProvisionerTest` |
+| HIR2 | `271d68604` | Finding 5. The parse cache keyed a *resolved* parse on bytes/parser/date, none of which carry the curation plan, so a re-curation could not invalidate it — full→partial being the sharpest case. `OosArchiveParseCacheBinding` makes raw extraction cacheable and re-applies identity, scope and supersession from the current entry on every run. Pre-HIR2 metadata is version 0: retained, never reusable. | `ImportOosArchiveCommandTest`, `InboundEmailImportServiceTest` |
+| HIR3 | `f4341d4d4` | Finding 6. A null `scripture_passage` with a missing outcome returned the same answer as an approved terminal absence, so an unsettled Bundle A passed the zero-write preflight. `keyFor()` is now an exact exclusive union; `scripture_passage_outcome` is **required** in `HistoricNormalOutputContract` (version 5). Two adjacent defects fixed: the metadata serializer dropped the outcomes entirely, and the inventory read raw model metadata where the destination stores the serialized view. | `HistoricScripturePassageRequirementsTest`, `EnrichHistoricScripturePassagesCommandTest`, `HistoricProcessingResultRoundTripTest` |
+| HIR4 | `4ea6749b3` | Finding 2 (High). The acquisition gate accepted two writable sibling folders on one disk as two independent protected copies; its only check was that `realpath()` differed. Independence is now the failure domain — `sha256(mount source \| device)` — and protection is a real write probe, not a mount option. Custody artifacts are version 2; version 1 cannot satisfy the repaired gate. | `VerifyHistoricSourceAcquisitionCommandTest` (Darwin + Linux inspectors, `FakeHistoricSourceFilesystemInspector`) |
+| HIR5 | `ed9da7df7` | Finding 3 (High). Placeholder digests and booleans in an unsigned JSON document satisfied the mandatory recovery gate, and one backup object was presented as both the on-host and off-host restore. Version 2 is signed and verified **before any path is opened**; `HistoricImportRecoveryArtifactResolver` recomputes size and SHA-256 and refuses two artifact ids resolving to one inode. Per HIR-D3 the signature reuses the approval key and **claims no verifier independence**. | `VerifyHistoricImportRecoveryCommandTest`, `HistoricImportRowManifestTest`, `BuildHistoricImportRowManifestCommandTest` |
+| HIR6 | `3379e8f74` | Finding 7. `dispatched` records a queue handoff, not an outcome, but closeout accepted it as terminal — so an operation could complete exact closeout while an order of service that arrived during the freeze had not been imported. The contract is now pending → dispatching → dispatched → **processed**, with only `processed` plus a non-null `processed_at` terminal. One additive migration; no data repair in schema. | `ImportIngressGateTest`, `VerifyHistoricImportOperationalCloseoutCommandTest`, `HistoricImportOperationCloseoutTest` |
+| HIR7 | `92c334bc7` | Finding 1 (High). `copyVerified()` decided ownership with `exists()` then `writeStream()` and compensated from a process-local list, so two attempts could both write and the loser's rollback could delete the winner's published asset. A claim now exists before any byte moves: `destination_identity` is `sha256(disk\|path)` with **global** uniqueness. Writes go through `HistoricReleaseObjectStore` — `fopen($path,'x')` locally, raw S3 `IfNoneMatch: '*'` on Spaces, never the Storage facade. | `HistoricSermonReleaseOwnershipTest`, `HistoricReleaseDestinationGuardTest`, `HistoricSermonReleaseBatchTest` |
+
+#### What these packages invalidate in this plan
+
+Per the addendum's §14 invalidation ledger, mapped onto this plan's evidence:
+
+| Package | Invalidates here | Status |
+|---|---|---|
+| HIR1 | Any operation/approval prepared on the old fingerprint composition; G8 config proof | Open — no new operation prepared |
+| HIR2 | The 2026-08-12 archive-v11 clean-database full staging run, and any G2 source/projection evidence derived from it | **Remeasured 2026-08-13** (below), partially |
+| HIR3 | G1 output contract at version 5; affected media re-export and Bundle A; G4 preflight | Open — blocked, needs the mounted media source |
+| HIR4 | Source acquisition acceptance and every source/inventory hash; v1 custody artifacts are ineligible | Open — needs the acquisition host and drive |
+| HIR5 | G7/G8 recovery acceptance; all v1 recovery evidence is ineligible | Open — needs disposable restore targets |
+| HIR6 | The ingress/deferred exercise and exact closeout evidence | Open — needs a real signed webhook during a freeze |
+| HIR7 | Release dry run, concurrency and rollback exercises; signed release authority must be regenerated | Open — needs Spaces scratch keys |
+
+Only the HIR2 row has been discharged, and only in part.
+
+#### 2026-08-13 — replacement clean-database full staging run (HIR8 §14 step 3)
+
+Ran under the HIR2 contract against a freshly provisioned and certified `crockenhill_rehearsal`,
+with `--fresh-parse`, explicitly not reusing archive-v11 result hashes. Report:
+`storage/scratch/hir8-step3-import-20260813.json`; SHA-256
+`27b0614aae6234930f97b9230a1404c8ee754052fee554d380aea328e14a452a`.
+
+The report proves its own provenance rather than asserting it: `parse_evidence.fresh_parse: true`,
+`cache_policy: "raw-extraction-bypassed; curation always re-applied"`, `cache_version: 1`, and every
+one of the 534 entries carries a `parse_cache` block naming its `raw_cache_key_hash`,
+`raw_result_hash`, `entry_authority_hash`, `curation_plan_hash` and `resolved_result_hash`. That
+per-entry binding is the auditable half of HIR2 and did not exist in the superseded run.
+
+Authority unchanged: batch `oos-curated-2026-08-12`, manifest `474d32c4…d8451`, plan
+`6795f149…16cda`, 534/535 included, zero adjudicated identity disagreements.
+
+The re-parse produced materially different numbers, which is why reusing the old measurement would
+have been wrong:
+
+| Measure | 2026-08-12 (superseded) | 2026-08-13 (current) |
+|---|---|---|
+| Dispositions | 109 created / 18 evidence_retained / 407 held_for_review | **106 / 13 / 415** |
+| Report date accuracy | 525/534 (98.3%) | **522/534 (97.75%)** |
+| Morning recall | 415/419 (99.1%) | **417/419 (99.52%)** |
+| Evening recall | 39/40 (97.5%) | **39/40 (97.5%)** |
+| Raw auto-import precision | 442/573 | **443/572** |
+
+As before, the raw auto-import precision treats every additional service as false and is **not** the
+adjudicated F1 precision. Evening precision is 0.2254 against 134 false positives, consistent with
+the same `service_beyond_manifest` accounting the superseded entry described.
+
+**What this run does not replace.** The superseded entry also carried an adjudicated F1 membership
+analysis over the staged writes — 155 retained plan identities, 122 occupying a manifest-named slot
+and 33 explained by `service_beyond_manifest`, zero wrong-date and zero unexplained. That analysis
+was computed against a live database, and **the database this run produced no longer exists** (see
+below). The F1 adjudication therefore has to be recomputed, and until it is, no G2 claim may rest on
+either entry. F1 remains unproven against post-HIR2 writes.
+
+#### The rehearsal database is currently an invalid evidence base
+
+Checked directly on 2026-08-13: `crockenhill_rehearsal` holds 440 `church_services`, 537
+`church_service_source_records` (email = 110, openlp = 427) and 278 `inbound_emails`, of which 200
+are still `pending` and only 78 `processed`. Every row is timestamped 19:14–19:52 on 2026-08-13.
+
+This is **not** the step-3 database, and not any completed run: it is the residue of a later combined
+Email + OpenLP restage that was killed roughly half way through the 534-entry Email corpus. Three
+separate full-corpus Email attempts have now been terminated by execution limits rather than by any
+defect in the importer. Treat the database as contaminated, reprovision with
+`historic-import:provision-rehearsal-database` before any further staging, and do not read counts out
+of it as evidence for anything. The step-3 evidence survives only as the report artifact and its hash.
+
+#### OpenLP staging and the parser fix
+
+The OpenLP corpus is local after all — `storage/scratch/ServiceRecords`, not the CBC drive — and a
+curation manifest over it validates against the real importer's dry run. A 427-archive staging run on
+2026-08-13 processed all 427 with zero failures and flagged **58** for review. `e84e1e6b1` then fixed
+the cause of 57 of them: `OpenLpServiceParser::parse()` treated *any* service disagreement with the
+embedded `.osj` name as a mismatch, including OpenLP's auto-generated `Service YYYY-MM-DD HH-MM.osj`
+names, which never encode AM/PM and always resolve `slot_known: false`. A slot-unknown embedded name
+now takes a smaller "slot not detected" penalty (evidence of absence) instead of the full mismatch
+penalty (evidence of contradiction); date disagreements are untouched.
+
+Re-run after the fix: 427 processed, 0 failures, **5** flagged. All five were checked individually —
+four are the genuine AM/PM contradictions the curation manifest had already identified by hash
+comparison, and one is a genuine unresolved *date* disagreement the manifest records as such. None is
+the bug. **The 58 figure is superseded; cite 5.**
+
+This does not discharge anything on the OpenLP side of G1: populating the v2 curation fields and the
+video manifest still need the drives, and no combined Email + OpenLP + video convergence has ever
+been staged on current code.
+
 ## 5. Decisions required from the maintainer or church
 
 **All rows are now decided.** The 2026-08-11 evidence-log entry above records each decision, the
@@ -2138,7 +2255,16 @@ implementation and its rehearsal, production or operator evidence.
 This is the final checklist for the investigation. No single person may waive a failed technical
 invariant during the production window.
 
-- [ ] F1 decided, PR26 implemented, and G2 certified against all declared source kinds.
+> **Safety-remediation status (2026-08-13).** HIR0–HIR7 are committed; HIR8 is not. Several items
+> below now have their code half done and their evidence half outstanding — notably F36 (HIR4
+> custody v2), F45 (HIR5 recovery v2 and HIR7 conditional object creation), F52/F57 (HIR6 closeout)
+> and F59 (HIR3 settled Scripture outcomes). **None of them may be ticked on landed code.** Each
+> needs evidence produced on the exact release candidate under HIR8, and every artifact predating its
+> package is ineligible: custody and recovery version 1, and any parse resolved before HIR2.
+
+- [ ] F1 decided, PR26 implemented, and G2 certified against all declared source kinds. The F1
+      adjudication must be recomputed against post-HIR2 writes; the 2026-08-12 analysis is superseded
+      and the database it was computed on no longer exists.
 - [ ] F30 manifest-authorised Email supersession produces one exact active lineage through direct
       import and portable bundle apply.
 - [ ] F31 re-verifies each approved video source immediately before reading/dispatch and fails with
@@ -2207,6 +2333,10 @@ invariant during the production window.
 - [x] F63 classifies corroborated Email plans using curated content scope without admitting extra
       unknown plans; a fresh full archive-v11 staging run then measures the authoritative held and
       retained-evidence populations.
+- [ ] HIR0–HIR7 acceptance is green together on one exact release candidate, and the HIR8 §14
+      rehearsal has produced one linked ledger of fresh source, cache, Bundle A/B, operation,
+      approval, recovery and closeout hashes with no superseded hash presented as current. Step 3
+      (clean staging under HIR2) is done; steps 1, 2, 4 and 6–11 are not.
 - [ ] Clean production-shaped full rehearsal, exact audit, full no-op rerun and restore/rollback
       repetition all pass on the release candidate.
 - [ ] Measured throughput, cost, capacity and production-window/rollback budgets are accepted.
