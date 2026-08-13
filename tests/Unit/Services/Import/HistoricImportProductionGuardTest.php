@@ -12,6 +12,7 @@ use App\Services\Import\HistoricImportTargetFingerprint;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
@@ -137,6 +138,54 @@ class HistoricImportProductionGuardTest extends TestCase
         );
 
         $this->assertNotNull($this->guard('local')->refusalFor('historic:apply'));
+    }
+
+    /**
+     * HIR0 red test for review finding 4 (High), owned by package **HIR1**.
+     *
+     * `guardsCurrentEnvironment()` protects a production target outside an
+     * `APP_ENV=production` process only when the *entire* current target
+     * fingerprint equals one configured hash. That fingerprint mixes stable
+     * resource identity (database, storage) with volatile per-operation
+     * configuration: release identifier, migration batch/count, service
+     * structure mode, transcription service and public cutoff.
+     *
+     * So a local shell still pointed at the production database silently loses
+     * the protection as soon as any of those drifts — a newer release, one
+     * extra migration, a different transcription setting. The fallback fails
+     * open in precisely the misconfiguration it exists to catch, and the
+     * existing coverage only ever asserts a byte-for-byte full match.
+     *
+     * HIR1 splits stable resource anchors from the volatile operation
+     * fingerprint; matching a production anchor must fail closed regardless of
+     * drift. Per HIR-D2 only the database anchor triggers production controls,
+     * which is what this test drifts around.
+     *
+     * @see docs/reviews/historic-import-commit-review-2026-08-12.md finding 4
+     * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §7 (HIR1), §4.2 (HIR-D2)
+     */
+    #[Test]
+    #[Group('hir-red')]
+    public function volatile_drift_does_not_disarm_the_guard_on_a_production_database(): void
+    {
+        Config::set('church.historic_corpus.production_import_approval', null);
+        Config::set(
+            'church.historic_corpus.production_target_fingerprint',
+            app(HistoricImportTargetFingerprint::class)->hash(),
+        );
+
+        // Same database, same storage: only the release the shell is running
+        // and an unrelated pipeline setting have moved on.
+        Config::set('app.release_identifier', 'release-that-drifted-'.uniqid());
+        Config::set('media-processing.transcription.service', 'some-other-transcriber');
+
+        $guard = $this->guard('local');
+
+        $this->assertTrue(
+            $guard->guardsCurrentEnvironment(),
+            'A process pointed at the production database must stay guarded when volatile configuration drifts.',
+        );
+        $this->assertNotNull($guard->refusalFor('historic:apply'));
     }
 
     #[Test]

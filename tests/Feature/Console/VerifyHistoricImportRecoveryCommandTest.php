@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
@@ -48,6 +49,66 @@ class VerifyHistoricImportRecoveryCommandTest extends TestCase
             'kind' => 'backup',
         ]);
         $this->assertDatabaseHas('historic_import_journal_entries', [
+            'historic_import_operation_id' => $operation->id,
+            'event' => 'recovery_rehearsal_verified',
+        ]);
+    }
+
+    /**
+     * HIR0 red test for review finding 3 (High), owned by package **HIR5**.
+     *
+     * The document below is the one this suite already accepts, and every claim
+     * in it is unbacked: nothing authenticates the author, `verified_by` is a
+     * free-text string, every digest is a repeated placeholder digit that
+     * matches no artifact anywhere, and the same backup object is presented as
+     * both the on-host and the off-host restore — so the "two independent
+     * copies" the gate exists to prove are one copy counted twice.
+     *
+     * `HistoricImportRecoveryEvidence::verify()` checks shape, digest *syntax*
+     * and success booleans. It never resolves a backup, report or exercise
+     * artifact and never recomputes a digest, so this passes and is written into
+     * encrypted storage, where exact closeout then reads it as the mandatory
+     * recovery gate's satisfied evidence.
+     *
+     * Note what this test does and does not assert. HIR-D3 reuses the existing
+     * approval signing key, which closes forgery by an arbitrary party but not
+     * verifier independence — the application holds the symmetric secret. The
+     * assurance HIR5 must actually deliver is the artifact-backed half below:
+     * an accepted digest has to be reproducible from a retained artifact.
+     *
+     * This deliberately contradicts
+     * {@see self::it_retains_only_exact_successfully_restored_recovery_evidence()},
+     * which asserts the same document is accepted. That test is superseded
+     * evidence: HIR5 replaces its fixture with a signed, artifact-backed one
+     * rather than deleting the case.
+     *
+     * @see docs/reviews/historic-import-commit-review-2026-08-12.md finding 3
+     * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §11 (HIR5), §4.3 (HIR-D3)
+     */
+    #[Test]
+    #[Group('hir-red')]
+    public function it_refuses_unsigned_evidence_whose_named_artifacts_are_never_opened(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $evidence = $this->evidence($operation->operation_id, $operation->target_fingerprint);
+
+        $this->assertArrayNotHasKey('signature', $evidence, 'The finding is that nothing authenticates this document.');
+        $this->assertSame(
+            $evidence['database_backups']['on_host'],
+            $evidence['database_backups']['off_host'],
+            'The finding is that one backup can stand in for two independent ones.',
+        );
+
+        $this->artisan('historic-import:verify-recovery', [
+            'operation' => $operation->operation_id,
+            'evidence' => $this->writeJson($evidence),
+        ])->assertFailed();
+
+        $this->assertDatabaseMissing('historic_import_artifacts', [
+            'historic_import_operation_id' => $operation->id,
+            'artifact_key' => 'recovery-rehearsal',
+        ]);
+        $this->assertDatabaseMissing('historic_import_journal_entries', [
             'historic_import_operation_id' => $operation->id,
             'event' => 'recovery_rehearsal_verified',
         ]);

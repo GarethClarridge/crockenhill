@@ -7,6 +7,7 @@ namespace Tests\Integration\Services\HistoricMedia;
 use App\Models\ScripturePassage;
 use App\Services\HistoricMedia\HistoricScripturePassageRequirements;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
@@ -68,6 +69,48 @@ class HistoricScripturePassageRequirementsTest extends TestCase
         $this->expectExceptionMessage('Scripture Passage absence outcome is invalid');
 
         $this->requirements->forBundle($bundle);
+    }
+
+    /**
+     * HIR0 red test for review finding 6 (Medium), owned by package **HIR3**.
+     *
+     * `keyFor()` rejects an invalid absence outcome only when the outcome is
+     * itself non-null. A publication whose `scripture_passage` is null and whose
+     * `scripture_passage_outcome` is missing or explicitly null therefore
+     * returns null — indistinguishable from an approved terminal absence — and
+     * passes the zero-write preflight and the apply.
+     *
+     * That inverts the class's own contract: F59 gates export on a *settled*
+     * outcome, and missing evidence is not approval. A partial or malformed
+     * Bundle A silently drops the destination's Scripture relationship instead
+     * of refusing before any row is written.
+     *
+     * Both shapes are covered because they arrive differently: a key omitted by
+     * an exporter, and a key written as `null` by one that emitted the field
+     * without settling it.
+     *
+     * @see docs/reviews/historic-import-commit-review-2026-08-12.md finding 6
+     * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §9 (HIR3)
+     */
+    #[Test]
+    #[Group('hir-red')]
+    public function it_refuses_an_absent_passage_with_no_outcome_at_all(): void
+    {
+        $missingKey = $this->bundle([[['slug' => 'no-outcome-key', 'scripture_passage' => null]]]);
+        $explicitNull = $this->bundle([[[
+            'slug' => 'null-outcome',
+            'scripture_passage' => null,
+            'scripture_passage_outcome' => null,
+        ]]]);
+
+        foreach (['omitted' => $missingKey, 'explicitly null' => $explicitNull] as $shape => $bundle) {
+            try {
+                $this->requirements->forBundle($bundle);
+                $this->fail("An {$shape} Scripture Passage outcome was accepted as an approved absence.");
+            } catch (RuntimeException $exception) {
+                $this->assertStringContainsString('Scripture Passage absence outcome is invalid', $exception->getMessage());
+            }
+        }
     }
 
     #[Test]

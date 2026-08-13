@@ -1,8 +1,11 @@
 # Historic Import Safety Remediation Plan
 
-> **Status (2026-08-12): proposed implementation addendum; implementation not started; production remains
-> NO-GO.** Verified against `ac1468b47` and the findings in
+> **Status (2026-08-13): HIR0 complete; HIR1–HIR8 not started; production remains NO-GO.** Verified
+> against `ac1468b47` and the findings in
 > [the 10–12 August commit review](../reviews/historic-import-commit-review-2026-08-12.md).
+> The eight red tests and the change-control baseline are recorded in
+> [the HIR0 baseline](../reports/historic-import-hir0-baseline-2026-08-13.md); the test suite is
+> deliberately red until HIR1–HIR7 land.
 > Do not run any production historic import, release, source-acquisition acceptance, recovery
 > acceptance or exact closeout command until this plan's applicable packages have landed and the two
 > governing historic plans have been updated with new rehearsal evidence.
@@ -109,16 +112,115 @@ Every implementation PR must name the invariant it makes executable.
 Each decision blocks only the packages listed. Record answers here and in the governing plan before
 implementation uses them.
 
-| ID | Decision or discovery | Recommendation | Blocks |
-|---|---|---|---|
-| HIR-D1 | Which atomic create/object-receipt primitives do the local filesystem and production DigitalOcean Spaces adapter actually support? | Require create-if-absent. Prefer an immutable version ID for cleanup; if exact-version deletion is unavailable, failed final objects are retained as explicit orphans and never auto-deleted | HIR7 implementation and HIR8 object exercise |
-| HIR-D2 | What stable database and storage identities are observable in every environment allowed to mutate historic state? | Database server UUID + schema identity; storage endpoint/account + bucket/prefix (or local filesystem identity), all canonical-hashed without credentials | HIR1 activation |
-| HIR-D3 | Who holds the recovery-evidence signing key and what key ID/rotation rule applies? | A recovery-only HMAC key held by the independent-verifier workflow, distinct from application approval/source evidence keys; deploy verification material only for the accepted window | HIR5 |
-| HIR-D4 | Which acquisition hosts/filesystems are supported? | Explicit Darwin/APFS and production Linux filesystem adapters only; unknown platforms or unobservable mount facts fail closed | HIR4 |
-| HIR-D5 | May safety defects be fixed inside deletion-scheduled `ImportOosArchiveCommand` and companion tests? | Approve a bounded exception for HIR2/HIR8 only; put cache-binding logic in a small service and make no unrelated command/test investment | HIR2 and affected rehearsal coverage |
+| ID | Decision or discovery | Recommendation | Blocks | Status |
+|---|---|---|---|---|
+| HIR-D1 | Which atomic create/object-receipt primitives do the local filesystem and production DigitalOcean Spaces adapter actually support? | Require create-if-absent. Prefer an immutable version ID for cleanup; if exact-version deletion is unavailable, failed final objects are retained as explicit orphans and never auto-deleted | HIR7 implementation and HIR8 object exercise | **Decided 2026-08-12 — measured, see §4.1** |
+| HIR-D2 | What stable database and storage identities are observable in every environment allowed to mutate historic state? | Database server UUID + schema identity; storage endpoint/account + bucket/prefix (or local filesystem identity), all canonical-hashed without credentials | HIR1 activation | **Decided 2026-08-12 — database anchor only, see §4.2** |
+| HIR-D3 | Who holds the recovery-evidence signing key and what key ID/rotation rule applies? | A recovery-only HMAC key held by the independent-verifier workflow, distinct from application approval/source evidence keys; deploy verification material only for the accepted window | HIR5 | **Decided 2026-08-12 against recommendation — see §4.3** |
+| HIR-D4 | Which acquisition hosts/filesystems are supported? | Explicit Darwin/APFS and production Linux filesystem adapters only; unknown platforms or unobservable mount facts fail closed | HIR4 | **Decided 2026-08-12 — recommendation adopted as written** |
+| HIR-D5 | May safety defects be fixed inside deletion-scheduled `ImportOosArchiveCommand` and companion tests? | Approve a bounded exception for HIR2/HIR8 only; put cache-binding logic in a small service and make no unrelated command/test investment | HIR2 and affected rehearsal coverage | **Decided 2026-08-12 — bounded exception approved as recommended** |
 
 No decision may be inferred from a test fixture. In particular, a successful local adapter test is
 not evidence that Spaces supports the same conditional write/delete semantics.
+
+### 4.1 HIR-D1 outcome — measured against production Spaces, 2026-08-12
+
+A read-only capability probe plus a scratch-key write probe were run against the production
+`crockenhill` bucket (`lon1`). No real sermon key was touched, no pre-existing object was deleted,
+and a follow-up `ListObjectsV2` confirmed zero residue under the scratch prefix.
+
+| Capability | Result |
+|---|---|
+| `PutObject` `IfNoneMatch: *` on an absent key | **Accepted** — create-if-absent is available |
+| `PutObject` `IfNoneMatch: *` on a present key | **Refused, 412 `PreconditionFailed`** — genuinely enforced |
+| `PutObject` `IfMatch` with a wrong ETag | **Refused, 412 `PreconditionFailed`** |
+| `PutObject` response `VersionId` | `null` — bucket versioning is disabled and stays disabled |
+| **`DeleteObject` `IfMatch` with a stale ETag** | **DELETED — the header is silently ignored** |
+| Local filesystem create-if-absent | Unavailable via Flysystem: `LocalFilesystemAdapter::writeToFile()` is `file_put_contents`, which truncates. Use `fopen($path, 'x')` |
+| Flysystem passthrough | `AwsS3V3Adapter::AVAILABLE_OPTIONS` omits both conditional headers, so `Storage::put(..., ['IfNoneMatch' => '*'])` **silently drops them**. The raw `Aws\S3\S3Client` (signature `s3v4`) is reachable via `Storage::disk('do_spaces')->getClient()` |
+
+**Consequences binding on HIR7.**
+
+1. Conditional create **is** the required primitive and it works. `HistoricReleaseObjectStore` must
+   create final objects through the raw client with `IfNoneMatch: '*'`, never through the Storage
+   facade, and never as `exists()` + `writeStream()`.
+2. Exact-ownership deletion is **unavailable**. Versioning is off, and conditional delete is
+   silently ignored — so a compensation path built on `DeleteObject` `IfMatch` would pass review,
+   pass a local fake, and still destroy the winner's bytes in production. This is the precise trap
+   §4's "no decision may be inferred from a test fixture" warns about.
+3. Therefore the plan's recorded fallback applies as written: **failed final objects become retained
+   `orphaned` ledger rows for operator reconciliation, and automatic path or conditional deletion is
+   prohibited.** Record this against FR-D6 in the final-readiness plan.
+4. Any local implementation of the boundary must refuse conditional delete rather than emulate it,
+   so the local fake cannot certify a capability production lacks.
+
+### 4.2 HIR-D2 outcome — database anchor only
+
+Observable identities, both canonical-hashed without credentials:
+
+- **Database:** `@@server_uuid` (`4e4d873e-fbd1-11f0-92b9-f209517d1fcb` locally, MySQL 8.0.45) plus
+  schema-name hash. Caveat: `server_uuid` is regenerated if the data directory is reinitialised, so
+  a managed-database rebuild or node replacement changes it. That fails closed, which is safe, but
+  the anchor must be re-recorded before a window rather than discovered during one.
+- **Storage:** endpoint `https://crockenhill.lon1.digitaloceanspaces.com` plus bucket `crockenhill`.
+  Note `bucket_endpoint => true` means the endpoint already embeds the bucket, and the live region is
+  `lon1` while the config default is `nyc3`.
+
+**Decision: only the database anchor triggers production controls. The storage anchor is computed
+and recorded in the target fingerprint but is not an OR-ed production trigger.**
+
+This was taken against the recommendation, and the reason it was on the table is load-bearing:
+
+```
+.env: SERMON_STORAGE_DISK=do_spaces, DO_SPACES_BUCKET=crockenhill
+      => media-processing.storage.sermon_disk resolves to the PRODUCTION bucket in local dev
+```
+
+`HistoricSermonPublicationService` writes releases to `sermon_disk`
+(`HistoricSermonPublicationService.php:44`), so an OR-ed storage anchor would have classified the
+local environment as production and refused the rehearsal that §13.5 requires.
+
+**Accepted residual risk:** with the storage anchor demoted, a local historic release run still
+writes to the production public bucket, and the production guard will not stop it. HIR1 therefore
+closes the *volatile-drift* half of review finding #4 but leaves the storage half open by
+configuration. HIR7 must carry a compensating refusal — see §4.2.1.
+
+#### 4.2.1 Required compensating control
+
+Because the storage anchor no longer guards, HIR7's object-store boundary must refuse, outside
+production, to write to a destination whose resolved bucket/endpoint matches the recorded production
+storage anchor — unless an explicit, separately named local override is set. This keeps the
+rehearsal usable while making "local run publishes to the production bucket" an error rather than a
+silent success. Add it to HIR7's red tests, not as a runtime flag on the guard.
+
+### 4.3 HIR-D3 outcome — approval key reused, against recommendation
+
+**Decision: recovery evidence is signed with the existing approval signing key rather than a
+separate recovery-only key.**
+
+Recorded plainly because it narrows what HIR5 can claim. `HistoricImportApprovalManifest::verify()`
+authenticates approvals with `hash_hmac('sha256', …)` (`HistoricImportApprovalManifest.php:48`) — a
+**symmetric** secret the application must already hold in order to verify. Reusing it for recovery
+evidence means the application holds everything required to *generate* a valid recovery artifact.
+
+Review finding #3 was that recovery evidence is accepted without authenticating its verifier. Key
+reuse closes the "unsigned" half — a random party still cannot forge an artifact — but it does not
+establish verifier *independence*, because the signature no longer distinguishes the independent
+verifier from the application itself.
+
+**This is a formally accepted limitation, not an oversight**, following the same clause used for the
+F46 logging decision. It constrains HIR5 as follows:
+
+- HIR5 must still implement byte-level artifact verification (recomputed digests, sizes, storage
+  identities, disposable restores). That half of the finding is unaffected and is where the real
+  assurance now comes from.
+- HIR5's acceptance text and the recovery artifact schema **must not claim verifier independence**.
+  The signature attests integrity and approval-key custody only.
+- The `signature.key_id` field already exists in the approval format, so a distinct key ID should
+  still be issued for recovery artifacts. This gives forward compatibility if the decision is
+  revisited, but on its own it grants no independence while the underlying secret is shared.
+- Revisit before the *public release* step if an external auditor is ever required to attest
+  recovery independently.
 
 ## 5. Delivery map and sequencing
 
@@ -137,7 +239,7 @@ Review-surface size describes blast radius, not elapsed time.
 
 | Package | Outcome | Size | Gate impact | Depends on |
 |---|---|---:|---|---|
-| HIR0 | Baseline, red tests, governance exception and production NO-GO remain explicit | S | All | HIR-D5 for OoS work |
+| HIR0 | Baseline, red tests, governance exception and production NO-GO remain explicit — **done 2026-08-13** | S | All | HIR-D5 for OoS work |
 | HIR1 | Stable production resource anchors fail closed under volatile drift | M | F46 / G8 | HIR-D2 |
 | HIR2 | OoS cache is bound to raw input and current entry authority | M | G1/G2/G5; F49/F53/F63 | HIR0/HIR-D5 |
 | HIR3 | Scripture absence and API pacing contracts are exact | S | F59 / G1/G4/G5 | HIR0 |
@@ -166,6 +268,13 @@ exercise; an evidence schema claiming safe object recovery against the old relea
 nothing.
 
 ## 6. HIR0 — Baseline, red tests and change control
+
+> **Complete 2026-08-13.** Evidence:
+> [HIR0 baseline](../reports/historic-import-hir0-baseline-2026-08-13.md), recorded against
+> `7b1fd7ff66aefa31304e56d0cece760df32a306c`. Eight red tests exist and fail for their findings'
+> reasons (`--group=hir-red`); the release-candidate checks pass; the one-shot deletion-trigger
+> structural test is red for `EnrichHistoricScripturePassagesCommand`, which HIR3 owns. Production
+> remains NO-GO.
 
 **Purpose:** prevent fixes from silently inheriting stale hashes, evidence or production authority.
 
@@ -771,7 +880,9 @@ Never replace a programmatic test with a one-off verification script.
 
 ## 16. Definition of done
 
-- [ ] HIR-D1–HIR-D5 are recorded; production mutation/release remains disabled until final approval.
+- [x] HIR-D1–HIR-D5 are recorded; production mutation/release remains disabled until final approval.
+      *(HIR0, 2026-08-13 — §4.1–4.3 and the release-candidate checks in
+      `HistoricImportReleaseCandidateBaselineTest`.)*
 - [ ] HIR1 stable database/storage anchors guard a mislabelled process under release/schema/config
       drift and bind the full target fingerprint separately.
 - [ ] HIR2 always reapplies current curation to raw cached extraction; full-to-partial never projects

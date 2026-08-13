@@ -11,6 +11,7 @@ use App\Services\Scripture\ApiBibleClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
 use Tests\TestCase;
@@ -131,6 +132,62 @@ class EnrichHistoricScripturePassagesCommandTest extends TestCase
      * against it would report every identity as an unremarkable not_found and
      * leave the operator believing the pass had run.
      */
+    /**
+     * HIR0 red test for review finding 8 (Low), owned by package **HIR3**.
+     *
+     * `--delay` documents itself as "milliseconds to sleep between API calls",
+     * but the loop `continue`s past the sleep on both the exception path and the
+     * not-found path. Only a resolved passage is paced.
+     *
+     * That inverts the risk. The pass this command exists for is a large
+     * pre-window run against api.bible, and the references most likely to fail
+     * are exactly the ones a historic corpus carries — so a run dominated by
+     * invalid references issues its calls as fast as the loop executes, which is
+     * when throttling matters most.
+     *
+     * The gaps are measured between the client calls themselves rather than
+     * through a faked sleep boundary, so this stays a statement about observable
+     * pacing and cannot pass merely because some particular sleep API was used.
+     * HIR3 adds the full `Sleep`-faked matrix on top of it.
+     *
+     * @see docs/reviews/historic-import-commit-review-2026-08-12.md finding 8
+     * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §9 (HIR3)
+     */
+    #[Test]
+    #[Group('hir-red')]
+    public function it_paces_unsuccessful_api_attempts_as_well_as_successful_ones(): void
+    {
+        $delayMs = 250;
+        $this->writeBundle(['Hesitations 4:2', 'Hesitations 4:3', 'Hesitations 4:4']);
+
+        $calledAt = [];
+        $client = $this->mockClientWithBudget();
+        $client->method('searchPassage')->willReturnCallback(
+            static function () use (&$calledAt): ?ApiBiblePassageResult {
+                $calledAt[] = microtime(true);
+
+                return null;
+            },
+        );
+        $this->app->instance(ApiBibleClient::class, $client);
+
+        $this->artisan('historic-import:enrich-scripture-passages', [
+            'media-bundle' => $this->bundlePath,
+            '--apply' => true,
+            '--delay' => $delayMs,
+        ])->assertExitCode(1);
+
+        $this->assertCount(3, $calledAt, 'Every missing identity must have been attempted.');
+
+        for ($index = 1; $index < count($calledAt); $index++) {
+            $this->assertGreaterThanOrEqual(
+                ($delayMs * 0.8) / 1000,
+                $calledAt[$index] - $calledAt[$index - 1],
+                'An unsuccessful lookup must still be followed by the configured delay.',
+            );
+        }
+    }
+
     #[Test]
     public function it_refuses_to_apply_while_api_bible_is_disabled(): void
     {

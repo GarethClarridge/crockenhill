@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Queue;
 use Mockery;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
@@ -241,6 +242,59 @@ class ImportIngressGateTest extends TestCase
 
         Queue::assertPushed(ProcessInboundOosEmail::class, 1);
         $this->assertSame(InboundEmailStatus::Pending, $ordinary->fresh()->status);
+        $gate->assertDeferredInboundEmailReconciled('historic-import-1');
+    }
+
+    /**
+     * HIR0 red test for review finding 7 (Medium), owned by package **HIR6**.
+     *
+     * `assertDeferredInboundEmailReconciled()` and the operational-closeout
+     * evidence both accept `dispatched` as terminal. But `dispatched` records a
+     * queue handoff, not an outcome: `ProcessInboundOosEmail` writes the
+     * distinct `processed` state only after parse/import succeeds.
+     *
+     * Under `Queue::fake()` nothing runs at all, which is the same durable state
+     * as a job still queued, still executing, or about to fail permanently in
+     * production. The operation can therefore complete exact closeout while an
+     * order of service that arrived during the freeze has not been imported, and
+     * its "pending = 0 / failed = 0" evidence is stale the moment the job fails
+     * and returns the row to `pending`.
+     *
+     * This deliberately contradicts the `dispatched`-is-enough assertions in
+     * {@see self::release_drains_only_its_operation_outbox_and_never_sweeps_the_ordinary_pending_inbox()}
+     * and {@see self::reopening_and_drain_are_separate_retry_safe_steps()},
+     * which the review names as codifying the gap. They are superseded
+     * evidence: HIR6 runs the job in those cases rather than deleting them.
+     *
+     * @see docs/reviews/historic-import-commit-review-2026-08-12.md finding 7
+     * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §12 (HIR6)
+     */
+    #[Test]
+    #[Group('hir-red')]
+    public function a_queued_but_unprocessed_deferred_email_does_not_count_as_reconciled(): void
+    {
+        Queue::fake();
+        $gate = app(ImportIngressGate::class);
+        $gate->block('historic-import-1', 'Historic archive import window');
+        $this->postJson(route('api.webhooks.mailgun.inbound'), $this->inboundEmailPayload());
+        $gate->release('historic-import-1');
+
+        $this->assertSame(1, $gate->dispatchDeferredInboundEmail('historic-import-1'));
+        Queue::assertPushed(ProcessInboundOosEmail::class, 1);
+
+        // Handed to the queue and never executed: the job wrote no outcome, so
+        // the row is exactly as unfinished as a queued one in production.
+        $this->assertDatabaseHas('import_deferred_inbound_emails', [
+            'operation_id' => 'historic-import-1',
+            'state' => 'dispatched',
+        ]);
+        $this->assertDatabaseMissing('import_deferred_inbound_emails', [
+            'operation_id' => 'historic-import-1',
+            'state' => 'processed',
+        ]);
+
+        $this->expectException(RuntimeException::class);
+
         $gate->assertDeferredInboundEmailReconciled('historic-import-1');
     }
 

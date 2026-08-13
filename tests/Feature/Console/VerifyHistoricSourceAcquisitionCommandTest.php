@@ -6,6 +6,7 @@ namespace Tests\Feature\Console;
 
 use App\Services\Import\HistoricSourceAcquisitionVerifier;
 use App\Support\CanonicalJson;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -55,6 +56,60 @@ class VerifyHistoricSourceAcquisitionCommandTest extends TestCase
         $this->assertSame(['.hidden-sidecar', 'archive', 'archive/recording.avi', 'recording-link'], $paths);
         $this->assertSame(4, $result['copies']['working']['path_count']);
         $this->assertSame('hmac-sha256', $result['signature']['algorithm']);
+    }
+
+    /**
+     * HIR0 red test for review finding 2 (High), owned by package **HIR4**.
+     *
+     * The fixture is deliberately the one
+     * {@see self::it_verifies_two_signed_complete_copies_and_inventories_hidden_unsupported_and_link_paths()}
+     * already passes with, because that is the finding: two sibling directories
+     * on one device, both writable, with `recording-link` still a symlink
+     * despite its `materialize_in_working_copy` disposition, are accepted as
+     * "two signed complete copies". The only independence check is that
+     * `realpath()` differs; `storage_identity` and `protected_read_only` are
+     * signed claims nobody compares with the disk.
+     *
+     * A single filesystem loss or a later mutation therefore defeats the
+     * evidence copy and the working copy together, while the acquisition gate
+     * reports success.
+     *
+     * This deliberately contradicts that acceptance test. It is superseded
+     * evidence: HIR4 rebuilds its fixture as two genuinely independent
+     * protected copies rather than deleting the case.
+     *
+     * @see docs/reviews/historic-import-commit-review-2026-08-12.md finding 2
+     * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §10 (HIR4)
+     */
+    #[Test]
+    #[Group('hir-red')]
+    public function it_refuses_two_writable_copies_that_share_one_failure_domain(): void
+    {
+        [$evidence, $working, $dispositions] = $this->copies();
+
+        // The facts the verifier never observes, asserted here so the refusal
+        // below cannot pass for an unrelated reason.
+        $this->assertSame(
+            (int) (stat($evidence)['dev'] ?? -1),
+            (int) (stat($working)['dev'] ?? -2),
+            'The fixture must put both copies on one device for this to be the finding.',
+        );
+        $this->assertTrue(is_writable($evidence), 'The evidence copy must be writable for this to be the finding.');
+        $this->assertTrue(is_link($working.'/recording-link'), 'The working copy must leave the link unmaterialised.');
+
+        $custody = $this->custody($evidence, $working, $dispositions);
+        $report = storage_path('app/private/source-acquisition-'.uniqid().'.json');
+        $this->files[] = $report;
+        config()->set('media-processing.historic_import.evidence_signing_key', 'test-signing-key');
+
+        $this->artisan('historic-import:verify-source-acquisition', [
+            'custody' => $this->jsonFile($custody),
+            'evidence-copy' => $evidence,
+            'working-copy' => $working,
+            '--report' => $report,
+        ])->assertFailed();
+
+        $this->assertFileDoesNotExist($report);
     }
 
     #[Test]

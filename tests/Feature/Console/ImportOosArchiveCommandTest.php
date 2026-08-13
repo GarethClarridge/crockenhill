@@ -19,6 +19,7 @@ use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Mockery\MockInterface;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
@@ -545,6 +546,84 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertSame(InboundEmailStatus::Processed, $this->emailForEntry($payload, 1)->status);
         $this->assertSame(0, app(AdminAttentionCounts::class)->counts()['pending_emails']);
         $this->assertSame(0, app(ReviewInboxQuery::class)->build()['counts']['emails']);
+    }
+
+    /**
+     * HIR0 red test for review finding 5 (High), owned by package **HIR2**.
+     *
+     * The parse cache key is source byte hash + parser version + received date.
+     * None of those carry the curation plan, so a re-curation that leaves the
+     * archive text untouched cannot invalidate the stored parse.
+     *
+     * `synchroniseEmail()` overwrites the `archive` metadata with the new plan
+     * first, so the entry looks correctly re-curated, and the plan hash the
+     * import quotes back still matches. `parseResult()` then returns the parse
+     * stored under the *old* plan without running
+     * `OosArchiveIdentityResolver` — the only place manifest-owned scope,
+     * identity and supersession are applied — so the canonical import consumes
+     * the superseded decision.
+     *
+     * Full to partial is the sharpest case: the approved outcome is
+     * evidence-only retention with no canonical items, and the stale full scope
+     * projects them anyway. The extractor call count is asserted because a run
+     * that happened to reparse would pass this for the wrong reason.
+     *
+     * @see docs/reviews/historic-import-commit-review-2026-08-12.md finding 5
+     * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §8 (HIR2), §4 (HIR-D5)
+     */
+    #[Test]
+    #[Group('hir-red')]
+    public function a_re_curation_to_partial_cannot_reuse_a_parse_resolved_as_a_full_order(): void
+    {
+        $extractor = new class implements OosEmailItemExtractor
+        {
+            public int $calls = 0;
+
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                $this->calls++;
+
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
+                    confidence: 0.99,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => '2026-07-12',
+                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                        'confidence' => 0.99,
+                    ]],
+                );
+            }
+        };
+        $this->app->instance(OosEmailItemExtractor::class, $extractor);
+
+        // Curated as a complete order, and parsed under that authority.
+        $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $this->artisan('oos:import-archive', [
+            ...$this->corpusArguments,
+            '--evaluate' => true,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $this->assertSame(1, $extractor->calls);
+
+        // Re-curated as partial. The archive text is byte-identical, so the
+        // whole cache key is unchanged and only the manifest has moved.
+        $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12', 'scope' => 'partial']]);
+        $report = $this->temporaryPath('json');
+
+        $this->artisan('oos:import-archive', $this->importArguments(['--report' => $report]))
+            ->assertExitCode(0);
+
+        $payload = $this->readReport($report);
+
+        $this->assertSame(1, $extractor->calls, 'Unchanged source bytes must not force another model call.');
+        $this->assertSame('evidence_retained', $payload['entries'][0]['disposition']);
+        $this->assertDatabaseCount('church_service_items', 0);
+        $this->assertFalse(
+            ChurchService::query()->sole()->sourceRecords()->sole()->payload_complete,
+            'A partial order must be retained as incomplete evidence, not projected as a complete one.',
+        );
     }
 
     #[Test]

@@ -470,6 +470,25 @@ cleanup path instead.
 > [historic import safety remediation](HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md) **HIR7**,
 > whose HIR-D1 determines the required create/receipt primitive. Record HIR-D1's answer here when it
 > is taken, so both writers are visibly accounted for against F45.
+>
+> **HIR-D1 answered 2026-08-12 by measurement against the production Spaces bucket** (full results in
+> the safety plan §4.1). Both writers are now accounted for as follows:
+>
+> - **Create side — solved.** Spaces enforces `PutObject` `IfNoneMatch: *`, refusing a present key
+>   with 412 `PreconditionFailed`. HIR7's release writer gets a genuine atomic create-if-absent, so
+>   two concurrent releases can no longer both believe they created the final object. This must go
+>   through the raw `S3Client`; Flysystem's option allowlist silently drops conditional headers.
+> - **Delete side — not solved, and it cannot be.** Bucket versioning is disabled (decided: it stays
+>   disabled), and `DeleteObject` `IfMatch` is **silently ignored by Spaces** — a stale-ETag delete
+>   succeeded in the probe. There is therefore no exact-ownership deletion primitive available.
+> - **Consequence for F45.** D6's "no bucket versioning is required" clause now holds for *both*
+>   writers, but for different reasons: the apply step because its keys are operation-owned, and the
+>   release step because versioning would not have helped without a working conditional delete.
+>   Release compensation is the retained-`orphaned`-ledger path with operator reconciliation, and
+>   automatic deletion of a final public object is prohibited outright.
+> - **Standing hazard this creates:** orphaned public objects accumulate on failed releases and are
+>   only removable by a human. The release runbook needs a reconciliation step; F45 is not met by
+>   HIR7 alone.
 
 **D7 — required reviewers on the `production` environment; log-only operation record formally
 accepted.** `deploy.yml` triggers on `push: branches: [master]` and its deploy job already declares
