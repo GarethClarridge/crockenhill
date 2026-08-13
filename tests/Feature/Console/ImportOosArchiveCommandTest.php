@@ -15,6 +15,7 @@ use App\Queries\ReviewInboxQuery;
 use App\Services\ChurchService\ChurchServiceEvidenceSet;
 use App\Services\ChurchService\ChurchServiceSongLinker;
 use App\Services\Email\OosCurationManifest;
+use App\Services\Import\HistoricImportResourceIdentity;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
@@ -408,6 +409,37 @@ class ImportOosArchiveCommandTest extends TestCase
             ->assertExitCode(1);
 
         $this->assertDatabaseCount('church_services', 0);
+    }
+
+    /**
+     * The mutating call site, under HIR1's anchor guard.
+     *
+     * A local shell resolving the production database on a drifted release is
+     * exactly the misconfiguration review finding 4 named, and before HIR1 the
+     * drift is what made the guard stand down. `--import` is the operation that
+     * would then have written canonical services into production.
+     */
+    #[Test]
+    public function a_local_shell_on_the_production_database_is_refused_before_anything_is_touched(): void
+    {
+        $this->bindPortableExtractor();
+        $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $arguments = $this->importArguments(['--report' => $this->temporaryPath('json')]);
+
+        Config::set('church.historic_corpus.production_import_approval', null);
+        Config::set(
+            'church.historic_corpus.production_database_anchor',
+            app(HistoricImportResourceIdentity::class)->databaseAnchor(),
+        );
+        Config::set('app.release_identifier', 'release-that-drifted-'.uniqid());
+        $this->app['env'] = 'local';
+
+        $this->artisan('oos:import-archive', $arguments)
+            ->expectsOutputToContain('no approved G8 import operation is recorded')
+            ->assertExitCode(1);
+
+        $this->assertDatabaseCount('church_services', 0);
+        $this->assertDatabaseCount('inbound_emails', 0);
     }
 
     #[Test]

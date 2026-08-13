@@ -8,10 +8,17 @@ use App\Exceptions\HistoricImportFrozen;
 use App\Models\ImportIngressLock;
 use App\Models\Sermon;
 use App\Services\Import\HistoricImportProductionGuard;
+use App\Services\Import\HistoricImportResourceIdentity;
 use App\Services\Import\HistoricImportTargetFingerprint;
 use App\Support\CanonicalJson;
+use Illuminate\Database\Connection;
+use Illuminate\Database\DatabaseManager;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Mockery;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
@@ -129,13 +136,10 @@ class HistoricImportProductionGuardTest extends TestCase
     }
 
     #[Test]
-    public function a_local_app_pointed_at_the_production_target_is_still_guarded(): void
+    public function a_local_app_pointed_at_the_production_database_is_still_guarded(): void
     {
         Config::set('church.historic_corpus.production_import_approval', null);
-        Config::set(
-            'church.historic_corpus.production_target_fingerprint',
-            app(HistoricImportTargetFingerprint::class)->hash(),
-        );
+        $this->anchorProductionDatabase();
 
         $this->assertNotNull($this->guard('local')->refusalFor('historic:apply'));
     }
@@ -169,10 +173,8 @@ class HistoricImportProductionGuardTest extends TestCase
     public function volatile_drift_does_not_disarm_the_guard_on_a_production_database(): void
     {
         Config::set('church.historic_corpus.production_import_approval', null);
-        Config::set(
-            'church.historic_corpus.production_target_fingerprint',
-            app(HistoricImportTargetFingerprint::class)->hash(),
-        );
+        $this->anchorProductionDatabase();
+        $before = app(HistoricImportTargetFingerprint::class)->hash();
 
         // Same database, same storage: only the release the shell is running
         // and an unrelated pipeline setting have moved on.
@@ -181,11 +183,192 @@ class HistoricImportProductionGuardTest extends TestCase
 
         $guard = $this->guard('local');
 
+        // The drift is real - the operation binding must notice it - and the
+        // guard must be indifferent to it. Both halves are the finding.
+        $this->assertNotSame($before, app(HistoricImportTargetFingerprint::class)->hash());
         $this->assertTrue(
             $guard->guardsCurrentEnvironment(),
             'A process pointed at the production database must stay guarded when volatile configuration drifts.',
         );
-        $this->assertNotNull($guard->refusalFor('historic:apply'));
+        $this->assertRefusesWithoutWriting($guard, 'historic:apply');
+    }
+
+    /**
+     * Migration drift is the same failure with a different cause, and the more
+     * likely one: a shell on a branch with one extra migration.
+     */
+    #[Test]
+    public function a_schema_change_does_not_disarm_the_guard_on_a_production_database(): void
+    {
+        Config::set('church.historic_corpus.production_import_approval', null);
+        $this->anchorProductionDatabase();
+
+        DB::table('migrations')->insert([
+            'migration' => '2026_08_13_000000_hir1_drift_probe',
+            'batch' => (int) DB::table('migrations')->max('batch') + 1,
+        ]);
+
+        $guard = $this->guard('local');
+
+        $this->assertTrue($guard->guardsCurrentEnvironment());
+        $this->assertRefusesWithoutWriting($guard, 'historic:apply');
+    }
+
+    /**
+     * HIR-D2's accepted residual risk, pinned so it cannot be "fixed" by
+     * accident.
+     *
+     * `.env` sets `SERMON_STORAGE_DISK=do_spaces` with
+     * `DO_SPACES_BUCKET=crockenhill`, so a developer machine's public sermon
+     * disk *is* the production bucket. OR-ing the storage anchor into the guard
+     * would classify every local shell as production and refuse the §13.5
+     * rehearsal, so the decision was taken — against the recommendation — that
+     * only the database anchor arms it.
+     *
+     * The consequence is deliberate and unpleasant: a local historic *release*
+     * still writes to the production public store and this guard will not stop
+     * it. What the guard owes is visibility, which is why the match is reported
+     * rather than silently dropped. HIR7 §4.2.1 carries the actual refusal.
+     */
+    #[Test]
+    public function a_matching_storage_anchor_alone_does_not_arm_the_guard(): void
+    {
+        Config::set('church.historic_corpus.production_import_approval', null);
+        Config::set('church.historic_corpus.production_database_anchor', str_repeat('a', 64));
+        Config::set(
+            'church.historic_corpus.production_storage_anchor',
+            app(HistoricImportResourceIdentity::class)->storageAnchor(),
+        );
+
+        $guard = $this->guard('local');
+
+        $this->assertFalse($guard->guardsCurrentEnvironment());
+        $this->assertNull($guard->refusalFor('historic:apply'));
+        $this->assertTrue(
+            $guard->matchesProductionStorageAnchor(),
+            'The guard must still report that this rehearsal target resolves the production store.',
+        );
+    }
+
+    #[Test]
+    public function a_matching_database_anchor_arms_the_guard_even_when_storage_differs(): void
+    {
+        Config::set('church.historic_corpus.production_import_approval', null);
+        $this->anchorProductionDatabase();
+        Config::set('church.historic_corpus.production_storage_anchor', str_repeat('b', 64));
+
+        $guard = $this->guard('local');
+
+        $this->assertTrue($guard->guardsCurrentEnvironment());
+        $this->assertFalse($guard->matchesProductionStorageAnchor());
+        $this->assertRefusesWithoutWriting($guard, 'historic:apply');
+    }
+
+    /**
+     * A rehearsal target is fully configured and matches neither anchor. It has
+     * to stay usable: §13.5 steps 3-4 are where the corpus is staged, projected
+     * and re-projected, and gating that would gate G5.
+     */
+    #[Test]
+    public function a_fully_configured_rehearsal_target_matches_neither_anchor_and_stays_usable(): void
+    {
+        Config::set('church.historic_corpus.production_import_approval', null);
+        Config::set('church.historic_corpus.production_database_anchor', str_repeat('c', 64));
+        Config::set('church.historic_corpus.production_storage_anchor', str_repeat('d', 64));
+
+        $guard = $this->guard('local');
+
+        $this->assertFalse($guard->guardsCurrentEnvironment());
+        $this->assertNull($guard->anchorConfigurationError());
+        $this->assertNull($guard->refusalFor('oos:import-archive --import'));
+        $this->assertFalse($guard->matchesProductionStorageAnchor());
+    }
+
+    #[Test]
+    public function a_malformed_anchor_fails_closed_rather_than_being_ignored(): void
+    {
+        foreach (['database', 'storage'] as $role) {
+            Config::set('church.historic_corpus.production_database_anchor', null);
+            Config::set('church.historic_corpus.production_storage_anchor', null);
+            Config::set("church.historic_corpus.production_{$role}_anchor", 'not-a-digest');
+
+            $guard = $this->guard('local');
+
+            $this->assertTrue($guard->guardsCurrentEnvironment(), "A malformed {$role} anchor must fail closed.");
+            $this->assertStringContainsString(
+                "production {$role} anchor is not a SHA-256 digest",
+                (string) $guard->refusalFor('historic:apply'),
+            );
+        }
+    }
+
+    /**
+     * The two anchors hash differently shaped objects, so an equal pair is not a
+     * coincidence — it is one value pasted into both variables, which would
+     * silently arm or disarm the guard depending on which one was correct.
+     */
+    #[Test]
+    public function anchors_recorded_twice_fail_closed(): void
+    {
+        Config::set('church.historic_corpus.production_database_anchor', str_repeat('e', 64));
+        Config::set('church.historic_corpus.production_storage_anchor', str_repeat('e', 64));
+
+        $guard = $this->guard('local');
+
+        $this->assertTrue($guard->guardsCurrentEnvironment());
+        $this->assertStringContainsString('recorded twice', (string) $guard->refusalFor('historic:apply'));
+    }
+
+    /**
+     * The superseded key must never again be able to declare a target safe.
+     * Reading it only to refuse is what makes a stale deploy loud instead of
+     * silently unprotected.
+     */
+    #[Test]
+    public function the_superseded_target_fingerprint_key_is_read_only_to_refuse(): void
+    {
+        Config::set(
+            'church.historic_corpus.production_target_fingerprint',
+            app(HistoricImportTargetFingerprint::class)->hash(),
+        );
+
+        $guard = $this->guard('local');
+        $refusal = (string) $guard->refusalFor('historic:apply');
+
+        $this->assertTrue($guard->guardsCurrentEnvironment());
+        $this->assertStringContainsString('HISTORIC_IMPORT_PRODUCTION_TARGET_FINGERPRINT is still set', $refusal);
+        $this->assertStringContainsString('HISTORIC_IMPORT_PRODUCTION_DATABASE_ANCHOR', $refusal);
+    }
+
+    /**
+     * An anchor is configured and the host cannot say what database it is
+     * looking at. Not knowing is not the same as knowing it is safe.
+     */
+    #[Test]
+    public function an_unobservable_database_identity_fails_closed(): void
+    {
+        Config::set('church.historic_corpus.production_import_approval', null);
+        Config::set('church.historic_corpus.production_database_anchor', str_repeat('f', 64));
+
+        $this->app['env'] = 'local';
+        $guard = new HistoricImportProductionGuard($this->app, $this->unobservableIdentity());
+
+        $this->assertTrue($guard->guardsCurrentEnvironment());
+        $this->assertRefusesWithoutWriting($guard, 'historic:apply');
+    }
+
+    /**
+     * The storage half of the same rule. An unobservable storage anchor reports
+     * `null`, never `false`: the diagnostic and HIR7's compensating refusal
+     * must be able to tell "does not match production" from "cannot tell".
+     */
+    #[Test]
+    public function an_unobservable_storage_anchor_is_reported_as_unknown_not_as_safe(): void
+    {
+        Config::set('church.historic_corpus.production_storage_anchor', str_repeat('f', 64));
+        Config::set('media-processing.storage.sermon_disk', null);
+
+        $this->assertNull($this->guard('local')->matchesProductionStorageAnchor());
     }
 
     #[Test]
@@ -223,7 +406,62 @@ class HistoricImportProductionGuardTest extends TestCase
         // looking at the test environment and every assertion below vacuous.
         $this->app['env'] = $environment;
 
-        return new HistoricImportProductionGuard($this->app);
+        return new HistoricImportProductionGuard($this->app, app(HistoricImportResourceIdentity::class));
+    }
+
+    /**
+     * Record this host's database anchor as the production one, which is what a
+     * shell wrongly pointed at production looks like.
+     */
+    private function anchorProductionDatabase(): void
+    {
+        Config::set(
+            'church.historic_corpus.production_database_anchor',
+            app(HistoricImportResourceIdentity::class)->databaseAnchor(),
+        );
+    }
+
+    /**
+     * A host whose database driver exposes no stable server identity.
+     *
+     * Mocked at the connection rather than by repointing `database.default`,
+     * because swapping the default connection mid-test would strand the
+     * transaction this case runs inside.
+     */
+    private function unobservableIdentity(): HistoricImportResourceIdentity
+    {
+        $connection = Mockery::mock(Connection::class);
+        $connection->shouldReceive('getDriverName')->andReturn('a-driver-with-no-server-identity');
+        $connection->shouldReceive('getDatabaseName')->andReturn('unknown');
+
+        $connections = Mockery::mock(DatabaseManager::class);
+        $connections->shouldReceive('connection')->andReturn($connection);
+
+        return new HistoricImportResourceIdentity($connections);
+    }
+
+    /**
+     * A refusal is only a refusal if nothing happened. The failure this package
+     * repairs was silent permission, so asserting the message alone would not
+     * distinguish "refused" from "refused after writing".
+     */
+    private function assertRefusesWithoutWriting(HistoricImportProductionGuard $guard, string $operation): void
+    {
+        $writes = [];
+
+        DB::listen(static function (QueryExecuted $query) use (&$writes): void {
+            if (preg_match('/\A\s*(insert|update|delete|truncate|alter|drop|create)\b/i', $query->sql) === 1) {
+                $writes[] = $query->sql;
+            }
+        });
+
+        Storage::fake('public');
+        Storage::fake('historic_quarantine');
+
+        $this->assertNotNull($guard->refusalFor($operation));
+        $this->assertSame([], $writes, 'A guarded refusal must not write to the database.');
+        $this->assertSame([], Storage::disk('public')->allFiles());
+        $this->assertSame([], Storage::disk('historic_quarantine')->allFiles());
     }
 
     private function approval(string $command): string

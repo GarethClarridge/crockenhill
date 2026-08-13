@@ -83,5 +83,15 @@
 
         <!-- Transcription Configuration -->
         <env name="TRANSCRIPTION_SERVICE_TYPE" value="mock"/>
+
+        <!--
+            Non-secret production anchor placeholders. Every environment capable
+            of historic mutation must carry syntactically valid anchors, and
+            these deliberately match nothing: a test run is a rehearsal target,
+            so the historic production guard must observe neither anchor. Tests
+            about the guard configure their own.
+        -->
+        <env name="HISTORIC_IMPORT_PRODUCTION_DATABASE_ANCHOR" value="0000000000000000000000000000000000000000000000000000000000000000"/>
+        <env name="HISTORIC_IMPORT_PRODUCTION_STORAGE_ANCHOR" value="1111111111111111111111111111111111111111111111111111111111111111"/>
     </php>
 </phpunit>

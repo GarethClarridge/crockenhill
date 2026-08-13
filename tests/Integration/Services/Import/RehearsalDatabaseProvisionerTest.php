@@ -6,7 +6,7 @@ namespace Tests\Integration\Services\Import;
 
 use App\Models\ChurchService;
 use App\Services\Import\HistoricImportProductionGuard;
-use App\Services\Import\HistoricImportTargetFingerprint;
+use App\Services\Import\HistoricImportResourceIdentity;
 use App\Services\Import\RehearsalDatabaseProvisioner;
 use App\Services\Import\UnevidencedCanonicalItemGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -43,21 +43,26 @@ class RehearsalDatabaseProvisionerTest extends TestCase
 
     /**
      * The case that actually loses data is not a process that knows it is
-     * production — it is a development shell resolving the production target.
+     * production — it is a development shell resolving the production database.
+     *
+     * The drift is deliberate. This is the most destructive command in the
+     * workstream, and before HIR1 a newer release identifier was enough to stop
+     * the guard protecting it.
      */
     #[Test]
-    public function provisioning_is_refused_when_the_shell_resolves_the_production_target(): void
+    public function provisioning_is_refused_when_the_shell_resolves_the_production_database(): void
     {
         Config::set('database.connections.rehearsal.database', 'crockenhill_rehearsal');
         Config::set(
-            'church.historic_corpus.production_target_fingerprint',
-            app(HistoricImportTargetFingerprint::class)->hash(),
+            'church.historic_corpus.production_database_anchor',
+            app(HistoricImportResourceIdentity::class)->databaseAnchor(),
         );
+        Config::set('app.release_identifier', 'release-that-drifted-'.uniqid());
 
         $refusal = $this->provisioner('local')->refusalFor('provision');
 
         $this->assertIsString($refusal);
-        $this->assertStringContainsString('resolves the production target', $refusal);
+        $this->assertStringContainsString('resolves the production database anchor', $refusal);
     }
 
     #[Test]
@@ -117,6 +122,13 @@ class RehearsalDatabaseProvisionerTest extends TestCase
     public function provisioning_is_refused_when_the_base_schema_dump_is_missing(): void
     {
         Config::set('database.connections.rehearsal.database', 'crockenhill_rehearsal');
+
+        // Since HIR1 a configured anchor over an unobservable driver fails
+        // closed, and sqlite exposes no stable server identity — so the
+        // production refusal would fire first and hide the subject of this
+        // test. A host with no anchor recorded is the state this case means.
+        Config::set('church.historic_corpus.production_database_anchor', null);
+        Config::set('church.historic_corpus.production_storage_anchor', null);
         DB::setDefaultConnection('sqlite');
 
         try {
@@ -191,7 +203,7 @@ class RehearsalDatabaseProvisionerTest extends TestCase
 
         return new RehearsalDatabaseProvisioner(
             $this->app->make('db'),
-            new HistoricImportProductionGuard($this->app),
+            new HistoricImportProductionGuard($this->app, app(HistoricImportResourceIdentity::class)),
         );
     }
 }

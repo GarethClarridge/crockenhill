@@ -211,6 +211,11 @@ This is the intended state of the branch between HIR0 and HIR7. A green suite be
 would mean a red test had been weakened. When triaging an unrelated failure, diff against this list
 rather than assuming the suite should be clean.
 
+> **Snapshot, not a running total.** This document records the baseline as it stood on 2026-08-13
+> before any package landed, and is not updated as the count falls. HIR1 landed the same day and took
+> it to **eight** (finding 4's test is green). The current expected count lives in the safety plan's
+> status header.
+
 ## 8. What HIR0 does not claim
 
 - No package is implemented. Every red test above stays red until its owner lands.

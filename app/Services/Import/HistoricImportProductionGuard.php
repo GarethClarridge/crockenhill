@@ -34,13 +34,30 @@ use Throwable;
  *
  * Storage isolation remains the per-batch staging root's job
  * ({@see HistoricStagingGuard}). Production identity is resolved independently
- * of APP_ENV: a configured production target fingerprint activates this guard
- * even when a shell incorrectly labels the application as local.
+ * of APP_ENV: a configured production database anchor activates this guard even
+ * when a shell incorrectly labels the application as local.
+ *
+ * **HIR1 changed what "the production target" means here.** The guard used to
+ * compare the whole {@see HistoricImportTargetFingerprint}, which also carries
+ * the release identifier, migration batch/count and three pipeline settings. A
+ * mislabelled shell pointed at the production database therefore stopped being
+ * guarded as soon as any of those drifted, which is precisely the
+ * misconfiguration this fallback exists for. The comparison is now against the
+ * stable {@see HistoricImportResourceIdentity} database anchor alone, so
+ * configuration drift can never be read as evidence that a target is safe.
+ *
+ * Per HIR-D2 the storage anchor is recorded but **does not** trigger these
+ * controls, because local dev's public sermon disk resolves to the production
+ * bucket and an OR-ed storage anchor would refuse the §13.5 rehearsal. The
+ * accepted residual risk is that a local historic *release* still writes to the
+ * production public bucket and this guard will not stop it; HIR7's object-store
+ * boundary carries the compensating refusal (plan §4.2.1).
  */
 class HistoricImportProductionGuard
 {
     public function __construct(
         private readonly Application $application,
+        private readonly HistoricImportResourceIdentity $resources,
     ) {}
 
     /**
@@ -54,6 +71,12 @@ class HistoricImportProductionGuard
      */
     public function refusalFor(string $operation, ?string $operationId = null): ?string
     {
+        $anchorError = $this->anchorConfigurationError();
+
+        if ($anchorError !== null) {
+            return "Refusing to run {$operation}: {$anchorError}";
+        }
+
         if (! $this->guardsCurrentEnvironment()) {
             return null;
         }
@@ -133,23 +156,127 @@ class HistoricImportProductionGuard
         return is_string($operationId) && trim($operationId) !== '' ? trim($operationId) : null;
     }
 
+    /**
+     * Whether production controls apply to whatever this process resolves.
+     *
+     * The stable database anchor decides, never the full operation fingerprint.
+     * An unconfigured anchor stays silent so a developer machine and the §13.5
+     * rehearsal remain usable; that the anchor is *present* everywhere capable
+     * of historic mutation is asserted by the release-candidate baseline test
+     * rather than by refusing here, because refusing would gate G5 on config
+     * that only a production deploy can supply.
+     *
+     * Every other unknown fails closed: a malformed or duplicated anchor, a
+     * lingering legacy fingerprint key, and an anchor that is configured but
+     * cannot be observed.
+     */
     public function guardsCurrentEnvironment(): bool
     {
-        if ($this->application->isProduction()) {
+        if ($this->application->isProduction() || $this->anchorConfigurationError() !== null) {
             return true;
         }
 
-        $productionTarget = config('church.historic_corpus.production_target_fingerprint');
+        $anchor = $this->configuredAnchor('database');
 
-        if (! is_string($productionTarget) || preg_match('/\A[a-f0-9]{64}\z/', $productionTarget) !== 1) {
+        if ($anchor === null) {
             return false;
         }
 
         try {
-            return hash_equals($productionTarget, app(HistoricImportTargetFingerprint::class)->hash());
+            return hash_equals($anchor, $this->resources->databaseAnchor());
         } catch (Throwable) {
             return true;
         }
+    }
+
+    /**
+     * Whether the recorded production *storage* anchor matches this process.
+     *
+     * Reported, never enforced — see the class docblock and HIR-D2. It exists
+     * so the operator diagnostic can show the accepted residual risk, and so
+     * HIR7's compensating refusal has one implementation to consult rather than
+     * re-deriving the comparison.
+     *
+     * Null means the anchor is unconfigured or unobservable, which is not the
+     * same as "does not match" and must not be reported as safe.
+     */
+    public function matchesProductionStorageAnchor(): ?bool
+    {
+        $anchor = $this->configuredAnchor('storage');
+
+        if ($anchor === null) {
+            return null;
+        }
+
+        try {
+            return hash_equals($anchor, $this->resources->storageAnchor());
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * The reason the anchor configuration cannot be trusted, or null.
+     *
+     * Returned as a refusal from every guarded call site rather than logged,
+     * because the failure mode this replaces was silence: a guard that cannot
+     * tell whether it is looking at production must say so, not proceed.
+     */
+    public function anchorConfigurationError(): ?string
+    {
+        $legacy = config('church.historic_corpus.production_target_fingerprint');
+
+        if (is_string($legacy) && trim($legacy) !== '') {
+            return implode(PHP_EOL, [
+                'HISTORIC_IMPORT_PRODUCTION_TARGET_FINGERPRINT is still set.',
+                'That key compared the whole operation fingerprint, so release, migration or',
+                'configuration drift silently disarmed this guard. It is read here only to refuse.',
+                'Replace it with HISTORIC_IMPORT_PRODUCTION_DATABASE_ANCHOR and',
+                'HISTORIC_IMPORT_PRODUCTION_STORAGE_ANCHOR from historic-import:prepare-operation --anchors.',
+            ]);
+        }
+
+        $database = config('church.historic_corpus.production_database_anchor');
+        $storage = config('church.historic_corpus.production_storage_anchor');
+
+        foreach (['database' => $database, 'storage' => $storage] as $role => $value) {
+            if ($value === null || (is_string($value) && trim($value) === '')) {
+                continue;
+            }
+
+            if (! is_string($value) || preg_match('/\A[a-f0-9]{64}\z/', trim($value)) !== 1) {
+                return "the recorded production {$role} anchor is not a SHA-256 digest.";
+            }
+        }
+
+        // Two hashes of differently shaped objects cannot collide by accident,
+        // so equality means one value was pasted into both variables.
+        if ($this->configuredAnchor('database') !== null
+            && $this->configuredAnchor('database') === $this->configuredAnchor('storage')) {
+            return 'the production database and storage anchors are the same digest, so one was recorded twice.';
+        }
+
+        return null;
+    }
+
+    /**
+     * A configured anchor, normalised, or null when it is absent or blank.
+     *
+     * Whitespace-only is null for the same reason a blank approval is: an env
+     * line left as `=` is a mistake, and reading it as a value would make the
+     * fail-closed default defeatable by a typo.
+     */
+    private function configuredAnchor(string $role): ?string
+    {
+        $value = config("church.historic_corpus.production_{$role}_anchor");
+
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $value = strtolower(trim($value));
+
+        return preg_match('/\A[a-f0-9]{64}\z/', $value) === 1 ? $value : null;
     }
 
     public function publicServiceCutoff(): ?string

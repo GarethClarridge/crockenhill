@@ -28,7 +28,9 @@ use Throwable;
  * {@see HistoricImportProductionGuard::guardsCurrentEnvironment()} is reused
  * rather than a bare `APP_ENV` check, because the case that actually loses data
  * is a local shell pointed at the production target, not a process that knows
- * it is production.
+ * it is production. Since HIR1 that check compares the stable production
+ * database anchor, so it no longer stops protecting this command when the
+ * release identifier or a migration count drifts.
  *
  * The rehearsal connection exists only so this class can build the schema
  * without repointing the working one. Nothing else uses it: every importer and
@@ -95,8 +97,9 @@ final class RehearsalDatabaseProvisioner
     {
         if ($this->production->guardsCurrentEnvironment()) {
             return implode(PHP_EOL, [
-                "Refusing to run {$operation}: this shell resolves the production target.",
+                "Refusing to run {$operation}: this shell resolves the production database anchor.",
                 'A rehearsal database is provisioned on a development machine, never against production.',
+                'Run historic-import:prepare-operation --anchors to see what this host resolves.',
             ]);
         }
 

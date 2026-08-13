@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Services\Import\HistoricImportProductionGuard;
+use App\Services\Import\HistoricImportResourceIdentity;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
 use ReflectionClass;
@@ -81,7 +82,7 @@ class HistoricImportReleaseCandidateBaselineTest extends TestCase
         Config::set('filesystems.disks.historic_quarantine.visibility', 'private');
 
         $this->app['env'] = 'production';
-        $guard = new HistoricImportProductionGuard($this->app);
+        $guard = new HistoricImportProductionGuard($this->app, app(HistoricImportResourceIdentity::class));
 
         $this->assertNull($guard->approvedOperationId());
 
@@ -91,6 +92,35 @@ class HistoricImportReleaseCandidateBaselineTest extends TestCase
             $this->assertNotNull($refusal);
             $this->assertStringContainsString('HISTORIC_IMPORT_PRODUCTION_APPROVAL', $refusal);
         }
+    }
+
+    /**
+     * HIR1 step 5. Every environment capable of historic mutation must carry
+     * syntactically valid production anchors, and the shipped ones must match
+     * nothing — a checkout is a rehearsal target, never production.
+     *
+     * Enforced here rather than by refusing at runtime for an absent anchor,
+     * because refusing would gate the §13.5 rehearsal on configuration only a
+     * production deploy can supply.
+     */
+    #[Test]
+    public function every_shipped_environment_carries_non_matching_production_anchors(): void
+    {
+        $guard = new HistoricImportProductionGuard($this->app, app(HistoricImportResourceIdentity::class));
+
+        foreach (['database', 'storage'] as $role) {
+            $anchor = config("church.historic_corpus.production_{$role}_anchor");
+
+            $this->assertIsString($anchor, "No production {$role} anchor is configured for this environment.");
+            $this->assertMatchesRegularExpression('/\A[a-f0-9]{64}\z/', trim($anchor));
+        }
+
+        $this->assertNull($guard->anchorConfigurationError());
+        $this->assertFalse(
+            $guard->guardsCurrentEnvironment(),
+            'A test run must observe neither production anchor.',
+        );
+        $this->assertFalse($guard->matchesProductionStorageAnchor());
     }
 
     /**

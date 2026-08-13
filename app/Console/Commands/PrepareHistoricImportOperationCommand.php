@@ -8,6 +8,8 @@ use App\Data\HistoricImportOperationIdentity;
 use App\Enums\HistoricImportOperationState;
 use App\Models\HistoricImportOperation;
 use App\Services\Import\HistoricImportJournal;
+use App\Services\Import\HistoricImportProductionGuard;
+use App\Services\Import\HistoricImportResourceIdentity;
 use App\Services\Import\HistoricImportRuntimePreflight;
 use App\Services\Import\HistoricImportTargetFingerprint;
 use Illuminate\Console\Command;
@@ -22,8 +24,9 @@ use Throwable;
 class PrepareHistoricImportOperationCommand extends Command
 {
     protected $signature = 'historic-import:prepare-operation
-        {batch : Immutable approved batch key}
-        {plan-hash : Approved operation plan SHA-256}
+        {batch? : Immutable approved batch key}
+        {plan-hash? : Approved operation plan SHA-256}
+        {--anchors : Read-only: report this host'."'".'s resource anchors and exit without touching anything}
         {--manifest=* : Exact source=sha256 manifest binding; repeat for every source}
         {--runtime-evidence= : Exact definitive-runtime evidence JSON}
         {--deadline= : Accepted ISO-8601 operation deadline}
@@ -36,7 +39,20 @@ class PrepareHistoricImportOperationCommand extends Command
         HistoricImportRuntimePreflight $runtime,
         HistoricImportJournal $journal,
     ): int {
+        if ($this->option('anchors')) {
+            return $this->reportAnchors(
+                app(HistoricImportResourceIdentity::class),
+                app(HistoricImportProductionGuard::class),
+            );
+        }
+
         try {
+            if (! is_string($this->argument('batch')) || ! is_string($this->argument('plan-hash'))) {
+                throw new RuntimeException(
+                    'Historic import operation requires the batch key and plan hash arguments, or --anchors to report resource identity only.',
+                );
+            }
+
             $deadline = Carbon::parse((string) $this->option('deadline'));
             $maxCost = filter_var($this->option('max-cost'), FILTER_VALIDATE_INT);
 
@@ -87,6 +103,62 @@ class PrepareHistoricImportOperationCommand extends Command
 
             return self::FAILURE;
         }
+    }
+
+    /**
+     * The read-only anchor diagnostic HIR1 requires, on the surface that
+     * already reports the operation's fingerprints rather than as a throwaway
+     * command of its own.
+     *
+     * Prints hashes and a verdict only. The underlying material — server
+     * identity, schema name, bucket, endpoint, local root — is deliberately
+     * absent, because this output is what an operator pastes into a plan, a
+     * ticket or a chat window.
+     *
+     * The verdict is three-valued on purpose. `unknown` covers an unconfigured
+     * or unobservable anchor, and must never be read as `rehearsal`: not
+     * knowing whether a target is production is a different state from knowing
+     * it is not.
+     */
+    private function reportAnchors(
+        HistoricImportResourceIdentity $resources,
+        HistoricImportProductionGuard $guard,
+    ): int {
+        $configurationError = $guard->anchorConfigurationError();
+
+        if ($configurationError !== null) {
+            $this->error($configurationError);
+
+            return self::FAILURE;
+        }
+
+        try {
+            $observed = ['database' => $resources->databaseAnchor(), 'storage' => $resources->storageAnchor()];
+        } catch (Throwable $exception) {
+            $this->error("Resource anchors cannot be observed on this host: {$exception->getMessage()}");
+
+            return self::FAILURE;
+        }
+
+        $storageMatch = $guard->matchesProductionStorageAnchor();
+
+        $this->line("Observed database anchor: {$observed['database']}");
+        $this->line("Observed storage anchor:  {$observed['storage']}");
+        $this->newLine();
+        $this->line('Verdict: '.($guard->guardsCurrentEnvironment() ? 'production' : 'rehearsal'));
+        $this->line('Storage anchor: '.match ($storageMatch) {
+            true => 'matches production (recorded only — HIR-D2 means this does not arm the guard)',
+            false => 'does not match production',
+            null => 'unknown (unconfigured or unobservable)',
+        });
+
+        if ($storageMatch === true && ! $guard->guardsCurrentEnvironment()) {
+            $this->newLine();
+            $this->warn('This is a rehearsal target writing to the production public store.');
+            $this->warn('That is the accepted HIR-D2 residual risk; a release from here would publish to production.');
+        }
+
+        return self::SUCCESS;
     }
 
     /** @return array<string, string> */

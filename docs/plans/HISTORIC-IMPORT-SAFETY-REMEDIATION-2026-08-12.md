@@ -1,6 +1,6 @@
 # Historic Import Safety Remediation Plan
 
-> **Status (2026-08-13): HIR0 complete; HIR1–HIR8 not started; production remains NO-GO.** Verified
+> **Status (2026-08-13): HIR0 and HIR1 complete; HIR2–HIR8 not started; production remains NO-GO.** Verified
 > against `ac1468b47` and the findings in
 > [the 10–12 August commit review](../reviews/historic-import-commit-review-2026-08-12.md).
 > The eight red tests and the change-control baseline are recorded in
@@ -240,7 +240,7 @@ Review-surface size describes blast radius, not elapsed time.
 | Package | Outcome | Size | Gate impact | Depends on |
 |---|---|---:|---|---|
 | HIR0 | Baseline, red tests, governance exception and production NO-GO remain explicit — **done 2026-08-13** | S | All | HIR-D5 for OoS work |
-| HIR1 | Stable production resource anchors fail closed under volatile drift | M | F46 / G8 | HIR-D2 |
+| HIR1 | Stable production resource anchors fail closed under volatile drift — **done 2026-08-13** | M | F46 / G8 | HIR-D2 |
 | HIR2 | OoS cache is bound to raw input and current entry authority | M | G1/G2/G5; F49/F53/F63 | HIR0/HIR-D5 |
 | HIR3 | Scripture absence and API pacing contracts are exact | S | F59 / G1/G4/G5 | HIR0 |
 | HIR4 | Source custody version 2 proves independent protected copies | L | F36 / G5/G7 | HIR-D4 |
@@ -308,6 +308,16 @@ package starts with a reproducing failure and names the artifacts/gates it inval
 
 ## 7. HIR1 — Stable production resource identity
 
+> **Complete 2026-08-13.** `HistoricImportResourceIdentity` splits the stable anchors out of
+> `HistoricImportTargetFingerprint`; the guard compares the database anchor alone and fails closed on
+> a malformed, duplicated, superseded-key or unobservable configuration. Red test 4 is green and the
+> suite's expected-failure count drops from nine to eight. Anchors are placeholder-configured in
+> `.env.example`, `phpunit.xml` and `.env.dusk.ci`; recording the **real production database anchor**
+> is an outstanding operator item, and it must be re-recorded before a window rather than discovered
+> during one.
+>
+> **§7 item 4 below was written before HIR-D2 and contradicted it; it has been corrected in place.**
+
 **Review finding:** `HistoricImportProductionGuard::guardsCurrentEnvironment()` compares the entire
 volatile operation target fingerprint. A changed release, migration count or configuration makes a
 process pointing at production look non-production.
@@ -322,9 +332,15 @@ Extend `HistoricImportProductionGuardTest` first:
 
 - production database anchor matches while release identifier differs;
 - production database anchor matches after migration batch/count changes;
-- production storage anchor matches while service mode, transcription or cutoff differs;
-- one production resource matches and the other does not;
-- required anchor is absent, malformed, duplicated or conflicts with observed identity;
+- production **storage** anchor matches while the database anchor does not — the guard stays silent
+  and reports the match, because HIR-D2 demoted the storage anchor. This is the accepted residual
+  risk and is pinned as a test so it cannot be "fixed" by accident;
+- database anchor matches while the storage anchor does not — guarded;
+- required anchor is malformed, duplicated across both variables, superseded
+  (`production_target_fingerprint` still set) or configured over an unobservable identity;
+- an absent anchor stays silent, because refusing would gate the §13.5 rehearsal on configuration
+  only a production deploy supplies. Presence is asserted instead by the release-candidate baseline
+  test;
 - a fully configured rehearsal target matches neither anchor and remains usable;
 - read-only/preflight commands retain their documented scope while every mutating call site refuses.
 
@@ -344,8 +360,14 @@ Each matching/unknown case must assert zero database and storage writes, not onl
 3. Replace `production_target_fingerprint` with separately configured production database and
    storage anchor hashes. During one compatibility release, read the old key only to emit a
    fail-closed configuration error; never use it to declare a target safe.
-4. Guard logic is OR-based: matching either production anchor means production controls apply. A
-   full target mismatch becomes a refusal requiring a newly signed operation, never a fall-through.
+4. **Corrected by HIR-D2 (§4.2), which was decided after this section was written.** Guard logic is
+   *not* OR-based: matching the production **database** anchor means production controls apply, and
+   the storage anchor is recorded but never arms the guard. An OR-ed storage anchor would classify
+   every developer machine as production, because `.env` resolves the public sermon disk to the
+   production bucket, and would refuse the §13.5 rehearsal. The guard exposes
+   `matchesProductionStorageAnchor()` so the diagnostic and HIR7's §4.2.1 refusal can see the match
+   without it becoming a trigger. A full target mismatch is a refusal requiring a newly signed
+   operation, never a fall-through.
 5. Any environment capable of running historic mutation must have valid production anchors,
    including local rehearsal and CI. Add non-secret placeholders to `.env.example`, test config and
    Dusk config; deploy actual hashes through environment secrets/config.
@@ -883,8 +905,10 @@ Never replace a programmatic test with a one-off verification script.
 - [x] HIR-D1–HIR-D5 are recorded; production mutation/release remains disabled until final approval.
       *(HIR0, 2026-08-13 — §4.1–4.3 and the release-candidate checks in
       `HistoricImportReleaseCandidateBaselineTest`.)*
-- [ ] HIR1 stable database/storage anchors guard a mislabelled process under release/schema/config
-      drift and bind the full target fingerprint separately.
+- [x] HIR1 stable database/storage anchors guard a mislabelled process under release/schema/config
+      drift and bind the full target fingerprint separately. *(2026-08-13. Per HIR-D2 only the
+      database anchor arms the guard; the storage anchor is recorded and reported. Outstanding
+      operator item: record the real production database anchor.)*
 - [ ] HIR2 always reapplies current curation to raw cached extraction; full-to-partial never projects
       canonical items and supersession/identity changes cannot reuse stale resolution.
 - [ ] HIR3 rejects missing/null Scripture outcomes before writes and delays every actual API attempt.

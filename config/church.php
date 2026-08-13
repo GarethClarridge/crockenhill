@@ -131,6 +131,32 @@ return [
         | resting state; set it only for the duration of an approved window.
         */
         'production_import_approval' => env('HISTORIC_IMPORT_PRODUCTION_APPROVAL'),
+
+        /*
+        | The stable production resource anchors, canonical-hashed and carrying
+        | no credentials. Read them off the production host with
+        | `historic-import:prepare-operation --anchors`.
+        |
+        | Only the database anchor triggers production controls (HIR-D2): local
+        | dev's public sermon disk resolves to the production bucket, so an
+        | OR-ed storage anchor would classify a developer machine as production
+        | and refuse the rehearsal. The storage anchor is recorded so the
+        | operator diagnostic and the release object-store boundary can see it.
+        |
+        | `@@server_uuid` is regenerated when a data directory is reinitialised,
+        | so a managed-database rebuild changes the database anchor. That fails
+        | closed, which is safe — but re-record it *before* a window rather than
+        | discovering it during one.
+        */
+        'production_database_anchor' => env('HISTORIC_IMPORT_PRODUCTION_DATABASE_ANCHOR'),
+        'production_storage_anchor' => env('HISTORIC_IMPORT_PRODUCTION_STORAGE_ANCHOR'),
+
+        /*
+        | Superseded by the two anchors above and read only to refuse. This key
+        | compared the whole operation fingerprint, so a newer release or one
+        | extra migration silently disarmed the production guard. Leaving it set
+        | is now a fail-closed configuration error rather than a no-op.
+        */
         'production_target_fingerprint' => env('HISTORIC_IMPORT_PRODUCTION_TARGET_FINGERPRINT'),
     ],
 ];
