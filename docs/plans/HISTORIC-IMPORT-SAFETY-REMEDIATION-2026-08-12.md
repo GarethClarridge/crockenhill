@@ -1044,11 +1044,15 @@ Before rerunning, record each invalidation explicitly:
    two observed independent protected copies. Repeat observation before consumption.
 3. Re-run archive parsing/staging from a clean database under HIR2. Reconcile full/partial/extra/
    supersession outcomes and produce new exact reports; do not reuse archive-v11 result hashes.
-   **Done 2026-08-13 for the Email corpus** — `--fresh-parse`, report
-   `storage/scratch/hir8-step3-import-20260813.json`, SHA-256 `27b0614a…a452a`, dispositions
-   106/13/415, per-entry `parse_cache` binding present on all 534 entries. **Not yet complete:** the
-   F1 adjudicated membership analysis was not recomputed and the database was subsequently destroyed
-   by a killed combined restage, so it must be redone against a reprovisioned database.
+   **Done for the Email corpus; superseded once and now complete.** The 2026-08-13 run
+   (`storage/scratch/hir8-step3-import-20260813.json`, `27b0614a…a452a`) staged the corpus but its
+   database was destroyed by a later killed restage before the F1 adjudication was recomputed. Redone
+   2026-08-14 from a reprovisioned database: report `storage/scratch/f1-restage-20260813.json`,
+   SHA-256 `a6767b99…bff07`, dispositions 109 created / 19 evidence_retained / 404 held / 2 merged,
+   `parse_cache` on all 534 entries, and **F1 holds** — 158 written services = 127 manifest-named +
+   31 explained extras, zero unexplained, zero off-manifest dates, verified non-vacuous. Completeness
+   is still open: 404 sources remain held for review, so only 127 of 521 approved identities are
+   staged. OpenLP and video remain unstaged on current code, so step 3 is complete for Email only.
 4. Re-export affected historic media under the HIR3 output contract. Run Scripture enrichment before
    the window, settle every absence explicitly and prove destination preflight has zero missing keys.
 5. Regenerate Bundle A/B, source/result manifests, target/runtime fingerprints, plan hashes and the

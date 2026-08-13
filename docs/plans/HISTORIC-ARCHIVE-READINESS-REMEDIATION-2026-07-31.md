@@ -2582,7 +2582,7 @@ the closure was produced by superseded behaviour.
 | Gate | Reopened by | Why the earlier evidence no longer certifies it | Close it by |
 |---|---|---|---|
 | G1 | HIR3 | `HistoricNormalOutputContract` is now version 5 and `scripture_passage_outcome` is a required field. Any Bundle A export or canary result produced under version 4 states nothing about settlement, and the destination previously read that silence as approval. The metadata serializer also dropped the outcomes entirely, so exported evidence was lossy in a way no test caught. | Re-export the affected historic media under the v5 contract, run Scripture enrichment before the window, and prove destination preflight has zero missing keys |
-| G2 | HIR2 | The 2026-08-12 full staging run reused parses resolved under the old cache contract, which could not be invalidated by a re-curation. The replacement 2026-08-13 run under `--fresh-parse` produced different dispositions (106/13/415 against 109/18/407), so the source and projection populations G2 certifies against have moved. | **Partly discharged**: the staging run is redone and its report retained. Still needed — recompute the F1 adjudicated membership analysis, which was destroyed with the database it ran against |
+| G2 | HIR2 | The 2026-08-12 full staging run reused parses resolved under the old cache contract, which could not be invalidated by a re-curation. The replacement runs under `--fresh-parse` produced different dispositions, so the source and projection populations G2 certifies against have moved. | **Staging and F1 discharged 2026-08-14**: restaged from a reprovisioned database (report `a6767b99…bff07`, 109 created / 19 evidence_retained / 404 held / 2 merged, date accuracy 98.5%), and the F1 adjudicated membership recomputed — 158 written services = 127 manifest-named + 31 explained extras, zero unexplained, zero off-manifest dates, verified non-vacuous. **Still open**: completeness (127 of 521 approved identities staged; 404 sources held for review), the proposal census, and declared-source-kind coverage over a combined corpus |
 | G3 | HIR3 | The different-PK Bundle A round trip asserted logical hash equality over a version 4 payload. The canary fixture in `tests/Support/HistoricNormalOutputCanary.php` gained the outcome field, so the previously asserted hashes are not the hashes the current contract produces. | Re-run both round trips on the release candidate and record the new hashes |
 | G4 | HIR3 | The binding no-write preflight is the exact check HIR3 found could pass on an unsettled outcome — a null passage with no outcome returned the same answer as an approved terminal absence. A green preflight recorded before `f4341d4d4` proves nothing about settlement. | Re-run the whole-operation preflight under the v5 contract |
 | G7 / G8 | HIR4, HIR5 | Custody and recovery artifacts are both version 2 and version 1 **cannot** satisfy the repaired gates. HIR4 found two writable folders on one disk accepted as independent copies; HIR5 found one backup object presented as both the on-host and off-host restore. Any prior acceptance rested on exactly those defects. | Re-observe source custody on the acquisition host, and regenerate signed recovery evidence verified only from mapped retained artifacts |
@@ -2604,16 +2604,18 @@ do not read counts out of it.
 slice in this plan, and every code package in the safety addendum, is committed. What remains is
 evidence, and it splits into one item that needs nothing and a set that needs infrastructure.
 
-**Drive-free and unblocked — do this first:** reprovision `crockenhill_rehearsal` (it is contaminated,
-see the correction above), restage the Email corpus under HIR2, and **recompute the F1 adjudicated
-membership analysis** against the resulting writes. That analysis is the one piece of the superseded
-2026-08-12 evidence the 2026-08-13 re-run did not replace, and G2 cannot be claimed without it. Note
-that three consecutive full-corpus Email runs have been killed by execution limits rather than by any
-defect; budget for a chunked or detached execution strategy rather than a single foreground command.
+~~**Drive-free and unblocked — do this first:** reprovision, restage under HIR2, recompute the F1
+adjudicated membership analysis.~~ **Done 2026-08-14.** F1 holds against post-HIR2 writes; see the
+G2 row above and the final-readiness plan's `2026-08-14` entry. Execution note for any repeat: run
+the importer under `docker compose exec -d` (via `vendor/bin/sail exec -T -d`), which survived a
+harness-supervisor kill that terminated the polling wrapper mid-run. Target the database with
+`sail exec -e DB_DATABASE=crockenhill_rehearsal` rather than editing `.env` — it is verified to
+resolve correctly and removes the boot race and the crash-leaves-`.env`-wrong failure mode.
 
-**Also drive-free, and the largest remaining item by effort:** 415 of 534 Email sources are
+**Now the largest remaining item by effort, and drive-free:** **404 of 534** Email sources are
 `held_for_review`. Adjudicating them is neither code- nor drive-blocked, nothing in HIR touches it,
-and no closeout can complete while they are unsettled.
+and both closeout and G2's completeness half are blocked behind it — only 127 of 521 approved
+identities are staged precisely because the rest are still held.
 
 **Operator work behind the approval gate:** dispatch `production-audit.yml` for
 `service-evidence-coverage` and decide §12.4 on the result. The plan's two branches are written; the

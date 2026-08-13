@@ -2178,25 +2178,89 @@ As before, the raw auto-import precision treats every additional service as fals
 adjudicated F1 precision. Evening precision is 0.2254 against 134 false positives, consistent with
 the same `service_beyond_manifest` accounting the superseded entry described.
 
-**What this run does not replace.** The superseded entry also carried an adjudicated F1 membership
-analysis over the staged writes — 155 retained plan identities, 122 occupying a manifest-named slot
-and 33 explained by `service_beyond_manifest`, zero wrong-date and zero unexplained. That analysis
-was computed against a live database, and **the database this run produced no longer exists** (see
-below). The F1 adjudication therefore has to be recomputed, and until it is, no G2 claim may rest on
-either entry. F1 remains unproven against post-HIR2 writes.
+**What this run did not replace at the time.** The superseded entry also carried an adjudicated F1
+membership analysis over the staged writes — 155 retained plan identities, 122 occupying a
+manifest-named slot and 33 explained by `service_beyond_manifest`, zero wrong-date and zero
+unexplained. That analysis was computed against a live database which no longer existed. **This gap
+was closed on 2026-08-14 by a further restage; see below.**
 
-#### The rehearsal database is currently an invalid evidence base
+#### The rehearsal database was an invalid evidence base — resolved 2026-08-14
 
-Checked directly on 2026-08-13: `crockenhill_rehearsal` holds 440 `church_services`, 537
+Checked directly on 2026-08-13: `crockenhill_rehearsal` held 440 `church_services`, 537
 `church_service_source_records` (email = 110, openlp = 427) and 278 `inbound_emails`, of which 200
-are still `pending` and only 78 `processed`. Every row is timestamped 19:14–19:52 on 2026-08-13.
+were still `pending` and only 78 `processed`. Every row was timestamped 19:14–19:52 on 2026-08-13.
 
-This is **not** the step-3 database, and not any completed run: it is the residue of a later combined
-Email + OpenLP restage that was killed roughly half way through the 534-entry Email corpus. Three
-separate full-corpus Email attempts have now been terminated by execution limits rather than by any
-defect in the importer. Treat the database as contaminated, reprovision with
-`historic-import:provision-rehearsal-database` before any further staging, and do not read counts out
-of it as evidence for anything. The step-3 evidence survives only as the report artifact and its hash.
+That was **not** the step-3 database, and not any completed run: it was the residue of a later
+combined Email + OpenLP restage killed roughly half way through the 534-entry Email corpus. Three
+separate full-corpus Email attempts had by then been terminated by execution limits rather than by
+any defect in the importer.
+
+**Reprovisioned and restaged 2026-08-14** — see the next section. The standing rule remains: a
+rehearsal database is not durable evidence. Reprovision with
+`historic-import:provision-rehearsal-database` before any staging run, and never read counts out of a
+database whose provenance you have not just established. Staging evidence survives as the report
+artifact and its hash; the database is a working surface.
+
+#### 2026-08-14 — F1 adjudicated membership recomputed against post-HIR2 writes
+
+`crockenhill_rehearsal` was reprovisioned (certified clean; `publication_state`, both HIR7 release
+ledger tables and HIR6's `dispatch_token` all verified present, so the restored schema dump is
+current) and the approved Email corpus restaged under HIR2. Report:
+`storage/scratch/f1-restage-20260813.json`; SHA-256
+`a6767b99530be2e2bb4d50d22c75da39a8fd48d7dbacfd36b4f40e512c5bff07`.
+
+Provenance is again self-proving: `fresh_parse: true`, `cache_policy:
+"raw-extraction-bypassed; curation always re-applied"`, `cache_version: 1`, `parse_cache` present on
+all 534 entries, authority unchanged at batch `oos-curated-2026-08-12` / plan `6795f149…16cda`, zero
+adjudicated identity disagreements. The command exits 1 because F32 treats every pending source as
+unsettled; that is the expected outcome, not a failure.
+
+Dispositions were 109 `created`, 19 `evidence_retained`, 404 `held_for_review` and **2 `merged`** —
+the `merged` disposition did not appear in either earlier run. Report date accuracy is 526/534
+(98.5%), the best of the three runs. The database holds 158 services, 160 source records, 1,621
+canonical items and 534 inbound emails.
+
+**F1 holds.** Over the 158 Email-evidenced services actually written:
+
+| Bucket | Count |
+|---|---|
+| Occupies a manifest-named service slot | **127** |
+| Extra, explained by a hash-covered `service_beyond_manifest` | **31** |
+| **Unexplained** | **0** |
+| Staged on a date the manifest never approved | **0** |
+
+All 31 extras are one coherent population: every one is an `evening` service on a date whose entry
+the manifest curated as `morning`, where the order of service carried both. That is precisely the
+case `service_beyond_manifest` and decision D9 exist to permit.
+
+**The method, because the analysis artifact is not recoverable from git** (`storage/scratch/*` is
+ignored). Take the manifest's approved identities as the distinct `(resolved_date,
+resolved_service)` pairs over `disposition: include` entries — 521, which reproduces the recorded
+figure exactly. Take the written population as `SELECT DISTINCT date, service` over
+`church_services` joined to `church_service_source_records` where `source = 'email'`. A written
+identity is approved if it is in that set; otherwise it is explained only if some report entry whose
+*expected* date equals the written date carries `service_beyond_manifest` and lists that service
+under `services.detected` but not `services.expected`; otherwise it is unexplained and F1 fails.
+
+**Measure the database, not the report.** An attempt to recompute the superseded 2026-08-12 figures
+from that run's own report yields 167/127/40 rather than the published 155/122/33, and no filter over
+the report's plan list reproduces its 126 + 29 decomposition. The published analysis was always
+measured over rows staging *wrote* — a gate-eligible plan does not always become a distinct written
+service, because convergence collapses some. A report-only reconstruction is a different population
+and must not be presented as this measurement.
+
+**Verified non-vacuous.** Injecting an unexplained extra on an approved date, or a service on an
+off-manifest date, each flips the result to failed. Stripping `service_beyond_manifest` from every
+report entry turns all 31 explained extras into unexplained failures — so those 31 rest on real flag
+evidence rather than on a permissive default.
+
+**What this does and does not discharge.** It closes the *no-unexplained-excess* half of F1 against
+post-HIR2 writes, which was the outstanding piece. It does **not** close the *completeness* half:
+only 127 of the 521 approved identities are staged, because 404 sources remain `held_for_review`.
+G2 additionally requires the proposal census and the declared-source-kind coverage, and no combined
+Email + OpenLP + video corpus has been staged on current code. **G2 remains open.**
+
+#### OpenLP staging and the parser fix
 
 #### OpenLP staging and the parser fix
 
@@ -2263,8 +2327,10 @@ invariant during the production window.
 > package is ineligible: custody and recovery version 1, and any parse resolved before HIR2.
 
 - [ ] F1 decided, PR26 implemented, and G2 certified against all declared source kinds. The F1
-      adjudication must be recomputed against post-HIR2 writes; the 2026-08-12 analysis is superseded
-      and the database it was computed on no longer exists.
+      adjudication was recomputed against post-HIR2 writes on 2026-08-14 and **holds** — 158 written
+      services partition as 127 manifest-named, 31 explained extras, zero unexplained, zero
+      off-manifest dates. Still open: completeness (only 127 of 521 approved identities are staged,
+      404 sources remain held for review), the proposal census, and declared-source-kind coverage.
 - [ ] F30 manifest-authorised Email supersession produces one exact active lineage through direct
       import and portable bundle apply.
 - [ ] F31 re-verifies each approved video source immediately before reading/dispatch and fails with
