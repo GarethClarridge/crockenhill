@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Contracts\HistoricReleaseObjectStore;
+use App\Contracts\HistoricSourceFilesystemInspector;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\ChurchServiceMergeProposal;
@@ -22,8 +23,10 @@ use App\Presenters\RelatedPagePresenter;
 use App\Seo\SermonArchiveSeoPresenter;
 use App\Seo\SermonItemListPresenter;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Services\Import\DarwinHistoricSourceFilesystemInspector;
 use App\Services\Import\FilesystemHistoricReleaseObjectStore;
 use App\Services\Import\HistoricImportMutationFreeze;
+use App\Services\Import\LinuxHistoricSourceFilesystemInspector;
 use App\Services\Media\Audio\SermonTranscriptReader;
 use App\Services\Media\Audio\TranscriptStorageService;
 use App\Services\Public\MeetingListCache;
@@ -45,6 +48,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -70,6 +74,20 @@ class AppServiceProvider extends ServiceProvider
          * the real store lacks.
          */
         $this->app->bind(HistoricReleaseObjectStore::class, FilesystemHistoricReleaseObjectStore::class);
+
+        /**
+         * HIR-D4 approved Darwin and production Linux and nothing else. An
+         * unknown platform fails closed here rather than reaching a verifier
+         * that would have to guess at mount and protection facts.
+         */
+        $this->app->bind(HistoricSourceFilesystemInspector::class, static fn (): HistoricSourceFilesystemInspector => match (PHP_OS_FAMILY) {
+            'Darwin' => new DarwinHistoricSourceFilesystemInspector,
+            'Linux' => new LinuxHistoricSourceFilesystemInspector,
+            default => throw new RuntimeException(
+                'Historic source acquisition is only supported on Darwin and Linux hosts; '
+                .PHP_OS_FAMILY.' cannot expose the required mount and protection facts.'
+            ),
+        });
 
         /**
          * Performance Optimization: These collaborators carry request-level memoization,
@@ -99,7 +117,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerHistoricImportMutationFreeze();
 
         if (config('thumbnail-generation.enabled') && ! extension_loaded('gd')) {
-            throw new \RuntimeException(
+            throw new RuntimeException(
                 'Thumbnail generation requires the GD PHP extension. '.
                 'Install php-gd or disable thumbnail generation via THUMBNAIL_GENERATION_ENABLED=false.'
             );

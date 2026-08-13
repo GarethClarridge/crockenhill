@@ -1,11 +1,12 @@
 # Historic Import Safety Remediation Plan
 
-> **Status (2026-08-13): HIR0 and HIR1 complete; HIR2–HIR8 not started; production remains NO-GO.** Verified
+> **Status (2026-08-13): HIR0–HIR4, HIR6 and HIR7 complete; HIR5 and HIR8 remain; production remains
+> NO-GO.** Verified
 > against `ac1468b47` and the findings in
 > [the 10–12 August commit review](../reviews/historic-import-commit-review-2026-08-12.md).
 > The eight red tests and the change-control baseline are recorded in
-> [the HIR0 baseline](../reports/historic-import-hir0-baseline-2026-08-13.md); the test suite is
-> deliberately red until HIR1–HIR7 land.
+> [the HIR0 baseline](../reports/historic-import-hir0-baseline-2026-08-13.md); one red test remains,
+> `VerifyHistoricImportRecoveryCommandTest`, which is HIR5's to close.
 > Do not run any production historic import, release, source-acquisition acceptance, recovery
 > acceptance or exact closeout command until this plan's applicable packages have landed and the two
 > governing historic plans have been updated with new rehearsal evidence.
@@ -543,6 +544,44 @@ operator completes enrichment.
 
 ## 10. HIR4 — Observed source custody version 2
 
+> **Complete 2026-08-13.** `HistoricSourceFilesystemInspector` with Darwin and Linux implementations
+> (HIR-D4) is the only place custody facts are observed; an unknown platform fails closed at the
+> container binding. Custody and acquisition artifacts are **version 2**; version 1 stays readable and
+> cannot satisfy the repaired gate.
+>
+> **Failure domain, not path.** `HistoricSourceRootObservation::failureDomain()` is
+> `sha256(mount source | device)`, so two roots with different canonical paths and different declared
+> `storage_identity` strings are one copy if they sit on one mount. Linux reads
+> `/proc/self/mountinfo` rather than `mount` output, because it is the only view that distinguishes a
+> bind mount of an already-mounted filesystem from a genuinely separate store — which is the
+> distinction "two independent copies" turns on.
+>
+> **Protection is decided by the write probe, not the mount option.** A read-only mount is the
+> strongest form but not the only valid one, and an options string can say `ro` over a filesystem
+> exported writable underneath. The mount option is recorded as corroborating context.
+>
+> **Two hashes, as §10 item 6 asks.** The physical inventory hash preserves actual types, links,
+> xattrs and modes; the logical byte-set hash resolves an approved symlink through to its bytes. That
+> is what lets an evidence link and its materialised working file prove equal content without
+> pretending the two objects are equal — and the acceptance case now asserts their physical
+> inventories differ.
+>
+> **One fact this host cannot expose, handled explicitly rather than assumed.** Neither `getfattr` nor
+> the PHP xattr extension is present, so extended attributes are unreadable here. The inspector says
+> so through `supportsExtendedAttributes()`: a custody artifact claiming **no** attributes verifies
+> normally, and one claiming an attribute is **refused**, because the claim would otherwise reach the
+> report unexamined. That is the substitution HIR4 exists to stop, and it is not an "assume
+> protected" flag.
+>
+> **The superseded acceptance fixture is rebuilt, not deleted.** It now materialises the working
+> copy's link for real and injects the two facts this container genuinely cannot produce — a second
+> failure domain, and a directory unwritable to root. The red test keeps the real inspector, because
+> its whole point is that the actual disk refuses.
+>
+> **Operator work remaining (HIR8's):** the real read-only physical-source observation on the
+> acquisition host, and two genuinely independent protected copies verified there rather than through
+> an injected observation.
+
 **Review finding:** two writable sibling folders on one disk, with unchanged symlinks and claimed
 xattrs, pass as independent protected copies.
 
@@ -1014,8 +1053,10 @@ Never replace a programmatic test with a one-off verification script.
 - [x] HIR3 rejects missing/null Scripture outcomes before writes and delays every actual API attempt.
       *(2026-08-13. Normal output contract version 5; the export now carries the settlement it used
       to drop.)*
-- [ ] HIR4 v2 observes two independent protected copies, real xattrs/links/mount facts and exact
-      disposition materialisation on the approved host.
+- [x] HIR4 v2 observes two independent protected copies, real xattrs/links/mount facts and exact
+      disposition materialisation. *(2026-08-13, in code and under test. The proof **on the approved
+      acquisition host** — real read-only physical source, two real protected copies, real xattrs —
+      is operator work and remains HIR8's.)*
 - [ ] HIR5 v2 authenticates the independent verifier and recomputes every required artifact/restore
       digest; v1 cannot satisfy closeout.
 - [x] HIR6 closeout requires all operation-scoped deferred email to be processed, with crash-safe
