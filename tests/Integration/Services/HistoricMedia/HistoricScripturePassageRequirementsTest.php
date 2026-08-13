@@ -7,6 +7,7 @@ namespace Tests\Integration\Services\HistoricMedia;
 use App\Models\ScripturePassage;
 use App\Services\HistoricMedia\HistoricScripturePassageRequirements;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
@@ -111,6 +112,113 @@ class HistoricScripturePassageRequirementsTest extends TestCase
                 $this->assertStringContainsString('Scripture Passage absence outcome is invalid', $exception->getMessage());
             }
         }
+    }
+
+    /**
+     * The exact exclusive union HIR3 requires, from the absence side. Every one
+     * of these used to be an approved absence or was never reached at all.
+     *
+     * @param  array<string, mixed>  $publication
+     */
+    #[Test]
+    #[DataProvider('unsettledAbsenceShapes')]
+    public function it_refuses_every_absence_shape_that_is_not_an_approved_terminal_outcome(array $publication): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Scripture Passage absence outcome is invalid');
+
+        $this->requirements->forBundle($this->bundle([[$publication + ['scripture_passage' => null]]]));
+    }
+
+    /** @return array<string, array{array<string, mixed>}> */
+    public static function unsettledAbsenceShapes(): array
+    {
+        return [
+            'outcome key omitted' => [['slug' => 'omitted']],
+            'outcome explicitly null' => [['slug' => 'null-outcome', 'scripture_passage_outcome' => null]],
+            'outcome is a string' => [['slug' => 'string-outcome', 'scripture_passage_outcome' => 'approved_absent']],
+            'outcome is a list' => [['slug' => 'list-outcome', 'scripture_passage_outcome' => ['approved_absent']]],
+            'unknown status' => [[
+                'slug' => 'unknown-status',
+                'scripture_passage_outcome' => ['status' => 'deferred', 'reason' => 'not_found'],
+            ]],
+            'linked status without a passage' => [[
+                'slug' => 'linked-without-passage',
+                'scripture_passage_outcome' => ['status' => 'linked'],
+            ]],
+            'unapproved reason' => [[
+                'slug' => 'unapproved-reason',
+                'scripture_passage_outcome' => ['status' => 'approved_absent', 'reason' => 'operator_skipped'],
+            ]],
+            'reason omitted' => [[
+                'slug' => 'no-reason',
+                'scripture_passage_outcome' => ['status' => 'approved_absent'],
+            ]],
+        ];
+    }
+
+    /**
+     * The other side of the union: each reason the export is allowed to settle
+     * on stays a positive case, so tightening the refusal cannot quietly narrow
+     * what a curator may approve.
+     */
+    #[Test]
+    #[DataProvider('acceptedAbsenceReasons')]
+    public function it_accepts_each_approved_terminal_absence_reason(string $reason): void
+    {
+        $bundle = $this->bundle([[[
+            'slug' => "settled-{$reason}",
+            'scripture_passage' => null,
+            'scripture_passage_outcome' => ['status' => 'approved_absent', 'reason' => $reason],
+        ]]]);
+
+        $this->assertSame([], $this->requirements->forBundle($bundle));
+    }
+
+    /** @return array<string, array{string}> */
+    public static function acceptedAbsenceReasons(): array
+    {
+        return [
+            'api_disabled' => ['api_disabled'],
+            'budget_exhausted' => ['budget_exhausted'],
+            'not_found' => ['not_found'],
+            'source_has_no_passage' => ['source_has_no_passage'],
+        ];
+    }
+
+    /**
+     * A whitespace-only natural key resolves against nothing at the
+     * destination, but reads as "the export supplied one".
+     */
+    #[Test]
+    public function it_refuses_a_linked_passage_whose_natural_key_is_blank(): void
+    {
+        $bundle = $this->bundle([[[
+            'slug' => 'blank-key',
+            'scripture_passage' => ['bible_id' => 'bible-a', 'normalized_reference' => '   '],
+            'scripture_passage_outcome' => ['status' => 'linked'],
+        ]]]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('scripture passage identity is invalid');
+
+        $this->requirements->forBundle($bundle);
+    }
+
+    /** A linked publication cannot also carry an absence reason. */
+    #[Test]
+    public function it_refuses_a_linked_passage_that_also_claims_an_absence_reason(): void
+    {
+        $bundle = $this->bundle([[[
+            'slug' => 'linked-and-absent',
+            'scripture_passage' => ['bible_id' => 'bible-a', 'normalized_reference' => 'John 3:16'],
+            'scripture_passage_outcome' => ['status' => 'linked', 'reason' => 'not_found'],
+        ]]]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('scripture passage identity is invalid');
+
+        $this->requirements->forBundle($bundle);
     }
 
     #[Test]

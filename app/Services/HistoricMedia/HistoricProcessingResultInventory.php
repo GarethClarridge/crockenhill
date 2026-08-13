@@ -74,6 +74,15 @@ class HistoricProcessingResultInventory
                 ->get()
                 ->keyBy('id');
 
+        /**
+         * The publications read their Scripture settlement out of this, not out
+         * of the raw model metadata, so the export and the destination that
+         * receives it are looking at the same block. Reading the raw one would
+         * let an outcome the serializer normalises away survive in the source
+         * hash and vanish from the imported run's.
+         */
+        $metadata = $this->metadataSerializer->serialize($processingLog->processing_metadata?->toArray() ?? []);
+
         $inventory = [
             'processing_key' => $processingLog->processing_id,
             'run' => $this->run($processingLog),
@@ -110,9 +119,9 @@ class HistoricProcessingResultInventory
                     $serviceItems,
                 ),
             )->all(),
-            'publications' => $this->publications($processingLog, $sections, $serviceItems),
+            'publications' => $this->publications($processingLog, $sections, $serviceItems, $metadata),
             'song_videos' => $this->songVideos($processingLog, $sections, $serviceItems),
-            'metadata' => $this->metadataSerializer->serialize($processingLog->processing_metadata?->toArray() ?? []),
+            'metadata' => $metadata,
         ];
 
         $inventory['logical_hash'] = CanonicalJson::hash($this->portableHashProjection($inventory));
@@ -204,12 +213,16 @@ class HistoricProcessingResultInventory
     /**
      * @param  Collection<int, ServiceSection>  $sections
      * @param  Collection<int|string, ChurchServiceItem>  $serviceItems
+     * @param  array<string, mixed>  $metadata
      * @return array<int, array<string, mixed>>
      */
-    private function publications(MediaProcessingLog $log, Collection $sections, Collection $serviceItems): array
-    {
+    private function publications(
+        MediaProcessingLog $log,
+        Collection $sections,
+        Collection $serviceItems,
+        array $metadata,
+    ): array {
         $publications = [];
-        $metadata = $log->processing_metadata?->toArray() ?? [];
         $scriptureOutcomes = data_get($metadata, 'historic_import.scripture_passage_outcomes', []);
         $scriptureOutcomes = is_array($scriptureOutcomes) ? $scriptureOutcomes : [];
 
@@ -295,14 +308,49 @@ class HistoricProcessingResultInventory
                 'bible_id' => $sermon->scripturePassage->bible_id,
                 'normalized_reference' => $sermon->scripturePassage->normalized_reference,
             ],
-            'scripture_passage_outcome' => $sermon->scripturePassage === null
-                ? $scriptureOutcome
-                : ['status' => 'linked'],
+            'scripture_passage_outcome' => $this->scriptureOutcome($sermon, $scriptureOutcome),
             'audio_file_path' => $sermon->audio_file_path,
             'video_file_path' => $sermon->video_file_path,
             'transcript_file_path' => $sermon->transcript_file_path,
             'thumbnail_file_path' => $sermon->thumbnail_file_path,
         ];
+    }
+
+    /**
+     * How this publication settled its Scripture Passage.
+     *
+     * HIR3 made the field required, so the export always states a settlement
+     * rather than leaving the reader to infer one from a null. There are only
+     * three things the exporter can honestly say:
+     *
+     * - the passage is linked;
+     * - the run recorded a terminal outcome for it, which travels verbatim and
+     *   is validated by HistoricScripturePassageRequirements like any other; or
+     * - the source carries no Scripture reference at all, which is the same
+     *   observation HistoricProcessingResultReadinessService skips over.
+     *
+     * A publication with a reference but no passage and no recorded outcome is
+     * genuinely unsettled. Emitting that plainly refuses the bundle at the
+     * single canonical read, before any row is written; inventing an approved
+     * absence here would be exactly the silent approval HIR3 exists to remove.
+     *
+     * @return array<string, mixed>
+     */
+    private function scriptureOutcome(Sermon $sermon, mixed $recorded): array
+    {
+        if ($sermon->scripturePassage !== null) {
+            return ['status' => 'linked'];
+        }
+
+        if (is_array($recorded)) {
+            return $recorded;
+        }
+
+        if (blank($sermon->reference)) {
+            return ['status' => 'approved_absent', 'reason' => 'source_has_no_passage'];
+        }
+
+        return ['status' => 'unsettled'];
     }
 
     /**

@@ -458,6 +458,21 @@ created under the new contract with old code.
 
 ## 9. HIR3 — Settled Scripture outcomes and reliable API pacing
 
+> **Complete 2026-08-13.** `HistoricScripturePassageRequirements::keyFor()` is now an exact exclusive
+> union, `scripture_passage_outcome` is a **required** normal-output field (contract version 5), and
+> the enrichment delay is validated in `0..60000` and applied through a fakeable `Sleep` in a
+> `finally`. Red tests 6 and 8 are green, and
+> `HistoricImportReleaseCandidateBaselineTest::every_historic_import_one_shot_declares_its_deletion_trigger`
+> closes with the trigger added to `EnrichHistoricScripturePassagesCommand`.
+>
+> **Two adjacent defects surfaced while making the contract executable and were fixed with it.**
+> `HistoricProcessingMetadataSerializer` allow-lists the portable `historic_import` block and did not
+> carry `scripture_passage_outcomes`, so an export destroyed the curator's settlement outright —
+> invisible before HIR3 because the destination read the omission as approval. And
+> `HistoricProcessingResultInventory` read the outcomes from the raw model metadata while the
+> destination stores the serialized view, so the two could disagree; it now reads the serialized
+> block, which is what the importing side will hold.
+
 **Review findings:** a null/missing passage with a null/missing outcome passes as approved absence,
 and the enrichment delay runs only after successful lookups.
 
@@ -911,7 +926,9 @@ Never replace a programmatic test with a one-off verification script.
       operator item: record the real production database anchor.)*
 - [ ] HIR2 always reapplies current curation to raw cached extraction; full-to-partial never projects
       canonical items and supersession/identity changes cannot reuse stale resolution.
-- [ ] HIR3 rejects missing/null Scripture outcomes before writes and delays every actual API attempt.
+- [x] HIR3 rejects missing/null Scripture outcomes before writes and delays every actual API attempt.
+      *(2026-08-13. Normal output contract version 5; the export now carries the settlement it used
+      to drop.)*
 - [ ] HIR4 v2 observes two independent protected copies, real xattrs/links/mount facts and exact
       disposition materialisation on the approved host.
 - [ ] HIR5 v2 authenticates the independent verifier and recomputes every required artifact/restore

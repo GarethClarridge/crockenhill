@@ -88,7 +88,58 @@ class HistoricProcessingMetadataSerializer
             'codec_fingerprint' => $historicImport['codec_fingerprint'] ?? null,
             'sources' => $sources,
             'editorial_facts' => $this->portableEditorialFacts($historicImport['editorial_facts'] ?? null),
+            'scripture_passage_outcomes' => $this->portableScripturePassageOutcomes(
+                $historicImport['scripture_passage_outcomes'] ?? null
+            ),
         ], fn (mixed $value): bool => $value !== null);
+    }
+
+    /**
+     * F59 settles a publication that resolved no passage on an approved terminal
+     * absence, and HistoricProcessingResultInventory reads that settlement from
+     * here to emit `scripture_passage_outcome`.
+     *
+     * This allow-list dropped it, so an export replaced the curator's decision
+     * with nothing. Before HIR3 the destination read the omission as approval
+     * and applied the publication with no Scripture relationship at all; after
+     * it, the apply refuses. Either way the settlement has to travel, so it does.
+     *
+     * The block is keyed by publication slug, which is portable, and only the
+     * two decision fields are carried.
+     *
+     * @return array<string, array<string, string>>|null
+     */
+    private function portableScripturePassageOutcomes(mixed $outcomes): ?array
+    {
+        if (! is_array($outcomes)) {
+            return null;
+        }
+
+        $portable = [];
+
+        foreach ($outcomes as $slug => $outcome) {
+            if (! is_string($slug) || ! is_array($outcome)) {
+                continue;
+            }
+
+            $settled = [];
+
+            foreach (['status', 'reason'] as $field) {
+                $value = $outcome[$field] ?? null;
+
+                if (is_string($value) && $value !== '') {
+                    $settled[$field] = $value;
+                }
+            }
+
+            if ($settled !== []) {
+                $portable[$slug] = $settled;
+            }
+        }
+
+        ksort($portable);
+
+        return $portable === [] ? null : $portable;
     }
 
     /**

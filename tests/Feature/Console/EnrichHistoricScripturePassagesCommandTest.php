@@ -8,12 +8,16 @@ use App\Data\ApiBiblePassageResult;
 use App\Models\ScripturePassage;
 use App\Services\HistoricMedia\HistoricProcessingResultBundle;
 use App\Services\Scripture\ApiBibleClient;
+use App\Services\Scripture\ScriptureOperatorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Sleep;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -128,11 +132,6 @@ class EnrichHistoricScripturePassagesCommandTest extends TestCase
     }
 
     /**
-     * A disabled client resolves nothing, so an --apply run that "succeeded"
-     * against it would report every identity as an unremarkable not_found and
-     * leave the operator believing the pass had run.
-     */
-    /**
      * HIR0 red test for review finding 8 (Low), owned by package **HIR3**.
      *
      * `--delay` documents itself as "milliseconds to sleep between API calls",
@@ -188,6 +187,146 @@ class EnrichHistoricScripturePassagesCommandTest extends TestCase
         }
     }
 
+    /**
+     * HIR3's pacing matrix, measured at the boundary rather than on the clock.
+     *
+     * The red test above proves the observable gaps are real; these prove which
+     * paths reach the sleep at all, which the wall clock cannot distinguish from
+     * a slow test runner.
+     */
+    #[Test]
+    public function every_attempted_lookup_is_paced_whatever_its_outcome(): void
+    {
+        Sleep::fake();
+        $this->writeBundle(['John 3:16', 'Hesitations 4:2', 'Numbers 1:1', 'Acts 2:1']);
+
+        $client = $this->mockClientWithBudget();
+        $client->method('searchPassage')->willReturn(null);
+        $this->app->instance(ApiBibleClient::class, $client);
+
+        $scripture = $this->createMock(ScriptureOperatorService::class);
+        $scripture->method('ensurePassage')->willReturnCallback(
+            function (string $bibleId, string $reference): array {
+                if ($reference === 'Hesitations 4:2') {
+                    throw new RuntimeException('api.bible refused the request');
+                }
+
+                if ($reference === 'Numbers 1:1') {
+                    return ['status' => 'not_found', 'passage' => null];
+                }
+
+                return ['status' => 'linked', 'passage' => ScripturePassage::factory()->create([
+                    'bible_id' => $bibleId,
+                    'normalized_reference' => $reference,
+                ])];
+            },
+        );
+        $this->app->instance(ScriptureOperatorService::class, $scripture);
+
+        $this->artisan('historic-import:enrich-scripture-passages', [
+            'media-bundle' => $this->bundlePath,
+            '--apply' => true,
+            '--delay' => 250,
+        ])->assertExitCode(1);
+
+        /**
+         * Four attempts — one resolved, one thrown, one not found, one resolved
+         * — and three gaps between them. The final item has nothing left to pace
+         * against, so it does not sleep.
+         */
+        Sleep::assertSleptTimes(3);
+        Sleep::assertSequence([
+            Sleep::for(250)->milliseconds(),
+            Sleep::for(250)->milliseconds(),
+            Sleep::for(250)->milliseconds(),
+        ]);
+    }
+
+    #[Test]
+    public function an_item_the_budget_check_stopped_is_never_paced(): void
+    {
+        Sleep::fake();
+        $this->writeBundle(['John 3:16', 'Acts 2:1']);
+
+        $client = $this->createMock(ApiBibleClient::class);
+        $client->method('hasDailyBudget')->willReturn(false);
+        $client->expects($this->never())->method('searchPassage');
+        $this->app->instance(ApiBibleClient::class, $client);
+
+        $this->artisan('historic-import:enrich-scripture-passages', [
+            'media-bundle' => $this->bundlePath,
+            '--apply' => true,
+            '--delay' => 250,
+        ])
+            ->expectsOutputToContain('budget_exhausted')
+            ->assertExitCode(1);
+
+        Sleep::assertNeverSlept();
+    }
+
+    #[Test]
+    public function a_zero_delay_paces_nothing(): void
+    {
+        Sleep::fake();
+        ScripturePassage::factory()->create(['bible_id' => 'bible-a', 'normalized_reference' => 'John 3:16']);
+        $this->writeBundle(['John 3:16', 'Acts 2:1']);
+
+        $client = $this->mockClientWithBudget();
+        $client->method('searchPassage')->willReturn(null);
+        $this->app->instance(ApiBibleClient::class, $client);
+
+        $this->artisan('historic-import:enrich-scripture-passages', [
+            'media-bundle' => $this->bundlePath,
+            '--apply' => true,
+            '--delay' => 0,
+        ])->assertExitCode(1);
+
+        Sleep::assertNeverSlept();
+    }
+
+    /**
+     * `(int) '-500'` is a negative sleep and `(int) 'fast'` is no sleep at all.
+     * Both read as "the operator asked for pacing and silently got none", so the
+     * command refuses before it opens the bundle.
+     */
+    #[Test]
+    #[DataProvider('unusableDelays')]
+    public function it_refuses_a_delay_it_cannot_honour(int|string $delay, string $expected): void
+    {
+        Sleep::fake();
+        $this->writeBundle(['John 3:16']);
+
+        $client = $this->mockClientWithBudget();
+        $client->expects($this->never())->method('searchPassage');
+        $this->app->instance(ApiBibleClient::class, $client);
+
+        $this->artisan('historic-import:enrich-scripture-passages', [
+            'media-bundle' => $this->bundlePath,
+            '--apply' => true,
+            '--delay' => $delay,
+        ])
+            ->expectsOutputToContain($expected)
+            ->assertExitCode(1);
+
+        Sleep::assertNeverSlept();
+    }
+
+    /** @return array<string, array{int|string, string}> */
+    public static function unusableDelays(): array
+    {
+        return [
+            'negative' => [-500, 'must be a whole number of milliseconds'],
+            'not a number' => ['fast', 'must be a whole number of milliseconds'],
+            'fractional' => ['12.5', 'must be a whole number of milliseconds'],
+            'beyond the bound' => [60_001, 'exceeds the 60000ms bound'],
+        ];
+    }
+
+    /**
+     * A disabled client resolves nothing, so an --apply run that "succeeded"
+     * against it would report every identity as an unremarkable not_found and
+     * leave the operator believing the pass had run.
+     */
     #[Test]
     public function it_refuses_to_apply_while_api_bible_is_disabled(): void
     {

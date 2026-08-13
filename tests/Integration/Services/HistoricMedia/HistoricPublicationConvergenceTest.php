@@ -364,6 +364,9 @@ class HistoricPublicationConvergenceTest extends TestCase
                 'aliases' => [],
             ],
             'scripture_filters' => [],
+            /** HIR3: an absent passage still has to name how it was settled. */
+            'scripture_passage' => null,
+            'scripture_passage_outcome' => ['status' => 'approved_absent', 'reason' => 'source_has_no_passage'],
             ...$overrides,
         ];
     }

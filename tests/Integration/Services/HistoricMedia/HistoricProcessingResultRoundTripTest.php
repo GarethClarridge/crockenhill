@@ -76,6 +76,17 @@ class HistoricProcessingResultRoundTripTest extends TestCase
             $this->assertStringStartsNotWith('staged/', $path, "Role {$role} is still recorded at its staging path.");
         }
 
+        /**
+         * HIR3: the terminal absence the source settled has to be on the
+         * destination publication too. An export that dropped it would leave
+         * the graph unsettled, and before the outcome became required that
+         * loss was invisible — the destination read the omission as approval.
+         */
+        $this->assertSame(
+            ['status' => 'approved_absent', 'reason' => 'not_found'],
+            $targetGraph['publications'][0]['scripture_passage_outcome'],
+        );
+
         $this->assertSame($expectedHash, $targetGraph['logical_hash']);
     }
 
@@ -105,6 +116,17 @@ class HistoricProcessingResultRoundTripTest extends TestCase
             'processing_metadata' => [
                 'service_artifacts' => [
                     ['kind' => 'rms', 'path' => 'staged/rms.json', 'sha256' => hash('sha256', 'rms')],
+                ],
+                /**
+                 * HIR3: the factory gives the sermon a reference but no passage,
+                 * which is an unsettled publication the persister now refuses.
+                 * The recorded terminal absence is portable metadata, so it
+                 * makes the round trip alongside everything else under test.
+                 */
+                'historic_import' => [
+                    'scripture_passage_outcomes' => [
+                        'roundtrip-sermon' => ['status' => 'approved_absent', 'reason' => 'not_found'],
+                    ],
                 ],
             ],
         ]);

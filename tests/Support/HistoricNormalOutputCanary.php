@@ -209,6 +209,16 @@ class HistoricNormalOutputCanary
                 'historic_import' => [
                     'tag' => 'canary',
                     'sources' => [['size' => 123456, 'sha256' => str_repeat('c', 64)]],
+                    /**
+                     * HIR3: `scripture_passage_outcome` is a required field, so
+                     * the canary carries both settled shapes — the main sermon
+                     * links a passage, and the children's talk, which carries a
+                     * reference nothing resolved, travels with the approved
+                     * terminal absence the curator settled it on.
+                     */
+                    'scripture_passage_outcomes' => [
+                        'canary-childrens-talk' => ['status' => 'approved_absent', 'reason' => 'not_found'],
+                    ],
                 ],
             ],
             'sermon_id' => $mainSermon->id,

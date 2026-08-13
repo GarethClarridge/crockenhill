@@ -45,6 +45,15 @@ class HistoricScripturePassageRequirements
      * The passage identity a publication requires, or null when it approves a
      * terminal absence.
      *
+     * The two shapes are an exclusive union, and neither of them is "the field
+     * is missing". HIR3's finding was that an absent passage with an absent or
+     * null outcome returned null here, which is the same answer an approved
+     * terminal absence gives — so a bundle that had simply never settled the
+     * publication passed the zero-write preflight and dropped the destination's
+     * Scripture relationship during the apply. F59 gates export on a settled
+     * outcome; missing evidence is not approval, so it is refused before any
+     * row is written.
+     *
      * @param  array<string, mixed>  $publication
      * @return PassageKey|null
      */
@@ -54,10 +63,9 @@ class HistoricScripturePassageRequirements
         $outcome = $publication['scripture_passage_outcome'] ?? null;
 
         if ($passage === null) {
-            if ($outcome !== null
-                && (! is_array($outcome)
-                    || ($outcome['status'] ?? null) !== 'approved_absent'
-                    || ! in_array($outcome['reason'] ?? null, self::ACCEPTED_ABSENCE_REASONS, true))) {
+            if (! is_array($outcome)
+                || ($outcome['status'] ?? null) !== 'approved_absent'
+                || ! in_array($outcome['reason'] ?? null, self::ACCEPTED_ABSENCE_REASONS, true)) {
                 throw new RuntimeException('Historic publication Scripture Passage absence outcome is invalid.');
             }
 
@@ -65,10 +73,11 @@ class HistoricScripturePassageRequirements
         }
 
         if (! is_array($passage)
-            || ! is_string($passage['bible_id'] ?? null)
-            || ! is_string($passage['normalized_reference'] ?? null)
+            || ! $this->isSettledString($passage['bible_id'] ?? null)
+            || ! $this->isSettledString($passage['normalized_reference'] ?? null)
             || ! is_array($outcome)
-            || ($outcome['status'] ?? null) !== 'linked') {
+            || ($outcome['status'] ?? null) !== 'linked'
+            || ($outcome['reason'] ?? null) !== null) {
             throw new RuntimeException('Historic publication scripture passage identity is invalid.');
         }
 
@@ -200,6 +209,15 @@ class HistoricScripturePassageRequirements
     public function identity(array $key): string
     {
         return "{$key['bible_id']}|{$key['normalized_reference']}";
+    }
+
+    /**
+     * A whitespace-only natural key would resolve against nothing at the
+     * destination while still reading as "present" to a truthiness check.
+     */
+    private function isSettledString(mixed $value): bool
+    {
+        return is_string($value) && trim($value) !== '';
     }
 
     /**

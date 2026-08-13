@@ -27,6 +27,7 @@ use App\Services\HistoricMedia\HistoricMediaGraphPersister;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use ReflectionMethod;
 use RuntimeException;
@@ -241,6 +242,49 @@ class HistoricMediaGraphPersisterTest extends TestCase
         $sermon = Sermon::query()->where('slug', 'persister-test-sermon')->sole();
         $this->assertSame($destinationPassage->id, $sermon->scripture_passage_id);
         $this->assertArrayNotHasKey('scripture_passage_id', $publication);
+    }
+
+    /**
+     * HIR3: the persister's last-resort guard reads the same exclusive union the
+     * preflight does, so a bundle whose publication never settled its Scripture
+     * outcome cannot be written even if it reaches the apply.
+     *
+     * @param  array<string, mixed>|null  $outcome
+     */
+    #[Test]
+    #[DataProvider('unsettledScriptureOutcomes')]
+    public function it_refuses_to_persist_a_publication_whose_scripture_outcome_is_unsettled(?array $outcome): void
+    {
+        $publication = [
+            ...$this->publication(reference: 'John 3:16'),
+            'scripture_passage' => null,
+            'scripture_passage_outcome' => $outcome,
+        ];
+
+        try {
+            app(HistoricMediaGraphPersister::class)->persist($this->planWithGraph(
+                processingId: '00000000-0000-0000-0000-000000000020',
+                publications: [$publication],
+            ));
+            $this->fail('An unsettled Scripture outcome was persisted.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString(
+                'Scripture Passage absence outcome is invalid',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertSame(0, Sermon::query()->where('slug', 'persister-test-sermon')->count());
+    }
+
+    /** @return array<string, array{array<string, mixed>|null}> */
+    public static function unsettledScriptureOutcomes(): array
+    {
+        return [
+            'explicitly null' => [null],
+            'still pending' => [['status' => 'pending', 'reason' => 'not_found']],
+            'reason nobody approved' => [['status' => 'approved_absent', 'reason' => 'operator_skipped']],
+        ];
     }
 
     /**
@@ -670,6 +714,16 @@ class HistoricMediaGraphPersisterTest extends TestCase
                 'aliases' => [],
             ],
             'scripture_filters' => $scriptureFilters,
+            /**
+             * HIR3: a publication carrying no passage must still say how it
+             * settled. Omitting the outcome used to read as approval; it is now
+             * refused, so the fixture states the terminal absence a curator
+             * would have recorded.
+             */
+            'scripture_passage' => null,
+            'scripture_passage_outcome' => $reference === null
+                ? ['status' => 'approved_absent', 'reason' => 'source_has_no_passage']
+                : ['status' => 'approved_absent', 'reason' => 'not_found'],
         ];
     }
 

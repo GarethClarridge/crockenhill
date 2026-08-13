@@ -10,9 +10,11 @@ class HistoricNormalOutputContract
 {
     /**
      * Version 4 reclassified publication scripture filters from portable to
-     * deterministically rebuilt.
+     * deterministically rebuilt. Version 5 (HIR3) made
+     * `scripture_passage_outcome` required, so an export can no longer omit the
+     * settlement and let the apply read the omission as approval.
      */
-    public const int VERSION = 4;
+    public const int VERSION = 5;
 
     private const array ALLOWED_PRESENCE = ['required', 'nullable'];
 
@@ -187,9 +189,16 @@ class HistoricNormalOutputContract
                          * settled the approved terminal absence travels with the
                          * publication as the reason. Both are part of the normal
                          * output, so neither may be silently dropped by an export.
+                         *
+                         * HIR3: the outcome is *required* even though the passage
+                         * is nullable. A publication always has a settlement —
+                         * linked, an approved absence, or an explicitly unsettled
+                         * one that HistoricScripturePassageRequirements refuses —
+                         * and a null outcome would be indistinguishable from
+                         * approval.
                          */
                         'scripture_passage' => $this->field('nullable', 'portable', 'natural_key'),
-                        'scripture_passage_outcome' => $this->field('nullable', 'portable', 'none'),
+                        'scripture_passage_outcome' => $this->field('required', 'portable', 'none'),
                         'audio_file_path' => $this->field('nullable', 'portable', 'asset_path'),
                         'video_file_path' => $this->field('nullable', 'portable', 'asset_path'),
                         'transcript_file_path' => $this->field('nullable', 'portable', 'asset_path'),

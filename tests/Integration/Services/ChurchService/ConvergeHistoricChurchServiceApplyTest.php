@@ -128,6 +128,50 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
         Storage::disk('local')->assertMissing('service-transcripts/imported-run/audio.mp3');
     }
 
+    /**
+     * HIR3: the same zero-write refusal for a publication the export never
+     * settled at all.
+     *
+     * A missing outcome used to be indistinguishable from an approved terminal
+     * absence, so this bundle applied — writing the run, its sections and the
+     * publication with no Scripture relationship, and destroying the link the
+     * destination would otherwise have relinked. It is now refused at the same
+     * preflight, before the first service transaction opens.
+     */
+    #[Test]
+    public function it_refuses_the_operation_before_writing_anything_when_a_scripture_outcome_is_unsettled(): void
+    {
+        ScripturePassage::factory()->create([
+            'bible_id' => self::PUBLICATION_BIBLE_ID,
+            'normalized_reference' => 'John 3:16',
+        ]);
+        [$mediaBundle, $convergenceBundle] = $this->corpus(
+            ['2026-08-02'],
+            withPublication: true,
+            publicationOverrides: [
+                'scripture_passage' => null,
+                'scripture_passage_outcome' => null,
+            ],
+        );
+        $converge = app(ConvergeHistoricChurchService::class);
+        $plan = $converge->prepare($mediaBundle, $convergenceBundle);
+
+        try {
+            $converge->execute($mediaBundle, $convergenceBundle, 0, 0, $plan->planHash, $plan);
+            $this->fail('The operation applied a publication whose Scripture outcome was never settled.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString(
+                'Scripture Passage absence outcome is invalid',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertSame(0, MediaProcessingLog::query()->where('processing_id', 'imported-run')->count());
+        $this->assertSame(0, Sermon::query()->where('slug', 'sermon-2026-08-02')->count());
+        $this->assertSame(0, ServiceSection::query()->count());
+        Storage::disk('local')->assertMissing('service-transcripts/imported-run/audio.mp3');
+    }
+
     #[Test]
     public function it_applies_a_publication_that_relinks_its_scripture_passage(): void
     {
@@ -630,10 +674,14 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
      * it is in before the import: machine evidence only.
      *
      * @param  list<string>  $dates
+     * @param  array<string, mixed>  $publicationOverrides
      * @return array{0: array<string, mixed>, 1: array<string, mixed>}
      */
-    private function corpus(array $dates = ['2026-08-02'], bool $withPublication = false): array
-    {
+    private function corpus(
+        array $dates = ['2026-08-02'],
+        bool $withPublication = false,
+        array $publicationOverrides = [],
+    ): array {
         $batchHash = str_repeat('6', 64);
         $fingerprint = ['pipeline_version' => 1];
         $reviewer = User::factory()->create(['email' => 'reviewer@example.com']);
@@ -641,7 +689,15 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
         $serviceIds = [];
 
         foreach ($dates as $date) {
-            [$serviceId, $mediaService] = $this->buildService($date, $reviewer, count($dates) > 1, $batchHash, $fingerprint, $withPublication);
+            [$serviceId, $mediaService] = $this->buildService(
+                $date,
+                $reviewer,
+                count($dates) > 1,
+                $batchHash,
+                $fingerprint,
+                $withPublication,
+                $publicationOverrides,
+            );
             $serviceIds[] = $serviceId;
             $mediaServices[] = $mediaService;
         }
@@ -718,6 +774,7 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
 
     /**
      * @param  array<string, mixed>  $fingerprint
+     * @param  array<string, mixed>  $publicationOverrides
      * @return array{0: int, 1: array<string, mixed>}
      */
     private function buildService(
@@ -727,6 +784,7 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
         string $batchHash,
         array $fingerprint,
         bool $withPublication = false,
+        array $publicationOverrides = [],
     ): array {
         $processingId = $suffixRun ? "imported-run-{$date}" : 'imported-run';
         $assetPath = "historic/{$date}/audio.mp3";
@@ -737,6 +795,19 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
             $batchHash,
             $fingerprint,
         );
+
+        /**
+         * Applied to the probed graph rather than the seed: the probe persists
+         * the seed for real to derive destination-shaped keys, so a deliberately
+         * malformed publication would be refused there instead of reaching the
+         * bundle under test.
+         */
+        if ($publicationOverrides !== [] && isset($mediaGraph['publications'][0])) {
+            $mediaGraph['publications'][0] = [
+                ...$mediaGraph['publications'][0],
+                ...$publicationOverrides,
+            ];
+        }
         $sectionKey = $mediaGraph['sections'][0]['section_key'];
         $service = ChurchService::factory()->create([
             'date' => $date,
