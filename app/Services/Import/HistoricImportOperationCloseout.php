@@ -83,10 +83,17 @@ final class HistoricImportOperationCloseout
                 throw new RuntimeException('Exact closeout operation still has unsettled nested jobs.');
             }
 
+            /**
+             * HIR5: version 1 recovery evidence was unsigned, and none of the
+             * backups, manifests or exercises it named were ever opened. The v2
+             * key is what a repaired gate accepts; the v1 artifact stays
+             * retained as superseded evidence and can no longer satisfy this.
+             */
             $this->assertOperationArtifact(
                 $operation,
-                'recovery-rehearsal',
-                'crockenhill-historic-import-recovery',
+                'recovery-rehearsal-v2',
+                HistoricImportRecoveryEvidence::Format,
+                HistoricImportRecoveryEvidence::Version,
             );
             /**
              * HIR6: a new artifact key, so a version 1 document signed against

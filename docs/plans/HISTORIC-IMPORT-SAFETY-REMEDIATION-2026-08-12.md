@@ -1,12 +1,13 @@
 # Historic Import Safety Remediation Plan
 
-> **Status (2026-08-13): HIR0–HIR4, HIR6 and HIR7 complete; HIR5 and HIR8 remain; production remains
+> **Status (2026-08-13): HIR0–HIR7 complete in code and under test; HIR8 remains; production remains
 > NO-GO.** Verified
 > against `ac1468b47` and the findings in
 > [the 10–12 August commit review](../reviews/historic-import-commit-review-2026-08-12.md).
 > The eight red tests and the change-control baseline are recorded in
-> [the HIR0 baseline](../reports/historic-import-hir0-baseline-2026-08-13.md); one red test remains,
-> `VerifyHistoricImportRecoveryCommandTest`, which is HIR5's to close.
+> [the HIR0 baseline](../reports/historic-import-hir0-baseline-2026-08-13.md); all eight are now
+> closed and the suite carries no remaining `hir-red` failure. What is left is HIR8: the operator-run
+> rehearsal, restore, rollback and closeout evidence, none of which code can produce.
 > Do not run any production historic import, release, source-acquisition acceptance, recovery
 > acceptance or exact closeout command until this plan's applicable packages have landed and the two
 > governing historic plans have been updated with new rehearsal evidence.
@@ -642,6 +643,54 @@ hashes.
 
 ## 11. HIR5 — Authenticated, artifact-backed recovery evidence version 2
 
+> **Complete 2026-08-13.** Recovery evidence is version 2 under a new artifact key
+> `recovery-rehearsal-v2`, and exact closeout requires it; the version 1 artifact is retained and can
+> no longer satisfy the gate. The command takes repeatable `--artifact=id=path` mappings, and
+> `HistoricImportRecoveryArtifactResolver` is the only place those paths are touched: it refuses a
+> relative, symlinked or non-canonical path, recomputes size and SHA-256, and reads each artifact
+> **twice with the mount observation deliberately between the two reads**, so an artifact that moves
+> mid-verification is refused rather than certified under whichever digest landed first. Two logical
+> artifact IDs resolving to one inode are refused globally — that is the review's "one backup
+> presented as both restores", generalised.
+>
+> **Independence is a failure domain, not a string.** The two database backups must observe different
+> failure domains through the same boundary HIR4 uses for source custody, as must the two copies of
+> each preserved artifact — which additionally must hold identical bytes, because version 1's
+> `independent_copy_count => 2` was satisfied by a second copy containing anything at all.
+>
+> **The restores are compared, not asserted equal.** `HistoricImportRowManifest` is the one read-only
+> implementation both are read through, with `historic-import:row-manifest` as the operator's producer.
+> The gate parses both manifests, recomputes each one's membership digest so a hand-edited row count
+> no longer matches its producer, refuses a manifest whose connection anchor is the production
+> database or the other restore's, and compares exact table/row membership naming the table that
+> disagrees. Row *content* digests are deliberately not computed: the backup bytes are already bound
+> by a digest this gate recomputes, and hashing every row of a full restore twice per rehearsal buys
+> little for its cost.
+>
+> **Object recovery is read from the HIR7 ledger.** `foreign_before_cleanup_preserved => true` is
+> gone. What replaces it is two ledger facts no earlier release implementation could write: a foreign
+> writer's object recorded `preexisting` and verified rather than overwritten, and an object this
+> programme created, failed on and retained as an orphan under an orphaned attempt. The declared
+> `release_implementation` must equal `HistoricSermonPublicationService::ReleaseImplementation`, and
+> the evidence must record that exact-version deletion is unavailable — checked against the bound
+> store rather than believed.
+>
+> **HIR-D3's limitation is honoured in the schema, not papered over.** The signature uses the existing
+> approval signing key under a separately configured `recovery_evidence_key_id`. Nothing in the
+> artifact, the acceptance text or the tests claims verifier independence; the class docblock says
+> plainly that the application holds the symmetric secret and that the assurance comes from the
+> artifact-backed half.
+>
+> **One real defect surfaced on the way.** `Schema::getTableListing()` called without a schema
+> argument enumerates every schema the connection's user can reach — 825 tables across every database
+> on this server against the 62 in the one being manifested — after which the unqualified `COUNT(*)`
+> reads the wrong database or fails outright. The listing is now scoped to the connection's own
+> database explicitly.
+>
+> **Still HIR8's, and not claimable from code:** the operator-run on-host and off-host restores
+> against real backups, the measured RPO/RTO within FR-D6, and the object-recovery exercise run for
+> real rather than against a ledger fixture.
+
 **Review finding:** placeholder digests and booleans in an unsigned JSON document satisfy the
 mandatory recovery gate; the named backups and exercises are never opened.
 
@@ -1057,8 +1106,11 @@ Never replace a programmatic test with a one-off verification script.
       disposition materialisation. *(2026-08-13, in code and under test. The proof **on the approved
       acquisition host** — real read-only physical source, two real protected copies, real xattrs —
       is operator work and remains HIR8's.)*
-- [ ] HIR5 v2 authenticates the independent verifier and recomputes every required artifact/restore
-      digest; v1 cannot satisfy closeout.
+- [x] HIR5 v2 authenticates the evidence and recomputes every required artifact/restore digest; v1
+      cannot satisfy closeout. *(2026-08-13. Recovery evidence version 2 under artifact key
+      `recovery-rehearsal-v2`. Per HIR-D3 the signature attests integrity and approval-key custody
+      only — **not** verifier independence, since the application holds the symmetric secret. The
+      operator-run restores, measured RPO/RTO and real object-recovery exercise remain HIR8's.)*
 - [x] HIR6 closeout requires all operation-scoped deferred email to be processed, with crash-safe
       claim/retry and no ordinary inbox sweep. *(2026-08-13. Operational closeout evidence version 2
       under artifact key `operational-closeout-readiness-v2`. The real rehearsal email received

@@ -105,6 +105,15 @@ return [
     */
     'historic_import' => [
         'evidence_signing_key' => env('HISTORIC_IMPORT_EVIDENCE_SIGNING_KEY'),
+        /*
+         * HIR-D3 decided, against recommendation, that recovery evidence is
+         * signed with the approval key above rather than a separate
+         * recovery-only one. A distinct key *id* is still required, so the
+         * decision can be revisited without a schema change — but while the
+         * underlying secret is shared it attests integrity and approval-key
+         * custody only, never verifier independence.
+         */
+        'recovery_evidence_key_id' => env('HISTORIC_IMPORT_RECOVERY_EVIDENCE_KEY_ID'),
         'transfer_retention_days' => (int) env('HISTORIC_TRANSFER_RETENTION_DAYS', 30),
         'convergence' => [
             // Bootstrap values used until the operation has observed its own

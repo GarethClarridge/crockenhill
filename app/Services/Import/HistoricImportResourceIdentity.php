@@ -65,8 +65,8 @@ final class HistoricImportResourceIdentity
         'pgsql' => ['query' => 'SELECT system_identifier AS identity FROM pg_control_system()', 'column' => 'identity'],
     ];
 
-    /** @var array<string, mixed>|null */
-    private ?array $database = null;
+    /** @var array<string, array<string, mixed>> */
+    private array $databases = [];
 
     public function __construct(
         private readonly DatabaseManager $connections,
@@ -79,21 +79,24 @@ final class HistoricImportResourceIdentity
      * on several paths per command and the server identity cannot change inside
      * one process without the connection being rebuilt.
      *
+     * @param  string|null  $connection  a named connection, or null for the default one
      * @return array<string, mixed>
      */
-    public function database(): array
+    public function database(?string $connection = null): array
     {
-        if ($this->database !== null) {
-            return $this->database;
+        $key = $connection ?? '@default';
+
+        if (isset($this->databases[$key])) {
+            return $this->databases[$key];
         }
 
-        $connection = $this->connections->connection();
-        $driver = $connection->getDriverName();
+        $resolved = $this->connections->connection($connection);
+        $driver = $resolved->getDriverName();
 
-        return $this->database = [
+        return $this->databases[$key] = [
             'driver' => $driver,
-            'server_identity_hash' => hash('sha256', $this->serverIdentity($connection, $driver)),
-            'name_hash' => hash('sha256', (string) $connection->getDatabaseName()),
+            'server_identity_hash' => hash('sha256', $this->serverIdentity($resolved, $driver)),
+            'name_hash' => hash('sha256', (string) $resolved->getDatabaseName()),
         ];
     }
 
@@ -112,9 +115,19 @@ final class HistoricImportResourceIdentity
         return $this->diskIdentity($this->publicDiskName());
     }
 
-    public function databaseAnchor(): string
+    /**
+     * The same anchor for a named connection, so a disposable restore can be
+     * identified the way production is.
+     *
+     * HIR5 needs three answers this gives: whether a restore is the production
+     * database, whether the two restores are one database counted twice, and
+     * which database a row manifest was actually read from. Version 1 asked the
+     * verifier to type a `restored_target_fingerprint` that differed from the
+     * operation's, which any string satisfies.
+     */
+    public function databaseAnchor(?string $connection = null): string
     {
-        return CanonicalJson::hash($this->database());
+        return CanonicalJson::hash($this->database($connection));
     }
 
     public function storageAnchor(): string

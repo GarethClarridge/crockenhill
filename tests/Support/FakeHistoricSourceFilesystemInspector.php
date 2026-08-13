@@ -33,7 +33,12 @@ final class FakeHistoricSourceFilesystemInspector implements HistoricSourceFiles
     /** @var callable|null */
     private $onFirstXattrRead;
 
+    /** @var callable|null */
+    private $onFirstObservation;
+
     private bool $mutated = false;
+
+    private bool $observed = false;
 
     public function __construct(
         private readonly bool $supportsExtendedAttributes = false,
@@ -47,6 +52,20 @@ final class FakeHistoricSourceFilesystemInspector implements HistoricSourceFiles
     public function mutateDuringFirstInventory(callable $mutation): self
     {
         $this->onFirstXattrRead = $mutation;
+
+        return $this;
+    }
+
+    /**
+     * Run once inside the first root observation.
+     *
+     * HIR5's artifact resolver observes the mount between its two reads of an
+     * artifact, so this is the only place a test can change a file while it is
+     * being verified.
+     */
+    public function mutateDuringFirstObservation(callable $mutation): self
+    {
+        $this->onFirstObservation = $mutation;
 
         return $this;
     }
@@ -98,6 +117,11 @@ final class FakeHistoricSourceFilesystemInspector implements HistoricSourceFiles
 
         if (! isset($this->roots[$key])) {
             throw new RuntimeException("No observation was prepared for historic source root {$root}.");
+        }
+
+        if ($this->onFirstObservation !== null && ! $this->observed) {
+            $this->observed = true;
+            ($this->onFirstObservation)();
         }
 
         return $this->roots[$key];

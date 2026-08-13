@@ -9,13 +9,16 @@ use App\Enums\HistoricImportCheckpointState;
 use App\Enums\HistoricImportDisposition;
 use App\Enums\HistoricImportItemExpectation;
 use App\Enums\HistoricImportOperationState;
+use App\Models\HistoricImportOperation;
 use App\Services\ChurchService\HistoricConvergenceLedger;
 use App\Services\Import\HistoricImportArtifactWriter;
 use App\Services\Import\HistoricImportOperationalCloseoutEvidence;
 use App\Services\Import\HistoricImportOperationCloseout;
+use App\Services\Import\HistoricImportRecoveryEvidence;
 use App\Services\Import\HistoricImportTargetFingerprint;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
@@ -56,6 +59,42 @@ class HistoricImportOperationCloseoutTest extends TestCase
 
     #[Test]
     public function it_completes_only_after_exact_runtime_recovery_audit_and_no_op_evidence(): void
+    {
+        [$operation, $binding] = $this->closeoutReadyOperation();
+
+        $closed = app(HistoricImportOperationCloseout::class)->complete($operation->operation_id, $binding);
+
+        $this->assertSame(HistoricImportOperationState::Complete, $closed->state);
+        $this->assertDatabaseHas('historic_import_journal_entries', [
+            'historic_import_operation_id' => $operation->id,
+            'event' => 'operation_closeout_complete',
+        ]);
+    }
+
+    /**
+     * HIR5. Version 1 recovery evidence was unsigned and none of the backups,
+     * manifests or exercises it named were ever opened, so an operation holding
+     * only that artifact has no recovery evidence the repaired gate recognises.
+     *
+     * The v1 artifact is still there — it is retained as superseded evidence,
+     * not deleted — which is exactly why the gate has to key on the new artifact
+     * rather than on the format alone.
+     */
+    #[Test]
+    public function version_one_recovery_evidence_no_longer_satisfies_the_repaired_gate(): void
+    {
+        [$operation, $binding] = $this->closeoutReadyOperation(recoveryVersion: 1);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('has no verified recovery-rehearsal-v2 artifact');
+
+        app(HistoricImportOperationCloseout::class)->complete($operation->operation_id, $binding);
+    }
+
+    /**
+     * @return array{0: HistoricImportOperation, 1: array<string, mixed>}
+     */
+    private function closeoutReadyOperation(int $recoveryVersion = HistoricImportRecoveryEvidence::Version): array
     {
         $operation = $this->createHistoricImportOperation(app(HistoricImportTargetFingerprint::class)->hash(), [
             'state' => HistoricImportOperationState::CloseoutRequired,
@@ -116,14 +155,16 @@ class HistoricImportOperationCloseoutTest extends TestCase
             'report_digest' => str_repeat('b', 64),
         ];
         $writer = app(HistoricImportArtifactWriter::class);
+        $recoveryKey = $recoveryVersion === 1 ? 'recovery-rehearsal' : 'recovery-rehearsal-v2';
+        $recoveryPath = $recoveryVersion === 1 ? 'recovery/rehearsal.json.enc' : 'recovery/rehearsal-v2.json.enc';
         $writer->writeJson(
             operation: $operation,
-            artifactKey: 'recovery-rehearsal',
+            artifactKey: $recoveryKey,
             kind: HistoricImportArtifactKind::Backup,
-            relativePath: 'recovery/rehearsal.json.enc',
+            relativePath: $recoveryPath,
             payload: [
-                'format' => 'crockenhill-historic-import-recovery',
-                'version' => 1,
+                'format' => HistoricImportRecoveryEvidence::Format,
+                'version' => $recoveryVersion,
                 'operation_id' => $operation->operation_id,
                 'target_fingerprint' => $operation->target_fingerprint,
             ],
@@ -144,7 +185,7 @@ class HistoricImportOperationCloseoutTest extends TestCase
             redact: false,
         );
         $this->artifactPaths = [
-            storage_path("app/private/historic-import/{$operation->operation_id}/recovery/rehearsal.json.enc"),
+            storage_path("app/private/historic-import/{$operation->operation_id}/{$recoveryPath}"),
             storage_path("app/private/historic-import/{$operation->operation_id}/closeout/operational-readiness-v2.json.enc"),
         ];
         $ledger = app(HistoricConvergenceLedger::class);
@@ -161,12 +202,6 @@ class HistoricImportOperationCloseoutTest extends TestCase
             'passed' => true,
         ]);
 
-        $closed = app(HistoricImportOperationCloseout::class)->complete($operation->operation_id, $binding);
-
-        $this->assertSame(HistoricImportOperationState::Complete, $closed->state);
-        $this->assertDatabaseHas('historic_import_journal_entries', [
-            'historic_import_operation_id' => $operation->id,
-            'event' => 'operation_closeout_complete',
-        ]);
+        return [$operation, $binding];
     }
 }

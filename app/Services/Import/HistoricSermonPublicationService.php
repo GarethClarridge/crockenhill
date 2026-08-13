@@ -61,6 +61,17 @@ use Throwable;
 class HistoricSermonPublicationService
 {
     /**
+     * Which release implementation an exercise ran against.
+     *
+     * HIR5's object-recovery evidence names this, because evidence that a
+     * destination race is survivable proves nothing if it was gathered against
+     * the implementation whose compensation deleted by path. It is the declared
+     * half of that check; the observed half is the ledger, which only this
+     * implementation writes.
+     */
+    public const string ReleaseImplementation = 'hir7-claim-ledger-conditional-create-v1';
+
+    /**
      * How long a claim owns its batch. Long enough that a real release cannot
      * outlive it, short enough that a dead attempt is recoverable the same day.
      */
