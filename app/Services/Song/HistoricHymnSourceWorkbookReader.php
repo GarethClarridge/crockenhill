@@ -28,6 +28,11 @@ use RuntimeException;
  * Row order is hymn-book number order, so it says nothing about the order items were
  * sung in. Nothing here may be read as an order of service.
  *
+ * Anything the source holds that is not a usable mark is returned as an anomaly rather
+ * than dropped. A cell holding only whitespace is the known case: the 2026-08-09
+ * workbook turned one such cell into a usage statement, which is why that artifact
+ * counts 1,941 date-only rows where the source supports 1,940.
+ *
  * @phpstan-type HymnUsageStatement array{
  *     used_on: string,
  *     reported_service: string|null,
@@ -39,6 +44,19 @@ use RuntimeException;
  *     source_sheet: string,
  *     source_row: int,
  *     source_column: string
+ * }
+ * @phpstan-type HymnSourceAnomaly array{
+ *     kind: string,
+ *     used_on: string,
+ *     source_marker: string,
+ *     source_workbook: string,
+ *     source_sheet: string,
+ *     source_row: int,
+ *     source_column: string
+ * }
+ * @phpstan-type HymnSourceReading array{
+ *     statements: list<HymnUsageStatement>,
+ *     anomalies: list<HymnSourceAnomaly>
  * }
  */
 class HistoricHymnSourceWorkbookReader
@@ -63,25 +81,26 @@ class HistoricHymnSourceWorkbookReader
 
     /**
      * @param  list<string>|null  $onlySheets  year sheets to read, or null for every year sheet
-     * @return list<HymnUsageStatement>
+     * @return HymnSourceReading
      */
     public function read(string $path, ?array $onlySheets = null): array
     {
         $workbook = XlsxReader::open($path);
         $name = basename($path);
         $statements = [];
+        $anomalies = [];
 
         foreach ($this->yearSheets($workbook) as $sheet) {
             if ($onlySheets !== null && ! in_array($sheet, $onlySheets, true)) {
                 continue;
             }
 
-            foreach ($this->readSheet($workbook, $sheet, $name) as $statement) {
-                $statements[] = $statement;
-            }
+            $reading = $this->readSheet($workbook, $sheet, $name);
+            $statements = array_merge($statements, $reading['statements']);
+            $anomalies = array_merge($anomalies, $reading['anomalies']);
         }
 
-        return $statements;
+        return ['statements' => $statements, 'anomalies' => $anomalies];
     }
 
     /**
@@ -101,7 +120,7 @@ class HistoricHymnSourceWorkbookReader
     }
 
     /**
-     * @return list<HymnUsageStatement>
+     * @return HymnSourceReading
      */
     private function readSheet(XlsxReader $workbook, string $sheet, string $workbookName): array
     {
@@ -109,6 +128,7 @@ class HistoricHymnSourceWorkbookReader
         $numberColumn = null;
         $titleColumn = null;
         $statements = [];
+        $anomalies = [];
 
         foreach ($workbook->rows($sheet) as $rowNumber => $values) {
             if ($dateColumns === null) {
@@ -124,30 +144,51 @@ class HistoricHymnSourceWorkbookReader
                 continue;
             }
 
-            $title = $values[$titleColumn] ?? '';
+            $title = trim($values[$titleColumn] ?? '');
 
             if ($title === '') {
                 continue;
             }
 
             foreach ($dateColumns as $column => $date) {
-                $marker = $values[$column] ?? '';
+                $raw = $values[$column] ?? '';
+                $marker = trim($raw);
 
-                if ($marker === '' || $marker === '0') {
+                if ($raw === '' || $marker === '0') {
                     continue;
                 }
 
-                $statements[] = [
+                $coordinates = [
                     'used_on' => $date,
-                    'reported_service' => $this->service($marker)?->value,
                     'source_marker' => $marker,
-                    'marker_recognised' => $this->isRecognisedMarker($marker),
-                    'reported_number' => ($values[$numberColumn] ?? '') ?: null,
-                    'reported_title' => $title,
                     'source_workbook' => $workbookName,
                     'source_sheet' => $sheet,
                     'source_row' => $rowNumber,
                     'source_column' => $column,
+                ];
+
+                /**
+                 * A cell holding only whitespace marks nothing. It is reported so the
+                 * difference against an earlier artifact is explained rather than silent.
+                 */
+                if ($marker === '') {
+                    $anomalies[] = ['kind' => 'blank_marker', ...$coordinates];
+
+                    continue;
+                }
+
+                $recognised = $this->isRecognisedMarker($marker);
+
+                if (! $recognised) {
+                    $anomalies[] = ['kind' => 'unrecognised_marker', ...$coordinates];
+                }
+
+                $statements[] = [
+                    ...$coordinates,
+                    'reported_service' => $this->service($marker)?->value,
+                    'marker_recognised' => $recognised,
+                    'reported_number' => trim($values[$numberColumn] ?? '') ?: null,
+                    'reported_title' => $title,
                 ];
             }
         }
@@ -156,7 +197,7 @@ class HistoricHymnSourceWorkbookReader
             throw new RuntimeException("Sheet '{$sheet}' of '{$workbookName}' has no recognisable header row.");
         }
 
-        return $statements;
+        return ['statements' => $statements, 'anomalies' => $anomalies];
     }
 
     /**
@@ -170,7 +211,7 @@ class HistoricHymnSourceWorkbookReader
         $byLabel = [];
 
         foreach ($values as $column => $value) {
-            $byLabel[strtolower($value)] = $column;
+            $byLabel[strtolower(trim($value))] = $column;
         }
 
         if (! isset($byLabel['number'], $byLabel['title'])) {
@@ -181,11 +222,15 @@ class HistoricHymnSourceWorkbookReader
     }
 
     /**
-     * Column letter to service date, for every column headed with a date serial.
+     * Column letter to service date, for every column headed with a date.
      *
-     * A sheet's dates must fall in that sheet's year. A hymn workbook that drifted
-     * would otherwise attribute a service to the wrong year silently, and this
-     * reconciliation exists precisely to stop silent attribution.
+     * A year sheet runs slightly past its own year — a "2023" sheet carries the first
+     * Sunday of 2024 — so the date is authoritative and the tab name is only a label.
+     * That overlap means one date can appear in two workbooks, which is the selection
+     * policy's problem to resolve, not this reader's.
+     *
+     * A date more than a year from the tab is a parse failure rather than an editing
+     * habit, and fails here instead of silently attributing a service to a wrong year.
      *
      * @param  array<string, string>  $values
      * @return array<string, string>
@@ -195,15 +240,15 @@ class HistoricHymnSourceWorkbookReader
         $columns = [];
 
         foreach ($values as $column => $value) {
-            $date = $this->columnDate($value);
+            $date = $this->columnDate(trim($value));
 
             if ($date === null) {
                 continue;
             }
 
-            if (! str_starts_with($date, $sheet)) {
+            if (abs((int) substr($date, 0, 4) - (int) $sheet) > 1) {
                 throw new RuntimeException(
-                    "Sheet '{$sheet}' of '{$workbookName}' has column {$column} dated {$date}, outside its year."
+                    "Sheet '{$sheet}' of '{$workbookName}' has column {$column} dated {$date}, more than a year from its tab."
                 );
             }
 

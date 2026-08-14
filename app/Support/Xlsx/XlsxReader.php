@@ -103,10 +103,13 @@ class XlsxReader
     }
 
     /**
-     * Every row of one sheet, in document order, as column letter to trimmed value.
+     * Every row of one sheet, in document order, as column letter to raw value.
      *
-     * Empty cells are omitted rather than returned blank, so a caller iterating a
-     * sparse crosstab visits only the marks that exist.
+     * Cells with no value at all are omitted, so a caller iterating a sparse crosstab
+     * visits only the cells that hold something. Values are returned untrimmed on
+     * purpose: a whitespace-only cell is not the same as an absent one, and a reader
+     * that trims it away silently cannot tell a caller that the source holds a blank
+     * mark. Callers trim what they read.
      *
      * @return Generator<int, array<string, string>>
      */
@@ -221,8 +224,6 @@ class XlsxReader
             if ($type === 's' && $value !== '') {
                 $value = $sharedStrings[(int) $value] ?? '';
             }
-
-            $value = trim($value);
 
             if ($value !== '') {
                 $values[$column] = $value;
