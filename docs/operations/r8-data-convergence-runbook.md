@@ -1,7 +1,26 @@
 # R8 data convergence and one-shot retirement runbook
 
-> **Status (revised 2026-08-08): command surface implemented, but this runbook is not executable as
-> written; rehearsal and production execution have not started.**
+> **Status (revised 2026-08-14): command surface implemented, but this runbook is still not
+> executable as written; rehearsal and production execution have not started.**
+>
+> **What the 2026-08-14 revision changed.** Three instructions below were not merely stale, they
+> were wrong against the deployed code, and two of them would have caused an operator following this
+> document to fail a gate:
+>
+> - the OpenLP accounting `536/105/3/428/7` was hard-coded in two places and is wrong on three
+>   figures. Counts are no longer stated here at all; the approved manifest's own `expected_counts`
+>   is the authority. See §4 and §5.3.
+> - "complete one final Manual canonical review per affected service" and "every multi-source
+>   service has a completed Manual review session" **contradict the auditor**. A service finalised
+>   as `automatic` must carry *no* completed human review, and
+>   `ChurchServiceConvergenceAuditor` asserts exactly that. Following the old instruction would have
+>   failed the audit on every automatically finalised service. See §5.6 and §10.
+> - the apply example omitted `--operation-id` and `--expires-at`, both of which
+>   `service-tracking:converge-historic-service --apply` now refuses to run without. See §7.
+>
+> It also adds §5.0, the source-acquisition sequence, which became executable on 2026-08-14 (F66),
+> and §11, which names the complete current command surface so the remaining gaps in this document
+> are visible rather than silent.
 >
 > The original WP0–WP10 and WP11 export/convergence/audit command surfaces exist on `master`, but
 > the 2026-07-31 readiness audit found release-blocking defects. Do not run the production mutation
@@ -58,8 +77,13 @@ projection, Bundle B and this production sequence.
 
 Stop before any production write unless all are true:
 
-- R8 WP0–WP10 and historic HM0–HM6 are deployed;
+- R8 WP0–WP10, historic HM0–HM6 and safety packages HIR0–HIR7 are deployed;
 - focused, PHPStan, Pint, full-suite and required browser gates passed on the deployed commit;
+- `historic-import:verify-source-acquisition` passed against the exact two protected copies, and its
+  custody artifact is version 2 — version 1 artifacts were signed against a gate that never looked
+  at the disk and cannot satisfy G5/G7 (HIR4);
+- an operation exists from `historic-import:prepare-operation`, and its id and expiry are the ones
+  the approved dry runs printed;
 - the production database backup and restore procedure was tested;
 - a private non-served staging root exists for this exact run;
 - source, OpenLP manifest, OoS, legacy MP3, Bundle A and Bundle B hashes are recorded;
@@ -74,8 +98,9 @@ Stop before any production write unless all are true:
 - the exact local manifest and explicit production-only allowlist are present;
 - the operator has a written abort/rollback decision for conflicts.
 
-Counts are diagnostics, not authority. In particular, “428 files” does not identify the approved
-OpenLP set; the private manifest does.
+Counts are diagnostics, not authority. No file count identifies the approved OpenLP set; the
+private manifest does. This runbook deliberately states no fixed count anywhere — a number written
+here is a number that can rot, and the 2026-08-14 revision found exactly that in three places.
 
 ## 3. Private staging
 
@@ -118,7 +143,7 @@ Maintain one private ledger outside git:
 |---|---|
 | Deployment | git commit and image/release identifier |
 | Song catalogue | source file SHA-256 and sync plan hash |
-| OpenLP | manifest hash; 536 raw / 105 duplicates / 3 exclusions / 428 includes / 7 aliases |
+| OpenLP | manifest hash, `batch_key`, and the manifest's own `expected_counts` block copied verbatim |
 | OoS | source archive hash, assertion bundle hash and extractor fingerprint |
 | Legacy MP3 | bundle/asset hashes and selected natural identities |
 | Historic media | source corpus manifest, Bundle A hash and processing fingerprint |
@@ -130,6 +155,80 @@ Maintain one private ledger outside git:
 Never put raw email bodies, secrets, credentials or real user IDs in the ledger.
 
 ## 5. Local assembly and review
+
+### 5.0 Source acquisition and custody (drive-day)
+
+Everything else in §5 assumes two protected copies already exist. This is how they come to exist,
+and it is the only part of the operation where a mistake means re-mounting the original. Nothing
+here touches the database.
+
+The operator half — the written acquisition procedure, the named custodian, malware tooling and the
+physical device identification — is workstream D of the final-readiness plan and is **not yet
+written**. The tooling half became executable on 2026-08-14 (F66). Do not run these commands from
+this section alone until workstream D's procedure exists.
+
+1. Mount the original read-only. Identify the physical device and filesystem, and record health and
+   read errors. Never point any importer at the original.
+2. Make two protected copies whose **failure domains differ** — not two directories on one disk.
+   Both commands below refuse copies that share a mount source and device, and refuse a copy a write
+   probe can still write to.
+3. Malware-scan in isolation and retain the checksummed report.
+4. Draft the whole-tree disposition worksheet. This is read-only against the copy and decides
+   nothing:
+
+```bash
+vendor/bin/sail artisan historic-import:draft-source-dispositions \
+  "<evidence-copy-absolute-path>" \
+  --worksheet="acquisition/<batch-key>/dispositions.json"
+```
+
+   It fails, naming the paths, on read errors, dangling or escaping symlinks and case/Unicode
+   collisions. Each of those is a source problem to fix before continuing, not a warning to note.
+
+5. Adjudicate the worksheet: set an explicit `disposition` on **every** path, and write one reason
+   per disposition class in `disposition_reasons`. Both are required — capture refuses an undecided
+   path and refuses a disposition class with no written reason. The custody artifact has no room for
+   per-path reasons, so the worksheet is retained as evidence alongside it.
+6. Write the facts file: `batch_key`, `key_id`, `physical_source` (device/volume identity,
+   filesystem, health-report digest, zero read errors, and the five proven mount facts),
+   `malware_scan`, `retention`, a `storage_identity` per copy, and the planned `capacity_plan`.
+   **The capacity plan must not declare `source_bytes`** — that total is measured from the working
+   copy, and capture refuses a hand-typed one.
+7. Capture and sign the custody artifact:
+
+```bash
+vendor/bin/sail artisan historic-import:capture-source-acquisition \
+  "<private-absolute-path>/dispositions.json" \
+  "<private-absolute-path>/acquisition-facts.json" \
+  "<evidence-copy-absolute-path>" \
+  "<working-copy-absolute-path>" \
+  --custody="acquisition/<batch-key>/custody.json"
+```
+
+   Record the printed worksheet SHA-256 in the ledger next to the custody path. Any extended
+   attribute reported as unclaimable is a signal that one copy was made with the wrong tool —
+   investigate before proceeding.
+
+8. Verify the acquisition. This is the gate; the two commands above only produce its input:
+
+```bash
+vendor/bin/sail artisan historic-import:verify-source-acquisition \
+  "<private-absolute-path>/custody.json" \
+  "<evidence-copy-absolute-path>" \
+  "<working-copy-absolute-path>" \
+  --report="acquisition/<batch-key>/acquisition-report.json"
+```
+
+All four artifacts are create-once below `storage/app/private` at mode `0600`. A re-run needs a new
+path, which is deliberate: an acquisition you can silently overwrite is not custody.
+
+**Abort conditions:** any read error, any collision, any unprotected copy, any shared failure
+domain, a capacity plan that cannot cover source plus temporary plus staging plus rollback plus the
+approved contingency, or a worksheet whose path set no longer matches the copies. Each aborts with
+zero effects and no artifact written.
+
+**Retention:** keep the original and both protected copies read-only until exact production
+acceptance plus the rollback window, and record who may later delete or return them.
 
 ### 5.1 Preserve inputs
 
@@ -150,12 +249,11 @@ Never put raw email bodies, secrets, credentials or real user IDs in the ledger.
 ### 5.3 OpenLP evidence
 
 1. Inventory the complete raw archive recursively.
-2. Validate the private curation manifest:
-   - 536 raw artifacts;
-   - 105 byte-identical duplicates;
-   - 3 explicit exclusions;
-   - 428 includes;
-   - 7 explicit corrected aliases.
+2. Validate the private curation manifest against the archive. **Take every count from the
+   manifest's own `expected_counts` block and record it in the ledger; do not carry a count in from
+   this document or from a previous run.** The importer reconciles raw artifacts, byte-identical
+   duplicates, explicit exclusions, includes and corrected aliases against that block and refuses a
+   mismatch.
 3. Reject extra/missing files, path traversal, hash mismatch, duplicate logical services and
    contradictory aliases.
 4. Dry-run and record the plan hash.
@@ -163,6 +261,13 @@ Never put raw email bodies, secrets, credentials or real user IDs in the ledger.
 6. Rerun and require no writes.
 
 Manual copied/deleted/renamed “curated directories” are not authority.
+
+> **Why no numbers appear here.** This runbook previously hard-coded `536/105/3/428/7`. On
+> 2026-08-14 the approved manifest (`crockenhill-openlp-curation` v3, batch
+> `openlp-curated-2026-08-13`) declared a different exclusion count, a different include count and a
+> different alias count. An operator reconciling against this document rather than against the
+> manifest would have rejected a valid archive. The manifest is versioned and hashed; this sentence
+> is not.
 
 ### 5.4 Historic OoS evidence
 
@@ -221,13 +326,26 @@ Only after Email, OpenLP and Livestream evidence is complete:
 
 1. run the deterministic projector;
 2. resolve every multi-source conflict and planned-only/observed-only anomaly;
-3. complete one final Manual canonical review per affected service;
+3. complete a final Manual canonical review **only on the services that require one** — see the
+   warning below;
 4. require zero pending/stale proposals and unexplained review states;
 5. export Bundle B and the exact ordered local manifest;
 6. verify Bundle A/B source, evidence and pre-review hashes agree;
 7. rerun and require stable hashes/no writes.
 
 Do not treat earlier technical media review as final canonical review.
+
+> **Do not review every multi-source service.** `ChurchServiceCanonicalFinalization` has two values,
+> and the auditor treats them as opposites. For a service exported as `manual`,
+> `ChurchServiceConvergenceAuditor` requires the named `review_uuid`, a completed session, a matching
+> `resulting_canonical_hash` and `reviewed_canonical_revision == canonical_revision`. For a service
+> exported as `automatic` it asserts that **no** review ever completed against it and that
+> `reviewed_canonical_revision` is null.
+>
+> So a completed human review on an automatically finalised service is not harmless diligence — it
+> is an audit failure, and one that cannot be undone by reviewing more. The bundle exporter records
+> which services are which; work that list, not "every multi-source service". This runbook's
+> previous instruction predated automatic finalisation.
 
 ### 5.7 Legacy MP3 and `play_date`
 
@@ -308,6 +426,15 @@ vendor/bin/sail artisan service-tracking:converge-historic-service \
 The plan hash is bound to both exact bundle hashes and both service indexes. Any artifact or index
 change requires a fresh dry run and approval.
 
+**Omitting both indexes is not a narrower run — it is `--all`.** The command treats a missing
+`--media-index` *and* `--convergence-index` as a whole-batch plan over every matching service. Supply
+both or neither deliberately; a half-typed invocation is refused, but a fully untyped one is the
+largest possible operation.
+
+The dry run prints the operation id, the plan hash, the expiry **and the exact apply invocation to
+copy**. Use that printed line rather than assembling §7's template by hand: it already carries the
+three bound values, and hand-assembly is where a wrong index or a renewed expiry gets introduced.
+
 ## 7. Production apply
 
 1. Apply the song catalogue sync.
@@ -329,7 +456,9 @@ change requires a fresh dry run and approval.
 7. Run cross-service exact media/canonical audits.
 8. Rerun every source and bundle; require all `already_present`/no-op.
 
-For each approved service, apply only the exact dry-run token:
+For each approved service, apply only the exact dry-run token. **All three of `--operation-id`,
+`--expires-at` and `--plan-hash` are required** — the command refuses `--apply` without them, and
+each must be the value the approved dry run printed, not a value composed at the prompt:
 
 ```bash
 vendor/bin/sail artisan service-tracking:converge-historic-service \
@@ -337,9 +466,19 @@ vendor/bin/sail artisan service-tracking:converge-historic-service \
   "<private-absolute-path>/bundle-b.json" \
   --media-index=<zero-based-index> \
   --convergence-index=<zero-based-index> \
+  --operation-id="<operation-id-from-the-approved-dry-run>" \
+  --expires-at="<iso-8601-expiry-from-the-approved-dry-run>" \
   --apply \
   --plan-hash="<recorded-dry-run-plan-hash>"
 ```
+
+The dry run prints all three; copy them from its output. An expired plan is refused rather than
+renewed — a plan that has outlived its window has outlived the state it was approved against, so the
+remedy is a fresh dry run and a fresh approval, never a later `--expires-at`.
+
+`--all` applies every matching service in manifest order under one operation, and `--resume`
+continues a run from the private operation ledger after an interruption. Neither is a substitute for
+the per-service dry run: the plan hash still binds both bundle hashes and both service indexes.
 
 Expected success output identifies the natural service identity, canonical hash and created-asset
 count. Stop on the first non-zero exit. Do not generate a replacement token during an apply run.
@@ -384,7 +523,21 @@ rerun:
 ```bash
 vendor/bin/sail artisan service-tracking:audit-convergence \
   "<private-absolute-path>/bundle-b.json" \
+  --media-bundle="<private-absolute-path>/bundle-a.json" \
+  --operation-id="<operation-id>" \
   --report="r8/<run-identity>/convergence-audit.json"
+```
+
+Pass `--media-bundle` so the media graph and asset equality are audited in the same pass rather than
+left to a separate gate, and `--operation-id` so the result is recorded as a closeout measurement
+against the operation instead of an unbound report. Afterwards, prove the retained report and its
+ledger binding rather than trusting the exit code you saw at the time:
+
+```bash
+vendor/bin/sail artisan service-tracking:audit-convergence \
+  "<private-absolute-path>/bundle-b.json" \
+  --operation-id="<operation-id>" \
+  --verify-closeout
 ```
 
 The command is read-only. It exits non-zero and emits dotted field paths for canonical item/order
@@ -414,11 +567,15 @@ record.
 Do not resume normal operation or delete one-shot commands until:
 
 - every approved source is applied or explicitly excluded;
-- OpenLP accounting is exactly 536/105/3/428/7;
+- OpenLP accounting reconciles exactly against the approved manifest's `expected_counts`;
 - Bundle A contains every required normal-pipeline output;
 - Bundle A's evidence reproduces Bundle B's reviewed base;
-- every multi-source service has a completed Manual review session;
-- zero actionable archive emails remain;
+- every service finalised as `manual` has a completed review session whose
+  `resulting_canonical_hash` and `reviewed_canonical_revision` match, and every service finalised as
+  `automatic` has **no** completed review session and a null `reviewed_canonical_revision`;
+- zero actionable archive emails remain, and every deferred inbound email reached the terminal
+  `processed` state with a non-null `processed_at` — `dispatched` is a queue handoff, not an outcome
+  (HIR6);
 - zero pending/stale proposals remain;
 - every planned-only/observed-only anomaly is adjudicated;
 - exact local/production manifests match, except recorded accepted differences;
@@ -429,5 +586,87 @@ Do not resume normal operation or delete one-shot commands until:
 - backup, ledger and private hashes are retained;
 - staging cleanup is scheduled after the rollback window.
 
+Closeout is a command, not a judgement. Verify and retain the operational evidence, then the
+recovery evidence, rather than asserting either:
+
+```bash
+vendor/bin/sail artisan historic-import:verify-operational-closeout \
+  "<operation-id>" "<private-absolute-path>/operational-evidence.json"
+
+vendor/bin/sail artisan historic-import:verify-recovery \
+  "<operation-id>" "<private-absolute-path>/recovery-evidence.json" \
+  --artifact="<artifact-id>=<verification-path>"
+```
+
+Both artifacts are signed and version 2. Version 1 recovery evidence cannot satisfy the repaired
+gate (HIR5), and the resolver refuses two artifact ids that resolve to one inode — an on-host and an
+off-host restore must be two objects.
+
+**Release is a separate authorised act after closeout, not part of the import.** Imported sermons
+and song videos land quarantined on the private disk; publishing them is
+`historic-import:release-batch` against its own signed authorisation, gated on the operation being
+`Complete`. Run it with `--dry-run` first, which verifies everything and publishes nothing:
+
+```bash
+vendor/bin/sail artisan historic-import:release-batch \
+  "<private-absolute-path>/release-authorisation.json" --dry-run
+```
+
+Under D10 one person may hold the release-owner, verifier and rollback-owner roles; the names are
+accountability fields and are not compared for uniqueness.
+
 Only then update remainder R8, delete commands whose docblock triggers are satisfied and archive
 this runbook with the two plans.
+
+## 11. Command surface and what this runbook still does not cover
+
+The deployed surface is larger than the sequence above. This table exists so a missing step is
+visible rather than silent; **a command with no runbook step is not approved for the production
+window**, and assembling one at the prompt is what §C7 of the final-readiness plan forbids.
+
+| Command | Covered here | Note |
+|---|---|---|
+| `historic-import:draft-source-dispositions` | §5.0 | New 2026-08-14 (F66) |
+| `historic-import:capture-source-acquisition` | §5.0 | New 2026-08-14 (F66) |
+| `historic-import:verify-source-acquisition` | §5.0 | The acquisition gate |
+| `service-tracking:sync-songs` | §5.2 | |
+| `service-tracking:import-openlp-services` | §5.3 | |
+| `oos:import-archive` | §5.4 | |
+| `sermons:import-historic-videos` | §5.5 | Needs a video curation manifest **that nothing builds** |
+| `historic:export-processing-results` | §6.1 | Bundle A |
+| `service-tracking:export-convergence` | §6.1 | Bundle B |
+| `service-tracking:converge-historic-service` | §6.1, §7 | |
+| `service-tracking:audit-convergence` | §8, §10 | |
+| `historic-import:verify-operational-closeout` | §10 | |
+| `historic-import:verify-recovery` | §10 | |
+| `historic-import:release-batch` | §10 | Post-closeout, separately authorised |
+| `historic-import:prepare-operation` | **no step** | Produces the operation id and expiry §7 requires |
+| `historic-import:provision-rehearsal-database` | **no step** | Rehearsal only; reprovision before every staging run |
+| `historic-import:enrich-scripture-passages` | **no step** | HIR3: outcomes must be settled before Bundle A export |
+| `historic-import:row-manifest` | **no step** | Exact row membership for a disposable restore |
+| `audit:historic-import-assets` | **no step** | Retained-artifact audit |
+| `services:generate-corpus-membership` | **no step** | F53/PR26 exact per-batch membership certification |
+| `service-tracking:promotion-budget` | **no step** | F58 production-window measurement |
+| `service-tracking:import-historic-song-usage-reports` | **no step** | Hymn lane, F61/F62 |
+| `service-tracking:reproject-current-era` | **no step** | Current-era re-projection after the evidence back-fill |
+
+### What still blocks approval of this document
+
+Correcting the errors above does not make this runbook production authority. Outstanding, in the
+order they gate:
+
+1. **No per-step expected output, exit code, evidence captured, abort condition or rollback action.**
+   §C2 requires all five for every step; most steps here have prose only.
+2. **No T-minus preparation, ingress/admin/deploy freeze, queue and scheduler snapshot, or
+   per-checkpoint admission sequence.**
+3. **No decision tree** for source or hash mismatch, low disk, timeout or live work, failed job,
+   provider rate or cost breach, database or object failure, expired token, plan drift, concurrent
+   edit and missed deadline. Which cases stop, resume, compensate or restore must be written down
+   before the window, never improvised inside it.
+4. **No measured timings.** §E2's stratified calibration has not run, so no step here carries a
+   duration and the window cannot be budgeted.
+5. **The eight commands above with no step.**
+6. **Never rehearsed verbatim.** D10 removed the second-operator walkthrough; the verbatim rehearsal
+   is what replaces it, and it is the stronger half — a reader can miss a wrong command, executing
+   the document as written cannot. Until that rehearsal happens with timings and retained reports,
+   this document is a draft.
