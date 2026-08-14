@@ -28,8 +28,9 @@ no-op, restore and rollback exercises have not run. G2-G9 remain unclaimed and d
 promotion still has no accepted production-window measurement. F1 and the remaining §5 business
 decisions are decided, but their required operation/rehearsal evidence remains outstanding.
 
-The audits found thirty-five additional findings, F29-F63; thirty-three remain blockers after the
-maintainer's 2026-08-08 scope decision accepted F42-F43. They span source and manifest integrity,
+The audits found thirty-seven additional findings, F29-F65; thirty-two remain blockers after the
+maintainer's 2026-08-08 scope decision accepted F42-F43 and the closures of F61, F62 and F63. They
+span source and manifest integrity,
 Email/convergence correctness, false-success command semantics, ephemeral staging and resume state,
 checkpoint/recovery, unbound processing environments, event/notification containment, exact corpus
 and closeout binding, restore/change control, access boundaries, missing service identity and the
@@ -40,8 +41,12 @@ contradicts the governing business assumption that import must not expand the au
 current read paths, production import can itself publish.
 
 The Email roots are now covered by the approved `oos-curated-2026-08-12` authority: 535 entries,
-534 included, 1 excluded and 521 named identities. Archive-v11's balanced calibration passed, but
-the full staging population is not yet measured. The hymn reconciliation workbook is a separate
+534 included, 1 excluded and 521 named identities. Archive-v11's balanced calibration passed and the
+full staging population has now been measured and reviewed — but on a tree where F63 was believed
+fixed and was not, so those figures describe the unfixed behaviour and must be re-measured. The
+review itself stands: **only 127 of the 521 approved identities are staged, and the 404 held sources
+are the entire remaining gap.** 231 of the missing identities are clearable by review today, 148 are
+unreachable by any operator action until F65 lands, and just 14 are genuinely manual. The hymn reconciliation workbook is a separate
 unapproved derived authority: its date-only lane is implemented, but its known-service lane,
 immutable provenance, production controls and rerun reconciliation are open under F60-F62.
 
@@ -1644,12 +1649,12 @@ was actually met.
 
 | Phase | May start when | Exit evidence |
 |---|---|---|
-| 0. Decide and design | Now; no corpus access | F1 and all business decisions have named owners — **all §5 rows decided 2026-08-11**; F29-F63 have accepted designs and testable acceptance criteria |
+| 0. Decide and design | Now; no corpus access | F1 and all business decisions have named owners — **all §5 rows decided 2026-08-11**; F29-F65 have accepted designs and testable acceptance criteria |
 | 1. Harden code/runtime | Phase 0 decisions affecting schemas/contracts are made | Required fixes pass focused/full quality gates; operation artifacts and runtime are version-pinned |
 | 2. Acquire and curate | F36 protocol, capacity, protected copies and malware tooling are ready | Signed whole-drive inventory; original protected; approved OpenLP/OoS/video manifests with zero unaccounted paths, including the current 533/261 Email inventory |
-| 3. Definitive local processing | F31-F39, F47-F50, F52-F55, F59 and F63 are green; manifests are approved | Every checkpoint exact-complete; output/cost/capacity ledgers reconcile; no unresolved live/timed-out work; F60 hymn reconciliation is regenerated against the converged corpus |
+| 3. Definitive local processing | F31-F39, F47-F50, F52-F55, F59, F63, F64 and F65 are green; manifests are approved | Every checkpoint exact-complete; output/cost/capacity ledgers reconcile; no unresolved live/timed-out work; F60 hymn reconciliation is regenerated against the converged corpus |
 | 4. Production-shaped rehearsal | G1-G5 and F60 plus clean different-PK environment | Exact Bundle A/B and F61-F62 hymn apply, audit, complete no-op rerun, crash/resume, restore/rollback and public/private smoke all pass |
-| 5. Production apply | G6/G7 accepted; every open F29-F63 finding green; command-exact runbook approved | One mutation pass, exact audit/no-op closeout, recovery evidence retained, no audience expansion |
+| 5. Production apply | G6/G7 accepted; every open F29-F65 finding green; command-exact runbook approved | One mutation pass, exact audit/no-op closeout, recovery evidence retained, no audience expansion |
 | 6. Editorial follow-up | Exact import accepted | Titles/occasions and ordinary corrections improve without re-importing or changing source provenance |
 
 ### A. Close the known engineering and data gates
@@ -1705,8 +1710,17 @@ appears in a later phase's work is doing implementation there, not relaxing its 
    command does not build.
 10. Complete the mounted-drive OpenLP and video inventories and approve the final immutable manifests
    before any bulk processing.
-11. Fix F63 before the fresh full archive-v11 staging run so the review population is measured after
-    curated content scope, while extra unknown-scope services remain held.
+11. ~~Fix F63 before the fresh full archive-v11 staging run so the review population is measured
+    after curated content scope, while extra unknown-scope services remain held.~~ **Done
+    2026-08-14** — and note the trap: this step was marked satisfied on 2026-08-12 while the fix had
+    not landed, so every review population measured before 2026-08-14, including the 2026-08-13 F1
+    restage, measured the unfixed behaviour.
+11a. Fix F64 and F65 before the next staging run, in that order. They are the two levers that decide
+    how much of the held backlog clears without an operator: the 2026-08-14 review measured 148 of
+    the 394 missing identities as unreachable by *any* operator action until F65 lands, and F64
+    removes a class of validation failure that F65 would otherwise have to accommodate. Re-run
+    staging afterwards and measure the staged-identity count against the 521 approved; do not assert
+    it. Only the residue — 6 identity disagreements and 8 date corrections — is operator work.
 12. Resolve F60 after Email/OpenLP/Livestream convergence: regenerate and hash-bind the historic
     hymn reconciliation, then disposition all 5,759 known-service rows and reconcile every source
     overlap. Do not import only the convenient lane and call the workbook complete.
@@ -1741,7 +1755,7 @@ review. Those topics are not import gates.
 ### C. Replace the stale runbook with an executable one-operation specification
 
 1. Rewrite the sole production runbook from the actual command signatures and current G2-G9 plus
-   F29-F63 gates. Delete obsolete fixed counts, mandatory-Manual assumptions and commands missing
+   F29-F65 gates. Delete obsolete fixed counts, mandatory-Manual assumptions and commands missing
    current operation ID/expiry arguments.
 2. Include exact commands, arguments, artifact paths, expected output/exit code, operator, witness,
    evidence captured, abort condition and rollback action for every step.
@@ -2087,9 +2101,32 @@ original unmatched rows' final or deliberately unresolved disposition.
 
 ### 2026-08-12 — F63: archive-v11 computes eligibility before applying curated scope
 
-**State: closed 2026-08-12.** The defect was safe over-hold, not a wrong-write path. The corrected
-classifier, balanced archive-v11 calibration and clean-database full staging measurement are
-recorded above.
+**State: reopened 2026-08-14, then closed 2026-08-14.** The 2026-08-12 closure was wrong: the
+required outcome was never implemented and no test covered the stated proof. `resolvedDisposition()`
+still read `$plan->contentScope` — the scope arriving with the plan — while
+`withCuratedContentScope()` constructed the replacement with the curated scope. The classifier
+therefore held the plan on the very value that call was discarding. The 2026-08-12 note that the
+"corrected classifier" was in place describes work that did not land; treat any measurement that
+relied on it as measuring the *unfixed* behaviour, including the 2026-08-13 F1 restage.
+
+The proof the original entry demanded is now a test —
+`OosArchiveIdentityResolverTest::a_corroborated_unknown_scope_plan_is_classified_against_the_curated_scope`
+— which failed on the pre-fix tree at the `isAutoImportable()` assertion while the scope assertion
+above it passed, isolating the defect exactly: scope applied, adjudication stale.
+`resolvedDisposition()` now takes the scope the replacement plan will carry as an explicit argument;
+the two identity call sites pass `$plan->contentScope` and so are unchanged in behaviour, and only
+the curated path sees a different value. The existing guard that an extra, non-corroborated plan
+keeps its own `unknown` scope still passes.
+
+**Measured blast radius** (2026-08-13 restage, 691 selected-attempt plans): 11 plans carried a
+parse-time `unknown` scope; curation supplied a real scope for 6 of them; for exactly 1 —
+`2022-07-31`, consensus, confidence 0.78 against a 0.75 review threshold, curated `full` — the stale
+read was the *sole* remaining blocker. The defect does fail safe, as originally judged. What the
+original entry got wrong was believing it had been fixed.
+
+**Original closure note, retained as the record of the error.** "The defect was safe over-hold, not a
+wrong-write path. The corrected classifier, balanced archive-v11 calibration and clean-database full
+staging measurement are recorded above."
 
 Before the fix, `OosArchiveIdentityResolver::applyCuratedContentScope()` asked
 `resolvedDisposition()` to classify the original plan and only then constructed a replacement
@@ -2262,8 +2299,6 @@ Email + OpenLP + video corpus has been staged on current code. **G2 remains open
 
 #### OpenLP staging and the parser fix
 
-#### OpenLP staging and the parser fix
-
 The OpenLP corpus is local after all — `storage/scratch/ServiceRecords`, not the CBC drive — and a
 curation manifest over it validates against the real importer's dry run. A 427-archive staging run on
 2026-08-13 processed all 427 with zero failures and flagged **58** for review. `e84e1e6b1` then fixed
@@ -2281,6 +2316,177 @@ the bug. **The 58 figure is superseded; cite 5.**
 This does not discharge anything on the OpenLP side of G1: populating the v2 curation fields and the
 video manifest still need the drives, and no combined Email + OpenLP + video convergence has ever
 been staged on current code.
+
+### 2026-08-14 — the 404-source review backlog reviewed: it is the whole completeness gap
+
+Read-only review of the 404 `held_for_review` sources from the 2026-08-13 F1 restage, against the
+rehearsal database and `f1-restage-20260813.json`. Nothing was re-parsed and nothing was written.
+
+**The backlog is exactly the completeness gap.** 521 approved identities, 127 staged, **394
+missing** — and **393 of the 394 are covered by at least one held entry**. The single exception took
+`evidence_retained`: a partial-scope entry that retains evidence without creating a service, which is
+designed behaviour, not a loss. Clearing the 404 is therefore *sufficient* for F1's completeness
+half. Nothing else is hiding.
+
+| Hold family | Entries | Identities | Clearable by operator approval today? |
+| --- | --- | --- | --- |
+| Soft hold | 234 | 231 | Yes — `isManuallyImportable()` passes |
+| Invalid extraction | 150 | 148 | **No** — approval cannot import these at all |
+| Gate hold | 20 | 20 | Needs adjudication |
+
+Identities sum to 399 against 393 distinct because correction chains put two entries on one identity.
+Of the 150 invalid entries, 137 are wholly blocked and 13 carry a second plan that *is* approvable.
+
+**The `low_confidence: 412` parse-flag count is a misleading work estimate and should not be cited as
+one.** Confidence is not what holds most of this back.
+
+#### Soft holds — 231 identities, and the identity is manifest-corroborated in every one
+
+Causes: `attempts_disagree` 125, `no_consensus` 85, `below_review_threshold` 21, and one each of
+`content_scope_unknown`, `service_other` and the F63 anomaly. Across all 234 entries, **0** disagree
+with the curated date and **0** missed a curated service; 208 of 233 had both extraction attempts
+return the same total item count. The residual risk of approving this cohort is item-list wording,
+not misfiling.
+
+The 125 `attempts_disagree` deserve their own note, because `extractionSignature()` hashes
+`service_evidence_line_ids` alongside item type and line ids, and those evidence ids are optional for
+single-plan emails and are **never written to a service**. Splitting by what stored attempt metadata
+can see: **70** are identical at plan/item-count/scope level, so the disagreement lives entirely in
+evidence citations, item typing or line attribution; 52 differ on item count or scope; 3 differ on
+the number of plans.
+
+#### Invalid extraction — 148 identities, and the blocker is bookkeeping, not content
+
+`isManuallyImportable()` excludes `InvalidExtraction`, so no amount of operator review clears these.
+This is a code decision, not operator time. Reason kinds, as plan occurrences: `line_assigned_twice`
+92, `unclassified_source_line` 87, `ignored_line_inside_items` 48, `phantom_source_line` 36,
+`items_out_of_source_order` 11, `missing_boundary_evidence` 5, `item_merges_lines` 4,
+`evening_without_boundary` 1. Every one is a complaint about *provenance bookkeeping*, not a claim
+that the extracted order is wrong. Three read in full against their source emails:
+
+- `2015-06-28` — a complete, correct 15-item morning order, invalidated solely because line 1, the
+  opening hymn, was cited both as an item and as service evidence.
+- `2014-09-14-pm` — a complete evening order at confidence 0.92, invalidated solely because line 41,
+  `Many thanks,`, was left off the ignored list. Line 43, `Mark`, *was* ignored.
+- `2015-12-13-pm` — a complete evening order at 0.86, invalidated because a trailing "Details for
+  Gareth" appendix, carrying the *morning* service's reading, was ignored inside the plan's span.
+
+The largest cause decomposes exhaustively from stored provenance — all 105 plans carrying it, not a
+sample: **48** evidence ∩ item (a redundant citation of a line extracted exactly once), **20**
+evidence ∩ evidence across plans, **35** involving the ignored list and so not reconstructible
+(ignored lines are never persisted), and **2** item ∩ item, the only genuine double-counting of
+content. The rule that invalidates more of this corpus than any other is firing on real content
+duplication in 2 cases out of 105.
+
+#### Gate holds — all 20 explained, only 6 editorial
+
+- **8 × `no_corroborated_plan` on a wrong date.** These are *exactly* the 8 date-extraction errors in
+  the whole 534-entry corpus — verified as a set equality against `aggregate.false_date_cases`, with
+  zero date mismatches anywhere outside this bucket. The gate caught every one and none wrote
+  anything. Manifest corroboration has perfect recall on date failure, which is a positive result
+  worth keeping.
+- **6 × `superseded_predecessor_not_imported`**, all `-revised`, each chained to a predecessor that
+  is itself in this backlog (3 behind invalid extractions, 3 behind soft holds). They clear
+  automatically; they are not independent work.
+- **6 × `curated_service_not_parsed`** — the only true identity adjudications: `2016-06-26`,
+  `2017-03-26`, `2017-07-23-pm`, `2018-05-27`, `2018-12-23-carols`, `2024-11-03`. Two of them
+  (`2018-05-27` at confidence 0, `2024-11-03` at 0.35) parsed no service at all.
+
+#### Method, so this is reproducible without the scripts
+
+The analysis scripts live in gitignored `storage/scratch` and are **not recoverable**, so the method
+is recorded here as prose, as was done for F1. Spine is the evaluation report, which alone carries
+`gate_reasons` and the manifest expectations; join to `inbound_emails.processing_metadata` on
+`message_id` for per-plan disposition, validation reasons and consensus. Attribute each held plan to
+the *first* rule that fired in `planDisposition()`'s precedence, and **take the stored `disposition`
+as the authority for invalid-versus-review**: `OosEmailParserService` appends the "two valid
+extraction attempts disagreed" sentence to `validationReasons` *after* `planDisposition()` has run,
+so reading reasons first misattributes all 125 disagreements as validation failures. Count only
+plans the report marks `gate_eligible`, since only those were offered to `import()`. Approved
+identities are distinct `(resolved_date, resolved_service)` over `disposition: include` manifest
+entries (521, reproduced exactly); staged identities are `SELECT DISTINCT date, service` from
+`church_services` joined to `church_service_source_records` where `source = 'email'` (158).
+
+**What this review did not establish.** Nothing was re-parsed; every conclusion comes from stored
+artifacts of the 2026-08-13 run. Four entries were read source-against-extraction, so the defensible
+general claim is about the *nature of the validator's complaint* plus the duplicate anatomy, which is
+exhaustive — **not** that all 150 invalid extractions are content-correct. The ignored-line list is
+never persisted, so 35 of the 105 duplicate clashes and the whole `unclassified_source_line` count
+cannot be decomposed further without a re-run.
+
+#### What this creates
+
+F63 is reopened and fixed above. Two new defects, F64 and F65, are raised below. The intended
+sequence is: land F64 and F65, re-run staging, and let the cleared backlog fall out automatically;
+only then hand the operator the 6 identity disagreements and 8 date corrections, which is the whole
+of the genuinely manual work — about 14 items, against 404 today.
+
+### 2026-08-14 — F64: OoS extraction requests a schema the API is never asked to enforce
+
+**State: open.**
+
+`OpenAiOosEmailItemExtractor::attempt()` sends a `json_schema` response format without
+`'strict' => true`. The sibling structured-output caller in this codebase,
+`OpenAiServiceStructureService::responseFormat()`, does set it, so this is an internal inconsistency
+rather than a considered choice. Every line-id field in the schema is enum-constrained to the real
+source line ids via `lineIdArraySchema()`, which means the **47 phantom line-id occurrences** in the
+2026-08-13 corpus — 40 ignored-line, 6 item, 1 service-evidence — reference ids the model should have
+been structurally unable to emit.
+
+The obvious alternative explanation was tested and **refuted**: enum size. The highest line id
+anywhere in the corpus is 179, and emails carrying a phantom reference median 27 non-blank lines
+against 18 for clean ones — nowhere near the limits at which enum enforcement degrades. Without
+`strict`, the schema is advisory, which is consistent with what the corpus shows.
+
+**Required outcome:** the extraction request enforces its schema, so a line id outside the source
+document cannot be returned. Enabling `strict` constrains which keywords the schema may use, so this
+needs a compatibility pass rather than a one-word change — `minItems` in `lineIdArraySchema()` is the
+first thing to check — and any keyword that has to be dropped must be re-enforced in PHP, not
+silently lost.
+
+**Proof required:** a request built for a known document is asserted to carry `strict`; the
+schema is exercised against the live API on at least one real corpus entry to prove it is accepted,
+not merely well-formed; `phantom_source_line` reaches zero on a fresh staging run over the same 534
+entries; and any validation moved out of the schema has its own test.
+
+### 2026-08-14 — F65: the extraction validator cannot distinguish bookkeeping from content
+
+**State: open.**
+
+`OosEmailExtractionValidator` returns one undifferentiated list of reasons, and any non-empty list
+makes the plan `InvalidExtraction`, which `isManuallyImportable()` refuses. The consequence measured
+above is that **148 approved identities — 38% of the completeness gap — are unreachable by any
+operator action**, on the strength of complaints that are overwhelmingly about provenance
+bookkeeping rather than about the extracted order being wrong. The exhaustive decomposition of the
+largest rule found 2 genuine content duplications in 105 plans; the other 103 are redundant evidence
+citations, cross-plan evidence sharing, or clashes with the ignored list.
+
+Three specific rules carry nearly all of it. `assignLine()` treats an evidence/item overlap as
+identical to an item/item overlap, though only the latter double-counts content and evidence line ids
+are never written to a service. The unclassified-line rule invalidates a complete order over an
+unlisted sign-off. `validatePlanSpan()` cannot tell a dropped item from a trailing appendix that
+legitimately carries another service's details.
+
+The same conflation drives `validAttemptsDisagree`, because `extractionSignature()` hashes
+`service_evidence_line_ids` — optional metadata for single-plan emails — so two attempts that agree
+on every item can be recorded as disagreeing and held forever. 70 of the 125 disagreements are
+identical at plan/item-count/scope level.
+
+**Required outcome:** validation distinguishes reasons that impeach the extracted content from
+reasons that impeach only its provenance bookkeeping. Content failures keep invalidating the plan.
+Bookkeeping failures must not make a plan unreachable by review: they should hold it, annotate it and
+leave it approvable, and where the bookkeeping is provably harmless — an evidence/item overlap on a
+line extracted exactly once, evidence shared between plans — they should not fire at all. The
+consensus signature must compare only what is written to a service. Never weaken the item/item
+double-counting rule, the out-of-source-order rule, or the date and identity gates, all of which are
+doing real work: the corroboration gate caught 8 of 8 date errors.
+
+**Proof required:** an evidence/item overlap on a singly-extracted line no longer invalidates; an
+item/item overlap still does; two attempts differing only in evidence line ids reach consensus; a
+trailing appendix after the last item does not invalidate while a dropped item inside the sequence
+still does; a fresh staging run over the same 534 entries reports the held population by family, with
+the invalid-extraction family reduced and the 8 date errors still held by the corroboration gate; and
+the resulting staged-identity count is measured against the 521 approved, not asserted.
 
 ## 5. Decisions required from the maintainer or church
 

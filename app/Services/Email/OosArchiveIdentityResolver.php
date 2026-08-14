@@ -92,7 +92,7 @@ class OosArchiveIdentityResolver
         string $date,
     ): OosEmailServicePlan {
         $disposition = $plan->service instanceof SermonService
-            ? $this->resolvedDisposition($parseResult, $plan, $plan->service, $plan->confidence)
+            ? $this->resolvedDisposition($parseResult, $plan, $plan->service, $plan->confidence, $plan->contentScope)
             : $plan->disposition;
 
         return new OosEmailServicePlan(
@@ -163,7 +163,7 @@ class OosArchiveIdentityResolver
         }
 
         $confidence = $this->modelConfidence($parseResult, $plan);
-        $disposition = $this->resolvedDisposition($parseResult, $plan, $service, $confidence);
+        $disposition = $this->resolvedDisposition($parseResult, $plan, $service, $confidence, $plan->contentScope);
         $resolvedPlan = new OosEmailServicePlan(
             service: $service,
             date: $plan->date ?? $entry->groundTruthDate,
@@ -250,7 +250,7 @@ class OosArchiveIdentityResolver
             return $plan;
         }
 
-        $disposition = $this->resolvedDisposition($parseResult, $plan, $plan->service, $plan->confidence);
+        $disposition = $this->resolvedDisposition($parseResult, $plan, $plan->service, $plan->confidence, $contentScope);
 
         return new OosEmailServicePlan(
             service: $plan->service,
@@ -297,17 +297,24 @@ class OosArchiveIdentityResolver
         return $plan->confidence;
     }
 
+    /**
+     * `$contentScope` is the scope the replacement plan will carry, which is not always the one
+     * the plan arrives with: applying a curated scope replaces an extractor `unknown` with the
+     * completeness the manifest establishes. Classifying against the arriving scope would hold
+     * the plan on a value the same call is discarding (F63).
+     */
     private function resolvedDisposition(
         OosEmailParseResult $parseResult,
         OosEmailServicePlan $plan,
         SermonService $service,
         float $confidence,
+        OosEmailContentScope $contentScope,
     ): OosEmailParseDisposition {
         if ($plan->disposition === OosEmailParseDisposition::InvalidExtraction || $plan->validationReasons !== []) {
             return $plan->disposition;
         }
 
-        if ($plan->contentScope === OosEmailContentScope::Unknown) {
+        if ($contentScope === OosEmailContentScope::Unknown) {
             return OosEmailParseDisposition::ReviewRequired;
         }
 

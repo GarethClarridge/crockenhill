@@ -164,6 +164,45 @@ class OosArchiveIdentityResolverTest extends TestCase
         $this->assertTrue($resolved->servicePlans[0]->isAutoImportable());
     }
 
+    /**
+     * F63's stated proof. The whole purpose of applying a curated scope is that the manifest
+     * supplies the completeness the extractor could not determine, so a corroborated plan the
+     * extractor left `unknown` must be re-classified against the scope curation just assigned —
+     * not against the `unknown` the replacement plan is about to discard.
+     */
+    #[Test]
+    public function a_corroborated_unknown_scope_plan_is_classified_against_the_curated_scope(): void
+    {
+        $curated = $this->parseResult(service: SermonService::Evening, date: '2026-07-12');
+        $unknownScope = new OosEmailServicePlan(
+            service: SermonService::Evening,
+            date: '2026-07-12',
+            items: $curated->items,
+            confidence: 0.78,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            contentScope: OosEmailContentScope::Unknown,
+        );
+        $result = new OosEmailParseResult(
+            date: '2026-07-12',
+            service: SermonService::Evening,
+            items: $curated->items,
+            confidenceScore: 0.78,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: [],
+            servicePlans: [$unknownScope],
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            consensus: true,
+        );
+
+        $resolved = (new OosArchiveIdentityResolver)->resolve($this->entry(), $result);
+
+        $this->assertSame(OosEmailContentScope::Full, $resolved->servicePlans[0]->contentScope);
+        $this->assertTrue($resolved->servicePlans[0]->isAutoImportable());
+    }
+
     private function entry(?string $supersedesSourceKey = null, string $contentScope = 'full'): OosArchiveEntry
     {
         return new OosArchiveEntry(
