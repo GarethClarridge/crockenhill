@@ -1,7 +1,7 @@
 # Historic import F64/F65 parser follow-up
 
 **Recorded:** 2026-08-14  
-**Status:** Baseline complete; Slices A and B implemented in code; archive-v12 corpus measurement complete (see §"archive-v12 corpus measurement" below)  
+**Status:** Baseline complete; Slices A and B implemented in code; archive-v12 corpus measurement complete; parsing improvement plan queued for a later session (see "Parsing improvement plan, queued 2026-08-14" below) — governance cleared by HIR-D7  
 **Purpose:** Handoff for a later session to reduce the Email-lane review backlog without weakening the historic-import gates.
 
 ## Executive summary
@@ -409,10 +409,77 @@ beyond `exact_correct` against the manifest identity.
 
 ### Conclusion
 
-Do not lower the 0.90 threshold or let adjudication set `consensus` based on this run. The next
-highest-value work is still Slice C (objective confidence calibration) and Slice D (the ~33
-content-invalid plan fixtures), per the original recommended order above — this measurement did not
-surface a reason to reprioritise them.
+Do not lower the 0.90 threshold or let adjudication set `consensus` based on this run. See "Parsing
+improvement plan, queued 2026-08-14" immediately below for the concrete next-session work this
+measurement, and the discussion that followed it, actually converged on — it supersedes the
+generic "Slice C then Slice D" ordering above with specific, scoped tasks.
+
+## Parsing improvement plan, queued 2026-08-14
+
+Four items, discussed and scoped in the session that ran the archive-v12 corpus measurement, for a
+later session to implement. **[HIR-D7](HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md) (§4.5)
+clears the governance question for the first three** — they are extraction-accuracy work serving
+the import's own purpose, not "features or polish," and none of them touch what the importer
+imports unattended, so none need a further recorded decision before starting. Read the HIR-D7
+outcome (§4.5 of that plan) before assuming otherwise.
+
+### 1. Replace the confidence gate with objective signals (was Slice C)
+
+The archive-v12 run makes the case sharper than the archive-v11 baseline did: confidence-band
+exactness is **not monotonic** — 0.90–1.00 scores 75.5% exact, *below* the 0.75–0.89 band's 78.75%.
+A score that can't rank-order its own population isn't calibratable, it should stop being a
+threshold input. Build a composite signal instead: date/service agreement with the corroborated
+identity, monotonic source-line provenance, item sequence/boundary checks, full-vs-partial content
+scope, and consensus/adjudication outcome. Keep the raw model score only as a diagnostic report
+column. This is the highest-volume lever available: `low_confidence` is the hold reason on 339/370
+held sources and 435/691 plans in the v12 run — nothing else is close.
+
+### 2. Port item-type-aware review classification from the live structure pipeline
+
+`ServiceSectionType::requiresStructuralUncertaintyReview()` already encodes which item types have a
+downstream effect (`song`, `sermon`, `bible_reading`, `childrens_talk`) versus which don't
+(`welcome`, `notices`, `prayer`, `other`), and `SectionReviewFlagPolicy` already uses it to demote
+review flags on filler types for the live service-structure pipeline. The OoS extraction schema's
+`items[].type` enum is the identical vocabulary, so this is a port, not a new design.
+
+Scope this to **review classification only** — which held plans actually need an operator's
+attention — never to the auto-import gate itself; widening what auto-imports unattended is HIR-D6/
+Axis B territory and needs its own decision regardless of item type.
+
+Before implementing: pull a per-item-type breakdown of this run's `bookkeeping` (156 plans) and
+`attempt_disagreement` (117 plans) holds from the raw extraction metadata — the archive report
+doesn't currently carry per-item type, only `item_count` — to find the actual ceiling on how much
+review backlog this removes before investing in the policy port.
+
+### 3. Sample the extraction model/reasoning-effort against sibling settings
+
+`OosEmailParserService` runs on `gpt-5.4-nano` at `reasoning_effort: minimal`
+(`config('service-tracking.email_parsing.model'/'reasoning_effort')`) — the cheapest combination in
+the codebase's LLM config, explicitly commented as "lowest-stakes structured extraction." Sibling
+structured-extraction tasks run meaningfully stronger: sermon analysis on `gpt-5.6-terra`/`low`,
+service-structure extraction on `gpt-5.6-sol`/`medium`. Rerun a few hundred sources at a stronger
+setting (env-overridable: `OOS_EMAIL_PARSING_MODEL`, `OOS_EMAIL_PARSING_REASONING_EFFORT`, no code
+change needed) and compare `exact_correct` and the corrective-retry rate (95.1% of sources needed a
+second call this run) against this measurement's baseline.
+
+**This is live production code**, not archive-only — `ProcessInboundOosEmail` calls the same
+classes for the current weekly email intake. Roll out via sample comparison first, not a blind
+swap; a change here affects this week's real inbound emails immediately, unlike the archive
+command's throwaway rehearsal-database experiments.
+
+### 4. No change needed to manifest-disagreement handling — document why
+
+Checked in the same session and worth recording so it isn't re-litigated: `service_beyond_manifest`
+(148 sources this run) is not in `OosEmailPlanHoldReason` at all and never gates import on its own —
+the importer already permits extra services beyond the manifest for full-content sources by design
+(D9). The low apparent "evening precision" is a reporting artefact of comparing against the
+manifest, not an import block. `date_mismatch`, by contrast, does gate (part of the `source_gate`
+family) and has an empirically validated track record — 8 of 8 manifest-flagged date disagreements
+in the corpus were confirmed genuine parser errors, not manifest errors, in the held-backlog review.
+The manifest's `resolved_date`/`resolved_service` fields come from a deterministic, versioned rule
+(`decision_rule_version: oos-curation-expanded-v2`) for 525 of 535 entries — not an LLM judgement
+call — so treating a date disagreement as a signal against the *parse*, not the *manifest*, remains
+the right default. No corpus proof would improve on 8/8; leave this gate as-is.
 
 ## Acceptance criteria for parser work
 
@@ -434,13 +501,17 @@ A parser change is ready for another corpus measurement only when:
 ## Copy/paste brief for the next session
 
 > Continue the historic Email import parser follow-up from
-> `docs/reports/historic-import-f64-f65-parser-follow-up-2026-08-14.md`. Do not touch production.
-> First implement the reporting-only reason census (Slice A) so every held source exposes its
-> per-plan disposition, validation reasons, consensus state, and typed hold category. Preserve F64's
-> strict source-line schema, F65's bookkeeping/content distinction, the 0.75/0.90 thresholds, and
-> all date/identity/content gates. Add focused PHPUnit coverage, run it through Sail, then perform a
-> fresh isolated 534-source rehearsal only after the report shape is testable. Compare against the
-> recorded baseline of 373 held sources, 352 gate-eligible held sources, 307 low-confidence sources,
-> 1,040 extraction attempts, 506 corrective calls, and zero phantom source-line failures. Only after
-> the reason census is clear should you implement targeted disagreement resolution or confidence
-> calibration.
+> `docs/reports/historic-import-f64-f65-parser-follow-up-2026-08-14.md`. Slices A and B are done and
+> corpus-proven (archive-v12); HIR-D7 is decided and clears the governance question for
+> extraction-accuracy work. Implement "Parsing improvement plan, queued 2026-08-14" in that file, in
+> order: (1) replace the confidence gate with objective signals — the score is non-monotonic across
+> bands in the v12 run, don't just recalibrate it, stop trusting it as a threshold input; (2) port
+> `ServiceSectionType::requiresStructuralUncertaintyReview()`/`SectionReviewFlagPolicy`'s item-type
+> classification into OoS review-flagging only, never the auto-import gate — pull a per-item-type
+> breakdown of the v12 `bookkeeping`/`attempt_disagreement` holds first to size the payoff; (3)
+> sample `gpt-5.4-nano`/`minimal` against a stronger model/effort setting on a few hundred sources —
+> this is live production code (`ProcessInboundOosEmail` too), so sample first, don't swap blindly.
+> Item 4 (manifest-disagreement handling) needs no change — it's already correct, documented so it
+> isn't re-litigated. Preserve F64's strict source-line schema, F65's bookkeeping/content distinction,
+> zero phantom source-line failures, and — regardless of any of the above — that nothing changes what
+> the importer imports unattended without its own recorded decision (HIR-D6/Axis B, unchanged).

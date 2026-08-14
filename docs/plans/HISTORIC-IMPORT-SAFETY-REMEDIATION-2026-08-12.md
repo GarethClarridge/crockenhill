@@ -130,6 +130,7 @@ implementation uses them.
 | HIR-D4 | Which acquisition hosts/filesystems are supported? | Explicit Darwin/APFS and production Linux filesystem adapters only; unknown platforms or unobservable mount facts fail closed | HIR4 | **Decided 2026-08-12 — recommendation adopted as written** |
 | HIR-D5 | May safety defects be fixed inside deletion-scheduled `ImportOosArchiveCommand` and companion tests? | Approve a bounded exception for HIR2/HIR8 only; put cache-binding logic in a small service and make no unrelated command/test investment | HIR2 and affected rehearsal coverage | **Decided 2026-08-12 — bounded exception approved as recommended** |
 | HIR-D6 | Does the HIR-D5 exception cover the reporting work the F64/F65 follow-up schedules, and when does it expire? | Extend HIR-D5 to read-only observability and rehearsal coverage; correct the expiry to the production operation's closeout rather than HIR8; refuse "performance"/"efficiency" as a scope term; refuse any change to what the importer imports unattended | Slice A of the F64/F65 parser follow-up | **Decided 2026-08-14 — HIR-D5 unchanged, see §4.4** |
+| HIR-D7 | Does "correctness only" in HIR-D5 cover extraction-accuracy work (model/effort/classification), not just defect patches? | Split the exception into two independent axes: investment discipline (does the change serve the import's own purpose — extraction accuracy is explicitly included) and unattended-import risk (unchanged from HIR-D6). Neither axis is relaxed; they were previously conflated into one spectrum | Repeated misreading across sessions and agents declining accuracy work as "features" | **Decided 2026-08-14 — see §4.5** |
 
 No decision may be inferred from a test fixture. In particular, a successful local adapter test is
 not evidence that Spaces supports the same conditional write/delete semantics.
@@ -281,6 +282,55 @@ mechanism that catches scope drift; there is no second reader to notice. A decis
 amended by whoever later needs it wider stops being evidence of what was decided and becomes a
 mirror of the change in flight. Widen by adding a dated row; never by editing an existing one.
 
+### 4.5 HIR-D7 outcome — "correctness only" was never meant to cap accuracy work
+
+**Decision: HIR-D5's "correctness only, never refactoring, features or polish" already covers
+extraction-accuracy work. It was being misread as capping effort rather than scope, in more than
+one session and by more than one coding agent (Claude and Codex), which is stronger evidence that
+the wording was the defect than that any one read of it was careless.**
+
+The three-word list bundled two independent questions into one axis, and every misreading picked
+the wrong branch of the bundle:
+
+1. **Investment discipline** — is this change worth building for a tool scheduled for deletion?
+   A *scope* question, meant to block unrelated refactors, generalising the tool for reuse, or
+   cosmetic cleanup — investment that doesn't serve the one shot the tool exists to take.
+2. **Unattended-import risk** — does this change what gets written to the canonical historic
+   record without an operator looking at it? A *safety* question, independent of how much
+   engineering effort a change took or how much it superficially resembles a "feature."
+
+Reading "correctness only, never features or polish" as one spectrum lets (1) swallow (2): a
+change that never touches the import gate — a stronger extraction model, a better reasoning-effort
+setting, classifying which item types need operator review — got declined as if it were a gate
+change, because it didn't look like a narrow defect patch. Being one-shot and deletion-scheduled
+was never a reason to refuse making the tool actually achieve its own purpose.
+
+**Axis A — investment discipline, reframed around purpose, not category label.** In scope: any
+change whose purpose is making the one-shot import correctly stage the approved corpus. This
+explicitly includes extraction accuracy (model choice, reasoning effort, prompt changes) and
+classification of what does or doesn't need operator review — e.g. reusing
+`ServiceSectionType::requiresStructuralUncertaintyReview()`'s item-type distinction, already used
+by `SectionReviewFlagPolicy` on the live service-structure side, for review flagging in the OoS
+archive path. Out of scope: anything that doesn't serve that purpose — generalising the command
+for reuse beyond this import, structural refactors, or capability the corpus run doesn't need.
+
+**Axis B — unattended-import risk, unchanged from HIR-D6.** Any change to what the importer writes
+without an operator — the 0.75/0.90 thresholds, `consensus` semantics, adjudication clearing the
+gate, weakening a validator — still needs its own recorded, evidence-backed decision. This is not
+relaxed by Axis A being clarified; if anything it is sharpened, because Axis A no longer has to do
+double duty as an implicit safety brake.
+
+**Worked examples**, so a future session does not have to re-derive the boundary:
+
+| Change | Axis | In scope? |
+|---|---|---|
+| Swap the extraction model or reasoning effort | A | Yes — sample first; `OosEmailParserService` also serves the live `ProcessInboundOosEmail` job, not just the archive |
+| Add item-type-aware demotion of *review flags* | A | Yes, for what gets flagged for review |
+| The same item-type demotion applied to the *auto-import gate* | B | No — needs its own decision and corpus evidence |
+| Let adjudication set `consensus` | B | No — HIR-D6 already refused this explicitly |
+| Refactor the command's internal structure for readability | Neither (pure polish) | No |
+| Add a report field that only describes what happened | A, or read-only per HIR-D6 | Yes |
+
 ## 5. Delivery map and sequencing
 
 Review-surface size describes blast radius, not elapsed time.
@@ -357,8 +407,10 @@ package starts with a reproducing failure and names the artifacts/gates it inval
    already enforce the `AGENTS.md` rule.
 7. Resolve the do-not-invest contradiction through HIR-D5. The exception permits safety/correctness
    only, not refactoring or new features. HIR-D6 (§4.4) adds read-only observability and runs the
-   exception to the production operation's closeout rather than to HIR8; neither decision covers a
-   change to what the importer imports unattended.
+   exception to the production operation's closeout rather than to HIR8. HIR-D7 (§4.5) clarifies
+   that extraction-accuracy work is investment-discipline-scoped, not safety-scoped — it does not
+   need HIR-D6's "read-only" qualifier and is evaluated only against whether it serves the import's
+   own purpose. Neither HIR-D6 nor HIR-D7 covers a change to what the importer imports unattended.
 
 ### Acceptance
 

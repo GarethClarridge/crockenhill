@@ -356,7 +356,11 @@ two entries remain live. Do not reinstate a removed entry without a current owni
   **HIR-D5** records approval. That exception covers correctness only — never refactoring,
   features or polish. **HIR-D6 (2026-08-14, §4.4)** additionally permits read-only reporting needed
   to evidence the go/no-go, and runs the exception to the production operation's closeout rather
-  than to HIR8. Neither decision covers a change to what the importer imports without an operator;
+  than to HIR8. **HIR-D7 (2026-08-14, §4.5)** clarifies that "correctness only" already covers
+  extraction-accuracy work — model, reasoning effort, review classification — evaluated against
+  whether it serves the import's own purpose, not against whether it resembles a "feature"; this
+  was being misread as capping effort rather than scope, by more than one coding agent. Neither
+  decision covers a change to what the importer imports without an operator;
   that needs its own recorded decision. Without a recorded approval, the automatic-decline rule
   still applies.
 - **Legacy duplicate test suites (R14):** the flat `tests/Feature/Livewire/Admin/EditSermonTest`
