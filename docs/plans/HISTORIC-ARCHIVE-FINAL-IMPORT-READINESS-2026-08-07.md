@@ -2416,6 +2416,18 @@ exhaustive — **not** that all 150 invalid extractions are content-correct. The
 never persisted, so 35 of the 105 duplicate clashes and the whole `unclassified_source_line` count
 cannot be decomposed further without a re-run.
 
+#### Re-run cost, measured rather than assumed
+
+The 2026-08-13 run made **1,048** model calls, not 534: **514 of the 534 entries (96%) took a
+corrective second call**. `retryReasons()` fires on any validation reason *and* on any plan below the
+0.90 auto-import threshold, and the confidence condition alone catches the large majority. Budget any
+re-run accordingly.
+
+The retry earns it and should not be trimmed to save time: 154 corrected attempts carried fewer
+reasons than the first, **81 went from having reasons to none at all**, and the corrected attempt was
+selected 462 times. 52 came back worse and were correctly discarded. Retrying is also what produces
+consensus, which is what lets a 0.75–0.89 plan auto-import at all.
+
 #### What this creates
 
 F63 is reopened and fixed above. Two new defects, F64 and F65, are raised below. The intended
@@ -2495,6 +2507,24 @@ directions) and `OosEmailParserServiceTest::two_attempts_differing_only_in_evide
 which was checked non-vacuous by restoring the old signature and watching it fail. The pre-existing
 `it_holds_an_item_like_line_ignored_inside_a_service_sequence_for_review` was renamed and now asserts
 the plan is manually importable but not auto-importable.
+
+**Projected over the stored 2026-08-13 extractions, without re-parsing.** Each stored validation
+reason was reclassified under the new rules; two needed the plan's own provenance rather than the
+reason text (the duplicate-assignment clash kind, and the ignored line's position relative to the
+plan's last item line, both of which the reason strings carry as line ids). Of the **193**
+invalid-extraction plans in the held backlog, **141 become reachable by review and 52 stay invalid**,
+unblocking **110 of the 148 blocked approved identities**. **54** of the 141 end up with no reason at
+all, so they rejoin the ordinary confidence gate and some will auto-import.
+
+The residue is the interesting part. Of the 52 that stay invalid, **40 are phantom line-id
+references** — 34 ignored-line and 6 item-source — which is precisely the class F64 exists to
+eliminate. The genuinely content-flawed remainder is about 12 plans: 11 with items out of source
+order, 5 merged lines, 5 missing boundary evidence, 3 item-on-item duplication, 1 evening boundary
+(a plan may carry more than one). So the two findings are complementary rather than parallel, and
+F64 lands most of what F65 leaves behind.
+
+**This is a measurement of the design against observed failures, not a prediction of the re-run**,
+which will produce different extractions — F64 alone changes them.
 
 **Not yet proven:** the corpus-scale effect. The held population by family after a fresh staging run,
 the resulting staged-identity count against the 521 approved, and the 8 date errors still being held

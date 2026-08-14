@@ -8,11 +8,13 @@ use App\Actions\InboundEmail\ApproveInboundEmailImport;
 use App\Data\OosEmailImportResult;
 use App\Data\OosEmailItemExtractionResult;
 use App\Enums\InboundEmailStatus;
+use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\User;
 use App\Services\Email\InboundEmailImportService;
+use App\Services\Email\OosEmailParserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -74,6 +76,56 @@ class ApproveInboundEmailImportTest extends TestCase
         $this->assertSame(InboundEmailStatus::Processed, $email->status);
         $this->assertSame('direct_approve', $email->processing_metadata['review']['mode'] ?? null);
         $this->assertSame($this->admin->id, $email->processing_metadata['review']['approved_by_user_id'] ?? null);
+    }
+
+    /**
+     * F65's whole point. A plan held only because the model failed to account for a sign-off line
+     * must remain something a human can accept: before the split, any validator reason made the
+     * plan an invalid extraction, `importablePlans()` returned nothing, and approval answered
+     * "this email still needs manual editing" with no editing that could ever clear it. The
+     * 2026-08-14 review measured 148 approved identities stuck behind exactly that.
+     */
+    #[Test]
+    public function an_operator_can_approve_a_plan_held_only_for_unaccounted_bookkeeping(): void
+    {
+        $body = "Welcome\nSermon\nMany thanks,";
+        $this->bindExtractor(new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.95,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-06-22',
+                'service_evidence_line_ids' => [],
+                'items' => [
+                    ['type' => 'welcome', 'title' => 'Welcome', 'source_line_ids' => [1], 'continuation' => false],
+                    ['type' => 'sermon', 'title' => 'Sermon', 'source_line_ids' => [2], 'continuation' => false],
+                ],
+                'confidence' => 0.95,
+            ]],
+            serviceCount: 1,
+            // Line 3 is left unaccounted for: not an item, not evidence, not ignored.
+            ignoredLines: [],
+            provenanceComplete: true,
+        ));
+
+        $email = InboundEmail::factory()->create([
+            'subject' => 'Order of Service - 2026-06-22 AM',
+            'body_plain' => $body,
+            'status' => InboundEmailStatus::Pending->value,
+            'received_at' => '2026-06-20 09:00:00',
+        ]);
+
+        $parseResult = app(OosEmailParserService::class)->parse($email);
+
+        // Held, not rejected, and specifically not something the pipeline would import by itself.
+        $this->assertSame(OosEmailParseDisposition::ReviewRequired, $parseResult->disposition);
+        $this->assertFalse($parseResult->servicePlans[0]->isAutoImportable());
+        $this->assertNotSame([], $parseResult->validationReasons);
+
+        $result = app(ApproveInboundEmailImport::class)->execute($email, $this->admin->id);
+
+        $this->assertInstanceOf(OosEmailImportResult::class, $result);
+        $this->assertInstanceOf(ChurchService::class, $result->firstCreatedService());
     }
 
     #[Test]
