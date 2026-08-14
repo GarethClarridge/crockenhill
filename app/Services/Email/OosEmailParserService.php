@@ -263,6 +263,7 @@ class OosEmailParserService
                 $source,
                 $extraction->provenanceComplete,
                 $validation->reasonsForPlan(0),
+                $validation->contentReasonsForPlan(0),
                 $subject,
                 $sourceMessageId,
                 $warnings,
@@ -287,6 +288,7 @@ class OosEmailParserService
                 $source,
                 $extraction->provenanceComplete,
                 $validation->reasonsForPlan($planIndex),
+                $validation->contentReasonsForPlan($planIndex),
                 $subject,
                 $sourceMessageId,
                 $warnings,
@@ -303,6 +305,7 @@ class OosEmailParserService
      * @param  array<int, array{type:string,title:string,source_line_ids?:list<int>,continuation?:bool}>  $rawItems
      * @param  list<int>  $serviceEvidenceLineIds
      * @param  list<string>  $structuralReasons
+     * @param  list<string>  $contentReasons
      * @param  list<string>  $warnings
      * @param  array<string, array{plausible:bool,warnings:list<string>,suggested_date:?string,reasons:list<string>,claimed_weekday:?string}>  $validations
      */
@@ -318,6 +321,7 @@ class OosEmailParserService
         OosEmailSourceDocument $source,
         bool $provenanceComplete,
         array $structuralReasons,
+        array $contentReasons,
         string $subject,
         ?string $sourceMessageId,
         array &$warnings,
@@ -369,7 +373,8 @@ class OosEmailParserService
             $date,
             $items,
             $confidence,
-            $validationReasons,
+            $contentReasons,
+            $structuralReasons,
             $reviewThreshold,
             $autoImportThreshold,
             $consensus,
@@ -546,23 +551,35 @@ class OosEmailParserService
     }
 
     /**
+     * Only a reason that impeaches the extracted order invalidates the plan. Bookkeeping reasons
+     * — an unaccounted sign-off line, an aside ignored between two items — leave the plan held for
+     * review and therefore still importable by a human (F65).
+     *
      * @param  array<int, array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>  $items
-     * @param  list<string>  $validationReasons
+     * @param  list<string>  $contentReasons
+     * @param  list<string>  $structuralReasons
      */
     private function planDisposition(
         ?SermonService $service,
         ?string $date,
         array $items,
         float $confidence,
-        array $validationReasons,
+        array $contentReasons,
+        array $structuralReasons,
         float $reviewThreshold,
         float $autoImportThreshold,
         bool $consensus,
         bool $validAttemptsDisagree,
         OosEmailContentScope $contentScope,
     ): OosEmailParseDisposition {
-        if ($validationReasons !== [] || $items === []) {
+        if ($contentReasons !== [] || $items === []) {
             return OosEmailParseDisposition::InvalidExtraction;
+        }
+
+        // Bookkeeping alone never invalidates, but it is still unexplained: an unaccounted line
+        // may be an item the model dropped. Hold it for a human rather than importing it.
+        if ($structuralReasons !== []) {
+            return OosEmailParseDisposition::ReviewRequired;
         }
 
         if ($validAttemptsDisagree) {
@@ -647,13 +664,19 @@ class OosEmailParserService
         ];
     }
 
+    /**
+     * Two attempts "agree" when they extracted the same order, so the signature covers only what
+     * a service is built from. `service_evidence_line_ids` is deliberately excluded: it is
+     * optional for a single-plan email, is never written to a service, and including it recorded
+     * 70 of the 125 disagreements in the 2026-08-14 review as structural conflicts when the two
+     * attempts had produced identical plans, dates, scopes and item counts (F65).
+     */
     private function extractionSignature(OosEmailItemExtractionResult $extraction): string
     {
         $signature = array_map(fn (array $service): array => [
             'service' => $service['service'] ?? null,
             'date' => $service['date'] ?? null,
             'content_scope' => $service['content_scope'] ?? 'full',
-            'evidence' => $this->integerLineIds($service['service_evidence_line_ids'] ?? []),
             'items' => array_map(fn (array $item): array => [
                 'type' => $item['type'],
                 'source_line_ids' => $this->integerLineIds($item['source_line_ids'] ?? []),

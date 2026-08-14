@@ -1,0 +1,182 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\Services\Email;
+
+use App\Data\OosEmailExtractionValidationResult;
+use App\Data\OosEmailItemExtractionResult;
+use App\Data\OosEmailSourceDocument;
+use App\Services\Email\OosEmailExtractionValidator;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+
+/**
+ * F65. The validator polices two different things: whether the extracted order is trustworthy,
+ * and whether the model accounted for every source line. Only the first should be able to make a
+ * plan unreachable by review, and provenance bookkeeping that cannot impeach the content — a line
+ * cited as both evidence and an item, evidence shared between plans — should not fire at all.
+ */
+class OosEmailExtractionValidatorTest extends TestCase
+{
+    private OosEmailExtractionValidator $validator;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->validator = new OosEmailExtractionValidator;
+    }
+
+    #[Test]
+    public function a_line_cited_as_both_service_evidence_and_an_item_is_not_a_finding(): void
+    {
+        // The opening hymn doubles as the only marker of where the order starts — the content is
+        // still extracted exactly once.
+        $result = $this->validate(
+            ['Morning Service', 'Hymn: Amazing Grace', 'Sermon'],
+            evidenceLineIds: [2],
+            items: [[2], [3]],
+            ignoredLineIds: [1],
+        );
+
+        $this->assertSame([], $result->allReasons());
+    }
+
+    #[Test]
+    public function one_line_shared_as_evidence_by_two_plans_is_not_a_finding(): void
+    {
+        $source = OosEmailSourceDocument::fromBody("Sunday 12 July\nWelcome\nHymn\nEvening: 6pm\nPrayer");
+        $extraction = new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.9,
+            services: [
+                $this->plan('morning', [1], [[2], [3]]),
+                $this->plan('evening', [1, 4], [[5]]),
+            ],
+            serviceCount: 2,
+            ignoredLines: [],
+            provenanceComplete: true,
+        );
+
+        $this->assertSame([], $this->validator->validate($source, $extraction)->allReasons());
+    }
+
+    #[Test]
+    public function two_items_claiming_the_same_line_is_still_a_content_finding(): void
+    {
+        $result = $this->validate(
+            ['Morning Service', 'Hymn: Amazing Grace', 'Sermon'],
+            evidenceLineIds: [1],
+            items: [[2], [2], [3]],
+        );
+
+        $this->assertNotSame([], $result->contentReasonsForPlan(0));
+    }
+
+    #[Test]
+    public function an_ignored_line_after_the_last_item_is_not_a_finding(): void
+    {
+        // A trailing appendix — sermon outlines, another service's reading — is not a dropped item.
+        $result = $this->validate(
+            ['Morning Service', 'Welcome', 'Sermon', 'Reading: Ezra 3:1-6', '1) As one'],
+            evidenceLineIds: [1],
+            items: [[2], [3]],
+            ignoredLineIds: [4, 5],
+        );
+
+        $this->assertSame([], $result->allReasons());
+    }
+
+    #[Test]
+    public function an_ignored_line_between_two_items_remains_a_finding_but_not_a_content_one(): void
+    {
+        $result = $this->validate(
+            ['Morning Service', 'Welcome', 'Reading: Ezra 3:1-6', 'Sermon'],
+            evidenceLineIds: [1],
+            items: [[2], [4]],
+            ignoredLineIds: [3],
+        );
+
+        $this->assertNotSame([], $result->allReasons());
+        $this->assertSame([], $result->contentReasonsForPlan(0));
+    }
+
+    #[Test]
+    public function an_unaccounted_source_line_is_a_finding_but_not_a_content_one(): void
+    {
+        $result = $this->validate(
+            ['Morning Service', 'Welcome', 'Sermon', 'Many thanks,'],
+            evidenceLineIds: [1],
+            items: [[2], [3]],
+        );
+
+        $this->assertNotSame([], $result->allReasons());
+        $this->assertSame([], $result->contentReasonsForPlan(0));
+    }
+
+    #[Test]
+    public function items_out_of_source_order_remain_a_content_finding(): void
+    {
+        $result = $this->validate(
+            ['Morning Service', 'Welcome', 'Sermon'],
+            evidenceLineIds: [1],
+            items: [[3], [2]],
+        );
+
+        $this->assertNotSame([], $result->contentReasonsForPlan(0));
+    }
+
+    /**
+     * @param  list<string>  $lines
+     * @param  list<int>  $evidenceLineIds
+     * @param  list<list<int>>  $items
+     * @param  list<int>  $ignoredLineIds
+     */
+    private function validate(
+        array $lines,
+        array $evidenceLineIds,
+        array $items,
+        array $ignoredLineIds = [],
+    ): OosEmailExtractionValidationResult {
+        $source = OosEmailSourceDocument::fromBody(implode("\n", $lines));
+        $extraction = new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.9,
+            services: [$this->plan('morning', $evidenceLineIds, $items)],
+            serviceCount: 1,
+            ignoredLines: array_map(
+                static fn (int $lineId): array => ['line_id' => $lineId, 'reason' => 'context'],
+                $ignoredLineIds,
+            ),
+            provenanceComplete: true,
+        );
+
+        return $this->validator->validate($source, $extraction);
+    }
+
+    /**
+     * @param  list<int>  $evidenceLineIds
+     * @param  list<list<int>>  $items
+     * @return array<string, mixed>
+     */
+    private function plan(string $service, array $evidenceLineIds, array $items): array
+    {
+        return [
+            'service' => $service,
+            'date' => '2026-07-12',
+            'content_scope' => 'full',
+            'service_evidence_line_ids' => $evidenceLineIds,
+            'items' => array_map(
+                static fn (array $lineIds): array => [
+                    'type' => 'other',
+                    'title' => 'Item',
+                    'source_line_ids' => $lineIds,
+                    'continuation' => false,
+                ],
+                $items,
+            ),
+            'confidence' => 0.9,
+        ];
+    }
+}

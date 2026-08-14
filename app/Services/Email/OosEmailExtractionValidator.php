@@ -30,16 +30,18 @@ class OosEmailExtractionValidator
         }
 
         $globalReasons = [];
+        $globalContentReasons = [];
         $planReasons = [];
+        $planContentReasons = [];
         $assignments = [];
         $serviceCount = count($extraction->services);
 
         if ($extraction->serviceCount !== $serviceCount) {
-            $globalReasons[] = sprintf(
+            $this->addContent($globalReasons, $globalContentReasons, sprintf(
                 'The extraction reports %d service order(s) but returned %d service plan(s).',
                 $extraction->serviceCount ?? 0,
                 $serviceCount,
-            );
+            ));
         }
 
         foreach ($extraction->ignoredLines as $ignoredLine) {
@@ -47,7 +49,11 @@ class OosEmailExtractionValidator
             $reason = $ignoredLine['reason'];
 
             if (! $source->hasLine($lineId)) {
-                $globalReasons[] = 'An ignored-line reference does not exist in the source email.';
+                $this->addContent(
+                    $globalReasons,
+                    $globalContentReasons,
+                    'An ignored-line reference does not exist in the source email.',
+                );
 
                 continue;
             }
@@ -58,37 +64,55 @@ class OosEmailExtractionValidator
                 continue;
             }
 
-            $this->assignLine($assignments, $lineId, 'ignored', $globalReasons);
+            $this->assignLine($assignments, $lineId, 'ignored', $globalReasons, $globalContentReasons);
         }
 
-        $planStarts = $this->planStarts($extraction);
         $planKeys = [];
 
         foreach ($extraction->services as $planIndex => $service) {
             $planReasons[$planIndex] ??= [];
+            $planContentReasons[$planIndex] ??= [];
             $serviceName = $service['service'] ?? null;
             $date = $service['date'] ?? null;
             $planKey = "{$serviceName}:{$date}";
 
             if (isset($planKeys[$planKey])) {
-                $globalReasons[] = "The extraction returned duplicate service plan {$planKey}.";
+                $this->addContent(
+                    $globalReasons,
+                    $globalContentReasons,
+                    "The extraction returned duplicate service plan {$planKey}.",
+                );
             }
 
             $planKeys[$planKey] = true;
             $evidenceLineIds = $this->integerLineIds($service['service_evidence_line_ids'] ?? []);
 
             if ($serviceCount > 1 && $evidenceLineIds === []) {
-                $planReasons[$planIndex][] = 'Multiple service orders require source-line evidence for each boundary.';
+                $this->addContent(
+                    $planReasons[$planIndex],
+                    $planContentReasons[$planIndex],
+                    'Multiple service orders require source-line evidence for each boundary.',
+                );
             }
 
             foreach ($evidenceLineIds as $lineId) {
                 if (! $source->hasLine($lineId)) {
-                    $planReasons[$planIndex][] = "Service evidence line {$lineId} does not exist.";
+                    $this->addContent(
+                        $planReasons[$planIndex],
+                        $planContentReasons[$planIndex],
+                        "Service evidence line {$lineId} does not exist.",
+                    );
 
                     continue;
                 }
 
-                $this->assignLine($assignments, $lineId, "plan {$planIndex} evidence", $planReasons[$planIndex]);
+                $this->assignLine(
+                    $assignments,
+                    $lineId,
+                    'evidence',
+                    $planReasons[$planIndex],
+                    $planContentReasons[$planIndex],
+                );
             }
 
             $hasSinglePlanSubjectEvidence = $serviceCount === 1 && is_string($subject);
@@ -96,13 +120,21 @@ class OosEmailExtractionValidator
             if ($serviceName === 'other'
                 && ! $this->hasSpecialServiceEvidence($source, $evidenceLineIds)
                 && ! ($hasSinglePlanSubjectEvidence && preg_match(self::SPECIAL_SERVICE_PATTERN, $subject) === 1)) {
-                $planReasons[$planIndex][] = 'An other service requires explicit special-service evidence; ordinary notices are not a service order.';
+                $this->addContent(
+                    $planReasons[$planIndex],
+                    $planContentReasons[$planIndex],
+                    'An other service requires explicit special-service evidence; ordinary notices are not a service order.',
+                );
             }
 
             if ($serviceName === 'evening'
                 && ! $this->hasEveningServiceEvidence($source, $evidenceLineIds)
                 && ! ($hasSinglePlanSubjectEvidence && preg_match(self::EVENING_SERVICE_PATTERN, $subject) === 1)) {
-                $planReasons[$planIndex][] = 'An evening service requires an explicit evening or PM boundary in its evidence lines.';
+                $this->addContent(
+                    $planReasons[$planIndex],
+                    $planContentReasons[$planIndex],
+                    'An evening service requires an explicit evening or PM boundary in its evidence lines.',
+                );
             }
 
             $previousItemLineId = null;
@@ -113,40 +145,70 @@ class OosEmailExtractionValidator
                 $continuation = ($item['continuation'] ?? false) === true;
 
                 if ($sourceLineIds === []) {
-                    $planReasons[$planIndex][] = 'Every extracted item must reference at least one source line.';
+                    $this->addContent(
+                        $planReasons[$planIndex],
+                        $planContentReasons[$planIndex],
+                        'Every extracted item must reference at least one source line.',
+                    );
 
                     continue;
                 }
 
                 if ($sourceLineIds !== array_values(array_unique($sourceLineIds))) {
-                    $planReasons[$planIndex][] = 'Item '.($itemIndex + 1).' repeats a source line.';
+                    $this->addContent(
+                        $planReasons[$planIndex],
+                        $planContentReasons[$planIndex],
+                        'Item '.($itemIndex + 1).' repeats a source line.',
+                    );
                 }
 
                 $sortedLineIds = $sourceLineIds;
                 sort($sortedLineIds);
 
                 if ($sourceLineIds !== $sortedLineIds) {
-                    $planReasons[$planIndex][] = 'Item '.($itemIndex + 1).' has out-of-order source lines.';
+                    $this->addContent(
+                        $planReasons[$planIndex],
+                        $planContentReasons[$planIndex],
+                        'Item '.($itemIndex + 1).' has out-of-order source lines.',
+                    );
                 }
 
                 if (count($sourceLineIds) > 1 && (! $continuation || ! $source->arePhysicallyConsecutive($sourceLineIds))) {
-                    $planReasons[$planIndex][] = 'Item '.($itemIndex + 1).' merges separate source lines instead of preserving one item per line.';
+                    $this->addContent(
+                        $planReasons[$planIndex],
+                        $planContentReasons[$planIndex],
+                        'Item '.($itemIndex + 1).' merges separate source lines instead of preserving one item per line.',
+                    );
                 }
 
                 $firstLineId = $sourceLineIds[0];
 
                 if ($previousItemLineId !== null && $firstLineId <= $previousItemLineId) {
-                    $planReasons[$planIndex][] = 'Extracted items are not in source order.';
+                    $this->addContent(
+                        $planReasons[$planIndex],
+                        $planContentReasons[$planIndex],
+                        'Extracted items are not in source order.',
+                    );
                 }
 
                 foreach ($sourceLineIds as $lineId) {
                     if (! $source->hasLine($lineId)) {
-                        $planReasons[$planIndex][] = "Item source line {$lineId} does not exist.";
+                        $this->addContent(
+                            $planReasons[$planIndex],
+                            $planContentReasons[$planIndex],
+                            "Item source line {$lineId} does not exist.",
+                        );
 
                         continue;
                     }
 
-                    $this->assignLine($assignments, $lineId, "plan {$planIndex} item", $planReasons[$planIndex]);
+                    $this->assignLine(
+                        $assignments,
+                        $lineId,
+                        'item',
+                        $planReasons[$planIndex],
+                        $planContentReasons[$planIndex],
+                    );
                     $planItemLineIds[] = $lineId;
                     $previousItemLineId = $lineId;
                 }
@@ -155,7 +217,6 @@ class OosEmailExtractionValidator
             $this->validatePlanSpan(
                 $source,
                 $planIndex,
-                $planStarts,
                 $planItemLineIds,
                 $assignments,
                 $planReasons,
@@ -168,28 +229,59 @@ class OosEmailExtractionValidator
             }
         }
 
+        $unique = static fn (array $reasons): array => array_values(array_unique($reasons));
+
         return new OosEmailExtractionValidationResult(
-            globalReasons: array_values(array_unique($globalReasons)),
-            planReasons: array_map(
-                static fn (array $reasons): array => array_values(array_unique($reasons)),
-                $planReasons,
-            ),
+            globalReasons: $unique($globalReasons),
+            planReasons: array_map($unique, $planReasons),
+            contentGlobalReasons: $unique($globalContentReasons),
+            contentPlanReasons: array_map($unique, $planContentReasons),
         );
     }
 
     /**
-     * @param  array<int, string>  $assignments
+     * Records a reason that impeaches the extracted order itself, so it both shows up for a human
+     * and invalidates the plan.
+     *
      * @param  list<string>  $reasons
+     * @param  list<string>  $contentReasons
      */
-    private function assignLine(array &$assignments, int $lineId, string $assignment, array &$reasons): void
+    private function addContent(array &$reasons, array &$contentReasons, string $reason): void
     {
-        if (isset($assignments[$lineId])) {
-            $reasons[] = "Source line {$lineId} is assigned more than once.";
+        $reasons[] = $reason;
+        $contentReasons[] = $reason;
+    }
 
-            return;
+    /**
+     * One source line may legitimately be claimed twice. A heading that is also the first item,
+     * or a date line two plans both cite as their boundary, names the line more than once without
+     * extracting its content more than once — the 2026-08-14 review found 68 such plans against 2
+     * genuine double-counts, and rejecting them discarded otherwise perfect orders.
+     *
+     * Two *items* claiming one line does duplicate content, and a line both ignored and claimed
+     * is a contradiction, so those still register — the first as content, the second as
+     * bookkeeping.
+     *
+     * @param  array<int, list<string>>  $assignments
+     * @param  list<string>  $reasons
+     * @param  list<string>  $contentReasons
+     */
+    private function assignLine(
+        array &$assignments,
+        int $lineId,
+        string $kind,
+        array &$reasons,
+        array &$contentReasons,
+    ): void {
+        $existing = $assignments[$lineId] ?? [];
+
+        if ($kind === 'item' && in_array('item', $existing, true)) {
+            $this->addContent($reasons, $contentReasons, "Source line {$lineId} is claimed by more than one item.");
+        } elseif ($existing !== [] && ($kind === 'ignored' || in_array('ignored', $existing, true))) {
+            $reasons[] = "Source line {$lineId} is both ignored and claimed as evidence or an item.";
         }
 
-        $assignments[$lineId] = $assignment;
+        $assignments[$lineId][] = $kind;
     }
 
     /**
@@ -235,40 +327,22 @@ class OosEmailExtractionValidator
     }
 
     /**
-     * @return array<int, int>
-     */
-    private function planStarts(OosEmailItemExtractionResult $extraction): array
-    {
-        $starts = [];
-
-        foreach ($extraction->services as $planIndex => $service) {
-            $candidateLineIds = $this->integerLineIds($service['service_evidence_line_ids'] ?? []);
-
-            foreach ($service['items'] as $item) {
-                $candidateLineIds = array_merge(
-                    $candidateLineIds,
-                    $this->integerLineIds($item['source_line_ids'] ?? []),
-                );
-            }
-
-            if ($candidateLineIds !== []) {
-                $starts[$planIndex] = min($candidateLineIds);
-            }
-        }
-
-        return $starts;
-    }
-
-    /**
-     * @param  array<int, int>  $planStarts
+     * An ignored line that sits *between* two extracted items may be an item the model dropped,
+     * so it is worth surfacing. Content after the final item is not: orders are routinely followed
+     * by sermon outlines, another service's reading or an appendix addressed to one person, all of
+     * which look like service items and none of which belong to the order. The span therefore ends
+     * at the last item line rather than running to the next plan or the end of the document.
+     *
+     * This is bookkeeping, never content: the rule cannot tell a dropped item from a deliberate
+     * aside, so it holds the plan for a human instead of rejecting it.
+     *
      * @param  list<int>  $planItemLineIds
-     * @param  array<int, string>  $assignments
+     * @param  array<int, list<string>>  $assignments
      * @param  array<int, list<string>>  $planReasons
      */
     private function validatePlanSpan(
         OosEmailSourceDocument $source,
         int $planIndex,
-        array $planStarts,
         array $planItemLineIds,
         array $assignments,
         array &$planReasons,
@@ -278,32 +352,16 @@ class OosEmailExtractionValidator
         }
 
         $start = min($planItemLineIds);
-        $nextStarts = array_filter(
-            $planStarts,
-            static fn (int $candidate, int $candidateIndex): bool => $candidateIndex > $planIndex,
-            ARRAY_FILTER_USE_BOTH,
-        );
-        $sourceLineIds = $source->lineIds();
-        if ($nextStarts !== []) {
-            $end = min($nextStarts) - 1;
-        } elseif ($sourceLineIds !== []) {
-            $end = max($sourceLineIds);
-        } else {
-            return;
-        }
+        $end = max($planItemLineIds);
 
         foreach ($source->lineIds() as $lineId) {
             if ($lineId < $start || $lineId > $end) {
                 continue;
             }
 
-            if (! isset($assignments[$lineId])) {
-                continue;
-            }
-
             $line = $source->line($lineId);
 
-            if ($assignments[$lineId] === 'ignored'
+            if (in_array('ignored', $assignments[$lineId] ?? [], true)
                 && is_string($line)
                 && preg_match(self::SERVICE_ITEM_PATTERN, $line) === 1) {
                 $planReasons[$planIndex][] = "Source line {$lineId} was ignored inside a service item sequence.";

@@ -29,8 +29,9 @@ promotion still has no accepted production-window measurement. F1 and the remain
 decisions are decided, but their required operation/rehearsal evidence remains outstanding.
 
 The audits found thirty-seven additional findings, F29-F65; thirty-two remain blockers after the
-maintainer's 2026-08-08 scope decision accepted F42-F43 and the closures of F61, F62 and F63. They
-span source and manifest integrity,
+maintainer's 2026-08-08 scope decision accepted F42-F43 and the closures of F61, F62 and F63. Two of
+those thirty-two — F64 and F65 — have their code landed as of 2026-08-14 and are blocked only on the
+staging re-run that measures them. They span source and manifest integrity,
 Email/convergence correctness, false-success command semantics, ephemeral staging and resume state,
 checkpoint/recovery, unbound processing environments, event/notification containment, exact corpus
 and closeout binding, restore/change control, access boundaries, missing service identity and the
@@ -1715,7 +1716,8 @@ appears in a later phase's work is doing implementation there, not relaxing its 
     2026-08-14** — and note the trap: this step was marked satisfied on 2026-08-12 while the fix had
     not landed, so every review population measured before 2026-08-14, including the 2026-08-13 F1
     restage, measured the unfixed behaviour.
-11a. Fix F64 and F65 before the next staging run, in that order. They are the two levers that decide
+11a. ~~Fix F64 and F65 before the next staging run, in that order.~~ **Code done 2026-08-14; the
+    staging re-run that measures them is the outstanding half.** They are the two levers that decide
     how much of the held backlog clears without an operator: the 2026-08-14 review measured 148 of
     the 394 missing identities as unreachable by *any* operator action until F65 lands, and F64
     removes a class of validation failure that F65 would otherwise have to accommodate. Re-run
@@ -2423,7 +2425,23 @@ of the genuinely manual work — about 14 items, against 404 today.
 
 ### 2026-08-14 — F64: OoS extraction requests a schema the API is never asked to enforce
 
-**State: open.**
+**State: implemented 2026-08-14; corpus proof outstanding.** The request now sends
+`'strict' => true`. Strict mode narrows the permitted keywords, so `minimum`, `maximum`, `pattern`
+and `minItems` were removed from the schema and each is enforced in PHP instead — `service_count`
+clamped in `resultFromResponse()`, `confidence` already clamped in `normaliseServices()`, the date
+format already in `OosEmailParserService::validatedDate()`, and "every item cites a line" already by
+the validator. `OpenAiOosEmailItemExtractorTest::it_enforces_its_response_schema_with_strict_structured_output`
+walks the whole schema and asserts the keyword set exactly, so an unsupported keyword cannot be
+reintroduced anywhere in the tree without a named failure.
+
+**Live acceptance is proven, corpus behaviour is not.** One real `gpt-5.4-nano` call on a synthetic
+order confirmed the API *accepts* the strict schema — including the integer line-id enums, which the
+sibling service never exercised — returned a well-formed extraction and cited no phantom line id.
+That closes the risk that a re-run would 400 on every request. It does **not** establish the
+corpus-wide result: `phantom_source_line` reaching zero over the same 534 entries still requires the
+staging re-run.
+
+**Original finding, retained.**
 
 `OpenAiOosEmailItemExtractor::attempt()` sends a `json_schema` response format without
 `'strict' => true`. The sibling structured-output caller in this codebase,
@@ -2451,7 +2469,38 @@ entries; and any validation moved out of the schema has its own test.
 
 ### 2026-08-14 — F65: the extraction validator cannot distinguish bookkeeping from content
 
-**State: open.**
+**State: implemented 2026-08-14; corpus proof outstanding.** `OosEmailExtractionValidationResult`
+now carries the content subset of its reasons alongside the full list, and `planDisposition()`
+invalidates only on content. A bookkeeping-only plan becomes `ReviewRequired`: still held, never
+auto-imported, but reachable by review — which is the whole of the 148-identity unlock. Three rules
+changed shape:
+
+- `assignLine()` no longer reports an evidence/item overlap or evidence shared between plans at all.
+  Only two *items* claiming one line is a content finding; a line both ignored and claimed is
+  recorded as bookkeeping.
+- `validatePlanSpan()` now ends at the plan's last item line instead of running to the next plan or
+  the end of the document, so a trailing appendix is not mistaken for a dropped item. What remains —
+  an ignored item-like line *between* two items — stays a finding, but a bookkeeping one.
+- `extractionSignature()` drops `service_evidence_line_ids`.
+
+**Scope correction to this entry's own required outcome.** It asked that the consensus signature
+"compare only what is written to a service". What was built drops the evidence citations but keeps
+each item's `type` and `source_line_ids`, which are provenance rather than stored fields. They are
+retained deliberately: they identify *which source content* became an item, and comparing item type
+alone would let two materially different extractions register as agreeing. The defensible statement
+is narrower — the signature must not compare optional provenance that no service is built from.
+
+**Proven by test:** `OosEmailExtractionValidatorTest` (7 cases, covering each rule above in both
+directions) and `OosEmailParserServiceTest::two_attempts_differing_only_in_evidence_citations_reach_consensus`,
+which was checked non-vacuous by restoring the old signature and watching it fail. The pre-existing
+`it_holds_an_item_like_line_ignored_inside_a_service_sequence_for_review` was renamed and now asserts
+the plan is manually importable but not auto-importable.
+
+**Not yet proven:** the corpus-scale effect. The held population by family after a fresh staging run,
+the resulting staged-identity count against the 521 approved, and the 8 date errors still being held
+by the corroboration gate all require the re-run.
+
+**Original finding, retained.**
 
 `OosEmailExtractionValidator` returns one undifferentiated list of reasons, and any non-empty list
 makes the plan `InvalidExtraction`, which `isManuallyImportable()` refuses. The consequence measured

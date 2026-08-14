@@ -704,8 +704,15 @@ class OosEmailParserServiceTest extends TestCase
         $this->assertSame(OosEmailParseDisposition::AutoImportable, $result->disposition);
     }
 
+    /**
+     * "Opening prayer" sits between two extracted items, so ignoring it may mean the model
+     * dropped an item and the plan must not auto-import. It is still only a bookkeeping claim —
+     * the rule cannot tell a dropped item from a deliberate aside — so since F65 the plan is held
+     * for review, where a human can accept it, rather than rejected as an invalid extraction that
+     * no review can reach.
+     */
     #[Test]
-    public function it_rejects_an_item_like_line_ignored_inside_a_service_sequence(): void
+    public function it_holds_an_item_like_line_ignored_inside_a_service_sequence_for_review(): void
     {
         $body = "Welcome\nOpening prayer\nAmazing Grace\nSermon";
         $parser = $this->parserReturning(new OosEmailItemExtractionResult(
@@ -733,7 +740,76 @@ class OosEmailParserServiceTest extends TestCase
             'received_at' => '2026-07-10 09:00:00',
         ]));
 
-        $this->assertSame(OosEmailParseDisposition::InvalidExtraction, $result->disposition);
+        $this->assertSame(OosEmailParseDisposition::ReviewRequired, $result->disposition);
+        $this->assertTrue($result->servicePlans[0]->isManuallyImportable());
+        $this->assertFalse($result->servicePlans[0]->isAutoImportable());
+    }
+
+    /**
+     * F65. `service_evidence_line_ids` is optional for a single-plan email and is never written to
+     * a service, so two attempts that extracted the identical order must count as agreeing even
+     * when only one of them bothered to cite a boundary line. Treating that as a structural
+     * disagreement held the plan permanently, and no review could resolve a conflict that did not
+     * exist.
+     */
+    #[Test]
+    public function two_attempts_differing_only_in_evidence_citations_reach_consensus(): void
+    {
+        $body = "Morning Service\nWelcome\nAmazing Grace\nSermon";
+        $items = [
+            $this->groundedItem('welcome', 'Welcome', 2),
+            $this->groundedItem('song', 'Amazing Grace', 3),
+            $this->groundedItem('sermon', 'Sermon', 4),
+        ];
+        $extraction = fn (array $evidenceLineIds): OosEmailItemExtractionResult => new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.80,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'service_evidence_line_ids' => $evidenceLineIds,
+                'items' => $items,
+                'confidence' => 0.80,
+            ]],
+            serviceCount: 1,
+            ignoredLines: $evidenceLineIds === [] ? [['line_id' => 1, 'reason' => 'context']] : [],
+            provenanceComplete: true,
+        );
+        $extractor = new class($extraction([1]), $extraction([])) implements CorrectiveOosEmailItemExtractor
+        {
+            public function __construct(
+                private readonly OosEmailItemExtractionResult $initial,
+                private readonly OosEmailItemExtractionResult $corrected,
+            ) {}
+
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                return $this->initial;
+            }
+
+            public function correct(
+                string $subject,
+                string $body,
+                string $receivedDate,
+                OosEmailItemExtractionResult $previousExtraction,
+                array $validationFailures,
+            ): OosEmailItemExtractionResult {
+                return $this->corrected;
+            }
+        };
+
+        $result = (new OosEmailParserService(
+            $extractor,
+            new ExistingEmailImportLookup,
+            app(ServiceItemTitleCleaner::class),
+        ))->parse(InboundEmail::factory()->make([
+            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
+            'body_plain' => $body,
+            'received_at' => '2026-07-10 09:00:00',
+        ]));
+
+        $this->assertTrue($result->consensus);
+        $this->assertSame(OosEmailParseDisposition::AutoImportable, $result->disposition);
     }
 
     #[Test]

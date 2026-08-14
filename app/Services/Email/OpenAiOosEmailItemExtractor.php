@@ -119,6 +119,9 @@ class OpenAiOosEmailItemExtractor implements CorrectiveOosEmailItemExtractor
                 'type' => 'json_schema',
                 'json_schema' => [
                     'name' => 'oos_email_extraction',
+                    // Without this the schema only guides the model; the line-id enums that make
+                    // an invented line id impossible are not binding. See schema() (F64).
+                    'strict' => true,
                     'schema' => $this->schema($sourceLineIds),
                 ],
             ],
@@ -215,6 +218,16 @@ TEXT;
     }
 
     /**
+     * The request is strict (see attempt()), which binds the model to this schema but also
+     * narrows the keywords it may contain to the subset already proven against the live API by
+     * OpenAiServiceStructureService: type, enum, items, properties, required and
+     * additionalProperties. Range, pattern and length keywords are therefore expressed in PHP
+     * instead — `service_count` is clamped in resultFromResponse(), `confidence` in
+     * normaliseServices(), the date format in OosEmailParserService::validatedDate(), and
+     * "every item cites a line" by OosEmailExtractionValidator. Enforcing a constraint here
+     * that strict mode rejects would fail the whole request, so never reintroduce one without
+     * the covering test in OpenAiOosEmailItemExtractorTest.
+     *
      * @param  list<int>  $sourceLineIds
      * @return array<string, mixed>
      */
@@ -227,7 +240,6 @@ TEXT;
             'properties' => [
                 'service_count' => [
                     'type' => 'integer',
-                    'minimum' => 0,
                 ],
                 'services' => [
                     'type' => 'array',
@@ -242,7 +254,6 @@ TEXT;
                             ],
                             'date' => [
                                 'type' => ['string', 'null'],
-                                'pattern' => '^\\d{4}-\\d{2}-\\d{2}$',
                             ],
                             'content_scope' => [
                                 'type' => 'string',
@@ -270,15 +281,13 @@ TEXT;
                                             ],
                                         ],
                                         'title' => ['type' => 'string'],
-                                        'source_line_ids' => $this->lineIdArraySchema($sourceLineIds, minItems: 1),
+                                        'source_line_ids' => $this->lineIdArraySchema($sourceLineIds),
                                         'continuation' => ['type' => 'boolean'],
                                     ],
                                 ],
                             ],
                             'confidence' => [
                                 'type' => 'number',
-                                'minimum' => 0,
-                                'maximum' => 1,
                             ],
                         ],
                     ],
@@ -313,11 +322,10 @@ TEXT;
      * @param  list<int>  $sourceLineIds
      * @return array<string, mixed>
      */
-    private function lineIdArraySchema(array $sourceLineIds, int $minItems = 0): array
+    private function lineIdArraySchema(array $sourceLineIds): array
     {
         return [
             'type' => 'array',
-            'minItems' => $minItems,
             'items' => [
                 'type' => 'integer',
                 'enum' => $sourceLineIds,
@@ -365,7 +373,7 @@ TEXT;
             confidence: $this->averageConfidence($services),
             notes: $this->normaliseNotes($decoded['notes'] ?? []),
             services: $services,
-            serviceCount: is_int($decoded['service_count'] ?? null) ? $decoded['service_count'] : null,
+            serviceCount: is_int($decoded['service_count'] ?? null) ? max(0, $decoded['service_count']) : null,
             ignoredLines: $this->normaliseIgnoredLines($decoded['ignored_lines'] ?? []),
             provenanceComplete: true,
         );

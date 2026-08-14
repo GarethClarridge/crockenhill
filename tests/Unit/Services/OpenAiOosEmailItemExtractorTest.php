@@ -74,15 +74,71 @@ class OpenAiOosEmailItemExtractorTest extends TestCase
                     === ['service_count', 'services', 'ignored_lines', 'notes']
                 && $serviceSchema['service']['enum'] === ['morning', 'evening', 'other', 'unknown']
                 && $serviceSchema['content_scope']['enum'] === ['full', 'partial', 'unknown']
-                && $serviceSchema['date']['pattern'] === '^\\d{4}-\\d{2}-\\d{2}$'
+                && $serviceSchema['date']['type'] === ['string', 'null']
                 && $serviceSchema['service_evidence_line_ids']['items']['enum'] === [1, 2, 3]
                 && $serviceSchema['items']['items']['properties']['source_line_ids']['items']['enum'] === [1, 2, 3]
                 && $parameters['response_format']['json_schema']['schema']['properties']['ignored_lines']['items']['properties']['line_id']['enum'] === [1, 2, 3]
                 && str_contains($parameters['messages'][0]['content'], 'service slot separately from its occasion')
                 && str_contains($parameters['messages'][0]['content'], 'Sunday evening carol service is evening')
-                && $serviceSchema['confidence']['minimum'] === 0
-                && $serviceSchema['confidence']['maximum'] === 1;
+                && $serviceSchema['confidence']['type'] === 'number';
         });
+    }
+
+    /**
+     * F64. Every line-id field is constrained to an enum of the real source line ids, but a
+     * `json_schema` format only binds the model when it is marked strict — without that the
+     * enums are advisory and the extractor can cite lines that do not exist. Strict mode also
+     * restricts which keywords a schema may carry, so the schema must stay inside the subset
+     * this codebase has already proven against the live API in OpenAiServiceStructureService.
+     */
+    #[Test]
+    public function it_enforces_its_response_schema_with_strict_structured_output(): void
+    {
+        OpenAI::fake([$this->response([
+            ['service' => 'morning', 'date' => '2026-03-09', 'items' => [
+                ['type' => 'welcome', 'title' => 'Welcome'],
+            ], 'confidence' => 0.95],
+        ])]);
+
+        $this->extractor->extract('Order of Service', "Welcome\nSong\nSermon", '2026-03-07');
+
+        OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+            $format = $parameters['response_format']['json_schema'];
+
+            return $format['strict'] === true
+                && $this->keywordsUsedIn($format['schema']) === [
+                    'additionalProperties', 'enum', 'items', 'properties', 'required', 'type',
+                ];
+        });
+    }
+
+    /**
+     * Collects every JSON Schema keyword the schema actually uses, so an unsupported keyword
+     * cannot be reintroduced anywhere in the tree without this test naming it.
+     *
+     * @param  array<string, mixed>  $schema
+     * @return list<string>
+     */
+    private function keywordsUsedIn(array $schema): array
+    {
+        $keywords = [];
+
+        foreach ($schema as $key => $value) {
+            $keywords[] = $key;
+
+            // Under `properties` the keys are property names, not keywords, so recurse into
+            // each child schema rather than into the map itself.
+            foreach (($key === 'properties' ? $value : [$value]) as $child) {
+                if (is_array($child) && ! array_is_list($child)) {
+                    $keywords = array_merge($keywords, $this->keywordsUsedIn($child));
+                }
+            }
+        }
+
+        $keywords = array_values(array_unique($keywords));
+        sort($keywords);
+
+        return $keywords;
     }
 
     #[Test]
