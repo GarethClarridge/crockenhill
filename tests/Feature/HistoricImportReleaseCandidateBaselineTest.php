@@ -21,7 +21,7 @@ use Tests\TestCase;
  * deletion trigger that keeps it removable — are asserted here rather than left
  * to a reviewer noticing.
  *
- * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §6 (HIR0) steps 2 and 6
+ * @see docs/archived-plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §6 (HIR0) steps 2 and 6
  */
 class HistoricImportReleaseCandidateBaselineTest extends TestCase
 {

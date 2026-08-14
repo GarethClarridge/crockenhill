@@ -16,7 +16,7 @@ unexpected request, job, and command failures are captured when they happen, wit
 the existing deployment release identifier. Local development and CI remain network-free by default.
 
 Sentry owns generic application exception capture. The
-[historic final-import plan](HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md) owns import-specific
+[historic incremental convergence plan](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) owns import-specific
 release evidence, its accepted log-only monitoring record, and rollback decisions. The architectural
 plan owns log transport/retention and application state transitions; this plan observes their final
 failure boundary rather than defining it.

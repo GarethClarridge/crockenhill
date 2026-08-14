@@ -36,7 +36,7 @@ use RuntimeException;
  * an unexpired window, an operation in `Complete`, and a rollback observation
  * period that outlasts the authorisation.
  *
- * @see docs/plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md — D10
+ * @see docs/archived-plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md — D10
  */
 final class HistoricSermonReleaseAuthorisation
 {

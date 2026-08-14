@@ -1,15 +1,18 @@
 # Plans index
 
-Last comprehensively reconciled **2026-08-12** against the live code at `ac1468b47`, the two
-historic-import authorities, the architectural-maintainability findings, and the current upstream
-contracts relied on by the Sentry and embedding plans. This directory contains executable active
-plans only; completed or superseded decision records live in `docs/archived-plans/`.
+Last comprehensively reconciled **2026-08-14**, when the historic programme's three prior
+authorities were superseded by the single
+[incremental convergence plan](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) under
+maintainer decisions REV-D1–REV-D4 and archived as evidence records. This directory contains
+executable active plans only; completed or superseded decision records live in
+`docs/archived-plans/`.
 
 ## How to use this index
 
-- The two historic plans form one gated programme. The final-readiness plan decides go/no-go and
-  phase order; the remediation plan supplies implementation contracts and G0-G9 detail. The
-  temporary safety addendum below delivers review fixes into those owners and adds no third gate.
+- The historic import has **one** plan. Its §2 decision record, §3 safety model and §4 finding
+  dispositions are binding; the archived predecessors hold finding/decision evidence only.
+  Wherever an older document says "G9" or "G9/WP10", read the new plan's **historic
+  closeout / IC8**.
 - The numbered product order below optimises for independently usable functionality. Maintenance,
   historic readiness and operator tasks can run in parallel where their own gates allow.
 - A plan's “next slice” is the smallest useful deliverable, not permission to execute later gated
@@ -20,7 +23,7 @@ plans only; completed or superseded decision records live in `docs/archived-plan
 
 | Concern | Sole owner | Consumers / boundary |
 |---|---|---|
-| Historic source acquisition, Email/OpenLP/video manifests, Bundle A/B, hymn evidence, production apply and import one-shot retirement | Historic final-readiness + remediation plans | Other plans may consume admitted sermons/songs later; they do not add import steps or gates |
+| Historic source acquisition, Email/OpenLP/video manifests, Bundle A/B, hymn evidence, production rounds, releases and retirement | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | Other plans may consume admitted sermons/songs later; they do not add import steps or gates |
 | Generic exception capture, release tags and Sentry privacy/noise policy | `SENTRY-ERROR-TRACKING.md` | Optional independent layer; historic D7 accepted rotating logs instead. It reports the architectural plan's final terminal-failure owner rather than defining state transitions |
 | Generic storage durability, queue timing, rotating logs, schema-compatible rollback, runtime versions/startup and permanent processing/UI ownership | `ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md` | Historic plans may impose stricter operation evidence; July/code-quality/design/search retain the narrower ownership listed here |
 | July deferred workflow decisions and duplicate-suite cleanup | Simplification closeout plan | No historic one-shot or bulk-backfill work remains in that plan |
@@ -55,18 +58,19 @@ These slices put working visitor/operator value ahead of infrastructure-only pha
    weekly content and other decision-gated newcomer work.
 
 Search/semantic backfills may launch against the current admitted corpus. Historic completion is
-not a launch dependency: after G9, rerun stale/idempotent backfills and calibration so newly admitted
-sermons, songs and service evidence join the same features.
+not a launch dependency: as import rounds land (and finally at historic closeout), rerun
+stale/idempotent backfills and calibration so newly admitted sermons, songs and service evidence
+join the same features.
 
 ## Parallel programme and maintenance lanes
 
 ```text
-HISTORIC FINAL READINESS ──> remediation gates/rehearsal ──> production apply ──> G9 cleanup
-            │                                                        │
-            └── requires accepted rotating-log evidence              └──> architecture post-G9 seams
+HISTORIC IC1-IC3 email/ground truth ──> IC5 video ──> IC6 hymn ──> IC7 rounds ──> releases ──> IC8
+            │                                                          │
+            └── IC4 current-era back-fill (any time)                   └── first round needs AM3 D1
 
 ARCHITECTURE AM1-AM5/AM11 safety ────────────────────────────────────────────> independent value
-ARCHITECTURE AM8-AM10 permanent processing ──> waits for G9 unless a gate requires it
+ARCHITECTURE AM8-AM10 permanent processing ──> waits for historic closeout unless a gate requires it
 
 SIMPLIFICATION R13 measurement ───────────────┐
 SIMPLIFICATION R14 test fold-ins ─────────────┴──> R15 archive
@@ -80,9 +84,7 @@ None of these lanes blocks the public product sequence except where a plan expli
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
-| Gate 0 | [Historic archive final readiness](HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md) | **NO-GO** through F63; archive-v11 staging has advanced, but full production-shaped rehearsal, drive corpora, hymn F60-F62 and G2-G9 evidence remain | Follow its phase table; no production mutation |
-| Gate 0a | [Historic import safety remediation](HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md) | Proposed temporary implementation addendum; eight findings open; production remains **NO-GO** | Record D1-D5, keep mutation disabled, then land HIR1 stable resource anchors before regenerating authority |
-| Gate 1 | [Historic archive readiness remediation](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md) | Implementation record active; rehearsal/operation acceptance remains | Close the next finding named by Gate 0, not the old PR numbering in isolation |
+| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Plan of record since 2026-08-14** (REV-D1–D4). All predecessor code landed; IC1 (email evidence tier) is the current package; production mutation only as §7 rounds | IC1 red tests + implementation, then a staging round; IC4 back-fill is drive-free any time |
 | M0 | [Architectural maintainability delivery](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) | Not started; immediate safety lane and post-G9 permanent-core lane are explicitly separated | Record D1-D4; AM2 timing and AM3 log-rotation tests can start independently |
 | H1 | [Sentry error tracking](SENTRY-ERROR-TRACKING.md) | Optional; not installed; dependency approval required | If approved, install/configure errors-only capture; sequence caught terminal processing reporting after architecture AM8 |
 | M1 | [Code-quality remediation](CODE-QUALITY-REMEDIATION-2026-07-19.md) | WP2.1/WP6.1 done; other items open; level 8 | WP2's small fail-closed/config/signature fixes plus the computed-call structural guard |
@@ -111,15 +113,21 @@ None of these lanes blocks the public product sequence except where a plan expli
 | Newcomer photographs/consent, weekly editor, Christianity Explored decision | N3/N4/O18 only |
 | GA4 console access and key-event choice | GA6 |
 | Real OBS recordings + LocalVocal sidecars and preferred format | OBS Phase 0/1 |
-| Historic acquisition, business and operation approvals | Only the historic programme; see Gate 0 §5/phase table |
+| Historic operator inputs: ~14 email adjudications, video worksheet, current-era source recovery, era releases, §8.4 policy | Only the historic programme; see the incremental convergence plan §10 |
 
 ## Recently archived or superseded
 
+- [Historic archive final import readiness](../archived-plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md),
+  [historic archive readiness remediation](../archived-plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md)
+  and [historic import safety remediation](../archived-plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md)
+  — archived 2026-08-14, superseded by the incremental convergence plan (REV-D1–D4); they remain
+  the F/B/HIR finding and FR-D/HIR-D decision evidence record.
 - [July 2026 simplification backlog](../archived-plans/JULY-2026-SIMPLIFICATION-BACKLOG-2026-07-05.md)
   — archived 2026-08-12; completed parent decision record. The closeout plan is self-contained.
 - [R8 data convergence correctness](../archived-plans/R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md)
   and [historic archive import/promotion](../archived-plans/HISTORIC-ARCHIVE-IMPORT-AND-PROMOTION-2026-07-24.md)
-  — prior art only; the two active historic plans supersede their work-package sequences.
+  — prior art only; their work-package sequences were superseded by the archived 2026-07/08
+  historic plans and now by the incremental convergence plan.
 - [Local processing portability](../archived-plans/LOCAL-PROCESSING-PORTABILITY-2026-07-28.md)
   — superseded by portable source assertions and Bundle A/B contracts.
 

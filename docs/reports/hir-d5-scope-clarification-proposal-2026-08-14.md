@@ -69,7 +69,7 @@ double duty as an implicit safety brake.
 Applied as these four edits (matching this project's own rule that widening happens by *adding* a
 dated row, never editing HIR-D5's text):
 
-### 1. `docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md` — decision table
+### 1. `docs/archived-plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md` — decision table
 
 Add a row after the HIR-D6 row (§ line ~132):
 

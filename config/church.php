@@ -55,7 +55,7 @@ return [
     | This exists because the historic import will land a decade of services in
     | one operation, and the editorial, copyright, speaker-consent and takedown
     | questions covering historic material are open (see WP8 §14.4 of
-    | docs/plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md). The
+    | docs/archived-plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md). The
     | sermon-level exposure attributes withhold *media*; nothing else withheld a
     | *service* from the listing. This does.
     |

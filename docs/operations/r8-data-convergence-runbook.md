@@ -1,5 +1,12 @@
 # R8 data convergence and one-shot retirement runbook
 
+> **Superseded 2026-08-14 — do not execute this runbook.** The one-shot windowed operation it
+> describes was retired by REV-D1
+> (`docs/reports/historic-import-plan-review-2026-08-14.md`); the production procedure is now §7
+> of the [incremental convergence plan](../plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md).
+> This file is retained only as a command-surface reference (§11) until IC8 retirement deletes the
+> one-shot commands it lists.
+
 > **Status (revised 2026-08-14): command surface implemented, but this runbook is still not
 > executable as written; rehearsal and production execution have not started.**
 >
@@ -28,9 +35,9 @@
 > command's successful dry run as approval for the production maintenance window.
 >
 > The complete-operation authority is the
-> [Historic Archive Final Import Readiness Plan](../plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md).
+> [Historic Archive Final Import Readiness Plan](../archived-plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md).
 > Its supporting implementation contracts live in
-> [Historic Archive Import Readiness Remediation](../plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md).
+> [Historic Archive Import Readiness Remediation](../archived-plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md).
 > [R8 Data Convergence Correctness](../archived-plans/R8-DATA-CONVERGENCE-CORRECTNESS-2026-07-29.md)
 > is retained as a decision/prior-art record. The previous runbook re-ran OoS extraction and
 > historic-video processing in production and used aggregate parity checks; that sequence remains

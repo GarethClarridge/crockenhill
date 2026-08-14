@@ -37,7 +37,7 @@ use Tests\TestCase;
  * valid signature; the signature closes forgery by an arbitrary party and
  * nothing more. The assurance being tested is the artifact-backed half.
  *
- * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §11 (HIR5), §4.3 (HIR-D3)
+ * @see docs/archived-plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §11 (HIR5), §4.3 (HIR-D3)
  */
 class VerifyHistoricImportRecoveryCommandTest extends TestCase
 {

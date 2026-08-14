@@ -3,7 +3,7 @@
 **Recorded 2026-08-13 against `7b1fd7ff66aefa31304e56d0cece760df32a306c`.**
 
 This is the change-control baseline required by
-[HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md](../plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md)
+[HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md](../archived-plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md)
 §6. It exists so that HIR1–HIR8 cannot silently inherit stale hashes, evidence or production
 authority, and so each later package can be reviewed without reconstructing its invalidation
 boundary.

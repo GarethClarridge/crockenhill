@@ -14,7 +14,7 @@ use Throwable;
 /**
  * Enforces the G8 boundary the plan header previously only described.
  *
- * The header of docs/plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md
+ * The header of docs/archived-plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md
  * forbids canonical OoS/OpenLP archive imports, historic-video dispatch and
  * Bundle A/B persistence "until Gate G8". Read literally that also forbade
  * §13.5 steps 3-4, because staging Email evidence is only reachable through

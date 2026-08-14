@@ -114,7 +114,7 @@ class VerifyHistoricSourceAcquisitionCommandTest extends TestCase
      * protected copies rather than deleting the case.
      *
      * @see docs/reviews/historic-import-commit-review-2026-08-12.md finding 2
-     * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §10 (HIR4)
+     * @see docs/archived-plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §10 (HIR4)
      */
     #[Test]
     #[Group('hir-red')]

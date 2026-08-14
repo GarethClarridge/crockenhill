@@ -1,5 +1,15 @@
 # Historic Archive Import Readiness Remediation Plan
 
+> **Archived 2026-08-14 — superseded as an executable authority by**
+> [Historic Import: Incremental Convergence](../plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md)
+> **per maintainer decisions REV-D1–REV-D4**
+> (`docs/reports/historic-import-plan-review-2026-08-14.md`). Keep this file as the implementation
+> record: B1–B21 blocker evidence, WP0–WP10 contracts for landed code, the §17 PR/audit history,
+> and §13's corpus/calibration analysis (the era table and §13.1 video-corroboration measurements
+> are restated in the new plan §5). The G0–G9 gate ladder, WP7's eleven-step rehearsal and WP9's
+> production-window operation are replaced by the new plan's §3.3 round gates and §7 round
+> procedure. Do not execute sequences from this document.
+
 > **Status (implementation snapshot 2026-08-06; read-only audit updated 2026-08-12): PRs 1–17 are merged, WP0–WP8 have landed, and every gate-acceptance audit
 > gap listed on 2026-08-06 is closed.** "Merged" is still not a gate certification — see §17's Status
 > column and the "Acceptance and gate readiness" audit.

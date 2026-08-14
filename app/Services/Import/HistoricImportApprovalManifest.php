@@ -26,7 +26,7 @@ use RuntimeException;
  * The roles are still required and still non-blank because the artifact is the
  * durable record of who to call and who owns rollback.
  *
- * @see docs/plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md — D10
+ * @see docs/archived-plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md — D10
  */
 final class HistoricImportApprovalManifest
 {

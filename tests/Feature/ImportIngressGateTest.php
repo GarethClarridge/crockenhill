@@ -303,7 +303,7 @@ class ImportIngressGateTest extends TestCase
      * evidence: HIR6 runs the job in those cases rather than deleting them.
      *
      * @see docs/reviews/historic-import-commit-review-2026-08-12.md finding 7
-     * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §12 (HIR6)
+     * @see docs/archived-plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §12 (HIR6)
      */
     #[Test]
     #[Group('hir-red')]

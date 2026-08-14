@@ -150,7 +150,7 @@ class EnrichHistoricScripturePassagesCommandTest extends TestCase
      * HIR3 adds the full `Sleep`-faked matrix on top of it.
      *
      * @see docs/reviews/historic-import-commit-review-2026-08-12.md finding 8
-     * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §9 (HIR3)
+     * @see docs/archived-plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §9 (HIR3)
      */
     #[Test]
     #[Group('hir-red')]

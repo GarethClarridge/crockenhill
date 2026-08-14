@@ -1,5 +1,15 @@
 # Historic Archive Final Import Readiness Plan
 
+> **Archived 2026-08-14 — superseded as an executable authority by**
+> [Historic Import: Incremental Convergence](../plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md)
+> **per maintainer decisions REV-D1–REV-D4**
+> (`docs/reports/historic-import-plan-review-2026-08-14.md`). Keep this file as the finding
+> (F1, F29–F66) and decision (D1–D10) evidence record; the new plan's §4 holds the binding
+> disposition of every finding, and its §3.3 round gates replace the go/no-go checklist below.
+> Do not execute this document's phase table, workstreams or checklist, and do not reopen its
+> decided rows. The one-shot NO-GO verdict below is preserved as history: it applied to the
+> windowed operation model this plan governed, which no longer exists.
+
 > **Status (read-only audit extended through 2026-08-12): NO-GO. Do not connect
 > the archive drive for an
 > import run and do not perform any production historic mutation.** Connecting it read-only for the

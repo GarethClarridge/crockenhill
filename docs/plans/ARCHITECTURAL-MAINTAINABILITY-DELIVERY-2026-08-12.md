@@ -3,14 +3,20 @@
 > **Status (2026-08-12): approved planning document; implementation not started.** Verified against
 > `ac1468b47` and the active plan set on 2026-08-12. Immediate safety packages AM1–AM5 and AM11 may
 > proceed when their named maintainer decisions are recorded. Permanent processing refactors AM8–AM10
-> wait until the historic production operation reaches G9 unless a final-readiness gate proves one is
+> wait until the historic programme's **closeout** unless one of its round gates proves one is
 > required earlier.
 >
-> **AM3 Delivery 1 blocks the historic production operation.** Historic final-readiness FR-D7
+> **Historic terminology update (2026-08-14).** The historic programme's authority is now the
+> [incremental convergence plan](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md); the
+> one-shot operation, its window and the G-ladder no longer exist. Wherever this document says
+> "G9" or "G9/WP10", read its **historic closeout / IC8**; "the window" means the first
+> production apply round (RG-B). FR-D7 and every AM dependency below are otherwise unchanged.
+>
+> **AM3 Delivery 1 blocks the first historic production round.** Historic FR-D7
 > accepted rotating logs as the operation record in place of Sentry, but AM3's finding is that
-> `storage/logs/laravel.log` does not rotate at all. The operation's only accepted monitoring control
+> `storage/logs/laravel.log` does not rotate at all. The rounds' only accepted monitoring control
 > is therefore unbuilt. AM3 Delivery 1 is not free-running infrastructure work and must land before
-> the window opens.
+> the first RG-B round.
 >
 > **Human authority required:** the maintainer must decide original-recording retention (AM-D1), normal
 > rollback policy (AM-D2), the supported runtime matrix (AM-D3), and whether live Shadow mode remains useful
@@ -46,7 +52,7 @@ the work it owns, but it does not duplicate executable steps already owned elsew
 
 | Concern | Sole executable owner | This plan's boundary |
 |---|---|---|
-| Historic source acquisition, rehearsal, production apply, exact closeout and one-shot retirement | [Historic final readiness](HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md) + [readiness remediation](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md) | Track the required steady-state outcome; do not add import gates or delete before G9/WP10 |
+| Historic source acquisition, staging rehearsal, production rounds, audit reports and retirement | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | Track the required steady-state outcome; do not add import gates or delete before historic closeout/IC8 |
 | `ChurchServiceItemSyncService` evidence/decision and the five flat test-suite fold-ins | [July simplification closeout](JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md) R13–R15 | Consume the R13b decision; do not remeasure or extend deletion-scheduled tests here |
 | Generic exception capture, Sentry privacy/noise policy and release-tagged error events | [Sentry plan](SENTRY-ERROR-TRACKING.md) | AM3 owns log transport/rotation; AM8 owns terminal state; Sentry Delivery 2 reports only the final owner |
 | Broad PHPStan/config/dependency/test-notice cleanup | [Code-quality plan](CODE-QUALITY-REMEDIATION-2026-07-19.md) | AM9 coordinates with WP2.5 but does not absorb the wider quality backlog |

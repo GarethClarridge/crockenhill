@@ -40,7 +40,7 @@ use Tests\TestCase;
  * pauses anywhere else would pass vacuously.
  *
  * @see docs/reviews/historic-import-commit-review-2026-08-12.md finding 1
- * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §13 (HIR7)
+ * @see docs/archived-plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §13 (HIR7)
  */
 #[Group('hir-red')]
 class HistoricSermonReleaseRaceTest extends TestCase

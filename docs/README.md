@@ -8,9 +8,10 @@ Rules for using this folder, written for AI agents as much as humans:
 2. **Every document carries a date.** Distrust anything that contradicts the code, and fix or
    delete it when you notice.
 3. **One index for current work.** Start at [`plans/README.md`](plans/README.md). The historic
-   archive's top-level authority is the
-   [`HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS`](plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md)
-   plan; the July simplification remainder remains a separate active spine until R15 closes it.
+   archive's sole authority is the
+   [`HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE`](plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md)
+   plan (2026-08-14; the three predecessor plans are archived evidence records); the July
+   simplification remainder remains a separate active spine until R15 closes it.
 
 ## Map
 
@@ -22,7 +23,7 @@ Rules for using this folder, written for AI agents as much as humans:
 | [`design-style-guide.md`](design-style-guide.md) | **Read before any UI work.** Brand tokens, components, anti-patterns. Screenshots in `design-references/` (gitignored; regenerate per the guide). |
 | [`api/media-processing.md`](api/media-processing.md) | API reference for the media/services/webhook endpoints (`routes/api.php` wins on conflict). |
 | [`operations/production.md`](operations/production.md) | Production stack, Horizon queues, scheduler, deploy/rollback. |
-| [`operations/r8-data-convergence-runbook.md`](operations/r8-data-convergence-runbook.md) | Historic source reconciliation runbook; currently non-executable pending the final-readiness plan's replacement and rehearsal. |
+| [`operations/r8-data-convergence-runbook.md`](operations/r8-data-convergence-runbook.md) | **Superseded 2026-08-14**; retained for command reference only. The production round procedure is §7 of the incremental-convergence plan. |
 | [`operations/SEO_SETUP_GUIDE.md`](operations/SEO_SETUP_GUIDE.md) | Manual Search Console / GA4 setup steps (maintainer tasks). |
 | [`operations/section-extraction-testing.md`](operations/section-extraction-testing.md) | Local-only regression harness for section extraction against real recordings (with `structure-eval-manifest.example.json`). |
 | [`operations/horizon-staging-smoke-test.md`](operations/horizon-staging-smoke-test.md) | Outstanding one-time staging verification. |

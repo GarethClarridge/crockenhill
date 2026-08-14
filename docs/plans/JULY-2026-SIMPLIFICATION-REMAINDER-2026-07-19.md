@@ -8,9 +8,10 @@
 > **Ownership correction:** R8 and R12 are not work packages in this plan any more. Historic
 > acquisition, Email/OpenLP/video convergence, hymn evidence, Bundle A/B promotion and every
 > import-related one-shot retirement are owned exclusively by
-> [final readiness](HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md) and
-> [readiness remediation](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md). Their production
-> gates and G9/WP10 decide when those tools can be deleted. Do not reconstruct that operation from
+> [incremental convergence plan](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md)
+> (which superseded the final-readiness and readiness-remediation plans on 2026-08-14; where this
+> document says "G9/WP10" read its **historic closeout / IC8**). Its rounds
+> decide when those tools can be deleted. Do not reconstruct that operation from
 > this plan or its archived parent.
 >
 > **Agents must not:** run production commands; add coverage to the five legacy flat test suites;

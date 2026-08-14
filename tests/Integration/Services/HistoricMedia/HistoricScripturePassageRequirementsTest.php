@@ -91,7 +91,7 @@ class HistoricScripturePassageRequirementsTest extends TestCase
      * without settling it.
      *
      * @see docs/reviews/historic-import-commit-review-2026-08-12.md finding 6
-     * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §9 (HIR3)
+     * @see docs/archived-plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §9 (HIR3)
      */
     #[Test]
     #[Group('hir-red')]

@@ -304,8 +304,8 @@ second service is not counted as a false positive.
 ## Next-session procedure
 
 1. Read this report and the current historic-import authorities before editing:
-   - `docs/plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md`
-   - `docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md`
+   - `docs/archived-plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md`
+   - `docs/archived-plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md`
    - `app/Services/Email/OosEmailParserService.php`
    - `app/Services/Email/OosEmailExtractionValidator.php`
    - `app/Services/Email/OpenAiOosEmailItemExtractor.php`

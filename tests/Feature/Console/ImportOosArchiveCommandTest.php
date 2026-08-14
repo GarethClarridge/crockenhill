@@ -606,7 +606,7 @@ class ImportOosArchiveCommandTest extends TestCase
      * that happened to reparse would pass this for the wrong reason.
      *
      * @see docs/reviews/historic-import-commit-review-2026-08-12.md finding 5
-     * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §8 (HIR2), §4 (HIR-D5)
+     * @see docs/archived-plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §8 (HIR2), §4 (HIR-D5)
      */
     #[Test]
     #[Group('hir-red')]

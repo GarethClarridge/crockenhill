@@ -207,7 +207,7 @@ class HistoricImportProductionGuardTest extends TestCase
      * which is what this test drifts around.
      *
      * @see docs/reviews/historic-import-commit-review-2026-08-12.md finding 4
-     * @see docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §7 (HIR1), §4.2 (HIR-D2)
+     * @see docs/archived-plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md §7 (HIR1), §4.2 (HIR-D2)
      */
     #[Test]
     #[Group('hir-red')]

@@ -1,5 +1,15 @@
 # Historic Import Safety Remediation Plan
 
+> **Archived 2026-08-14 — superseded as an executable authority by**
+> [Historic Import: Incremental Convergence](../plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md)
+> **per maintainer decisions REV-D1–REV-D4**
+> (`docs/reports/historic-import-plan-review-2026-08-14.md`). HIR0–HIR7 code is landed, kept and
+> in service; HIR8's rehearsal steps 1, 2, 4 and 6–11 and the custody/recovery **evidence**
+> obligations (invariants 4, 5 and 9 below) lapse under REV-D3. HIR-D1–HIR-D7 remain binding as
+> recorded, with HIR-D6/D7's Axis B amended by REV-D2 (evidence-tier email import); HIR-D8 stays
+> open and is decided on IC3's ground-truth measurement. Do not execute this document's delivery
+> map.
+
 > **Status (2026-08-13): HIR0–HIR7 complete in code and under test; HIR8 remains; production remains
 > NO-GO.** Verified
 > against `ac1468b47` and the findings in
