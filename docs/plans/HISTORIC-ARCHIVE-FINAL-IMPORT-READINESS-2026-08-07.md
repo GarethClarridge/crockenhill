@@ -1870,11 +1870,24 @@ review. Those topics are not import gates.
    identities in 2019–2022, a window where the hymn workbooks have no sheets and OpenLP has not yet
    started — i.e. the livestream era. Video is therefore the *only* source that could corroborate the
    least-evidenced four years of the archive, which makes this missing builder an input to the
-   per-era publication decision, not just to custody. Before building it, measure against
-   **production** whether usable 2019–2022 video exists and for how many of those identities; a
-   development-database check cannot answer this. See
+   per-era publication decision, not just to custody.
+
+   **Measured 2026-08-14 against the mounted drive — build the producer.** The gating measurement was
+   originally framed against production; that was a proxy adopted while the drive was unmounted. The
+   corroborating video is an acquisition corpus living on the drive, so the drive is the authority and
+   the production figure is at most a subset. Coverage over `Services/`: **159 of 220** 2019–2022
+   identities, but distributed such that **2019–2022 is two eras, not one**. Video begins 2020-03-22,
+   the first lockdown Sunday: everything before it has **zero** coverage and stays
+   hand-verified-or-unpublished; 2020-03-22 onward is strongly covered on mornings and weakly on
+   evenings until 2022. Two constraints follow — the manifest must grade corroboration by recording
+   completeness rather than record presence (much of 2020 is sermon-only, which cannot corroborate
+   song membership), and it must inventory `Evening/` itself, because the drive's existing
+   `morning_service_recording_status.csv` is morning-only despite 181 `Evening/` folders. Raw root
+   scoped to `Services/` only; the cost of excluding `CovidServiceArchive/`, `_Duplicates/` and
+   `_Rejected/` is one identity. See
    [plan of record §13.1](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md) ("Video is the only
-   possible corroboration for 2019–2022") and §13.4's era table.
+   possible corroboration for 2019–2022") and §13.4's era table, including the unreconciled
+   193-vs-220 denominator noted there.
    **D10 replaced the two-person approval
    with a single named approver**; what carries the weight is the written reason on every
    include/exclude and the frozen hashes, both of which survive unchanged.

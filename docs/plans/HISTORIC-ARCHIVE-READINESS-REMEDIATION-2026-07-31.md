@@ -1614,19 +1614,121 @@ sequence (F66) — which frames it as tooling tidy-up. It is better understood a
 that could ever corroborate the least-evidenced four years of the archive**, and therefore as an
 input to the §13.4 publication decision for that era rather than only to acquisition custody.
 
-**One measurement decides whether the builder is worth writing, and it must be taken against
-production, not a development database:** does production hold usable video for 2019–2022 Sundays,
-and for how many of those 136 identities? A local check is worthless here — the development database
-is not a production copy and holds almost no sermons in that range.
+**One measurement decides whether the builder is worth writing.** It was originally framed as a
+production-database question — does production hold usable 2019–2022 video? — because the drive was
+unmounted when this subsection was written. That framing was a proxy. The corroborating video is an
+*acquisition* corpus: it lives on the external drive, and production holds at most whatever subset
+was already imported. With the drive mounted the real measurement is available, and it is the one
+that governs.
 
-- If coverage is substantial, build the video curation manifest producer and treat 2019–2022 as a
-  corroborated era like any other.
-- If it is not, 2019–2022 is a **hand-verified-or-unpublished** era. Record that explicitly here and
-  in the §13.4 per-era accuracy figures, and size the manual truth set for it deliberately. What must
-  not happen is discovering it at the publication gate, having assumed the era would be measurable
-  the way its neighbours are.
+##### Measured 2026-08-14 against the mounted drive
 
-Either way this is a corpus-availability fact and belongs in the completion gate: an era whose only
+Source: `Services/` on the Sonnics drive (353 dated folders, 347 with `Morning/`, 181 with
+`Evening/`), crossed per identity against the Email plan keys in
+`storage/scratch/archive-v12-restage-20260814.json`. Coverage counts a `Morning/`/`Evening/`
+directory present for that identity's date and service.
+
+| Year | Morning covered | Evening covered | Total |
+|---|---:|---:|---:|
+| 2019 | 0 / 24 | 0 / 14 | **0 / 38** |
+| 2020 | 42 / 52 | 0 / 7 | 42 / 59 |
+| 2021 | 50 / 50 | 1 / 3 | 51 / 53 |
+| 2022 | 46 / 47 | 20 / 23 | 66 / 70 |
+| | | | **159 / 220** |
+
+**Coverage is substantial, so the producer is worth building — but 2019–2022 is not one era for
+video purposes.** Video begins at 2020-03-22, the first lockdown Sunday; the window splits there and
+each half takes a different decision:
+
+- **2019-01-01 → 2020-03-21: zero video.** No sheet in the hymn workbooks, no OpenLP, no recording.
+  This sub-era has *no* corroborating source and is **hand-verified-or-unpublished** regardless of
+  what gets built. Size its manual truth set deliberately; do not carry it into the per-era accuracy
+  figures as though it were measurable.
+- **2020-03-22 → 2022-12-31: corroborable on the morning side**, weakly on the evening side until
+  2022 (0/7, then 1/3, then 20/23).
+
+Two qualifications constrain the builder:
+
+- **Presence is not corroboration.** Email plans are orders of service — hymn and song lists. Much of
+  2020 is sermon-only (`Sunday 5 April_ Sermon`, 22 min); the drive's own
+  `morning_service_recording_status.csv` grades only 29 of the 42 covered 2020 morning dates as
+  `single_full_recording`. A sermon clip corroborates preacher and date and nothing about song
+  membership, which is the dimension §13.4 asks the census to record. The manifest must therefore
+  carry a **graded** corroboration field, not a presence boolean.
+- **Evening has never been inventoried.** `morning_service_recording_status.csv` is morning-only
+  despite 181 `Evening/` folders existing. A producer that reuses that CSV would silently
+  under-report exactly the identities that are least corroborated elsewhere.
+
+**Denominator discrepancy, unresolved.** §13.4's era table states 193 Email ids and 136
+uncorroborated for 2019–2022, against 521 identities overall. Extracting plan keys directly from the
+same archive-v12 report yields 220 and 662. The era table was presumably computed over a filtered
+subset (approved-and-dated identities under the curation authority). The *shape* above is unaffected
+— the 2020-03-22 boundary and the evening gap hold under either denominator — but the two counts must
+be reconciled before these figures enter the publication decision.
+
+**Scope decided 2026-08-14: the manifest's raw root is `Services/` only.** `CovidServiceArchive/`
+(30 flat folders, no service split), `_Duplicates/` (172 files) and `_Rejected/` (392 files, both
+quarantined by the operator's 2026-07-30/31 reorg with move logs) stay outside the root as
+already-adjudicated. Measured cost of that exclusion: **one** identity, `2020-12-20 evening`, is the
+only uncovered identity for which a `CovidServiceArchive/` folder exists.
+
+##### `_Rejected/` is not a duplicates bin — corrected 2026-08-14
+
+The exclusion cost above was measured on **folder presence**, and on completeness it is understated.
+Drafting the worksheet and comparing its grades against
+`morning_service_recording_status.csv` showed 290 of 347 morning grades agreeing and **55
+disagreeing in one direction**: the CSV records those dates as `fragmented_only` across 2–5 files,
+while `Services/` now holds exactly one. `_Rejected/` mirrors the `Services/` tree, and its
+2026-07-31 move log shows the pass kept the largest file per service and rejected the rest.
+
+Those rejected files are **service segments, not duplicates**. A service captured by OBS as
+`10-31`, `10-42`, `10-47`, `11-05`, `11-44` is one service in five parts; keeping only `11-05` keeps
+one part. Across the 55, the kept file runs 22.9–39.2 minutes (median 29.4) and **49 lose more than
+ten minutes of recorded service time** — 2023-11-19 keeps 36.6 of 80.9 minutes.
+
+The scoping decision nonetheless stands for the purpose that drove it. Only **5** of the 55 fall in
+the 2019–2022 corroboration window, and only **2** (2020-05-17, 2021-06-06) would reach the
+full-service grade if their fragments were restored. The remaining 46 sit in 2023–2026, the era that
+already has Email, OpenLP and hymn corroboration and needs video least.
+
+What must not happen is a later reader treating `_Rejected/` as junk. If whole-service video is ever
+wanted for 2023–2026 — for transcript quality rather than corroboration — those fragments are the
+missing material and the concatenation decisions for them have not been made.
+
+##### The producer, built 2026-08-14 (closes F66's video half)
+
+Curation runs in two stages, because hashing and adjudication have opposite iteration costs:
+
+1. `historic-import:draft-video-curation` — enumerates the corpus into a worksheet from paths, sizes
+   and container headers. **No file contents are read**, so a full pass over the corpus takes about a
+   minute. Every entry is proposed as an include with empty editorial facts; the operator adjudicates
+   the worksheet by hand.
+2. `historic-import:capture-video-curation` — hashes every declared file once, at freeze, and emits
+   the manifest, which it then validates so a bad capture fails here rather than at import. It
+   refuses a corpus that moved since drafting (missing file, or a byte size that no longer matches),
+   because decisions adjudicated against one file must not be frozen against another.
+
+Splitting them matters at this scale: the corpus reads at **87.7 MB/s** and runs to **1.0 TB**, so a
+hashing pass is upwards of three hours. Folding it into the draft would have made every re-draft cost
+a working afternoon *and* overwritten the adjudication it took that afternoon to produce. Note that
+`HistoricVideoCurationManifest::verifiedPath()` re-hashes on **every** `plan()` call, so that
+three-hour read recurs at each validation, import and rehearsal — worth costing into the rehearsal
+schedule independently of this work.
+
+First real run, 2026-08-14: **462 service identities from 506 recordings** (347 morning, 115
+evening) — 278 full, 172 short partial, 12 fragmented, 0 unknown.
+
+**A tenth of the corpus needed a second duration method.** WebM files pulled down as YouTube backups
+carry no duration in either the format or the stream header, so an ordinary probe returns nothing and
+would have graded 35 full-length services "unknown", silently dropping them from corroboration.
+Counting packets and dividing by frame rate recovers the real length and reproduces the operator's
+hand-measured durations exactly (2020-09-06: 98,100 packets at 30 fps = 54.5 minutes, against 54.5 in
+the CSV). It costs about a second per file.
+
+The 40-minute full/partial boundary is not invented: across the 286 dates the operator hand-labelled,
+the shortest `single_full_recording` is 41.4 minutes and the longest `short_partial` is 39.8.
+
+This is a corpus-availability fact and belongs in the completion gate: an era whose only
 corroborating source has not been inventoried is not an era whose accuracy can be certified.
 
 The tracked OpenLP accounting is 536 archive entries, 105 byte-identical nested duplicates, 431
@@ -1824,16 +1926,24 @@ hymn reconciliation:
 | 2004–2008 | Hymn, date-only (`●`) | 0 | Song membership by date; no service split | — |
 | 2009–2013 | Hymn only (504 ids) | 0 | Song membership; no cross-check exists | — |
 | 2014–2018 | Email + Hymn | 133 | Cross-source song membership | **3** |
-| **2019–2022** | **Email only (OpenLP from 2021)** | **193** | **Hand-verified truth set — nothing else exists** | **136** |
+| **2019 – 2020-03-21** | **Email only — no video, no OpenLP, no hymn sheet** | **54*** | **Hand-verified truth set — nothing else exists** | **all** |
+| **2020-03-22 – 2022** | **Email + video (OpenLP from 2021)** | **166*** | **Video corroboration, graded by recording completeness** | **see §13.1** |
 | 2023–2026 | Email + OpenLP + Hymn | 195 | Count, sequence and membership all checkable | 7 |
+
+\* **Split 2026-08-14 at the first video-covered Sunday** (see §13.1). These two counts are taken
+over plan keys extracted directly from `archive-v12-restage-20260814.json`, which totals **220** for
+2019–2022 against the **193** this table originally carried, and 662 identities overall against 521.
+The boundary and the ordering hold under either denominator; the denominators themselves are
+unreconciled and must be settled before these figures enter the publication decision.
 
 **375 of 521 email identities (72%) carry at least one corroborating source**; the union of all three
 sources is **1,594 service identities** against 521 from Email alone.
 
 The 2019–2022 gap is a source gap, not a tooling gap: no hymn source workbook holds a sheet for
 those years (`Hymn Database @ 31.12.2023.xlsx` runs 2004–2018 then jumps to 2023) and OpenLP does not
-begin until 2021. It is also, precisely, the livestream era — see §13.1 on what that implies for the
-video curation manifest.
+begin until 2021. It is also, precisely, the livestream era — and video, measured 2026-08-14, closes
+the second half of it but none of the first. See §13.1 on what that implies for the video curation
+manifest.
 
 The two corroborating sources prove different things and the census must record which fired:
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Media\Video;
 
 use App\Data\HistoricVideoCurationPlan;
+use App\Enums\HistoricVideoCorroborationGrade;
 use App\Enums\SermonService;
 use App\Support\CanonicalJson;
 use FilesystemIterator;
@@ -19,7 +20,7 @@ class HistoricVideoCurationManifest
 {
     private const FORMAT = 'crockenhill-historic-video-curation';
 
-    private const VERSION = 3;
+    private const VERSION = 4;
 
     private const SUPPORTED_EXTENSIONS = ['avi', 'mkv', 'mov', 'mp4', 'webm'];
 
@@ -117,6 +118,7 @@ class HistoricVideoCurationManifest
                 'bytes' => $bytes,
                 'manifest_concatenation' => $entry['concatenation'],
                 'manifest_expected_occurrence_count' => $entry['expected_occurrence_count'],
+                'manifest_corroboration' => HistoricVideoCorroborationGrade::from($entry['corroboration']),
                 'editorial_facts' => $entry['editorial_facts'],
             ];
         }
@@ -135,6 +137,7 @@ class HistoricVideoCurationManifest
                 $exclusions,
                 static fn (array $exclusion): bool => $exclusion['duplicate_of'] !== null,
             )),
+            ...$this->corroborationCounts($workItems),
         ];
         $planHash = CanonicalJson::hash([
             'format' => 'crockenhill-historic-video-import-plan',
@@ -148,6 +151,7 @@ class HistoricVideoCurationManifest
                 'service' => $item['service']->value,
                 'concatenation' => $item['manifest_concatenation'],
                 'expected_occurrence_count' => $item['manifest_expected_occurrence_count'],
+                'corroboration' => $item['manifest_corroboration']->value,
                 'editorial_facts' => $item['editorial_facts'],
                 'files' => $item['source_files'],
             ], $workItems),
@@ -267,6 +271,7 @@ class HistoricVideoCurationManifest
      *     concatenation:string,
      *     client_file_date:?string,
      *     expected_occurrence_count:int,
+     *     corroboration:string,
      *     decision:array<string, mixed>,
      *     editorial_facts:array<string, string|null>,
      *     files:list<array{relative_path:string,sha256:string,byte_size:int}>
@@ -285,6 +290,7 @@ class HistoricVideoCurationManifest
             'concatenation',
             'client_file_date',
             'expected_occurrence_count',
+            'corroboration',
             'decision',
             'editorial_facts',
             'files',
@@ -328,6 +334,12 @@ class HistoricVideoCurationManifest
 
         if (! is_int($expectedCount) || $expectedCount < 0) {
             throw new RuntimeException("Historic video entry {$itemKey} requires expected_occurrence_count.");
+        }
+
+        $corroboration = HistoricVideoCorroborationGrade::tryFrom((string) ($entry['corroboration'] ?? ''));
+
+        if (! $corroboration instanceof HistoricVideoCorroborationGrade) {
+            throw new RuntimeException("Historic video entry {$itemKey} requires a known corroboration grade.");
         }
 
         $exclusionReason = $this->nullableString($entry, 'exclusion_reason');
@@ -385,6 +397,13 @@ class HistoricVideoCurationManifest
             throw new RuntimeException("Historic video entry {$itemKey} has a contradictory concatenation decision.");
         }
 
+        // A multi-file service is fragmented by definition, and a single-file one
+        // cannot be. Tying the grade to the file list stops a curated entry from
+        // claiming whole-service corroboration it does not have.
+        if (($corroboration === HistoricVideoCorroborationGrade::Fragmented) !== (count($files) > 1)) {
+            throw new RuntimeException("Historic video entry {$itemKey} has a corroboration grade contradicting its source files.");
+        }
+
         // The declared segment count is the operator's independent statement of
         // how many recordings this service produced, so a files list that has been
         // truncated — or padded — during curation fails here rather than silently
@@ -430,10 +449,33 @@ class HistoricVideoCurationManifest
             'concatenation' => $concatenation,
             'client_file_date' => $this->nullableString($entry, 'client_file_date'),
             'expected_occurrence_count' => $expectedCount,
+            'corroboration' => $corroboration->value,
             'decision' => $decision,
             'editorial_facts' => $editorialFacts,
             'files' => $normalizedFiles,
         ];
+    }
+
+    /**
+     * Grade totals ride in the plan counts so the evidence strength of an
+     * approved corpus is hash-covered alongside its membership, rather than
+     * being recomputed later from a report nobody signed.
+     *
+     * @param  list<array<string, mixed>>  $workItems
+     * @return array<string, int>
+     */
+    private function corroborationCounts(array $workItems): array
+    {
+        $counts = [];
+
+        foreach (HistoricVideoCorroborationGrade::cases() as $grade) {
+            $counts["corroboration_{$grade->value}"] = count(array_filter(
+                $workItems,
+                static fn (array $item): bool => $item['manifest_corroboration'] === $grade,
+            ));
+        }
+
+        return $counts;
     }
 
     /** @param list<array<string, mixed>> $entries */

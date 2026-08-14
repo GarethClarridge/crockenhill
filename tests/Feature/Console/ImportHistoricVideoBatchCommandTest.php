@@ -586,6 +586,51 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
     }
 
+    #[Test]
+    public function the_manifest_rejects_an_unknown_corroboration_grade(): void
+    {
+        $relativePath = '2021-04-12 18-02-00.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}");
+        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'evening', [
+            'corroboration' => 'probably_fine',
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('requires a known corroboration grade');
+
+        app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+    }
+
+    #[Test]
+    public function the_manifest_rejects_a_corroboration_grade_contradicting_its_source_files(): void
+    {
+        $relativePath = '2021-04-12 18-02-00.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}");
+        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'evening', [
+            'corroboration' => 'fragmented',
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('corroboration grade contradicting its source files');
+
+        app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+    }
+
+    #[Test]
+    public function the_plan_counts_corroboration_grades_so_evidence_strength_is_hash_covered(): void
+    {
+        $relativePath = '2021-04-12 18-02-00.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}");
+        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'evening');
+
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+
+        $this->assertSame(1, $plan->counts['corroboration_full']);
+        $this->assertSame(0, $plan->counts['corroboration_short_partial']);
+        $this->assertSame(0, $plan->counts['corroboration_fragmented']);
+        $this->assertSame(0, $plan->counts['corroboration_unknown']);
+    }
+
     private function createFakeVideo(string $path, int $sizeBytes = 35 * 1024 * 1024): void
     {
         $dir = dirname($path);
@@ -612,7 +657,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $this->temporaryManifestPaths[] = $manifestPath;
         $manifest = [
             'format' => 'crockenhill-historic-video-curation',
-            'version' => 3,
+            'version' => 4,
             'batch_key' => 'historic-video-test-batch',
             'entries' => [[
                 'item_key' => 'approved-'.hash('sha256', $relativePath),
@@ -625,6 +670,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
                 'concatenation' => 'single',
                 'client_file_date' => "{$date} 12:00:00",
                 'expected_occurrence_count' => 1,
+                'corroboration' => 'full',
                 'decision' => ['approved_rule_version' => 'test-v1'],
                 'editorial_facts' => [
                     'occasion' => null,
