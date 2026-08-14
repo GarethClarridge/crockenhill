@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\Import\HistoricSourceAcquisitionVerifier;
+use App\Support\PrivateEvidenceFile;
 use Illuminate\Console\Command;
 use RuntimeException;
 use Throwable;
@@ -15,6 +16,8 @@ use Throwable;
  */
 class VerifyHistoricSourceAcquisitionCommand extends Command
 {
+    private const string Artifact = 'The historic source acquisition report';
+
     protected $signature = 'historic-import:verify-source-acquisition
         {custody : Signed custody JSON captured before corpus access}
         {evidence-copy : Protected metadata-faithful evidence copy}
@@ -39,9 +42,13 @@ class VerifyHistoricSourceAcquisitionCommand extends Command
                 (string) $this->argument('working-copy'),
                 $key,
             );
-            $path = $this->reportPath();
+            $path = PrivateEvidenceFile::resolve($this->option('report'), self::Artifact);
 
-            $this->writeOnce($path, json_encode($report, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR).PHP_EOL);
+            PrivateEvidenceFile::writeOnce(
+                $path,
+                json_encode($report, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR).PHP_EOL,
+                self::Artifact,
+            );
             $pathCount = $report['copies']['working']['path_count'] ?? null;
 
             if (! is_int($pathCount)) {
@@ -73,62 +80,5 @@ class VerifyHistoricSourceAcquisitionCommand extends Command
         }
 
         return $custody;
-    }
-
-    private function reportPath(): string
-    {
-        $option = $this->option('report');
-
-        if (! is_string($option) || trim($option) === '') {
-            throw new RuntimeException('Historic source verification requires --report.');
-        }
-
-        $root = realpath(storage_path('app/private'));
-        $path = str_starts_with($option, '/') ? $option : storage_path('app/private/'.trim($option));
-        $parent = realpath(dirname($path));
-
-        if (! is_string($root) || ! is_string($parent) || ! str_starts_with($parent.'/', $root.'/')) {
-            throw new RuntimeException('Historic source acquisition report must stay below storage/app/private.');
-        }
-
-        return $path;
-    }
-
-    private function writeOnce(string $path, string $contents): void
-    {
-        $handle = fopen($path, 'x+b');
-
-        if ($handle === false) {
-            throw new RuntimeException('Historic source acquisition report must be created once at a new private path.');
-        }
-
-        try {
-            if (! chmod($path, 0600)) {
-                throw new RuntimeException('Historic source acquisition report could not be written durably.');
-            }
-
-            $remaining = $contents;
-
-            while ($remaining !== '') {
-                $written = fwrite($handle, $remaining);
-
-                if (! is_int($written) || $written < 1) {
-                    throw new RuntimeException('Historic source acquisition report could not be written durably.');
-                }
-
-                $remaining = substr($remaining, $written);
-            }
-
-            if (! fflush($handle) || (function_exists('fsync') && ! fsync($handle))) {
-                throw new RuntimeException('Historic source acquisition report could not be written durably.');
-            }
-        } catch (Throwable $exception) {
-            fclose($handle);
-            @unlink($path);
-
-            throw $exception;
-        }
-
-        fclose($handle);
     }
 }

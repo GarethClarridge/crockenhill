@@ -1853,12 +1853,17 @@ review. Those topics are not import gates.
 3. Produce a whole-filesystem inventory, not an importer extension-filter inventory. Every regular,
    hidden, unsupported, sidecar, directory, symlink/alias/hard link and read error receives an
    explicit, signed disposition. Preserve raw path bytes/Unicode form and detect case/normalization
-   collisions.
+   collisions. **Tooling landed 2026-08-14 (F66):** `historic-import:draft-source-dispositions`
+   enumerates the tree and emits the worksheet; the adjudication is still the operator's, and the
+   worksheet is where the per-class written reasons live.
 4. Malware-scan in isolation. Preserve an untouched evidence image/copy and generate a separately
    hashed working tree; materialize approved symlinks only in that working tree with a signed map.
 5. Build strict source manifests from the complete inventory, adjudicate every include/exclude/
    duplicate/correction/identity collision, approve and freeze them. Bind the
-   working-copy/drive identity into the operation context. **D10 replaced the two-person approval
+   working-copy/drive identity into the operation context. **The custody half is executable as of
+   2026-08-14 (F66)** via `historic-import:capture-source-acquisition`; the **video** curation
+   manifest still has a validator and no builder, and must not be hand-written for the same reason
+   the custody artifact could not be. **D10 replaced the two-person approval
    with a single named approver**; what carries the weight is the written reason on every
    include/exclude and the frozen hashes, both of which survive unchanged.
 6. After processing, keep the original and both protected copies read-only until exact production
@@ -2636,6 +2641,82 @@ trailing appendix after the last item does not invalidate while a dropped item i
 still does; a fresh staging run over the same 534 entries reports the held population by family, with
 the invalid-extraction family reduced and the 8 date errors still held by the corroboration gate; and
 the resulting staged-identity count is measured against the 521 approved, not asserted.
+
+### 2026-08-14 — F66: the acquisition gate had no producer, and now has one
+
+**State: found and fixed the same day; workstream D1/D3 tooling blocker; drive-free.**
+
+HIR4 hardened `historic-import:verify-source-acquisition` and left it consuming a signed custody
+artifact **nothing in the application could produce**. Only test fixtures built one. That made the
+first command of the import — the one run with the drive mounted read-only, where a retry means
+re-mounting the original — unexecutable in practice.
+
+The artifact is not hand-authorable, which is why this went unnoticed as a documentation gap rather
+than a code one. `copies.{evidence,working}.inventory_hash` must equal `CanonicalJson::hash()` over
+the verifier's own per-path walk (type, mode, device, inode, hard-link count, symlink target,
+observed xattrs, NFC-normalised name); `capacity_plan.source_bytes` must equal the observed byte
+total exactly; `dispositions` needs one entry per path in the whole tree; and `exactKeys()` guards
+nine separate blocks. An operator would have had to reimplement a 773-line private walk
+byte-identically at the prompt.
+
+**What landed.** Two commands, deliberately split so that enumeration and signing are separate acts:
+
+- `historic-import:draft-source-dispositions` walks one protected copy read-only and emits a
+  worksheet naming every path with its observed type, size, mode, link target and hard-link count,
+  and **every disposition null**. It decides nothing: a default disposition is how a path nobody
+  looked at ends up signed for. Read errors, dangling or escaping links and case/Unicode collisions
+  fail the draft and name the paths, which is workstream D2's "record health/read errors" at the
+  only point where the remedy is still "re-copy the source".
+- `historic-import:capture-source-acquisition` consumes the completed worksheet plus an operator
+  facts file and emits the signed custody artifact. Everything observable is observed and never
+  accepted as a claim — both inventory hashes, both failure domains, write protection, the extended
+  attributes and the source byte total. Everything that is a human act — scope and reasons, the
+  drive's identity and health, the malware scan, retention, capacity acceptance — must arrive from
+  the operator, and a missing one is a refusal.
+
+**Where D5's written reasons live.** The custody schema allows a path only `disposition` and
+`xattrs`, so a per-path reason cannot go in it. Reasons are recorded once per disposition *class* in
+the worksheet, every class in use must have one, and capture prints the worksheet's SHA-256 so the
+two documents file as one piece of evidence. A tree with tens of thousands of files needs a
+defensible reason per decision, not per file.
+
+**Three refusals moved earlier than the gate**, because each one is cheaper to fix before the
+expensive pass than after it: a copy a write probe can still write to; two copies sharing one
+failure domain; and a worksheet whose path set no longer matches the copy — the gate refuses that
+last one as "unobserved paths" without saying which, and only after hashing every file in both
+copies. Capture diffs first and names the paths and the direction.
+
+**Extended attributes are claimed only where both copies agree.** The gate compares the claim
+against each tree in turn, so a one-sided attribute would make the artifact unverifiable. The
+dropped ones are reported rather than swallowed: an attribute on one copy and not the other usually
+means a copy was made with the wrong tool.
+
+**The honest limit, recorded so it is not overclaimed later.** Capture computes its hashes with the
+verifier's own public `inventory()`, so producer and gate cannot disagree at capture time. A passing
+end-to-end run proves the schema is right, not that the gate is discriminating. What the gate still
+proves independently is **drift** — anything that changes between capture and verification, on
+either copy, on a different host or at a later date — and that is pinned by a non-vacuity test that
+mutates a copy after signing and asserts the refusal.
+
+**Acceptance:** the two commands run in sequence and the gate accepts the result, asserted end to
+end rather than by inspecting the document. The draft walk is pinned to the verifier's enumeration
+by a dedicated test over hidden files, nested directories, spaces, mixed case and accented names, so
+a divergence surfaces in the suite instead of on the acquisition host.
+
+**Gates:** 14 capture tests, 7 draft tests, the 16 existing HIR4 verifier tests unchanged after the
+create-once/private-path extraction into `App\Support\PrivateEvidenceFile`; `pint --dirty` applied,
+`composer phpstan` clean, `artisan test --parallel` green (6,600 tests), `artisan dusk` green (55).
+
+**This closes no gate.** It removes a blocker from workstream D, which remains open on its operator
+half: the acquisition procedure document, the named custodian, the malware tooling, the physical
+device identification and the two genuinely independent protected copies. What changed is that those
+steps now have a command to run at the end of them.
+
+**Still without a producer:** the historic **video** curation manifest. `HistoricVideoCurationManifest`
+validates `relative_path`/`sha256`/`byte_size` per file and `sermons:import-historic-videos` requires
+an approved manifest plus its `plan_hash`, but nothing builds one — the OpenLP equivalent was built
+by `storage/scratch/build_openlp_manifest.php`, which is gitignored and not recoverable. That is the
+same defect class as this one and is the next drive-free item in workstream D.
 
 ## 5. Decisions required from the maintainer or church
 
