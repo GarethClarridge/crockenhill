@@ -131,6 +131,7 @@ implementation uses them.
 | HIR-D5 | May safety defects be fixed inside deletion-scheduled `ImportOosArchiveCommand` and companion tests? | Approve a bounded exception for HIR2/HIR8 only; put cache-binding logic in a small service and make no unrelated command/test investment | HIR2 and affected rehearsal coverage | **Decided 2026-08-12 — bounded exception approved as recommended** |
 | HIR-D6 | Does the HIR-D5 exception cover the reporting work the F64/F65 follow-up schedules, and when does it expire? | Extend HIR-D5 to read-only observability and rehearsal coverage; correct the expiry to the production operation's closeout rather than HIR8; refuse "performance"/"efficiency" as a scope term; refuse any change to what the importer imports unattended | Slice A of the F64/F65 parser follow-up | **Decided 2026-08-14 — HIR-D5 unchanged, see §4.4** |
 | HIR-D7 | Does "correctness only" in HIR-D5 cover extraction-accuracy work (model/effort/classification), not just defect patches? | Split the exception into two independent axes: investment discipline (does the change serve the import's own purpose — extraction accuracy is explicitly included) and unattended-import risk (unchanged from HIR-D6). Neither axis is relaxed; they were previously conflated into one spectrum | Repeated misreading across sessions and agents declining accuracy work as "features" | **Decided 2026-08-14 — see §4.5** |
+| HIR-D8 | May **cross-source corroboration** (an identity independently confirmed by OpenLP and/or the hymn `Known Usage` lane) become an input to the unattended auto-import gate, in place of or alongside the 0.90 model-confidence threshold? | Do not act yet. Corroboration is very likely a better gate input than the model's self-reported confidence — it is external, non-LLM and covers 72% of Email identities — but adopting it widens what imports without an operator, which is squarely Axis B. Gate on evidence, not on argument: require the item-0 ground-truth measurement to report corroborated-vs-uncorroborated exactness on an item-level measure before this is decided either way. Note the two sources are **not** interchangeable — OpenLP proves count and sequence, the hymn lane proves song membership only — so any rule must say which dimension it relies on | Item 0 of the F64/F65 parser follow-up; §13.4 of the plan of record | **Open — raised 2026-08-14** |
 
 No decision may be inferred from a test fixture. In particular, a successful local adapter test is
 not evidence that Spaces supports the same conditional write/delete semantics.
@@ -328,6 +329,8 @@ double duty as an implicit safety brake.
 | Add item-type-aware demotion of *review flags* | A | Yes, for what gets flagged for review |
 | The same item-type demotion applied to the *auto-import gate* | B | No — needs its own decision and corpus evidence |
 | Let adjudication set `consensus` | B | No — HIR-D6 already refused this explicitly |
+| *Measure* cross-source corroboration and report it per identity | A | Yes — read-only, writes nothing, imports nothing |
+| *Use* cross-source corroboration as an auto-import gate input | B | No — needs its own decision and corpus evidence; raised as HIR-D8 |
 | Refactor the command's internal structure for readability | Neither (pure polish) | No |
 | Add a report field that only describes what happened | A, or read-only per HIR-D6 | Yes |
 

@@ -1162,7 +1162,16 @@ absorb and rewards grinding through it. The rule instead is:
 > Run the corpus to its first review point, stop, and establish whether that **class** of decision
 > can be automated. Only decisions proven irreducible are made by hand.
 
-Every review point is a bug report against the projector until proven otherwise. This is affordable
+Every review point is a bug report against the projector until proven otherwise — **or, added
+2026-08-14, a corroboration that was available and never consulted.** Cross-source agreement is an
+automation class in exactly the sense this section means: it removes review load by construction
+rather than by budgeting for it, and it costs no media work and no model calls. On the 2023–2026 era
+it is near-total (188 of 195 Email identities corroborated), and across the Email corpus it reaches
+72%. A review point on an identity that two independent sources already agree on is a defect in the
+census, not work for an operator. Before any class is declared irreducible, check whether §13.4's
+corroboration table covers it.
+
+This is affordable
 because §8.1 makes projection a pure function of active source revisions and a versioned policy
 fingerprint: re-projecting the whole corpus after a matcher change is cheap, deterministic and
 side-effect free.
@@ -1593,6 +1602,33 @@ assumed prerequisite. Previous operator feedback indicates some OpenLP paths/sym
 only while that drive is mounted; the tracked repository does not establish a reliable broken-link
 count. Remeasure it against the mounted, read-only source before approving the manifest.
 
+#### Video is the only possible corroboration for 2019–2022 — added 2026-08-14
+
+§13.4's era table establishes that 136 of the 146 uncorroborated Email identities fall in 2019–2022:
+the hymn workbooks have no sheet for those years and OpenLP does not start until 2021. That window
+is also, exactly, the livestream era.
+
+This changes what the **video curation manifest** is for. It is currently tracked as a missing
+producer — a validator with no builder, noted at step 5 of the final-readiness plan's acquisition
+sequence (F66) — which frames it as tooling tidy-up. It is better understood as **the only source
+that could ever corroborate the least-evidenced four years of the archive**, and therefore as an
+input to the §13.4 publication decision for that era rather than only to acquisition custody.
+
+**One measurement decides whether the builder is worth writing, and it must be taken against
+production, not a development database:** does production hold usable video for 2019–2022 Sundays,
+and for how many of those 136 identities? A local check is worthless here — the development database
+is not a production copy and holds almost no sermons in that range.
+
+- If coverage is substantial, build the video curation manifest producer and treat 2019–2022 as a
+  corroborated era like any other.
+- If it is not, 2019–2022 is a **hand-verified-or-unpublished** era. Record that explicitly here and
+  in the §13.4 per-era accuracy figures, and size the manual truth set for it deliberately. What must
+  not happen is discovering it at the publication gate, having assumed the era would be measurable
+  the way its neighbours are.
+
+Either way this is a corpus-availability fact and belongs in the completion gate: an era whose only
+corroborating source has not been inventoried is not an era whose accuracy can be certified.
+
 The tracked OpenLP accounting is 536 archive entries, 105 byte-identical nested duplicates, 431
 unique sources and 428 curated inclusions
 ([remainder plan](JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md#L314)).
@@ -1775,11 +1811,50 @@ on far worse equipment than the pipeline's models assume. Without a check, the p
 deterministically, verifiably and exactly transport poor output, and the §20 definition of done will
 be satisfied.
 
+#### Eras are defined by evidence regime — added 2026-08-14
+
+This subsection and §13.1 say "per era" without ever defining one. Defining eras by decade or by
+recording equipment would be arbitrary; the archive already partitions itself by **which sources
+survive**, which is also what determines whether accuracy can be measured at all. Measured
+2026-08-14 against the archive-v12 staging report, the OpenLP curation manifest and the 2026-08-09
+hymn reconciliation:
+
+| Era | Surviving sources | Email ids | Accuracy method | Uncorroborated |
+|---|---|---:|---|---:|
+| 2004–2008 | Hymn, date-only (`●`) | 0 | Song membership by date; no service split | — |
+| 2009–2013 | Hymn only (504 ids) | 0 | Song membership; no cross-check exists | — |
+| 2014–2018 | Email + Hymn | 133 | Cross-source song membership | **3** |
+| **2019–2022** | **Email only (OpenLP from 2021)** | **193** | **Hand-verified truth set — nothing else exists** | **136** |
+| 2023–2026 | Email + OpenLP + Hymn | 195 | Count, sequence and membership all checkable | 7 |
+
+**375 of 521 email identities (72%) carry at least one corroborating source**; the union of all three
+sources is **1,594 service identities** against 521 from Email alone.
+
+The 2019–2022 gap is a source gap, not a tooling gap: no hymn source workbook holds a sheet for
+those years (`Hymn Database @ 31.12.2023.xlsx` runs 2004–2018 then jumps to 2023) and OpenLP does not
+begin until 2021. It is also, precisely, the livestream era — see §13.1 on what that implies for the
+video curation manifest.
+
+The two corroborating sources prove different things and the census must record which fired:
+
+- **OpenLP** — 427 included entries, every one carrying a curated `expected_item_count`, and the
+  `.osz` files carry item sequence. The only source that can validate item **order**.
+- **Hymn `Known Usage`** — 5,759 song occurrences over 1,306 date+service identities with hymn
+  number and resolved catalogue song ID. Songs only, and because the source is a crosstab it proves
+  song **membership**, never sequence.
+
 Add to the calibration slice, at negligible cost since the slice already exists:
 
-- A human-verified truth set for a sample of services **per era**, reusing the `truth.md` pattern
-  already established by the July corpus testing in `docs/operations/livestream-corpus-testing.md`.
-- Measured accuracy per era for transcript quality, section classification and song identification.
+- **A truth set that is derived before it is built.** Cross-source agreement already labels 72% of
+  the Email corpus, so the human-verified truth set is not the first step and must not be sized as
+  though it were. Derive corroboration first, publish per identity which source corroborated it and
+  on which dimension (membership, count, sequence), and hand-verify only what corroboration cannot
+  reach — which collapses the manual effort onto 2019–2022 and the single-source hymn eras. Where
+  hand verification is required, reuse the `truth.md` pattern already established by the July corpus
+  testing in `docs/operations/livestream-corpus-testing.md`.
+- Measured accuracy per era for transcript quality, section classification and song identification,
+  **stated with its evidence basis** — derived-from-corroboration or hand-verified — because an era
+  with no accuracy evidence must never be reportable as an era that scored well.
 - A publication threshold. Below it, a service is still imported at full fidelity — the archive stays
   complete — but its media is withheld from public listing using the exposure inputs the application
   already models (`SermonVideoQualityStatus` and `SermonVideoVisibilityOverride`, both declared
@@ -1804,8 +1879,13 @@ instead of serialising it behind 9–18 days of processing.
 2. Build and approve the complete manifest.
 3. Stage Email/OpenLP normalized evidence **into a clean rehearsal database** (see F2 below).
    **No media required.**
-4. Project the whole staged corpus and converge the §9.4 census over the Email x OpenLP proposal
-   population: automate each class, re-project, re-census, repeat.
+4. Project the whole staged corpus and converge the §9.4 census over the Email x OpenLP **x Hymn**
+   proposal population: automate each class, re-project, re-census, repeat.
+   **Corrected 2026-08-14** — this step read "Email x OpenLP", which silently excluded the hymn lane.
+   That lane corroborates 297 Email identities, including effectively all of 2014–2018 where OpenLP
+   contributes nothing, and reaches 888 identities neither other source covers. As previously
+   written, step 4 could not see the only evidence that survives for a decade of the archive. The
+   census must record, per identity, which source corroborated it and on which dimension (§13.4).
 5. Process a calibration set containing every structural edge case; establish the §13.3 per-stage
    concurrency design and the §13.4 per-era accuracy baseline.
 6. Fix only current-path defects demonstrated by retained regression tests.
@@ -1835,6 +1915,21 @@ none of them. Their workbook classifications are 1,013 already represented, 132 
 existing service, 643 await pending import and 3,971 candidate new service. Every one needs an exact
 post-convergence disposition; choosing to retain or exclude that lane is a source decision, not an
 implicit consequence of hard-coding `Ambiguous Usage`.
+
+**2026-08-14 addition: `Known Usage` has two roles, and only one of them waits on F60.** The
+correction above treats these 5,759 rows purely as an import-disposition problem. They are also the
+archive's richest accuracy signal — hymn number, workbook title and resolved catalogue song ID over
+1,306 date+service identities — and §13.4 now depends on them for the derived truth set.
+
+The two roles are orthogonal, and the asymmetry is worth stating plainly because it inverts the
+intuition: the **1,013 rows classified "already represented" are the rows most likely to be excluded
+from import, and are precisely the rows that corroborate an existing Email parse.** A row being
+redundant as evidence to import is exactly what makes it valuable as evidence to check against.
+
+So the validation use does not depend on, and must not be sequenced behind, F60's disposition
+approval. Reading `Known Usage` to measure accuracy writes nothing and imports nothing; the F60/F61
+guards govern the persisting import lane only. Do not let the (correct) caution about importing this
+workbook block the (free) use of it as a measurement source.
 
 The workbook predates archive-v11 and the approved 2026-08-12 Email manifest. It must be regenerated
 after Email/OpenLP/Livestream convergence from a retained, auditable procedure. The operation binds:

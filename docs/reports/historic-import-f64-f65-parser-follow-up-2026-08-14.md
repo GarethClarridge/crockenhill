@@ -1,7 +1,7 @@
 # Historic import F64/F65 parser follow-up
 
 **Recorded:** 2026-08-14  
-**Status:** Baseline complete; Slices A and B implemented in code; archive-v12 corpus measurement complete; parsing improvement plan queued for a later session (see "Parsing improvement plan, queued 2026-08-14" below) — governance cleared by HIR-D7  
+**Status:** Baseline complete; Slices A and B implemented in code; archive-v12 corpus measurement complete; parsing improvement plan queued for a later session (see "Parsing improvement plan, queued 2026-08-14" below) — governance cleared by HIR-D7. **Revised 2026-08-14 after a critical review of the queued plan** — item 1's justification was withdrawn, its payoff resized, and a new item 0 added; see "Revision 2026-08-14" below.  
 **Purpose:** Handoff for a later session to reduce the Email-lane review backlog without weakening the historic-import gates.
 
 ## Executive summary
@@ -23,7 +23,12 @@ The highest-value parser work is remaining extraction instability, not blindly l
 confidence threshold. The run required a corrective second call for 506 of 534 sources (1,040
 extraction attempts in total), and plan-level analysis found 138 review-required plans whose
 attempts disagreed despite no detected content difference. The self-reported confidence score is
-also weakly calibrated: full-plan exactness was only 78.7% in the 0.90–1.00 band.
+also weakly calibrated: exactness was only 78.7% in the 0.90–1.00 band.
+
+**Read with the 2026-08-14 revision below.** Wherever this report says "full-plan exactness" or
+"exact plan correctness" it means `exact_correct`, which checks date, service slot and non-emptiness
+and never inspects an item. It is a sound measure of identity resolution and an unsound one for
+extraction quality; the queued plan's item 0 exists to supply the missing item-level measure.
 
 F64 itself passed its corpus proof: the fresh run produced zero phantom source-line validation
 failures. F65 passed its intended design change: bookkeeping-only findings remain held for review
@@ -378,6 +383,11 @@ database's `songs` table is empty — the schema dump provisions structure, not 
 reference data — so this measures an unseeded rehearsal database, not the parser's song-matching
 behaviour. Re-seed the song catalogue before trusting this figure from a rehearsal run.
 
+**Upgraded in the 2026-08-14 review from artefact to opportunity.** Seeding the catalogue does not
+just repair a broken statistic — it converts 2,580 extracted song items into item-level correctness
+checks, against a corpus that otherwise contains exactly one human-asserted item count. It is the
+cheapest part of item 0 and should be done before any further corpus run.
+
 ### HIR-D6: should adjudication ever clear the gate?
 
 This run adjudicated **86 sources** (all still `held_for_review` — confirms `consensus` was never set
@@ -397,9 +407,27 @@ identity) that adjudication resolves:
 | Adjudicated-disagreement plans, confidence ≥ 0.75 | 52 / 64 | 81.3% |
 | Adjudicated-disagreement plans, confidence ≥ 0.90 | 18 / 22 | 81.8% |
 
-**Answer: not yet.** Adjudicated and non-adjudicated disagreement plans land at the identical 77.8%
-exactness — adjudication is not measurably improving correctness over the population baseline in this
-run, only surfacing a resolution for a reviewer to look at. Restricting to confidence ≥ 0.75 lifts
+**Answer: not yet.** The decision stands, but the reasoning below was corrected in the 2026-08-14
+review and the evidence is weaker than it reads. Three problems, none of which change the answer:
+
+1. **The metric is blind to most of what adjudication does.** `exact_correct` checks date, service
+   and non-emptiness only (see "Revision 2026-08-14"). Of the 165 attempt-disagreement category
+   instances in this run, roughly 115 are item-level — `item_type_or_order` 71, `title` 16,
+   `item_count` 14, `source_line_ids` 14 — and invisible to it. Adjudication is being scored on a
+   measure that cannot see the thing it resolves.
+2. **The "identical" rates are one observation, not three.** 99 + 18 = 117 and 77 + 14 = 91, so the
+   third row is the arithmetic complement of the second; once 77/99 lands on 7/9 the others follow.
+3. **The control arm is n=18.** "Adjudication is not measurably improving correctness" cannot be
+   concluded from an 18-plan comparison group.
+
+So the correct statement is *not measurable with the current metric*, not *measured and found
+ineffective*. Holding is still right — a wrong plan imported unattended is worse than one held — and
+this is exactly the "independent accuracy signal" the paragraph below asks for; item 0 supplies it,
+and HIR-D6 should be revisited only once it has.
+
+The original reasoning, retained: adjudicated and non-adjudicated disagreement plans land at the
+identical 77.8% exactness, so adjudication is not improving correctness over the population baseline
+in this run, only surfacing a resolution for a reviewer to look at. Restricting to confidence ≥ 0.75 lifts
 exactness to 81.3%, better than the 77.0% general 0.75–0.89 band, but the sample is small (n=64) and
 still well short of a bar that would justify unattended import — a wrong plan imported unattended is a
 worse outcome than one held for review. HIR-D6's shipped design (adjudication resolves and is adopted
@@ -416,23 +444,140 @@ generic "Slice C then Slice D" ordering above with specific, scoped tasks.
 
 ## Parsing improvement plan, queued 2026-08-14
 
-Four items, discussed and scoped in the session that ran the archive-v12 corpus measurement, for a
-later session to implement. **[HIR-D7](HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md) (§4.5)
-clears the governance question for the first three** — they are extraction-accuracy work serving
-the import's own purpose, not "features or polish," and none of them touch what the importer
-imports unattended, so none need a further recorded decision before starting. Read the HIR-D7
-outcome (§4.5 of that plan) before assuming otherwise.
+Originally four items, discussed and scoped in the session that ran the archive-v12 corpus
+measurement, for a later session to implement. **Now five: a critical review on 2026-08-14 added an
+item 0 and rewrote item 1** — read "Revision 2026-08-14" immediately below before starting, and
+implement in the order 0, 1, 2, 3 (item 4 is a no-change record). Items 1 and 3 are blocked on
+item 0.
 
-### 1. Replace the confidence gate with objective signals (was Slice C)
+**[HIR-D7](HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md) (§4.5) clears the governance question
+for items 1–3** — they are extraction-accuracy work serving the import's own purpose, not "features
+or polish," and none of them touch what the importer imports unattended, so none need a further
+recorded decision before starting. Item 0 is measurement only and changes no import behaviour at
+all. Read the HIR-D7 outcome (§4.5 of that plan) before assuming otherwise.
 
-The archive-v12 run makes the case sharper than the archive-v11 baseline did: confidence-band
-exactness is **not monotonic** — 0.90–1.00 scores 75.5% exact, *below* the 0.75–0.89 band's 78.75%.
-A score that can't rank-order its own population isn't calibratable, it should stop being a
-threshold input. Build a composite signal instead: date/service agreement with the corroborated
-identity, monotonic source-line provenance, item sequence/boundary checks, full-vs-partial content
-scope, and consensus/adjudication outcome. Keep the raw model score only as a diagnostic report
-column. This is the highest-volume lever available: `low_confidence` is the hold reason on 339/370
-held sources and 435/691 plans in the v12 run — nothing else is close.
+### Revision 2026-08-14 — what a critical review of this plan changed
+
+The four items below were reviewed against the code and the v12 report JSON before any of them was
+started. Items 2, 3 and 4 survived unchanged (every citation in them was checked and holds). Item 1
+did not, and a new item 0 precedes all of them. The three findings that forced the change:
+
+**The accuracy metric does not measure item content.** `OosArchiveEvaluator::planRecord()` defines
+`exact_correct` as `assertsFullOrder() && $dateMatches && $serviceMatches && $plan->items !== []`.
+It never inspects an item. Every figure in this report called "full-plan exactness" or "exact plan
+correctness" is therefore *identity agreement* — date plus service slot plus non-emptiness. The one
+field that could check content, `expected_item_count`, is null unless a human asserted a count, and
+in the v12 run that is **1 plan out of 691**. This does not invalidate the metric, which is a fair
+measure of identity resolution; it invalidates using it to judge extraction quality, which is what
+items 1–3 were all implicitly doing.
+
+**Item 1's non-monotonicity finding is noise.** The v12 numbers reproduce exactly, but the v11
+baseline in this same report was perfectly monotonic, and the ordering flipped between two runs of
+one corpus:
+
+| Band | v11 | v12 |
+|---|---:|---:|
+| 0.00–0.49 | 60.9% | 45.8% |
+| 0.50–0.74 | 67.4% | 72.2% |
+| 0.75–0.89 | 77.0% | **78.75%** |
+| 0.90–1.00 | **78.7%** | **75.45%** |
+
+The v12 top-two-band difference is z = 0.78 (n=167 against n=240) — not significant. The bottom band
+moved 15 points on n≈24. Both tables were already in this document; nobody put the four v11 bands
+next to the four v12 bands. The stronger claim that the score "can't rank-order its own population"
+is contradicted by its own data: 45.8 → 72.2 → 78.75 across the lower three bands is a 33-point
+spread in the correct order. The score rank-orders; its top two bands are tied within noise, which
+is a saturating score, not a broken one.
+
+**Item 1's payoff was overstated ~2.3×.** `low_confidence` co-occurs on 339 of 370 held sources, but
+only **149 sources are held for low confidence alone**:
+
+```
+149  low_confidence                                  <- releasable by item 1 alone
+ 75  attempt_disagreement + low_confidence
+ 66  bookkeeping + low_confidence
+ 22  bookkeeping + content_invalid + low_confidence
+ 20  attempt_disagreement
+```
+
+190 of the 339 carry an independent reason that holds them regardless. It is still the largest
+single lever (40% of held sources), and items 1 and 2 together reach ~215, but 339 is not the
+reachable population and should not be used to size the work.
+
+### 0. Build item-level ground truth first — new, blocks items 1 and 3
+
+Nothing in the original four items can be validated on what it claims to improve, because no
+item-level truth set exists (1 human item count in 691 plans). It does not have to be built by hand:
+three independent sources already cover most of the corpus, and cross-source agreement is a stronger
+label than anything the parser can say about itself. Measured 2026-08-14:
+
+| Era | Email ids | OpenLP | Hymn workbook | Email ids with no corroboration |
+|---|---:|---|---|---:|
+| 2009–2013 | 0 | — | 504 ids | — |
+| 2014–2018 | 133 | — | yes | **3** |
+| 2019–2022 | 193 | 57 (2021+) | — | **136** |
+| 2023–2026 | 195 | yes | yes | 7 |
+
+**375 of 521 email identities (72%) have at least one corroborating source.** The union of all three
+sources is **1,594 service identities** against 521 from email alone.
+
+The two corroborating sources differ in what they prove, so the census must record which one fired:
+
+- **OpenLP** (`storage/scratch/openlp-curation-manifest.json`) — 427 included entries, **every one**
+  carrying a curated `expected_item_count`, and the `.osz` files carry the item sequence. This is the
+  only source that can validate item *order*, which matters because `item_type_or_order` is the
+  largest attempt-disagreement category (71). Overlaps 242 email identities, 2021 onwards.
+- **Hymn workbook** (`storage/scratch/outputs/hymn-reconciliation-2026-08-09/`, `Known Usage` sheet) —
+  5,759 song occurrences across 1,306 date+service identities, each with hymn number, workbook title
+  and resolved catalogue song ID. Overlaps 297 email identities. Songs only, and because the source
+  is a crosstab (hymns down rows, dates across columns) it proves song *membership*, never sequence.
+
+The 2019–2022 gap is a genuine source gap, not a generator artefact: no source workbook contains a
+sheet for those years — `Hymn Database @ 31.12.2023.xlsx` runs 2004–2018 and then jumps to 2023 —
+and OpenLP does not begin until 2021. 136 of the 146 uncorroborated identities fall in that window.
+See the import-plan proposals for what, if anything, covers it.
+
+Work for this item:
+
+1. Seed the song catalogue into the rehearsal database. This alone converts `song_link_hit_rate`
+   from the meaningless 0/2580 flagged below into 2,580 item-level checks: an extracted song title
+   that resolves to the catalogue is evidence the title was extracted correctly.
+2. Join `Known Usage` and the OpenLP manifest against the staged plans, and report per identity
+   which source corroborated it and on what — membership, count, or sequence.
+3. Rename `exact_correct` to `identity_correct` throughout the evaluator and report, so it stops
+   reading as content correctness. Add a separate content-level measure fed by (1) and (2).
+4. Add a title-hygiene check. The v12 `song_link.unmatched_titles` already exposes a systematic
+   defect family that no current metric counts — titles truncated mid-word with surrounding prose
+   bled in:
+
+   ```
+   "78 - as previously discussed with Ruth! Can we have a run through of the"
+   "335 'there's no greater name than"
+   "574 'one holy apostolic church' (can we try and pick a well known t"
+   ```
+
+   Every one of those plans can still be `exact_correct: true`.
+
+### 1. Stop treating the model's confidence as the gate (was Slice C)
+
+**Revised.** The original justification — non-monotonic bands — is withdrawn as noise; see the
+revision note above, and do not re-derive it. The item survives on a different and weaker argument:
+the score **saturates**. It separates the bottom three bands well (45.8 → 72.2 → 78.75) and then
+stops discriminating at the top, which is exactly where an auto-import threshold sits. A gate placed
+in the region where a score has no resolution is a poor gate even when the score is correctly
+ordered elsewhere.
+
+Two constraints on any replacement, both of which the original wording would have violated:
+
+- **Do not put date/service agreement into the composite while the label retains it.** Those are two
+  of the four conjuncts of `exact_correct`. A composite containing them, scored against it,
+  approaches 100% by construction and proves nothing. Item 0(3) separates the measures; until that
+  lands, this item cannot be evaluated honestly.
+- **Hold out a sample.** The original Slice C said "from the fresh run *and the next controlled
+  rerun*"; the queued rewrite dropped the second run, leaving the composite built and evaluated on
+  one sample. Restore it, or split the corroborated population into fit and holdout sets.
+
+Sizing: 149 sources are held for low confidence alone, 339 have it among their reasons.
 
 ### 2. Port item-type-aware review classification from the live structure pipeline
 
@@ -451,6 +596,14 @@ Before implementing: pull a per-item-type breakdown of this run's `bookkeeping` 
 doesn't currently carry per-item type, only `item_count` — to find the actual ceiling on how much
 review backlog this removes before investing in the policy port.
 
+**Cheaper first cut, added in review:** the report already carries a coarse version of that signal.
+`attempt_disagreement_categories` across the v12 run is `item_type_or_order` 71, `content_scope` 28,
+`title` 16, `service` 15, `item_count` 14, `source_line_ids` 14, `date` 4, `plan_count` 3. That
+`item_type_or_order` is the largest category is the strongest available evidence for this item, and
+it costs nothing to read. It conflates type with order, so it sizes the opportunity without
+resolving it — but check it before paying to reconstruct per-item types from raw metadata, and note
+that item 0's OpenLP join can separate type from order properly for the 242 corroborated identities.
+
 ### 3. Sample the extraction model/reasoning-effort against sibling settings
 
 `OosEmailParserService` runs on `gpt-5.4-nano` at `reasoning_effort: minimal`
@@ -466,6 +619,20 @@ second call this run) against this measurement's baseline.
 classes for the current weekly email intake. Roll out via sample comparison first, not a blind
 swap; a change here affects this week's real inbound emails immediately, unlike the archive
 command's throwaway rehearsal-database experiments.
+
+Two additions from review:
+
+- **Sample against the corroborated population, not an arbitrary few hundred.** Item 0 gives 375
+  identities with an external label; a model comparison run on those measures something, whereas the
+  same run scored on `exact_correct` mostly measures date parsing. This item is therefore blocked on
+  item 0, and becomes considerably more valuable once it lands.
+- **Record the cost.** `gpt-5.4-nano` is the cheapest model in the codebase's LLM config and the
+  v12 run took 1,142 calls at up to 6,000 completion tokens each. Moving to `gpt-5.6-sol`/`medium`
+  is a large per-call multiple on a volume that is re-run in full whenever `ParserVersion` changes
+  (`cache_key` is `[input_hash, parser_version, received_date]`, so a version bump invalidates every
+  entry). Put the measured sample cost and the projected full-corpus cost in the comparison before
+  proposing a default change, and state the production monthly delta separately — the weekly intake
+  is a handful of emails, so the live-path cost and the archive cost are different decisions.
 
 ### 4. No change needed to manifest-disagreement handling — document why
 
@@ -496,22 +663,38 @@ A parser change is ready for another corpus measurement only when:
   continues to mean two independent agreeing attempts;
 - the report records per-plan and source-level hold reasons;
 - the new run reports model-call volume, confidence calibration, held population, staged identities,
-  and the same hashes needed to reproduce the comparison.
+  and the same hashes needed to reproduce the comparison;
+- **no accuracy claim about extraction rests on `exact_correct`/`identity_correct` alone** — that
+  measure checks date, service and non-emptiness, never item content, and any statement about
+  extraction quality must cite an item-level measure from item 0;
+- **the rehearsal database is song-seeded** before `song_link_hit_rate` is quoted as evidence;
+- **band-level calibration movements are checked against the prior run before being called a
+  finding** — the v11→v12 ordering flip was noise and was briefly written up as a result.
 
 ## Copy/paste brief for the next session
 
 > Continue the historic Email import parser follow-up from
 > `docs/reports/historic-import-f64-f65-parser-follow-up-2026-08-14.md`. Slices A and B are done and
 > corpus-proven (archive-v12); HIR-D7 is decided and clears the governance question for
-> extraction-accuracy work. Implement "Parsing improvement plan, queued 2026-08-14" in that file, in
-> order: (1) replace the confidence gate with objective signals — the score is non-monotonic across
-> bands in the v12 run, don't just recalibrate it, stop trusting it as a threshold input; (2) port
+> extraction-accuracy work. Read "Revision 2026-08-14" first — it withdraws the original item 1
+> justification and resizes it, so do not re-derive the non-monotonicity argument. Implement the
+> queued plan in order: **(0) build item-level ground truth** — seed the song catalogue into
+> rehearsal (turns `song_link_hit_rate` 0/2580 into 2,580 real checks), join the OpenLP manifest and
+> the hymn workbook's `Known Usage` sheet against staged plans to label the 375 of 521 corroborated
+> email identities, rename `exact_correct` to `identity_correct` because it only checks
+> date/service/non-emptiness, and add a title-hygiene check for the truncated-title family visible in
+> `song_link.unmatched_titles`. Items 1 and 3 are blocked on this and cannot be honestly evaluated
+> without it. (1) Stop using the model confidence as the gate — justified by *saturation* at the top
+> band, not by non-monotonicity; keep date/service agreement **out** of any composite while the label
+> still contains it, and hold out a sample; sizing is 149 sources held for low confidence alone, not
+> 339. (2) Port
 > `ServiceSectionType::requiresStructuralUncertaintyReview()`/`SectionReviewFlagPolicy`'s item-type
-> classification into OoS review-flagging only, never the auto-import gate — pull a per-item-type
-> breakdown of the v12 `bookkeeping`/`attempt_disagreement` holds first to size the payoff; (3)
-> sample `gpt-5.4-nano`/`minimal` against a stronger model/effort setting on a few hundred sources —
-> this is live production code (`ProcessInboundOosEmail` too), so sample first, don't swap blindly.
-> Item 4 (manifest-disagreement handling) needs no change — it's already correct, documented so it
-> isn't re-litigated. Preserve F64's strict source-line schema, F65's bookkeeping/content distinction,
+> classification into OoS review-flagging only, never the auto-import gate — read
+> `attempt_disagreement_categories` (`item_type_or_order` is the top category at 71) before paying to
+> reconstruct per-item types. (3) Sample `gpt-5.4-nano`/`minimal` against a stronger model/effort
+> setting, scored on item 0's corroborated population and reported with measured cost — this is live
+> production code (`ProcessInboundOosEmail` too), so sample first, don't swap blindly. Item 4
+> (manifest-disagreement handling) needs no change — it's already correct, documented so it isn't
+> re-litigated. Preserve F64's strict source-line schema, F65's bookkeeping/content distinction,
 > zero phantom source-line failures, and — regardless of any of the above — that nothing changes what
 > the importer imports unattended without its own recorded decision (HIR-D6/Axis B, unchanged).

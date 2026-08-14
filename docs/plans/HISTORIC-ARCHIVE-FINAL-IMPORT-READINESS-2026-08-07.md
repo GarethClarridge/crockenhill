@@ -1864,7 +1864,18 @@ review. Those topics are not import gates.
    working-copy/drive identity into the operation context. **The custody half is executable as of
    2026-08-14 (F66)** via `historic-import:capture-source-acquisition`; the **video** curation
    manifest still has a validator and no builder, and must not be hand-written for the same reason
-   the custody artifact could not be. **D10 replaced the two-person approval
+   the custody artifact could not be.
+   **Re-scoped 2026-08-14 — the video manifest is not only an acquisition artifact.** Corroboration
+   measured across Email, OpenLP and the hymn workbooks puts 136 of the 146 uncorroborated Email
+   identities in 2019–2022, a window where the hymn workbooks have no sheets and OpenLP has not yet
+   started — i.e. the livestream era. Video is therefore the *only* source that could corroborate the
+   least-evidenced four years of the archive, which makes this missing builder an input to the
+   per-era publication decision, not just to custody. Before building it, measure against
+   **production** whether usable 2019–2022 video exists and for how many of those identities; a
+   development-database check cannot answer this. See
+   [plan of record §13.1](HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md) ("Video is the only
+   possible corroboration for 2019–2022") and §13.4's era table.
+   **D10 replaced the two-person approval
    with a single named approver**; what carries the weight is the written reason on every
    include/exclude and the frozen hashes, both of which survive unchanged.
 6. After processing, keep the original and both protected copies read-only until exact production
