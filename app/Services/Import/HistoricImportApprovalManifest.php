@@ -11,6 +11,23 @@ use DateTimeImmutable;
 use JsonException;
 use RuntimeException;
 
+/**
+ * Verifies the signed artifact that authorises one historic import command
+ * against one immutable operation on one resolved production target.
+ *
+ * **The four roles are accountability records, not four people.** Crockenhill is
+ * a single-maintainer project, so D10 removed every multi-person control from
+ * this programme: one person may hold `incident_commander`, `operator`,
+ * `independent_verifier` and `monitoring_owner` simultaneously, and this class
+ * deliberately does not compare the names for uniqueness. Do not reinstate a
+ * distinctness check — an approval the only maintainer cannot sign is not a
+ * safety control, it is an unreachable gate that would be worked around by
+ * inventing names, which is strictly worse evidence than one honest name.
+ * The roles are still required and still non-blank because the artifact is the
+ * durable record of who to call and who owns rollback.
+ *
+ * @see docs/plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md — D10
+ */
 final class HistoricImportApprovalManifest
 {
     /** @return array<string, mixed> */
@@ -121,22 +138,15 @@ final class HistoricImportApprovalManifest
         $roleNames = ['incident_commander', 'operator', 'independent_verifier', 'monitoring_owner'];
 
         if (! is_array($roles)) {
-            throw new RuntimeException('The production approval has no two-person operational roles.');
+            throw new RuntimeException('The production approval has no named operational roles.');
         }
 
         $this->exactKeys($roles, $roleNames, 'production approval roles');
-        $people = [];
 
         foreach ($roles as $person) {
             if (! is_string($person) || trim($person) === '') {
-                throw new RuntimeException('Production approval roles must name four distinct people.');
+                throw new RuntimeException('Every production approval role must name its owner.');
             }
-
-            $people[] = trim($person);
-        }
-
-        if (count(array_unique($people)) !== count($people)) {
-            throw new RuntimeException('Production approval roles must name four distinct people.');
         }
 
         $thresholds = $approval['abort_thresholds'];

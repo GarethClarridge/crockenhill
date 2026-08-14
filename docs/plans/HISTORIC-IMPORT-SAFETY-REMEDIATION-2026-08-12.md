@@ -48,7 +48,7 @@ quarantine or one-shot-retirement programme:
 7. exact closeout waits until deferred inbound email has actually finished; and
 8. the Scripture enrichment command respects its API delay on unsuccessful calls.
 
-**Who benefits:** the operator, the independent verifier, church members whose orders of service
+**Who benefits:** the maintainer in every role they hold (D10), church members whose orders of service
 arrive during the window, and visitors consuming released historic material.
 
 **What observably improves:** the release candidate passes adversarial concurrency, forged-evidence,
@@ -229,6 +229,14 @@ F46 logging decision. It constrains HIR5 as follows:
 - The `signature.key_id` field already exists in the approval format, so a distinct key ID should
   still be issued for recovery artifacts. This gives forward compatibility if the decision is
   revisited, but on its own it grants no independence while the underlying secret is shared.
+
+> **Settled permanently by D10 (2026-08-14).** This limitation is no longer "accepted for now" — it
+> is the design. Crockenhill is a one-person project, so there is no independent verifier to hold a
+> separate key, and final-readiness D10 removed every multi-person control from the programme.
+> `verified_by` is a named accountability field the maintainer fills in for themselves. Do not
+> reopen HIR-D3 to procure verifier independence; see D10 in
+> `HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md` for the full decision and for what
+> replaced each removed control.
 - Revisit before the *public release* step if an external auditor is ever required to attest
   recovery independently.
 
@@ -1056,7 +1064,9 @@ Before rerunning, record each invalidation explicitly:
 4. Re-export affected historic media under the HIR3 output contract. Run Scripture enrichment before
    the window, settle every absence explicitly and prove destination preflight has zero missing keys.
 5. Regenerate Bundle A/B, source/result manifests, target/runtime fingerprints, plan hashes and the
-   immutable operation. Independently inspect every new hash before approval.
+   immutable operation. Inspect every new hash against the artifact it was computed from before
+   approval. (D10: "independently" here means recomputed from the artifact, not checked by a second
+   person — there is no second person.)
 6. Run the full different-database/different-PK apply, exact audit and complete second no-op with no
    ad-hoc subset. Exercise interruption/resume at each changed HIR6/HIR7 boundary.
 7. During the ingress freeze, submit a real signed test OoS webhook. Reopen/drain and wait until its

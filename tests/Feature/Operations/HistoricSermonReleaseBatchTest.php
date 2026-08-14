@@ -249,7 +249,9 @@ class HistoricSermonReleaseBatchTest extends TestCase
     /**
      * The counts are a second, independent statement of the same fact, so a
      * truncated id list cannot silently release a smaller batch than the one
-     * two people signed.
+     * that was signed. This matters more under D10, not less: with one operator
+     * and no second reader, a machine check that the artifact disagrees with
+     * itself is the only thing standing between a truncated file and a release.
      */
     #[Test]
     public function a_batch_is_refused_when_its_declared_counts_disagree_with_its_ids(): void
@@ -366,6 +368,56 @@ class HistoricSermonReleaseBatchTest extends TestCase
             'historic_import_operation_id' => $operation->id,
             'event' => 'release_batch_started',
         ]);
+    }
+
+    /**
+     * D10: one maintainer signs, verifies and owns rollback for a release batch.
+     * Reinstating a distinctness check on these three roles would make the only
+     * person who can run this command unable to authorise it, so this test is
+     * here to fail loudly if that check comes back.
+     */
+    #[Test]
+    public function one_maintainer_may_hold_every_release_role(): void
+    {
+        $operation = $this->completedOperation();
+        $sermon = $this->quarantinedSermon($operation);
+        $path = $this->authorisation($operation, [$sermon->id], [], overrides: [
+            'roles' => [
+                'release_owner' => 'gareth',
+                'independent_verifier' => 'gareth',
+                'rollback_owner' => 'gareth',
+            ],
+        ]);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path])
+            ->assertSuccessful();
+
+        $sermon->refresh();
+
+        $this->assertSame(SermonPublicationState::Published, $sermon->publication_state);
+    }
+
+    /**
+     * The roles may name one person but may not be blank: the artifact is still
+     * the durable record of who owns rollback during the observation window.
+     */
+    #[Test]
+    public function a_release_role_with_no_named_owner_is_refused(): void
+    {
+        $operation = $this->completedOperation();
+        $sermon = $this->quarantinedSermon($operation);
+        $path = $this->authorisation($operation, [$sermon->id], [], overrides: [
+            'roles' => [
+                'release_owner' => 'gareth',
+                'independent_verifier' => 'gareth',
+                'rollback_owner' => '',
+            ],
+        ]);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path])
+            ->assertFailed();
+
+        $this->assertQuarantineIntact($sermon);
     }
 
     private function assertQuarantineIntact(Sermon $sermon): void

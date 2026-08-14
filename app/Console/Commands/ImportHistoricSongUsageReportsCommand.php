@@ -24,7 +24,8 @@ use Throwable;
  * F61 moved this lane inside the historic import operation controls. It used to write
  * immediately on `--import`, with no production guard, no operation binding, no approved
  * workbook digest and no contribution to closeout — so the plans claimed the ordinary backup,
- * freeze, witness and approval gates applied to it while the code enforced none of them.
+ * freeze and approval gates applied to it while the code enforced none of them. (That list
+ * also named a witness gate; D10 removed it — this is a one-person project.)
  *
  * Deletion trigger: remove this command and its workbook-reader/importer services after the
  * production import has been reconciled, backed up and signed off in the historic archive plan.

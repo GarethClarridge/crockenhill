@@ -85,6 +85,47 @@ class HistoricImportProductionGuardTest extends TestCase
         $this->assertStringStartsWith('historic-', (string) $guard->approvedOperationId());
     }
 
+    /**
+     * D10: Crockenhill has one maintainer, so the four operational roles are
+     * accountability fields rather than four people. This test exists to fail if
+     * anyone reinstates a distinctness check — an approval the only maintainer
+     * cannot sign would not be a control, it would be an unreachable gate.
+     */
+    #[Test]
+    public function one_maintainer_may_hold_every_operational_role(): void
+    {
+        $path = $this->approval('oos:import-archive --import', [
+            'incident_commander' => 'gareth',
+            'operator' => 'gareth',
+            'independent_verifier' => 'gareth',
+            'monitoring_owner' => 'gareth',
+        ]);
+        Config::set('church.historic_corpus.production_import_approval', $path);
+
+        $this->assertNull($this->guard('production')->refusalFor('oos:import-archive --import'));
+    }
+
+    /**
+     * The roles stay *required* even though they may name one person: the
+     * artifact is the durable record of who to call and who owns rollback.
+     */
+    #[Test]
+    public function an_unnamed_operational_role_is_still_refused(): void
+    {
+        $path = $this->approval('oos:import-archive --import', [
+            'incident_commander' => 'gareth',
+            'operator' => 'gareth',
+            'independent_verifier' => ' ',
+            'monitoring_owner' => 'gareth',
+        ]);
+        Config::set('church.historic_corpus.production_import_approval', $path);
+
+        $this->assertRefusesWithoutWriting(
+            $this->guard('production'),
+            'oos:import-archive --import',
+        );
+    }
+
     #[Test]
     public function it_refuses_production_when_the_public_service_cutoff_is_blank(): void
     {
@@ -464,7 +505,8 @@ class HistoricImportProductionGuardTest extends TestCase
         $this->assertSame([], Storage::disk('historic_quarantine')->allFiles());
     }
 
-    private function approval(string $command): string
+    /** @param  array<string, string>|null  $roles */
+    private function approval(string $command, ?array $roles = null): string
     {
         $target = app(HistoricImportTargetFingerprint::class)->hash();
         $operation = $this->createHistoricImportOperation($target);
@@ -492,7 +534,7 @@ class HistoricImportProductionGuardTest extends TestCase
                 'targeted_mutations' => true,
                 'started_at' => now()->toIso8601String(),
             ],
-            'roles' => [
+            'roles' => $roles ?? [
                 'incident_commander' => 'person-one',
                 'operator' => 'person-two',
                 'independent_verifier' => 'person-three',

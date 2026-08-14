@@ -24,9 +24,19 @@ use RuntimeException;
  *
  * The plan (§F.6) also requires release to be "a controlled editorial batch with
  * owner, rollback and observation period — not a side effect of import", so the
- * artifact names its people and its observation window, and enumerates the exact
+ * artifact names its owners and its observation window, and enumerates the exact
  * records it releases. Membership is exact for the same reason F53 rejects
  * scalar counts: a total cannot prove *which* rows became public.
+ *
+ * **One maintainer may sign this alone.** D10 removed every multi-person control
+ * from the historic import programme; the three roles below are accountability
+ * fields, not three humans, and nothing here compares them for uniqueness. The
+ * controls that survived are the ones a single operator can actually satisfy and
+ * that still bite: exact enumerated membership, the deployed release identifier,
+ * an unexpired window, an operation in `Complete`, and a rollback observation
+ * period that outlasts the authorisation.
+ *
+ * @see docs/plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md — D10
  */
 final class HistoricSermonReleaseAuthorisation
 {
@@ -192,7 +202,19 @@ final class HistoricSermonReleaseAuthorisation
         return $expiresAt;
     }
 
-    /** @param array<string, mixed> $authorisation */
+    /**
+     * The three roles are accountability records, not three people. D10 removed
+     * every multi-person control from this programme because Crockenhill has one
+     * maintainer: the same name may hold `release_owner`, `independent_verifier`
+     * and `rollback_owner`, and these names are deliberately not compared for
+     * uniqueness. Do not reinstate a distinctness check — see the class docblock.
+     *
+     * What still carries weight here is {@see self::assertObservation()}: the
+     * rollback owner has to remain on the hook after the authorisation expires.
+     * That is a real constraint on one person, and it is the half worth keeping.
+     *
+     * @param  array<string, mixed>  $authorisation
+     */
     private function assertRoles(array $authorisation): void
     {
         $roles = $authorisation['roles'];
@@ -204,18 +226,11 @@ final class HistoricSermonReleaseAuthorisation
         $this->exactKeys($roles, [
             'release_owner', 'independent_verifier', 'rollback_owner',
         ], 'release authorisation roles');
-        $people = [];
 
         foreach ($roles as $person) {
             if (! is_string($person) || trim($person) === '') {
-                throw new RuntimeException('The release authorisation must name three distinct people.');
+                throw new RuntimeException('Every release authorisation role must name its owner.');
             }
-
-            $people[] = trim($person);
-        }
-
-        if (count(array_unique($people)) !== count($people)) {
-            throw new RuntimeException('The release authorisation must name three distinct people.');
         }
     }
 

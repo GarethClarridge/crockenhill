@@ -156,8 +156,9 @@ No operator should assemble a sequence by combining steps from these documents a
   and abort counts are recorded in remediation plan §13.5 under “Date-only historic song usage
   import”.
 - This implementation does **not** change the plan's NO-GO production verdict. The `--import` mode
-  remains subject to the production backup, deploy freeze, rehearsal, witness and approval gates;
-  a successful local dry run is not production authority.
+  remains subject to the production backup, deploy freeze, rehearsal and approval gates;
+  a successful local dry run is not production authority. (The witness gate that stood here was
+  removed by D10 — one-person project.)
 - **Qualified by the 2026-08-12 read-only audit (F60-F62):** those controls are prose-only for this
   command, the workbook is stale against the current corpus, the 5,759 known-service rows are not
   dispositioned and “later matching” is not implemented. Do not use the procedure in this entry as
@@ -245,8 +246,9 @@ exactly the state that proves the exact audit and complete no-op rerun passed.
 **What the gate requires**, all fail-closed with zero effects: HMAC signature over the canonical
 document; an operation in `Complete`; target fingerprint matching both the operation and the
 currently resolved target; the deployed release identifier; an unexpired window; a rollback owner
-whose observation period outlasts that window; three distinct named people (release owner,
-independent verifier, rollback owner); and exact enumerated membership — every named sermon and song
+whose observation period outlasts that window; three named role owners (release owner, independent
+verifier, rollback owner — **one person may hold all three under D10**, the names are accountability
+fields and are not compared for uniqueness); and exact enumerated membership — every named sermon and song
 video must exist, belong to that operation and still be quarantined. Declared counts are carried
 independently of the id lists so a truncated artifact cannot release a smaller batch than the one
 that was signed. `--dry-run` verifies everything and publishes nothing.
@@ -312,7 +314,8 @@ there is the operator-facing message. Narrowing those catches is ordinary follow
 
 **Gates:** `artisan test --parallel` green (6346 tests), `composer phpstan` clean, `pint --dirty`
 applied, `artisan dusk` green (55 tests). This entry closes no gate: F46 still requires the freeze,
-approval binding, watchboard and two-person control to pass a production-shaped rehearsal.
+approval binding and watchboard to pass a production-shaped rehearsal. (F46's two-person control was
+removed by D10; single-operator control replaces it.)
 
 ### 2026-08-11 — F44 consumer implemented; two plan claims corrected
 
@@ -555,6 +558,60 @@ unmanifested candidate recording while deliberately skipping OS metadata scatter
 Windows. F36's separate whole-filesystem inventory, which must dispose of every path including
 unsupported extensions and links, remains outstanding.
 
+**D10 — this is a one-person project; every multi-person control is removed, permanently.**
+Decided 2026-08-14. Crockenhill is maintained by one person. There is no second operator, no witness,
+no independent verifier and no separate incident commander — not "not yet", and not "not for this
+window". Every control in this programme that required a second human is therefore **deleted rather
+than waived**, because a per-window waiver invites the next session to reinstate it, and a gate the
+only maintainer cannot pass is not a safety control: it is an unreachable gate whose only possible
+outcomes are an abandoned import or invented names in a signed artifact. One honest name is better
+evidence than four fictional ones.
+
+*Removed by this decision*, in code and in this plan:
+
+| Control | Was | Now |
+|---|---|---|
+| Production import approval roles | Four distinct people (`incident_commander`, `operator`, `independent_verifier`, `monitoring_owner`), enforced fail-closed | Four **named roles**, one person may hold all four; each must still be non-blank |
+| Release authorisation roles | Three distinct people (`release_owner`, `independent_verifier`, `rollback_owner`), enforced fail-closed | Three **named roles**, one person may hold all three; each must still be non-blank |
+| Runbook validation (§C.7) | "Have a second operator walk through it" | Verbatim self-rehearsal against the written document; any improvisation still returns it to rehearsal |
+| Source acquisition (§D.1, §D.5) | Named custodian *and* witness; two-person approval of the frozen manifests | One named custodian who is also the approver; the manifest freeze and its hashes are unchanged |
+| §6 checklist | "two-person control"; "Named operator, witness, incident decision-maker…" | Single-operator control; one named person holding the operator, incident, pastoral/content and takedown roles |
+
+*Deliberately kept*, because a single operator can satisfy them and they still bite:
+
+- Every fail-closed machine check: signature, binding hash, target fingerprint, release identifier,
+  operation state, permitted command/phase, unexpired window, exact enumerated membership, declared
+  counts carried independently of the id lists.
+- The rollback observation window outlasting the authorisation. This is a real constraint on one
+  person — it says the person who released the batch is still answerable for it afterwards.
+- Every artifact, hash, journal entry and retained report. Evidence does not need a second reader to
+  be evidence; it needs to be reproducible, and it is.
+- The roles themselves as **fields**. They are the durable record of who to call and who owns
+  rollback, and they stay required and non-blank.
+
+*Checked and deliberately kept, because they are not second-person controls.* D7's required
+reviewers on the GitHub `production` environment and the `CODEOWNERS` entries both resolve to
+`@GarethClarridge`, so they are a self-approval speed bump, not another human. Configure required
+reviewers **without** "prevent self-review", and they do exactly the job D7 wanted: stop a master
+merge from silently auto-deploying into a frozen window. If self-review is ever disabled, that turns
+them into a second-person gate and D10 says to fix the setting, not to add a person.
+
+*Accepted consequences, stated plainly.* There is no separation of duties: the person who curates a
+manifest also approves it, and the person who releases a batch also verifies it. A single mistaken
+judgement will not be caught by a second reader. The word "independent" in `independent_verifier`
+now names a role, not an independent human — it never meant a cryptographically independent one
+either (HIR-D3 already established that the application holds the symmetric signing key, so no
+signature here has ever attested verifier independence). Self-review of the runbook is weaker than
+peer review, and that is the residual risk this project accepts in exchange for an import that can
+actually be executed.
+
+*The rule going forward.* Do not reintroduce a distinctness check, a witness, a second operator or a
+two-person approval anywhere in this programme. `HistoricImportApprovalManifest` and
+`HistoricSermonReleaseAuthorisation` both carry this decision in their class docblocks, and
+`one_maintainer_may_hold_every_operational_role` and `one_maintainer_may_hold_every_release_role`
+fail if anyone adds one back. If a genuine second person ever joins, that is a new decision that
+supersedes this one in writing — not a silent restoration.
+
 **Work these decisions create.** Items 1 and 2 are done; the rest is not:
 
 1. ~~Edit the manifest for D1, revalidate, re-record both hashes in §3, re-approve (D1).~~
@@ -571,6 +628,12 @@ unsupported extensions and links, remains outstanding.
 6. Carry the D4 thresholds into the truth-set design and the calibration acceptance report (D4).
 7. Carry D8's retention and custody terms and D9's adjudication rule into the F36 acquisition
    procedure before the drive is connected (D8, D9).
+8. ~~Remove the multi-person controls from the approval and release gates, their tests and this
+   plan's prose (D10).~~ **Done 2026-08-14.** `HistoricImportApprovalManifest` and
+   `HistoricSermonReleaseAuthorisation` no longer compare role names; the §C, §D and §6 text below is
+   rewritten for one operator. Note that the *approval and release artifacts themselves are
+   unaffected in shape* — the `roles` objects keep all their keys, so no manifest, hash or fingerprint
+   is invalidated by this change and nothing loops back through §13.6.
 
 ### 2026-08-11 — D1 applied: the Email manifest is re-curated, re-hashed and re-approved
 
@@ -1314,7 +1377,8 @@ scheduled jobs or delayed/reserved queues reached the intended state.
 schema/config/fingerprints and operation ID—not `APP_ENV`. Freeze deploy/rollback/config/manifest and
 targeted admin/data mutations from final preflight through closeout. Protect the production approval
 environment or explicitly accept the risk. Assign an incident commander, operator, independent
-verifier and monitoring owner; pre-authorise numeric abort thresholds. Use Sentry or a formally
+verifier and monitoring owner — **under D10 these are four role fields the one maintainer may hold
+simultaneously, not four people**; pre-authorise numeric abort thresholds. Use Sentry or a formally
 accepted live alternative and retain an external watchboard covering queues/job age, live/failed/
 timed-out IDs, workers, DB locks/connections, resource/free-space growth, API 429/5xx/cost and app
 exceptions. Release the freeze only after exact audit, public/admin smoke, queue/scheduler recovery
@@ -1759,8 +1823,8 @@ review. Those topics are not import gates.
 1. Rewrite the sole production runbook from the actual command signatures and current G2-G9 plus
    F29-F65 gates. Delete obsolete fixed counts, mandatory-Manual assumptions and commands missing
    current operation ID/expiry arguments.
-2. Include exact commands, arguments, artifact paths, expected output/exit code, operator, witness,
-   evidence captured, abort condition and rollback action for every step.
+2. Include exact commands, arguments, artifact paths, expected output/exit code, operator,
+   evidence captured, abort condition and rollback action for every step. (D10: no witness column.)
 3. Remove superseded fixed counts and Manual-review assumptions; all counts come from the approved
    manifests and reconciliations.
 4. Include T-minus preparation, source/staging transfer, backups and restore proof, ingress/admin/
@@ -1772,14 +1836,17 @@ review. Those topics are not import gates.
 6. Include a decision tree for source/hash mismatch, low space, timeout/live work, failed job,
    provider/rate/cost breach, DB/object failure, expired token, plan drift, concurrent edit and
    missed deadline. State which cases stop, resume, compensate or restore; never improvise.
-7. Have a second operator walk through it, then rehearse the document verbatim with timings and
-   screenshots/reports. Any prompt-time improvisation or undocumented command makes the
-   runbook unapproved and returns the operation to rehearsal.
+7. Rehearse the document verbatim with timings and screenshots/reports. Any prompt-time
+   improvisation or undocumented command makes the runbook unapproved and returns the operation to
+   rehearsal. **D10 removed the "have a second operator walk through it" step** — there is no second
+   operator. The verbatim rehearsal is what replaces it, and it is the stronger half anyway: a
+   reader can miss a wrong command, but executing the document as written cannot.
 
 ### D. Source acquisition, custody and preservation
 
 1. Write the F36 acquisition procedure and capacity plan before connecting the drive. Name the
-   custodian, witness, evidence locations and disposition for a failing/unreadable source.
+   custodian, evidence locations and disposition for a failing/unreadable source. (D10: no witness;
+   the custodian is the maintainer.)
 2. Connect only for read-only acquisition: identify the physical device and filesystem; record
    health/read errors; prove the original is non-writable/non-executable; make and independently
    verify two protected copies. Never point an importer at the original.
@@ -1790,8 +1857,10 @@ review. Those topics are not import gates.
 4. Malware-scan in isolation. Preserve an untouched evidence image/copy and generate a separately
    hashed working tree; materialize approved symlinks only in that working tree with a signed map.
 5. Build strict source manifests from the complete inventory, adjudicate every include/exclude/
-   duplicate/correction/identity collision, obtain two-person approval and freeze them. Bind the
-   working-copy/drive identity into the operation context.
+   duplicate/correction/identity collision, approve and freeze them. Bind the
+   working-copy/drive identity into the operation context. **D10 replaced the two-person approval
+   with a single named approver**; what carries the weight is the written reason on every
+   include/exclude and the frozen hashes, both of which survive unchanged.
 6. After processing, keep the original and both protected copies read-only until exact production
    acceptance plus the rollback/takedown observation window. Record when and by whom they may later
    be deleted or returned.
@@ -2053,8 +2122,9 @@ this one has no writer but the historic hymn importer.
 OpenLP and historic-video paths, it does not call `HistoricImportProductionGuard`, bind itself to a
 persisted historic operation/freeze/approval, require an approved workbook digest, enforce the
 recorded 1,941/1,867/74 dry-run contract, or contribute per-item outcomes to exact closeout. The
-plans say the ordinary backup, freeze, witness and approval gates apply, but code does not enforce
-that claim. Resolved rows join public/admin song usage reads as soon as they are committed, so this
+plans say the ordinary backup, freeze and approval gates apply, but code does not enforce
+that claim. (As written in 2026-08-07 this sentence also said "witness"; D10 removed that gate
+outright, so it is struck here rather than carried forward as work.) Resolved rows join public/admin song usage reads as soon as they are committed, so this
 is also a controlled-release concern rather than an inert staging write.
 
 **Required outcome:** make the date-only lane an explicit operation-owned source kind or artifact.
@@ -2598,11 +2668,14 @@ implementation and its rehearsal, production or operator evidence.
 | Backup/object rollback design, RPO/RTO and retention window | Maintainer/operator | **Decided 2026-08-11 (D6).** Pre-window dump verified by real restore; RTO 30 min, RPO to the freeze; object rollback met by operation-owned keys **for the apply step only** — the release writer is reopened under HIR7/HIR-D1 (see D6 scope correction) |
 | Production deploy/admin/config freeze and approval protection | Maintainer/operator | **Decided 2026-08-10 + 2026-08-11 (D7).** 503 refusal + scheduler skip; required reviewers on `production`; log-only operation record **formally accepted** in place of Sentry — **but that record is unbuilt; AM3 Delivery 1 blocks the window** (see D7 blocking correction) |
 | Evidence retention and source-drive custody duration | Maintainer/operator | **Decided 2026-08-11 (D8).** Small corpora and artifacts permanent; video original returned to the church, working copies deleted on exact audit + smoke |
+| Whether any gate may require a second human | Maintainer | **Decided 2026-08-14 (D10).** No. One-person project: every multi-person control is removed permanently — role distinctness checks, witness, second operator, two-person approval. Roles survive as accountability fields one person may hold. **Do not reinstate; see D10 for what replaced each one** |
 
 ## 6. Final go/no-go checklist
 
-This is the final checklist for the investigation. No single person may waive a failed technical
-invariant during the production window.
+This is the final checklist for the investigation. A failed technical invariant is **not waivable at
+all** during the production window — not by the maintainer, not by anyone. This replaces the original
+"no single person may waive" wording, which assumed a second person could; under D10 there is none,
+so the rule is stated as the absolute it always should have been.
 
 > **Safety-remediation status (2026-08-13).** HIR0–HIR7 are committed; HIR8 is not. Several items
 > below now have their code half done and their evidence half outstanding — notably F36 (HIR4
@@ -2651,8 +2724,9 @@ invariant during the production window.
 - [ ] F45 exact DB/object/staging/journal backup was restored successfully; compensation and full
       rollback/re-apply were timed and met accepted RPO/RTO; conditional object creation/cleanup
       cannot overwrite or delete a foreign concurrent version.
-- [ ] F46 operation binding, deploy/admin/config freeze, alerting/watchboard and two-person control
-      passed rehearsal; F47 durable local runtime passed forced-crash recovery.
+- [ ] F46 operation binding, deploy/admin/config freeze and alerting/watchboard passed rehearsal;
+      F47 durable local runtime passed forced-crash recovery. (D10 removed F46's two-person control;
+      single-operator control is the standard here and must not be raised again.)
 - [ ] F48 every OoS invocation selects exactly one explicit mode before any read, extraction or
       mutation; conflicting/missing modes and ad-hoc definitive subsets fail with zero effects.
 - [ ] F49/F50 bind OoS and OpenLP parsing, provenance and mutation to one immutable byte snapshot
@@ -2691,13 +2765,15 @@ invariant during the production window.
 - [ ] Clean production-shaped full rehearsal, exact audit, full no-op rerun and restore/rollback
       repetition all pass on the release candidate.
 - [ ] Measured throughput, cost, capacity and production-window/rollback budgets are accepted.
-- [ ] Command-exact production runbook was executed verbatim in rehearsal and independently checked.
+- [ ] Command-exact production runbook was executed verbatim in rehearsal, with its output checked
+      against the documented expected output/exit code for every step. (D10: "independently checked"
+      meant a second reader; verbatim execution against written expectations replaces it.)
 - [ ] Private batch ledger contains every manifest, hash, fingerprint, approval, backup, report and
       run identifier, with no secrets or inappropriate personal data.
 - [ ] G3-G8 are evidenced on the exact release and operation; production approval is time-bounded and
       names that operation.
-- [ ] Named operator, witness, incident decision-maker, pastoral/content owner and takedown owner are
-      available for the window and closeout.
+- [ ] The named operator — who under D10 also holds the incident, pastoral/content and takedown
+      roles — is available for the window and closeout.
 - [ ] Editorial truth-set thresholds and all user journeys pass; import does not broaden the
       audience beyond the existing accepted visibility.
 
