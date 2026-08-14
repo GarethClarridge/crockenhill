@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Email;
 
-use App\Contracts\CorrectiveOosEmailItemExtractor;
+use App\Contracts\AdjudicatingOosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailSourceDocument;
 use App\Support\OpenAiChatPayload;
@@ -15,7 +15,7 @@ use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Chat\CreateResponse;
 use RuntimeException;
 
-class OpenAiOosEmailItemExtractor implements CorrectiveOosEmailItemExtractor
+class OpenAiOosEmailItemExtractor implements AdjudicatingOosEmailItemExtractor
 {
     public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
     {
@@ -48,6 +48,40 @@ class OpenAiOosEmailItemExtractor implements CorrectiveOosEmailItemExtractor
                 ."Previous extraction:\n{$previous}\n\nValidation failures:\n{$failures}\n\n"
                 .'Return one corrected extraction. Do not defend or repeat a structurally invalid result.',
         );
+    }
+
+    public function adjudicate(
+        string $subject,
+        string $body,
+        string $receivedDate,
+        OosEmailItemExtractionResult $initialExtraction,
+        OosEmailItemExtractionResult $correctedExtraction,
+        array $disagreementCategories,
+    ): OosEmailItemExtractionResult {
+        $candidates = json_encode([
+            'first' => $this->extractionForPrompt($initialExtraction),
+            'second' => $this->extractionForPrompt($correctedExtraction),
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $differences = implode(', ', $disagreementCategories);
+
+        return $this->request(
+            $subject,
+            $body,
+            $receivedDate,
+            correctionContext: "Two structurally valid extractions disagree only in these compared fields: {$differences}.\n"
+                ."Candidate extractions:\n{$candidates}\n\n"
+                .'Resolve those differences against the numbered source lines. Return the complete extraction that the source supports. Do not invent a third interpretation.',
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private function extractionForPrompt(OosEmailItemExtractionResult $extraction): array
+    {
+        return [
+            'service_count' => $extraction->serviceCount,
+            'services' => $extraction->services,
+            'ignored_lines' => $extraction->ignoredLines,
+        ];
     }
 
     private function request(

@@ -354,8 +354,11 @@ two entries remain live. Do not reinstate a removed entry without a current owni
   `HistoricVideoImporter` are permitted where
   [historic import safety remediation](docs/plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md)
   **HIR-D5** records approval. That exception covers correctness only — never refactoring,
-  features or polish — and expires when HIR8 evidence is incorporated. Without a recorded HIR-D5
-  approval, the automatic-decline rule still applies.
+  features or polish. **HIR-D6 (2026-08-14, §4.4)** additionally permits read-only reporting needed
+  to evidence the go/no-go, and runs the exception to the production operation's closeout rather
+  than to HIR8. Neither decision covers a change to what the importer imports without an operator;
+  that needs its own recorded decision. Without a recorded approval, the automatic-decline rule
+  still applies.
 - **Legacy duplicate test suites (R14):** the flat `tests/Feature/Livewire/Admin/EditSermonTest`
   / `ListSermonsTest` and `tests/Feature/Livewire/AdminUserTest` / `AdminMeetingTest` /
   `AdminChurchServiceTest`. All five still exist and are being folded in by R14; add no coverage

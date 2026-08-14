@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Contracts\AdjudicatingOosEmailItemExtractor;
 use App\Contracts\CorrectiveOosEmailItemExtractor;
 use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
 use App\Enums\OosEmailParseDisposition;
+use App\Enums\OosEmailPlanHoldReason;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
@@ -810,6 +812,186 @@ class OosEmailParserServiceTest extends TestCase
 
         $this->assertTrue($result->consensus);
         $this->assertSame(OosEmailParseDisposition::AutoImportable, $result->disposition);
+    }
+
+    /**
+     * Adjudication is diagnostic, not a gate. It may pick between two disagreeing candidates and
+     * the parser adopts that order, but the plan stays `ReviewRequired` and `consensus` stays
+     * false — a third call shown both answers is not two independent attempts agreeing (HIR-D6).
+     */
+    #[Test]
+    public function a_resolved_adjudication_stays_held_and_never_claims_consensus(): void
+    {
+        $body = "Welcome\nAmazing Grace";
+        $extraction = fn (string $secondType): OosEmailItemExtractionResult => new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.80,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'service_evidence_line_ids' => [],
+                'items' => [
+                    $this->groundedItem('welcome', 'Welcome', 1),
+                    $this->groundedItem($secondType, 'Amazing Grace', 2),
+                ],
+                'confidence' => 0.80,
+            ]],
+            serviceCount: 1,
+            provenanceComplete: true,
+        );
+        $initial = $extraction('song');
+        $corrected = $extraction('prayer');
+        $thirdInterpretation = $extraction('sermon');
+        $extractor = new class($initial, $corrected) implements AdjudicatingOosEmailItemExtractor
+        {
+            public int $adjudicationCalls = 0;
+
+            /** @var list<string> */
+            public array $categories = [];
+
+            public OosEmailItemExtractionResult $adjudicated;
+
+            public function __construct(
+                private readonly OosEmailItemExtractionResult $initial,
+                private readonly OosEmailItemExtractionResult $corrected,
+            ) {
+                $this->adjudicated = $initial;
+            }
+
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                return $this->initial;
+            }
+
+            public function correct(
+                string $subject,
+                string $body,
+                string $receivedDate,
+                OosEmailItemExtractionResult $previousExtraction,
+                array $validationFailures,
+            ): OosEmailItemExtractionResult {
+                return $this->corrected;
+            }
+
+            public function adjudicate(
+                string $subject,
+                string $body,
+                string $receivedDate,
+                OosEmailItemExtractionResult $initialExtraction,
+                OosEmailItemExtractionResult $correctedExtraction,
+                array $disagreementCategories,
+            ): OosEmailItemExtractionResult {
+                $this->adjudicationCalls++;
+                $this->categories = $disagreementCategories;
+
+                return $this->adjudicated;
+            }
+        };
+
+        $result = (new OosEmailParserService(
+            $extractor,
+            new ExistingEmailImportLookup,
+            app(ServiceItemTitleCleaner::class),
+        ))->parse(InboundEmail::factory()->make([
+            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
+            'body_plain' => $body,
+            'received_at' => '2026-07-10 09:00:00',
+        ]));
+
+        $this->assertSame(1, $extractor->adjudicationCalls);
+        $this->assertSame(['item_type_or_order'], $extractor->categories);
+        $this->assertCount(3, $result->extractionAttempts);
+        $this->assertSame(['item_type_or_order'], $result->extractionAttempts[1]['disagreement_categories']);
+        $this->assertSame('matched_candidate', $result->extractionAttempts[2]['adjudication']);
+        // The adjudicated order is adopted, so a reviewer sees the resolution...
+        $this->assertTrue($result->adjudicated);
+        $this->assertSame('songs', $result->items[1]['type']);
+        // ...but it buys no import credit: still held, still not consensus.
+        $this->assertFalse($result->consensus);
+        $this->assertSame(OosEmailParseDisposition::ReviewRequired, $result->disposition);
+        $this->assertSame(
+            [OosEmailPlanHoldReason::AttemptDisagreement, OosEmailPlanHoldReason::LowConfidence],
+            $result->servicePlans[0]->holdReasons,
+        );
+
+        $extractor->adjudicated = $thirdInterpretation;
+        $unresolved = (new OosEmailParserService(
+            $extractor,
+            new ExistingEmailImportLookup,
+            app(ServiceItemTitleCleaner::class),
+        ))->parse(InboundEmail::factory()->make([
+            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
+            'body_plain' => $body,
+            'received_at' => '2026-07-10 09:00:00',
+        ]));
+
+        $this->assertFalse($unresolved->consensus);
+        $this->assertFalse($unresolved->adjudicated);
+        $this->assertSame(OosEmailParseDisposition::ReviewRequired, $unresolved->disposition);
+        $this->assertCount(3, $unresolved->extractionAttempts);
+        $this->assertSame('third_interpretation', $unresolved->extractionAttempts[2]['adjudication']);
+        // A third interpretation is discarded: the selected extraction is the corrected attempt.
+        $this->assertSame('prayer', $unresolved->items[1]['section_type']);
+    }
+
+    /**
+     * The gate a resolved adjudication must not open: consensus lets a sub-0.90 plan import
+     * unattended, so if adjudication ever set it, every disagreeing plan in the 0.75–0.89 band
+     * would import without a human.
+     */
+    #[Test]
+    public function only_two_independent_agreeing_attempts_can_auto_import_below_the_threshold(): void
+    {
+        $body = "Welcome\nAmazing Grace";
+        $agreed = new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.80,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'service_evidence_line_ids' => [],
+                'items' => [
+                    $this->groundedItem('welcome', 'Welcome', 1),
+                    $this->groundedItem('song', 'Amazing Grace', 2),
+                ],
+                'confidence' => 0.80,
+            ]],
+            serviceCount: 1,
+            provenanceComplete: true,
+        );
+
+        $result = (new OosEmailParserService(
+            new class($agreed) implements CorrectiveOosEmailItemExtractor
+            {
+                public function __construct(private readonly OosEmailItemExtractionResult $agreed) {}
+
+                public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+                {
+                    return $this->agreed;
+                }
+
+                public function correct(
+                    string $subject,
+                    string $body,
+                    string $receivedDate,
+                    OosEmailItemExtractionResult $previousExtraction,
+                    array $validationFailures,
+                ): OosEmailItemExtractionResult {
+                    return $this->agreed;
+                }
+            },
+            new ExistingEmailImportLookup,
+            app(ServiceItemTitleCleaner::class),
+        ))->parse(InboundEmail::factory()->make([
+            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
+            'body_plain' => $body,
+            'received_at' => '2026-07-10 09:00:00',
+        ]));
+
+        $this->assertTrue($result->consensus);
+        $this->assertFalse($result->adjudicated);
+        $this->assertSame(OosEmailParseDisposition::AutoImportable, $result->disposition);
+        $this->assertSame([], $result->servicePlans[0]->holdReasons);
     }
 
     #[Test]

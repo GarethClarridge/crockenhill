@@ -9,6 +9,7 @@ use App\Data\OosEmailParseResult;
 use App\Data\OosEmailServicePlan;
 use App\Enums\OosEmailContentScope;
 use App\Enums\OosEmailParseDisposition;
+use App\Enums\OosEmailPlanHoldReason;
 use App\Enums\SermonService;
 
 class OosArchiveIdentityResolver
@@ -83,6 +84,7 @@ class OosArchiveIdentityResolver
             validationReasons: $primary->validationReasons,
             extractionAttempts: $parseResult->extractionAttempts,
             consensus: $parseResult->consensus,
+            adjudicated: $parseResult->adjudicated,
         );
     }
 
@@ -104,6 +106,15 @@ class OosArchiveIdentityResolver
             shouldImport: $disposition === OosEmailParseDisposition::AutoImportable,
             disposition: $disposition,
             validationReasons: $plan->validationReasons,
+            contentValidationReasons: $plan->contentValidationReasons,
+            holdReasons: $this->resolvedHoldReasons(
+                $plan,
+                $disposition,
+                $plan->service,
+                $date,
+                $plan->confidence,
+                $plan->contentScope,
+            ),
             sourceProvenance: [
                 ...$plan->sourceProvenance,
                 'archive_identity' => 'manifest',
@@ -173,6 +184,15 @@ class OosArchiveIdentityResolver
             shouldImport: $disposition === OosEmailParseDisposition::AutoImportable,
             disposition: $disposition,
             validationReasons: $plan->validationReasons,
+            contentValidationReasons: $plan->contentValidationReasons,
+            holdReasons: $this->resolvedHoldReasons(
+                $plan,
+                $disposition,
+                $service,
+                $plan->date ?? $entry->groundTruthDate,
+                $confidence,
+                $plan->contentScope,
+            ),
             sourceProvenance: [
                 ...$plan->sourceProvenance,
                 'archive_identity' => 'manifest',
@@ -194,6 +214,7 @@ class OosArchiveIdentityResolver
             validationReasons: $resolvedPlan->validationReasons,
             extractionAttempts: $parseResult->extractionAttempts,
             consensus: $parseResult->consensus,
+            adjudicated: $parseResult->adjudicated,
         );
     }
 
@@ -238,6 +259,7 @@ class OosArchiveIdentityResolver
             validationReasons: $primary->validationReasons,
             extractionAttempts: $parseResult->extractionAttempts,
             consensus: $parseResult->consensus,
+            adjudicated: $parseResult->adjudicated,
         );
     }
 
@@ -261,6 +283,15 @@ class OosArchiveIdentityResolver
             shouldImport: $disposition === OosEmailParseDisposition::AutoImportable,
             disposition: $disposition,
             validationReasons: $plan->validationReasons,
+            contentValidationReasons: $plan->contentValidationReasons,
+            holdReasons: $this->resolvedHoldReasons(
+                $plan,
+                $disposition,
+                $plan->service,
+                $plan->date,
+                $plan->confidence,
+                $contentScope,
+            ),
             sourceProvenance: $plan->sourceProvenance,
             contentScope: $contentScope,
         );
@@ -303,6 +334,44 @@ class OosArchiveIdentityResolver
      * completeness the manifest establishes. Classifying against the arriving scope would hold
      * the plan on a value the same call is discarding (F63).
      */
+    /**
+     * The hold census after identity resolution: extraction-owned reasons carry over untouched,
+     * identity-owned ones are recomputed against the resolved date, confidence and scope.
+     *
+     * @return list<OosEmailPlanHoldReason>
+     */
+    private function resolvedHoldReasons(
+        OosEmailServicePlan $plan,
+        OosEmailParseDisposition $disposition,
+        ?SermonService $service,
+        ?string $date,
+        float $confidence,
+        OosEmailContentScope $contentScope,
+    ): array {
+        if ($disposition === OosEmailParseDisposition::AutoImportable) {
+            return [];
+        }
+
+        $reasons = array_values(array_filter(
+            $plan->holdReasons,
+            static fn (OosEmailPlanHoldReason $reason): bool => $reason->ownedByExtraction(),
+        ));
+
+        if ($contentScope === OosEmailContentScope::Unknown) {
+            $reasons[] = OosEmailPlanHoldReason::UnknownContentScope;
+        }
+
+        if ($service === null || $date === null || $service === SermonService::Other) {
+            $reasons[] = OosEmailPlanHoldReason::MissingIdentity;
+        }
+
+        if ($confidence < (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90)) {
+            $reasons[] = OosEmailPlanHoldReason::LowConfidence;
+        }
+
+        return $reasons;
+    }
+
     private function resolvedDisposition(
         OosEmailParseResult $parseResult,
         OosEmailServicePlan $plan,
@@ -371,18 +440,6 @@ class OosArchiveIdentityResolver
     /** @return array<string, mixed> */
     private function planMetadata(OosEmailServicePlan $plan): array
     {
-        return [
-            'plan_key' => $plan->key(),
-            'service' => $plan->service?->value,
-            'date' => $plan->date,
-            'content_scope' => $plan->contentScope->value,
-            'items' => $plan->items,
-            'confidence' => $plan->confidence,
-            'needs_review' => $plan->needsReview,
-            'should_import' => $plan->shouldImport,
-            'disposition' => $plan->disposition->value,
-            'validation_reasons' => $plan->validationReasons,
-            'source_provenance' => $plan->sourceProvenance,
-        ];
+        return $plan->toMetadataArray();
     }
 }

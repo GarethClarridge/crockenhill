@@ -16,6 +16,7 @@ use App\Enums\InboundEmailStatus;
 use App\Enums\OosEmailContentScope;
 use App\Enums\OosEmailImportOutcome;
 use App\Enums\OosEmailParseDisposition;
+use App\Enums\OosEmailPlanHoldReason;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
@@ -71,6 +72,7 @@ class InboundEmailImportService
             'disposition' => $parseResult->disposition->value,
             'validation_reasons' => $parseResult->validationReasons,
             'consensus' => $parseResult->consensus,
+            'adjudicated' => $parseResult->adjudicated,
         ];
 
         return array_replace(
@@ -155,6 +157,7 @@ class InboundEmailImportService
             validationReasons: $this->storedStrings(Arr::get($storedParseData, 'validation_reasons')),
             extractionAttempts: $this->storedAttempts(Arr::get($storedParseData, 'extraction_attempts')),
             consensus: (bool) Arr::get($storedParseData, 'consensus', false),
+            adjudicated: (bool) Arr::get($storedParseData, 'adjudicated', false),
         );
     }
 
@@ -209,6 +212,8 @@ class InboundEmailImportService
                 shouldImport: (bool) ($storedPlan['should_import'] ?? false),
                 disposition: $this->storedDisposition($storedPlan['disposition'] ?? null),
                 validationReasons: $this->storedStrings($storedPlan['validation_reasons'] ?? null),
+                contentValidationReasons: $this->storedStrings($storedPlan['content_validation_reasons'] ?? null),
+                holdReasons: $this->storedHoldReasons($storedPlan['hold_reasons'] ?? null),
                 sourceProvenance: is_array($storedPlan['source_provenance'] ?? null)
                     ? $storedPlan['source_provenance']
                     : [],
@@ -437,6 +442,17 @@ class InboundEmailImportService
         }
 
         return array_values(array_filter($values, is_string(...)));
+    }
+
+    /**
+     * @return list<OosEmailPlanHoldReason>
+     */
+    private function storedHoldReasons(mixed $values): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (string $value): ?OosEmailPlanHoldReason => OosEmailPlanHoldReason::tryFrom($value),
+            $this->storedStrings($values),
+        )));
     }
 
     /**

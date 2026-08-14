@@ -11,9 +11,13 @@ use App\Services\Song\SongTitleResolver;
 
 class OosArchiveEvaluator
 {
+    /** Entry dispositions that leave the source outstanding; the hold census counts only these. */
+    private const HeldDispositions = ['held_for_review', 'import_failed', 'failed'];
+
     /**
      * @param  list<string>  $gateReasons
      * @param  list<string>  $eligiblePlanKeys  plan keys the archive gate would actually import
+     * @param  list<string>|null  $importedPlanKeys  plan keys the importer reported as imported, or null when no import ran
      * @return array<string, mixed>
      */
     public function evaluate(
@@ -24,10 +28,13 @@ class OosArchiveEvaluator
         ?SongTitleResolver $songTitleResolver = null,
         ?string $error = null,
         array $eligiblePlanKeys = [],
+        ?array $importedPlanKeys = null,
     ): array {
         $plans = $parseResult === null ? [] : $this->plansForEvaluation($parseResult);
         $detectedDate = $parseResult?->date;
         $confidence = $parseResult?->confidenceScore;
+        $consensus = $parseResult === null ? false : $parseResult->consensus;
+        $attemptCount = $parseResult === null ? 0 : count($parseResult->extractionAttempts);
         $dateMethod = $parseResult === null
             ? null
             : ($parseResult->importMetadata['date_extraction']['method'] ?? null);
@@ -50,8 +57,23 @@ class OosArchiveEvaluator
             }
 
             $allItems = array_merge($allItems, $plan->items);
-            $planRecords[] = $this->planRecord($entry, $plan, $gateReasons, $eligiblePlanKeys);
+            $planRecords[] = $this->planRecord($entry, $plan, $gateReasons, $eligiblePlanKeys, $consensus);
         }
+
+        $corroboratedPlanKeys = array_values(array_unique($eligiblePlanKeys));
+        $entryHeld = in_array($disposition, self::HeldDispositions, true);
+        /**
+         * Null means no import was attempted (a dry run, or an evaluate-only mode), which is not
+         * the same fact as "an import ran and imported nothing". Inferring the imported set from
+         * plan dispositions instead of taking it from the import result mislabelled every plan of
+         * an `import_failed` entry as held, including plans that had already been created.
+         */
+        $heldPlanKeys = $importedPlanKeys === null
+            ? null
+            : array_values(array_map(
+                static fn (array $plan): string => $plan['plan_key'],
+                array_filter($planRecords, static fn (array $plan): bool => ! in_array($plan['plan_key'], $importedPlanKeys, true)),
+            ));
 
         return [
             'index' => $entry->index,
@@ -83,6 +105,21 @@ class OosArchiveEvaluator
                 'detected' => $detectedItemCounts,
             ],
             'plans' => $planRecords,
+            'attempt_count' => $attemptCount,
+            'attempt_disagreement_categories' => $this->attemptDisagreementCategories($parseResult),
+            /**
+             * Kept apart deliberately. `consensus` is two independent attempts agreeing and clears
+             * the import gate above the review threshold; `adjudicated` is a third call choosing
+             * between two disagreeing candidates and never clears it (HIR-D6). Collapsing them
+             * would make an adjudicated plan indistinguishable from a corroborated one in the very
+             * report meant to measure whether adjudication is trustworthy.
+             */
+            'adjudicated' => $parseResult !== null && $parseResult->adjudicated,
+            'corroborated_plan_keys' => $corroboratedPlanKeys,
+            'imported_plan_keys' => $importedPlanKeys,
+            'held_plan_keys' => $heldPlanKeys,
+            'held' => $entryHeld,
+            'hold_reason_categories' => $this->holdReasonCategories($planRecords, $gateReasons, $entryHeld),
             'confidence' => $confidence,
             'disposition' => $disposition,
             'gate_eligible' => $parseResult !== null && $gateReasons === [],
@@ -127,6 +164,7 @@ class OosArchiveEvaluator
         OosEmailServicePlan $plan,
         array $gateReasons,
         array $eligiblePlanKeys,
+        bool $consensus,
     ): array {
         $service = $plan->service?->value;
         $dateMatches = $plan->date === $entry->groundTruthDate;
@@ -146,9 +184,62 @@ class OosArchiveEvaluator
             'expected_item_count' => $expectedItems,
             'item_count_matches' => $expectedItems === null ? null : $expectedItems === count($plan->items),
             'confidence' => $plan->confidence,
+            'content_scope' => $plan->contentScope->value,
+            'disposition' => $plan->disposition->value,
+            'consensus' => $consensus,
+            'validation_reasons' => $plan->validationReasons,
+            'content_validation_reasons' => $plan->contentValidationReasons,
+            'hold_reasons' => $plan->holdReasonValues(),
             'exact_correct' => $entry->assertsFullOrder() && $dateMatches && $serviceMatches && $plan->items !== [],
             'gate_eligible' => $gateReasons === [] && in_array($plan->key(), $eligiblePlanKeys, true),
         ];
+    }
+
+    /**
+     * The hold census for one *source*, and only for a source that was actually held. A held plan
+     * inside an imported entry is still reported at plan level, but counting it here would mix the
+     * source and plan units the follow-up report warns must be kept apart.
+     *
+     * Reasons are read from what the parser recorded, never rebuilt from reason text.
+     *
+     * @param  list<array<string, mixed>>  $plans
+     * @param  list<string>  $gateReasons
+     * @return list<string>
+     */
+    private function holdReasonCategories(array $plans, array $gateReasons, bool $entryHeld): array
+    {
+        if (! $entryHeld) {
+            return [];
+        }
+
+        $categories = $gateReasons === [] ? [] : ['source_gate'];
+
+        foreach ($plans as $plan) {
+            foreach ($plan['hold_reasons'] ?? [] as $reason) {
+                $categories[] = $reason;
+            }
+        }
+
+        return array_values(array_unique($categories));
+    }
+
+    /**
+     * What the two attempts actually disagreed about, as the parser recorded it at the moment it
+     * compared them. This was previously reconstructed here by diffing the stored attempt arrays,
+     * which reported a corrective call that threw — an attempt with an `error` and no plans — as a
+     * disagreement across every compared field.
+     *
+     * @return list<string>
+     */
+    private function attemptDisagreementCategories(?OosEmailParseResult $parseResult): array
+    {
+        $recorded = $parseResult?->extractionAttempts[1]['disagreement_categories'] ?? null;
+
+        if (! is_array($recorded)) {
+            return [];
+        }
+
+        return array_values(array_filter($recorded, is_string(...)));
     }
 
     /**
@@ -170,6 +261,10 @@ class OosArchiveEvaluator
         $itemCountsChecked = 0;
         $itemCountsMatched = 0;
         $parseFlags = [];
+        $holdReasonCategories = [];
+        $planHoldReasons = [];
+        $planDispositions = [];
+        $adjudicatedSources = 0;
 
         foreach ($entries as $entry) {
             $method = $entry['date']['method'] ?? null;
@@ -211,11 +306,34 @@ class OosArchiveEvaluator
             foreach ($entry['parse_flags'] ?? [] as $flag) {
                 $parseFlags[$flag] = ($parseFlags[$flag] ?? 0) + 1;
             }
+
+            foreach ($entry['hold_reason_categories'] ?? [] as $category) {
+                $holdReasonCategories[$category] = ($holdReasonCategories[$category] ?? 0) + 1;
+            }
+
+            if (($entry['adjudicated'] ?? false) === true) {
+                $adjudicatedSources++;
+            }
+
+            foreach ($entry['plans'] ?? [] as $plan) {
+                $planDisposition = $plan['disposition'] ?? null;
+
+                if (is_string($planDisposition)) {
+                    $planDispositions[$planDisposition] = ($planDispositions[$planDisposition] ?? 0) + 1;
+                }
+
+                foreach ($plan['hold_reasons'] ?? [] as $reason) {
+                    $planHoldReasons[$reason] = ($planHoldReasons[$reason] ?? 0) + 1;
+                }
+            }
         }
 
         ksort($methods);
         ksort($dispositions);
         ksort($parseFlags);
+        ksort($holdReasonCategories);
+        ksort($planHoldReasons);
+        ksort($planDispositions);
         ksort($songMatchTypes);
         arsort($unmatchedSongTitles);
 
@@ -240,6 +358,17 @@ class OosArchiveEvaluator
              * order for a service its entry does not name — becomes a number rather than a shrug.
              */
             'parse_flag_counts' => $parseFlags,
+            /**
+             * Two units, never added together: `hold_reason_category_counts` counts *sources* that
+             * were held and is the figure comparable to the recorded 373/352 baseline, while
+             * `held_plan_reason_counts` counts *plans*, including a held plan inside an entry that
+             * imported another one.
+             */
+            'hold_reason_category_counts' => $holdReasonCategories,
+            'held_plan_reason_counts' => $planHoldReasons,
+            'plan_disposition_counts' => $planDispositions,
+            /** Sources whose disagreement a third call resolved. These stay held; see HIR-D6. */
+            'adjudicated_sources' => $adjudicatedSources,
             'song_link_hit_rate' => [
                 'hits' => $songHits,
                 'total' => $songTotal,

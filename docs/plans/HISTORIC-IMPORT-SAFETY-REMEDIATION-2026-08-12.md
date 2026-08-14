@@ -129,6 +129,7 @@ implementation uses them.
 | HIR-D3 | Who holds the recovery-evidence signing key and what key ID/rotation rule applies? | A recovery-only HMAC key held by the independent-verifier workflow, distinct from application approval/source evidence keys; deploy verification material only for the accepted window | HIR5 | **Decided 2026-08-12 against recommendation — see §4.3** |
 | HIR-D4 | Which acquisition hosts/filesystems are supported? | Explicit Darwin/APFS and production Linux filesystem adapters only; unknown platforms or unobservable mount facts fail closed | HIR4 | **Decided 2026-08-12 — recommendation adopted as written** |
 | HIR-D5 | May safety defects be fixed inside deletion-scheduled `ImportOosArchiveCommand` and companion tests? | Approve a bounded exception for HIR2/HIR8 only; put cache-binding logic in a small service and make no unrelated command/test investment | HIR2 and affected rehearsal coverage | **Decided 2026-08-12 — bounded exception approved as recommended** |
+| HIR-D6 | Does the HIR-D5 exception cover the reporting work the F64/F65 follow-up schedules, and when does it expire? | Extend HIR-D5 to read-only observability and rehearsal coverage; correct the expiry to the production operation's closeout rather than HIR8; refuse "performance"/"efficiency" as a scope term; refuse any change to what the importer imports unattended | Slice A of the F64/F65 parser follow-up | **Decided 2026-08-14 — HIR-D5 unchanged, see §4.4** |
 
 No decision may be inferred from a test fixture. In particular, a successful local adapter test is
 not evidence that Spaces supports the same conditional write/delete semantics.
@@ -240,6 +241,46 @@ F46 logging decision. It constrains HIR5 as follows:
 - Revisit before the *public release* step if an external auditor is ever required to attest
   recovery independently.
 
+### 4.4 HIR-D6 outcome — HIR-D5 widened by addition, not by amendment
+
+**Decision: HIR-D5 keeps its 2026-08-12 wording. This decision adds to it and is dated separately.**
+
+The F64/F65 parser follow-up scheduled a reporting-only reason census (its Slice A) inside
+`ImportOosArchiveCommand` and `OosArchiveEvaluator`. That exposed a real contradiction between two
+authorities: the governing plan schedules the work, while HIR-D5 as written permits "correctness
+only — never refactoring, features or polish" and would decline it. HIR-D5 also expired at HIR8,
+which is incoherent — the safety exception would lapse before the operation it exists to protect.
+
+Both gaps are real and are granted here:
+
+- **Read-only observability is in scope.** A go/no-go cannot be gated on evidence the report
+  cannot show. This covers per-plan diagnostics, hold-reason censuses and rehearsal coverage that
+  only *describe* what the importer did.
+- **The exception now runs to the production operation's closeout**, not to HIR8.
+
+Two further widenings were proposed on 2026-08-14 and are **refused**:
+
+- **"Performance" is not a scope term.** No performance defect has been demonstrated in the
+  command, and the change that prompted the request adds a third model call per disagreement — a
+  cost regression, not an improvement.
+- **"Necessary to make the operation safe *and efficient*" is not the test.** "Efficient" would
+  admit any change that shrinks the review backlog, which is the substance of the parser's
+  confidence-calibration work and needs its own evidence.
+
+**Neither HIR-D5 nor HIR-D6 covers a change to what the importer imports without an operator.**
+Adjudicating a disagreement between two extraction attempts, relaxing a disposition, or routing a
+sub-threshold plan into unattended import are all behaviour changes to the import gate. Each needs
+its own recorded decision, taken against corpus evidence rather than against a reading of this
+exception. Recording the *diagnostics* of such a disagreement is observability and is permitted;
+acting on them unattended is not.
+
+**On the form.** The 2026-08-14 proposal arrived as an in-place rewrite of the HIR-D5 row —
+its question and recommendation columns both changed while the "Decided 2026-08-12" stamp stayed.
+That was reverted. Crockenhill is a one-person project (D10), so the dated log is the only
+mechanism that catches scope drift; there is no second reader to notice. A decision that can be
+amended by whoever later needs it wider stops being evidence of what was decided and becomes a
+mirror of the change in flight. Widen by adding a dated row; never by editing an existing one.
+
 ## 5. Delivery map and sequencing
 
 Review-surface size describes blast radius, not elapsed time.
@@ -314,8 +355,10 @@ package starts with a reproducing failure and names the artifacts/gates it inval
    version and operational-closeout report version. Do not delete them.
 6. Add a structural test for one-shot deletion triggers if an existing repository test does not
    already enforce the `AGENTS.md` rule.
-7. Resolve the do-not-invest contradiction through HIR-D5. The exception expires when HIR8 evidence is
-   incorporated; it permits safety/correctness only, not refactoring or new features.
+7. Resolve the do-not-invest contradiction through HIR-D5. The exception permits safety/correctness
+   only, not refactoring or new features. HIR-D6 (§4.4) adds read-only observability and runs the
+   exception to the production operation's closeout rather than to HIR8; neither decision covers a
+   change to what the importer imports unattended.
 
 ### Acceptance
 

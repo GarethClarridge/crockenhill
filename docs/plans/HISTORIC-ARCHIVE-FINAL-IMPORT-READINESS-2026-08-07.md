@@ -1780,13 +1780,14 @@ appears in a later phase's work is doing implementation there, not relaxing its 
     2026-08-14** — and note the trap: this step was marked satisfied on 2026-08-12 while the fix had
     not landed, so every review population measured before 2026-08-14, including the 2026-08-13 F1
     restage, measured the unfixed behaviour.
-11a. ~~Fix F64 and F65 before the next staging run, in that order.~~ **Code done 2026-08-14; the
-    staging re-run that measures them is the outstanding half.** They are the two levers that decide
-    how much of the held backlog clears without an operator: the 2026-08-14 review measured 148 of
-    the 394 missing identities as unreachable by *any* operator action until F65 lands, and F64
-    removes a class of validation failure that F65 would otherwise have to accommodate. Re-run
-    staging afterwards and measure the staged-identity count against the 521 approved; do not assert
-    it. Only the residue — 6 identity disagreements and 8 date corrections — is operator work.
+11a. ~~Fix F64 and F65 before the next staging run, in that order.~~ **Done 2026-08-14, including
+    corpus proof.** The fresh 534-source run is recorded in
+    `docs/reports/historic-import-f64-f65-parser-follow-up-2026-08-14.md`; its report SHA-256 is
+    `b698f3a56e5251e68ba3c800f240c55d3f51b26c0a0567678bbd4c4da4b2aa7c`. F64 produced zero phantom
+    source-line failures. F65 left bookkeeping-only findings reviewable rather than unreachable.
+    The measured result is 196 service rows covering 159 of 521 approved identities, with 373
+    sources held; parser follow-up now starts with a report-level reason census rather than an
+    asserted small manual residue.
 12. Resolve F60 after Email/OpenLP/Livestream convergence: regenerate and hash-bind the historic
     hymn reconciliation, then disposition all 5,759 known-service rows and reconcile every source
     overlap. Do not import only the convenient lane and call the workbook complete.
@@ -2512,7 +2513,7 @@ of the genuinely manual work — about 14 items, against 404 today.
 
 ### 2026-08-14 — F64: OoS extraction requests a schema the API is never asked to enforce
 
-**State: implemented 2026-08-14; corpus proof outstanding.** The request now sends
+**State: implemented and corpus-proven 2026-08-14.** The request now sends
 `'strict' => true`. Strict mode narrows the permitted keywords, so `minimum`, `maximum`, `pattern`
 and `minItems` were removed from the schema and each is enforced in PHP instead — `service_count`
 clamped in `resultFromResponse()`, `confidence` already clamped in `normaliseServices()`, the date
@@ -2556,7 +2557,7 @@ entries; and any validation moved out of the schema has its own test.
 
 ### 2026-08-14 — F65: the extraction validator cannot distinguish bookkeeping from content
 
-**State: implemented 2026-08-14; corpus proof outstanding.** `OosEmailExtractionValidationResult`
+**State: implemented and corpus-proven 2026-08-14.** `OosEmailExtractionValidationResult`
 now carries the content subset of its reasons alongside the full list, and `planDisposition()`
 invalidates only on content. A bookkeeping-only plan becomes `ReviewRequired`: still held, never
 auto-imported, but reachable by review — which is the whole of the 148-identity unlock. Three rules

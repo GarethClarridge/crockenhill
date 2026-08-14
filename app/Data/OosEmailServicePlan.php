@@ -6,6 +6,7 @@ namespace App\Data;
 
 use App\Enums\OosEmailContentScope;
 use App\Enums\OosEmailParseDisposition;
+use App\Enums\OosEmailPlanHoldReason;
 use App\Enums\SermonService;
 
 /**
@@ -18,6 +19,8 @@ readonly class OosEmailServicePlan
     /**
      * @param  array<int, array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>  $items
      * @param  list<string>  $validationReasons
+     * @param  list<string>  $contentValidationReasons
+     * @param  list<OosEmailPlanHoldReason>  $holdReasons
      * @param  array<string, mixed>  $sourceProvenance
      */
     public function __construct(
@@ -29,6 +32,8 @@ readonly class OosEmailServicePlan
         public bool $shouldImport,
         public OosEmailParseDisposition $disposition = OosEmailParseDisposition::AutoImportable,
         public array $validationReasons = [],
+        public array $contentValidationReasons = [],
+        public array $holdReasons = [],
         public array $sourceProvenance = [],
         public OosEmailContentScope $contentScope = OosEmailContentScope::Full,
     ) {}
@@ -80,8 +85,45 @@ readonly class OosEmailServicePlan
             shouldImport: $this->shouldImport,
             disposition: $this->disposition,
             validationReasons: $this->validationReasons,
+            contentValidationReasons: $this->contentValidationReasons,
+            holdReasons: $this->holdReasons,
             sourceProvenance: $this->sourceProvenance,
             contentScope: $contentScope,
         );
+    }
+
+    /** @return list<string> */
+    public function holdReasonValues(): array
+    {
+        return array_map(
+            static fn (OosEmailPlanHoldReason $reason): string => $reason->value,
+            $this->holdReasons,
+        );
+    }
+
+    /**
+     * The stored shape, defined once. It was written out independently by the parser and by
+     * archive identity resolution, and read back by a third place, so a field added to one copy
+     * was silently dropped from every plan that passed through another.
+     *
+     * @return array{plan_key:string,service:?string,date:?string,content_scope:string,items:array<int,array<string,mixed>>,confidence:float,needs_review:bool,should_import:bool,disposition:string,validation_reasons:list<string>,content_validation_reasons:list<string>,hold_reasons:list<string>,source_provenance:array<string,mixed>}
+     */
+    public function toMetadataArray(): array
+    {
+        return [
+            'plan_key' => $this->key(),
+            'service' => $this->service?->value,
+            'date' => $this->date,
+            'content_scope' => $this->contentScope->value,
+            'items' => $this->items,
+            'confidence' => $this->confidence,
+            'needs_review' => $this->needsReview,
+            'should_import' => $this->shouldImport,
+            'disposition' => $this->disposition->value,
+            'validation_reasons' => $this->validationReasons,
+            'content_validation_reasons' => $this->contentValidationReasons,
+            'hold_reasons' => $this->holdReasonValues(),
+            'source_provenance' => $this->sourceProvenance,
+        ];
     }
 }

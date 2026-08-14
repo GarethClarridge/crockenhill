@@ -112,6 +112,39 @@ class OpenAiOosEmailItemExtractorTest extends TestCase
         });
     }
 
+    #[Test]
+    public function it_sends_only_the_candidate_disagreement_to_targeted_adjudication(): void
+    {
+        $initial = new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.80,
+            services: [['service' => 'morning', 'date' => '2026-03-09', 'items' => [['type' => 'song', 'title' => 'Amazing Grace']], 'confidence' => 0.80]],
+        );
+        $corrected = new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.80,
+            services: [['service' => 'morning', 'date' => '2026-03-09', 'items' => [['type' => 'prayer', 'title' => 'Amazing Grace']], 'confidence' => 0.80]],
+        );
+        OpenAI::fake([$this->response($initial->services)]);
+
+        $this->extractor->adjudicate(
+            'Order of Service',
+            'Amazing Grace',
+            '2026-03-07',
+            $initial,
+            $corrected,
+            ['item_type_or_order'],
+        );
+
+        OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+            $content = $parameters['messages'][1]['content'];
+
+            return str_contains($content, 'item_type_or_order')
+                && str_contains($content, 'Candidate extractions:')
+                && str_contains($content, 'Do not invent a third interpretation.');
+        });
+    }
+
     /**
      * Collects every JSON Schema keyword the schema actually uses, so an unsupported keyword
      * cannot be reintroduced anywhere in the tree without this test naming it.

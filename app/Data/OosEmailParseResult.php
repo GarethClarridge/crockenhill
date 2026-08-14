@@ -14,6 +14,12 @@ readonly class OosEmailParseResult
      * fields describe the primary (morning-first) plan and are retained for stored-metadata
      * compatibility and inbox display. Multi-service imports read `servicePlans`.
      *
+     * `consensus` means two *independent* attempts produced the same order and is a gate input:
+     * it lets a plan above the review threshold import unattended. `adjudicated` means a third
+     * call was shown both candidates and asked to resolve them, which is weaker evidence and is
+     * deliberately not a gate input — an adjudicated plan stays held (HIR-D6, 2026-08-14). Never
+     * collapse the two flags.
+     *
      * @param  array<int, array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>  $items
      * @param  array<string, mixed>  $importMetadata
      * @param  list<OosEmailServicePlan>  $servicePlans
@@ -34,6 +40,7 @@ readonly class OosEmailParseResult
         public array $validationReasons = [],
         public array $extractionAttempts = [],
         public bool $consensus = false,
+        public bool $adjudicated = false,
     ) {}
 
     /**

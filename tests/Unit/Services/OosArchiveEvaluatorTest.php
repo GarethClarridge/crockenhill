@@ -7,6 +7,9 @@ namespace Tests\Unit\Services;
 use App\Data\OosArchiveEntry;
 use App\Data\OosEmailParseResult;
 use App\Data\OosEmailServicePlan;
+use App\Enums\OosEmailContentScope;
+use App\Enums\OosEmailParseDisposition;
+use App\Enums\OosEmailPlanHoldReason;
 use App\Enums\SermonService;
 use App\Services\Email\OosArchiveEvaluator;
 use App\Services\Song\SongTitleResolver;
@@ -82,6 +85,312 @@ class OosArchiveEvaluatorTest extends TestCase
             ['hits' => 0, 'total' => 1, 'rate' => null, 'by_type' => [], 'unmatched_titles' => []],
             $result['song_link'],
         );
+    }
+
+    #[Test]
+    public function it_reports_a_complete_reason_census_for_a_held_source(): void
+    {
+        $plan = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2026-07-12',
+            items: [['position' => 1, 'type' => 'custom', 'title' => 'Welcome', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null]],
+            confidence: 0.82,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::InvalidExtraction,
+            validationReasons: ['Items claim source lines out of order.', 'Unclassified sign-off line.'],
+            contentValidationReasons: ['Items claim source lines out of order.'],
+            holdReasons: [
+                OosEmailPlanHoldReason::ContentInvalid,
+                OosEmailPlanHoldReason::Bookkeeping,
+                OosEmailPlanHoldReason::AttemptDisagreement,
+                OosEmailPlanHoldReason::LowConfidence,
+            ],
+            contentScope: OosEmailContentScope::Full,
+        );
+        $parseResult = new OosEmailParseResult(
+            date: '2026-07-12',
+            service: SermonService::Morning,
+            items: $plan->items,
+            confidenceScore: 0.82,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: ['date_extraction' => ['method' => 'llm']],
+            servicePlans: [$plan],
+            disposition: OosEmailParseDisposition::InvalidExtraction,
+            validationReasons: $plan->validationReasons,
+            extractionAttempts: [
+                ['attempt' => 1, 'plans' => [['service' => 'morning', 'date' => '2026-07-12', 'content_scope' => 'full', 'item_count' => 2]]],
+                [
+                    'attempt' => 2,
+                    'plans' => [['service' => 'evening', 'date' => '2026-07-12', 'content_scope' => 'full', 'item_count' => 1]],
+                    'disagreement_categories' => ['service', 'item_count'],
+                ],
+            ],
+            consensus: false,
+        );
+
+        $result = (new OosArchiveEvaluator)->evaluate(
+            $this->entry(),
+            $parseResult,
+            disposition: 'held_for_review',
+            eligiblePlanKeys: ['morning:2026-07-12'],
+            importedPlanKeys: [],
+        );
+
+        $this->assertSame('invalid_extraction', $result['plans'][0]['disposition']);
+        $this->assertSame('full', $result['plans'][0]['content_scope']);
+        $this->assertFalse($result['plans'][0]['consensus']);
+        $this->assertSame($plan->validationReasons, $result['plans'][0]['validation_reasons']);
+        $this->assertSame($plan->contentValidationReasons, $result['plans'][0]['content_validation_reasons']);
+        $this->assertSame(2, $result['attempt_count']);
+        $this->assertSame(['service', 'item_count'], $result['attempt_disagreement_categories']);
+        $this->assertSame(['morning:2026-07-12'], $result['corroborated_plan_keys']);
+        $this->assertSame([], $result['imported_plan_keys']);
+        $this->assertSame(['morning:2026-07-12'], $result['held_plan_keys']);
+        $this->assertTrue($result['held']);
+        $this->assertSame(
+            ['content_invalid', 'bookkeeping', 'attempt_disagreement', 'low_confidence'],
+            $result['hold_reason_categories'],
+        );
+
+        $aggregate = (new OosArchiveEvaluator)->aggregate([$result]);
+        $this->assertSame(
+            ['attempt_disagreement' => 1, 'bookkeeping' => 1, 'content_invalid' => 1, 'low_confidence' => 1],
+            $aggregate['hold_reason_category_counts'],
+        );
+        $this->assertSame(['invalid_extraction' => 1], $aggregate['plan_disposition_counts']);
+        $this->assertSame(0, $aggregate['adjudicated_sources']);
+    }
+
+    /**
+     * A corrective call that threw is not a parser disagreement. Rebuilding the categories from
+     * the stored attempts read the error attempt's missing `plans` key as a disagreement across
+     * every compared field, inflating the census on exactly the sources that failed hardest.
+     */
+    #[Test]
+    public function it_does_not_report_a_failed_corrective_call_as_an_attempt_disagreement(): void
+    {
+        $plan = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2026-07-12',
+            items: [['position' => 1, 'type' => 'custom', 'title' => 'Welcome', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null]],
+            confidence: 0.82,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            holdReasons: [OosEmailPlanHoldReason::LowConfidence],
+        );
+        $parseResult = new OosEmailParseResult(
+            date: '2026-07-12',
+            service: SermonService::Morning,
+            items: $plan->items,
+            confidenceScore: 0.82,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: [],
+            servicePlans: [$plan],
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            extractionAttempts: [
+                ['attempt' => 1, 'selected' => true, 'plans' => [['service' => 'morning', 'date' => '2026-07-12', 'content_scope' => 'full', 'item_count' => 1]]],
+                // Exactly what the parser records when correct() throws.
+                ['attempt' => 2, 'selected' => false, 'error' => 'API timeout'],
+            ],
+            consensus: false,
+        );
+
+        $result = (new OosArchiveEvaluator)->evaluate($this->entry(), $parseResult, 'held_for_review');
+
+        $this->assertSame([], $result['attempt_disagreement_categories']);
+        $this->assertSame(['low_confidence'], $result['hold_reason_categories']);
+    }
+
+    /**
+     * A held plan inside an entry that imported another plan is reported at plan level but must
+     * not be counted as a held *source*, or the census stops being comparable to the recorded
+     * held-source baseline.
+     */
+    #[Test]
+    public function it_counts_a_held_plan_inside_an_imported_entry_at_plan_level_only(): void
+    {
+        $imported = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2026-07-12',
+            items: [['position' => 1, 'type' => 'custom', 'title' => 'Welcome', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null]],
+            confidence: 0.95,
+            needsReview: false,
+            shouldImport: true,
+        );
+        $held = new OosEmailServicePlan(
+            service: SermonService::Evening,
+            date: '2026-07-12',
+            items: [['position' => 1, 'type' => 'custom', 'title' => 'Prayer', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null]],
+            confidence: 0.60,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            holdReasons: [OosEmailPlanHoldReason::LowConfidence],
+        );
+        $parseResult = new OosEmailParseResult(
+            date: '2026-07-12',
+            service: SermonService::Morning,
+            items: $imported->items,
+            confidenceScore: 0.95,
+            needsReview: false,
+            shouldImport: true,
+            importMetadata: [],
+            servicePlans: [$imported, $held],
+        );
+
+        $result = (new OosArchiveEvaluator)->evaluate(
+            $this->entry(),
+            $parseResult,
+            disposition: 'created',
+            eligiblePlanKeys: ['morning:2026-07-12'],
+            importedPlanKeys: ['morning:2026-07-12'],
+        );
+
+        $this->assertFalse($result['held']);
+        $this->assertSame(['morning:2026-07-12'], $result['imported_plan_keys']);
+        $this->assertSame(['evening:2026-07-12'], $result['held_plan_keys']);
+        $this->assertSame([], $result['hold_reason_categories']);
+        $this->assertSame(['low_confidence'], $result['plans'][1]['hold_reasons']);
+
+        $aggregate = (new OosArchiveEvaluator)->aggregate([$result]);
+        $this->assertSame([], $aggregate['hold_reason_category_counts']);
+        $this->assertSame(['low_confidence' => 1], $aggregate['held_plan_reason_counts']);
+    }
+
+    /**
+     * An entry that failed part-way really did import the plans the importer reported, so the
+     * report must take them from the import result rather than re-deriving them from dispositions.
+     */
+    #[Test]
+    public function it_takes_the_imported_plan_keys_from_the_importer_on_a_partial_failure(): void
+    {
+        $created = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2026-07-12',
+            items: [['position' => 1, 'type' => 'custom', 'title' => 'Welcome', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null]],
+            confidence: 0.95,
+            needsReview: false,
+            shouldImport: true,
+        );
+        $failed = new OosEmailServicePlan(
+            service: SermonService::Evening,
+            date: '2026-07-12',
+            items: [['position' => 1, 'type' => 'custom', 'title' => 'Prayer', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null]],
+            confidence: 0.95,
+            needsReview: false,
+            shouldImport: true,
+        );
+        $parseResult = new OosEmailParseResult(
+            date: '2026-07-12',
+            service: SermonService::Morning,
+            items: $created->items,
+            confidenceScore: 0.95,
+            needsReview: false,
+            shouldImport: true,
+            importMetadata: [],
+            servicePlans: [$created, $failed],
+        );
+
+        $result = (new OosArchiveEvaluator)->evaluate(
+            $this->entry(),
+            $parseResult,
+            disposition: 'import_failed',
+            error: 'evening:2026-07-12: import failed',
+            eligiblePlanKeys: ['morning:2026-07-12', 'evening:2026-07-12'],
+            importedPlanKeys: ['morning:2026-07-12'],
+        );
+
+        $this->assertSame(['morning:2026-07-12'], $result['imported_plan_keys']);
+        $this->assertSame(['evening:2026-07-12'], $result['held_plan_keys']);
+    }
+
+    /** A dry run imported nothing because nothing was attempted; that is not "imported nothing". */
+    #[Test]
+    public function it_distinguishes_no_import_attempt_from_an_import_that_took_nothing(): void
+    {
+        $result = (new OosArchiveEvaluator)->evaluate($this->entry(), null, 'dry_run', ['dry_run']);
+
+        $this->assertNull($result['imported_plan_keys']);
+        $this->assertNull($result['held_plan_keys']);
+    }
+
+    #[Test]
+    public function it_distinguishes_bookkeeping_holds_from_source_gates(): void
+    {
+        $plan = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2026-07-12',
+            items: [['position' => 1, 'type' => 'custom', 'title' => 'Welcome', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null]],
+            confidence: 0.95,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            validationReasons: ['Unclassified sign-off line.'],
+            holdReasons: [OosEmailPlanHoldReason::Bookkeeping],
+        );
+        $parseResult = new OosEmailParseResult(
+            date: '2026-07-12',
+            service: SermonService::Morning,
+            items: $plan->items,
+            confidenceScore: 0.95,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: [],
+            servicePlans: [$plan],
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            validationReasons: $plan->validationReasons,
+        );
+        $evaluator = new OosArchiveEvaluator;
+
+        $bookkeeping = $evaluator->evaluate($this->entry(), $parseResult, 'held_for_review');
+        $sourceGated = $evaluator->evaluate($this->entry(), $parseResult, 'held_for_review', ['curated_service_not_parsed']);
+
+        $this->assertSame(['bookkeeping'], $bookkeeping['hold_reason_categories']);
+        $this->assertSame(['source_gate', 'bookkeeping'], $sourceGated['hold_reason_categories']);
+    }
+
+    #[Test]
+    public function it_does_not_call_consensus_backed_auto_importable_confidence_a_hold_reason(): void
+    {
+        $plan = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2026-07-12',
+            items: [['position' => 1, 'type' => 'custom', 'title' => 'Welcome', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null]],
+            confidence: 0.82,
+            needsReview: false,
+            shouldImport: true,
+        );
+        $parseResult = new OosEmailParseResult(
+            date: '2026-07-12',
+            service: SermonService::Morning,
+            items: $plan->items,
+            confidenceScore: 0.82,
+            needsReview: false,
+            shouldImport: true,
+            importMetadata: [],
+            servicePlans: [$plan],
+            extractionAttempts: [
+                ['attempt' => 1, 'plans' => [['service' => 'morning', 'date' => '2026-07-12', 'content_scope' => 'full', 'item_count' => 1]]],
+                ['attempt' => 2, 'plans' => [['service' => 'morning', 'date' => '2026-07-12', 'content_scope' => 'full', 'item_count' => 1]]],
+            ],
+            consensus: true,
+        );
+
+        $result = (new OosArchiveEvaluator)->evaluate(
+            $this->entry(),
+            $parseResult,
+            disposition: 'created',
+            eligiblePlanKeys: ['morning:2026-07-12'],
+            importedPlanKeys: ['morning:2026-07-12'],
+        );
+
+        $this->assertSame([], $result['hold_reason_categories']);
+        $this->assertSame(['morning:2026-07-12'], $result['imported_plan_keys']);
+        $this->assertSame([], $result['held_plan_keys']);
     }
 
     #[Test]

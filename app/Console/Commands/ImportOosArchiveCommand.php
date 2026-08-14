@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Data\OosArchiveEntry;
 use App\Data\OosCurationPlan;
+use App\Data\OosEmailImportPlanOutcome;
 use App\Data\OosEmailParseResult;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
@@ -52,7 +53,7 @@ use Throwable;
 class ImportOosArchiveCommand extends Command
 {
     /** Bump when the parsing pipeline changes shape or deterministic guards change. */
-    private const ParserVersion = 'archive-v11';
+    private const ParserVersion = 'archive-v12';
 
     private const DefaultVerbatimRoot = 'scratch/oos-verbatim';
 
@@ -255,6 +256,7 @@ class ImportOosArchiveCommand extends Command
                     $shouldImport ? $importedSourceKeys : null,
                 );
                 $importError = null;
+                $importedPlanKeys = null;
 
                 if ($reviewReasons !== []) {
                     // The manifest is sound but does not corroborate the parse: hand the entry to
@@ -270,6 +272,15 @@ class ImportOosArchiveCommand extends Command
                         $parseResult,
                         onlyPlanKeys: $eligiblePlanKeys,
                     );
+                    // Taken from the importer rather than re-derived from plan dispositions: a
+                    // partially failed entry really did import the plans it reports here.
+                    $importedPlanKeys = array_values(array_map(
+                        static fn (OosEmailImportPlanOutcome $plan): string => $plan->planKey,
+                        array_filter(
+                            $importResult->plans,
+                            static fn (OosEmailImportPlanOutcome $plan): bool => $plan->outcome->isTerminal(),
+                        ),
+                    ));
 
                     if ($importResult->hasFailures()) {
                         // A plan failure inside import() is caught and recorded as a Failed
@@ -305,6 +316,7 @@ class ImportOosArchiveCommand extends Command
                     $songTitleResolver,
                     $importError,
                     $eligiblePlanKeys,
+                    $importedPlanKeys,
                 );
 
                 if ($sourceUpdatedAfterImport) {

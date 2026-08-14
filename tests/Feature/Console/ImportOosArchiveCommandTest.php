@@ -1051,7 +1051,17 @@ class ImportOosArchiveCommandTest extends TestCase
             '--report' => $report,
         ])->assertExitCode(1);
 
-        $this->assertSame('held_for_review', $this->readReport($report)['entries'][0]['disposition']);
+        $entryReport = $this->readReport($report)['entries'][0];
+        $this->assertSame('held_for_review', $entryReport['disposition']);
+        $this->assertSame('review_required', $entryReport['plans'][0]['disposition']);
+        $this->assertSame(1, $entryReport['attempt_count']);
+        $this->assertSame(['morning:2026-07-12'], $entryReport['corroborated_plan_keys']);
+        $this->assertSame([], $entryReport['imported_plan_keys']);
+        $this->assertSame(['morning:2026-07-12'], $entryReport['held_plan_keys']);
+        $this->assertTrue($entryReport['held']);
+        $this->assertSame(['low_confidence'], $entryReport['hold_reason_categories']);
+        $this->assertSame(['low_confidence'], $entryReport['plans'][0]['hold_reasons']);
+        $this->assertFalse($entryReport['adjudicated']);
         $this->assertSame(InboundEmailStatus::Pending, InboundEmail::query()->firstOrFail()->status);
         $this->assertSame(1, app(ReviewInboxQuery::class)->build()['counts']['emails']);
         $this->assertSame('Amazing Grace', $service->items()->firstOrFail()->title);
