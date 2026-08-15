@@ -181,7 +181,7 @@ class ImportOosArchiveCommand extends Command
         if ($shouldImport) {
             $refusal = $productionGuard->refusalFor(
                 'oos:import-archive --import',
-                manifestHash: $plan->manifestHash,
+                roundCorpusHash: $plan->manifestHash,
                 planHash: $plan->planHash,
             );
 
@@ -944,6 +944,32 @@ class ImportOosArchiveCommand extends Command
             ['Item counts reconciled', "{$itemCounts['matched']} / {$itemCounts['checked']}"],
             ['Song-link hit rate', $this->percentage($aggregate['song_link_hit_rate']['rate'])],
         ]);
+
+        /**
+         * IC2 stopped a held entry failing the run, which was the only place held residue was
+         * visible without opening the report JSON. A round that held everything would otherwise
+         * exit zero behind a table identical to a clean one, so the dispositions and the hold
+         * census are printed where the operator already looks.
+         */
+        $dispositions = $aggregate['dispositions'] ?? [];
+        if ($dispositions !== []) {
+            $rows = [];
+            foreach ($dispositions as $disposition => $count) {
+                $rows[] = [(string) $disposition, (string) $count];
+            }
+
+            $this->table(['Disposition', 'Sources'], $rows);
+        }
+
+        $holdReasons = $aggregate['hold_reason_category_counts'] ?? [];
+        if ($holdReasons !== []) {
+            $rows = [];
+            foreach ($holdReasons as $category => $count) {
+                $rows[] = [(string) $category, (string) $count];
+            }
+
+            $this->table(['Hold reason (sources held)', 'Count'], $rows);
+        }
 
         $byType = $aggregate['song_link_hit_rate']['by_type'] ?? [];
         if ($byType !== []) {

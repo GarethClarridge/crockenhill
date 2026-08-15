@@ -133,7 +133,7 @@ class OosMultiServiceImportTest extends TestCase
 
         $evening = $services->firstWhere('service', SermonService::Evening);
         $this->assertTrue((bool) $evening->needs_review);
-        $this->assertFalse($evening->import_metadata->toArray()['plan']['finalised']);
+        $this->assertSame([false], array_column($evening->import_metadata->toArray()['email_evidence'], 'finalised'));
         $this->assertSame('review_required', $evening->import_metadata->toArray()['plan']['disposition']);
 
         $email->refresh();

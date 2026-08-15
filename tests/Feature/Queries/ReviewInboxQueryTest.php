@@ -176,11 +176,40 @@ class ReviewInboxQueryTest extends TestCase
         $this->assertCount(ReviewInboxQuery::SOURCE_CAP, $unattributedGroup['items']);
     }
 
+    /**
+     * §9: "Evidence-tier imports (IC1) enter the census, not the weekly attention inbox." The
+     * descending date order alone would not hold once the current-era back-fill (IC4) starts
+     * flagging services inside the recent window, so the boundary is explicit.
+     */
+    #[Test]
+    public function it_excludes_pre_era_historic_services_from_the_weekly_inbox(): void
+    {
+        config(['church.services.public_from' => '2020-01-01']);
+
+        ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+            'needs_review' => true,
+        ]);
+        ChurchService::factory()->create([
+            'date' => '2011-04-17',
+            'service' => SermonService::Morning,
+            'needs_review' => true,
+        ]);
+
+        $result = $this->query->build();
+
+        $this->assertSame(1, $result['counts']['services']);
+        $this->assertNull(collect($result['groups'])->firstWhere('date', '2011-04-17'));
+    }
+
     #[Test]
     public function it_reports_accurate_summary_counts(): void
     {
         InboundEmail::factory()->create(['status' => InboundEmailStatus::Pending->value]);
-        ChurchService::factory()->create(['needs_review' => true]);
+        // Pinned to the current era: the factory's default date is `faker->date()`, which ranges
+        // back to 1970 and so can land behind the era boundary the inbox is now scoped to.
+        ChurchService::factory()->create(['date' => '2026-06-07', 'needs_review' => true]);
 
         $run = MediaProcessingLog::factory()->livestream()->manualReviewRequired()->create();
 

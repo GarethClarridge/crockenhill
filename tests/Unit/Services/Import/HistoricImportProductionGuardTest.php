@@ -6,6 +6,7 @@ namespace Tests\Unit\Services\Import;
 
 use App\Exceptions\HistoricImportFrozen;
 use App\Models\Sermon;
+use App\Services\Import\HistoricImportApprovalManifest;
 use App\Services\Import\HistoricImportProductionGuard;
 use App\Services\Import\HistoricImportResourceIdentity;
 use App\Services\Import\HistoricImportTargetFingerprint;
@@ -103,17 +104,42 @@ class HistoricImportProductionGuardTest extends TestCase
 
         $this->assertStringContainsString(
             'does not match this manifest',
-            (string) $guard->refusalFor('oos:import-archive --import', manifestHash: str_repeat('c', 64), planHash: str_repeat('b', 64)),
+            (string) $guard->refusalFor('oos:import-archive --import', roundCorpusHash: str_repeat('c', 64), planHash: str_repeat('b', 64)),
         );
         $this->assertStringContainsString(
             'does not match this plan',
-            (string) $guard->refusalFor('oos:import-archive --import', manifestHash: str_repeat('a', 64), planHash: str_repeat('c', 64)),
+            (string) $guard->refusalFor('oos:import-archive --import', roundCorpusHash: str_repeat('a', 64), planHash: str_repeat('c', 64)),
         );
         $this->assertNull($guard->refusalFor(
             'oos:import-archive --import',
-            manifestHash: str_repeat('a', 64),
+            roundCorpusHash: str_repeat('a', 64),
             planHash: str_repeat('b', 64),
         ));
+    }
+
+    /**
+     * IC2 changed the approval's fields, so a version-1 artifact signed under the one-shot
+     * schema has to be told its schema moved. The artifact is hand-written and there is no
+     * generator to regenerate it from — reporting the change as "missing or unknown fields"
+     * would send the operator hunting for a typo that does not exist.
+     */
+    #[Test]
+    public function a_pre_ic2_approval_is_refused_by_version_rather_than_by_field_name(): void
+    {
+        $path = $this->approval('oos:import-archive --import');
+        /** @var array<string, mixed> $approval */
+        $approval = json_decode((string) file_get_contents($path), true);
+        $approval['version'] = 1;
+        unset($approval['round']);
+        $approval['freeze'] = ['deploy' => true, 'started_at' => now()->toIso8601String()];
+        file_put_contents($path, json_encode($approval));
+
+        Config::set('church.historic_corpus.production_import_approval', $path);
+        $refusal = (string) $this->guard('production')->refusalFor('oos:import-archive --import');
+
+        $this->assertStringContainsString('format is unsupported', $refusal);
+        $this->assertStringContainsString('version 2', $refusal);
+        $this->assertStringNotContainsString('missing or unknown fields', $refusal);
     }
 
     /**
@@ -545,8 +571,8 @@ class HistoricImportProductionGuardTest extends TestCase
         $target = app(HistoricImportTargetFingerprint::class)->hash();
         $operation = $this->createHistoricImportOperation($target);
         $approval = [
-            'format' => 'crockenhill-historic-import-approval',
-            'version' => 1,
+            'format' => HistoricImportApprovalManifest::Format,
+            'version' => HistoricImportApprovalManifest::Version,
             'approval_id' => 'approval-2026-08-09',
             'operation_id' => $operation->operation_id,
             'binding_hash' => $operation->binding_hash,

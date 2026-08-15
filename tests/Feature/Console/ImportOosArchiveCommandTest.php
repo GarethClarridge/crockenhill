@@ -7,15 +7,18 @@ namespace Tests\Feature\Console;
 use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
 use App\Enums\InboundEmailStatus;
+use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\InboundEmail;
+use App\Models\Sermon;
 use App\Queries\AdminAttentionCounts;
 use App\Queries\ReviewInboxQuery;
 use App\Services\ChurchService\ChurchServiceEvidenceSet;
 use App\Services\ChurchService\ChurchServiceSongLinker;
 use App\Services\Email\OosArchiveParseCacheBinding;
 use App\Services\Email\OosCurationManifest;
+use App\Services\Import\HistoricEmailEvidenceReleaseGate;
 use App\Services\Import\HistoricImportResourceIdentity;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -1123,7 +1126,7 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertSame(InboundEmailStatus::Processed, InboundEmail::query()->firstOrFail()->status);
         $service->refresh();
         $this->assertTrue((bool) $service->needs_review);
-        $this->assertFalse($service->import_metadata->toArray()['plan']['finalised']);
+        $this->assertSame([false], array_column($service->import_metadata->toArray()['email_evidence'], 'finalised'));
     }
 
     /**
@@ -1256,8 +1259,15 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertTrue((bool) $evening->needs_review);
         $eveningMetadata = $evening->import_metadata->toArray();
         $this->assertSame('review_required', $eveningMetadata['plan']['disposition']);
-        $this->assertFalse($eveningMetadata['plan']['finalised']);
+        $this->assertSame([false], array_column($eveningMetadata['email_evidence'], 'finalised'));
         $this->assertSame('created', $this->readReport($report)['entries'][0]['disposition']);
+
+        // REV-D2 tier three: it exists in the graph, and it is not releasable.
+        $sermon = Sermon::factory()->create(['date' => '2026-07-12', 'service' => SermonService::Evening]);
+        $this->assertSame(
+            ['2026-07-12 evening'],
+            app(HistoricEmailEvidenceReleaseGate::class)->ineligibleServiceLabels([$sermon->id]),
+        );
     }
 
     #[Test]
@@ -1396,8 +1406,12 @@ class ImportOosArchiveCommandTest extends TestCase
             ...$corpus,
             '--import' => true, '--plan-hash' => $this->planHash(),
             '--report' => $report,
-            // IC2: held/pending residue is reported state, not a command failure.
-        ])->assertExitCode(0);
+            // IC2: held/pending residue is reported state, not a command failure. The exit code
+            // used to be the only signal a source was held, so the summary has to carry it now —
+            // otherwise a round that held everything looks exactly like a clean one.
+        ])
+            ->expectsOutputToContain('held_for_review')
+            ->assertExitCode(0);
 
         $payload = $this->readReport($report);
         $this->assertSame('held_for_review', $payload['entries'][0]['disposition']);
@@ -1558,9 +1572,17 @@ class ImportOosArchiveCommandTest extends TestCase
 
         $service = ChurchService::query()->where('date', '2026-07-12')->firstOrFail();
         $this->assertCount(1, $service->items);
-        // The predecessor's evidence tier was superseded but never finalised; the correction did
-        // clear the auto-import bar outright.
-        $this->assertTrue($service->import_metadata->toArray()['plan']['finalised']);
+
+        // Both revisions keep their own tier: the predecessor was never finalised, the correction
+        // cleared the auto-import bar outright. Recording one flag per service could only have
+        // kept whichever wrote last.
+        $evidence = $service->import_metadata->toArray()['email_evidence'];
+        $this->assertSame([false, true], array_column($evidence, 'finalised'));
+
+        // Release still goes ahead: the unfinalised evidence is the superseded predecessor, and
+        // supersession is exactly how a correction chain resolves it.
+        $sermon = Sermon::factory()->create(['date' => '2026-07-12', 'service' => SermonService::Morning]);
+        $this->assertSame([], app(HistoricEmailEvidenceReleaseGate::class)->ineligibleServiceLabels([$sermon->id]));
     }
 
     /**

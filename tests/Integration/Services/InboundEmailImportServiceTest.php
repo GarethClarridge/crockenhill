@@ -8,6 +8,7 @@ use App\Data\OosEmailParseResult;
 use App\Data\OosEmailServicePlan;
 use App\Data\StructureMergeResult;
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\ChurchServiceReviewState;
 use App\Enums\InboundEmailStatus;
 use App\Enums\OosEmailContentScope;
 use App\Enums\OosEmailParseDisposition;
@@ -15,10 +16,13 @@ use App\Enums\OosEmailPlanHoldReason;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
+use App\Models\Sermon;
 use App\Models\Song;
 use App\Models\User;
 use App\Services\ChurchService\ChurchServiceStructureMergeService;
+use App\Services\ChurchService\SourceAdapters\EmailSourceAdapter;
 use App\Services\Email\InboundEmailImportService;
+use App\Services\Import\HistoricEmailEvidenceReleaseGate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\Test;
@@ -315,12 +319,121 @@ class InboundEmailImportServiceTest extends TestCase
         $this->assertSame('created', $result->plans[0]->outcome->value);
         $this->assertInstanceOf(ChurchService::class, $churchService);
         $this->assertTrue((bool) $churchService->needs_review);
-        $this->assertFalse($churchService->import_metadata->toArray()['plan']['finalised']);
         $this->assertSame('review_required', $churchService->import_metadata->toArray()['plan']['disposition']);
         $this->assertSame(['low_confidence'], $churchService->import_metadata->toArray()['plan']['hold_reasons']);
         // Never touched by an automated import, so the service reads NotReviewed regardless of
         // the needs_review column above — the two are independent by design.
         $this->assertArrayNotHasKey('manual_review', $churchService->import_metadata->toArray());
+
+        // Recorded per source key, not as one flag per service, so a service accumulating
+        // evidence from several emails can still be asked whether *any* of it is unfinalised.
+        $sourceKey = EmailSourceAdapter::sourceKeyFor($inboundEmail, $plan);
+        $evidence = $churchService->import_metadata->toArray()['email_evidence'];
+
+        $this->assertSame(['morning:2025-03-09'], array_column($evidence, 'plan_key'));
+        $this->assertFalse($evidence[$sourceKey]['finalised']);
+        $this->assertSame(['low_confidence'], $evidence[$sourceKey]['hold_reasons']);
+    }
+
+    #[Test]
+    public function test_a_service_carrying_unfinalised_email_evidence_is_not_release_eligible(): void
+    {
+        // REV-D2 tier three: existence widens, publication does not. The evidence imported above
+        // must keep its service out of a release batch until a human has reviewed it.
+        $inboundEmail = InboundEmail::factory()->create();
+        $plan = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2025-03-09',
+            items: [
+                ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ],
+            confidence: 0.60,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            holdReasons: [OosEmailPlanHoldReason::LowConfidence],
+        );
+        $parseResult = new OosEmailParseResult(
+            date: '2025-03-09',
+            service: SermonService::Morning,
+            items: $plan->items,
+            confidenceScore: 0.60,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: [],
+            servicePlans: [$plan],
+            disposition: OosEmailParseDisposition::ReviewRequired,
+        );
+
+        $this->service->import($inboundEmail, $parseResult);
+
+        $sermon = Sermon::factory()->create(['date' => '2025-03-09', 'service' => SermonService::Morning]);
+        $gate = app(HistoricEmailEvidenceReleaseGate::class);
+
+        $this->assertSame(['2025-03-09 morning'], $gate->ineligibleServiceLabels([$sermon->id]));
+
+        // An admin approving the same plan finalises the evidence it covers, and the service
+        // becomes releasable without anything else changing.
+        $admin = User::factory()->create();
+        $this->service->import($inboundEmail, $parseResult, reviewedByUserId: $admin->id);
+
+        $this->assertSame([], $gate->ineligibleServiceLabels([$sermon->id]));
+    }
+
+    #[Test]
+    public function test_an_unattended_evidence_merge_reopens_rather_than_erases_a_completed_review(): void
+    {
+        // Before REV-D2 only confident plans merged unattended, so this could not happen. Now a
+        // low-confidence email can land on a service an operator already cleared: the review is
+        // reopened with its source recorded, not silently rewound to "never reviewed".
+        $reviewedAt = '2025-03-10T09:00:00+00:00';
+        $reviewer = User::factory()->create();
+        $existing = ChurchService::factory()->create([
+            'date' => '2025-03-09',
+            'service' => 'morning',
+            'source' => 'email',
+            'needs_review' => false,
+            'review_state' => ChurchServiceReviewState::Reviewed,
+            'manual_reviewed_at' => $reviewedAt,
+            'manual_reviewed_by_user_id' => $reviewer->id,
+            'import_metadata' => ['manual_review' => ['reviewed_at' => $reviewedAt, 'reviewed_by_user_id' => $reviewer->id]],
+        ]);
+
+        $inboundEmail = InboundEmail::factory()->create();
+        $plan = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2025-03-09',
+            items: [
+                ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ],
+            confidence: 0.60,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            holdReasons: [OosEmailPlanHoldReason::LowConfidence],
+        );
+        $parseResult = new OosEmailParseResult(
+            date: '2025-03-09',
+            service: SermonService::Morning,
+            items: $plan->items,
+            confidenceScore: 0.60,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: [],
+            servicePlans: [$plan],
+            disposition: OosEmailParseDisposition::ReviewRequired,
+        );
+
+        $this->service->import($inboundEmail, $parseResult);
+
+        $fresh = $existing->fresh();
+        $manualReview = $fresh->import_metadata->toArray()['manual_review'];
+
+        $this->assertSame(ChurchServiceReviewState::Reopened, $fresh->review_state);
+        $this->assertSame($reviewedAt, $manualReview['reviewed_at'], 'the human review is retained');
+        $this->assertSame('email', $manualReview['reopened_by_source']);
+        $this->assertNotNull($manualReview['reopened_at']);
+        $this->assertTrue((bool) $fresh->needs_review);
     }
 
     #[Test]

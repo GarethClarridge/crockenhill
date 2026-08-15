@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Operations;
 
+use App\Enums\ChurchServiceSource;
 use App\Enums\HistoricImportOperationState;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
+use App\Models\ChurchService;
 use App\Models\HistoricImportOperation;
 use App\Models\HistoricImportReleaseAsset;
 use App\Models\HistoricImportReleaseAttempt;
@@ -194,6 +196,45 @@ class HistoricSermonReleaseBatchTest extends TestCase
 
         $this->artisan('historic-import:release-batch', ['authorisation' => $path])
             ->expectsOutputToContain('exact closeout')
+            ->assertFailed();
+
+        $this->assertQuarantineIntact($sermon);
+    }
+
+    /**
+     * REV-D2's third tier. "Existence widens" put identity-corroborated email evidence into the
+     * service graph unattended and left it unreviewed; the same decision requires that a service
+     * carrying such evidence is not release-eligible, or the evidence tier would have become a
+     * route to publication.
+     */
+    #[Test]
+    public function a_batch_is_refused_while_a_service_carries_unfinalised_email_evidence(): void
+    {
+        $operation = $this->completedOperation();
+        $sermon = $this->quarantinedSermon($operation);
+
+        ChurchService::factory()->create([
+            'date' => $sermon->date->toDateString(),
+            'service' => $sermon->service,
+            'needs_review' => true,
+            'import_metadata' => [
+                'email_evidence' => ['message-1|morning:2026-01-04' => ['finalised' => false]],
+            ],
+        ])->sourceRecords()->create([
+            'source' => ChurchServiceSource::Email,
+            'source_key' => 'message-1|morning:2026-01-04',
+            'revision_hash' => str_repeat('a', 64),
+            'input_hash' => str_repeat('b', 64),
+            'processing_fingerprint' => ['format' => 'email-plan', 'version' => 1],
+            'captured_at' => now(),
+        ]);
+
+        $path = $this->authorisation($operation, [$sermon->id], []);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path])
+            // One expectation, not two: each consumes the matching line, and the refusal names
+            // the offending services on the same line as its reason.
+            ->expectsOutputToContain('unreviewed, unfinalised email evidence: 2026-01-04 morning.')
             ->assertFailed();
 
         $this->assertQuarantineIntact($sermon);

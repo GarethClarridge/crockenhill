@@ -37,21 +37,35 @@ use RuntimeException;
  * (docs/plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md §4).
  * `round` replaces them: the label an operator gave this round, the approved
  * corpus manifest hash and the exact reviewed plan hash it is bound to, and
- * the backup receipt §7.1 requires before RG-B apply. `manifestHash`/
+ * the backup receipt §7.1 requires before RG-B apply. `roundCorpusHash`/
  * `planHash` passed to {@see self::authorize()} are checked against `round`
  * when the caller supplies them, so an approval signed for one round's corpus
  * can never authorise a different one.
+ *
+ * `round.manifest_hash` is whatever hash *the permitted command* computes for its own approved
+ * corpus — a curation manifest hash for `oos:import-archive`, a batch hash for
+ * `service-tracking:converge-historic-service`. Sign one approval per command; see
+ * {@see HistoricImportProductionGuard::refusalFor()}.
  * @see docs/plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md §6 IC2, §7.1
  */
 final class HistoricImportApprovalManifest
 {
+    public const Format = 'crockenhill-historic-import-approval';
+
+    /**
+     * Bumped to 2 by IC2. The artifact is hand-written by the operator — there is no generator to
+     * regenerate — so the version is the only thing that can tell them a previously valid
+     * approval no longer matches the schema this class enforces.
+     */
+    public const Version = 2;
+
     /** @return array<string, mixed> */
     public function authorize(
         string $path,
         string $command,
         string $targetFingerprint,
         string $signingKey,
-        ?string $manifestHash = null,
+        ?string $roundCorpusHash = null,
         ?string $planHash = null,
     ): array {
         if (! is_file($path)) {
@@ -68,15 +82,27 @@ final class HistoricImportApprovalManifest
             throw new RuntimeException('The historic import production approval artifact must be an object.');
         }
 
+        /**
+         * Checked before the field list, not after. IC2 replaced `freeze`/`abort_thresholds`/
+         * `monitoring` with `round`, so a version-1 artifact an operator signed under the
+         * one-shot schema now has genuinely different fields — and reporting that as "missing or
+         * unknown fields" would send them hunting for a typo instead of telling them the schema
+         * moved. The version is what changed; say so first.
+         */
+        if (($approval['format'] ?? null) !== self::Format || ($approval['version'] ?? null) !== self::Version) {
+            throw new RuntimeException(sprintf(
+                'The historic import production approval format is unsupported; expected %s version %d '
+                .'(IC2 replaced the freeze/abort_thresholds/monitoring fields with a single round block).',
+                self::Format,
+                self::Version,
+            ));
+        }
+
         $this->exactKeys($approval, [
             'format', 'version', 'approval_id', 'operation_id', 'binding_hash',
             'target_fingerprint', 'release_identifier', 'expires_at', 'permitted_commands',
             'round', 'roles', 'signature',
         ], 'production approval');
-
-        if ($approval['format'] !== 'crockenhill-historic-import-approval' || $approval['version'] !== 1) {
-            throw new RuntimeException('The historic import production approval format is unsupported.');
-        }
 
         if (! is_string($approval['approval_id']) || trim($approval['approval_id']) === '') {
             throw new RuntimeException('The historic import production approval id is missing.');
@@ -158,7 +184,7 @@ final class HistoricImportApprovalManifest
          * yet) skips this; every IC2 caller supplies both, so an approval signed
          * for a different manifest or plan is refused here rather than reused.
          */
-        if ($manifestHash !== null && ! hash_equals($round['manifest_hash'], $manifestHash)) {
+        if ($roundCorpusHash !== null && ! hash_equals($round['manifest_hash'], $roundCorpusHash)) {
             throw new RuntimeException('The production approval round does not match this manifest.');
         }
 

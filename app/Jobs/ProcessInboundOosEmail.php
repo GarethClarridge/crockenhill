@@ -65,12 +65,19 @@ class ProcessInboundOosEmail implements ShouldBeUnique, ShouldQueue
         $parseResult = $parser->parse($inboundEmail);
         $importService->storeParseResult($inboundEmail, $parseResult);
 
-        $autoImportablePlans = array_filter(
+        /**
+         * This has to admit exactly what {@see InboundEmailImportService::importPlan()} admits
+         * unattended, or it silently narrows it: the same widened REV-D2 gate, applied one step
+         * earlier. When it did not, an evidence-tier plan imported only if it happened to share
+         * an email with an auto-importable sibling, and imported nothing at all when it was the
+         * only plan — a difference the plan itself never asked for.
+         */
+        $importablePlans = array_filter(
             $parseResult->servicePlans,
-            static fn ($plan): bool => $plan->isAutoImportable(),
+            static fn ($plan): bool => $plan->isAutoImportable() || $plan->isEvidenceImportable(),
         );
 
-        if ($autoImportablePlans === []) {
+        if ($importablePlans === []) {
             $inboundEmail->refresh();
             $inboundEmail->status = InboundEmailStatus::Pending;
             $inboundEmail->save();
@@ -79,9 +86,9 @@ class ProcessInboundOosEmail implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        // Imports every confident plan and holds the rest. Held plans (below the auto-import bar)
-        // are a normal outcome that leaves the email Pending in the inbox with its confident orders
-        // already imported and per-plan state recorded.
+        // Imports every confident plan outright and every identity-trustworthy one as unreviewed
+        // evidence, holding the rest. Held plans are a normal outcome that leaves the email
+        // Pending in the inbox with its importable orders already in, and per-plan state recorded.
         $result = $importService->import($inboundEmail, $parseResult);
 
         // A plan that *failed* to import (a DB or sync error) is not a hold — swallowing it would

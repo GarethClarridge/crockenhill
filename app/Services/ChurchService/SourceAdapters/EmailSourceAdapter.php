@@ -19,6 +19,16 @@ class EmailSourceAdapter
         private readonly ChurchServiceAssertionNormalizer $normalizer,
     ) {}
 
+    /**
+     * The identity of one email's assertion about one service slot, and the key the source
+     * revision is stored under. Defined here rather than rebuilt by each caller: the release
+     * gate records evidence against exactly the key the revision it describes was written with.
+     */
+    public static function sourceKeyFor(InboundEmail $email, OosEmailServicePlan $plan): string
+    {
+        return $email->message_id.'|'.$plan->key();
+    }
+
     public function adapt(
         InboundEmail $email,
         OosEmailServicePlan $plan,
@@ -26,7 +36,7 @@ class EmailSourceAdapter
     ): ChurchServiceSourceRevision {
         $metadata = $email->processing_metadata ?? [];
         $batchHash = Arr::get($metadata, 'archive.curation_plan_hash');
-        $sourceKey = $email->message_id.'|'.$plan->key();
+        $sourceKey = self::sourceKeyFor($email, $plan);
         $planIdentities = Arr::get($metadata, 'archive.plan_identities', []);
         $supersedesSourceKey = null;
 

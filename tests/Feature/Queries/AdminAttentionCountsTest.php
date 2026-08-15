@@ -108,6 +108,48 @@ class AdminAttentionCountsTest extends TestCase
         $this->assertSame(1, $counts['services_needing_review']);
     }
 
+    /**
+     * A historic round imports hundreds of services flagged `needs_review` on purpose (REV-D2),
+     * and this count feeds the members-home badge. Counting them would make the badge a constant
+     * three-figure number that tells the operator nothing about the week's actual work.
+     */
+    #[Test]
+    public function it_does_not_count_pre_era_historic_services_needing_review(): void
+    {
+        config(['church.services.public_from' => '2020-01-01']);
+
+        ChurchService::factory()->create([
+            'date' => '2026-05-31',
+            'service' => SermonService::Morning,
+            'needs_review' => true,
+        ]);
+        ChurchService::factory()->create([
+            'date' => '2011-04-17',
+            'service' => SermonService::Morning,
+            'needs_review' => true,
+        ]);
+
+        $this->assertSame(1, $this->query->counts()['services_needing_review']);
+    }
+
+    /**
+     * The public read paths fail closed on an unset boundary; this one must not. Silently
+     * dropping work out of the operator's own queue is the worse failure.
+     */
+    #[Test]
+    public function an_unset_era_boundary_hides_nothing_from_the_operator(): void
+    {
+        config(['church.services.public_from' => null]);
+
+        ChurchService::factory()->create([
+            'date' => '2011-04-17',
+            'service' => SermonService::Morning,
+            'needs_review' => true,
+        ]);
+
+        $this->assertSame(1, $this->query->counts()['services_needing_review']);
+    }
+
     #[Test]
     public function flagged_sections_count_is_zero_when_section_publishing_is_disabled(): void
     {
@@ -145,7 +187,9 @@ class AdminAttentionCountsTest extends TestCase
     public function total_sums_every_count(): void
     {
         InboundEmail::factory()->create(['status' => InboundEmailStatus::Pending->value]);
-        ChurchService::factory()->create(['needs_review' => true]);
+        // Pinned to the current era: the factory's default date is `faker->date()`, which ranges
+        // back to 1970 and so can land behind the era boundary this count is now scoped to.
+        ChurchService::factory()->create(['date' => '2026-05-31', 'needs_review' => true]);
 
         $this->assertSame(2, $this->query->total());
     }

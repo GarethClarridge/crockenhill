@@ -23,9 +23,11 @@ use App\Models\InboundEmail;
 use App\Services\ChurchService\ChurchServiceAssertionNormalizer;
 use App\Services\ChurchService\ChurchServiceCompatibilityMergeDecision;
 use App\Services\ChurchService\ChurchServiceIdentityResolver;
+use App\Services\ChurchService\ChurchServiceReviewStateService;
 use App\Services\ChurchService\ChurchServiceSongLinker;
 use App\Services\ChurchService\ChurchServiceStructureMergeService;
 use App\Services\ChurchService\SourceAdapters\EmailSourceAdapter;
+use App\Services\Import\HistoricEmailEvidenceReleaseGate;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -44,6 +46,7 @@ class InboundEmailImportService
         private readonly EmailSourceAdapter $sourceAdapter,
         private readonly ChurchServiceCompatibilityMergeDecision $compatibilityMerge,
         private readonly ChurchServiceIdentityResolver $identityResolver,
+        private readonly ChurchServiceReviewStateService $reviewStateService,
     ) {}
 
     /**
@@ -399,7 +402,7 @@ class InboundEmailImportService
             );
         }
 
-        $importMetadata = $this->planImportMetadata($parseResult, $plan, $reviewedByUserId, $reviewMode);
+        $importMetadata = $this->planImportMetadata($inboundEmail, $parseResult, $plan, $reviewedByUserId, $reviewMode);
 
         try {
             return $this->mergeOrCreatePlan($inboundEmail, $plan, $importMetadata, $reviewedByUserId, $sourceInputHash);
@@ -613,6 +616,41 @@ class InboundEmailImportService
     }
 
     /**
+     * Machine evidence arriving after a completed human review reopens that review; it does not
+     * quietly erase it.
+     *
+     * Before REV-D2 only auto-importable plans merged unattended, and those carry
+     * `needsReview = false`, so this case was unreachable. Widening the unattended tier made a
+     * low-confidence email able to flip a service an operator had already cleared straight back
+     * to `needs_review`, with nothing recorded about why and `manual_reviewed_at` still claiming
+     * the service was reviewed. `ChurchServiceCanonicalUpdateService::finalize()` has always used
+     * `reopened_at`/`reopened_by_source` for exactly this, but the projector merge path returns
+     * before reaching it, so the same idiom is applied here.
+     *
+     * @param  array<string, mixed>  $mergedMetadata
+     * @return array<string, mixed>
+     */
+    private function reviewStateForMerge(
+        array $mergedMetadata,
+        ChurchService $existingService,
+        OosEmailServicePlan $plan,
+        ?int $reviewedByUserId,
+    ): array {
+        $reviewedPreviously = is_string($existingService->import_metadata?->manualReview?->reviewedAt);
+
+        if ($reviewedByUserId !== null || ! $plan->needsReview || ! $reviewedPreviously) {
+            return $mergedMetadata;
+        }
+
+        $manualReview = is_array($mergedMetadata['manual_review'] ?? null) ? $mergedMetadata['manual_review'] : [];
+        $manualReview['reopened_at'] = now()->toIso8601String();
+        $manualReview['reopened_by_source'] = ChurchServiceItemSource::Email->value;
+        $mergedMetadata['manual_review'] = $manualReview;
+
+        return $mergedMetadata;
+    }
+
+    /**
      * @param  array<string, mixed>  $importMetadata
      */
     private function mergePlanIntoExistingService(
@@ -625,9 +663,17 @@ class InboundEmailImportService
     ): OosEmailImportPlanOutcome {
         $mergeResult = DB::transaction(function () use ($inboundEmail, $plan, $existingService, $importMetadata, $reviewedByUserId, $sourceInputHash): StructureMergeResult {
             $existingMetadata = $existingService->import_metadata?->toArray() ?? [];
+            $mergedMetadata = $this->reviewStateForMerge(
+                array_replace_recursive($existingMetadata, $importMetadata),
+                $existingService,
+                $plan,
+                $reviewedByUserId,
+            );
+
             $existingService->fill([
                 'needs_review' => $reviewedByUserId === null ? $plan->needsReview : false,
-                'import_metadata' => array_replace_recursive($existingMetadata, $importMetadata),
+                'import_metadata' => $mergedMetadata,
+                ...$this->reviewStateService->normalizedReviewColumns($mergedMetadata),
             ]);
             $existingService->save();
 
@@ -694,6 +740,7 @@ class InboundEmailImportService
      * @return array<string, mixed>
      */
     private function planImportMetadata(
+        InboundEmail $inboundEmail,
         OosEmailParseResult $parseResult,
         OosEmailServicePlan $plan,
         ?int $reviewedByUserId,
@@ -708,14 +755,32 @@ class InboundEmailImportService
                 'content_scope' => $plan->contentScope->value,
                 'disposition' => $plan->disposition->value,
                 'hold_reasons' => $plan->holdReasonValues(),
-                /**
-                 * REV-D2: whether this import cleared the full auto-import bar (`true`) or was
-                 * admitted only as unreviewed source evidence because its identity is trustworthy
-                 * (`false`). An admin approval always finalises what it approves. Read by release
-                 * eligibility — a service still carrying unfinalised email evidence is not
-                 * release-eligible.
-                 */
-                'finalised' => $reviewedByUserId !== null || $plan->disposition === OosEmailParseDisposition::AutoImportable,
+            ],
+            /**
+             * REV-D2's release input, keyed by the source key of the revision it describes
+             * ({@see EmailSourceAdapter::sourceKeyFor()}) rather than held as one flag per
+             * service. A service accumulates evidence from several emails — a correction chain,
+             * a morning and an evening plan, an archive entry re-imported later — and one scalar
+             * can only record whichever wrote last, which is the opposite of the question the
+             * release gate asks: does *any* evidence this service carries remain unfinalised?
+             *
+             * `array_replace_recursive` merges a map by key, so each source key updates only its
+             * own entry, and an admin approving that same plan later overwrites its own `false`.
+             *
+             * @see HistoricEmailEvidenceReleaseGate
+             */
+            'email_evidence' => [
+                EmailSourceAdapter::sourceKeyFor($inboundEmail, $plan) => [
+                    'plan_key' => $plan->key(),
+                    'disposition' => $plan->disposition->value,
+                    'hold_reasons' => $plan->holdReasonValues(),
+                    /**
+                     * Whether this import cleared the full auto-import bar (`true`) or was
+                     * admitted only as unreviewed source evidence because its identity is
+                     * trustworthy (`false`). An admin approval always finalises what it approves.
+                     */
+                    'finalised' => $reviewedByUserId !== null || $plan->disposition === OosEmailParseDisposition::AutoImportable,
+                ],
             ],
         ]);
 

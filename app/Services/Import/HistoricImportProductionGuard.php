@@ -86,14 +86,23 @@ class HistoricImportProductionGuard
      * caller with no such hashes to bind (a lane IC2 has not reached yet)
      * passes neither and gets the pre-IC2 operation/target check only.
      *
+     * **The corpus hash is per-command, and an approval binds to one command's notion of it.**
+     * Each lane hashes its approved corpus differently — `oos:import-archive` presents its
+     * curation manifest hash, `service-tracking:converge-historic-service` presents the batch
+     * hash covering its media and convergence bundles — so `round.manifest_hash` means "the hash
+     * this round's command computes for its own corpus". One approval listing both commands in
+     * `permitted_commands` can therefore only ever satisfy one of them; the other is refused.
+     * That fails in the safe direction, but sign an approval per command rather than discovering
+     * it as a mystery refusal.
+     *
      * @param  string  $operation  The invocation being guarded, as an operator would type it.
-     * @param  string|null  $manifestHash  The round's approved corpus manifest hash, when known.
+     * @param  string|null  $roundCorpusHash  The round's approved corpus hash as this command computes it, when known.
      * @param  string|null  $planHash  The round's exact reviewed plan hash, when known.
      */
     public function refusalFor(
         string $operation,
         ?string $operationId = null,
-        ?string $manifestHash = null,
+        ?string $roundCorpusHash = null,
         ?string $planHash = null,
     ): ?string {
         $anchorError = $this->anchorConfigurationError();
@@ -133,7 +142,7 @@ class HistoricImportProductionGuard
                 $operation,
                 $target,
                 (string) config('media-processing.historic_import.evidence_signing_key'),
-                $manifestHash,
+                $roundCorpusHash,
                 $planHash,
             );
 

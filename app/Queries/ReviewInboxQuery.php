@@ -216,7 +216,14 @@ class ReviewInboxQuery
          * fields for group resolution and kind identification to reduce memory usage
          * and DB I/O in the capped inbox view.
          */
+        /**
+         * Both queries are current-era only. A historic round imports hundreds of services
+         * flagged `needs_review` on purpose (REV-D2), and the date ordering below would not keep
+         * them out on its own once the current-era back-fill runs — those belong to the per-round
+         * proposal census. See {@see ChurchService::scopeInCurrentEra()}.
+         */
         $merges = ChurchService::query()
+            ->inCurrentEra()
             ->select(['id', 'date', 'service', 'pending_structure_merge_source', 'needs_review'])
             ->whereNotNull('pending_structure_merge_source')
             ->orderByDesc('date')
@@ -224,6 +231,7 @@ class ReviewInboxQuery
             ->get();
 
         $flagged = ChurchService::query()
+            ->inCurrentEra()
             ->select(['id', 'date', 'service', 'pending_structure_merge_source', 'needs_review'])
             ->where('needs_review', true)
             ->orderByDesc('date')

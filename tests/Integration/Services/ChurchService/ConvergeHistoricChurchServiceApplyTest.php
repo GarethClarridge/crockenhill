@@ -480,6 +480,38 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
         $this->assertSame('media_blocked_difference', $held[0]['reason']);
     }
 
+    /**
+     * "This whole operation re-ran and changed nothing" is a claim about the operation. Scoped to
+     * the applicable subset it would be satisfied by one already-present service beside any
+     * number of held ones, and the event is retained closeout evidence — so a round with held
+     * residue records no such claim at all.
+     */
+    #[Test]
+    public function a_round_holding_a_service_records_no_exact_no_op_rerun(): void
+    {
+        [$mediaBundle, $convergenceBundle] = $this->corpus(['2026-08-02', '2026-08-09']);
+
+        // 2026-08-09 is blocked from the outset, so both rounds apply 2026-08-02 alone.
+        MediaProcessingLog::factory()->create([
+            'processing_id' => 'imported-run-2026-08-09',
+            'church_service_id' => null,
+        ]);
+
+        $converge = app(ConvergeHistoricChurchService::class);
+        $converge->executeBatch($mediaBundle, $convergenceBundle, operationId: 'held-residue-operation');
+
+        // The second round re-runs 2026-08-02 as already-present — an exact no-op across every
+        // service it applied, and still not a no-op across the operation.
+        $batch = $converge->executeBatch($mediaBundle, $convergenceBundle, operationId: 'held-residue-operation');
+
+        $this->assertCount(1, $batch->applied);
+        $this->assertNotSame([], $batch->held);
+        $this->assertSame([], array_values(array_filter(
+            app(HistoricConvergenceLedger::class)->entries('held-residue-operation'),
+            static fn (array $entry): bool => ($entry['event'] ?? null) === 'exact_noop_rerun',
+        )));
+    }
+
     #[Test]
     public function admission_splits_before_mutation_when_p95_apply_and_rollback_reserve_will_not_fit(): void
     {

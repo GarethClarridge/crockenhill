@@ -168,8 +168,16 @@ class ProcessInboundOosEmailTest extends TestCase
         $this->assertSame('unknown', $email->fresh()->processing_metadata['parsing']['service_plans'][0]['content_scope']);
     }
 
+    /**
+     * REV-D2/IC1: identity is trustworthy (a resolved date and service, no identity-gate hold
+     * reason) even though confidence never reached the auto-import bar, so the weekly lane
+     * imports it as unreviewed, unfinalised source evidence rather than holding it outright.
+     *
+     * This test asserted the pre-IC1 behaviour and kept passing after it, because the job
+     * short-circuits on `isAutoImportable()` before reaching the widened gate in `importPlan()`.
+     */
     #[Test]
-    public function it_holds_an_ambiguous_email_for_review_without_importing_it(): void
+    public function it_imports_an_ambiguous_email_as_unfinalised_evidence(): void
     {
         $this->bindExtractor(new OosEmailItemExtractionResult(
             items: [
@@ -199,14 +207,49 @@ class ProcessInboundOosEmailTest extends TestCase
 
         app()->call([new ProcessInboundOosEmail($email), 'handle']);
 
-        $this->assertDatabaseCount('church_services', 0);
+        $service = ChurchService::query()->firstOrFail();
+
+        $this->assertSame('2026-03-15', $service->date->toDateString());
+        $this->assertSame(SermonService::Morning, $service->service);
+        $this->assertTrue($service->needs_review, 'evidence-tier imports stay flagged for review');
+        $this->assertFalse(
+            $service->import_metadata->toArray()['email_evidence'][$email->message_id.'|morning:2026-03-15']['finalised'],
+            'an evidence-tier import is not finalised',
+        );
 
         $email->refresh();
-        $this->assertSame(InboundEmailStatus::Pending, $email->status);
         $this->assertFalse($email->processing_metadata['parsing']['should_import']);
         $this->assertTrue($email->processing_metadata['parsing']['needs_review']);
         $this->assertTrue($email->processing_metadata['parsing']['confidence_score'] >= 0.75);
         $this->assertTrue($email->processing_metadata['parsing']['confidence_score'] < 0.90);
+    }
+
+    /**
+     * The identity half of REV-D2 is unchanged: with no usable service/date pair there is nothing
+     * to import against, so the email still waits for a human.
+     */
+    #[Test]
+    public function it_holds_an_email_with_no_resolvable_identity_without_importing_it(): void
+    {
+        $this->bindExtractor(new OosEmailItemExtractionResult(
+            items: [
+                ['type' => 'welcome', 'title' => 'Welcome'],
+                ['type' => 'song', 'title' => 'How deep the Father\'s love for us'],
+            ],
+            confidence: 0.85,
+        ));
+
+        $email = InboundEmail::factory()->create([
+            'subject' => 'Some notes',
+            'body_plain' => "Welcome\nHow deep the Father's love for us",
+            'status' => InboundEmailStatus::Pending->value,
+            'received_at' => '2026-03-10 09:00:00',
+        ]);
+
+        app()->call([new ProcessInboundOosEmail($email), 'handle']);
+
+        $this->assertDatabaseCount('church_services', 0);
+        $this->assertSame(InboundEmailStatus::Pending, $email->fresh()->status);
     }
 
     #[Test]

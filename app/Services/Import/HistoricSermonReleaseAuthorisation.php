@@ -95,6 +95,7 @@ final class HistoricSermonReleaseAuthorisation
         }
 
         $this->assertObservation($authorisation, $expiresAt);
+        $this->assertFinalisedEvidence($authorisation);
 
         /** @var array{format: string, version: int, authorisation_id: string, operation_id: string, target_fingerprint: string, release_identifier: string, expires_at: string, batch_key: string, sermon_ids: list<int>, song_video_ids: list<int>, song_usage_report_ids: list<int>, declared_counts: array{sermons: int, song_videos: int, song_usage_reports: int}, roles: array{release_owner: string, independent_verifier: string, rollback_owner: string}, observation_ends_at: string, signature: array<string, mixed>} $authorisation */
         return $authorisation;
@@ -250,6 +251,31 @@ final class HistoricSermonReleaseAuthorisation
 
         if ($observationEndsAt <= $expiresAt) {
             throw new RuntimeException('The release observation window must outlast the authorisation itself.');
+        }
+    }
+
+    /**
+     * REV-D2 tier three: a service carrying unreviewed, unfinalised email evidence is not
+     * release-eligible.
+     *
+     * This belongs on the signed authorisation rather than in the release command because the
+     * authorisation is what enumerates the batch: refusing here means no partially-evidenced
+     * batch can be published by any caller, including a future one. The refusal names the
+     * services so the operator knows exactly what to review before re-signing.
+     *
+     * @param  array<string, mixed>  $authorisation
+     */
+    private function assertFinalisedEvidence(array $authorisation): void
+    {
+        /** @var list<int> $sermonIds */
+        $sermonIds = $authorisation['sermon_ids'];
+        $ineligible = app(HistoricEmailEvidenceReleaseGate::class)->ineligibleServiceLabels($sermonIds);
+
+        if ($ineligible !== []) {
+            throw new RuntimeException(
+                'The release batch includes services still carrying unreviewed, unfinalised email '
+                .'evidence: '.implode(', ', $ineligible).'.',
+            );
         }
     }
 

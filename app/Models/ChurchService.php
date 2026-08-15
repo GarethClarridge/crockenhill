@@ -9,6 +9,7 @@ use App\Data\ChurchServiceImportMetadataCast;
 use App\Enums\ChurchServiceCanonicalFinalization;
 use App\Enums\ChurchServiceReviewState;
 use App\Enums\SermonService;
+use App\Services\Public\PublicServiceContentEligibility;
 use Database\Factories\ChurchServiceFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -126,6 +127,36 @@ class ChurchService extends Model
     public function items(): HasMany
     {
         return $this->hasMany(ChurchServiceItem::class);
+    }
+
+    /**
+     * Restrict a query to the current era — the services the weekly attention inbox is about.
+     *
+     * The historic import deliberately creates many services flagged `needs_review`: REV-D2
+     * imports identity-corroborated email evidence unattended and leaves it unreviewed, which is
+     * the point. Those belong to the per-round proposal census, not to the queue an operator
+     * checks each week, and the incremental-convergence plan §9 says so explicitly: "Evidence-tier
+     * imports (IC1) enter the census, not the weekly attention inbox. The weekly inbox keeps its
+     * narrower `needs_review` semantics on purpose." Without this the members-home badge would
+     * count several hundred historic services and stop meaning anything.
+     *
+     * `church.services.public_from` is the era boundary already used by every public read path,
+     * so the two agree by construction. Unlike those paths this one fails *open*: an unset or
+     * malformed boundary hides nothing, because silently dropping work out of the operator's own
+     * queue is the worse failure here.
+     *
+     * @param  Builder<ChurchService>  $query
+     * @return Builder<ChurchService>
+     */
+    public function scopeInCurrentEra(Builder $query): Builder
+    {
+        $publicFrom = app(PublicServiceContentEligibility::class)->publicFrom();
+
+        if (! $publicFrom instanceof Carbon) {
+            return $query;
+        }
+
+        return $query->whereDate('church_services.date', '>=', $publicFrom->toDateString());
     }
 
     /**

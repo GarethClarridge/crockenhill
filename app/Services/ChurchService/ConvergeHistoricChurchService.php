@@ -371,8 +371,16 @@ class ConvergeHistoricChurchService
             $this->ledger()->recordHeld($plan, $held['identity'], $held['reason']);
         }
 
+        /**
+         * "This whole operation re-ran and changed nothing" is a claim about the operation, not
+         * about whichever subset of it happened to be applicable this round. Once IC2 allowed a
+         * round to hold services, recording the event over `$admission->applicable` alone would
+         * have let one already-present service and fifty held ones write a passing no-op rerun
+         * into retained closeout evidence. REV-D1 retires this as a *gate*, which is exactly why
+         * the surviving record has to keep saying something true.
+         */
         $alreadyPresent = HistoricImportClassification::AlreadyPresent->value;
-        $isExactNoOp = $admission->applicable !== [] && collect($admission->applicable)->every(
+        $isExactNoOp = $admission->held === [] && $admission->applicable !== [] && collect($admission->applicable)->every(
             static fn (array $service): bool => ($service['media_plan'] ?? null) instanceof HistoricProcessingResultImportPlan
                 && $service['media_plan']->classification === $alreadyPresent
                 && ($service['convergence_plan'] ?? null) instanceof ChurchServiceConvergenceImportPlan

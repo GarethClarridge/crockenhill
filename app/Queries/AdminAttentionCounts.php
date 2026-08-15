@@ -64,7 +64,13 @@ class AdminAttentionCounts
                 ->count(),
             'flagged_sections' => $this->flaggedSectionCount(),
             'pending_merges' => $this->dashboardQuery->pendingMergeCount(),
+            /**
+             * Current era only. Historic evidence-tier imports are unreviewed by design
+             * (REV-D2) and belong to the per-round census, not to this badge —
+             * see {@see ChurchService::scopeInCurrentEra()}.
+             */
             'services_needing_review' => ChurchService::query()
+                ->inCurrentEra()
                 ->where('needs_review', true)
                 ->count(),
         ];

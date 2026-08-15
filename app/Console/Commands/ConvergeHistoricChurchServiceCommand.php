@@ -104,8 +104,8 @@ class ConvergeHistoricChurchServiceCommand extends Command
             $productionRefusal = $productionGuard->refusalFor(
                 'service-tracking:converge-historic-service --apply',
                 $plan->operationId,
-                $plan->batchHash,
-                $plan->planHash,
+                roundCorpusHash: $plan->batchHash,
+                planHash: $plan->planHash,
             );
 
             if ($productionRefusal !== null) {
