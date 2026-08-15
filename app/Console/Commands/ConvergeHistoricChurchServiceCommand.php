@@ -14,8 +14,10 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Temporary R8 production one-shot. Delete after every approved service has
- * converged, the exact no-op rerun passes and the rollback window has expired.
+ * Temporary R8 production one-shot, now run as IC2/IC7 incremental convergence
+ * rounds rather than a single window. Delete when historic closeout is reached
+ * (docs/plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md §3.3): every
+ * lane's audit report at 100% disposed membership and final releases done.
  */
 class ConvergeHistoricChurchServiceCommand extends Command
 {
@@ -91,14 +93,19 @@ class ConvergeHistoricChurchServiceCommand extends Command
             }
 
             /**
-             * The G8 operation itself. Guarding it with the same switch is not
-             * belt-and-braces: it is what turns "production once, at G8" from a
-             * sentence in the plan into a precondition the run cannot skip, and
-             * it gives the closeout report a recorded authority to quote.
+             * The RG-B production apply itself (IC2 re-scoped this from the
+             * one-shot G8 window to per-round approval). Guarding it with the
+             * same switch is not belt-and-braces: it is what turns "approved for
+             * this round" from a sentence in the plan into a precondition the
+             * run cannot skip, and it gives the round audit report a recorded
+             * authority to quote. The batch and plan hashes bind the approval to
+             * this exact corpus and reviewed plan, not merely this operation id.
              */
             $productionRefusal = $productionGuard->refusalFor(
                 'service-tracking:converge-historic-service --apply',
                 $plan->operationId,
+                $plan->batchHash,
+                $plan->planHash,
             );
 
             if ($productionRefusal !== null) {
@@ -106,8 +113,9 @@ class ConvergeHistoricChurchServiceCommand extends Command
             }
 
             $this->assertPlanHash($plan->planHash);
-            $result = $all
-                ? $converge->executeBatch(
+
+            if ($all) {
+                $batch = $converge->executeBatch(
                     $mediaBundle,
                     $convergenceBundle,
                     $plan->planHash,
@@ -115,8 +123,11 @@ class ConvergeHistoricChurchServiceCommand extends Command
                     $plan->operationId,
                     $plan->expiresAt->format(DATE_ATOM),
                     $plan,
-                )
-                : [$converge->execute(
+                );
+                $applied = $batch->applied;
+                $held = $batch->held;
+            } else {
+                $applied = [$converge->execute(
                     $mediaBundle,
                     $convergenceBundle,
                     $mediaIndex,
@@ -124,6 +135,8 @@ class ConvergeHistoricChurchServiceCommand extends Command
                     $plan->planHash,
                     $plan,
                 )];
+                $held = [];
+            }
         } catch (Throwable $exception) {
             $this->error($exception->getMessage());
 
@@ -131,13 +144,26 @@ class ConvergeHistoricChurchServiceCommand extends Command
         }
 
         $this->info('Historic church-service convergence completed.');
-        $this->line('Services applied: '.count($result));
+        $this->line('Services applied: '.count($applied));
 
-        foreach ($result as $serviceResult) {
+        foreach ($applied as $serviceResult) {
             $service = $serviceResult['church_service'];
             $this->line("Converged {$service->date->toDateString()} {$service->service->value}.");
             $this->line("Canonical hash: {$service->canonical_hash}");
             $this->line('Created assets: '.count($serviceResult['created_assets']));
+        }
+
+        /**
+         * IC2: a held service is corpus-completeness residue, not a command
+         * failure — it is reported here rather than refusing the services that
+         * were applicable alongside it.
+         */
+        if ($held !== []) {
+            $this->line('Services held: '.count($held));
+
+            foreach ($held as $entry) {
+                $this->line("Held {$entry['identity']}: {$entry['reason']}.");
+            }
         }
 
         return self::SUCCESS;

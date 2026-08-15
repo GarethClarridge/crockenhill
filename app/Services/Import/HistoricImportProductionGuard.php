@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Import;
 
-use App\Models\ImportIngressLock;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Carbon;
@@ -12,16 +11,29 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Enforces the G8 boundary the plan header previously only described.
+ * Enforces the RG-B production boundary the plan header previously only described.
  *
- * The header of docs/archived-plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md
- * forbids canonical OoS/OpenLP archive imports, historic-video dispatch and
+ * Originally written against the one-shot G8 window: the header of
+ * docs/archived-plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md
+ * forbade canonical OoS/OpenLP archive imports, historic-video dispatch and
  * Bundle A/B persistence "until Gate G8". Read literally that also forbade
  * §13.5 steps 3-4, because staging Email evidence is only reachable through
  * `oos:import-archive --import` — there is no code path from the corpus to a
  * persisted `ChurchServiceSourceRevision` that avoids it. A prohibition that
  * blocks the only route to its own exit gate cannot have meant that, so the
  * scope is production, and this class is where saying so becomes enforceable.
+ *
+ * **IC2 re-scoped the boundary itself from one-shot GO to per-round approval**
+ * (docs/plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md §6, §7.1
+ * RG-B): a named round operation, bound to the round's approved manifest and
+ * reviewed plan hashes, replaces the single G8 window. The ingress lock and
+ * mutation-freeze machinery this class used to require are retained as
+ * optional per-round tooling — REV-D3 is explicit that "there is no freeze
+ * requirement" — rather than removed, because they stay useful for an
+ * operator who chooses a brief pause. What no longer gates approval is the
+ * deploy/config freeze ceremony, the abort-threshold window budget and the
+ * external watchboard {@see HistoricImportApprovalManifest} used to require:
+ * see its docblock for the retired schema and what replaced it.
  *
  * Two things follow from that framing, both deliberate:
  *
@@ -67,10 +79,23 @@ class HistoricImportProductionGuard
      * way it already reports every other refusal, instead of introducing a
      * second failure idiom into commands that are careful about their exit codes.
      *
+     * IC2 re-scoped this from the one-shot G8 window to per-round approval: a
+     * caller that already knows the round's approved corpus and reviewed plan
+     * hash passes them here, and a signed approval bound to a *different*
+     * manifest or plan is refused exactly as an unapproved run would be. A
+     * caller with no such hashes to bind (a lane IC2 has not reached yet)
+     * passes neither and gets the pre-IC2 operation/target check only.
+     *
      * @param  string  $operation  The invocation being guarded, as an operator would type it.
+     * @param  string|null  $manifestHash  The round's approved corpus manifest hash, when known.
+     * @param  string|null  $planHash  The round's exact reviewed plan hash, when known.
      */
-    public function refusalFor(string $operation, ?string $operationId = null): ?string
-    {
+    public function refusalFor(
+        string $operation,
+        ?string $operationId = null,
+        ?string $manifestHash = null,
+        ?string $planHash = null,
+    ): ?string {
         $anchorError = $this->anchorConfigurationError();
 
         if ($anchorError !== null) {
@@ -108,21 +133,20 @@ class HistoricImportProductionGuard
                 $operation,
                 $target,
                 (string) config('media-processing.historic_import.evidence_signing_key'),
+                $manifestHash,
+                $planHash,
             );
 
             if ($operationId !== null && $approval['operation_id'] !== $operationId) {
                 throw new RuntimeException('The command operation id does not match the approved immutable operation.');
             }
 
-            $lock = app(ImportIngressGate::class)->active();
-
-            if (! $lock instanceof ImportIngressLock
-                || $lock->operation_id !== $approval['operation_id']
-                || ! is_array($lock->queue_pause_accounting)
-                || ! array_key_exists('supervisors_to_pause', $lock->queue_pause_accounting)) {
-                throw new RuntimeException('The approved operation does not hold the measured ingress/queue freeze.');
-            }
-
+            /**
+             * REV-D3/§7.1: an ingress pause is optional per-round tooling, never
+             * a required gate — "there is no freeze requirement". The ingress
+             * lock and mutation-freeze machinery stay available for an operator
+             * who chooses a brief pause; this guard no longer demands one.
+             */
             app(HistoricImportMutationFreeze::class)->authorize((string) $approval['operation_id']);
 
             return null;

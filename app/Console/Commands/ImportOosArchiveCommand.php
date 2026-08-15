@@ -170,14 +170,20 @@ class ImportOosArchiveCommand extends Command
 
         /**
          * Only `--import` writes canonical services, so only `--import` is the
-         * production-once operation G8 gates. Evaluation mode still writes
+         * RG-B production apply the guard gates (IC2 re-scoped this from the
+         * one-shot G8 window to per-round approval, bound below to this exact
+         * manifest and reviewed plan). Evaluation mode still writes
          * `InboundEmail` rows and parse caches — see the class docblock — but it
          * creates no service and releases nothing to the review inbox, which is
          * the boundary that makes staging a rehearsal activity rather than an
          * import.
          */
         if ($shouldImport) {
-            $refusal = $productionGuard->refusalFor('oos:import-archive --import');
+            $refusal = $productionGuard->refusalFor(
+                'oos:import-archive --import',
+                manifestHash: $plan->manifestHash,
+                planHash: $plan->planHash,
+            );
 
             if ($refusal !== null) {
                 $this->error($refusal);
@@ -456,6 +462,12 @@ class ImportOosArchiveCommand extends Command
     }
 
     /**
+     * IC2 re-scopes this from F32's whole-operation closeout (every approved
+     * item settled, or the run reports failure) to: exit non-zero only for
+     * processing errors. `held_for_review` is REV-D2's designed evidence-tier
+     * residue — reported per source in the audit report, never a reason to
+     * fail a round that otherwise processed cleanly.
+     *
      * @param  list<array<string, mixed>>  $results
      * @param  list<OosArchiveEntry>  $allEntries
      * @param  list<OosArchiveEntry>  $entries
@@ -472,7 +484,7 @@ class ImportOosArchiveCommand extends Command
 
         return collect($results)->contains(static fn (array $result): bool => in_array(
             $result['disposition'] ?? null,
-            ['failed', 'import_failed', 'held_for_review'],
+            ['failed', 'import_failed'],
             true,
         ));
     }

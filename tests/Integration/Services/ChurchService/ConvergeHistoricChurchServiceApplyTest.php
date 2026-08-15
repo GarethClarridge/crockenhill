@@ -417,16 +417,18 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
         }
     }
 
+    /**
+     * A processing *error* — the staged asset no longer matches its manifest,
+     * so the second service cannot even be prepared — still aborts the whole
+     * round before the first write. IC2 re-scoped batch *admission*
+     * (see the next test), not this: §7.2 is explicit that "residue is fine;
+     * errors are not."
+     */
     #[Test]
-    public function a_blocked_service_aborts_the_batch_before_the_applicable_one_is_written(): void
+    public function an_unpreparable_service_aborts_the_batch_before_the_applicable_one_is_written(): void
     {
         [$mediaBundle, $convergenceBundle] = $this->corpus(['2026-08-02', '2026-08-09']);
 
-        /**
-         * The second service's staged asset no longer matches its manifest, so
-         * it cannot classify. The first service is perfectly applicable, so only
-         * a batch-wide preflight keeps it unwritten.
-         */
         Storage::disk('historic_staging')->put('historic/2026-08-09/audio.mp3', 'tampered');
 
         $this->expectException(RuntimeException::class);
@@ -438,6 +440,44 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
             $this->assertDatabaseMissing('media_processing_logs', ['processing_id' => 'imported-run-2026-08-09']);
             Storage::disk('local')->assertMissing('service-transcripts/imported-run-2026-08-02/audio.mp3');
         }
+    }
+
+    /**
+     * IC2: batch admission is re-scoped from "whole approved corpus applicable
+     * or refuse" to "apply every applicable service; report the rest". The
+     * second service's production media identity already holds different
+     * durable content — a clean `blocked_difference` classification, not a
+     * processing error — so it must not stop the first, perfectly applicable
+     * service from being written.
+     */
+    #[Test]
+    public function a_service_that_cannot_classify_is_held_and_reported_while_the_applicable_one_is_written(): void
+    {
+        [$mediaBundle, $convergenceBundle] = $this->corpus(['2026-08-02', '2026-08-09']);
+
+        $conflicting = MediaProcessingLog::factory()->create([
+            'processing_id' => 'imported-run-2026-08-09',
+            'church_service_id' => null,
+        ]);
+
+        $batch = app(ConvergeHistoricChurchService::class)->executeBatch($mediaBundle, $convergenceBundle);
+
+        $this->assertCount(1, $batch->applied);
+        $this->assertSame('2026-08-02', $batch->applied[0]['church_service']->date->toDateString());
+        $this->assertCount(1, $batch->held);
+        $this->assertSame('2026-08-09|morning', $batch->held[0]['identity']);
+        $this->assertSame('media_blocked_difference', $batch->held[0]['reason']);
+
+        $this->assertDatabaseHas('media_processing_logs', ['processing_id' => 'imported-run-2026-08-02']);
+        $this->assertSame(
+            $conflicting->id,
+            MediaProcessingLog::query()->where('processing_id', 'imported-run-2026-08-09')->value('id'),
+        );
+
+        $held = $this->ledgerEntries('service_held');
+        $this->assertCount(1, $held);
+        $this->assertSame('2026-08-09|morning', $held[0]['identity']);
+        $this->assertSame('media_blocked_difference', $held[0]['reason']);
     }
 
     #[Test]
@@ -522,10 +562,11 @@ class ConvergeHistoricChurchServiceApplyTest extends TestCase
         $this->assertSame(1, MediaProcessingLog::query()->where('processing_id', 'imported-run-2026-08-02')->count());
         $this->assertSame(0, MediaProcessingLog::query()->where('processing_id', 'imported-run-2026-08-09')->count());
 
-        $results = $converge->executeBatch($mediaBundle, $convergenceBundle, null, true);
+        $batch = $converge->executeBatch($mediaBundle, $convergenceBundle, null, true);
 
-        $this->assertCount(1, $results);
-        $this->assertSame('2026-08-09', $results[0]['church_service']->date->toDateString());
+        $this->assertCount(1, $batch->applied);
+        $this->assertSame([], $batch->held);
+        $this->assertSame('2026-08-09', $batch->applied[0]['church_service']->date->toDateString());
         $this->assertSame(1, MediaProcessingLog::query()->where('processing_id', 'imported-run-2026-08-02')->count());
         $this->assertSame(1, MediaProcessingLog::query()->where('processing_id', 'imported-run-2026-08-09')->count());
     }

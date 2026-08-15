@@ -1053,7 +1053,9 @@ class ImportOosArchiveCommandTest extends TestCase
             '--import' => true, '--plan-hash' => $this->planHash(),
             '--fresh-parse' => true,
             '--report' => $report,
-        ])->assertExitCode(1);
+            // IC2: held/pending residue is reported state, not a command failure —
+            // see hasUnsettledResults(). Only failed/import_failed exit non-zero.
+        ])->assertExitCode(0);
 
         $entryReport = $this->readReport($report)['entries'][0];
         $this->assertSame('held_for_review', $entryReport['disposition']);
@@ -1394,7 +1396,8 @@ class ImportOosArchiveCommandTest extends TestCase
             ...$corpus,
             '--import' => true, '--plan-hash' => $this->planHash(),
             '--report' => $report,
-        ])->assertExitCode(1);
+            // IC2: held/pending residue is reported state, not a command failure.
+        ])->assertExitCode(0);
 
         $payload = $this->readReport($report);
         $this->assertSame('held_for_review', $payload['entries'][0]['disposition']);
@@ -1433,8 +1436,9 @@ class ImportOosArchiveCommandTest extends TestCase
 
         // Re-curating the same service with corrected bytes: same item key, new payload digest.
         $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12', 'body' => 'Corrected content']]);
+        // IC2: held/pending residue is reported state, not a command failure.
         $this->artisan('oos:import-archive', $this->importArguments(['--report' => $report]))
-            ->assertExitCode(1);
+            ->assertExitCode(0);
 
         $this->assertSame($originalItems, $service->items()->pluck('title')->all());
         $payload = $this->readReport($report);
@@ -1600,9 +1604,10 @@ class ImportOosArchiveCommandTest extends TestCase
         ]);
         $report = $this->temporaryPath('json');
 
+        // IC2: held/pending residue is reported state, not a command failure.
         $this->artisan('oos:import-archive', [
             ...$corpus, '--import' => true, '--plan-hash' => $this->planHash(), '--report' => $report,
-        ])->assertExitCode(1);
+        ])->assertExitCode(0);
 
         $entries = collect($this->readReport($report)['entries'])->keyBy('item_key');
 

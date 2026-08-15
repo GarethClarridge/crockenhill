@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\Import;
 
 use App\Exceptions\HistoricImportFrozen;
-use App\Models\ImportIngressLock;
 use App\Models\Sermon;
 use App\Services\Import\HistoricImportProductionGuard;
 use App\Services\Import\HistoricImportResourceIdentity;
@@ -83,6 +82,38 @@ class HistoricImportProductionGuardTest extends TestCase
 
         $this->assertNull($guard->refusalFor('oos:import-archive --import'));
         $this->assertStringStartsWith('historic-', (string) $guard->approvedOperationId());
+    }
+
+    /**
+     * IC2: the approval binds to one round's exact corpus and reviewed plan.
+     * A caller that supplies the round's hashes must get the same refusal an
+     * unapproved run would, when they do not match what was signed.
+     */
+    #[Test]
+    public function a_round_approval_refuses_a_manifest_or_plan_hash_it_was_not_signed_for(): void
+    {
+        $path = $this->approval('oos:import-archive --import', round: [
+            'label' => 'round-2026-08-09',
+            'manifest_hash' => str_repeat('a', 64),
+            'plan_hash' => str_repeat('b', 64),
+            'backup_receipt' => 'spatie-backup-2026-08-09.zip',
+        ]);
+        Config::set('church.historic_corpus.production_import_approval', $path);
+        $guard = $this->guard('production');
+
+        $this->assertStringContainsString(
+            'does not match this manifest',
+            (string) $guard->refusalFor('oos:import-archive --import', manifestHash: str_repeat('c', 64), planHash: str_repeat('b', 64)),
+        );
+        $this->assertStringContainsString(
+            'does not match this plan',
+            (string) $guard->refusalFor('oos:import-archive --import', manifestHash: str_repeat('a', 64), planHash: str_repeat('c', 64)),
+        );
+        $this->assertNull($guard->refusalFor(
+            'oos:import-archive --import',
+            manifestHash: str_repeat('a', 64),
+            planHash: str_repeat('b', 64),
+        ));
     }
 
     /**
@@ -505,17 +536,14 @@ class HistoricImportProductionGuardTest extends TestCase
         $this->assertSame([], Storage::disk('historic_quarantine')->allFiles());
     }
 
-    /** @param  array<string, string>|null  $roles */
-    private function approval(string $command, ?array $roles = null): string
+    /**
+     * @param  array<string, string>|null  $roles
+     * @param  array<string, string>|null  $round
+     */
+    private function approval(string $command, ?array $roles = null, ?array $round = null): string
     {
         $target = app(HistoricImportTargetFingerprint::class)->hash();
         $operation = $this->createHistoricImportOperation($target);
-        ImportIngressLock::factory()->create([
-            'operation_id' => $operation->operation_id,
-            'queue_pause_accounting' => ['supervisors_to_pause' => ['historic' => ['historic-ffmpeg']]],
-            'released_at' => null,
-            'is_active' => 1,
-        ]);
         $approval = [
             'format' => 'crockenhill-historic-import-approval',
             'version' => 1,
@@ -526,33 +554,17 @@ class HistoricImportProductionGuardTest extends TestCase
             'release_identifier' => config('app.release_identifier'),
             'expires_at' => now()->addHour()->toIso8601String(),
             'permitted_commands' => [$command],
-            'freeze' => [
-                'deploy' => true,
-                'rollback' => true,
-                'configuration' => true,
-                'manifests' => true,
-                'targeted_mutations' => true,
-                'started_at' => now()->toIso8601String(),
+            'round' => $round ?? [
+                'label' => 'round-2026-08-09',
+                'manifest_hash' => str_repeat('1', 64),
+                'plan_hash' => str_repeat('2', 64),
+                'backup_receipt' => 'spatie-backup-2026-08-09.zip',
             ],
             'roles' => $roles ?? [
                 'incident_commander' => 'person-one',
                 'operator' => 'person-two',
                 'independent_verifier' => 'person-three',
                 'monitoring_owner' => 'person-four',
-            ],
-            'abort_thresholds' => [
-                'failed_services' => 1,
-                'max_job_age_seconds' => 900,
-                'max_db_connections' => 100,
-                'min_free_bytes' => 10_000_000,
-                'max_http_429' => 1,
-                'max_http_5xx' => 1,
-                'max_cost_minor_units' => 10_000,
-            ],
-            'monitoring' => [
-                'provider' => 'retained-live-monitor',
-                'external_watchboard' => 'watchboard-2026-08-09',
-                'retained' => true,
             ],
             'signature' => ['algorithm' => 'hmac-sha256', 'key_id' => 'test-key', 'digest' => ''],
         ];

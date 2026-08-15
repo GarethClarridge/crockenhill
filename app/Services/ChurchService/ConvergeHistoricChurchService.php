@@ -7,6 +7,8 @@ namespace App\Services\ChurchService;
 use App\Actions\IngestChurchServiceSourceRevision;
 use App\Data\ChurchServiceConvergenceImportPlan;
 use App\Data\ChurchServiceSourceRevision;
+use App\Data\HistoricConvergenceBatchAdmission;
+use App\Data\HistoricConvergenceBatchResult;
 use App\Data\HistoricConvergenceOperationPlan;
 use App\Data\HistoricProcessingResultImportPlan;
 use App\Enums\ChurchServiceSource;
@@ -322,7 +324,6 @@ class ConvergeHistoricChurchService
     /**
      * @param  array<string, mixed>  $mediaBundle
      * @param  array<string, mixed>  $convergenceBundle
-     * @return list<array{church_service: ChurchService, processing_log: MediaProcessingLog, created_assets: list<string>}>
      */
     public function executeBatch(
         array $mediaBundle,
@@ -332,7 +333,7 @@ class ConvergeHistoricChurchService
         ?string $operationId = null,
         ?string $expiresAt = null,
         ?HistoricConvergenceOperationPlan $prepared = null,
-    ): array {
+    ): HistoricConvergenceBatchResult {
         $batchStartedAt = hrtime(true);
         $approved = $prepared ?? $this->prepareBatch($mediaBundle, $convergenceBundle, $operationId, $expiresAt);
 
@@ -355,10 +356,23 @@ class ConvergeHistoricChurchService
             throw new RuntimeException('Historic convergence plan changed before apply; no records were committed.');
         }
 
-        $this->assertPlanApplicable($plan);
+        /**
+         * IC2 re-scopes batch admission from "whole approved corpus applicable or
+         * refuse" to "apply every applicable service; report the rest". A service
+         * still needing review, still in conflict, or otherwise not yet ready to
+         * converge is corpus-completeness residue — not a reason to leave an
+         * already-applicable sibling service unwritten. Per-service lock,
+         * classification and transaction are exactly as before; only the
+         * batch-wide refusal is gone.
+         */
+        $admission = $this->partitionApplicable($plan);
+
+        foreach ($admission->held as $held) {
+            $this->ledger()->recordHeld($plan, $held['identity'], $held['reason']);
+        }
 
         $alreadyPresent = HistoricImportClassification::AlreadyPresent->value;
-        $isExactNoOp = collect($plan->services)->every(
+        $isExactNoOp = $admission->applicable !== [] && collect($admission->applicable)->every(
             static fn (array $service): bool => ($service['media_plan'] ?? null) instanceof HistoricProcessingResultImportPlan
                 && $service['media_plan']->classification === $alreadyPresent
                 && ($service['convergence_plan'] ?? null) instanceof ChurchServiceConvergenceImportPlan
@@ -367,7 +381,7 @@ class ConvergeHistoricChurchService
 
         $results = [];
 
-        foreach ($plan->services as $servicePlan) {
+        foreach ($admission->applicable as $servicePlan) {
             $identity = $servicePlan['identity'] ?? null;
 
             if ($resume && is_string($identity) && $this->ledger()->hasCompleted($plan->operationId, $identity)) {
@@ -389,7 +403,7 @@ class ConvergeHistoricChurchService
         if ($isExactNoOp) {
             $identities = array_map(
                 static fn (array $service): string => (string) $service['identity'],
-                $plan->services,
+                $admission->applicable,
             );
             $this->ledger()->recordExactNoOpRerun(
                 $plan,
@@ -398,7 +412,7 @@ class ConvergeHistoricChurchService
             );
         }
 
-        return $results;
+        return new HistoricConvergenceBatchResult($results, $admission->held);
     }
 
     /**
@@ -439,12 +453,17 @@ class ConvergeHistoricChurchService
     }
 
     /**
-     * The whole batch must classify as applicable before the first service
-     * writes anything. The accepted sets below are exactly what
+     * The single service `execute()` prepares must classify as applicable
+     * before it writes anything. The accepted sets below are exactly what
      * HistoricProcessingResultBundleImporter::persistPreparedService() and
      * ChurchServiceConvergenceBundleImporter::persistPreparedService() accept —
-     * a preflight that admitted more would still abort, but only after earlier
-     * services in the batch had already committed.
+     * a preflight that admitted more would still abort, but only after the
+     * write had already happened.
+     *
+     * IC2 stopped `executeBatch()` calling this: a batch reports an
+     * inapplicable service as held residue instead of refusing every other
+     * service alongside it. See {@see self::partitionApplicable()}, which
+     * shares the same accepted-classification predicates.
      */
     private function assertPlanApplicable(HistoricConvergenceOperationPlan $plan): void
     {
@@ -459,13 +478,7 @@ class ConvergeHistoricChurchService
                 throw new RuntimeException("Historic media preflight is invalid for {$identity}.");
             }
 
-            $mediaApplicable = $mediaPlan->classification === HistoricImportClassification::Create->value
-                || (
-                    $mediaPlan->classification === HistoricImportClassification::AlreadyPresent->value
-                    && $mediaPlan->existingProcessingLogId !== null
-                );
-
-            if (! $mediaApplicable) {
+            if (! $this->mediaApplicableForApply($mediaPlan)) {
                 throw new RuntimeException(
                     "Historic media preflight is {$mediaPlan->classification} for {$identity}.",
                 );
@@ -473,10 +486,7 @@ class ConvergeHistoricChurchService
 
             if (
                 ! $convergencePlan instanceof ChurchServiceConvergenceImportPlan
-                || ! in_array($convergencePlan->classification, [
-                    HistoricImportClassification::AlreadyPresent->value,
-                    HistoricImportClassification::SafeEnrichment->value,
-                ], true)
+                || ! $this->convergenceApplicableForApply($convergencePlan)
             ) {
                 $classification = $convergencePlan instanceof ChurchServiceConvergenceImportPlan
                     ? $convergencePlan->classification
@@ -503,6 +513,82 @@ class ConvergeHistoricChurchService
             array_values($scriptureKeys),
             "Historic convergence operation {$plan->operationId}",
         );
+    }
+
+    /**
+     * IC2's batch admission: every service in the plan classified as
+     * applicable, plus everything else reported as held with a reason —
+     * never thrown. Scripture settlement (invariant #8) stays a hard,
+     * fail-closed precondition, but scoped to only the services this call is
+     * about to write, so a held service's missing enrichment never blocks an
+     * unrelated applicable one.
+     */
+    private function partitionApplicable(HistoricConvergenceOperationPlan $plan): HistoricConvergenceBatchAdmission
+    {
+        $applicable = [];
+        $held = [];
+        $scriptureKeys = [];
+
+        foreach ($plan->services as $servicePlan) {
+            $identity = is_string($servicePlan['identity'] ?? null) ? $servicePlan['identity'] : 'unknown service';
+            $mediaPlan = $servicePlan['media_plan'] ?? null;
+            $convergencePlan = $servicePlan['convergence_plan'] ?? null;
+
+            if (! $mediaPlan instanceof HistoricProcessingResultImportPlan
+                || ! $convergencePlan instanceof ChurchServiceConvergenceImportPlan) {
+                $held[] = ['identity' => $identity, 'reason' => 'invalid_preflight'];
+
+                continue;
+            }
+
+            if (! $this->mediaApplicableForApply($mediaPlan)) {
+                $held[] = ['identity' => $identity, 'reason' => "media_{$mediaPlan->classification}"];
+
+                continue;
+            }
+
+            if (! $this->convergenceApplicableForApply($convergencePlan)) {
+                $held[] = ['identity' => $identity, 'reason' => "convergence_{$convergencePlan->classification}"];
+
+                continue;
+            }
+
+            $applicable[] = $servicePlan;
+
+            foreach ($this->scriptureRequirements()->forService($mediaPlan->service) as $key) {
+                $scriptureKeys[$this->scriptureRequirements()->identity($key)] = $key;
+            }
+        }
+
+        /**
+         * Decision D3, scoped to the services this admission actually applies:
+         * a held service's Scripture Passages are never resolved this round, so
+         * they never belong in the set the pre-apply enrichment pass is asked
+         * to close before the first write.
+         */
+        $this->scriptureRequirements()->assertAvailable(
+            array_values($scriptureKeys),
+            "Historic convergence operation {$plan->operationId}",
+        );
+
+        return new HistoricConvergenceBatchAdmission($applicable, $held);
+    }
+
+    private function mediaApplicableForApply(HistoricProcessingResultImportPlan $mediaPlan): bool
+    {
+        return $mediaPlan->classification === HistoricImportClassification::Create->value
+            || (
+                $mediaPlan->classification === HistoricImportClassification::AlreadyPresent->value
+                && $mediaPlan->existingProcessingLogId !== null
+            );
+    }
+
+    private function convergenceApplicableForApply(ChurchServiceConvergenceImportPlan $convergencePlan): bool
+    {
+        return in_array($convergencePlan->classification, [
+            HistoricImportClassification::AlreadyPresent->value,
+            HistoricImportClassification::SafeEnrichment->value,
+        ], true);
     }
 
     /**

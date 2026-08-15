@@ -27,12 +27,33 @@ use RuntimeException;
  * durable record of who to call and who owns rollback.
  *
  * @see docs/archived-plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md — D10
+ *
+ * **IC2 re-scoped the artifact from a one-shot G8 window to a per-round
+ * approval.** The old schema's `freeze` (deploy/rollback/configuration/
+ * manifests/targeted_mutations), `abort_thresholds` (a window cost/error
+ * budget) and `monitoring` (a retained external watchboard) fields evidenced a
+ * windowed operation that no longer exists — REV-D1 retires window budgets and
+ * split thresholds as gates, and F46/F58 are recorded lapsed with it
+ * (docs/plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md §4).
+ * `round` replaces them: the label an operator gave this round, the approved
+ * corpus manifest hash and the exact reviewed plan hash it is bound to, and
+ * the backup receipt §7.1 requires before RG-B apply. `manifestHash`/
+ * `planHash` passed to {@see self::authorize()} are checked against `round`
+ * when the caller supplies them, so an approval signed for one round's corpus
+ * can never authorise a different one.
+ * @see docs/plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md §6 IC2, §7.1
  */
 final class HistoricImportApprovalManifest
 {
     /** @return array<string, mixed> */
-    public function authorize(string $path, string $command, string $targetFingerprint, string $signingKey): array
-    {
+    public function authorize(
+        string $path,
+        string $command,
+        string $targetFingerprint,
+        string $signingKey,
+        ?string $manifestHash = null,
+        ?string $planHash = null,
+    ): array {
         if (! is_file($path)) {
             throw new RuntimeException('The historic import production approval artifact is missing.');
         }
@@ -50,7 +71,7 @@ final class HistoricImportApprovalManifest
         $this->exactKeys($approval, [
             'format', 'version', 'approval_id', 'operation_id', 'binding_hash',
             'target_fingerprint', 'release_identifier', 'expires_at', 'permitted_commands',
-            'freeze', 'roles', 'abort_thresholds', 'monitoring', 'signature',
+            'round', 'roles', 'signature',
         ], 'production approval');
 
         if ($approval['format'] !== 'crockenhill-historic-import-approval' || $approval['version'] !== 1) {
@@ -117,22 +138,33 @@ final class HistoricImportApprovalManifest
             throw new RuntimeException("The production approval does not permit command/phase: {$command}.");
         }
 
-        $freeze = $approval['freeze'];
+        $round = $approval['round'];
 
-        if (! is_array($freeze)
-            || ($freeze['deploy'] ?? null) !== true
-            || ($freeze['rollback'] ?? null) !== true
-            || ($freeze['configuration'] ?? null) !== true
-            || ($freeze['manifests'] ?? null) !== true
-            || ($freeze['targeted_mutations'] ?? null) !== true
-            || ! is_string($freeze['started_at'] ?? null)) {
-            throw new RuntimeException('The production approval freeze is incomplete.');
+        if (! is_array($round)
+            || ! is_string($round['label'] ?? null) || trim($round['label']) === ''
+            || ! is_string($round['manifest_hash'] ?? null) || trim($round['manifest_hash']) === ''
+            || ! is_string($round['plan_hash'] ?? null) || trim($round['plan_hash']) === ''
+            || ! is_string($round['backup_receipt'] ?? null) || trim($round['backup_receipt']) === '') {
+            throw new RuntimeException('The production approval round is incomplete.');
         }
 
-        $this->exactKeys($freeze, [
-            'deploy', 'rollback', 'configuration', 'manifests',
-            'targeted_mutations', 'started_at',
-        ], 'production approval freeze');
+        $this->exactKeys($round, [
+            'label', 'manifest_hash', 'plan_hash', 'backup_receipt',
+        ], 'production approval round');
+
+        /**
+         * The approval binds to one round's exact corpus and reviewed plan. A
+         * caller with no hashes of its own to check (a lane IC2 has not reached
+         * yet) skips this; every IC2 caller supplies both, so an approval signed
+         * for a different manifest or plan is refused here rather than reused.
+         */
+        if ($manifestHash !== null && ! hash_equals($round['manifest_hash'], $manifestHash)) {
+            throw new RuntimeException('The production approval round does not match this manifest.');
+        }
+
+        if ($planHash !== null && ! hash_equals($round['plan_hash'], $planHash)) {
+            throw new RuntimeException('The production approval round does not match this plan.');
+        }
 
         $roles = $approval['roles'];
         $roleNames = ['incident_commander', 'operator', 'independent_verifier', 'monitoring_owner'];
@@ -148,43 +180,6 @@ final class HistoricImportApprovalManifest
                 throw new RuntimeException('Every production approval role must name its owner.');
             }
         }
-
-        $thresholds = $approval['abort_thresholds'];
-        $requiredThresholds = [
-            'failed_services', 'max_job_age_seconds', 'max_db_connections',
-            'min_free_bytes', 'max_http_429', 'max_http_5xx', 'max_cost_minor_units',
-        ];
-
-        if (! is_array($thresholds)) {
-            throw new RuntimeException('The production approval has no numeric abort thresholds.');
-        }
-
-        $this->exactKeys($thresholds, $requiredThresholds, 'production abort thresholds');
-
-        foreach ($thresholds as $value) {
-            if (! is_int($value) || $value < 0) {
-                throw new RuntimeException('Every production abort threshold must be a non-negative integer.');
-            }
-        }
-
-        if ($thresholds['max_cost_minor_units'] !== $operation->max_cost_minor_units) {
-            throw new RuntimeException('The production approval cost threshold does not match the immutable operation.');
-        }
-
-        $monitoring = $approval['monitoring'];
-
-        if (! is_array($monitoring)
-            || ! is_string($monitoring['provider'] ?? null)
-            || trim($monitoring['provider']) === ''
-            || ! is_string($monitoring['external_watchboard'] ?? null)
-            || trim($monitoring['external_watchboard']) === ''
-            || ($monitoring['retained'] ?? null) !== true) {
-            throw new RuntimeException('The production approval has no retained external monitoring/watchboard.');
-        }
-
-        $this->exactKeys($monitoring, [
-            'provider', 'external_watchboard', 'retained',
-        ], 'production approval monitoring');
 
         return $approval;
     }

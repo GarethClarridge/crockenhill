@@ -116,6 +116,25 @@ class HistoricConvergenceLedger
     }
 
     /**
+     * IC2: a service the batch admission classified as not yet applicable —
+     * corpus-completeness residue, reported here instead of aborting the round.
+     */
+    public function recordHeld(
+        HistoricConvergenceOperationPlan $plan,
+        string $identity,
+        string $reason,
+    ): void {
+        $this->append([
+            'event' => 'service_held',
+            'operation_id' => $plan->operationId,
+            'plan_hash' => $plan->planHash,
+            'content_hash' => $plan->contentHash,
+            'identity' => $identity,
+            'reason' => $reason,
+        ]);
+    }
+
+    /**
      * @param  array<string, mixed>  $service
      * @param  float|null  $durationSeconds  measured apply duration for this service
      * @param  int|null  $assetBytes  bytes actually written to destinations, which
