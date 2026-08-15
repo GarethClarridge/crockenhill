@@ -70,6 +70,8 @@ class OpenAiOosEmailItemExtractorTest extends TestCase
                 && str_contains($parameters['messages'][1]['content'], '[L001] Welcome')
                 && str_contains($parameters['messages'][0]['content'], 'A single order may have no heading')
                 && str_contains($parameters['messages'][0]['content'], 'Subject-level dates apply to every service plan')
+                && str_contains($parameters['messages'][0]['content'], 'evidence for that service, equal to a heading')
+                && str_contains($parameters['messages'][0]['content'], 'A service order does not need prayers, readings, notices or a sermon to be genuine')
                 && $parameters['response_format']['json_schema']['schema']['required']
                     === ['service_count', 'services', 'ignored_lines', 'notes']
                 && $serviceSchema['service']['enum'] === ['morning', 'evening', 'other', 'unknown']

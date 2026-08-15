@@ -198,6 +198,17 @@ Rules:
 - A single order may have no heading. In that case service_evidence_line_ids may be empty and the
   subject or a time in the body may identify it. Multiple orders require distinct body-line evidence
   for each boundary, such as headings or standalone time markers.
+- A sentence naming a person and a service occasion before a list of song titles (for example "X
+  would like the following hymns tomorrow morning:" or "Y's hymns for the evening:") is boundary
+  evidence for that service, equal to a heading. Like a heading, that introducing sentence itself
+  belongs in service_evidence_line_ids, never as an item. Extract only the song titles that follow
+  it as that service's items, even when the introducing sentence is embedded in a personal note or
+  a further layer of forwarding, and even though it frames the songs as one person's choice rather
+  than a publicly confirmed running order.
+- A service order does not need prayers, readings, notices or a sermon to be genuine. A bare,
+  ordered list of songs for a named service is itself a valid order: extract each title as its own
+  "song" item in listed order, and set that plan's content_scope to "partial" unless the email
+  otherwise claims it is the complete order.
 - A general Notices section is context, NOT a service order, even when its lines mention another
   service, time, date, sermon or Bible passage. Put those lines in ignored_lines.
 - Determine the service slot separately from its occasion. A Sunday evening carol service is evening,
