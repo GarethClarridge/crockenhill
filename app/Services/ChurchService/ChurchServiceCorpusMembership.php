@@ -6,6 +6,7 @@ namespace App\Services\ChurchService;
 
 use App\Enums\ChurchServiceSource;
 use App\Models\ChurchServiceSourceRecord;
+use App\Services\Email\InboundEmailImportService;
 use App\Support\CanonicalJson;
 use App\Support\ChurchServiceSourceKey;
 use Illuminate\Support\Collection;
@@ -208,7 +209,19 @@ class ChurchServiceCorpusMembership
             $issues[] = 'source_item_identity_mismatch';
         }
 
-        if ($service->projection_policy_version !== $policyVersion) {
+        /**
+         * Only a payload that claims to be a complete order can be asked for a current
+         * projection. An incomplete one is retained as evidence and deliberately never projected
+         * ({@see InboundEmailImportService::retainPlanEvidence()} passes
+         * `project: false`), because a partial order cannot establish canonical membership — so
+         * "stale projection" would be asserting something that can never become true, rather than
+         * naming work an operator could do.
+         *
+         * The item stays in the membership and keeps every other check: it is a corpus member,
+         * and its lineage, hashes and identity are exactly what certification is for. Only this
+         * one assertion does not apply to it.
+         */
+        if ($record->payload_complete && $service->projection_policy_version !== $policyVersion) {
             $issues[] = 'source_item_projection_stale';
         }
 

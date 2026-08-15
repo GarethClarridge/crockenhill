@@ -10,6 +10,7 @@ use App\Models\ChurchServiceSourceRecord;
 use App\Services\ChurchService\ChurchServiceCorpusCompleteness;
 use App\Services\ChurchService\ChurchServiceProjector;
 use App\Services\ChurchService\ChurchServiceProposalCensusGate;
+use App\Services\Email\InboundEmailImportService;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
@@ -125,6 +126,57 @@ class ChurchServiceProposalCensusGateTest extends TestCase
         $this->assertContains('membership_mismatch', $result['corpus_blockers']);
         $this->assertContains('source_item_projection_stale', $result['corpus']['membership']['blockers']);
         $this->assertSame(1, $result['corpus']['stale_projection_services']);
+    }
+
+    /**
+     * An incomplete payload is retained as evidence and deliberately never projected
+     * ({@see InboundEmailImportService::retainPlanEvidence()} passes
+     * `project: false`), because a partial order cannot establish canonical membership. Reporting
+     * that as a *stale* projection asks for something that can never become true: on the
+     * 2026-08-15 email staging round it flagged 157 of 618 approved source items and was the only
+     * blocker left standing between a complete corpus and a certified census.
+     */
+    #[Test]
+    public function an_evidence_only_source_item_is_not_reported_as_a_stale_projection(): void
+    {
+        $this->stageAndProject(2);
+        config()->set('church.historic_corpus.expected_services', 2);
+
+        $evidenceOnly = ChurchService::query()->orderBy('id')->firstOrFail();
+        $evidenceOnly->forceFill(['projection_policy_version' => null])->save();
+        $evidenceOnly->sourceRecords()->update(['payload_complete' => false]);
+
+        $result = app(ChurchServiceProposalCensusGate::class)->evaluate(
+            [],
+            $this->evidence(),
+        );
+
+        $this->assertNotContains('source_item_projection_stale', $result['corpus']['membership']['blockers']);
+        $this->assertSame([], $result['corpus']['membership']['blockers']);
+        $this->assertTrue($result['corpus']['membership']['approved']);
+    }
+
+    /**
+     * The relaxation above is scoped to the payload that declares itself partial. A *complete*
+     * payload that has not been projected is still the actionable case the check exists for.
+     */
+    #[Test]
+    public function a_complete_payload_that_was_never_projected_still_holds_the_gate(): void
+    {
+        $this->stageAndProject(2);
+        config()->set('church.historic_corpus.expected_services', 2);
+
+        $unprojected = ChurchService::query()->orderBy('id')->firstOrFail();
+        $unprojected->forceFill(['projection_policy_version' => null])->save();
+        $unprojected->sourceRecords()->update(['payload_complete' => true]);
+
+        $result = app(ChurchServiceProposalCensusGate::class)->evaluate(
+            [],
+            $this->evidence(),
+        );
+
+        $this->assertFalse($result['passes']);
+        $this->assertContains('source_item_projection_stale', $result['corpus']['membership']['blockers']);
     }
 
     #[Test]
