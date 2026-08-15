@@ -74,6 +74,24 @@ readonly class OosEmailServicePlan
             && $this->isImportable();
     }
 
+    /**
+     * REV-D2: a `ReviewRequired` plan the unattended pipeline may still import as source
+     * evidence — created or merged, but left unreviewed and unfinalised — because its identity
+     * is trustworthy even though its content confidence is not. `MissingIdentity` is excluded
+     * because that *is* the identity failure REV-D2 keeps held; `holdReasons !== []` excludes a
+     * legacy pre-validator parse, whose `ReviewRequired` disposition is a fallback default with
+     * no recorded reason, not a validator finding (see `InboundEmailImportService::storedDisposition()`).
+     * `InvalidExtraction` plans never reach here at all: they carry a different disposition.
+     */
+    public function isEvidenceImportable(): bool
+    {
+        return $this->disposition === OosEmailParseDisposition::ReviewRequired
+            && $this->holdReasons !== []
+            && ! in_array(OosEmailPlanHoldReason::MissingIdentity, $this->holdReasons, true)
+            && $this->contentScope !== OosEmailContentScope::Unknown
+            && $this->isImportable();
+    }
+
     public function withContentScope(OosEmailContentScope $contentScope): self
     {
         return new self(

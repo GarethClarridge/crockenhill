@@ -1009,8 +1009,71 @@ class ImportOosArchiveCommandTest extends TestCase
     public function a_reparse_that_holds_every_plan_returns_a_processed_entry_to_the_inbox(): void
     {
         // Exactly the shape of an invalidated cache: the archive text is untouched, but the
-        // re-parse no longer clears the auto-import bar. Nothing is applied to the service the
-        // earlier run built, so the entry has to become visible again rather than stay Processed.
+        // re-parse now lands its date off the document the manifest approved. The manifest-
+        // corroboration gate is the one identity failure REV-D2 explicitly keeps held — "do not
+        // weaken it" — so nothing is applied to the service the earlier run built, and the entry
+        // has to become visible again rather than stay Processed.
+        $extractor = new class implements OosEmailItemExtractor
+        {
+            public string $date = '2026-07-12';
+
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
+                    confidence: 0.99,
+                    services: [[
+                        'service' => 'morning',
+                        'date' => $this->date,
+                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                        'confidence' => 0.99,
+                    ]],
+                );
+            }
+        };
+        $this->app->instance(OosEmailItemExtractor::class, $extractor);
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $this->assertSame(InboundEmailStatus::Processed, InboundEmail::query()->firstOrFail()->status);
+        $service = ChurchService::query()->where('date', '2026-07-12')->firstOrFail();
+
+        // A date the manifest never approved for this document — the identity gate, not merely
+        // low confidence.
+        $extractor->date = '2026-07-19';
+        $report = $this->temporaryPath('json');
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
+            '--fresh-parse' => true,
+            '--report' => $report,
+        ])->assertExitCode(1);
+
+        $entryReport = $this->readReport($report)['entries'][0];
+        $this->assertSame('held_for_review', $entryReport['disposition']);
+        $this->assertSame(1, $entryReport['attempt_count']);
+        $this->assertSame([], $entryReport['corroborated_plan_keys']);
+        $this->assertNull($entryReport['imported_plan_keys']);
+        $this->assertTrue($entryReport['held']);
+        $this->assertSame(['no_corroborated_plan'], $entryReport['gate_reasons']);
+        $this->assertFalse($entryReport['adjudicated']);
+        $this->assertSame(InboundEmailStatus::Pending, InboundEmail::query()->firstOrFail()->status);
+        $this->assertSame(1, app(ReviewInboxQuery::class)->build()['counts']['emails']);
+        $this->assertSame('Amazing Grace', $service->items()->firstOrFail()->title);
+    }
+
+    #[Test]
+    public function a_reparse_below_the_auto_import_bar_still_merges_as_unfinalised_evidence(): void
+    {
+        // IC1/REV-D2: unlike the identity-failure case above, a re-parse that keeps the same
+        // corroborated identity but drops below the auto-import bar is not held — it merges as
+        // unreviewed, unfinalised evidence, exactly as a live corrective email would.
         $extractor = new class implements OosEmailItemExtractor
         {
             public float $confidence = 1.0;
@@ -1038,8 +1101,8 @@ class ImportOosArchiveCommandTest extends TestCase
             '--report' => $this->temporaryPath('json'),
         ])->assertExitCode(0);
 
-        $this->assertSame(InboundEmailStatus::Processed, InboundEmail::query()->firstOrFail()->status);
         $service = ChurchService::query()->where('date', '2026-07-12')->firstOrFail();
+        $this->assertFalse((bool) $service->needs_review);
 
         $extractor->confidence = 0.4;
         $report = $this->temporaryPath('json');
@@ -1049,22 +1112,16 @@ class ImportOosArchiveCommandTest extends TestCase
             '--import' => true, '--plan-hash' => $this->planHash(),
             '--fresh-parse' => true,
             '--report' => $report,
-        ])->assertExitCode(1);
+        ])->assertExitCode(0);
 
         $entryReport = $this->readReport($report)['entries'][0];
-        $this->assertSame('held_for_review', $entryReport['disposition']);
+        $this->assertSame('merged', $entryReport['disposition']);
         $this->assertSame('review_required', $entryReport['plans'][0]['disposition']);
-        $this->assertSame(1, $entryReport['attempt_count']);
-        $this->assertSame(['morning:2026-07-12'], $entryReport['corroborated_plan_keys']);
-        $this->assertSame([], $entryReport['imported_plan_keys']);
-        $this->assertSame(['morning:2026-07-12'], $entryReport['held_plan_keys']);
-        $this->assertTrue($entryReport['held']);
-        $this->assertSame(['low_confidence'], $entryReport['hold_reason_categories']);
         $this->assertSame(['low_confidence'], $entryReport['plans'][0]['hold_reasons']);
-        $this->assertFalse($entryReport['adjudicated']);
-        $this->assertSame(InboundEmailStatus::Pending, InboundEmail::query()->firstOrFail()->status);
-        $this->assertSame(1, app(ReviewInboxQuery::class)->build()['counts']['emails']);
-        $this->assertSame('Amazing Grace', $service->items()->firstOrFail()->title);
+        $this->assertSame(InboundEmailStatus::Processed, InboundEmail::query()->firstOrFail()->status);
+        $service->refresh();
+        $this->assertTrue((bool) $service->needs_review);
+        $this->assertFalse($service->import_metadata->toArray()['plan']['finalised']);
     }
 
     /**
@@ -1151,11 +1208,12 @@ class ImportOosArchiveCommandTest extends TestCase
     }
 
     #[Test]
-    public function a_corroborated_plan_below_the_auto_import_threshold_is_not_created(): void
+    public function a_corroborated_plan_below_the_auto_import_threshold_imports_as_unfinalised_evidence(): void
     {
-        // Both services are in the ground truth, so the archive corroborates both plans. Whether
-        // either imports unattended is the live auto-import bar's decision, and the evening plan
-        // is below it: it is held for review while morning imports.
+        // IC1/REV-D2: both services are in the ground truth, so the archive corroborates both
+        // plans by identity. The evening plan's confidence never reaches the auto-import bar, so
+        // it is not finalised — but its identity is trustworthy, so it now imports as unreviewed
+        // source evidence rather than being held outright.
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
         {
             public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
@@ -1177,7 +1235,11 @@ class ImportOosArchiveCommandTest extends TestCase
                 );
             }
         });
-        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $corpus = $this->corpus([[
+            'key' => '2026-07-12-am',
+            'date' => '2026-07-12',
+            'body' => "Morning service\nAmazing Grace\n\nEvening service\nAbide With Me",
+        ]]);
         $report = $this->temporaryPath('json');
 
         $this->artisan('oos:import-archive', [
@@ -1186,10 +1248,56 @@ class ImportOosArchiveCommandTest extends TestCase
             '--report' => $report,
         ])->assertExitCode(0);
 
-        $this->assertDatabaseCount('church_services', 1);
+        $this->assertDatabaseCount('church_services', 2);
         $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
-        $this->assertDatabaseMissing('church_services', ['service' => 'evening']);
+        $evening = ChurchService::query()->where('date', '2026-07-12')->where('service', 'evening')->firstOrFail();
+        $this->assertTrue((bool) $evening->needs_review);
+        $eveningMetadata = $evening->import_metadata->toArray();
+        $this->assertSame('review_required', $eveningMetadata['plan']['disposition']);
+        $this->assertFalse($eveningMetadata['plan']['finalised']);
         $this->assertSame('created', $this->readReport($report)['entries'][0]['disposition']);
+    }
+
+    #[Test]
+    public function a_second_round_over_an_evidence_tier_plan_is_an_exact_no_op(): void
+    {
+        // IC1 red test 5: re-running the import over the same corroborated-but-unfinalised plan
+        // must not create a duplicate service or duplicate items.
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                return new OosEmailItemExtractionResult(
+                    items: [['type' => 'song', 'title' => 'Abide With Me']],
+                    confidence: 0.60,
+                    services: [
+                        ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
+                            ['type' => 'song', 'title' => 'Abide With Me'],
+                        ], 'confidence' => 0.60],
+                    ],
+                );
+            }
+        });
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $arguments = [...$corpus, '--import' => true, '--plan-hash' => $this->planHash(), '--report' => $this->temporaryPath('json')];
+
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+
+        $service = ChurchService::query()->where('date', '2026-07-12')->firstOrFail();
+        $this->assertTrue((bool) $service->needs_review);
+        $firstPassItems = $service->items()->orderBy('position')->pluck('title')->all();
+
+        $report = $this->temporaryPath('json');
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
+            '--fresh-parse' => true,
+            '--report' => $report,
+        ])->assertExitCode(0);
+
+        $this->assertDatabaseCount('church_services', 1);
+        $this->assertSame($firstPassItems, $service->items()->orderBy('position')->pluck('title')->all());
+        $this->assertSame('merged', $this->readReport($report)['entries'][0]['disposition']);
     }
 
     /**
@@ -1393,9 +1501,15 @@ class ImportOosArchiveCommandTest extends TestCase
      * 0.92 and imported, and the ingest then refused the correction because the
      * record it supersedes did not exist. A correction chain is now admitted or
      * held as a unit, so neither half can be imported without the other.
+     *
+     * IC1/REV-D2 changes what "admitted" means for the predecessor half: a corroborated
+     * low-confidence plan is no longer held outright, it imports as unreviewed evidence — so a
+     * correction chain whose only defect was the predecessor's confidence now flows through both
+     * halves rather than being stuck. {@see self::a_correction_stays_held_when_its_predecessor_fails_the_identity_gate()}
+     * covers the case that still holds.
      */
     #[Test]
-    public function a_correction_is_held_when_its_predecessor_stayed_below_the_auto_import_bar(): void
+    public function a_correction_imports_when_its_predecessor_only_missed_the_auto_import_bar(): void
     {
         $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
         {
@@ -1416,6 +1530,64 @@ class ImportOosArchiveCommandTest extends TestCase
                     services: [[
                         'service' => 'morning', 'date' => '2026-07-12', 'service_evidence_line_ids' => [1],
                         'items' => [$item], 'confidence' => $confidence,
+                    ]],
+                    serviceCount: 1,
+                    provenanceComplete: true,
+                );
+            }
+        });
+        $corpus = $this->corpus([
+            ['key' => '2026-07-12-original', 'date' => '2026-07-12', 'subject' => 'Original order'],
+            ['key' => '2026-07-12-correction', 'date' => '2026-07-12', 'subject' => 'Corrected order', 'supersedes' => '2026-07-12-original'],
+        ]);
+        $report = $this->temporaryPath('json');
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus, '--import' => true, '--plan-hash' => $this->planHash(), '--report' => $report,
+        ])->assertExitCode(0);
+
+        $entries = collect($this->readReport($report)['entries'])->keyBy('item_key');
+
+        $this->assertSame('created', $entries['2026-07-12-original']['disposition']);
+        $this->assertSame('merged', $entries['2026-07-12-correction']['disposition']);
+        $this->assertSame([], $entries['2026-07-12-correction']['gate_reasons']);
+
+        $service = ChurchService::query()->where('date', '2026-07-12')->firstOrFail();
+        $this->assertCount(1, $service->items);
+        // The predecessor's evidence tier was superseded but never finalised; the correction did
+        // clear the auto-import bar outright.
+        $this->assertTrue($service->import_metadata->toArray()['plan']['finalised']);
+    }
+
+    /**
+     * The identity gate REV-D2 keeps held is different from the confidence bar the test above now
+     * clears: a plan the manifest never corroborates is not admitted as evidence at any
+     * confidence, so the chain it heads stays held as a unit exactly as before.
+     */
+    #[Test]
+    public function a_correction_stays_held_when_its_predecessor_fails_the_identity_gate(): void
+    {
+        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
+        {
+            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
+            {
+                $corrected = str_contains($subject, 'Corrected');
+                // The uncorrected document's own extraction disagrees with the manifest about
+                // which date it belongs to — an identity failure, not a confidence one.
+                $date = $corrected ? '2026-07-12' : '2026-07-19';
+                $item = [
+                    'type' => 'song',
+                    'title' => $corrected ? 'Corrected order' : 'Original order',
+                    'source_line_ids' => [2],
+                    'continuation' => false,
+                ];
+
+                return new OosEmailItemExtractionResult(
+                    items: [$item],
+                    confidence: 0.99,
+                    services: [[
+                        'service' => 'morning', 'date' => $date, 'service_evidence_line_ids' => [1],
+                        'items' => [$item], 'confidence' => 0.99,
                     ]],
                     serviceCount: 1,
                     provenanceComplete: true,

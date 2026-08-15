@@ -118,24 +118,32 @@ class OosMultiServiceImportTest extends TestCase
     }
 
     #[Test]
-    public function the_job_imports_the_confident_plan_and_holds_the_weak_one(): void
+    public function the_job_imports_the_confident_plan_and_admits_the_weak_one_as_evidence(): void
     {
+        // IC1/REV-D2: the evening plan's identity is unambiguous (service + date resolved, no
+        // identity-gate hold reason), so its low confidence alone no longer holds it outright —
+        // it imports as unreviewed, unfinalised evidence, exactly as the archive path does.
         $this->bindMultiServiceExtractor(eveningConfidence: 0.20);
         $email = $this->multiServiceEmail();
 
         app()->call([new ProcessInboundOosEmail($email), 'handle']);
 
-        $services = ChurchService::query()->get();
-        $this->assertCount(1, $services);
-        $this->assertSame(SermonService::Morning, $services->first()->service);
+        $services = ChurchService::query()->orderBy('service')->get();
+        $this->assertCount(2, $services);
+
+        $evening = $services->firstWhere('service', SermonService::Evening);
+        $this->assertTrue((bool) $evening->needs_review);
+        $this->assertFalse($evening->import_metadata->toArray()['plan']['finalised']);
+        $this->assertSame('review_required', $evening->import_metadata->toArray()['plan']['disposition']);
 
         $email->refresh();
-        // A held plan means the email is not fully resolved, so it stays in the inbox.
-        $this->assertSame(InboundEmailStatus::Pending, $email->status);
+        // Both plans reached a terminal outcome, so the email leaves the inbox even though the
+        // evening service still needs review — that review now lives in the census, not here.
+        $this->assertSame(InboundEmailStatus::Processed, $email->status);
 
         $outcomes = collect($email->processing_metadata['plan_outcomes']);
         $this->assertSame('created', $outcomes->firstWhere('service', 'morning')['outcome']);
-        $this->assertSame('held_for_review', $outcomes->firstWhere('service', 'evening')['outcome']);
+        $this->assertSame('created', $outcomes->firstWhere('service', 'evening')['outcome']);
     }
 
     #[Test]

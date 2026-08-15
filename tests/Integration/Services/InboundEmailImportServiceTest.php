@@ -11,6 +11,7 @@ use App\Enums\ChurchServiceItemSource;
 use App\Enums\InboundEmailStatus;
 use App\Enums\OosEmailContentScope;
 use App\Enums\OosEmailParseDisposition;
+use App\Enums\OosEmailPlanHoldReason;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
@@ -275,6 +276,140 @@ class InboundEmailImportServiceTest extends TestCase
 
         $this->assertSame('held_for_review', $result->plans[0]->outcome->value);
         $this->assertDatabaseCount('church_services', 0);
+    }
+
+    #[Test]
+    public function test_an_unattended_import_admits_a_corroborated_review_required_plan_as_unfinalised_evidence(): void
+    {
+        // REV-D2: identity is trustworthy (service + date resolved, no identity-gate hold reason)
+        // even though confidence never reached the auto-import bar. The unattended pipeline now
+        // imports this as source evidence rather than holding it outright.
+        $inboundEmail = InboundEmail::factory()->create();
+        $plan = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2025-03-09',
+            items: [
+                ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ],
+            confidence: 0.60,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            holdReasons: [OosEmailPlanHoldReason::LowConfidence],
+        );
+        $parseResult = new OosEmailParseResult(
+            date: '2025-03-09',
+            service: SermonService::Morning,
+            items: $plan->items,
+            confidenceScore: 0.60,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: [],
+            servicePlans: [$plan],
+            disposition: OosEmailParseDisposition::ReviewRequired,
+        );
+
+        $result = $this->service->import($inboundEmail, $parseResult);
+        $churchService = $result->firstCreatedService();
+
+        $this->assertSame('created', $result->plans[0]->outcome->value);
+        $this->assertInstanceOf(ChurchService::class, $churchService);
+        $this->assertTrue((bool) $churchService->needs_review);
+        $this->assertFalse($churchService->import_metadata->toArray()['plan']['finalised']);
+        $this->assertSame('review_required', $churchService->import_metadata->toArray()['plan']['disposition']);
+        $this->assertSame(['low_confidence'], $churchService->import_metadata->toArray()['plan']['hold_reasons']);
+        // Never touched by an automated import, so the service reads NotReviewed regardless of
+        // the needs_review column above — the two are independent by design.
+        $this->assertArrayNotHasKey('manual_review', $churchService->import_metadata->toArray());
+    }
+
+    #[Test]
+    public function test_an_unattended_import_still_holds_a_content_invalid_plan(): void
+    {
+        // The widened evidence tier is disposition-gated: `InvalidExtraction` never becomes
+        // `ReviewRequired`, so it can never satisfy isEvidenceImportable() either.
+        $inboundEmail = InboundEmail::factory()->create();
+        $items = [
+            ['position' => 1, 'type' => 'songs', 'title' => 'Merged title', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+        ];
+        $invalidPlan = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2025-03-09',
+            items: $items,
+            confidence: 0.95,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::InvalidExtraction,
+            validationReasons: ['Item 1 merges separate source lines.'],
+            holdReasons: [OosEmailPlanHoldReason::ContentInvalid],
+        );
+        $parseResult = new OosEmailParseResult(
+            date: '2025-03-09',
+            service: SermonService::Morning,
+            items: $items,
+            confidenceScore: 0.95,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: [],
+            servicePlans: [$invalidPlan],
+            disposition: OosEmailParseDisposition::InvalidExtraction,
+        );
+
+        $result = $this->service->import($inboundEmail, $parseResult);
+
+        $this->assertSame('held_for_review', $result->plans[0]->outcome->value);
+        $this->assertDatabaseCount('church_services', 0);
+    }
+
+    #[Test]
+    public function test_a_corroborated_review_required_plan_converges_into_an_openlp_service_without_staging(): void
+    {
+        // B11: cross-source agreement finalises a merge without human review. This proves the
+        // widened evidence tier still reaches that convergence rather than being stranded held.
+        $song = Song::factory()->create(['title' => 'In Christ Alone']);
+        $existing = ChurchService::factory()->create([
+            'date' => '2025-03-09',
+            'service' => 'morning',
+            'source' => 'openlp',
+        ]);
+        $existing->items()->create([
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'In Christ Alone',
+            'song_id' => $song->id,
+            'source' => ChurchServiceItemSource::OpenLp->value,
+        ]);
+        $inboundEmail = InboundEmail::factory()->create(['status' => InboundEmailStatus::Pending]);
+        $plan = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2025-03-09',
+            items: [
+                ['position' => 1, 'type' => 'songs', 'title' => 'In Christ Alone', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ],
+            confidence: 0.70,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            holdReasons: [OosEmailPlanHoldReason::LowConfidence],
+        );
+        $parseResult = new OosEmailParseResult(
+            date: '2025-03-09',
+            service: SermonService::Morning,
+            items: $plan->items,
+            confidenceScore: 0.70,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: [],
+            servicePlans: [$plan],
+            disposition: OosEmailParseDisposition::ReviewRequired,
+        );
+
+        $result = $this->service->import($inboundEmail, $parseResult);
+
+        $this->assertSame($existing->id, $result->firstResolvedService()?->id);
+        $this->assertSame([], $result->created());
+        $this->assertCount(1, $result->merged());
+        $this->assertSame('openlp', $existing->fresh()->source);
     }
 
     #[Test]

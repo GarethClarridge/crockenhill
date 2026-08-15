@@ -372,11 +372,14 @@ class InboundEmailImportService
             $plan = $plan->withContentScope($reviewedContentScope);
         }
 
-        // An admin approval imports any well-formed plan; the automated pipeline only imports
-        // plans confident enough to auto-import, holding the rest for review.
+        // An admin approval imports any well-formed plan. The automated pipeline imports plans
+        // confident enough to auto-import outright, and — per REV-D2 — also imports a
+        // `ReviewRequired` plan whose identity is trustworthy, as unreviewed, unfinalised
+        // evidence; everything else (identity failures, content-invalid extractions, a legacy
+        // pre-validator parse) still holds for a human.
         $ready = $reviewedByUserId !== null
             ? $plan->isManuallyImportable()
-            : $plan->isAutoImportable();
+            : ($plan->isAutoImportable() || $plan->isEvidenceImportable());
 
         if (! $ready || ! $plan->isImportable()) {
             return new OosEmailImportPlanOutcome(
@@ -703,6 +706,16 @@ class InboundEmailImportService
                 'date' => $plan->date,
                 'confidence' => $plan->confidence,
                 'content_scope' => $plan->contentScope->value,
+                'disposition' => $plan->disposition->value,
+                'hold_reasons' => $plan->holdReasonValues(),
+                /**
+                 * REV-D2: whether this import cleared the full auto-import bar (`true`) or was
+                 * admitted only as unreviewed source evidence because its identity is trustworthy
+                 * (`false`). An admin approval always finalises what it approves. Read by release
+                 * eligibility — a service still carrying unfinalised email evidence is not
+                 * release-eligible.
+                 */
+                'finalised' => $reviewedByUserId !== null || $plan->disposition === OosEmailParseDisposition::AutoImportable,
             ],
         ]);
 
