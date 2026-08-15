@@ -70,8 +70,6 @@ class OpenAiOosEmailItemExtractorTest extends TestCase
                 && str_contains($parameters['messages'][1]['content'], '[L001] Welcome')
                 && str_contains($parameters['messages'][0]['content'], 'A single order may have no heading')
                 && str_contains($parameters['messages'][0]['content'], 'Subject-level dates apply to every service plan')
-                && str_contains($parameters['messages'][0]['content'], 'evidence for that service, equal to a heading')
-                && str_contains($parameters['messages'][0]['content'], 'A service order does not need prayers, readings, notices or a sermon to be genuine')
                 && $parameters['response_format']['json_schema']['schema']['required']
                     === ['service_count', 'services', 'ignored_lines', 'notes']
                 && $serviceSchema['service']['enum'] === ['morning', 'evening', 'other', 'unknown']
@@ -84,6 +82,51 @@ class OpenAiOosEmailItemExtractorTest extends TestCase
                 && str_contains($parameters['messages'][0]['content'], 'Sunday evening carol service is evening')
                 && $serviceSchema['confidence']['type'] === 'number';
         });
+    }
+
+    /**
+     * The shape the named-person hymn-intro rules ask the model for: a plan whose only boundary
+     * evidence is a prose intro sentence, whose items are nothing but songs, and which is partial
+     * rather than full. Asserting the prompt contains the rules that request this would only prove
+     * the rules are still spelled the same way, so this pins the decoding instead — the intro line
+     * stays out of items, every song survives in listed order, and "partial" is not flattened to
+     * the "full" default that normaliseContentScope() applies to an absent scope.
+     */
+    #[Test]
+    public function it_decodes_a_song_only_partial_plan_without_promoting_its_intro_line_to_an_item(): void
+    {
+        OpenAI::fake([$this->response([
+            [
+                'service' => 'morning',
+                'date' => '2026-03-08',
+                'content_scope' => 'partial',
+                'service_evidence_line_ids' => [1],
+                'items' => [
+                    ['type' => 'song', 'title' => 'Be Thou My Vision', 'source_line_ids' => [2]],
+                    ['type' => 'song', 'title' => 'In Christ Alone', 'source_line_ids' => [3]],
+                    ['type' => 'song', 'title' => 'How Great Thou Art', 'source_line_ids' => [4]],
+                ],
+                'confidence' => 0.9,
+            ],
+        ])]);
+
+        $result = $this->extractor->extract(
+            'Sunday',
+            "Jon would like the following hymns tomorrow morning:\nBe Thou My Vision\nIn Christ Alone\nHow Great Thou Art",
+            '2026-03-07',
+        );
+
+        $this->assertSame('partial', $result->services[0]['content_scope']);
+        $this->assertSame([1], $result->services[0]['service_evidence_line_ids']);
+        $this->assertSame(['song', 'song', 'song'], array_column($result->items, 'type'));
+        $this->assertSame(
+            ['Be Thou My Vision', 'In Christ Alone', 'How Great Thou Art'],
+            array_column($result->items, 'title'),
+        );
+        $this->assertNotContains(
+            'Jon would like the following hymns tomorrow morning:',
+            array_column($result->items, 'title'),
+        );
     }
 
     /**

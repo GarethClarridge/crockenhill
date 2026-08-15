@@ -62,6 +62,51 @@ class OosEmailExtractionValidatorTest extends TestCase
         $this->assertSame([], $this->validator->validate($source, $extraction)->allReasons());
     }
 
+    /**
+     * The deterministic half of the named-person hymn-intro rules: a plan carrying nothing but
+     * songs, bounded by a prose sentence rather than a heading, has to survive validation or the
+     * prompt asking the model to produce one would just move the loss downstream.
+     */
+    #[Test]
+    public function a_song_only_plan_bounded_by_a_prose_intro_sentence_is_not_a_finding(): void
+    {
+        $result = $this->validate(
+            [
+                'Jon would like the following hymns tomorrow morning:',
+                'Be Thou My Vision',
+                'In Christ Alone',
+                'How Great Thou Art',
+            ],
+            evidenceLineIds: [1],
+            items: [[2], [3], [4]],
+        );
+
+        $this->assertSame([], $result->allReasons());
+    }
+
+    /**
+     * Characterisation, not endorsement. EVENING_SERVICE_PATTERN only asks whether an evidence
+     * line contains an evening/PM token, so ordinary prose mentioning the evening clears it just
+     * as a standalone "Evening: 6pm" heading would. Nothing here can tell the two apart, which is
+     * why refusing a prose-only evening boundary lives in the extractor's system prompt and why
+     * weakening that rule has no deterministic net beneath it.
+     */
+    #[Test]
+    public function the_evening_boundary_check_cannot_tell_prose_from_a_heading(): void
+    {
+        $source = OosEmailSourceDocument::fromBody("And in the evening Jon is leading\nHymn 101");
+        $extraction = new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.9,
+            services: [$this->plan('evening', [1], [[2]])],
+            serviceCount: 1,
+            ignoredLines: [],
+            provenanceComplete: true,
+        );
+
+        $this->assertSame([], $this->validator->validate($source, $extraction)->allReasons());
+    }
+
     #[Test]
     public function two_items_claiming_the_same_line_is_still_a_content_finding(): void
     {

@@ -52,8 +52,18 @@ use Throwable;
  */
 class ImportOosArchiveCommand extends Command
 {
-    /** Bump when the parsing pipeline changes shape or deterministic guards change. */
-    private const ParserVersion = 'archive-v12';
+    /**
+     * Bump whenever the same source bytes could now parse differently: pipeline shape,
+     * deterministic guards, and the extractor's system prompt alike.
+     *
+     * The prompt counts. This constant is the raw-extraction cache key
+     * ({@see OosArchiveParseCacheBinding::rawCacheKey()}), so leaving it alone after a prompt
+     * change means every already-parsed entry silently reuses the old prompt's output and the
+     * change reaches only entries nobody has parsed yet. It is also the identity
+     * {@see OosArchiveAssertionBundle::preflight()} checks a bundle against, so two different
+     * prompts sharing one version string let a stale bundle preflight clean.
+     */
+    private const ParserVersion = 'archive-v13';
 
     private const DefaultVerbatimRoot = 'scratch/oos-verbatim';
 
