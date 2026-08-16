@@ -94,6 +94,7 @@ class HistoricHymnReconciliation
 
     public function __construct(
         private HistoricHymnSourceWorkbookReader $reader,
+        private CatalogueTitleMatcher $titleMatcher = new CatalogueTitleMatcher,
     ) {}
 
     /**
@@ -246,7 +247,7 @@ class HistoricHymnReconciliation
             $key = $title."\0".($number ?? '');
 
             if (! array_key_exists($key, $cache)) {
-                $cache[$key] = $this->bestMatch($resolver, $title, is_string($number) ? $number : null);
+                $cache[$key] = $this->titleMatcher->match($resolver, $title, is_string($number) ? $number : null);
             }
 
             $match = $cache[$key];
@@ -263,40 +264,6 @@ class HistoricHymnReconciliation
                 'candidate_confidence' => $accepted || $match === null ? null : $match->confidence,
             ];
         }, $statements);
-    }
-
-    /**
-     * The strongest match across both ways of probing the catalogue.
-     *
-     * Catalogue titles carry their hymn-book number inconsistently — "Amazing Grace #772"
-     * alongside a bare "Amazing Grace" — so neither probe wins everywhere. Probing with
-     * the number appended finds the numbered entries, and probing on the title alone
-     * finds the rest; sending only the combined probe turns a clean title match into a
-     * fuzzy one whenever the catalogue entry carries no number.
-     *
-     * A definite match always beats a fuzzy one, and confidence breaks the remaining ties.
-     */
-    private function bestMatch(SongTitleResolver $resolver, string $title, ?string $number): ?SongTitleMatch
-    {
-        $matches = array_values(array_filter([
-            $resolver->resolve($title),
-            $number === null ? null : $resolver->resolve($title.' '.$number),
-        ]));
-
-        if ($matches === []) {
-            return null;
-        }
-
-        usort($matches, static function (SongTitleMatch $a, SongTitleMatch $b): int {
-            $aFuzzy = $a->matchType === SongTitleMatch::TYPE_FUZZY;
-            $bFuzzy = $b->matchType === SongTitleMatch::TYPE_FUZZY;
-
-            return $aFuzzy === $bFuzzy
-                ? $b->confidence <=> $a->confidence
-                : ($aFuzzy ? 1 : -1);
-        });
-
-        return $matches[0];
     }
 
     /**
