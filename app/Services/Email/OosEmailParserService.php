@@ -55,7 +55,7 @@ class OosEmailParserService
         $adjudicated = false;
         $validAttemptsDisagree = false;
         $retryWarnings = [];
-        $retryReasons = $this->retryReasons($initialExtraction, $initialValidation);
+        $retryReasons = $this->retryReasons($initialValidation);
 
         if ($retryReasons !== [] && $this->itemExtractor instanceof CorrectiveOosEmailItemExtractor) {
             try {
@@ -68,7 +68,7 @@ class OosEmailParserService
                 );
                 $correctedExtraction = $this->guardUnsupportedEveningPlans($source, $correctedExtraction, $inboundEmail->subject);
                 $correctedValidation = $this->extractionValidator->validate($source, $correctedExtraction, $inboundEmail->subject);
-                $useCorrected = $correctedValidation->reasonCount() <= $initialValidation->reasonCount();
+                $useCorrected = $correctedValidation->reasonCount() < $initialValidation->reasonCount();
 
                 if ($useCorrected) {
                     $extraction = $correctedExtraction;
@@ -783,36 +783,16 @@ class OosEmailParserService
     }
 
     /**
+     * Retry only an extraction that deterministic validation has shown to be defective.
+     * Confidence and unresolved identity remain review signals, not reasons to perturb a valid
+     * first reading.
+     *
      * @return list<string>
      */
     private function retryReasons(
-        OosEmailItemExtractionResult $extraction,
         OosEmailExtractionValidationResult $validation,
     ): array {
-        $reasons = $validation->allReasons();
-        $autoImportThreshold = (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90);
-
-        foreach ($extraction->services as $planIndex => $service) {
-            $confidence = $service['confidence'];
-
-            if ($confidence < $autoImportThreshold) {
-                $reasons[] = 'Service plan '.($planIndex + 1).' is below the automatic-import confidence threshold.';
-            }
-
-            if (($service['service'] ?? null) === 'unknown' || ($service['service'] ?? null) === 'other') {
-                $reasons[] = 'Service plan '.($planIndex + 1).' has an uncertain or special service type.';
-            }
-
-            if (($service['date'] ?? null) === null) {
-                $reasons[] = 'Service plan '.($planIndex + 1).' has no resolved date.';
-            }
-
-            if (($service['content_scope'] ?? 'full') === 'unknown') {
-                $reasons[] = 'Service plan '.($planIndex + 1).' has unknown content completeness.';
-            }
-        }
-
-        return array_values(array_unique($reasons));
+        return $validation->allReasons();
     }
 
     /**
