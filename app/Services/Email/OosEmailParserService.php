@@ -12,6 +12,7 @@ use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailParseResult;
 use App\Data\OosEmailServicePlan;
 use App\Data\OosEmailSourceDocument;
+use App\Data\OosEmailStructuralFinding;
 use App\Enums\OosEmailContentScope;
 use App\Enums\OosEmailParseDisposition;
 use App\Enums\OosEmailPlanHoldReason;
@@ -86,6 +87,10 @@ class OosEmailParserService
                 if ($validAttemptsDisagree) {
                     $disagreementCategories = $this->extractionDisagreementCategories($initialExtraction, $correctedExtraction);
                     $attempts[1]['disagreement_categories'] = $disagreementCategories;
+                    $attempts[1]['disagreement_item_type_changes'] = $this->extractionItemTypeChanges(
+                        $initialExtraction,
+                        $correctedExtraction,
+                    );
 
                     if ($this->itemExtractor instanceof AdjudicatingOosEmailItemExtractor) {
                         [$extraction, $validation, $attempts, $adjudicated] = $this->adjudicateDisagreement(
@@ -355,8 +360,7 @@ class OosEmailParserService
                 [],
                 $source,
                 $extraction->provenanceComplete,
-                $validation->reasonsForPlan(0),
-                $validation->contentReasonsForPlan(0),
+                $validation,
                 $subject,
                 $sourceMessageId,
                 $warnings,
@@ -380,8 +384,7 @@ class OosEmailParserService
                 $rawPlan['service_evidence_line_ids'] ?? [],
                 $source,
                 $extraction->provenanceComplete,
-                $validation->reasonsForPlan($planIndex),
-                $validation->contentReasonsForPlan($planIndex),
+                $validation,
                 $subject,
                 $sourceMessageId,
                 $warnings,
@@ -395,10 +398,13 @@ class OosEmailParserService
     }
 
     /**
+     * The whole validation result is passed rather than the reason lists it derives, because the
+     * two lists are a subset relation and the caller used to hand the superset to a parameter
+     * named `$structuralReasons` — labelling every content-invalid plan a bookkeeping hold as well.
+     * Asking the result for each list by name makes that class of mix-up unavailable here.
+     *
      * @param  array<int, array{type:string,title:string,source_line_ids?:list<int>,continuation?:bool}>  $rawItems
      * @param  list<int>  $serviceEvidenceLineIds
-     * @param  list<string>  $structuralReasons
-     * @param  list<string>  $contentReasons
      * @param  list<string>  $warnings
      * @param  array<string, array{plausible:bool,warnings:list<string>,suggested_date:?string,reasons:list<string>,claimed_weekday:?string}>  $validations
      */
@@ -413,8 +419,7 @@ class OosEmailParserService
         array $serviceEvidenceLineIds,
         OosEmailSourceDocument $source,
         bool $provenanceComplete,
-        array $structuralReasons,
-        array $contentReasons,
+        OosEmailExtractionValidationResult $validation,
         string $subject,
         ?string $sourceMessageId,
         array &$warnings,
@@ -422,6 +427,8 @@ class OosEmailParserService
         bool $consensus,
         bool $validAttemptsDisagree,
     ): OosEmailServicePlan {
+        $contentReasons = $validation->contentReasonsForPlan($planIndex);
+        $structuralReasons = $validation->structuralReasonsForPlan($planIndex);
         $service = $this->validatedService($rawService);
         $date = $this->validatedDate($rawDate);
         $contentScope = OosEmailContentScope::tryFrom($rawContentScope) ?? OosEmailContentScope::Unknown;
@@ -454,7 +461,7 @@ class OosEmailParserService
         $confidence = round($confidence, 2);
         $reviewThreshold = (float) config('service-tracking.email_parsing.review_threshold', 0.75);
         $autoImportThreshold = (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90);
-        $validationReasons = $structuralReasons;
+        $validationReasons = $validation->reasonsForPlan($planIndex);
 
         if ($items === []) {
             $validationReasons[] = 'The service order contains no extractable items.';
@@ -514,6 +521,16 @@ class OosEmailParserService
                 'plan_index' => $planIndex,
                 'rejected_service' => $rejectedService,
                 'service_evidence_line_ids' => $this->integerLineIds($serviceEvidenceLineIds),
+                /**
+                 * Which line each bookkeeping hold is about, and the items it sits between. The
+                 * reasons above say the same thing in prose, which nothing downstream can read:
+                 * the archive census could only attribute a hold to every item of the plan, so it
+                 * reported the corpus-wide item mix back as if it were a finding about songs.
+                 */
+                'structural_findings' => array_map(
+                    static fn (OosEmailStructuralFinding $finding): array => $finding->toArray(),
+                    $validation->structuralFindingsForPlan($planIndex),
+                ),
                 'items' => array_map(
                     fn (array $item, int $index): array => [
                         'position' => $index + 1,
@@ -886,6 +903,46 @@ class OosEmailParserService
         }
 
         return $categories === [] ? ['unclassified'] : $categories;
+    }
+
+    /**
+     * Which item types the two attempts actually swapped, as `from→to` counts.
+     *
+     * `item_type_or_order` is by far the commonest disagreement — 48 of the 102 in the 2026-08-16
+     * rehearsal were that and nothing else, meaning identical titles and source lines with a
+     * different label somewhere — but the category cannot say whether the argument was over a
+     * consequential type or over `other` against `prayer`. Only plans whose item counts match are
+     * compared: without that, position `n` in one attempt is not position `n` in the other, and
+     * `item_count` already records the difference.
+     *
+     * @return array<string, int>
+     */
+    private function extractionItemTypeChanges(
+        OosEmailItemExtractionResult $initialExtraction,
+        OosEmailItemExtractionResult $correctedExtraction,
+    ): array {
+        $changes = [];
+
+        foreach ($initialExtraction->services as $planIndex => $initialPlan) {
+            $correctedPlan = $correctedExtraction->services[$planIndex] ?? null;
+
+            if (! is_array($correctedPlan) || count($initialPlan['items']) !== count($correctedPlan['items'])) {
+                continue;
+            }
+
+            foreach ($initialPlan['items'] as $itemIndex => $initialItem) {
+                $from = $initialItem['type'];
+                $to = $correctedPlan['items'][$itemIndex]['type'];
+
+                if ($from !== $to) {
+                    $changes["{$from}→{$to}"] = ($changes["{$from}→{$to}"] ?? 0) + 1;
+                }
+            }
+        }
+
+        ksort($changes);
+
+        return $changes;
     }
 
     /**

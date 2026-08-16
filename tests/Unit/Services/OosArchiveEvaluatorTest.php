@@ -388,6 +388,78 @@ class OosArchiveEvaluatorTest extends TestCase
     }
 
     /**
+     * The type census counts every item of a held plan, so it reports the corpus item mix back
+     * unless it is given a denominator. Songs are about a third of every Crockenhill order, and
+     * the 2026-08-16 rehearsal's 629 "bookkeeping songs" were 32.9% of that bucket against a
+     * 34.5% base rate — no signal at all, read as one. Lift against the base rate is what makes
+     * the row interpretable, so the aggregate carries both.
+     */
+    #[Test]
+    public function it_reports_held_item_types_against_the_corpus_base_rate(): void
+    {
+        $held = $this->planWith(
+            [$this->semanticItem(1, 'songs', 'song'), $this->semanticItem(2, 'custom', 'prayer')],
+            [OosEmailPlanHoldReason::Bookkeeping],
+        );
+        $clean = $this->planWith(
+            array_map(fn (int $position): array => $this->semanticItem($position, 'songs', 'song'), [1, 2, 3, 4]),
+            [],
+        );
+
+        $aggregate = (new OosArchiveEvaluator)->aggregate([
+            (new OosArchiveEvaluator)->evaluate($this->entry(1), $this->parseResultFor($held), 'held_for_review'),
+            (new OosArchiveEvaluator)->evaluate($this->entry(2), $this->parseResultFor($clean), 'imported'),
+        ]);
+
+        $this->assertSame(['prayer' => 1, 'song' => 5], $aggregate['semantic_item_type_counts']);
+        $this->assertSame(
+            [
+                'items' => 2,
+                'types' => [
+                    'prayer' => ['items' => 1, 'share' => 0.5, 'base_share' => 0.167, 'lift' => 0.333],
+                    'song' => ['items' => 1, 'share' => 0.5, 'base_share' => 0.833, 'lift' => -0.333],
+                ],
+            ],
+            $aggregate['held_plan_semantic_item_type_lift_by_reason']['bookkeeping'],
+        );
+    }
+
+    /**
+     * What a bookkeeping hold is actually about. The rule that fired and the items either side of
+     * the offending line are the only attribution that distinguishes "a line was dropped between
+     * two songs" from "the plan happens to contain songs".
+     */
+    #[Test]
+    public function it_censuses_bookkeeping_findings_by_rule_and_neighbouring_item_type(): void
+    {
+        $plan = $this->planWith(
+            [$this->semanticItem(1, 'songs', 'song'), $this->semanticItem(2, 'custom', 'sermon')],
+            [OosEmailPlanHoldReason::Bookkeeping],
+            [
+                'structural_findings' => [[
+                    'rule' => 'line_ignored_inside_item_span',
+                    'line_id' => 4,
+                    'plan_index' => 0,
+                    'preceding_item_type' => 'song',
+                    'following_item_type' => 'sermon',
+                ]],
+            ],
+        );
+
+        $result = (new OosArchiveEvaluator)->evaluate($this->entry(), $this->parseResultFor($plan), 'held_for_review');
+        $aggregate = (new OosArchiveEvaluator)->aggregate([$result]);
+
+        $this->assertSame(
+            ['line_ignored_inside_item_span' => 1],
+            $aggregate['bookkeeping_finding_counts'],
+        );
+        $this->assertSame(
+            ['sermon' => 1, 'song' => 1],
+            $aggregate['bookkeeping_finding_adjacent_item_types'],
+        );
+    }
+
+    /**
      * A corrective call that threw is not a parser disagreement. Rebuilding the categories from
      * the stored attempts read the error attempt's missing `plans` key as a disagreement across
      * every compared field, inflating the census on exactly the sources that failed hardest.
@@ -772,6 +844,43 @@ class OosArchiveEvaluatorTest extends TestCase
             supersedesSourceKey: null,
             inputHash: str_repeat('a', 64),
             syntheticReceivedAt: CarbonImmutable::parse('2026-07-10 09:00', 'Europe/London'),
+        );
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     * @param  list<OosEmailPlanHoldReason>  $holdReasons
+     * @param  array<string, mixed>  $sourceProvenance
+     */
+    private function planWith(array $items, array $holdReasons, array $sourceProvenance = []): OosEmailServicePlan
+    {
+        return new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2026-07-12',
+            items: $items,
+            confidence: 0.95,
+            needsReview: $holdReasons !== [],
+            shouldImport: $holdReasons === [],
+            disposition: $holdReasons === []
+                ? OosEmailParseDisposition::AutoImportable
+                : OosEmailParseDisposition::ReviewRequired,
+            holdReasons: $holdReasons,
+            sourceProvenance: $sourceProvenance,
+        );
+    }
+
+    private function parseResultFor(OosEmailServicePlan $plan): OosEmailParseResult
+    {
+        return new OosEmailParseResult(
+            date: $plan->date,
+            service: $plan->service,
+            items: $plan->items,
+            confidenceScore: $plan->confidence,
+            needsReview: $plan->needsReview,
+            shouldImport: $plan->shouldImport,
+            importMetadata: [],
+            servicePlans: [$plan],
+            disposition: $plan->disposition,
         );
     }
 

@@ -114,6 +114,13 @@ class OosArchiveEvaluator
             'attempt_count' => $attemptCount,
             'attempt_disagreement_categories' => $this->attemptDisagreementCategories($parseResult),
             /**
+             * Which item labels the two attempts swapped. `item_type_or_order` was the only
+             * category on 48 of the 102 disagreements in the 2026-08-16 rehearsal — identical
+             * titles and source lines, a different label — and the category alone cannot say
+             * whether the argument was consequential.
+             */
+            'attempt_disagreement_item_type_changes' => $this->attemptItemTypeChanges($parseResult),
+            /**
              * Kept apart deliberately. `consensus` is two independent attempts agreeing and clears
              * the import gate above the review threshold; `adjudicated` is a third call choosing
              * between two disagreeing candidates and never clears it (HIR-D6). Collapsing them
@@ -207,6 +214,12 @@ class OosArchiveEvaluator
             'content_validation_reasons' => $plan->contentValidationReasons,
             'hold_reasons' => $plan->holdReasonValues(),
             /**
+             * The line each bookkeeping hold concerns, and the items either side of it. Without
+             * this the census can only attribute a hold to every item of the plan, which reports
+             * the corpus item mix rather than anything about the hold.
+             */
+            'structural_findings' => $this->arrayRows($plan->sourceProvenance['structural_findings'] ?? null),
+            /**
              * Was `exact_correct`, renamed in item 0(3). It is the conjunction of the entry
              * asserting a full order, the date agreeing, the service slot agreeing and the plan
              * being non-empty — it never opens an item. It is a sound measure of *identity*
@@ -279,6 +292,32 @@ class OosArchiveEvaluator
     }
 
     /**
+     * @return array<string, int>
+     */
+    private function attemptItemTypeChanges(?OosEmailParseResult $parseResult): array
+    {
+        $recorded = $parseResult?->extractionAttempts[1]['disagreement_item_type_changes'] ?? null;
+
+        if (! is_array($recorded)) {
+            return [];
+        }
+
+        return array_map(intval(...), array_filter($recorded, is_numeric(...)));
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function arrayRows(mixed $rows): array
+    {
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        return array_values(array_filter($rows, is_array(...)));
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $entries
      * @return array<string, mixed>
      */
@@ -307,6 +346,10 @@ class OosArchiveEvaluator
         $holdReasonCategories = [];
         $planHoldReasons = [];
         $heldPlanSemanticItemTypesByReason = [];
+        $semanticItemTypes = [];
+        $bookkeepingFindings = [];
+        $bookkeepingAdjacentItemTypes = [];
+        $attemptItemTypeChanges = [];
         $planDispositions = [];
         $adjudicatedSources = 0;
 
@@ -377,11 +420,34 @@ class OosArchiveEvaluator
                 $adjudicatedSources++;
             }
 
+            foreach ($entry['attempt_disagreement_item_type_changes'] ?? [] as $change => $count) {
+                $attemptItemTypeChanges[$change] = ($attemptItemTypeChanges[$change] ?? 0) + (int) $count;
+            }
+
             foreach ($entry['plans'] ?? [] as $plan) {
                 $planDisposition = $plan['disposition'] ?? null;
 
                 if (is_string($planDisposition)) {
                     $planDispositions[$planDisposition] = ($planDispositions[$planDisposition] ?? 0) + 1;
+                }
+
+                // Every plan, held or not: this is the denominator the per-reason rows are read against.
+                foreach ($plan['semantic_item_type_counts'] ?? [] as $type => $count) {
+                    $semanticItemTypes[$type] = ($semanticItemTypes[$type] ?? 0) + (int) $count;
+                }
+
+                foreach ($this->arrayRows($plan['structural_findings'] ?? null) as $finding) {
+                    $rule = $finding['rule'] ?? null;
+
+                    if (is_string($rule)) {
+                        $bookkeepingFindings[$rule] = ($bookkeepingFindings[$rule] ?? 0) + 1;
+                    }
+
+                    foreach ([$finding['preceding_item_type'] ?? null, $finding['following_item_type'] ?? null] as $adjacent) {
+                        if (is_string($adjacent)) {
+                            $bookkeepingAdjacentItemTypes[$adjacent] = ($bookkeepingAdjacentItemTypes[$adjacent] ?? 0) + 1;
+                        }
+                    }
                 }
 
                 foreach ($plan['hold_reasons'] ?? [] as $reason) {
@@ -405,6 +471,10 @@ class OosArchiveEvaluator
             ksort($types);
         }
         unset($types);
+        ksort($semanticItemTypes);
+        ksort($bookkeepingFindings);
+        ksort($bookkeepingAdjacentItemTypes);
+        ksort($attemptItemTypeChanges);
         ksort($planDispositions);
         ksort($songMatchTypes);
         arsort($unmatchedSongTitles);
@@ -484,6 +554,29 @@ class OosArchiveEvaluator
              * review triage is changed; it does not alter disposition or import eligibility.
              */
             'held_plan_semantic_item_types_by_reason' => $heldPlanSemanticItemTypesByReason,
+            /**
+             * The denominator for the row above: the item mix of every plan the run produced,
+             * held or not.
+             */
+            'semantic_item_type_counts' => $semanticItemTypes,
+            /**
+             * The same census expressed against that denominator. A hold reason whose item mix
+             * matches the corpus tells you nothing about which items it concerns — and every
+             * reason in the 2026-08-16 rehearsal was within three points of the base rate, which
+             * the raw counts alone made look like a finding about songs.
+             */
+            'held_plan_semantic_item_type_lift_by_reason' => $this->semanticItemTypeLift(
+                $heldPlanSemanticItemTypesByReason,
+                $semanticItemTypes,
+            ),
+            /**
+             * What the bookkeeping holds are actually about: which line-accounting rule fired,
+             * and the item types the offending line sits between.
+             */
+            'bookkeeping_finding_counts' => $bookkeepingFindings,
+            'bookkeeping_finding_adjacent_item_types' => $bookkeepingAdjacentItemTypes,
+            /** Which item labels the two attempts swapped, summed over the corpus. */
+            'attempt_disagreement_item_type_changes' => $attemptItemTypeChanges,
             'plan_disposition_counts' => $planDispositions,
             /** Sources whose disagreement a third call resolved. These stay held; see HIR-D6. */
             'adjudicated_sources' => $adjudicatedSources,
@@ -523,6 +616,46 @@ class OosArchiveEvaluator
                 'rate' => $this->rate($itemCountsMatched, $itemCountsChecked),
             ],
         ];
+    }
+
+    /**
+     * Each hold reason's item mix as a share, next to the share the same type holds across the
+     * whole corpus. `lift` is the difference: zero means the reason's items look exactly like an
+     * ordinary order of service, and only a lift away from zero says a hold concentrates on a type.
+     *
+     * @param  array<string, array<string, int>>  $byReason
+     * @param  array<string, int>  $baseCounts
+     * @return array<string, array{items:int,types:array<string, array{items:int,share:float,base_share:float,lift:float}>}>
+     */
+    private function semanticItemTypeLift(array $byReason, array $baseCounts): array
+    {
+        $baseTotal = array_sum($baseCounts);
+        $lift = [];
+
+        foreach ($byReason as $reason => $counts) {
+            $total = array_sum($counts);
+
+            if ($total === 0) {
+                continue;
+            }
+
+            $types = [];
+
+            foreach ($counts as $type => $count) {
+                $share = round($count / $total, 3);
+                $baseShare = $baseTotal === 0 ? 0.0 : round(($baseCounts[$type] ?? 0) / $baseTotal, 3);
+                $types[$type] = [
+                    'items' => $count,
+                    'share' => $share,
+                    'base_share' => $baseShare,
+                    'lift' => round($share - $baseShare, 3),
+                ];
+            }
+
+            $lift[$reason] = ['items' => $total, 'types' => $types];
+        }
+
+        return $lift;
     }
 
     /**

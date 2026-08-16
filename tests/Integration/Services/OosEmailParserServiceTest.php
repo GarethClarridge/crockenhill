@@ -902,6 +902,12 @@ class OosEmailParserServiceTest extends TestCase
         $this->assertSame(['item_type_or_order'], $extractor->categories);
         $this->assertCount(3, $result->extractionAttempts);
         $this->assertSame(['item_type_or_order'], $result->extractionAttempts[1]['disagreement_categories']);
+        // Which label flipped, not merely that one did: the category alone cannot distinguish a
+        // reordered service from two calls arguing over `song` and `prayer` for the same line.
+        $this->assertSame(
+            ['song→prayer' => 1],
+            $result->extractionAttempts[1]['disagreement_item_type_changes'],
+        );
         $this->assertSame('matched_candidate', $result->extractionAttempts[2]['adjudication']);
         // The adjudicated order is adopted, so a reviewer sees the resolution...
         $this->assertTrue($result->adjudicated);
@@ -992,6 +998,78 @@ class OosEmailParserServiceTest extends TestCase
         $this->assertFalse($result->adjudicated);
         $this->assertSame(OosEmailParseDisposition::AutoImportable, $result->disposition);
         $this->assertSame([], $result->servicePlans[0]->holdReasons);
+    }
+
+    /**
+     * Content reasons are a subset of all reasons, and the parser asked the validator for "all"
+     * while calling the parameter `$structuralReasons` — so every invalid extraction was also
+     * counted as a bookkeeping hold. The archive census then reported 21 bookkeeping holds that
+     * were really content failures, 11 of them with no line-accounting finding at all.
+     */
+    #[Test]
+    public function a_plan_whose_only_findings_are_content_ones_is_not_also_a_bookkeeping_hold(): void
+    {
+        $result = $this->parserReturning(new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.95,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'service_evidence_line_ids' => [],
+                'items' => [
+                    $this->groundedItem('welcome', 'Welcome', 1),
+                    $this->groundedItem('song', 'Amazing Grace', 2),
+                    $this->groundedItem('song', 'Amazing Grace', 2),
+                ],
+                'confidence' => 0.95,
+            ]],
+            serviceCount: 1,
+            provenanceComplete: true,
+        ))->parse(InboundEmail::factory()->make([
+            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
+            'body_plain' => "Welcome\nAmazing Grace",
+            'received_at' => '2026-07-10 09:00:00',
+        ]));
+
+        $this->assertContains(OosEmailPlanHoldReason::ContentInvalid, $result->servicePlans[0]->holdReasons);
+        $this->assertNotContains(OosEmailPlanHoldReason::Bookkeeping, $result->servicePlans[0]->holdReasons);
+    }
+
+    #[Test]
+    public function a_bookkeeping_hold_records_the_line_and_the_items_it_sits_between(): void
+    {
+        $result = $this->parserReturning(new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.95,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'service_evidence_line_ids' => [],
+                'items' => [
+                    $this->groundedItem('welcome', 'Welcome', 1),
+                    $this->groundedItem('sermon', 'The Sermon', 3),
+                ],
+                'confidence' => 0.95,
+            ]],
+            serviceCount: 1,
+            ignoredLines: [['line_id' => 2, 'reason' => 'context']],
+            provenanceComplete: true,
+        ))->parse(InboundEmail::factory()->make([
+            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
+            'body_plain' => "Welcome\nReading: Ezra 3:1-6\nSermon",
+            'received_at' => '2026-07-10 09:00:00',
+        ]));
+
+        $plan = $result->servicePlans[0];
+
+        $this->assertContains(OosEmailPlanHoldReason::Bookkeeping, $plan->holdReasons);
+        $this->assertSame([[
+            'rule' => 'line_ignored_inside_item_span',
+            'line_id' => 2,
+            'plan_index' => 0,
+            'preceding_item_type' => 'welcome',
+            'following_item_type' => 'sermon',
+        ]], $plan->sourceProvenance['structural_findings']);
     }
 
     #[Test]

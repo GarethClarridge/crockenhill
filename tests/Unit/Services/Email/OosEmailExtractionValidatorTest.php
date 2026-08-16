@@ -7,6 +7,7 @@ namespace Tests\Unit\Services\Email;
 use App\Data\OosEmailExtractionValidationResult;
 use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailSourceDocument;
+use App\Enums\OosEmailStructuralFindingRule;
 use App\Services\Email\OosEmailExtractionValidator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -160,6 +161,63 @@ class OosEmailExtractionValidatorTest extends TestCase
         $this->assertSame([], $result->contentReasonsForPlan(0));
     }
 
+    /**
+     * The unaccounted-line rule used to report document-wide, and `reasonsForPlan()` merges global
+     * reasons into every plan — so one stray line in a two-service email held both orders. A line
+     * inside one plan's item span is that plan's problem.
+     */
+    #[Test]
+    public function an_unaccounted_line_inside_one_plans_span_is_only_that_plans_finding(): void
+    {
+        $result = $this->validateTwoPlans();
+
+        $this->assertSame([], $result->globalReasons);
+        $this->assertNotSame([], $result->reasonsForPlan(0));
+        $this->assertSame([], $result->reasonsForPlan(1));
+    }
+
+    /**
+     * A sign-off or an appendix sits after every order and belongs to neither, so it stays where
+     * it was: document-wide.
+     */
+    #[Test]
+    public function an_unaccounted_line_outside_every_plan_span_stays_document_wide(): void
+    {
+        $result = $this->validate(
+            ['Morning Service', 'Welcome', 'Sermon', 'Many thanks,'],
+            evidenceLineIds: [1],
+            items: [[2], [3]],
+        );
+
+        $this->assertNotSame([], $result->globalReasons);
+        $this->assertNull($result->structuralFindings[0]->planIndex);
+    }
+
+    #[Test]
+    public function a_bookkeeping_finding_records_its_line_and_the_items_it_sits_between(): void
+    {
+        $source = OosEmailSourceDocument::fromBody(
+            "Morning Service\nHymn: Amazing Grace\nReading: Ezra 3:1-6\nSermon",
+        );
+        $extraction = new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.9,
+            services: [$this->typedPlan('morning', [1], [[2, 'song'], [4, 'sermon']])],
+            serviceCount: 1,
+            ignoredLines: [['line_id' => 3, 'reason' => 'context']],
+            provenanceComplete: true,
+        );
+
+        $findings = $this->validator->validate($source, $extraction)->structuralFindings;
+
+        $this->assertCount(1, $findings);
+        $this->assertSame(OosEmailStructuralFindingRule::LineIgnoredInsideItemSpan, $findings[0]->rule);
+        $this->assertSame(3, $findings[0]->lineId);
+        $this->assertSame(0, $findings[0]->planIndex);
+        $this->assertSame('song', $findings[0]->precedingItemType);
+        $this->assertSame('sermon', $findings[0]->followingItemType);
+    }
+
     #[Test]
     public function items_out_of_source_order_remain_a_content_finding(): void
     {
@@ -198,6 +256,46 @@ class OosEmailExtractionValidatorTest extends TestCase
         );
 
         return $this->validator->validate($source, $extraction);
+    }
+
+    /** A morning and an evening order, with one unaccounted line inside the morning item span. */
+    private function validateTwoPlans(): OosEmailExtractionValidationResult
+    {
+        $source = OosEmailSourceDocument::fromBody(
+            "Morning Service\nWelcome\nMany thanks,\nSermon\nEvening: 6pm\nPrayer",
+        );
+        $extraction = new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.9,
+            services: [
+                $this->plan('morning', [1], [[2], [4]]),
+                $this->plan('evening', [5], [[6]]),
+            ],
+            serviceCount: 2,
+            ignoredLines: [],
+            provenanceComplete: true,
+        );
+
+        return $this->validator->validate($source, $extraction);
+    }
+
+    /**
+     * @param  list<int>  $evidenceLineIds
+     * @param  list<array{0:int,1:string}>  $items
+     * @return array<string, mixed>
+     */
+    private function typedPlan(string $service, array $evidenceLineIds, array $items): array
+    {
+        $plan = $this->plan($service, $evidenceLineIds, array_map(
+            static fn (array $item): array => [$item[0]],
+            $items,
+        ));
+
+        foreach ($items as $index => $item) {
+            $plan['items'][$index]['type'] = $item[1];
+        }
+
+        return $plan;
     }
 
     /**

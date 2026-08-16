@@ -988,16 +988,55 @@ class ImportOosArchiveCommand extends Command
             $this->table(['Hold reason (sources held)', 'Count'], $rows);
         }
 
-        $heldPlanTypes = $aggregate['held_plan_semantic_item_types_by_reason'] ?? [];
+        /**
+         * Printed as lift, never as bare counts. Songs are about a third of every order here, so
+         * a raw "629 songs held for bookkeeping" reads as a finding when it is the base rate
+         * restated; the corpus share sits in the next column so the comparison cannot be skipped.
+         */
+        $heldPlanTypes = $aggregate['held_plan_semantic_item_type_lift_by_reason'] ?? [];
         if ($heldPlanTypes !== []) {
             $rows = [];
-            foreach ($heldPlanTypes as $reason => $types) {
-                foreach ($types as $type => $count) {
-                    $rows[] = [(string) $reason, (string) $type, (string) $count];
+            foreach ($heldPlanTypes as $reason => $reasonTypes) {
+                foreach ($reasonTypes['types'] as $type => $measures) {
+                    $rows[] = [
+                        (string) $reason,
+                        (string) $type,
+                        (string) $measures['items'],
+                        sprintf('%.1f%%', $measures['share'] * 100),
+                        sprintf('%.1f%%', $measures['base_share'] * 100),
+                        sprintf('%+.1f pp', $measures['lift'] * 100),
+                    ];
                 }
             }
 
-            $this->table(['Held-plan reason', 'Semantic item type', 'Items'], $rows);
+            $this->table(
+                ['Held-plan reason', 'Semantic item type', 'Items', 'Share', 'Corpus', 'Lift'],
+                $rows,
+            );
+        }
+
+        $bookkeepingFindings = $aggregate['bookkeeping_finding_counts'] ?? [];
+        if ($bookkeepingFindings !== []) {
+            $rows = [];
+            foreach ($bookkeepingFindings as $rule => $count) {
+                $rows[] = [(string) $rule, (string) $count];
+            }
+
+            foreach ($aggregate['bookkeeping_finding_adjacent_item_types'] ?? [] as $type => $count) {
+                $rows[] = ["  next to a {$type} item", (string) $count];
+            }
+
+            $this->table(['Bookkeeping finding', 'Count'], $rows);
+        }
+
+        $itemTypeChanges = $aggregate['attempt_disagreement_item_type_changes'] ?? [];
+        if ($itemTypeChanges !== []) {
+            $rows = [];
+            foreach ($itemTypeChanges as $change => $count) {
+                $rows[] = [(string) $change, (string) $count];
+            }
+
+            $this->table(['Attempts swapped item type', 'Items'], $rows);
         }
 
         $byType = $aggregate['song_link_hit_rate']['by_type'] ?? [];

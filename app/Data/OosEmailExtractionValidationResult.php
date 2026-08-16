@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Data;
 
+use App\Enums\OosEmailPlanHoldReason;
+
 /**
  * The outcome of validating one extraction against its source document.
  *
@@ -24,12 +26,14 @@ readonly class OosEmailExtractionValidationResult
      * @param  array<int, list<string>>  $planReasons
      * @param  list<string>  $contentGlobalReasons
      * @param  array<int, list<string>>  $contentPlanReasons
+     * @param  list<OosEmailStructuralFinding>  $structuralFindings
      */
     public function __construct(
         public array $globalReasons = [],
         public array $planReasons = [],
         public array $contentGlobalReasons = [],
         public array $contentPlanReasons = [],
+        public array $structuralFindings = [],
     ) {}
 
     /**
@@ -65,6 +69,38 @@ readonly class OosEmailExtractionValidationResult
             $this->contentGlobalReasons,
             $this->contentPlanReasons[$planIndex] ?? [],
         )));
+    }
+
+    /**
+     * The reasons that hold this plan for review without impeaching its order — what
+     * {@see OosEmailPlanHoldReason::Bookkeeping} is meant to name. The parser used to
+     * ask for these by passing {@see reasonsForPlan()} into a parameter called `$structuralReasons`,
+     * so every content-invalid plan was also labelled a bookkeeping hold: content reasons are a
+     * subset of all reasons, and the subset was never subtracted.
+     *
+     * @return list<string>
+     */
+    public function structuralReasonsForPlan(int $planIndex): array
+    {
+        return array_values(array_diff(
+            $this->reasonsForPlan($planIndex),
+            $this->contentReasonsForPlan($planIndex),
+        ));
+    }
+
+    /**
+     * Findings that concern this plan: the ones observed inside it, plus the document-wide ones
+     * that belong to no plan's item span.
+     *
+     * @return list<OosEmailStructuralFinding>
+     */
+    public function structuralFindingsForPlan(int $planIndex): array
+    {
+        return array_values(array_filter(
+            $this->structuralFindings,
+            static fn (OosEmailStructuralFinding $finding): bool => $finding->planIndex === $planIndex
+                || $finding->planIndex === null,
+        ));
     }
 
     public function isValid(): bool

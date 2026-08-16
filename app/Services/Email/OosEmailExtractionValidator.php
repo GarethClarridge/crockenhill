@@ -7,6 +7,8 @@ namespace App\Services\Email;
 use App\Data\OosEmailExtractionValidationResult;
 use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailSourceDocument;
+use App\Data\OosEmailStructuralFinding;
+use App\Enums\OosEmailStructuralFindingRule;
 
 class OosEmailExtractionValidator
 {
@@ -34,6 +36,8 @@ class OosEmailExtractionValidator
         $planReasons = [];
         $planContentReasons = [];
         $assignments = [];
+        $findings = [];
+        $planItemLines = [];
         $serviceCount = count($extraction->services);
 
         if ($extraction->serviceCount !== $serviceCount) {
@@ -60,11 +64,15 @@ class OosEmailExtractionValidator
 
             if ($reason === '') {
                 $globalReasons[] = "Ignored source line {$lineId} has no reason.";
+                $findings[] = new OosEmailStructuralFinding(
+                    OosEmailStructuralFindingRule::IgnoredLineWithoutReason,
+                    $lineId,
+                );
 
                 continue;
             }
 
-            $this->assignLine($assignments, $lineId, 'ignored', $globalReasons, $globalContentReasons);
+            $this->assignLine($assignments, $lineId, 'ignored', $globalReasons, $globalContentReasons, $findings, null);
         }
 
         $planKeys = [];
@@ -112,6 +120,8 @@ class OosEmailExtractionValidator
                     'evidence',
                     $planReasons[$planIndex],
                     $planContentReasons[$planIndex],
+                    $findings,
+                    $planIndex,
                 );
             }
 
@@ -208,8 +218,11 @@ class OosEmailExtractionValidator
                         'item',
                         $planReasons[$planIndex],
                         $planContentReasons[$planIndex],
+                        $findings,
+                        $planIndex,
                     );
                     $planItemLineIds[] = $lineId;
+                    $planItemLines[$planIndex][] = ['line_id' => $lineId, 'type' => $item['type']];
                     $previousItemLineId = $lineId;
                 }
             }
@@ -220,13 +233,29 @@ class OosEmailExtractionValidator
                 $planItemLineIds,
                 $assignments,
                 $planReasons,
+                $findings,
             );
         }
 
         foreach ($source->lineIds() as $lineId) {
-            if (! isset($assignments[$lineId])) {
-                $globalReasons[] = "Source line {$lineId} was not classified as evidence, an item, or ignored context.";
+            if (isset($assignments[$lineId])) {
+                continue;
             }
+
+            $reason = "Source line {$lineId} was not classified as evidence, an item, or ignored context.";
+            $planIndex = $this->planContainingLine($planItemLines, $lineId);
+
+            if ($planIndex === null) {
+                $globalReasons[] = $reason;
+            } else {
+                $planReasons[$planIndex][] = $reason;
+            }
+
+            $findings[] = new OosEmailStructuralFinding(
+                OosEmailStructuralFindingRule::LineUnclassified,
+                $lineId,
+                $planIndex,
+            );
         }
 
         $unique = static fn (array $reasons): array => array_values(array_unique($reasons));
@@ -236,6 +265,53 @@ class OosEmailExtractionValidator
             planReasons: array_map($unique, $planReasons),
             contentGlobalReasons: $unique($globalContentReasons),
             contentPlanReasons: array_map($unique, $planContentReasons),
+            structuralFindings: $this->resolveFindings($findings, $planItemLines),
+        );
+    }
+
+    /**
+     * The plan whose item span brackets this line, or null when no single plan owns it. A line
+     * before the first item or after the last belongs to the document — a greeting, a sign-off, an
+     * appendix — and overlapping spans are already a content finding, so neither is attributed.
+     *
+     * @param  array<int, list<array{line_id:int,type:string}>>  $planItemLines
+     */
+    private function planContainingLine(array $planItemLines, int $lineId): ?int
+    {
+        $containing = [];
+
+        foreach ($planItemLines as $planIndex => $itemLines) {
+            $lineIds = array_column($itemLines, 'line_id');
+
+            if ($lineIds !== [] && $lineId > min($lineIds) && $lineId < max($lineIds)) {
+                $containing[] = $planIndex;
+            }
+        }
+
+        return count($containing) === 1 ? $containing[0] : null;
+    }
+
+    /**
+     * Fills in what was not knowable while the walk was in progress: a finding raised before its
+     * plan was identified, and the items either side of the offending line.
+     *
+     * @param  list<OosEmailStructuralFinding>  $findings
+     * @param  array<int, list<array{line_id:int,type:string}>>  $planItemLines
+     * @return list<OosEmailStructuralFinding>
+     */
+    private function resolveFindings(array $findings, array $planItemLines): array
+    {
+        return array_map(
+            function (OosEmailStructuralFinding $finding) use ($planItemLines): OosEmailStructuralFinding {
+                $resolved = $finding->planIndex === null
+                    ? $finding->withPlanIndex($this->planContainingLine($planItemLines, $finding->lineId))
+                    : $finding;
+
+                return $resolved->planIndex === null
+                    ? $resolved
+                    : $resolved->withAdjacentItemTypes($planItemLines[$resolved->planIndex] ?? []);
+            },
+            $findings,
         );
     }
 
@@ -265,6 +341,7 @@ class OosEmailExtractionValidator
      * @param  array<int, list<string>>  $assignments
      * @param  list<string>  $reasons
      * @param  list<string>  $contentReasons
+     * @param  list<OosEmailStructuralFinding>  $findings
      */
     private function assignLine(
         array &$assignments,
@@ -272,6 +349,8 @@ class OosEmailExtractionValidator
         string $kind,
         array &$reasons,
         array &$contentReasons,
+        array &$findings,
+        ?int $planIndex,
     ): void {
         $existing = $assignments[$lineId] ?? [];
 
@@ -279,6 +358,11 @@ class OosEmailExtractionValidator
             $this->addContent($reasons, $contentReasons, "Source line {$lineId} is claimed by more than one item.");
         } elseif ($existing !== [] && ($kind === 'ignored' || in_array('ignored', $existing, true))) {
             $reasons[] = "Source line {$lineId} is both ignored and claimed as evidence or an item.";
+            $findings[] = new OosEmailStructuralFinding(
+                OosEmailStructuralFindingRule::LineIgnoredAndClaimed,
+                $lineId,
+                $planIndex,
+            );
         }
 
         $assignments[$lineId][] = $kind;
@@ -339,6 +423,7 @@ class OosEmailExtractionValidator
      * @param  list<int>  $planItemLineIds
      * @param  array<int, list<string>>  $assignments
      * @param  array<int, list<string>>  $planReasons
+     * @param  list<OosEmailStructuralFinding>  $findings
      */
     private function validatePlanSpan(
         OosEmailSourceDocument $source,
@@ -346,6 +431,7 @@ class OosEmailExtractionValidator
         array $planItemLineIds,
         array $assignments,
         array &$planReasons,
+        array &$findings,
     ): void {
         if ($planItemLineIds === []) {
             return;
@@ -365,6 +451,11 @@ class OosEmailExtractionValidator
                 && is_string($line)
                 && preg_match(self::SERVICE_ITEM_PATTERN, $line) === 1) {
                 $planReasons[$planIndex][] = "Source line {$lineId} was ignored inside a service item sequence.";
+                $findings[] = new OosEmailStructuralFinding(
+                    OosEmailStructuralFindingRule::LineIgnoredInsideItemSpan,
+                    $lineId,
+                    $planIndex,
+                );
             }
         }
     }
