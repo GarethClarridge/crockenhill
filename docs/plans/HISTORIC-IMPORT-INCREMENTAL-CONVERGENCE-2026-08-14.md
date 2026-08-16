@@ -309,19 +309,18 @@ hand-verify only what corroboration cannot reach. Its output decides HIR-D8 (§1
 model calls) and the producing defects behind it fixed (`9f55f13d2`). Read "Revision 2026-08-16" in
 that report before starting anything here — it withdraws item 2's premise and adds items 5–7.
 
-Revised order: **5, 6, 1, 7, 3**.
+Revised order: **5, 1, 7, 3**. Item 6 was superseded on 2026-08-16: it measured
+confidence-driven retries in cached historical results, while item 5 removes those retries from
+fresh parsing. It is not an active unattended-import change.
 
 - **Item 2 is re-scoped, not implemented.** Songs do not dominate the holds (33.2% of the
   bookkeeping bucket against a 33.6% corpus base rate); 70.5% of type flips are between two types
   the proposed port already classes as filler on both sides; the review backlog it would remove is
   6 flips corpus-wide. The signal the census did find is a sermon boundary (+15.0 pp), which is
-  Slice E. What survives becomes item 6.
-- **Items 5 and 6 are the accuracy work this lane found.** Item 5 redesigns the retry, which fires
-  on 93% of entries on a signal with AUC 0.52–0.63 and loses a classification 61 times for every 11
-  it recovers. Item 6 stops an abstention counting as a disagreement.
-- **Item 6 widens unattended import by 10 plans**, so it needs those 10 read individually and is
-  the only item here that touches import eligibility. Items 5 and 7 do not; item 1 narrows rather
-  than widens.
+  Slice E; it does not require a parser change in the current sequence.
+- **Item 5 is the accuracy work this lane found.** It redesigns the retry, which fires on 93% of
+  entries on a signal with AUC 0.52–0.63 and loses a classification 61 times for every 11 it
+  recovers.
 - **Item 1 is now evaluable and largely answered** — item 0(3) separated the measures and the
   ground-truth join is done. Confidence carries weak content signal (AUC ≈ 0.61) and none on order
   (0.524) or identity (0.538). The remaining work is the holdout split before a threshold is set,

@@ -888,7 +888,14 @@ Review surface: the parse orchestration in `OosEmailParserService::parse()` and 
 Blast radius: changes how many model calls happen and which attempt is selected — it does not widen
 what imports unattended, and `consensus` semantics must be preserved exactly (HIR-D6).
 
-### 6. An abstention is not a disagreement — queued 2026-08-16
+### 6. An abstention is not a disagreement — superseded 2026-08-16
+
+**No implementation is required.** This measured disagreements produced by confidence-driven
+corrective retries in cached historical results. Item 5 now limits retries to deterministic
+validation failures, so those valid first attempts are not retried on fresh parsing; historical
+cache output has no ongoing import effect. The reported ten-plan unattended-import expansion is
+therefore stale and must not be implemented from the cached census. Reconsider only if a future
+fresh measurement finds the same shape after a validator-driven retry.
 
 `extractionSignature()` treats any differing item type as a disagreement, so a plan is held when one
 attempt says `prayer` and the other says `other`. `other` is not a peer of the other seven values:
