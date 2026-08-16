@@ -298,12 +298,35 @@ checkpoint tooling for long passes; drop their exactness assertions from accepta
 
 ### IC3 — Item-level ground truth (queued parser plan item 0)
 
-Unchanged from `docs/reports/historic-import-f64-f65-parser-follow-up-2026-08-14.md` ("Parsing
-improvement plan, queued 2026-08-14" — implement in order 0, then 2; item 1 is largely superseded
-by REV-D2, item 3 optional, item 4 is a no-change record). Seed the rehearsal song catalogue first
-(2,580 extracted song items become item-level checks). Ground truth is derived from corroboration
-before it is hand-built; hand-verify only what corroboration cannot reach. Its output decides
-HIR-D8 (§10) and calibrates §8's era accuracy figures.
+Carried by `docs/reports/historic-import-f64-f65-parser-follow-up-2026-08-14.md` ("Parsing
+improvement plan, queued 2026-08-14"). Seed the rehearsal song catalogue first (2,580 extracted song
+items become item-level checks). Ground truth is derived from corroboration before it is hand-built;
+hand-verify only what corroboration cannot reach. Its output decides HIR-D8 (§10) and calibrates
+§8's era accuracy figures.
+
+**Status 2026-08-16.** Item 0 is complete. The census that item 2 made a precondition has been run
+(`storage/scratch/archive-v13-attribution-20260816.json`, 554 entries, replayed from cache with zero
+model calls) and the producing defects behind it fixed (`9f55f13d2`). Read "Revision 2026-08-16" in
+that report before starting anything here — it withdraws item 2's premise and adds items 5–7.
+
+Revised order: **5, 6, 1, 7, 3**.
+
+- **Item 2 is re-scoped, not implemented.** Songs do not dominate the holds (33.2% of the
+  bookkeeping bucket against a 33.6% corpus base rate); 70.5% of type flips are between two types
+  the proposed port already classes as filler on both sides; the review backlog it would remove is
+  6 flips corpus-wide. The signal the census did find is a sermon boundary (+15.0 pp), which is
+  Slice E. What survives becomes item 6.
+- **Items 5 and 6 are the accuracy work this lane found.** Item 5 redesigns the retry, which fires
+  on 93% of entries on a signal with AUC 0.52–0.63 and loses a classification 61 times for every 11
+  it recovers. Item 6 stops an abstention counting as a disagreement.
+- **Item 6 widens unattended import by 10 plans**, so it needs those 10 read individually and is
+  the only item here that touches import eligibility. Items 5 and 7 do not; item 1 narrows rather
+  than widens.
+- **Item 1 is now evaluable and largely answered** — item 0(3) separated the measures and the
+  ground-truth join is done. Confidence carries weak content signal (AUC ≈ 0.61) and none on order
+  (0.524) or identity (0.538). The remaining work is the holdout split before a threshold is set,
+  not the analysis.
+- **Item 7 is a prerequisite for item 5's trigger half** and cheap enough to do first.
 
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 

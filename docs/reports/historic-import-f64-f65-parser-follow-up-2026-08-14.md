@@ -458,11 +458,60 @@ teeth: `content_accuracy` and the ground truth's per-identity verdicts are the l
 confidence composite must be fit and scored against, because `identity_correct` is now named for
 what it measures and must not be used for the job.
 
+**Status 2026-08-16 (later). Item 2's gating measurement is done and it does not support the port
+as scoped; three new items 5–7 are queued.** Read "Revision 2026-08-16" below before starting
+anything. Revised order: **5, 6, 1, 7, 3** — item 2 is re-scoped to a single question and item 4
+remains a no-change record.
+
 **[HIR-D7](HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md) (§4.5) clears the governance question
 for items 1–3** — they are extraction-accuracy work serving the import's own purpose, not "features
 or polish," and none of them touch what the importer imports unattended, so none need a further
 recorded decision before starting. Item 0 is measurement only and changes no import behaviour at
 all. Read the HIR-D7 outcome (§4.5 of that plan) before assuming otherwise.
+
+### Revision 2026-08-16 — the hold census, measured
+
+Item 2 required a per-item-type breakdown of the `bookkeeping` and `attempt_disagreement` holds
+"to find the actual ceiling on how much review backlog this removes **before** investing in the
+policy port". That measurement now exists. It removes the item's premise.
+
+The producing code had to be fixed first, because the census could not answer the question as
+built (commit `9f55f13d2`): it added every item of a held plan to every reason the plan carried,
+so it reported the corpus item mix back as a finding about the hold. Three defects fed it — content
+reasons reaching the bookkeeping decision through a parameter named `$structuralReasons`; an
+unaccounted line reported document-wide and therefore holding every plan in a multi-service email;
+and the offending line flattened into prose that nothing downstream could read.
+
+Authoritative run: `storage/scratch/archive-v13-attribution-20260816.json`, 554 entries, 706 plans,
+7,909 items, parser `archive-v13`, replayed from the raw-extraction cache with **zero model calls**.
+
+**Songs do not dominate the holds.** They are 33.6% of every item in the corpus and 33.2% /
+33.1% of the bookkeeping and disagreement buckets — at or below base rate. Every hold reason sits
+within a few points of the corpus mix; the raw counts that suggested otherwise were the base rate
+restated. The report now carries `semantic_item_type_counts` as the denominator and expresses each
+per-reason census as lift against it, so this cannot be misread the same way again.
+
+**The disagreements are overwhelmingly one call abstaining.** 95 recorded type flips. 72 (75.8%)
+have `other` — the explicit unknown — on one side; 38 are `prayer→other` alone. Classified by
+`ServiceSectionType::requiresStructuralUncertaintyReview()`, the method item 2 proposed to port:
+
+| | flips | share |
+|---|---|---|
+| filler ↔ filler (neither type has a downstream effect) | 67 | 70.5% |
+| crosses the boundary | 22 | 23.2% |
+| consequential ↔ consequential | 6 | 6.3% |
+
+The ceiling item 2 asked for is 6 flips in a 554-entry corpus. And the port's own classifier already
+calls 70.5% of the population filler on both sides, so it cannot demote what is already demoted.
+The remaining conflicts concentrate on the reading/sermon boundary.
+
+**The bookkeeping holds are a sermon-boundary problem.** Attributed to the items the offending line
+sits between: sermon +15.0 pp against base rate, song −2.6 pp. That is the seam between the order
+and the sermon outline that follows it — exactly what `validatePlanSpan()`'s own docblock predicts.
+This is Slice E's target, not item 2's.
+
+**The corrective call loses information.** Specific→`other` 61 times against `other`→specific 11.
+Whether the retry's false premise causes that is not answerable from this run — see item 5.
 
 ### Revision 2026-08-14 — what a critical review of this plan changed
 
@@ -695,6 +744,36 @@ Two constraints on any replacement, both of which the original wording would hav
 
 Sizing: 149 sources are held for low confidence alone, 339 have it among their reasons.
 
+**Evidence added 2026-08-16.** Item 0(3) has landed, so this is now evaluable against separated
+measures, and it has been. Plan confidence was joined to the item-level ground truth on date plus
+slot — 589 of 606 identities matched, all email-staged — and tested on the clean subset, where
+every title resolved on both sides so a mismatch is a real extraction error:
+
+| measure | n | AUC | base | @0.90 (current gate) | @0.92 |
+|---|---|---|---|---|---|
+| song_membership | 147 | 0.586 | 56.5% | +7.9 pp | +7.2 pp |
+| song_count | 160 | 0.613 | 76.9% | +2.9 pp | **+12.7 pp** |
+| song_order | 160 | **0.524** | 60.0% | **−0.4 pp** | +4.6 pp |
+| identity_correct (429 unclamped, full-scope) | 429 | **0.538** | 77.4% | **−0.1 pp** | +8.3 pp |
+
+The saturation argument holds and sharpens into three separable findings. The score carries real
+but weak signal on **content** (AUC ≈ 0.61 — it tracks how well the model read the text); **none**
+on order (0.524) and **none** on identity (0.538 — mean confidence 0.869 when identity is right,
+0.864 when wrong). And 0.90 sits just below the only edge in the distribution: on `song_count`,
+0.92 is +12.7 pp where 0.90 is +2.9 pp.
+
+So the replacement is not one composite. Drop confidence as an identity gate outright — the clamps
+in `buildPlan()` already do that work; never let it gate order-sensitive decisions; keep it as a
+weak content signal at 0.92. **Caveat: this is fit on the whole corroborated population with no
+holdout**, which this item's own second constraint forbids as a basis for the final threshold. The
+0.92 cells are n=33–48. Treat the direction as established and the exact threshold as requiring the
+holdout split before it is set.
+
+Note also that no threshold on this score makes an extraction trustworthy: base accuracy on clean,
+corroborated identities is 56.5% for song membership and 60.0% for order, and the gate moves those
+to 64.4% and 59.6%. That is the argument for REV-D2's evidence tier over an accuracy gate, and it
+belongs in HIR-D8's decision (§10 of the convergence plan).
+
 ### 2. Port item-type-aware review classification from the live structure pipeline
 
 `ServiceSectionType::requiresStructuralUncertaintyReview()` already encodes which item types have a
@@ -719,6 +798,21 @@ review backlog this removes before investing in the policy port.
 it costs nothing to read. It conflates type with order, so it sizes the opportunity without
 resolving it — but check it before paying to reconstruct per-item types from raw metadata, and note
 that item 0's OpenLP join can separate type from order properly for the 242 corroborated identities.
+
+**Re-scoped 2026-08-16 — do not implement the port.** The breakdown this item made a precondition
+has been run (see "Revision 2026-08-16"), and it withdraws the item's premise. `item_type_or_order`
+being the largest category was the strongest available evidence for the port; separating type from
+order shows the category is 70.5% flips between two types the port's own classifier
+(`requiresStructuralUncertaintyReview()`) already treats as filler on both sides, and 75.8% of all
+flips are one attempt abstaining to `other` rather than two attempts disagreeing. The port cannot
+demote what is already demoted, and the review backlog it would remove is 6 flips corpus-wide.
+
+The signal the census did find is a sermon boundary, not an item-type policy: bookkeeping findings
+sit next to a `sermon` at +15.0 pp against base rate. That belongs to Slice E.
+
+What survives of this item is one question, now carried by **item 6**: an attempt disagreement
+where one side is `other` is an abstention, not a conflict, and holding a plan for it is the
+review-load defect this item was reaching for.
 
 ### 3. Sample the extraction model/reasoning-effort against sibling settings
 
@@ -764,6 +858,86 @@ The manifest's `resolved_date`/`resolved_service` fields come from a determinist
 call — so treating a date disagreement as a signal against the *parse*, not the *manifest*, remains
 the right default. No corpus proof would improve on 8/8; leave this gate as-is.
 
+### 5. Redesign the retry — queued 2026-08-16
+
+The corrective call is triggered by the wrong signal, told something untrue, and preferred on a tie.
+All three push the same way, and the measured effect is one-directional information loss:
+specific→`other` 61 times against `other`→specific 11.
+
+- **Trigger.** `retryReasons()` (`OosEmailParserService.php`) returns the validator's reasons *plus*
+  four conditions that are not validation failures — confidence below the auto-import threshold, an
+  uncertain service type, no resolved date, unknown content scope. 71% of plans (500 of 706) sit
+  below 0.90, so **513 of 554 entries retry**. The retry is driven by a score with AUC 0.52–0.63
+  (item 1), not by anything wrong with the extraction. Retry on validator findings; do not retry on
+  confidence alone.
+- **Premise.** `OpenAiOosEmailItemExtractor::correct()` asserts "The first extraction failed
+  deterministic validation" and instructs "Do not defend or repeat a structurally invalid result",
+  whether or not anything failed. For a confidence-only retry that is false, and the only way for
+  the model to comply is to change something. Where the retry is not validator-driven, ask for a
+  **second independent reading** instead — which is also what would make `consensus` mean what the
+  gate claims it means.
+- **Tie-break.** `$useCorrected = $correctedValidation->reasonCount() <= $initialValidation->reasonCount()`
+  — ties go to the corrected attempt, so when both are clean the hedged answer is adopted. Prefer
+  attempt 1 on equal validation: it is the one that was not told it was wrong.
+
+Blocked on **item 7** for the trigger half: which condition fired is not currently recorded, so the
+causal claim above is inference from code, not from the corpus. The prompt half is a model-input
+change and needs a fresh parse to measure, so it pairs with item 3 and Slice D.
+
+Review surface: the parse orchestration in `OosEmailParserService::parse()` and one prompt string.
+Blast radius: changes how many model calls happen and which attempt is selected — it does not widen
+what imports unattended, and `consensus` semantics must be preserved exactly (HIR-D6).
+
+### 6. An abstention is not a disagreement — queued 2026-08-16
+
+`extractionSignature()` treats any differing item type as a disagreement, so a plan is held when one
+attempt says `prayer` and the other says `other`. `other` is not a peer of the other seven values:
+it is the explicit unknown, and `ChurchServiceItemSyncService::resolveMergedSectionType()` already
+encodes that asymmetry — an incoming `Other` never overwrites a specific existing type. The same
+treatment appears in `ServiceStructureValidator` and `SongContinuationMerger`.
+
+Stop setting `AttemptDisagreement` when every differing type has `other` on one side. Measured on
+the 2026-08-16 run: 36 entries disagree on item type alone with only abstentions, removing the hold
+from 43 plans; 33 of those still hold on `low_confidence`.
+
+**10 plans would become auto-importable.** Read those 10 individually before this lands — same
+requirement as any change that widens unattended import, and the reason this is its own item rather
+than part of item 5.
+
+Review surface: one comparison in `extractionSignature()`/`extractionDisagreementCategories()`.
+Blast radius: widens unattended import by 10 plans; needs the acceptance criterion "attempt
+disagreements remain held" below to be restated in terms of *conflicts*, not any type difference.
+
+### 7. Record what the producer already knows — queued 2026-08-16
+
+Two instances of the defect class this report keeps rediscovering: a producer knows something at the
+moment it decides, discards it, and a downstream reader reconstructs or guesses. `OosEmailPlanHoldReason`
+fixed one instance; commit `9f55f13d2` fixed two more (the bookkeeping line ID, the disagreement's
+type pair). Two remain.
+
+- **Retry reasons.** `parse()` computes `$retryReasons` and drops it. Record it on
+  `extractionAttempts[1]` alongside `disagreement_categories`. Without it, "was this retry
+  validator-driven or confidence-driven?" cannot be answered from a report — attempted on the
+  2026-08-16 run and the data refused, because `validation_reasons` describes the *selected*
+  attempt. Item 5's trigger half is blocked on this.
+- **Parser staleness.** `OosArchiveParseCacheBinding` keys the raw cache on `ParserVersion`, a
+  hand-maintained string. 12 of the last 17 commits touching
+  `OosEmailParserService`/`OosEmailExtractionValidator`/`OosEmailServicePlan` did not bump it —
+  including `2780a2b88`, the commit that created the content/bookkeeping split. A missed bump
+  produces a well-formed census with stale content, which is the same silent-plausible failure that
+  restored v5 caches as fabricated auto-imports. Record the parser-surface commit SHA in the
+  binding and warn on mismatch. Warn only: do not invalidate on it, or every unrelated commit
+  discards the corpus cache.
+
+Review surface: two recorded fields and one warning. Blast radius: none — neither changes parse
+behaviour, import eligibility, or what the cache reuses.
+
+**Explicitly rejected 2026-08-16: caching the per-attempt raw extractions behind a replaying
+extractor** (cache `Version` 2). It would make every future post-extraction change re-derivable
+without model calls, and the migration costs one full fresh parse. It buys throughput and cost, not
+accuracy, and the staleness warning above covers the only correctness argument for it far more
+cheaply. Do not revisit unless a run's cost or duration becomes the binding constraint.
+
 ## Acceptance criteria for parser work
 
 A parser change is ready for another corpus measurement only when:
@@ -776,7 +950,9 @@ A parser change is ready for another corpus measurement only when:
 - bookkeeping-only plans remain reviewable and do not become silently accepted;
 - partial sources remain evidence rather than complete orders;
 - attempt disagreements remain held whether or not adjudication resolved them, and `consensus`
-  continues to mean two independent agreeing attempts;
+  continues to mean two independent agreeing attempts — **restated 2026-08-16:** if item 6 lands,
+  this criterion covers *conflicts* (two differing specific types), not every type difference; an
+  abstention to `other` is not a disagreement and the 10 plans it releases must be read first;
 - the report records per-plan and source-level hold reasons;
 - the new run reports model-call volume, confidence calibration, held population, staged identities,
   and the same hashes needed to reproduce the comparison;
@@ -786,6 +962,30 @@ A parser change is ready for another corpus measurement only when:
 - **the rehearsal database is song-seeded** before `song_link_hit_rate` is quoted as evidence;
 - **band-level calibration movements are checked against the prior run before being called a
   finding** — the v11→v12 ordering flip was noise and was briefly written up as a result.
+
+## Operational note — a stalled corpus run, 2026-08-16
+
+An `oos:import-archive --evaluate` run made model calls normally for 72 minutes, stopped at
+20:23:36, and then sat alive at ~0.5% CPU for over an hour with no report written. It had to be
+killed (container-side process first — a killed `sail exec` leaves the inner process running and it
+races the next database command).
+
+Ruled out: the queue (`QUEUE_CONNECTION=redis`, and the command dispatches no jobs); the extractor's
+inner 3-attempt loop (it logs `Retrying OoS email extraction` and there were **zero** such warnings
+after the stall); a missing timeout (`openai.request_timeout` resolves to 600 and the facade applies
+it); and stdout back-pressure (the whole run's output is 24KB, well under a pipe buffer).
+
+That leaves a first-attempt block of 60+ minutes with a 600-second timeout that never fired, no
+exception, no CPU and no database query in flight. The one mechanism found that fits the shape:
+`storage/logs/laravel.log` had reached **305MB** on the `single` driver with no rotation, on a macOS
+Docker bind mount, appended to on every model call. A blocked `write()` there explains all four
+symptoms, and the replay that made no model calls was unaffected. **This is a hypothesis, not a
+finding** — proving it needs `lsof`/`strace` on the blocked process.
+
+Before the next long run: switch `LOG_CHANNEL` to the already-configured `daily` driver (7 days) and
+truncate the current log. Cheap, removes the only mechanism identified, and worth doing regardless.
+If a run stalls again, capture `lsof -p` and `strace -p` on the container-side PID **before** killing
+it — that evidence was lost this time.
 
 ## Copy/paste brief for the next session
 
