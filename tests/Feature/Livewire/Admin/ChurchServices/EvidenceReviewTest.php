@@ -123,7 +123,12 @@ class EvidenceReviewTest extends TestCase
     #[Test]
     public function partial_review_keeps_the_service_in_the_attention_inbox(): void
     {
-        $service = ChurchService::factory()->create();
+        /**
+         * Pinned: the factory's date is a random faker date, and the review inbox is
+         * era-scoped, so an unpinned service falls out of the count roughly half the
+         * time and this assertion flakes.
+         */
+        $service = ChurchService::factory()->create(['date' => '2024-06-02']);
         ChurchServiceItem::factory()->create([
             'church_service_id' => $service->id,
             'position' => 1,
