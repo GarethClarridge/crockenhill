@@ -460,8 +460,8 @@ what it measures and must not be used for the job.
 
 **Status 2026-08-16 (later). Item 2's gating measurement is done and it does not support the port
 as scoped; three new items 5–7 are queued.** Read "Revision 2026-08-16" below before starting
-anything. Revised order: **5, 6, 1, 7, 3** — item 2 is re-scoped to a single question and item 4
-remains a no-change record.
+anything. Revised order: **5, 6, 1, 7, 3** — item 2 is re-scoped to a single question, and items 4 and 8 are
+no-change records.
 
 **[HIR-D7](HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md) (§4.5) clears the governance question
 for items 1–3** — they are extraction-accuracy work serving the import's own purpose, not "features
@@ -900,6 +900,13 @@ Stop setting `AttemptDisagreement` when every differing type has `other` on one 
 the 2026-08-16 run: 36 entries disagree on item type alone with only abstentions, removing the hold
 from 43 plans; 33 of those still hold on `low_confidence`.
 
+**Widen to filler pairs.** The same argument covers any relabel between two types
+`requiresStructuralUncertaintyReview()` already treats as having no downstream effect — `welcome`,
+`notices`, `prayer`, `other`. That is 67 of the 95 flips (70.5%), and it resolves the
+`welcome→notices` compound-line population (item 8) without touching the vocabulary or any stored
+data. Do not extend it to a pair that crosses the boundary: those 22 flips are the ones worth a
+human.
+
 **10 plans would become auto-importable.** Read those 10 individually before this lands — same
 requirement as any change that widens unattended import, and the reason this is its own item rather
 than part of item 5.
@@ -962,6 +969,57 @@ A parser change is ready for another corpus measurement only when:
 - **the rehearsal database is song-seeded** before `song_link_hit_rate` is quoted as evidence;
 - **band-level calibration movements are checked against the prior run before being called a
   finding** — the v11→v12 ordering flip was noise and was briefly written up as a result.
+
+### 8. No change to the welcome/notices vocabulary — document why
+
+Investigated 2026-08-16 and recorded so it is not re-litigated. `welcome→notices` is the largest
+single category of genuine type conflict (15 of 23 flips), and every instance is one compound source
+line — "welcome and notices", "Welcome & Notices", "Welcome and any notices (C E)" — where the two
+attempts pick different halves of a line that genuinely is both. 227 items in the corpus name both
+in one title, and they cluster at 98.7% in the first decile of a plan.
+
+**Collapsing the two enum cases was considered and declined.** The case for it was strong: nothing
+in `app/` or `resources/` reads `ServiceSectionType::Welcome` or `::Notices` by name; both already
+return false from `requiresStructuralUncertaintyReview()`; the current database holds 5 `welcome`
+rows against 163 `notices`; and where a plan carries both as separate items they are **adjacent in
+96.4% of cases** (134 of 139), so one compound line and two consecutive lines describe the same
+block of the service.
+
+Two findings defeated it.
+
+- **`notices` is positionally free; `welcome` is anchored.** 21.6% of `notices` items sit outside
+  the opening decile against 4.6% of `welcome` — nearly 5×. Notices recur mid-service and at the
+  end; the Carols by Candlelight closing remarks are the clearest case. The two do not share a
+  position distribution and are not one category.
+- **Late `welcome` is a different act.** 6 of the 13 `welcome` items outside the opening are
+  receiving members into fellowship — "Welcome new members (ND and RS)", "Welcome Roy into
+  fellowship with Bible text" — at 78–94% through the service. That is not the opening greeting.
+
+The ambiguity is therefore **positional, not categorical**: the labels are interchangeable in the
+opening block, which is exactly where every flip occurs, and distinguishable outside it. The 15
+flips are resolved by item 6's filler rule without touching the vocabulary or any stored data.
+
+**A positional rule — "welcome may only occur in the first few items" — was also considered and
+declined.** Of the 13 late `welcome` items, 8 are genuine and 5 are mislabels, and they interleave
+across the whole range (genuine 10%–94%, mislabels 10%–96%). No cutoff separates them, so the rule
+would fire 13 times corpus-wide and be wrong 8 of those times. It would also relabel the membership
+welcomes that are the evidence against collapsing, making `welcome` look like a purely opening type
+and manufacturing support for the change this item declines.
+
+The 5 mislabels are not a position problem and already have owners: three are songs behind a
+decorated prefix ("Welcome Sheet: 'See what a morning'", "Communion – NIP 'Behold the Lamb'") which
+is the `stripLeadingLabel` title-hygiene family from item 0(4) — a positional rule would relabel
+them to `other`, which is also wrong; one is a quoted email sign-off ("> Thanks, > Gareth" at 96%),
+the same trailing-material seam as the sermon boundary in Slice E; one is "call to worship", which
+is arguably correct as `other` already.
+
+If the positional signal is wanted, take it as a **diagnostic** — report `welcome` items outside the
+opening block for a human to glance at — never as an automatic relabel. That surfaces the same 13
+items, corrupts nothing, and would have found the gap below on its own.
+
+**Vocabulary gap noted, not actioned:** "welcome new members into fellowship" has no case in the
+8-value schema and lands on `welcome` by default. 6 instances corpus-wide — too few to justify a
+ninth case, but recorded here because an auditor will otherwise rediscover it as a mislabel.
 
 ## Operational note — a stalled corpus run, 2026-08-16
 
