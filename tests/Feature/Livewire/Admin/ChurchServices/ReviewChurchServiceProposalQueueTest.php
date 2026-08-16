@@ -13,6 +13,7 @@ use App\Models\ChurchServiceSourceRecord;
 use App\Models\User;
 use App\Services\ChurchService\ChurchServiceProjector;
 use App\Services\ChurchService\ChurchServiceProposalCensus;
+use App\Services\Email\OosApprovedCorpus;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -194,11 +195,12 @@ class ReviewChurchServiceProposalQueueTest extends TestCase
         ]);
         $record = ChurchServiceSourceRecord::factory()->create([
             'church_service_id' => $service->id,
-            'batch_hash' => 'batch-test',
+            'batch_hash' => str_repeat('a', 64),
         ]);
         config()->set('church.historic_corpus.expected_services', 1);
         config()->set('church.historic_corpus.census_source_kinds', 'email');
         config()->set('church.historic_corpus.membership', $this->membership($record));
+        config()->set('church.historic_corpus.expectation', $this->expectation($record));
 
         Livewire::actingAs($admin)
             ->test(ReviewChurchServiceProposalQueue::class)
@@ -276,5 +278,39 @@ class ReviewChurchServiceProposalQueueTest extends TestCase
         $membership['membership_hash'] = CanonicalJson::hash($membership);
 
         return $membership;
+    }
+
+    /**
+     * The manifest-derived statement of what the corpus should contain. Membership
+     * certifies that the set it is handed staged correctly; this is what says the
+     * set is the right one (F1).
+     *
+     * @return array<string, mixed>
+     */
+    private function expectation(ChurchServiceSourceRecord $record): array
+    {
+        $record->load('churchService');
+        $expectation = [
+            'format' => OosApprovedCorpus::Format,
+            'version' => OosApprovedCorpus::Version,
+            'source' => OosApprovedCorpus::Source,
+            'batch_key' => 'oos-curated-test',
+            'batch_hash' => (string) $record->batch_hash,
+            'manifest_hash' => str_repeat('f', 64),
+            'approved_sources' => [[
+                'item_key' => $record->source_key,
+                'origin' => explode('|', $record->source_key, 2)[0],
+                'source_key' => $record->source_key,
+                'input_hash' => (string) $record->input_hash,
+                'identity' => [
+                    'date' => $record->churchService->date->toDateString(),
+                    'service' => $record->churchService->service->value,
+                ],
+                'content_scope' => 'full',
+            ]],
+        ];
+        $expectation['expectation_hash'] = CanonicalJson::hash($expectation);
+
+        return $expectation;
     }
 }

@@ -84,6 +84,11 @@ return [
     |
     | Null means no corpus has been approved, and the gate refuses to pass.
     |
+    | This scalar is now a *fallback*. It has no producer — in practice it was
+    | set from what a previous run happened to stage, which let the census grade
+    | its own homework — so `expectation` below supersedes it whenever supplied,
+    | and the gate stops enforcing the count comparison when it is.
+    |
     */
     'historic_corpus' => [
         'expected_services' => env('HISTORIC_CORPUS_EXPECTED_SERVICES'),
@@ -91,6 +96,21 @@ return [
         // A hash-verified, per-source-item membership artifact. The census gate
         // refuses to certify a historic corpus without it.
         'membership' => null,
+
+        /*
+        | The manifest-derived statement of what the approved corpus contains,
+        | produced by `oos:generate-corpus-expectation`. Membership certification
+        | proves that everything in a declared set staged correctly, but its only
+        | producer reads that set out of the staged database, so an approved entry
+        | that held rather than imported is absent from both sides and no check
+        | can notice. This is the other direction — approved entries and
+        | identities that did *not* stage, and staged identities no approved entry
+        | explains (F1).
+        |
+        | Null means unsupplied, which the gate refuses for the same reason it
+        | refuses an unset corpus size.
+        */
+        'expectation' => null,
 
         /*
         | Which source kinds the §9.4 proposal census claims to cover, as a

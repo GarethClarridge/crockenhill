@@ -11,11 +11,13 @@ use App\Services\ChurchService\ChurchServiceCorpusCompleteness;
 use App\Services\ChurchService\ChurchServiceProjector;
 use App\Services\ChurchService\ChurchServiceProposalCensusGate;
 use App\Services\Email\InboundEmailImportService;
+use App\Services\Email\OosApprovedCorpus;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Unit\Services\Email\OosApprovedCorpusTest;
 
 /**
  * The §9.4.6 gate has to distinguish "the corpus projected with no proposals left"
@@ -27,6 +29,8 @@ class ChurchServiceProposalCensusGateTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const EmailBatchHash = 'aa11bb22cc33dd44ee55ff66aa77bb88cc99dd00ee11ff22aa33bb44cc55dd66';
+
     #[Test]
     public function an_empty_census_does_not_pass_without_corpus_evidence(): void
     {
@@ -37,6 +41,141 @@ class ChurchServiceProposalCensusGateTest extends TestCase
 
         $this->assertFalse($result['passes']);
         $this->assertContains('expected_corpus_size_unapproved', $result['corpus_blockers']);
+        $this->assertContains('expectation_unapproved', $result['corpus_blockers']);
+    }
+
+    /**
+     * F1. Membership certification proves that everything in the set it was handed
+     * staged correctly — but its only producer read that set out of the staged
+     * database, so a manifest entry that held rather than imported was absent from
+     * both sides and certification passed over the gap. The gate now refuses to
+     * treat a self-derived membership as a completeness claim.
+     */
+    #[Test]
+    public function a_certified_membership_alone_no_longer_certifies_completeness(): void
+    {
+        $this->stageAndProject(3, ChurchServiceSource::Email);
+        config()->set('church.historic_corpus.expected_services', 3);
+        config()->set('church.historic_corpus.census_source_kinds', 'email');
+
+        $records = ChurchServiceSourceRecord::query()->with('churchService')->get();
+        $result = app(ChurchServiceProposalCensusGate::class)->evaluate(
+            [],
+            app(ChurchServiceCorpusCompleteness::class)->evidence($this->membership($records)),
+        );
+
+        $this->assertSame([], $result['corpus']['membership']['blockers']);
+        $this->assertTrue($result['corpus']['membership']['approved']);
+        $this->assertFalse($result['passes']);
+        $this->assertSame(['expectation_unapproved'], $result['corpus_blockers']);
+    }
+
+    /**
+     * The manifest names an entry that never reached the database. Nothing in the
+     * staged corpus can be inconsistent, because the entry simply is not there.
+     */
+    #[Test]
+    public function the_gate_holds_when_an_approved_entry_never_staged(): void
+    {
+        $this->stageAndProject(2, ChurchServiceSource::Email);
+        config()->set('church.historic_corpus.census_source_kinds', 'email');
+
+        $expectation = $this->expectation();
+        $expectation['approved_sources'][] = [
+            'item_key' => '2015-12-20-am',
+            'origin' => '<oos-2015-12-20-am-00000000@crockenhill.local>',
+            'source_key' => '<oos-2015-12-20-am-00000000@crockenhill.local>|morning:2015-12-20',
+            'input_hash' => str_repeat('c', 64),
+            'identity' => ['date' => '2015-12-20', 'service' => 'morning'],
+            'content_scope' => 'full',
+        ];
+        unset($expectation['expectation_hash']);
+        $expectation['expectation_hash'] = CanonicalJson::hash($expectation);
+
+        $result = app(ChurchServiceProposalCensusGate::class)->evaluate(
+            [],
+            app(ChurchServiceCorpusCompleteness::class)->evidence(
+                $this->membership(ChurchServiceSourceRecord::query()->with('churchService')->get()),
+                null,
+                $expectation,
+            ),
+        );
+
+        $this->assertFalse($result['passes']);
+        $this->assertContains('expectation_mismatch', $result['corpus_blockers']);
+        $this->assertSame(['2015-12-20-am'], array_column($result['corpus']['expectation']['unstaged_sources'], 'item_key'));
+    }
+
+    /**
+     * The corpus size stops being a number an operator types. It is counted from the
+     * manifest's own identities, and the configured scalar is not consulted at all
+     * while an expectation is present.
+     */
+    #[Test]
+    public function the_approved_corpus_size_is_produced_from_the_manifest_not_configuration(): void
+    {
+        $this->stageAndProject(3, ChurchServiceSource::Email);
+        config()->set('church.historic_corpus.expected_services', 999);
+        config()->set('church.historic_corpus.census_source_kinds', 'email');
+
+        $result = app(ChurchServiceProposalCensusGate::class)->evaluate([], $this->evidence());
+
+        $this->assertSame(3, $result['corpus']['expected_services']);
+        $this->assertSame('manifest_expectation', $result['corpus']['expected_services_source']);
+        $this->assertSame([], $result['corpus_blockers']);
+    }
+
+    /**
+     * One approved email legitimately stages both that Sunday's morning and evening
+     * orders, so a correct corpus stages more services than the manifest names
+     * identities. Enforcing the scalar comparison alongside the expectation would
+     * fail exactly that correct corpus, so the expectation replaces it rather than
+     * joining it.
+     */
+    #[Test]
+    public function an_approved_expectation_replaces_the_scalar_count_comparison(): void
+    {
+        $this->stageAndProject(2, ChurchServiceSource::Email);
+        config()->set('church.historic_corpus.census_source_kinds', 'email');
+
+        $expectation = $this->expectation();
+
+        /**
+         * The extra order has to come from the entry approved for *that same date*,
+         * because `service_beyond_manifest` widens an entry's service and never its
+         * date. Selected by identity rather than by position, so the assertion does
+         * not depend on the order the staged revisions come back in.
+         */
+        $morning = now()->subWeeks(1)->toDateString();
+        $origin = collect($expectation['approved_sources'])
+            ->firstOrFail(static fn (array $source): bool => $source['identity']['date'] === $morning)['origin'];
+
+        $beyondManifest = ChurchService::factory()->create([
+            'date' => $morning,
+            'service' => 'evening',
+            'projection_policy_version' => ChurchServiceProjector::PROJECTION_POLICY_VERSION,
+        ]);
+        ChurchServiceSourceRecord::factory()->create([
+            'church_service_id' => $beyondManifest->id,
+            'source' => ChurchServiceSource::Email,
+            'batch_hash' => self::EmailBatchHash,
+            'source_key' => $origin.'|evening:'.$morning,
+        ]);
+
+        $result = app(ChurchServiceProposalCensusGate::class)->evaluate(
+            [],
+            app(ChurchServiceCorpusCompleteness::class)->evidence(
+                $this->membership(ChurchServiceSourceRecord::query()->with('churchService')->get()),
+                null,
+                $expectation,
+            ),
+        );
+
+        $this->assertSame(3, $result['corpus']['staged_services']);
+        $this->assertSame(2, $result['corpus']['expected_services']);
+        $this->assertNotContains('staged_above_expected', $result['corpus_blockers']);
+        $this->assertCount(1, $result['corpus']['expectation']['explained_beyond_manifest']);
+        $this->assertSame([], $result['corpus_blockers']);
     }
 
     #[Test]
@@ -316,7 +455,9 @@ class ChurchServiceProposalCensusGateTest extends TestCase
             ChurchServiceSourceRecord::factory()->create([
                 'church_service_id' => $service->id,
                 ...($source instanceof ChurchServiceSource ? ['source' => $source] : []),
-                'batch_hash' => 'batch-'.($source?->value ?? ChurchServiceSource::Email->value),
+                'batch_hash' => ($source ?? ChurchServiceSource::Email) === ChurchServiceSource::Email
+                    ? self::EmailBatchHash
+                    : 'batch-'.$source->value,
             ]);
         }
     }
@@ -330,7 +471,57 @@ class ChurchServiceProposalCensusGateTest extends TestCase
 
         return app(ChurchServiceCorpusCompleteness::class)->evidence(
             $records->isEmpty() ? null : $this->membership($records),
+            null,
+            $this->expectation(),
         );
+    }
+
+    /**
+     * The manifest-derived statement of what should be staged. Built here from the
+     * staged email revisions so these tests exercise the gate's wiring; that the
+     * *producer* derives the same keys from the manifest alone is
+     * {@see OosApprovedCorpusTest}'s subject.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function expectation(?Collection $records = null): ?array
+    {
+        $records ??= ChurchServiceSourceRecord::query()
+            ->where('source', ChurchServiceSource::Email)
+            ->where('batch_hash', self::EmailBatchHash)
+            ->with('churchService')
+            ->orderBy('id')
+            ->get();
+
+        if ($records->isEmpty()) {
+            return null;
+        }
+
+        $expectation = [
+            'format' => OosApprovedCorpus::Format,
+            'version' => OosApprovedCorpus::Version,
+            'source' => OosApprovedCorpus::Source,
+            'batch_key' => 'oos-curated-test',
+            'batch_hash' => self::EmailBatchHash,
+            'manifest_hash' => str_repeat('f', 64),
+            'approved_sources' => $records
+                ->map(static fn (ChurchServiceSourceRecord $record): array => [
+                    'item_key' => $record->source_key,
+                    'origin' => explode('|', $record->source_key, 2)[0],
+                    'source_key' => $record->source_key,
+                    'input_hash' => (string) $record->input_hash,
+                    'identity' => [
+                        'date' => $record->churchService->date->toDateString(),
+                        'service' => $record->churchService->service->value,
+                    ],
+                    'content_scope' => 'full',
+                ])
+                ->values()
+                ->all(),
+        ];
+        $expectation['expectation_hash'] = CanonicalJson::hash($expectation);
+
+        return $expectation;
     }
 
     /** @param Collection<int, ChurchServiceSourceRecord> $records */

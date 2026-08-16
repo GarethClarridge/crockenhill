@@ -41,6 +41,10 @@ class ChurchServiceProposalCensusGate
 
     public const string MEMBERSHIP_SOURCE_KIND_UNAPPROVED = 'membership_source_kind_unapproved';
 
+    public const string EXPECTATION_UNAPPROVED = 'expectation_unapproved';
+
+    public const string EXPECTATION_MISMATCH = 'expectation_mismatch';
+
     /**
      * @param  list<array<string, mixed>>  $classes
      * @param  array<string, mixed>  $corpus  Evidence from ChurchServiceCorpusCompleteness.
@@ -131,6 +135,8 @@ class ChurchServiceProposalCensusGate
             self::MEMBERSHIP_UNAPPROVED => 'No hash-verified, item-level corpus membership is supplied, so scalar counts cannot certify this census.',
             self::MEMBERSHIP_MISMATCH => 'One or more approved source items are missing, stale, mismatched or unexpected. Inspect the membership certificate before claiming the census.',
             self::MEMBERSHIP_SOURCE_KIND_UNAPPROVED => 'The membership certificate has no approved items for a source kind this census claims to cover.',
+            self::EXPECTATION_UNAPPROVED => 'No manifest-derived corpus expectation is supplied, so nothing states what the corpus was meant to contain and an entry that never staged cannot be detected. Produce one with oos:generate-corpus-expectation.',
+            self::EXPECTATION_MISMATCH => 'The staged corpus and the approved manifest disagree: an approved entry did not stage, or an identity staged that no approved entry explains. Inspect the expectation reconciliation.',
             default => $blocker,
         };
     }
@@ -165,11 +171,36 @@ class ChurchServiceProposalCensusGate
             }
         }
 
+        /**
+         * The F1 check. Membership certification describes the set it is handed
+         * and its only producer read that set out of the staged database, so on
+         * its own it cannot fail for an approved entry that never staged. The
+         * expectation is derived from the manifest instead, and is required for
+         * the same reason membership is: a completeness claim with no independent
+         * statement of what "complete" means is not evidence.
+         */
+        $expectation = $corpus['expectation'] ?? null;
+        $hasApprovedExpectation = is_array($expectation) && ($expectation['approved'] ?? false);
+
+        if (! $hasApprovedExpectation) {
+            $blockers[] = self::EXPECTATION_UNAPPROVED;
+        } elseif (($expectation['blockers'] ?? []) !== []) {
+            $blockers[] = self::EXPECTATION_MISMATCH;
+        }
+
         $expected = $corpus['expected_services'] ?? null;
         $staged = (int) ($corpus['staged_services'] ?? 0);
         $projected = (int) ($corpus['projected_services'] ?? 0);
 
-        if (! $hasApprovedMembership) {
+        /**
+         * Scalar counts are the fallback instrument, not a second opinion. An
+         * approved expectation makes them actively wrong to enforce: one approved
+         * email legitimately stages both that Sunday's morning and evening orders,
+         * so `staged` exceeds the manifest's identity count by design and
+         * `staged_above_expected` would fire on a correct corpus. The per-identity
+         * reconciliation above covers the same ground exactly.
+         */
+        if (! $hasApprovedMembership && ! $hasApprovedExpectation) {
             if (! is_int($expected) || $expected < 1) {
                 $blockers[] = self::EXPECTED_CORPUS_SIZE_UNAPPROVED;
             } elseif ($staged < $expected) {

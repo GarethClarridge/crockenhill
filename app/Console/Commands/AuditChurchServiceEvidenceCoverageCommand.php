@@ -221,7 +221,13 @@ class AuditChurchServiceEvidenceCoverageCommand extends Command
         $sourceRecords = $report['source_records'];
         /** @var array{total: int, by_status: array<string, int>, with_resolver: int, resolved_without_resolver: int, with_decision_rule: int} $proposals */
         $proposals = $report['proposals'];
-        /** @var array<string, int|null> $projection */
+        /**
+         * Corpus evidence has never been scalars alone — it already carried the
+         * per-source counts, declared kinds and membership certificate, and now the
+         * manifest reconciliation too.
+         *
+         * @var array<string, mixed> $projection
+         */
         $projection = $report['projection'];
 
         $coverage = $services['non_manual_coverage_percent'];
@@ -263,13 +269,17 @@ class AuditChurchServiceEvidenceCoverageCommand extends Command
         ]);
 
         $this->table(['Projection coverage', 'Count'], [
-            ['approved manifest size', $this->formatNullableCount($projection['expected_services'] ?? null)],
-            ['staged services', (string) ($projection['staged_services'] ?? 0)],
-            ['projected at current policy version', (string) ($projection['projected_services'] ?? 0)],
-            ['stale projections', (string) ($projection['stale_projection_services'] ?? 0)],
-            ['unstaged against the manifest', $this->formatNullableCount($projection['unstaged_services'] ?? null)],
-            ['policy version', (string) ($projection['policy_version'] ?? 0)],
+            ['approved manifest size', $this->formatNullableCount($this->nullableCount($projection, 'expected_services'))],
+            ['  └ derived from', is_string($projection['expected_services_source'] ?? null) ? $projection['expected_services_source'] : 'none'],
+            ['staged services', (string) $this->count($projection, 'staged_services')],
+            ['projected at current policy version', (string) $this->count($projection, 'projected_services')],
+            ['stale projections', (string) $this->count($projection, 'stale_projection_services')],
+            ['unstaged against the manifest', $this->formatNullableCount($this->nullableCount($projection, 'unstaged_services'))],
+            ['policy version', (string) $this->count($projection, 'policy_version')],
         ]);
+
+        $expectation = $projection['expectation'] ?? null;
+        $this->reportExpectation(is_array($expectation) ? $expectation : []);
 
         if ($services['without_any_source_record'] > 0) {
             $this->comment('Services with no retained evidence cannot be re-projected, only refused. See §12.4 of the historic archive readiness remediation plan before scheduling current-era re-projection.');
@@ -280,8 +290,49 @@ class AuditChurchServiceEvidenceCoverageCommand extends Command
         }
     }
 
+    /**
+     * The manifest-derived reconciliation (F1). The counts above cannot show that an
+     * approved entry never staged; this can, so RG-A's "exact membership against the
+     * approved manifest" has a line in the round's audit report.
+     *
+     * @param  array<string, mixed>  $expectation
+     */
+    private function reportExpectation(array $expectation): void
+    {
+        if (! ($expectation['approved'] ?? false)) {
+            $this->comment('No manifest-derived corpus expectation is configured, so nothing states what the corpus was meant to contain. Produce one with oos:generate-corpus-expectation.');
+
+            return;
+        }
+
+        $this->table(['Manifest reconciliation', 'Count'], [
+            ['approved sources', (string) $expectation['expected_sources']],
+            ['approved identities', (string) $expectation['expected_services']],
+            ['staged identities', (string) $expectation['staged_identities']],
+            ['approved sources not staged', (string) count($expectation['unstaged_sources'])],
+            ['approved identities not staged', (string) count($expectation['unstaged_identities'])],
+            ['beyond manifest, explained', (string) count($expectation['explained_beyond_manifest'])],
+            ['beyond manifest, unexplained', (string) count($expectation['unexplained_identities'])],
+            ['accepted holds', (string) count($expectation['accepted_holds'])],
+        ]);
+    }
+
     private function formatNullableCount(?int $count): string
     {
         return $count === null ? 'not declared' : (string) $count;
+    }
+
+    /** @param array<string, mixed> $projection */
+    private function count(array $projection, string $key): int
+    {
+        return $this->nullableCount($projection, $key) ?? 0;
+    }
+
+    /** @param array<string, mixed> $projection */
+    private function nullableCount(array $projection, string $key): ?int
+    {
+        $value = $projection[$key] ?? null;
+
+        return is_int($value) ? $value : null;
     }
 }

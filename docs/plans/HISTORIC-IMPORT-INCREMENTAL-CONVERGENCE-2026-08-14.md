@@ -159,6 +159,11 @@ Each lane round passes three gates; there is no other gate ladder.
   (`historic-import:provision-rehearsal-database`), and the audit report (§7.3) reconciles:
   exact membership against the approved manifest (was F53), zero unexplained identities (F1 rule),
   held residue enumerated by reason, proposal census run (§9). Focused tests, Pint, PHPStan green.
+  The manifest reconciliation is produced, not configured: run
+  `oos:generate-corpus-expectation --manifest=<approved manifest>` and feed the artifact to
+  `services:proposal-census --expectation=` (or `church.historic_corpus.expectation`). Setting
+  `HISTORIC_CORPUS_EXPECTED_SERVICES` by hand no longer certifies anything and is ignored while an
+  expectation is present.
 - **RG-B (production apply):** approved manifest + plan hash presented; pre-round verified
   database backup taken; `HistoricImportProductionGuard` satisfied for the named round (IC2
   re-scopes it from one-shot GO to per-round approval); apply executes only §3.2-compliant writes;
@@ -180,10 +185,27 @@ work or evidence.
 | Disposition | Findings |
 |---|---|
 | **Kept as hard invariant** | F29, F30, F31, F33, F34, F37, F40, F41 (lock half), F44, F48, F49, F50, F51, F52, F54, F55, F59; HIR1–HIR3, HIR6–HIR7 code |
-| **Kept as open work** | F60 (IC6), F1 completeness (IC1), current-era back-fill (IC4), video manifest population (IC5), OpenLP v2 curation fields (IC5), HIR-D8 (IC3) |
+| **Kept as open work** | F60 (IC6), current-era back-fill (IC4), video manifest population (IC5), OpenLP v2 curation fields (IC5), HIR-D8 (IC3) |
 | **Reframed as report** | F32 (per-source accounting; exit contract changes in IC2), F53 (exact membership), F57 (round audit completeness), per-round cost/throughput accounting (was F58's measurement half) |
-| **Closed with evidence** | F2, F3, F4, F42, F43, F46's guard code, F61, F62, F63, F64, F65, F66; B1–B21 (all repaired; red tests retained); HIR0–HIR7 landed |
+| **Closed with evidence** | F1 completeness (Email lane, 2026-08-16 — see below), F2, F3, F4, F42, F43, F46's guard code, F61, F62, F63, F64, F65, F66; B1–B21 (all repaired; red tests retained); HIR0–HIR7 landed |
 | **Lapsed with the one-shot model** | F35 (journal-resume proof), F36 (forensic two-copy custody ceremony — read-only original, one verified working copy and hash inventory remain required practice), F38 (checkpoint *exactness* gating — checkpoints stay as tooling), F39 (fingerprint *binding* — fingerprints stay as recorded provenance), F45 (timed restore/RPO/RTO drills — verified backups remain mandatory), F46 (freeze/watchboard/change-control window), F47 (forced-crash recovery proof), F56 (freeze-sweep semantics — ingress lock tooling retained for optional brief pauses), F58 (window budget); HIR4/HIR5 evidence obligations; HIR8 steps 1, 2, 4, 6–11; safety invariants 4, 5 and 9 of the archived safety plan |
+
+**F1 completeness, closed 2026-08-16 (Email lane).** The census could not fail for an approved
+entry that never staged: `services:generate-corpus-membership` built the expected membership by
+querying `church_service_source_records`, so a held entry was absent from both sides of the
+comparison, and `church.historic_corpus.expected_services` was a scalar an operator typed — on the
+2026-08-15 round, from what that round had just staged. `oos:generate-corpus-expectation` now
+derives the expectation from the approved manifest alone (`OosApprovedCorpus`), which is possible
+because every field a staged revision carries is already a function of the manifest: `batch_hash`
+is the curation plan hash, `input_hash` is the entry's approved `sha256`, and the source key is
+`OosCurationEntryFactory::sourceKey()`. `ChurchServiceCorpusExpectation` reconciles it against the
+staged corpus and the census gate refuses without it. Extra identities are admitted only where an
+approved entry's origin explains them on that entry's approved date — the hash-covered
+`service_beyond_manifest` rule — because one email legitimately stages both that Sunday's orders,
+which is exactly why the scalar comparison was the wrong instrument and is now suppressed whenever
+an expectation is present. Intentional holds carry an operator's written reason through
+`--accepted-holds`, on FR-D9's fail-closed-with-reasons pattern. **The OpenLP lane still has no
+producer**; populating the v2 curation fields (IC5 step 2) is what gives it one.
 
 G0–G9 as a ladder is retired; their still-live content maps to RG-A/RG-B/RG-C and §3.2. The
 archived per-gate audit table's open items are absorbed as follows: G1/PR5's manifest-field

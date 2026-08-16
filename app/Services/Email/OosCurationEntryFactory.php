@@ -7,6 +7,7 @@ namespace App\Services\Email;
 use App\Data\OosArchiveEntry;
 use App\Data\OosCurationPlan;
 use App\Data\VerifiedSourceSnapshot;
+use App\Services\ChurchService\SourceAdapters\EmailSourceAdapter;
 use App\Support\MarkdownFrontmatter;
 use Carbon\CarbonImmutable;
 use RuntimeException;
@@ -44,7 +45,7 @@ class OosCurationEntryFactory
         $sourceKeysByItemKey = [];
 
         foreach ($plan->includes as $include) {
-            $sourceKeysByItemKey[$include['item_key']] = $this->sourceKey(
+            $sourceKeysByItemKey[$include['item_key']] = self::sourceKey(
                 $include['item_key'],
                 $include['resolved_service'],
                 $include['resolved_date'],
@@ -148,17 +149,40 @@ class OosCurationEntryFactory
     /**
      * Readable to an operator grepping `inbound_emails`, and unique even if a
      * future item key carries characters a message id cannot.
+     *
+     * Public and static because it is the *identity* of an approved entry rather
+     * than an implementation detail of building one:
+     * {@see OosApprovedCorpus} derives the same value from the
+     * manifest to state what the corpus is expected to contain. Two independent
+     * copies of this rule would let the expectation and the import drift apart
+     * while both looked right.
      */
-    private function messageId(string $itemKey): string
+    public static function messageId(string $itemKey): string
     {
         $slug = trim((string) preg_replace('/[^a-z0-9]+/', '-', strtolower($itemKey)), '-');
 
         return sprintf('<oos-%s-%s@crockenhill.local>', $slug, substr(sha1($itemKey), 0, 8));
     }
 
-    private function sourceKey(string $itemKey, string $service, string $date): string
+    /**
+     * The key one approved entry's assertion about one service slot is stored
+     * under. Mirrors {@see EmailSourceAdapter::sourceKeyFor()},
+     * whose plan key is the same `service:date` pair.
+     */
+    public static function sourceKey(string $itemKey, string $service, string $date): string
     {
-        return $this->messageId($itemKey).'|'.$service.':'.$date;
+        return self::messageId($itemKey).'|'.$service.':'.$date;
+    }
+
+    /**
+     * The message-id half of a source key — the approved entry a staged revision
+     * came from, whichever service slot it ended up asserting.
+     */
+    public static function originOf(string $sourceKey): ?string
+    {
+        $origin = explode('|', $sourceKey, 2)[0];
+
+        return $origin === '' ? null : $origin;
     }
 
     /**

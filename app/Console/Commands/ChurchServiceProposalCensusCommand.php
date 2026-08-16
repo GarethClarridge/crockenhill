@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Models\ChurchServiceProposalClassReview;
 use App\Services\ChurchService\ChurchServiceCorpusCompleteness;
+use App\Services\ChurchService\ChurchServiceCorpusExpectation;
 use App\Services\ChurchService\ChurchServiceCorpusMembership;
 use App\Services\ChurchService\ChurchServiceProposalCensus;
 use App\Services\ChurchService\ChurchServiceProposalCensusGate;
@@ -24,6 +25,7 @@ class ChurchServiceProposalCensusCommand extends Command
         {--json : Emit the full census as JSON instead of a table}
         {--gate : Exit non-zero unless every class is accounted for}
         {--membership= : Hash-verified item-level historic corpus membership JSON}
+        {--expectation= : Manifest-derived corpus expectation JSON from oos:generate-corpus-expectation}
         {--expected-services= : The approved corpus manifest'."'".'s service count, overriding church.historic_corpus.expected_services}';
 
     protected $description = 'Report pending evidence proposals grouped by class, with the review-load gate';
@@ -33,11 +35,13 @@ class ChurchServiceProposalCensusCommand extends Command
         ChurchServiceProposalCensusGate $gate,
         ChurchServiceCorpusCompleteness $corpus,
         ChurchServiceCorpusMembership $membership,
+        ChurchServiceCorpusExpectation $expectation,
     ): int {
         $classes = $census->build();
         $result = $gate->evaluate($classes, $corpus->evidence(
             $this->membership($membership),
             $this->expectedServices(),
+            $this->expectation($expectation),
         ));
 
         if ($this->option('json')) {
@@ -101,15 +105,17 @@ class ChurchServiceProposalCensusCommand extends Command
         $expected = $corpus['expected_services'];
 
         $this->line(sprintf(
-            'Corpus: %d service(s) staged, %d projected at policy version %d, against %s approved.',
+            'Corpus: %d service(s) staged, %d projected at policy version %d, against %s approved (%s).',
             $corpus['staged_services'],
             $corpus['projected_services'],
             $corpus['policy_version'],
             is_int($expected) ? (string) $expected : 'no manifest count',
+            $corpus['expected_services_source'] ?? 'none',
         ));
 
         $this->reportSourceCoverage($corpus);
         $this->reportMembership($corpus);
+        $this->reportExpectation($corpus);
 
         foreach ($result['corpus_blockers'] as $blocker) {
             $this->warn($gate->describeCorpusBlocker($blocker));
@@ -175,6 +181,48 @@ class ChurchServiceProposalCensusCommand extends Command
         ));
     }
 
+    /**
+     * Name what the manifest expected against what staged.
+     *
+     * The three residues are reported separately because they mean different
+     * things: an approved entry that never staged is missing coverage, an extra
+     * identity an approved entry explains is the ordinary two-orders-per-email
+     * shape, and an extra identity nothing explains is the F1 failure.
+     *
+     * @param  array<string, mixed>  $corpus
+     */
+    private function reportExpectation(array $corpus): void
+    {
+        $expectation = $corpus['expectation'] ?? [];
+
+        if (! ($expectation['approved'] ?? false)) {
+            $this->line('  Manifest expectation: not supplied.');
+
+            return;
+        }
+
+        $this->line(sprintf(
+            '  Manifest expectation: batch %s, %d approved source(s) over %d identity(ies); %d staged.',
+            $expectation['batch_key'],
+            $expectation['expected_sources'],
+            $expectation['expected_services'],
+            $expectation['staged_identities'],
+        ));
+
+        $this->line(sprintf(
+            '    Unstaged: %d approved source(s), %d identity(ies). Beyond manifest: %d explained, %d unexplained. Accepted holds: %d.',
+            count($expectation['unstaged_sources']),
+            count($expectation['unstaged_identities']),
+            count($expectation['explained_beyond_manifest']),
+            count($expectation['unexplained_identities']),
+            count($expectation['accepted_holds']),
+        ));
+
+        foreach (array_slice($expectation['unexplained_identities'], 0, 10) as $extra) {
+            $this->warn("    Unexplained identity: {$extra['identity']}");
+        }
+    }
+
     /** @return array<string, mixed>|null */
     private function membership(ChurchServiceCorpusMembership $membership): ?array
     {
@@ -185,6 +233,18 @@ class ChurchServiceProposalCensusCommand extends Command
         }
 
         return $membership->fromFile($path);
+    }
+
+    /** @return array<string, mixed>|null */
+    private function expectation(ChurchServiceCorpusExpectation $expectation): ?array
+    {
+        $path = $this->option('expectation');
+
+        if (! is_string($path) || trim($path) === '') {
+            return null;
+        }
+
+        return $expectation->fromFile($path);
     }
 
     private function expectedServices(): ?int

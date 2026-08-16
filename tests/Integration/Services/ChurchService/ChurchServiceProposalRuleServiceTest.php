@@ -16,6 +16,7 @@ use App\Services\ChurchService\ChurchServiceProjector;
 use App\Services\ChurchService\ChurchServiceProposalCensus;
 use App\Services\ChurchService\ChurchServiceProposalCensusGate;
 use App\Services\ChurchService\ChurchServiceProposalRuleService;
+use App\Services\Email\OosApprovedCorpus;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
@@ -26,6 +27,8 @@ use Tests\TestCase;
 class ChurchServiceProposalRuleServiceTest extends TestCase
 {
     use RefreshDatabase;
+
+    private const BatchHash = 'aa11bb22cc33dd44ee55ff66aa77bb88cc99dd00ee11ff22aa33bb44cc55dd66';
 
     #[Test]
     public function census_keys_are_stable_and_a_rule_only_resolves_its_enumerated_proposals(): void
@@ -331,7 +334,7 @@ class ChurchServiceProposalRuleServiceTest extends TestCase
      */
     private function completeCorpusEvidence(): array
     {
-        ChurchServiceSourceRecord::query()->whereNull('batch_hash')->update(['batch_hash' => 'batch-test']);
+        ChurchServiceSourceRecord::query()->whereNull('batch_hash')->update(['batch_hash' => self::BatchHash]);
         config()->set('church.historic_corpus.expected_services', ChurchService::query()->count());
         config()->set('church.historic_corpus.census_source_kinds', ChurchServiceSourceRecord::query()
             ->distinct()
@@ -339,7 +342,46 @@ class ChurchServiceProposalRuleServiceTest extends TestCase
             ->map(static fn (ChurchServiceSource $source): string => $source->value)
             ->implode(','));
 
-        return app(ChurchServiceCorpusCompleteness::class)->evidence($this->membership());
+        return app(ChurchServiceCorpusCompleteness::class)->evidence($this->membership(), null, $this->expectation());
+    }
+
+    /**
+     * The manifest-derived half of "complete": every staged Email revision is one the
+     * approved manifest asked for, and there are no others.
+     *
+     * @return array<string, mixed>
+     */
+    private function expectation(): array
+    {
+        $expectation = [
+            'format' => OosApprovedCorpus::Format,
+            'version' => OosApprovedCorpus::Version,
+            'source' => OosApprovedCorpus::Source,
+            'batch_key' => 'oos-curated-test',
+            'batch_hash' => self::BatchHash,
+            'manifest_hash' => str_repeat('f', 64),
+            'approved_sources' => ChurchServiceSourceRecord::query()
+                ->where('source', ChurchServiceSource::Email)
+                ->with('churchService')
+                ->orderBy('id')
+                ->get()
+                ->map(static fn (ChurchServiceSourceRecord $record): array => [
+                    'item_key' => $record->source_key,
+                    'origin' => explode('|', $record->source_key, 2)[0],
+                    'source_key' => $record->source_key,
+                    'input_hash' => (string) $record->input_hash,
+                    'identity' => [
+                        'date' => $record->churchService->date->toDateString(),
+                        'service' => $record->churchService->service->value,
+                    ],
+                    'content_scope' => 'full',
+                ])
+                ->values()
+                ->all(),
+        ];
+        $expectation['expectation_hash'] = CanonicalJson::hash($expectation);
+
+        return $expectation;
     }
 
     /** @return array<string, mixed> */
