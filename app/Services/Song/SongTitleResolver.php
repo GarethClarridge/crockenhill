@@ -458,12 +458,26 @@ class SongTitleResolver
 
     /**
      * Strips a leading item label ("Communion song:", "Jade's song –", "Alternative final
-     * song:", "Hymn:") and a leading "#" so the Praise!-number rung can see through them. The
-     * colon/dash is required — a title that merely starts with the word "Song" is left alone.
+     * song:", "Final hymn:", "Carol") and a leading "#" so the Praise!-number rung can see
+     * through them.
+     *
+     * The role word is one of song/hymn/carol, and the qualifier words apply to all three. They
+     * used to apply to `song` alone — `(?:(?:\p{L}+\s+){0,2}song|hymn)` groups as
+     * `((?:\p{L}+\s+){0,2}song)|(hymn)` — so "Communion song –" stripped while "Communion hymn –"
+     * and "Final hymn:" did not. That one grouping carried 125 of the 283 unresolved song titles
+     * in the 2026-08-16 item ground truth.
+     *
+     * The colon/dash is still required, so a title that merely starts with the word "Song" is
+     * left alone — except where the next character is a quote, a hash or a digit, which cannot
+     * open a title's second word and so identifies the label without risking a real one.
      */
     private static function stripLeadingLabel(string $title): string
     {
-        $bare = (string) preg_replace('/^\s*(?:(?:\p{L}+(?:[\'\x{2019}]s)?\s+){0,2}song|hymn)\s*[:\-\x{2013}\x{2014}]\s*/iu', '', $title);
+        $bare = (string) preg_replace(
+            '/^\s*(?:\p{L}+(?:[\'\x{2019}]s)?\s+){0,2}(?:songs?|hymns?|carols?)\s*(?:[:\-\x{2013}\x{2014}]\s*|(?=[#\d"\'\x{2018}\x{201C}]))/iu',
+            '',
+            $title,
+        );
 
         return ltrim(trim($bare), '#');
     }

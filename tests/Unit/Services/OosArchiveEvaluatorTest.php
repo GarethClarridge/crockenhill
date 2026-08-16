@@ -118,7 +118,9 @@ class OosArchiveEvaluatorTest extends TestCase
         $result = $evaluator->evaluate(
             $this->entry(),
             $this->parseResult(items: [
-                $this->songItem(1, 'Communion hymn – Amazing Grace'),
+                // A bullet sits outside the label rung the resolver strips, so this one is still
+                // a correct extraction the resolver misses.
+                $this->songItem(1, '- Hymn: Amazing Grace'),
                 $this->songItem(2, 'Communion hymn – 429 ‘It is a thing most'),
                 $this->songItem(3, 'Hymn - Gareth to choose'),
                 $this->songItem(4, 'A Chorus Nobody Catalogued'),

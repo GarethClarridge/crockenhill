@@ -604,12 +604,47 @@ recovers, **11 mismatches close completely** and 27 shrink; 2 are unchanged. So 
 a fix *reaches*: most of the residue is genuine disagreement or genuine catalogue absence, not
 title damage.
 
-**The resolver fix is deliberately not included here.** Item 0 changes no import behaviour, and
-`SongTitleResolver` is live production code on the weekly inbound-email path
-(`ProcessInboundOosEmail`, the admin typeahead, `ChurchServiceSongLinker`); changing it would also
-move the ground-truth baseline 0(2) has just established. `SongTitleHygiene::normalise()` models
-what a corrected resolver would strip, so `recovered_by_normalisation` is that fix's acceptance
-figure: it should fall to approximately zero once the resolver strips the same decoration.
+#### The resolver fix, 2026-08-16 — landed, with the census as its acceptance evidence
+
+`stripLeadingLabel()` now groups as `(?:\p{L}+(?:['’]s)?\s+){0,2}(?:songs?|hymns?|carols?)`, so the
+qualifier words apply to all three role words. The separator is still required — a title merely
+opening with "Song" is left alone — except where the next character is a quote, hash or digit,
+which cannot open a title's second word.
+
+**Why it is safe on the live linking path**, checked before the change: `linkForService()` runs
+*after* the import/merge decision in `InboundEmailImportService`, and the linker's match confidence
+is recorded as item metadata, never fed to a gate. Song linking is post-decision enrichment, so
+this is not an Axis-B change to what imports unattended. Separately, the raw title is probe zero in
+`buildProbes()`, so every deterministic rung sees it before any cleaned form: the widened rung can
+only add matches the resolver previously missed, never redirect one it already had. That property
+is pinned by `it_never_lets_the_label_rung_override_a_title_that_already_resolved`.
+
+Baseline regenerated as `storage/scratch/item-ground-truth-2026-08-16c-resolver-fixed.json`, sha256
+`511be1169cd1f808f58c1cc705795509d9b5eb4a302ae4345965d398843ce8b9`. Measured effect:
+
+| Measure | Before | After |
+|---|--:|--:|
+| Unresolved staged song titles | 283 | **224** |
+| `song_membership` match / mismatch | 79 / 153 | **88 / 144** |
+| Mismatches carrying an unresolved title | 96 | **76** |
+| `song_order` match / mismatch / indeterminate | 94 / 63 / 130 | **101** / 66 / **120** |
+| `role_label` occurrences | 125 | 66 |
+| `recovered_by_normalisation` | 104 | 46 |
+
+`song_count` is unchanged at 163/59/65, as expected — it counts song *items*, which do not depend
+on resolution.
+
+**Read the acceptance figure honestly.** The prediction was that
+`recovered_by_normalisation` falls to about zero; it fell 56%, from 104 to 46. The resolver
+absorbed the role-label family and nothing else, and the residual 46 sizes the *next* resolver gap:
+`bullet_prefix` is unchanged at 43, because a leading "- " or "* " sits outside the label rung's
+`^` anchor, so "- Hymn 490 Jesus is King" still hides its label behind the bullet. `role_label`
+likewise only halved for the same reason. Extending the resolver to leading bullets and planning
+markers is the obvious next candidate and is already sized at 43 + 7 occurrences — it is **not**
+done here.
+
+The pre-fix estimate that 11 mismatches would close was slightly optimistic: 9 closed. Three
+identities gained an `extra_in_staged` song, which the estimate did not model.
 
 **Known limits, so the census is not over-read.** It is a shape classifier. It cannot tell that
 four well-formed consecutive "Chosen to be …" items are sermon points rather than songs, and the

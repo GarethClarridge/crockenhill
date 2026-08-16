@@ -46,6 +46,10 @@ class SongTitleResolverTest extends TestCase
             ['id' => 24, 'canonical_key' => 'all praise to him', 'title' => 'All Praise To Him'],
             ['id' => 25, 'canonical_key' => 'my heart is full 494', 'title' => 'My Heart Is Full #494', 'praise_number' => '494'],
             ['id' => 26, 'canonical_key' => 'yes finished the messiah dies 452', 'title' => 'Yes Finished! The Messiah Dies #452', 'praise_number' => '452'],
+            // A catalogued title that opens with a role word, so the label rung has something
+            // real it could damage.
+            ['id' => 27, 'canonical_key' => 'song of the redeemed', 'title' => 'Song Of The Redeemed'],
+            ['id' => 28, 'canonical_key' => 'carol of the bells', 'title' => 'Carol Of The Bells'],
         ], $options);
     }
 
@@ -76,6 +80,17 @@ class SongTitleResolverTest extends TestCase
             'alternate title from openlp search title' => ['he will hold me fast@when i fear my faith will fail', 5, SongTitleMatch::TYPE_ALTERNATE_TITLE],
             'communion song prefix with no space' => ["Communion song:344 'There is a Redeemer", 10, SongTitleMatch::TYPE_PRAISE_NUMBER],
             'communion song prefix with en-dash' => ["Communion song – 1118 'Behold the Lamb'", 22, SongTitleMatch::TYPE_PRAISE_NUMBER],
+            // A qualified "hymn" label has to strip exactly as a qualified "song" label does.
+            // The alternation used to bind the qualifier words to `song` alone, so the two
+            // lines above resolved and these did not — 125 of the 283 unresolved titles in the
+            // 2026-08-16 item ground truth carried a label this rung should have seen through.
+            'communion hymn prefix with en-dash' => ["Communion hymn – 1118 'Behold the Lamb'", 22, SongTitleMatch::TYPE_PRAISE_NUMBER],
+            'final hymn prefix with a colon' => ["Final hymn: 344 'There is a Redeemer'", 10, SongTitleMatch::TYPE_PRAISE_NUMBER],
+            'closing hymn prefix with a dash' => ['Closing Hymn - All heaven declares', 3, SongTitleMatch::TYPE_STRIPPED_NUMBER],
+            // "Carol" is the third role word the orders use, and it is followed by the quoted
+            // title with no separator at all.
+            'carol label before a quoted title' => ["Carol 'Speak O Lord'", 8, SongTitleMatch::TYPE_STRIPPED_NUMBER],
+            'hymn label before a bare praise number' => ['Hymn 299', 1, SongTitleMatch::TYPE_PRAISE_NUMBER],
             'possessive song label with trailing parenthetical' => ["Jade's song: See him in Jerusalem (Jerusalem)", 11, SongTitleMatch::TYPE_EXACT],
             'leading hash before praise number' => ['#1190 To see the king of heaven fall (Gethsemane)', 12, SongTitleMatch::TYPE_PRAISE_NUMBER],
             'title starting with the word Praise is not stripped' => ['Praise to the Lord, the Almighty', 13, SongTitleMatch::TYPE_LOOSE_TITLE],
@@ -99,6 +114,29 @@ class SongTitleResolverTest extends TestCase
     public function it_leaves_unresolvable_titles_unmatched(string $searchTitle): void
     {
         $this->assertNull($this->resolver()->resolve($searchTitle));
+    }
+
+    /**
+     * Why widening the label rung is safe on the live linking path: the raw title is probe zero,
+     * so every deterministic rung sees it before any cleaned form. A title that resolves today
+     * therefore resolves to the same song afterwards, and the widened rung can only add matches
+     * the resolver previously missed — it can never redirect one it already had.
+     */
+    #[Test]
+    public function it_never_lets_the_label_rung_override_a_title_that_already_resolved(): void
+    {
+        $resolver = $this->resolver();
+
+        foreach ([
+            'Song Of The Redeemed' => 27,
+            'Carol Of The Bells' => 28,
+            'Come, Let Us Join Our Cheerful Songs' => 17,
+        ] as $title => $expectedSongId) {
+            $match = $resolver->resolve($title);
+
+            $this->assertNotNull($match, "Expected a match for: {$title}");
+            $this->assertSame($expectedSongId, $match->songId, "Wrong song for: {$title}");
+        }
     }
 
     public static function unresolvableProvider(): array
