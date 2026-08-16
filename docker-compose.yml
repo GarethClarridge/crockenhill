@@ -19,9 +19,6 @@ services:
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
         volumes:
             - '.:/var/www/html'
-            - '${CBC_SERVICE_VIDEOS_PATH:-./storage/mnt/service-videos}:/mnt/cbc-service-videos:ro'
-            - '${CBC_AUDIO_MP3_PATH:-./storage/mnt/audio-mp3}:/mnt/cbc-audio-mp3:ro'
-            - '${CBC_SERVICES_PATH:-./storage/mnt/services}:/mnt/cbc-services:ro'
             - './docker/php/php.ini:/etc/php/8.4/cli/conf.d/99-livestream.ini'
             - './docker/php/php.ini:/etc/php/8.4/fpm/conf.d/99-livestream.ini'
         networks:
@@ -46,7 +43,6 @@ services:
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
         volumes:
             - '.:/var/www/html'
-            - '${CBC_SERVICE_VIDEOS_PATH:-./storage/mnt/service-videos}:/mnt/cbc-service-videos:ro'
             - './docker/php/php.ini:/etc/php/8.4/cli/conf.d/99-livestream.ini'
         command: >
             php artisan queue:work redis
@@ -76,7 +72,6 @@ services:
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
         volumes:
             - '.:/var/www/html'
-            - '${CBC_SERVICE_VIDEOS_PATH:-./storage/mnt/service-videos}:/mnt/cbc-service-videos:ro'
             - './docker/php/php.ini:/etc/php/8.4/cli/conf.d/99-livestream.ini'
         command: >
             php artisan queue:work redis
@@ -114,7 +109,6 @@ services:
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
         volumes:
             - '.:/var/www/html'
-            - '${CBC_SERVICE_VIDEOS_PATH:-./storage/mnt/service-videos}:/mnt/cbc-service-videos:ro'
             - './docker/php/php.ini:/etc/php/8.4/cli/conf.d/99-livestream.ini'
         command: >
             php artisan queue:work redis

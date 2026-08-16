@@ -193,7 +193,10 @@ lane; G7/G8 window approvals → RG-B per round; G9 → historic closeout.
 ## 5. Corpus facts and evidence regimes
 
 Locations: Email at `storage/scratch/oos` + `oos-verbatim` (local; authority batch
-`oos-curated-2026-08-12`: 535 entries, 534 included, 521 identities); OpenLP archives local at
+`oos-curated-2026-08-16`: 555 entries, 552 included, 3 excluded, **538 identities**. The 2026-08-16
+inbox sweep folded in 20 further verbatim files — 18 included as morning full orders and partials,
+2 excluded — superseding `oos-curated-2026-08-12`'s 535/534/**521**; every figure measured against
+521 below predates it); OpenLP archives local at
 `storage/scratch/ServiceRecords` (427 included entries, staged); video on the Sonnics drive,
 `Services/` root only (1.0 TB, 506 recordings, 462 identities; `_Rejected/` holds real service
 *segments*, not duplicates — 55 morning services degrade to `short_partial` without them, accepted
@@ -201,7 +204,8 @@ scope cost); hymn workbook crosstabs 2004–2018 + 2023 (5,759 known-service occ
 identities; 888 identities have no other source; date-only lane implemented and quarantined).
 
 **Eras are defined by which sources survive** (measured 2026-08-14; denominators 193-vs-220 and
-521-vs-662 still need reconciling before release decisions — IC5 prep):
+**538**-vs-662 still need reconciling before release decisions — IC5 prep; the Email denominator was
+521 when this was written and moved on 2026-08-16):
 
 | Era | Surviving sources | Accuracy method |
 |---|---|---|
@@ -213,14 +217,17 @@ identities; 888 identities have no other source; date-only lane implemented and 
 | 2023–2026 | Email + OpenLP + Hymn | Count, sequence and membership all checkable |
 
 Cross-source shape: **375 of 521 email identities (72%) carry at least one corroborating source**;
-the three-source union is ~1,594 service identities. OpenLP is the only source proving item
-*order/count*; the hymn lane proves song *membership* only — any corroboration rule must say which
-dimension it relies on.
+the three-source union is ~1,594 service identities. (Measured 2026-08-14 against the then-current
+521-identity corpus. The denominator is now 538 and the 17 added identities have not been tested for
+corroboration, so the 72% is stale in the optimistic direction — re-measure before it informs a
+release decision.) OpenLP is the only source proving item *order/count*; the hymn lane proves song
+*membership* only — any corroboration rule must say which dimension it relies on.
 
-Email lane baseline (archive-v12, fresh parse, report SHA-256 `acf6b18a…36a55`): 370/534 sources
-held; 157/521 identities staged; ~95% of sources take a corrective second call (~1,100 model calls
-per full re-run — budget accordingly, and do not trim the retry: it produces the consensus that
-lets 0.75–0.89 plans finalise); self-reported confidence is weakly calibrated (78.7%
+Email lane baseline (archive-v12, fresh parse, report SHA-256 `acf6b18a…36a55`; measured against the
+521-identity corpus and **not** restated for the 538 one — the report hash pins these figures to that
+run): 370/534 sources held; 157/521 identities staged; ~95% of sources take a corrective second call
+(~1,100 model calls per full re-run — budget accordingly, and do not trim the retry: it produces the
+consensus that lets 0.75–0.89 plans finalise); self-reported confidence is weakly calibrated (78.7%
 identity-exactness in the 0.90–1.00 band); the genuinely manual residue is ~14 items (6 identity
 disagreements, 8 date corrections).
 
@@ -402,7 +409,7 @@ narrower `needs_review` semantics on purpose.
 | Source recovery for the 3 unevidenced current-era services | IC4 | Operator |
 | Video curation worksheet adjudication + freeze | IC5 bulk pass | Operator, on the §2.4 trigger |
 | Era release sign-offs and the §8.4 policy decision | Each RG-C release | Maintainer/church |
-| Denominator reconciliation (193/220, 521/662) | Era release accounting | IC5 prep |
+| Denominator reconciliation (193/220, 538/662) | Era release accounting | IC5 prep |
 
 ## 11. Permanent vs disposable surface
 

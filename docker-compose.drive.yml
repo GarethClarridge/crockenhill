@@ -1,0 +1,34 @@
+# Opt-in CBC drive mounts.
+#
+# The base docker-compose.yml deliberately does not bind-mount the external CBC
+# drive. A bind mount is a hard dependency: when its source is missing Docker
+# tries to create the path and fails (on macOS, `mkdir /host_mnt/Volumes/...:
+# permission denied`), so every service carrying one refuses to start whenever
+# the drive is detached. Keeping the mounts here means `sail up` works with the
+# drive unplugged, which is the normal case — the working corpora live in
+# `storage/scratch/` and reach the container through the ordinary project mount.
+#
+# Use this file only while the drive is actually connected:
+#
+#     COMPOSE_FILE=docker-compose.yml:docker-compose.drive.yml vendor/bin/sail up -d
+#
+# or set COMPOSE_FILE in .env for the duration of a drive session. Set the paths
+# below in .env to match wherever the drive mounts; each falls back to an empty
+# local stub directory so a partially-configured .env still starts.
+
+x-cbc-video-mount: &cbc-video-mount
+    volumes:
+        - '${CBC_SERVICE_VIDEOS_PATH:-./storage/mnt/service-videos}:/mnt/cbc-service-videos:ro'
+
+services:
+    laravel.test:
+        volumes:
+            - '${CBC_SERVICE_VIDEOS_PATH:-./storage/mnt/service-videos}:/mnt/cbc-service-videos:ro'
+            - '${CBC_AUDIO_MP3_PATH:-./storage/mnt/audio-mp3}:/mnt/cbc-audio-mp3:ro'
+            - '${CBC_SERVICES_PATH:-./storage/mnt/services}:/mnt/cbc-services:ro'
+    queue.worker: *cbc-video-mount
+    queue.worker-video: *cbc-video-mount
+    queue.worker-historic-ffmpeg: *cbc-video-mount
+    queue.worker-historic-whisper: *cbc-video-mount
+    queue.worker-historic-llm: *cbc-video-mount
+    queue.worker-historic-orchestration: *cbc-video-mount
