@@ -343,6 +343,20 @@ proven no-op/reconciliation semantics (F62). The date-only lane stays quarantine
 release. The workbook's `a`/`p`/`●` markers carry the service attribution; the contract tolerates
 the known phantom row.
 
+**New source snapshot (received 2026-08-16).**
+`storage/scratch/Hymn database @ 16.08.2026.xlsx` (SHA-256
+`0a6ac2043138c2e0abbf3fdcf314220d2d567a0ec812c3504d49e300213296c6`) contains the `2025` and
+`2026` year sheets and supersedes `Hymn database @ 15.03.2026.xlsx` as their authority. Before
+regeneration, update `HistoricHymnReconciliation::SheetAuthority` and its regression tests to name
+the August snapshot while retaining the earlier supplied snapshots as hash-bound, superseded
+sources. Run the reconciliation only after the preceding convergence work, against that exact
+rehearsal corpus, and review its anomalies, duplicates, unresolved titles and fuzzy candidates;
+do not carry forward the old `1,941 / 1,867 / 74` dry-run contract unless the new result reproduces
+it and it is approved again. F60 must also close the current artifact gap: the retained builder
+emits JSON, whereas `service-tracking:import-historic-song-usage-reports` consumes the derived XLSX
+date-only lane and does not apply the JSON's known-service rows. Define and test the bound
+reconciliation-to-apply artifact before either lane is imported through a new operation manifest.
+
 ### IC7 — Production rounds
 
 The §7 procedure, per lane per round: Email+OpenLP evidence first (drive-free), then video/media
