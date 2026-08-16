@@ -782,12 +782,15 @@ class OosArchiveEvaluatorTest extends TestCase
         ], ['fuzzy_enabled' => false]);
     }
 
-    /** @return array{position:int,type:string,title:string,source_title:null,openlp_search_title:null,metadata:array{section_type:string}} */
+    /** @return array{position:int,type:string,section_type:string,title:string,source_title:null,openlp_search_title:null,metadata:array{section_type:string}} */
     private function semanticItem(int $position, string $storageType, string $sectionType): array
     {
         return [
             'position' => $position,
             'type' => $storageType,
+            // The parser writes semantic type at the item root. Keeping the legacy metadata
+            // copy below proves the evaluator gives the current parser shape precedence.
+            'section_type' => $sectionType,
             'title' => ucfirst(str_replace('_', ' ', $sectionType)),
             'source_title' => null,
             'openlp_search_title' => null,

@@ -526,7 +526,7 @@ class OosArchiveEvaluator
     }
 
     /**
-     * @param  array<int, array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>  $items
+     * @param  array<int, array{position:int,type:string,section_type?:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>  $items
      * @return array<string, int>
      */
     private function semanticItemTypeCounts(array $items): array
@@ -535,7 +535,11 @@ class OosArchiveEvaluator
 
         foreach ($items as $item) {
             $metadata = $item['metadata'] ?? null;
-            $type = is_array($metadata) ? ($metadata['section_type'] ?? null) : null;
+            $type = $item['section_type'] ?? null;
+
+            if (! is_string($type) || $type === '') {
+                $type = is_array($metadata) ? ($metadata['section_type'] ?? null) : null;
+            }
 
             if (! is_string($type) || $type === '') {
                 $type = 'unknown';

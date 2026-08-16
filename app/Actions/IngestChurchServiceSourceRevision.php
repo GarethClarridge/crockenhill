@@ -75,7 +75,11 @@ class IngestChurchServiceSourceRevision
                     ->filter(fn (ChurchServiceSourceRecord $record): bool => $record->source === $revision->source
                         && $record->source_key === $revision->sourceKey)
                     ->values();
-                $superseded = $this->lineageInspector->leaf($revisions);
+                // A manifest-authorised Email correction explicitly supersedes a record under a
+                // different source key. The service-wide assertion above validates that edge;
+                // within this key it is already-pruned ancestry, so a replay must resolve to its
+                // current leaf rather than mistake the predecessor for foreign corruption.
+                $superseded = $this->lineageInspector->activeLeaf($revisions, $revisions);
 
                 if ($superseded?->revision_hash === $revisionHash) {
                     return new ChurchServiceSourceIngestionResult($superseded, false);
@@ -163,7 +167,7 @@ class IngestChurchServiceSourceRevision
                 throw new RuntimeException('A source revision key is already attached to a different church service.', previous: $exception);
             }
 
-            $leaf = $this->lineageInspector->leaf($revisions);
+            $leaf = $this->lineageInspector->activeLeaf($revisions, $revisions);
 
             if (! $existing->is($leaf)) {
                 $this->assertPayloadIsNotSuperseded($revisions, $revisionHash);

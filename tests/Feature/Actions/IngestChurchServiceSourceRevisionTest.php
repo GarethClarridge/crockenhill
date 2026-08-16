@@ -124,6 +124,41 @@ class IngestChurchServiceSourceRevisionTest extends TestCase
     }
 
     #[Test]
+    public function replaying_a_manifest_authorised_cross_key_correction_is_a_no_op(): void
+    {
+        $service = ChurchService::factory()->create();
+        $action = app(IngestChurchServiceSourceRevision::class);
+        $original = new ChurchServiceSourceRevision(
+            source: ChurchServiceSource::Email,
+            sourceKey: 'original-message|morning:2026-07-29',
+            inputHash: str_repeat('a', 64),
+            assertions: [$this->assertion(1, 'Opening Song')],
+            processingFingerprint: ['format' => 'test', 'version' => 1],
+        );
+        $correction = new ChurchServiceSourceRevision(
+            source: ChurchServiceSource::Email,
+            sourceKey: 'correction-message|morning:2026-07-29',
+            inputHash: str_repeat('b', 64),
+            assertions: [$this->assertion(1, 'Corrected Opening Song')],
+            processingFingerprint: [
+                'format' => 'test',
+                'version' => 1,
+                'manifest_supersedes_source_key' => $original->sourceKey,
+            ],
+            supersedesSourceKey: $original->sourceKey,
+        );
+
+        $action->execute($service, $original);
+        $firstCorrection = $action->execute($service, $correction);
+        $replayedCorrection = $action->execute($service, $correction);
+
+        $this->assertTrue($firstCorrection->wasCreated);
+        $this->assertFalse($replayedCorrection->wasCreated);
+        $this->assertSame($firstCorrection->sourceRecord->id, $replayedCorrection->sourceRecord->id);
+        $this->assertSame(2, ChurchServiceSourceRecord::query()->count());
+    }
+
+    #[Test]
     public function it_rejects_a_lineage_with_multiple_active_leaves(): void
     {
         $service = ChurchService::factory()->create();
