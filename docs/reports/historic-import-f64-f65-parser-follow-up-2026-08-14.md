@@ -450,10 +450,13 @@ item 0 and rewrote item 1** — read "Revision 2026-08-14" immediately below bef
 implement in the order 0, 1, 2, 3 (item 4 is a no-change record). Items 1 and 3 are blocked on
 item 0.
 
-**Status 2026-08-16.** Item 0 sub-items (1), (2) and (4) are done — see "Item 0(4) result" below
-for the title-hygiene census and the resolver defect it names. Sub-item (3), renaming
-`exact_correct` to `identity_correct` and wiring the content-level measure to the ground-truth
-artifact, is the remaining blocker on items 1 and 3.
+**Status 2026-08-16. Item 0 is complete** — all four sub-items are done, and the resolver defect
+that 0(4) uncovered is fixed. **Items 1, 2 and 3 are unblocked.** Start from the corrected baseline
+artifact `storage/scratch/item-ground-truth-2026-08-16c-resolver-fixed.json`
+(sha256 `511be116…`), not from the two earlier ones, and note that item 1's constraint now has
+teeth: `content_accuracy` and the ground truth's per-identity verdicts are the labels a replacement
+confidence composite must be fit and scored against, because `identity_correct` is now named for
+what it measures and must not be used for the job.
 
 **[HIR-D7](HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md) (§4.5) clears the governance question
 for items 1–3** — they are extraction-accuracy work serving the import's own purpose, not "features
@@ -551,6 +554,24 @@ Work for this item:
    which source corroborated it and on what — membership, count, or sequence.
 3. Rename `exact_correct` to `identity_correct` throughout the evaluator and report, so it stops
    reading as content correctness. Add a separate content-level measure fed by (1) and (2).
+
+   **Done 2026-08-16.** `planRecord()` emits `identity_correct`, and alongside it `song_items` /
+   `song_items_resolved` — the item-level signal available while a run is in flight, fed by the
+   seeded catalogue from 0(1). `aggregate()` gains `content_accuracy`
+   (`measure: song_title_resolution`) beside `auto_import_precision`, which now carries
+   `measure: identity_correct`. The archive command prints both rates in the same table, because
+   for the whole programme they were one number.
+
+   Two shapes were deliberately **not** changed: `auto_import_precision`'s existing keys (only an
+   additive `measure`) and `confidence_calibration`'s bare band map. FR-D4's precision floor and
+   the recorded v11/v12 calibration tables are quoted against them, and reshaping either would
+   silently break the comparison the floor depends on.
+
+   `content_accuracy` is a lower bound and is documented as one: it can only see song items, which
+   are the one class the catalogue can adjudicate, and a miss is not automatically an extraction
+   failure — `title_hygiene` from 0(4) says which of the four owners each miss belongs to. The
+   authoritative content measure across all item classes remains the corroborated item-level
+   ground truth from 0(2), which an in-flight archive run cannot reach.
 4. Add a title-hygiene check. The v12 `song_link.unmatched_titles` already exposes a systematic
    defect family that no current metric counts — titles truncated mid-word with surrounding prose
    bled in:

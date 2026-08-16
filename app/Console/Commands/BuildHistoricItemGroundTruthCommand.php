@@ -14,7 +14,8 @@ use Throwable;
 /**
  * Build the historic import's item-level ground truth — IC3, item 0(2).
  *
- * The import has measured itself with `exact_correct` throughout, which checks date, service
+ * The import has measured itself with `identity_correct` throughout (`exact_correct` until item
+ * 0(3) renamed it), which checks date, service
  * slot and non-emptiness and never opens an item. This joins the two sources that can see
  * inside a service — the hymn workbook's song membership and the OpenLP archives' item count
  * and order — against the staged plans, and reports per identity which source corroborated it

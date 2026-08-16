@@ -24,7 +24,8 @@ use Throwable;
  * The item-level ground truth for the historic import — IC3, item 0(2) of the queued parsing
  * plan in `docs/reports/historic-import-f64-f65-parser-follow-up-2026-08-14.md`.
  *
- * Every accuracy figure quoted about the Email extraction so far is `exact_correct`, which
+ * Every accuracy figure quoted about the Email extraction so far is `identity_correct` — named
+ * `exact_correct` until item 0(3) renamed it for exactly this reason — which
  * checks date, service slot and non-emptiness and never inspects an item. It is a fair measure
  * of identity resolution and an unsound one for extraction quality. This joins the two
  * independent sources that *can* see inside a service against the staged plans, so extraction

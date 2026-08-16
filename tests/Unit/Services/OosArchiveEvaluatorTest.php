@@ -38,7 +38,7 @@ class OosArchiveEvaluatorTest extends TestCase
         $this->assertSame('subject_textual', $result['date']['method']);
         $this->assertSame(['morning', 'evening'], $result['services']['expected']);
         $this->assertSame(['morning'], $result['services']['detected']);
-        $this->assertTrue($result['plans'][0]['exact_correct']);
+        $this->assertTrue($result['plans'][0]['identity_correct']);
         $this->assertTrue($result['plans'][0]['gate_eligible']);
         $this->assertSame(2, $result['plans'][0]['expected_item_count']);
         $this->assertTrue($result['plans'][0]['item_count_matches']);
@@ -178,6 +178,68 @@ class OosArchiveEvaluatorTest extends TestCase
             'defective' => 0,
             'not_a_title' => 0,
         ], $evaluator->aggregate([$result])['title_hygiene']['by_verdict']);
+    }
+
+    /**
+     * Item 0(3). The failure this separation exists to make visible: a plan can be perfectly
+     * `identity_correct` — right date, right service, non-empty — while every one of its song
+     * items is mangled. For the whole programme those were one number, so every accuracy claim
+     * made from the identity figure was read as a claim about extraction.
+     */
+    #[Test]
+    public function it_scores_identity_and_content_separately_on_the_same_plan(): void
+    {
+        $evaluator = new OosArchiveEvaluator;
+
+        $result = $evaluator->evaluate(
+            $this->entry(),
+            $this->parseResult(items: [
+                $this->songItem(1, 'Amazing Grace'),
+                $this->songItem(2, '335 ‘there’s no greater name than'),
+                $this->songItem(3, 'A Chorus Nobody Catalogued'),
+            ]),
+            disposition: 'eligible',
+            gateReasons: [],
+            songTitleResolver: $this->songTitleResolver(),
+            eligiblePlanKeys: ['morning:2026-07-12'],
+        );
+
+        $plan = $result['plans'][0];
+
+        $this->assertTrue($plan['identity_correct'], 'the identity is right');
+        $this->assertSame(3, $plan['song_items']);
+        $this->assertSame(1, $plan['song_items_resolved'], 'but two of three song items are not');
+
+        $aggregate = $evaluator->aggregate([$result]);
+
+        $this->assertSame('identity_correct', $aggregate['auto_import_precision']['measure']);
+        $this->assertSame(1.0, $aggregate['auto_import_precision']['rate']);
+
+        $this->assertSame('song_title_resolution', $aggregate['content_accuracy']['measure']);
+        $this->assertSame(3, $aggregate['content_accuracy']['song_items']);
+        $this->assertSame(1, $aggregate['content_accuracy']['song_items_resolved']);
+        $this->assertSame(0.3333, $aggregate['content_accuracy']['rate']);
+        $this->assertSame(0, $aggregate['content_accuracy']['plans_with_every_song_resolved']);
+        $this->assertSame(1, $aggregate['content_accuracy']['plans_with_song_items']);
+    }
+
+    /**
+     * A dry run has no catalogue to resolve against, so the content measure has to report that it
+     * could not be taken rather than reporting zero — a zero rate would read as "nothing resolved".
+     */
+    #[Test]
+    public function it_reports_no_content_measure_when_there_is_no_resolver(): void
+    {
+        $evaluator = new OosArchiveEvaluator;
+        $result = $evaluator->evaluate($this->entry(), $this->parseResult(), 'dry_run');
+
+        $this->assertNull($result['plans'][0]['song_items_resolved']);
+        $this->assertSame(1, $result['plans'][0]['song_items']);
+
+        $content = $evaluator->aggregate([$result])['content_accuracy'];
+
+        $this->assertSame(0, $content['song_items']);
+        $this->assertNull($content['rate']);
     }
 
     /**
@@ -517,14 +579,14 @@ class OosArchiveEvaluatorTest extends TestCase
         $this->assertSame(['morning', 'evening'], $result['services']['detected']);
         $this->assertSame(['morning' => 2, 'evening' => 1], $result['item_counts']['detected']);
         $this->assertCount(2, $result['plans']);
-        $this->assertTrue($result['plans'][1]['exact_correct']);
+        $this->assertTrue($result['plans'][1]['identity_correct']);
         $this->assertTrue($result['plans'][1]['gate_eligible']);
         $this->assertSame(1, $result['plans'][1]['expected_item_count']);
         $this->assertTrue($result['plans'][1]['item_count_matches']);
 
         $aggregate = (new OosArchiveEvaluator)->aggregate([$result]);
         $this->assertSame(1.0, $aggregate['service_metrics']['evening']['recall']);
-        $this->assertSame(['correct' => 2, 'total' => 2, 'rate' => 1.0], $aggregate['auto_import_precision']);
+        $this->assertSame(['measure' => 'identity_correct', 'correct' => 2, 'total' => 2, 'rate' => 1.0], $aggregate['auto_import_precision']);
         $this->assertSame(['matched' => 2, 'checked' => 2, 'rate' => 1.0], $aggregate['item_count_reconciliation']);
     }
 
@@ -549,7 +611,7 @@ class OosArchiveEvaluatorTest extends TestCase
         $this->assertNull($result['plans'][0]['expected_item_count']);
         $this->assertNull($result['plans'][0]['item_count_matches']);
         $this->assertSame(2, $result['plans'][0]['item_count'], 'the detected count is still reported');
-        $this->assertTrue($result['plans'][0]['exact_correct'], 'a missing count is not a failure');
+        $this->assertTrue($result['plans'][0]['identity_correct'], 'a missing count is not a failure');
 
         $this->assertSame(
             ['matched' => 0, 'checked' => 0, 'rate' => null],
@@ -605,7 +667,7 @@ class OosArchiveEvaluatorTest extends TestCase
         $this->assertSame(0.5, $aggregate['service_metrics']['morning']['precision']);
         $this->assertSame(1.0, $aggregate['service_metrics']['morning']['recall']);
         $this->assertSame(0.0, $aggregate['service_metrics']['evening']['recall']);
-        $this->assertSame(['correct' => 1, 'total' => 1, 'rate' => 1.0], $aggregate['auto_import_precision']);
+        $this->assertSame(['measure' => 'identity_correct', 'correct' => 1, 'total' => 1, 'rate' => 1.0], $aggregate['auto_import_precision']);
         $this->assertSame(1, $aggregate['dispositions']['eligible']);
         $this->assertSame(2, $aggregate['dispositions']['skipped']);
         $this->assertArrayHasKey('0.90-1.00', $aggregate['confidence_calibration']);

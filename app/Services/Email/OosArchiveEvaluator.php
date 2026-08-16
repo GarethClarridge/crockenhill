@@ -63,7 +63,7 @@ class OosArchiveEvaluator
             }
 
             $allItems = array_merge($allItems, $plan->items);
-            $planRecords[] = $this->planRecord($entry, $plan, $gateReasons, $eligiblePlanKeys, $consensus);
+            $planRecords[] = $this->planRecord($entry, $plan, $gateReasons, $eligiblePlanKeys, $consensus, $songTitleResolver);
         }
 
         $corroboratedPlanKeys = array_values(array_unique($eligiblePlanKeys));
@@ -171,11 +171,14 @@ class OosArchiveEvaluator
         array $gateReasons,
         array $eligiblePlanKeys,
         bool $consensus,
+        ?SongTitleResolver $songTitleResolver = null,
     ): array {
         $service = $plan->service?->value;
         $dateMatches = $plan->date === $entry->groundTruthDate;
         $serviceMatches = $service !== null && in_array($service, $entry->servicesPresent, true);
         $expectedItems = $service === null ? null : ($entry->itemLineCounts[$service] ?? null);
+        $songItems = count(array_filter($plan->items, static fn (array $item): bool => $item['type'] === 'songs'));
+        $songItemsResolved = $songTitleResolver === null ? null : $this->resolvedSongItems($plan->items, $songTitleResolver);
 
         return [
             'plan_key' => $plan->key(),
@@ -196,7 +199,27 @@ class OosArchiveEvaluator
             'validation_reasons' => $plan->validationReasons,
             'content_validation_reasons' => $plan->contentValidationReasons,
             'hold_reasons' => $plan->holdReasonValues(),
-            'exact_correct' => $entry->assertsFullOrder() && $dateMatches && $serviceMatches && $plan->items !== [],
+            /**
+             * Was `exact_correct`, renamed in item 0(3). It is the conjunction of the entry
+             * asserting a full order, the date agreeing, the service slot agreeing and the plan
+             * being non-empty — it never opens an item. It is a sound measure of *identity*
+             * resolution and an unsound one for extraction quality, and the old name invited
+             * every accuracy claim in the follow-up report to be read as the latter. Content
+             * lives in the two fields below and, properly, in the item-level ground truth.
+             */
+            'identity_correct' => $entry->assertsFullOrder() && $dateMatches && $serviceMatches && $plan->items !== [],
+            /**
+             * The item-level signal available while a run is in flight: how many of this plan's
+             * song items name a song the catalogue holds. A resolution is evidence the title was
+             * extracted well enough to match a real song, which is content evidence that
+             * `identity_correct` cannot give. `resolved` is null on a dry run with no resolver.
+             *
+             * A miss is *not* automatically an extraction failure — `song_link.hygiene` on the
+             * entry says which of the four populations it belongs to, and on the measured corpus
+             * only about a quarter of misses were damaged extractions.
+             */
+            'song_items' => $songItems,
+            'song_items_resolved' => $songItemsResolved,
             'gate_eligible' => $gateReasons === [] && in_array($plan->key(), $eligiblePlanKeys, true),
         ];
     }
@@ -269,6 +292,10 @@ class OosArchiveEvaluator
         $hygieneRecovered = 0;
         $itemCountsChecked = 0;
         $itemCountsMatched = 0;
+        $songItemsTotal = 0;
+        $songItemsResolved = 0;
+        $plansWithSongItems = 0;
+        $plansWithEverySongResolved = 0;
         $parseFlags = [];
         $holdReasonCategories = [];
         $planHoldReasons = [];
@@ -291,6 +318,14 @@ class OosArchiveEvaluator
             }
 
             foreach ($entry['plans'] ?? [] as $plan) {
+                if (($plan['song_items_resolved'] ?? null) !== null) {
+                    $songItemsTotal += (int) $plan['song_items'];
+                    $songItemsResolved += (int) $plan['song_items_resolved'];
+                    $plansWithSongItems += ((int) $plan['song_items']) > 0 ? 1 : 0;
+                    $plansWithEverySongResolved += ((int) $plan['song_items']) > 0
+                        && $plan['song_items'] === $plan['song_items_resolved'] ? 1 : 0;
+                }
+
                 if (($plan['item_count_matches'] ?? null) === null) {
                     continue;
                 }
@@ -371,8 +406,44 @@ class OosArchiveEvaluator
                 'morning' => $this->serviceMetrics($entries, 'morning'),
                 'evening' => $this->serviceMetrics($entries, 'evening'),
             ],
-            'auto_import_precision' => $this->autoImportPrecision($entries),
+            /**
+             * Both of these score `identity_correct` — date, service slot and non-emptiness, never
+             * an item. Item 0(3) renamed the underlying field but deliberately left these two keys
+             * and `confidence_calibration`'s band-map shape alone: FR-D4's precision floor and the
+             * recorded v11/v12 calibration tables are quoted against them, and reshaping either
+             * would silently break the comparison the floor depends on. `auto_import_precision`
+             * gains only an additive `measure` marker; the calibration bands stay a bare band map
+             * so iterating them still yields bands and nothing else. `content_accuracy` below is
+             * the item-level companion these two cannot be.
+             */
+            'auto_import_precision' => ['measure' => 'identity_correct'] + $this->autoImportPrecision($entries),
             'confidence_calibration' => $this->confidenceCalibration($entries),
+            /**
+             * Item 0(3)'s content-level measure, fed by the seeded song catalogue (item 0(1)).
+             * Where `identity_correct` never opens an item, this opens every song item: a title
+             * that resolves to a catalogued song is evidence the *content* was extracted well
+             * enough to name a real song.
+             *
+             * Read it with two caveats it would otherwise be over-read against. A miss is not
+             * automatically an extraction failure — `title_hygiene` splits the misses into the
+             * four owners, and on the measured corpus only about a quarter were damaged
+             * extractions. And this is a lower bound on content quality generally: it can only
+             * see song items, which are the one class the catalogue can adjudicate. The
+             * authoritative content measure across all item classes is the corroborated
+             * item-level ground truth (item 0(2)), which this run cannot reach.
+             *
+             * Not restricted to full-content sources: a partial source's song titles are real
+             * titles, and a partial's silence about other items does not impeach them.
+             */
+            'content_accuracy' => [
+                'measure' => 'song_title_resolution',
+                'song_items' => $songItemsTotal,
+                'song_items_resolved' => $songItemsResolved,
+                'rate' => $this->rate($songItemsResolved, $songItemsTotal),
+                'plans_with_song_items' => $plansWithSongItems,
+                'plans_with_every_song_resolved' => $plansWithEverySongResolved,
+                'plan_rate' => $this->rate($plansWithEverySongResolved, $plansWithSongItems),
+            ],
             'dispositions' => $dispositions,
             /**
              * How many entries carried each parse-quality signal. None of these gates the import,
@@ -501,7 +572,7 @@ class OosArchiveEvaluator
             }
         }
 
-        $correct = count(array_filter($plans, fn (array $plan): bool => (bool) ($plan['exact_correct'] ?? false)));
+        $correct = count(array_filter($plans, fn (array $plan): bool => (bool) ($plan['identity_correct'] ?? false)));
 
         return ['correct' => $correct, 'total' => count($plans), 'rate' => $this->rate($correct, count($plans))];
     }
@@ -535,7 +606,7 @@ class OosArchiveEvaluator
                 foreach ($bands as &$band) {
                     if ((float) $confidence >= $band['min'] && (float) $confidence <= $band['max']) {
                         $band['total']++;
-                        $band['correct'] += ($plan['exact_correct'] ?? false) ? 1 : 0;
+                        $band['correct'] += ($plan['identity_correct'] ?? false) ? 1 : 0;
 
                         break;
                     }
@@ -619,6 +690,31 @@ class OosArchiveEvaluator
             'hygiene_defects' => $hygieneDefects,
             'hygiene_recovered' => $recovered,
         ];
+    }
+
+    /**
+     * How many of a plan's song items resolve to a catalogued song, through the same cascade the
+     * live linker uses.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private function resolvedSongItems(array $items, SongTitleResolver $songTitleResolver): int
+    {
+        $resolved = 0;
+
+        foreach ($items as $item) {
+            if (($item['type'] ?? null) !== 'songs') {
+                continue;
+            }
+
+            $title = trim((string) ($item['title'] ?? ''));
+
+            if ($title !== '' && $songTitleResolver->resolve($title) !== null) {
+                $resolved++;
+            }
+        }
+
+        return $resolved;
     }
 
     private function rate(int $numerator, int $denominator): ?float

@@ -950,9 +950,16 @@ class ImportOosArchiveCommand extends Command
             ['Date accuracy', $this->percentage($aggregate['date_accuracy']['all']['rate'])],
             ['Morning recall', $this->percentage($aggregate['service_metrics']['morning']['recall'])],
             ['Evening recall', $this->percentage($aggregate['service_metrics']['evening']['recall'])],
-            ['Auto-import precision', $this->percentage($aggregate['auto_import_precision']['rate'])],
+            ['Auto-import precision (identity)', $this->percentage($aggregate['auto_import_precision']['rate'])],
             ['Item counts reconciled', "{$itemCounts['matched']} / {$itemCounts['checked']}"],
             ['Song-link hit rate', $this->percentage($aggregate['song_link_hit_rate']['rate'])],
+            /**
+             * Printed next to the identity precision above on purpose (item 0(3)): the two were
+             * one number for the whole programme, and every accuracy claim made from the identity
+             * figure was read as a claim about extraction.
+             */
+            ['Content accuracy (song titles resolved)', $this->percentage($aggregate['content_accuracy']['rate'])],
+            ['Plans with every song resolved', "{$aggregate['content_accuracy']['plans_with_every_song_resolved']} / {$aggregate['content_accuracy']['plans_with_song_items']}"],
         ]);
 
         /**
