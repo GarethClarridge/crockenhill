@@ -186,6 +186,13 @@ class OosArchiveEvaluator
             'date' => $plan->date,
             'item_count' => count($plan->items),
             /**
+             * IC3 item 2's measurement comes before its policy change. Storage types (`songs`,
+             * `bibles`, `custom`) cannot answer whether uncertainty affects a downstream
+             * service role, so report the parser's semantic section type instead. Unknown is
+             * retained as unknown rather than silently being treated as filler.
+             */
+            'semantic_item_type_counts' => $this->semanticItemTypeCounts($plan->items),
+            /**
              * Null unless a person read the source and asserted a count. §7.5 keeps heuristic
              * counts out of the manifest, so most entries have nothing to reconcile against and
              * say so, rather than scoring against a number nobody stands behind.
@@ -299,6 +306,7 @@ class OosArchiveEvaluator
         $parseFlags = [];
         $holdReasonCategories = [];
         $planHoldReasons = [];
+        $heldPlanSemanticItemTypesByReason = [];
         $planDispositions = [];
         $adjudicatedSources = 0;
 
@@ -378,6 +386,10 @@ class OosArchiveEvaluator
 
                 foreach ($plan['hold_reasons'] ?? [] as $reason) {
                     $planHoldReasons[$reason] = ($planHoldReasons[$reason] ?? 0) + 1;
+
+                    foreach ($plan['semantic_item_type_counts'] ?? [] as $type => $count) {
+                        $heldPlanSemanticItemTypesByReason[$reason][$type] = ($heldPlanSemanticItemTypesByReason[$reason][$type] ?? 0) + (int) $count;
+                    }
                 }
             }
         }
@@ -387,6 +399,12 @@ class OosArchiveEvaluator
         ksort($parseFlags);
         ksort($holdReasonCategories);
         ksort($planHoldReasons);
+        ksort($heldPlanSemanticItemTypesByReason);
+
+        foreach ($heldPlanSemanticItemTypesByReason as &$types) {
+            ksort($types);
+        }
+        unset($types);
         ksort($planDispositions);
         ksort($songMatchTypes);
         arsort($unmatchedSongTitles);
@@ -459,6 +477,13 @@ class OosArchiveEvaluator
              */
             'hold_reason_category_counts' => $holdReasonCategories,
             'held_plan_reason_counts' => $planHoldReasons,
+            /**
+             * IC3 item 2's pre-policy census. A plan contributes once to each reason it carries,
+             * so overlapping reasons intentionally overlap here too. This identifies whether
+             * bookkeeping and disagreement holds actually concern a downstream item type before
+             * review triage is changed; it does not alter disposition or import eligibility.
+             */
+            'held_plan_semantic_item_types_by_reason' => $heldPlanSemanticItemTypesByReason,
             'plan_disposition_counts' => $planDispositions,
             /** Sources whose disagreement a third call resolved. These stay held; see HIR-D6. */
             'adjudicated_sources' => $adjudicatedSources,
@@ -498,6 +523,30 @@ class OosArchiveEvaluator
                 'rate' => $this->rate($itemCountsMatched, $itemCountsChecked),
             ],
         ];
+    }
+
+    /**
+     * @param  array<int, array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>  $items
+     * @return array<string, int>
+     */
+    private function semanticItemTypeCounts(array $items): array
+    {
+        $counts = [];
+
+        foreach ($items as $item) {
+            $metadata = $item['metadata'] ?? null;
+            $type = is_array($metadata) ? ($metadata['section_type'] ?? null) : null;
+
+            if (! is_string($type) || $type === '') {
+                $type = 'unknown';
+            }
+
+            $counts[$type] = ($counts[$type] ?? 0) + 1;
+        }
+
+        ksort($counts);
+
+        return $counts;
     }
 
     /**

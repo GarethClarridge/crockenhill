@@ -988,6 +988,18 @@ class ImportOosArchiveCommand extends Command
             $this->table(['Hold reason (sources held)', 'Count'], $rows);
         }
 
+        $heldPlanTypes = $aggregate['held_plan_semantic_item_types_by_reason'] ?? [];
+        if ($heldPlanTypes !== []) {
+            $rows = [];
+            foreach ($heldPlanTypes as $reason => $types) {
+                foreach ($types as $type => $count) {
+                    $rows[] = [(string) $reason, (string) $type, (string) $count];
+                }
+            }
+
+            $this->table(['Held-plan reason', 'Semantic item type', 'Items'], $rows);
+        }
+
         $byType = $aggregate['song_link_hit_rate']['by_type'] ?? [];
         if ($byType !== []) {
             $rows = [];

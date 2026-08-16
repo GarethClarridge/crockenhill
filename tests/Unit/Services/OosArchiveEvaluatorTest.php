@@ -118,8 +118,8 @@ class OosArchiveEvaluatorTest extends TestCase
         $result = $evaluator->evaluate(
             $this->entry(),
             $this->parseResult(items: [
-                // A bullet sits outside the label rung the resolver strips, so this one is still
-                // a correct extraction the resolver misses.
+                // A leading bullet is preserved in the raw extraction but resolved by the
+                // catalogue's current normalisation rung.
                 $this->songItem(1, '- Hymn: Amazing Grace'),
                 $this->songItem(2, 'Communion hymn – 429 ‘It is a thing most'),
                 $this->songItem(3, 'Hymn - Gareth to choose'),
@@ -130,30 +130,28 @@ class OosArchiveEvaluatorTest extends TestCase
             songTitleResolver: $this->songTitleResolver(),
         );
 
-        $this->assertSame(0, $result['song_link']['hits']);
+        $this->assertSame(1, $result['song_link']['hits']);
         $this->assertSame([
             'clean' => 1,
-            'decorated' => 1,
             'defective' => 1,
             'not_a_title' => 1,
         ], $result['song_link']['hygiene']);
 
-        // Only the decorated one names a catalogued song behind decoration the resolver misses.
-        $this->assertSame(1, $result['song_link']['hygiene_recovered']);
+        $this->assertSame(0, $result['song_link']['hygiene_recovered']);
 
         $aggregate = $evaluator->aggregate([$result, $result]);
 
         $this->assertSame([
             'clean' => 2,
-            'decorated' => 2,
+            'decorated' => 0,
             'defective' => 2,
             'not_a_title' => 2,
         ], $aggregate['title_hygiene']['by_verdict']);
-        $this->assertSame(2, $aggregate['title_hygiene']['recovered_by_normalisation']);
-        $this->assertSame(8, $aggregate['title_hygiene']['unmatched_titles']);
-        // Defect families overlap and are counted separately from the verdicts: three of the four
-        // titles carry a role label, including the one whose verdict is `not_a_title`.
-        $this->assertSame(6, $aggregate['title_hygiene']['by_defect']['role_label']);
+        $this->assertSame(0, $aggregate['title_hygiene']['recovered_by_normalisation']);
+        $this->assertSame(6, $aggregate['title_hygiene']['unmatched_titles']);
+        // Defect families overlap and are counted separately from the verdicts. The resolver now
+        // absorbs the qualified and bullet-prefixed labels, leaving two unresolved role labels.
+        $this->assertSame(4, $aggregate['title_hygiene']['by_defect']['role_label']);
     }
 
     /**
@@ -323,6 +321,7 @@ class OosArchiveEvaluatorTest extends TestCase
             ['content_invalid', 'bookkeeping', 'attempt_disagreement', 'low_confidence'],
             $result['hold_reason_categories'],
         );
+        $this->assertSame(['unknown' => 1], $result['plans'][0]['semantic_item_type_counts']);
 
         $aggregate = (new OosArchiveEvaluator)->aggregate([$result]);
         $this->assertSame(
@@ -330,7 +329,62 @@ class OosArchiveEvaluatorTest extends TestCase
             $aggregate['hold_reason_category_counts'],
         );
         $this->assertSame(['invalid_extraction' => 1], $aggregate['plan_disposition_counts']);
+        $this->assertSame(
+            [
+                'attempt_disagreement' => ['unknown' => 1],
+                'bookkeeping' => ['unknown' => 1],
+                'content_invalid' => ['unknown' => 1],
+                'low_confidence' => ['unknown' => 1],
+            ],
+            $aggregate['held_plan_semantic_item_types_by_reason'],
+        );
         $this->assertSame(0, $aggregate['adjudicated_sources']);
+    }
+
+    #[Test]
+    public function it_breaks_held_plan_reasons_down_by_semantic_item_type_not_storage_type(): void
+    {
+        $plan = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2026-07-12',
+            items: [
+                $this->semanticItem(1, 'songs', 'song'),
+                $this->semanticItem(2, 'custom', 'prayer'),
+                $this->semanticItem(3, 'bibles', 'bible_reading'),
+            ],
+            confidence: 0.95,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            holdReasons: [OosEmailPlanHoldReason::Bookkeeping, OosEmailPlanHoldReason::AttemptDisagreement],
+        );
+        $parseResult = new OosEmailParseResult(
+            date: '2026-07-12',
+            service: SermonService::Morning,
+            items: $plan->items,
+            confidenceScore: 0.95,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: [],
+            servicePlans: [$plan],
+            disposition: OosEmailParseDisposition::ReviewRequired,
+        );
+
+        $result = (new OosArchiveEvaluator)->evaluate($this->entry(), $parseResult, 'held_for_review');
+        $aggregate = (new OosArchiveEvaluator)->aggregate([$result]);
+
+        $this->assertSame(
+            ['bible_reading' => 1, 'prayer' => 1, 'song' => 1],
+            $result['plans'][0]['semantic_item_type_counts'],
+        );
+        $this->assertSame(
+            [
+                'attempt_disagreement' => ['bible_reading' => 1, 'prayer' => 1, 'song' => 1],
+                'bookkeeping' => ['bible_reading' => 1, 'prayer' => 1, 'song' => 1],
+            ],
+            $aggregate['held_plan_semantic_item_types_by_reason'],
+        );
+        $this->assertSame(OosEmailParseDisposition::ReviewRequired->value, $result['plans'][0]['disposition']);
     }
 
     /**
@@ -726,6 +780,19 @@ class OosArchiveEvaluatorTest extends TestCase
         return SongTitleResolver::fromRows([
             ['id' => 1, 'canonical_key' => 'amazing grace', 'title' => 'Amazing Grace'],
         ], ['fuzzy_enabled' => false]);
+    }
+
+    /** @return array{position:int,type:string,title:string,source_title:null,openlp_search_title:null,metadata:array{section_type:string}} */
+    private function semanticItem(int $position, string $storageType, string $sectionType): array
+    {
+        return [
+            'position' => $position,
+            'type' => $storageType,
+            'title' => ucfirst(str_replace('_', ' ', $sectionType)),
+            'source_title' => null,
+            'openlp_search_title' => null,
+            'metadata' => ['section_type' => $sectionType],
+        ];
     }
 
     /**
