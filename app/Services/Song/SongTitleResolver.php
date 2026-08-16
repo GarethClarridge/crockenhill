@@ -277,7 +277,13 @@ class SongTitleResolver
             $add($segment);
         }
 
-        $prefixStripped = self::stripLeadingLabel($raw);
+        // The parser occasionally retains order-of-service presentation syntax before an item
+        // label ("[3m] - Hymn 299"). Remove it before the label rung, but keep the raw title as
+        // probe zero so this enrichment cannot override a match that already resolves.
+        $presentationStripped = self::stripLeadingPresentationDecoration($raw);
+        $add($presentationStripped);
+
+        $prefixStripped = self::stripLeadingLabel($presentationStripped);
         $add($prefixStripped);
 
         $decorationStripped = self::stripEmailDecoration($prefixStripped);
@@ -480,5 +486,20 @@ class SongTitleResolver
         );
 
         return ltrim(trim($bare), '#');
+    }
+
+    /**
+     * Removes display-only order-of-service prefixes before the role-label rung runs.
+     *
+     * These are deliberately narrower than general punctuation stripping: a leading list marker
+     * or a `[3m]` planning duration is not part of a song title, while a word following one can
+     * be. The raw title remains the first probe, preserving an existing deterministic match.
+     */
+    private static function stripLeadingPresentationDecoration(string $title): string
+    {
+        $withoutDuration = (string) preg_replace('/^\s*\[\s*\d+\s*m\s*\]\s*/iu', '', $title);
+        $withoutBullet = (string) preg_replace('/^\s*(?:[-*>\x{2022}\x{2013}\x{2014}]+\s+)+/u', '', $withoutDuration);
+
+        return trim($withoutBullet);
     }
 }

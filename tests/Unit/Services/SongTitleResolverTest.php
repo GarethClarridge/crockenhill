@@ -105,6 +105,9 @@ class SongTitleResolverTest extends TestCase
             'nip number is not read as a praise number' => ["NIP 452 'Speak O Lord'", 8, SongTitleMatch::TYPE_STRIPPED_NUMBER],
             'hymn label prefix' => ['Hymn: All heaven declares', 3, SongTitleMatch::TYPE_STRIPPED_NUMBER],
             'two-word song label' => ["Alternative final song: NIP 'Speak O Lord'", 8, SongTitleMatch::TYPE_STRIPPED_NUMBER],
+            'bullet before a hymn label' => ['- Hymn: All heaven declares', 3, SongTitleMatch::TYPE_STRIPPED_NUMBER],
+            'planning duration before a song label' => ["[3m] Song: 344 'There is a Redeemer'", 10, SongTitleMatch::TYPE_PRAISE_NUMBER],
+            'planning duration and bullet before a hymn label' => ['[3m] - Hymn 299', 1, SongTitleMatch::TYPE_PRAISE_NUMBER],
             'shared first line resolved by the title tier' => ['All creatures of our God and King', 6, SongTitleMatch::TYPE_STRIPPED_NUMBER],
         ];
     }

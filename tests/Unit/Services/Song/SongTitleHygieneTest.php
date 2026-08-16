@@ -99,8 +99,8 @@ class SongTitleHygieneTest extends TestCase
      *
      * The role-label family is deliberately absent: `SongTitleResolver::stripLeadingLabel()` was
      * fixed to strip it, which is exactly what `recovered_by_normalisation` was built to drive.
-     * What remains here is decoration that sits *outside* the label — bullets, planning markers,
-     * markdown emphasis — which the resolver still does not reach.
+     * Bullets and planning markers now join that resolver-owned family. Markdown emphasis remains
+     * outside its intentionally narrow presentation-prefix rung.
      */
     #[Test]
     public function it_normalises_decoration_into_something_the_resolver_can_match(): void
@@ -111,10 +111,7 @@ class SongTitleHygieneTest extends TestCase
         ], ['fuzzy_enabled' => false]);
 
         foreach ([
-            '- Hymn: Amazing Grace',
-            '[3m] Song: Amazing Grace',
             '*Hymn:* *Amazing Grace*',
-            '> Hymn: Amazing Grace',
         ] as $title) {
             $report = $hygiene->inspect($title);
 
@@ -129,19 +126,26 @@ class SongTitleHygieneTest extends TestCase
     }
 
     /**
-     * The resolver now strips a qualified role label itself, so the normaliser must agree with it
-     * rather than compete: the two run the same idea over the same corpus, and a title the
+     * The resolver now strips qualified role labels and their leading presentation syntax itself,
+     * so the normaliser must agree with it rather than compete: the two run the same idea over
+     * the same corpus, and a title the
      * resolver already handles must normalise to something that still resolves to the same song.
      */
     #[Test]
-    public function it_agrees_with_the_resolver_on_labels_the_resolver_now_strips(): void
+    public function it_agrees_with_the_resolver_on_presentation_the_resolver_now_strips(): void
     {
         $hygiene = new SongTitleHygiene;
         $resolver = SongTitleResolver::fromRows([
             ['id' => 2, 'canonical_key' => 'behold the lamb', 'title' => 'Behold the Lamb'],
         ], ['fuzzy_enabled' => false]);
 
-        foreach (['Communion hymn – NIP ‘Behold the Lamb’', 'Final hymn: Behold the Lamb'] as $title) {
+        foreach ([
+            'Communion hymn – NIP ‘Behold the Lamb’',
+            'Final hymn: Behold the Lamb',
+            '- Hymn: Behold the Lamb',
+            '[3m] Song: Behold the Lamb',
+            '> Hymn: Behold the Lamb',
+        ] as $title) {
             $this->assertSame(2, $resolver->resolve($title)?->songId, "Resolver should handle: {$title}");
             $this->assertSame(
                 2,
