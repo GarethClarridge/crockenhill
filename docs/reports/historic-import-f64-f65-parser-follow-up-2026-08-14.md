@@ -450,6 +450,11 @@ item 0 and rewrote item 1** — read "Revision 2026-08-14" immediately below bef
 implement in the order 0, 1, 2, 3 (item 4 is a no-change record). Items 1 and 3 are blocked on
 item 0.
 
+**Status 2026-08-16.** Item 0 sub-items (1), (2) and (4) are done — see "Item 0(4) result" below
+for the title-hygiene census and the resolver defect it names. Sub-item (3), renaming
+`exact_correct` to `identity_correct` and wiring the content-level measure to the ground-truth
+artifact, is the remaining blocker on items 1 and 3.
+
 **[HIR-D7](HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md) (§4.5) clears the governance question
 for items 1–3** — they are extraction-accuracy work serving the import's own purpose, not "features
 or polish," and none of them touch what the importer imports unattended, so none need a further
@@ -557,6 +562,61 @@ Work for this item:
    ```
 
    Every one of those plans can still be `exact_correct: true`.
+
+#### Item 0(4) result, 2026-08-16 — the unresolved population has four owners, not one
+
+**Done.** `App\Services\Song\SongTitleHygiene` classifies an unresolved song title by shape;
+`OosArchiveEvaluator` carries the census per entry and in `aggregate()['title_hygiene']`, and
+`HistoricItemGroundTruth` carries it in the artifact. Artifact
+`storage/scratch/item-ground-truth-2026-08-16b.json`, sha256
+`ce9da79da25e2b76eed9ef81f25ae1b11a8542ac92f895ab151d436fb66e51e5`. Every 0(2) verdict reproduces
+unchanged against it (membership 79/153/128/246, count 163/59/65/319, order 94/63/130/319), so the
+census is additive and perturbs no earlier figure.
+
+The premise of this item was that the unresolved titles are one systematic extraction defect
+family. Measured over all 283 unresolved staged song items, they are four families with four
+different owners, and extraction owns the smallest quarter:
+
+| Verdict | Occurrences | Who can act on it |
+|---|---:|---|
+| `decorated` | 119 | The **resolver** — the extraction is correct behind decoration it does not strip |
+| `defective` | 68 | **Extraction** — truncated, wrapped-line tail, prose bleed, mis-decoded, two songs in one item |
+| `clean` | 59 | The **catalogue** — a well-formed title for a song that is not catalogued |
+| `not_a_title` | 37 | **Nobody** — a placeholder, a choice deferred to a person, or a non-song item |
+
+Defect families, overlapping: `role_label` 125, `bullet_prefix` 43, `truncated` 38, `placeholder`
+33, `prose_bleed` 31, `attribution_suffix` 10, `line_fragment` 8, `mojibake` 7, `markup_residue` 7,
+`duration_prefix` 7, `multiple_songs` 6, `not_a_song_item` 4.
+
+**The single largest cause is a regex grouping bug in live code.**
+`SongTitleResolver::stripLeadingLabel()` matches
+`(?:(?:\p{L}+(?:['’]s)?\s+){0,2}song|hymn)`, which binds the optional qualifier words to `song`
+alone. "Communion song –" strips; "Communion hymn –" and "Final hymn:" do not, and "Carol" is not
+in the vocabulary at all. That accounts for `role_label`'s 125 occurrences.
+
+**104 of the 283 (37%) resolve today** against the same catalogue once the decoration is removed —
+measured by re-probing the resolver with the normalised title, not estimated.
+
+**What it does to the membership mismatches, measured rather than assumed.** Of the 153
+`song_membership` mismatches, 95 carry an unresolved staged title, 40 have at least one that
+recovers, **11 mismatches close completely** and 27 shrink; 2 are unchanged. So the framing that
+"96 of 153 hinge on unresolvable titles" is true about what they *carry* and misleading about what
+a fix *reaches*: most of the residue is genuine disagreement or genuine catalogue absence, not
+title damage.
+
+**The resolver fix is deliberately not included here.** Item 0 changes no import behaviour, and
+`SongTitleResolver` is live production code on the weekly inbound-email path
+(`ProcessInboundOosEmail`, the admin typeahead, `ChurchServiceSongLinker`); changing it would also
+move the ground-truth baseline 0(2) has just established. `SongTitleHygiene::normalise()` models
+what a corrected resolver would strip, so `recovered_by_normalisation` is that fix's acceptance
+figure: it should fall to approximately zero once the resolver strips the same decoration.
+
+**Known limits, so the census is not over-read.** It is a shape classifier. It cannot tell that
+four well-formed consecutive "Chosen to be …" items are sermon points rather than songs, and the
+split between `truncated` and `line_fragment` is approximate — both are `defective`, which is the
+verdict that matters. `"Song Amazing grace (#772)"` reports `clean` because stripping a role word
+with no separator would break a genuine title opening with "Song", which is the guard
+`stripLeadingLabel()` already documents; that slightly overstates the catalogue-gap bucket.
 
 ### 1. Stop treating the model's confidence as the gate (was Slice C)
 

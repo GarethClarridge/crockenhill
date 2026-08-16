@@ -990,6 +990,33 @@ class ImportOosArchiveCommand extends Command
 
             $this->table(['Song match type', 'Count'], $rows);
         }
+
+        $this->renderTitleHygiene($aggregate['title_hygiene'] ?? []);
+    }
+
+    /**
+     * Item 0(4). Printed beside the song-link table because that is where the hit rate is read,
+     * and the hit rate alone invites the misreading this census exists to prevent: only the
+     * `defective` row is extraction quality.
+     *
+     * @param  array<string, mixed>  $hygiene
+     */
+    private function renderTitleHygiene(array $hygiene): void
+    {
+        $byVerdict = $hygiene['by_verdict'] ?? [];
+
+        if (! is_array($byVerdict) || array_sum($byVerdict) === 0) {
+            return;
+        }
+
+        $rows = [];
+        foreach ($byVerdict as $verdict => $count) {
+            $rows[] = [(string) $verdict, (string) $count];
+        }
+
+        $rows[] = ['recovered by normalisation', (string) ($hygiene['recovered_by_normalisation'] ?? 0)];
+
+        $this->table(['Unmatched title hygiene', 'Titles'], $rows);
     }
 
     /** @param array<string, mixed> $report */

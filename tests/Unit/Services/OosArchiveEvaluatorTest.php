@@ -43,7 +43,16 @@ class OosArchiveEvaluatorTest extends TestCase
         $this->assertSame(2, $result['plans'][0]['expected_item_count']);
         $this->assertTrue($result['plans'][0]['item_count_matches']);
         $this->assertSame(
-            ['hits' => 1, 'total' => 1, 'rate' => 1.0, 'by_type' => ['exact' => 1], 'unmatched_titles' => []],
+            [
+                'hits' => 1,
+                'total' => 1,
+                'rate' => 1.0,
+                'by_type' => ['exact' => 1],
+                'unmatched_titles' => [],
+                'hygiene' => [],
+                'hygiene_defects' => [],
+                'hygiene_recovered' => 0,
+            ],
             $result['song_link'],
         );
         $this->assertTrue($result['gate_eligible']);
@@ -82,9 +91,106 @@ class OosArchiveEvaluatorTest extends TestCase
         $result = (new OosArchiveEvaluator)->evaluate($this->entry(), $this->parseResult(), 'dry_run');
 
         $this->assertSame(
-            ['hits' => 0, 'total' => 1, 'rate' => null, 'by_type' => [], 'unmatched_titles' => []],
+            [
+                'hits' => 0,
+                'total' => 1,
+                'rate' => null,
+                'by_type' => [],
+                'unmatched_titles' => [],
+                'hygiene' => [],
+                'hygiene_defects' => [],
+                'hygiene_recovered' => 0,
+            ],
             $result['song_link'],
         );
+    }
+
+    /**
+     * Item 0(4). A single unmatched count holds four populations with four different owners, and
+     * the run that produced 283 unresolved staged titles had only a quarter of them damaged by the
+     * extraction. The census has to keep them apart at the point the miss is recorded.
+     */
+    #[Test]
+    public function it_classifies_every_unmatched_title_by_who_can_act_on_it(): void
+    {
+        $evaluator = new OosArchiveEvaluator;
+
+        $result = $evaluator->evaluate(
+            $this->entry(),
+            $this->parseResult(items: [
+                $this->songItem(1, 'Communion hymn – Amazing Grace'),
+                $this->songItem(2, 'Communion hymn – 429 ‘It is a thing most'),
+                $this->songItem(3, 'Hymn - Gareth to choose'),
+                $this->songItem(4, 'A Chorus Nobody Catalogued'),
+            ]),
+            disposition: 'eligible',
+            gateReasons: [],
+            songTitleResolver: $this->songTitleResolver(),
+        );
+
+        $this->assertSame(0, $result['song_link']['hits']);
+        $this->assertSame([
+            'clean' => 1,
+            'decorated' => 1,
+            'defective' => 1,
+            'not_a_title' => 1,
+        ], $result['song_link']['hygiene']);
+
+        // Only the decorated one names a catalogued song behind decoration the resolver misses.
+        $this->assertSame(1, $result['song_link']['hygiene_recovered']);
+
+        $aggregate = $evaluator->aggregate([$result, $result]);
+
+        $this->assertSame([
+            'clean' => 2,
+            'decorated' => 2,
+            'defective' => 2,
+            'not_a_title' => 2,
+        ], $aggregate['title_hygiene']['by_verdict']);
+        $this->assertSame(2, $aggregate['title_hygiene']['recovered_by_normalisation']);
+        $this->assertSame(8, $aggregate['title_hygiene']['unmatched_titles']);
+        // Defect families overlap and are counted separately from the verdicts: three of the four
+        // titles carry a role label, including the one whose verdict is `not_a_title`.
+        $this->assertSame(6, $aggregate['title_hygiene']['by_defect']['role_label']);
+    }
+
+    /**
+     * The census reports every verdict even when a run has no misses, so a report consumer never
+     * has to tell "no unresolved titles" apart from "this field was not produced".
+     */
+    #[Test]
+    public function it_reports_a_zeroed_hygiene_census_when_every_title_resolves(): void
+    {
+        $evaluator = new OosArchiveEvaluator;
+
+        $result = $evaluator->evaluate(
+            $this->entry(),
+            $this->parseResult(),
+            disposition: 'eligible',
+            songTitleResolver: $this->songTitleResolver(),
+        );
+
+        $this->assertSame([
+            'clean' => 0,
+            'decorated' => 0,
+            'defective' => 0,
+            'not_a_title' => 0,
+        ], $evaluator->aggregate([$result])['title_hygiene']['by_verdict']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function songItem(int $position, string $title): array
+    {
+        return [
+            'position' => $position,
+            'type' => 'songs',
+            'title' => $title,
+            'source_title' => null,
+            'openlp_search_title' => null,
+            'metadata' => null,
+        ];
     }
 
     #[Test]

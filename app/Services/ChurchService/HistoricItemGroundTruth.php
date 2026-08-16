@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\SongTitleHygieneVerdict;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Services\Song\CatalogueTitleMatcher;
 use App\Services\Song\OpenLpServiceParser;
+use App\Services\Song\SongTitleHygiene;
 use App\Services\Song\SongTitleResolver;
 use App\Support\CanonicalJson;
 use Illuminate\Http\UploadedFile;
@@ -68,6 +70,7 @@ class HistoricItemGroundTruth
         private readonly OpenLpCurationManifest $openLpManifest,
         private readonly OpenLpServiceParser $parser,
         private readonly CatalogueTitleMatcher $titleMatcher = new CatalogueTitleMatcher,
+        private readonly SongTitleHygiene $titleHygiene = new SongTitleHygiene,
     ) {}
 
     /**
@@ -90,6 +93,8 @@ class HistoricItemGroundTruth
             );
         }
 
+        $unresolvedTitles = $this->unresolvedStagedTitles($identities);
+
         return [
             'format' => self::Format,
             'version' => self::Version,
@@ -108,6 +113,13 @@ class HistoricItemGroundTruth
                     .'identity in 222, which measures deck-versus-order, not extraction quality.',
                 'circularity' => 'An identity whose staged items came from a source is never scored against '
                     .'that source; its verdict is "circular".',
+                'title_hygiene' => 'An unresolved song title is classified by shape into who can act on '
+                    .'it, because a single unresolved count reads as an extraction error rate and is not '
+                    .'one: only the "defective" verdict is extraction quality. "decorated" titles are '
+                    .'correct extractions the resolver\'s own cleaning does not reach, "not_a_title" items '
+                    .'never carried a title to extract, and "clean" ones are catalogue gaps. '
+                    .'recovered_by_normalisation re-probes this corpus\'s catalogue with the decoration '
+                    .'removed and sizes a SongTitleResolver fix; it is not a second hit rate.',
             ],
             'corpus' => $this->corpusBinding($resolver, $staged),
             'sources' => [
@@ -116,7 +128,8 @@ class HistoricItemGroundTruth
             ],
             'identities' => $identities,
             'counts' => $this->counts($identities),
-            'unresolved_staged_song_titles' => $this->unresolvedStagedTitles($identities),
+            'unresolved_staged_song_titles' => $unresolvedTitles,
+            'title_hygiene' => $this->titleHygieneCensus($unresolvedTitles, $resolver),
         ];
     }
 
@@ -786,6 +799,70 @@ class HistoricItemGroundTruth
         arsort($titles);
 
         return $titles;
+    }
+
+    /**
+     * The unresolved population split by who can act on it, with the recovery a resolver fix would
+     * win (item 0(4)).
+     *
+     * This is what stops `song_membership` mismatches being read as extraction errors. A mismatch
+     * whose staged side carried an unresolved title is only an extraction fault when that title is
+     * `defective`; when it is `decorated` the extraction was right and the resolver missed it, and
+     * when it is `not_a_title` or `clean` no parser change reaches it at all.
+     *
+     * `recovered_by_normalisation` is measured, not asserted: each normalised title is re-probed
+     * against this same corpus's catalogue, so a title only counts when it genuinely resolves.
+     * Titles are counted by occurrence, matching `unresolved_staged_song_titles`' own unit.
+     *
+     * @param  array<string, int>  $unresolvedTitles
+     * @return array<string, mixed>
+     */
+    private function titleHygieneCensus(array $unresolvedTitles, SongTitleResolver $resolver): array
+    {
+        $byVerdict = array_fill_keys(SongTitleHygieneVerdict::values(), 0);
+        $byDefect = [];
+        $recovered = 0;
+        $recoveredExamples = [];
+
+        foreach ($unresolvedTitles as $title => $occurrences) {
+            $report = $this->titleHygiene->inspect((string) $title);
+
+            $byVerdict[$report->verdict->value] += $occurrences;
+
+            foreach ($report->defectValues() as $defect) {
+                $byDefect[$defect] = ($byDefect[$defect] ?? 0) + $occurrences;
+            }
+
+            if (! $report->isNormalised()) {
+                continue;
+            }
+
+            $match = $resolver->resolve($report->normalised);
+
+            if ($match === null) {
+                continue;
+            }
+
+            $recovered += $occurrences;
+            $recoveredExamples[(string) $title] = [
+                'normalised' => $report->normalised,
+                'catalogue_title' => $resolver->catalogueTitle($match->songId),
+                'match_type' => $match->matchType,
+                'occurrences' => $occurrences,
+                'defects' => $report->defectValues(),
+            ];
+        }
+
+        arsort($byDefect);
+
+        return [
+            'unresolved_occurrences' => array_sum($unresolvedTitles),
+            'distinct_titles' => count($unresolvedTitles),
+            'by_verdict' => $byVerdict,
+            'by_defect' => $byDefect,
+            'recovered_by_normalisation' => $recovered,
+            'recovered_examples' => array_slice($recoveredExamples, 0, 40, preserve_keys: true),
+        ];
     }
 
     /**

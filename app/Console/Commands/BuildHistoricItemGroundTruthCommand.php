@@ -167,6 +167,8 @@ class BuildHistoricItemGroundTruthCommand extends Command
             $this->line("Of those, {$mismatches['explainable_by_an_unresolved_title']} carried a title the catalogue could not resolve on one side.");
         }
 
+        $this->reportTitleHygiene($artifact['title_hygiene']);
+
         /** @var array<string, int> $byYear */
         $byYear = $counts['uncorroborated_by_year'];
 
@@ -181,6 +183,47 @@ class BuildHistoricItemGroundTruthCommand extends Command
 
         foreach ($unreadable as $entry) {
             $this->warn("OpenLP archive unreadable: {$entry['item_key']} — {$entry['reason']}");
+        }
+    }
+
+    /**
+     * Item 0(4). Printed immediately under the membership mismatches because it is the line above
+     * it that most invites over-reading: a mismatch explained by an unresolved title is only an
+     * extraction fault when that title is `defective`.
+     *
+     * @param  array<string, mixed>  $hygiene
+     */
+    private function reportTitleHygiene(array $hygiene): void
+    {
+        /** @var array<string, int> $byVerdict */
+        $byVerdict = $hygiene['by_verdict'];
+        /** @var array<string, int> $byDefect */
+        $byDefect = $hygiene['by_defect'];
+
+        $this->newLine();
+        $this->line("Unresolved staged song titles: {$hygiene['unresolved_occurrences']} occurrences across {$hygiene['distinct_titles']} distinct titles");
+
+        $this->table(
+            ['Hygiene verdict', 'Occurrences', 'Who acts on it'],
+            [
+                ['defective', (string) $byVerdict['defective'], 'extraction — the title is damaged'],
+                ['decorated', (string) $byVerdict['decorated'], 'resolver — the title is correct behind decoration'],
+                ['not_a_title', (string) $byVerdict['not_a_title'], 'nobody — no title was stated'],
+                ['clean', (string) $byVerdict['clean'], 'catalogue — the song is not catalogued'],
+            ],
+        );
+
+        $this->line("Resolvable once decoration is stripped: {$hygiene['recovered_by_normalisation']} occurrences.");
+
+        if ($byDefect !== []) {
+            $this->table(
+                ['Defect family (overlapping)', 'Occurrences'],
+                array_map(
+                    static fn (string $family, int $count): array => [$family, (string) $count],
+                    array_keys($byDefect),
+                    array_values($byDefect),
+                ),
+            );
         }
     }
 }

@@ -7,12 +7,18 @@ namespace App\Services\Email;
 use App\Data\OosArchiveEntry;
 use App\Data\OosEmailParseResult;
 use App\Data\OosEmailServicePlan;
+use App\Enums\SongTitleHygieneVerdict;
+use App\Services\Song\SongTitleHygiene;
 use App\Services\Song\SongTitleResolver;
 
 class OosArchiveEvaluator
 {
     /** Entry dispositions that leave the source outstanding; the hold census counts only these. */
     private const HeldDispositions = ['held_for_review', 'import_failed', 'failed'];
+
+    public function __construct(
+        private readonly SongTitleHygiene $titleHygiene = new SongTitleHygiene,
+    ) {}
 
     /**
      * @param  list<string>  $gateReasons
@@ -258,6 +264,9 @@ class OosArchiveEvaluator
         $songTotal = 0;
         $songMatchTypes = [];
         $unmatchedSongTitles = [];
+        $hygieneVerdicts = [];
+        $hygieneDefects = [];
+        $hygieneRecovered = 0;
         $itemCountsChecked = 0;
         $itemCountsMatched = 0;
         $parseFlags = [];
@@ -303,6 +312,16 @@ class OosArchiveEvaluator
                 $unmatchedSongTitles[$title] = ($unmatchedSongTitles[$title] ?? 0) + 1;
             }
 
+            foreach ($entry['song_link']['hygiene'] ?? [] as $verdict => $count) {
+                $hygieneVerdicts[$verdict] = ($hygieneVerdicts[$verdict] ?? 0) + (int) $count;
+            }
+
+            foreach ($entry['song_link']['hygiene_defects'] ?? [] as $defect => $count) {
+                $hygieneDefects[$defect] = ($hygieneDefects[$defect] ?? 0) + (int) $count;
+            }
+
+            $hygieneRecovered += (int) ($entry['song_link']['hygiene_recovered'] ?? 0);
+
             foreach ($entry['parse_flags'] ?? [] as $flag) {
                 $parseFlags[$flag] = ($parseFlags[$flag] ?? 0) + 1;
             }
@@ -336,6 +355,9 @@ class OosArchiveEvaluator
         ksort($planDispositions);
         ksort($songMatchTypes);
         arsort($unmatchedSongTitles);
+        $hygieneVerdicts += array_fill_keys(SongTitleHygieneVerdict::values(), 0);
+        ksort($hygieneVerdicts);
+        arsort($hygieneDefects);
 
         return [
             'date_accuracy' => [
@@ -375,6 +397,24 @@ class OosArchiveEvaluator
                 'rate' => $this->rate($songHits, $songTotal),
                 'by_type' => $songMatchTypes,
                 'top_unmatched_titles' => array_slice($unmatchedSongTitles, 0, 25, preserve_keys: true),
+            ],
+            /**
+             * Item 0(4). The unmatched population split by who can act on it, so the figure above
+             * is never read as an extraction error rate. `defective` is the only bucket extraction
+             * work reduces; `decorated` is a resolver-coverage gap on titles that are already
+             * correct; `not_a_title` has no title to extract; `clean` is a catalogue gap.
+             *
+             * `recovered_by_normalisation` is the acceptance figure for the resolver fix rather
+             * than a result in itself: these titles resolve today once decoration the resolver
+             * does not strip is removed, and the number should fall to approximately zero once
+             * `SongTitleResolver` strips it. Counted over unmatched titles only — this is a
+             * diagnosis of the misses, not a second hit rate.
+             */
+            'title_hygiene' => [
+                'by_verdict' => $hygieneVerdicts,
+                'by_defect' => $hygieneDefects,
+                'recovered_by_normalisation' => $hygieneRecovered,
+                'unmatched_titles' => array_sum($hygieneVerdicts),
             ],
             /**
              * Measured over the plans whose entry asserts a human-verified item count, which is
@@ -515,8 +555,15 @@ class OosArchiveEvaluator
      * Runs each extracted song title through the same resolver the live linker uses, so the
      * eval measures the real cascade. A null resolver (dry-run) reports totals but no rate.
      *
+     * Every title that fails to resolve is then classified by {@see SongTitleHygiene} (item 0(4)).
+     * Without that split, `unmatched_titles` is a single bucket holding four populations with four
+     * different owners, and the count reads as an extraction error rate when most of it is not one.
+     * `hygiene_recovered` re-probes the resolver with the normalised title and is the figure that
+     * sizes a resolver fix: it counts titles that are already correct and would resolve today if
+     * the resolver's own cleaning reached as far as the hygiene normaliser's.
+     *
      * @param  array<int, array<string, mixed>>  $items
-     * @return array{hits:int,total:int,rate:?float,by_type:array<string,int>,unmatched_titles:list<string>}
+     * @return array{hits:int,total:int,rate:?float,by_type:array<string,int>,unmatched_titles:list<string>,hygiene:array<string,int>,hygiene_defects:array<string,int>,hygiene_recovered:int}
      */
     private function songLinkMetrics(array $items, ?SongTitleResolver $songTitleResolver): array
     {
@@ -525,24 +572,40 @@ class OosArchiveEvaluator
         $hits = 0;
         $byType = [];
         $unmatchedTitles = [];
+        $hygiene = [];
+        $hygieneDefects = [];
+        $recovered = 0;
 
         if ($songTitleResolver !== null) {
             foreach ($songs as $item) {
                 $title = trim((string) ($item['title'] ?? ''));
                 $match = $title === '' ? null : $songTitleResolver->resolve($title);
 
-                if ($match === null) {
-                    $unmatchedTitles[] = $title === '' ? '(blank title)' : $title;
+                if ($match !== null) {
+                    $hits++;
+                    $byType[$match->matchType] = ($byType[$match->matchType] ?? 0) + 1;
 
                     continue;
                 }
 
-                $hits++;
-                $byType[$match->matchType] = ($byType[$match->matchType] ?? 0) + 1;
+                $unmatchedTitles[] = $title === '' ? '(blank title)' : $title;
+
+                $report = $this->titleHygiene->inspect($title);
+                $hygiene[$report->verdict->value] = ($hygiene[$report->verdict->value] ?? 0) + 1;
+
+                foreach ($report->defectValues() as $defect) {
+                    $hygieneDefects[$defect] = ($hygieneDefects[$defect] ?? 0) + 1;
+                }
+
+                if ($report->isNormalised() && $songTitleResolver->resolve($report->normalised) !== null) {
+                    $recovered++;
+                }
             }
         }
 
         ksort($byType);
+        ksort($hygiene);
+        ksort($hygieneDefects);
 
         return [
             'hits' => $hits,
@@ -550,6 +613,11 @@ class OosArchiveEvaluator
             'rate' => $songTitleResolver === null ? null : $this->rate($hits, count($songs)),
             'by_type' => $byType,
             'unmatched_titles' => array_slice($unmatchedTitles, 0, 20),
+            /** Unmatched titles by {@see SongTitleHygieneVerdict}: who can act on each one. */
+            'hygiene' => $hygiene,
+            /** Overlapping defect families across the same unmatched titles. */
+            'hygiene_defects' => $hygieneDefects,
+            'hygiene_recovered' => $recovered,
         ];
     }
 
