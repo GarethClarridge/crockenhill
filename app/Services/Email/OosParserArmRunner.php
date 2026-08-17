@@ -6,6 +6,7 @@ namespace App\Services\Email;
 
 use App\Data\OosArchiveEntry;
 use App\Data\OosEmailParseResult;
+use App\Data\OosEmailServicePlan;
 use App\Data\OosParserEvaluationArm;
 use App\Models\InboundEmail;
 use App\Services\Import\HistoricImportProductionGuard;
@@ -25,7 +26,23 @@ class OosParserArmRunner
 {
     private const ProjectionFormat = 'crockenhill-oos-parser-raw-projection';
 
-    private const ProjectionVersion = 1;
+    /**
+     * Bumped to 2 when each source gained its `routing` block.
+     *
+     * The routing-safety guardrail asks whether the candidate became auto-importable where the
+     * baseline was held, so the comparison needs the routing category the pipeline would actually
+     * have taken. Version 1 carried only the raw disposition strings, from which routing can be
+     * *recomputed* — and a recomputation is a second copy of the rules that silently stops matching
+     * the first. The plan objects decide it here, once, and the projection records the answer.
+     */
+    private const ProjectionVersion = 2;
+
+    /** The pipeline's three routing outcomes for a source, most permissive first. */
+    private const RoutingAutoImportable = 'auto_importable';
+
+    private const RoutingReviewRequired = 'review_required';
+
+    private const RoutingInvalidExtraction = 'invalid_extraction';
 
     public function __construct(
         private readonly DatabaseManager $database,
@@ -222,8 +239,46 @@ class OosParserArmRunner
                 'ground_truth_date' => $entry->groundTruthDate,
                 'services_present' => $entry->servicesPresent,
             ],
+            'routing' => $this->routing($parse),
             'raw_result_hash' => CanonicalJson::hash($this->rawResult($parse)),
             'raw_result' => $this->rawResult($parse),
+        ];
+    }
+
+    /**
+     * Which way the pipeline would have routed this source, decided by the plan objects themselves.
+     *
+     * A source is only as held as its most permissive plan: one auto-importable plan in a
+     * two-service email means something imports unattended, whatever the other plan does.
+     *
+     * @return array{category:string,auto_importable_plan_keys:list<string>,importable_plan_keys:list<string>}
+     */
+    private function routing(OosEmailParseResult $parse): array
+    {
+        $autoImportable = array_values(array_filter(
+            $parse->servicePlans,
+            static fn (OosEmailServicePlan $plan): bool => $plan->isAutoImportable(),
+        ));
+
+        $importable = array_values(array_filter(
+            $parse->servicePlans,
+            static fn (OosEmailServicePlan $plan): bool => $plan->isManuallyImportable(),
+        ));
+
+        return [
+            'category' => match (true) {
+                $autoImportable !== [] => self::RoutingAutoImportable,
+                $importable !== [] => self::RoutingReviewRequired,
+                default => self::RoutingInvalidExtraction,
+            },
+            'auto_importable_plan_keys' => array_map(
+                static fn (OosEmailServicePlan $plan): string => $plan->key(),
+                $autoImportable,
+            ),
+            'importable_plan_keys' => array_map(
+                static fn (OosEmailServicePlan $plan): string => $plan->key(),
+                $importable,
+            ),
         ];
     }
 
