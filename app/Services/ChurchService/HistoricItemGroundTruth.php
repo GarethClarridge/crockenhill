@@ -8,6 +8,7 @@ use App\Enums\ChurchServiceItemSource;
 use App\Enums\SongTitleHygieneVerdict;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\ChurchServiceSourceRecord;
 use App\Services\Song\CatalogueTitleMatcher;
 use App\Services\Song\OpenLpServiceParser;
 use App\Services\Song\SongTitleHygiene;
@@ -63,6 +64,21 @@ class HistoricItemGroundTruth
     /** The source's own evidence produced this identity, so agreement would prove nothing. */
     public const VerdictCircular = 'circular';
 
+    /** A curated email source presenting a complete running order — the only model-addressable tier. */
+    public const TierFull = 'full';
+
+    /** A source naming songs only, whose approved outcome is evidence-only retention with no items. */
+    public const TierPartial = 'partial';
+
+    /** No current email source record: an acquisition gap, not an extraction outcome. */
+    public const TierNoSource = 'no_source';
+
+    /**
+     * Current email sources that disagree about whether a complete running order was available.
+     * Never scored: there is no single correct expectation to measure the extraction against.
+     */
+    public const TierMixed = 'mixed';
+
     public const VerdictMatch = 'match';
 
     public const VerdictMismatch = 'mismatch';
@@ -114,6 +130,15 @@ class HistoricItemGroundTruth
                     .'identity in 222, which measures deck-versus-order, not extraction quality.',
                 'circularity' => 'An identity whose staged items came from a source is never scored against '
                     .'that source; its verdict is "circular".',
+                'scoring_population' => 'Each dimension is scored over every identity whose '
+                    .'corroborating evidence exists, and nothing else is excluded. "indeterminate" is '
+                    .'an outcome, never an exclusion: it is produced by the *staged* side — an '
+                    .'extraction that returned no songs, or a title the catalogue could not resolve '
+                    .'— so a population filtered on it is selected by the very parse under test. '
+                    .'Excluding it would drop a parse\'s total failures from its own denominator and '
+                    .'let a run that extracted nothing score as well as one that extracted correctly. '
+                    .'Only evidence availability (not_corroborated) bounds the denominator, because '
+                    .'only that is independent of the parse.',
                 'title_hygiene' => 'An unresolved song title is classified by shape into who can act on '
                     .'it, because a single unresolved count reads as an extraction error rate and is not '
                     .'one: only the "defective" verdict is extraction quality. "decorated" titles are '
@@ -129,6 +154,7 @@ class HistoricItemGroundTruth
             ],
             'identities' => $identities,
             'counts' => $this->counts($identities),
+            'scoring' => $this->scoring($identities),
             'unresolved_staged_song_titles' => $unresolvedTitles,
             'title_hygiene' => $this->titleHygieneCensus($unresolvedTitles, $resolver),
         ];
@@ -147,7 +173,17 @@ class HistoricItemGroundTruth
         $staged = [];
 
         ChurchService::query()
-            ->with(['items' => static fn ($query) => $query->orderBy('position')])
+            ->with([
+                'items' => static fn ($query) => $query->orderBy('position'),
+                /**
+                 * The current email source record carries the curation scope this service was
+                 * staged under. Superseded revisions are excluded because a re-curation that
+                 * narrowed a source from full to partial must be read at its current decision.
+                 */
+                'sourceRecords' => static fn ($query) => $query
+                    ->where('source', 'email')
+                    ->whereDoesntHave('supersededBy'),
+            ])
             ->orderBy('date')
             ->orderBy('service')
             ->chunk(200, function ($services) use (&$staged, $resolver): void {
@@ -213,6 +249,7 @@ class HistoricItemGroundTruth
             'date' => $service->date->format('Y-m-d'),
             'service' => $service->service->value,
             'service_source' => (string) $service->source,
+            'curation_tier' => $this->curationTier($service),
             'item_sources' => $itemSources,
             'item_count' => count($typeSequence),
             'type_sequence' => $typeSequence,
@@ -221,6 +258,44 @@ class HistoricItemGroundTruth
             'song_sequence' => $songSequence,
             'unresolved_song_titles' => $unresolvedTitles,
         ];
+    }
+
+    /**
+     * Whether an extraction could have produced items for this identity at all.
+     *
+     * Three tiers, and only one of them measures the parser:
+     *
+     * - `full` — a curated email source presenting the service's complete running order. An empty
+     *   extraction here is a genuine failure, and this is the only tier a model change can act on.
+     * - `partial` — the source names hymns or songs only. Under partial scope the approved outcome
+     *   is evidence-only retention with **no canonical items**, so zero items is the parser obeying
+     *   curation. Measured on the 2026-08-16 corpus, 64 of 66 partial identities correctly hold
+     *   none.
+     * - `no_source` — no current email source record. Nothing was staged because nothing was
+     *   acquired; this is the 404-source backlog, not extraction quality.
+     *
+     * Scoring the three together understates every arm equally and, worse, invites reading an
+     * acquisition gap as a model deficiency. `payload_complete` is the staged projection of
+     * {@see OosEmailContentScope::payloadComplete()}, so this reads the decision the corpus was
+     * actually built under rather than re-deriving it from a manifest that may have moved since.
+     *
+     * A service may carry more than one *current* email source record — measured on the rehearsal
+     * corpus, 12 do, and 7 of those disagree on `payload_complete`. Taking the first record would
+     * decide those services' tier by database row order, and with it whether they are scored at
+     * all. A service whose current sources disagree has no single answer to "was a complete running
+     * order available", so it is reported as `mixed` and scored by nothing.
+     */
+    private function curationTier(ChurchService $service): string
+    {
+        $scopes = $service->sourceRecords
+            ->map(static fn (ChurchServiceSourceRecord $record): bool => (bool) $record->payload_complete)
+            ->unique();
+
+        return match ($scopes->count()) {
+            0 => self::TierNoSource,
+            1 => $scopes->first() === true ? self::TierFull : self::TierPartial,
+            default => self::TierMixed,
+        };
     }
 
     /**
@@ -744,6 +819,91 @@ class HistoricItemGroundTruth
             'verdicts' => $verdicts,
             'staged_song_items' => $songItems,
             'song_membership_mismatches' => $mismatchShape,
+        ];
+    }
+
+    /**
+     * The comparable population for each dimension, and every outcome within it.
+     *
+     * `counts.verdicts` tallies verdicts across all staged identities, which answers "what does
+     * this corpus look like" but is not a scoreboard: two runs of different parsers over the same
+     * corpus do not share a denominator there. This block fixes one.
+     *
+     * The denominator is evidence availability alone. That is the only property of an identity
+     * that no parse can move: whether the hymn workbook or an OpenLP deck covers that date is a
+     * fact about the sources. Every other outcome — including `indeterminate` — is reported inside
+     * the population rather than removed from it, so the four outcome counts always sum to
+     * `population`.
+     *
+     * `indeterminate_from_zero_item_extraction` is broken out because it is the single number a
+     * parser comparison most needs and the one a filtered denominator hides completely: an
+     * identity where the parse returned no songs at all while independent evidence proves songs
+     * existed. Measured on this corpus at the time of writing, 146 corroborated identities sit
+     * there, every one of them an email-sourced service. A comparison that excluded
+     * `indeterminate` would score a parser that fixed all 146 as exactly equal to one that fixed
+     * none.
+     *
+     * @param  list<array<string, mixed>>  $identities
+     * @return array<string, mixed>
+     */
+    private function scoring(array $identities): array
+    {
+        $evidenceFor = [
+            'song_membership' => 'hymn_workbook',
+            'song_count' => 'openlp',
+            'song_order' => 'openlp',
+        ];
+
+        $dimensions = [];
+
+        foreach ($evidenceFor as $dimension => $evidence) {
+            $byTier = [];
+
+            foreach ([self::TierFull, self::TierPartial, self::TierNoSource, self::TierMixed] as $tier) {
+                $outcomes = [
+                    self::VerdictMatch => 0,
+                    self::VerdictMismatch => 0,
+                    self::VerdictIndeterminate => 0,
+                    self::VerdictCircular => 0,
+                ];
+                $zeroItem = 0;
+
+                foreach ($identities as $identity) {
+                    if ($identity[$evidence] === null || $identity['staged']['curation_tier'] !== $tier) {
+                        continue;
+                    }
+
+                    $verdict = $identity['verdicts'][$dimension];
+                    $outcomes[$verdict] = ($outcomes[$verdict] ?? 0) + 1;
+
+                    if ($verdict === self::VerdictIndeterminate && $identity['staged']['song_item_count'] === 0) {
+                        $zeroItem++;
+                    }
+                }
+
+                $byTier[$tier] = [
+                    'population' => array_sum($outcomes),
+                    'outcomes' => $outcomes,
+                    'indeterminate_from_zero_item_extraction' => $zeroItem,
+                ];
+            }
+
+            $dimensions[$dimension] = [
+                'evidence' => $evidence,
+                'model_addressable_population' => $byTier[self::TierFull]['population'],
+                'population' => array_sum(array_column($byTier, 'population')),
+                'by_tier' => $byTier,
+            ];
+        }
+
+        return [
+            'population_rule' => 'identities whose corroborating evidence exists; no parse-dependent exclusion',
+            'tier_rule' => 'Only the `full` tier measures extraction. `partial` sources are curated to '
+                .'evidence-only retention, so holding no items is the approved outcome there and not a '
+                .'miss; `no_source` identities had nothing staged because nothing was acquired. Scoring '
+                .'an arm on the combined population understates every arm alike and reads an acquisition '
+                .'gap as a model deficiency.',
+            'dimensions' => $dimensions,
         ];
     }
 

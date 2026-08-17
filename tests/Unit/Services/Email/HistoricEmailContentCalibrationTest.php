@@ -15,9 +15,9 @@ class HistoricEmailContentCalibrationTest extends TestCase
     public function it_fits_and_scores_only_against_corroborated_content_verdicts(): void
     {
         $groundTruth = $this->groundTruth([
-            ['key' => '2023-01-01 morning', 'verdicts' => ['song_membership' => 'match', 'song_count' => 'match']],
-            ['key' => '2023-01-08 morning', 'verdicts' => ['song_membership' => 'mismatch', 'song_count' => 'match']],
-            ['key' => '2023-01-15 morning', 'verdicts' => ['song_membership' => 'circular', 'song_count' => 'not_corroborated']],
+            ['date' => '2023-01-01', 'service' => 'morning', 'verdicts' => ['song_membership' => 'match', 'song_count' => 'match']],
+            ['date' => '2023-01-08', 'service' => 'morning', 'verdicts' => ['song_membership' => 'mismatch', 'song_count' => 'match']],
+            ['date' => '2023-01-15', 'service' => 'morning', 'verdicts' => ['song_membership' => 'circular', 'song_count' => 'not_corroborated']],
         ]);
         $report = $this->report([
             ['date' => '2023-01-01', 'service' => 'morning', 'confidence' => 0.95, 'identity_correct' => false],
@@ -42,8 +42,8 @@ class HistoricEmailContentCalibrationTest extends TestCase
     public function it_excludes_unlabelled_identities_and_refuses_a_threshold_without_training_precision(): void
     {
         $groundTruth = $this->groundTruth([
-            ['key' => '2023-01-01 morning', 'verdicts' => ['song_membership' => 'mismatch']],
-            ['key' => '2023-01-08 morning', 'verdicts' => ['song_membership' => 'indeterminate']],
+            ['date' => '2023-01-01', 'service' => 'morning', 'verdicts' => ['song_membership' => 'mismatch']],
+            ['date' => '2023-01-08', 'service' => 'morning', 'verdicts' => ['song_membership' => 'indeterminate']],
         ]);
         $report = $this->report([
             ['date' => '2023-01-01', 'service' => 'morning', 'confidence' => 1.0],
@@ -57,7 +57,27 @@ class HistoricEmailContentCalibrationTest extends TestCase
         $this->assertSame('No training threshold meets the minimum precision.', $artifact['fit']['reason']);
     }
 
-    /** @param list<array{key:string,verdicts:array<string,string>}> $identities
+    #[Test]
+    public function it_reads_date_and_service_identities_from_the_generated_ground_truth_artifact(): void
+    {
+        $groundTruth = [
+            'format' => HistoricItemGroundTruth::Format,
+            'identities' => [[
+                'date' => '2023-01-01',
+                'service' => 'morning',
+                'verdicts' => ['song_membership' => 'match'],
+            ]],
+        ];
+        $report = $this->report([
+            ['date' => '2023-01-01', 'service' => 'morning', 'confidence' => 0.95],
+        ]);
+
+        $artifact = (new HistoricEmailContentCalibration)->calibrate($report, $groundTruth);
+
+        $this->assertSame(1, $artifact['observations']['labelled']);
+    }
+
+    /** @param list<array{date:string,service:string,verdicts:array<string,string>}> $identities
      * @return array<string,mixed>
      */
     private function groundTruth(array $identities): array

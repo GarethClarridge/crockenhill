@@ -76,7 +76,8 @@ class OosEmailParserService
                     $attempts[0]['selected'] = false;
                 }
 
-                $attempts[] = $this->attemptMetadata(2, $correctedExtraction, $correctedValidation, $useCorrected);
+                $attempts[] = $this->attemptMetadata(2, $correctedExtraction, $correctedValidation, $useCorrected)
+                    + ['retry_reasons' => $retryReasons];
                 $consensus = $initialValidation->isValid()
                     && $correctedValidation->isValid()
                     && $this->extractionSignature($initialExtraction) === $this->extractionSignature($correctedExtraction);
@@ -118,6 +119,7 @@ class OosEmailParserService
                 $attempts[] = [
                     'attempt' => 2,
                     'selected' => false,
+                    'retry_reasons' => $retryReasons,
                     'error' => $exception->getMessage(),
                 ];
             }

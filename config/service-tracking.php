@@ -29,6 +29,22 @@ return [
         // returned 991, 1081 and 1743 output tokens, and a truncated response
         // surfaced only as an undiagnosable JSON decode failure.
         'max_completion_tokens' => (int) env('OOS_EMAIL_PARSING_MAX_COMPLETION_TOKENS', 6000),
+        // Extra ceiling per effective reasoning effort, because hidden reasoning tokens are billed
+        // against the same budget as the visible JSON. The figure above was measured against
+        // `none`/`minimal` output alone, so raising effort without raising the ceiling truncates,
+        // retries and reports the stronger setting as the worse one.
+        //
+        // These are ceilings, not reservations: OpenAI bills tokens actually generated, so headroom
+        // the model does not use costs nothing. They are deliberately generous rather than
+        // predictive — `service_structure` already runs `medium` against a 16000 budget for
+        // comparable JSON, which is the nearest measured anchor this application has.
+        'reasoning_token_headroom' => [
+            'none' => 0,
+            'minimal' => 0,
+            'low' => 6000,
+            'medium' => 16000,
+            'high' => 32000,
+        ],
         // Re-asks when the model returns something unusable. One flaky call used to
         // lose a service permanently and fail the whole corpus closeout with it.
         'extraction_attempts' => (int) env('OOS_EMAIL_PARSING_EXTRACTION_ATTEMPTS', 3),

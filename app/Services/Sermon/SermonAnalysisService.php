@@ -208,7 +208,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
         $prompt = $this->promptBuilder->buildAnalysisPrompt($transcript, $existingSeries);
         $response = $this->executeAiRequest($prompt, $model, $processingId);
-        OpenAiUsageLogger::log($response, 'sermon_analysis', $model, $processingId);
+        OpenAiUsageLogger::log($response, 'sermon_analysis', $model, $processingId, (string) config('media-processing.analysis.reasoning_effort', 'low'));
 
         $apiTime = microtime(true) - $apiStartTime;
 

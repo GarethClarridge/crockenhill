@@ -175,7 +175,7 @@ class SongLyricOcrService
             'max_completion_tokens' => 2000,
         ], reasoningEffort: (string) config('media-processing.song_matching.ocr_reasoning_effort', 'minimal')));
 
-        OpenAiUsageLogger::log($response, 'song_lyric_ocr', $model);
+        OpenAiUsageLogger::log($response, 'song_lyric_ocr', $model, requestedReasoningEffort: (string) config('media-processing.song_matching.ocr_reasoning_effort', 'minimal'));
 
         return (string) ($response->choices[0]->message->content ?? '');
     }

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\ChurchServiceSourceRecord;
 use App\Models\Song;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -246,6 +248,150 @@ class BuildHistoricItemGroundTruthCommandTest extends TestCase
         );
     }
 
+    /**
+     * The scoring block exists so a parser comparison has a denominator no arm can move.
+     *
+     * A service the extraction produced no songs for is scored `indeterminate`, and a population
+     * filtered on scoreable verdicts would drop it — removing an extraction's total failures from
+     * its own denominator and letting a run that extracted nothing score as well as one that
+     * extracted correctly. Evidence availability is the only exclusion, because it is the only
+     * property of an identity that no parse can change.
+     */
+    #[Test]
+    public function it_keeps_an_empty_extraction_in_the_scored_population(): void
+    {
+        $this->catalogue(['Amazing Grace', 'Be Thou My Vision']);
+
+        $this->stageService('2023-01-01', 'morning', [
+            ['type' => 'custom', 'title' => 'Welcome'],
+        ]);
+
+        $this->writeArchive('2023-01-01', 'morning', [
+            ['type' => 'songs', 'title' => 'Amazing Grace'],
+        ]);
+
+        $artifact = $this->build([
+            $this->statement('2023-01-01', 'morning', 'Amazing Grace'),
+        ]);
+
+        $membership = $artifact['scoring']['dimensions']['song_membership'];
+        $full = $membership['by_tier']['full'];
+
+        $this->assertSame('indeterminate', $artifact['identities'][0]['verdicts']['song_membership']);
+        $this->assertSame(1, $membership['model_addressable_population'], 'the identity stays in the denominator');
+        $this->assertSame(1, $full['outcomes']['indeterminate']);
+        $this->assertSame(1, $full['indeterminate_from_zero_item_extraction']);
+    }
+
+    /**
+     * The tier that decides whether an empty extraction is a failure at all.
+     *
+     * A `partial` source is curated to evidence-only retention, so holding no items is the
+     * approved outcome; a `no_source` identity had nothing acquired to parse. Counting either as
+     * an extraction miss reads a curation decision or an acquisition gap as a model deficiency —
+     * measured on the 2026-08-16 corpus that would misattribute 131 of 146 empty extractions.
+     */
+    #[Test]
+    public function it_separates_model_addressable_identities_from_curation_and_acquisition_gaps(): void
+    {
+        $this->catalogue(['Amazing Grace']);
+
+        $this->stageService('2023-01-01', 'morning', [['type' => 'custom', 'title' => 'Welcome']], tier: 'full');
+        $this->stageService('2023-01-08', 'morning', [], tier: 'partial');
+        $this->stageService('2023-01-15', 'morning', [], tier: null);
+
+        $artifact = $this->build([
+            $this->statement('2023-01-01', 'morning', 'Amazing Grace'),
+            $this->statement('2023-01-08', 'morning', 'Amazing Grace'),
+            $this->statement('2023-01-15', 'morning', 'Amazing Grace'),
+        ]);
+
+        $membership = $artifact['scoring']['dimensions']['song_membership'];
+
+        $this->assertSame(1, $membership['model_addressable_population']);
+        $this->assertSame(3, $membership['population'], 'the other two are reported, not discarded');
+        $this->assertSame(1, $membership['by_tier']['partial']['population']);
+        $this->assertSame(1, $membership['by_tier']['no_source']['population']);
+
+        $tiers = array_column(array_column($artifact['identities'], 'staged'), 'curation_tier');
+        $this->assertSame(['full', 'partial', 'no_source'], $tiers);
+    }
+
+    #[Test]
+    public function the_scored_population_counts_only_identities_the_evidence_reaches(): void
+    {
+        $this->catalogue(['Amazing Grace']);
+
+        $this->stageService('2023-01-01', 'morning', [['type' => 'songs', 'title' => 'Amazing Grace']]);
+        $this->stageService('2020-06-07', 'evening', [['type' => 'songs', 'title' => 'Amazing Grace']]);
+
+        $this->writeArchive('2023-01-01', 'morning', [['type' => 'songs', 'title' => 'Amazing Grace']]);
+
+        $artifact = $this->build([$this->statement('2023-01-01', 'morning', 'Amazing Grace')]);
+
+        $dimensions = $artifact['scoring']['dimensions'];
+
+        // Two staged identities, but only one that either source covers.
+        $this->assertSame(2, $artifact['counts']['staged_identities']);
+        $this->assertSame(1, $dimensions['song_membership']['population']);
+        $this->assertSame(1, $dimensions['song_count']['population']);
+        $this->assertSame('hymn_workbook', $dimensions['song_membership']['evidence']);
+        $this->assertSame('openlp', $dimensions['song_order']['evidence']);
+
+        foreach ($dimensions as $dimension) {
+            foreach ($dimension['by_tier'] as $tier) {
+                $this->assertSame(
+                    $tier['population'],
+                    array_sum($tier['outcomes']),
+                    'every scored identity lands in exactly one outcome',
+                );
+            }
+        }
+    }
+
+    /**
+     * A service may carry several current email source records. Where they disagree about whether a
+     * complete running order was available, there is no single expectation to measure an extraction
+     * against — and picking one by database row order would decide, arbitrarily, whether the
+     * identity is scored at all. Measured on the rehearsal corpus, 7 services are in this state.
+     */
+    #[Test]
+    public function it_refuses_to_tier_a_service_whose_current_sources_disagree_on_scope(): void
+    {
+        $this->catalogue(['Amazing Grace']);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2023-01-01',
+            'service' => 'morning',
+            'source' => 'email',
+        ]);
+
+        foreach ([true, false] as $complete) {
+            ChurchServiceSourceRecord::factory()->create([
+                'church_service_id' => $service->id,
+                'source' => ChurchServiceSource::Email,
+                'payload_complete' => $complete,
+            ]);
+        }
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Amazing Grace',
+            'source_title' => null,
+            'openlp_search_title' => null,
+            'source' => ChurchServiceItemSource::Email->value,
+        ]);
+
+        $artifact = $this->build([$this->statement('2023-01-01', 'morning', 'Amazing Grace')]);
+        $membership = $artifact['scoring']['dimensions']['song_membership'];
+
+        $this->assertSame('mixed', $artifact['identities'][0]['staged']['curation_tier']);
+        $this->assertSame(0, $membership['model_addressable_population'], 'a mixed service is never scored');
+        $this->assertSame(1, $membership['by_tier']['mixed']['population'], 'but it is still reported');
+    }
+
     #[Test]
     public function it_refuses_to_overwrite_an_existing_artifact(): void
     {
@@ -318,12 +464,25 @@ class BuildHistoricItemGroundTruthCommandTest extends TestCase
         string $service,
         array $items,
         ChurchServiceItemSource $source = ChurchServiceItemSource::Email,
+        ?string $tier = 'full',
     ): void {
         $churchService = ChurchService::factory()->create([
             'date' => $date,
             'service' => $service,
             'source' => 'email',
         ]);
+
+        /**
+         * The curation tier is read from the current email source record's `payload_complete`.
+         * A null tier stages no record at all, which is the `no_source` case.
+         */
+        if ($tier !== null) {
+            ChurchServiceSourceRecord::factory()->create([
+                'church_service_id' => $churchService->id,
+                'source' => ChurchServiceSource::Email,
+                'payload_complete' => $tier === 'full',
+            ]);
+        }
 
         foreach ($items as $position => $item) {
             ChurchServiceItem::factory()->create([

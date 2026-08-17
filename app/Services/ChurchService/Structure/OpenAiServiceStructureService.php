@@ -117,7 +117,7 @@ TEXT;
             );
         }
 
-        OpenAiUsageLogger::log($response, 'service_structure', $model, $processingId);
+        OpenAiUsageLogger::log($response, 'service_structure', $model, $processingId, (string) config('media-processing.service_structure.reasoning_effort', 'medium'));
 
         $content = $response->choices[0]->message->content ?? null;
 

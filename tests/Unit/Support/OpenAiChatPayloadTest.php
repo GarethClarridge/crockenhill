@@ -133,4 +133,34 @@ class OpenAiChatPayloadTest extends TestCase
 
         $this->assertArrayNotHasKey('service_tier', $payload);
     }
+
+    /**
+     * The configured effort and the billed effort are different strings on GPT-5.4+, and a cost
+     * report or a token budget keyed on the configured one would be wrong in both directions.
+     */
+    #[Test]
+    public function it_reports_the_reasoning_effort_a_request_actually_carries(): void
+    {
+        $this->assertSame('none', OpenAiChatPayload::effectiveReasoningEffort('gpt-5.4-nano', 'minimal'));
+        $this->assertSame('minimal', OpenAiChatPayload::effectiveReasoningEffort('gpt-5.3-nano', 'minimal'));
+        $this->assertSame('low', OpenAiChatPayload::effectiveReasoningEffort('gpt-5.6-luna', 'low'));
+        $this->assertSame('medium', OpenAiChatPayload::effectiveReasoningEffort('gpt-5.6-luna', 'medium'));
+    }
+
+    #[Test]
+    public function it_reports_no_reasoning_effort_for_a_classic_model(): void
+    {
+        $this->assertNull(OpenAiChatPayload::effectiveReasoningEffort('gpt-4o', 'medium'));
+    }
+
+    #[Test]
+    public function the_effort_it_reports_is_the_effort_it_sends(): void
+    {
+        $payload = OpenAiChatPayload::forModel(['model' => 'gpt-5.4-nano'], reasoningEffort: 'minimal');
+
+        $this->assertSame(
+            OpenAiChatPayload::effectiveReasoningEffort('gpt-5.4-nano', 'minimal'),
+            $payload['reasoning_effort'],
+        );
+    }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Data\OosEmailItemExtractionResult;
+use App\Exceptions\OosEmailExtractionTruncatedException;
 use App\Services\Email\OpenAiOosEmailItemExtractor;
 use Illuminate\Support\Facades\Config;
 use OpenAI\Laravel\Facades\OpenAI;
@@ -422,6 +423,73 @@ class OpenAiOosEmailItemExtractorTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('truncated at the 1234-token completion budget');
+
+        $this->extractor->extract('Order of Service', 'Sermon', '2026-03-07');
+    }
+
+    /**
+     * Hidden reasoning tokens are billed against the same ceiling as the visible JSON, and the
+     * 6000-token figure was measured at `none`/`minimal` output only. Without headroom, raising
+     * effort truncates, retries and reports the stronger setting as the worse one — a harness
+     * artefact that would disqualify a model on its own merits.
+     */
+    #[Test]
+    public function it_adds_reasoning_headroom_to_the_completion_budget(): void
+    {
+        Config::set('service-tracking.email_parsing.model', 'gpt-5.6-luna');
+        Config::set('service-tracking.email_parsing.reasoning_effort', 'medium');
+        Config::set('service-tracking.email_parsing.max_completion_tokens', 6000);
+        Config::set('service-tracking.email_parsing.reasoning_token_headroom', ['medium' => 16000]);
+
+        OpenAI::fake([$this->response([
+            ['service' => 'morning', 'date' => '2026-03-09', 'items' => []],
+        ])]);
+
+        $this->extractor->extract('Order of Service', 'Sermon', '2026-03-09');
+
+        OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+            return $parameters['max_completion_tokens'] === 22000;
+        });
+    }
+
+    /**
+     * `minimal` is sent as `none` on GPT-5.4+, so headroom keyed on the configured label would
+     * grant a budget the request cannot spend.
+     */
+    #[Test]
+    public function it_grants_no_headroom_when_the_effort_sent_is_none(): void
+    {
+        Config::set('service-tracking.email_parsing.model', 'gpt-5.4-nano');
+        Config::set('service-tracking.email_parsing.reasoning_effort', 'minimal');
+        Config::set('service-tracking.email_parsing.max_completion_tokens', 6000);
+        Config::set('service-tracking.email_parsing.reasoning_token_headroom', ['minimal' => 9999, 'none' => 0]);
+
+        OpenAI::fake([$this->response([
+            ['service' => 'morning', 'date' => '2026-03-09', 'items' => []],
+        ])]);
+
+        $this->extractor->extract('Order of Service', 'Sermon', '2026-03-09');
+
+        OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+            return $parameters['max_completion_tokens'] === 6000;
+        });
+    }
+
+    /**
+     * A budget failure and a model-quality failure must be separable, or a ceiling sized for one
+     * reasoning effort masquerades as a worse model when the effort is raised.
+     */
+    #[Test]
+    public function a_truncated_response_raises_the_dedicated_truncation_type(): void
+    {
+        Config::set('service-tracking.email_parsing.extraction_attempts', 1);
+        OpenAI::fake([
+            CreateResponse::fake([
+                'choices' => [['finish_reason' => 'length', 'message' => ['content' => '{"services":']]],
+            ]),
+        ]);
+
+        $this->expectException(OosEmailExtractionTruncatedException::class);
 
         $this->extractor->extract('Order of Service', 'Sermon', '2026-03-07');
     }

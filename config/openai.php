@@ -50,6 +50,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Evaluation Arm
+    |--------------------------------------------------------------------------
+    |
+    | Free-text label stamped on every usage log line. Null in normal operation;
+    | set only for an isolated model/effort comparison, where it is the sole way
+    | to attribute spend to an arm — two arms of the same model that differ only
+    | in reasoning effort are otherwise identical in the log.
+    |
+    */
+
+    'evaluation_arm' => env('OPENAI_EVALUATION_ARM'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Request Timeout
     |--------------------------------------------------------------------------
     |

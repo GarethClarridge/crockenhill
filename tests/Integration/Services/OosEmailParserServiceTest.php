@@ -205,6 +205,9 @@ class OosEmailParserServiceTest extends TestCase
         $this->assertCount(2, $result->extractionAttempts);
         $this->assertTrue($result->extractionAttempts[0]['selected']);
         $this->assertFalse($result->extractionAttempts[1]['selected']);
+        $this->assertSame([
+            'Item 2 merges separate source lines instead of preserving one item per line.',
+        ], $result->extractionAttempts[1]['retry_reasons']);
         $this->assertSame('songs', $result->items[1]['type']);
     }
 

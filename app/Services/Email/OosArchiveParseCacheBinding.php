@@ -6,6 +6,9 @@ namespace App\Services\Email;
 
 use App\Data\OosArchiveEntry;
 use App\Support\CanonicalJson;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\Process\Process;
+use Throwable;
 
 /**
  * What an archive parse may be reused from, and what authority it was resolved
@@ -40,6 +43,14 @@ use App\Support\CanonicalJson;
  */
 class OosArchiveParseCacheBinding
 {
+    /** @var list<string> */
+    private const ParserSurfacePaths = [
+        'app/Services/Email/OosEmailParserService.php',
+        'app/Services/Email/OosEmailExtractionValidator.php',
+        'app/Data/OosEmailServicePlan.php',
+        'app/Services/Email/OpenAiOosEmailItemExtractor.php',
+    ];
+
     /**
      * Version 1 is the raw-extraction cache.
      *
@@ -52,6 +63,17 @@ class OosArchiveParseCacheBinding
 
     /** Where the binding lives on an archive email's processing metadata. */
     public const string MetadataKey = 'archive_parse_cache';
+
+    private bool $parserSurfaceCommitResolved = false;
+
+    private ?string $resolvedParserSurfaceCommitSha = null;
+
+    private readonly ?string $configuredParserSurfaceCommitSha;
+
+    public function __construct(?string $parserSurfaceCommitSha = null)
+    {
+        $this->configuredParserSurfaceCommitSha = $parserSurfaceCommitSha;
+    }
 
     /**
      * The reusable raw payload this stored binding offers, or null when it
@@ -75,6 +97,8 @@ class OosArchiveParseCacheBinding
         if (($stored['raw_cache_key_hash'] ?? null) !== $this->rawCacheKeyHash($entry, $parserVersion)) {
             return null;
         }
+
+        $this->warnWhenParserSurfaceIsStale($stored, $entry, $parserVersion);
 
         $payload = $stored['raw_result'] ?? null;
 
@@ -153,6 +177,7 @@ class OosArchiveParseCacheBinding
             'raw_cache_key_hash' => $this->rawCacheKeyHash($entry, $parserVersion),
             'raw_result_hash' => CanonicalJson::hash($rawPayload),
             'raw_result' => $rawPayload,
+            'parser_surface_commit' => $this->parserSurfaceCommitSha(),
             'entry_authority_hash' => $this->entryAuthorityHash($entry),
             'curation_plan_hash' => $planHash,
             'resolved_result_hash' => CanonicalJson::hash($resolvedPayload),
@@ -177,5 +202,63 @@ class OosArchiveParseCacheBinding
         unset($binding['raw_result']);
 
         return $binding;
+    }
+
+    /** @param array<string, mixed> $stored */
+    private function warnWhenParserSurfaceIsStale(array $stored, OosArchiveEntry $entry, string $parserVersion): void
+    {
+        $storedCommit = $stored['parser_surface_commit'] ?? null;
+        $currentCommit = $this->parserSurfaceCommitSha();
+
+        if (! is_string($storedCommit) || ! is_string($currentCommit) || $storedCommit === $currentCommit) {
+            return;
+        }
+
+        Log::warning('OoS archive raw parse cache was produced by a stale parser surface', [
+            'entry_key' => $entry->itemKey,
+            'parser_version' => $parserVersion,
+            'stored_parser_surface_commit' => $storedCommit,
+            'current_parser_surface_commit' => $currentCommit,
+        ]);
+    }
+
+    private function parserSurfaceCommitSha(): ?string
+    {
+        if ($this->configuredParserSurfaceCommitSha !== null) {
+            return $this->configuredParserSurfaceCommitSha;
+        }
+
+        if ($this->parserSurfaceCommitResolved) {
+            return $this->resolvedParserSurfaceCommitSha;
+        }
+
+        $this->parserSurfaceCommitResolved = true;
+
+        try {
+            $process = new Process([
+                'git',
+                'log',
+                '-1',
+                '--format=%H',
+                '--',
+                ...self::ParserSurfacePaths,
+            ], base_path());
+            $process->setTimeout(2);
+            $process->run();
+
+            if (! $process->isSuccessful()) {
+                return null;
+            }
+
+            $commit = trim($process->getOutput());
+
+            if (preg_match('/^[a-f0-9]{40}$/', $commit) !== 1) {
+                return null;
+            }
+
+            return $this->resolvedParserSurfaceCommitSha = $commit;
+        } catch (Throwable) {
+            return null;
+        }
     }
 }

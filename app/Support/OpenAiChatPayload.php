@@ -60,6 +60,24 @@ class OpenAiChatPayload
         return $payload;
     }
 
+    /**
+     * The `reasoning_effort` a request for this model actually carries, or null when the model is
+     * not a reasoning model and the field is never sent at all.
+     *
+     * Exposed because the configured effort and the billed effort are not the same string: a
+     * `minimal` request against GPT-5.4+ is sent as `none`. A cost or evaluation report that quotes
+     * the configured value misdescribes what was bought, and two arms that differ only in effort
+     * are otherwise indistinguishable in the usage log.
+     */
+    public static function effectiveReasoningEffort(string $model, string $reasoningEffort): ?string
+    {
+        if (! self::isReasoningModel($model)) {
+            return null;
+        }
+
+        return self::normaliseReasoningEffort($model, $reasoningEffort);
+    }
+
     private static function normaliseReasoningEffort(string $model, string $reasoningEffort): string
     {
         if ($reasoningEffort !== 'minimal') {

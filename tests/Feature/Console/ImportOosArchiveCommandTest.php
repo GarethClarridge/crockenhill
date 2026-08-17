@@ -23,6 +23,7 @@ use App\Services\Import\HistoricImportResourceIdentity;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -219,6 +220,41 @@ class ImportOosArchiveCommandTest extends TestCase
         );
         $this->assertFalse($refreshed[OosArchiveParseCacheBinding::MetadataKey]['extraction_reused']);
         $this->assertNotNull($refreshed['parsing']['disposition']);
+    }
+
+    #[Test]
+    public function a_stale_parser_surface_commit_warns_without_invalidating_a_raw_cache_entry(): void
+    {
+        $extractor = $this->bindCountingExtractor();
+        $this->app->instance(OosArchiveParseCacheBinding::class, new OosArchiveParseCacheBinding(
+            parserSurfaceCommitSha: 'current-parser-surface',
+        ));
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $arguments = [...$corpus, '--evaluate' => true, '--report' => $this->temporaryPath('json')];
+
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+
+        $email = InboundEmail::query()->firstOrFail();
+        $metadata = $email->processing_metadata;
+        $metadata[OosArchiveParseCacheBinding::MetadataKey]['parser_surface_commit'] = 'stale-parser-surface';
+        $email->processing_metadata = $metadata;
+        $email->save();
+
+        Log::spy();
+
+        $this->artisan('oos:import-archive', $arguments)->assertExitCode(0);
+
+        $this->assertSame(1, $extractor->calls, 'A parser-surface warning must not force a new extraction.');
+        $email->refresh();
+        $binding = $this->parseCacheBinding($email);
+        $this->assertTrue($binding['extraction_reused']);
+        $this->assertSame('current-parser-surface', $binding['parser_surface_commit']);
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->with('OoS archive raw parse cache was produced by a stale parser surface', \Mockery::on(
+                static fn (array $context): bool => $context['stored_parser_surface_commit'] === 'stale-parser-surface'
+                    && $context['current_parser_surface_commit'] === 'current-parser-surface',
+            ));
     }
 
     #[Test]

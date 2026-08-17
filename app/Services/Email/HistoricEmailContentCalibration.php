@@ -78,7 +78,10 @@ class HistoricEmailContentCalibration
         $labels = [];
 
         foreach ($groundTruth['identities'] as $identity) {
-            if (! is_array($identity) || ! is_string($identity['key'] ?? null) || ! is_array($identity['verdicts'] ?? null)) {
+            if (! is_array($identity)
+                || ! is_string($identity['date'] ?? null)
+                || ! is_string($identity['service'] ?? null)
+                || ! is_array($identity['verdicts'] ?? null)) {
                 continue;
             }
 
@@ -91,7 +94,7 @@ class HistoricEmailContentCalibration
                 continue;
             }
 
-            $labels[$identity['key']] = ! in_array(HistoricItemGroundTruth::VerdictMismatch, $applicable, true);
+            $labels[$identity['date'].' '.$identity['service']] = ! in_array(HistoricItemGroundTruth::VerdictMismatch, $applicable, true);
         }
 
         return $labels;

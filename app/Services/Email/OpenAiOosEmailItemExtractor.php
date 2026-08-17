@@ -7,6 +7,7 @@ namespace App\Services\Email;
 use App\Contracts\AdjudicatingOosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailSourceDocument;
+use App\Exceptions\OosEmailExtractionTruncatedException;
 use App\Support\OpenAiChatPayload;
 use App\Support\OpenAiUsageLogger;
 use Carbon\CarbonImmutable;
@@ -124,9 +125,19 @@ class OpenAiOosEmailItemExtractor implements AdjudicatingOosEmailItemExtractor
                     throw $exception;
                 }
 
+                /*
+                 * `reason_class` separates a budget failure from a model-quality
+                 * failure. Counting them together would let a completion ceiling
+                 * sized for one reasoning effort masquerade as a worse model when
+                 * the effort is raised.
+                 */
                 Log::warning('Retrying OoS email extraction', [
                     'attempt' => $attempt,
                     'attempts' => $attempts,
+                    'evaluation_arm' => config('openai.evaluation_arm'),
+                    'reason_class' => $exception instanceof OosEmailExtractionTruncatedException
+                        ? 'truncated'
+                        : 'unusable_response',
                     'reason' => $exception->getMessage(),
                 ]);
             }
@@ -163,7 +174,7 @@ class OpenAiOosEmailItemExtractor implements AdjudicatingOosEmailItemExtractor
             'max_completion_tokens' => $this->maxCompletionTokens(),
         ], reasoningEffort: (string) config('service-tracking.email_parsing.reasoning_effort', 'minimal')));
 
-        OpenAiUsageLogger::log($response, 'oos_email_parsing', $model);
+        OpenAiUsageLogger::log($response, 'oos_email_parsing', $model, requestedReasoningEffort: (string) config('service-tracking.email_parsing.reasoning_effort', 'minimal'));
 
         return $this->resultFromResponse($response);
     }
@@ -176,10 +187,41 @@ class OpenAiOosEmailItemExtractor implements AdjudicatingOosEmailItemExtractor
      * between identical requests is wide enough that a budget sized to the
      * typical response will occasionally truncate. Configurable because the
      * ceiling is a property of the corpus, not of the code.
+     *
+     * Those figures were measured at `none`/`minimal` effort and cover the
+     * visible JSON only. Reasoning tokens are billed against this same budget,
+     * so any effort above `minimal` adds its configured headroom — otherwise
+     * raising effort truncates and the stronger setting is scored as the worse
+     * one. Unused headroom is not billed, so the ceiling is set generously.
      */
     private function maxCompletionTokens(): int
     {
-        return (int) config('service-tracking.email_parsing.max_completion_tokens', 6000);
+        $base = (int) config('service-tracking.email_parsing.max_completion_tokens', 6000);
+
+        return $base + $this->reasoningTokenHeadroom();
+    }
+
+    /**
+     * Extra ceiling for the effort this request will actually carry.
+     *
+     * Keyed on the *effective* effort rather than the configured one, because
+     * `minimal` is sent as `none` on GPT-5.4+ and would otherwise be granted
+     * headroom it cannot spend.
+     */
+    private function reasoningTokenHeadroom(): int
+    {
+        $effort = OpenAiChatPayload::effectiveReasoningEffort(
+            (string) config('service-tracking.email_parsing.model', 'gpt-5.4-nano'),
+            (string) config('service-tracking.email_parsing.reasoning_effort', 'minimal'),
+        );
+
+        if ($effort === null) {
+            return 0;
+        }
+
+        $headroom = config('service-tracking.email_parsing.reasoning_token_headroom', []);
+
+        return is_array($headroom) ? (int) ($headroom[$effort] ?? 0) : 0;
     }
 
     private function systemPrompt(): string
@@ -402,9 +444,10 @@ TEXT;
          * entry nobody could explain from the message alone.
          */
         if (($response->choices[0]->finishReason ?? null) === 'length') {
-            throw new RuntimeException(sprintf(
+            throw new OosEmailExtractionTruncatedException(sprintf(
                 'OoS email parser response was truncated at the %d-token completion budget; raise '
-                .'service-tracking.email_parsing.max_completion_tokens or split the email.',
+                .'service-tracking.email_parsing.max_completion_tokens or '
+                .'service-tracking.email_parsing.reasoning_token_headroom, or split the email.',
                 $this->maxCompletionTokens(),
             ));
         }
