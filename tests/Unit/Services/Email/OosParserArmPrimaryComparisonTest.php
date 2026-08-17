@@ -238,10 +238,10 @@ class OosParserArmPrimaryComparisonTest extends TestCase
     #[Test]
     public function an_earlier_projection_version_is_refused_rather_than_read_with_a_fallback(): void
     {
-        $this->expectExceptionMessageMatches('/reads version 3 only/');
+        $this->expectExceptionMessageMatches('/reads version 4 only/');
 
         $this->comparison->compare(
-            $this->armProjection(self::Baseline, [$this->source('a', [['Amazing Grace']])], overrides: ['version' => 2]),
+            $this->armProjection(self::Baseline, [$this->source('a', [['Amazing Grace']])], overrides: ['version' => 3]),
             $this->armProjection(self::Candidate, [$this->source('a', [['Amazing Grace']])]),
         );
     }
@@ -471,14 +471,75 @@ class OosParserArmPrimaryComparisonTest extends TestCase
     }
 
     #[Test]
-    public function a_decision_run_without_a_price_snapshot_is_refused(): void
+    public function a_run_manifest_with_no_usable_prices_is_refused(): void
     {
-        $baseline = $this->armProjection(self::Baseline, [$this->source('s0', [['Amazing Grace']])]);
-        $candidate = $this->armProjection(self::Candidate, [$this->source('s0', [['Amazing Grace']])]);
+        $snapshot = ['taken_at' => '2026-08-17', 'models' => []];
+        $baseline = $this->withManifest($this->armProjection(self::Baseline, [$this->source('s0', [['Amazing Grace']])]), ['price_snapshot' => $snapshot]);
+        $candidate = $this->withManifest($this->armProjection(self::Candidate, [$this->source('s0', [['Amazing Grace']])]), ['price_snapshot' => $snapshot]);
 
-        $this->expectExceptionMessageMatches('/would pass by omission/');
+        $this->expectExceptionMessageMatches('/price snapshot carries no models block/');
 
         $this->comparison->compare($baseline, $candidate, $this->truth($baseline, $candidate, []));
+    }
+
+    /**
+     * The headline reason the run manifest exists: before it, a prompt edited between arm A and arm
+     * B would have been scored as a model effect.
+     */
+    #[Test]
+    public function a_parser_surface_that_moved_between_the_arms_is_fatal(): void
+    {
+        $this->expectExceptionMessageMatches('/did not run the same parser.*parser_surface/s');
+
+        $this->comparison->compare(
+            $this->armProjection(self::Baseline, [$this->source('s0', [['Amazing Grace']])]),
+            $this->withManifest(
+                $this->armProjection(self::Candidate, [$this->source('s0', [['Amazing Grace']])]),
+                ['parser_surface' => ['hash' => 'a-prompt-was-edited', 'files' => ['app/Services/Email/OosEmailParserService.php' => 'moved']]],
+            ),
+        );
+    }
+
+    #[Test]
+    public function a_threshold_that_moved_between_the_arms_is_fatal(): void
+    {
+        $this->expectExceptionMessageMatches('/did not run the same parser.*thresholds/s');
+
+        $this->comparison->compare(
+            $this->armProjection(self::Baseline, [$this->source('s0', [['Amazing Grace']])]),
+            $this->withManifest(
+                $this->armProjection(self::Candidate, [$this->source('s0', [['Amazing Grace']])]),
+                ['thresholds' => ['review' => 0.75, 'auto_import' => 0.80]],
+            ),
+        );
+    }
+
+    #[Test]
+    public function arms_frozen_against_different_price_snapshots_are_fatal(): void
+    {
+        $this->expectExceptionMessageMatches('/did not run the same parser.*price_snapshot/s');
+
+        $this->comparison->compare(
+            $this->armProjection(self::Baseline, [$this->source('s0', [['Amazing Grace']])]),
+            $this->withManifest(
+                $this->armProjection(self::Candidate, [$this->source('s0', [['Amazing Grace']])]),
+                ['price_snapshot' => ['taken_at' => '2026-09-01', 'models' => Factory::prices()]],
+            ),
+        );
+    }
+
+    #[Test]
+    public function a_run_manifest_that_describes_a_different_arm_is_fatal(): void
+    {
+        $this->expectExceptionMessageMatches('/run manifest records model/');
+
+        $this->comparison->compare(
+            $this->armProjection(self::Baseline, [$this->source('s0', [['Amazing Grace']])]),
+            $this->withManifest(
+                $this->armProjection(self::Candidate, [$this->source('s0', [['Amazing Grace']])]),
+                ['model' => 'gpt-5.4-nano'],
+            ),
+        );
     }
 
     #[Test]
@@ -572,6 +633,23 @@ class OosParserArmPrimaryComparisonTest extends TestCase
         );
 
         return Factory::projection($arm, $model, $sources, $overrides);
+    }
+
+    /**
+     * Patch an already-built projection's manifest, so the hashes that must agree with the
+     * projection around it stay correct and only the field under test moves.
+     *
+     * @param  array<string, mixed>  $projection
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function withManifest(array $projection, array $overrides): array
+    {
+        /** @var array<string, mixed> $manifest */
+        $manifest = $projection['run_manifest'];
+        $projection['run_manifest'] = array_replace($manifest, $overrides);
+
+        return $projection;
     }
 
     /**

@@ -69,7 +69,6 @@ class CompareParserArmsCommandTest extends TestCase
             '--truth' => $this->write('truth.json', $this->truth($baseline, $candidate, [
                 's1' => ['verdict' => 'candidate_only_faithful', 'item_counts' => ['truth_items' => 2, 'baseline_supported_items' => 1, 'candidate_supported_items' => 2]],
             ])),
-            '--price-snapshot' => $this->write('prices.json', ['models' => Factory::prices()]),
             '--output' => $output,
         ])
             ->expectsOutputToContain('candidate only 1 (b)')

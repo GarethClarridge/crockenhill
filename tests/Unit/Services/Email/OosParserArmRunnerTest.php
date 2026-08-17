@@ -10,6 +10,7 @@ use App\Data\OosParserEvaluationArm;
 use App\Services\Email\OosEmailParserService;
 use App\Services\Email\OosParserArmRunner;
 use App\Services\Email\OosParserEvaluationTelemetry;
+use App\Services\Email\OosParserSurfaceFingerprint;
 use App\Services\Import\HistoricImportProductionGuard;
 use App\Services\Import\RehearsalDatabaseProvisioner;
 use Carbon\CarbonImmutable;
@@ -41,12 +42,13 @@ class OosParserArmRunnerTest extends TestCase
             $database,
             $guard,
             new RehearsalDatabaseProvisioner($database, $guard),
+            new OosParserSurfaceFingerprint,
             $parser,
             new OosParserEvaluationTelemetry,
         );
 
         try {
-            $runner->run(OosParserEvaluationArm::fromName('baseline-nano-none'), [], 'manifest-hash', '/manifest.json');
+            $runner->run(OosParserEvaluationArm::fromName('baseline-nano-none'), [], 'manifest-hash', '/manifest.json', $this->priceSnapshot());
             $this->fail('The production anchor must be refused.');
         } catch (RuntimeException $exception) {
             $this->assertStringContainsString('production database anchor', $exception->getMessage());
@@ -67,7 +69,7 @@ class OosParserArmRunnerTest extends TestCase
         $runner = $this->runner($parser, new OosParserEvaluationTelemetry, ['church_services' => 4]);
 
         try {
-            $runner->run(OosParserEvaluationArm::fromName('baseline-nano-none'), $this->entries(), 'manifest-hash', '/manifest.json');
+            $runner->run(OosParserEvaluationArm::fromName('baseline-nano-none'), $this->entries(), 'manifest-hash', '/manifest.json', $this->priceSnapshot());
             $this->fail('A populated rehearsal database must be refused.');
         } catch (RuntimeException $exception) {
             $this->assertStringContainsString('is not clean', $exception->getMessage());
@@ -91,10 +93,22 @@ class OosParserArmRunnerTest extends TestCase
             $this->entries(),
             'manifest-hash',
             '/manifest.json',
+            $this->priceSnapshot(),
         );
 
-        $this->assertSame(3, $report['version']);
+        $this->assertSame(4, $report['version']);
         $this->assertSame(0, $report['rehearsal_certification']['church_services']);
+
+        // The manifest proves what code and settings ran, and agrees with the projection it describes.
+        $manifest = $report['run_manifest'];
+        $this->assertSame('baseline-nano-none', $manifest['arm']);
+        $this->assertSame('gpt-5.4-nano', $manifest['model']);
+        $this->assertSame($report['source_key_list_hash'], $manifest['inputs']['source_key_list_hash']);
+        $this->assertSame(0.75, $manifest['thresholds']['review']);
+        $this->assertSame(6000, $manifest['ceilings']['max_completion_tokens']);
+        $this->assertNotEmpty($manifest['parser_surface']['files']);
+        $this->assertMatchesRegularExpression('/\A[0-9a-f]{64}\z/', $manifest['parser_surface']['hash']);
+        $this->assertSame('oos-parser-arm-baseline-nano-none.log', $report['log_file']);
 
         // Two distinct canary shapes over two entries, and each of the two is parsed twice for stability.
         $this->assertCount(2, $report['canary']['source_keys']);
@@ -111,6 +125,12 @@ class OosParserArmRunnerTest extends TestCase
         foreach ($report['raw_results'] as $source) {
             $this->assertCount(1, $source['telemetry']);
         }
+    }
+
+    /** @return array<string, mixed> */
+    private function priceSnapshot(): array
+    {
+        return ['taken_at' => '2026-08-17', 'models' => ['gpt-5.4-nano' => ['input' => 0.20, 'output' => 1.25]]];
     }
 
     /** @param array<string, int> $counts */
@@ -143,6 +163,7 @@ class OosParserArmRunnerTest extends TestCase
             $database,
             $guard,
             new RehearsalDatabaseProvisioner($database, $guard),
+            new OosParserSurfaceFingerprint,
             $parser,
             $telemetry,
         );

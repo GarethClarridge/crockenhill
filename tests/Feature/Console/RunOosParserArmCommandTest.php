@@ -24,6 +24,7 @@ class RunOosParserArmCommandTest extends TestCase
     {
         $this->artisan('service-tracking:run-oos-parser-arm', [
             '--manifest' => '/not-used.json',
+            '--price-snapshot' => '/not-used-prices.json',
             '--output' => 'baseline-nano-none',
         ])
             ->expectsOutputToContain('--arm is required')
@@ -36,9 +37,22 @@ class RunOosParserArmCommandTest extends TestCase
         $this->artisan('service-tracking:run-oos-parser-arm', [
             '--arm' => 'baseline-nano-none',
             '--manifest' => '/not-used.json',
+            '--price-snapshot' => '/not-used-prices.json',
             '--output' => '../outside',
         ])
             ->expectsOutputToContain('--output must be a new lowercase run-directory name')
+            ->assertExitCode(1);
+    }
+
+    #[Test]
+    public function it_requires_the_dated_price_snapshot_the_arms_are_frozen_against(): void
+    {
+        $this->artisan('service-tracking:run-oos-parser-arm', [
+            '--arm' => 'baseline-nano-none',
+            '--manifest' => '/not-used.json',
+            '--output' => 'baseline-nano-none',
+        ])
+            ->expectsOutputToContain('--price-snapshot is required')
             ->assertExitCode(1);
     }
 }

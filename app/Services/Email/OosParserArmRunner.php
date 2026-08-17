@@ -12,6 +12,7 @@ use App\Models\InboundEmail;
 use App\Services\Import\HistoricImportProductionGuard;
 use App\Services\Import\RehearsalDatabaseProvisioner;
 use App\Support\CanonicalJson;
+use App\Support\RepositoryCommit;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Carbon;
 use RuntimeException;
@@ -38,8 +39,16 @@ class OosParserArmRunner
      * thrown away, so an arm's true spend was not derivable from its own artifact. They are exported
      * beside the corpus rather than merged into it, because a canary source and a stability source
      * are also corpus sources: merging them would make one source look like several.
+     *
+     * Version 4 adds the run manifest. Until it existed, a prompt, ceiling, threshold or parser
+     * change between the two arms was undetectable: the comparison could see the curated inputs
+     * drift but not the code or the settings that read them.
      */
-    private const ProjectionVersion = 3;
+    private const ProjectionVersion = 4;
+
+    private const ManifestFormat = 'crockenhill-oos-parser-run-manifest';
+
+    private const ManifestVersion = 1;
 
     /** The pipeline's three routing outcomes for a source, most permissive first. */
     private const RoutingAutoImportable = 'auto_importable';
@@ -52,18 +61,26 @@ class OosParserArmRunner
         private readonly DatabaseManager $database,
         private readonly HistoricImportProductionGuard $productionGuard,
         private readonly RehearsalDatabaseProvisioner $provisioner,
+        private readonly OosParserSurfaceFingerprint $parserSurface,
         private readonly OosEmailParserService $parser,
         private readonly OosParserEvaluationTelemetry $telemetry,
     ) {}
 
     /**
      * @param  list<OosArchiveEntry>  $entries
+     * @param  array<string, mixed>  $priceSnapshot  the dated official prices the arms were frozen against
      * @return array<string, mixed>
      */
-    public function run(OosParserEvaluationArm $arm, array $entries, string $manifestHash, string $manifestPath): array
-    {
+    public function run(
+        OosParserEvaluationArm $arm,
+        array $entries,
+        string $manifestHash,
+        string $manifestPath,
+        array $priceSnapshot,
+    ): array {
         $arm->apply();
         $configuration = $arm->resolvedConfiguration();
+        $logPath = $this->isolateLog($arm);
         $certification = $this->selectAndCertifyRehearsalConnection();
         $this->telemetry->beginRun();
 
@@ -109,16 +126,103 @@ class OosParserArmRunner
             'database_connection' => RehearsalDatabaseProvisioner::Connection,
             'database_name' => (string) $this->database->connection()->getDatabaseName(),
             'rehearsal_certification' => $certification,
+            'log_file' => basename($logPath),
             'manifest_path' => basename($manifestPath),
             'manifest_hash' => $manifestHash,
             'source_count' => count($sourceKeys),
             'source_key_list_hash' => CanonicalJson::hash($sourceKeys),
+            'run_manifest' => $this->runManifest($arm, $configuration, $manifestHash, CanonicalJson::hash($sourceKeys), $priceSnapshot),
             'canary' => [
                 'source_keys' => array_map(static fn (OosArchiveEntry $entry): string => $entry->itemKey, $canaries),
                 'telemetry' => $canaryTelemetry,
             ],
             'stability' => $stability,
             'raw_results' => $results,
+        ];
+    }
+
+    /**
+     * Route this process's log to a file of its own for the duration of the arm.
+     *
+     * `OPENAI_EVALUATION_ARM` already tags each usage record, but recovering one arm's calls by
+     * grepping a shared `laravel.log` for that tag is not attribution — it is a reconstruction that
+     * silently loses every line the tag never reached, and this application's `laravel.log` has
+     * previously grown past 300MB unrotated, which is not a file anybody will grep carefully.
+     *
+     * The path is deliberately not recorded in the run manifest: it is arm-specific by design, and
+     * the manifest is the block the comparison requires to be identical across arms.
+     */
+    private function isolateLog(OosParserEvaluationArm $arm): string
+    {
+        $path = storage_path("logs/oos-parser-arm-{$arm->name}.log");
+
+        config([
+            'logging.channels.oos_parser_arm' => [
+                'driver' => 'single',
+                'path' => $path,
+                'level' => 'debug',
+                'replace_placeholders' => true,
+            ],
+            'logging.default' => 'oos_parser_arm',
+        ]);
+
+        return $path;
+    }
+
+    /**
+     * Everything that could make two arms differ for a reason other than the declared intervention.
+     *
+     * The comparison drift-checks this whole block minus the three arm-specific keys, so a field
+     * added here is drift-checked automatically rather than needing to be remembered twice.
+     *
+     * What it deliberately does **not** carry is the hymn workbook, OpenLP and catalogue hashes the
+     * plan lists. An arm never reads them: they are inputs to the ground-truth builder behind the
+     * secondary diagnostic, which compares them itself through its evidence and tier drift counts.
+     * Recording a hash of something this run never opened would be provenance theatre.
+     *
+     * @param  array{model:string,configured_reasoning_effort:string,effective_reasoning_effort:string}  $configuration
+     * @param  array<string, mixed>  $priceSnapshot
+     * @return array<string, mixed>
+     */
+    private function runManifest(
+        OosParserEvaluationArm $arm,
+        array $configuration,
+        string $manifestHash,
+        string $sourceKeyListHash,
+        array $priceSnapshot,
+    ): array {
+        return [
+            'format' => self::ManifestFormat,
+            'version' => self::ManifestVersion,
+            'evaluation_id' => $manifestHash,
+            'arm' => $arm->name,
+            'model' => $configuration['model'],
+            'configured_reasoning_effort' => $configuration['configured_reasoning_effort'],
+            'effective_reasoning_effort' => $configuration['effective_reasoning_effort'],
+            'ceilings' => [
+                'max_completion_tokens' => config('service-tracking.email_parsing.max_completion_tokens'),
+                'reasoning_token_headroom' => config('service-tracking.email_parsing.reasoning_token_headroom'),
+                'extraction_attempts' => config('service-tracking.email_parsing.extraction_attempts'),
+                'request_timeout_seconds' => config('openai.request_timeout'),
+            ],
+            /*
+             * Load-bearing for the routing-safety guardrail: these two decide whether a plan is
+             * auto-importable, so an arm run against a moved threshold would post a routing change
+             * that has nothing to do with the model.
+             */
+            'thresholds' => [
+                'review' => config('service-tracking.email_parsing.review_threshold'),
+                'auto_import' => config('service-tracking.email_parsing.auto_import_threshold'),
+            ],
+            'service_tier' => config('openai.service_tier'),
+            'inputs' => [
+                'curation_manifest_hash' => $manifestHash,
+                'source_key_list_hash' => $sourceKeyListHash,
+                'price_snapshot_sha256' => CanonicalJson::hash($priceSnapshot),
+            ],
+            'price_snapshot' => $priceSnapshot,
+            'parser_surface' => $this->parserSurface->fingerprint(),
+            'application_commit' => RepositoryCommit::current(),
         ];
     }
 

@@ -51,10 +51,24 @@ class OosParserArmPrimaryComparison
     private const ProjectionFormat = 'crockenhill-oos-parser-raw-projection';
 
     /**
-     * Version 3 carries the routing block the routing-safety guardrail is decided on, the canary and
-     * stability replicates' own telemetry, and the rehearsal database's certification.
+     * Version 4 carries the routing block the routing-safety guardrail is decided on, the canary and
+     * stability replicates' own telemetry, the rehearsal database's certification, and the run
+     * manifest that makes a prompt, ceiling, threshold or parser change between arms detectable.
      */
-    private const SupportedProjectionVersion = 3;
+    private const SupportedProjectionVersion = 4;
+
+    private const ManifestFormat = 'crockenhill-oos-parser-run-manifest';
+
+    private const SupportedManifestVersion = 1;
+
+    /**
+     * The only manifest keys allowed to differ, because they *are* the declared intervention.
+     *
+     * Everything else is compared, so a field added to the manifest later is drift-checked without
+     * anyone having to remember to add it here too. `effective_reasoning_effort` is deliberately
+     * absent: the arms differ by model alone, so it must match.
+     */
+    private const ArmSpecificManifestKeys = ['arm', 'model', 'configured_reasoning_effort'];
 
     /**
      * The curation tier the decision is taken on.
@@ -98,16 +112,10 @@ class OosParserArmPrimaryComparison
      * @param  array<string, mixed>  $baseline  decoded baseline raw-result projection
      * @param  array<string, mixed>  $candidate  decoded candidate raw-result projection
      * @param  array<string, mixed>|null  $truth  decoded source-faithfulness label artifact
-     * @param  array<string, array{input:float,output:float}>|null  $priceSnapshot  dated USD per 1M tokens, by model
      * @return array<string, mixed>
      */
-    public function compare(
-        array $baseline,
-        array $candidate,
-        ?array $truth = null,
-        ?array $priceSnapshot = null,
-        ?string $priceSnapshotHash = null,
-    ): array {
+    public function compare(array $baseline, array $candidate, ?array $truth = null): array
+    {
         $baselineArm = $this->validatedArm($baseline, 'baseline');
         $candidateArm = $this->validatedArm($candidate, 'candidate');
         $this->assertNoDrift($baselineArm, $candidateArm);
@@ -142,7 +150,9 @@ class OosParserArmPrimaryComparison
                 'source_key_list_hash' => $baselineArm['source_key_list_hash'],
                 'manifest_hash' => $baselineArm['manifest_hash'],
                 'truth_sha256' => null,
-                'price_snapshot_sha256' => $priceSnapshotHash,
+                'price_snapshot_sha256' => $baselineArm['run_manifest']['inputs']['price_snapshot_sha256'],
+                'parser_surface_hash' => $baselineArm['run_manifest']['parser_surface']['hash'],
+                'application_commit' => $baselineArm['run_manifest']['application_commit'] ?? null,
             ],
             'population' => $population,
             'stability' => $stability,
@@ -168,7 +178,7 @@ class OosParserArmPrimaryComparison
         $this->assertLabelPopulation($sources, $labels);
 
         $primary = $this->primary($sources, $labels, $population['n_primary']);
-        $guardrails = $this->guardrails($sources, $labels, $baselineArm, $candidateArm, $priceSnapshot);
+        $guardrails = $this->guardrails($sources, $labels, $baselineArm, $candidateArm);
 
         $report['primary'] = $primary;
         $report['partial_tier_diagnostic'] = $this->partialTierDiagnostic($sources, $labels);
@@ -253,9 +263,109 @@ class OosParserArmPrimaryComparison
             throw new RuntimeException("The {$label} projection's rows do not reproduce its own source-key list hash; it is not the set the arm bound to.");
         }
 
+        // Last, so that a projection which does not even describe its own source set is diagnosed as
+        // that rather than as a manifest that disagrees with it.
+        $arm['run_manifest'] = $this->runManifest($projection, $label, $declared);
         $arm['sources'] = $sources;
 
         return $arm;
+    }
+
+    /**
+     * The arm's run manifest, checked for shape and for agreement with the projection around it.
+     *
+     * A manifest that disagrees with its own projection is worse than no manifest: it would let the
+     * drift check pass on values that describe a different run from the one whose results are being
+     * scored.
+     *
+     * @param  array<string, mixed>  $projection
+     * @param  array<string, string>  $declared
+     * @return array<string, mixed>
+     */
+    private function runManifest(array $projection, string $label, array $declared): array
+    {
+        $manifest = $this->requiredArray($projection, 'run_manifest', "{$label} projection");
+
+        if (($manifest['format'] ?? null) !== self::ManifestFormat) {
+            throw new RuntimeException("The {$label} projection's run manifest is not an OoS parser run manifest.");
+        }
+
+        if (($manifest['version'] ?? null) !== self::SupportedManifestVersion) {
+            throw new RuntimeException("The {$label} run manifest is version "
+                .var_export($manifest['version'] ?? null, true)
+                .'; this comparison reads version '.self::SupportedManifestVersion.' only.');
+        }
+
+        foreach (['arm', 'model', 'configured_reasoning_effort', 'effective_reasoning_effort'] as $key) {
+            if (($manifest[$key] ?? null) !== $declared[$key]) {
+                throw new RuntimeException("The {$label} run manifest records {$key} '"
+                    .var_export($manifest[$key] ?? null, true)."' where the projection declares '{$declared[$key]}'.");
+            }
+        }
+
+        $inputs = $this->requiredArray($manifest, 'inputs', "{$label} run manifest");
+
+        foreach (['curation_manifest_hash' => 'manifest_hash', 'source_key_list_hash' => 'source_key_list_hash'] as $manifestKey => $projectionKey) {
+            if (($inputs[$manifestKey] ?? null) !== $declared[$projectionKey]) {
+                throw new RuntimeException("The {$label} run manifest's {$manifestKey} does not match the projection it describes.");
+            }
+        }
+
+        $surface = $this->requiredArray($manifest, 'parser_surface', "{$label} run manifest");
+        $this->requiredString($surface, 'hash', "{$label} parser surface");
+
+        if (! is_array($surface['files'] ?? null) || $surface['files'] === []) {
+            throw new RuntimeException("The {$label} run manifest lists no parser-surface files, so nothing proves what code the arm ran.");
+        }
+
+        $this->requiredString($inputs, 'price_snapshot_sha256', "{$label} run manifest inputs");
+        $this->requiredArray($manifest, 'price_snapshot', "{$label} run manifest");
+
+        return $manifest;
+    }
+
+    /**
+     * The dated prices this arm was frozen against, read from the manifest rather than supplied at
+     * comparison time so a favourable figure cannot be fitted after the results are in.
+     *
+     * @param  array<string, mixed>  $arm
+     * @return array<string, array{input:float,output:float}>
+     */
+    private function prices(array $arm, string $label): array
+    {
+        /** @var array<string, mixed> $manifest */
+        $manifest = $arm['run_manifest'];
+        /** @var array<string, mixed> $snapshot */
+        $snapshot = $manifest['price_snapshot'];
+        $models = $snapshot['models'] ?? null;
+
+        if (! is_array($models) || $models === []) {
+            throw new RuntimeException("The {$label} price snapshot carries no models block.");
+        }
+
+        $prices = [];
+
+        foreach ($models as $model => $entry) {
+            if (! is_array($entry)) {
+                throw new RuntimeException("The {$label} price snapshot has a malformed entry for {$model}.");
+            }
+
+            $costs = [];
+
+            foreach (['input', 'output'] as $field) {
+                $cost = $entry[$field] ?? null;
+
+                if ((! is_float($cost) && ! is_int($cost)) || $cost < 0) {
+                    throw new RuntimeException("The {$label} price snapshot is missing a usable {$field} price for {$model}.");
+                }
+
+                $costs[$field] = (float) $cost;
+            }
+
+            $prices[(string) $model] = ['input' => $costs['input'], 'output' => $costs['output']];
+        }
+
+        return $prices;
     }
 
     /**
@@ -524,6 +634,8 @@ class OosParserArmPrimaryComparison
             }
         }
 
+        $this->assertNoManifestDrift($baseline, $candidate);
+
         foreach ($baselineSources as $key => $baselineSource) {
             $candidateSource = $candidateSources[$key];
 
@@ -535,6 +647,52 @@ class OosParserArmPrimaryComparison
                 throw new RuntimeException("Source {$key} carries a different curated decision in each arm; the fixed inputs drifted between the runs.");
             }
         }
+    }
+
+    /**
+     * Everything in the run manifest except the declared intervention must be identical.
+     *
+     * This is the check that makes a prompt, ceiling, threshold, service tier, price snapshot or
+     * parser-surface change between the two arms visible. Before the manifest existed, the
+     * comparison could see the curated inputs drift but not the code or the settings that read
+     * them — so a prompt edited between arm A and arm B would have been scored as a model effect.
+     *
+     * It is written as "compare everything except three keys" rather than a list of keys to check,
+     * because a field added to the manifest later is then drift-checked by default. The failure
+     * mode of the inverse is silence.
+     *
+     * @param  array<string, mixed>  $baseline
+     * @param  array<string, mixed>  $candidate
+     */
+    private function assertNoManifestDrift(array $baseline, array $candidate): void
+    {
+        /** @var array<string, mixed> $baselineManifest */
+        $baselineManifest = $baseline['run_manifest'];
+        /** @var array<string, mixed> $candidateManifest */
+        $candidateManifest = $candidate['run_manifest'];
+
+        foreach (self::ArmSpecificManifestKeys as $key) {
+            unset($baselineManifest[$key], $candidateManifest[$key]);
+        }
+
+        if (CanonicalJson::hash($baselineManifest) === CanonicalJson::hash($candidateManifest)) {
+            return;
+        }
+
+        $drifted = [];
+
+        foreach (array_keys($baselineManifest + $candidateManifest) as $key) {
+            $baselineValue = $baselineManifest[$key] ?? null;
+            $candidateValue = $candidateManifest[$key] ?? null;
+
+            if (CanonicalJson::hash($baselineValue) !== CanonicalJson::hash($candidateValue)) {
+                $drifted[] = (string) $key;
+            }
+        }
+
+        throw new RuntimeException('The two arms did not run the same parser: their run manifests differ on '
+            .implode(', ', $drifted).'. Only the model may differ between arms, so this comparison would '
+            .'attribute a prompt, ceiling, threshold or code change to the model under test.');
     }
 
     // -----------------------------------------------------------------------------------------
@@ -1009,7 +1167,6 @@ class OosParserArmPrimaryComparison
      * @param  array<string, array<string, mixed>>  $sources
      * @param  array<string, mixed>  $baselineArm
      * @param  array<string, mixed>  $candidateArm
-     * @param  array<string, array{input:float,output:float}>|null  $priceSnapshot
      * @return list<array<string, mixed>>
      */
     private function guardrails(
@@ -1017,7 +1174,6 @@ class OosParserArmPrimaryComparison
         OosSourceFaithfulnessLabels $labels,
         array $baselineArm,
         array $candidateArm,
-        ?array $priceSnapshot,
     ): array {
         return [
             $this->safetyGuardrail($sources),
@@ -1025,7 +1181,7 @@ class OosParserArmPrimaryComparison
             $this->routingSafetyGuardrail($sources, $labels),
             $this->itemRecallGuardrail($sources, $labels),
             $this->reviewBurdenGuardrail($sources),
-            $this->costGuardrail($sources, $baselineArm, $candidateArm, $priceSnapshot),
+            $this->costGuardrail($sources, $baselineArm, $candidateArm),
             $this->latencyGuardrail($sources, $baselineArm, $candidateArm),
         ];
     }
@@ -1280,15 +1436,13 @@ class OosParserArmPrimaryComparison
      * @param  array<string, array<string, mixed>>  $sources
      * @param  array<string, mixed>  $baselineArm
      * @param  array<string, mixed>  $candidateArm
-     * @param  array<string, array{input:float,output:float}>|null  $priceSnapshot
      * @return array<string, mixed>
      */
-    private function costGuardrail(array $sources, array $baselineArm, array $candidateArm, ?array $priceSnapshot): array
+    private function costGuardrail(array $sources, array $baselineArm, array $candidateArm): array
     {
-        if ($priceSnapshot === null) {
-            throw new RuntimeException('A decision run needs the dated price snapshot the arms were frozen against; '
-                .'without it the cost guardrail is not computable and would pass by omission.');
-        }
+        // Both arms carry the same snapshot — the manifest drift check has already refused a pair
+        // that does not — so which one is read cannot change the answer.
+        $priceSnapshot = $this->prices($baselineArm, 'baseline');
 
         $baselineCost = $this->costPerSource($sources, 'baseline', (string) $baselineArm['model'], $priceSnapshot);
         $candidateCost = $this->costPerSource($sources, 'candidate', (string) $candidateArm['model'], $priceSnapshot);

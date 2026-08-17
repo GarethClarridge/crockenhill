@@ -26,15 +26,19 @@ class OosParserProjectionFactory
         $sourceKeys = array_map(static fn (array $source): string => (string) $source['source_key'], $sources);
 
         $canarySource = $sourceKeys === [] ? 'canary' : $sourceKeys[0];
+        $sourceKeyListHash = CanonicalJson::hash($sourceKeys);
+        $manifestHash = 'manifest-hash';
 
         return array_replace([
             'format' => 'crockenhill-oos-parser-raw-projection',
-            'version' => 3,
+            'version' => 4,
             'arm' => $arm,
             'model' => $model,
             'configured_reasoning_effort' => 'none',
             'effective_reasoning_effort' => 'none',
             'returned_model' => $model,
+            'run_manifest' => self::runManifest($arm, $model, $manifestHash, $sourceKeyListHash),
+            'log_file' => "oos-parser-arm-{$arm}.log",
             'database_connection' => 'rehearsal',
             'database_name' => 'crockenhill_rehearsal',
             'rehearsal_certification' => [
@@ -45,9 +49,9 @@ class OosParserProjectionFactory
                 'inbound_emails' => 0,
             ],
             'manifest_path' => 'oos-curation-manifest.json',
-            'manifest_hash' => 'manifest-hash',
+            'manifest_hash' => $manifestHash,
             'source_count' => count($sources),
-            'source_key_list_hash' => CanonicalJson::hash($sourceKeys),
+            'source_key_list_hash' => $sourceKeyListHash,
             'canary' => [
                 'source_keys' => [$canarySource],
                 'telemetry' => [self::call($canarySource, $model)],
@@ -62,6 +66,52 @@ class OosParserProjectionFactory
                 ],
             ],
             'raw_results' => $sources,
+        ], $overrides);
+    }
+
+    /**
+     * The provenance block whose only permitted differences are the arm, the model and the
+     * configured effort. Everything else here is drift-checked across the two arms.
+     *
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    public static function runManifest(
+        string $arm,
+        string $model,
+        string $manifestHash = 'manifest-hash',
+        string $sourceKeyListHash = 'source-key-list-hash',
+        array $overrides = [],
+    ): array {
+        $priceSnapshot = ['taken_at' => '2026-08-17', 'models' => self::prices()];
+
+        return array_replace([
+            'format' => 'crockenhill-oos-parser-run-manifest',
+            'version' => 1,
+            'evaluation_id' => $manifestHash,
+            'arm' => $arm,
+            'model' => $model,
+            'configured_reasoning_effort' => 'none',
+            'effective_reasoning_effort' => 'none',
+            'ceilings' => [
+                'max_completion_tokens' => 6000,
+                'reasoning_token_headroom' => ['none' => 0, 'minimal' => 0, 'low' => 6000, 'medium' => 16000, 'high' => 32000],
+                'extraction_attempts' => 3,
+                'request_timeout_seconds' => 900,
+            ],
+            'thresholds' => ['review' => 0.75, 'auto_import' => 0.90],
+            'service_tier' => 'flex',
+            'inputs' => [
+                'curation_manifest_hash' => $manifestHash,
+                'source_key_list_hash' => $sourceKeyListHash,
+                'price_snapshot_sha256' => CanonicalJson::hash($priceSnapshot),
+            ],
+            'price_snapshot' => $priceSnapshot,
+            'parser_surface' => [
+                'hash' => 'parser-surface-hash',
+                'files' => ['app/Services/Email/OosEmailParserService.php' => 'file-hash'],
+            ],
+            'application_commit' => '0000000000000000000000000000000000000000',
         ], $overrides);
     }
 

@@ -44,7 +44,6 @@ class CompareParserArmsCommand extends Command
         {--baseline= : Baseline arm run-directory name, or an absolute path to its raw-result projection}
         {--candidate= : Candidate arm run-directory name, or an absolute path to its raw-result projection}
         {--truth= : Adjudicated source-faithfulness label artifact; without it no decision label is emitted}
-        {--price-snapshot= : The dated official price snapshot the arms were frozen against}
         {--worksheet= : Absolute path the adjudication worksheet is created at}
         {--output= : Absolute path the comparison report is created at}
         {--baseline-ground-truth= : Baseline item ground-truth artifact for the secondary diagnostic}
@@ -59,15 +58,11 @@ class CompareParserArmsCommand extends Command
 
         try {
             $truthPath = $this->resolvedPath($this->option('truth'), 'truth artifact');
-            $priceSnapshotPath = $this->resolvedPath($this->option('price-snapshot'), 'price snapshot');
-            $priceSnapshot = $priceSnapshotPath === null ? null : $this->readArtifact($priceSnapshotPath, 'price snapshot');
 
             $report = $primary->compare(
                 $this->readArtifact($this->projectionPath('baseline'), 'baseline projection'),
                 $this->readArtifact($this->projectionPath('candidate'), 'candidate projection'),
                 $truthPath === null ? null : $this->readArtifact($truthPath, 'truth artifact'),
-                $priceSnapshot === null ? null : $this->prices($priceSnapshot),
-                $priceSnapshot === null ? null : CanonicalJson::hash($priceSnapshot),
             );
 
             $secondaryReport = $this->secondary($secondary);
@@ -136,6 +131,11 @@ class CompareParserArmsCommand extends Command
         $candidateArm = $arms['candidate'];
 
         $this->info("Baseline {$baselineArm['arm']} ({$baselineArm['model']}) vs candidate {$candidateArm['arm']} ({$candidateArm['model']})");
+
+        /** @var array<string, mixed> $inputs */
+        $inputs = $report['inputs'];
+        $this->line("Parser surface: {$inputs['parser_surface_hash']} (identical in both arms, or this comparison would have refused)");
+        $this->line('Application commit: '.($inputs['application_commit'] ?? 'not determinable'));
 
         /** @var array<string, mixed> $population */
         $population = $report['population'];
@@ -401,46 +401,6 @@ class CompareParserArmsCommand extends Command
     private function absoluteOption(string $option): ?string
     {
         return $this->resolvedPath($this->option($option), "--{$option} path");
-    }
-
-    /**
-     * @param  array<string, mixed>  $snapshot
-     * @return array<string, array{input:float,output:float}>
-     */
-    private function prices(array $snapshot): array
-    {
-        $models = $snapshot['models'] ?? null;
-
-        if (! is_array($models) || $models === []) {
-            throw new RuntimeException('The price snapshot carries no models block.');
-        }
-
-        $prices = [];
-
-        foreach ($models as $model => $entry) {
-            if (! is_string($model) || ! is_array($entry)) {
-                throw new RuntimeException('The price snapshot has a malformed model entry.');
-            }
-
-            $prices[$model] = [
-                'input' => $this->price($entry, 'input', $model),
-                'output' => $this->price($entry, 'output', $model),
-            ];
-        }
-
-        return $prices;
-    }
-
-    /** @param array<mixed> $entry */
-    private function price(array $entry, string $field, string $model): float
-    {
-        $cost = $entry[$field] ?? null;
-
-        if ((! is_float($cost) && ! is_int($cost)) || $cost < 0) {
-            throw new RuntimeException("The price snapshot is missing a usable {$field} price for {$model}.");
-        }
-
-        return (float) $cost;
     }
 
     /** @return array<string, mixed> */
