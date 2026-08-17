@@ -1,0 +1,691 @@
+# OoS Email Parser: `gpt-5.6-luna` Non-Inferiority Evaluation
+
+> **Status (2026-08-17): design settled after two external review rounds; not yet executed.** Three
+> earlier versions were retired — a five-arm model search, a superiority-gated statistical programme,
+> and a first non-inferiority draft whose cheap-labelling rule and validation rules could each have
+> changed the decision incorrectly. §12 records every removal and correction, so this document is not
+> re-inflated or re-broken later.
+>
+> **This is a non-inferiority question.** Verified 2026-08-17 against official OpenAI documentation:
+> `gpt-5.6-luna` is the same-tier successor to `gpt-5.4-nano`, identical on input price and ~4%
+> cheaper on output, and `gpt-5.4-nano` carries no deprecation notice or retirement date. So the
+> decision is **"is Luna a safe replacement?"**, not "is Luna better?". **Parity is a pass.** The
+> reason to settle it now, with no deadline, is that the finding can still change the decision — under
+> a forced migration it could not.
+>
+> **Nothing here changes production configuration.** Every run is measurement-only against a freshly
+> provisioned rehearsal database that **the runner itself selects and certifies** (§5.2). Adoption
+> authorises a separate reviewed configuration change (§10). Rollback is one setting.
+>
+> **Owner boundary.** IC3 measurement work under
+> [incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md). Read-only
+> evidence selection, never mutation authority and never an import gate.
+
+## 1. Decision to make
+
+> Does `gpt-5.6-luna` at effective reasoning effort `none` extract the OoS email at least as
+> faithfully as `gpt-5.4-nano` / `none`, within a declared margin, without regressing safety, routing
+> correctness, cost, latency or review burden?
+
+| Result | Decision |
+|---|---|
+| Luna within the §7.3 margin, no guardrail breach | **Adopt Luna** as production candidate |
+| Luna breaches the margin, or any guardrail | Stay on nano |
+| Discordance too large, or instability too high, for either conclusion | Stay on nano; report that as the finding |
+
+The middle and last outcomes are real answers, not failures. The first is the expected one.
+
+A second, strictly optional question arises only after Luna/none is adopted:
+
+> Does Luna/`low` reduce a *specific observed* Luna/none failure class enough to pay for its
+> reasoning tokens and latency?
+
+OpenAI's migration guide is explicit that when the workload runs at `none` you should "keep it as
+your latency baseline and also test `low` when the workflow benefits from reasoning or tool use".
+That contemplates a `low` arm; it does not require one. This plan requires an observed Luna failure
+class before Phase B is worth running. Terra, Sol and higher efforts are outside this plan.
+
+## 2. Why non-inferiority, and why now
+
+Official documentation fetched 2026-08-17 and re-confirmed on review:
+
+| Model | Input / 1M | Cached input / 1M | Output / 1M | Role |
+|---|---:|---:|---:|---|
+| [`gpt-5.4-nano`](https://developers.openai.com/api/docs/models/gpt-5.4-nano) | $0.20 | $0.02 | $1.25 | Current baseline |
+| [`gpt-5.6-luna`](https://developers.openai.com/api/docs/models/gpt-5.6-luna) | $0.20 | $0.02 | $1.20 | Same-tier successor |
+
+Prices are a dated design input, never the billing authority. Take one official price snapshot for
+the configured service tier before the arms are frozen and hash it into the run manifest.
+
+Three facts set the gate direction:
+
+1. **No forcing function.** Nano is documented as active. Nothing compels a move today.
+2. **No saving worth chasing.** 4% on output tokens does not justify migration risk alone.
+3. **Nano will not be supported forever.** Same-tier successors exist because predecessors retire.
+
+Demanding a demonstrated quality *gain* from a same-tier successor at parity price would predictably
+return "stay on nano" even where Luna is a perfectly adequate replacement — spending the
+implementation effort to learn nothing. Re-verify prices and deprecation status when the snapshot is
+taken. **If nano acquires a retirement date, rewrite this plan around a deadline**: the question
+becomes "when must we move?", and a failing evaluation no longer changes the answer.
+
+## 3. What is measured
+
+### 3.1 Primary estimand: faithfulness to the email
+
+The parser controls only what it extracts from the verbatim email, so the truth is what the email
+states: service boundaries and identities, content scope (`full` / `partial` / `unknown`), the
+ordered item list, item types, exact supporting source-line ids, and song titles as written before
+catalogue resolution.
+
+The primary endpoint is **source-exact correctness**: every service, item, type, order and
+source-line binding correct for that source email. Paired by source email. **An unusable parse counts
+as source-incorrect**, never as a missing observation.
+
+An `indeterminate → mismatch` transition is improved coverage, not improved accuracy. Record it as a
+silent failure made visible; never count it as a correct identity or item.
+
+### 3.2 The primary must read the *raw* parse, not the resolved one
+
+Verified 2026-08-17. The earlier claim that "the parse is resolver-independent" was too broad and is
+corrected here:
+
+- `SongTitleResolver` is called by `HistoricItemGroundTruth::generate()` and `OosArchiveEvaluator`,
+  but **not** by `OosEmailParserService::parse()` or `OpenAiOosEmailItemExtractor`. Catalogue
+  resolution genuinely is downstream.
+- **But `OosArchiveIdentityResolver::resolve()` runs immediately after the parse** and does
+  `resolveMissingDates()` → `resolveIdentity()` → `applyCuratedContentScope()`. It backfills missing
+  dates from the manifest's ground-truth date and **overwrites the model's content scope with the
+  curated one**. Comparing the resolved result would therefore conceal exactly the model identity and
+  scope errors this evaluation exists to detect.
+- The raw parse survives in the cache binding as `raw_result` with a `raw_result_hash`, but
+  `OosArchiveParseCacheBinding::evidence()` **strips `raw_result`** before reports and per-entry
+  evidence see it.
+
+**Requirement.** Before teardown, the arm runner exports a versioned, source-keyed projection of the
+raw result: raw service identities and content scope, ordered items with types and source-line ids,
+stated confidence, routing category, and `raw_result_hash`. **The comparator's primary analysis
+consumes that projection and nothing else.** Resolver- and manifest-dependent staged data is
+secondary diagnostics only (§3.3).
+
+### 3.3 Secondary diagnostics: agreement with later service evidence
+
+The hymn workbook and OpenLP answer a different question — whether the email plan agrees with what
+was later sung or projected. A service can change after the email was written, so disagreement is not
+automatically a parser error.
+
+| Dimension | Evidence | Valid meaning |
+|---|---|---|
+| Song membership | Hymn workbook | Agreement with songs recorded as sung |
+| Song count | OpenLP | Agreement with songs projected |
+| Song order | OpenLP | Agreement with projected song order |
+
+These are **descriptive only**: transition matrices, counts and raw differences. They decide nothing,
+they never override a source-faithful primary result, and **they carry no p-values.** Reporting
+unadjusted McNemar p-values on three dimensions would reintroduce multiplicity through the back door
+— so `ItemGroundTruthArmComparison`'s per-dimension `mcnemar` p-values and its `holmAdjust()` are
+both removed (§9.1). Removing only the correction would be worse than keeping both.
+
+### 3.4 Curation tiers and the primary denominator
+
+Evidence availability and curation scope are fixed before parsing and may bound a denominator.
+Verdict classes may not.
+
+| Tier | Meaning | Treatment |
+|---|---|---|
+| `full` | Curated source presents a complete running order | **Primary population, `N_primary`** |
+| `partial` | Source names selected material only | Separate paired scope/safety diagnostic; never scored as a missed full order and **never in `N_primary`** |
+| `no_source` | No current email source exists | Acquisition gap; no model inference |
+
+`N_primary` is the **full-scope source count**. An earlier draft defined the eligible set as `full`
+plus `partial` and then applied the §7.3 margin to that combined `N`, which diluted the margin with
+sources the plan itself excludes from extraction correctness. The existing comparator already encodes
+`PrimaryTier = 'full'`; this aligns the denominator with it.
+
+Tier binds to the exact contributing source set. `sourceRecords->first()` is not a valid rule for a
+service with multiple current email lineages: derive one unambiguous tier from every contributing
+source or fail as `mixed`, never scored. A missing tier never defaults to `full`. (12 rehearsal
+services carry more than one current email source record and 7 of those disagree on
+`payload_complete`.)
+
+### 3.5 Explicitly out of scope
+
+**Confidence calibration.** AUC, Brier scores, reliability bins and threshold fitting are removed.
+IC3 has already measured confidence AUC at 0.52–0.61, so the signal is too weak to discriminate two
+models; population calibration cannot be computed from a label set enriched for disagreement; and
+threshold policy is a separate reviewed decision a model migration must not quietly make. What
+*replaces* it is narrower and paired: the routing-safety guardrail of §7.4.1.
+
+**Absolute accuracy claims.** No absolute precision or recall figure is reported as a population
+rate, because the label set cannot support one. Only paired between-arm differences are inferential.
+
+## 4. Corpus and arms
+
+### 4.1 Eligible source set
+
+No new warehouse artifact. The eligible set is the `full` and `partial` email sources of the approved
+curation manifest; `N_primary` is the `full` subset (§3.4). The runner records the manifest hash, the
+derived source-key list, that list's SHA-256, and both counts. Both arms bind to the same hash. No
+parse output, confidence or match verdict may influence membership.
+
+Report by era, source-length quartile, single/multi-service and format family, to expose distribution
+shift between historic and weekly sources.
+
+### 4.2 Arms
+
+| Arm | Model | Configured effort | Effective effort |
+|---|---|---|---|
+| A | `gpt-5.4-nano` | `none` | `none` |
+| B | `gpt-5.6-luna` | `none` | `none` |
+
+Production's configured `minimal` normalises to effective `none` for GPT-5.4+, so this is a clean
+model-only comparison. Run A and B as close together as operationally possible with identical source
+order, concurrency, prompt, schema, ceilings and retry policy. Pin dated model snapshots where the
+account exposes them; otherwise record the alias and every returned model value, and fail the arm if
+the returned model changes within it.
+
+Freeze prompt, strict schema, parser version and resolver surface before either arm runs. Any prompt
+change is a separate candidate intervention — never change prompt and model in one comparison.
+
+## 5. Run integrity
+
+These controls exist for one reason: **an arm that is quietly wrong produces a clean-looking result
+that is false, with no later signal.** Controls that merely prevent inconvenience are excluded — a
+full arm costs about a dollar, so rerunning beats building trusted recovery logic.
+
+### 5.1 The run must prove which model it used
+
+The highest-value control and the cheapest. Before any spend the runner prints the resolved `config()`
+values it will use — model, configured and effective reasoning effort, completion ceiling, service
+tier, database connection and database name — and refuses on any mismatch with the declared arm.
+
+This matters because Laravel's config cache, `.env` state and Sail env propagation can each silently
+serve a different value than the operator believes, and this application already has a recorded
+incident of a defaulted config making a whole run silently fake. A comparison that ran the same model
+twice yields a perfect, meaningless "no difference".
+
+The arm mapping is fixed in code and **applied inside the running process**, then read back from
+`config()` and asserted. There is no `config:clear` step in the procedure: clearing a cache proves
+nothing about what the process then resolved, and its presence would imply the runner depends on
+ambient configuration it should be setting itself.
+
+Per call, assert `response_model` consistency and **fail the arm if the returned model changes within
+it**.
+
+### 5.2 The run must select and certify its own database
+
+`ProvisionRehearsalDatabaseCommand`'s docblock states that it "deliberately does not" point
+`DB_DATABASE` at the database it provisions, "so that switching targets stays an explicit operator
+act". An earlier draft of this plan provisioned a rehearsal database and then ran the arm against
+whatever `DB_DATABASE` happened to be — the precise failure §5.1 exists to prevent.
+
+**The runner therefore selects the named rehearsal connection, reconnects, and certifies it
+in-process** before any spend: expected connection name, expected database name, rehearsal marker
+present, production anchor absent
+(`HistoricImportProductionGuard::guardsCurrentEnvironment()` already provides the last).
+
+Other refusals: stale or mismatched arm config, missing API key, existing output path, unexpected
+model or effort, source-set hash mismatch.
+
+### 5.3 The run must prove it covered everything
+
+Bind the arm to the source-key list hash and expected counts. If any source fails after its bounded
+retries, mark the **entire arm incomplete**. An incomplete arm is never compared: comparing the
+surviving intersection lets the run's own outcome choose the population, which is the same class of
+error as filtering a verdict class out of a denominator. There is no `--resume`.
+
+### 5.4 Cache, log and telemetry isolation
+
+- Freshly provisioned rehearsal database per arm. `OosArchiveParseCacheBinding::rawCacheKey()`
+  contains neither model nor effort, so a shared cache would score one model twice.
+- Separate log file per arm in addition to `OPENAI_EVALUATION_ARM`; scraping a shared `laravel.log`
+  is not reliable attribution.
+- **Telemetry is one-to-many per source.** A source can produce several calls — retries, and
+  distinct call roles. Key each usage record by source key **plus attempt number and call role**, so
+  cost and latency per source are derivable without re-running and a retry is never mistaken for a
+  second source. Record `usage_missing: true` rather than dropping a call.
+- Record per-call latency in the arm run, so §7.4's p95 guardrail is computable without a second pass.
+- Export the §3.2 raw-result projection before teardown. This is the one export whose absence cannot
+  be repaired later: the rehearsal database is dropped by the next provisioning run.
+
+### 5.5 Live compatibility canary
+
+Before corpus spend each arm parses three deterministic canaries: a short full order, the longest
+eligible full order, and a multi-service email. Three calls to validate an arm before committing
+hundreds. The canary must prove the alias is available to the account, the returned model is
+consistent, effective effort and service tier are correct, strict JSON schema succeeds, usage is
+present and source-addressable, the token ceiling leaves visible JSON, the raw-result projection is
+populated, and no strict line-id, date or scope invariant fails. Canary failure stops the arm. Unit
+tests fake the network and never substitute for this check.
+
+### 5.6 Retry and timeout policy is not a prerequisite
+
+`config/openai.php` sets `request_timeout` but no connect timeout, and transient failures are not
+distinguished from permanent 4xx. Both are real defects **of the production parser** and both should
+be fixed — as independent maintenance, on their own schedule, not as a gate on this evaluation. Both
+arms run the identical current policy, so no contamination arises either way; a stalled arm is rerun.
+Keep only the classification that already exists and is needed here: `truncated` versus
+`unusable_response`, checked via `finish_reason` before empty content becomes a generic failure. Keep
+concurrency identical and bounded across arms so provider load cannot become an arm effect.
+
+## 6. Labelling
+
+Model calls are the cheap input here; human attention is the scarce one. But cheapness must not be
+bought with a selection risk, and an earlier draft's "label only enough to confirm the split" rule
+did exactly that.
+
+### 6.1 Two different kinds of discordance
+
+These were conflated in an earlier draft and the distinction is now load-bearing:
+
+- **`M` — raw discordance.** The count of sources where the arms' outputs differ at all: identities,
+  scope, item list, types, order, source-line bindings, **or routing category** (§7.4.1). Computable
+  with no labels.
+- **`b` and `c` — correctness discordance.** `b` = Luna correct and nano wrong; `c` = nano correct
+  and Luna wrong. These require adjudication.
+
+A raw disagreement can also be **both arms wrong, differently**, which belongs to neither `b` nor
+`c`. Therefore `b + c ≤ M`, and **`b + c` cannot be known before adjudication.**
+
+### 6.2 Label every raw-discordant source
+
+**Step 1 — run both arms on the full eligible set. No labels.** Both arms are cheap (§2); parse
+everything rather than sample.
+
+**Step 2 — measure within-arm instability.** Choose 30 sources by `sha256(evaluation_id +
+source_key)` and run each arm twice on them before its full run. Compare each arm's two outputs **for
+equality**, not for correctness — no labels exist yet, so a correctness-based rule would be
+unsatisfiable.
+
+Instability has a consequence; it is not reported and ignored:
+
+| Observation | Consequence |
+|---|---|
+| Both arms stable (< 10% self-disagreement) | Proceed; report the floor alongside `M` |
+| Material instability in both arms (≥ 10%) | Run two full replicates per arm and compare replicate-consistent outcomes only |
+| **Asymmetric** instability (one arm materially less stable) | That is itself a finding about the candidate. Repeat the subset at higher `n`; if it persists, **refuse inference** and report it — a less deterministic parser is not a safe replacement even at equal accuracy |
+
+**Step 3 — compute `M`,** and size the labelling work with §7.3's threshold.
+
+**Step 4 — label every raw-discordant source.** Adjudicate each against its verbatim lines: which
+arm, if either, is faithful to the email. Below the §7.3 threshold this is bounded work by
+construction — under ~83 sources at `N_primary ≈ 500`. There is **no partial-labelling rule**: with
+`M` unlabelled sources outstanding, every one of them could be a nano-only win, so stopping early on
+favourable labels is optional stopping wearing an efficiency costume.
+
+If partial labelling is ever reinstated, it requires a declared deterministic label order and a stop
+rule that only fires when **a worst-case allocation of every unlabelled source cannot change the
+result**. Nothing weaker.
+
+**Step 5 — test** (§7.3), then apply the guardrails (§7.4).
+
+**No concordant control sample.** Identical shared extraction error is unchanged from nano, so
+non-inferiority is legitimately blind to it. But identical *extraction* is not identical
+*operational risk* — see §7.4.1, which replaces the random control with a targeted, paired
+adjudication.
+
+**No sequential-looks problem.** The discordant set is enumerated once, before any label is opened,
+and labelled completely. Any later expansion batch is a declared second look.
+
+### 6.3 Diagnostic challenge set
+
+Report, never as an unbiased denominator: full-scope zero extractions after resolver normalisation;
+clean-title workbook-more-than-email mismatches; long, multi-service and previously retrying sources;
+known source-line, date, scope and item-type disagreement cases. The previously counted 40
+one-directional workbook mismatches and 15 full-scope zero extractions are provisional pre-run
+figures and must be recalculated against current code. Label all of the rebuilt cohorts, not an
+impressionistic sample.
+
+## 7. Comparison and decision rule
+
+### 7.1 Unit of analysis
+
+The independent unit is the **source email / model call**, not the service identity. One email may
+produce several correlated services sharing a call. The existing comparator is identity-level and
+must be extended to a source-level primary; its identity-level matrices stay as diagnostics.
+
+### 7.2 Fail-closed comparison, and what must *not* be fatal
+
+Before any rate or interval, the comparison validates and returns non-zero on failure, emitting only
+a create-once `incomplete` diagnostic — never an inferential result or decision label:
+
+1. Supported format, version constant and runtime shape for every input artifact.
+2. Unique source keys; duplicates fatal.
+3. **One-sided source emails** — a source present in one arm's projection and absent from the other:
+   fatal run incompleteness.
+4. Zero **curated** drift: identity allowances, evidence availability, tier, curation, catalogue,
+   parser and prompt/schema hashes must be identical across arms.
+5. Neither arm incomplete; no missing call telemetry.
+6. Requested/returned model consistency and exact run-manifest binding.
+7. Input SHA-256s recorded in the output.
+
+**What must not be fatal.** An earlier draft required identical *identity sets* and made every
+one-sided identity fatal. That is wrong for the primary endpoint: **if Luna misses a service or
+invents an extra one, that is the model outcome the evaluation exists to score.** Aborting would hide
+the regression rather than count it. The distinction:
+
+| One-sided thing | Treatment |
+|---|---|
+| Source email | **Fatal** — the arm did not cover the corpus (§5.3) |
+| Model-produced service or item within a shared source | **Scored** over the union of both arms' outputs, with absence represented explicitly |
+| Curated identity allowance or evidence binding | **Fatal** — that is drift in the fixed inputs |
+
+Malformed rows and unknown outcomes are never skipped; missing tiers never default to `full`.
+
+### 7.3 The margin, the interval, and how much labelling it needs
+
+**The acceptance statement, stated as the maintainer's risk tolerance rather than dressed up as a
+derivation:**
+
+> **At most 3 additional source-exact failures per 100 full-scope sources is acceptable, provided
+> there are zero hard-safety regressions and zero Luna-only false auto-imports.**
+
+So `δ = 3` percentage points, frozen before the arms run. At `N_primary ≈ 500` that is about 15
+additional wrongly-extracted sources. Change `δ` before the run if you disagree, never after.
+
+**The decision interval.** Adoption requires the **lower one-sided 95% bound on `Luna − nano`
+source-exact correctness to be above `−δ`**, computed with a **paired score interval (Newcombe's
+method for the difference of paired proportions)**, or an exact unconditional matched-pair
+non-inferiority test where discordance is very small.
+
+Not a paired Wald interval: its coverage is unreliable precisely when discordance is small or
+imbalanced, which is the regime this plan expects. And **not McNemar's exact test**, which tests
+`b = c` and cannot by itself test a non-zero `−3pp` margin.
+
+**The planning heuristic.** For sizing the labelling work only, the plug-in Wald standard error is
+`sqrt((b + c) − (b − c)²/N) / N`. Dropping the second term gives `sqrt(b + c)/N`, which is exact at a
+tie and conservative away from one, so at `b = c` an exact tie clears the margin when
+
+```
+b + c  ≤  (δ·N_primary / 1.645)²
+```
+
+`1.645` is the one-sided 95% normal quantile. At `N_primary = 500`, `δ = 0.03` the threshold is
+**83.16, so counts up to and including 83 pass** at a tie.
+
+Because `b + c ≤ M` (§6.1), applying this threshold to the *observed raw* `M` is conservative in the
+safe direction: if `M` clears it, `b + c` certainly does. What the threshold sizes is the work, and
+what it can never license is leaving discordant sources unlabelled (§6.2 step 4):
+
+- **`M` at or below the threshold:** label all `M` sources. Bounded work; a tie would pass, so the
+  labels exist to confirm the split is not lopsided against Luna.
+- **`M` above it:** label all `M` sources; the adjudicated split decides the outcome.
+- **`M` far above it:** report that as the finding. Disagreement at that scale between two same-tier
+  models — checked against §6.2 step 2's noise floor — says more about parser stability than about
+  model choice, and should be investigated before any migration.
+
+The runner prints actual `N_primary`, `M` and the computed threshold; do not carry the worked example
+as a constant.
+
+### 7.4 Guardrails
+
+Any breach fails the arm even if §7.3 passes.
+
+1. **Safety (hard):** zero new strict source-line or phantom-line violations; date-, identity- and
+   scope-invalid results remain held; no unattended finalisation and no publication boundary change.
+2. **Completeness (hard):** every expected source processed and bound to telemetry; zero curated
+   drift (§7.2).
+3. **Routing correctness (hard):** §7.4.1.
+4. **Item recall:** the lower 95% paired bound on **source-normalised** supported-item recall is above
+   `−5` percentage points. Source-normalised, not pooled: a pooled corpus recall would need truth-item
+   denominators for unlabelled concordant sources, which do not exist.
+5. **Review burden:** the share of plans routed to review does not change by more than 5 percentage
+   points in **either** direction without a recorded acceptance. A decrease is not automatically
+   favourable — it is how §7.4.1's failure mode would first appear.
+6. **Cost:** measured cost per source no more than 10% above nano at the frozen snapshot. Prices are
+   at parity, so a material regression here means the run is wrong, not the pricing.
+7. **Latency:** p95 model-call latency no more than 25% above nano, with no increase in timeout,
+   truncation or failure rate.
+
+#### 7.4.1 Routing-safety adjudication
+
+Two arms can return the **same wrong items with different confidence**, so Luna crosses the
+auto-import threshold where nano was held. Extraction-only comparison is blind to this, and a
+one-directional review-burden guard would read the resulting drop in review volume as an improvement.
+
+Therefore:
+
+- **Routing-category disagreement counts as raw discordance** for §6.1, not only extraction
+  disagreement.
+- **Every source where Luna becomes auto-importable while nano was held is adjudicated**, whether or
+  not the extraction differs.
+- **Hard guardrail: zero Luna-only auto-importable incorrect plan.** One suffices to fail the arm.
+
+This is paired, targeted and fully supported by the labels already being gathered. It reintroduces no
+absolute precision claim and no calibration fitting.
+
+### 7.5 Optional Phase B
+
+Only after Luna/none is adopted, and only against an observed Luna/none failure class. Reuse the
+frozen source set and labels; create fresh parses. Luna/`low` must pass every §7.4 guardrail and
+demonstrate a reduction in that specific failure class — unlike the migration this is not
+price-neutral, since reasoning tokens bill against the same budget as the visible JSON. Truncation
+from an inadequate ceiling is classified separately from model quality but still makes the
+model/effort/budget combination unacceptable until fixed and rerun. No Terra or higher-effort arm is
+implied by a Luna/`low` failure.
+
+## 8. Executable procedure
+
+One new command: a thin Artisan command around an injected runner service, so the orchestration is
+testable without the console. It sets arm configuration inside a single process and reads it back
+(§5.1), and it selects and certifies its own rehearsal connection (§5.2). It writes only to a private
+`storage/scratch` run directory — `--output` is a name within that directory, not an arbitrary
+absolute path.
+
+```bash
+# 1. Build a certified clean rehearsal database. This does NOT switch the app's connection —
+#    the runner does that itself, in-process, and refuses if it cannot certify the target.
+vendor/bin/sail artisan historic-import:provision-rehearsal-database
+
+# 2. Baseline arm: config echo and refusal, connection certification, canary, stability
+#    replicate, full corpus, raw-result projection export, telemetry, manifest, checksums.
+vendor/bin/sail artisan service-tracking:run-oos-parser-arm \
+  --arm=baseline-nano-none \
+  --manifest=storage/scratch/oos-curation-manifest.json \
+  --output=baseline-nano-none
+
+# 3. Reprovision, then the candidate arm. Export first — provisioning DROPS the database.
+vendor/bin/sail artisan historic-import:provision-rehearsal-database
+vendor/bin/sail artisan service-tracking:run-oos-parser-arm \
+  --arm=luna-none \
+  --manifest=storage/scratch/oos-curation-manifest.json \
+  --output=luna-none
+
+# 4. Raw discordance M against the instability floor, plus the labelling threshold (§7.3).
+#    Emits no decision label without --truth.
+vendor/bin/sail artisan service-tracking:compare-ground-truth-arms \
+  --baseline=baseline-nano-none --candidate=luna-none
+
+# 5. After adjudicating every raw-discordant source, the decision.
+vendor/bin/sail artisan service-tracking:compare-ground-truth-arms \
+  --baseline=baseline-nano-none --candidate=luna-none \
+  --truth=source-faithfulness-truth.json --output=adoption-comparison.json
+```
+
+Secondary workbook/OpenLP diagnostics stay with the existing ground-truth builder rather than
+becoming runner flags, so the runner's contract is "produce one arm's raw evidence" and nothing more.
+
+No `--resume`. A failed source makes the arm incomplete and it is rerun whole from a newly
+provisioned database. Commands refuse to overwrite artifacts. Run directories are `0700`, artifacts
+`0600`. Portable reports contain no raw email body, secret, local absolute path, user id or private
+note. The provider-side spend cap is the hard financial stop; if it ends a run the arm is incomplete,
+and missing results are never extrapolated into a pass.
+
+## 9. Implementation and tests
+
+### 9.1 Build
+
+**Deterministic baseline**
+
+- Rebuild the item ground-truth artifact against current code and catalogue state.
+  `item-ground-truth-2026-08-16c-resolver-fixed.json` predates the latest resolver change and has
+  neither the `scoring` block nor `curation_tier`; it is analysis history, not a runnable baseline.
+- Multi-current-source tier semantics: one unambiguous tier or `mixed`, never scored, never
+  defaulting to `full`.
+- Recalculate `N_primary`, every tier split and every challenge cohort.
+- Finish `SongTitleResolver` decoration normalisation with its regression tests — needed for the §3.3
+  diagnostics, **not** a gate on the primary (§3.2).
+- Create-once source-faithfulness label format with a version constant and runtime shape validation.
+  "No schema validator" means no external JSON Schema dependency, not unvalidated artifacts.
+
+**Arm runner** (`service-tracking:run-oos-parser-arm`, new — thin command, injected service)
+
+- Apply the fixed arm mapping in-process, print the resolved `config()`, refuse on mismatch.
+- Select, reconnect to and certify the named rehearsal connection; refuse if uncertified.
+- Per-call `response_model` assertion; fail the arm if the returned model changes within it.
+- Source-key list hash binding, expected-count coverage check, incomplete-arm marking.
+- **Versioned, source-keyed raw-result projection export** (§3.2) before teardown.
+- Per-arm log file; telemetry keyed by source **plus attempt and call role**; latency per call;
+  `usage_missing` recorded rather than dropped.
+- Live compatibility canary; within-arm stability replicate with the §6.2 consequences.
+- Plain-JSON run manifest with a version constant: evaluation and arm ids, model and effort,
+  ceilings, every input hash (source-key list, curation, hymn, OpenLP, catalogue, price snapshot),
+  parser version, prompt/schema hash, parser-surface commit, application commit.
+
+**Comparator** (`service-tracking:compare-ground-truth-arms`, existing — extend and prune)
+
+- Consume the raw-result projection for the primary; staged data for diagnostics only.
+- Add §7.2 fail-closed validation, **including its three-way one-sided rule** — union scoring for
+  model-produced identities, fatal only for one-sided sources and curated drift.
+- Add the source-level primary: paired transitions, the §7.3 Newcombe paired score interval against
+  `−δ`, and the labelling threshold report.
+- Add the §7.4 guardrail table, including §7.4.1's routing-safety adjudication.
+- **Remove `holmAdjust()` and the per-dimension McNemar p-values.** Once §3.3 is descriptive there is
+  nothing to correct, and leaving unadjusted p-values in place would be worse than either extreme.
+  The docblock's "five arms across three dimensions is fifteen comparisons" is a fossil of the
+  retired design.
+
+Both evaluation-specific surfaces are one-shot tooling. Their class docblocks must declare deletion
+after the report is accepted and no rerun remains, or at historic-import IC8 closeout at the latest.
+
+### 9.2 Tests
+
+1. **Wrong-model and wrong-database refusal** — declared arm versus resolved config; returned model
+   changing mid-arm; uncertified or production-anchored connection refused.
+2. **Incomplete coverage** — a failed source marks the arm incomplete; an incomplete arm is refused
+   by the comparison; a one-sided *source* is fatal.
+3. **One-sided identities are scored, not refused** — a candidate-only and a baseline-only
+   model-produced service each score over the union with explicit absence; a one-sided *curated*
+   allowance is still fatal. This is the regression test for the defect that would have hidden Luna
+   inventing or dropping a service.
+4. **Raw-versus-resolved boundary** — the primary reads the raw projection; a manifest-backfilled
+   date or overwritten content scope must not make a wrong model identity or scope look correct.
+5. **Drift** — evidence, tier, curation, catalogue, parser and prompt/schema hashes; unknown verdict
+   or tier; a missing tier never defaulting to `full`; mixed-scope services.
+6. **Telemetry** — usage and latency keyed by source plus attempt and call role, so a retry is not
+   counted as a second source; `usage_missing` recorded not dropped; log isolation; truncation
+   classified via `finish_reason` before empty content becomes a generic failure.
+7. **Statistics** — the Newcombe paired bound against `−δ` at known counts, including a tie, a
+   lopsided split and very small discordance; the threshold's boundary case at exactly 83; unusable
+   parses counted as source-incorrect; `b + c ≤ M` never assumed equal.
+8. **Routing safety** — a same-extraction, higher-confidence Luna plan that crosses auto-import while
+   nano was held is adjudicated and, if incorrect, fails the arm; a review-share *decrease* beyond
+   the band is not silently favourable.
+
+All automated tests fake OpenAI and prevent stray requests. The only live calls are the operator
+canaries and the arm runs. Quality gates remain the repository defaults: focused tests, PHPStan at
+zero, Pint, then the full parallel suite.
+
+## 10. Production migration and retirement
+
+Passing authorises a separate reviewed configuration change only:
+
+```text
+OOS_EMAIL_PARSING_MODEL=gpt-5.6-luna
+OOS_EMAIL_PARSING_REASONING_EFFORT=none
+```
+
+It alters no threshold, prompt, schema, retry policy, auto-import, finalisation or publication
+boundary. Roll back to `gpt-5.4-nano` if a hard invariant fails; reprocess affected held evidence
+rather than mutating published state.
+
+**Post-adoption verification is an evidence gate, not a waiting period.** There is no soak window —
+gating on "four weeks" would be a calendar timer in an evidence costume. Every source processed under
+the new setting is checked until the evidence is in hand:
+
+- zero strict source-line or phantom-line violations;
+- zero unattended finalisations the previous configuration would have held;
+- zero Luna-only false auto-imports (§7.4.1);
+- usage, latency and review routing within §7.4.
+
+If the historic corpus is being reprocessed the gate can clear the same day; otherwise it stays open
+until enough live sources have passed, with no deadline either way. Once clear: retire nano as an OoS
+production candidate, retain its baseline artifacts and price snapshot as evidence, decide separately
+whether Phase B is worth running (§7.5), and delete the evaluation-only surfaces.
+
+## 11. Review surface
+
+| Change | Production effect before approval |
+|---|---|
+| Ground-truth rebuild, tier semantics, resolver normalisation | Deterministic measurement quality; resolver change separately tested |
+| Arm runner: config echo, connection certification, model assertion, canary, raw projection, telemetry | Rehearsal-only |
+| Comparator: fail-closed validation, union scoring, source-level primary, Newcombe bound, Holm and p-value removal | Read-only artifacts |
+| Connect timeout and retry classification | **Changes the production parser** — independent PR, not part of this evaluation (§5.6) |
+| Luna production configuration | **Separate reviewed change** (§10) |
+
+The final report must answer, without leaving interpretation to the operator:
+
+1. Was every arm complete, connection-certified and provenance-identical apart from the declared
+   intervention?
+2. What was raw discordance `M`, and how does it compare with each arm's disagreement with itself —
+   symmetrically or asymmetrically?
+3. Was the lower Newcombe paired bound on source-exact correctness above `−δ`, over the full
+   adjudicated discordant set?
+4. Did every guardrail pass, including zero Luna-only false auto-imports?
+5. What changed in coverage, safety, review burden, cost and latency?
+6. What did the workbook/OpenLP diagnostics show descriptively, without mislabelling service changes
+   as parser errors?
+7. Is the answer *adopt Luna*, *stay on nano because Luna regressed*, or *stay on nano because the
+   corpus or the parser is too unstable to say*?
+
+## 12. Review history: what was removed and corrected
+
+Recorded so this plan is neither re-inflated nor re-broken.
+
+### Round one — removals
+
+An external review found the 733-line version demanded a superiority proof it did not need and
+promised analysis its sampling design could not support. Both findings were correct.
+
+| Removed | Reason |
+|---|---|
+| Superiority gate | Wrong question for a same-tier successor at parity price (§2) |
+| Absolute item precision ≥0.98 | Computed on a disagreement-enriched set, so not a population rate |
+| AUC, Brier, reliability bins, threshold fitting | Population quantities an enriched label set cannot produce; IC3 already measured AUC at 0.52–0.61; threshold policy is a separate decision (§3.5) |
+| 20-source random concordant control | Superseded by §7.4.1's targeted routing adjudication, which is paired and label-supported |
+| Clustered bootstrap; Holm collector | Nothing to correct once §3.3 is descriptive; Holm **and** the p-values are deleted from existing code (§9.1) |
+| Cost per additional source-exact success | Presupposes a demonstrated gain |
+| Source-set warehouse artifact | The curation manifest plus a hashed key list is sufficient (§4.1) |
+| Four of five proposed commands | Preflight, canary and verification fold into the runner; disagreement reporting into the comparator (§8) |
+| Retry/timeout PR as prerequisite | Both arms share the current policy, so it cannot contaminate the comparison (§5.6) |
+| Milestone structure (M0–M2) | The contingent milestone existed to defer statistics now deleted outright |
+
+### Round two — corrections
+
+A second review found the first non-inferiority draft proportionate but not yet adoptable. All of the
+following were verified against the code and accepted.
+
+| Defect | Correction |
+|---|---|
+| Raw discordance `M` used as if it were correctness discordance `b + c` | Distinguished in §6.1; `b + c ≤ M`, unknowable before adjudication |
+| "Label only enough to confirm the split" | **Removed.** Every raw-discordant source is labelled (§6.2); partial labelling would be optional stopping. Any future partial rule needs deterministic order plus worst-case-allocation stopping |
+| Paired Wald interval as the decision rule | Newcombe paired score interval, or exact unconditional matched-pair test; Wald retained only as the planning heuristic. McNemar's exact test cannot test a non-zero margin (§7.3) |
+| Threshold written `b + c < 83` | Off by one — the threshold is 83.16, so `≤ 83` passes (§7.3) |
+| One-sided identities fatal | **The worst defect of the draft.** A missed or invented service is the model outcome; aborting would hide the regression. Three-way rule in §7.2, with a dedicated regression test |
+| Primary read the resolved parse | `OosArchiveIdentityResolver` backfills dates and overwrites content scope from the manifest, and `evidence()` strips `raw_result`. The runner now exports a raw projection the comparator consumes (§3.2) |
+| `N` = full + partial, margin applied to both | `N_primary` = full-scope only; partial is a separate paired diagnostic (§3.4) |
+| Same-extraction, different-confidence risk unguarded | §7.4.1: routing disagreement counts as discordance, Luna-only auto-imports are adjudicated, zero incorrect ones permitted |
+| Review-share guard one-directional | Now fails on a ±5pp change in either direction (§7.4 guardrail 5) |
+| Instability reported and ignored | Material or asymmetric instability now forces replication or refuses inference (§6.2 step 2) |
+| Procedure never pointed the run at the rehearsal database | The provisioner deliberately does not switch connections; the runner now certifies its own (§5.2). `config:clear` removed as a false guarantee (§5.1) |
+| Item recall pooled | Source-normalised paired difference; pooled recall would need truth-item denominators for unlabelled sources (§7.4 guardrail 4) |
+| Unusable parses unclassified | Count as source-incorrect (§3.1) |
+| Telemetry keyed by source alone | Keyed by source plus attempt and call role, since one source produces many calls (§5.4) |
+| "No schema validator" | Means no external JSON Schema; artifacts still carry a version constant and runtime shape validation (§9.1) |
+| δ justified by "enough to notice" | Restated as an explicit acceptance statement of maintainer risk tolerance (§7.3) |
+
+**One claim of mine withdrawn.** I argued that disagreement-enrichment necessarily biases measured
+precision *downward* for either arm, making the old 0.98 bar merely conservative. That does not hold:
+where the arms share errors identically, those sources are concordant and excluded, so the direction
+of candidate-specific bias is not guaranteed. The metric is removed either way, but the reasoning was
+wrong.
