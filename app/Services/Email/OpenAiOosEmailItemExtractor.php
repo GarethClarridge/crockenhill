@@ -18,9 +18,13 @@ use RuntimeException;
 
 class OpenAiOosEmailItemExtractor implements AdjudicatingOosEmailItemExtractor
 {
+    public function __construct(
+        private readonly ?OosParserEvaluationTelemetry $evaluationTelemetry = null,
+    ) {}
+
     public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
     {
-        return $this->request($subject, $body, $receivedDate);
+        return $this->request($subject, $body, $receivedDate, callRole: 'extract');
     }
 
     public function correct(
@@ -48,6 +52,7 @@ class OpenAiOosEmailItemExtractor implements AdjudicatingOosEmailItemExtractor
             correctionContext: "The first extraction failed deterministic validation.\n"
                 ."Previous extraction:\n{$previous}\n\nValidation failures:\n{$failures}\n\n"
                 .'Return one corrected extraction. Do not defend or repeat a structurally invalid result.',
+            callRole: 'correct',
         );
     }
 
@@ -72,6 +77,7 @@ class OpenAiOosEmailItemExtractor implements AdjudicatingOosEmailItemExtractor
             correctionContext: "Two structurally valid extractions disagree only in these compared fields: {$differences}.\n"
                 ."Candidate extractions:\n{$candidates}\n\n"
                 .'Resolve those differences against the numbered source lines. Return the complete extraction that the source supports. Do not invent a third interpretation.',
+            callRole: 'adjudicate',
         );
     }
 
@@ -90,6 +96,7 @@ class OpenAiOosEmailItemExtractor implements AdjudicatingOosEmailItemExtractor
         string $body,
         string $receivedDate,
         ?string $correctionContext = null,
+        string $callRole = 'extract',
     ): OosEmailItemExtractionResult {
         if (empty(config('openai.api_key'))) {
             throw new RuntimeException('OpenAI API key not configured for OoS email parsing.');
@@ -108,7 +115,7 @@ class OpenAiOosEmailItemExtractor implements AdjudicatingOosEmailItemExtractor
 
         for ($attempt = 1; ; $attempt++) {
             try {
-                return $this->attempt($model, $userContent, $source->lineIds());
+                return $this->attempt($model, $userContent, $source->lineIds(), $callRole, $attempt);
             } catch (RuntimeException $exception) {
                 /*
                  * Every failure `attempt()` raises is "the model returned something
@@ -145,8 +152,9 @@ class OpenAiOosEmailItemExtractor implements AdjudicatingOosEmailItemExtractor
     }
 
     /** @param list<int> $sourceLineIds */
-    private function attempt(string $model, string $userContent, array $sourceLineIds): OosEmailItemExtractionResult
+    private function attempt(string $model, string $userContent, array $sourceLineIds, string $callRole, int $attempt): OosEmailItemExtractionResult
     {
+        $startedAt = microtime(true);
         $response = OpenAI::chat()->create(OpenAiChatPayload::forModel([
             'model' => $model,
             'messages' => [
@@ -174,6 +182,7 @@ class OpenAiOosEmailItemExtractor implements AdjudicatingOosEmailItemExtractor
             'max_completion_tokens' => $this->maxCompletionTokens(),
         ], reasoningEffort: (string) config('service-tracking.email_parsing.reasoning_effort', 'minimal')));
 
+        $this->evaluationTelemetry?->record($response, $callRole, $attempt, $startedAt);
         OpenAiUsageLogger::log($response, 'oos_email_parsing', $model, requestedReasoningEffort: (string) config('service-tracking.email_parsing.reasoning_effort', 'minimal'));
 
         return $this->resultFromResponse($response);

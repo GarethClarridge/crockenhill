@@ -11,6 +11,7 @@ use App\Contracts\ServiceTranscriptionInterface;
 use App\Contracts\TranscriptionServiceInterface;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
 use App\Services\ChurchService\Structure\OpenAiServiceStructureService;
+use App\Services\Email\OosParserEvaluationTelemetry;
 use App\Services\Email\OpenAiOosEmailItemExtractor;
 use App\Services\Media\Audio\AudioTranscriptionService;
 use App\Services\Media\Audio\LocalWhisperServiceTranscriptionService;
@@ -72,6 +73,7 @@ class AiServiceProvider extends ServiceProvider
             };
         });
 
+        $this->app->singleton(OosParserEvaluationTelemetry::class);
         $this->app->bind(OosEmailItemExtractor::class, OpenAiOosEmailItemExtractor::class);
     }
 }
