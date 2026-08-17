@@ -50,8 +50,11 @@ class OosParserArmPrimaryComparison
 
     private const ProjectionFormat = 'crockenhill-oos-parser-raw-projection';
 
-    /** Only version 2 carries the routing block the routing-safety guardrail is decided on. */
-    private const SupportedProjectionVersion = 2;
+    /**
+     * Version 3 carries the routing block the routing-safety guardrail is decided on, the canary and
+     * stability replicates' own telemetry, and the rehearsal database's certification.
+     */
+    private const SupportedProjectionVersion = 3;
 
     /**
      * The curation tier the decision is taken on.
@@ -205,6 +208,17 @@ class OosParserArmPrimaryComparison
         $arm = $declared;
         $arm['source_count'] = $this->requiredInt($projection, 'source_count', "{$label} projection");
         $arm['stability'] = $this->requiredArray($projection, 'stability', "{$label} projection");
+        $arm['certification'] = $this->certification($projection, $label);
+        $arm['canary_telemetry'] = $this->auxiliaryTelemetry(
+            $this->requiredArray($projection, 'canary', "{$label} projection"),
+            "{$label} canary",
+            $declared['returned_model'],
+        );
+        $arm['stability_telemetry'] = $this->auxiliaryTelemetry(
+            $arm['stability'],
+            "{$label} stability replicate",
+            $declared['returned_model'],
+        );
 
         $rows = $projection['raw_results'] ?? null;
 
@@ -242,6 +256,91 @@ class OosParserArmPrimaryComparison
         $arm['sources'] = $sources;
 
         return $arm;
+    }
+
+    /**
+     * The rehearsal database's own certification, carried into the artifact so a reader can see it
+     * rather than trust that it happened.
+     *
+     * A populated canonical table is refused here as well as in the runner, because the parse reads
+     * `church_services` to decide date plausibility: a database somebody had already staged into
+     * would change hold reasons and routing for reasons that have nothing to do with the model.
+     *
+     * @param  array<string, mixed>  $projection
+     * @return array<string, int>
+     */
+    private function certification(array $projection, string $label): array
+    {
+        $certification = $this->requiredArray($projection, 'rehearsal_certification', "{$label} projection");
+        $counts = [];
+
+        foreach ($certification as $table => $rows) {
+            if (! is_int($rows)) {
+                throw new RuntimeException("The {$label} projection has a malformed rehearsal certification.");
+            }
+
+            if ($rows > 0) {
+                throw new RuntimeException("The {$label} arm ran against a rehearsal database whose {$table} already held {$rows} rows, so its parses saw state the other arm may not have.");
+            }
+
+            $counts[(string) $table] = $rows;
+        }
+
+        if ($counts === []) {
+            throw new RuntimeException("The {$label} projection certifies no rehearsal tables.");
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Canary and stability calls are real billed calls, validated to the same standard as the corpus
+     * but kept in their own lists.
+     *
+     * They are deliberately not merged into a source's telemetry: a canary source and a stability
+     * source are also corpus sources, so merging would make one source look like several and inflate
+     * every per-source figure derived from it.
+     *
+     * @param  array<string, mixed>  $block
+     * @return list<array{attempt:int,latency_ms:int,input_tokens:int,output_tokens:int}>
+     */
+    private function auxiliaryTelemetry(array $block, string $label, string $returnedModel): array
+    {
+        $calls = $block['telemetry'] ?? null;
+
+        if (! is_array($calls) || ! array_is_list($calls)) {
+            throw new RuntimeException("The {$label} carries no telemetry list, so its spend is not derivable without rerunning the arm.");
+        }
+
+        $validated = [];
+
+        foreach ($calls as $call) {
+            if (! is_array($call)) {
+                throw new RuntimeException("The {$label} has a malformed telemetry call.");
+            }
+
+            /** @var array<string, mixed> $call */
+            if (($call['usage_missing'] ?? null) !== false) {
+                throw new RuntimeException("The {$label} has a call with no usage record.");
+            }
+
+            $responseModel = $this->requiredString($call, 'response_model', $label);
+
+            if ($responseModel !== $returnedModel) {
+                throw new RuntimeException("The {$label} was served model '{$responseModel}' where the arm declares '{$returnedModel}'.");
+            }
+
+            $usage = $this->requiredArray($call, 'usage', $label);
+
+            $validated[] = [
+                'attempt' => $this->requiredInt($call, 'attempt', $label),
+                'latency_ms' => $this->requiredInt($call, 'latency_ms', $label),
+                'input_tokens' => $this->requiredInt($usage, 'input_tokens', "{$label} usage"),
+                'output_tokens' => $this->requiredInt($usage, 'output_tokens', "{$label} usage"),
+            ];
+        }
+
+        return $validated;
     }
 
     /**
@@ -927,7 +1026,7 @@ class OosParserArmPrimaryComparison
             $this->itemRecallGuardrail($sources, $labels),
             $this->reviewBurdenGuardrail($sources),
             $this->costGuardrail($sources, $baselineArm, $candidateArm, $priceSnapshot),
-            $this->latencyGuardrail($sources),
+            $this->latencyGuardrail($sources, $baselineArm, $candidateArm),
         ];
     }
 
@@ -1204,11 +1303,43 @@ class OosParserArmPrimaryComparison
                 'candidate_usd_per_source' => round($candidateCost, 8),
                 'ratio' => $ratio === null ? null : round($ratio, 6),
                 'ceiling_ratio' => self::CostCeilingRatio,
-                'note' => 'Telemetry records prompt tokens without separating the cached share, so input is '
-                    .'costed at the uncached rate in both arms. Prices are at parity, so a material regression '
-                    .'here means the run is wrong rather than the pricing.',
+                'baseline_arm_total_usd' => round($this->armTotalCost($sources, 'baseline', $baselineArm, $priceSnapshot), 6),
+                'candidate_arm_total_usd' => round($this->armTotalCost($sources, 'candidate', $candidateArm, $priceSnapshot), 6),
+                'note' => 'The ratio is corpus cost per source, where both arms have identical structure. '
+                    .'The arm totals additionally include the canary and stability-replicate calls, which are '
+                    .'a fixed overhead rather than per-source corpus cost but are real spend. Telemetry records '
+                    .'prompt tokens without separating the cached share, so input is costed at the uncached rate '
+                    .'in both arms. Prices are at parity, so a material regression here means the run is wrong '
+                    .'rather than the pricing.',
             ],
         ];
+    }
+
+    /**
+     * Everything the arm actually spent: the corpus, plus the canary and both stability replicates.
+     *
+     * @param  array<string, array<string, mixed>>  $sources
+     * @param  array<string, mixed>  $arm
+     * @param  array<string, array{input:float,output:float}>  $priceSnapshot
+     */
+    private function armTotalCost(array $sources, string $armKey, array $arm, array $priceSnapshot): float
+    {
+        $model = (string) $arm['model'];
+        $total = $this->costPerSource($sources, $armKey, $model, $priceSnapshot) * count($sources);
+
+        /** @var list<array{input_tokens:int,output_tokens:int}> $auxiliary */
+        $auxiliary = [...$arm['canary_telemetry'], ...$arm['stability_telemetry']];
+        $prices = $priceSnapshot[$model] ?? null;
+
+        if ($prices === null) {
+            throw new RuntimeException("The price snapshot carries no entry for '{$model}'.");
+        }
+
+        foreach ($auxiliary as $call) {
+            $total += (($call['input_tokens'] * $prices['input']) + ($call['output_tokens'] * $prices['output'])) / 1_000_000;
+        }
+
+        return $total;
     }
 
     /**
@@ -1241,9 +1372,11 @@ class OosParserArmPrimaryComparison
 
     /**
      * @param  array<string, array<string, mixed>>  $sources
+     * @param  array<string, mixed>  $baselineArm
+     * @param  array<string, mixed>  $candidateArm
      * @return array<string, mixed>
      */
-    private function latencyGuardrail(array $sources): array
+    private function latencyGuardrail(array $sources, array $baselineArm, array $candidateArm): array
     {
         $baseline = $this->latencies($sources, 'baseline');
         $candidate = $this->latencies($sources, 'candidate');
@@ -1265,11 +1398,30 @@ class OosParserArmPrimaryComparison
                 'ceiling_ratio' => self::LatencyCeilingRatio,
                 'baseline_retry_calls' => $baseline['retries'],
                 'candidate_retry_calls' => $candidate['retries'],
+                'baseline_replicate_retry_calls' => $this->auxiliaryRetries($baselineArm),
+                'candidate_replicate_retry_calls' => $this->auxiliaryRetries($candidateArm),
                 'note' => 'Failure rate is zero in both arms by construction: a failed source makes the whole '
                     .'arm incomplete and an incomplete arm is never compared. Retried calls are the observable '
-                    .'residue of truncation and transient failure, so they carry that half of the guardrail.',
+                    .'residue of truncation and transient failure, so they carry that half of the guardrail. '
+                    .'The gate is the corpus alone, where both arms parse every source exactly once; the canary '
+                    .'and stability-replicate retries are reported beside it because the replicate deliberately '
+                    .'re-parses a 30-source subset twice and would over-weight those sources in a p95 or a rate.',
             ],
         ];
+    }
+
+    /** @param array<string, mixed> $arm */
+    private function auxiliaryRetries(array $arm): int
+    {
+        /** @var list<array{attempt:int}> $calls */
+        $calls = [...$arm['canary_telemetry'], ...$arm['stability_telemetry']];
+        $retries = 0;
+
+        foreach ($calls as $call) {
+            $retries += $call['attempt'] > 1 ? 1 : 0;
+        }
+
+        return $retries;
     }
 
     /**

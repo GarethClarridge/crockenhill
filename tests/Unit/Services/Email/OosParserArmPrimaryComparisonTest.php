@@ -236,14 +236,61 @@ class OosParserArmPrimaryComparisonTest extends TestCase
     }
 
     #[Test]
-    public function a_version_one_projection_without_routing_is_refused(): void
+    public function an_earlier_projection_version_is_refused_rather_than_read_with_a_fallback(): void
     {
-        $this->expectExceptionMessageMatches('/reads version 2 only/');
+        $this->expectExceptionMessageMatches('/reads version 3 only/');
 
         $this->comparison->compare(
-            $this->armProjection(self::Baseline, [$this->source('a', [['Amazing Grace']])], overrides: ['version' => 1]),
+            $this->armProjection(self::Baseline, [$this->source('a', [['Amazing Grace']])], overrides: ['version' => 2]),
             $this->armProjection(self::Candidate, [$this->source('a', [['Amazing Grace']])]),
         );
+    }
+
+    #[Test]
+    public function an_arm_that_ran_against_a_populated_rehearsal_database_is_fatal(): void
+    {
+        $this->expectExceptionMessageMatches('/already held 4 rows, so its parses saw state/');
+
+        $this->comparison->compare(
+            $this->armProjection(self::Baseline, [$this->source('a', [['Amazing Grace']])]),
+            $this->armProjection(
+                self::Candidate,
+                [$this->source('a', [['Amazing Grace']])],
+                overrides: ['rehearsal_certification' => ['church_services' => 4, 'inbound_emails' => 0]],
+            ),
+        );
+    }
+
+    #[Test]
+    public function an_arm_whose_replicate_telemetry_was_discarded_is_fatal(): void
+    {
+        $this->expectExceptionMessageMatches('/carries no telemetry list, so its spend is not derivable/');
+
+        $this->comparison->compare(
+            $this->armProjection(self::Baseline, [$this->source('a', [['Amazing Grace']])]),
+            $this->armProjection(
+                self::Candidate,
+                [$this->source('a', [['Amazing Grace']])],
+                overrides: ['stability' => ['sample_size' => 30, 'self_disagreements' => 0, 'rate' => 0.0]],
+            ),
+        );
+    }
+
+    #[Test]
+    public function the_arm_total_cost_includes_the_canary_and_replicate_calls(): void
+    {
+        $cost = $this->guardrail(
+            $this->decide(baselineTitles: [['Amazing Grace']], candidateTitles: [['Amazing Grace']], verdicts: []),
+            'cost',
+        );
+
+        // One corpus call, one canary call and two replicate calls, all identically sized.
+        $this->assertEqualsWithDelta(
+            4 * $cost['detail']['baseline_usd_per_source'],
+            $cost['detail']['baseline_arm_total_usd'],
+            0.000001,
+        );
+        $this->assertSame('pass', $cost['status']);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -442,7 +489,12 @@ class OosParserArmPrimaryComparisonTest extends TestCase
             $this->armProjection(
                 self::Candidate,
                 [$this->source('s0', [['Amazing Grace']])],
-                overrides: ['stability' => ['sample_size' => 30, 'self_disagreements' => 9, 'rate' => 0.3]],
+                overrides: ['stability' => [
+                    'sample_size' => 30,
+                    'self_disagreements' => 9,
+                    'rate' => 0.3,
+                    'telemetry' => [['replicate' => 1] + Factory::call('s0', self::Candidate)],
+                ]],
             ),
             [],
         );

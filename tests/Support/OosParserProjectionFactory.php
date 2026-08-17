@@ -25,9 +25,11 @@ class OosParserProjectionFactory
     {
         $sourceKeys = array_map(static fn (array $source): string => (string) $source['source_key'], $sources);
 
+        $canarySource = $sourceKeys === [] ? 'canary' : $sourceKeys[0];
+
         return array_replace([
             'format' => 'crockenhill-oos-parser-raw-projection',
-            'version' => 2,
+            'version' => 3,
             'arm' => $arm,
             'model' => $model,
             'configured_reasoning_effort' => 'none',
@@ -35,12 +37,30 @@ class OosParserProjectionFactory
             'returned_model' => $model,
             'database_connection' => 'rehearsal',
             'database_name' => 'crockenhill_rehearsal',
+            'rehearsal_certification' => [
+                'church_services' => 0,
+                'church_service_items' => 0,
+                'church_service_source_records' => 0,
+                'sermons' => 0,
+                'inbound_emails' => 0,
+            ],
             'manifest_path' => 'oos-curation-manifest.json',
             'manifest_hash' => 'manifest-hash',
             'source_count' => count($sources),
             'source_key_list_hash' => CanonicalJson::hash($sourceKeys),
-            'canary_source_keys' => [],
-            'stability' => ['sample_size' => 30, 'self_disagreements' => 0, 'rate' => 0.0],
+            'canary' => [
+                'source_keys' => [$canarySource],
+                'telemetry' => [self::call($canarySource, $model)],
+            ],
+            'stability' => [
+                'sample_size' => 30,
+                'self_disagreements' => 0,
+                'rate' => 0.0,
+                'telemetry' => [
+                    ['replicate' => 1] + self::call($canarySource, $model),
+                    ['replicate' => 2] + self::call($canarySource, $model),
+                ],
+            ],
             'raw_results' => $sources,
         ], $overrides);
     }

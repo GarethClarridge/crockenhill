@@ -27,15 +27,19 @@ class OosParserArmRunner
     private const ProjectionFormat = 'crockenhill-oos-parser-raw-projection';
 
     /**
-     * Bumped to 2 when each source gained its `routing` block.
+     * Bumped to 2 when each source gained its `routing` block, and to 3 when the canary and
+     * stability replicates gained their own telemetry and the run gained its database certification.
      *
-     * The routing-safety guardrail asks whether the candidate became auto-importable where the
-     * baseline was held, so the comparison needs the routing category the pipeline would actually
-     * have taken. Version 1 carried only the raw disposition strings, from which routing can be
-     * *recomputed* — and a recomputation is a second copy of the rules that silently stops matching
-     * the first. The plan objects decide it here, once, and the projection records the answer.
+     * Version 1 carried only the raw disposition strings, from which routing can be *recomputed* —
+     * and a recomputation is a second copy of the rules that silently stops matching the first. The
+     * plan objects decide it here, once, and the projection records the answer.
+     *
+     * Version 2's canary and stability calls were real billed calls whose usage and latency were
+     * thrown away, so an arm's true spend was not derivable from its own artifact. They are exported
+     * beside the corpus rather than merged into it, because a canary source and a stability source
+     * are also corpus sources: merging them would make one source look like several.
      */
-    private const ProjectionVersion = 2;
+    private const ProjectionVersion = 3;
 
     /** The pipeline's three routing outcomes for a source, most permissive first. */
     private const RoutingAutoImportable = 'auto_importable';
@@ -47,6 +51,7 @@ class OosParserArmRunner
     public function __construct(
         private readonly DatabaseManager $database,
         private readonly HistoricImportProductionGuard $productionGuard,
+        private readonly RehearsalDatabaseProvisioner $provisioner,
         private readonly OosEmailParserService $parser,
         private readonly OosParserEvaluationTelemetry $telemetry,
     ) {}
@@ -59,7 +64,7 @@ class OosParserArmRunner
     {
         $arm->apply();
         $configuration = $arm->resolvedConfiguration();
-        $this->selectAndCertifyRehearsalConnection();
+        $certification = $this->selectAndCertifyRehearsalConnection();
         $this->telemetry->beginRun();
 
         $sourceKeys = array_map(static fn (OosArchiveEntry $entry): string => $entry->itemKey, $entries);
@@ -69,6 +74,7 @@ class OosParserArmRunner
         }
 
         $canaries = $this->canaries($entries);
+        $canaryTelemetry = [];
 
         foreach ($canaries as $entry) {
             $canary = $this->parseEntry($entry);
@@ -76,6 +82,8 @@ class OosParserArmRunner
             if (array_filter($canary['telemetry'], static fn (array $call): bool => $call['usage_missing'] === true) !== []) {
                 throw new RuntimeException("Compatibility canary {$entry->itemKey} returned no usage telemetry.");
             }
+
+            $canaryTelemetry = [...$canaryTelemetry, ...$canary['telemetry']];
         }
 
         $stability = $this->stability($entries, $manifestHash);
@@ -100,17 +108,24 @@ class OosParserArmRunner
             'returned_model' => $this->telemetry->returnedModel(),
             'database_connection' => RehearsalDatabaseProvisioner::Connection,
             'database_name' => (string) $this->database->connection()->getDatabaseName(),
+            'rehearsal_certification' => $certification,
             'manifest_path' => basename($manifestPath),
             'manifest_hash' => $manifestHash,
             'source_count' => count($sourceKeys),
             'source_key_list_hash' => CanonicalJson::hash($sourceKeys),
-            'canary_source_keys' => array_map(static fn (OosArchiveEntry $entry): string => $entry->itemKey, $canaries),
+            'canary' => [
+                'source_keys' => array_map(static fn (OosArchiveEntry $entry): string => $entry->itemKey, $canaries),
+                'telemetry' => $canaryTelemetry,
+            ],
             'stability' => $stability,
             'raw_results' => $results,
         ];
     }
 
-    private function selectAndCertifyRehearsalConnection(): void
+    /**
+     * @return array<string, int> the canonical tables and their row counts, every one of them zero
+     */
+    private function selectAndCertifyRehearsalConnection(): array
     {
         if ($this->productionGuard->guardsCurrentEnvironment()) {
             throw new RuntimeException('Refusing OoS parser evaluation: the current environment resolves the production database anchor.');
@@ -133,6 +148,21 @@ class OosParserArmRunner
         if (! $connection->getSchemaBuilder()->hasTable('inbound_emails')) {
             throw new RuntimeException('Refusing OoS parser evaluation: the rehearsal database is not provisioned.');
         }
+
+        /*
+         * The parse is not a pure function of the email. `OosEmailParserService` reaches the
+         * database through `ExistingEmailImportLookup` to ask whether a date already carries an
+         * order imported from a different email, and that answer flows through date plausibility
+         * into hold reasons, disposition and therefore routing category — the primary input to the
+         * routing-safety guardrail.
+         *
+         * So the rehearsal database's contents are a hidden arm variable. Two arms run against
+         * differently populated databases would differ for reasons that have nothing to do with the
+         * model, and no later artifact could reveal it: the comparison checks curated inputs, not
+         * database state. The provisioner already knows what clean means, so this asks it rather
+         * than trusting that the operator reprovisioned between arms.
+         */
+        return $this->provisioner->certify(RehearsalDatabaseProvisioner::Connection);
     }
 
     private function inboundEmail(OosArchiveEntry $entry): InboundEmail
@@ -203,20 +233,36 @@ class OosParserArmRunner
     }
 
     /**
+     * Each sampled source is parsed twice and the two outputs compared **for equality**, not for
+     * correctness: no labels exist at this point in the run, so a correctness-based rule would be
+     * unsatisfiable.
+     *
+     * Both replicates' telemetry is kept and tagged with its replicate number. This is the one place
+     * an arm's retry behaviour is observable under repetition, and the retry rate is what carries
+     * the truncation half of the latency guardrail — discarding it left the guardrail with only the
+     * corpus's single-shot view.
+     *
      * @param  list<OosArchiveEntry>  $entries
-     * @return array{sample_size:int,self_disagreements:int,rate:float}
+     * @return array{sample_size:int,self_disagreements:int,rate:float,telemetry:list<array<string,mixed>>}
      */
     private function stability(array $entries, string $evaluationId): array
     {
         usort($entries, static fn (OosArchiveEntry $left, OosArchiveEntry $right): int => hash('sha256', $evaluationId.$left->itemKey) <=> hash('sha256', $evaluationId.$right->itemKey));
         $sample = array_slice($entries, 0, min(30, count($entries)));
         $disagreements = 0;
+        $telemetry = [];
 
         foreach ($sample as $entry) {
-            $first = $this->parseEntry($entry)['projection']['raw_result_hash'];
-            $second = $this->parseEntry($entry)['projection']['raw_result_hash'];
+            $first = $this->parseEntry($entry);
+            $second = $this->parseEntry($entry);
 
-            if ($first !== $second) {
+            foreach ([1 => $first, 2 => $second] as $replicate => $parsed) {
+                foreach ($parsed['telemetry'] as $call) {
+                    $telemetry[] = ['replicate' => $replicate] + $call;
+                }
+            }
+
+            if ($first['projection']['raw_result_hash'] !== $second['projection']['raw_result_hash']) {
                 $disagreements++;
             }
         }
@@ -225,6 +271,7 @@ class OosParserArmRunner
             'sample_size' => count($sample),
             'self_disagreements' => $disagreements,
             'rate' => $sample === [] ? 0.0 : $disagreements / count($sample),
+            'telemetry' => $telemetry,
         ];
     }
 
