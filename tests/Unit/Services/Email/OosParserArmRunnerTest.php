@@ -6,7 +6,10 @@ namespace Tests\Unit\Services\Email;
 
 use App\Data\OosArchiveEntry;
 use App\Data\OosEmailParseResult;
+use App\Data\OosEmailServicePlan;
 use App\Data\OosParserEvaluationArm;
+use App\Enums\OosEmailContentScope;
+use App\Enums\SermonService;
 use App\Services\Email\OosEmailParserService;
 use App\Services\Email\OosParserArmRunner;
 use App\Services\Email\OosParserEvaluationTelemetry;
@@ -125,6 +128,184 @@ class OosParserArmRunnerTest extends TestCase
         foreach ($report['raw_results'] as $source) {
             $this->assertCount(1, $source['telemetry']);
         }
+    }
+
+    /**
+     * The regression test for the defect that inflated a real baseline's self-disagreement to
+     * 100% on its first run: `confidence` is a continuous float and `validation_reasons` is
+     * model-generated prose, neither of which two independent calls reproduce verbatim even when
+     * the extraction itself — service, date, items, content scope — is identical. Comparing on
+     * `raw_result_hash` counted that as disagreement; comparing on the narrower stability
+     * signature must not.
+     */
+    #[Test]
+    public function it_does_not_count_confidence_or_validation_reason_variance_as_self_disagreement(): void
+    {
+        $telemetry = new OosParserEvaluationTelemetry;
+        $parser = Mockery::mock(OosEmailParserService::class);
+        $call = 0;
+
+        $parser->shouldReceive('parse')->andReturnUsing(function () use ($telemetry, &$call): OosEmailParseResult {
+            $call++;
+            $telemetry->record(CreateResponse::fake(['model' => 'gpt-5.4-nano']), 'extract', 1, microtime(true));
+
+            $plan = new OosEmailServicePlan(
+                service: SermonService::Morning,
+                date: '2023-01-01',
+                items: [['position' => 1, 'type' => 'song', 'title' => 'Amazing Grace', 'source_title' => 'Amazing Grace', 'openlp_search_title' => null, 'metadata' => null]],
+                // Varies every call, the way a model's self-reported confidence genuinely does.
+                confidence: 0.80 + ($call * 0.001),
+                needsReview: false,
+                shouldImport: true,
+                validationReasons: ["Call {$call}: confidence within tolerance"],
+                contentScope: OosEmailContentScope::Full,
+            );
+
+            return new OosEmailParseResult(
+                date: '2023-01-01',
+                service: SermonService::Morning,
+                items: $plan->items,
+                confidenceScore: $plan->confidence,
+                needsReview: false,
+                shouldImport: true,
+                importMetadata: [],
+                servicePlans: [$plan],
+            );
+        });
+
+        $report = $this->runner($parser, $telemetry)->run(
+            OosParserEvaluationArm::fromName('baseline-nano-none'),
+            $this->entries(),
+            'manifest-hash',
+            '/manifest.json',
+            $this->priceSnapshot(),
+        );
+
+        $this->assertSame(0, $report['stability']['self_disagreements']);
+        $this->assertEquals(0.0, $report['stability']['rate']);
+    }
+
+    /**
+     * The order the model happened to emit two service plans in is not an extraction claim —
+     * `plan_key` already identifies which service each plan is for — and the between-arm comparison
+     * has always keyed and sorted them. Until both comparisons shared one definition, a replicate
+     * pair that merely reordered its plans counted as self-disagreement here while not counting as
+     * discordance there, inflating the figure that gates the whole comparison. 142 of the 554
+     * banked sources emit their plans non-lexicographically, so this was reachable, not theoretical.
+     */
+    #[Test]
+    public function it_does_not_count_a_reordered_service_plan_list_as_self_disagreement(): void
+    {
+        $telemetry = new OosParserEvaluationTelemetry;
+        $parser = Mockery::mock(OosEmailParserService::class);
+        $call = 0;
+
+        $parser->shouldReceive('parse')->andReturnUsing(function () use ($telemetry, &$call): OosEmailParseResult {
+            $call++;
+            $telemetry->record(CreateResponse::fake(['model' => 'gpt-5.4-nano']), 'extract', 1, microtime(true));
+
+            $morning = $this->servicePlan(SermonService::Morning, 'Amazing Grace');
+            $evening = $this->servicePlan(SermonService::Evening, 'Abide With Me');
+
+            // The two replicates of a pair are consecutive calls, so alternating puts the same two
+            // plans in front of the comparison in opposite orders.
+            $plans = $call % 2 === 1 ? [$morning, $evening] : [$evening, $morning];
+
+            return new OosEmailParseResult(
+                date: '2023-01-01',
+                service: SermonService::Morning,
+                items: $morning->items,
+                confidenceScore: 0.9,
+                needsReview: false,
+                shouldImport: true,
+                importMetadata: [],
+                servicePlans: $plans,
+            );
+        });
+
+        $report = $this->runner($parser, $telemetry)->run(
+            OosParserEvaluationArm::fromName('baseline-nano-none'),
+            $this->entries(),
+            'manifest-hash',
+            '/manifest.json',
+            $this->priceSnapshot(),
+        );
+
+        $this->assertSame(0, $report['stability']['self_disagreements']);
+        $this->assertSame([], $report['stability']['disagreements']);
+    }
+
+    /**
+     * The other half of the same guarantee: narrowing the comparison must not have narrowed it past
+     * the extraction itself, and a disagreement has to say *what* moved. A rate alone left §6.2
+     * step 2 unable to tell genuine model non-determinism from a still-too-strict signature.
+     */
+    #[Test]
+    public function it_counts_a_changed_item_title_and_attributes_it_to_the_title_field_group(): void
+    {
+        $telemetry = new OosParserEvaluationTelemetry;
+        $parser = Mockery::mock(OosEmailParserService::class);
+        $call = 0;
+
+        $parser->shouldReceive('parse')->andReturnUsing(function () use ($telemetry, &$call): OosEmailParseResult {
+            $call++;
+            $telemetry->record(CreateResponse::fake(['model' => 'gpt-5.4-nano']), 'extract', 1, microtime(true));
+
+            $plan = $this->servicePlan(SermonService::Morning, $call % 2 === 1 ? 'Amazing Grace' : 'Amazing Grace (My Chains Are Gone)');
+
+            return new OosEmailParseResult(
+                date: '2023-01-01',
+                service: SermonService::Morning,
+                items: $plan->items,
+                confidenceScore: 0.9,
+                needsReview: false,
+                shouldImport: true,
+                importMetadata: [],
+                servicePlans: [$plan],
+            );
+        });
+
+        $report = $this->runner($parser, $telemetry)->run(
+            OosParserEvaluationArm::fromName('baseline-nano-none'),
+            $this->entries(),
+            'manifest-hash',
+            '/manifest.json',
+            $this->priceSnapshot(),
+        );
+
+        $stability = $report['stability'];
+        $this->assertSame(2, $stability['sample_size']);
+        $this->assertSame(2, $stability['self_disagreements']);
+        $this->assertSame(1.0, $stability['rate']);
+
+        // The decomposition names the group, so an instability figure is attributable rather than bare.
+        $this->assertSame(2, $stability['field_decomposition']['titles']);
+        $this->assertSame(0, $stability['field_decomposition']['item_structure']);
+        $this->assertSame(0, $stability['field_decomposition']['plan_keys']);
+        $this->assertSame(0, $stability['field_decomposition']['routing_category']);
+
+        // And the retained diff carries the two concrete titles a human has to read to adjudicate it.
+        // Both sampled sources disagree; the sample's order is a hash artefact, not a claim.
+        $this->assertEqualsCanonicalizing(['email-001', 'email-002'], array_column($stability['disagreements'], 'source_key'));
+
+        $difference = $stability['disagreements'][0];
+        $this->assertSame(['titles'], $difference['extraction']['groups_that_differ']);
+        $changed = $difference['extraction']['plans']['morning:2023-01-01']['titles']['changed_positions'][0];
+        $this->assertSame('Amazing Grace', $changed['first']['title']);
+        $this->assertSame('Amazing Grace (My Chains Are Gone)', $changed['second']['title']);
+    }
+
+    private function servicePlan(SermonService $service, string $title): OosEmailServicePlan
+    {
+        return new OosEmailServicePlan(
+            service: $service,
+            date: '2023-01-01',
+            items: [['position' => 1, 'type' => 'song', 'title' => $title, 'source_title' => $title, 'openlp_search_title' => null, 'metadata' => null]],
+            confidence: 0.9,
+            needsReview: false,
+            shouldImport: true,
+            contentScope: OosEmailContentScope::Full,
+        );
     }
 
     /** @return array<string, mixed> */

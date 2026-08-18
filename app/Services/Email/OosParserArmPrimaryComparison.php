@@ -491,32 +491,9 @@ class OosParserArmPrimaryComparison
             'routing_category' => $category,
             'auto_importable_plan_keys' => $this->stringList($routing, 'auto_importable_plan_keys', "{$context} routing"),
             'raw_result_hash' => $this->requiredString($row, 'raw_result_hash', $context),
-            'plans' => $this->indexedPlans($plans, $context),
+            'plans' => OosParserExtractionSignature::index($plans, $context),
             'telemetry' => $this->validatedTelemetry($row, $sourceKey, $context, $returnedModel),
         ];
-    }
-
-    /**
-     * @param  list<mixed>  $plans
-     * @return array<string, array<string, mixed>>
-     */
-    private function indexedPlans(array $plans, string $context): array
-    {
-        $indexed = [];
-
-        foreach ($plans as $plan) {
-            if (! is_array($plan)) {
-                throw new RuntimeException("{$context} has a malformed service plan.");
-            }
-
-            /** @var array<string, mixed> $plan */
-            $key = $this->requiredString($plan, 'plan_key', "{$context} service plan");
-            $indexed[$key] = $plan;
-        }
-
-        ksort($indexed);
-
-        return $indexed;
     }
 
     /**
@@ -747,42 +724,15 @@ class OosParserArmPrimaryComparison
     /**
      * What the arm extracted, with everything that is not extraction removed.
      *
-     * Confidence, disposition and hold reasons are deliberately excluded: two arms returning the
-     * *same* items with different confidence is not an extraction disagreement, it is the routing
-     * risk the routing-safety guardrail exists for, and folding it in here would make every source
-     * look discordant and the labelling work unbounded.
+     * The rule lives in {@see OosParserExtractionSignature} because the arm runner's within-arm
+     * stability check has to apply exactly the same one — see that class for why.
      *
      * @param  array<string, array<string, mixed>>  $plans
      * @return array<string, mixed>
      */
     private function extractionSignature(array $plans): array
     {
-        $signature = [];
-
-        foreach ($plans as $key => $plan) {
-            $items = $plan['items'] ?? [];
-            $provenance = $plan['source_provenance'] ?? [];
-
-            $signature[$key] = [
-                'service' => $plan['service'] ?? null,
-                'date' => $plan['date'] ?? null,
-                'content_scope' => $plan['content_scope'] ?? null,
-                'items' => is_array($items) ? array_map(
-                    static fn (mixed $item): array => is_array($item) ? [
-                        'position' => $item['position'] ?? null,
-                        'type' => $item['type'] ?? null,
-                        'section_type' => $item['section_type'] ?? null,
-                        'title' => $item['title'] ?? null,
-                        'source_title' => $item['source_title'] ?? null,
-                    ] : ['malformed' => true],
-                    $items,
-                ) : [],
-                'source_line_bindings' => is_array($provenance) ? ($provenance['items'] ?? []) : [],
-                'service_evidence_line_ids' => is_array($provenance) ? ($provenance['service_evidence_line_ids'] ?? []) : [],
-            ];
-        }
-
-        return $signature;
+        return OosParserExtractionSignature::fromIndexedPlans($plans);
     }
 
     /**

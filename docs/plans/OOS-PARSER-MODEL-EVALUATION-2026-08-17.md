@@ -1,10 +1,20 @@
 # OoS Email Parser: `gpt-5.6-luna` Non-Inferiority Evaluation
 
-> **Status (2026-08-17): design settled after two external review rounds; not yet executed.** Three
-> earlier versions were retired — a five-arm model search, a superiority-gated statistical programme,
-> and a first non-inferiority draft whose cheap-labelling rule and validation rules could each have
-> changed the decision incorrectly. §12 records every removal and correction, so this document is not
-> re-inflated or re-broken later.
+> **Status (2026-08-18): both arms run and banked; inference blocked on a stability finding, not a
+> code defect.** Harness build (§9.1) is complete and tested. Both arms completed cleanly and are
+> provenance-identical apart from the declared model (§8 steps 1–3). The comparator computed real raw
+> discordance (`M = 460` primary / `536` all-tier) but refused a decision, because §6.2 step 2's
+> within-arm stability check reported both arms materially unstable — **and, after two rounds of
+> genuine comparator-code fixes, still does**: nano self-disagreed on 90% of a 30-source replicate
+> sample and Luna on 56.7%, with the established baseline *less* stable than the candidate. Those two
+> figures are **provisional** pending one corrected `--stability-only` pass per arm (§12 round four),
+> but the conclusion is not: only 11 of the 30 deterministic sample sources are multi-plan, so the
+> outstanding correction floors the figures at 53.3% and 20% respectively — both still far above the
+> 10% threshold. §12 rounds three and four record the full investigation, both fixes, and the one
+> operator action left. Three earlier design versions were retired before this — a five-arm model search, a
+> superiority-gated statistical programme, and a first non-inferiority draft whose cheap-labelling
+> rule and validation rules could each have changed the decision incorrectly. §12 records every
+> removal and correction, so this document is not re-inflated or re-broken later.
 >
 > **This is a non-inferiority question.** Verified 2026-08-17 against official OpenAI documentation:
 > `gpt-5.6-luna` is the same-tier successor to `gpt-5.4-nano`, identical on input price and ~4%
@@ -689,3 +699,190 @@ precision *downward* for either arm, making the old 0.98 bar merely conservative
 where the arms share errors identically, those sources are concordant and excluded, so the direction
 of candidate-specific bias is not guaranteed. The metric is removed either way, but the reasoning was
 wrong.
+
+### Round three (2026-08-18) — first execution attempt: banked arms, a genuine stability-check
+### defect fixed, and a deeper instability finding left open
+
+Both arms were run for the first time. Four things happened, in order; the first two are closed, the
+third is a real fix, the fourth is the open item.
+
+**1. Rate limiting, diagnosed and resolved.** Four attempts at the Luna arm failed with OpenAI's
+`RateLimitException` before one completed. Root cause: the account was on usage Tier 1 (2,000,000
+TPD for `gpt-5.6-luna`) when the first attempt consumed ~1.63M tokens in 564 calls — almost the
+entire daily budget — leaving near-zero headroom for the next two attempts regardless of the gap
+between them (15 minutes, then several hours). A tier upgrade (more credit purchased) raised the
+daily ceiling ~10×, after which the arm completed cleanly. Fixed alongside: the top-level exception
+handler discarded OpenAI's rate-limit response headers entirely, so the first three failures gave no
+diagnostic information beyond "rate limit exceeded." `App\Support\OpenAiRateLimitDiagnostics`
+(new, tested) walks the exception chain for a `RateLimitException` and surfaces its
+`x-ratelimit-*`/`retry-after` headers on any future failure of this kind.
+
+**2. Both arms banked, provenance-identical.** `baseline-nano-none-2026-08-18/` and
+`luna-none-2026-08-18-run4/` each hold a complete 554-source raw-result projection and run manifest.
+`compare-ground-truth-arms` confirmed identical curation manifest hash, source-key list hash, price
+snapshot hash, parser surface hash and application commit across both — the only declared difference
+is the model. Raw discordance: `M = 460` primary-tier (`446` extraction, `14` routing-only), `536`
+across all tiers, against a labelling threshold of `75.05` (`N_primary = 475`). **This M is real and
+does not need to be recomputed** — it comes from `OosParserArmPrimaryComparison::extractionSignature()`,
+a code path untouched by the round's fix. What blocked a decision was §6.2 step 2's separate stability
+gate, printing `inference_refused`.
+
+**3. A genuine stability-check defect, found and fixed.** `OosParserArmRunner::stability()` called two
+replicate parses of the same source "disagreeing" if their `raw_result_hash` differed at all — and
+that hash covered the *entire* raw result, including `confidence` (a continuous float) and
+`validation_reasons`/`content_validation_reasons` (model-generated free-text explanation strings).
+Neither of those reproduces verbatim across two independent calls even when the actual extraction is
+stable, which is very likely why the baseline reported **100%** self-disagreement on its first run —
+suspicious on its face for an established model. The fix (`OosParserArmRunner::stabilitySignature()`)
+narrows the equality check to exactly what `OosParserArmPrimaryComparison::extractionSignature()`
+scores as discordant — service, date, content scope, ordered items (position, type, section, title,
+source title), source-line bindings, evidence line ids — plus routing category, so a source only
+counts as self-disagreeing here if it would also count as discordant between arms. A regression test
+(`OosParserArmRunnerTest::it_does_not_count_confidence_or_validation_reason_variance_as_self_disagreement`)
+proves the fix: run against the pre-fix comparison (`raw_result_hash`) it fails 2/2, reproducing the
+100% pattern exactly; against the fix it passes.
+
+A `--stability-only` diagnostic mode was added to `service-tracking:run-oos-parser-arm` (canary +
+30-source stability replicate only, ~60–70 calls, no corpus spend, no projection written) specifically
+so the fix could be re-checked cheaply without re-running either full arm. It is a debugging aid for
+this investigation, not part of the frozen §8 procedure, and should be deleted with the rest of this
+one-shot surface.
+
+**4. Open finding: the fix reduced instability but did not come close to explaining it.**
+
+| | Raw hash (pre-fix) | Narrowed signature (post-fix) |
+|---|---:|---:|
+| Nano (baseline) self-disagreement | 100.0% | **90.0%** |
+| Luna (candidate) self-disagreement | 63.3% | **56.7%** |
+
+Both fell by a similar margin (nano −10pp, Luna −6.6pp), confirming the confidence/prose-noise
+hypothesis was real — but both remain **far** above the 10% "material instability" threshold, and the
+**established baseline is the less stable of the two** under a measure that now only counts fields the
+primary comparison itself scores. This is not plausibly a further measurement artifact of the same
+kind: the excluded fields were the two most obviously noisy ones, and what remains — service, date,
+scope, item list, order, source-line bindings, routing — is exactly what §3.1 defines as the thing
+being measured. When asked to parse the same email twice, in roughly 9 cases out of 10 something in
+the actual extraction genuinely differs, for the established model as much as the new one.
+
+**What this is not yet known to mean.** Candidates, not adjudicated between:
+
+- Genuine model non-determinism in structured extraction at `effort=none` is simply this high for this
+  prompt/schema combination, independent of which model — in which case the evaluation's real
+  prerequisite question is whether `none` is a viable reasoning-effort setting for this task *at all*,
+  prior to any model comparison.
+- The narrowed signature is still stricter than what "the same extraction" should mean — e.g. item
+  `title`/`source_title` compared as exact strings would count "Amazing Grace" and "Amazing Grace (My
+  Chains Are Gone)" as different even if a human adjudicator would call them the same item, or
+  `source_line_bindings`/`service_evidence_line_ids` could shift between calls without the substantive
+  conclusion changing. Untested: no disagreeing replicate pair has yet been inspected field-by-field to
+  see which specific fields are actually driving the 90%/56.7% figures.
+- Something else specific to this prompt/schema/parser version not yet identified.
+
+**§6.2 step 2's literal next step** for "material instability in both arms" is to run two full
+replicates per arm and score only replicate-consistent outcomes — but at 90% baseline
+self-disagreement that subset could be too small to power the comparison the plan was sized around,
+and doing it (roughly doubling spend already made on both arms) is not worth committing to until the
+above is disambiguated. **Recommended first step for the next session:** dump several disagreeing
+replicate pairs from a fresh `--stability-only` run field-by-field (service/date/scope/each item's
+position, type, title, source-line bindings; routing category) to see concretely what is changing
+before deciding between running full replicates, further narrowing the signature, or treating
+`effort=none` itself as the thing to re-examine.
+
+**State left behind, all uncommitted on `master`:**
+
+- `app/Support/OpenAiRateLimitDiagnostics.php` (new) + `tests/Unit/Support/OpenAiRateLimitDiagnosticsTest.php`
+- `app/Console/Commands/RunOosParserArmCommand.php` — rate-limit header reporting on failure; `--stability-only`
+- `app/Services/Email/OosParserArmRunner.php` — narrowed `stability()` signature; `stabilityOnly` early return
+- `tests/Feature/Console/RunOosParserArmCommandTest.php`, `tests/Unit/Services/Email/OosParserArmRunnerTest.php` — new coverage for the above
+- All four: Pint clean, PHPStan zero errors, full affected suite green (54 tests)
+- `storage/scratch/oos-parser-price-snapshot-2026-08-18.json` — frozen, re-verified same-day against official pricing
+- `storage/scratch/oos-parser-evaluation/baseline-nano-none-2026-08-18/` and `luna-none-2026-08-18-run4/` — both complete, both still valid (unaffected by the stability fix, which touches a separate code path)
+- Needs a branch before any commit (changes are on `master` directly)
+
+### Round four (2026-08-18) — external review of round three: one shared signature, and a bound on
+### what the recheck can show
+
+Round three's fix was real but incomplete, and its two headline figures were provisional in a way the
+round did not record. External review found it, and this round closes it.
+
+**1. The two comparisons still had two definitions.** `OosParserArmRunner::stabilitySignature()`
+mapped over the model's emitted `service_plans` array *in the order it arrived*.
+`OosParserArmPrimaryComparison` keys plans by `plan_key` and `ksort`s them before comparing. A
+replicate pair that returned the same two services in a different order therefore counted as
+self-disagreement in the gate while not counting as discordance in the thing the gate protects —
+the exact failure mode round three set out to remove, reintroduced one level down by fixing the
+narrowing by hand in one of the two places. **142 of the 554 banked sources emit their service plans
+non-lexicographically**, so the divergence was reachable, not theoretical.
+
+The fix is structural rather than another hand-matched copy: `App\Services\Email\OosParserExtractionSignature`
+is now the only definition of "the same extraction", and both comparisons call it. It keys and sorts
+plans by `plan_key`, **rejects** duplicate plan keys instead of silently letting the second overwrite
+the first, retains item order within a plan (position is part of what an order of service is), and
+excludes confidence, disposition, hold reasons and model-generated explanation prose.
+
+**2. `90.0%` and `56.7%` are therefore provisional, and here is the bound on how far they can move.**
+The stability sample is deterministic — 30 sources hash-ordered by manifest hash — so its composition
+is computable from the banked projections without spending anything. **Only 11 of those 30 sources
+produced more than one service plan.** Plan reordering can only affect a multi-plan source, so the
+corrected figures cannot fall below:
+
+| | Recorded (round three) | Floor, if plan reordering explained *every* multi-plan pair |
+|---|---:|---:|
+| Nano (baseline) | 27/30 = 90.0% | 16/30 = **53.3%** |
+| Luna (candidate) | 17/30 = 56.7% | 6/30 = **20.0%** |
+
+So the correction **cannot** rescue either arm past the 10% material-instability threshold, and
+cannot explain nano's instability at all. What it *could* do is change which arm is less stable,
+which is why the recheck is still worth its ~120 calls. Round three's qualitative conclusion — that
+the extraction genuinely moves between two calls on the same email, for the established model as much
+as the new one — survives this bound.
+
+**3. The diagnostic now retains what it was supposed to produce.** `--stability-only` previously
+printed a rate and discarded the replicate projections, so it could not perform the field-by-field
+investigation §12 round three named as the next step. It now writes `stability-diagnostic.json` into
+a private `0700`/`0600` run directory (`--output` is required for this mode too), carrying a
+`field_decomposition` count of disagreeing pairs per field group — plan keys, service/date/scope,
+item structure, titles, provenance, routing category — over *every* pair, plus the full field-by-field
+diff of up to 10 of them.
+
+**4. Rate-limit header lookup fixed.** `OpenAiRateLimitDiagnostics` indexed `getHeaders()` by
+lowercase name and by `STRTOUPPER`. PSR-7 preserves the casing the server sent, and neither probe
+matches the conventional `X-RateLimit-Limit-Requests` an HTTP/1.1 429 is most likely to carry — so
+the class would have reported every header absent on exactly the failure it exists to diagnose. It
+now reads through PSR-7's `hasHeader()`/`getHeader()`, which the interface specifies as
+case-insensitive.
+
+**5. `M` is unchanged, and re-verified.** `extractionSignature()` now delegates to the shared class
+rather than implementing the rule itself; the two banked projections contain **no** duplicate plan
+keys, so the new rejection cannot fire on them. Re-running `compare-ground-truth-arms` over both
+banked arms after the refactor reproduces the banked figures exactly: `M = 460` full-scope
+(extraction 446, routing-only 14), `536` all tiers, `N_primary = 475`, threshold `75.0542`. The
+refactor is behaviour-preserving on real data, not just on fixtures.
+
+#### Decision, unchanged by this round
+
+- **Do not switch models.** Nano stays configured. `M = 460/475` is far beyond the bounded-labelling
+  region the plan was sized around, there is no migration deadline and no material saving — official
+  documentation still positions Luna as the cost-sensitive same-tier successor at identical input
+  price, which supports revisiting later, not adopting now.
+- **Do not re-run the full arms.** Both are banked, provenance-identical and valid.
+- **Do not begin adjudicating 536 sources.**
+- **Stability remains unresolved** — pending one corrected diagnostic per arm, not another corpus
+  evaluation.
+
+#### The one operator action left
+
+Run exactly one corrected pass per arm, against the same deterministic 30 sources (~120 calls each,
+no corpus spend):
+
+```
+sail artisan service-tracking:run-oos-parser-arm --arm=baseline-nano-none \
+  --manifest=<approved manifest> --price-snapshot=<frozen snapshot> \
+  --stability-only --output=stability-nano-2026-08-18
+```
+
+...and the same for `--arm=luna-none`. Then record the field-level decomposition from each
+`stability-diagnostic.json` here and close the evaluation. If the decomposition shows titles or
+provenance driving most pairs, the signature is a candidate for further narrowing; if item structure
+or plan keys drive them, `effort=none` itself is the thing to re-examine, prior to any model
+comparison.

@@ -8,6 +8,7 @@ use App\Data\OosParserEvaluationArm;
 use App\Services\Email\OosCurationEntryFactory;
 use App\Services\Email\OosCurationManifest;
 use App\Services\Email\OosParserArmRunner;
+use App\Support\OpenAiRateLimitDiagnostics;
 use Illuminate\Console\Command;
 use RuntimeException;
 use Throwable;
@@ -28,7 +29,8 @@ class RunOosParserArmCommand extends Command
         {--arm= : Frozen arm name}
         {--manifest= : Approved OoS curation manifest}
         {--price-snapshot= : Dated official price snapshot, hashed into the run manifest}
-        {--output= : New private run-directory name beneath storage/scratch/oos-parser-evaluation}';
+        {--output= : New private run-directory name beneath storage/scratch/oos-parser-evaluation}
+        {--stability-only : Diagnostic mode: canary + stability replicate only (~60 calls), no corpus spend; writes a stability diagnostic instead of a projection}';
 
     protected $description = 'Run one frozen OoS parser model-evaluation arm against the rehearsal corpus';
 
@@ -41,6 +43,7 @@ class RunOosParserArmCommand extends Command
             $arm = OosParserEvaluationArm::fromName($this->requiredOption('arm'));
             $manifestPath = $this->requiredOption('manifest');
             $priceSnapshotPath = $this->requiredOption('price-snapshot');
+            $stabilityOnly = (bool) $this->option('stability-only');
             // Every option's shape is checked before any file is opened, so a mistyped run-directory
             // name is reported as that rather than as a missing artifact somewhere else.
             $output = $this->outputDirectory($this->requiredOption('output'));
@@ -55,8 +58,25 @@ class RunOosParserArmCommand extends Command
             $snapshots = $manifest->snapshots(storage_path(self::DefaultVerbatimRoot), storage_path(self::DefaultFormattedRoot), $plan);
             $manifest->validateSnapshotsForDryRun($plan, $snapshots);
 
+            $report = $runner->run($arm, $entryFactory->entries($plan, $snapshots), $plan->manifestHash, $manifestPath, $priceSnapshot, $stabilityOnly);
+
             mkdir($output, 0700, true);
-            $report = $runner->run($arm, $entryFactory->entries($plan, $snapshots), $plan->manifestHash, $manifestPath, $priceSnapshot);
+
+            /*
+             * The diagnostic is retained rather than printed and discarded. Its field-by-field
+             * decomposition of the disagreeing replicate pairs is the whole point of the mode — a
+             * console summary reports the rate the run already reported, and the question left open
+             * is which fields produce it.
+             */
+            if ($stabilityOnly) {
+                $this->writeCreateOnce("{$output}/stability-diagnostic.json", $report);
+                chmod("{$output}/stability-diagnostic.json", 0600);
+                $this->reportStability($report);
+                $this->line("Stability diagnostic: {$output}/stability-diagnostic.json");
+
+                return self::SUCCESS;
+            }
+
             $this->writeCreateOnce("{$output}/raw-result-projection.json", $report);
 
             /*
@@ -75,6 +95,15 @@ class RunOosParserArmCommand extends Command
 
             return self::SUCCESS;
         } catch (Throwable $exception) {
+            $rateLimitHeaders = OpenAiRateLimitDiagnostics::fromChain($exception);
+
+            if ($rateLimitHeaders !== null) {
+                $this->warn('Rate limit response headers:');
+                foreach ($rateLimitHeaders as $name => $value) {
+                    $this->line("  {$name}: {$value}");
+                }
+            }
+
             $this->error($exception->getMessage());
 
             return self::FAILURE;
@@ -119,6 +148,29 @@ class RunOosParserArmCommand extends Command
         $this->line("Parser surface: {$surface['hash']}");
         $this->line("Price snapshot: {$inputs['price_snapshot_sha256']}");
         $this->line('Application commit: '.($manifest['application_commit'] ?? 'not determinable'));
+    }
+
+    /** @param array<string, mixed> $report */
+    private function reportStability(array $report): void
+    {
+        /** @var array<string, mixed> $stability */
+        $stability = $report['stability'];
+        $rate = (float) $stability['rate'];
+
+        /** @var array<string, int> $decomposition */
+        $decomposition = $stability['field_decomposition'];
+
+        $this->info("Arm {$report['arm']} stability diagnostic ({$report['model']}, returned {$report['returned_model']}):");
+        $this->line("  Sample size: {$stability['sample_size']}");
+        $this->line("  Self-disagreements: {$stability['self_disagreements']}");
+        $this->line('  Rate: '.number_format($rate * 100, 1).'%');
+        $this->line('  Disagreeing pairs by field group (a pair may count in several):');
+
+        foreach ($decomposition as $group => $count) {
+            $this->line("    {$group}: {$count}");
+        }
+
+        $this->line('No corpus projection was written — this is a diagnostic run only.');
     }
 
     /**

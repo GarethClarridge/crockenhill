@@ -57,6 +57,13 @@ class OosParserArmRunner
 
     private const RoutingInvalidExtraction = 'invalid_extraction';
 
+    /**
+     * How many disagreeing replicate pairs keep their field-by-field diff. The aggregate
+     * decomposition covers every pair; the retained diffs exist to be read by a human, and a
+     * 30-source sample where most pairs differ would otherwise embed most of the corpus twice.
+     */
+    private const MaxRetainedStabilityDifferences = 10;
+
     public function __construct(
         private readonly DatabaseManager $database,
         private readonly HistoricImportProductionGuard $productionGuard,
@@ -69,6 +76,12 @@ class OosParserArmRunner
     /**
      * @param  list<OosArchiveEntry>  $entries
      * @param  array<string, mixed>  $priceSnapshot  the dated official prices the arms were frozen against
+     * @param  bool  $stabilityOnly  diagnostic mode: runs the canary and the stability replicate,
+     *                               then returns before the full corpus and writes no projection.
+     *                               Exists to re-check the §6.2 step 2 stability signal cheaply
+     *                               (canary plus ~60 calls) without re-spending on a full arm — see
+     *                               {@see stability()}. Delete alongside the rest of this one-shot
+     *                               surface.
      * @return array<string, mixed>
      */
     public function run(
@@ -77,6 +90,7 @@ class OosParserArmRunner
         string $manifestHash,
         string $manifestPath,
         array $priceSnapshot,
+        bool $stabilityOnly = false,
     ): array {
         $arm->apply();
         $configuration = $arm->resolvedConfiguration();
@@ -104,6 +118,26 @@ class OosParserArmRunner
         }
 
         $stability = $this->stability($entries, $manifestHash);
+
+        if ($stabilityOnly) {
+            return [
+                'format' => 'crockenhill-oos-parser-stability-diagnostic',
+                'stability_only' => true,
+                'arm' => $arm->name,
+                'model' => $configuration['model'],
+                'returned_model' => $this->telemetry->returnedModel(),
+                'database_connection' => RehearsalDatabaseProvisioner::Connection,
+                'database_name' => (string) $this->database->connection()->getDatabaseName(),
+                'rehearsal_certification' => $certification,
+                'log_file' => basename($logPath),
+                'canary' => [
+                    'source_keys' => array_map(static fn (OosArchiveEntry $entry): string => $entry->itemKey, $canaries),
+                    'telemetry' => $canaryTelemetry,
+                ],
+                'stability' => $stability,
+            ];
+        }
+
         $results = [];
 
         foreach ($entries as $entry) {
@@ -341,20 +375,34 @@ class OosParserArmRunner
      * correctness: no labels exist at this point in the run, so a correctness-based rule would be
      * unsatisfiable.
      *
+     * "Equality" is deliberately narrower than `raw_result_hash`, and is defined in exactly one
+     * place — {@see OosParserExtractionSignature} — shared with the between-arm comparison. Two
+     * earlier definitions were wrong in opposite directions. `raw_result_hash` covered `confidence`
+     * (a continuous float) and the model's free-text validation reasoning, neither of which two
+     * independent calls reproduce verbatim even when the extraction is stable, which inflated a real
+     * baseline's self-disagreement to 100% on its first run. Narrowing it here by hand then left the
+     * replacement comparing the model's emitted plan *order*, which the between-arm comparison does
+     * not, so plan reordering counted as instability while not counting as discordance. Sharing the
+     * definition is what makes this check a valid precondition rather than a second, drifting copy.
+     *
      * Both replicates' telemetry is kept and tagged with its replicate number. This is the one place
      * an arm's retry behaviour is observable under repetition, and the retry rate is what carries
      * the truncation half of the latency guardrail — discarding it left the guardrail with only the
      * corpus's single-shot view.
      *
+     * Every disagreeing pair is decomposed by field group and a bounded sample of the diffs is kept.
+     * A rate on its own cannot say whether an unstable arm is moving items, titles, provenance or
+     * routing, and that is the question §6.2 step 2's outcome now turns on.
+     *
      * @param  list<OosArchiveEntry>  $entries
-     * @return array{sample_size:int,self_disagreements:int,rate:float,telemetry:list<array<string,mixed>>}
+     * @return array{sample_size:int,self_disagreements:int,rate:float,field_decomposition:array<string,int>,disagreements:list<array<string,mixed>>,telemetry:list<array<string,mixed>>}
      */
     private function stability(array $entries, string $evaluationId): array
     {
         usort($entries, static fn (OosArchiveEntry $left, OosArchiveEntry $right): int => hash('sha256', $evaluationId.$left->itemKey) <=> hash('sha256', $evaluationId.$right->itemKey));
         $sample = array_slice($entries, 0, min(30, count($entries)));
-        $disagreements = 0;
         $telemetry = [];
+        $differences = [];
 
         foreach ($sample as $entry) {
             $first = $this->parseEntry($entry);
@@ -366,17 +414,108 @@ class OosParserArmRunner
                 }
             }
 
-            if ($first['projection']['raw_result_hash'] !== $second['projection']['raw_result_hash']) {
-                $disagreements++;
+            $firstSignature = $this->stabilitySignature($first['projection'], $entry->itemKey);
+            $secondSignature = $this->stabilitySignature($second['projection'], $entry->itemKey);
+
+            if (CanonicalJson::hash($firstSignature) === CanonicalJson::hash($secondSignature)) {
+                continue;
             }
+
+            $differences[] = $this->stabilityDifference($entry->itemKey, $firstSignature, $secondSignature);
         }
 
         return [
             'sample_size' => count($sample),
-            'self_disagreements' => $disagreements,
-            'rate' => $sample === [] ? 0.0 : $disagreements / count($sample),
+            'self_disagreements' => count($differences),
+            // Cast: PHP's `/` returns an int on an even division, and the declared shape — which the
+            // guardrail reads as a float — must not depend on whether the sample happened to divide.
+            'rate' => $sample === [] ? 0.0 : (float) (count($differences) / count($sample)),
+            'field_decomposition' => $this->fieldDecomposition($differences),
+            'disagreements' => array_slice($differences, 0, self::MaxRetainedStabilityDifferences),
             'telemetry' => $telemetry,
         ];
+    }
+
+    /**
+     * The projection row's content reduced to exactly what a between-arm comparison scores as
+     * discordant — {@see OosParserExtractionSignature} — plus routing category.
+     *
+     * Both halves of that matter. Using the shared definition is what makes the within-arm check a
+     * valid precondition for the between-arm one: a source can only self-disagree here if the same
+     * change would count as discordant there. Routing category is added because §6.2 step 2 gates a
+     * comparison whose primary counts routing-only discordance too.
+     *
+     * @param  array<string, mixed>  $projection
+     * @return array{plans:array<string, array<string, mixed>>, routing_category:mixed}
+     */
+    private function stabilitySignature(array $projection, string $sourceKey): array
+    {
+        /** @var array<string, mixed> $rawResult */
+        $rawResult = $projection['raw_result'];
+        /** @var list<mixed> $plans */
+        $plans = $rawResult['service_plans'];
+        /** @var array<string, mixed> $routing */
+        $routing = $projection['routing'];
+
+        return [
+            'plans' => OosParserExtractionSignature::fromPlanList($plans, "stability replicate for source {$sourceKey}"),
+            'routing_category' => $routing['category'],
+        ];
+    }
+
+    /**
+     * @param  array{plans:array<string, array<string, mixed>>, routing_category:mixed}  $first
+     * @param  array{plans:array<string, array<string, mixed>>, routing_category:mixed}  $second
+     * @return array<string, mixed>
+     */
+    private function stabilityDifference(string $sourceKey, array $first, array $second): array
+    {
+        return [
+            'source_key' => $sourceKey,
+            'routing_category_differs' => $first['routing_category'] !== $second['routing_category'],
+            'first_routing_category' => $first['routing_category'],
+            'second_routing_category' => $second['routing_category'],
+            'extraction' => OosParserExtractionSignature::fieldDifferences($first['plans'], $second['plans']),
+        ];
+    }
+
+    /**
+     * How many of the disagreeing pairs each field group is responsible for.
+     *
+     * A bare self-disagreement rate says an arm is unstable without saying in what, which is what
+     * left §12 round three unable to choose between "the models genuinely differ this often", "the
+     * signature is still too strict" and "`effort=none` is unusable for this task". A pair can count
+     * against several groups; the columns are not a partition and are not expected to sum to the
+     * disagreement count.
+     *
+     * @param  list<array<string, mixed>>  $differences
+     * @return array<string, int>
+     */
+    private function fieldDecomposition(array $differences): array
+    {
+        $counts = array_fill_keys(['plan_keys', ...OosParserExtractionSignature::FieldGroups, 'routing_category'], 0);
+
+        foreach ($differences as $difference) {
+            /** @var array<string, mixed> $extraction */
+            $extraction = $difference['extraction'];
+
+            if ($extraction['plan_keys_differ'] === true) {
+                $counts['plan_keys']++;
+            }
+
+            /** @var list<string> $groups */
+            $groups = $extraction['groups_that_differ'];
+
+            foreach ($groups as $group) {
+                $counts[$group]++;
+            }
+
+            if ($difference['routing_category_differs'] === true) {
+                $counts['routing_category']++;
+            }
+        }
+
+        return $counts;
     }
 
     /** @return array<string, mixed> */
