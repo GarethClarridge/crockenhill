@@ -309,6 +309,16 @@ hand-verify only what corroboration cannot reach. Its output decides HIR-D8 (§1
 model calls) and the producing defects behind it fixed (`9f55f13d2`). Read "Revision 2026-08-16" in
 that report before starting anything here — it withdraws item 2's premise and adds items 5–7.
 
+**Model-evaluation closure 2026-08-18.** The archived
+[nano/Luna non-inferiority evaluation](../archived-plans/OOS-PARSER-MODEL-EVALUATION-2026-08-17.md)
+ran both 554-source arms and closed without a model verdict. Its corrected same-source diagnostic
+found material source-exact self-disagreement in both `effort=none` arms (nano 24/30; Luna 19/30),
+with item structure alone above the declared 10% threshold in both (21/30; 8/30). Nano remains
+configured only as the unchanged status quo; Luna was neither adopted nor rejected. Do not label the
+536 model-discordant sources or run full replicates for that closed comparison. IC3's ground-truth
+and release-accuracy obligations remain unchanged. Any future model work must be a separately
+designed prompt/schema/reasoning-effort configuration evaluation, not an IC3 prerequisite.
+
 Revised order: **5, 1, 7, 3**. Item 6 was superseded on 2026-08-16: it measured
 confidence-driven retries in cached historical results, while item 5 removes those retries from
 fresh parsing. It is not an active unattended-import change.

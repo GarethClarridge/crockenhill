@@ -1,20 +1,35 @@
 # OoS Email Parser: `gpt-5.6-luna` Non-Inferiority Evaluation
 
-> **Status (2026-08-18): CLOSED without a verdict. `effort=none` is not viable for this task, which
-> is logically prior to any model comparison.** Both arms ran, are banked and are
+> **Status (2026-08-18): CLOSED without a model verdict. The current `effort=none` prompt, schema and
+> parser configuration is not viable for source-exact, repeatable extraction, which is logically
+> prior to any model comparison.** Both arms ran, are banked and are
 > provenance-identical apart from the declared model; raw discordance is real and re-verified
 > (`M = 460` primary / `536` all-tier). But §6.2 step 2's within-arm stability gate fired and, after
 > two rounds of genuine comparator fixes and one corrected diagnostic per arm, still does: asked to
-> parse the same email twice, **nano returns a materially different order of service 80.0% of the
-> time and Luna 63.3%**, against a 10% threshold. The decomposition shows what moves — item counts,
-> dates, services, content scope, routing — so this is the extraction itself, not a measurement
-> artifact. A non-inferiority test between two arms that each disagree with *themselves* on 63–80% of
+> parse the same email twice, **nano returns a materially different scored extraction 80.0% of the
+> time and Luna 63.3%**, against a 10% threshold. Item structure alone changes in 21/30 nano pairs
+> and 8/30 Luna pairs, independently putting both arms above the threshold. The decomposition also
+> shows changes in dates, services, content scope and routing, so the finding cannot be explained
+> away as confidence/prose noise or service-plan ordering.
+> A non-inferiority test between two arms that each disagree with *themselves* on 63–80% of
 > sources cannot answer the question it was built to answer.
 >
-> **Nano stays configured. Luna is neither adopted nor rejected** — on this evidence it is *more*
-> stable than nano on every substantive field, and recording a finding against it would be wrong.
-> Do not adjudicate the 536 discordant sources. The live question is now reasoning effort, not model
-> choice. §12 rounds three, four and five record the two comparator defects, the bound computed
+> **Nano stays configured only as the unchanged status quo. Luna is neither adopted nor rejected.**
+> Luna was directionally more stable in this 30-source sample, including fewer disagreements in
+> every recorded substantive field group, but the paired overlap needed to establish that difference
+> inferentially was not retained. Recording either model as the winner would therefore be wrong.
+> Do not adjudicate the 536 discordant sources.
+>
+> **Update (round six, 2026-08-18): the reasoning-effort half of that revival question is now
+> answered, and the answer is no.** A `nano/low` arm at `n = 100`, provenance-identical down to the
+> parser-surface hash, returns **77.0% self-disagreement** against `none`'s 80.0% — and moves
+> `routing_category` 8pp in the *wrong* direction, flipping sources between `review_required` and
+> `auto_importable` between two parses of the same email. Reasoning does bite where predicted
+> (`item_structure` 70% → 45% of sources) but the instability redistributes rather than clearing.
+> **Do not run `medium`, `high` or `xhigh`, and do not open another model evaluation.** The remaining
+> lever is the prompt and schema surface, where 33.5% of first-pass extractions already fail
+> deterministic validation. See §12 round six.
+> §12 rounds three, four and five record the two comparator defects, the bound computed
 > before spending, and the diagnostic that closed it. Three earlier design versions were retired
 > before this — a five-arm model search, a superiority-gated statistical programme, and a first
 > non-inferiority draft whose cheap-labelling rule and validation rules could each have changed the
@@ -33,7 +48,7 @@
 > authorises a separate reviewed configuration change (§10). Rollback is one setting.
 >
 > **Owner boundary.** IC3 measurement work under
-> [incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md). Read-only
+> [incremental convergence](../plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md). Read-only
 > evidence selection, never mutation authority and never an import gate.
 
 ## 1. Decision to make
@@ -909,8 +924,9 @@ projection. This is the same corpus slice, re-parsed.
 | Nano (baseline) | 90.0% (27/30) | **80.0% (24/30)** | ≥53.3% |
 | Luna (candidate) | 56.7% (17/30) | **63.3% (19/30)** | ≥20.0% |
 
-Both land inside the predicted interval. **Both remain far above the 10% threshold**, and the
-established baseline is still the less stable of the two — now by a wider margin.
+Both land inside the predicted interval. **Both remain far above the 10% threshold.** Descriptively,
+the established baseline disagreed more often in this sample, but the diagnostic did not retain the
+paired stable/unstable overlap needed to establish a between-arm stability difference inferentially.
 
 **Do not read the 90→80 movement as "the fix explained 10pp."** These are two independent draws from
 a stochastic process. At `n = 30` the standard error near `p ≈ 0.85` is ~6.5pp, so a 10pp gap is
@@ -938,10 +954,12 @@ on the other**; `2020-11-01` 16 vs 13; `2018-11-18` 12 vs 11 with 8 titles chang
 losing the date and flipping routing. `2020-10-11` and `2017-04-30` flipped `content_scope`
 **partial ↔ full**.
 
-**Luna's is mostly bookkeeping, but not entirely.** `provenance` — source-line bindings — drives 17
-of 19, and it never once moved service, date or scope (`service_date_scope` = 0, against nano's 7).
-Of its 10 retained diffs, 3 are provenance-only with no substantive change; nano's 10 are all
-substantive. But Luna is not clean: `2018-02-04-details` returned **1 item on one call and 7 on the
+**Luna's instability frequently includes provenance, but is not only bookkeeping.** `provenance` —
+source-line bindings — changed in 17 of 19 disagreeing pairs, and it never once moved service, date
+or scope (`service_date_scope` = 0, against nano's 7). That does not establish that all or most of
+those 17 were provenance-only: only 10 detailed diffs were retained, and 3 of those 10 were
+provenance-only. Nano's 10 retained diffs were all substantive. Luna also produced clear substantive
+changes: `2018-02-04-details` returned **1 item on one call and 7 on the
 other, plus an entire extra `evening:2018-02-04` service plan** that the first call never produced,
 and `2021-10-31` returned `morning:2021-10-31` vs **`unknown:2021-10-31`**, losing the service.
 
@@ -956,19 +974,23 @@ back to `other` non-deterministically.
 
 #### Conclusion: the prerequisite question, answered
 
-§12 round three listed three candidate explanations. The decomposition selects the first and rules
-out the second. This is **not** a still-too-strict signature: the fields moving are item counts,
-dates, services, content scope and routing — precisely what §3.1 defines as the thing being measured,
-and what a further narrowing would have to start discarding to make the number look better. Asked to
-parse the same email twice at `effort=none`, the parser returns a materially different order of
-service four times in five for nano and nearly two times in three for Luna.
+§12 round three listed three candidate explanations. The decomposition rules out the proposition
+that the result is *only* a still-too-strict signature: item structure alone changed in 21/30 nano
+pairs and 8/30 Luna pairs, both above the 10% threshold before provenance is considered. Dates,
+services, content scope and routing also moved — precisely what §3.1 defines as the thing being
+measured, and what a further narrowing would have to start discarding to make the number look better.
+Asked to parse the same email twice at `effort=none`, the current configuration returns a materially
+different scored extraction four times in five for nano and nearly two times in three for Luna.
 
-**So `effort=none` is not a viable reasoning-effort setting for this task, and that is a finding about
-the task, not about either model.** It is logically prior to any model comparison: a non-inferiority
-test between two arms that each disagree with *themselves* on 63–80% of sources cannot answer the
-question it was built to answer, whatever `M` turns out to be. Both zero retries and no truncation in
-either run (86 and 80 calls) means this is not the ceiling defect §12 round two closed — it is the
-setting itself.
+**So the current `effort=none` prompt/schema/parser configuration is not viable for source-exact,
+repeatable extraction.** That statement is deliberately narrower than declaring `effort=none`
+unusable for every operational form of the task: reviewed or safely held evidence may tolerate
+variation that unattended source-exact extraction cannot. Nor does this experiment isolate effort
+from the prompt, schema and parser surface, because no alternative effort was tested. The failed
+stability prerequisite is still logically prior to this model comparison: a non-inferiority test
+between two arms that each disagree with *themselves* on 63–80% of sources cannot answer the question
+it was built to answer, whatever `M` turns out to be. Zero retries and no truncation in either run
+(86 and 80 calls) rule out the ceiling defect §12 round two closed.
 
 §6.2 step 2's literal next step — two full replicates per arm, scoring only replicate-consistent
 outcomes — is now clearly not worth its spend: at 80% baseline self-disagreement the consistent
@@ -977,18 +999,185 @@ corpus run on both arms to discover that.
 
 #### Decision — final for this evaluation
 
-- **Nano stays configured.** Unchanged by everything above.
+- **Nano stays configured as the unchanged status quo, not as the evaluation winner.**
 - **Luna is not adopted, and is not rejected either.** The evaluation did not reach a verdict on
-  non-inferiority, and should not be recorded as having found against Luna. On the evidence it is
-  *more* stable than nano on every substantive field.
+  non-inferiority, and should not be recorded as having found against Luna. It was directionally
+  more stable in this sample, including fewer disagreements in every recorded substantive field
+  group, but that between-arm difference was not tested inferentially.
 - **Both banked arms stay.** `M = 460` is real and re-verified; it is simply not interpretable while
   both arms are this unstable.
 - **Do not adjudicate the 536 discordant sources.** Labelling work premised on a stable extraction
   cannot pay off here.
-- **The live question is now reasoning effort, not model choice.** Any future revival of this
-  evaluation should first establish a setting at which the parser reproduces its own output, then
-  re-ask the model question against that setting. `reasoning_token_headroom` (§12 round two) already
-  provides the ceilings a `low`/`medium` arm would need.
+- **Any future work is a new configuration evaluation, not another step in this comparison.** It
+  should first establish a prompt/schema/reasoning-effort configuration at which the parser
+  reproduces its own source-exact output, then re-ask the model question only if that prerequisite
+  passes. `reasoning_token_headroom` (§12 round two) already provides the ceilings a `low`/`medium`
+  arm would need, but this closed evaluation does not authorise or require that spend.
 
 Artifacts: `storage/scratch/oos-parser-evaluation/stability-nano-2026-08-18/stability-diagnostic.json`
 and `stability-luna-2026-08-18/stability-diagnostic.json` (both `0600`, private).
+
+### Round six (2026-08-18) — the effort arms: reasoning is not the lever, and it makes routing worse
+
+Round five closed the model comparison and named its successor: establish a configuration at which
+the parser reproduces its own output, *then* re-ask the model question. That successor ran. It
+answers the prerequisite question in the negative, so the model question stays unasked.
+
+#### What was held, and why it was nano rather than Luna
+
+An external review proposed fixing the model to **Luna** and varying effort. That was rejected, on
+three grounds:
+
+1. It re-decides the model question round five deliberately left open. Luna is neither adopted nor
+   rejected; making it the base of the successor experiment adopts it by default.
+2. Its premise is a figure this document already says cannot carry that weight. Luna looked more
+   stable (19/30 against nano's 24/30), but round five records that the between-arm difference was
+   never tested inferentially — the SE on that difference at `n = 30` is ~12pp against a 16.7pp gap.
+3. It varies two things at once. A passing Luna/low arm could not say whether effort or the model
+   bought the stability, and adopting it would be a model migration rather than a config change.
+
+**Nano is also where the mechanism pointed.** Round five's decomposition put nano's instability in
+`item_structure` (21 of 24 pairs — 15 items on one call and 20 on the other), which is a reasoning
+deficit and the thing more reasoning should fix. Luna's was mostly provenance line bindings, which
+are arbitrary tie-breaks among near-equivalent source lines and have no reason to respond to effort.
+
+#### The result
+
+`nano-low`, `n = 100`, the same corpus and the same nested sample.
+
+| Arm | Sample | Self-disagreement |
+|---|---:|---:|
+| nano / `none` (banked round five) | 30 | 80.0% (24/30) |
+| **nano / `low`** — the identical 30 sources | 30 | **70.0% (21/30)** |
+| **nano / `low`** — full draw | **100** | **77.0% (77/100)** |
+
+Against the 10% ceiling. `low` did not move it.
+
+**Comparability is proven, not assumed.** The diagnostic records `manifest_hash 2c79b9a5…`,
+`source_key_list_hash 8430b272…`, `price_snapshot_sha256 e100a298…` and — the one that matters most
+— `parser_surface 251673ca…`, all identical to both banked arms. The harness changes this round
+required touch the runner, the arm definitions and the command, none of which are in the parser
+surface, so the thing being measured did not move. The sample nesting was verified empirically
+rather than argued: the first 30 of the 100 `sample_source_keys` are exactly the banked 30.
+
+**The arm is valid, not misconfigured.** All 271 calls carried `effective_reasoning_effort: low`
+against `gpt-5.4-nano-2026-03-17`; 211 of 249 sampled calls returned non-zero reasoning tokens
+(median 339, max 1713), so the setting was doing work. Every telemetry record is `attempt: 1` —
+**zero retries** — and peak output was 2964 tokens against a 12000 ceiling (6000 base + 6000
+headroom), so **zero truncation**. The §12 round two ceiling defect is not in play.
+
+**Read the `n = 100` figure, not the 30-source one.** On the shared 30 sources `low` reads 70.0%
+against the baseline's 80.0%, which invites "low buys 10 points". It does not: at `n = 30` near
+`p ≈ 0.75` the SE is ~8pp, so a 10pp gap is ~1.2 SE — the identical trap round five documented when
+nano moved 90→80 and Luna moved *up* 6.6pp. This is the whole reason the sample was made to scale:
+at `n = 30` the only observable result whose one-sided 95% bound clears a 10% ceiling is **0/30**
+(2/30 bounds at roughly 20%), so an `n = 30` screen can refute a configuration but never clear one.
+
+#### Decomposition — effort worked where predicted, and broke something else
+
+Rates per *source*, so the two sample sizes are comparable (round five's table was per pair).
+
+| group | nano / `none` (30) | nano / `low` (100) | |
+|---|---:|---:|---|
+| `item_structure` | 21 (70%) | 45 (45%) | **improved** |
+| `titles` | 11 (37%) | 18 (18%) | improved |
+| `provenance` | 15 (50%) | 33 (33%) | improved |
+| `service_date_scope` | 7 (23%) | 17 (17%) | improved |
+| `plan_keys` | 2 (7%) | 13 (13%) | **worse** |
+| `routing_category` | 5 (17%) | 25 (25%) | **worse** |
+
+The prediction held: reasoning bites on segmentation, and `item_structure` — the dominant failure at
+`none` — fell by 25 points. But the aggregate barely moved because the failures redistributed, and
+two groups went the wrong way.
+
+**`routing_category` is the one that matters, and it got worse.** Routing decides whether a plan
+imports unattended. Concrete flips between two parses of the same email:
+
+- `2023-10-08`, `2019-04-21-pm`, `2025-03-09` — `review_required` on one call, **`auto_importable`**
+  on the other. The same source is held for a human once and imported without one the next time.
+- `2020-10-11` — `review_required` → `invalid_extraction`.
+
+`plan_keys` moving means a whole service plan appeared, vanished or changed identity:
+
+- `2020-10-11`, `2020-10-04`, `2025-08-10` — `morning:<date>` on one call, **`unknown:<date>`** on
+  the other: the service identity lost.
+- `2020-05-31` — `unknown:2020-05-31` against **`unknown:2020-06-29`**: the date moved by a month.
+
+§7.4's guardrail already fails a ±5pp review-share change **in either direction** for exactly this
+reason, and an 8pp routing move is the failure mode it was written to catch. So `low` is not merely
+"no better"; on the axis with operational consequences it is worse than the status quo.
+
+#### An incidental finding worth keeping: a third of extractions fail validation
+
+The call decomposition is `extract: 200`, `correct: 67`, `adjudicate: 0`. The 200 are the 100 sources
+× 2 replicates; the 67 are re-asks triggered by deterministic validation failure. So **33.5% of
+first-pass extractions at `low` are structurally invalid on their own terms** — before any question
+of stability. That is not a retry (every call is `attempt: 1`) and it is not new to this arm; the
+banked `none` run shows the same shape (82 calls where 63 were nominal). It is a standing property of
+the prompt/schema surface, and it is a much more promising target than the effort knob.
+
+#### `nano-medium` was started and stopped
+
+Launched on a freshly provisioned rehearsal database, then killed by the operator at 134 calls
+(~$0.43) once `low` had returned. No diagnostic exists: the artifact is a create-once write that
+happens only on completion, so the abort left no partial result that could later be misread. The
+residue is a truncated `storage/logs/oos-parser-arm-nano-medium.log`.
+
+Stopping was the right call. `medium` differs from `low` in degree, and `low` moved the aggregate by
+3pp while moving routing 8pp in the wrong direction. No plausible `medium` result reaches a 10%
+ceiling from 77%, and the decomposition already shows *why* effort cannot get there: it redistributes
+instability rather than removing it.
+
+#### Conclusion
+
+**Reasoning effort is not the lever for this task.** `none` and `low` sit 3pp apart at 77–80%
+self-disagreement against a 10% ceiling, and the stronger setting is operationally worse where it
+counts. Combined with round five, the configuration space this evaluation has now measured is:
+
+| model | effort | self-disagreement |
+|---|---|---:|
+| nano | `none` | 80.0% (n=30) |
+| nano | `low` | **77.0% (n=100)** |
+| Luna | `none` | 63.3% (n=30) |
+
+**Do not run `medium`, `high` or `xhigh`, and do not open another model evaluation.** Both remaining
+levers are in the prompt and schema surface, and the 33.5% first-pass validation-failure rate says
+that is where the defect lives. The next intervention is prompt/schema decomposition or deterministic
+post-processing — which is also where the external review landed, now with two measured effort points
+behind it rather than an assumption.
+
+Nothing here changes a production default. Nano at `minimal`/`none` remains configured, unchanged and
+unendorsed.
+
+#### Harness changes this round required
+
+Three, all outside the parser surface, all tested:
+
+1. **`nano-low` and `nano-medium` arms** on `OosParserEvaluationArm`, with the model held at nano and
+   the reasoning for that recorded on the class.
+2. **`--stability-sample=`** on `service-tracking:run-oos-parser-arm`. The sample was hard-coded to
+   30 while already being seeded on the manifest hash, so the nesting property existed but was
+   unreachable. The diagnostic now records `requested_sample_size` beside the drawn `sample_size`, so
+   a corpus that ran short is distinguishable from a deliberately smaller run.
+3. **Retained-diff cap 10 → 40**, plus `retained_difference_limit` in the artifact. Round five could
+   report that Luna's provenance group moved in 17 of 19 pairs but not whether those pairs were
+   provenance-*only*, because only 10 diffs survived. The per-diff bounds
+   (`MaxReportedPlans`, `MaxReportedItems`) already cap artifact size, so only the count needed a
+   limit.
+
+#### A provenance gap this run exposed, and one deliberate non-fix
+
+The `--stability-only` diagnostic carries no `ceilings` block — only the full-corpus report's
+`run_manifest` does. So an *effort* arm's artifact cannot prove its own headroom was applied, which
+is precisely the arm where the ceiling is load-bearing; it had to be verified from the isolated arm
+log instead. The fix belongs in `OosParserArmRunner`, which is not fingerprinted.
+
+Relatedly: the §5.1 pre-spend echo prints `max completion tokens 6000` when an effort arm actually
+sends 12000, because the headroom is added inside the extractor. **This should stay unfixed.**
+`OpenAiOosEmailItemExtractor` is in the parser surface, so editing it — even a comment — moves
+`parser_surface` and orphans all four banked arms from any future one. A console nicety is not worth
+that, and computing the ceiling a second time in the command would be the drifting-second-copy defect
+this evaluation has already paid for twice.
+
+Artifacts: `storage/scratch/oos-parser-evaluation/stability-nano-low-2026-08-18/stability-diagnostic.json`
+(`0600`, private). Approximate spend: $0.56 for the completed arm, $0.43 for the aborted one.

@@ -7,6 +7,9 @@ maintainer decisions REV-D1–REV-D4 and archived as evidence records. This dire
 executable active plans only; completed or superseded decision records live in
 `docs/archived-plans/`.
 
+Updated **2026-08-18** to archive the OoS parser model-only evaluation after it closed without a
+model verdict and to remove it as an active IC3 lane.
+
 ## How to use this index
 
 - The historic import has **one** plan. Its §2 decision record, §3 safety model and §4 finding
@@ -84,8 +87,7 @@ None of these lanes blocks the public product sequence except where a plan expli
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
-| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Plan of record since 2026-08-14** (REV-D1–D4). All predecessor code landed; IC1 (email evidence tier) is the current package; production mutation only as §7 rounds | IC1 red tests + implementation, then a staging round; IC4 back-fill is drive-free any time |
-| H0a | [OoS parser Luna non-inferiority evaluation](OOS-PARSER-MODEL-EVALUATION-2026-08-17.md) | Measurement only, under H0's IC3 lane. Two review rounds closed 2026-08-17: nano and Luna are at price parity and nano is not deprecated, so the question is **"is Luna a safe replacement?"** — **non-inferiority** at a frozen δ=3pp on full-scope sources, Newcombe paired bound. Parity is a pass. Calibration, absolute accuracy, bootstrap and Holm removed; one new command instead of five. §12 records every removal and correction. No arm has been run | Rebuild the tiered ground truth, then the arm runner: it must **certify its own rehearsal connection** (the provisioner deliberately doesn't switch it) and export a **raw-result projection** before teardown, since `OosArchiveIdentityResolver` overwrites model scope/dates and `evidence()` strips `raw_result`. Then run both arms, size labelling from raw discordance `M`, and label every discordant source |
+| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Plan of record since 2026-08-14** (REV-D1–D4). All predecessor code landed; IC1 (email evidence tier) is the current package; production mutation only as §7 rounds. The model-only nano/Luna evaluation closed without a verdict and is not an IC3 gate | IC1 red tests + implementation, then a staging round; IC4 back-fill is drive-free any time |
 | M0 | [Architectural maintainability delivery](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) | Not started; immediate safety lane and post-G9 permanent-core lane are explicitly separated | Record D1-D4; AM2 timing and AM3 log-rotation tests can start independently |
 | H1 | [Sentry error tracking](SENTRY-ERROR-TRACKING.md) | Optional; not installed; dependency approval required | If approved, install/configure errors-only capture; sequence caught terminal processing reporting after architecture AM8 |
 | M1 | [Code-quality remediation](CODE-QUALITY-REMEDIATION-2026-07-19.md) | WP2.1/WP6.1 done; other items open; level 8 | WP2's small fail-closed/config/signature fixes plus the computed-call structural guard |
@@ -118,6 +120,15 @@ None of these lanes blocks the public product sequence except where a plan expli
 
 ## Recently archived or superseded
 
+- [OoS parser Luna non-inferiority evaluation](../archived-plans/OOS-PARSER-MODEL-EVALUATION-2026-08-17.md)
+  — closed 2026-08-18 without a model verdict. Both `effort=none` arms materially disagreed with
+  themselves on the same deterministic 30-source sample (nano 24/30; Luna 19/30), so the planned
+  non-inferiority inference was refused. Nano remains configured only as the status quo; Luna was
+  neither adopted nor rejected; the 536 discordant sources are not adjudicated.
+  **Round six then ran the effort arms: `nano/low` is 77.0% at `n = 100` against `none`'s 80.0%, and
+  routing stability got *worse*.** Reasoning effort is not the lever; do not run higher efforts or
+  another model evaluation. The remaining lever is the prompt/schema surface, where 33.5% of
+  first-pass extractions fail deterministic validation.
 - [Historic archive final import readiness](../archived-plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md),
   [historic archive readiness remediation](../archived-plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md)
   and [historic import safety remediation](../archived-plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md)

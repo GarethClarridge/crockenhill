@@ -25,12 +25,16 @@ class RunOosParserArmCommand extends Command
 
     private const DefaultFormattedRoot = 'scratch/oos';
 
+    /** Mirrors the runner's own default, so the echoed configuration matches what will run. */
+    private const DefaultStabilitySample = 30;
+
     protected $signature = 'service-tracking:run-oos-parser-arm
         {--arm= : Frozen arm name}
         {--manifest= : Approved OoS curation manifest}
         {--price-snapshot= : Dated official price snapshot, hashed into the run manifest}
         {--output= : New private run-directory name beneath storage/scratch/oos-parser-evaluation}
-        {--stability-only : Diagnostic mode: canary + stability replicate only (~60 calls), no corpus spend; writes a stability diagnostic instead of a projection}';
+        {--stability-only : Diagnostic mode: canary + stability replicate only, no corpus spend; writes a stability diagnostic instead of a projection}
+        {--stability-sample= : Sources the stability replicate draws, two calls each (default 30). The sample is nested, so a larger run stays comparable to a smaller one on the same manifest}';
 
     protected $description = 'Run one frozen OoS parser model-evaluation arm against the rehearsal corpus';
 
@@ -44,11 +48,12 @@ class RunOosParserArmCommand extends Command
             $manifestPath = $this->requiredOption('manifest');
             $priceSnapshotPath = $this->requiredOption('price-snapshot');
             $stabilityOnly = (bool) $this->option('stability-only');
+            $stabilitySample = $this->stabilitySampleSize();
             // Every option's shape is checked before any file is opened, so a mistyped run-directory
             // name is reported as that rather than as a missing artifact somewhere else.
             $output = $this->outputDirectory($this->requiredOption('output'));
             $priceSnapshot = $this->priceSnapshot($priceSnapshotPath);
-            $this->echoResolvedConfiguration($arm);
+            $this->echoResolvedConfiguration($arm, $stabilitySample);
 
             $plan = $manifest->plan(
                 storage_path(self::DefaultVerbatimRoot),
@@ -58,7 +63,7 @@ class RunOosParserArmCommand extends Command
             $snapshots = $manifest->snapshots(storage_path(self::DefaultVerbatimRoot), storage_path(self::DefaultFormattedRoot), $plan);
             $manifest->validateSnapshotsForDryRun($plan, $snapshots);
 
-            $report = $runner->run($arm, $entryFactory->entries($plan, $snapshots), $plan->manifestHash, $manifestPath, $priceSnapshot, $stabilityOnly);
+            $report = $runner->run($arm, $entryFactory->entries($plan, $snapshots), $plan->manifestHash, $manifestPath, $priceSnapshot, $stabilityOnly, $stabilitySample);
 
             mkdir($output, 0700, true);
 
@@ -118,7 +123,7 @@ class RunOosParserArmCommand extends Command
      * did not quietly serve a different value than intended. A comparison that ran the same model
      * twice yields a perfect, meaningless "no difference", and it does so silently.
      */
-    private function echoResolvedConfiguration(OosParserEvaluationArm $arm): void
+    private function echoResolvedConfiguration(OosParserEvaluationArm $arm, int $stabilitySample): void
     {
         $arm->apply();
         $configuration = $arm->resolvedConfiguration();
@@ -134,6 +139,8 @@ class RunOosParserArmCommand extends Command
             ['auto-import threshold', (string) config('service-tracking.email_parsing.auto_import_threshold')],
             ['service tier', (string) config('openai.service_tier')],
             ['rehearsal database', (string) config('database.connections.rehearsal.database')],
+            // Two billed calls per sampled source, so this is a spend the operator is agreeing to.
+            ['stability sample', (string) $stabilitySample],
         ]);
     }
 
@@ -162,13 +169,32 @@ class RunOosParserArmCommand extends Command
 
         $this->info("Arm {$report['arm']} stability diagnostic ({$report['model']}, returned {$report['returned_model']}):");
         $this->line("  Sample size: {$stability['sample_size']}");
+
+        if ($stability['sample_size'] !== $stability['requested_sample_size']) {
+            $this->warn("  Requested {$stability['requested_sample_size']}, but the corpus holds only {$stability['sample_size']} sources.");
+        }
+
         $this->line("  Self-disagreements: {$stability['self_disagreements']}");
         $this->line('  Rate: '.number_format($rate * 100, 1).'%');
+
+        /*
+         * Deliberately not a verdict. The rule this rate is judged against lives in
+         * OosParserArmPrimaryComparison, and this evaluation has twice been damaged by a threshold
+         * restated beside the thing it gates rather than read from it. A rate printed here is an
+         * observation; the comparator decides what it means.
+         */
+        $this->line('  This is an observation, not a verdict — the ceiling is applied by the arm comparison.');
         $this->line('  Disagreeing pairs by field group (a pair may count in several):');
 
         foreach ($decomposition as $group => $count) {
             $this->line("    {$group}: {$count}");
         }
+
+        $retained = count((array) $stability['disagreements']);
+
+        $this->line($retained < (int) $stability['self_disagreements']
+            ? "  Retained diffs: {$retained} of {$stability['self_disagreements']} (capped at {$stability['retained_difference_limit']}) — a sample, not a census."
+            : "  Retained diffs: {$retained} — every disagreeing pair.");
 
         $this->line('No corpus projection was written — this is a diagnostic run only.');
     }
@@ -208,6 +234,25 @@ class RunOosParserArmCommand extends Command
 
         /** @var array<string, mixed> $decoded */
         return $decoded;
+    }
+
+    /**
+     * Two calls per sampled source are billed, so this is the run's cost, and a mistyped value is
+     * worth refusing rather than rounding into a number that quietly changes what the run measures.
+     */
+    private function stabilitySampleSize(): int
+    {
+        $value = $this->option('stability-sample');
+
+        if ($value === null || $value === '') {
+            return self::DefaultStabilitySample;
+        }
+
+        if (preg_match('/\A[1-9][0-9]*\z/', $value) !== 1) {
+            throw new RuntimeException('--stability-sample must be a positive whole number of sources.');
+        }
+
+        return (int) $value;
     }
 
     private function requiredOption(string $name): string

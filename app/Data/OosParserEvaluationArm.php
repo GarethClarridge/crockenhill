@@ -7,13 +7,36 @@ namespace App\Data;
 use App\Support\OpenAiChatPayload;
 use RuntimeException;
 
-/** The two frozen, model-only arms of the 2026-08-17 OoS parser evaluation. */
+/**
+ * The frozen arms of the OoS parser evaluation: two model-only arms, and two effort-only arms.
+ *
+ * The model-only pair answered a question it could not reach. Asked to parse the same email twice at
+ * `effort=none`, nano returned a materially different order of service on 24 of 30 sources and Luna
+ * on 19 of 30, against a 10% ceiling — so a non-inferiority test between two arms that each disagree
+ * with *themselves* this often cannot say anything about either model. The prerequisite question is
+ * reasoning effort, and it is logically prior to model choice.
+ *
+ * The effort arms therefore hold the **model** fixed at `gpt-5.4-nano` and vary only the effort.
+ * Holding Luna instead would have been the wrong choice twice over: it re-decides the model question
+ * that the closed evaluation deliberately left open (Luna is neither adopted nor rejected), and it
+ * varies two things at once, so a passing arm could not say which change bought the stability. Nano
+ * is also the configured production model, so a passing nano arm is a one-line config change rather
+ * than a migration — and its recorded failure mode is the one more reasoning is most likely to fix:
+ * `item_structure` drove 21 of its 24 disagreeing pairs (15 items on one call and 20 on the other),
+ * where Luna's was mostly provenance line bindings, which are arbitrary tie-breaks rather than a
+ * reasoning deficit.
+ *
+ * `high` is deliberately absent. `reasoning_token_headroom` carries a ceiling for it, but the
+ * official guidance is to reach for a higher level only after a measured gain at a lower one.
+ */
 readonly class OosParserEvaluationArm
 {
     /** @var array<string, array{model:string,reasoning_effort:string}> */
     private const Arms = [
         'baseline-nano-none' => ['model' => 'gpt-5.4-nano', 'reasoning_effort' => 'none'],
         'luna-none' => ['model' => 'gpt-5.6-luna', 'reasoning_effort' => 'none'],
+        'nano-low' => ['model' => 'gpt-5.4-nano', 'reasoning_effort' => 'low'],
+        'nano-medium' => ['model' => 'gpt-5.4-nano', 'reasoning_effort' => 'medium'],
     ];
 
     private function __construct(

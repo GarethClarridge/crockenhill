@@ -75,4 +75,26 @@ class RunOosParserArmCommandTest extends TestCase
             ->expectsOutputToContain('--output is required')
             ->assertExitCode(1);
     }
+
+    /**
+     * The sample size is the run's spend — two billed calls per source — and it also decides what
+     * the resulting figure can be compared against. Casting a mistyped value to an int would round
+     * both of those into something the operator never asked for and the artifact would then record
+     * as deliberate.
+     */
+    #[Test]
+    public function it_refuses_a_stability_sample_that_is_not_a_positive_whole_number(): void
+    {
+        foreach (['0', '-5', '30.5', 'thirty'] as $value) {
+            $this->artisan('service-tracking:run-oos-parser-arm', [
+                '--arm' => 'nano-low',
+                '--manifest' => '/not-used.json',
+                '--price-snapshot' => '/not-used-prices.json',
+                '--output' => 'nano-low',
+                '--stability-sample' => $value,
+            ])
+                ->expectsOutputToContain('--stability-sample must be a positive whole number')
+                ->assertExitCode(1);
+        }
+    }
 }

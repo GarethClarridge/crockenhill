@@ -299,6 +299,143 @@ class OosParserArmRunnerTest extends TestCase
         $this->assertSame('Amazing Grace (My Chains Are Gone)', $changed['second']['title']);
     }
 
+    /**
+     * The whole n-scaling design rests on this: the sample is a prefix of one total order over the
+     * corpus, so drawing more sources *extends* it rather than redrawing it. If it redrew, a larger
+     * run could not be compared with the banked 30-source arms and would need its own baseline.
+     */
+    #[Test]
+    public function it_draws_a_nested_stability_sample_so_a_larger_run_stays_comparable_to_a_smaller_one(): void
+    {
+        $entries = $this->entriesFor(6);
+
+        $small = $this->stableRun($entries, 2);
+        $large = $this->stableRun($entries, 5);
+
+        $this->assertCount(2, $small['sample_source_keys']);
+        $this->assertCount(5, $large['sample_source_keys']);
+        $this->assertSame($small['sample_source_keys'], array_slice($large['sample_source_keys'], 0, 2));
+    }
+
+    /**
+     * A corpus smaller than the requested sample is otherwise indistinguishable in the artifact from
+     * a deliberately smaller run — and "the corpus ran out" bounds the power the design could ever
+     * have had, which is a fact about the evidence rather than an operator's choice.
+     */
+    #[Test]
+    public function it_records_the_requested_sample_beside_the_one_the_corpus_could_supply(): void
+    {
+        $stability = $this->stableRun($this->entries(), 10);
+
+        $this->assertSame(10, $stability['requested_sample_size']);
+        $this->assertSame(2, $stability['sample_size']);
+        $this->assertSame(0.0, $stability['rate']);
+    }
+
+    #[Test]
+    public function it_refuses_a_stability_sample_that_draws_no_sources(): void
+    {
+        $parser = Mockery::mock(OosEmailParserService::class);
+        $parser->shouldNotReceive('parse');
+
+        try {
+            $this->runner($parser, new OosParserEvaluationTelemetry)->run(
+                OosParserEvaluationArm::fromName('nano-low'),
+                $this->entries(),
+                'manifest-hash',
+                '/manifest.json',
+                $this->priceSnapshot(),
+                stabilitySampleSize: 0,
+            );
+            $this->fail('A sample of no sources must be refused.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('at least one source', $exception->getMessage());
+        }
+    }
+
+    /**
+     * The retained diffs are what a human reads to tell a substantive disagreement from a
+     * bookkeeping one. At the previous cap of 10 that reading was a sample rather than a census, so
+     * the 2026-08-18 diagnostic could say Luna's provenance group moved in 17 of 19 pairs but not
+     * whether those pairs were provenance-only. An arm anywhere near passing must retain all of them.
+     */
+    #[Test]
+    public function it_retains_every_disagreeing_pair_past_the_old_cap_and_says_so(): void
+    {
+        $stability = $this->stableRun($this->entriesFor(12), 12, unstable: true);
+
+        $this->assertSame(12, $stability['self_disagreements']);
+        $this->assertCount(12, $stability['disagreements']);
+        $this->assertGreaterThanOrEqual(12, $stability['retained_difference_limit']);
+    }
+
+    /**
+     * Runs one arm over a mocked parser and returns its stability block.
+     *
+     * `$unstable` alternates the item title on every call. The two replicates of a pair are always
+     * consecutive calls, so opposite parity — and therefore a disagreement — whatever offset the
+     * canary parses leave the counter at.
+     *
+     * @param  list<OosArchiveEntry>  $entries
+     * @return array<string, mixed>
+     */
+    private function stableRun(array $entries, int $sampleSize, bool $unstable = false): array
+    {
+        $telemetry = new OosParserEvaluationTelemetry;
+        $parser = Mockery::mock(OosEmailParserService::class);
+        $call = 0;
+
+        $parser->shouldReceive('parse')->andReturnUsing(function () use ($telemetry, &$call, $unstable): OosEmailParseResult {
+            $call++;
+            $telemetry->record(CreateResponse::fake(['model' => 'gpt-5.4-nano']), 'extract', 1, microtime(true));
+
+            $plan = $this->servicePlan(SermonService::Morning, $unstable && $call % 2 === 0 ? 'Be Thou My Vision' : 'Amazing Grace');
+
+            return new OosEmailParseResult(
+                date: '2023-01-01',
+                service: SermonService::Morning,
+                items: $plan->items,
+                confidenceScore: 0.9,
+                needsReview: false,
+                shouldImport: true,
+                importMetadata: [],
+                servicePlans: [$plan],
+            );
+        });
+
+        $report = $this->runner($parser, $telemetry)->run(
+            OosParserEvaluationArm::fromName('nano-low'),
+            $entries,
+            'manifest-hash',
+            '/manifest.json',
+            $this->priceSnapshot(),
+            stabilitySampleSize: $sampleSize,
+        );
+
+        /** @var array<string, mixed> $stability */
+        $stability = $report['stability'];
+
+        return $stability;
+    }
+
+    /**
+     * A corpus of `$count` full-scope sources. The first names both services so it can serve as the
+     * multi-service canary, and every body has a distinct length so the shortest and longest
+     * canaries are picked deterministically rather than by sort tie-breaking.
+     *
+     * @return list<OosArchiveEntry>
+     */
+    private function entriesFor(int $count): array
+    {
+        $entries = [$this->entry(0, 'email-001', "Morning service\nEvening service")];
+
+        for ($index = 1; $index < $count; $index++) {
+            $entries[] = $this->entry($index, sprintf('email-%03d', $index + 1), 'Morning worship'.str_repeat('!', $index));
+        }
+
+        return $entries;
+    }
+
     private function servicePlan(SermonService $service, string $title): OosEmailServicePlan
     {
         return new OosEmailServicePlan(

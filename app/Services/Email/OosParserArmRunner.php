@@ -58,11 +58,32 @@ class OosParserArmRunner
     private const RoutingInvalidExtraction = 'invalid_extraction';
 
     /**
-     * How many disagreeing replicate pairs keep their field-by-field diff. The aggregate
-     * decomposition covers every pair; the retained diffs exist to be read by a human, and a
-     * 30-source sample where most pairs differ would otherwise embed most of the corpus twice.
+     * How many disagreeing replicate pairs keep their field-by-field diff.
+     *
+     * Raised from 10 because 10 turned out to be too few to answer the question the retained diffs
+     * exist for. The 2026-08-18 diagnostic could report that Luna's provenance group moved in 17 of
+     * 19 pairs but not whether those pairs were provenance-*only*, because only 10 diffs survived —
+     * so the substantive-versus-bookkeeping split had to be reported as a sample of 10 rather than a
+     * census, and the strongest available reading of the arm was left unavailable.
+     *
+     * The original worry — that a sample where most pairs differ would embed most of the corpus
+     * twice — is already handled a layer down: a retained diff is a bounded summary, not the
+     * extraction, capped by `OosParserExtractionSignature` at four plans and twelve items. So the
+     * cap here only has to bound the *count*, and 40 retains every pair of an arm that is anywhere
+     * near passing while still bounding a catastrophic one.
      */
-    private const MaxRetainedStabilityDifferences = 10;
+    private const MaxRetainedStabilityDifferences = 40;
+
+    /**
+     * Sources drawn for the stability replicate when the caller names no size.
+     *
+     * 30 is what the banked arms used, and the sample is a prefix of a total hash order, so a larger
+     * sample is a strict superset of this one — an `n = 100` run's first 30 sources are exactly the
+     * 30 the banked arms drew. That is what lets one run report both a figure comparable to the
+     * banked baseline and a figure with enough power to clear the ceiling: at `n = 30` the only
+     * result whose one-sided 95% bound falls below the 10% ceiling is zero disagreements.
+     */
+    private const DefaultStabilitySampleSize = 30;
 
     public function __construct(
         private readonly DatabaseManager $database,
@@ -79,9 +100,13 @@ class OosParserArmRunner
      * @param  bool  $stabilityOnly  diagnostic mode: runs the canary and the stability replicate,
      *                               then returns before the full corpus and writes no projection.
      *                               Exists to re-check the §6.2 step 2 stability signal cheaply
-     *                               (canary plus ~60 calls) without re-spending on a full arm — see
+     *                               (canary plus two calls per sampled source) without re-spending
+     *                               on a full arm — see
      *                               {@see stability()}. Delete alongside the rest of this one-shot
      *                               surface.
+     * @param  int  $stabilitySampleSize  how many sources the replicate draws; see
+     *                                    {@see DefaultStabilitySampleSize} for why a larger sample
+     *                                    stays comparable to a smaller one.
      * @return array<string, mixed>
      */
     public function run(
@@ -91,7 +116,12 @@ class OosParserArmRunner
         string $manifestPath,
         array $priceSnapshot,
         bool $stabilityOnly = false,
+        int $stabilitySampleSize = self::DefaultStabilitySampleSize,
     ): array {
+        if ($stabilitySampleSize < 1) {
+            throw new RuntimeException('The stability sample must draw at least one source.');
+        }
+
         $arm->apply();
         $configuration = $arm->resolvedConfiguration();
         $logPath = $this->isolateLog($arm);
@@ -117,7 +147,7 @@ class OosParserArmRunner
             $canaryTelemetry = [...$canaryTelemetry, ...$canary['telemetry']];
         }
 
-        $stability = $this->stability($entries, $manifestHash);
+        $stability = $this->stability($entries, $manifestHash, $stabilitySampleSize);
 
         if ($stabilityOnly) {
             return [
@@ -408,13 +438,18 @@ class OosParserArmRunner
      * A rate on its own cannot say whether an unstable arm is moving items, titles, provenance or
      * routing, and that is the question §6.2 step 2's outcome now turns on.
      *
+     * The sample is a prefix of a total order over the whole corpus, seeded on the manifest hash, so
+     * it is both reproducible across arms and *nested* across sizes: drawing more sources extends
+     * the sample rather than redrawing it. A run at a larger size therefore reports a figure that
+     * remains directly comparable to every smaller banked run on the same manifest.
+     *
      * @param  list<OosArchiveEntry>  $entries
-     * @return array{sample_size:int,sample_source_keys:list<string>,self_disagreements:int,rate:float,field_decomposition:array<string,int>,disagreements:list<array<string,mixed>>,telemetry:list<array<string,mixed>>}
+     * @return array{requested_sample_size:int,sample_size:int,sample_source_keys:list<string>,self_disagreements:int,rate:float,field_decomposition:array<string,int>,retained_difference_limit:int,disagreements:list<array<string,mixed>>,telemetry:list<array<string,mixed>>}
      */
-    private function stability(array $entries, string $evaluationId): array
+    private function stability(array $entries, string $evaluationId, int $sampleSize): array
     {
         usort($entries, static fn (OosArchiveEntry $left, OosArchiveEntry $right): int => hash('sha256', $evaluationId.$left->itemKey) <=> hash('sha256', $evaluationId.$right->itemKey));
-        $sample = array_slice($entries, 0, min(30, count($entries)));
+        $sample = array_slice($entries, 0, min($sampleSize, count($entries)));
         $telemetry = [];
         $differences = [];
 
@@ -439,6 +474,12 @@ class OosParserArmRunner
         }
 
         return [
+            /*
+             * Both sizes, because a corpus smaller than the requested sample is silently the same
+             * artifact as a deliberately smaller run — and "the corpus ran out" is a fact about how
+             * much power the design could ever have had, not an operator's choice.
+             */
+            'requested_sample_size' => $sampleSize,
             'sample_size' => count($sample),
             'sample_source_keys' => array_map(static fn (OosArchiveEntry $entry): string => $entry->itemKey, $sample),
             'self_disagreements' => count($differences),
@@ -446,6 +487,12 @@ class OosParserArmRunner
             // guardrail reads as a float — must not depend on whether the sample happened to divide.
             'rate' => $sample === [] ? 0.0 : (float) (count($differences) / count($sample)),
             'field_decomposition' => $this->fieldDecomposition($differences),
+            /*
+             * So a reader can tell a census of the disagreeing pairs from a truncated sample of
+             * them without counting rows against the cap by hand. Round five of the evaluation had
+             * to caveat its decomposition precisely because the artifact did not say.
+             */
+            'retained_difference_limit' => self::MaxRetainedStabilityDifferences,
             'disagreements' => array_slice($differences, 0, self::MaxRetainedStabilityDifferences),
             'telemetry' => $telemetry,
         ];
