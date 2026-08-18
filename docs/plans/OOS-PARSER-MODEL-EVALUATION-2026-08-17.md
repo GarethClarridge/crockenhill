@@ -1,20 +1,25 @@
 # OoS Email Parser: `gpt-5.6-luna` Non-Inferiority Evaluation
 
-> **Status (2026-08-18): both arms run and banked; inference blocked on a stability finding, not a
-> code defect.** Harness build (§9.1) is complete and tested. Both arms completed cleanly and are
-> provenance-identical apart from the declared model (§8 steps 1–3). The comparator computed real raw
-> discordance (`M = 460` primary / `536` all-tier) but refused a decision, because §6.2 step 2's
-> within-arm stability check reported both arms materially unstable — **and, after two rounds of
-> genuine comparator-code fixes, still does**: nano self-disagreed on 90% of a 30-source replicate
-> sample and Luna on 56.7%, with the established baseline *less* stable than the candidate. Those two
-> figures are **provisional** pending one corrected `--stability-only` pass per arm (§12 round four),
-> but the conclusion is not: only 11 of the 30 deterministic sample sources are multi-plan, so the
-> outstanding correction floors the figures at 53.3% and 20% respectively — both still far above the
-> 10% threshold. §12 rounds three and four record the full investigation, both fixes, and the one
-> operator action left. Three earlier design versions were retired before this — a five-arm model search, a
-> superiority-gated statistical programme, and a first non-inferiority draft whose cheap-labelling
-> rule and validation rules could each have changed the decision incorrectly. §12 records every
-> removal and correction, so this document is not re-inflated or re-broken later.
+> **Status (2026-08-18): CLOSED without a verdict. `effort=none` is not viable for this task, which
+> is logically prior to any model comparison.** Both arms ran, are banked and are
+> provenance-identical apart from the declared model; raw discordance is real and re-verified
+> (`M = 460` primary / `536` all-tier). But §6.2 step 2's within-arm stability gate fired and, after
+> two rounds of genuine comparator fixes and one corrected diagnostic per arm, still does: asked to
+> parse the same email twice, **nano returns a materially different order of service 80.0% of the
+> time and Luna 63.3%**, against a 10% threshold. The decomposition shows what moves — item counts,
+> dates, services, content scope, routing — so this is the extraction itself, not a measurement
+> artifact. A non-inferiority test between two arms that each disagree with *themselves* on 63–80% of
+> sources cannot answer the question it was built to answer.
+>
+> **Nano stays configured. Luna is neither adopted nor rejected** — on this evidence it is *more*
+> stable than nano on every substantive field, and recording a finding against it would be wrong.
+> Do not adjudicate the 536 discordant sources. The live question is now reasoning effort, not model
+> choice. §12 rounds three, four and five record the two comparator defects, the bound computed
+> before spending, and the diagnostic that closed it. Three earlier design versions were retired
+> before this — a five-arm model search, a superiority-gated statistical programme, and a first
+> non-inferiority draft whose cheap-labelling rule and validation rules could each have changed the
+> decision incorrectly. §12 records every removal and correction, so this document is not re-inflated
+> or re-broken later.
 >
 > **This is a non-inferiority question.** Verified 2026-08-17 against official OpenAI documentation:
 > `gpt-5.6-luna` is the same-tier successor to `gpt-5.4-nano`, identical on input price and ~4%
@@ -886,3 +891,104 @@ sail artisan service-tracking:run-oos-parser-arm --arm=baseline-nano-none \
 provenance driving most pairs, the signature is a candidate for further narrowing; if item structure
 or plan keys drive them, `effort=none` itself is the thing to re-examine, prior to any model
 comparison.
+
+### Round five (2026-08-18) — the corrected diagnostic, run: `effort=none` is the finding
+
+Both corrected `--stability-only` passes were run on the same deterministic 30 sources. The
+evaluation closes here.
+
+**Comparability is proven, not assumed.** Both diagnostics record `manifest_hash 2c79b9a5…`,
+`source_key_list_hash 8430b272…`, `price_snapshot_sha256 e100a298…`, `parser_surface 251673ca…` and
+`application_commit 09d3fc4a…` — all identical to each other and, apart from the commit (which now
+carries the shared signature), to the two banked arms. Both recorded the same 30
+`sample_source_keys`, and those match the sample recomputed independently from the banked baseline
+projection. This is the same corpus slice, re-parsed.
+
+| | Recorded (round three) | **Corrected** | Round four's floor |
+|---|---:|---:|---:|
+| Nano (baseline) | 90.0% (27/30) | **80.0% (24/30)** | ≥53.3% |
+| Luna (candidate) | 56.7% (17/30) | **63.3% (19/30)** | ≥20.0% |
+
+Both land inside the predicted interval. **Both remain far above the 10% threshold**, and the
+established baseline is still the less stable of the two — now by a wider margin.
+
+**Do not read the 90→80 movement as "the fix explained 10pp."** These are two independent draws from
+a stochastic process. At `n = 30` the standard error near `p ≈ 0.85` is ~6.5pp, so a 10pp gap is
+under 1.5 SE; the comparison fix and ordinary sampling noise are not separable at this sample size.
+Luna moved *up* 6.6pp, which is the same story in the other direction. What the round-four bound
+established — that no correction could bring either arm near 10% — is what actually survives.
+
+#### Field decomposition — the two arms fail differently
+
+Disagreeing pairs per field group; a pair may count in several, so the columns do not partition.
+
+| group | nano (of 24) | Luna (of 19) |
+|---|---:|---:|
+| `item_structure` | **21** | 8 |
+| `provenance` | 15 | **17** |
+| `titles` | 11 | 7 |
+| `service_date_scope` | 7 | **0** |
+| `routing_category` | 5 | 4 |
+| `plan_keys` | 2 | 2 |
+
+**Nano's instability is structural.** `item_structure` drives 21 of its 24 disagreeing pairs, and the
+concrete diffs are not normalisation artifacts: `2023-10-08` extracted **15 items on one call and 20
+on the other**; `2020-11-01` 16 vs 13; `2018-11-18` 12 vs 11 with 8 titles changed; `2018-06-03` 2 vs
+1. `2022-06-12` produced `morning:2022-06-12` on one call and **`morning:unknown`** on the other,
+losing the date and flipping routing. `2020-10-11` and `2017-04-30` flipped `content_scope`
+**partial ↔ full**.
+
+**Luna's is mostly bookkeeping, but not entirely.** `provenance` — source-line bindings — drives 17
+of 19, and it never once moved service, date or scope (`service_date_scope` = 0, against nano's 7).
+Of its 10 retained diffs, 3 are provenance-only with no substantive change; nano's 10 are all
+substantive. But Luna is not clean: `2018-02-04-details` returned **1 item on one call and 7 on the
+other, plus an entire extra `evening:2018-02-04` service plan** that the first call never produced,
+and `2021-10-31` returned `morning:2021-10-31` vs **`unknown:2021-10-31`**, losing the service.
+
+Of nano's 10 retained diffs, 5 changed the item **count** (boundary/segmentation), 4 held the count
+and reclassified `section_type`, 1 was identity-only. Every classification flip is *specific ↔
+`other`*: `sermon`↔`other`, `other`↔`childrens_talk`, `other`↔`prayer`/`notices` — the model falling
+back to `other` non-deterministically.
+
+*Limitation:* `field_decomposition` counts all pairs, but only 10 diffs per arm are retained
+(`MaxRetainedStabilityDifferences`), so the substantive-vs-provenance-only split above is a sample of
+10, not a census of 24/19.
+
+#### Conclusion: the prerequisite question, answered
+
+§12 round three listed three candidate explanations. The decomposition selects the first and rules
+out the second. This is **not** a still-too-strict signature: the fields moving are item counts,
+dates, services, content scope and routing — precisely what §3.1 defines as the thing being measured,
+and what a further narrowing would have to start discarding to make the number look better. Asked to
+parse the same email twice at `effort=none`, the parser returns a materially different order of
+service four times in five for nano and nearly two times in three for Luna.
+
+**So `effort=none` is not a viable reasoning-effort setting for this task, and that is a finding about
+the task, not about either model.** It is logically prior to any model comparison: a non-inferiority
+test between two arms that each disagree with *themselves* on 63–80% of sources cannot answer the
+question it was built to answer, whatever `M` turns out to be. Both zero retries and no truncation in
+either run (86 and 80 calls) means this is not the ceiling defect §12 round two closed — it is the
+setting itself.
+
+§6.2 step 2's literal next step — two full replicates per arm, scoring only replicate-consistent
+outcomes — is now clearly not worth its spend: at 80% baseline self-disagreement the consistent
+subset is roughly 6 of 30 sources, far too small to power the comparison, and would cost another full
+corpus run on both arms to discover that.
+
+#### Decision — final for this evaluation
+
+- **Nano stays configured.** Unchanged by everything above.
+- **Luna is not adopted, and is not rejected either.** The evaluation did not reach a verdict on
+  non-inferiority, and should not be recorded as having found against Luna. On the evidence it is
+  *more* stable than nano on every substantive field.
+- **Both banked arms stay.** `M = 460` is real and re-verified; it is simply not interpretable while
+  both arms are this unstable.
+- **Do not adjudicate the 536 discordant sources.** Labelling work premised on a stable extraction
+  cannot pay off here.
+- **The live question is now reasoning effort, not model choice.** Any future revival of this
+  evaluation should first establish a setting at which the parser reproduces its own output, then
+  re-ask the model question against that setting. `reasoning_token_headroom` (§12 round two) already
+  provides the ceilings a `low`/`medium` arm would need.
+
+Artifacts: `storage/scratch/oos-parser-evaluation/stability-nano-2026-08-18/stability-diagnostic.json`
+and `stability-luna-2026-08-18/stability-diagnostic.json` (both `0600`, private).

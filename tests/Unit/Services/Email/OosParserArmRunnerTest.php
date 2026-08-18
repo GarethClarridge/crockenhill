@@ -233,6 +233,10 @@ class OosParserArmRunnerTest extends TestCase
 
         $this->assertSame(0, $report['stability']['self_disagreements']);
         $this->assertSame([], $report['stability']['disagreements']);
+
+        // The sample is deterministic, so recording which sources it drew is what lets one
+        // diagnostic be compared with an earlier one rather than merely reported beside it.
+        $this->assertEqualsCanonicalizing(['email-001', 'email-002'], $report['stability']['sample_source_keys']);
     }
 
     /**

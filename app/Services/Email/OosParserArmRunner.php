@@ -130,6 +130,20 @@ class OosParserArmRunner
                 'database_name' => (string) $this->database->connection()->getDatabaseName(),
                 'rehearsal_certification' => $certification,
                 'log_file' => basename($logPath),
+                /*
+                 * The stability sample is drawn deterministically from the manifest hash, so these
+                 * are what make a diagnostic comparable to an earlier one: same manifest hash and
+                 * same source-key list means the same 30 sources were re-parsed. Without them a
+                 * recheck reports a different number with no way to tell a real change from a
+                 * differently-drawn sample.
+                 */
+                'manifest_path' => basename($manifestPath),
+                'manifest_hash' => $manifestHash,
+                'source_count' => count($sourceKeys),
+                'source_key_list_hash' => CanonicalJson::hash($sourceKeys),
+                'price_snapshot_sha256' => CanonicalJson::hash($priceSnapshot),
+                'application_commit' => RepositoryCommit::current(),
+                'parser_surface' => $this->parserSurface->fingerprint(),
                 'canary' => [
                     'source_keys' => array_map(static fn (OosArchiveEntry $entry): string => $entry->itemKey, $canaries),
                     'telemetry' => $canaryTelemetry,
@@ -395,7 +409,7 @@ class OosParserArmRunner
      * routing, and that is the question §6.2 step 2's outcome now turns on.
      *
      * @param  list<OosArchiveEntry>  $entries
-     * @return array{sample_size:int,self_disagreements:int,rate:float,field_decomposition:array<string,int>,disagreements:list<array<string,mixed>>,telemetry:list<array<string,mixed>>}
+     * @return array{sample_size:int,sample_source_keys:list<string>,self_disagreements:int,rate:float,field_decomposition:array<string,int>,disagreements:list<array<string,mixed>>,telemetry:list<array<string,mixed>>}
      */
     private function stability(array $entries, string $evaluationId): array
     {
@@ -426,6 +440,7 @@ class OosParserArmRunner
 
         return [
             'sample_size' => count($sample),
+            'sample_source_keys' => array_map(static fn (OosArchiveEntry $entry): string => $entry->itemKey, $sample),
             'self_disagreements' => count($differences),
             // Cast: PHP's `/` returns an int on an even division, and the declared shape — which the
             // guardrail reads as a float — must not depend on whether the sample happened to divide.
