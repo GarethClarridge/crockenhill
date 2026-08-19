@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Providers;
 
 use App\Contracts\OosEmailItemExtractor;
+use App\Contracts\OosSemanticAnnotator;
+use App\Contracts\OosSemanticRepairer;
 use App\Contracts\SermonAnalysisInterface;
 use App\Contracts\ServiceStructureInterface;
 use App\Contracts\ServiceTranscriptionInterface;
@@ -12,6 +14,8 @@ use App\Contracts\TranscriptionServiceInterface;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
 use App\Services\ChurchService\Structure\OpenAiServiceStructureService;
 use App\Services\Email\OpenAiOosEmailItemExtractor;
+use App\Services\Email\OpenAiOosSemanticAnnotator;
+use App\Services\Email\OpenAiOosSemanticRepairer;
 use App\Services\Media\Audio\LocalWhisperServiceTranscriptionService;
 use App\Services\Media\Audio\MockServiceTranscriptionService;
 use App\Services\Media\Audio\MockTranscriptionService;
@@ -45,6 +49,13 @@ class AiServiceProviderTest extends TestCase
     public function oos_email_item_extractor_resolves_to_openai_implementation(): void
     {
         $this->assertInstanceOf(OpenAiOosEmailItemExtractor::class, $this->app->make(OosEmailItemExtractor::class));
+    }
+
+    #[Test]
+    public function semantic_oos_contracts_resolve_to_openai_implementations(): void
+    {
+        $this->assertInstanceOf(OpenAiOosSemanticAnnotator::class, $this->app->make(OosSemanticAnnotator::class));
+        $this->assertInstanceOf(OpenAiOosSemanticRepairer::class, $this->app->make(OosSemanticRepairer::class));
     }
 
     #[Test]

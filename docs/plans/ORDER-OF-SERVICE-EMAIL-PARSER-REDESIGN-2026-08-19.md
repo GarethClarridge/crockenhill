@@ -1,6 +1,66 @@
 # Order-of-Service Email Parser Redesign
 
-> **Status (2026-08-19): proposed, not started.** This plan replaces the queued prompt/retry
+> **Status (2026-08-19): implementation in progress.** The deterministic source, annotation,
+> validation, compiler, targeted-repair, risk-evidence and rollbackable candidate seams from
+> Deliveries 1–5 are implemented behind the non-default `semantic_annotations` configuration.
+> The refreshed private IC3 item truth now exists at
+> `storage/scratch/item-ground-truth-2026-08-19-authority-refreshed.json` (canonical artifact hash
+> `8c87a18889e9ed5dc97088a886113d0c14842d02dc6ef55eb59e69eb72284645`) against the
+> exact 606-identity / 5,661-active-item rehearsal corpus and the authoritative 16 August hymn
+> workbook. Delivery 0 now has a private, mode-`0600`, hash-bound 38-source worksheet at
+> `storage/scratch/oos-semantic-evaluation-corpus-2026-08-19-prefilled.json`: the deterministic 30-source
+> stability sample plus eight named hard cases, with banked legacy output/routing/validation/usage/
+> latency and IC3 corroboration retained as explicitly non-truth machine prefill. Legacy provenance
+> deterministically prefills 633 of 918 physical non-blank lines; 285 lines remain structurally
+> unclassified rather than being guessed. Its internal corpus hash is
+> `13abc76bdf5152c11f10938e3834e1f5e3f3dd0998b2bca910f73e60f7efb168`
+> (raw-file SHA-256 `415afd5404ef6a02f357136cc7aa4e690b2e1cfb895bb2f66344eaf225f20439`).
+>
+> **Adjudication is now complete.** A new `AdjudicateOosSemanticEvaluationCorpus` service and
+> `oos:adjudicate-semantic-corpus` command implement the hash-bound overlay called for in the prior
+> handoff: it decodes maintainer decisions through the same `OosSemanticAnnotationDecoder` →
+> `OosSemanticAnnotationValidator` → `CompileOosSemanticAnnotations` pipeline the live candidate uses,
+> so `truth.expected_plans` is always regenerated from `truth.annotations`, never typed independently.
+> All 38 sources were adjudicated by Gareth Clarridge on 2026-08-19 against the evidence hierarchy in
+> §6.1, working from the verbatim source text first and treating legacy prefill, IC3/hymn/OpenLP
+> corroboration and staged item counts as supporting evidence only. The resulting private artifact is
+> `storage/scratch/oos-semantic-evaluation-corpus-2026-08-19-adjudicated.json` (mode `0600`, corpus
+> hash `d499162c15e010105ded8e0f48087fdab6a14bb1342c1233661de0d9ebf5324a`); it reports
+> `completeness.scoreable: true`, `fully_adjudicated_sources: 38`, `pending_sources: 0`, and
+> `OosSemanticEvaluationCorpusGate::assertScoreable()` accepts it. The maintainer's working decisions
+> remain at `storage/scratch/oos-semantic-adjudication-decisions-2026-08-19.json` (mode `0600`).
+> Adjudication surfaced real defects beyond simple line labelling: two sources (2020-05-31,
+> 2026-07-05) contain a source-stated date that contradicts the approved authority date — resolved by
+> trusting the source text and tagging `unresolved_date` rather than silently substituting the
+> authority date; 2020-12-20-carols' legacy prefill mis-tagged four consecutive narration lines as
+> four separate `welcome` items rather than reading them as one scripted introduction, corrected to
+> the true 18-item structure; two sources (2018-04-15-am, 2016-06-12) carry legacy prefill whose own
+> line-ID references are offset by one from the current frozen source, discovered by content
+> cross-check and not trusted for those sources; several duplicate "sermon/reading details" recap
+> blocks that legacy had counted as second copies of an already-itemised sermon or reading were
+> reclassified as `supporting_detail` to prevent double-counting.
+>
+> Adjudication also fed back into `OosSemanticAnnotationPrompt`, bumped to `Version = 2` on
+> 2026-08-19, before any paid arm has run. The additions are narrow, evidence-backed corpus patterns
+> the model has no way to infer from the schema alone (a repeated sermon/song recap is
+> `supporting_detail` not a second item; numbered outline points and AV/slide notes are
+> `supporting_detail`; a hand-off phrase is `transition_marker`; `NIP` marks a non-hymnbook song;
+> `continuation` never targets a non-item line or a boundary) — not a general verbosity increase, and
+> deliberately excludes anything the richer item-kind enum already makes self-evident to a
+> schema-constrained model (e.g. "Communion" → `communion`), since the old parser's enum genuinely
+> lacked those values and that alone explains its errors there. Every acceptance-gate call this made
+> is auditable in this session's transcript.
+>
+> Paid-evaluation approval was received on 2026-08-19. The create-once private candidate-evidence
+> runner and dated price snapshot are implemented; its first real invocation refused before the first
+> API request because the truth gate found the 38 pending records that existed at that time. No paid
+> call has yet occurred. With adjudication now complete and the gate passing, Delivery 6 is unblocked
+> on the truth worksheet; running the paid arm against the new `-adjudicated` artifact still needs a
+> fresh maintainer go-ahead in the session that invokes it, since the corpus it would run against has
+> changed since the original approval. Delivery 7 remains unstarted: no signed passing comparison
+> exists, no production-default approval has been requested or granted, and production remains on
+> `legacy`.
+> This plan replaces the queued prompt/retry
 > sequence in `docs/reports/historic-import-f64-f65-parser-follow-up-2026-08-14.md` as the
 > executable plan for the permanent shared email parser. The report and the archived
 > [model evaluation](../archived-plans/OOS-PARSER-MODEL-EVALUATION-2026-08-17.md) remain evidence.
@@ -339,6 +399,12 @@ Each delivery is reviewable and leaves production behaviour unchanged until Deli
 
 ### Delivery 0 — consume truth and freeze compatibility contracts
 
+**Status 2026-08-19:** source inventory and legacy compatibility evidence frozen for 38 sources;
+semantic truth remains pending for all 38, so the acceptance gate is open. The freezer refuses
+manifest drift, unknown hard cases and overwrite; the resulting private artifact binds the approved
+payload, richer source-document hash, refreshed item truth, banked legacy projection and deterministic
+stability diagnostic independently.
+
 - Consume and verify the refreshed IC3 hymn/item truth produced by the historic plan against the
   August authority; this plan does not regenerate or approve that source evidence.
 - Freeze the bounded private line-annotation corpus and its source/hash inventory.
@@ -411,6 +477,12 @@ free-text reasoning; production routing is unchanged.
 
 Requires approval for paid calls.
 
+**Status 2026-08-19:** paid-call approval received. The raw-evidence runner now records annotation
+and targeted-repair returned model, usage and latency, binds the dated price snapshot and parser
+surface, and refuses overwrite. Its first real invocation stopped at the pre-network truth gate
+because the frozen corpus reports 38 pending sources. No paid request was sent and no correctness,
+stability or adoption verdict exists.
+
 1. Run one capable structured-output configuration against the frozen golden corpus. Start with
    `gpt-5.6-terra` / `low`, the balanced strong-model configuration already used for sermon
    analysis, rather than nano; freeze the exact returned model, reasoning setting and price snapshot
@@ -430,6 +502,9 @@ inputs drift or truth is incomplete.
 ### Delivery 7 — shared cutover and legacy retirement
 
 Requires maintainer approval of the comparison artifact and production default flip.
+
+**Status 2026-08-19:** not started and not authorised. The required passing comparison artifact does
+not exist; `legacy` remains the production default.
 
 - Wire weekly and historic parsing to the same candidate configuration behind one rollbackable
   config value; legacy remains the default until approval.
@@ -477,7 +552,124 @@ tests; migrate them to the new seam rather than deleting coverage.
 Live-model evaluation is an explicit operator-approved Artisan run against the private corpus. It
 is not a CI test, never runs from the normal application suite and never writes production state.
 
-## 9. Non-goals
+## 9. Continuation handoff — 2026-08-19
+
+This section is the restart point for the next implementation session. Earlier sections remain the
+design authority; this section records mutable execution state and does not weaken any gate.
+
+### 9.1 Current repository and runtime state
+
+- Deliveries 1–5 are implemented in the working tree behind the non-default
+  `OOS_EMAIL_PARSING_IMPLEMENTATION=semantic_annotations` seam. The changes are not yet committed;
+  preserve the dirty working tree and inspect it before editing.
+- Production and `.env.example` still default to `legacy`. No cache row has been reinterpreted, no
+  production-shaped source has been processed through the candidate and no publication policy has
+  changed.
+- Delivery 0 has frozen the source inventory and same-source legacy evidence, and adjudication now
+  **passes**: all 38 line-truth records report `adjudication_state: adjudicated`, and the
+  `-adjudicated` artifact's `completeness.scoreable` is `true`.
+  `OosSemanticEvaluationCorpusGate::assertScoreable()` accepts it (verified by direct invocation, not
+  merely by inspecting the JSON).
+- Delivery 6 spend approval was granted by the maintainer on 2026-08-19. The real command was invoked
+  with its approval flag against the then-pending corpus, and `OosSemanticEvaluationCorpusGate`
+  correctly rejected it before `OosSemanticParserCandidate::parse()` and therefore before any OpenAI
+  request. Paid-call count is still zero. The truth blocker is now cleared, but the §6.2 correctness
+  scorer and synthetic safety fixtures (9.4 step 4 below) are still unbuilt — do not invoke the paid
+  runner before they exist, or a paid response will arrive with nothing able to score it against this
+  truth automatically.
+- Delivery 7 is neither eligible nor authorised. It needs a signed passing comparison artifact and
+  a fresh, explicit production-default approval after the maintainer has reviewed that artifact.
+
+### 9.2 Private artifacts to preserve
+
+| Artifact | Binding state |
+|---|---|
+| `storage/scratch/item-ground-truth-2026-08-19-authority-refreshed.json` | Refreshed IC3 item truth; canonical hash `8c87a18889e9ed5dc97088a886113d0c14842d02dc6ef55eb59e69eb72284645` |
+| `storage/scratch/oos-semantic-evaluation-corpus-2026-08-19-prefilled.json` | Current private worksheet, mode `0600`; 38 sources, 918 non-blank lines, 633 deterministic legacy-provenance prefills and 285 unresolved lines; internal hash `13abc76bdf5152c11f10938e3834e1f5e3f3dd0998b2bca910f73e60f7efb168`; raw SHA-256 `415afd5404ef6a02f357136cc7aa4e690b2e1cfb895bb2f66344eaf225f20439` |
+| `storage/scratch/oos-semantic-evaluation-corpus-2026-08-19.json` | Earlier create-once freeze retained for audit only; superseded by the `-prefilled` artifact, never overwrite or promote it |
+| `storage/scratch/oos-semantic-adjudication-decisions-2026-08-19.json` | Maintainer's per-source adjudication decisions (services + line annotations, keyed by item_key), mode `0600`; the mutable working input to the overlay, not itself a create-once artifact |
+| `storage/scratch/oos-semantic-evaluation-corpus-2026-08-19-adjudicated.json` | **Scoreable truth corpus**, mode `0600`; all 38 sources adjudicated by Gareth Clarridge; `completeness.scoreable: true`; corpus hash `d499162c15e010105ded8e0f48087fdab6a14bb1342c1233661de0d9ebf5324a`; this is the corpus Delivery 6 must be run against |
+| `storage/scratch/oos-parser-evaluation/baseline-nano-none-2026-08-18/raw-result-projection.json` | Banked same-manifest legacy output/routing/validation/telemetry; canonical hash `75181b9f606e83ee51b1c40ee814a51edba80138293e61569ecccda0d18c0cc5` |
+| `storage/scratch/oos-parser-evaluation/prompt-baseline-nano-none-2026-08-19/stability-diagnostic.json` | Authority for the deterministic 30-source sample; canonical hash `4be3122b4b8d8a8b71cdb4baf12bfd81b9ce31948d51707ce1850f18a8b85323` |
+| `storage/scratch/oos-semantic-price-snapshot-2026-08-19.json` | Dated direct-API/model-page price input; raw SHA-256 `4ad19caca578776e11ef1b3a332fdfc3947ecd8d0045fe5bfe2e445a87d36ce0`; projection input only, never billing authority |
+
+The private corpus contains verbatim email text and must remain uncommitted and mode `0600`. The
+price snapshot records the official model page's displayed default rates and explicitly notes that
+OpenAI's general pricing table exposes additional context/processing variants. Keep the snapshot
+fixed for this arm; create a new artifact rather than editing it if the selected billing mode changes.
+
+### 9.3 Implemented continuation surfaces
+
+- `FreezeOosSemanticEvaluationCorpusCommand` and `FreezeOosSemanticEvaluationCorpus` create the
+  private source/hash inventory, reject manifest drift and unknown hard cases, retain IC3 evidence,
+  and label all legacy-derived fields `not_truth`.
+- `OosSemanticEvaluationCorpusGate` recomputes the corpus and source hashes and refuses paid calls
+  unless every source has typed services, annotations and expected plans with maintainer identity and
+  time, and the completeness census agrees.
+- `OosSemanticCandidateEvidenceRunner` and `RunOosSemanticCandidateEvidenceCommand` are create-once
+  raw-evidence surfaces. They bind corpus, prompt, parser surface, configured/returned model,
+  reasoning effort, service tier, price snapshot, usage and latency. They deliberately do not call a
+  compilable response a correctness verdict.
+- Targeted repairs now retain returned model, attempt, usage and latency inside the adjudicable
+  attempt artifact; the earlier implementation only wrote that evidence to logs.
+- Both one-shot commands declare deletion at accepted Delivery 6 comparison or historic IC8
+  closeout, whichever comes first.
+- `AdjudicateOosSemanticEvaluationCorpus` and `AdjudicateOosSemanticEvaluationCorpusCommand`
+  (`oos:adjudicate-semantic-corpus`) are the hash-bound adjudication overlay called for by the prior
+  handoff. They validate the frozen `-prefilled` corpus's own hash before use, decode and compile each
+  decided source through the existing live-candidate pipeline (so annotations and expected plans can
+  never disagree), leave any undecided source untouched as `pending`, and recompute the completeness
+  census and corpus hash. This is also a one-shot surface with the same Delivery 6/IC8 deletion
+  trigger as the rest of the Delivery 0 truth tooling.
+
+### 9.4 Exact next-session sequence
+
+1. ~~Inspect the dirty working tree and reverify the artifact hashes above.~~ Done this session;
+   hashes reverified, no create-once artifact was overwritten, the 38-source selection is unchanged.
+2. ~~Build the hash-bound adjudication overlay.~~ Done this session as
+   `AdjudicateOosSemanticEvaluationCorpus`/`oos:adjudicate-semantic-corpus` (§9.3), with unit and
+   feature test coverage; Pint and PHPStan both pass.
+3. ~~The maintainer must confirm or correct the 633 prefills and adjudicate the 285 unresolved
+   lines.~~ Done this session: all 38 sources adjudicated by Gareth Clarridge, working from the
+   verbatim source text and evidence hierarchy in §6.1, not from legacy prefill or IC3 corroboration.
+   The resulting `-adjudicated` artifact reports `scoreable: true` and the real
+   `OosSemanticEvaluationCorpusGate` accepts it.
+4. **Next step.** Add the §6.2 correctness scorer and synthetic safety fixtures still missing from
+   Delivery 0. It must refuse inference on incomplete/drifted truth and report each §6.3 gate
+   independently, including zero incorrect unattended imports and the first-pass content-rule
+   comparison. Do not run the paid arm (step 5) before this exists — otherwise a paid response arrives
+   with nothing able to score it against the new truth automatically.
+5. Once the scorer exists, run one approved `gpt-5.6-terra` / `low` correctness arm against the
+   `-adjudicated` corpus (not the `-prefilled` one), writing to a fresh absolute path. This still
+   needs an explicit maintainer go-ahead in the session that invokes it — the original 2026-08-19
+   approval was granted against a corpus that no longer exists in its pending form:
+
+   ```bash
+   vendor/bin/sail artisan oos:run-semantic-candidate-evidence \
+     --corpus=storage/scratch/oos-semantic-evaluation-corpus-2026-08-19-adjudicated.json \
+     --price-snapshot=storage/scratch/oos-semantic-price-snapshot-2026-08-19.json \
+     --output=/var/www/html/storage/scratch/oos-semantic-candidate-terra-low-2026-08-19.json \
+     --paid-model-approved
+   ```
+
+6. Score correctness before any replicate or full-corpus spend. If any safety, title-binding or item
+   precision gate fails, stop, retain the artifact and change at most one of model, prompt, schema or
+   compiler semantics in the next create-once variant.
+7. Only for a correctness-passing candidate, run two deterministic stability replicates and produce
+   the signed comparison artifact covering all §6.3 gates, legacy total-system cost and drift checks.
+8. Present that artifact to the maintainer. Do not start Delivery 7 replay, default flip or legacy
+   deletion until the maintainer explicitly approves the artifact and production default change.
+
+### 9.5 Verification banked at handoff
+
+- Full suite: **6,950 tests passed, 83,674 assertions**; 140 existing PHPUnit notices; no failures.
+- PHPStan: **0 errors** across 827 analysed files.
+- Pint: passed.
+- `git diff --check`: passed.
+- No Dusk/Playwright run was required because there was no UI change.
+- No paid model request and no production mutation occurred.
+
+## 10. Non-goals
 
 - fine-tuning before the annotation architecture and golden evaluation establish a residual need;
 - an agent framework or multi-agent extraction;
@@ -490,7 +682,7 @@ is not a CI test, never runs from the normal application suite and never writes 
   sufficient; or
 - optimising token cost before correctness passes.
 
-## 10. Completion and archive conditions
+## 11. Completion and archive conditions
 
 This plan completes when Delivery 7 acceptance passes, the shared parser is the sole permanent
 weekly/historic path, the legacy whole-document correction path is deleted, and all remaining

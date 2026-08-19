@@ -45,12 +45,29 @@ class OosParserSurfaceFingerprint
         // Every system prompt variant. Which one an arm selected is a declared intervention and is
         // recorded in the run manifest; an *edit* to either text is not, and is caught here.
         'app/Services/Email/OosEmailExtractionPrompt.php',
+        'app/Services/Email/OosSemanticAnnotationPrompt.php',
+        'app/Services/Email/OpenAiOosSemanticAnnotator.php',
+        'app/Services/Email/OpenAiOosSemanticRepairer.php',
+        'app/Services/Email/OosSemanticAnnotationSchema.php',
+        'app/Services/Email/OosSemanticAnnotationDecoder.php',
+        'app/Services/Email/OosSemanticAnnotationValidator.php',
+        'app/Services/Email/ApplyOosSemanticAnnotationPatch.php',
+        'app/Services/Email/CompileOosSemanticAnnotations.php',
+        'app/Services/Email/OosServiceDateResolver.php',
+        'app/Services/Email/OosSemanticParserCandidate.php',
         // Item normalisation, disposition, hold reasons, content scope, date plausibility.
         'app/Services/Email/OosEmailParserService.php',
         // The strict source-line and phantom-line rules the safety guardrail rests on.
         'app/Services/Email/OosEmailExtractionValidator.php',
         // Line numbering and the verbatim text an item's source title is taken from.
         'app/Data/OosEmailSourceDocument.php',
+        'app/Data/OosCandidateService.php',
+        'app/Data/OosSemanticLineAnnotation.php',
+        'app/Data/OosSemanticAnnotationResult.php',
+        'app/Data/OosSemanticAnnotationPatch.php',
+        'app/Enums/OosSemanticRole.php',
+        'app/Enums/OosSemanticItemKind.php',
+        'app/Enums/OosSemanticUncertainty.php',
         // `isAutoImportable()` and friends, which decide the routing category.
         'app/Data/OosEmailServicePlan.php',
         // Effective reasoning effort and the completion ceiling actually sent.

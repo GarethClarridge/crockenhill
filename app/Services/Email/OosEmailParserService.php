@@ -32,6 +32,7 @@ class OosEmailParserService
         private readonly ExistingEmailImportLookup $existingEmailImports,
         private readonly ServiceItemTitleCleaner $titleCleaner,
         ?OosEmailExtractionValidator $extractionValidator = null,
+        private readonly ?OosSemanticParserCandidate $semanticParser = null,
     ) {
         $this->extractionValidator = $extractionValidator ?? new OosEmailExtractionValidator;
     }
@@ -39,25 +40,55 @@ class OosEmailParserService
     public function parse(InboundEmail $inboundEmail): OosEmailParseResult
     {
         $body = $this->preferredBody($inboundEmail);
-        $source = OosEmailSourceDocument::fromBody($body);
         $receivedAt = CarbonImmutable::instance($inboundEmail->received_at);
-        $initialExtraction = $this->itemExtractor->extract(
+        $source = OosEmailSourceDocument::fromContext(
             $inboundEmail->subject,
             $body,
             $receivedAt->toDateString(),
         );
+        $usesSemanticParser = config('service-tracking.email_parsing.implementation', 'legacy') === 'semantic_annotations';
+        $semanticRiskSignals = [];
+
+        if ($usesSemanticParser) {
+            if (! $this->semanticParser instanceof OosSemanticParserCandidate) {
+                throw new \RuntimeException('Semantic OoS email parser is selected but not configured.');
+            }
+
+            $semanticOutcome = $this->semanticParser->parse($source);
+            $initialExtraction = $semanticOutcome->extraction;
+            $attempts = $semanticOutcome->attempts;
+            $semanticRiskSignals = $semanticOutcome->riskSignals;
+        } else {
+            $initialExtraction = $this->itemExtractor->extract(
+                $inboundEmail->subject,
+                $body,
+                $receivedAt->toDateString(),
+            );
+            $attempts = [];
+        }
+
         $initialExtraction = $this->guardUnsupportedEveningPlans($source, $initialExtraction, $inboundEmail->subject);
         $initialValidation = $this->extractionValidator->validate($source, $initialExtraction, $inboundEmail->subject);
         $extraction = $initialExtraction;
         $validation = $initialValidation;
-        $attempts = [$this->attemptMetadata(1, $initialExtraction, $initialValidation, true)];
+
+        if ($usesSemanticParser) {
+            $attempts[0]['compatibility_validation'] = $this->attemptMetadata(1, $initialExtraction, $initialValidation, true);
+            $semanticRiskSignals['content_validator_findings'] = [
+                'content' => $initialValidation->contentRuleCodes(),
+                'bookkeeping' => $initialValidation->bookkeepingRuleCodes(),
+            ];
+        } else {
+            $attempts = [$this->attemptMetadata(1, $initialExtraction, $initialValidation, true)];
+        }
+
         $consensus = false;
         $adjudicated = false;
         $validAttemptsDisagree = false;
         $retryWarnings = [];
         $retryReasons = $this->retryReasons($initialValidation);
 
-        if ($retryReasons !== [] && $this->itemExtractor instanceof CorrectiveOosEmailItemExtractor) {
+        if (! $usesSemanticParser && $retryReasons !== [] && $this->itemExtractor instanceof CorrectiveOosEmailItemExtractor) {
             try {
                 $correctedExtraction = $this->itemExtractor->correct(
                     $inboundEmail->subject,
@@ -202,6 +233,8 @@ class OosEmailParserService
                 'adjudicated' => $adjudicated,
                 'source_message_id' => $inboundEmail->message_id,
                 'source_subject' => $inboundEmail->subject,
+                'parser_implementation' => $usesSemanticParser ? 'semantic_annotations' : 'legacy',
+                'risk_signals' => $semanticRiskSignals,
             ],
             servicePlans: $servicePlans,
             disposition: $primary->disposition,
@@ -411,7 +444,7 @@ class OosEmailParserService
      * named `$structuralReasons` — labelling every content-invalid plan a bookkeeping hold as well.
      * Asking the result for each list by name makes that class of mix-up unavailable here.
      *
-     * @param  array<int, array{type:string,title:string,source_line_ids?:list<int>,continuation?:bool}>  $rawItems
+     * @param  array<int, array{type:string,title:string,source_line_ids?:list<int>,continuation?:bool,semantic_kind?:?string}>  $rawItems
      * @param  list<int>  $serviceEvidenceLineIds
      * @param  list<string>  $warnings
      * @param  array<string, array{plausible:bool,warnings:list<string>,suggested_date:?string,reasons:list<string>,claimed_weekday:?string}>  $validations
@@ -544,6 +577,7 @@ class OosEmailParserService
                         'position' => $index + 1,
                         'source_line_ids' => $this->integerLineIds($item['source_line_ids'] ?? []),
                         'continuation' => ($item['continuation'] ?? false) === true,
+                        'semantic_kind' => $item['semantic_kind'] ?? null,
                     ],
                     $rawItems,
                     array_keys($rawItems),
@@ -630,7 +664,7 @@ class OosEmailParserService
      * carried. They are deliberately allowed to differ here: cross-source matching and song
      * resolution read `source_title`, so cleaning the display title costs no match strength.
      *
-     * @param  array<int, array{type:string,title:string,source_line_ids?:list<int>,continuation?:bool}>  $items
+     * @param  array<int, array{type:string,title:string,source_line_ids?:list<int>,continuation?:bool,semantic_kind?:?string}>  $items
      * @return array<int, array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>
      */
     private function normaliseItems(
@@ -642,6 +676,7 @@ class OosEmailParserService
 
         foreach ($items as $item) {
             $semanticType = $this->normaliseSemanticType($item['type']);
+            $richerSemanticKind = is_string($item['semantic_kind'] ?? null) ? $item['semantic_kind'] : null;
             $sourceLineIds = $this->integerLineIds($item['source_line_ids'] ?? []);
             $sourceTitle = $provenanceComplete ? $source->textFor($sourceLineIds) : null;
             $rawTitle = $this->normaliseWhitespace($sourceTitle ?? $item['title']);
@@ -666,7 +701,7 @@ class OosEmailParserService
                 'title' => $title,
                 'source_title' => $rawTitle,
                 'openlp_search_title' => null,
-                'metadata' => $this->itemMetadata($sectionType, $semanticType, $storageType, $title, $rawTitle),
+                'metadata' => $this->itemMetadata($sectionType, $semanticType, $storageType, $title, $rawTitle, $richerSemanticKind),
             ];
         }
 
@@ -987,6 +1022,7 @@ class OosEmailParserService
         string $storageType,
         string $title,
         string $rawTitle,
+        ?string $richerSemanticKind,
     ): ?array {
         // Recorded here so the passage is available to every reader of the item without
         // re-parsing a title, matching what LLM structure detection stores for a
@@ -994,10 +1030,21 @@ class OosEmailParserService
         if ($sectionType === ServiceSectionType::BibleReading) {
             $reference = $this->titleCleaner->readingReference($title, $rawTitle);
 
-            return $reference === null ? null : ['reading_reference' => $reference];
+            $metadata = $reference === null ? [] : ['reading_reference' => $reference];
+
+            return $richerSemanticKind === null ? ($metadata === [] ? null : $metadata) : [
+                ...$metadata,
+                'semantic_kind' => $richerSemanticKind,
+            ];
         }
 
-        return $storageType === 'custom' ? ['email_type' => $semanticType] : null;
+        $metadata = $storageType === 'custom' ? ['email_type' => $semanticType] : [];
+
+        if ($richerSemanticKind !== null) {
+            $metadata['semantic_kind'] = $richerSemanticKind;
+        }
+
+        return $metadata === [] ? null : $metadata;
     }
 
     /**

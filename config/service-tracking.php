@@ -20,6 +20,9 @@ return [
     ],
 
     'email_parsing' => [
+        // The semantic compiler path is evaluation-only until the Delivery 7 default flip is
+        // approved. `legacy` preserves the current weekly and historic production behaviour.
+        'implementation' => env('OOS_EMAIL_PARSING_IMPLEMENTATION', 'legacy'),
         // Dedicated knob (was the shared OPENAI_MODEL) — lowest-stakes structured extraction, so
         // it defaults to the cheapest current model rather than tracking the analysis default.
         'model' => env('OOS_EMAIL_PARSING_MODEL', 'gpt-5.4-nano'),
@@ -55,6 +58,14 @@ return [
         'extraction_attempts' => (int) env('OOS_EMAIL_PARSING_EXTRACTION_ATTEMPTS', 3),
         'review_threshold' => 0.75,
         'auto_import_threshold' => 0.90,
+        'semantic' => [
+            'model' => env('OOS_SEMANTIC_ANNOTATION_MODEL', 'gpt-5.6-terra'),
+            'reasoning_effort' => env('OOS_SEMANTIC_ANNOTATION_REASONING_EFFORT', 'low'),
+            'max_completion_tokens' => (int) env('OOS_SEMANTIC_ANNOTATION_MAX_COMPLETION_TOKENS', 12000),
+            'repair_max_completion_tokens' => (int) env('OOS_SEMANTIC_REPAIR_MAX_COMPLETION_TOKENS', 3000),
+            'transport_attempts' => (int) env('OOS_SEMANTIC_TRANSPORT_ATTEMPTS', 3),
+            'retry_delays_ms' => [100, 500, 1000],
+        ],
     ],
 
     'songs' => [

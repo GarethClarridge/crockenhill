@@ -74,4 +74,6 @@ return [
     // Cast to int: env() returns the raw string (e.g. "900"), and the OpenAI client passes
     // this straight to Guzzle's "timeout" request option, which deprecates non-int|float values.
     'request_timeout' => (int) env('OPENAI_REQUEST_TIMEOUT', 900),
+
+    'connect_timeout' => (int) env('OPENAI_CONNECT_TIMEOUT', 10),
 ];

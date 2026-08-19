@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Contracts\OosEmailItemExtractor;
+use App\Contracts\OosSemanticAnnotator;
+use App\Contracts\OosSemanticRepairer;
 use App\Contracts\SermonAnalysisInterface;
 use App\Contracts\ServiceStructureInterface;
 use App\Contracts\ServiceTranscriptionInterface;
@@ -13,6 +15,8 @@ use App\Services\ChurchService\Structure\MockServiceStructureService;
 use App\Services\ChurchService\Structure\OpenAiServiceStructureService;
 use App\Services\Email\OosParserEvaluationTelemetry;
 use App\Services\Email\OpenAiOosEmailItemExtractor;
+use App\Services\Email\OpenAiOosSemanticAnnotator;
+use App\Services\Email\OpenAiOosSemanticRepairer;
 use App\Services\Media\Audio\AudioTranscriptionService;
 use App\Services\Media\Audio\LocalWhisperServiceTranscriptionService;
 use App\Services\Media\Audio\LocalWhisperTranscriptionService;
@@ -21,13 +25,37 @@ use App\Services\Media\Audio\MockTranscriptionService;
 use App\Services\Media\Audio\OpenAiServiceTranscriptionService;
 use App\Services\Sermon\MockSermonAnalysisService;
 use App\Services\Sermon\SermonAnalysisService;
+use GuzzleHttp\Client;
 use Illuminate\Support\ServiceProvider;
 use InvalidArgumentException;
+use OpenAI;
+use OpenAI\Contracts\ClientContract;
 
 class AiServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->singleton(ClientContract::class, static function (): ClientContract {
+            $client = OpenAI::factory()
+                ->withApiKey((string) config('openai.api_key'))
+                ->withOrganization(is_string(config('openai.organization')) ? config('openai.organization') : null)
+                ->withHttpClient(new Client([
+                    'connect_timeout' => (int) config('openai.connect_timeout', 10),
+                    'timeout' => (int) config('openai.request_timeout', 900),
+                ]));
+
+            if (is_string(config('openai.project'))) {
+                $client->withProject(config('openai.project'));
+            }
+
+            if (is_string(config('openai.base_uri'))) {
+                $client->withBaseUri(config('openai.base_uri'));
+            }
+
+            return $client->make();
+        });
+
+        $this->app->alias(ClientContract::class, 'openai');
         $this->app->bind(SermonAnalysisInterface::class, function ($app): SermonAnalysisInterface {
             $serviceType = config('media-processing.analysis.service', 'openai');
 
@@ -75,5 +103,7 @@ class AiServiceProvider extends ServiceProvider
 
         $this->app->singleton(OosParserEvaluationTelemetry::class);
         $this->app->bind(OosEmailItemExtractor::class, OpenAiOosEmailItemExtractor::class);
+        $this->app->bind(OosSemanticAnnotator::class, OpenAiOosSemanticAnnotator::class);
+        $this->app->bind(OosSemanticRepairer::class, OpenAiOosSemanticRepairer::class);
     }
 }

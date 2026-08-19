@@ -323,10 +323,13 @@ hand-verify only what corroboration cannot reach. Its output decides HIR-D8 (§1
 model calls) and the producing defects behind it fixed (`9f55f13d2`). Read "Revision 2026-08-16" in
 that report before starting anything here — it withdraws item 2's premise and adds items 5–7.
 
-**Authority refresh required 2026-08-19.** The August hymn snapshot is now authoritative for 2025
-and 2026 (§6 IC6), so the existing 2026-08-16 ground-truth artifacts predate the current authority.
-Regenerate the hymn reconciliation and item-level ground truth before implementing or measuring
-HIR-D8. This is IC3 evidence work; only final-corpus regeneration and hymn mutation wait for IC6.
+**Authority refresh completed 2026-08-19.** The August hymn snapshot is now authoritative for 2025
+and 2026 (§6 IC6), so the earlier 2026-08-16 ground-truth artifacts are superseded. The refreshed
+item truth is `storage/scratch/item-ground-truth-2026-08-19-authority-refreshed.json` (canonical artifact hash
+`8c87a18889e9ed5dc97088a886113d0c14842d02dc6ef55eb59e69eb72284645`), generated against the
+recovered 606-identity / 5,661-active-item rehearsal corpus and the 16 August workbook. This closes
+the IC3 authority-refresh prerequisite for later HIR-D8 measurement; final-corpus regeneration and
+hymn mutation still wait for IC6.
 
 **Model-evaluation closure 2026-08-18.** The archived
 [nano/Luna non-inferiority evaluation](../archived-plans/OOS-PARSER-MODEL-EVALUATION-2026-08-17.md)

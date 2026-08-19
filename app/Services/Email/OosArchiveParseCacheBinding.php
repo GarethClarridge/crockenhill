@@ -49,6 +49,15 @@ class OosArchiveParseCacheBinding
         'app/Services/Email/OosEmailExtractionValidator.php',
         'app/Data/OosEmailServicePlan.php',
         'app/Services/Email/OpenAiOosEmailItemExtractor.php',
+        'app/Data/OosEmailSourceDocument.php',
+        'app/Services/Email/OosSemanticParserCandidate.php',
+        'app/Services/Email/OpenAiOosSemanticAnnotator.php',
+        'app/Services/Email/OpenAiOosSemanticRepairer.php',
+        'app/Services/Email/OosSemanticAnnotationSchema.php',
+        'app/Services/Email/OosSemanticAnnotationValidator.php',
+        'app/Services/Email/ApplyOosSemanticAnnotationPatch.php',
+        'app/Services/Email/CompileOosSemanticAnnotations.php',
+        'app/Services/Email/OosServiceDateResolver.php',
     ];
 
     /**
@@ -121,9 +130,14 @@ class OosArchiveParseCacheBinding
      */
     public function rawCacheKey(OosArchiveEntry $entry, string $parserVersion): array
     {
+        $implementation = config('service-tracking.email_parsing.implementation', 'legacy');
+        $effectiveParserVersion = $implementation === 'semantic_annotations'
+            ? "{$parserVersion}:semantic-annotations-v1"
+            : $parserVersion;
+
         return [
             'input_hash' => $entry->inputHash,
-            'parser_version' => $parserVersion,
+            'parser_version' => $effectiveParserVersion,
             'received_date' => $entry->syntheticReceivedAt->toDateString(),
         ];
     }
