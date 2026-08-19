@@ -82,15 +82,42 @@
 > 30-source baseline never parsed, so gate 10 reports it in the hard-case population rather than
 > counting it as a regression.
 >
-> Paid-evaluation approval was received on 2026-08-19. The create-once private candidate-evidence
-> runner and dated price snapshot are implemented; its first real invocation refused before the first
-> API request because the truth gate found the 38 pending records that existed at that time. No paid
-> call has yet occurred. With adjudication now complete and the gate passing, Delivery 6 is unblocked
-> on the truth worksheet; running the paid arm against the new `-adjudicated` artifact still needs a
-> fresh maintainer go-ahead in the session that invokes it, since the corpus it would run against has
-> changed since the original approval. Delivery 7 remains unstarted: no signed passing comparison
-> exists, no production-default approval has been requested or granted, and production remains on
-> `legacy`.
+> **2026-08-20: gate 7 fixed, per §9.4 step 5 option (a), and the truth corpus regenerated.**
+> `OosServiceDateResolver` gained one further rung, below every explicit-date pattern so a
+> source-stated date always wins: the Sunday on or after the received date. It is suppressed when the
+> service's own evidence lines or subject name a special service, reusing
+> `OosEmailExtractionValidator::SPECIAL_SERVICE_PATTERN` (now `public` for this reuse) rather than a
+> third copy of the pattern. `oos:adjudicate-semantic-corpus` was re-run over the frozen `-prefilled`
+> worksheet and the retained decisions file — the maintainer's line-level decisions were recompiled,
+> never re-taken — producing
+> `storage/scratch/oos-semantic-evaluation-corpus-2026-08-20-adjudicated.json` (mode `0600`, corpus
+> hash `14cba9a3b97ef763e184d8b6a31cd41654054e2d6edfe31761dea9af2a910060`), still 38/38 adjudicated and
+> scoreable. The 2026-08-19 `-adjudicated` artifact is superseded by this one and retained for audit
+> only; it must not be scored against again.
+>
+> A truth-replay self-check (a script written to and deleted from `storage/scratch/`, leaving no
+> retained artifact, consistent with the 2026-08-19 self-check) confirmed the fix end to end against
+> the new corpus: every candidate-vs-truth metric is exactly 1.0 (918/918 line identity, 51/51
+> boundaries, 526/526 items at precision and recall 1.0, exact order 1.0, item kinds 1.0, 9/9
+> continuations, 526/526 title binding, zero bookkeeping defects), and gate 7 now reports
+> `authority_identity`: candidate 36, adjudicated-truth ceiling 36, legacy baseline 34 — **passing**,
+> above the legacy baseline, exactly as predicted. Ten of eleven scoreable gates pass; gate 9
+> (weekly/historic entry-point parity) remains `not_scored`, since it is a property of two code paths
+> that one arm can never establish, so the verdict is `incomplete`, not `pass`, for that reason alone.
+> The `2020-12-20-carols` hard-case finding is unaffected and still reported separately from the
+> 30-source stability comparison.
+>
+> Paid-evaluation approval was received on 2026-08-19, against the corpus that existed at that time.
+> The create-once private candidate-evidence runner and dated price snapshot are implemented; its
+> first real invocation refused before the first API request because the truth gate found the 38
+> pending records that existed then. No paid call has yet occurred anywhere in this plan. With
+> adjudication complete, the resolver fixed and gate 7 now passing against the regenerated
+> `-2026-08-20-adjudicated` corpus, Delivery 6 is unblocked on both the truth worksheet and the
+> compiler; running the paid arm against that corpus still needs a fresh, explicit maintainer
+> go-ahead in the session that invokes it — the 2026-08-19 approval was granted against a corpus that
+> no longer exists in that form, and that go-ahead was deliberately not sought or given in the
+> 2026-08-20 session either. Delivery 7 remains unstarted: no signed passing comparison exists, no
+> production-default approval has been requested or granted, and production remains on `legacy`.
 > This plan replaces the queued prompt/retry
 > sequence in `docs/reports/historic-import-f64-f65-parser-follow-up-2026-08-14.md` as the
 > executable plan for the permanent shared email parser. The report and the archived
@@ -605,15 +632,28 @@ design authority; this section records mutable execution state and does not weak
   `OosSemanticEvaluationCorpusGate::assertScoreable()` accepts it (verified by direct invocation, not
   merely by inspecting the JSON).
 - The §6.2 scorer and §6.3 safety fixtures now exist and are covered by 24 new tests. The remaining
-  Delivery 0 gap is closed; §9.4 step 5 is now a maintainer decision about the date resolver rather
-  than an implementation task.
-- Delivery 6 spend approval was granted by the maintainer on 2026-08-19. The real command was invoked
-  with its approval flag against the then-pending corpus, and `OosSemanticEvaluationCorpusGate`
-  correctly rejected it before `OosSemanticParserCandidate::parse()` and therefore before any OpenAI
-  request. Paid-call count is still zero. The truth blocker is now cleared, but the §6.2 correctness
-  scorer and synthetic safety fixtures (9.4 step 4 below) are still unbuilt — do not invoke the paid
-  runner before they exist, or a paid response will arrive with nothing able to score it against this
-  truth automatically.
+  Delivery 0 gap is closed; §9.4 step 5 was a maintainer decision about the date resolver and is now
+  **done** (option (a) chosen and implemented on 2026-08-20).
+- **2026-08-20: `OosServiceDateResolver` gained the Sunday-on-or-after-received fallback rung**,
+  suppressed for a named special service via the now-`public`
+  `OosEmailExtractionValidator::SPECIAL_SERVICE_PATTERN`, covered by a new
+  `tests/Unit/Services/Email/OosServiceDateResolverTest.php`. Because `truth.expected_plans` are
+  compiled, the truth corpus was regenerated by re-running `oos:adjudicate-semantic-corpus` over the
+  retained decisions file (never re-adjudicated) into
+  `storage/scratch/oos-semantic-evaluation-corpus-2026-08-20-adjudicated.json` — see §9.2. A
+  truth-replay self-check against the new corpus confirmed gate 7 now passes
+  (`authority_identity`: candidate 36, ceiling 36, legacy baseline 34) with every other
+  candidate-vs-truth metric still exactly 1.0; only gate 9 remains `not_scored`, so the verdict is
+  `incomplete`. No paid call was made to produce this result — see the status block above for the
+  full figures.
+- Delivery 6 spend approval was granted by the maintainer on 2026-08-19, against the corpus that
+  existed then. The real command was invoked with its approval flag against the then-pending corpus,
+  and `OosSemanticEvaluationCorpusGate` correctly rejected it before `OosSemanticParserCandidate::parse()`
+  and therefore before any OpenAI request. Paid-call count is still zero. The truth blocker is now
+  cleared and gate 7 now passes against the regenerated corpus, so Delivery 6 is unblocked on both the
+  truth worksheet and the compiler — but the 2026-08-19 approval does not carry forward to the
+  regenerated corpus; §9.4 step 6 needs a fresh, explicit in-session go-ahead before any spend, and
+  none was sought or given in the 2026-08-20 session.
 - Delivery 7 is neither eligible nor authorised. It needs a signed passing comparison artifact and
   a fresh, explicit production-default approval after the maintainer has reviewed that artifact.
 
@@ -624,8 +664,9 @@ design authority; this section records mutable execution state and does not weak
 | `storage/scratch/item-ground-truth-2026-08-19-authority-refreshed.json` | Refreshed IC3 item truth; canonical hash `8c87a18889e9ed5dc97088a886113d0c14842d02dc6ef55eb59e69eb72284645` |
 | `storage/scratch/oos-semantic-evaluation-corpus-2026-08-19-prefilled.json` | Current private worksheet, mode `0600`; 38 sources, 918 non-blank lines, 633 deterministic legacy-provenance prefills and 285 unresolved lines; internal hash `13abc76bdf5152c11f10938e3834e1f5e3f3dd0998b2bca910f73e60f7efb168`; raw SHA-256 `415afd5404ef6a02f357136cc7aa4e690b2e1cfb895bb2f66344eaf225f20439` |
 | `storage/scratch/oos-semantic-evaluation-corpus-2026-08-19.json` | Earlier create-once freeze retained for audit only; superseded by the `-prefilled` artifact, never overwrite or promote it |
-| `storage/scratch/oos-semantic-adjudication-decisions-2026-08-19.json` | Maintainer's per-source adjudication decisions (services + line annotations, keyed by item_key), mode `0600`; the mutable working input to the overlay, not itself a create-once artifact |
-| `storage/scratch/oos-semantic-evaluation-corpus-2026-08-19-adjudicated.json` | **Scoreable truth corpus**, mode `0600`; all 38 sources adjudicated by Gareth Clarridge; `completeness.scoreable: true`; corpus hash `d499162c15e010105ded8e0f48087fdab6a14bb1342c1233661de0d9ebf5324a`; this is the corpus Delivery 6 must be run against |
+| `storage/scratch/oos-semantic-adjudication-decisions-2026-08-19.json` | Maintainer's per-source adjudication decisions (services + line annotations, keyed by item_key), mode `0600`; the mutable working input to the overlay, not itself a create-once artifact; recompiled (not re-taken) into both `-adjudicated` corpora below |
+| `storage/scratch/oos-semantic-evaluation-corpus-2026-08-19-adjudicated.json` | **Superseded 2026-08-20, retained for audit only.** Scored against the pre-fix `OosServiceDateResolver`; do not score against it again. mode `0600`; corpus hash `d499162c15e010105ded8e0f48087fdab6a14bb1342c1233661de0d9ebf5324a` |
+| `storage/scratch/oos-semantic-evaluation-corpus-2026-08-20-adjudicated.json` | **Scoreable truth corpus — current.** mode `0600`; all 38 sources adjudicated by Gareth Clarridge, recompiled against the fixed `OosServiceDateResolver`; `completeness.scoreable: true`; corpus hash `14cba9a3b97ef763e184d8b6a31cd41654054e2d6edfe31761dea9af2a910060`; this is the corpus Delivery 6 must be run against |
 | `storage/scratch/oos-parser-evaluation/baseline-nano-none-2026-08-18/raw-result-projection.json` | Banked same-manifest legacy output/routing/validation/telemetry; canonical hash `75181b9f606e83ee51b1c40ee814a51edba80138293e61569ecccda0d18c0cc5` |
 | `storage/scratch/oos-parser-evaluation/prompt-baseline-nano-none-2026-08-19/stability-diagnostic.json` | Authority for the deterministic 30-source sample; canonical hash `4be3122b4b8d8a8b71cdb4baf12bfd81b9ce31948d51707ce1850f18a8b85323` |
 | `storage/scratch/oos-semantic-price-snapshot-2026-08-19.json` | Dated direct-API/model-page price input; raw SHA-256 `4ad19caca578776e11ef1b3a332fdfc3947ecd8d0045fe5bfe2e445a87d36ce0`; projection input only, never billing authority |
@@ -706,35 +747,27 @@ fixed for this arm; create a new artifact rather than editing it if the selected
    1.0, exact order 1.0, item kinds 1.0, continuations 9/9, title binding 526/526, zero
    bookkeeping defects) and only gate 7 failed, for the resolver reason recorded in the status block.
 
-5. **Next step — a maintainer decision, before any spend.** Gate 7 will fail whatever model runs,
-   because the deterministic date resolver caps identity at 16/38 against a 34/38 legacy baseline.
-   Choose one:
-   - **(a) Fix the resolver first (recommended).** Add relative Sunday resolution from the supplied
-     calendar context — the Sunday on or after the received date — as the last rung of
-     `OosServiceDateResolver`, below every explicit-date pattern so a source-stated date always wins.
-     That recovers 20 of the 21 unresolvable sources and takes identity to 36/38. It changes
-     `truth.expected_plans`, so the `-adjudicated` corpus must be regenerated by re-running
-     `oos:adjudicate-semantic-corpus` over the retained decisions file at
-     `storage/scratch/oos-semantic-adjudication-decisions-2026-08-19.json` — the maintainer's
-     line-level decisions are *not* re-taken, only recompiled — and the new corpus hash recorded here.
-     It also moves the parser surface fingerprint, which is correct: it is a compiler change.
-   - **(b) Declare the historic path's downstream manifest backfill the owner of identity** and
-     restate gate 7 against a dimension the parser is actually responsible for. This needs a recorded
-     decision, because it weakens a gate, and it does nothing for weekly intake, which has no
-     manifest to fall back on.
-   - **(c) Accept a failing gate 7 for this arm** and spend anyway to learn the item-level figures.
-     Defensible, but the arm cannot produce a passing comparison artifact and Delivery 7 stays shut.
+5. ~~A maintainer decision, before any spend.~~ **Done 2026-08-20: option (a) chosen and
+   implemented.** `OosServiceDateResolver` gained the Sunday-on-or-after-received fallback rung
+   below every explicit-date pattern, suppressed for a named special service via the now-`public`
+   `OosEmailExtractionValidator::SPECIAL_SERVICE_PATTERN`. The `-adjudicated` corpus was regenerated
+   from the retained decisions file (decisions recompiled, not re-taken) into
+   `storage/scratch/oos-semantic-evaluation-corpus-2026-08-20-adjudicated.json`, corpus hash
+   `14cba9a3b97ef763e184d8b6a31cd41654054e2d6edfe31761dea9af2a910060`. A truth-replay self-check
+   confirmed gate 7 now passes (candidate 36, ceiling 36, legacy baseline 34) with every other
+   candidate-vs-truth metric still exactly 1.0 — see the status block for full figures. The parser
+   surface fingerprint moved, correctly, since this is a compiler change.
 
-6. Then run one approved `gpt-5.6-terra` / `low` correctness arm against the `-adjudicated` corpus
-   (not the `-prefilled` one), writing to a fresh absolute path. This still needs an explicit
-   maintainer go-ahead in the session that invokes it — the original 2026-08-19 approval was granted
-   against a corpus that no longer exists in its pending form:
+6. **Next step — still needs a fresh, explicit in-session maintainer go-ahead; not sought or given
+   in the 2026-08-20 session.** Run one approved `gpt-5.6-terra` / `low` correctness arm against the
+   **`-2026-08-20-adjudicated`** corpus (not `-2026-08-19-adjudicated`, which is superseded, and not
+   the `-prefilled` one), writing to a fresh absolute path:
 
    ```bash
    vendor/bin/sail artisan oos:run-semantic-candidate-evidence \
-     --corpus=storage/scratch/oos-semantic-evaluation-corpus-2026-08-19-adjudicated.json \
+     --corpus=storage/scratch/oos-semantic-evaluation-corpus-2026-08-20-adjudicated.json \
      --price-snapshot=storage/scratch/oos-semantic-price-snapshot-2026-08-19.json \
-     --output=/var/www/html/storage/scratch/oos-semantic-candidate-terra-low-2026-08-19.json \
+     --output=/var/www/html/storage/scratch/oos-semantic-candidate-terra-low-2026-08-20.json \
      --paid-model-approved
    ```
 
@@ -742,10 +775,10 @@ fixed for this arm; create a new artifact rather than editing it if the selected
 
    ```bash
    vendor/bin/sail artisan oos:score-semantic-candidate \
-     --corpus=storage/scratch/oos-semantic-evaluation-corpus-2026-08-19-adjudicated.json \
-     --candidate=storage/scratch/oos-semantic-candidate-terra-low-2026-08-19.json \
+     --corpus=storage/scratch/oos-semantic-evaluation-corpus-2026-08-20-adjudicated.json \
+     --candidate=storage/scratch/oos-semantic-candidate-terra-low-2026-08-20.json \
      --baseline-stability=storage/scratch/oos-parser-evaluation/prompt-baseline-nano-none-2026-08-19/stability-diagnostic.json \
-     --output=/var/www/html/storage/scratch/oos-semantic-score-terra-low-2026-08-19.json
+     --output=/var/www/html/storage/scratch/oos-semantic-score-terra-low-2026-08-20.json
    ```
 
    If any safety, title-binding or item precision gate fails, stop, retain both artifacts and change
@@ -759,6 +792,8 @@ fixed for this arm; create a new artifact rather than editing it if the selected
 
 ### 9.5 Verification banked at handoff
 
+**2026-08-19 (prior session):**
+
 - Full suite: **6,981 tests passed, 83,842 assertions**; 140 existing PHPUnit notices; no failures.
 - PHPStan: **0 errors** across 834 analysed files.
 - Pint: passed.
@@ -766,6 +801,28 @@ fixed for this arm; create a new artifact rather than editing it if the selected
   four-check workflow.
 - The scorer was additionally exercised against the real `-adjudicated` corpus with truth replayed as
   the candidate. That is a self-check, not evidence about any model, and it wrote no artifact.
+- No paid model request and no production mutation occurred. Paid-call count remains zero.
+
+**2026-08-20 (this session — §9.4 step 5 option (a), resolver fix and corpus regeneration):**
+
+- Full suite: **6,988 tests passed, 83,849 assertions** (+7 tests / +7 assertions, from the new
+  `tests/Unit/Services/Email/OosServiceDateResolverTest.php`); 140 existing PHPUnit notices,
+  unchanged; no failures.
+- PHPStan: **0 errors** across 834 analysed files.
+- Pint: passed.
+- Dusk: **55 passed**, unchanged. Not required by §8 — there was no UI change — but run to satisfy
+  the standing four-check workflow.
+- `oos:adjudicate-semantic-corpus` re-run over the frozen `-prefilled` worksheet and the retained
+  decisions file: 38/38 adjudicated, `scoreable: true`, new corpus hash
+  `14cba9a3b97ef763e184d8b6a31cd41654054e2d6edfe31761dea9af2a910060`.
+- The scorer was exercised against the new `-2026-08-20-adjudicated` corpus with truth replayed as
+  the candidate (script written to and deleted from `storage/scratch/`, per the same self-check
+  convention as 2026-08-19 — it is not evidence about any model and left no retained artifact).
+  Gate 7 now **passes** (`authority_identity`: candidate 36, adjudicated-truth ceiling 36, legacy
+  baseline 34); every other candidate-vs-truth metric is still exactly 1.0 (918/918 line identity,
+  51/51 boundaries, 526/526 items precision/recall, exact order 1.0, item kinds 1.0, 9/9
+  continuations, 526/526 title binding, zero bookkeeping defects); ten of eleven scoreable gates
+  pass; gate 9 (entry-point parity) is `not_scored`; verdict `incomplete`.
 - No paid model request and no production mutation occurred. Paid-call count remains zero.
 
 ## 10. Non-goals

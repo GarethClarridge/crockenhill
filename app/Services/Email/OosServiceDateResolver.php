@@ -47,15 +47,29 @@ class OosServiceDateResolver
             return $received->addDay()->toDateString();
         }
 
-        if (preg_match('/\b(?:this|next)\s+sunday\b/iu', $evidence, $matches) !== 1) {
+        if (preg_match('/\b(?:this|next)\s+sunday\b/iu', $evidence, $matches) === 1) {
+            return mb_strtolower($matches[0]) === 'this sunday'
+                ? $this->sundayOnOrAfter($received)
+                : $received->next(CarbonImmutable::SUNDAY)->toDateString();
+        }
+
+        // Lowest rung: no source-stated date, phrase or explicit relative marker was found at
+        // all. This is the commonest form in the corpus ("details for Sun", "Sunday morning",
+        // "order of service for Sunday") and every explicit pattern above already had first
+        // refusal, so a source-stated date always wins over this guess. It is suppressed for a
+        // named special service (Christmas, Easter, a wedding, ...), because those are not "the
+        // next Sunday" and guessing one produces a plausible but wrong date rather than a
+        // correctly-held null.
+        if (preg_match(OosEmailExtractionValidator::SPECIAL_SERVICE_PATTERN, $evidence) === 1) {
             return null;
         }
 
-        if (mb_strtolower($matches[0]) === 'this sunday' && $received->isSunday()) {
-            return $received->toDateString();
-        }
+        return $this->sundayOnOrAfter($received);
+    }
 
-        return $received->next(CarbonImmutable::SUNDAY)->toDateString();
+    private function sundayOnOrAfter(CarbonImmutable $date): string
+    {
+        return $date->isSunday() ? $date->toDateString() : $date->next(CarbonImmutable::SUNDAY)->toDateString();
     }
 
     private function contextYear(OosEmailSourceDocument $source): ?string

@@ -19,8 +19,12 @@ class OosEmailExtractionValidator
     /**
      * These are deliberately narrow: every `other` service requires human review, while this
      * list only distinguishes an explicit special-service anchor from ordinary notices.
+     *
+     * Public because {@see OosServiceDateResolver} reuses this exact pattern to suppress its
+     * relative-Sunday fallback for a named special service: "the next Sunday" is not a safe guess
+     * when the evidence names Christmas, Easter or another date-fixed occasion.
      */
-    private const SPECIAL_SERVICE_PATTERN = '/\b(?:carols?|christmas|good\s+friday|maundy|easter|thanksgiving|baptism|ordination|anniversary|funeral|wedding)\b/iu';
+    public const SPECIAL_SERVICE_PATTERN = '/\b(?:carols?|christmas|good\s+friday|maundy|easter|thanksgiving|baptism|ordination|anniversary|funeral|wedding)\b/iu';
 
     public function validate(
         OosEmailSourceDocument $source,
