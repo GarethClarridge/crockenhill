@@ -51,6 +51,37 @@
 > lacked those values and that alone explains its errors there. Every acceptance-gate call this made
 > is auditable in this session's transcript.
 >
+> **The §6.2 correctness scorer and §6.3 safety fixtures now exist** (`OosSemanticCorrectnessScorer`,
+> `OosSemanticSafetyFixtures`/`RunOosSemanticSafetyFixtures`, `oos:score-semantic-candidate`). The
+> scorer refuses to emit any metric or verdict when truth is incomplete, the corpus hash has drifted,
+> an arm bound a different corpus, an arm's parser surface differs from the scoring surface, the
+> baseline diagnostic is not the one the corpus was frozen against, or the arm's source coverage does
+> not match the corpus exactly. It reports all eleven §6.3 gates independently, and a gate it cannot
+> establish is `not_scored` — which blocks a `pass` verdict without being reported as failure.
+>
+> Running the scorer against the adjudicated corpus with **truth replayed as the candidate** validated
+> it end to end on real evidence and surfaced one architectural finding before any spend: gate 7
+> fails, and fails for a deterministic reason no model can change. `OosServiceDateResolver` resolves a
+> date for only 16 of 38 sources, where the banked legacy arm resolved 34; the adjudicated truth
+> itself scores 16, so this is the compiler's ceiling and not a model result. 21 of the 22 misses have
+> no resolvable date at all, and 20 of those 21 are the Sunday on or after the received date — the
+> commonest form in this corpus ("details for sun", "Sunday morning", "order of services for Sunday").
+> §5.3 step 7 already assigns relative-date resolution from *supplied calendar context* to PHP, and
+> `OosEmailSourceDocument::calendarContext()` exists and is unused by the resolver, so this is an
+> under-implementation against the plan's own contract rather than a new requirement. Adding that one
+> rule would move identity accuracy to 36/38, above the legacy baseline. It is **not** done here: it
+> changes `truth.expected_plans`, which are compiled, so the `-adjudicated` corpus would have to be
+> regenerated from the retained decisions file, and that is a maintainer decision. The remaining miss
+> (`2023-12-25`, Christmas Day, a Monday) and `2026-07-05` (a source-stated date that contradicts the
+> authority date, deliberately preserved as `unresolved_date`) are correct as they stand.
+>
+> A second, smaller finding: `2020-12-20-carols` — an evening service adjudicated from a Carols by
+> Candlelight order — trips the legacy compatibility validator's `missing_evening_service_evidence`
+> content rule, because neither its evidence lines nor its subject carry an evening or PM token. That
+> is the adjudicated truth failing a legacy rule, not the candidate failing. It is a hard case the
+> 30-source baseline never parsed, so gate 10 reports it in the hard-case population rather than
+> counting it as a regression.
+>
 > Paid-evaluation approval was received on 2026-08-19. The create-once private candidate-evidence
 > runner and dated price snapshot are implemented; its first real invocation refused before the first
 > API request because the truth gate found the 38 pending records that existed at that time. No paid
@@ -413,7 +444,10 @@ stability diagnostic independently.
 - Specify the annotation DTO, rule-code and artifact formats with version constants.
 
 **Acceptance:** the corpus is reproducible, private, hash-bound and sufficient to score every §6.2
-metric; no runtime code path changes.
+metric; no runtime code path changes. **Met on 2026-08-19**: adjudication is complete, the fifteen
+synthetic safety fixtures pass, and `OosSemanticCorrectnessScorer` computes every §6.2 metric from
+the corpus and a candidate evidence artifact alone — verified by replaying the adjudicated truth as a
+candidate against the real corpus.
 
 ### Delivery 1 — lossless source normalisation
 
@@ -570,6 +604,9 @@ design authority; this section records mutable execution state and does not weak
   `-adjudicated` artifact's `completeness.scoreable` is `true`.
   `OosSemanticEvaluationCorpusGate::assertScoreable()` accepts it (verified by direct invocation, not
   merely by inspecting the JSON).
+- The §6.2 scorer and §6.3 safety fixtures now exist and are covered by 24 new tests. The remaining
+  Delivery 0 gap is closed; §9.4 step 5 is now a maintainer decision about the date resolver rather
+  than an implementation task.
 - Delivery 6 spend approval was granted by the maintainer on 2026-08-19. The real command was invoked
   with its approval flag against the then-pending corpus, and `OosSemanticEvaluationCorpusGate`
   correctly rejected it before `OosSemanticParserCandidate::parse()` and therefore before any OpenAI
@@ -614,6 +651,34 @@ fixed for this arm; create a new artifact rather than editing it if the selected
   attempt artifact; the earlier implementation only wrote that evidence to logs.
 - Both one-shot commands declare deletion at accepted Delivery 6 comparison or historic IC8
   closeout, whichever comes first.
+- `OosSemanticEvaluationSource` is the single rule for rebuilding a frozen corpus record's source
+  document and proving the reconstruction reproduces the record's own `input_hash`. The freezer's
+  consumers had three independent copies of it; the runner, the adjudication overlay and the scorer
+  now share one.
+- `OosSemanticSafetyFixtures` holds fifteen wholly synthetic sources and deliberately defective
+  parser outputs, one per §6.3 failure family, in two layers: `annotation` fixtures that
+  `OosSemanticAnnotationValidator` must refuse before anything compiles, and `extraction` fixtures
+  that hand the compatibility path an already-compiled defective plan. Every `extraction` fixture
+  declares `confidence: 1.0` and a resolvable Sunday identity, so the *only* thing that can hold it is
+  the rule under test rather than the compiler's fixed 0.75 sitting under the 0.90 threshold. A clean
+  control fixture must come back auto-importable, which is what proves the harness is not simply
+  refusing everything.
+- `RunOosSemanticSafetyFixtures` drives each fixture end to end through the real
+  `OosEmailParserService` with fixed fakes in place of the annotator and the legacy extractor, so
+  "held" means `OosEmailServicePlan::isAutoImportable()` and `isEvidenceImportable()` answering no
+  rather than a restatement of the disposition rule that could drift from it.
+- `OosSemanticCorrectnessScorer` and `ScoreOosSemanticCandidateCommand`
+  (`oos:score-semantic-candidate`) score a candidate evidence artifact against the adjudicated truth.
+  Three choices are load-bearing: plans are paired by the source lines they claim rather than by
+  service and date, so a wrong slot or date is scored as the identity error it is instead of
+  destroying the item-level comparison underneath it; gate 2 and gate 10 are measured by running the
+  candidate's compiled extraction back through the same `OosEmailExtractionValidator` the 24/60
+  baseline was measured by; and gate 10's comparison is restricted to the 30-source deterministic
+  stability sample the baseline actually parsed, with the eight hard cases reported separately, so a
+  rule family the baseline never had the chance to hit is not read as a regression. Gate 5 bounds the
+  unattended-import set from above by confidence eligibility — every other disposition condition can
+  only hold a plan, so the bound can overstate the risk and never understate it — and records the
+  threshold, so a config change that widened it fails the gate loudly.
 - `AdjudicateOosSemanticEvaluationCorpus` and `AdjudicateOosSemanticEvaluationCorpusCommand`
   (`oos:adjudicate-semantic-corpus`) are the hash-bound adjudication overlay called for by the prior
   handoff. They validate the frozen `-prefilled` corpus's own hash before use, decode and compile each
@@ -634,15 +699,36 @@ fixed for this arm; create a new artifact rather than editing it if the selected
    verbatim source text and evidence hierarchy in §6.1, not from legacy prefill or IC3 corroboration.
    The resulting `-adjudicated` artifact reports `scoreable: true` and the real
    `OosSemanticEvaluationCorpusGate` accepts it.
-4. **Next step.** Add the §6.2 correctness scorer and synthetic safety fixtures still missing from
-   Delivery 0. It must refuse inference on incomplete/drifted truth and report each §6.3 gate
-   independently, including zero incorrect unattended imports and the first-pass content-rule
-   comparison. Do not run the paid arm (step 5) before this exists — otherwise a paid response arrives
-   with nothing able to score it against the new truth automatically.
-5. Once the scorer exists, run one approved `gpt-5.6-terra` / `low` correctness arm against the
-   `-adjudicated` corpus (not the `-prefilled` one), writing to a fresh absolute path. This still
-   needs an explicit maintainer go-ahead in the session that invokes it — the original 2026-08-19
-   approval was granted against a corpus that no longer exists in its pending form:
+4. ~~Add the §6.2 correctness scorer and synthetic safety fixtures.~~ Done this session (§9.3). All
+   fifteen safety fixtures meet their expectation, and the scorer was validated against the real
+   `-adjudicated` corpus by replaying truth as the candidate: every candidate-vs-truth metric came
+   back exactly 1.0 (line identity 918/918, boundaries 51/51, items 526/526 at precision and recall
+   1.0, exact order 1.0, item kinds 1.0, continuations 9/9, title binding 526/526, zero
+   bookkeeping defects) and only gate 7 failed, for the resolver reason recorded in the status block.
+
+5. **Next step — a maintainer decision, before any spend.** Gate 7 will fail whatever model runs,
+   because the deterministic date resolver caps identity at 16/38 against a 34/38 legacy baseline.
+   Choose one:
+   - **(a) Fix the resolver first (recommended).** Add relative Sunday resolution from the supplied
+     calendar context — the Sunday on or after the received date — as the last rung of
+     `OosServiceDateResolver`, below every explicit-date pattern so a source-stated date always wins.
+     That recovers 20 of the 21 unresolvable sources and takes identity to 36/38. It changes
+     `truth.expected_plans`, so the `-adjudicated` corpus must be regenerated by re-running
+     `oos:adjudicate-semantic-corpus` over the retained decisions file at
+     `storage/scratch/oos-semantic-adjudication-decisions-2026-08-19.json` — the maintainer's
+     line-level decisions are *not* re-taken, only recompiled — and the new corpus hash recorded here.
+     It also moves the parser surface fingerprint, which is correct: it is a compiler change.
+   - **(b) Declare the historic path's downstream manifest backfill the owner of identity** and
+     restate gate 7 against a dimension the parser is actually responsible for. This needs a recorded
+     decision, because it weakens a gate, and it does nothing for weekly intake, which has no
+     manifest to fall back on.
+   - **(c) Accept a failing gate 7 for this arm** and spend anyway to learn the item-level figures.
+     Defensible, but the arm cannot produce a passing comparison artifact and Delivery 7 stays shut.
+
+6. Then run one approved `gpt-5.6-terra` / `low` correctness arm against the `-adjudicated` corpus
+   (not the `-prefilled` one), writing to a fresh absolute path. This still needs an explicit
+   maintainer go-ahead in the session that invokes it — the original 2026-08-19 approval was granted
+   against a corpus that no longer exists in its pending form:
 
    ```bash
    vendor/bin/sail artisan oos:run-semantic-candidate-evidence \
@@ -652,22 +738,35 @@ fixed for this arm; create a new artifact rather than editing it if the selected
      --paid-model-approved
    ```
 
-6. Score correctness before any replicate or full-corpus spend. If any safety, title-binding or item
-   precision gate fails, stop, retain the artifact and change at most one of model, prompt, schema or
-   compiler semantics in the next create-once variant.
-7. Only for a correctness-passing candidate, run two deterministic stability replicates and produce
-   the signed comparison artifact covering all §6.3 gates, legacy total-system cost and drift checks.
-8. Present that artifact to the maintainer. Do not start Delivery 7 replay, default flip or legacy
+7. Score correctness before any replicate or full-corpus spend:
+
+   ```bash
+   vendor/bin/sail artisan oos:score-semantic-candidate \
+     --corpus=storage/scratch/oos-semantic-evaluation-corpus-2026-08-19-adjudicated.json \
+     --candidate=storage/scratch/oos-semantic-candidate-terra-low-2026-08-19.json \
+     --baseline-stability=storage/scratch/oos-parser-evaluation/prompt-baseline-nano-none-2026-08-19/stability-diagnostic.json \
+     --output=/var/www/html/storage/scratch/oos-semantic-score-terra-low-2026-08-19.json
+   ```
+
+   If any safety, title-binding or item precision gate fails, stop, retain both artifacts and change
+   at most one of model, prompt, schema or compiler semantics in the next create-once variant.
+8. Only for a correctness-passing candidate, run two deterministic stability replicates and score
+   again with `--replicate=`, which fills in the §6.2 self-disagreement decomposition and completes
+   the signed comparison covering all §6.3 gates, legacy total-system cost and drift checks. Gate 9
+   stays `not_scored` until the weekly/archive parity contract test is named as its evidence.
+9. Present that artifact to the maintainer. Do not start Delivery 7 replay, default flip or legacy
    deletion until the maintainer explicitly approves the artifact and production default change.
 
 ### 9.5 Verification banked at handoff
 
-- Full suite: **6,950 tests passed, 83,674 assertions**; 140 existing PHPUnit notices; no failures.
-- PHPStan: **0 errors** across 827 analysed files.
+- Full suite: **6,981 tests passed, 83,842 assertions**; 140 existing PHPUnit notices; no failures.
+- PHPStan: **0 errors** across 834 analysed files.
 - Pint: passed.
-- `git diff --check`: passed.
-- No Dusk/Playwright run was required because there was no UI change.
-- No paid model request and no production mutation occurred.
+- Dusk: **55 passed**. Not required by §8 — there was no UI change — but run to satisfy the standing
+  four-check workflow.
+- The scorer was additionally exercised against the real `-adjudicated` corpus with truth replayed as
+  the candidate. That is a self-check, not evidence about any model, and it wrote no artifact.
+- No paid model request and no production mutation occurred. Paid-call count remains zero.
 
 ## 10. Non-goals
 

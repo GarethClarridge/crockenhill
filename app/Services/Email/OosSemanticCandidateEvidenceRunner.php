@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Email;
 
 use App\Data\OosEmailItemExtractionResult;
-use App\Data\OosEmailSourceDocument;
 use App\Support\CanonicalJson;
 use App\Support\RepositoryCommit;
 use RuntimeException;
@@ -27,6 +26,7 @@ class OosSemanticCandidateEvidenceRunner
         private readonly OosSemanticParserCandidate $candidate,
         private readonly OosParserSurfaceFingerprint $fingerprint,
         private readonly OosSemanticAnnotationPrompt $prompt,
+        private readonly OosSemanticEvaluationSource $sources = new OosSemanticEvaluationSource,
     ) {}
 
     /**
@@ -44,7 +44,7 @@ class OosSemanticCandidateEvidenceRunner
         $calls = [];
 
         foreach ($corpus['sources'] as $sourceRecord) {
-            $source = $this->sourceDocument($sourceRecord);
+            $source = $this->sources->document($sourceRecord);
             $outcome = $this->candidate->parse($source);
             $attempt = $outcome->attempts[0];
             $calls[] = $this->callTelemetry($sourceRecord['item_key'], 'annotation', $attempt['initial_annotations']['telemetry'] ?? null);
@@ -93,40 +93,6 @@ class OosSemanticCandidateEvidenceRunner
         $artifact['evidence_hash'] = CanonicalJson::hash($artifact);
 
         return $artifact;
-    }
-
-    /** @param array<string, mixed> $record */
-    private function sourceDocument(array $record): OosEmailSourceDocument
-    {
-        $portable = $record['source_document'];
-        $physical = [];
-
-        foreach ($portable['lines'] as $line) {
-            $physical[(int) $line['physical_position']] = (string) $line['exact_text'];
-        }
-
-        if ($physical === []) {
-            throw new RuntimeException("Semantic source {$record['item_key']} contains no physical lines.");
-        }
-
-        $last = max(array_keys($physical));
-        $body = [];
-
-        for ($position = 1; $position <= $last; $position++) {
-            $body[] = $physical[$position] ?? '';
-        }
-
-        $source = OosEmailSourceDocument::fromContext(
-            is_string($portable['subject'] ?? null) ? $portable['subject'] : null,
-            implode("\n", $body),
-            is_string($portable['received_date'] ?? null) ? $portable['received_date'] : null,
-        );
-
-        if (! hash_equals($portable['input_hash'], $source->inputHash())) {
-            throw new RuntimeException("Reconstructed semantic source {$record['item_key']} changed hash.");
-        }
-
-        return $source;
     }
 
     /** @return array<string, mixed> */

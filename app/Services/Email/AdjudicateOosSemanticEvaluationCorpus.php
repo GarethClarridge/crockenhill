@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Email;
 
 use App\Data\OosCandidateService;
-use App\Data\OosEmailSourceDocument;
 use App\Data\OosSemanticLineAnnotation;
 use App\Support\CanonicalJson;
 use Carbon\CarbonImmutable;
@@ -28,6 +27,7 @@ class AdjudicateOosSemanticEvaluationCorpus
     public function __construct(
         private readonly OosSemanticAnnotationDecoder $decoder,
         private readonly CompileOosSemanticAnnotations $compiler,
+        private readonly OosSemanticEvaluationSource $sources = new OosSemanticEvaluationSource,
     ) {}
 
     /**
@@ -95,7 +95,7 @@ class AdjudicateOosSemanticEvaluationCorpus
             throw new RuntimeException("Adjudication decision for {$itemKey} has no valid adjudication timestamp.");
         }
 
-        $document = $this->sourceDocument($source);
+        $document = $this->sources->document($source);
         $result = $this->decoder->decode($document, $decision);
         $compilation = $this->compiler->compile($document, $result);
 
@@ -138,40 +138,6 @@ class AdjudicateOosSemanticEvaluationCorpus
         if (! is_array($corpus['sources'] ?? null) || $corpus['sources'] === []) {
             throw new RuntimeException('Frozen semantic evaluation corpus contains no sources.');
         }
-    }
-
-    /** @param array<string, mixed> $source */
-    private function sourceDocument(array $source): OosEmailSourceDocument
-    {
-        $portable = $source['source_document'];
-        $physical = [];
-
-        foreach ($portable['lines'] as $line) {
-            $physical[(int) $line['physical_position']] = (string) $line['exact_text'];
-        }
-
-        if ($physical === []) {
-            throw new RuntimeException("Semantic source {$source['item_key']} contains no physical lines.");
-        }
-
-        $last = max(array_keys($physical));
-        $body = [];
-
-        for ($position = 1; $position <= $last; $position++) {
-            $body[] = $physical[$position] ?? '';
-        }
-
-        $document = OosEmailSourceDocument::fromContext(
-            is_string($portable['subject'] ?? null) ? $portable['subject'] : null,
-            implode("\n", $body),
-            is_string($portable['received_date'] ?? null) ? $portable['received_date'] : null,
-        );
-
-        if (! hash_equals($portable['input_hash'], $document->inputHash())) {
-            throw new RuntimeException("Reconstructed semantic source {$source['item_key']} changed hash.");
-        }
-
-        return $document;
     }
 
     private function isTimestamp(string $value): bool
