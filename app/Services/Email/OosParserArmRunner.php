@@ -43,8 +43,15 @@ class OosParserArmRunner
      * Version 4 adds the run manifest. Until it existed, a prompt, ceiling, threshold or parser
      * change between the two arms was undetectable: the comparison could see the curated inputs
      * drift but not the code or the settings that read them.
+     *
+     * Version 5 keeps each attempt's validation rule codes, the correction call's outcome, and the
+     * threshold and plan-level inputs the routing category was decided from — and adds the stability
+     * block's census of the same, so the cheap `--stability-only` screen can report a first-pass
+     * failure profile too. Until then an arm could report *that* a third of its parses were
+     * corrected without saying which validator families drove it, which is the question a prompt
+     * intervention is aimed at.
      */
-    private const ProjectionVersion = 4;
+    private const ProjectionVersion = 5;
 
     private const ManifestFormat = 'crockenhill-oos-parser-run-manifest';
 
@@ -155,6 +162,9 @@ class OosParserArmRunner
                 'stability_only' => true,
                 'arm' => $arm->name,
                 'model' => $configuration['model'],
+                'configured_reasoning_effort' => $configuration['configured_reasoning_effort'],
+                'prompt_variant' => $configuration['prompt_variant'],
+                'prompt_sha256' => $configuration['prompt_sha256'],
                 'returned_model' => $this->telemetry->returnedModel(),
                 'database_connection' => RehearsalDatabaseProvisioner::Connection,
                 'database_name' => (string) $this->database->connection()->getDatabaseName(),
@@ -200,6 +210,8 @@ class OosParserArmRunner
             'model' => $configuration['model'],
             'configured_reasoning_effort' => $configuration['configured_reasoning_effort'],
             'effective_reasoning_effort' => $configuration['effective_reasoning_effort'],
+            'prompt_variant' => $configuration['prompt_variant'],
+            'prompt_sha256' => $configuration['prompt_sha256'],
             'returned_model' => $this->telemetry->returnedModel(),
             'database_connection' => RehearsalDatabaseProvisioner::Connection,
             'database_name' => (string) $this->database->connection()->getDatabaseName(),
@@ -258,7 +270,7 @@ class OosParserArmRunner
      * secondary diagnostic, which compares them itself through its evidence and tier drift counts.
      * Recording a hash of something this run never opened would be provenance theatre.
      *
-     * @param  array{model:string,configured_reasoning_effort:string,effective_reasoning_effort:string}  $configuration
+     * @param  array{model:string,configured_reasoning_effort:string,effective_reasoning_effort:string,prompt_variant:string,prompt_sha256:string}  $configuration
      * @param  array<string, mixed>  $priceSnapshot
      * @return array<string, mixed>
      */
@@ -277,6 +289,15 @@ class OosParserArmRunner
             'model' => $configuration['model'],
             'configured_reasoning_effort' => $configuration['configured_reasoning_effort'],
             'effective_reasoning_effort' => $configuration['effective_reasoning_effort'],
+            /*
+             * The variant is the declared intervention of a prompt arm, so the comparison exempts it
+             * the way it exempts the model. The hash is exempted with it, and is what stops the
+             * exemption becoming a hole: two arms may name different variants, but a variant whose
+             * *text* was edited between them still moves the parser-surface fingerprint, which is
+             * not exempt.
+             */
+            'prompt_variant' => $configuration['prompt_variant'],
+            'prompt_sha256' => $configuration['prompt_sha256'],
             'ceilings' => [
                 'max_completion_tokens' => config('service-tracking.email_parsing.max_completion_tokens'),
                 'reasoning_token_headroom' => config('service-tracking.email_parsing.reasoning_token_headroom'),
@@ -444,7 +465,7 @@ class OosParserArmRunner
      * remains directly comparable to every smaller banked run on the same manifest.
      *
      * @param  list<OosArchiveEntry>  $entries
-     * @return array{requested_sample_size:int,sample_size:int,sample_source_keys:list<string>,self_disagreements:int,rate:float,field_decomposition:array<string,int>,retained_difference_limit:int,disagreements:list<array<string,mixed>>,telemetry:list<array<string,mixed>>}
+     * @return array{requested_sample_size:int,sample_size:int,sample_source_keys:list<string>,self_disagreements:int,rate:float,field_decomposition:array<string,int>,retained_difference_limit:int,disagreements:list<array<string,mixed>>,validation:array<string,mixed>,telemetry:list<array<string,mixed>>}
      */
     private function stability(array $entries, string $evaluationId, int $sampleSize): array
     {
@@ -452,6 +473,8 @@ class OosParserArmRunner
         $sample = array_slice($entries, 0, min($sampleSize, count($entries)));
         $telemetry = [];
         $differences = [];
+
+        $parses = [];
 
         foreach ($sample as $entry) {
             $first = $this->parseEntry($entry);
@@ -461,6 +484,8 @@ class OosParserArmRunner
                 foreach ($parsed['telemetry'] as $call) {
                     $telemetry[] = ['replicate' => $replicate] + $call;
                 }
+
+                $parses[] = $parsed['projection'];
             }
 
             $firstSignature = $this->stabilitySignature($first['projection'], $entry->itemKey);
@@ -494,7 +519,140 @@ class OosParserArmRunner
              */
             'retained_difference_limit' => self::MaxRetainedStabilityDifferences,
             'disagreements' => array_slice($differences, 0, self::MaxRetainedStabilityDifferences),
+            'validation' => $this->validationCensus($parses),
             'telemetry' => $telemetry,
+        ];
+    }
+
+    /**
+     * Which validator families actually fire, and what the correction call does about them.
+     *
+     * The attempt-level rule codes and correction outcomes live in each projection row's
+     * `raw_result`, which a `--stability-only` run never writes: that mode returns before the corpus
+     * loop and exports `canary` and `stability` alone. Without this the cheap screen could measure
+     * routing flips and self-disagreement but not the first-pass failure profile — so a prompt
+     * change aimed squarely at the validator's rules would be judged on everything except its target.
+     *
+     * The unit is a **parse**, not a source, and `parse_count` states it: the replicate parses every
+     * sampled source twice, and both parses are real first passes. Reporting a rate over sources
+     * would silently halve the denominator, and reporting one over *failing* parses would let the
+     * outcome choose the population — the defect class recorded against verdict-class filtering.
+     *
+     * Codes rather than prose, because the prose is the operator-facing explanation and a reworded
+     * message must not read as a changed failure family between two arms.
+     *
+     * @param  list<array<string, mixed>>  $parses
+     * @return array<string, mixed>
+     */
+    private function validationCensus(array $parses): array
+    {
+        $firstPassFailures = 0;
+        $codeCounts = ['content' => [], 'bookkeeping' => []];
+        $corrected = 0;
+        $correctionCodes = ['removed' => [], 'persisted' => [], 'introduced' => []];
+        $outcomes = array_fill_keys(
+            ['resolved', 'partially_resolved', 'unresolved', 'introduced_new_codes', 'changed_unrelated_fields'],
+            0,
+        );
+        $correctionCallFailures = 0;
+        $selectedAttempts = [];
+
+        foreach ($parses as $projection) {
+            /** @var array<string, mixed> $rawResult */
+            $rawResult = $projection['raw_result'];
+            /** @var list<array<string, mixed>> $attempts */
+            $attempts = $rawResult['extraction_attempts'];
+
+            foreach ($attempts as $attempt) {
+                if (($attempt['selected'] ?? false) === true) {
+                    $key = (string) ($attempt['attempt'] ?? 'unknown');
+                    $selectedAttempts[$key] = ($selectedAttempts[$key] ?? 0) + 1;
+                }
+            }
+
+            $firstPass = $attempts[0] ?? [];
+            /** @var array{content:list<string>,bookkeeping:list<string>} $firstPassCodes */
+            $firstPassCodes = $firstPass['validation_rule_codes'] ?? ['content' => [], 'bookkeeping' => []];
+
+            if ($firstPassCodes['content'] !== [] || $firstPassCodes['bookkeeping'] !== []) {
+                $firstPassFailures++;
+            }
+
+            foreach (['content', 'bookkeeping'] as $family) {
+                foreach ($firstPassCodes[$family] as $code) {
+                    $codeCounts[$family][$code] = ($codeCounts[$family][$code] ?? 0) + 1;
+                }
+            }
+
+            $second = $attempts[1] ?? null;
+
+            if ($second === null) {
+                continue;
+            }
+
+            $corrected++;
+
+            /*
+             * A corrective call that threw records its error instead of a diagnosis. Counting it as
+             * an unresolved correction would blame the validator families for a transport failure.
+             */
+            if (! isset($second['correction'])) {
+                $correctionCallFailures++;
+
+                continue;
+            }
+
+            /** @var array{removed_rule_codes:list<string>,persisted_rule_codes:list<string>,introduced_rule_codes:list<string>,changed_unrelated_fields:bool} $correction */
+            $correction = $second['correction'];
+
+            foreach (['removed', 'persisted', 'introduced'] as $outcome) {
+                foreach ($correction["{$outcome}_rule_codes"] as $code) {
+                    $correctionCodes[$outcome][$code] = ($correctionCodes[$outcome][$code] ?? 0) + 1;
+                }
+            }
+
+            $outcomes[match (true) {
+                $correction['persisted_rule_codes'] === [] && $correction['introduced_rule_codes'] === [] => 'resolved',
+                $correction['removed_rule_codes'] === [] => 'unresolved',
+                default => 'partially_resolved',
+            }]++;
+
+            if ($correction['introduced_rule_codes'] !== []) {
+                $outcomes['introduced_new_codes']++;
+            }
+
+            if ($correction['changed_unrelated_fields'] === true) {
+                $outcomes['changed_unrelated_fields']++;
+            }
+        }
+
+        $rate = static fn (int $count): float => $parses === [] ? 0.0 : (float) ($count / count($parses));
+
+        foreach ($codeCounts as &$family) {
+            arsort($family);
+        }
+
+        unset($family);
+
+        foreach ($correctionCodes as &$outcome) {
+            arsort($outcome);
+        }
+
+        unset($outcome);
+
+        ksort($selectedAttempts);
+
+        return [
+            'parse_count' => count($parses),
+            'first_pass_failure_parses' => $firstPassFailures,
+            'first_pass_failure_rate' => $rate($firstPassFailures),
+            'first_pass_rule_codes' => $codeCounts,
+            'corrected_parses' => $corrected,
+            'correction_rate' => $rate($corrected),
+            'correction_call_failures' => $correctionCallFailures,
+            'correction_outcomes' => $outcomes,
+            'correction_rule_codes' => $correctionCodes,
+            'selected_attempt_counts' => $selectedAttempts,
         ];
     }
 
@@ -645,6 +803,24 @@ class OosParserArmRunner
             'should_import' => $parse->shouldImport,
             'disposition' => $parse->disposition->value,
             'validation_reasons' => $parse->validationReasons,
+            'extraction_attempts' => $parse->extractionAttempts,
+            'routing_gate_inputs' => [
+                'review_threshold' => config('service-tracking.email_parsing.review_threshold'),
+                'auto_import_threshold' => config('service-tracking.email_parsing.auto_import_threshold'),
+                'consensus' => $parse->consensus,
+                'adjudicated' => $parse->adjudicated,
+                'plans' => array_map(static fn (OosEmailServicePlan $plan): array => [
+                    'plan_key' => $plan->key(),
+                    'service' => $plan->service?->value,
+                    'date' => $plan->date,
+                    'content_scope' => $plan->contentScope->value,
+                    'item_count' => count($plan->items),
+                    'confidence' => $plan->confidence,
+                    'content_validation_reasons' => $plan->contentValidationReasons,
+                    'hold_reasons' => $plan->holdReasonValues(),
+                    'disposition' => $plan->disposition->value,
+                ], $parse->servicePlans),
+            ],
             'service_plans' => array_map(
                 static fn ($plan): array => $plan->toMetadataArray(),
                 $parse->servicePlans,

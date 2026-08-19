@@ -500,6 +500,25 @@ class OosParserArmPrimaryComparisonTest extends TestCase
         );
     }
 
+    /**
+     * A prompt arm's declared intervention. The exemption is narrow on purpose: it lets the pair
+     * name two prompt variants, and nothing else — the *text* behind a variant lives in a
+     * fingerprinted file, so an edit still moves `parser_surface`, which the test above refuses.
+     */
+    #[Test]
+    public function two_arms_may_declare_different_prompt_variants(): void
+    {
+        $comparison = $this->comparison->compare(
+            $this->armProjection(self::Baseline, [$this->source('s0', [['Amazing Grace']])]),
+            $this->withManifest(
+                $this->armProjection(self::Candidate, [$this->source('s0', [['Amazing Grace']])]),
+                ['prompt_variant' => 'lean', 'prompt_sha256' => str_repeat('b', 64)],
+            ),
+        );
+
+        $this->assertArrayHasKey('primary', $comparison);
+    }
+
     #[Test]
     public function a_threshold_that_moved_between_the_arms_is_fatal(): void
     {

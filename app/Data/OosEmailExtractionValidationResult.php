@@ -112,4 +112,52 @@ readonly class OosEmailExtractionValidationResult
     {
         return count($this->allReasons());
     }
+
+    /**
+     * Stable diagnostic identifiers for rules that invalidate extracted content. The prose remains
+     * the operator-facing explanation; evaluation artifacts use these identifiers so a wording
+     * change cannot masquerade as a changed failure family.
+     *
+     * @return list<string>
+     */
+    public function contentRuleCodes(): array
+    {
+        $codes = array_map(function (string $reason): string {
+            return match (true) {
+                str_starts_with($reason, 'The extraction reports ') => 'service_count_mismatch',
+                str_starts_with($reason, 'An ignored-line reference does not exist') => 'ignored_line_missing',
+                str_starts_with($reason, 'The extraction returned duplicate service plan ') => 'duplicate_service_plan',
+                str_starts_with($reason, 'Multiple service orders require source-line evidence') => 'missing_service_boundary_evidence',
+                str_starts_with($reason, 'An other service requires explicit special-service evidence') => 'missing_special_service_evidence',
+                str_starts_with($reason, 'An evening service requires an explicit evening or PM boundary') => 'missing_evening_service_evidence',
+                str_starts_with($reason, 'Every extracted item must reference ') => 'item_missing_source_line',
+                preg_match('/^Item \d+ repeats a source line\.$/', $reason) === 1 => 'item_repeats_source_line',
+                preg_match('/^Item \d+ has out-of-order source lines\.$/', $reason) === 1 => 'item_source_lines_out_of_order',
+                preg_match('/^Item \d+ merges separate source lines/', $reason) === 1 => 'item_merges_non_continuation_lines',
+                $reason === 'Extracted items are not in source order.' => 'items_out_of_source_order',
+                preg_match('/^Item source line \d+ does not exist\.$/', $reason) === 1 => 'item_source_line_missing',
+                preg_match('/^Source line \d+ is claimed by more than one item\.$/', $reason) === 1 => 'source_line_claimed_by_multiple_items',
+                default => 'unclassified_content_rule',
+            };
+        }, array_values(array_unique(array_merge(
+            $this->contentGlobalReasons,
+            ...array_values($this->contentPlanReasons),
+        ))));
+
+        sort($codes);
+
+        return array_values(array_unique($codes));
+    }
+
+    /** @return list<string> */
+    public function bookkeepingRuleCodes(): array
+    {
+        $codes = array_map(
+            static fn (OosEmailStructuralFinding $finding): string => $finding->rule->value,
+            $this->structuralFindings,
+        );
+        sort($codes);
+
+        return array_values(array_unique($codes));
+    }
 }

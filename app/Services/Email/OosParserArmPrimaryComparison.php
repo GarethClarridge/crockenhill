@@ -66,9 +66,16 @@ class OosParserArmPrimaryComparison
      *
      * Everything else is compared, so a field added to the manifest later is drift-checked without
      * anyone having to remember to add it here too. `effective_reasoning_effort` is deliberately
-     * absent: the arms differ by model alone, so it must match.
+     * absent: an effort arm declares its setting through `configured_reasoning_effort`, and the
+     * effective value is what the payload actually carried, so a pair that disagrees there ran
+     * differently for a reason neither arm declared.
+     *
+     * `prompt_variant` and `prompt_sha256` are exempt together, and exempting the hash does not open
+     * a hole. It says which *text* a named variant carried, so the pair may name two variants — but
+     * a variant whose text was edited between the two runs still moves `parser_surface`, which is
+     * not exempt and names the file that moved.
      */
-    private const ArmSpecificManifestKeys = ['arm', 'model', 'configured_reasoning_effort'];
+    private const ArmSpecificManifestKeys = ['arm', 'model', 'configured_reasoning_effort', 'prompt_variant', 'prompt_sha256'];
 
     /**
      * The curation tier the decision is taken on.
@@ -668,8 +675,9 @@ class OosParserArmPrimaryComparison
         }
 
         throw new RuntimeException('The two arms did not run the same parser: their run manifests differ on '
-            .implode(', ', $drifted).'. Only the model may differ between arms, so this comparison would '
-            .'attribute a prompt, ceiling, threshold or code change to the model under test.');
+            .implode(', ', $drifted).'. Only an arm\'s declared intervention — its model, its reasoning '
+            .'effort or its prompt variant — may differ, so this comparison would attribute a ceiling, '
+            .'threshold, price or code change to the intervention under test.');
     }
 
     // -----------------------------------------------------------------------------------------

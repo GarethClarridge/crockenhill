@@ -78,6 +78,14 @@ class BuildHistoricHymnReconciliationCommandTest extends TestCase
             'Recorded as candidates for review, never accepted as a resolution.',
             $artifact['policy']['fuzzy_matches'],
         );
+        $this->assertSame('Hymn database @ 16.08.2026.xlsx', $artifact['policy']['sheet_authority']['2025']);
+        $this->assertSame('Hymn database @ 16.08.2026.xlsx', $artifact['policy']['sheet_authority']['2026']);
+
+        $sources = collect($artifact['sources'])->keyBy('workbook');
+
+        $this->assertSame(['2025', '2026'], $sources['Hymn database @ 16.08.2026.xlsx']['authoritative_sheets']);
+        $this->assertSame(['2025', '2026'], $sources['Hymn database @ 15.03.2026.xlsx']['superseded_sheets']);
+        $this->assertSame([], $sources['Hymn database @ 15.03.2026.xlsx']['authoritative_sheets']);
     }
 
     #[Test]
@@ -129,7 +137,7 @@ class BuildHistoricHymnReconciliationCommandTest extends TestCase
 
     /**
      * The later years live in their own snapshots, so the policy is only satisfied once
-     * all four are supplied.
+     * every retained authoritative and superseded snapshot is supplied.
      *
      * @return list<string>
      */
@@ -139,7 +147,9 @@ class BuildHistoricHymnReconciliationCommandTest extends TestCase
 
         foreach ([
             'Hymn database @ end of 2024.xlsx' => ['2024'],
+            'Hymn Database @ 28.12.2025.xlsx' => ['2024', '2025'],
             'Hymn database @ 15.03.2026.xlsx' => ['2025', '2026'],
+            'Hymn database @ 16.08.2026.xlsx' => ['2025', '2026'],
         ] as $name => $years) {
             $fixture = new HymnSourceWorkbookFixture;
 

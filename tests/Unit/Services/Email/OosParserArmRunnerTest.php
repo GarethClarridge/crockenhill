@@ -10,6 +10,7 @@ use App\Data\OosEmailServicePlan;
 use App\Data\OosParserEvaluationArm;
 use App\Enums\OosEmailContentScope;
 use App\Enums\SermonService;
+use App\Services\Email\OosEmailExtractionPrompt;
 use App\Services\Email\OosEmailParserService;
 use App\Services\Email\OosParserArmRunner;
 use App\Services\Email\OosParserEvaluationTelemetry;
@@ -88,7 +89,23 @@ class OosParserArmRunnerTest extends TestCase
         $parser->shouldReceive('parse')->andReturnUsing(function () use ($telemetry): OosEmailParseResult {
             $telemetry->record(CreateResponse::fake(['model' => 'gpt-5.4-nano']), 'extract', 1, microtime(true));
 
-            return new OosEmailParseResult(null, null, [], 0.0, true, false, []);
+            return new OosEmailParseResult(
+                null,
+                null,
+                [],
+                0.0,
+                true,
+                false,
+                [],
+                extractionAttempts: [[
+                    'attempt' => 1,
+                    'confidence' => 0.6,
+                    'validation_rule_codes' => [
+                        'content' => ['item_merges_non_continuation_lines'],
+                        'bookkeeping' => ['line_unclassified'],
+                    ],
+                ]],
+            );
         });
 
         $report = $this->runner($parser, $telemetry)->run(
@@ -99,13 +116,18 @@ class OosParserArmRunnerTest extends TestCase
             $this->priceSnapshot(),
         );
 
-        $this->assertSame(4, $report['version']);
+        $this->assertSame(5, $report['version']);
         $this->assertSame(0, $report['rehearsal_certification']['church_services']);
 
         // The manifest proves what code and settings ran, and agrees with the projection it describes.
         $manifest = $report['run_manifest'];
         $this->assertSame('baseline-nano-none', $manifest['arm']);
         $this->assertSame('gpt-5.4-nano', $manifest['model']);
+        $this->assertSame(OosEmailExtractionPrompt::Baseline, $manifest['prompt_variant']);
+        $this->assertSame(
+            OosEmailExtractionPrompt::forVariant(OosEmailExtractionPrompt::Baseline)->sha256(),
+            $manifest['prompt_sha256'],
+        );
         $this->assertSame($report['source_key_list_hash'], $manifest['inputs']['source_key_list_hash']);
         $this->assertSame(0.75, $manifest['thresholds']['review']);
         $this->assertSame(6000, $manifest['ceilings']['max_completion_tokens']);
@@ -127,7 +149,161 @@ class OosParserArmRunnerTest extends TestCase
 
         foreach ($report['raw_results'] as $source) {
             $this->assertCount(1, $source['telemetry']);
+            $this->assertSame(['item_merges_non_continuation_lines'], $source['raw_result']['extraction_attempts'][0]['validation_rule_codes']['content']);
+            $this->assertSame(['line_unclassified'], $source['raw_result']['extraction_attempts'][0]['validation_rule_codes']['bookkeeping']);
+            $this->assertSame(0.75, $source['raw_result']['routing_gate_inputs']['review_threshold']);
+            $this->assertSame(0.90, $source['raw_result']['routing_gate_inputs']['auto_import_threshold']);
         }
+    }
+
+    /**
+     * A `--stability-only` screen returns before the corpus loop and writes no projection, so the
+     * attempt-level rule codes in each `raw_result` would be collected and dropped. Without the
+     * census, the cheap 30-source screen could report routing flips and self-disagreement but not
+     * the first-pass failure profile — which is exactly what a prompt aimed at the validator's rules
+     * has to be judged on.
+     *
+     * The denominator is parses, not sources: the replicate parses each sampled source twice, and
+     * both are real first passes. Two entries therefore make four parses, and the census must say so
+     * rather than leaving a reader to halve a rate.
+     */
+    #[Test]
+    public function the_stability_screen_censuses_first_pass_rule_codes_and_correction_outcomes(): void
+    {
+        $telemetry = new OosParserEvaluationTelemetry;
+        $parser = Mockery::mock(OosEmailParserService::class);
+        $parser->shouldReceive('parse')->andReturnUsing(function () use ($telemetry): OosEmailParseResult {
+            $telemetry->record(CreateResponse::fake(['model' => 'gpt-5.4-nano']), 'extract', 1, microtime(true));
+
+            return new OosEmailParseResult(
+                null,
+                null,
+                [],
+                0.0,
+                true,
+                false,
+                [],
+                extractionAttempts: [
+                    [
+                        'attempt' => 1,
+                        'selected' => false,
+                        'validation_rule_codes' => [
+                            'content' => ['item_merges_non_continuation_lines'],
+                            'bookkeeping' => ['line_unclassified'],
+                        ],
+                    ],
+                    [
+                        'attempt' => 2,
+                        'selected' => true,
+                        'validation_rule_codes' => ['content' => [], 'bookkeeping' => ['line_unclassified']],
+                        'correction' => [
+                            'removed_rule_codes' => ['item_merges_non_continuation_lines'],
+                            'persisted_rule_codes' => ['line_unclassified'],
+                            'introduced_rule_codes' => [],
+                            'changed_field_groups' => ['item_type_or_order'],
+                            'changed_unrelated_fields' => false,
+                        ],
+                    ],
+                ],
+            );
+        });
+
+        $report = $this->runner($parser, $telemetry)->run(
+            OosParserEvaluationArm::fromName('lean-nano-none'),
+            $this->entries(),
+            'manifest-hash',
+            '/manifest.json',
+            $this->priceSnapshot(),
+            stabilityOnly: true,
+        );
+
+        $this->assertSame('crockenhill-oos-parser-stability-diagnostic', $report['format']);
+        // A stability diagnostic carries no run manifest, so the arm's declared intervention has to
+        // be named in the artifact itself or the screen cannot say which prompt produced it.
+        $this->assertSame(OosEmailExtractionPrompt::Lean, $report['prompt_variant']);
+        $this->assertSame(
+            OosEmailExtractionPrompt::forVariant(OosEmailExtractionPrompt::Lean)->sha256(),
+            $report['prompt_sha256'],
+        );
+
+        /** @var array<string, mixed> $census */
+        $census = $report['stability']['validation'];
+
+        $this->assertSame(4, $census['parse_count']);
+        $this->assertSame(4, $census['first_pass_failure_parses']);
+        $this->assertSame(1.0, $census['first_pass_failure_rate']);
+        $this->assertSame(['item_merges_non_continuation_lines' => 4], $census['first_pass_rule_codes']['content']);
+        $this->assertSame(['line_unclassified' => 4], $census['first_pass_rule_codes']['bookkeeping']);
+
+        // The question the census exists for: a correction that clears the content rule but leaves
+        // the bookkeeping one is partially resolved, and saying which family survived is the point.
+        $this->assertSame(4, $census['corrected_parses']);
+        $this->assertSame(4, $census['correction_outcomes']['partially_resolved']);
+        $this->assertSame(0, $census['correction_outcomes']['resolved']);
+        $this->assertSame(0, $census['correction_outcomes']['unresolved']);
+        $this->assertSame(0, $census['correction_outcomes']['changed_unrelated_fields']);
+        $this->assertSame(['item_merges_non_continuation_lines' => 4], $census['correction_rule_codes']['removed']);
+        $this->assertSame(['line_unclassified' => 4], $census['correction_rule_codes']['persisted']);
+        $this->assertSame(['2' => 4], $census['selected_attempt_counts']);
+    }
+
+    /**
+     * A corrective call that threw records its error rather than a diagnosis. Counting it as an
+     * unresolved correction would blame a validator family for what is a transport failure, and the
+     * screen's whole purpose is attributing failures to the right family.
+     */
+    #[Test]
+    public function a_corrective_call_that_threw_is_counted_apart_from_the_correction_outcomes(): void
+    {
+        $telemetry = new OosParserEvaluationTelemetry;
+        $parser = Mockery::mock(OosEmailParserService::class);
+        $parser->shouldReceive('parse')->andReturnUsing(function () use ($telemetry): OosEmailParseResult {
+            $telemetry->record(CreateResponse::fake(['model' => 'gpt-5.4-nano']), 'extract', 1, microtime(true));
+
+            return new OosEmailParseResult(
+                null,
+                null,
+                [],
+                0.0,
+                true,
+                false,
+                [],
+                extractionAttempts: [
+                    [
+                        'attempt' => 1,
+                        'selected' => true,
+                        'validation_rule_codes' => ['content' => [], 'bookkeeping' => ['line_unclassified']],
+                    ],
+                    [
+                        'attempt' => 2,
+                        'selected' => false,
+                        'retry_reasons' => ['Source line 3 was not classified as evidence, an item, or ignored context.'],
+                        'error' => 'Failed to decode OoS email parser response as JSON.',
+                    ],
+                ],
+            );
+        });
+
+        $report = $this->runner($parser, $telemetry)->run(
+            OosParserEvaluationArm::fromName('lean-nano-none'),
+            $this->entries(),
+            'manifest-hash',
+            '/manifest.json',
+            $this->priceSnapshot(),
+            stabilityOnly: true,
+        );
+
+        /** @var array<string, mixed> $census */
+        $census = $report['stability']['validation'];
+
+        $this->assertSame(4, $census['corrected_parses']);
+        $this->assertSame(4, $census['correction_call_failures']);
+        $this->assertSame(0, $census['correction_outcomes']['unresolved']);
+        $this->assertSame(0, $census['correction_outcomes']['partially_resolved']);
+        $this->assertSame([], $census['correction_rule_codes']['removed']);
+        // The first pass still counts — it happened, and it failed on a bookkeeping rule.
+        $this->assertSame(['line_unclassified' => 4], $census['first_pass_rule_codes']['bookkeeping']);
+        $this->assertSame([], $census['first_pass_rule_codes']['content']);
     }
 
     /**

@@ -31,7 +31,7 @@ use Throwable;
 class BuildHistoricHymnReconciliationCommand extends Command
 {
     protected $signature = 'service-tracking:build-hymn-reconciliation
-        {--source=* : Source hymn workbook path; repeat for each of the four snapshots}
+        {--source=* : Source hymn workbook path; repeat for every retained snapshot}
         {--output= : Absolute path the reconciliation artifact is created at}
         {--connection= : Named database connection holding the corpus to reconcile against}
         {--accept-fuzzy : Accept fuzzy catalogue matches as resolutions instead of recording them for review}';

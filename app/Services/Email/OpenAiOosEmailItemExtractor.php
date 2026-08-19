@@ -160,7 +160,7 @@ class OpenAiOosEmailItemExtractor implements AdjudicatingOosEmailItemExtractor
             'messages' => [
                 [
                     'role' => 'system',
-                    'content' => $this->systemPrompt(),
+                    'content' => OosEmailExtractionPrompt::configured()->text(),
                 ],
                 [
                     'role' => 'user',
@@ -231,75 +231,6 @@ class OpenAiOosEmailItemExtractor implements AdjudicatingOosEmailItemExtractor
         $headroom = config('service-tracking.email_parsing.reasoning_token_headroom', []);
 
         return is_array($headroom) ? (int) ($headroom[$effort] ?? 0) : 0;
-    }
-
-    private function systemPrompt(): string
-    {
-        return <<<'TEXT'
-You extract church service orders from email text. One email often contains BOTH a morning
-and an evening order (and occasionally a special service such as carols or Christmas).
-Return valid JSON with this shape only:
-{"service_count":1,"services":[{"service":"morning|evening|other|unknown","date":"YYYY-MM-DD or null","content_scope":"full|partial|unknown","service_evidence_line_ids":[1],"items":[{"type":"welcome|prayer|notices|song|childrens_talk|bible_reading|sermon|other","title":"exact source text","source_line_ids":[2],"continuation":false}],"confidence":0.0}],"ignored_lines":[{"line_id":3,"reason":"context|forwarded_header|greeting|signature"}],"notes":["string"]}
-Rules:
-- Count the distinct service orders first. service_count MUST equal the number of entries in services.
-- Set content_scope to "full" only when the email presents the service's complete running order.
-  Use "partial" for supporting material such as selected hymns, readings, sermon details or notices
-  that does not claim to be the whole order. Use "unknown" when the email does not make completeness
-  clear. Completeness is separate from confidence: a short hymn list can be a confident partial.
-- A single order may have no heading. In that case service_evidence_line_ids may be empty and the
-  subject or a time in the body may identify it. Multiple orders require distinct body-line evidence
-  for each boundary, such as headings or standalone time markers.
-- A sentence naming a person and a service occasion before a list of song titles (for example "X
-  would like the following hymns tomorrow morning:") is boundary evidence for that service, equal
-  to a heading. Like a heading, that introducing sentence itself belongs in
-  service_evidence_line_ids, never as an item. Extract only the song titles that follow it as that
-  service's items, even when the introducing sentence sits inside a personal note, and even though
-  it frames the songs as one person's choice rather than a publicly confirmed running order.
-- That intro-sentence rule does not relax the evening rules below, which still govern. A sentence in
-  prose never establishes an evening plan by itself. When such an intro names an evening service and
-  no standalone evening boundary appears anywhere in the email, do not open a second plan for it.
-- Nor does it reach through forwarding into a different set of services. When the introducing
-  sentence sits inside a forwarded older message describing services other than the ones this email
-  is about, it is context: put those lines in ignored_lines rather than extracting songs that this
-  email's subject date would then misdate.
-- A service order does not need prayers, readings, notices or a sermon to be genuine. A bare,
-  ordered list of songs for a named service is itself a valid order: extract each title as its own
-  "song" item in listed order, and set that plan's content_scope to "partial" unless the email
-  otherwise claims it is the complete order. Where this meets the Notices rule below, this one wins,
-  but only for a list introduced for one named service: song numbers mentioned in passing inside a
-  general Notices section stay context.
-- A general Notices section is context, NOT a service order, even when its lines mention another
-  service, time, date, sermon or Bible passage. Put those lines in ignored_lines.
-- Determine the service slot separately from its occasion. A Sunday evening carol service is evening,
-  and a Sunday morning Christmas service is morning. Use "other" only when a special service has no
-  evidenced morning or evening slot. Never use it for notices, meetings, diary entries or ambiguous prose.
-- Preserve running order. By default each non-blank item line is exactly one item. Never merge adjacent
-  item lines. Use multiple source_line_ids only for a genuinely wrapped continuation on physically
-  adjacent lines, and set continuation=true. Lines separated by a blank line are separate items.
-- Every numbered body line must appear exactly once: as service evidence, in one item's source_line_ids,
-  or in ignored_lines. Never reuse, omit, invent or reorder line IDs.
-- title must copy the complete referenced source text exactly. Do not summarise, clean or rewrite it.
-- Use "morning" for AM/10.30 services and "evening" for afternoon, tonight, PM or 5pm-and-later
-  services. Use "unknown" only when the service slot is genuinely unclear.
-- Do not infer an evening service from the word "evening" in a notice, diary entry, forwarded
-  header or prose. An evening plan is valid only when its evidence lines contain a standalone
-  evening/PM/18:00-style heading or a clearly separated evening order with items following it.
-- Never create an evening plan merely because a morning email mentions that an evening service
-  exists. If there is no distinct evening boundary and item sequence, keep one plan and put the
-  mention in ignored_lines.
-- Treat a relative or named date in the subject as service evidence. Subject-level dates apply to every service plan
-  in the email unless a plan states a different date. When a subject says
-  "tomorrow", "Sunday" or another relative day, resolve it using the supplied calendar and assign
-  that date to each morning/evening plan belonging to that day. Use null only when neither the
-  subject nor the plan's body lines identify its date.
-- When a date is present but is not a Sunday, check whether it is a nearby weekday transcription
-  of the Sunday service date. Do not copy the email receipt date as the service date.
-- Resolve relative or yearless dates against the supplied email receipt date. These emails normally
-  describe services from the receipt date through the following two weeks; do not use a training-data year.
-- Use "song" for hymns/songs and "bible_reading" for readings, while keeping their complete source
-  wording in title. Display-title cleanup happens after extraction.
-- Confidence reflects how reliable that service's extracted order is.
-TEXT;
     }
 
     private function calendarContext(string $receivedDate): string

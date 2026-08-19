@@ -24,6 +24,11 @@ return [
         // it defaults to the cheapest current model rather than tracking the analysis default.
         'model' => env('OOS_EMAIL_PARSING_MODEL', 'gpt-5.4-nano'),
         'reasoning_effort' => env('OOS_EMAIL_PARSING_REASONING_EFFORT', 'minimal'),
+        // Which system prompt the extractor sends. A prompt arm sets this the way an effort arm sets
+        // the setting above, so both texts exist in one code state and the difference between two
+        // arms stays a declared intervention rather than an edit between runs.
+        // See App\Services\Email\OosEmailExtractionPrompt.
+        'prompt_variant' => env('OOS_EMAIL_PARSING_PROMPT_VARIANT', 'baseline'),
         // Output budget for one extraction. Was a hard-coded 3000, which the
         // 2026-08-11 staging run outgrew: identical requests for one 49-line email
         // returned 991, 1081 and 1743 output tokens, and a truncated response

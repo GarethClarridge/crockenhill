@@ -40,8 +40,11 @@ class OosParserSurfaceFingerprint
      * drift-checked without anything saying so.
      */
     private const Files = [
-        // The prompt, the strict JSON schema, and the retry and adjudication calls.
+        // The strict JSON schema, and the retry and adjudication calls.
         'app/Services/Email/OpenAiOosEmailItemExtractor.php',
+        // Every system prompt variant. Which one an arm selected is a declared intervention and is
+        // recorded in the run manifest; an *edit* to either text is not, and is caught here.
+        'app/Services/Email/OosEmailExtractionPrompt.php',
         // Item normalisation, disposition, hold reasons, content scope, date plausibility.
         'app/Services/Email/OosEmailParserService.php',
         // The strict source-line and phantom-line rules the safety guardrail rests on.

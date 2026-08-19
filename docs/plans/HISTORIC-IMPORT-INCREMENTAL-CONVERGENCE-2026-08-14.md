@@ -90,7 +90,21 @@ parallelism. The email lane **settles** when: (a) IC1 is implemented and a stagi
 holds reduced to the identity/content-invalid residue; (b) the ~14 genuinely-manual adjudications
 are done; and (c) IC3's ground truth exists. That state triggers IC5.
 
-### 2.5 Carried and lapsed prior decisions
+### 2.5 HIR-D8 — cross-source corroboration may finalise unattended
+
+**Decided 2026-08-19 by the maintainer: yes.** Independent cross-source corroboration may replace
+the 0.90 model-confidence threshold for unattended finalisation, but only for the dimension the
+source actually proves. A hymn-workbook agreement proves song membership, never count or sequence;
+an OpenLP agreement may prove count and sequence. Source absence is neutral, not disagreement, and
+a cross-source mismatch routes the affected dimension to review rather than finalising it. The
+identity/date manifest-corroboration gate remains unchanged, adjudication still never manufactures
+`consensus`, and unattended publication remains impossible. For uncorroborated dimensions, the
+existing confidence-plus-consensus path remains until separately changed on evidence.
+
+This closes HIR-D8's policy decision. IC3 still owns the implementation and the measured regression
+evidence proving that the projector finalises only the corroborated dimensions.
+
+### 2.6 Carried and lapsed prior decisions
 
 FR-D1–FR-D10, HIR-D1–HIR-D7 and the archived §5 decision table remain binding wherever their
 object survives — notably FR-D2 (release via signed `historic-import:release-batch`, never as an
@@ -102,7 +116,7 @@ return of the drive), FR-D9 (fail-closed manifest adjudication with written reas
 path), and HIR-D5/D6/D7 (investment discipline and Axis B, now amended by REV-D2). Decisions whose
 object was the one-shot operation — the 480-minute ingress window, checkpoint window splits,
 freeze/approval protection (FR-D5/D6/D7 in part) — **lapse with the machinery rather than being
-relitigated**. HIR-D8 remains open (§10).
+relitigated**. HIR-D8 is decided in §2.5; its implementation remains IC3 work.
 
 ## 3. Safety model
 
@@ -185,7 +199,7 @@ work or evidence.
 | Disposition | Findings |
 |---|---|
 | **Kept as hard invariant** | F29, F30, F31, F33, F34, F37, F40, F41 (lock half), F44, F48, F49, F50, F51, F52, F54, F55, F59; HIR1–HIR3, HIR6–HIR7 code |
-| **Kept as open work** | F60 (IC6), current-era back-fill (IC4), video manifest population (IC5), OpenLP v2 curation fields (IC5), HIR-D8 (IC3) |
+| **Kept as open work** | F60 (IC6), current-era back-fill (IC4), video manifest population (IC5), OpenLP v2 curation fields (IC5), HIR-D8 implementation (IC3) |
 | **Reframed as report** | F32 (per-source accounting; exit contract changes in IC2), F53 (exact membership), F57 (round audit completeness), per-round cost/throughput accounting (was F58's measurement half) |
 | **Closed with evidence** | F1 completeness (Email lane, 2026-08-16 — see below), F2, F3, F4, F42, F43, F46's guard code, F61, F62, F63, F64, F65, F66; B1–B21 (all repaired; red tests retained); HIR0–HIR7 landed |
 | **Lapsed with the one-shot model** | F35 (journal-resume proof), F36 (forensic two-copy custody ceremony — read-only original, one verified working copy and hash inventory remain required practice), F38 (checkpoint *exactness* gating — checkpoints stay as tooling), F39 (fingerprint *binding* — fingerprints stay as recorded provenance), F45 (timed restore/RPO/RTO drills — verified backups remain mandatory), F46 (freeze/watchboard/change-control window), F47 (forced-crash recovery proof), F56 (freeze-sweep semantics — ingress lock tooling retained for optional brief pauses), F58 (window budget); HIR4/HIR5 evidence obligations; HIR8 steps 1, 2, 4, 6–11; safety invariants 4, 5 and 9 of the archived safety plan |
@@ -309,6 +323,11 @@ hand-verify only what corroboration cannot reach. Its output decides HIR-D8 (§1
 model calls) and the producing defects behind it fixed (`9f55f13d2`). Read "Revision 2026-08-16" in
 that report before starting anything here — it withdraws item 2's premise and adds items 5–7.
 
+**Authority refresh required 2026-08-19.** The August hymn snapshot is now authoritative for 2025
+and 2026 (§6 IC6), so the existing 2026-08-16 ground-truth artifacts predate the current authority.
+Regenerate the hymn reconciliation and item-level ground truth before implementing or measuring
+HIR-D8. This is IC3 evidence work; only final-corpus regeneration and hymn mutation wait for IC6.
+
 **Model-evaluation closure 2026-08-18.** The archived
 [nano/Luna non-inferiority evaluation](../archived-plans/OOS-PARSER-MODEL-EVALUATION-2026-08-17.md)
 ran both 554-source arms and closed without a model verdict. Its corrected same-source diagnostic
@@ -316,26 +335,16 @@ found material source-exact self-disagreement in both `effort=none` arms (nano 2
 with item structure alone above the declared 10% threshold in both (21/30; 8/30). Nano remains
 configured only as the unchanged status quo; Luna was neither adopted nor rejected. Do not label the
 536 model-discordant sources or run full replicates for that closed comparison. IC3's ground-truth
-and release-accuracy obligations remain unchanged. Any future model work must be a separately
-designed prompt/schema/reasoning-effort configuration evaluation, not an IC3 prerequisite.
+and release-accuracy obligations remain unchanged.
 
-Revised order: **5, 1, 7, 3**. Item 6 was superseded on 2026-08-16: it measured
-confidence-driven retries in cached historical results, while item 5 removes those retries from
-fresh parsing. It is not an active unattended-import change.
-
-- **Item 2 is re-scoped, not implemented.** Songs do not dominate the holds (33.2% of the
-  bookkeeping bucket against a 33.6% corpus base rate); 70.5% of type flips are between two types
-  the proposed port already classes as filler on both sides; the review backlog it would remove is
-  6 flips corpus-wide. The signal the census did find is a sermon boundary (+15.0 pp), which is
-  Slice E; it does not require a parser change in the current sequence.
-- **Item 5 is the accuracy work this lane found.** It redesigns the retry, which fires on 93% of
-  entries on a signal with AUC 0.52–0.63 and loses a classification 61 times for every 11 it
-  recovers.
-- **Item 1 is now evaluable and largely answered** — item 0(3) separated the measures and the
-  ground-truth join is done. Confidence carries weak content signal (AUC ≈ 0.61) and none on order
-  (0.524) or identity (0.538). The remaining work is the holdout split before a threshold is set,
-  not the analysis.
-- **Item 7 is a prerequisite for item 5's trigger half** and cheap enough to do first.
+**Permanent parser handoff 2026-08-19.** The
+[OoS email parser redesign](ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md) now owns the
+executable parser sequence: lossless source annotation, deterministic compilation, narrow repair,
+objective evaluation and shared weekly/historic cutover. It supersedes the report's queued
+implementation order `5, 1, 7, 3`; those findings remain evidence, not an independently executable
+backlog. IC3 supplies the authoritative item truth, implements HIR-D8 corroboration and owns all
+historic staging/round evidence. The parser plan must not become an IC1 or IC5 prerequisite by
+omission, and it cannot change evidence admission, finalisation or publication policy.
 
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 
@@ -368,8 +377,11 @@ The B13 false-acceptance reversal semantics are already implemented (PR16).
 
 ### IC6 — Hymn lane
 
-After Email/OpenLP/video convergence has staged: regenerate and hash-bind the hymn reconciliation
-against the exact converged corpus (F60), disposition all 5,759 known-service rows including
+The hymn workbook has two deliberately different roles. Its human-curated `Known Usage` data is
+used early, before this package, as IC3 corroboration for Email song membership and HIR-D8
+finalisation; it must not wait for the hymn mutation lane. What waits until after Email/OpenLP/video
+convergence is applying hymn occurrences to the service graph: regenerate and hash-bind the hymn
+reconciliation against the exact converged corpus (F60), disposition all 5,759 known-service rows including
 cross-source duplicates, then apply through the landed operation-owned controls (F61) with the
 proven no-op/reconciliation semantics (F62). The date-only lane stays quarantined until its signed
 release. The workbook's `a`/`p`/`●` markers carry the service attribution; the contract tolerates
@@ -378,11 +390,11 @@ the known phantom row.
 **New source snapshot (received 2026-08-16).**
 `storage/scratch/Hymn database @ 16.08.2026.xlsx` (SHA-256
 `0a6ac2043138c2e0abbf3fdcf314220d2d567a0ec812c3504d49e300213296c6`) contains the `2025` and
-`2026` year sheets and supersedes `Hymn database @ 15.03.2026.xlsx` as their authority. Before
-regeneration, update `HistoricHymnReconciliation::SheetAuthority` and its regression tests to name
-the August snapshot while retaining the earlier supplied snapshots as hash-bound, superseded
-sources. Run the reconciliation only after the preceding convergence work, against that exact
-rehearsal corpus, and review its anomalies, duplicates, unresolved titles and fuzzy candidates;
+`2026` year sheets and supersedes `Hymn database @ 15.03.2026.xlsx` as their authority.
+`HistoricHymnReconciliation::SheetAuthority` and its regression tests name the August snapshot so
+all further IC3 corroboration uses it; earlier supplied snapshots remain hash-bound, superseded
+sources. After the preceding convergence work, regenerate the apply artifact against that exact
+rehearsal corpus and review its anomalies, duplicates, unresolved titles and fuzzy candidates;
 do not carry forward the old `1,941 / 1,867 / 74` dry-run contract unless the new result reproduces
 it and it is approved again. F60 must also close the current artifact gap: the retained builder
 emits JSON, whereas `service-tracking:import-historic-song-usage-reports` consumes the derived XLSX
@@ -472,7 +484,7 @@ narrower `needs_review` semantics on purpose.
 
 | Item | Blocks | State |
 |---|---|---|
-| HIR-D8: may cross-source corroboration replace/augment the 0.90 gate for unattended *finalisation*? | Wider automatic finalisation only | Open; decided on IC3's corroborated-vs-uncorroborated item-level exactness, per dimension (order vs membership) |
+| HIR-D8 implementation: dimension-specific corroboration replaces the 0.90 gate where an independent source agrees | Wider automatic finalisation only | Policy decided 2026-08-19 (§2.5); IC3 implementation and regression measurement remain |
 | ~14 manual email adjudications (6 identity, 8 date) | F1 completeness closure | Operator, after IC1's staging round |
 | Source recovery for the 3 unevidenced current-era services | IC4 | Operator |
 | Video curation worksheet adjudication + freeze | IC5 bulk pass | Operator, on the §2.4 trigger |

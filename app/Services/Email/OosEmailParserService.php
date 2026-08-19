@@ -78,6 +78,12 @@ class OosEmailParserService
 
                 $attempts[] = $this->attemptMetadata(2, $correctedExtraction, $correctedValidation, $useCorrected)
                     + ['retry_reasons' => $retryReasons];
+                $attempts[1]['correction'] = $this->correctionDiagnostics(
+                    $initialValidation,
+                    $correctedValidation,
+                    $initialExtraction,
+                    $correctedExtraction,
+                );
                 $consensus = $initialValidation->isValid()
                     && $correctedValidation->isValid()
                     && $this->extractionSignature($initialExtraction) === $this->extractionSignature($correctedExtraction);
@@ -813,6 +819,10 @@ class OosEmailParserService
             'returned_service_count' => count($extraction->services),
             'confidence' => $extraction->confidence,
             'validation_reasons' => $validation->allReasons(),
+            'validation_rule_codes' => [
+                'content' => $validation->contentRuleCodes(),
+                'bookkeeping' => $validation->bookkeepingRuleCodes(),
+            ],
             'plans' => array_map(static fn (array $service): array => [
                 'service' => $service['service'] ?? null,
                 'date' => $service['date'] ?? null,
@@ -820,6 +830,35 @@ class OosEmailParserService
                 'confidence' => $service['confidence'],
                 'item_count' => count($service['items']),
             ], $extraction->services),
+        ];
+    }
+
+    /**
+     * Correction remains a complete re-extraction today. This records when it moved semantic
+     * fields despite the initial failure being bookkeeping-only, so the evaluation can identify
+     * collateral changes before a targeted-patch contract is introduced.
+     *
+     * @return array{removed_rule_codes:list<string>,persisted_rule_codes:list<string>,introduced_rule_codes:list<string>,changed_field_groups:list<string>,changed_unrelated_fields:bool}
+     */
+    private function correctionDiagnostics(
+        OosEmailExtractionValidationResult $initialValidation,
+        OosEmailExtractionValidationResult $correctedValidation,
+        OosEmailItemExtractionResult $initialExtraction,
+        OosEmailItemExtractionResult $correctedExtraction,
+    ): array {
+        $initialCodes = [...$initialValidation->contentRuleCodes(), ...$initialValidation->bookkeepingRuleCodes()];
+        $correctedCodes = [...$correctedValidation->contentRuleCodes(), ...$correctedValidation->bookkeepingRuleCodes()];
+        sort($initialCodes);
+        sort($correctedCodes);
+        $changedFieldGroups = $this->extractionDisagreementCategories($initialExtraction, $correctedExtraction);
+        $bookkeepingOnly = $initialValidation->contentRuleCodes() === [];
+
+        return [
+            'removed_rule_codes' => array_values(array_diff($initialCodes, $correctedCodes)),
+            'persisted_rule_codes' => array_values(array_intersect($initialCodes, $correctedCodes)),
+            'introduced_rule_codes' => array_values(array_diff($correctedCodes, $initialCodes)),
+            'changed_field_groups' => $changedFieldGroups,
+            'changed_unrelated_fields' => $bookkeepingOnly && $changedFieldGroups !== ['unclassified'],
         ];
     }
 

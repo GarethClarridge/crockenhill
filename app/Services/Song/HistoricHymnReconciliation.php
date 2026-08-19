@@ -62,13 +62,13 @@ class HistoricHymnReconciliation
     /**
      * Which workbook is authoritative for each year sheet.
      *
-     * Three of the four workbooks overlap — the 2026 snapshot restates 2024 and 2025 —
+     * The retained workbooks overlap — later snapshots restate earlier year sheets —
      * so a year has to be assigned to exactly one of them or the same service is counted
      * twice. This mapping reproduces the selection the 2026-08-09 workbook documented:
      * the 2023 snapshot for everything up to 2018 and for 2023, the standalone 2024
-     * snapshot for 2024, and the latest snapshot for 2025 and 2026. The 28.12.2025
-     * workbook is therefore authoritative for nothing; it is still read, so its digest
-     * is bound and its content is proven to be superseded rather than assumed to be.
+     * snapshot for 2024, and the latest snapshot for 2025 and 2026. The 28.12.2025 and
+     * 15.03.2026 workbooks are therefore authoritative for nothing; they are still read,
+     * so their digests are bound and their content is proven superseded rather than assumed so.
      */
     public const array SheetAuthority = [
         '2004' => 'Hymn Database @ 31.12.2023.xlsx',
@@ -88,8 +88,8 @@ class HistoricHymnReconciliation
         '2018' => 'Hymn Database @ 31.12.2023.xlsx',
         '2023' => 'Hymn Database @ 31.12.2023.xlsx',
         '2024' => 'Hymn database @ end of 2024.xlsx',
-        '2025' => 'Hymn database @ 15.03.2026.xlsx',
-        '2026' => 'Hymn database @ 15.03.2026.xlsx',
+        '2025' => 'Hymn database @ 16.08.2026.xlsx',
+        '2026' => 'Hymn database @ 16.08.2026.xlsx',
     ];
 
     public function __construct(

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Data;
 
 use App\Data\OosParserEvaluationArm;
+use App\Services\Email\OosEmailExtractionPrompt;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
@@ -17,6 +18,7 @@ class OosParserEvaluationArmTest extends TestCase
         config([
             'service-tracking.email_parsing.model' => 'wrong-model',
             'service-tracking.email_parsing.reasoning_effort' => 'low',
+            'service-tracking.email_parsing.prompt_variant' => 'lean',
         ]);
 
         $arm = OosParserEvaluationArm::fromName('luna-none');
@@ -26,6 +28,8 @@ class OosParserEvaluationArmTest extends TestCase
             'model' => 'gpt-5.6-luna',
             'configured_reasoning_effort' => 'none',
             'effective_reasoning_effort' => 'none',
+            'prompt_variant' => OosEmailExtractionPrompt::Baseline,
+            'prompt_sha256' => OosEmailExtractionPrompt::forVariant(OosEmailExtractionPrompt::Baseline)->sha256(),
         ], $arm->resolvedConfiguration());
         $this->assertSame('luna-none', config('openai.evaluation_arm'));
     }
@@ -70,6 +74,62 @@ class OosParserEvaluationArmTest extends TestCase
             $this->assertArrayHasKey($arm->effectiveReasoningEffort, $headroom, "Arm {$name} has no configured token headroom.");
             $this->assertGreaterThan(0, $headroom[$arm->effectiveReasoningEffort], "Arm {$name} would run against the effort=none ceiling.");
         }
+    }
+
+    /**
+     * The prompt arm's whole claim is that the prompt is the only thing that moved. Reasoning effort
+     * has already been answered — `low` traded `item_structure` disagreement for a *worse* routing
+     * flip rate — so an arm that varied the effort as well could not say which change was
+     * responsible, and routing is what decides unattended auto-import.
+     */
+    #[Test]
+    public function the_lean_prompt_arm_moves_the_prompt_and_nothing_else(): void
+    {
+        $baseline = OosParserEvaluationArm::fromName('baseline-nano-none');
+        $lean = OosParserEvaluationArm::fromName('lean-nano-none');
+
+        $this->assertSame($baseline->model, $lean->model);
+        $this->assertSame($baseline->configuredReasoningEffort, $lean->configuredReasoningEffort);
+        $this->assertSame($baseline->effectiveReasoningEffort, $lean->effectiveReasoningEffort);
+        $this->assertSame(OosEmailExtractionPrompt::Baseline, $baseline->promptVariant);
+        $this->assertSame(OosEmailExtractionPrompt::Lean, $lean->promptVariant);
+    }
+
+    /**
+     * The variant name is what an operator typed; the hash is what the API will be sent. They come
+     * apart exactly when a variant's text is edited between two arms, so the manifest carries both.
+     */
+    #[Test]
+    public function it_applies_the_prompt_variant_and_certifies_the_text_that_will_be_sent(): void
+    {
+        config(['service-tracking.email_parsing.prompt_variant' => 'baseline']);
+
+        $arm = OosParserEvaluationArm::fromName('lean-nano-none');
+        $arm->apply();
+        $configuration = $arm->resolvedConfiguration();
+
+        $this->assertSame('lean', config('service-tracking.email_parsing.prompt_variant'));
+        $this->assertSame('lean', $configuration['prompt_variant']);
+        $this->assertSame(
+            OosEmailExtractionPrompt::forVariant(OosEmailExtractionPrompt::Lean)->sha256(),
+            $configuration['prompt_sha256'],
+        );
+    }
+
+    #[Test]
+    public function it_refuses_a_prompt_variant_moved_out_from_under_the_arm(): void
+    {
+        $arm = OosParserEvaluationArm::fromName('lean-nano-none');
+        $arm->apply();
+
+        // Whatever moved it — a stale config cache, an env var, another arm in the same process —
+        // the arm must not certify a run that would send the baseline prompt under the lean label.
+        config(['service-tracking.email_parsing.prompt_variant' => OosEmailExtractionPrompt::Baseline]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("arm 'lean-nano-none' does not match its frozen prompt variant");
+
+        $arm->resolvedConfiguration();
     }
 
     #[Test]

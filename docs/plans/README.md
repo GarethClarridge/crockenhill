@@ -7,8 +7,10 @@ maintainer decisions REV-D1–REV-D4 and archived as evidence records. This dire
 executable active plans only; completed or superseded decision records live in
 `docs/archived-plans/`.
 
-Updated **2026-08-18** to archive the OoS parser model-only evaluation after it closed without a
-model verdict and to remove it as an active IC3 lane.
+Updated **2026-08-19** to add the permanent OoS email-parser redesign after the prompt
+simplification screen confirmed that whole-document prompt tuning trades semantic instability for
+bookkeeping failures. Historic IC3 retains corpus truth and import policy; the new plan owns the
+shared weekly/historic parser implementation.
 
 ## How to use this index
 
@@ -27,6 +29,7 @@ model verdict and to remove it as an active IC3 lane.
 | Concern | Sole owner | Consumers / boundary |
 |---|---|---|
 | Historic source acquisition, Email/OpenLP/video manifests, Bundle A/B, hymn evidence, production rounds, releases and retirement | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | Other plans may consume admitted sermons/songs later; they do not add import steps or gates |
+| Permanent weekly/historic OoS email normalisation, semantic annotation, deterministic compilation, targeted repair and parser evaluation | [OoS email parser redesign](ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md) | Historic IC3 supplies authoritative ground truth and consumes the parser; it still owns evidence tiers, finalisation policy and every historic round/release |
 | Generic exception capture, release tags and Sentry privacy/noise policy | `SENTRY-ERROR-TRACKING.md` | Optional independent layer; historic D7 accepted rotating logs instead. It reports the architectural plan's final terminal-failure owner rather than defining state transitions |
 | Generic storage durability, queue timing, rotating logs, schema-compatible rollback, runtime versions/startup and permanent processing/UI ownership | `ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md` | Historic plans may impose stricter operation evidence; July/code-quality/design/search retain the narrower ownership listed here |
 | July deferred workflow decisions and duplicate-suite cleanup | Simplification closeout plan | No historic one-shot or bulk-backfill work remains in that plan |
@@ -72,6 +75,9 @@ HISTORIC IC1-IC3 email/ground truth ──> IC5 video ──> IC6 hymn ──> I
             │                                                          │
             └── IC4 current-era back-fill (any time)                   └── first round needs AM3 D1
 
+OOS PARSER D0-D5 deterministic build ──> D6 paid evaluation ──> D7 approved shared cutover
+                 └── consumes IC3 truth; does not own or block historic rounds by omission
+
 ARCHITECTURE AM1-AM5/AM11 safety ────────────────────────────────────────────> independent value
 ARCHITECTURE AM8-AM10 permanent processing ──> waits for historic closeout unless a gate requires it
 
@@ -88,6 +94,7 @@ None of these lanes blocks the public product sequence except where a plan expli
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
 | H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Plan of record since 2026-08-14** (REV-D1–D4). All predecessor code landed; IC1 (email evidence tier) is the current package; production mutation only as §7 rounds. The model-only nano/Luna evaluation closed without a verdict and is not an IC3 gate | IC1 red tests + implementation, then a staging round; IC4 back-fill is drive-free any time |
+| H0a | [OoS email parser redesign](ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md) | Proposed 2026-08-19 after the prompt screen; permanent shared parser only, with historic truth/round ownership left in H0 | Delivery 0 truth/contracts, then the lossless source normaliser; paid calls wait for Delivery 6 approval |
 | M0 | [Architectural maintainability delivery](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) | Not started; immediate safety lane and post-G9 permanent-core lane are explicitly separated | Record D1-D4; AM2 timing and AM3 log-rotation tests can start independently |
 | H1 | [Sentry error tracking](SENTRY-ERROR-TRACKING.md) | Optional; not installed; dependency approval required | If approved, install/configure errors-only capture; sequence caught terminal processing reporting after architecture AM8 |
 | M1 | [Code-quality remediation](CODE-QUALITY-REMEDIATION-2026-07-19.md) | WP2.1/WP6.1 done; other items open; level 8 | WP2's small fail-closed/config/signature fixes plus the computed-call structural guard |
@@ -127,8 +134,10 @@ None of these lanes blocks the public product sequence except where a plan expli
   neither adopted nor rejected; the 536 discordant sources are not adjudicated.
   **Round six then ran the effort arms: `nano/low` is 77.0% at `n = 100` against `none`'s 80.0%, and
   routing stability got *worse*.** Reasoning effort is not the lever; do not run higher efforts or
-  another model evaluation. The remaining lever is the prompt/schema surface, where 33.5% of
-  first-pass extractions fail deterministic validation.
+  another model-only evaluation. The permanent response is now owned by the
+  [OoS email parser redesign](ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md): narrow semantic
+  annotation plus deterministic compilation, measured against IC3 truth rather than another
+  whole-document prompt/model comparison.
 - [Historic archive final import readiness](../archived-plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md),
   [historic archive readiness remediation](../archived-plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md)
   and [historic import safety remediation](../archived-plans/HISTORIC-IMPORT-SAFETY-REMEDIATION-2026-08-12.md)

@@ -133,6 +133,9 @@ class RunOosParserArmCommand extends Command
             ['model', $configuration['model']],
             ['configured reasoning effort', $configuration['configured_reasoning_effort']],
             ['effective reasoning effort', $configuration['effective_reasoning_effort']],
+            // Both, because the name is what the operator typed and the hash is what will be sent.
+            ['prompt variant', $configuration['prompt_variant']],
+            ['prompt sha256', $configuration['prompt_sha256']],
             ['max completion tokens', (string) config('service-tracking.email_parsing.max_completion_tokens')],
             ['extraction attempts', (string) config('service-tracking.email_parsing.extraction_attempts')],
             ['review threshold', (string) config('service-tracking.email_parsing.review_threshold')],
@@ -184,6 +187,7 @@ class RunOosParserArmCommand extends Command
          * observation; the comparator decides what it means.
          */
         $this->line('  This is an observation, not a verdict — the ceiling is applied by the arm comparison.');
+        $this->reportValidationCensus($stability);
         $this->line('  Disagreeing pairs by field group (a pair may count in several):');
 
         foreach ($decomposition as $group => $count) {
@@ -197,6 +201,49 @@ class RunOosParserArmCommand extends Command
             : "  Retained diffs: {$retained} — every disagreeing pair.");
 
         $this->line('No corpus projection was written — this is a diagnostic run only.');
+    }
+
+    /**
+     * The first-pass failure profile and what correction did about it.
+     *
+     * Printed with its denominator on the same screen, because the unit here is a parse and the
+     * unit two lines above is a source — the replicate parses every sampled source twice, so a
+     * reader comparing the two rates without the denominators would halve one of them.
+     *
+     * @param  array<string, mixed>  $stability
+     */
+    private function reportValidationCensus(array $stability): void
+    {
+        /** @var array<string, mixed> $validation */
+        $validation = $stability['validation'];
+        /** @var array{content:array<string,int>,bookkeeping:array<string,int>} $firstPassCodes */
+        $firstPassCodes = $validation['first_pass_rule_codes'];
+        /** @var array<string, int> $outcomes */
+        $outcomes = $validation['correction_outcomes'];
+
+        $this->line("  Validation census over {$validation['parse_count']} parses (each sampled source twice):");
+        $this->line("    First-pass failures: {$validation['first_pass_failure_parses']} ("
+            .number_format((float) $validation['first_pass_failure_rate'] * 100, 1).'%)');
+        $this->line("    Corrections attempted: {$validation['corrected_parses']} ("
+            .number_format((float) $validation['correction_rate'] * 100, 1).'%)');
+
+        foreach (['content', 'bookkeeping'] as $family) {
+            $this->line("    First-pass {$family} rules:".($firstPassCodes[$family] === [] ? ' none' : ''));
+
+            foreach ($firstPassCodes[$family] as $code => $count) {
+                $this->line("      {$code}: {$count}");
+            }
+        }
+
+        $this->line('    Correction outcomes:');
+
+        foreach ($outcomes as $outcome => $count) {
+            $this->line("      {$outcome}: {$count}");
+        }
+
+        if ((int) $validation['correction_call_failures'] > 0) {
+            $this->warn("    Corrective calls that threw: {$validation['correction_call_failures']} — these carry no diagnosis and are in none of the outcomes above.");
+        }
     }
 
     /**
