@@ -77,6 +77,9 @@ class OosParserSurfaceFingerprint
         // guard that can refuse the request before it is sent at all.
         'app/Support/OpenAiChatPayload.php',
         'app/Support/OpenAiJsonSchemaLimits.php',
+        // Whether a failed call is asked again or abandons the parse, and how long it waits. A
+        // retry that does not happen changes what an arm extracts as surely as a prompt does.
+        'app/Support/OpenAiTransientFailure.php',
         // Display titles, which are part of the extraction signature.
         'app/Services/ChurchService/ServiceItemTitleCleaner.php',
     ];

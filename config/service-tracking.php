@@ -56,6 +56,12 @@ return [
         // Re-asks when the model returns something unusable. One flaky call used to
         // lose a service permanently and fail the whole corpus closeout with it.
         'extraction_attempts' => (int) env('OOS_EMAIL_PARSING_EXTRACTION_ATTEMPTS', 3),
+        // Separate from `extraction_attempts` on purpose: that budget answers "the model returned
+        // something unusable", this one answers "the request never got through". A rate limit spent
+        // from the first budget would consume a semantic re-ask that exists for a different reason.
+        // Backoff lives in {@see App\Support\OpenAiTransientFailure}, which waits in seconds for a
+        // 429 and milliseconds for a dropped connection.
+        'transport_attempts' => (int) env('OOS_EMAIL_PARSING_TRANSPORT_ATTEMPTS', 3),
         'review_threshold' => 0.75,
         'auto_import_threshold' => 0.90,
         'semantic' => [

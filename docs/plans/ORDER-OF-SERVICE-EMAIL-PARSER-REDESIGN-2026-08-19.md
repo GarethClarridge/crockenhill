@@ -1586,6 +1586,46 @@ worth running: both re-roll the same dice against a $20 prize. Should the worklo
 — a continuously reparsed corpus, or per-source costs orders of magnitude higher — the two banked
 luna arms and this cost table are the starting point for reopening it.
 
+### 9.14 The rate-limit retry fix, and the parser surface move it causes
+
+The §9.13 operational finding was fixed rather than left recorded. Four defects, one shared cause —
+the code had no notion of "ask again later" as distinct from "this answer is no good":
+
+1. **`OpenAiOosEmailItemExtractor` never retried a rate limit at all.** It retries under
+   `catch (RuntimeException)`, and the OpenAI client raises every HTTP failure as
+   `ErrorException extends Exception`. A 429 therefore aborted the parse on the first response. This
+   is the **production** path (`OOS_EMAIL_PARSING_IMPLEMENTATION` is `legacy`).
+2. **The semantic path classified 429 correctly but waited 1.6 seconds.** `retry_delays_ms` of
+   `[100, 500, 1000]` exhausts three attempts faster than any rate-limit window.
+3. **`isTransient()` existed verbatim in two classes**, the annotator and the repairer.
+4. **`ProcessInboundOosEmail` had `$tries = 3` and no `backoff`**, so the queue re-ran it immediately
+   into the same window.
+
+`App\Support\OpenAiTransientFailure` is now the single rule for both the classification and the
+wait, because getting one right and the other wrong fixes nothing — defect 2 is precisely that case.
+A provider-supplied `Retry-After` always wins; otherwise a rate limit waits 2s/8s/20s while a dropped
+connection or 5xx keeps its prompt 100/500/1000ms retry. The extractor gained a transport budget
+(`OOS_EMAIL_PARSING_TRANSPORT_ATTEMPTS`, default 3) held **separately** from `extraction_attempts`,
+so a 429 no longer consumes a semantic re-ask that exists for a different purpose. The job backs off
+30s then 120s.
+
+**The parser surface fingerprint has moved: `7acc08a86780d25b…` → `5fe49c252e7795b4…`.** This is
+unavoidable — `OpenAiOosEmailItemExtractor`, `OpenAiOosSemanticAnnotator` and
+`OpenAiOosSemanticRepairer` are all in the fingerprint's file list, so any fix to them moves it — and
+`OpenAiTransientFailure` was added to that list under invariant 11, since a retry that does not
+happen changes what an arm extracts as surely as a prompt does.
+
+**The consequence, stated plainly because Delivery 7 approval is pending.** Every banked arm (terra
+v2–v6 and both luna arms) recorded `7acc08a8…`, so `OosSemanticCorrectnessScorer` now **refuses** to
+re-score any of them — verified by running it, which reports "The candidate arm ran a different
+parser surface from the one scoring it". The already-written scoring artifacts are unaffected and
+remain valid: they were computed when the surfaces matched, and each records the hash it was computed
+against. What is no longer possible is *re-deriving* them from the current tree. If a future
+maintainer needs to reproduce the accepted terra v6 comparison rather than read it, the route is to
+check out commit `bd355bc84` or earlier, not to re-run the scorer at HEAD. Re-running a paid arm at
+the new surface would also restore comparability, at ~$1.04, and is not required by anything
+currently open.
+
 ## 10. Non-goals
 
 - fine-tuning before the annotation architecture and golden evaluation establish a residual need;

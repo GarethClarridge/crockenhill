@@ -34,6 +34,18 @@ class ProcessInboundOosEmail implements ShouldBeUnique, ShouldQueue
 
     public int $tries = 3;
 
+    /**
+     * Seconds to wait before each requeue, rather than the default of retrying immediately.
+     *
+     * Without this, three tries are spent inside a few seconds, which is the wrong shape for the
+     * failures that actually reach this far: the parser already retries an unusable response and a
+     * transient transport failure itself ({@see App\Support\OpenAiTransientFailure}), so a failure
+     * arriving here has already outlasted those budgets and is unlikely to clear instantly.
+     *
+     * @var list<int>
+     */
+    public array $backoff = [30, 120];
+
     public int $uniqueFor = self::UniqueForSeconds;
 
     public function __construct(

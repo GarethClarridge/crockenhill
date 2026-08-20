@@ -11,12 +11,9 @@ use App\Data\OosSemanticAnnotationResult;
 use App\Data\OosSemanticFinding;
 use App\Exceptions\OosSemanticResponseTruncatedException;
 use App\Support\OpenAiChatPayload;
+use App\Support\OpenAiTransientFailure;
 use App\Support\OpenAiUsageLogger;
 use OpenAI\Contracts\ClientContract;
-use OpenAI\Exceptions\ErrorException;
-use OpenAI\Exceptions\RateLimitException;
-use OpenAI\Exceptions\ServerException;
-use OpenAI\Exceptions\TransporterException;
 use RuntimeException;
 use Throwable;
 
@@ -45,12 +42,11 @@ class OpenAiOosSemanticRepairer implements OosSemanticRepairer
             try {
                 return $this->request($source, $annotations, $findings, $lineIds, $attempt);
             } catch (Throwable $exception) {
-                if ($attempt >= $attempts || ! $this->isTransient($exception)) {
+                if ($attempt >= $attempts || ! OpenAiTransientFailure::isTransient($exception)) {
                     throw $exception;
                 }
 
-                $delayIndex = $attempt - 1;
-                usleep((int) config("service-tracking.email_parsing.semantic.retry_delays_ms.{$delayIndex}", 100 * $attempt) * 1000);
+                usleep(OpenAiTransientFailure::delayMs($exception, $attempt) * 1000);
             }
         }
 
@@ -219,17 +215,5 @@ class OpenAiOosSemanticRepairer implements OosSemanticRepairer
         sort($lineIds);
 
         return $lineIds;
-    }
-
-    private function isTransient(Throwable $exception): bool
-    {
-        if ($exception instanceof TransporterException
-            || $exception instanceof ServerException
-            || $exception instanceof RateLimitException
-            || $exception instanceof OosSemanticResponseTruncatedException) {
-            return true;
-        }
-
-        return $exception instanceof ErrorException && in_array($exception->getStatusCode(), [429, 500, 502, 503, 504], true);
     }
 }

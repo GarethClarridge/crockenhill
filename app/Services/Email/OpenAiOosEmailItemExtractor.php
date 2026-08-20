@@ -9,12 +9,14 @@ use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailSourceDocument;
 use App\Exceptions\OosEmailExtractionTruncatedException;
 use App\Support\OpenAiChatPayload;
+use App\Support\OpenAiTransientFailure;
 use App\Support\OpenAiUsageLogger;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Chat\CreateResponse;
 use RuntimeException;
+use Throwable;
 
 class OpenAiOosEmailItemExtractor implements AdjudicatingOosEmailItemExtractor
 {
@@ -112,11 +114,46 @@ class OpenAiOosEmailItemExtractor implements AdjudicatingOosEmailItemExtractor
         }
 
         $attempts = max(1, (int) config('service-tracking.email_parsing.extraction_attempts', 3));
+        $transportAttempts = max(1, (int) config('service-tracking.email_parsing.transport_attempts', 3));
+        $transportAttempt = 0;
 
         for ($attempt = 1; ; $attempt++) {
             try {
                 return $this->attempt($model, $userContent, $source->lineIds(), $callRole, $attempt);
-            } catch (RuntimeException $exception) {
+            } catch (Throwable $exception) {
+                /*
+                 * A transport failure is a different question from an unusable answer and carries
+                 * its own budget. The OpenAI client raises every HTTP failure as `ErrorException`,
+                 * which extends `Exception` and so never reached the `RuntimeException` arm below:
+                 * a rate limit used to abandon the parse on the first response without one retry.
+                 * `$attempt` is deliberately not advanced here, so a 429 does not consume one of the
+                 * semantic re-asks that exist for a different purpose.
+                 */
+                if (! $exception instanceof RuntimeException && OpenAiTransientFailure::isTransient($exception)) {
+                    $transportAttempt++;
+
+                    if ($transportAttempt >= $transportAttempts) {
+                        throw $exception;
+                    }
+
+                    Log::warning('Retrying OoS email extraction after a transient transport failure', [
+                        'transport_attempt' => $transportAttempt,
+                        'transport_attempts' => $transportAttempts,
+                        'evaluation_arm' => config('openai.evaluation_arm'),
+                        'rate_limited' => OpenAiTransientFailure::isRateLimit($exception),
+                        'reason' => $exception->getMessage(),
+                    ]);
+
+                    usleep(OpenAiTransientFailure::delayMs($exception, $transportAttempt) * 1000);
+                    $attempt--;
+
+                    continue;
+                }
+
+                if (! $exception instanceof RuntimeException) {
+                    throw $exception;
+                }
+
                 /*
                  * Every failure `attempt()` raises is "the model returned something
                  * unusable", and asking again is the remedy — verified on the entry
