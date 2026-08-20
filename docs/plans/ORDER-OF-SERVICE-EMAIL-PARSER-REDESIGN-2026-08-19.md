@@ -26,7 +26,16 @@
 >   measured projection of `outcome_rate` → ~2.6%. **Accepted as-is by maintainer decision on
 >   2026-08-20 — an explicit exemption, not a bar that was met; the remedy was available and
 >   declined. Grounds and what is given up are recorded in §9.12.**
-> - **Spend to date:** eight paid full-corpus arms, ≈$8.50 at the dated snapshot's projected rate.
+> - **Cheaper-model arm (Delivery 6 step 5), 2026-08-20:** `gpt-5.6-luna` / `low` was run over two
+>   full-corpus draws against the same corpus, prompt v6 and parser surface. Both draws reach
+>   `verdict: pass` on all ten arm-scoped gates at one tenth the cost — and both are **worse than
+>   terra on stability**: `outcome_rate` 50.0% against terra's 28.9%, and `plan_key_disagreements`
+>   **1** where terra scored 0. Decisively, the saving is immaterial at this workload: terra costs
+>   **$1.42 a year** for weekly parsing and $15.13 for a one-off archive pass, so switching is worth
+>   ~$20 over five years. **Closed on evidence — stay on terra**; `OOS_SEMANTIC_ANNOTATION_MODEL`
+>   still defaults to `gpt-5.6-terra`. Full record and cost table in §9.13.
+> - **Spend to date:** eight paid full-corpus arms, ≈$8.50 at the dated snapshot's projected rate,
+>   plus two luna arms and five failed luna attempts at ≈$0.41 (§9.13).
 >   No production mutation has occurred at any point; `OOS_EMAIL_PARSING_IMPLEMENTATION` is `legacy`
 >   in production and in `.env.example`.
 > - **Next action (§9.4 step 10):** maintainer review of the paired artifact, then an explicit
@@ -799,6 +808,10 @@ design authority; this section records mutable execution state and does not weak
 | `storage/scratch/oos-semantic-candidate-terra-low-2026-08-20{,-v3,-v4,-v5,-v5-replicate}.json` | **Five paid candidate evidence arms, retained in full — see §9.6.** Unsuffixed = prompt v2 (pre-fix); `-v3`/`-v4`/`-v5` = successive prompt-only fixes at `OosSemanticAnnotationPrompt::Version` 3/4/5; `-v5-replicate` = second full-corpus run of the unchanged v5 prompt, for the §6.2 self-disagreement decomposition. Every arm is create-once and none was overwritten. |
 | `storage/scratch/oos-semantic-score-terra-low-2026-08-20{,-v3,-v4,-v5,-v5-final,-v5-replicate}.json` | Scoring artifacts for each arm above; `-v5-final` is v5 scored *with* `--replicate=` (the complete comparison, `score_hash` `f66a5124cd872a74cb9152171980bb27dac20030745e2ca7e0d2007a19b74ceb`); `-v5-replicate` is the replicate scored independently against truth (its own verdict is `fail` on gate 10 — see §9.6, do not read only the `-v5-final` PASS list). |
 
+| `storage/scratch/oos-semantic-price-snapshot-2026-08-20-luna.json` | Dated price input for the luna arms; `gpt-5.6-luna` at $0.20 input / $1.20 output per 1M. Figures carried unchanged from `oos-parser-price-snapshot-2026-08-18.json` — the model page was **not** re-read on 2026-08-20, and the artifact says so. `billing_mode` deliberately matches the terra snapshot so the two projections are same-basis. Projection input only, never billing authority. |
+| `storage/scratch/oos-semantic-candidate-luna-low-2026-08-20-v6{,-replicate}.json` | **The two paid luna arms (§9.13).** `gpt-5.6-luna` / `low` / flex, prompt v6, corpus `14cba9a3…`, parser surface `7acc08a8…` — byte-identical surface to the terra v6 arms, so the model is the only variable. `evidence_hash` `7d837b18…` and `5a7b0c61…`. |
+| `storage/scratch/oos-semantic-score-luna-low-2026-08-20-v6{,-replicate,-final}.json` | Luna scored as primary alone (`score_hash` `323c5df6…`), replicate alone (`d4a9611a…`) and paired with `--replicate=` (`b15bddfd…`). All three read `verdict: pass`. **A passing verdict here means "passes the absolute §6.3 bars", not "matches terra" — see §9.13 before quoting it.** |
+
 The private corpus contains verbatim email text and must remain uncommitted and mode `0600`. The
 price snapshot records the official model page's displayed default rates and explicitly notes that
 OpenAI's general pricing table exposes additional context/processing variants. Keep the snapshot
@@ -1409,6 +1422,169 @@ ceiling on the improvement, not a forecast.
 
 Verification: full suite **7,003 tests, 83,906 assertions**, 140 notices, no failures; PHPStan 0
 errors; Pint passed. No paid model request; paid-call count unchanged at eight.
+
+### 9.13 The cheaper-model arm — `gpt-5.6-luna`, Delivery 6 step 5
+
+Delivery 6 step 5 permits a cheaper model to be tested for non-inferiority **only after correctness
+passes**, which it now has. Two full-corpus draws were run on maintainer instruction, each approved
+in-session. Nothing about the switch required new code: the model is read from
+`config('service-tracking.email_parsing.semantic.model')` at runtime, while
+`OosParserSurfaceFingerprint` hashes files on disk, so the arms carry parser surface
+`7acc08a86780d25b…` — byte-identical to the terra v6 arms. The env var was passed straight into the
+container (`docker compose exec -e OOS_SEMANTIC_ANNOTATION_MODEL=gpt-5.6-luna`), which works because
+Laravel's dotenv loader is immutable and a real process env var wins over `.env`; `.env` was never
+edited and no default changed.
+
+**Both draws pass all ten arm-scoped gates.** That is the correct and unhelpful headline: every §6.3
+gate is an *absolute* bar against the legacy parser, so an arm can pass all ten while being worse
+than the incumbent candidate. Luna does exactly that.
+
+| | Luna primary | Luna replicate | Terra v6 primary |
+|---|---:|---:|---:|
+| Verdict scored alone | pass | pass | pass |
+| Identity (of 38) | **34** | 35 | **35** |
+| Item recall | 0.9316 | 0.9658 | **0.9696** |
+| Items missed | **36** | 18 | **16** |
+| Item precision | 0.9959 | 0.9980 | 0.9980 |
+| Exact order rate | 0.7660 | 0.8542 | 0.8542 |
+| First-pass rate (30) | **0.0667** | **0.0667** | 0.1333 |
+| Boundary precision / recall | **0.94 / 0.92** | — | 0.82 / 0.80 |
+| Corpus cost | $0.1042 | $0.1029 | $1.0375 |
+| Latency per source | 43,074 ms | — | **7,858 ms** |
+| Projected archive cost | **$1.52** | — | $15.13 |
+
+**Where luna is genuinely better:** first-pass validation failures are half terra's rate on both
+draws, service-boundary precision and recall are clearly higher, and content-scope accuracy is
+0.9149 against 0.8333. These are real and were not expected.
+
+**Why the recommendation is nonetheless to stay on terra**, in ascending order of weight:
+
+1. **Identity 34/38 on the primary draw is exactly the legacy baseline**, not above it. Gate 7 passes
+   because it tests for no regression against legacy, and 34 ≥ 34. But moving identity *above* 34 is
+   what the entire v3→v6 prompt sequence was for, and terra holds 35 on both draws where luna manages
+   it on one.
+2. **Recall.** Luna's primary omits 36 of 526 true items against terra's 16. Gate 6's floor is 0.85
+   so 0.9316 passes comfortably; in plain terms it silently drops twenty more genuine order items
+   across 38 emails, and exact order falls from 0.854 to 0.766 with it.
+3. **Stability, which is the decisive one.**
+
+| | Luna | Terra v6 |
+|---|---:|---:|
+| `rate` (raw, provenance included) | 0.6842 | 0.4211 |
+| `outcome_rate` (the figure the 10% ceiling is about) | **50.0%** | 28.9% |
+| `plan_key_disagreements` | **1** | **0** |
+| Decomposition | structure 16, titles 6, provenance 24 | structure 10, titles 4, provenance 15 |
+
+`plan_key_disagreements: 1` is the line. §9.12's acceptance of terra's 28.9% rested explicitly on
+that figure being zero — "No source's compiled service or date differs between draws, so nothing
+about which service an order belongs to, or whether it imports, is unstable. The variance is
+confined to how an item is *categorised*." Luna breaks precisely that property. One source resolves
+to a different service/date identity depending on the draw, which feeds duplicate lookup and import
+disposition rather than a display label. The terra exemption does not transfer to it, and would have
+to be re-argued on worse facts.
+
+**The draw-to-draw spread is itself a finding.** Luna's replicate is markedly *better* than its
+primary — 18 missed items against 36, identity 35 against 34. Which luna you get is luck of the
+draw, and a single arm would have supported either "close to terra" or "clearly worse" depending
+which draw ran first. This is the case the plan's replicate discipline exists to catch, and it caught
+it.
+
+**Adoption would not be a config change.** Delivery 7's precondition is a signed passing artifact
+*for the configuration being flipped*. Switching would make the luna artifact the one presented for
+production-default approval, carrying a 50% `outcome_rate` and a non-zero `plan_key_disagreements`
+into that decision, in exchange for roughly $13.60 on a full archive pass. `OOS_SEMANTIC_ANNOTATION_MODEL`
+therefore still defaults to `gpt-5.6-terra` in `config/service-tracking.php` and `.env.example`.
+
+**Operational findings, which cost more than the arms did.** Seven runs were needed to obtain two
+artifacts; five failed, wasting ≈$0.20 of the ≈$0.41 total.
+
+- **Luna is ~5.5× slower per source** (43.1s against terra's 7.9s), so a full-corpus arm takes ~33
+  minutes against terra's ~5. That is invisible for weekly intake (one email, one call) and material
+  for archive replay, which would go from roughly an hour to five and a half.
+- **Rate limits killed two runs outright.** `OpenAI\Exceptions\ErrorException` for a 429 arrives at
+  the very end of a 32-minute run and the runner writes its artifact only after all 38 sources
+  succeed, so the whole run's spend is discarded. `retry_delays_ms` is `[100, 500, 1000]`, so three
+  transport attempts exhaust in 1.6 seconds — a sensible curve for a dropped connection and useless
+  against a rate limit. Terra never exposed this because its arms finish in five minutes.
+  **A related defect exists on the legacy path, which *is* production:**
+  `OpenAiOosEmailItemExtractor` retries under `catch (RuntimeException)`, and `ErrorException
+  extends Exception`, so a 429 is not retried there at all; `ProcessInboundOosEmail` has `$tries = 3`
+  and no `backoff`, so the queue re-runs it immediately into the same window. The practical risk to
+  weekly intake is negligible (one email is one call, and Mailgun inbound has never been configured),
+  but bulk archive replay is exposed. **Not fixed here** — it is unrelated to the model question and
+  is recorded so it is not rediscovered.
+- **Two process errors of the assistant's own, recorded so the run log reads honestly.** A healthy
+  run was killed on a fabricated "stall" diagnosis caused by comparing a BST host clock to UTC
+  container logs — `laravel.log` is UTC because the container's timezone is, and the one-hour offset
+  looks exactly like a hang. And an unjustified `OPENAI_REQUEST_TIMEOUT=240` was introduced on the
+  strength of that bad diagnosis, then reverted before the arms that produced these artifacts; both
+  retained arms ran at stock settings.
+
+**Repeated luna draws were considered and rejected on measurement, not principle.** Since nine luna
+arms ($0.93) cost less than one terra arm ($1.04), the obvious question is whether several draws
+could be combined to beat terra cheaply. The annotation architecture is unusually well suited to it —
+invariant 2 guarantees exactly one annotation per stable line ID, so a per-line vote across draws is
+well defined in a way it would not be for a whole-document parser. The two banked draws answer it at
+zero further spend, by decomposing luna's missed item lines into variance (a different draw gets it
+right) and bias (no draw does):
+
+| | item lines |
+|---|---:|
+| Truth item lines | 535 |
+| Missed by luna primary | 41 |
+| Missed by luna replicate | 21 |
+| **Missed by both draws** | **21** |
+| Recoverable by combining the two | 20 |
+| Missed by terra v6 | **19** |
+
+The replicate's misses are a strict subset of the primary's. So an *optimistic* two-draw ensemble —
+taking the union, accepting any item either draw found — lands at 21 missed lines against terra's 19:
+it buys back luna's variance and arrives approximately where terra already is. Three caveats make the
+real figure worse, not better. The union is the optimistic bound; a sane design is a per-line
+majority vote, which needs three or more draws and is *stricter* than a union, so it recovers fewer
+than 20. The union also maximises recall at precision's expense, admitting every draw's false
+positives. And 21 is only the two-draw estimate of the bias floor — more draws can lower it, but only
+among lines some draw already gets right.
+
+The costs that are not dollars decide it. Nine draws is nine times 33 minutes — about five hours per
+corpus pass against terra's five minutes — and nine times the rate-limit exposure that already
+destroyed two runs at 41 calls. More importantly the voting layer would be new permanent code between
+annotation and compilation: a behaviour-bearing surface that must join
+`OosParserSurfaceFingerprint`, carry its own gates and be evaluated from scratch, since an ensembled
+parser cannot be scored as a luna arm. That is a standing maintenance obligation and sits close to
+§10's "multi-agent extraction" non-goal, incurred to reach parity with a model already configured, to
+save ~$13.60 on a full archive pass.
+
+**The decisive fact is that there is no meaningful premium to justify, and it should have been
+computed before any arm ran.** The 10× price ratio is real and, at this workload, misleading:
+
+| | Luna | Terra |
+|---|---:|---:|
+| Per source | $0.0027 | $0.0273 |
+| Weekly parsing, per year (52 emails) | $0.14 | **$1.42** |
+| Archive pass (554 sources, one-off) | $1.52 | **$15.13** |
+
+The entire financial case for luna is **$13.61 once plus $1.28 a year — about $20 over five years**.
+Terra's annual cost for weekly parsing is $1.42. The five failed luna runs on 2026-08-20 burned
+$0.20, or roughly two months of that.
+
+This cuts symmetrically against the quality argument as well as for it. A 41-versus-19 missed-line
+gap out of 535 would not on its own justify paying 10× — but when the saving is $20 across five
+years, *no* regression is a good trade, and luna's are not nothing: identity on the legacy bar rather
+than above it, `outcome_rate` 50% against 28.9%, `plan_key_disagreements` 1 against 0, 5.5× the
+latency and demonstrated rate-limit fragility. Switching also is not free in effort, since Delivery 7
+would then be approving the luna artifact and its non-zero `plan_key_disagreements` after §9.12
+accepted terra's 28.9% specifically on the grounds that terra's was zero.
+
+The general lesson, recorded because it generalises past this plan: model price only drives a
+decision when it is a meaningful fraction of total system cost. This workload is 554 archive sources
+once and ~52 emails a year, so the model bill is rounding error against any human time spent on it.
+Compute absolute annual spend before comparing ratios.
+
+**The question is closed on evidence, not left open.** Neither a third luna draw nor an ensemble is
+worth running: both re-roll the same dice against a $20 prize. Should the workload ever change shape
+— a continuously reparsed corpus, or per-source costs orders of magnitude higher — the two banked
+luna arms and this cost table are the starting point for reopening it.
 
 ## 10. Non-goals
 
