@@ -1147,6 +1147,39 @@ the v5 replicate also hit; `2018-02-04-details`, which every arm has hit). A sin
 trading 13 sources for 1 is a clear win, but "removal only" is not a safe assumption for the next
 projection.
 
+### 9.10 Gate 9 reclassified as a precondition — the first passing artifact
+
+**Maintainer decision, 2026-08-20.** Entry-point parity is no longer §6.3 gate 9; it is a
+precondition recorded in the scoring artifact, and the verdict is computed over the arm-scoped gates
+only. The reasoning is that it never behaved like a gate: it is the same value for every arm, no arm
+can move it, and the scorer therefore reported it `not_scored` on every artifact — which, because
+`not_scored` blocks a pass, made `verdict: pass` structurally unreachable and Delivery 7's "signed
+passing comparison artifact" precondition unsatisfiable.
+
+This does edit acceptance criteria that were deliberately fixed before any spend, which was raised
+as a concern and accepted by the maintainer. Recorded plainly so the change is visible rather than
+implicit: the criteria moved *after* good numbers were seen, and the reader should weigh it
+accordingly. What did **not** change is which conditions must hold — parity is still required, still
+`hard`, and is still evidenced by a real contract test. Only where it is recorded moved.
+
+`OosSemanticCorrectnessScorer::Version` is now 2. A version 1 artifact carries a gate 9 and no
+`preconditions` block and is not comparable by verdict alone; the banked v2–v6 version 1 artifacts
+are retained exactly as scored.
+
+The `preconditions` block records a **checkable fact, not a claim**: the contract test's path, its
+presence in the scored tree, and its SHA-256 — never an assertion that it passed, because the scorer
+does not read suite results and must not assert what it has not checked. Together with the
+`application_commit` already in `inputs`, that lets any reader re-run exactly that test at exactly
+that commit.
+
+Re-scoring the unchanged v6 arm under the new format gives
+`storage/scratch/oos-semantic-score-terra-low-2026-08-20-v6-reclassified.json`, `score_hash`
+`46bd60c483c097606efb8ec6f16519d600dbecf8a41b1cf82489f0d7d9e1281f`, **`verdict: pass`** — the first
+passing comparison artifact in this plan's history. Ten of ten arm-scoped gates pass. Gate 11 is
+soft and reports `stability: null`, correctly: a correctness-first artifact has no replicate, and
+`pass` here means correctness passed, which is exactly what §9.4 step 8 treats as the trigger for
+running replicates.
+
 **Not yet done: the §9.4 step 8 replicate.** v6 is the first candidate to pass correctness with
 margin, so the stability replicate is now the right next spend rather than a way of shopping for a
 number — but it is a separate ~$1 and needs its own explicit approval. Until it runs, the v6 result

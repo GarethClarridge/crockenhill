@@ -26,7 +26,11 @@ use Throwable;
  * - **Every gate is reported independently.** A single overall verdict hides which gate moved, and
  *   §6.3 explicitly forbids a cost or stability figure from overriding a correctness or safety gate.
  *   A gate this artifact cannot establish is `not_scored`, which blocks a `pass` verdict without
- *   being reported as evidence of failure.
+ *   being reported as evidence of failure. That rule is about gates whose value *depends on the arm*
+ *   and which this particular run failed to determine. An acceptance condition that no arm can move
+ *   is not such a gate and belongs in {@see self::preconditions()} instead — see the note there on
+ *   why entry-point parity was reclassified, and why it is recorded as a pinned fact rather than
+ *   asserted as passed.
  * - **Correctness is measured against the compiler's own output.** `truth.expected_plans` was
  *   compiled from the adjudicated annotations by {@see CompileOosSemanticAnnotations}, and the
  *   candidate's plans by the same class. Comparing them therefore isolates the *annotation*
@@ -41,7 +45,13 @@ class OosSemanticCorrectnessScorer
 {
     public const string Format = 'crockenhill-oos-semantic-correctness-score';
 
-    public const int Version = 1;
+    /**
+     * Version 2 moved entry-point parity out of the gate list into `preconditions` and added that
+     * block. A version 1 artifact carries a gate 9 and no preconditions, and its `verdict` is
+     * `incomplete` for a reason version 2 would not report; the two are not comparable by verdict
+     * alone. The banked v2–v6 artifacts are all version 1 and are retained as they were scored.
+     */
+    public const int Version = 2;
 
     /** §6.3 gate 6. */
     private const float ItemPrecisionFloor = 0.98;
@@ -113,6 +123,7 @@ class OosSemanticCorrectnessScorer
         $gates = $this->gates($metrics, $safetyFixtures);
 
         $report['inference'] = ['label' => 'scored', 'refusals' => [], 'note' => null];
+        $report['preconditions'] = $this->preconditions();
         $report['metrics'] = $metrics;
         $report['gates'] = $gates;
         $report['verdict'] = $this->verdict($gates);
@@ -1591,19 +1602,6 @@ class OosSemanticCorrectnessScorer
             $this->gate(8, 'targeted_repair_is_local', true,
                 $repair['sources_with_unrelated_mutations'] === [] && $repair['sources_introducing_rule_families'] === [] ? 'pass' : 'fail',
                 $repair),
-            $this->gate(9, 'weekly_and_historic_entry_point_parity', true, 'not_scored',
-                ['reason' => 'Entry-point parity is a property of two code paths, not of one arm\'s output. It is '
-                    .'established by the weekly/archive contract test in the suite; this artifact can only show that '
-                    .'every parse in the arm ran one parser surface against the corpus source hashes, which the input '
-                    .'refusals above already require.',
-                    'established_by' => 'tests/Feature/Services/Email/OosParserEntryPointParityTest.php',
-                    'operator_note' => 'That contract test now exists and passes. This scorer deliberately does not '
-                        .'read a suite result, so the gate stays not_scored here — which means a comparison artifact '
-                        .'cannot reach verdict "pass" on the scorer alone. Closing Delivery 6 therefore needs a '
-                        .'maintainer decision on how this gate is discharged: either accept the suite run as the '
-                        .'evidence outside the artifact, or give the scorer an explicit attested input. Do not change '
-                        .'this to "pass" without that decision; it would make the scorer assert something it never '
-                        .'checked.']),
             $this->gate(10, 'first_pass_validation_improvement', true,
                 $firstPass['candidate_rate'] < $firstPass['baseline_rate'] && $regressedFamilies === [] ? 'pass' : 'fail',
                 ['first_pass' => $firstPass, 'content_rule_families' => $families, 'regressed_families' => $regressedFamilies]),
@@ -1623,6 +1621,47 @@ class OosSemanticCorrectnessScorer
     private function gate(int $id, string $name, bool $hard, string $status, array $detail): array
     {
         return ['gate' => $id, 'name' => $name, 'hard' => $hard, 'status' => $status, 'detail' => $detail];
+    }
+
+    /**
+     * Acceptance conditions that are properties of the deployed code rather than of this arm.
+     *
+     * §6.3 originally listed weekly/historic entry-point parity as gate 9, alongside the gates that
+     * measure one arm's output. It never behaved like one: it is the same value for every arm, no
+     * arm can move it, and the scorer therefore reported it `not_scored` on every artifact — which,
+     * because `not_scored` blocks a pass, made `verdict: pass` structurally unreachable and
+     * Delivery 7's "signed passing comparison artifact" precondition unsatisfiable. The maintainer's
+     * decision (2026-08-20) was to reclassify it: parity is a precondition recorded here, and the
+     * verdict is computed over the arm-scoped gates only.
+     *
+     * What this block records is deliberately a *checkable fact and not a claim*. It does not say
+     * the contract test passed — this scorer does not read suite results and must not assert what it
+     * has not checked. It says the contract test is present in the scored tree, and pins its
+     * content hash, which together with the `application_commit` already recorded in `inputs` lets
+     * any reader re-run exactly that test at exactly that commit and see for themselves.
+     *
+     * @return array<string, mixed>
+     */
+    private function preconditions(): array
+    {
+        $relativePath = 'tests/Feature/Services/Email/OosParserEntryPointParityTest.php';
+        $absolutePath = base_path($relativePath);
+        $present = is_file($absolutePath);
+
+        return [
+            'entry_point_parity' => [
+                'requirement' => 'The weekly and historic entry points compile byte-identical canonical projections '
+                    .'for the same source and parser fingerprint.',
+                'scope' => 'A property of two code paths, not of one arm\'s output. Formerly §6.3 gate 9; '
+                    .'reclassified 2026-08-20 because no arm can establish or move it.',
+                'established_by' => $relativePath,
+                'contract_test_present' => $present,
+                'contract_test_sha256' => $present ? hash_file('sha256', $absolutePath) : null,
+                'note' => 'Presence and content hash only. This scorer does not read suite results, so this is not '
+                    .'an assertion that the test passed; it is the pin that lets a reader re-run that exact test at '
+                    .'the application_commit recorded in inputs.',
+            ],
+        ];
     }
 
     /**

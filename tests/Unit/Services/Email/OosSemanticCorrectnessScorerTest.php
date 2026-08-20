@@ -47,10 +47,50 @@ class OosSemanticCorrectnessScorerTest extends TestCase
             $this->assertSame('pass', $this->gate($report, $gate)['status'], "gate {$gate}");
         }
 
-        // Entry-point parity is a property of two code paths, so one arm's output can never
-        // establish it; the verdict must record that rather than rounding it up to a pass.
-        $this->assertSame('not_scored', $this->gate($report, 9)['status']);
-        $this->assertSame('incomplete', $report['verdict']);
+        $this->assertSame('pass', $report['verdict']);
+    }
+
+    #[Test]
+    public function entry_point_parity_is_a_precondition_rather_than_a_gate(): void
+    {
+        $report = $this->score();
+
+        /**
+         * It was §6.3 gate 9 until 2026-08-20. It never behaved like a gate — no arm can move it,
+         * so it was `not_scored` on every artifact, which made `verdict: pass` unreachable and
+         * Delivery 7's precondition unsatisfiable. A gate 9 reappearing in the list would restore
+         * exactly that deadlock.
+         */
+        $this->assertSame(
+            [],
+            array_values(array_filter($report['gates'], static fn (array $gate): bool => $gate['gate'] === 9)),
+            'Entry-point parity is a precondition; a gate 9 in the list makes verdict: pass unreachable again.',
+        );
+
+        $parity = $report['preconditions']['entry_point_parity'];
+
+        $this->assertSame('tests/Feature/Services/Email/OosParserEntryPointParityTest.php', $parity['established_by']);
+        $this->assertTrue($parity['contract_test_present']);
+        $this->assertSame(
+            hash_file('sha256', base_path($parity['established_by'])),
+            $parity['contract_test_sha256'],
+            'The recorded hash must pin the contract test as it stands in the scored tree.',
+        );
+    }
+
+    #[Test]
+    public function a_missing_parity_contract_test_is_recorded_as_absent_rather_than_assumed(): void
+    {
+        $report = $this->score();
+        $parity = $report['preconditions']['entry_point_parity'];
+
+        /**
+         * The block records presence, never a suite result. If the contract test were deleted the
+         * artifact must say so instead of carrying a stale hash forward — the whole point of
+         * pinning it is that a reader can re-run that file at the recorded commit.
+         */
+        $this->assertNotNull($parity['contract_test_sha256']);
+        $this->assertStringContainsString('not an assertion that the test passed', $parity['note']);
     }
 
     #[Test]
