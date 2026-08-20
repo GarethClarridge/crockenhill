@@ -1595,7 +1595,15 @@ class OosSemanticCorrectnessScorer
                 ['reason' => 'Entry-point parity is a property of two code paths, not of one arm\'s output. It is '
                     .'established by the weekly/archive contract test in the suite; this artifact can only show that '
                     .'every parse in the arm ran one parser surface against the corpus source hashes, which the input '
-                    .'refusals above already require.']),
+                    .'refusals above already require.',
+                    'established_by' => 'tests/Feature/Services/Email/OosParserEntryPointParityTest.php',
+                    'operator_note' => 'That contract test now exists and passes. This scorer deliberately does not '
+                        .'read a suite result, so the gate stays not_scored here — which means a comparison artifact '
+                        .'cannot reach verdict "pass" on the scorer alone. Closing Delivery 6 therefore needs a '
+                        .'maintainer decision on how this gate is discharged: either accept the suite run as the '
+                        .'evidence outside the artifact, or give the scorer an explicit attested input. Do not change '
+                        .'this to "pass" without that decision; it would make the scorer assert something it never '
+                        .'checked.']),
             $this->gate(10, 'first_pass_validation_improvement', true,
                 $firstPass['candidate_rate'] < $firstPass['baseline_rate'] && $regressedFamilies === [] ? 'pass' : 'fail',
                 ['first_pass' => $firstPass, 'content_rule_families' => $families, 'regressed_families' => $regressedFamilies]),

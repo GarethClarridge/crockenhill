@@ -854,9 +854,12 @@ fixed for this arm; create a new artifact rather than editing it if the selected
    c. **Run a third full-corpus arm** to break the 2-of-2 tie and see whether v5 clears baseline more
       often than not — real additional spend (~$1) with no guarantee of a clean answer, since two
       results either side of a threshold this close may just mean the true rate sits near the boundary.
-   Whichever is chosen, gate 9 still needs the weekly/archive parity contract test named as its
+   ~~Whichever is chosen, gate 9 still needs the weekly/archive parity contract test named as its
    evidence before any artifact can reach `verdict: pass` — that test does not exist yet and is
-   independent of the model/prompt question above.
+   independent of the model/prompt question above.~~ **Built 2026-08-20 (later session) as
+   `tests/Feature/Services/Email/OosParserEntryPointParityTest.php` — see §9.7.** The gate 9
+   evidence now exists and cost nothing; the maintainer call between (a), (b) and (c) is the only
+   thing still outstanding at this step.
 10. Present the resulting artifact to the maintainer. Do not start Delivery 7 replay, default flip or
     legacy deletion until the maintainer explicitly approves the artifact and production default
     change.
@@ -991,6 +994,68 @@ the "beats baseline" claim for gate 10 specifically has not yet reproduced acros
 available, and that gap should be closed or explicitly accepted by the maintainer before this is
 called a passing Delivery 6 candidate — not smoothed over by another paid run chosen to get a better
 number.
+
+### 9.7 2026-08-20 (later session) — gate 9's parity contract test
+
+Zero-spend work, deliberately chosen over another paid draw: gate 9 is the only remaining unscored
+gate that is a property of two code paths rather than of the model, so it is settleable
+deterministically while §9.4 step 9's (a)/(b)/(c) call is still open. It is required under every one
+of those three options.
+
+`tests/Feature/Services/Email/OosParserEntryPointParityTest.php` (four tests, group
+`oos-parser-parity`) drives one declared source document through the real weekly job
+(`ProcessInboundOosEmail`) and the real archive command (`oos:import-archive --evaluate`) with a
+fixed recording extractor, and asserts:
+
+1. both entry points hand the parser identical subject, body and received date;
+2. their stored projections are byte-identical under `CanonicalJson`, excluding only timings and
+   `source_message_id` — the latter asserted separately on each side so a projection that stopped
+   recording it cannot pass by omission;
+3. the archive's raw-payload encode/decode round trip is byte-preserving, so a cache reuse cannot
+   diverge from a fresh parse;
+4. archive identity resolution changes identity and not items.
+
+Four design findings, each forced by a failure or a mutation rather than assumed:
+
+- **The archive side must run `--evaluate`, not `--import`.** Both reach the same `parseResult()`,
+  but `--import` writes a canonical service, which the *weekly* run's duplicate lookup then
+  correctly reacts to — dropping confidence 0.95 → 0.74 and flipping the disposition to
+  `review_required`. The first draft compared an archive parse made against an empty database with a
+  weekly parse made against one the archive had just populated, and so measured the duplicate
+  detector rather than parity.
+- **The weekly email must be built from declared constants, not copied from the archive email.** The
+  first draft copied the archive email's own fields, which made finding 1 a tautology: a mutation
+  shifting the archive's received date by a day moved both sides and passed. The source document is
+  now stated once (including an explicit `source_date`, rather than left to the curation factory's
+  "N days before" fallback) and given to each path independently.
+- **`OosArchiveIdentityResolver` fills gaps in identity; it does not overrule identity the parser
+  supplied.** Read in code after a fixture built on a manifest/parser *disagreement* left the
+  resolver a complete no-op: it returns the parse untouched once a plan has both a date and a
+  service, and again when the plan's service is absent from the manifest's. The fixture therefore
+  has the extractor return a dateless plan and the manifest supply the date, which is the shape that
+  actually exercises resolution. The test asserts that gap was real and was filled, so it cannot
+  degrade back into a tautology silently.
+- **Verified by mutation, not by passing.** Against the final fixture, shifting the archive's
+  synthesised received date fails test 1, and reintroducing the pre-HIR2 defect of caching the
+  *resolved* result as the raw payload fails tests 2 and 4. Both mutations passed unnoticed against
+  earlier drafts, which is why they were rewritten. Both were reverted; `ImportOosArchiveCommand`
+  is unchanged by this work.
+
+**One blocker this surfaced, needing a maintainer decision rather than more engineering.** The
+contract test now exists and passes, but `OosSemanticCorrectnessScorer` deliberately does not read
+suite results, so its gate 9 stays `not_scored` — and `not_scored` blocks a `pass` verdict by
+design. As it stands, therefore, *no* comparison artifact can ever reach `verdict: pass`, and
+Delivery 7's precondition of "a signed passing comparison artifact" is unreachable on the scorer
+alone. Two legitimate routes, both maintainer calls about acceptance criteria rather than code:
+accept the suite run as gate 9's evidence *outside* the artifact and treat `incomplete`-except-gate-9
+as the passing shape; or give the scorer an explicit attested input naming the test and the commit
+it passed at. The scorer was left unchanged apart from recording the test's path and this note,
+because flipping gate 9 to `pass` would make it assert something it never checked.
+
+Verification: full suite **7,000 tests, 83,893 assertions** (+4 tests / +20 assertions over the
+prior banked run, all four from this file), 140 existing PHPUnit notices unchanged, no failures.
+PHPStan 0 errors across 837 files. Pint passed. Dusk 55 passed. No paid model request and no
+production mutation; paid-call count unchanged at six.
 
 ## 10. Non-goals
 
