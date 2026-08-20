@@ -1,5 +1,38 @@
 # Order-of-Service Email Parser Redesign
 
+> **CURRENT STATUS (2026-08-20, end of day): Delivery 6 has a passing comparison artifact,
+> reproduced across two draws. Delivery 7 is not authorised.** Read this block first; the dated
+> narrative below it is the record of how the plan got here and contains statements that were true
+> when written and are now superseded. Where the two disagree, this block wins.
+>
+> - **Candidate:** `OosSemanticAnnotationPrompt::Version = 6`, `gpt-5.6-terra` / `low` / flex,
+>   against corpus `14cba9a3b97ef763e184d8b6a31cd41654054e2d6edfe31761dea9af2a910060`.
+> - **Delivery 6 comparison artifact:**
+>   `storage/scratch/oos-semantic-score-terra-low-2026-08-20-v6-final.json`, `score_hash`
+>   `6d8246a26ed3d4545f8a60de5849f3bd1531d2e9298b39da4ae892199c6d1791`, **`verdict: pass`**.
+>   Both the primary and the replicate also pass when scored independently (§9.11).
+> - **Gates:** all ten arm-scoped gates pass. Identity 35/38 on both draws against a legacy baseline
+>   of 34 and a truth ceiling of 36; gate 10 first-pass rate 13.3% and 3.3% against a 40% baseline;
+>   post-repair content findings empty on both draws.
+> - **Entry-point parity is no longer gate 9.** It is a precondition recorded in the artifact and
+>   evidenced by `tests/Feature/Services/Email/OosParserEntryPointParityTest.php` (§9.7, §9.10). The
+>   scorer's format is now `Version = 2`; version 1 artifacts carry a gate 9 and are not comparable
+>   by verdict alone.
+> - **Open caveat, not a gate failure:** replicate self-disagreement is 42.1% against this plan's own
+>   10% diagnostic ceiling, concentrated in annotation provenance and the item-kind axis.
+>   `plan_key_disagreements` is 0, so no source's compiled verdict changes between draws. Gate 11 is
+>   soft and cannot override correctness. Accepting or addressing this is an explicit maintainer
+>   call — see §9.11.
+> - **Spend to date:** eight paid full-corpus arms, ≈$8.50 at the dated snapshot's projected rate.
+>   No production mutation has occurred at any point; `OOS_EMAIL_PARSING_IMPLEMENTATION` is `legacy`
+>   in production and in `.env.example`.
+> - **Next action (§9.4 step 10):** maintainer review of the paired artifact, then an explicit
+>   production-default approval. Delivery 7 replay, default flip and legacy deletion remain
+>   unauthorised until that happens.
+
+<details>
+<summary><strong>Superseded status narrative (2026-08-19 → 2026-08-20)</strong> — retained as the record of how the plan reached the state above.</summary>
+
 > **Status (2026-08-19): implementation in progress.** The deterministic source, annotation,
 > validation, compiler, targeted-repair, risk-evidence and rollbackable candidate seams from
 > Deliveries 1–5 are implemented behind the non-default `semantic_annotations` configuration.
@@ -134,6 +167,8 @@
 > any change to unattended finalisation for dimensions not covered by HIR-D8 corroboration.
 > Implementation through deterministic fixtures and fake model responses needs no further product
 > decision. No dependency change is authorised.
+
+</details>
 
 ## 1. Outcome and value
 
@@ -442,7 +477,13 @@ The candidate cannot become the default unless all apply:
    routed to review rather than silently omitted;
 7. no regression in identity/date accuracy or HIR-D8 dimension isolation;
 8. targeted repair changes no unrelated field and introduces no new rule family;
-9. weekly and historic entry points agree for the same source/fingerprint;
+9. ~~weekly and historic entry points agree for the same source/fingerprint;~~ **Reclassified
+   2026-08-20 as a precondition rather than a gate** — it is the same value for every arm and no arm
+   can establish or move it, so as a gate it was permanently `not_scored` and made `verdict: pass`
+   unreachable. The requirement is unchanged and still `hard`; it is now recorded in the artifact's
+   `preconditions` block and evidenced by
+   `tests/Feature/Services/Email/OosParserEntryPointParityTest.php`. See §9.10. Gate numbering is
+   left as-is so §6.3 and the artifacts stay comparable — there is simply no gate 9;
 10. first-pass validation failure materially improves over the 24/60 baseline and does not regress
     any content-rule family; and
 11. cost, latency and stability are reported, but cannot override a failed correctness/safety gate.
@@ -538,11 +579,19 @@ free-text reasoning; production routing is unchanged.
 
 Requires approval for paid calls.
 
-**Status 2026-08-19:** paid-call approval received. The raw-evidence runner now records annotation
-and targeted-repair returned model, usage and latency, binds the dated price snapshot and parser
-surface, and refuses overwrite. Its first real invocation stopped at the pre-network truth gate
-because the frozen corpus reports 38 pending sources. No paid request was sent and no correctness,
-stability or adoption verdict exists.
+**Status 2026-08-20: complete, pending maintainer review.** Eight paid arms were run, each approved
+individually in-session (v2, v3, v4, v5, v5-replicate, v6, v6-replicate, plus one schema-cap-rejected
+attempt that billed nothing). The candidate is `OosSemanticAnnotationPrompt::Version = 6`. The signed
+comparison artifact is `storage/scratch/oos-semantic-score-terra-low-2026-08-20-v6-final.json`,
+`score_hash` `6d8246a26ed3d4545f8a60de5849f3bd1531d2e9298b39da4ae892199c6d1791`, **`verdict: pass`**,
+with both draws also passing when scored independently. One open caveat — replicate self-disagreement
+at 42.1% against the 10% diagnostic ceiling, on a soft gate — is recorded in §9.11 for an explicit
+accept-or-address decision. Full trail: §9.6 (arms v2–v5), §9.8 (the diagnosis), §9.9 (v6), §9.10
+(gate 9 reclassification), §9.11 (the replicate).
+
+*Superseded 2026-08-19 status:* paid-call approval received; the raw-evidence runner's first real
+invocation stopped at the pre-network truth gate because the frozen corpus reported 38 pending
+sources, and no paid request had been sent.
 
 1. Run one capable structured-output configuration against the frozen golden corpus. Start with
    `gpt-5.6-terra` / `low`, the balanced strong-model configuration already used for sermon
@@ -564,8 +613,13 @@ inputs drift or truth is incomplete.
 
 Requires maintainer approval of the comparison artifact and production default flip.
 
-**Status 2026-08-19:** not started and not authorised. The required passing comparison artifact does
-not exist; `legacy` remains the production default.
+**Status 2026-08-20: not started and still not authorised — but the blocking precondition is now
+met.** The required passing comparison artifact *does* now exist (see Delivery 6 above). What remains
+outstanding is the human half: the maintainer has not yet reviewed that artifact, and no
+production-default approval has been requested or granted. `legacy` remains the production default in
+production and in `.env.example`. Do not begin replay, the default flip or legacy deletion on the
+strength of the passing artifact alone — §9.4 step 10 requires the explicit approval as a separate
+act.
 
 - Wire weekly and historic parsing to the same candidate configuration behind one rollbackable
   config value; legacy remains the default until approval.
@@ -687,11 +741,15 @@ design authority; this section records mutable execution state and does not weak
   full-corpus arms plus one replicate; total spend across all six calls was roughly $6.50 at the dated
   snapshot's projected rate (each run individually ≈ $1.05–$1.08, reported in each score artifact's
   `metrics.cost`, never a billing authority).
-- Delivery 7 is neither eligible nor authorised. It needs a signed passing comparison artifact and
+- ~~Delivery 7 is neither eligible nor authorised. It needs a signed passing comparison artifact and
   a fresh, explicit production-default approval after the maintainer has reviewed that artifact. The
-  current best candidate (`OosSemanticAnnotationPrompt::Version = 5`) is close but not there: see
-  §9.6 for exactly which gate is unresolved and why it should not be waved through by spending on
-  another replicate.
+  current best candidate (`OosSemanticAnnotationPrompt::Version = 5`) is close but not there.~~
+  **Superseded 2026-08-20.** The signed passing artifact now exists at prompt `Version = 6` (§9.9,
+  §9.11). Delivery 7 is still **not authorised** — the outstanding requirement is now purely the
+  human one: maintainer review of that artifact, then an explicit production-default approval.
+- Total paid spend across the plan is eight full-corpus arms at roughly $8.50, projected from the
+  dated snapshot and never a billing authority. Every arm's approval was sought and given
+  individually, in-session, immediately before that specific run; no approval was ever reused.
 
 ### 9.2 Private artifacts to preserve
 
@@ -709,8 +767,8 @@ design authority; this section records mutable execution state and does not weak
 | `storage/scratch/oos-semantic-candidate-terra-low-2026-08-20-v6-replicate.json` | Second full-corpus draw of the unchanged v6 prompt (§9.11); scored alone it passes every gate. |
 | `storage/scratch/oos-semantic-score-terra-low-2026-08-20-v6-{replicate,final}.json` | The replicate scored independently, and the pair scored with `--replicate=`. `-final` is the Delivery 6 comparison artifact: `score_hash` `6d8246a26ed3d4545f8a60de5849f3bd1531d2e9298b39da4ae892199c6d1791`, `verdict: pass`. |
 | `storage/scratch/oos-semantic-score-terra-low-2026-08-20-v6-reclassified.json` | The v6 primary re-scored under format version 2 (§9.10); first artifact in this plan to reach `verdict: pass`. |
-| `storage/scratch/oos-semantic-candidate-terra-low-2026-08-20-v6.json` | **The current best candidate — prompt v6, see §9.9.** Single approved paid arm; all ten scoreable gates pass, gate 10 at 13.3% against a 40% baseline. No replicate yet. |
-| `storage/scratch/oos-semantic-score-terra-low-2026-08-20-v6.json` | Scoring artifact for the v6 arm; verdict `incomplete` only because gate 9 is `not_scored` (§9.7). |
+| `storage/scratch/oos-semantic-candidate-terra-low-2026-08-20-v6.json` | **The accepted Delivery 6 candidate — prompt v6, see §9.9.** Primary draw; all ten arm-scoped gates pass, gate 10 at 13.3% against a 40% baseline. Replicated (§9.11). |
+| `storage/scratch/oos-semantic-score-terra-low-2026-08-20-v6.json` | The v6 primary scored under format **version 1**, before the gate 9 reclassification; verdict `incomplete` for that reason alone. Retained for audit; superseded by the `-reclassified` artifact below. |
 | `storage/scratch/oos-semantic-candidate-terra-low-2026-08-20{,-v3,-v4,-v5,-v5-replicate}.json` | **Five paid candidate evidence arms, retained in full — see §9.6.** Unsuffixed = prompt v2 (pre-fix); `-v3`/`-v4`/`-v5` = successive prompt-only fixes at `OosSemanticAnnotationPrompt::Version` 3/4/5; `-v5-replicate` = second full-corpus run of the unchanged v5 prompt, for the §6.2 self-disagreement decomposition. Every arm is create-once and none was overwritten. |
 | `storage/scratch/oos-semantic-score-terra-low-2026-08-20{,-v3,-v4,-v5,-v5-final,-v5-replicate}.json` | Scoring artifacts for each arm above; `-v5-final` is v5 scored *with* `--replicate=` (the complete comparison, `score_hash` `f66a5124cd872a74cb9152171980bb27dac20030745e2ca7e0d2007a19b74ceb`); `-v5-replicate` is the replicate scored independently against truth (its own verdict is `fail` on gate 10 — see §9.6, do not read only the `-v5-final` PASS list). |
 
@@ -846,7 +904,13 @@ fixed for this arm; create a new artifact rather than editing it if the selected
    baseline" result is not yet reproducible on every draw. §9.6 has the full comparison; do not read
    the `-v5-final` PASS list alone as evidence of stability, since gate 10 there is computed from the
    primary run's own first-pass rate, not the pair's.
-9. **Next step — not yet decided; needs a maintainer call, not another paid draw.** The remaining gap
+9. ~~**Next step — not yet decided; needs a maintainer call, not another paid draw.**~~ **Resolved
+   2026-08-20: option (b) was chosen and it found a single shared cause (§9.8), which prompt v6 fixed
+   (§9.9) and a replicate reproduced (§9.11). Option (c), another draw at the same prompt, was
+   correctly not taken.** The original framing is kept below because the reasoning against (c)
+   still applies to any future marginal gate.
+
+   The remaining gap
    is narrow (35 vs 34 identity, 36.7%/40.0% vs a 40% first-pass bar) and re-running more replicates
    hoping for a better draw is exactly the pattern the plan's stability check exists to catch, not a
    legitimate way to clear it. Three real options, in ascending order of effort:
@@ -870,6 +934,15 @@ fixed for this arm; create a new artifact rather than editing it if the selected
     change.
 
 ### 9.5 Verification banked at handoff
+
+**2026-08-20 (final state of this session — supersedes the runs below):**
+
+- Full suite: **7,002 tests passed, 83,898 assertions**; 140 existing PHPUnit notices; no failures.
+  (+6 tests / +25 assertions over the last 2026-08-20 run below: four from
+  `OosParserEntryPointParityTest` and two from the scorer's precondition coverage.)
+- PHPStan: **0 errors**. Pint: passed. Dusk: **55 passed**, unchanged (no UI change; run to satisfy
+  the standing four-check workflow).
+- Eight paid full-corpus arms total, ≈$8.50 projected. No production mutation at any point.
 
 **2026-08-19 (prior session):**
 
@@ -1046,7 +1119,9 @@ Four design findings, each forced by a failure or a mutation rather than assumed
   earlier drafts, which is why they were rewritten. Both were reverted; `ImportOosArchiveCommand`
   is unchanged by this work.
 
-**One blocker this surfaced, needing a maintainer decision rather than more engineering.** The
+**One blocker this surfaced, needing a maintainer decision rather than more engineering.**
+*(Resolved the same day — see §9.10, which records the decision taken. Kept here because the analysis
+is what produced the decision.)* The
 contract test now exists and passes, but `OosSemanticCorrectnessScorer` deliberately does not read
 suite results, so its gate 9 stays `not_scored` — and `not_scored` blocks a `pass` verdict by
 design. As it stands, therefore, *no* comparison artifact can ever reach `verdict: pass`, and
@@ -1137,8 +1212,9 @@ does not appear in the arm at all. First-pass failing sources 13 → **4**.
 | Semantic item-kind accuracy | 0.9667 | — | **0.9725** |
 | Post-repair content findings | 1 | 1 | **0** |
 
-All ten scoreable gates pass; gate 9 remains `not_scored` for the scorer-semantics reason in §9.7,
-so the verdict is still `incomplete` rather than `pass`. Gate 10's margin is now 13.3% against a 40%
+All ten scoreable gates pass. As scored on the day, gate 9 was still `not_scored` for the
+scorer-semantics reason in §9.7, so this arm's *first* scoring artifact reads `incomplete`; §9.10
+reclassified that gate and the re-scored artifact reads `pass`. Gate 10's margin is 13.3% against a 40%
 baseline rather than the 36.7%/40.0% knife-edge that turned on a single source.
 
 **The projection was directionally right and numerically optimistic, which is worth recording.**
