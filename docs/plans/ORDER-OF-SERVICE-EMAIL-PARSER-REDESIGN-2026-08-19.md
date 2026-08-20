@@ -627,16 +627,39 @@ act.
 
 - Wire weekly and historic parsing to the same candidate configuration behind one rollbackable
   config value; legacy remains the default until approval.
-- Run current-era replay and clean historic rehearsal through the shared path; historic RG-A and
-  later rounds remain owned by the historic plan.
+- ~~Run current-era replay and clean historic rehearsal through the shared path~~ **Amended
+  2026-08-20 — the current-era replay is neither achievable nor informative, and is replaced.** Three
+  facts, all verified rather than assumed: Mailgun inbound routing has **never been configured**
+  (`docs/reports/service-automation-opportunities-2026-07-05.md`), so no real weekly email has ever
+  arrived to replay — locally, 655 of 656 `inbound_emails` rows are archive-synthetic; the "current
+  era" the bullet points at is *already in the corpus*, which spans 2015 to `2026-08-02`, eighteen
+  days before the candidate was scored, with 9 of 38 sources from 2025–2026; and the real difference
+  between the corpus and a live email is **input shape, not era** — 31 of the 38 curated sources
+  carry no reply header, quoted line, mobile signature or footer, because curation stripped them.
+  The requirement is therefore replaced by
+  `tests/Feature/Services/Email/OosProductionShapedSourceTest.php`, which asserts the deterministic
+  front end against a noise-shaped source: every quoted/signature/footer line survives normalisation
+  and stays individually addressable (so the *annotator* decides what it is, not the normaliser), the
+  rarely-exercised HTML fallback yields the same lines as its plain equivalent, and a noisy source
+  still generates a schema inside the provider limits. Both halves are mutation-verified. Historic
+  RG-A and later rounds remain owned by the historic plan.
+  *If inbound routing is ever configured, a real replay becomes both possible and worth doing — this
+  amendment is about what is true now, not a claim that live evidence would be valueless.*
 - Verify cache separation, weekly/archive parity, review evidence and no change to publication.
 - Flip the production default. Rollback is a config reversal to the retained legacy parser, not
   reinterpretation of candidate cache rows.
-- Delete whole-document corrective/adjudication code only after the approved candidate artifact,
-  current-era replay and one deliberately processed production-shaped source all pass. This is an
-  evidence event, not a calendar soak.
+- Delete whole-document corrective/adjudication code only after the approved candidate artifact and
+  the production-shaped source coverage above both pass, plus one deliberately processed
+  production-shaped source if inbound routing exists by then. This is an evidence event, not a
+  calendar soak.
 - Delete evaluation-only arm machinery at historic closeout/IC8; retain the permanent normalizer,
-  annotator contract, compiler, validators and compact regression corpus.
+  annotator contract, compiler, validators and compact regression corpus. **Retention amended
+  2026-08-20:** several of those surfaces declared deletion at "accepted Delivery 6 comparison **or**
+  IC8, whichever comes first". Accepting the artifact (§9.12) fired that clause, which would have
+  deleted the runner, scorer, freezer, adjudicator and safety-fixture harness on the same day the
+  plan committed to re-reading `outcome_rate` on any future arm and named the item-kind arm as the
+  remedy for the accepted 28.9%. The trigger on all six is now **IC8 closeout only**, so accepting a
+  caveat does not destroy the means of acting on it.
 
 **Acceptance:** one parser implementation serves weekly and historic intake; the legacy full-
 document retry is gone; rollback remains possible through the preceding deployed release/config;
@@ -941,9 +964,9 @@ fixed for this arm; create a new artifact rather than editing it if the selected
 
 **2026-08-20 (final state of this session — supersedes the runs below):**
 
-- Full suite: **7,002 tests passed, 83,898 assertions**; 140 existing PHPUnit notices; no failures.
-  (+6 tests / +25 assertions over the last 2026-08-20 run below: four from
-  `OosParserEntryPointParityTest` and two from the scorer's precondition coverage.)
+- Full suite: **7,006 tests passed, 83,953 assertions**; 140 existing PHPUnit notices; no failures.
+  (+10 tests over the prior banked run: four from `OosParserEntryPointParityTest`, three from the
+  scorer's precondition and stability-split coverage, three from `OosProductionShapedSourceTest`.)
 - PHPStan: **0 errors**. Pint: passed. Dusk: **55 passed**, unchanged (no UI change; run to satisfy
   the standing four-check workflow).
 - Eight paid full-corpus arms total, ≈$8.50 projected. No production mutation at any point.

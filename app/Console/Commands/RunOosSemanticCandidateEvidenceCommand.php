@@ -12,8 +12,15 @@ use Throwable;
 /**
  * Run the paid semantic candidate once against fully adjudicated private truth.
  *
- * Delete this one-shot command when the Delivery 6 comparison artifact is accepted, or at historic
- * import IC8 closeout at the latest. It deliberately refuses incomplete truth before any model call.
+ * It deliberately refuses incomplete truth before any model call. Delete this one-shot command at
+ * historic import IC8 closeout.
+ *
+ * Retention amended 2026-08-20: the Delivery 6 comparison artifact is now accepted, which under the
+ * original wording would have made this deletable immediately. It is not. §9.12 requires
+ * `outcome_rate` to be re-read on any future arm rather than treated as settled, and the accepted
+ * 28.9% has a named remedy (the item-kind arm) that needs this surface to execute. Deleting on
+ * Delivery 6 acceptance would strand the plan without the tooling to act on its own caveat, so the
+ * trigger is now historic-import IC8 closeout only.
  */
 class RunOosSemanticCandidateEvidenceCommand extends Command
 {
