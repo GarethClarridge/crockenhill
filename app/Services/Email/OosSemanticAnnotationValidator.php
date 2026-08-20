@@ -126,7 +126,7 @@ class OosSemanticAnnotationValidator
             }
 
             if ($annotation->role === OosSemanticRole::Continuation) {
-                $this->validateContinuation($result, $annotation->lineId, $findings);
+                $this->validateContinuation($source, $result, $annotation->lineId, $findings);
             } elseif ($annotation->continuationTargetLineId !== null) {
                 $findings[] = $this->finding(
                     'continuation_target_on_wrong_role',
@@ -141,13 +141,13 @@ class OosSemanticAnnotationValidator
     }
 
     /** @param list<OosSemanticFinding> $findings */
-    private function validateContinuation(OosSemanticAnnotationResult $result, int $lineId, array &$findings): void
+    private function validateContinuation(OosEmailSourceDocument $source, OosSemanticAnnotationResult $result, int $lineId, array &$findings): void
     {
         $annotation = $result->annotations[$lineId];
         $targetLineId = $annotation->continuationTargetLineId;
         $target = $targetLineId === null ? null : ($result->annotations[$targetLineId] ?? null);
 
-        if ($targetLineId === null || $targetLineId !== $lineId - 1 || $target === null) {
+        if (! OosSemanticContinuationRule::isPermittedTarget($source, $lineId, $targetLineId) || $target === null) {
             $findings[] = $this->finding(
                 'continuation_not_adjacent',
                 "Continuation line {$lineId} must target the immediately preceding physical line.",

@@ -613,7 +613,7 @@ tests; migrate them to the new seam rather than deleting coverage.
 Live-model evaluation is an explicit operator-approved Artisan run against the private corpus. It
 is not a CI test, never runs from the normal application suite and never writes production state.
 
-## 9. Continuation handoff — 2026-08-19
+## 9. Continuation handoff — 2026-08-20 (updated)
 
 This section is the restart point for the next implementation session. Earlier sections remain the
 design authority; this section records mutable execution state and does not weaken any gate.
@@ -654,8 +654,44 @@ design authority; this section records mutable execution state and does not weak
   truth worksheet and the compiler — but the 2026-08-19 approval does not carry forward to the
   regenerated corpus; §9.4 step 6 needs a fresh, explicit in-session go-ahead before any spend, and
   none was sought or given in the 2026-08-20 session.
+- The first attempted paid run was rejected by OpenAI's *request validation* — "Expected at most
+  1000 enum values in total, but received 1004" — so no model ran and nothing was billed; the
+  paid-call count is still zero. The cause was the generated schema, not the corpus or the gate:
+  `continuation_target_line_id` enumerated every line ID in the document once per line, and the
+  per-line role, item-kind and uncertainty enums were re-declared for every line. Measured over the
+  frozen corpus, 23 of 38 sources exceeded the 1000-value cap, and restricting the continuation enum
+  to the adjacent target alone would still have left 15 over it — the repetition mattered as much as
+  the quadratic term. Both are fixed: the constant per-line field schemas live in `$defs` and are
+  referenced, and `continuation_target_line_id` now offers only the single target
+  {@see App\Services\Email\OosSemanticContinuationRule} permits, which is the rule the validator
+  already enforced under §5.3 step 4 rather than a new one. The worst source in the corpus now
+  declares 188 enum values, 550 properties and 8,431 characters of names and values against caps of
+  1000, 5000 and 120,000. `App\Support\OpenAiJsonSchemaLimits`, called from
+  `OpenAiChatPayload::forModel()`, now refuses any over-cap schema locally, for every
+  structured-output call in the application, instead of paying a round trip to learn the arithmetic.
+  Delivery 2's acceptance test had exercised a two-line document only, which is why a failure that
+  scales with input length was invisible to it; the schema test now asserts the enum budget on long
+  sources.
+- One residual provider uncertainty is deliberately unresolved: OpenAI documents the cap over "a
+  schema" and does not say whether a `$defs` entry counts once or once per `$ref`. Every count above
+  assumes once. If the provider counts a fully expanded schema instead, the longest sources will be
+  refused again — and again for free, as a request-validation 400 — in which case the fallback is to
+  carry the per-line annotations as an array with a single `items` schema, which is unambiguous under
+  either rule but gives up the schema-level guarantee in §5.2 that every real line is a required
+  property. That guarantee is independently enforced by the decoder and the validator, so the
+  fallback costs assurance, not correctness. Do not adopt it pre-emptively.
+- **2026-08-20 (this session): the schema-cap fix held under real load, and Delivery 6 got its first
+  actual paid correctness evidence — five arms, described in §9.6.** The enum/property/character
+  budget was never threatened again across any of the five runs; every rejection or failure from here
+  on was a correctness finding, not a request-validation 400. Paid-call count moved from zero to five
+  full-corpus arms plus one replicate; total spend across all six calls was roughly $6.50 at the dated
+  snapshot's projected rate (each run individually ≈ $1.05–$1.08, reported in each score artifact's
+  `metrics.cost`, never a billing authority).
 - Delivery 7 is neither eligible nor authorised. It needs a signed passing comparison artifact and
-  a fresh, explicit production-default approval after the maintainer has reviewed that artifact.
+  a fresh, explicit production-default approval after the maintainer has reviewed that artifact. The
+  current best candidate (`OosSemanticAnnotationPrompt::Version = 5`) is close but not there: see
+  §9.6 for exactly which gate is unresolved and why it should not be waved through by spending on
+  another replicate.
 
 ### 9.2 Private artifacts to preserve
 
@@ -670,6 +706,8 @@ design authority; this section records mutable execution state and does not weak
 | `storage/scratch/oos-parser-evaluation/baseline-nano-none-2026-08-18/raw-result-projection.json` | Banked same-manifest legacy output/routing/validation/telemetry; canonical hash `75181b9f606e83ee51b1c40ee814a51edba80138293e61569ecccda0d18c0cc5` |
 | `storage/scratch/oos-parser-evaluation/prompt-baseline-nano-none-2026-08-19/stability-diagnostic.json` | Authority for the deterministic 30-source sample; canonical hash `4be3122b4b8d8a8b71cdb4baf12bfd81b9ce31948d51707ce1850f18a8b85323` |
 | `storage/scratch/oos-semantic-price-snapshot-2026-08-19.json` | Dated direct-API/model-page price input; raw SHA-256 `4ad19caca578776e11ef1b3a332fdfc3947ecd8d0045fe5bfe2e445a87d36ce0`; projection input only, never billing authority |
+| `storage/scratch/oos-semantic-candidate-terra-low-2026-08-20{,-v3,-v4,-v5,-v5-replicate}.json` | **Five paid candidate evidence arms, retained in full — see §9.6.** Unsuffixed = prompt v2 (pre-fix); `-v3`/`-v4`/`-v5` = successive prompt-only fixes at `OosSemanticAnnotationPrompt::Version` 3/4/5; `-v5-replicate` = second full-corpus run of the unchanged v5 prompt, for the §6.2 self-disagreement decomposition. Every arm is create-once and none was overwritten. |
+| `storage/scratch/oos-semantic-score-terra-low-2026-08-20{,-v3,-v4,-v5,-v5-final,-v5-replicate}.json` | Scoring artifacts for each arm above; `-v5-final` is v5 scored *with* `--replicate=` (the complete comparison, `score_hash` `f66a5124cd872a74cb9152171980bb27dac20030745e2ca7e0d2007a19b74ceb`); `-v5-replicate` is the replicate scored independently against truth (its own verdict is `fail` on gate 10 — see §9.6, do not read only the `-v5-final` PASS list). |
 
 The private corpus contains verbatim email text and must remain uncommitted and mode `0600`. The
 price snapshot records the official model page's displayed default rates and explicitly notes that
@@ -677,6 +715,13 @@ OpenAI's general pricing table exposes additional context/processing variants. K
 fixed for this arm; create a new artifact rather than editing it if the selected billing mode changes.
 
 ### 9.3 Implemented continuation surfaces
+
+- `OosSemanticContinuationRule` is the single definition of a legal continuation target — the
+  immediately preceding physical line, which a blank line therefore breaks. The request schema and
+  the validator both consult it, so what the model is able to say and what is accepted cannot drift
+  apart. It and `App\Support\OpenAiJsonSchemaLimits` are both registered in
+  `OosParserSurfaceFingerprint`, so the combined surface hash has moved; no paid arm artifact
+  predates the move, so nothing is invalidated by it.
 
 - `FreezeOosSemanticEvaluationCorpusCommand` and `FreezeOosSemanticEvaluationCorpus` create the
   private source/hash inventory, reject manifest drift and unknown hard cases, retain IC3 evidence,
@@ -696,6 +741,27 @@ fixed for this arm; create a new artifact rather than editing it if the selected
   document and proving the reconstruction reproduces the record's own `input_hash`. The freezer's
   consumers had three independent copies of it; the runner, the adjudication overlay and the scorer
   now share one.
+- **`OosSemanticAnnotationPrompt` moved from Version 2 to Version 5 this session, in three separate,
+  individually-tested and individually-scored edits** (§9.6 has the full evidence trail; do not
+  collapse these back into one change if a future edit is needed — each one changed which defect
+  dominated the remaining failures, which would have been invisible as a single diff):
+  1. **v3** — told the model to always declare a service group and to infer `proposed_service` from
+     context rather than omit the group when the body never says "morning"/"evening" outright. This
+     was directionally correct (identity 29→33/38) but shipped with a real bug: an "other requires a
+     named occasion" clause that fired on *any* festival word, wrongly reclassifying Christmas and
+     Carols services that the truth corpus keeps at their ordinary morning/evening slot.
+  2. **v4** — corrected that bug: a themed/festival service occurring in its normal Sunday slot keeps
+     that slot's label; `other` is reserved for services outside the normal Sunday morning/evening
+     pattern entirely (the corpus has exactly one such source, a Good Friday service).
+     `service_accuracy` reached 1.0 on matched plans and the false-positive regression cleared, but
+     identity stayed flat at 33/38 and gate 10 (first-pass validation rate) got worse, not better.
+  3. **v5** — a distinct, code-verified fix unrelated to service labelling: `boundary_line_ids` empty
+     was causing the compiler to discard entire correctly-annotated plans on sources with no explicit
+     heading line. `OosSemanticAnnotationValidator` already supports a line being both
+     `service_boundary` and an item via `boundary_also_item` (confirmed in code, not assumed, after
+     the v3 lesson) — v5 tells the model to use exactly that mechanism, pointing `boundary_line_ids`
+     at the first item's own line when no separate heading exists. This moved identity to 35/38
+     (first version to exceed the legacy baseline of 34) and gate 10 to a pass on the primary run.
 - `OosSemanticSafetyFixtures` holds fifteen wholly synthetic sources and deliberately defective
   parser outputs, one per §6.3 failure family, in two layers: `annotation` fixtures that
   `OosSemanticAnnotationValidator` must refuse before anything compiles, and `extraction` fixtures
@@ -758,37 +824,42 @@ fixed for this arm; create a new artifact rather than editing it if the selected
    candidate-vs-truth metric still exactly 1.0 — see the status block for full figures. The parser
    surface fingerprint moved, correctly, since this is a compiler change.
 
-6. **Next step — still needs a fresh, explicit in-session maintainer go-ahead; not sought or given
-   in the 2026-08-20 session.** Run one approved `gpt-5.6-terra` / `low` correctness arm against the
-   **`-2026-08-20-adjudicated`** corpus (not `-2026-08-19-adjudicated`, which is superseded, and not
-   the `-prefilled` one), writing to a fresh absolute path:
-
-   ```bash
-   vendor/bin/sail artisan oos:run-semantic-candidate-evidence \
-     --corpus=storage/scratch/oos-semantic-evaluation-corpus-2026-08-20-adjudicated.json \
-     --price-snapshot=storage/scratch/oos-semantic-price-snapshot-2026-08-19.json \
-     --output=/var/www/html/storage/scratch/oos-semantic-candidate-terra-low-2026-08-20.json \
-     --paid-model-approved
-   ```
-
-7. Score correctness before any replicate or full-corpus spend:
-
-   ```bash
-   vendor/bin/sail artisan oos:score-semantic-candidate \
-     --corpus=storage/scratch/oos-semantic-evaluation-corpus-2026-08-20-adjudicated.json \
-     --candidate=storage/scratch/oos-semantic-candidate-terra-low-2026-08-20.json \
-     --baseline-stability=storage/scratch/oos-parser-evaluation/prompt-baseline-nano-none-2026-08-19/stability-diagnostic.json \
-     --output=/var/www/html/storage/scratch/oos-semantic-score-terra-low-2026-08-20.json
-   ```
-
-   If any safety, title-binding or item precision gate fails, stop, retain both artifacts and change
-   at most one of model, prompt, schema or compiler semantics in the next create-once variant.
-8. Only for a correctness-passing candidate, run two deterministic stability replicates and score
-   again with `--replicate=`, which fills in the §6.2 self-disagreement decomposition and completes
-   the signed comparison covering all §6.3 gates, legacy total-system cost and drift checks. Gate 9
-   stays `not_scored` until the weekly/archive parity contract test is named as its evidence.
-9. Present that artifact to the maintainer. Do not start Delivery 7 replay, default flip or legacy
-   deletion until the maintainer explicitly approves the artifact and production default change.
+6. ~~Run one approved `gpt-5.6-terra` / `low` correctness arm against the `-2026-08-20-adjudicated`
+   corpus.~~ Done this session, five times over (§9.6): the maintainer gave in-session go-ahead for
+   each arm individually, never a blanket approval. v2 (pre-fix prompt) surfaced the service-labelling
+   defect; v3/v4/v5 are three successive single-lever prompt fixes, each independently tested and
+   scored (§9.3 has the full defect trail).
+7. ~~Score correctness before any replicate or full-corpus spend.~~ Done for every arm. v5 is the
+   first version to pass every hard gate on its primary run (identity 35/38, exceeding the legacy
+   baseline of 34; gate 10 first-pass rate 36.7% vs baseline 40%).
+8. ~~Only for a correctness-passing candidate, run two deterministic stability replicates and score
+   again with `--replicate=`.~~ Done this session for v5: one replicate run
+   (`-v5-replicate`), scored two ways — paired with the primary via `--replicate=`
+   (`-v5-final`, `score_hash` `f66a5124cd872a74cb9152171980bb27dac20030745e2ca7e0d2007a19b74ceb`) and
+   independently against truth on its own (`-v5-replicate` score). **The independent replicate score
+   is a `fail`** — gate 10 lands exactly on the 40% baseline rather than under it, so the "beats
+   baseline" result is not yet reproducible on every draw. §9.6 has the full comparison; do not read
+   the `-v5-final` PASS list alone as evidence of stability, since gate 10 there is computed from the
+   primary run's own first-pass rate, not the pair's.
+9. **Next step — not yet decided; needs a maintainer call, not another paid draw.** The remaining gap
+   is narrow (35 vs 34 identity, 36.7%/40.0% vs a 40% first-pass bar) and re-running more replicates
+   hoping for a better draw is exactly the pattern the plan's stability check exists to catch, not a
+   legitimate way to clear it. Three real options, in ascending order of effort:
+   a. **Accept the margin as sufficient**, treat v5 as the Delivery 6 candidate, and move to gate 9
+      (the weekly/archive entry-point parity contract test, the only other unscored gate) — a
+      maintainer judgement call about how tight "improvement" needs to be, not an engineering one.
+   b. **Investigate the item_structure/title disagreements** the replicate comparison surfaced
+      (`field_decomposition`: `item_structure` 9/38, `titles` 3/38 — see §9.6) to see whether they
+      share a cause the way the three prompt fixes did, before spending on a fourth prompt change.
+   c. **Run a third full-corpus arm** to break the 2-of-2 tie and see whether v5 clears baseline more
+      often than not — real additional spend (~$1) with no guarantee of a clean answer, since two
+      results either side of a threshold this close may just mean the true rate sits near the boundary.
+   Whichever is chosen, gate 9 still needs the weekly/archive parity contract test named as its
+   evidence before any artifact can reach `verdict: pass` — that test does not exist yet and is
+   independent of the model/prompt question above.
+10. Present the resulting artifact to the maintainer. Do not start Delivery 7 replay, default flip or
+    legacy deletion until the maintainer explicitly approves the artifact and production default
+    change.
 
 ### 9.5 Verification banked at handoff
 
@@ -824,6 +895,102 @@ fixed for this arm; create a new artifact rather than editing it if the selected
   continuations, 526/526 title binding, zero bookkeeping defects); ten of eleven scoreable gates
   pass; gate 9 (entry-point parity) is `not_scored`; verdict `incomplete`.
 - No paid model request and no production mutation occurred. Paid-call count remains zero.
+
+**2026-08-20 (later same day — Delivery 6 first paid arms, §9.6):**
+
+- Full suite: **6,996 tests passed, 83,873 assertions**, 140 existing PHPUnit notices, 1 skipped;
+  no failures. (+8 tests / +24 assertions over the prior banked run, from
+  `tests/Unit/Support/OpenAiJsonSchemaLimitsTest.php` and the schema/limits changes already reflected
+  in the working tree at session start.)
+- PHPStan: **0 errors** across 837 analysed files.
+- Pint: passed.
+- Dusk: **55 passed**, unchanged. Not required by §8 — no UI change — run to satisfy the standing
+  four-check workflow.
+- Five paid `oos:run-semantic-candidate-evidence` arms and one scored replicate pair, all against
+  the `-2026-08-20-adjudicated` corpus, hash unchanged
+  (`14cba9a3b97ef763e184d8b6a31cd41654054e2d6edfe31761dea9af2a910060`). Each arm's paid-call
+  approval was sought and given individually, in-session, immediately before that specific run — no
+  approval was reused across arms. Paid-call count: **zero → six full-corpus arms** (v2, v3, v4, v5,
+  v5-replicate, plus the schema-cap-rejected attempt from the prior session, which billed nothing).
+  Full detail, defect trail and honest net assessment in §9.6.
+- No production mutation occurred at any point; `OOS_EMAIL_PARSING_IMPLEMENTATION` remains `legacy`
+  in production and `.env.example`.
+
+### 9.6 2026-08-20 session — Delivery 6's first paid evidence, five arms
+
+This is the detailed record §9.1 and §9.4 point to. All artifacts are in §9.2's table; nothing here
+duplicates what's already there.
+
+**v2** (prompt unchanged from Delivery 2, the schema-cap fix only): identity 29/38 vs legacy's 34,
+ceiling 36. Nine sources missed manifest identity, in three distinct shapes: two with a null
+`service` field on an otherwise-correct plan; four with **zero plans produced at all**
+(`candidate_plan_count: 0`) despite truth expecting 1–2; three with wrong values (one clean date
+error — the source's own body says "5th June 2026" though received 2026-07-03, and truth's July 5 is
+itself a typo-correction the legacy parser also misses; one `service: other` where truth says
+`morning`, on a source with no explicit service label at all; one plan with a null date).
+Investigation traced the four-zero-plan cluster and the null-service pair to one shared cause: none
+of those sources states "morning" or "evening" anywhere in the body — the label is only implicit
+(subject line, or absent entirely) — and the model's schema permits `proposed_service: null`, so
+under-confidence surfaces as an omitted plan or a null field rather than a committed best guess.
+
+**v3** (`OosSemanticAnnotationPrompt::Version = 3`): told the model to always declare a service group
+and infer the label from context. Identity 29→33/38; `service_accuracy` on matched plans rose to
+0.94; first-pass corpus failures fell 14→13. But the fix's `other`-triggering word list (Christmas,
+Carols, Palm Sunday and similar) was wrong — checked against the truth corpus directly, only **one**
+of the 38 sources is genuinely `service: other` (a weekday Good Friday service); Christmas Day and a
+Carols evening service both keep their ordinary morning/evening slot in truth. The word list caused
+a **new** regression: `2020-05-31` (no festival word, correctly fixed) traded places with
+`2016-03-20` (Palm Sunday) and `2020-12-20-carols` (Carols), both newly misclassified as `other`. Net
+gate 10 regression count stayed at 1 — same count, different source, which is why re-scoring rather
+than re-reading the gate list mattered here.
+
+**v4** (`Version = 4`): corrected the `other` rule — a themed/festival service in its normal Sunday
+slot keeps that slot's label; `other` means "outside the normal Sunday morning/evening pattern
+altogether," not "has a festival name." `service_accuracy` reached a clean 1.0 and the regression
+cleared. But identity stayed flat at 33/38 (composition of the 5 remaining failures shifted between
+v3 and v4 — `2018-06-03` was fixed then broke again, a new failure `2026-04-05-pm` appeared — the
+signature of run-to-run LLM variance, not a stable property of the wording) and gate 10 got *worse*
+(40%→46.7% first-pass rate on the stability sample), because eliciting more complete service
+declarations gave the model more surface area to trip some other first-pass validation rule that
+repair then cleans up (gate 2's post-repair `content_rule_counts` was empty both times — the
+regression is in first-pass efficiency, not final correctness).
+
+Digging into the one source that failed identically in **all three** of v2/v3/v4
+(`2024-05-12`) found a fourth, distinct, code-verified defect, unrelated to service labelling: the
+model correctly annotated all five items and the group's service/date, but left `boundary_line_ids`
+empty because the source has no heading line at all (just "Good morning all / Please see below." then
+a bare hymn list) — and `OosSemanticAnnotationValidator` treats an empty boundary array as
+`service_boundary_missing`, which the compiler responds to by discarding the **entire plan**
+(`confidence: 0`, `services: []`), even though every item was right. Traced through
+`CompileOosSemanticAnnotations.php:103` and `OosSemanticAnnotationValidator.php:110`: a line can
+already be both `service_boundary` and an item via `boundary_also_item`, which is exactly the
+mechanism needed here and required no schema or compiler change.
+
+**v5** (`Version = 5`): told the model to point `boundary_line_ids` at the first item's own line
+(marked `service_boundary` + `boundary_also_item`) when no separate heading exists, rather than
+leaving it empty. Identity rose to **35/38 — the first version to exceed the legacy baseline (34)**.
+`service_accuracy` and `date_accuracy` both 1.0. Item precision/recall 99.6%/97.1%. Gate 10 passed on
+the primary run (36.7% vs baseline 40%). All ten scoreable hard gates passed on the primary run; only
+gate 9 (weekly/archive parity, needing a separate contract test) stayed `not_scored`.
+
+**The replicate** (`-v5-replicate`, same v5 prompt, second full-corpus arm) is where the picture
+gets more careful. Paired against the primary via `--replicate=`, the raw self-disagreement rate is
+52.6% (20/38 sources) against the plan's own 10% diagnostic ceiling — but 19 of those 20 are in the
+`provenance` field group (which line IDs were cited as evidence), not the compiled service/date/items
+themselves; only 1 source shows an actual `plan_key` disagreement. Scored independently against
+truth, the replicate's own identity is 34/38 (matches legacy exactly, doesn't exceed it) and its
+first-pass rate is exactly 40.0% — tied with, not under, the baseline, so gate 10 fails on that run
+in isolation even though gate 7 (identity) passes on both runs. `field_decomposition` beyond
+provenance: `item_structure` 9/38, `titles` 3/38, `service_date_scope` 1/38 — none of these were
+broken down further this session; that's the natural start for §9.4 step 9 option (b) if it's chosen.
+
+**Net honest read:** three real, code-verified, single-lever fixes landed and each is independently
+defensible (service-context inference, the `other` scope correction, and the boundary fallback).
+Identity moved from below legacy (29) to reproducibly at-or-above it (34–35 across two draws). But
+the "beats baseline" claim for gate 10 specifically has not yet reproduced across both draws
+available, and that gap should be closed or explicitly accepted by the maintainer before this is
+called a passing Delivery 6 candidate — not smoothed over by another paid run chosen to get a better
+number.
 
 ## 10. Non-goals
 

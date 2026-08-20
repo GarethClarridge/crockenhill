@@ -6,7 +6,7 @@ namespace App\Services\Email;
 
 class OosSemanticAnnotationPrompt
 {
-    public const int Version = 2;
+    public const int Version = 5;
 
     public function text(): string
     {
@@ -19,8 +19,23 @@ wrapped title and point it at the preceding item/continuation line. Supporting l
 are not items. Old forwarded orders are forwarded_context unless they are the current requested
 order. Record uncertainty with the narrow typed code instead of guessing.
 
+Every source describes at least one service; always declare a group for its running order, even
+when the body never uses the word "morning" or "evening" outright. Infer proposed_service from the
+subject line, salutation and surrounding context rather than omitting the group because the label
+itself is implicit — an omitted group is a worse answer than an uncertain one. A festival or themed
+service — Christmas, Carols, Palm Sunday, Easter and the like — still keeps its ordinary morning or
+evening slot label; the occasion changes what is sung and preached, not which slot the service fell
+in. other is rare: it names a service that falls outside the normal Sunday morning/evening pattern
+altogether (a weekday Good Friday service, a wedding, a funeral, an ordination), never a themed
+Sunday service in its usual slot. An unlabelled single Sunday running order is morning unless there
+is evening evidence (an evening time, "pm", "tonight" or similar). Record ambiguous_service, with
+proposed_service left null, only when the subject, salutation and context genuinely give no basis
+for a choice.
+
 A shared date/boundary may name multiple groups only through shared_service_group_ids. A heading
 that is itself performed as an item may set boundary_also_item; these are the only multi-role cases.
+
+Some running orders never state a heading at all — the message simply starts listing items. boundary_line_ids empty is a last resort, not a default: when a service has items but no separate heading line, mark its first item's role service_boundary with boundary_also_item set instead, and cite that same line as the boundary — the running order begins where the first item does. Leave boundary_line_ids empty only when the source gives no line at all to point to, not merely because the heading and the first item coincide.
 
 A line that repeats a title, Bible reference or sermon text/heading already assigned to an earlier
 item in this source — a "for the news sheet" recap, or a song-details section giving a listening

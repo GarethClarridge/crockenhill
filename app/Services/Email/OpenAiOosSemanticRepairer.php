@@ -187,6 +187,9 @@ class OpenAiOosSemanticRepairer implements OosSemanticRepairer
             'type' => 'object',
             'additionalProperties' => false,
             'required' => ['annotations'],
+            // The subset line schemas reference the shared field definitions, so the patch schema
+            // has to carry them too or every `$ref` in it dangles.
+            '$defs' => $this->schema->definitions(),
             'properties' => [
                 'annotations' => [
                     'type' => 'object',

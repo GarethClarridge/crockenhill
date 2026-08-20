@@ -51,6 +51,9 @@ class OosParserSurfaceFingerprint
         'app/Services/Email/OosSemanticAnnotationSchema.php',
         'app/Services/Email/OosSemanticAnnotationDecoder.php',
         'app/Services/Email/OosSemanticAnnotationValidator.php',
+        // What the schema permits and the validator accepts for a continuation target, shared so the
+        // two cannot drift apart.
+        'app/Services/Email/OosSemanticContinuationRule.php',
         'app/Services/Email/ApplyOosSemanticAnnotationPatch.php',
         'app/Services/Email/CompileOosSemanticAnnotations.php',
         'app/Services/Email/OosServiceDateResolver.php',
@@ -70,8 +73,10 @@ class OosParserSurfaceFingerprint
         'app/Enums/OosSemanticUncertainty.php',
         // `isAutoImportable()` and friends, which decide the routing category.
         'app/Data/OosEmailServicePlan.php',
-        // Effective reasoning effort and the completion ceiling actually sent.
+        // Effective reasoning effort and the completion ceiling actually sent, and the schema-size
+        // guard that can refuse the request before it is sent at all.
         'app/Support/OpenAiChatPayload.php',
+        'app/Support/OpenAiJsonSchemaLimits.php',
         // Display titles, which are part of the extraction signature.
         'app/Services/ChurchService/ServiceItemTitleCleaner.php',
     ];

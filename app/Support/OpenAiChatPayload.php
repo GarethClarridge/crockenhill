@@ -38,6 +38,8 @@ class OpenAiChatPayload
      */
     public static function forModel(array $payload, string $reasoningEffort = 'low'): array
     {
+        self::assertSchemaWithinLimits($payload);
+
         if (empty($payload['service_tier'] ?? null)) {
             unset($payload['service_tier']);
         }
@@ -76,6 +78,28 @@ class OpenAiChatPayload
         }
 
         return self::normaliseReasoningEffort($model, $reasoningEffort);
+    }
+
+    /**
+     * A generated strict schema can outgrow OpenAI's documented limits on a large input while every
+     * test built from a small one still passes. Checking here covers every structured-output call in
+     * the application from one place, and turns a remote 400 into a local failure that names the
+     * schema.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private static function assertSchemaWithinLimits(array $payload): void
+    {
+        $jsonSchema = $payload['response_format']['json_schema'] ?? null;
+
+        if (! is_array($jsonSchema) || ! is_array($jsonSchema['schema'] ?? null)) {
+            return;
+        }
+
+        OpenAiJsonSchemaLimits::assertWithinLimits(
+            $jsonSchema['schema'],
+            is_string($jsonSchema['name'] ?? null) ? $jsonSchema['name'] : 'structured output',
+        );
     }
 
     private static function normaliseReasoningEffort(string $model, string $reasoningEffort): string

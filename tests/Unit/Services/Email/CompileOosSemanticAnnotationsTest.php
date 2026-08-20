@@ -89,6 +89,32 @@ class CompileOosSemanticAnnotationsTest extends TestCase
     }
 
     #[Test]
+    public function a_continuation_cannot_reach_back_across_a_blank_line(): void
+    {
+        $source = OosEmailSourceDocument::fromContext(
+            'Sunday 23 August 2026',
+            "Morning Service\nHow deep the Father's\n\nlove for us",
+            '2026-08-19',
+        );
+        $annotations = new OosSemanticAnnotationResult(
+            [new OosCandidateService('morning', 'morning', [1])],
+            [
+                1 => $this->annotation(1, OosSemanticRole::ServiceBoundary, 'morning'),
+                2 => $this->annotation(2, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Song),
+                4 => $this->annotation(4, OosSemanticRole::Continuation, 'morning', continuationTarget: 2),
+            ],
+        );
+
+        try {
+            $this->compiler()->compile($source, $annotations);
+            $this->fail('Expected a continuation across a blank line to fail.');
+        } catch (OosSemanticCompilationException $exception) {
+            $this->assertSame('continuation_not_adjacent', $exception->findings[0]->code);
+            $this->assertSame([4, 2], $exception->findings[0]->lineIds);
+        }
+    }
+
+    #[Test]
     public function grouped_transition_and_supporting_lines_cannot_compile_as_ignored_inside_an_item_span(): void
     {
         $source = OosEmailSourceDocument::fromContext(
