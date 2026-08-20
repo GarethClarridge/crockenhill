@@ -1057,6 +1057,61 @@ prior banked run, all four from this file), 140 existing PHPUnit notices unchang
 PHPStan 0 errors across 837 files. Pint passed. Dusk 55 passed. No paid model request and no
 production mutation; paid-call count unchanged at six.
 
+### 9.8 2026-08-20 (later session) — option (b) decomposition, and the single cause behind gate 10
+
+§9.4 step 9 option (b) was taken: decompose the replicate's disagreements before spending on another
+draw. It produced a larger answer than the option was scoped for, and no paid call was made.
+
+**The `item_structure` 9/38 does share a cause, but it is not the failing gate.** Reusing
+`OosParserExtractionSignature` so the grouping cannot drift from the scorer's own figure, 7 of the 9
+are *item-kind* disagreements on the same item at the same position — not missing or extra items.
+Two axes recur: `other/other` against a specific kind (interview, prayer, childrens_talk,
+call_to_worship) on four sources, and `welcome` against `notices` at position 1 on two. Only two
+sources (`2018-11-18`, `2022-08-14`) differ structurally in item count or alignment. This is a
+stability finding; it is not what gate 10 measures.
+
+**Gate 10's failure has one dominant cause, and it reproduces on both draws.** Gate 10 counts
+*first-pass* (pre-repair) validation failures, and the whole difference between the primary's pass
+and the replicate's fail is a single source: 11/30 against 12/30, either side of a 12/30 baseline.
+Reading the first-pass rule codes out of both candidate artifacts, `non_item_has_kind` fires on
+**13 of the 13** first-pass-failing sources in the primary and 13 of 14 in the replicate. Every other
+code is a one-off. Counted with the validator's own `$isItem` rule — role `item`, or
+`boundary_also_item` — the offending lines are 34 in the primary and 33 in the replicate, in the same
+three patterns and the same proportions both times:
+
+| Pattern | Primary | Replicate |
+|---|---|---|
+| `supporting_detail` carrying kind `sermon` | 17 | 17 |
+| `transition_marker` carrying kind `transition` | 11 | 11 |
+| `continuation` carrying kind `song` | 6 | 5 |
+
+All three are one confusion: the model treats `item_kind` as *what the line is about* rather than
+*what the line is*. The prompt never said otherwise — `item_kind` was the one field with no stated
+rule, so a line giving the sermon's passage got kind `sermon`, a `transition_marker` mirrored its own
+role name into a kind, and a wrapped song title repeated its parent's kind.
+
+Checked and excluded rather than assumed: the 7 `service_boundary` lines that also carry a kind all
+have `boundary_also_item: true`, so the validator counts them as items and they are legal. They are
+v5's boundary guidance working, not a defect, and are not part of the 34.
+
+**Projected effect, not a measurement.** Removing `non_item_has_kind` leaves one residual failing
+source in the primary (`2018-02-04-details`) and three in the replicate (plus `2026-04-12` and
+`2015-10-18`); all are in the 30-source stability sample, none are hard cases. That would move gate
+10 from 36.7% to **3.3%** on the primary draw and from 40.0% to **10.0%** on the replicate, against
+the 40% baseline — a pass on both draws with a wide margin instead of the current knife-edge. Only a
+paid run establishes this; it is a projection from banked artifacts.
+
+**`OosSemanticAnnotationPrompt::Version = 6`** makes the single corresponding change: `item_kind`
+says what a line is and not what it is about, so it is set only on a line that is itself an ordered
+item, and left null on every other role even when the line plainly concerns an item of that kind,
+naming the three observed patterns. Nothing else was changed — in particular the `other/other` and
+`welcome`/`notices` stability axes above are deliberately left alone, so that if a v6 arm is run its
+effect on gate 10 is readable as one lever, per the discipline that made v3/v4/v5 legible.
+
+Verification: full suite **7,000 tests, 83,893 assertions**, 140 notices, no failures; PHPStan 0
+errors; Pint passed. No paid model request; paid-call count unchanged at six. **A v6 arm has not
+been run and needs explicit in-session maintainer approval before any spend.**
+
 ## 10. Non-goals
 
 - fine-tuning before the annotation architecture and golden evaluation establish a residual need;

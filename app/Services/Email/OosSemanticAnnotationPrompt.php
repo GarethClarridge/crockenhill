@@ -6,7 +6,7 @@ namespace App\Services\Email;
 
 class OosSemanticAnnotationPrompt
 {
-    public const int Version = 5;
+    public const int Version = 6;
 
     public function text(): string
     {
@@ -44,6 +44,13 @@ PowerPoint/slide references and similar preparation notes are supporting_detail 
 appear in a row. A hand-off or departure phrase ("children leave...", "X to take over", "handover
 to Y") is a transition_marker, not an item. NIP marks a sung worship song outside the numbered
 hymnbook (e.g. "NIP 'Behold the Lamb'"); classify it as song, never sermon or other.
+
+item_kind says what a line *is*, never what it is *about*, so set it only on a line that is itself
+an ordered item: role item, or a service_boundary line carrying boundary_also_item. Leave it null on
+every other role even when the line plainly concerns an item of that kind. A supporting_detail line
+giving the sermon's passage, title or outline is not a sermon; a transition_marker is not an item of
+kind transition; and a continuation line wrapping a song title is not a second song — the kind
+belongs to the item line it continues, not to the wrap.
 
 continuation only ever targets an item or continuation line. When a non-item line — a notice, a
 detail, an outline point — wraps across two physically adjacent lines, annotate each line
