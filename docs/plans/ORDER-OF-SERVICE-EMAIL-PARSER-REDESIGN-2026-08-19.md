@@ -706,6 +706,9 @@ design authority; this section records mutable execution state and does not weak
 | `storage/scratch/oos-parser-evaluation/baseline-nano-none-2026-08-18/raw-result-projection.json` | Banked same-manifest legacy output/routing/validation/telemetry; canonical hash `75181b9f606e83ee51b1c40ee814a51edba80138293e61569ecccda0d18c0cc5` |
 | `storage/scratch/oos-parser-evaluation/prompt-baseline-nano-none-2026-08-19/stability-diagnostic.json` | Authority for the deterministic 30-source sample; canonical hash `4be3122b4b8d8a8b71cdb4baf12bfd81b9ce31948d51707ce1850f18a8b85323` |
 | `storage/scratch/oos-semantic-price-snapshot-2026-08-19.json` | Dated direct-API/model-page price input; raw SHA-256 `4ad19caca578776e11ef1b3a332fdfc3947ecd8d0045fe5bfe2e445a87d36ce0`; projection input only, never billing authority |
+| `storage/scratch/oos-semantic-candidate-terra-low-2026-08-20-v6-replicate.json` | Second full-corpus draw of the unchanged v6 prompt (§9.11); scored alone it passes every gate. |
+| `storage/scratch/oos-semantic-score-terra-low-2026-08-20-v6-{replicate,final}.json` | The replicate scored independently, and the pair scored with `--replicate=`. `-final` is the Delivery 6 comparison artifact: `score_hash` `6d8246a26ed3d4545f8a60de5849f3bd1531d2e9298b39da4ae892199c6d1791`, `verdict: pass`. |
+| `storage/scratch/oos-semantic-score-terra-low-2026-08-20-v6-reclassified.json` | The v6 primary re-scored under format version 2 (§9.10); first artifact in this plan to reach `verdict: pass`. |
 | `storage/scratch/oos-semantic-candidate-terra-low-2026-08-20-v6.json` | **The current best candidate — prompt v6, see §9.9.** Single approved paid arm; all ten scoreable gates pass, gate 10 at 13.3% against a 40% baseline. No replicate yet. |
 | `storage/scratch/oos-semantic-score-terra-low-2026-08-20-v6.json` | Scoring artifact for the v6 arm; verdict `incomplete` only because gate 9 is `not_scored` (§9.7). |
 | `storage/scratch/oos-semantic-candidate-terra-low-2026-08-20{,-v3,-v4,-v5,-v5-replicate}.json` | **Five paid candidate evidence arms, retained in full — see §9.6.** Unsuffixed = prompt v2 (pre-fix); `-v3`/`-v4`/`-v5` = successive prompt-only fixes at `OosSemanticAnnotationPrompt::Version` 3/4/5; `-v5-replicate` = second full-corpus run of the unchanged v5 prompt, for the §6.2 self-disagreement decomposition. Every arm is create-once and none was overwritten. |
@@ -1180,10 +1183,47 @@ soft and reports `stability: null`, correctly: a correctness-first artifact has 
 `pass` here means correctness passed, which is exactly what §9.4 step 8 treats as the trigger for
 running replicates.
 
-**Not yet done: the §9.4 step 8 replicate.** v6 is the first candidate to pass correctness with
-margin, so the stability replicate is now the right next spend rather than a way of shopping for a
-number — but it is a separate ~$1 and needs its own explicit approval. Until it runs, the v6 result
-rests on one draw, exactly the limitation that made v5's result contestable.
+### 9.11 The v6 replicate — §9.4 step 8 satisfied, with one honest caveat
+
+One further paid arm, approved in-session immediately before the run: the unchanged v6 prompt, same
+dimension, second full-corpus draw. 38 calls and **zero repair calls** — no source needed repair on
+that draw — 239,865 tokens, $1.008995. Paid-call count **seven → eight**.
+
+**Both draws pass independently.** This is the property v5 never had: its replicate scored `fail` on
+gate 10 in isolation, so "beats baseline" rested on one draw.
+
+| | v6 primary | v6 replicate |
+|---|---|---|
+| Verdict scored alone | **pass** | **pass** |
+| Gate 7 identity | 35/38 | 35/38 |
+| Gate 10 first-pass rate | 13.3% | **3.3%** |
+| Corpus first-pass failures | 4/38 | **1/38** |
+| Item precision / recall | 0.9980 / 0.9696 | 0.9922 / 0.9715 |
+| Semantic item-kind accuracy | 0.9725 | 0.9785 |
+| Post-repair content findings | none | none |
+| Cost | $1.0375 | $1.0090 |
+
+Paired artifact: `oos-semantic-score-terra-low-2026-08-20-v6-final.json`, `score_hash`
+`6d8246a26ed3d4545f8a60de5849f3bd1531d2e9298b39da4ae892199c6d1791`, `verdict: pass`.
+
+**The caveat, stated plainly rather than left in a soft gate's detail block.** Replicate
+self-disagreement is **42.1%** (16/38) against this plan's own 10% diagnostic ceiling. It improved
+from v5's 52.6% and, importantly, `plan_key_disagreements` is now **0** where v5 had 1 — the
+compiled service/date identity is now perfectly stable across draws, and every source's *verdict*
+is unaffected. The residual is annotation-level: `provenance` 15 (which line IDs were cited as
+evidence), `item_structure` 10 and `titles` 4. That is the same item-kind classification axis §9.8
+identified — `other/other` against a specific kind, `welcome` against `notices` — and deliberately
+did not fix, so that v6 would read as one lever. It is unchanged to slightly worse (9→10, 3→4),
+exactly as expected from a change that did not target it.
+
+Gate 11 is soft and reports stability "for information only; it cannot override a correctness or
+safety gate", so nothing fails on this. But a 4× overshoot of a ceiling the plan set for itself is a
+maintainer decision to take explicitly — accept it as out of scope for Delivery 6 (the compiled
+output is stable and every gate passes), or spend a further single-lever arm on the item-kind axis
+before closing. It should not be waved through on the strength of the passing gate list.
+
+**§9.4 steps 6–8 are now complete.** What remains before Delivery 7 is the maintainer's review of the
+paired artifact and an explicit production-default approval, per step 10.
 
 ## 10. Non-goals
 
