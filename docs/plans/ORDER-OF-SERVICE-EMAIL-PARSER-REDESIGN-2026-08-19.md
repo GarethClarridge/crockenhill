@@ -23,7 +23,9 @@
 >   provenance is 42.1%. `plan_key_disagreements` is 0, so no source's compiled identity changes
 >   between draws, and gate 11 is soft and cannot override correctness. Ten of the eleven
 >   outcome-moving sources move only on the item-kind axis, so one further single-lever arm has a
->   measured projection of `outcome_rate` → ~2.6%. **This is unresolved and is the open decision.**
+>   measured projection of `outcome_rate` → ~2.6%. **Accepted as-is by maintainer decision on
+>   2026-08-20 — an explicit exemption, not a bar that was met; the remedy was available and
+>   declined. Grounds and what is given up are recorded in §9.12.**
 > - **Spend to date:** eight paid full-corpus arms, ≈$8.50 at the dated snapshot's projected rate.
 >   No production mutation has occurred at any point; `OOS_EMAIL_PARSING_IMPLEMENTATION` is `legacy`
 >   in production and in `.env.example`.
@@ -585,10 +587,11 @@ individually in-session (v2, v3, v4, v5, v5-replicate, v6, v6-replicate, plus on
 attempt that billed nothing). The candidate is `OosSemanticAnnotationPrompt::Version = 6`. The signed
 comparison artifact is `storage/scratch/oos-semantic-score-terra-low-2026-08-20-v6-final.json`,
 `score_hash` `6d8246a26ed3d4545f8a60de5849f3bd1531d2e9298b39da4ae892199c6d1791`, **`verdict: pass`**,
-with both draws also passing when scored independently. One open caveat — replicate self-disagreement
-at 42.1% against the 10% diagnostic ceiling, on a soft gate — is recorded in §9.11 for an explicit
-accept-or-address decision. Full trail: §9.6 (arms v2–v5), §9.8 (the diagnosis), §9.9 (v6), §9.10
-(gate 9 reclassification), §9.11 (the replicate).
+with both draws also passing when scored independently. The one caveat — `outcome_rate` 28.9%
+against the 10% diagnostic ceiling, on a soft gate — was **accepted as an explicit exemption** by
+maintainer decision on 2026-08-20 (§9.12), with the available remedy declined. Delivery 6 is
+therefore closed on evidence. Full trail: §9.6 (arms v2–v5), §9.8 (the diagnosis), §9.9 (v6), §9.10
+(gate 9 reclassification), §9.11 (the replicate), §9.12 (the stability split and the acceptance).
 
 *Superseded 2026-08-19 status:* paid-call approval received; the raw-evidence runner's first real
 invocation stopped at the pre-network truth gate because the frozen corpus reported 38 pending
@@ -1299,8 +1302,9 @@ maintainer decision to take explicitly — accept it as out of scope for Deliver
 output is stable and every gate passes), or spend a further single-lever arm on the item-kind axis
 before closing. It should not be waved through on the strength of the passing gate list.
 
-**§9.4 steps 6–8 are now complete.** What remains before Delivery 7 is the maintainer's review of the
-paired artifact and an explicit production-default approval, per step 10.
+**§9.4 steps 6–8 are now complete**, and step 9's open caveat was settled in §9.12. What remains
+before Delivery 7 is step 10: the maintainer's explicit production-default approval, which is a
+separate act from accepting the artifact and has not been given.
 
 ### 9.12 Splitting the stability figure — and a correction that changes the caveat
 
@@ -1340,12 +1344,41 @@ item-kind axis — the `other/other`-versus-specific-kind and `welcome`-versus-`
 §9.8 identified and deliberately left unfixed. The eleventh (`2026-08-02-pm`) moves on
 `service_date_scope`.
 
-**So the caveat is not accepted, and should not be.** An item-kind arm is now the one change with a
-measured, specific projection: `outcome_rate` 28.9% → ~2.6%, which would take the candidate under
-the plan's own ceiling on the figure that ceiling is actually about. That is a materially different
-proposition from the one rejected earlier in the session, and the earlier rejection should not be
-relied on. Whether to spend it remains the maintainer's call; what has changed is that the spend now
-has a defensible expected outcome rather than none.
+An item-kind arm is the one change with a measured, specific projection: `outcome_rate` 28.9% →
+~2.6%, which would take the candidate under the plan's own ceiling on the figure that ceiling is
+actually about. That is a materially different proposition from the one rejected earlier in the
+session, and the earlier rejection should not be relied on.
+
+### Maintainer decision, 2026-08-20: the 28.9% is accepted as-is
+
+**This is an explicit exemption, not a bar that was met.** `outcome_rate` is roughly 3× the §6.3
+diagnostic ceiling, a remedy with a measured projection was available for about $2 (one single-lever
+arm plus a confirming replicate), and the maintainer declined it in favour of accepting the figure.
+The assistant's recommendation was to spend it. Recorded this way deliberately so that a later reader
+sees an exemption rather than a passing number.
+
+The grounds for accepting are real and are these:
+
+- **Gate 11 is soft by design.** §6.3 states that cost, latency and stability "cannot override a
+  failed correctness/safety gate", and the converse holds too — no hard gate fails. All ten
+  arm-scoped gates pass on both draws.
+- **`plan_key_disagreements` is 0.** No source's compiled service or date differs between draws, so
+  nothing about which service an order belongs to, or whether it imports, is unstable. The variance
+  is confined to how an item is *categorised*.
+- **§6.3 anticipated exactly this shape.** "A source-faithful candidate is not rejected solely
+  because an irrelevant semantic subtype varies while deterministic projection remains correct and
+  safe." The remaining variance is `other/other` against a specific kind and `welcome` against
+  `notices` — subtype choices on items that are otherwise identically bound.
+- **Practical exposure is low.** A weekly email is parsed once; the archive reuses a cached raw
+  extraction rather than reparsing, and §9.7's contract test pins that round trip as byte-preserving.
+  Re-parse is an operator action, not a routine one, so the instability is rarely observable in
+  production.
+
+What is knowingly given up: an item's displayed category can differ between two parses of the same
+source, and the plan no longer has a stability figure under its own ceiling. If item categorisation
+is later found to matter more than this decision assumed — a review-queue complaint, a public-surface
+inconsistency — the item-kind arm in §9.8/§9.12 is the identified remedy and its projection stands.
+`outcome_rate` should be re-read on any future arm rather than treated as settled.
 
 Note the projection's own history: §9.9 recorded that the v6 projection was directionally right and
 numerically optimistic because it assumed removal-only. The same caution applies here — 2.6% is a
