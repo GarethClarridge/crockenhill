@@ -706,6 +706,8 @@ design authority; this section records mutable execution state and does not weak
 | `storage/scratch/oos-parser-evaluation/baseline-nano-none-2026-08-18/raw-result-projection.json` | Banked same-manifest legacy output/routing/validation/telemetry; canonical hash `75181b9f606e83ee51b1c40ee814a51edba80138293e61569ecccda0d18c0cc5` |
 | `storage/scratch/oos-parser-evaluation/prompt-baseline-nano-none-2026-08-19/stability-diagnostic.json` | Authority for the deterministic 30-source sample; canonical hash `4be3122b4b8d8a8b71cdb4baf12bfd81b9ce31948d51707ce1850f18a8b85323` |
 | `storage/scratch/oos-semantic-price-snapshot-2026-08-19.json` | Dated direct-API/model-page price input; raw SHA-256 `4ad19caca578776e11ef1b3a332fdfc3947ecd8d0045fe5bfe2e445a87d36ce0`; projection input only, never billing authority |
+| `storage/scratch/oos-semantic-candidate-terra-low-2026-08-20-v6.json` | **The current best candidate — prompt v6, see §9.9.** Single approved paid arm; all ten scoreable gates pass, gate 10 at 13.3% against a 40% baseline. No replicate yet. |
+| `storage/scratch/oos-semantic-score-terra-low-2026-08-20-v6.json` | Scoring artifact for the v6 arm; verdict `incomplete` only because gate 9 is `not_scored` (§9.7). |
 | `storage/scratch/oos-semantic-candidate-terra-low-2026-08-20{,-v3,-v4,-v5,-v5-replicate}.json` | **Five paid candidate evidence arms, retained in full — see §9.6.** Unsuffixed = prompt v2 (pre-fix); `-v3`/`-v4`/`-v5` = successive prompt-only fixes at `OosSemanticAnnotationPrompt::Version` 3/4/5; `-v5-replicate` = second full-corpus run of the unchanged v5 prompt, for the §6.2 self-disagreement decomposition. Every arm is create-once and none was overwritten. |
 | `storage/scratch/oos-semantic-score-terra-low-2026-08-20{,-v3,-v4,-v5,-v5-final,-v5-replicate}.json` | Scoring artifacts for each arm above; `-v5-final` is v5 scored *with* `--replicate=` (the complete comparison, `score_hash` `f66a5124cd872a74cb9152171980bb27dac20030745e2ca7e0d2007a19b74ceb`); `-v5-replicate` is the replicate scored independently against truth (its own verdict is `fail` on gate 10 — see §9.6, do not read only the `-v5-final` PASS list). |
 
@@ -1109,8 +1111,46 @@ naming the three observed patterns. Nothing else was changed — in particular t
 effect on gate 10 is readable as one lever, per the discipline that made v3/v4/v5 legible.
 
 Verification: full suite **7,000 tests, 83,893 assertions**, 140 notices, no failures; PHPStan 0
-errors; Pint passed. No paid model request; paid-call count unchanged at six. **A v6 arm has not
-been run and needs explicit in-session maintainer approval before any spend.**
+errors; Pint passed.
+
+### 9.9 The v6 arm — the projection held, and gate 10 stops being marginal
+
+One paid arm, approved in-session by the maintainer immediately before the run, against the
+`-2026-08-20-adjudicated` corpus (hash unchanged), same `gpt-5.6-terra` / `low` / flex dimension as
+v5 so the prompt is the only moving part. 41 calls (38 annotation, 3 repair), 250,723 tokens,
+$1.037456 at the dated snapshot's projected rate. Paid-call count **six → seven**. Artifacts:
+`oos-semantic-candidate-terra-low-2026-08-20-v6.json` and
+`oos-semantic-score-terra-low-2026-08-20-v6.json`.
+
+**The diagnosed defect is gone outright.** `non_item_has_kind` offending lines 34 → **0**; the code
+does not appear in the arm at all. First-pass failing sources 13 → **4**.
+
+| | v5 primary | v5 replicate | v6 |
+|---|---|---|---|
+| Gate 10 first-pass rate (sample of 30) | 36.7% | 40.0% | **13.3%** |
+| Corpus first-pass failures | 13/38 | 14/38 | **4/38** |
+| Gate 7 identity | 35/38 | 34/38 | **35/38** |
+| Item precision / recall | 0.9961 / 0.9715 | — | **0.9980** / 0.9696 |
+| Semantic item-kind accuracy | 0.9667 | — | **0.9725** |
+| Post-repair content findings | 1 | 1 | **0** |
+
+All ten scoreable gates pass; gate 9 remains `not_scored` for the scorer-semantics reason in §9.7,
+so the verdict is still `incomplete` rather than `pass`. Gate 10's margin is now 13.3% against a 40%
+baseline rather than the 36.7%/40.0% knife-edge that turned on a single source.
+
+**The projection was directionally right and numerically optimistic, which is worth recording.**
+§9.8 projected 3.3% on this draw's shape by assuming the fix would only *remove* failures. It also
+introduced one: `2020-11-01` now fails `item_semantics_incomplete` — an item line left with a null
+kind, the exact opposite error, and a mild overcorrection of v6's wording. The other three residual
+failures are not v6's doing (`2026-04-12` and `2026-07-05` on `shared_boundary_role_invalid`, which
+the v5 replicate also hit; `2018-02-04-details`, which every arm has hit). A single-lever prompt fix
+trading 13 sources for 1 is a clear win, but "removal only" is not a safe assumption for the next
+projection.
+
+**Not yet done: the §9.4 step 8 replicate.** v6 is the first candidate to pass correctness with
+margin, so the stability replicate is now the right next spend rather than a way of shopping for a
+number — but it is a separate ~$1 and needs its own explicit approval. Until it runs, the v6 result
+rests on one draw, exactly the limitation that made v5's result contestable.
 
 ## 10. Non-goals
 
