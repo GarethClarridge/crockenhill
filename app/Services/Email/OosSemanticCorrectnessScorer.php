@@ -50,8 +50,14 @@ class OosSemanticCorrectnessScorer
      * block. A version 1 artifact carries a gate 9 and no preconditions, and its `verdict` is
      * `incomplete` for a reason version 2 would not report; the two are not comparable by verdict
      * alone. The banked v2–v6 artifacts are all version 1 and are retained as they were scored.
+     *
+     * Version 3 split the stability figure into `rate` and `outcome_rate` and named `outcome_rate`
+     * as what the §6.3 diagnostic ceiling is about. `rate` keeps its old meaning, so the number
+     * itself is comparable across 2 and 3 — but which number to read against the ceiling changed,
+     * so a version 2 artifact's stability must not be compared to a version 3 one's without saying
+     * which field is meant.
      */
-    public const int Version = 2;
+    public const int Version = 3;
 
     /** §6.3 gate 6. */
     private const float ItemPrecisionFloor = 0.98;
@@ -1428,6 +1434,24 @@ class OosSemanticCorrectnessScorer
      * uses — {@see OosParserExtractionSignature} owns that definition so the stability figure and the
      * comparison cannot drift apart.
      *
+     * Two rates are reported, because they answer different questions and the §6.3 ceiling was only
+     * ever meant to answer one of them.
+     *
+     * `rate` counts a source as disagreeing if *anything* in its signature moved, `provenance`
+     * included — that is, which source lines the model cited as evidence for an item or a service.
+     * `outcome_rate` excludes provenance-only movement, so it counts a source only when something a
+     * consumer can act on differed: the service, date, scope, item structure or titles.
+     *
+     * The 10% ceiling is inherited from the whole-document parser, where a self-disagreement *was* a
+     * changed answer. Under the annotation architecture the two came apart, and the v6 pair is the
+     * measurement that separated them: 16 of 38 sources disagreed, 15 of them on provenance, and
+     * every source that moved on item structure or titles also moved on provenance — so the audit
+     * trail dominates the headline while `plan_key_disagreements` was 0 and every gate passed on
+     * both draws. A ceiling applied to `rate` therefore fails a candidate for varying its citations,
+     * which §6.3 explicitly says is not grounds for rejection when "deterministic projection remains
+     * correct and safe". `outcome_rate` is the figure to read against the ceiling; `rate` and the
+     * decomposition stay so a provenance blow-up is still visible rather than hidden.
+     *
      * @param  array<string, mixed>  $candidate
      * @param  array<string, mixed>|null  $replicate
      * @return array<string, mixed>|null
@@ -1442,6 +1466,7 @@ class OosSemanticCorrectnessScorer
         $second = $this->signatures($replicate);
         $groups = array_fill_keys(OosParserExtractionSignature::FieldGroups, 0);
         $disagreements = 0;
+        $outcomeDisagreements = 0;
         $planKeyDisagreements = 0;
 
         foreach ($first as $key => $signature) {
@@ -1454,8 +1479,13 @@ class OosSemanticCorrectnessScorer
             $disagreements++;
             $difference = OosParserExtractionSignature::fieldDifferences($signature, $other);
             $planKeyDisagreements += $difference['plan_keys_differ'] === true ? 1 : 0;
+            $moved = $this->stringList($difference['groups_that_differ']);
 
-            foreach ($this->stringList($difference['groups_that_differ']) as $group) {
+            if (array_diff($moved, ['provenance']) !== [] || $difference['plan_keys_differ'] === true) {
+                $outcomeDisagreements++;
+            }
+
+            foreach ($moved as $group) {
                 $groups[$group]++;
             }
         }
@@ -1464,9 +1494,16 @@ class OosSemanticCorrectnessScorer
             'sources' => count($first),
             'self_disagreements' => $disagreements,
             'rate' => $this->rate($disagreements, count($first)),
+            'outcome_disagreements' => $outcomeDisagreements,
+            'outcome_rate' => $this->rate($outcomeDisagreements, count($first)),
             'plan_key_disagreements' => $planKeyDisagreements,
             'field_decomposition' => $groups,
             'diagnostic_ceiling' => 0.10,
+            'ceiling_applies_to' => 'outcome_rate',
+            'note' => 'rate counts any signature movement including provenance — which source lines were cited '
+                .'as evidence. outcome_rate counts only movement a consumer can act on (service, date, scope, '
+                .'item structure, titles) and is the figure the §6.3 ceiling is about. Both are reported so a '
+                .'provenance regression stays visible instead of being defined away.',
         ];
     }
 

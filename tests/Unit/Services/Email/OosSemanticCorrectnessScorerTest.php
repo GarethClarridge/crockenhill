@@ -311,6 +311,36 @@ class OosSemanticCorrectnessScorerTest extends TestCase
         $this->assertSame(1, $report['metrics']['stability']['self_disagreements']);
         $this->assertSame(1.0, $report['metrics']['stability']['rate']);
         $this->assertSame(1, $report['metrics']['stability']['field_decomposition']['item_structure']);
+
+        // An item type moved, so this is outcome movement and not just a citation change.
+        $this->assertSame(1, $report['metrics']['stability']['outcome_disagreements']);
+        $this->assertSame(1.0, $report['metrics']['stability']['outcome_rate']);
+    }
+
+    #[Test]
+    public function movement_confined_to_provenance_counts_against_the_raw_rate_but_not_the_outcome_rate(): void
+    {
+        $report = $this->score(replicateMutator: static function (array $replicate): array {
+            // The same item, bound to a different evidence line. Nothing a consumer reads changes.
+            $replicate['results'][0]['extraction']['services'][0]['service_evidence_line_ids'] = [1, 2];
+
+            return $replicate;
+        });
+
+        $stability = $report['metrics']['stability'];
+
+        /**
+         * The §6.3 ceiling is about answers changing between draws, not citations. Counting a
+         * provenance-only move against it would reject a candidate for exactly what §6.3 says is
+         * not grounds for rejection while "deterministic projection remains correct and safe" — and
+         * on the real v6 pair this was 15 of 16 disagreeing sources, so it dominated the headline.
+         */
+        $this->assertSame(1, $stability['self_disagreements'], 'Raw rate must still see the movement.');
+        $this->assertSame(1, $stability['field_decomposition']['provenance']);
+        $this->assertSame(0, $stability['outcome_disagreements'], 'A citation change is not outcome movement.');
+        $this->assertSame(0.0, $stability['outcome_rate']);
+        $this->assertSame(0, $stability['plan_key_disagreements']);
+        $this->assertSame('outcome_rate', $stability['ceiling_applies_to']);
     }
 
     // -----------------------------------------------------------------------------------------

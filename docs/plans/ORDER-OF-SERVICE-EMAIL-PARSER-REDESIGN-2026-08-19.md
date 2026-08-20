@@ -18,11 +18,12 @@
 >   evidenced by `tests/Feature/Services/Email/OosParserEntryPointParityTest.php` (§9.7, §9.10). The
 >   scorer's format is now `Version = 2`; version 1 artifacts carry a gate 9 and are not comparable
 >   by verdict alone.
-> - **Open caveat, not a gate failure:** replicate self-disagreement is 42.1% against this plan's own
->   10% diagnostic ceiling, concentrated in annotation provenance and the item-kind axis.
->   `plan_key_disagreements` is 0, so no source's compiled verdict changes between draws. Gate 11 is
->   soft and cannot override correctness. Accepting or addressing this is an explicit maintainer
->   call — see §9.11.
+> - **Open caveat, not a gate failure:** the stability figure is now split (§9.12). `outcome_rate`
+>   — the figure the 10% ceiling is about — is **28.9%**, roughly 3× over; the raw `rate` including
+>   provenance is 42.1%. `plan_key_disagreements` is 0, so no source's compiled identity changes
+>   between draws, and gate 11 is soft and cannot override correctness. Ten of the eleven
+>   outcome-moving sources move only on the item-kind axis, so one further single-lever arm has a
+>   measured projection of `outcome_rate` → ~2.6%. **This is unresolved and is the open decision.**
 > - **Spend to date:** eight paid full-corpus arms, ≈$8.50 at the dated snapshot's projected rate.
 >   No production mutation has occurred at any point; `OOS_EMAIL_PARSING_IMPLEMENTATION` is `legacy`
 >   in production and in `.env.example`.
@@ -1300,6 +1301,58 @@ before closing. It should not be waved through on the strength of the passing ga
 
 **§9.4 steps 6–8 are now complete.** What remains before Delivery 7 is the maintainer's review of the
 paired artifact and an explicit production-default approval, per step 10.
+
+### 9.12 Splitting the stability figure — and a correction that changes the caveat
+
+The §6.3 10% self-disagreement ceiling is inherited from the whole-document parser, where a
+self-disagreement *was* a changed answer. Under the annotation architecture the two came apart, and
+§6.3 already anticipated this in prose: a source-faithful candidate "is not rejected solely because
+an irrelevant semantic subtype varies while deterministic projection remains correct and safe". The
+metric did not implement that distinction. It now does.
+
+`OosSemanticCorrectnessScorer` (format **Version = 3**) reports two figures. `rate` is unchanged —
+any signature movement, provenance included. `outcome_rate` counts a source only when something a
+consumer can act on moved: service, date, scope, item structure or titles. `ceiling_applies_to`
+names `outcome_rate` explicitly. Both are kept, with the full decomposition, so a provenance
+regression stays visible rather than being defined away.
+
+Re-scored v6 pair: `storage/scratch/oos-semantic-score-terra-low-2026-08-20-v6-accepted.json`,
+`score_hash` `181241300caca65d202567277ee41b17526dc970e374df1867f4caea174119ed`, `verdict: pass`.
+
+**A correction, because the split changed the answer.** §9.11 and the session discussion leading to
+it reasoned that an item-kind arm "achieves nothing", on the grounds that every source moving on
+`item_structure`/`titles` also moves on `provenance`, so a perfect item-kind fix leaves the raw rate
+at 42.1%. That arithmetic is right and the conclusion drawn from it was wrong: it measured against
+the *raw* rate, which is exactly the figure this section has just established is the wrong one to
+judge by.
+
+Against `outcome_rate` the picture reverses:
+
+| | value | vs 10% ceiling |
+|---|---|---|
+| `rate` (raw, provenance included) | 42.1% | not the figure to judge by |
+| `outcome_rate` (v6 as it stands) | **28.9%** | ~3× over |
+| `outcome_rate` if the item-kind axis were perfect | **2.6%** | comfortably under |
+| `plan_key_disagreements` | 0 | identity never moves |
+
+Eleven of the 38 sources move on something consumer-visible. Ten of those eleven move only on the
+item-kind axis — the `other/other`-versus-specific-kind and `welcome`-versus-`notices` disagreements
+§9.8 identified and deliberately left unfixed. The eleventh (`2026-08-02-pm`) moves on
+`service_date_scope`.
+
+**So the caveat is not accepted, and should not be.** An item-kind arm is now the one change with a
+measured, specific projection: `outcome_rate` 28.9% → ~2.6%, which would take the candidate under
+the plan's own ceiling on the figure that ceiling is actually about. That is a materially different
+proposition from the one rejected earlier in the session, and the earlier rejection should not be
+relied on. Whether to spend it remains the maintainer's call; what has changed is that the spend now
+has a defensible expected outcome rather than none.
+
+Note the projection's own history: §9.9 recorded that the v6 projection was directionally right and
+numerically optimistic because it assumed removal-only. The same caution applies here — 2.6% is a
+ceiling on the improvement, not a forecast.
+
+Verification: full suite **7,003 tests, 83,906 assertions**, 140 notices, no failures; PHPStan 0
+errors; Pint passed. No paid model request; paid-call count unchanged at eight.
 
 ## 10. Non-goals
 
