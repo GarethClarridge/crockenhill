@@ -535,17 +535,18 @@ class OosArchiveAssertionBundle
     /** @return array<string, string> */
     private function fingerprints(): array
     {
-        $promptSchemaFingerprint = hash_file(
-            'sha256',
-            app_path('Services/Email/OpenAiOosEmailItemExtractor.php'),
-        );
-
-        if (! is_string($promptSchemaFingerprint)) {
-            throw new RuntimeException('Could not fingerprint the OoS extraction prompt and schema.');
-        }
+        /**
+         * This used to hash `OpenAiOosEmailItemExtractor.php`, the one file that held the legacy
+         * prompt and schema together. That file is gone with the legacy path, and the semantic
+         * equivalent is not one file but the whole annotate-compile surface, so the bundle now
+         * records {@see OosParserSurfaceFingerprint}'s hash — the same figure every evaluation arm
+         * declares. The key keeps its name because it answers the same question: which extraction
+         * code produced these assertions.
+         */
+        $promptSchemaFingerprint = (new OosParserSurfaceFingerprint)->fingerprint()['hash'];
 
         return [
-            'model_id' => (string) config('service-tracking.email_parsing.model'),
+            'model_id' => (string) config('service-tracking.email_parsing.semantic.model'),
             'prompt_schema' => $promptSchemaFingerprint,
             'config' => CanonicalJson::hash(config('service-tracking.email_parsing')),
         ];

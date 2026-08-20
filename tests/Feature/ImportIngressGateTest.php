@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
+use App\Data\OosEmailSourceDocument;
 use App\Enums\InboundEmailStatus;
 use App\Jobs\ProcessInboundOosEmail;
 use App\Models\ImportDeferredInboundEmail;
 use App\Models\ImportIngressLock;
 use App\Models\InboundEmail;
 use App\Models\User;
+use App\Services\Email\OosSemanticParserCandidate;
 use App\Services\Import\HorizonPauseAccounting;
 use App\Services\Import\ImportIngressGate;
 use Illuminate\Contracts\Bus\Dispatcher;
@@ -26,6 +27,7 @@ use Mockery;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
+use Tests\Support\FixedOosSemanticParserCandidate;
 use Tests\TestCase;
 
 /**
@@ -58,24 +60,20 @@ class ImportIngressGateTest extends TestCase
          * confident morning order, which is what a real order of service
          * staged during a window looks like.
          */
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $items = [['type' => 'song', 'title' => 'Amazing Grace']];
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::using(function (OosEmailSourceDocument $source): OosEmailItemExtractionResult {
+            $items = [['type' => 'song', 'title' => 'Amazing Grace']];
 
-                return new OosEmailItemExtractionResult(
-                    items: $items,
-                    confidence: 0.99,
-                    services: [[
-                        'service' => 'morning',
-                        'date' => $receivedDate,
-                        'items' => $items,
-                        'confidence' => 0.99,
-                    ]],
-                );
-            }
-        });
+            return new OosEmailItemExtractionResult(
+                items: $items,
+                confidence: 0.99,
+                services: [[
+                    'service' => 'morning',
+                    'date' => $source->receivedDate,
+                    'items' => $items,
+                    'confidence' => 0.99,
+                ]],
+            );
+        }));
     }
 
     #[Test]

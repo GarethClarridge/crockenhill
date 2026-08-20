@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Traits;
 
-use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
+use App\Services\Email\OosSemanticParserCandidate;
+use Tests\Support\FixedOosSemanticParserCandidate;
 
 trait WithInboundEmailTestHelpers
 {
@@ -104,27 +105,19 @@ trait WithInboundEmailTestHelpers
 
     protected function bindExtractor(OosEmailItemExtractionResult $result): void
     {
-        $this->app->bind(OosEmailItemExtractor::class, fn () => new class($result) implements OosEmailItemExtractor
-        {
-            public function __construct(
-                private readonly OosEmailItemExtractionResult $result,
-            ) {}
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return $this->result;
-            }
-        });
+        $this->app->bind(
+            OosSemanticParserCandidate::class,
+            fn () => FixedOosSemanticParserCandidate::returning($result),
+        );
     }
 
     protected function bindFailingExtractor(): void
     {
-        $this->app->bind(OosEmailItemExtractor::class, fn () => new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                throw new \RuntimeException('Stored parse data should have been used instead of reparsing.');
-            }
-        });
+        $this->app->bind(
+            OosSemanticParserCandidate::class,
+            fn () => FixedOosSemanticParserCandidate::unreachable(
+                'Stored parse data should have been used instead of reparsing.',
+            ),
+        );
     }
 }

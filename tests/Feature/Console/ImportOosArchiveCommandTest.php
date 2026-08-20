@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
+use App\Data\OosEmailSourceDocument;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
@@ -18,6 +18,7 @@ use App\Services\ChurchService\ChurchServiceEvidenceSet;
 use App\Services\ChurchService\ChurchServiceSongLinker;
 use App\Services\Email\OosArchiveParseCacheBinding;
 use App\Services\Email\OosCurationManifest;
+use App\Services\Email\OosSemanticParserCandidate;
 use App\Services\Import\HistoricEmailEvidenceReleaseGate;
 use App\Services\Import\HistoricImportResourceIdentity;
 use App\Support\CanonicalJson;
@@ -29,6 +30,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
+use Tests\Support\FixedOosSemanticParserCandidate;
 use Tests\TestCase;
 
 class ImportOosArchiveCommandTest extends TestCase
@@ -86,13 +88,7 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function dry_run_splits_and_reports_without_database_or_extractor_access(): void
     {
-        $this->app->bind(OosEmailItemExtractor::class, fn () => new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                throw new RuntimeException('Dry run must not call the extractor.');
-            }
-        });
+        $this->app->bind(OosSemanticParserCandidate::class, fn () => FixedOosSemanticParserCandidate::unreachable('Dry run must not call the extractor.'));
         $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $report = $this->temporaryPath('json');
 
@@ -111,27 +107,17 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function parse_runs_are_idempotent_and_hash_aware(): void
     {
-        $extractor = new class implements OosEmailItemExtractor
-        {
-            public int $calls = 0;
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $this->calls++;
-
-                return new OosEmailItemExtractionResult(
-                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
-                    confidence: 0.99,
-                    services: [[
-                        'service' => 'morning',
-                        'date' => '2026-07-12',
-                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
-                        'confidence' => 0.99,
-                    ]],
-                );
-            }
-        };
-        $this->app->instance(OosEmailItemExtractor::class, $extractor);
+        $extractor = FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Amazing Grace']],
+            confidence: 0.99,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 0.99,
+            ]],
+        ));
+        $this->app->instance(OosSemanticParserCandidate::class, $extractor);
         $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $report = $this->temporaryPath('json');
 
@@ -164,31 +150,17 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function a_stale_parser_version_forces_a_reparse_even_when_the_input_hash_matches(): void
     {
-        $extractor = new class implements OosEmailItemExtractor
-        {
-            public int $calls = 0;
-
-            /** @var list<string> */
-            public array $receivedDates = [];
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $this->calls++;
-                $this->receivedDates[] = $receivedDate;
-
-                return new OosEmailItemExtractionResult(
-                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
-                    confidence: 0.99,
-                    services: [[
-                        'service' => 'morning',
-                        'date' => '2026-07-12',
-                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
-                        'confidence' => 0.99,
-                    ]],
-                );
-            }
-        };
-        $this->app->instance(OosEmailItemExtractor::class, $extractor);
+        $extractor = FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Amazing Grace']],
+            confidence: 0.99,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 0.99,
+            ]],
+        ));
+        $this->app->instance(OosSemanticParserCandidate::class, $extractor);
         $corpus = $this->corpus([[
             'key' => '2026-07-12-am',
             'date' => '2026-07-12',
@@ -260,28 +232,17 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function a_changed_received_date_invalidates_a_same_version_cached_parse(): void
     {
-        $extractor = new class implements OosEmailItemExtractor
-        {
-            /** @var list<string> */
-            public array $receivedDates = [];
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $this->receivedDates[] = $receivedDate;
-
-                return new OosEmailItemExtractionResult(
-                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
-                    confidence: 0.99,
-                    services: [[
-                        'service' => 'morning',
-                        'date' => '2026-07-12',
-                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
-                        'confidence' => 0.99,
-                    ]],
-                );
-            }
-        };
-        $this->app->instance(OosEmailItemExtractor::class, $extractor);
+        $extractor = FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Amazing Grace']],
+            confidence: 0.99,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 0.99,
+            ]],
+        ));
+        $this->app->instance(OosSemanticParserCandidate::class, $extractor);
         $corpus = $this->corpus([[
             'key' => '2026-07-12-am',
             'date' => '2026-07-12',
@@ -308,24 +269,20 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function import_merges_into_an_existing_service_and_creates_gap_slots(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $date = str_contains($subject, '2026-07-19') ? '2026-07-19' : '2026-07-12';
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::using(function (OosEmailSourceDocument $source): OosEmailItemExtractionResult {
+            $date = str_contains($source->subject, '2026-07-19') ? '2026-07-19' : '2026-07-12';
 
-                return new OosEmailItemExtractionResult(
-                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
-                    confidence: 1.0,
-                    services: [[
-                        'service' => 'morning',
-                        'date' => $date,
-                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
-                        'confidence' => 1.0,
-                    ]],
-                );
-            }
-        });
+            return new OosEmailItemExtractionResult(
+                items: [['type' => 'song', 'title' => 'Amazing Grace']],
+                confidence: 1.0,
+                services: [[
+                    'service' => 'morning',
+                    'date' => $date,
+                    'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                    'confidence' => 1.0,
+                ]],
+            );
+        }));
 
         // An OpenLP export identifies the service but cannot carry prayers, notices or a sermon:
         // the archive email is the completeness authority and merges into it.
@@ -365,22 +322,16 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function a_single_unidentified_plan_uses_the_approved_manifest_identity(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return new OosEmailItemExtractionResult(
-                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
-                    confidence: 0.99,
-                    services: [[
-                        'service' => null,
-                        'date' => null,
-                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
-                        'confidence' => 0.99,
-                    ]],
-                );
-            }
-        });
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Amazing Grace']],
+            confidence: 0.99,
+            services: [[
+                'service' => null,
+                'date' => null,
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 0.99,
+            ]],
+        )));
         $corpus = $this->corpus([[
             'key' => '2026-07-12-pm',
             'date' => '2026-07-12',
@@ -409,13 +360,7 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function a_strict_identity_disagreement_fails_the_run_before_anything_is_touched(): void
     {
-        $this->app->bind(OosEmailItemExtractor::class, fn () => new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                throw new RuntimeException('A failed reconciliation must not reach the extractor.');
-            }
-        });
+        $this->app->bind(OosSemanticParserCandidate::class, fn () => FixedOosSemanticParserCandidate::unreachable('A failed reconciliation must not reach the extractor.'));
 
         // The manifest resolves this entry to the morning service; the payload itself says pm.
         $corpus = $this->corpus([
@@ -531,22 +476,16 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function manifest_authoritative_records_the_adjudication_and_lets_the_entry_through(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return new OosEmailItemExtractionResult(
-                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
-                    confidence: 1.0,
-                    services: [[
-                        'service' => 'morning',
-                        'date' => '2026-07-12',
-                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
-                        'confidence' => 1.0,
-                    ]],
-                );
-            }
-        });
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Amazing Grace']],
+            confidence: 1.0,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 1.0,
+            ]],
+        )));
 
         $corpus = $this->corpus([[
             'key' => '2026-07-12-am',
@@ -572,11 +511,9 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function a_partial_order_is_retained_as_incomplete_evidence_without_entering_the_review_inbox(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $date = str_contains($body, 'Abide') ? '2026-07-26' : '2026-07-12';
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::using(
+            function (OosEmailSourceDocument $source): OosEmailItemExtractionResult {
+                $date = str_contains($source->promptBody(), 'Abide') ? '2026-07-26' : '2026-07-12';
 
                 return new OosEmailItemExtractionResult(
                     items: [['type' => 'song', 'title' => 'Amazing Grace']],
@@ -588,8 +525,8 @@ class ImportOosArchiveCommandTest extends TestCase
                         'confidence' => 1.0,
                     ]],
                 );
-            }
-        });
+            },
+        ));
 
         $corpus = $this->corpus([
             ['key' => '2026-07-12-am', 'date' => '2026-07-12'],
@@ -651,27 +588,17 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Group('hir-red')]
     public function a_re_curation_to_partial_cannot_reuse_a_parse_resolved_as_a_full_order(): void
     {
-        $extractor = new class implements OosEmailItemExtractor
-        {
-            public int $calls = 0;
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $this->calls++;
-
-                return new OosEmailItemExtractionResult(
-                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
-                    confidence: 0.99,
-                    services: [[
-                        'service' => 'morning',
-                        'date' => '2026-07-12',
-                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
-                        'confidence' => 0.99,
-                    ]],
-                );
-            }
-        };
-        $this->app->instance(OosEmailItemExtractor::class, $extractor);
+        $extractor = FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Amazing Grace']],
+            confidence: 0.99,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 0.99,
+            ]],
+        ));
+        $this->app->instance(OosSemanticParserCandidate::class, $extractor);
 
         // Curated as a complete order, and parsed under that authority.
         $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
@@ -1001,27 +928,23 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function re_running_the_import_merges_idempotently(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $items = [
-                    ['type' => 'song', 'title' => 'Amazing Grace'],
-                    ['type' => 'sermon', 'title' => 'The Good Shepherd'],
-                ];
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::using(function (OosEmailSourceDocument $source): OosEmailItemExtractionResult {
+            $items = [
+                ['type' => 'song', 'title' => 'Amazing Grace'],
+                ['type' => 'sermon', 'title' => 'The Good Shepherd'],
+            ];
 
-                return new OosEmailItemExtractionResult(
-                    items: $items,
-                    confidence: 1.0,
-                    services: [[
-                        'service' => 'morning',
-                        'date' => '2026-07-12',
-                        'items' => $items,
-                        'confidence' => 1.0,
-                    ]],
-                );
-            }
-        });
+            return new OosEmailItemExtractionResult(
+                items: $items,
+                confidence: 1.0,
+                services: [[
+                    'service' => 'morning',
+                    'date' => '2026-07-12',
+                    'items' => $items,
+                    'confidence' => 1.0,
+                ]],
+            );
+        }));
         $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $arguments = [...$corpus, '--import' => true, '--plan-hash' => $this->planHash(), '--report' => $this->temporaryPath('json')];
 
@@ -1052,25 +975,17 @@ class ImportOosArchiveCommandTest extends TestCase
         // corroboration gate is the one identity failure REV-D2 explicitly keeps held — "do not
         // weaken it" — so nothing is applied to the service the earlier run built, and the entry
         // has to become visible again rather than stay Processed.
-        $extractor = new class implements OosEmailItemExtractor
-        {
-            public string $date = '2026-07-12';
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return new OosEmailItemExtractionResult(
-                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
-                    confidence: 0.99,
-                    services: [[
-                        'service' => 'morning',
-                        'date' => $this->date,
-                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
-                        'confidence' => 0.99,
-                    ]],
-                );
-            }
-        };
-        $this->app->instance(OosEmailItemExtractor::class, $extractor);
+        $extractor = FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Amazing Grace']],
+            confidence: 0.99,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 0.99,
+            ]],
+        ));
+        $this->app->instance(OosSemanticParserCandidate::class, $extractor);
         $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
 
         $this->artisan('oos:import-archive', [
@@ -1084,7 +999,16 @@ class ImportOosArchiveCommandTest extends TestCase
 
         // A date the manifest never approved for this document — the identity gate, not merely
         // low confidence.
-        $extractor->date = '2026-07-19';
+        $extractor->willReturn(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Amazing Grace']],
+            confidence: 0.99,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-19',
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 0.99,
+            ]],
+        ));
         $report = $this->temporaryPath('json');
 
         $this->artisan('oos:import-archive', [
@@ -1115,25 +1039,17 @@ class ImportOosArchiveCommandTest extends TestCase
         // IC1/REV-D2: unlike the identity-failure case above, a re-parse that keeps the same
         // corroborated identity but drops below the auto-import bar is not held — it merges as
         // unreviewed, unfinalised evidence, exactly as a live corrective email would.
-        $extractor = new class implements OosEmailItemExtractor
-        {
-            public float $confidence = 1.0;
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return new OosEmailItemExtractionResult(
-                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
-                    confidence: $this->confidence,
-                    services: [[
-                        'service' => 'morning',
-                        'date' => '2026-07-12',
-                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
-                        'confidence' => $this->confidence,
-                    ]],
-                );
-            }
-        };
-        $this->app->instance(OosEmailItemExtractor::class, $extractor);
+        $extractor = FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Amazing Grace']],
+            confidence: 0.99,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 0.99,
+            ]],
+        ));
+        $this->app->instance(OosSemanticParserCandidate::class, $extractor);
         $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
 
         $this->artisan('oos:import-archive', [
@@ -1145,7 +1061,16 @@ class ImportOosArchiveCommandTest extends TestCase
         $service = ChurchService::query()->where('date', '2026-07-12')->firstOrFail();
         $this->assertFalse((bool) $service->needs_review);
 
-        $extractor->confidence = 0.4;
+        $extractor->willReturn(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Amazing Grace']],
+            confidence: 0.4,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 0.4,
+            ]],
+        ));
         $report = $this->temporaryPath('json');
 
         $this->artisan('oos:import-archive', [
@@ -1173,28 +1098,22 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function import_skips_a_plan_dated_outside_the_curated_service(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return new OosEmailItemExtractionResult(
-                    items: [
-                        ['type' => 'song', 'title' => 'Amazing Grace'],
-                        ['type' => 'sermon', 'title' => 'Next Week'],
-                    ],
-                    confidence: 0.99,
-                    services: [
-                        ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
-                            ['type' => 'song', 'title' => 'Amazing Grace'],
-                        ], 'confidence' => 0.99],
-                        // A date the manifest never approved for this document.
-                        ['service' => 'evening', 'date' => '2026-07-19', 'items' => [
-                            ['type' => 'sermon', 'title' => 'Next Week'],
-                        ], 'confidence' => 0.99],
-                    ],
-                );
-            }
-        });
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [
+                ['type' => 'song', 'title' => 'Amazing Grace'],
+                ['type' => 'sermon', 'title' => 'Next Week'],
+            ],
+            confidence: 0.99,
+            services: [
+                ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
+                    ['type' => 'song', 'title' => 'Amazing Grace'],
+                ], 'confidence' => 0.99],
+                // A date the manifest never approved for this document.
+                ['service' => 'evening', 'date' => '2026-07-19', 'items' => [
+                    ['type' => 'sermon', 'title' => 'Next Week'],
+                ], 'confidence' => 0.99],
+            ],
+        )));
         $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $report = $this->temporaryPath('json');
 
@@ -1212,22 +1131,16 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function an_import_failure_surfaces_as_a_failed_disposition(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return new OosEmailItemExtractionResult(
-                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
-                    confidence: 1.0,
-                    services: [[
-                        'service' => 'morning',
-                        'date' => '2026-07-12',
-                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
-                        'confidence' => 1.0,
-                    ]],
-                );
-            }
-        });
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Amazing Grace']],
+            confidence: 1.0,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 1.0,
+            ]],
+        )));
         $this->mock(ChurchServiceSongLinker::class, function (MockInterface $mock): void {
             $mock->shouldReceive('linkForService')->andThrow(new RuntimeException('song sync exploded'));
         });
@@ -1255,27 +1168,21 @@ class ImportOosArchiveCommandTest extends TestCase
         // plans by identity. The evening plan's confidence never reaches the auto-import bar, so
         // it is not finalised — but its identity is trustworthy, so it now imports as unreviewed
         // source evidence rather than being held outright.
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return new OosEmailItemExtractionResult(
-                    items: [
-                        ['type' => 'song', 'title' => 'Amazing Grace'],
-                        ['type' => 'song', 'title' => 'Abide With Me'],
-                    ],
-                    confidence: 0.99,
-                    services: [
-                        ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
-                            ['type' => 'song', 'title' => 'Amazing Grace'],
-                        ], 'confidence' => 0.99],
-                        ['service' => 'evening', 'date' => '2026-07-12', 'items' => [
-                            ['type' => 'song', 'title' => 'Abide With Me'],
-                        ], 'confidence' => 0.60],
-                    ],
-                );
-            }
-        });
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [
+                ['type' => 'song', 'title' => 'Amazing Grace'],
+                ['type' => 'song', 'title' => 'Abide With Me'],
+            ],
+            confidence: 0.99,
+            services: [
+                ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
+                    ['type' => 'song', 'title' => 'Amazing Grace'],
+                ], 'confidence' => 0.99],
+                ['service' => 'evening', 'date' => '2026-07-12', 'items' => [
+                    ['type' => 'song', 'title' => 'Abide With Me'],
+                ], 'confidence' => 0.60],
+            ],
+        )));
         $corpus = $this->corpus([[
             'key' => '2026-07-12-am',
             'date' => '2026-07-12',
@@ -1311,21 +1218,15 @@ class ImportOosArchiveCommandTest extends TestCase
     {
         // IC1 red test 5: re-running the import over the same corroborated-but-unfinalised plan
         // must not create a duplicate service or duplicate items.
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return new OosEmailItemExtractionResult(
-                    items: [['type' => 'song', 'title' => 'Abide With Me']],
-                    confidence: 0.60,
-                    services: [
-                        ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
-                            ['type' => 'song', 'title' => 'Abide With Me'],
-                        ], 'confidence' => 0.60],
-                    ],
-                );
-            }
-        });
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Abide With Me']],
+            confidence: 0.60,
+            services: [
+                ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
+                    ['type' => 'song', 'title' => 'Abide With Me'],
+                ], 'confidence' => 0.60],
+            ],
+        )));
         $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $arguments = [...$corpus, '--import' => true, '--plan-hash' => $this->planHash(), '--report' => $this->temporaryPath('json')];
 
@@ -1357,27 +1258,21 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function both_orders_in_one_email_are_imported_just_as_the_live_pipeline_does(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return new OosEmailItemExtractionResult(
-                    items: [
-                        ['type' => 'song', 'title' => 'Amazing Grace'],
-                        ['type' => 'song', 'title' => 'Abide With Me'],
-                    ],
-                    confidence: 0.99,
-                    services: [
-                        ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
-                            ['type' => 'song', 'title' => 'Amazing Grace'],
-                        ], 'confidence' => 0.99],
-                        ['service' => 'evening', 'date' => '2026-07-12', 'items' => [
-                            ['type' => 'song', 'title' => 'Abide With Me'],
-                        ], 'confidence' => 0.99],
-                    ],
-                );
-            }
-        });
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [
+                ['type' => 'song', 'title' => 'Amazing Grace'],
+                ['type' => 'song', 'title' => 'Abide With Me'],
+            ],
+            confidence: 0.99,
+            services: [
+                ['service' => 'morning', 'date' => '2026-07-12', 'items' => [
+                    ['type' => 'song', 'title' => 'Amazing Grace'],
+                ], 'confidence' => 0.99],
+                ['service' => 'evening', 'date' => '2026-07-12', 'items' => [
+                    ['type' => 'song', 'title' => 'Abide With Me'],
+                ], 'confidence' => 0.99],
+            ],
+        )));
         $corpus = $this->corpus([[
             'key' => '2026-07-12-am',
             'date' => '2026-07-12',
@@ -1419,22 +1314,16 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function an_entry_whose_curated_service_the_parse_never_finds_is_held_for_review(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return new OosEmailItemExtractionResult(
-                    items: [['type' => 'song', 'title' => 'Abide With Me']],
-                    confidence: 0.99,
-                    services: [[
-                        'service' => 'evening',
-                        'date' => '2026-07-12',
-                        'items' => [['type' => 'song', 'title' => 'Abide With Me']],
-                        'confidence' => 0.99,
-                    ]],
-                );
-            }
-        });
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Abide With Me']],
+            confidence: 0.99,
+            services: [[
+                'service' => 'evening',
+                'date' => '2026-07-12',
+                'items' => [['type' => 'song', 'title' => 'Abide With Me']],
+                'confidence' => 0.99,
+            ]],
+        )));
         $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12', 'service' => 'morning']]);
         $report = $this->temporaryPath('json');
 
@@ -1459,24 +1348,20 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function a_changed_source_after_import_is_reported_without_touching_the_service(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $item = ['type' => 'song', 'title' => trim($body)];
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::using(function (OosEmailSourceDocument $source): OosEmailItemExtractionResult {
+            $item = ['type' => 'song', 'title' => trim($source->promptBody())];
 
-                return new OosEmailItemExtractionResult(
-                    items: [$item],
-                    confidence: 1.0,
-                    services: [[
-                        'service' => 'morning',
-                        'date' => '2026-07-12',
-                        'items' => [$item],
-                        'confidence' => 1.0,
-                    ]],
-                );
-            }
-        });
+            return new OosEmailItemExtractionResult(
+                items: [$item],
+                confidence: 1.0,
+                services: [[
+                    'service' => 'morning',
+                    'date' => '2026-07-12',
+                    'items' => [$item],
+                    'confidence' => 1.0,
+                ]],
+            );
+        }));
         $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
         $report = $this->temporaryPath('json');
         $arguments = [...$corpus, '--import' => true, '--plan-hash' => $this->planHash(), '--report' => $report];
@@ -1521,13 +1406,7 @@ class ImportOosArchiveCommandTest extends TestCase
 
         InboundEmail::query()->delete();
         InboundEmail::factory()->create(['message_id' => '<different-primary-key@example.test>']);
-        $this->app->bind(OosEmailItemExtractor::class, fn () => new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                throw new RuntimeException('Portable bundle modes must not call the extractor.');
-            }
-        });
+        $this->app->bind(OosSemanticParserCandidate::class, fn () => FixedOosSemanticParserCandidate::unreachable('Portable bundle modes must not call the extractor.'));
 
         $this->artisan('oos:import-archive', [
             ...$corpus,
@@ -1565,31 +1444,27 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function a_correction_imports_when_its_predecessor_only_missed_the_auto_import_bar(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $corrected = str_contains($subject, 'Corrected');
-                $confidence = $corrected ? 0.92 : 0.85;
-                $item = [
-                    'type' => 'song',
-                    'title' => $corrected ? 'Corrected order' : 'Original order',
-                    'source_line_ids' => [2],
-                    'continuation' => false,
-                ];
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::using(function (OosEmailSourceDocument $source): OosEmailItemExtractionResult {
+            $corrected = str_contains($source->subject, 'Corrected');
+            $confidence = $corrected ? 0.92 : 0.85;
+            $item = [
+                'type' => 'song',
+                'title' => $corrected ? 'Corrected order' : 'Original order',
+                'source_line_ids' => [2],
+                'continuation' => false,
+            ];
 
-                return new OosEmailItemExtractionResult(
-                    items: [$item],
-                    confidence: $confidence,
-                    services: [[
-                        'service' => 'morning', 'date' => '2026-07-12', 'service_evidence_line_ids' => [1],
-                        'items' => [$item], 'confidence' => $confidence,
-                    ]],
-                    serviceCount: 1,
-                    provenanceComplete: true,
-                );
-            }
-        });
+            return new OosEmailItemExtractionResult(
+                items: [$item],
+                confidence: $confidence,
+                services: [[
+                    'service' => 'morning', 'date' => '2026-07-12', 'service_evidence_line_ids' => [1],
+                    'items' => [$item], 'confidence' => $confidence,
+                ]],
+                serviceCount: 1,
+                provenanceComplete: true,
+            );
+        }));
         $corpus = $this->corpus([
             ['key' => '2026-07-12-original', 'date' => '2026-07-12', 'subject' => 'Original order'],
             ['key' => '2026-07-12-correction', 'date' => '2026-07-12', 'subject' => 'Corrected order', 'supersedes' => '2026-07-12-original'],
@@ -1629,33 +1504,29 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function a_correction_stays_held_when_its_predecessor_fails_the_identity_gate(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $corrected = str_contains($subject, 'Corrected');
-                // The uncorrected document's own extraction disagrees with the manifest about
-                // which date it belongs to — an identity failure, not a confidence one.
-                $date = $corrected ? '2026-07-12' : '2026-07-19';
-                $item = [
-                    'type' => 'song',
-                    'title' => $corrected ? 'Corrected order' : 'Original order',
-                    'source_line_ids' => [2],
-                    'continuation' => false,
-                ];
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::using(function (OosEmailSourceDocument $source): OosEmailItemExtractionResult {
+            $corrected = str_contains($source->subject, 'Corrected');
+            // The uncorrected document's own extraction disagrees with the manifest about
+            // which date it belongs to — an identity failure, not a confidence one.
+            $date = $corrected ? '2026-07-12' : '2026-07-19';
+            $item = [
+                'type' => 'song',
+                'title' => $corrected ? 'Corrected order' : 'Original order',
+                'source_line_ids' => [2],
+                'continuation' => false,
+            ];
 
-                return new OosEmailItemExtractionResult(
-                    items: [$item],
-                    confidence: 0.99,
-                    services: [[
-                        'service' => 'morning', 'date' => $date, 'service_evidence_line_ids' => [1],
-                        'items' => [$item], 'confidence' => 0.99,
-                    ]],
-                    serviceCount: 1,
-                    provenanceComplete: true,
-                );
-            }
-        });
+            return new OosEmailItemExtractionResult(
+                items: [$item],
+                confidence: 0.99,
+                services: [[
+                    'service' => 'morning', 'date' => $date, 'service_evidence_line_ids' => [1],
+                    'items' => [$item], 'confidence' => 0.99,
+                ]],
+                serviceCount: 1,
+                provenanceComplete: true,
+            );
+        }));
         $corpus = $this->corpus([
             ['key' => '2026-07-12-original', 'date' => '2026-07-12', 'subject' => 'Original order'],
             ['key' => '2026-07-12-correction', 'date' => '2026-07-12', 'subject' => 'Corrected order', 'supersedes' => '2026-07-12-original'],
@@ -1682,25 +1553,21 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function manifest_authorised_email_correction_replaces_its_predecessor_in_direct_and_portable_imports(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $title = str_contains($subject, 'Corrected') ? 'Corrected order' : 'Original order';
-                $item = ['type' => 'song', 'title' => $title, 'source_line_ids' => [2], 'continuation' => false];
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::using(function (OosEmailSourceDocument $source): OosEmailItemExtractionResult {
+            $title = str_contains($source->subject, 'Corrected') ? 'Corrected order' : 'Original order';
+            $item = ['type' => 'song', 'title' => $title, 'source_line_ids' => [2], 'continuation' => false];
 
-                return new OosEmailItemExtractionResult(
-                    items: [$item],
-                    confidence: 1.0,
-                    services: [[
-                        'service' => 'morning', 'date' => '2026-07-12', 'service_evidence_line_ids' => [1],
-                        'items' => [$item], 'confidence' => 1.0,
-                    ]],
-                    serviceCount: 1,
-                    provenanceComplete: true,
-                );
-            }
-        });
+            return new OosEmailItemExtractionResult(
+                items: [$item],
+                confidence: 1.0,
+                services: [[
+                    'service' => 'morning', 'date' => '2026-07-12', 'service_evidence_line_ids' => [1],
+                    'items' => [$item], 'confidence' => 1.0,
+                ]],
+                serviceCount: 1,
+                provenanceComplete: true,
+            );
+        }));
         $corpus = $this->corpus([
             ['key' => '2026-07-12-original', 'date' => '2026-07-12', 'subject' => 'Original order'],
             ['key' => '2026-07-12-correction', 'date' => '2026-07-12', 'subject' => 'Corrected order', 'supersedes' => '2026-07-12-original'],
@@ -1791,7 +1658,7 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertDatabaseCount('inbound_emails', 0);
         $this->assertDatabaseCount('church_services', 0);
 
-        $payload['entries'][0]['fingerprints']['model_id'] = (string) config('service-tracking.email_parsing.model');
+        $payload['entries'][0]['fingerprints']['model_id'] = (string) config('service-tracking.email_parsing.semantic.model');
         $payload['entries'][0]['payload_hash'] = CanonicalJson::hash(
             array_diff_key($payload['entries'][0], ['payload_hash' => true]),
         );
@@ -1839,33 +1706,29 @@ class ImportOosArchiveCommandTest extends TestCase
     #[Test]
     public function a_multi_entry_bundle_apply_rolls_back_when_any_entry_fails(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $date = str_contains($subject, '2026-07-19') ? '2026-07-19' : '2026-07-12';
-                $item = [
-                    'type' => 'song',
-                    'title' => 'Amazing Grace',
-                    'source_line_ids' => [2],
-                    'continuation' => false,
-                ];
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::using(function (OosEmailSourceDocument $source): OosEmailItemExtractionResult {
+            $date = str_contains($source->subject, '2026-07-19') ? '2026-07-19' : '2026-07-12';
+            $item = [
+                'type' => 'song',
+                'title' => 'Amazing Grace',
+                'source_line_ids' => [2],
+                'continuation' => false,
+            ];
 
-                return new OosEmailItemExtractionResult(
-                    items: [$item],
-                    confidence: 1.0,
-                    services: [[
-                        'service' => 'morning',
-                        'date' => $date,
-                        'service_evidence_line_ids' => [1],
-                        'items' => [$item],
-                        'confidence' => 1.0,
-                    ]],
-                    serviceCount: 1,
-                    provenanceComplete: true,
-                );
-            }
-        });
+            return new OosEmailItemExtractionResult(
+                items: [$item],
+                confidence: 1.0,
+                services: [[
+                    'service' => 'morning',
+                    'date' => $date,
+                    'service_evidence_line_ids' => [1],
+                    'items' => [$item],
+                    'confidence' => 1.0,
+                ]],
+                serviceCount: 1,
+                provenanceComplete: true,
+            );
+        }));
         $corpus = $this->corpus([
             ['key' => '2026-07-12-am', 'date' => '2026-07-12'],
             ['key' => '2026-07-19-am', 'date' => '2026-07-19'],
@@ -1896,32 +1759,28 @@ class ImportOosArchiveCommandTest extends TestCase
 
     private function bindPortableExtractor(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $item = [
-                    'type' => 'song',
-                    'title' => 'Amazing Grace',
-                    'source_line_ids' => [2],
-                    'continuation' => false,
-                ];
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::using(function (OosEmailSourceDocument $source): OosEmailItemExtractionResult {
+            $item = [
+                'type' => 'song',
+                'title' => 'Amazing Grace',
+                'source_line_ids' => [2],
+                'continuation' => false,
+            ];
 
-                return new OosEmailItemExtractionResult(
-                    items: [$item],
-                    confidence: 1.0,
-                    services: [[
-                        'service' => 'morning',
-                        'date' => '2026-07-12',
-                        'service_evidence_line_ids' => [1],
-                        'items' => [$item],
-                        'confidence' => 1.0,
-                    ]],
-                    serviceCount: 1,
-                    provenanceComplete: true,
-                );
-            }
-        });
+            return new OosEmailItemExtractionResult(
+                items: [$item],
+                confidence: 1.0,
+                services: [[
+                    'service' => 'morning',
+                    'date' => '2026-07-12',
+                    'service_evidence_line_ids' => [1],
+                    'items' => [$item],
+                    'confidence' => 1.0,
+                ]],
+                serviceCount: 1,
+                provenanceComplete: true,
+            );
+        }));
     }
 
     /**
@@ -2010,22 +1869,16 @@ class ImportOosArchiveCommandTest extends TestCase
     /** A deterministic single-service parse, so the F2 tests turn only on the guard. */
     private function stubMorningExtractor(): void
     {
-        $this->app->instance(OosEmailItemExtractor::class, new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return new OosEmailItemExtractionResult(
-                    items: [['type' => 'song', 'title' => 'Amazing Grace']],
-                    confidence: 0.99,
-                    services: [[
-                        'service' => 'morning',
-                        'date' => '2026-07-12',
-                        'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
-                        'confidence' => 0.99,
-                    ]],
-                );
-            }
-        });
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Amazing Grace']],
+            confidence: 0.99,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 0.99,
+            ]],
+        )));
     }
 
     private function assertCorrectionLineage(): void
@@ -2175,26 +2028,13 @@ class ImportOosArchiveCommandTest extends TestCase
             'confidence' => 0.99,
         ]];
 
-        $extractor = new class($services) implements OosEmailItemExtractor
-        {
-            public int $calls = 0;
+        $extractor = FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: $services[0]['items'],
+            confidence: 0.99,
+            services: $services,
+        ));
 
-            /** @param list<array<string, mixed>> $services */
-            public function __construct(private readonly array $services) {}
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $this->calls++;
-
-                return new OosEmailItemExtractionResult(
-                    items: $this->services[0]['items'],
-                    confidence: 0.99,
-                    services: $this->services,
-                );
-            }
-        };
-
-        $this->app->instance(OosEmailItemExtractor::class, $extractor);
+        $this->app->instance(OosSemanticParserCandidate::class, $extractor);
 
         return $extractor;
     }

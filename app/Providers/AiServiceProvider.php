@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Contracts\OosEmailItemExtractor;
 use App\Contracts\OosSemanticAnnotator;
 use App\Contracts\OosSemanticRepairer;
 use App\Contracts\SermonAnalysisInterface;
@@ -14,7 +13,6 @@ use App\Contracts\TranscriptionServiceInterface;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
 use App\Services\ChurchService\Structure\OpenAiServiceStructureService;
 use App\Services\Email\OosParserEvaluationTelemetry;
-use App\Services\Email\OpenAiOosEmailItemExtractor;
 use App\Services\Email\OpenAiOosSemanticAnnotator;
 use App\Services\Email\OpenAiOosSemanticRepairer;
 use App\Services\Media\Audio\AudioTranscriptionService;
@@ -102,7 +100,6 @@ class AiServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(OosParserEvaluationTelemetry::class);
-        $this->app->bind(OosEmailItemExtractor::class, OpenAiOosEmailItemExtractor::class);
         $this->app->bind(OosSemanticAnnotator::class, OpenAiOosSemanticAnnotator::class);
         $this->app->bind(OosSemanticRepairer::class, OpenAiOosSemanticRepairer::class);
     }

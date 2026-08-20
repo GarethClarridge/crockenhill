@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
-use App\Contracts\AdjudicatingOosEmailItemExtractor;
-use App\Contracts\CorrectiveOosEmailItemExtractor;
-use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
+use App\Data\OosEmailSourceDocument;
 use App\Enums\OosEmailParseDisposition;
 use App\Enums\OosEmailPlanHoldReason;
 use App\Enums\SermonService;
@@ -19,6 +17,7 @@ use App\Services\Email\OosEmailParserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\FixedOosSemanticParserCandidate;
 use Tests\TestCase;
 
 class OosEmailParserServiceTest extends TestCase
@@ -28,29 +27,26 @@ class OosEmailParserServiceTest extends TestCase
     #[Test]
     public function it_prefers_plain_text_and_returns_a_high_confidence_typed_parse(): void
     {
-        $extractor = new class($this->extraction([$this->plan('morning', '2026-03-15', 0.95, [['type' => 'welcome', 'title' => 'Welcome'], ['type' => 'song', 'title' => 'Before the throne of God above'], ['type' => 'prayer', 'title' => 'Opening prayer'], ['type' => 'bible_reading', 'title' => 'Luke 15:1-32']])])) implements OosEmailItemExtractor
+        $captured = new class
         {
-            public string $capturedBody = '';
+            public string $body = '';
 
-            public string $capturedReceivedDate = '';
-
-            public int $calls = 0;
-
-            public function __construct(
-                private readonly OosEmailItemExtractionResult $result,
-            ) {}
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $this->capturedBody = $body;
-                $this->capturedReceivedDate = $receivedDate;
-                $this->calls++;
-
-                return $this->result;
-            }
+            public string $receivedDate = '';
         };
+        $extraction = $this->extraction([$this->plan('morning', '2026-03-15', 0.95, [['type' => 'welcome', 'title' => 'Welcome'], ['type' => 'song', 'title' => 'Before the throne of God above'], ['type' => 'prayer', 'title' => 'Opening prayer'], ['type' => 'bible_reading', 'title' => 'Luke 15:1-32']])]);
+        $extractor = FixedOosSemanticParserCandidate::using(
+            function (OosEmailSourceDocument $source) use ($captured, $extraction): OosEmailItemExtractionResult {
+                $captured->body = implode("\n", array_map(
+                    static fn (int $lineId): string => (string) $source->exactLine($lineId),
+                    $source->lineIds(),
+                ));
+                $captured->receivedDate = (string) $source->receivedDate;
 
-        $result = (new OosEmailParserService($extractor, new ExistingEmailImportLookup, app(ServiceItemTitleCleaner::class)))->parse(InboundEmail::factory()->make([
+                return $extraction;
+            },
+        );
+
+        $result = (new OosEmailParserService(new ExistingEmailImportLookup, app(ServiceItemTitleCleaner::class), $extractor))->parse(InboundEmail::factory()->make([
             'subject' => 'Order of Service - Sunday 15 March 2026 AM',
             'body_plain' => "Welcome\nBefore the throne of God above\nOpening prayer\nLuke 15:1-32",
             'body_html' => '<p>HTML should not be used</p>',
@@ -58,8 +54,8 @@ class OosEmailParserServiceTest extends TestCase
         ]));
 
         $this->assertSame(1, $extractor->calls);
-        $this->assertSame("Welcome\nBefore the throne of God above\nOpening prayer\nLuke 15:1-32", $extractor->capturedBody);
-        $this->assertSame('2026-03-10', $extractor->capturedReceivedDate);
+        $this->assertSame("Welcome\nBefore the throne of God above\nOpening prayer\nLuke 15:1-32", $captured->body);
+        $this->assertSame('2026-03-10', $captured->receivedDate);
         $this->assertSame('2026-03-15', $result->date);
         $this->assertSame(SermonService::Morning, $result->service);
         $this->assertTrue($result->shouldImport);
@@ -97,154 +93,32 @@ class OosEmailParserServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_does_not_retry_a_structurally_valid_low_confidence_extraction(): void
-    {
-        $extraction = $this->extraction([
-            $this->plan('morning', '2026-03-15', 0.85, [
-                ['type' => 'welcome', 'title' => 'Welcome'],
-                ['type' => 'song', 'title' => 'How deep the Father\'s love for us'],
-                ['type' => 'sermon', 'title' => 'Sermon'],
-            ]),
-        ]);
-        $extractor = new class($extraction) implements CorrectiveOosEmailItemExtractor
-        {
-            public int $correctionCalls = 0;
-
-            public function __construct(
-                private readonly OosEmailItemExtractionResult $extraction,
-            ) {}
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return $this->extraction;
-            }
-
-            public function correct(
-                string $subject,
-                string $body,
-                string $receivedDate,
-                OosEmailItemExtractionResult $previousExtraction,
-                array $validationFailures,
-            ): OosEmailItemExtractionResult {
-                $this->correctionCalls++;
-
-                return $this->extraction;
-            }
-        };
-
-        $result = (new OosEmailParserService(
-            $extractor,
-            new ExistingEmailImportLookup,
-            app(ServiceItemTitleCleaner::class),
-        ))->parse(InboundEmail::factory()->make([
-            'subject' => 'Service plan for 15 March',
-            'body_plain' => "10.30am service\nWelcome\nHow deep the Father's love for us\nSermon",
-            'received_at' => '2026-03-10 09:00:00',
-        ]));
-
-        $this->assertSame(0, $extractor->correctionCalls);
-        $this->assertCount(1, $result->extractionAttempts);
-        $this->assertSame(OosEmailParseDisposition::ReviewRequired, $result->disposition);
-    }
-
-    #[Test]
-    public function it_keeps_the_first_extraction_when_a_validator_driven_retry_ties_it(): void
-    {
-        $body = "Welcome\nAmazing Grace\nSermon";
-        $extraction = fn (string $type): OosEmailItemExtractionResult => new OosEmailItemExtractionResult(
-            items: [],
-            confidence: 0.95,
-            services: [[
-                'service' => 'morning',
-                'date' => '2026-07-12',
-                'service_evidence_line_ids' => [],
-                'items' => [
-                    $this->groundedItem('welcome', 'Welcome', 1),
-                    $this->groundedItem($type, 'Merged item', [2, 3]),
-                ],
-                'confidence' => 0.95,
-            ]],
-            serviceCount: 1,
-            provenanceComplete: true,
-        );
-        $initial = $extraction('song');
-        $corrected = $extraction('sermon');
-        $extractor = new class($initial, $corrected) implements CorrectiveOosEmailItemExtractor
-        {
-            public function __construct(
-                private readonly OosEmailItemExtractionResult $initial,
-                private readonly OosEmailItemExtractionResult $corrected,
-            ) {}
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return $this->initial;
-            }
-
-            public function correct(
-                string $subject,
-                string $body,
-                string $receivedDate,
-                OosEmailItemExtractionResult $previousExtraction,
-                array $validationFailures,
-            ): OosEmailItemExtractionResult {
-                return $this->corrected;
-            }
-        };
-
-        $result = (new OosEmailParserService(
-            $extractor,
-            new ExistingEmailImportLookup,
-            app(ServiceItemTitleCleaner::class),
-        ))->parse(InboundEmail::factory()->make([
-            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
-            'body_plain' => $body,
-            'received_at' => '2026-07-10 09:00:00',
-        ]));
-
-        $this->assertCount(2, $result->extractionAttempts);
-        $this->assertTrue($result->extractionAttempts[0]['selected']);
-        $this->assertFalse($result->extractionAttempts[1]['selected']);
-        $this->assertSame([
-            'content' => ['item_merges_non_continuation_lines'],
-            'bookkeeping' => [],
-        ], $result->extractionAttempts[0]['validation_rule_codes']);
-        $this->assertSame([
-            'Item 2 merges separate source lines instead of preserving one item per line.',
-        ], $result->extractionAttempts[1]['retry_reasons']);
-        $this->assertSame(['item_type_or_order'], $result->extractionAttempts[1]['correction']['changed_field_groups']);
-        $this->assertSame([], $result->extractionAttempts[1]['correction']['removed_rule_codes']);
-        $this->assertFalse($result->extractionAttempts[1]['correction']['changed_unrelated_fields']);
-        $this->assertSame('songs', $result->items[1]['type']);
-    }
-
-    #[Test]
     public function it_uses_html_when_plain_text_is_missing(): void
     {
-        $extractor = new class($this->extraction([$this->plan('morning', '2026-03-15')])) implements OosEmailItemExtractor
+        $captured = new class
         {
-            public string $capturedBody = '';
-
-            public function __construct(
-                private readonly OosEmailItemExtractionResult $result,
-            ) {}
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $this->capturedBody = $body;
-
-                return $this->result;
-            }
+            public string $body = '';
         };
+        $extraction = $this->extraction([$this->plan('morning', '2026-03-15')]);
+        $extractor = FixedOosSemanticParserCandidate::using(
+            function (OosEmailSourceDocument $source) use ($captured, $extraction): OosEmailItemExtractionResult {
+                $captured->body = implode("\n", array_map(
+                    static fn (int $lineId): string => (string) $source->exactLine($lineId),
+                    $source->lineIds(),
+                ));
 
-        (new OosEmailParserService($extractor, new ExistingEmailImportLookup, app(ServiceItemTitleCleaner::class)))->parse(InboundEmail::factory()->make([
+                return $extraction;
+            },
+        );
+
+        (new OosEmailParserService(new ExistingEmailImportLookup, app(ServiceItemTitleCleaner::class), $extractor))->parse(InboundEmail::factory()->make([
             'subject' => 'OoS 2026-03-15 AM',
             'body_plain' => null,
             'body_html' => '<p>Welcome</p><p>Song one</p><div>Prayer</div>',
             'received_at' => '2026-03-10 09:00:00',
         ]));
 
-        $this->assertSame("Welcome\nSong one\nPrayer", $extractor->capturedBody);
+        $this->assertSame("Welcome\nSong one\nPrayer", $captured->body);
     }
 
     #[Test]
@@ -869,216 +743,6 @@ class OosEmailParserServiceTest extends TestCase
         $this->assertFalse($result->servicePlans[0]->isAutoImportable());
     }
 
-    /** A low-confidence plan remains reviewable without perturbing its valid first reading. */
-    #[Test]
-    public function it_does_not_retry_a_low_confidence_extraction_to_seek_consensus(): void
-    {
-        $body = "Morning Service\nWelcome\nAmazing Grace\nSermon";
-        $items = [
-            $this->groundedItem('welcome', 'Welcome', 2),
-            $this->groundedItem('song', 'Amazing Grace', 3),
-            $this->groundedItem('sermon', 'Sermon', 4),
-        ];
-        $extraction = fn (array $evidenceLineIds): OosEmailItemExtractionResult => new OosEmailItemExtractionResult(
-            items: [],
-            confidence: 0.80,
-            services: [[
-                'service' => 'morning',
-                'date' => '2026-07-12',
-                'service_evidence_line_ids' => $evidenceLineIds,
-                'items' => $items,
-                'confidence' => 0.80,
-            ]],
-            serviceCount: 1,
-            ignoredLines: $evidenceLineIds === [] ? [['line_id' => 1, 'reason' => 'context']] : [],
-            provenanceComplete: true,
-        );
-        $extractor = new class($extraction([1]), $extraction([])) implements CorrectiveOosEmailItemExtractor
-        {
-            public int $correctionCalls = 0;
-
-            public function __construct(
-                private readonly OosEmailItemExtractionResult $initial,
-                private readonly OosEmailItemExtractionResult $corrected,
-            ) {}
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return $this->initial;
-            }
-
-            public function correct(
-                string $subject,
-                string $body,
-                string $receivedDate,
-                OosEmailItemExtractionResult $previousExtraction,
-                array $validationFailures,
-            ): OosEmailItemExtractionResult {
-                $this->correctionCalls++;
-
-                return $this->corrected;
-            }
-        };
-
-        $result = (new OosEmailParserService(
-            $extractor,
-            new ExistingEmailImportLookup,
-            app(ServiceItemTitleCleaner::class),
-        ))->parse(InboundEmail::factory()->make([
-            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
-            'body_plain' => $body,
-            'received_at' => '2026-07-10 09:00:00',
-        ]));
-
-        $this->assertSame(0, $extractor->correctionCalls);
-        $this->assertCount(1, $result->extractionAttempts);
-        $this->assertFalse($result->consensus);
-        $this->assertSame(OosEmailParseDisposition::ReviewRequired, $result->disposition);
-    }
-
-    /** Adjudication is never invoked without a deterministic validation failure to correct. */
-    #[Test]
-    public function it_does_not_adjudicate_a_low_confidence_extraction_without_a_validation_failure(): void
-    {
-        $body = "Welcome\nAmazing Grace";
-        $extraction = fn (string $secondType): OosEmailItemExtractionResult => new OosEmailItemExtractionResult(
-            items: [],
-            confidence: 0.80,
-            services: [[
-                'service' => 'morning',
-                'date' => '2026-07-12',
-                'service_evidence_line_ids' => [],
-                'items' => [
-                    $this->groundedItem('welcome', 'Welcome', 1),
-                    $this->groundedItem($secondType, 'Amazing Grace', 2),
-                ],
-                'confidence' => 0.80,
-            ]],
-            serviceCount: 1,
-            provenanceComplete: true,
-        );
-        $initial = $extraction('song');
-        $corrected = $extraction('prayer');
-        $extractor = new class($initial, $corrected) implements AdjudicatingOosEmailItemExtractor
-        {
-            public int $adjudicationCalls = 0;
-
-            public function __construct(
-                private readonly OosEmailItemExtractionResult $initial,
-                private readonly OosEmailItemExtractionResult $corrected,
-            ) {}
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return $this->initial;
-            }
-
-            public function correct(
-                string $subject,
-                string $body,
-                string $receivedDate,
-                OosEmailItemExtractionResult $previousExtraction,
-                array $validationFailures,
-            ): OosEmailItemExtractionResult {
-                return $this->corrected;
-            }
-
-            public function adjudicate(
-                string $subject,
-                string $body,
-                string $receivedDate,
-                OosEmailItemExtractionResult $initialExtraction,
-                OosEmailItemExtractionResult $correctedExtraction,
-                array $disagreementCategories,
-            ): OosEmailItemExtractionResult {
-                $this->adjudicationCalls++;
-
-                return $this->initial;
-            }
-        };
-
-        $result = (new OosEmailParserService(
-            $extractor,
-            new ExistingEmailImportLookup,
-            app(ServiceItemTitleCleaner::class),
-        ))->parse(InboundEmail::factory()->make([
-            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
-            'body_plain' => $body,
-            'received_at' => '2026-07-10 09:00:00',
-        ]));
-
-        $this->assertSame(0, $extractor->adjudicationCalls);
-        $this->assertCount(1, $result->extractionAttempts);
-        $this->assertFalse($result->adjudicated);
-        $this->assertFalse($result->consensus);
-        $this->assertSame(OosEmailParseDisposition::ReviewRequired, $result->disposition);
-        $this->assertSame([OosEmailPlanHoldReason::LowConfidence], $result->servicePlans[0]->holdReasons);
-    }
-
-    /**
-     * The gate a resolved adjudication must not open: consensus lets a sub-0.90 plan import
-     * unattended, so if adjudication ever set it, every disagreeing plan in the 0.75–0.89 band
-     * would import without a human.
-     */
-    #[Test]
-    public function it_does_not_retry_a_low_confidence_extraction_that_would_otherwise_agree(): void
-    {
-        $body = "Welcome\nAmazing Grace";
-        $agreed = new OosEmailItemExtractionResult(
-            items: [],
-            confidence: 0.80,
-            services: [[
-                'service' => 'morning',
-                'date' => '2026-07-12',
-                'service_evidence_line_ids' => [],
-                'items' => [
-                    $this->groundedItem('welcome', 'Welcome', 1),
-                    $this->groundedItem('song', 'Amazing Grace', 2),
-                ],
-                'confidence' => 0.80,
-            ]],
-            serviceCount: 1,
-            provenanceComplete: true,
-        );
-
-        $result = (new OosEmailParserService(
-            new class($agreed) implements CorrectiveOosEmailItemExtractor
-            {
-                public int $correctionCalls = 0;
-
-                public function __construct(private readonly OosEmailItemExtractionResult $agreed) {}
-
-                public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-                {
-                    return $this->agreed;
-                }
-
-                public function correct(
-                    string $subject,
-                    string $body,
-                    string $receivedDate,
-                    OosEmailItemExtractionResult $previousExtraction,
-                    array $validationFailures,
-                ): OosEmailItemExtractionResult {
-                    $this->correctionCalls++;
-
-                    return $this->agreed;
-                }
-            },
-            new ExistingEmailImportLookup,
-            app(ServiceItemTitleCleaner::class),
-        ))->parse(InboundEmail::factory()->make([
-            'subject' => 'Order of Service - Sunday 12 July 2026 AM',
-            'body_plain' => $body,
-            'received_at' => '2026-07-10 09:00:00',
-        ]));
-
-        $this->assertFalse($result->consensus);
-        $this->assertFalse($result->adjudicated);
-        $this->assertSame(OosEmailParseDisposition::ReviewRequired, $result->disposition);
-        $this->assertSame([OosEmailPlanHoldReason::LowConfidence], $result->servicePlans[0]->holdReasons);
-    }
-
     /**
      * Content reasons are a subset of all reasons, and the parser asked the validator for "all"
      * while calling the parameter `$structuralReasons` — so every invalid extraction was also
@@ -1151,90 +815,20 @@ class OosEmailParserServiceTest extends TestCase
         ]], $plan->sourceProvenance['structural_findings']);
     }
 
+    /**
+     * A merged item line is refused on its own evidence, with no second opinion involved.
+     *
+     * This was `it_holds_a_parse_when_a_corrective_retry_still_merges_separate_item_lines`, and it
+     * asserted that the legacy corrective retry ran once and still failed. The retry is gone with
+     * the legacy path; what it was really guarding is not. Two source lines collapsed into one item
+     * under a `continuation` that the source does not support is a content defect, and the
+     * deterministic validator has to hold it whatever produced it.
+     */
     #[Test]
-    public function it_retries_the_real_july_twelfth_shape_when_diagnostics_and_service_plans_disagree(): void
-    {
-        $body = $this->julyTwelfthBody();
-        $corrected = $this->julyTwelfthExtraction($body);
-        $initialServices = $corrected->services;
-        $initialServices[] = [
-            'service' => 'other',
-            'date' => null,
-            'service_evidence_line_ids' => [$this->lineId($body, 'Notices')],
-            'items' => $this->itemsForSection($body, 'Notices', 'Sunday morning'),
-            'confidence' => 0.45,
-        ];
-        $initial = new OosEmailItemExtractionResult(
-            items: [],
-            confidence: 0.72,
-            notes: ['The email contains a morning and evening order.'],
-            services: $initialServices,
-            serviceCount: 2,
-            provenanceComplete: true,
-        );
-        $extractor = new class($initial, $corrected) implements CorrectiveOosEmailItemExtractor
-        {
-            public int $extractCalls = 0;
-
-            public int $correctionCalls = 0;
-
-            public function __construct(
-                private readonly OosEmailItemExtractionResult $initial,
-                private readonly OosEmailItemExtractionResult $corrected,
-            ) {}
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $this->extractCalls++;
-
-                return $this->initial;
-            }
-
-            public function correct(
-                string $subject,
-                string $body,
-                string $receivedDate,
-                OosEmailItemExtractionResult $previousExtraction,
-                array $validationFailures,
-            ): OosEmailItemExtractionResult {
-                $this->correctionCalls++;
-
-                return $this->corrected;
-            }
-        };
-        $parser = new OosEmailParserService(
-            $extractor,
-            new ExistingEmailImportLookup,
-            app(ServiceItemTitleCleaner::class),
-        );
-
-        $result = $parser->parse(InboundEmail::factory()->make([
-            'subject' => 'Manual entry',
-            'body_plain' => $body,
-            'received_at' => '2026-07-26 12:52:15',
-        ]));
-
-        $this->assertSame(1, $extractor->extractCalls);
-        $this->assertSame(1, $extractor->correctionCalls);
-        $this->assertCount(2, $result->servicePlans);
-        $this->assertSame(2, count($result->extractionAttempts));
-        $this->assertSame(12, count($result->servicePlans[0]->items));
-        $this->assertSame(10, count($result->servicePlans[1]->items));
-        $this->assertSame('Family Talk – “Joel” (see PP)', $result->servicePlans[0]->items[4]['source_title']);
-        $this->assertSame('Family Talk – “Joel”', $result->servicePlans[0]->items[4]['title']);
-        $this->assertSame('Bible Reading: Joshua 5:13-6:27', $result->servicePlans[0]->items[6]['source_title']);
-        $this->assertSame('Joshua 5:13-6:27', $result->servicePlans[0]->items[6]['title']);
-        $this->assertNotContains(SermonService::Other, array_map(
-            static fn ($plan) => $plan->service,
-            $result->servicePlans,
-        ));
-    }
-
-    #[Test]
-    public function it_holds_a_parse_when_a_corrective_retry_still_merges_separate_item_lines(): void
+    public function it_holds_a_parse_that_merges_separate_item_lines(): void
     {
         $body = "Welcome\n\nSermon\n\nAmazing Grace\n\nClosing prayer";
-        $invalid = new OosEmailItemExtractionResult(
+        $result = $this->parserReturning(new OosEmailItemExtractionResult(
             items: [],
             confidence: 0.95,
             services: [[
@@ -1250,45 +844,12 @@ class OosEmailParserServiceTest extends TestCase
             ]],
             serviceCount: 1,
             provenanceComplete: true,
-        );
-        $extractor = new class($invalid) implements CorrectiveOosEmailItemExtractor
-        {
-            public int $correctionCalls = 0;
-
-            public function __construct(
-                private readonly OosEmailItemExtractionResult $result,
-            ) {}
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return $this->result;
-            }
-
-            public function correct(
-                string $subject,
-                string $body,
-                string $receivedDate,
-                OosEmailItemExtractionResult $previousExtraction,
-                array $validationFailures,
-            ): OosEmailItemExtractionResult {
-                $this->correctionCalls++;
-
-                return $this->result;
-            }
-        };
-        $parser = new OosEmailParserService(
-            $extractor,
-            new ExistingEmailImportLookup,
-            app(ServiceItemTitleCleaner::class),
-        );
-
-        $result = $parser->parse(InboundEmail::factory()->make([
+        ))->parse(InboundEmail::factory()->make([
             'subject' => 'Order of Service - Sunday 12 July 2026 AM',
             'body_plain' => $body,
             'received_at' => '2026-07-10 09:00:00',
         ]));
 
-        $this->assertSame(1, $extractor->correctionCalls);
         $this->assertSame(OosEmailParseDisposition::InvalidExtraction, $result->disposition);
         $this->assertFalse($result->shouldImport);
         $this->assertTrue($result->needsReview);
@@ -1335,17 +896,11 @@ class OosEmailParserServiceTest extends TestCase
 
     private function parserReturning(OosEmailItemExtractionResult $result): OosEmailParserService
     {
-        return new OosEmailParserService(new class($result) implements OosEmailItemExtractor
-        {
-            public function __construct(
-                private readonly OosEmailItemExtractionResult $result,
-            ) {}
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return $this->result;
-            }
-        }, new ExistingEmailImportLookup, app(ServiceItemTitleCleaner::class));
+        return new OosEmailParserService(
+            new ExistingEmailImportLookup,
+            app(ServiceItemTitleCleaner::class),
+            FixedOosSemanticParserCandidate::returning($result),
+        );
     }
 
     /**

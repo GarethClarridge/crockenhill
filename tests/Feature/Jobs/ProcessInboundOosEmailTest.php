@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Jobs;
 
-use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
@@ -14,12 +13,14 @@ use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\Song;
 use App\Queries\ReviewInboxQuery;
+use App\Services\Email\OosSemanticParserCandidate;
 use App\Services\Public\PublicSongUsageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
+use Tests\Support\FixedOosSemanticParserCandidate;
 use Tests\TestCase;
 
 class ProcessInboundOosEmailTest extends TestCase
@@ -368,13 +369,7 @@ class ProcessInboundOosEmailTest extends TestCase
     #[Test]
     public function an_llm_error_reaches_the_queue_failure_path_and_manual_review_inbox(): void
     {
-        $this->app->bind(OosEmailItemExtractor::class, fn () => new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                throw new RuntimeException('OpenAI unavailable');
-            }
-        });
+        $this->app->bind(OosSemanticParserCandidate::class, fn () => FixedOosSemanticParserCandidate::unreachable('OpenAI unavailable'));
 
         $email = InboundEmail::factory()->create([
             'status' => InboundEmailStatus::Pending->value,
@@ -397,17 +392,10 @@ class ProcessInboundOosEmailTest extends TestCase
 
     private function bindExtractor(OosEmailItemExtractionResult $result): void
     {
-        $this->app->bind(OosEmailItemExtractor::class, fn () => new class($result) implements OosEmailItemExtractor
-        {
-            public function __construct(
-                private readonly OosEmailItemExtractionResult $result,
-            ) {}
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return $this->result;
-            }
-        });
+        $this->app->bind(
+            OosSemanticParserCandidate::class,
+            fn () => FixedOosSemanticParserCandidate::returning($result),
+        );
     }
 
     /**

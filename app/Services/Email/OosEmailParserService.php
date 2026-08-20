@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Email;
 
-use App\Contracts\AdjudicatingOosEmailItemExtractor;
-use App\Contracts\CorrectiveOosEmailItemExtractor;
-use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailExtractionValidationResult;
 use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailParseResult;
@@ -28,11 +25,10 @@ class OosEmailParserService
     private OosEmailExtractionValidator $extractionValidator;
 
     public function __construct(
-        private readonly OosEmailItemExtractor $itemExtractor,
         private readonly ExistingEmailImportLookup $existingEmailImports,
         private readonly ServiceItemTitleCleaner $titleCleaner,
+        private readonly OosSemanticParserCandidate $semanticParser,
         ?OosEmailExtractionValidator $extractionValidator = null,
-        private readonly ?OosSemanticParserCandidate $semanticParser = null,
     ) {
         $this->extractionValidator = $extractionValidator ?? new OosEmailExtractionValidator;
     }
@@ -46,123 +42,37 @@ class OosEmailParserService
             $body,
             $receivedAt->toDateString(),
         );
-        $usesSemanticParser = config('service-tracking.email_parsing.implementation', 'legacy') === 'semantic_annotations';
-        $semanticRiskSignals = [];
 
-        if ($usesSemanticParser) {
-            if (! $this->semanticParser instanceof OosSemanticParserCandidate) {
-                throw new \RuntimeException('Semantic OoS email parser is selected but not configured.');
-            }
+        $semanticOutcome = $this->semanticParser->parse($source);
+        $extraction = $this->guardUnsupportedEveningPlans($source, $semanticOutcome->extraction, $inboundEmail->subject);
+        $validation = $this->extractionValidator->validate($source, $extraction, $inboundEmail->subject);
+        $attempts = $semanticOutcome->attempts;
+        $attempts[0]['compatibility_validation'] = $this->attemptMetadata(1, $extraction, $validation, true);
+        $semanticRiskSignals = $semanticOutcome->riskSignals;
+        $semanticRiskSignals['content_validator_findings'] = [
+            'content' => $validation->contentRuleCodes(),
+            'bookkeeping' => $validation->bookkeepingRuleCodes(),
+        ];
 
-            $semanticOutcome = $this->semanticParser->parse($source);
-            $initialExtraction = $semanticOutcome->extraction;
-            $attempts = $semanticOutcome->attempts;
-            $semanticRiskSignals = $semanticOutcome->riskSignals;
-        } else {
-            $initialExtraction = $this->itemExtractor->extract(
-                $inboundEmail->subject,
-                $body,
-                $receivedAt->toDateString(),
-            );
-            $attempts = [];
-        }
-
-        $initialExtraction = $this->guardUnsupportedEveningPlans($source, $initialExtraction, $inboundEmail->subject);
-        $initialValidation = $this->extractionValidator->validate($source, $initialExtraction, $inboundEmail->subject);
-        $extraction = $initialExtraction;
-        $validation = $initialValidation;
-
-        if ($usesSemanticParser) {
-            $attempts[0]['compatibility_validation'] = $this->attemptMetadata(1, $initialExtraction, $initialValidation, true);
-            $semanticRiskSignals['content_validator_findings'] = [
-                'content' => $initialValidation->contentRuleCodes(),
-                'bookkeeping' => $initialValidation->bookkeepingRuleCodes(),
-            ];
-        } else {
-            $attempts = [$this->attemptMetadata(1, $initialExtraction, $initialValidation, true)];
-        }
-
+        /**
+         * Permanently false since the legacy whole-document path was deleted in Delivery 7.
+         *
+         * They are retained on {@see OosEmailParseResult} rather than removed because they are
+         * downstream *policy* inputs, not parser outputs: `OosArchiveIdentityResolver` gates
+         * unattended import on `consensus`, and `OosArchiveAssertionBundle` writes both into a
+         * portable format that older bundles are read back from. §3 of the redesign plan puts that
+         * policy and those deletion-scheduled one-shots outside this plan's authority, and §5.1
+         * forbids silently changing a portable format. Retiring the fields belongs to IC8 closeout
+         * alongside the bundle format, not to the parser deletion.
+         *
+         * Semantic repair does not resurrect them. Under HIR-D6 an arbitrating call must never set
+         * `consensus`, and the semantic path has no second whole-document opinion to agree with.
+         */
         $consensus = false;
         $adjudicated = false;
         $validAttemptsDisagree = false;
-        $retryWarnings = [];
-        $retryReasons = $this->retryReasons($initialValidation);
 
-        if (! $usesSemanticParser && $retryReasons !== [] && $this->itemExtractor instanceof CorrectiveOosEmailItemExtractor) {
-            try {
-                $correctedExtraction = $this->itemExtractor->correct(
-                    $inboundEmail->subject,
-                    $body,
-                    $receivedAt->toDateString(),
-                    $initialExtraction,
-                    $retryReasons,
-                );
-                $correctedExtraction = $this->guardUnsupportedEveningPlans($source, $correctedExtraction, $inboundEmail->subject);
-                $correctedValidation = $this->extractionValidator->validate($source, $correctedExtraction, $inboundEmail->subject);
-                $useCorrected = $correctedValidation->reasonCount() < $initialValidation->reasonCount();
-
-                if ($useCorrected) {
-                    $extraction = $correctedExtraction;
-                    $validation = $correctedValidation;
-                    $attempts[0]['selected'] = false;
-                }
-
-                $attempts[] = $this->attemptMetadata(2, $correctedExtraction, $correctedValidation, $useCorrected)
-                    + ['retry_reasons' => $retryReasons];
-                $attempts[1]['correction'] = $this->correctionDiagnostics(
-                    $initialValidation,
-                    $correctedValidation,
-                    $initialExtraction,
-                    $correctedExtraction,
-                );
-                $consensus = $initialValidation->isValid()
-                    && $correctedValidation->isValid()
-                    && $this->extractionSignature($initialExtraction) === $this->extractionSignature($correctedExtraction);
-                $validAttemptsDisagree = $initialValidation->isValid()
-                    && $correctedValidation->isValid()
-                    && ! $consensus;
-
-                if ($validAttemptsDisagree) {
-                    $disagreementCategories = $this->extractionDisagreementCategories($initialExtraction, $correctedExtraction);
-                    $attempts[1]['disagreement_categories'] = $disagreementCategories;
-                    $attempts[1]['disagreement_item_type_changes'] = $this->extractionItemTypeChanges(
-                        $initialExtraction,
-                        $correctedExtraction,
-                    );
-
-                    if ($this->itemExtractor instanceof AdjudicatingOosEmailItemExtractor) {
-                        [$extraction, $validation, $attempts, $adjudicated] = $this->adjudicateDisagreement(
-                            $this->itemExtractor,
-                            $inboundEmail,
-                            $source,
-                            $body,
-                            $receivedAt->toDateString(),
-                            $initialExtraction,
-                            $correctedExtraction,
-                            $extraction,
-                            $validation,
-                            $attempts,
-                            $disagreementCategories,
-                        );
-                    }
-
-                    $retryWarnings[] = $adjudicated
-                        ? 'Two valid extraction attempts disagreed; adjudication chose between them, so this is held for review rather than imported unattended.'
-                        : 'Structurally valid extraction attempts disagreed and adjudication did not resolve them; human review is required.';
-                }
-            } catch (Throwable $exception) {
-                report($exception);
-                $retryWarnings[] = 'The corrective extraction attempt failed; the first result has been held for review.';
-                $attempts[] = [
-                    'attempt' => 2,
-                    'selected' => false,
-                    'retry_reasons' => $retryReasons,
-                    'error' => $exception->getMessage(),
-                ];
-            }
-        }
-
-        $warnings = array_merge($extraction->notes, $retryWarnings);
+        $warnings = $extraction->notes;
         $validations = [];
         $servicePlans = $this->buildServicePlans(
             $extraction,
@@ -233,7 +143,7 @@ class OosEmailParserService
                 'adjudicated' => $adjudicated,
                 'source_message_id' => $inboundEmail->message_id,
                 'source_subject' => $inboundEmail->subject,
-                'parser_implementation' => $usesSemanticParser ? 'semantic_annotations' : 'legacy',
+                'parser_implementation' => 'semantic_annotations',
                 'risk_signals' => $semanticRiskSignals,
             ],
             servicePlans: $servicePlans,
@@ -243,73 +153,6 @@ class OosEmailParserService
             consensus: $consensus,
             adjudicated: $adjudicated,
         );
-    }
-
-    /**
-     * Ask a third call to resolve two structurally valid but disagreeing attempts.
-     *
-     * The adjudicated order is adopted when it is valid and reproduces one of the two candidates,
-     * because it is the model's own resolution of a diff it was shown. It never clears the import
-     * gate: the caller keeps `$validAttemptsDisagree` true, so the plan stays `ReviewRequired` and
-     * an operator sees the resolution instead of the pipeline acting on it. Adjudication is
-     * strictly weaker evidence than consensus — the adjudicator is the same model, handed both
-     * answers and told not to invent a third — so it is reported, not trusted (HIR-D6).
-     *
-     * @param  list<array<string, mixed>>  $attempts
-     * @param  list<string>  $disagreementCategories
-     * @return array{OosEmailItemExtractionResult,OosEmailExtractionValidationResult,list<array<string,mixed>>,bool}
-     */
-    private function adjudicateDisagreement(
-        AdjudicatingOosEmailItemExtractor $adjudicator,
-        InboundEmail $inboundEmail,
-        OosEmailSourceDocument $source,
-        string $body,
-        string $receivedDate,
-        OosEmailItemExtractionResult $initialExtraction,
-        OosEmailItemExtractionResult $correctedExtraction,
-        OosEmailItemExtractionResult $selectedExtraction,
-        OosEmailExtractionValidationResult $selectedValidation,
-        array $attempts,
-        array $disagreementCategories,
-    ): array {
-        try {
-            $adjudicatedExtraction = $adjudicator->adjudicate(
-                $inboundEmail->subject,
-                $body,
-                $receivedDate,
-                $initialExtraction,
-                $correctedExtraction,
-                $disagreementCategories,
-            );
-            $adjudicatedExtraction = $this->guardUnsupportedEveningPlans($source, $adjudicatedExtraction, $inboundEmail->subject);
-            $adjudicatedValidation = $this->extractionValidator->validate($source, $adjudicatedExtraction, $inboundEmail->subject);
-            $adjudicatedSignature = $this->extractionSignature($adjudicatedExtraction);
-            $matchesCandidate = $adjudicatedSignature === $this->extractionSignature($initialExtraction)
-                || $adjudicatedSignature === $this->extractionSignature($correctedExtraction);
-            $resolved = $adjudicatedValidation->isValid() && $matchesCandidate;
-
-            $attempts[] = $this->attemptMetadata(3, $adjudicatedExtraction, $adjudicatedValidation, $resolved)
-                + ['adjudication' => $resolved ? 'matched_candidate' : 'third_interpretation'];
-
-            if (! $resolved) {
-                return [$selectedExtraction, $selectedValidation, $attempts, false];
-            }
-
-            $attempts[0]['selected'] = false;
-            $attempts[1]['selected'] = false;
-
-            return [$adjudicatedExtraction, $adjudicatedValidation, $attempts, true];
-        } catch (Throwable $exception) {
-            report($exception);
-            $attempts[] = [
-                'attempt' => 3,
-                'selected' => false,
-                'adjudication' => 'error',
-                'error' => $exception->getMessage(),
-            ];
-
-            return [$selectedExtraction, $selectedValidation, $attempts, false];
-        }
     }
 
     private function guardUnsupportedEveningPlans(
@@ -826,19 +669,6 @@ class OosEmailParserService
     }
 
     /**
-     * Retry only an extraction that deterministic validation has shown to be defective.
-     * Confidence and unresolved identity remain review signals, not reasons to perturb a valid
-     * first reading.
-     *
-     * @return list<string>
-     */
-    private function retryReasons(
-        OosEmailExtractionValidationResult $validation,
-    ): array {
-        return $validation->allReasons();
-    }
-
-    /**
      * @return array<string, mixed>
      */
     private function attemptMetadata(
@@ -866,139 +696,6 @@ class OosEmailParserService
                 'item_count' => count($service['items']),
             ], $extraction->services),
         ];
-    }
-
-    /**
-     * Correction remains a complete re-extraction today. This records when it moved semantic
-     * fields despite the initial failure being bookkeeping-only, so the evaluation can identify
-     * collateral changes before a targeted-patch contract is introduced.
-     *
-     * @return array{removed_rule_codes:list<string>,persisted_rule_codes:list<string>,introduced_rule_codes:list<string>,changed_field_groups:list<string>,changed_unrelated_fields:bool}
-     */
-    private function correctionDiagnostics(
-        OosEmailExtractionValidationResult $initialValidation,
-        OosEmailExtractionValidationResult $correctedValidation,
-        OosEmailItemExtractionResult $initialExtraction,
-        OosEmailItemExtractionResult $correctedExtraction,
-    ): array {
-        $initialCodes = [...$initialValidation->contentRuleCodes(), ...$initialValidation->bookkeepingRuleCodes()];
-        $correctedCodes = [...$correctedValidation->contentRuleCodes(), ...$correctedValidation->bookkeepingRuleCodes()];
-        sort($initialCodes);
-        sort($correctedCodes);
-        $changedFieldGroups = $this->extractionDisagreementCategories($initialExtraction, $correctedExtraction);
-        $bookkeepingOnly = $initialValidation->contentRuleCodes() === [];
-
-        return [
-            'removed_rule_codes' => array_values(array_diff($initialCodes, $correctedCodes)),
-            'persisted_rule_codes' => array_values(array_intersect($initialCodes, $correctedCodes)),
-            'introduced_rule_codes' => array_values(array_diff($correctedCodes, $initialCodes)),
-            'changed_field_groups' => $changedFieldGroups,
-            'changed_unrelated_fields' => $bookkeepingOnly && $changedFieldGroups !== ['unclassified'],
-        ];
-    }
-
-    /**
-     * Two attempts "agree" when they extracted the same order, so the signature covers only what
-     * a service is built from. `service_evidence_line_ids` is deliberately excluded: it is
-     * optional for a single-plan email, is never written to a service, and including it recorded
-     * 70 of the 125 disagreements in the 2026-08-14 review as structural conflicts when the two
-     * attempts had produced identical plans, dates, scopes and item counts (F65).
-     */
-    private function extractionSignature(OosEmailItemExtractionResult $extraction): string
-    {
-        $signature = array_map(fn (array $service): array => [
-            'service' => $service['service'] ?? null,
-            'date' => $service['date'] ?? null,
-            'content_scope' => $service['content_scope'] ?? 'full',
-            'items' => array_map(fn (array $item): array => [
-                'type' => $item['type'],
-                'source_line_ids' => $this->integerLineIds($item['source_line_ids'] ?? []),
-            ], $service['items']),
-        ], $extraction->services);
-
-        return hash('sha256', (string) json_encode($signature));
-    }
-
-    /** @return list<string> */
-    private function extractionDisagreementCategories(
-        OosEmailItemExtractionResult $initialExtraction,
-        OosEmailItemExtractionResult $correctedExtraction,
-    ): array {
-        $categories = [];
-        $initialPlans = $initialExtraction->services;
-        $correctedPlans = $correctedExtraction->services;
-
-        if (count($initialPlans) !== count($correctedPlans)) {
-            $categories[] = 'plan_count';
-        }
-
-        foreach (['service', 'date', 'content_scope'] as $field) {
-            if (array_column($initialPlans, $field) !== array_column($correctedPlans, $field)) {
-                $categories[] = $field;
-            }
-        }
-
-        if (array_map(static fn (array $plan): int => count($plan['items']), $initialPlans)
-            !== array_map(static fn (array $plan): int => count($plan['items']), $correctedPlans)) {
-            $categories[] = 'item_count';
-        }
-
-        foreach (['type', 'title', 'source_line_ids'] as $field) {
-            $initialItems = array_map(
-                static fn (array $plan): array => array_column($plan['items'], $field),
-                $initialPlans,
-            );
-            $correctedItems = array_map(
-                static fn (array $plan): array => array_column($plan['items'], $field),
-                $correctedPlans,
-            );
-
-            if ($initialItems !== $correctedItems) {
-                $categories[] = $field === 'type' ? 'item_type_or_order' : $field;
-            }
-        }
-
-        return $categories === [] ? ['unclassified'] : $categories;
-    }
-
-    /**
-     * Which item types the two attempts actually swapped, as `from→to` counts.
-     *
-     * `item_type_or_order` is by far the commonest disagreement — 48 of the 102 in the 2026-08-16
-     * rehearsal were that and nothing else, meaning identical titles and source lines with a
-     * different label somewhere — but the category cannot say whether the argument was over a
-     * consequential type or over `other` against `prayer`. Only plans whose item counts match are
-     * compared: without that, position `n` in one attempt is not position `n` in the other, and
-     * `item_count` already records the difference.
-     *
-     * @return array<string, int>
-     */
-    private function extractionItemTypeChanges(
-        OosEmailItemExtractionResult $initialExtraction,
-        OosEmailItemExtractionResult $correctedExtraction,
-    ): array {
-        $changes = [];
-
-        foreach ($initialExtraction->services as $planIndex => $initialPlan) {
-            $correctedPlan = $correctedExtraction->services[$planIndex] ?? null;
-
-            if (! is_array($correctedPlan) || count($initialPlan['items']) !== count($correctedPlan['items'])) {
-                continue;
-            }
-
-            foreach ($initialPlan['items'] as $itemIndex => $initialItem) {
-                $from = $initialItem['type'];
-                $to = $correctedPlan['items'][$itemIndex]['type'];
-
-                if ($from !== $to) {
-                    $changes["{$from}→{$to}"] = ($changes["{$from}→{$to}"] ?? 0) + 1;
-                }
-            }
-        }
-
-        ksort($changes);
-
-        return $changes;
     }
 
     /**

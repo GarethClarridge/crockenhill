@@ -48,7 +48,6 @@ class OosArchiveParseCacheBinding
         'app/Services/Email/OosEmailParserService.php',
         'app/Services/Email/OosEmailExtractionValidator.php',
         'app/Data/OosEmailServicePlan.php',
-        'app/Services/Email/OpenAiOosEmailItemExtractor.php',
         'app/Data/OosEmailSourceDocument.php',
         'app/Services/Email/OosSemanticParserCandidate.php',
         'app/Services/Email/OpenAiOosSemanticAnnotator.php',
@@ -130,14 +129,18 @@ class OosArchiveParseCacheBinding
      */
     public function rawCacheKey(OosArchiveEntry $entry, string $parserVersion): array
     {
-        $implementation = config('service-tracking.email_parsing.implementation', 'legacy');
-        $effectiveParserVersion = $implementation === 'semantic_annotations'
-            ? "{$parserVersion}:semantic-annotations-v1"
-            : $parserVersion;
-
+        /**
+         * The suffix is unconditional, and stays that way now the legacy path is deleted.
+         *
+         * Invariant 11 is that no result produced by the old nested-plan parser is ever
+         * reinterpreted as an annotation result. Legacy cache rows outlive the legacy code — they
+         * are database state, not a code path — so the namespace they were written under must
+         * remain permanently unreachable rather than becoming reachable again the moment the
+         * config key selecting it disappeared.
+         */
         return [
             'input_hash' => $entry->inputHash,
-            'parser_version' => $effectiveParserVersion,
+            'parser_version' => "{$parserVersion}:semantic-annotations-v1",
             'received_date' => $entry->syntheticReceivedAt->toDateString(),
         ];
     }

@@ -20,11 +20,11 @@ return [
     ],
 
     'email_parsing' => [
-        // The semantic compiler path is evaluation-only until the Delivery 7 default flip is
-        // approved. `legacy` preserves the current weekly and historic production behaviour.
-        'implementation' => env('OOS_EMAIL_PARSING_IMPLEMENTATION', 'legacy'),
-        // Dedicated knob (was the shared OPENAI_MODEL) — lowest-stakes structured extraction, so
-        // it defaults to the cheapest current model rather than tracking the analysis default.
+        // The keys from here to `extraction_attempts` configure the *evaluation arm* machinery only
+        // — `OosParserEvaluationArm` sets them per arm and `OosParserArmRunner` records them in a run
+        // manifest. They stopped configuring production when the legacy whole-document parser was
+        // deleted in Delivery 7; the live parser reads the `semantic` block below. They retire with
+        // the rest of the arm tooling at IC8 closeout.
         'model' => env('OOS_EMAIL_PARSING_MODEL', 'gpt-5.4-nano'),
         'reasoning_effort' => env('OOS_EMAIL_PARSING_REASONING_EFFORT', 'minimal'),
         // Which system prompt the extractor sends. A prompt arm sets this the way an effort arm sets
@@ -56,12 +56,6 @@ return [
         // Re-asks when the model returns something unusable. One flaky call used to
         // lose a service permanently and fail the whole corpus closeout with it.
         'extraction_attempts' => (int) env('OOS_EMAIL_PARSING_EXTRACTION_ATTEMPTS', 3),
-        // Separate from `extraction_attempts` on purpose: that budget answers "the model returned
-        // something unusable", this one answers "the request never got through". A rate limit spent
-        // from the first budget would consume a semantic re-ask that exists for a different reason.
-        // Backoff lives in {@see App\Support\OpenAiTransientFailure}, which waits in seconds for a
-        // 429 and milliseconds for a dropped connection.
-        'transport_attempts' => (int) env('OOS_EMAIL_PARSING_TRANSPORT_ATTEMPTS', 3),
         'review_threshold' => 0.75,
         'auto_import_threshold' => 0.90,
         'semantic' => [

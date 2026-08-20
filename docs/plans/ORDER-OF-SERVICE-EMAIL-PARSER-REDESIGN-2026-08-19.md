@@ -1,9 +1,35 @@
 # Order-of-Service Email Parser Redesign
 
-> **CURRENT STATUS (2026-08-20, end of day): Delivery 6 has a passing comparison artifact,
-> reproduced across two draws. Delivery 7 is not authorised.** Read this block first; the dated
-> narrative below it is the record of how the plan got here and contains statements that were true
-> when written and are now superseded. Where the two disagree, this block wins.
+> **CURRENT STATUS (2026-08-20, later): Delivery 7 is DONE. The semantic parser is the only parser;
+> the legacy whole-document path is deleted.** Read this block and §9.15 first; everything below is
+> the record of how the plan got here and contains statements that were true when written and are
+> now superseded. Where they disagree, this block wins.
+>
+> - **Maintainer approved the Delivery 6 artifact and the production default flip on 2026-08-20**,
+>   explicitly accepting that §9.14's retry fix moved the parser surface after scoring, on the
+>   grounds that the diff is transport-only and changes no prompt, schema or compiler semantics.
+> - **The flip exposed a real production defect before it shipped.** `OosEmailParserService`
+>   declared `?OosSemanticParserCandidate $semanticParser = null`, and Laravel's container declines
+>   to build an *unbound concrete class* for a nullable parameter carrying a default — so every
+>   container-resolved parser service held `null` and the semantic path would have thrown on the
+>   first real email. Deliveries 1–6 never caught it because every semantic test builds the object
+>   graph by hand. The dependency is now required; `tests/Feature/Services/Email/OosParserImplementationWiringTest.php`
+>   is the regression guard, written failing first.
+> - **The legacy path is deleted, not retained.** The plan's own deletion gate was already met, and
+>   Delivery 7's acceptance required it. The "retain legacy for rollback" framing did not survive
+>   review: Mailgun inbound routing has never been configured, the archive import is
+>   operator-invoked, and invariant 9 means nothing publishes unattended — so no failure mode
+>   existed that a config flip mitigated faster than a deploy. **Rollback is `git revert` plus a
+>   deploy.** `OOS_EMAIL_PARSING_IMPLEMENTATION` is gone from config and `.env.example`.
+> - **Verification:** 6,988 tests pass (one environmental skip), PHPStan zero errors, Pint clean,
+>   Dusk 55 passed. Net −964 lines.
+> - **Retained until IC8, deliberately:** the evaluation-arm machinery (`OosEmailExtractionPrompt`,
+>   `OosParserEvaluationArm`, `OosParserArmRunner`, the scorer, freezer, adjudicator and
+>   safety-fixture harness) and the `email_parsing` model/prompt/attempt config keys those read.
+>   Legacy *arms* are no longer runnable, which costs nothing: the banked legacy baselines are
+>   artifacts, and §9.14 already established they cannot be re-derived at HEAD.
+> - **Still open:** the §9.12 `outcome_rate` caveat (28.9%, accepted by exemption) and its named
+>   remedy, the single-lever item-kind arm. Full detail in §9.15.
 >
 > - **Candidate:** `OosSemanticAnnotationPrompt::Version = 6`, `gpt-5.6-terra` / `low` / flex,
 >   against corpus `14cba9a3b97ef763e184d8b6a31cd41654054e2d6edfe31761dea9af2a910060`.
@@ -626,13 +652,13 @@ inputs drift or truth is incomplete.
 
 Requires maintainer approval of the comparison artifact and production default flip.
 
-**Status 2026-08-20: not started and still not authorised — but the blocking precondition is now
-met.** The required passing comparison artifact *does* now exist (see Delivery 6 above). What remains
-outstanding is the human half: the maintainer has not yet reviewed that artifact, and no
-production-default approval has been requested or granted. `legacy` remains the production default in
-production and in `.env.example`. Do not begin replay, the default flip or legacy deletion on the
-strength of the passing artifact alone — §9.4 step 10 requires the explicit approval as a separate
-act.
+**Status 2026-08-20: DONE.** The maintainer reviewed and approved the artifact and the default flip.
+The semantic parser is now the only parser; the legacy whole-document path, its three contracts and
+its correction/adjudication machinery are deleted, and the `OOS_EMAIL_PARSING_IMPLEMENTATION` config
+key is gone rather than flipped — rollback is `git revert` plus a deploy, not a config reversal.
+Flipping the default first exposed a latent wiring defect that would have failed every production
+parse; it is fixed and guarded. **Full record in §9.15**, which supersedes the bullets below where
+they disagree.
 
 - Wire weekly and historic parsing to the same candidate configuration behind one rollbackable
   config value; legacy remains the default until approval.
@@ -969,9 +995,14 @@ fixed for this arm; create a new artifact rather than editing it if the selected
    `tests/Feature/Services/Email/OosParserEntryPointParityTest.php` — see §9.7.** The gate 9
    evidence now exists and cost nothing; the maintainer call between (a), (b) and (c) is the only
    thing still outstanding at this step.
-10. Present the resulting artifact to the maintainer. Do not start Delivery 7 replay, default flip or
-    legacy deletion until the maintainer explicitly approves the artifact and production default
-    change.
+10. ~~Present the resulting artifact to the maintainer. Do not start Delivery 7 replay, default flip
+    or legacy deletion until the maintainer explicitly approves the artifact and production default
+    change.~~ **Done 2026-08-20: presented, approved, and Delivery 7 executed in full — see §9.15.**
+    The approval covered the artifact, the production default and, after the rollback rationale was
+    re-examined, the deletion of the legacy path rather than its retention.
+
+This sequence is complete. The next open item belongs to §9.12, not here: the accepted 28.9%
+`outcome_rate` and its unrun single-lever item-kind remedy.
 
 ### 9.5 Verification banked at handoff
 
@@ -1625,6 +1656,89 @@ maintainer needs to reproduce the accepted terra v6 comparison rather than read 
 check out commit `bd355bc84` or earlier, not to re-run the scorer at HEAD. Re-running a paid arm at
 the new surface would also restore comparability, at ~$1.04, and is not required by anything
 currently open.
+
+### 9.15 Delivery 7 — the flip, the wiring defect it exposed, and the legacy deletion
+
+**Approval.** The maintainer reviewed the Delivery 6 artifact on 2026-08-20 and approved both it and
+the production default flip, choosing explicitly to accept the §9.14 parser-surface move rather than
+spend ~$1.04 re-running a confirming arm at the new surface. Recorded as a judgement call, not a bar
+that was met: the accepted evidence and the shipped code do not share a fingerprint, and the reason
+that is tolerable is that the diff is transport-only.
+
+**The flip was not a config change.** Flipping the default surfaced a defect that had been latent
+since Delivery 2. `OosEmailParserService::$semanticParser` was declared
+`?OosSemanticParserCandidate $semanticParser = null`. Laravel's container resolves a *bound
+interface* for such a parameter but declines to build an *unbound concrete class*, silently using the
+default instead — so `app(OosEmailParserService::class)` held `null`, and every production entry
+point (the weekly job, reparse, approve, the archive command) would have thrown
+"Semantic OoS email parser is selected but not configured." on the first real parse. Verified by
+direct container resolution, not inferred.
+
+Two things made it invisible. Every semantic test constructs the parser by hand and passes the
+candidate by name, which proves the candidate works when supplied but never that production supplies
+one. And `OosSemanticRepairer` — an interface with an explicit binding in `AiServiceProvider` —
+resolved correctly under an *identical* declaration, so the two dependencies of the same shape
+behaved differently with nothing to show it. The dependency is now required, which moves the
+guarantee into the signature where the container honours it, and the `not configured` throw is gone
+as unreachable.
+
+**Legacy deleted, and why the rollback flag went with it.** The plan had said "rollback is a config
+reversal to the retained legacy parser". That did not survive review. A config-flag rollback buys
+speed-without-a-deploy, which is worth its complexity only when something runs unattended; here
+Mailgun inbound routing has never been configured (so no live weekly traffic exists), the archive
+import is operator-invoked, and invariant 9 means nothing publishes unattended. The deletion gate in
+Delivery 7 was already satisfied — approved artifact, passing production-shaped coverage, and the
+"one processed production-shaped source" clause vacuous because inbound routing does not exist — and
+Delivery 7's acceptance criteria actively require the legacy retry to be gone. Keeping it was
+therefore not even plan-compliant.
+
+Deleted: `OpenAiOosEmailItemExtractor` (638 lines), `OosEmailItemExtractor`,
+`CorrectiveOosEmailItemExtractor`, `AdjudicatingOosEmailItemExtractor`, the correction/adjudication
+block and its six private helpers in `OosEmailParserService`, the `AiServiceProvider` binding, and
+the `email_parsing.implementation` and `transport_attempts` config keys. Net −964 lines.
+
+**Judgement calls worth not re-litigating:**
+
+- **`consensus` and `adjudicated` stay on `OosEmailParseResult`, permanently `false`.** They are
+  downstream *policy* inputs, not parser outputs: `OosArchiveIdentityResolver` gates unattended
+  import on `consensus`, and `OosArchiveAssertionBundle` writes both into a portable format older
+  bundles are read back from. §3 puts that policy and those deletion-scheduled one-shots outside this
+  plan's authority and §5.1 forbids silently changing a portable format, so retiring the fields
+  belongs to IC8 alongside the bundle format.
+- **The archive cache namespace suffix is now unconditional.** It used to depend on the
+  implementation config. Legacy cache *rows* are database state and outlive the code, so under
+  invariant 11 the legacy namespace must stay permanently unreachable rather than become reachable
+  again the moment the key selecting it disappeared.
+- **`OosArchiveAssertionBundle` now fingerprints `OosParserSurfaceFingerprint`'s hash** where it used
+  to hash the single legacy extractor file, and reads `email_parsing.semantic.model` for `model_id`.
+  The key answers the same question — which extraction code produced these assertions — but the
+  semantic equivalent is a surface, not one file.
+- **The evaluation-arm machinery is retained to IC8**, along with the `email_parsing`
+  model/prompt/attempt config keys it reads. Legacy arms can no longer be *run*; that costs nothing,
+  since the banked legacy baselines are artifacts and §9.14 already established they cannot be
+  re-derived at HEAD anyway.
+
+**Test migration.** `tests/Support/FixedOosSemanticParserCandidate.php` replaces the fake legacy
+extractor everywhere a test needs a deterministic parse rather than a real one, by overriding
+`OosSemanticParserCandidate::parse()`. It is deliberately not a fake *annotator*: that would make
+forty pipeline tests author line-by-line annotation maps and would put the real compiler in their
+path, so a compiler change would fail tests that are not about the compiler. Tests that do mean to
+exercise annotation and compilation still bind `FakeOosSemanticAnnotator` and run the real candidate.
+
+Seven tests were deleted as testing behaviour that no longer exists — six asserting legacy
+corrective-retry and adjudication mechanics, plus the legacy half of the rate-limit retry test. One,
+`it_holds_a_parse_when_a_corrective_retry_still_merges_separate_item_lines`, was **kept and rewritten**
+as `it_holds_a_parse_that_merges_separate_item_lines`: the retry framing is gone but what it guarded
+is not, since a `continuation` the source does not support is a content defect the deterministic
+validator must hold whatever produced it.
+
+**Verification:** 6,988 tests pass (one pre-existing environmental skip in `TempDiskSpaceCheckTest`),
+`composer phpstan` zero errors, `pint --dirty` clean, `artisan dusk` 55 passed.
+
+**What remains open.** The §9.12 `outcome_rate` caveat — 28.9% against a 10% diagnostic ceiling,
+accepted by explicit maintainer exemption — is unchanged by any of this, and its named remedy, the
+single-lever item-kind arm with a measured projection of ~2.6%, is still available and still unrun.
+The tooling to run it was deliberately preserved (§9.13 retention amendment).
 
 ## 10. Non-goals
 

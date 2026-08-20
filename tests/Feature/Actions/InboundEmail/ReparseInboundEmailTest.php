@@ -5,15 +5,17 @@ declare(strict_types=1);
 namespace Tests\Feature\Actions\InboundEmail;
 
 use App\Actions\InboundEmail\ReparseInboundEmail;
-use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
+use App\Data\OosEmailSourceDocument;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
+use App\Services\Email\OosSemanticParserCandidate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\FixedOosSemanticParserCandidate;
 use Tests\TestCase;
 use Tests\Traits\WithInboundEmailTestHelpers;
 
@@ -128,13 +130,9 @@ class ReparseInboundEmailTest extends TestCase
     #[Test]
     public function it_returns_an_error_string_and_leaves_email_unchanged_when_parser_fails(): void
     {
-        $this->app->bind(OosEmailItemExtractor::class, fn () => new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                throw new \RuntimeException('Parser is broken');
-            }
-        });
+        $this->app->bind(OosSemanticParserCandidate::class, fn () => FixedOosSemanticParserCandidate::using(function (OosEmailSourceDocument $source): OosEmailItemExtractionResult {
+            throw new \RuntimeException('Parser is broken');
+        }));
 
         $email = InboundEmail::factory()->create([
             'status' => InboundEmailStatus::Pending->value,

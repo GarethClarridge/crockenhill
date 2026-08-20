@@ -12,23 +12,28 @@ use Tests\TestCase;
 
 class OosArchiveParseCacheBindingTest extends TestCase
 {
+    /**
+     * Invariant 11: a legacy cache row is never reinterpreted as an annotation result.
+     *
+     * The namespace suffix used to be conditional on the implementation config. That key is gone
+     * with the legacy parser, but the *rows* it wrote are database state and outlive the code, so
+     * the suffix is now unconditional — the legacy namespace has to stay permanently unreachable
+     * rather than become reachable again the moment the key selecting it disappeared.
+     */
     #[Test]
-    public function semantic_annotations_use_a_fresh_cache_namespace_without_invalidating_the_legacy_namespace(): void
+    public function the_legacy_cache_namespace_stays_permanently_unreachable(): void
     {
         $binding = new OosArchiveParseCacheBinding('parser-commit');
         $entry = $this->entry();
 
-        config()->set('service-tracking.email_parsing.implementation', 'legacy');
-        $legacy = $binding->rawCacheKey($entry, 'archive-v13');
-        $legacyHash = $binding->rawCacheKeyHash($entry, 'archive-v13');
+        $key = $binding->rawCacheKey($entry, 'archive-v13');
 
-        config()->set('service-tracking.email_parsing.implementation', 'semantic_annotations');
-        $semantic = $binding->rawCacheKey($entry, 'archive-v13');
-        $semanticHash = $binding->rawCacheKeyHash($entry, 'archive-v13');
-
-        $this->assertSame('archive-v13', $legacy['parser_version']);
-        $this->assertSame('archive-v13:semantic-annotations-v1', $semantic['parser_version']);
-        $this->assertNotSame($legacyHash, $semanticHash);
+        $this->assertSame('archive-v13:semantic-annotations-v1', $key['parser_version']);
+        $this->assertNotSame(
+            $binding->rawCacheKeyHash($entry, 'archive-v13'),
+            $binding->rawCacheKeyHash($entry, 'archive-v13:semantic-annotations-v1'),
+            'A bare legacy parser version must not hash to the same key as the namespaced one.',
+        );
     }
 
     private function entry(): OosArchiveEntry

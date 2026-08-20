@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
-use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosCandidateService;
-use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosSemanticAnnotationResult;
 use App\Data\OosSemanticLineAnnotation;
 use App\Enums\OosSemanticItemKind;
@@ -24,16 +22,14 @@ use App\Services\Email\OosSemanticAnnotationValidator;
 use App\Services\Email\OosSemanticParserCandidate;
 use App\Services\Email\OosServiceDateResolver;
 use PHPUnit\Framework\Attributes\Test;
-use RuntimeException;
 use Tests\Support\FakeOosSemanticAnnotator;
 use Tests\TestCase;
 
 class OosSemanticParserCandidateIntegrationTest extends TestCase
 {
     #[Test]
-    public function the_explicit_candidate_path_compiles_through_existing_policy_without_calling_the_legacy_extractor(): void
+    public function the_candidate_path_compiles_through_existing_policy(): void
     {
-        config()->set('service-tracking.email_parsing.implementation', 'semantic_annotations');
         $annotator = new FakeOosSemanticAnnotator(new OosSemanticAnnotationResult(
             [new OosCandidateService('morning', 'morning', [1])],
             [
@@ -41,13 +37,6 @@ class OosSemanticParserCandidateIntegrationTest extends TestCase
                 2 => new OosSemanticLineAnnotation(2, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Communion, null, null),
             ],
         ));
-        $legacyExtractor = new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                throw new RuntimeException('The legacy extractor must be unreachable.');
-            }
-        };
         $validator = new OosSemanticAnnotationValidator;
         $candidate = new OosSemanticParserCandidate(
             $annotator,
@@ -59,10 +48,9 @@ class OosSemanticParserCandidateIntegrationTest extends TestCase
             new OosSemanticAnnotationPrompt,
         );
         $parser = new OosEmailParserService(
-            $legacyExtractor,
             new ExistingEmailImportLookup,
             app(ServiceItemTitleCleaner::class),
-            semanticParser: $candidate,
+            $candidate,
         );
 
         $result = $parser->parse(InboundEmail::factory()->make([

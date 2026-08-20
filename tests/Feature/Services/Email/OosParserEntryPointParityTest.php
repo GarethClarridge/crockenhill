@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Services\Email;
 
-use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
+use App\Data\OosEmailSourceDocument;
 use App\Enums\InboundEmailStatus;
 use App\Jobs\ProcessInboundOosEmail;
 use App\Models\InboundEmail;
@@ -15,12 +15,14 @@ use App\Services\Email\OosArchiveParseCacheBinding;
 use App\Services\Email\OosCurationEntryFactory;
 use App\Services\Email\OosCurationManifest;
 use App\Services\Email\OosEmailParserService;
+use App\Services\Email\OosSemanticParserCandidate;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Arr;
 use JsonException;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\FixedOosSemanticParserCandidate;
 use Tests\TestCase;
 
 /**
@@ -348,14 +350,19 @@ class OosParserEntryPointParityTest extends TestCase
      */
     private function bindRecordingExtractor(): object
     {
-        $extractor = new class implements OosEmailItemExtractor
+        $recorder = new class
         {
-            /** @var list<array{subject: string, body: string, received_date: string}> */
+            /** @var list<array{subject: ?string, body: string, received_date: ?string}> */
             public array $calls = [];
+        };
 
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                $this->calls[] = ['subject' => $subject, 'body' => $body, 'received_date' => $receivedDate];
+        $candidate = FixedOosSemanticParserCandidate::using(
+            function (OosEmailSourceDocument $source) use ($recorder): OosEmailItemExtractionResult {
+                $recorder->calls[] = [
+                    'subject' => $source->subject,
+                    'body' => $source->promptBody(),
+                    'received_date' => $source->receivedDate,
+                ];
 
                 return new OosEmailItemExtractionResult(
                     items: [
@@ -374,12 +381,12 @@ class OosParserEntryPointParityTest extends TestCase
                         'confidence' => 0.95,
                     ]],
                 );
-            }
-        };
+            },
+        );
 
-        $this->app->bind(OosEmailItemExtractor::class, fn () => $extractor);
+        $this->app->bind(OosSemanticParserCandidate::class, fn () => $candidate);
 
-        return $extractor;
+        return $recorder;
     }
 
     /** @return array<string, string> */

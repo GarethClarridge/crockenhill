@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Email;
 
-use App\Contracts\OosEmailItemExtractor;
 use App\Contracts\OosSemanticAnnotator;
 use App\Data\OosCandidateService;
 use App\Data\OosEmailItemExtractionResult;
@@ -13,6 +12,7 @@ use App\Data\OosEmailServicePlan;
 use App\Data\OosEmailSourceDocument;
 use App\Data\OosSemanticAnnotationResult;
 use App\Data\OosSemanticLineAnnotation;
+use App\Data\OosSemanticParserOutcome;
 use App\Enums\OosSemanticItemKind;
 use App\Enums\OosSemanticRole;
 use App\Enums\OosSemanticUncertainty;
@@ -28,8 +28,9 @@ use RuntimeException;
  * Each fixture is driven end to end by {@see OosEmailParserService}, so "held" means what production
  * means by it — {@see OosEmailServicePlan::isAutoImportable()} and
  * {@see OosEmailServicePlan::isEvidenceImportable()} answering no — rather than a rule this class
- * restates and could drift from. Nothing is written and no model is called: the annotator and the
- * legacy extractor are replaced by fixed fakes that return the fixture's own defective output.
+ * restates and could drift from. Nothing is written and no model is called: an `annotation` fixture
+ * runs the real validator and compiler behind a fixed annotator, and an `extraction` fixture injects
+ * an already-compiled result by overriding the candidate's `parse()`.
  *
  * This surface is deleted with the rest of the Delivery 0 evaluation tooling at an accepted
  * historic-import IC8 closeout.
@@ -56,15 +57,10 @@ class RunOosSemanticSafetyFixtures
     /** @return array<string, mixed> */
     public function run(): array
     {
-        $implementation = config('service-tracking.email_parsing.implementation');
         $results = [];
 
-        try {
-            foreach ($this->fixtures->all() as $fixture) {
-                $results[] = $this->execute($fixture);
-            }
-        } finally {
-            config()->set('service-tracking.email_parsing.implementation', $implementation);
+        foreach ($this->fixtures->all() as $fixture) {
+            $results[] = $this->execute($fixture);
         }
 
         $unsatisfied = array_values(array_filter(
@@ -177,36 +173,82 @@ class RunOosSemanticSafetyFixtures
         $email->message_id = "safety-fixture-{$fixture['name']}";
         $email->received_at = Carbon::parse($fixture['received_date']);
 
-        config()->set(
-            'service-tracking.email_parsing.implementation',
-            $fixture['layer'] === 'annotation' ? 'semantic_annotations' : 'legacy',
-        );
-
         return $this->parser($fixture)->parse($email);
     }
 
     /** @param array<string, mixed> $fixture */
     private function parser(array $fixture): OosEmailParserService
     {
-        $validator = new OosSemanticAnnotationValidator;
-
         return new OosEmailParserService(
-            $this->legacyExtractor($fixture),
             $this->existingEmailImports,
             $this->titleCleaner,
-            semanticParser: new OosSemanticParserCandidate(
-                $this->annotator($fixture),
-                new CompileOosSemanticAnnotations($validator, new OosServiceDateResolver),
-                $validator,
-                new ApplyOosSemanticAnnotationPatch,
-                new OosParserSurfaceFingerprint,
-                new OosSemanticAnnotationSchema,
-                new OosSemanticAnnotationPrompt,
-                // No repairer on purpose: a fixture proves the *validator* refuses the defect, and a
-                // repair that rescued one would hide which layer did the holding.
-                repairer: null,
-            ),
+            $fixture['layer'] === 'annotation'
+                ? $this->annotatingCandidate($fixture)
+                : $this->precompiledCandidate($fixture),
         );
+    }
+
+    /**
+     * An `annotation`-layer candidate: a real compiler behind a fixed annotator.
+     *
+     * The defect is in what the annotator returns, so the real
+     * {@see OosSemanticAnnotationValidator} and {@see CompileOosSemanticAnnotations} must be the
+     * ones that refuse it.
+     *
+     * @param  array<string, mixed>  $fixture
+     */
+    private function annotatingCandidate(array $fixture): OosSemanticParserCandidate
+    {
+        $validator = new OosSemanticAnnotationValidator;
+
+        return new OosSemanticParserCandidate(
+            $this->annotator($fixture),
+            new CompileOosSemanticAnnotations($validator, new OosServiceDateResolver),
+            $validator,
+            new ApplyOosSemanticAnnotationPatch,
+            new OosParserSurfaceFingerprint,
+            new OosSemanticAnnotationSchema,
+            new OosSemanticAnnotationPrompt,
+            // No repairer on purpose: a fixture proves the *validator* refuses the defect, and a
+            // repair that rescued one would hide which layer did the holding.
+            repairer: null,
+        );
+    }
+
+    /**
+     * An `extraction`-layer candidate: a compiled result injected whole, with no annotation step.
+     *
+     * These fixtures exist to prove the downstream compatibility validator named in gate 4 still
+     * holds a line-accounting violation *even if a future compiler bug emitted one*, so they have to
+     * bypass compilation rather than go through it. Until Delivery 7 they did that by injecting the
+     * result through a fake legacy `OosEmailItemExtractor` and flipping the implementation config;
+     * with the legacy path deleted the same bypass is expressed directly, by overriding the
+     * candidate's `parse()`. The layer distinction and what each fixture proves are unchanged.
+     *
+     * @param  array<string, mixed>  $fixture
+     */
+    private function precompiledCandidate(array $fixture): OosSemanticParserCandidate
+    {
+        $extraction = $fixture['extraction'] === null
+            ? new OosEmailItemExtractionResult([], 0.0, provenanceComplete: true)
+            : new OosEmailItemExtractionResult(
+                items: $fixture['extraction']['items'],
+                confidence: $fixture['extraction']['confidence'],
+                services: $fixture['extraction']['services'],
+                serviceCount: count($fixture['extraction']['services']),
+                ignoredLines: $fixture['extraction']['ignored_lines'],
+                provenanceComplete: true,
+            );
+
+        return new class($extraction) extends OosSemanticParserCandidate
+        {
+            public function __construct(private readonly OosEmailItemExtractionResult $extraction) {}
+
+            public function parse(OosEmailSourceDocument $source): OosSemanticParserOutcome
+            {
+                return new OosSemanticParserOutcome($this->extraction, [[]], []);
+            }
+        };
     }
 
     /** @param array<string, mixed> $fixture */
@@ -223,31 +265,6 @@ class RunOosSemanticSafetyFixtures
             public function annotate(OosEmailSourceDocument $source): OosSemanticAnnotationResult
             {
                 return $this->result;
-            }
-        };
-    }
-
-    /** @param array<string, mixed> $fixture */
-    private function legacyExtractor(array $fixture): OosEmailItemExtractor
-    {
-        $extraction = $fixture['extraction'] === null
-            ? new OosEmailItemExtractionResult([], 0.0, provenanceComplete: true)
-            : new OosEmailItemExtractionResult(
-                items: $fixture['extraction']['items'],
-                confidence: $fixture['extraction']['confidence'],
-                services: $fixture['extraction']['services'],
-                serviceCount: count($fixture['extraction']['services']),
-                ignoredLines: $fixture['extraction']['ignored_lines'],
-                provenanceComplete: true,
-            );
-
-        return new class($extraction) implements OosEmailItemExtractor
-        {
-            public function __construct(private readonly OosEmailItemExtractionResult $extraction) {}
-
-            public function extract(string $subject, string $body, string $receivedDate): OosEmailItemExtractionResult
-            {
-                return $this->extraction;
             }
         };
     }
