@@ -28,8 +28,11 @@
 >   safety-fixture harness) and the `email_parsing` model/prompt/attempt config keys those read.
 >   Legacy *arms* are no longer runnable, which costs nothing: the banked legacy baselines are
 >   artifacts, and §9.14 already established they cannot be re-derived at HEAD.
-> - **Still open:** the §9.12 `outcome_rate` caveat (28.9%, accepted by exemption) and its named
->   remedy, the single-lever item-kind arm. Full detail in §9.15.
+> - **Nothing in this plan is open.** The §9.12 `outcome_rate` caveat (28.9%) is **closed by
+>   maintainer exemption**, and its named remedy — the single-lever item-kind arm — was **declined**,
+>   not deferred. The retained tooling exists so that a *future* arm run for some other reason can
+>   re-read `outcome_rate` rather than treat it as settled; it is not a pending action. Full detail
+>   in §9.15.
 >
 > - **Candidate:** `OosSemanticAnnotationPrompt::Version = 6`, `gpt-5.6-terra` / `low` / flex,
 >   against corpus `14cba9a3b97ef763e184d8b6a31cd41654054e2d6edfe31761dea9af2a910060`.
@@ -1735,10 +1738,22 @@ validator must hold whatever produced it.
 **Verification:** 6,988 tests pass (one pre-existing environmental skip in `TempDiskSpaceCheckTest`),
 `composer phpstan` zero errors, `pint --dirty` clean, `artisan dusk` 55 passed.
 
-**What remains open.** The §9.12 `outcome_rate` caveat — 28.9% against a 10% diagnostic ceiling,
-accepted by explicit maintainer exemption — is unchanged by any of this, and its named remedy, the
-single-lever item-kind arm with a measured projection of ~2.6%, is still available and still unrun.
-The tooling to run it was deliberately preserved (§9.13 retention amendment).
+**What remains open: nothing.** The §9.12 `outcome_rate` caveat — 28.9% against a 10% diagnostic
+ceiling — is **closed by explicit maintainer exemption**, and its named remedy, the single-lever
+item-kind arm, was **declined at the same time**. Delivery 7 does not reopen it and no decision about
+it is outstanding.
+
+Do not read the retained tooling as a pending action. §9.12's requirement is *conditional*:
+`outcome_rate` must be **re-read on any future arm** rather than assumed settled. The §9.13 retention
+amendment preserved the runner, scorer, freezer, adjudicator and safety-fixture harness so that
+accepting the caveat did not destroy the means of honouring that condition — not because acting on it
+was scheduled.
+
+What would legitimately reopen it, all external to this plan: an arm run for some other reason (a
+model change, a prompt change), evidence that the instability actually bites — an archive pass
+diverging materially on reparse, or unstable items reaching the review queue — or inbound routing
+being configured, which would make weekly parses real and repeated for the first time. None of those
+hold as of 2026-08-20.
 
 ## 10. Non-goals
 
