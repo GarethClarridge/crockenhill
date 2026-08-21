@@ -751,10 +751,29 @@ William Whittingham (1524–79) against Stuart Townend's `(I Will Trust In You A
 `Bless the Lord, O My Soul`; `Come O Fount Of Every Blessing (plus extra verse)` is Bob Kauflin's
 added verse over Robert Robinson, so its words genuinely differ. Identical opening lines therefore
 do not establish identity, and a first-line merge rule would have collapsed distinct songs into one
-another. Tier 1's refusal to merge two non-identical strong identities is the correct outcome, and
-these belong in review where a person with context decides. Do not open a catalogue de-duplication
-work package on the strength of first-line similarity; `song_authors` is the far better
-discriminator and is already populated (595 authors).
+another. Tier 1's refusal to merge two non-identical strong identities is the correct outcome. Do
+not open a catalogue de-duplication work package on the strength of first-line similarity;
+`song_authors` is the far better discriminator and is already populated (595 authors).
+
+**But the residue is not therefore all correct — `NIP` is a discarded constraint (2026-08-21).**
+The conclusion that these disagreements simply belong in review is **withdrawn**. `NIP` means
+*not in Praise!*: it asserts the song is absent from the hymnbook, so it is evidence about *which*
+catalogue row is meant, not decoration. `SongTitleResolver::stripEmailDecoration()` removes it. The
+corpus bears the meaning out — NIP-prefixed Email lines resolve to songs with no Praise! number 626
+times against 44 with one, while Praise/number lines resolve to numbered songs 1,041 times against
+19 without.
+
+Those **44 NIP lines resolved to a Praise!-numbered song contradict their own source**, and **23 of
+them have a NIP-consistent alternative already in the catalogue** — `NIP 'beneath the cross of
+jesus'` resolved to `#699` while an unnumbered *Beneath the Cross of Jesus* exists; `NIP 'facing a
+task unfinished' (getty version)` resolved to `#618` while the unnumbered Getty rewrite exists. The
+remaining 21 have no unnumbered alternative and are genuinely ambiguous: either the operator's NIP
+was loose or the catalogue lacks the row.
+
+Service 297 is one of the 23. Email's `NIP 'The Lord's my Shepherd'` cannot be Whittingham's
+Praise! 23B, so it is Townend's setting — which is what OpenLP said. The two sources agreed and the
+resolver manufactured the conflict. So both readings hold at once: the catalogue rows are genuinely
+distinct songs, *and* the resolver picked the wrong one of them by discarding what the source said.
 
 **Cross-source corroboration now finalises, measured the way the withdrawn claim should have been.**
 Rather than reading `payload_complete` — which is absent from every one of the 650 Email records in
