@@ -154,11 +154,46 @@ sides through the catalogue would agree on 162/298 and 154/298. Count is 238/298
 it does not depend on titles. Of the song assertions, 104 of 1,315 Email titles fail to resolve
 against 4 of 1,346 OpenLP titles — the Email side is the noisy one.
 
-**This is an open maintainer decision, not a defect that was fixed here.** Resolving titles in the
-normalizer would make evidence depend on mutable catalogue state (invariants 3 and 10); resolving
-them in the projector at comparison time would make `proposed_hash` catalogue-dependent. Both change
-a hash-bound portable contract, so neither was taken. Until it is decided, HIR-D8's corroboration
-path cannot finalise a service on this corpus and its acceptance criteria cannot be met.
+**This is an open maintainer decision, not a defect that was fixed here.** Until it is decided,
+HIR-D8's corroboration path cannot finalise a service on this corpus and its acceptance criteria
+cannot be met.
+
+**Framing corrected 2026-08-21 against the code; the decision stays open.** The earlier reading —
+that both placements change a hash-bound portable contract, and that the normalizer placement
+offends invariants 3 and 10 — is wrong on both counts, and the two options are not symmetrical.
+
+*The comparison-time placement does not touch any hash.* `project()` computes the projection hash
+from `portableHashItems($items)` and `$serviceContent` only; `$conflicts` is assembled afterwards
+and is not an input. `songDimensionValue()` has exactly two callers, both inside
+`contentCorroborationConflicts()`, so resolving titles there changes the conflict set and nothing
+else. `proposed_hash` is byte-identical before and after. What it does change is finalisation,
+because {@see IngestChurchServiceSourceRevision} finalises only when the hash agrees *and* the
+conflict set is empty — which is the whole 0/298 → 162/298 membership and 0/298 → 154/298 order
+movement. The dependence should be declared by bumping `policyVersion`, which
+{@see ChurchServiceConvergenceBundleImporter} already enforces on both import paths.
+
+*The normalizer placement does change the hash* — via `strongIdentity()`, which turns a filled
+`song_canonical_key` into the grouping key and therefore into `canonical_identity`, which
+`portableHashItems()` retains. It also regroups assertions into items.
+
+*The invariants cited were the wrong ones.* Invariant 3 binds parsing to an immutable byte
+snapshot and invariant 10 governs source-key identity; neither concerns song identity. The
+invariant actually engaged is **4** (source evidence is immutable and single-origin). Nor is
+catalogue-dependent evidence forbidden in general: {@see CurrentEraChurchServiceReprojection}
+already carries `song_canonical_key` on projected items. The distinction is provenance, not
+presence — a current-era key records a link someone actually made at the time, whereas a historic
+key would record a fuzzy match inferred now against a catalogue assembled later.
+
+Three consequences follow if the inference is stored as evidence: stored assertions become
+time-varying under catalogue edits though the source documents do not change (invariant 4);
+already-approved proposals and exported bundles change hash and are then refused on import, so a
+routine catalogue tidy-up becomes an invalidation event; and — weightiest — the catalogue was
+itself built from these sources (IC3), so normalising both sides through it makes part of any
+Email/OpenLP agreement an artifact of shared normalisation rather than two independent authors
+recording the same service, which is precisely what HIR-D8 corroboration claims to prove. That
+third consequence is contained but not eliminated at comparison time: routing can be re-derived,
+the dependence is announced by the policy version, and no stored row or hash carries the inference
+forward.
 
 ### 2.6 Carried and lapsed prior decisions
 
@@ -694,7 +729,7 @@ narrower `needs_review` semantics on purpose.
 
 | Item | Blocks | State |
 |---|---|---|
-| **Song identity for HIR-D8 corroboration**: resolve song titles through the catalogue in `ChurchServiceAssertionNormalizer` (evidence becomes catalogue-dependent, invariants 3/10) or in `ChurchServiceProjector` at comparison time (`proposed_hash` becomes catalogue-dependent) | All of HIR-D8 — corroboration finalised **zero** services on the catalogued corpus | Maintainer. Measured 2026-08-21: raw titles agree on membership 0/298 and order 0/298; catalogue-resolved would agree on 162/298 and 154/298 (§2.5) |
+| **Song identity for HIR-D8 corroboration**: resolve song titles through the catalogue in `ChurchServiceProjector::songDimensionValue()` at comparison time (no hash changes; conflict set and therefore finalisation changes; declare via `policyVersion`) or in `ChurchServiceAssertionNormalizer` (stored evidence carries an inference made now — invariant **4**, and `proposed_hash` changes via `strongIdentity()`) | All of HIR-D8 — corroboration finalised **zero** services on the catalogued corpus | Maintainer. Measured 2026-08-21: raw titles agree on membership 0/298 and order 0/298; catalogue-resolved would agree on 162/298 and 154/298. Framing corrected 2026-08-21 — the options are **not** symmetrical and the invariant cited earlier (3/10) was wrong; see §2.5 |
 | **Portable bundle ignored-line provenance**: persist `ignored_lines`, bump the bundle format, regenerate the bundle and its hashes | Portable apply — `preflightPortable()` refuses 403 of 554 entries | Maintainer; enumerated in `rga-catalogued-portable-structural-holds-20260821.json` (§6 IC1). The recovered "24 refusals" figure is withdrawn |
 | Disposition the 26 held semantic Email sources, or rule on them as `--accepted-holds`; reason counts overlap, so do not turn their sum into a workload | Email-lane settlement / F1 reporting / `expectation_mismatch` | Operator. Prior ~14, RG0A's 19 and the recovered run's 41 are superseded |
 | Source recovery for the 3 unevidenced current-era services | IC4 | Operator |
