@@ -10,6 +10,7 @@ use App\Data\OosSemanticAnnotationResult;
 use App\Data\OosSemanticLineAnnotation;
 use App\Enums\OosSemanticItemKind;
 use App\Enums\OosSemanticRole;
+use App\Enums\OosSemanticUncertainty;
 use App\Exceptions\OosSemanticCompilationException;
 use App\Services\Email\CompileOosSemanticAnnotations;
 use App\Services\Email\OosEmailExtractionValidator;
@@ -140,6 +141,95 @@ class CompileOosSemanticAnnotationsTest extends TestCase
         $this->assertSame([1, 3, 4], $compiled->services[0]['service_evidence_line_ids']);
         $this->assertSame([], $compiled->ignoredLines);
         $this->assertSame([], $validation->allReasons());
+    }
+
+    #[Test]
+    public function a_running_order_without_a_structural_frame_item_is_never_full_scope(): void
+    {
+        $source = OosEmailSourceDocument::fromContext(
+            'Hymns for Sunday 23 August 2026',
+            "Here are the hymns for tomorrow morning:\n248 Immortal, invisible\n829 Search me O God",
+            '2026-08-19',
+        );
+        $annotations = new OosSemanticAnnotationResult(
+            [new OosCandidateService('morning', 'morning', [1])],
+            [
+                1 => $this->annotation(1, OosSemanticRole::ServiceBoundary, 'morning'),
+                2 => $this->annotation(2, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Song),
+                3 => $this->annotation(3, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Song),
+            ],
+        );
+
+        $service = $this->compiler()->compile($source, $annotations)->extraction->services[0];
+
+        $this->assertSame('partial', $service['content_scope']);
+    }
+
+    #[Test]
+    public function a_sermon_heading_and_reading_alone_do_not_make_a_complete_order(): void
+    {
+        $source = OosEmailSourceDocument::fromContext(
+            'Sunday 23 August 2026',
+            "Evening\nFinal hymn: 960\nText: Ezra 7:1-10\nTitle: The right man",
+            '2026-08-19',
+        );
+        $annotations = new OosSemanticAnnotationResult(
+            [new OosCandidateService('evening', 'evening', [1])],
+            [
+                1 => $this->annotation(1, OosSemanticRole::ServiceBoundary, 'evening'),
+                2 => $this->annotation(2, OosSemanticRole::Item, 'evening', OosSemanticItemKind::Song),
+                3 => $this->annotation(3, OosSemanticRole::Item, 'evening', OosSemanticItemKind::BibleReading),
+                4 => $this->annotation(4, OosSemanticRole::Item, 'evening', OosSemanticItemKind::Sermon),
+            ],
+        );
+
+        $service = $this->compiler()->compile($source, $annotations)->extraction->services[0];
+
+        $this->assertSame('partial', $service['content_scope']);
+    }
+
+    #[Test]
+    public function one_structural_frame_item_is_enough_for_a_full_scope(): void
+    {
+        $source = OosEmailSourceDocument::fromContext(
+            'Sunday 23 August 2026',
+            "Morning Service\nWelcome and notices\n248 Immortal, invisible",
+            '2026-08-19',
+        );
+        $annotations = new OosSemanticAnnotationResult(
+            [new OosCandidateService('morning', 'morning', [1])],
+            [
+                1 => $this->annotation(1, OosSemanticRole::ServiceBoundary, 'morning'),
+                2 => $this->annotation(2, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Welcome),
+                3 => $this->annotation(3, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Song),
+            ],
+        );
+
+        $service = $this->compiler()->compile($source, $annotations)->extraction->services[0];
+
+        $this->assertSame('full', $service['content_scope']);
+    }
+
+    #[Test]
+    public function the_incomplete_service_flag_still_narrows_a_structurally_complete_order(): void
+    {
+        $source = OosEmailSourceDocument::fromContext(
+            'Sunday 23 August 2026',
+            "Morning Service\nWelcome and notices\n248 Immortal, invisible",
+            '2026-08-19',
+        );
+        $annotations = new OosSemanticAnnotationResult(
+            [new OosCandidateService('morning', 'morning', [1], [OosSemanticUncertainty::IncompleteService])],
+            [
+                1 => $this->annotation(1, OosSemanticRole::ServiceBoundary, 'morning'),
+                2 => $this->annotation(2, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Welcome),
+                3 => $this->annotation(3, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Song),
+            ],
+        );
+
+        $service = $this->compiler()->compile($source, $annotations)->extraction->services[0];
+
+        $this->assertSame('partial', $service['content_scope']);
     }
 
     private function annotation(

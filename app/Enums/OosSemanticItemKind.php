@@ -20,4 +20,22 @@ enum OosSemanticItemKind: string
     case Interview = 'interview';
     case MissionaryFocus = 'missionary_focus';
     case Transition = 'transition';
+
+    /**
+     * A frame element of a running order rather than its content: the parts a service has because
+     * it is a service at all, not because of what was sung, read or preached.
+     *
+     * A source that lists only content — a "here are the hymns for tomorrow" email, or the
+     * second-service stub of a two-service email — carries none of these. That is what
+     * the semantic compiler's content-scope rule uses to refuse a `full` content scope.
+     */
+    public function structuralFrame(): bool
+    {
+        return match ($this) {
+            self::Welcome, self::Notices, self::Prayer, self::ChildrensTalk,
+            self::CallToWorship, self::Communion, self::Benediction, self::Transition => true,
+            self::Song, self::BibleReading, self::Sermon, self::Other,
+            self::Interview, self::MissionaryFocus => false,
+        };
+    }
 }

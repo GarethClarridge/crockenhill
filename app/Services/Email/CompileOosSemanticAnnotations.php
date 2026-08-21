@@ -117,11 +117,48 @@ class CompileOosSemanticAnnotations
         return [
             'service' => $service->proposedService,
             'date' => $this->dateResolver->resolve($source, $service->boundaryLineIds),
-            'content_scope' => in_array(OosSemanticUncertainty::IncompleteService, $service->uncertainties, true) ? 'partial' : 'full',
+            'content_scope' => $this->contentScope($service, $items),
             'service_evidence_line_ids' => $this->evidenceLineIds($result, $service),
             'items' => $items,
             'confidence' => 0.75,
         ];
+    }
+
+    /**
+     * `full` claims the email presents that service's complete running order, and a consumer acts on
+     * the claim: the church-service projector builds a service's item list from its
+     * `payload_complete` source records, with no review gate in front of that filter. An incomplete
+     * order presented as complete is therefore the costly direction.
+     *
+     * The annotation alone cannot carry that claim. `incomplete_service` is its only signal, and
+     * that code is defined nowhere in the prompt or the schema, so `full` is the *absence* of a flag
+     * rather than an assertion of completeness — the annotator and the model were each guessing at
+     * the same undefined term, and disagreed on eight plans of the Delivery 6 corpus.
+     *
+     * A running order is `full` only when it also contains at least one structural frame item — the
+     * parts a service has because it is a service. A plan of nothing but songs, readings and a
+     * sermon heading is a *contribution* to an order, not the order itself: that is the shape of
+     * every "here are the hymns for tomorrow" email, and of every second-service stub in a
+     * two-service email. The flag is still honoured, so the model may only ever narrow the claim.
+     *
+     * The rule downgrades and never upgrades, so a wrong answer holds a plan for review rather than
+     * misfiling one as complete.
+     *
+     * @param  list<array{type:string,title:string,source_line_ids:list<int>,continuation:bool,semantic_kind:?string}>  $items
+     */
+    private function contentScope(OosCandidateService $service, array $items): string
+    {
+        if (in_array(OosSemanticUncertainty::IncompleteService, $service->uncertainties, true)) {
+            return 'partial';
+        }
+
+        foreach ($items as $item) {
+            if (OosSemanticItemKind::tryFrom($item['semantic_kind'] ?? '')?->structuralFrame() === true) {
+                return 'full';
+            }
+        }
+
+        return 'partial';
     }
 
     private function canonicalType(?OosSemanticItemKind $kind): string

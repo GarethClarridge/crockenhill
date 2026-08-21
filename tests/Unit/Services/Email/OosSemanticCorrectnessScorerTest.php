@@ -234,9 +234,13 @@ class OosSemanticCorrectnessScorerTest extends TestCase
         // auto-import threshold. Until REV-D2 was scored here that made gate 5 unreachable: it
         // reported zero eligible plans while `isEvidenceImportable()` was admitting review-required
         // plans to the real unattended path. This is the case the gate previously could not see.
-
+        //
+        // The mutation over-claims: the fixture is a song and a sermon with no structural frame
+        // item, so it compiles to `partial`, and a candidate asserting `full` presents an
+        // incomplete order as complete. That is the direction that costs something — the projector
+        // builds a service's item list from `payload_complete` records with no review gate.
         $report = $this->score(candidateMutator: static function (array $candidate): array {
-            $candidate['results'][0]['extraction']['services'][0]['content_scope'] = 'partial';
+            $candidate['results'][0]['extraction']['services'][0]['content_scope'] = 'full';
 
             return $candidate;
         });
