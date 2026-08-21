@@ -1755,6 +1755,197 @@ diverging materially on reparse, or unstable items reaching the review queue —
 being configured, which would make weekly parses real and repeated for the first time. None of those
 hold as of 2026-08-20.
 
+## 9.16 Post-acceptance review slice — 2026-08-21
+
+An external review of the delivered parser
+([`docs/reports/order-of-service-email-parser-redesign-review-2026-08-20.md`](../reports/order-of-service-email-parser-redesign-review-2026-08-20.md))
+raised one high and two medium findings. All five findings were verified against the code before
+any change. This section records what was done and, where the review's own recommendation could not
+be followed as written, why.
+
+### Gate 5 now scores both unattended tiers (review finding 1)
+
+`OosSemanticCorrectnessScorer::routing()` admitted a plan to the unattended set only at
+`confidence >= 0.90`, justified by a docblock claiming every other disposition condition could hold
+a plan but never release one. Historic REV-D2 ended that when IC1 landed: `isEvidenceImportable()`
+releases a `ReviewRequired` plan with trustworthy identity, and both `ProcessInboundOosEmail` and
+`InboundEmailImportService::importPlan()` admit that tier unattended. Because the semantic compiler
+fixes extracted confidence at `0.75`, the old test was not merely incomplete — it was *unreachable*,
+and the accepted v6 artifact reported zero eligible plans while 36 review-required sources could
+enter the real evidence path.
+
+Both tiers are now answered by the production DTO. The candidate artifact records the compiled
+extraction rather than the disposition assigned afterwards, so each tier's disposition-dependent
+condition is bounded above rather than guessed; both approximations err towards *more* eligibility,
+which is the safe direction for a safety gate. The rule text is recorded in the artifact.
+
+**Acceptance-criteria decision (maintainer, 2026-08-21).** Gate 5 asserts *identity and scope* for
+the evidence tier, and continues to require exact content for the auto-import tier. Requiring exact
+content from an evidence tier would contradict REV-D2, which admits uncertain content on purpose;
+item-level accuracy stays with gate 6 and with the quarantine that keeps the tier unreviewed,
+unfinalised and outside release eligibility. What the evidence tier must never do is file
+trusted-looking content against the wrong service, date or scope.
+
+**Measured result.** Rescoring the banked v6 candidate under the corrected gate: 47 evidence-tier
+eligible plans, 0 auto-import eligible, 0 incorrect unattended imports, and **8 misfiled evidence
+admissions**, all of them pure `content_scope` disagreements — service and date are correct in every
+one. Gate 5 therefore **fails**, and the v6 artifact's `pass` verdict does not survive the
+correction. Direction matters for triage:
+
+- **3 over-claims** (truth `partial`, candidate `full`): `2023-10-15-hymns`, `2026-08-02-pm`,
+  `2024-05-12`. These are the risky direction — an incomplete order presented as complete.
+- **5 under-claims** (truth `full`, candidate `partial`): `2018-11-18`, and the *evening* plan of
+  `2017-04-30`, `2016-04-03`, `2016-03-20`, `2018-04-15`. Four of the five are the second service of
+  a two-service email, which looks like a systematic annotation behaviour rather than noise and is
+  the first thing a future scope-focused arm should target.
+
+A related fail-open was fixed alongside: `typedPlan()` defaulted a plan that stated no scope to
+`full`, scoring an unstated scope as a confident claim. It now defaults to `unknown`. No plan in the
+current corpus is affected.
+
+### Explicit dates that do not exist are refused (review finding 2)
+
+`OosServiceDateResolver::date()` accepted `CarbonImmutable::createFromFormat()` without checking the
+result, and Carbon *normalises* an overflowing date rather than rejecting it, so `31 February 2018`
+became `3 March 2018`. The archive path has manifest corroboration to catch that; the weekly evidence
+path has none and would keep the wrong identity. The guard compares the parsed day and year against
+the digits the source stated, rather than reformatting the string, because the calling patterns admit
+separators and month spellings a round-trip would not reproduce.
+
+Two deliberate limits: the `.` separator the numeric pattern admits but the format has never parsed
+is left alone, because normalising it would newly resolve dates the corpus was measured without;
+and the corpus contains **zero** impossible explicit dates, so this fix is provably inert on it and
+does not disturb any banked measurement.
+
+### The evidence chain was broken at the writer, not only at the scorer (review finding 3)
+
+The review recommended recomputing the artifact hash and comparing it fail-closed. Implemented
+literally, that refuses **every artifact ever produced**, including the accepted v6 — so the review's
+step 1 was self-blocking. The cause is not tampering but an encoder mismatch: `CanonicalJson::hash()`
+encodes with `JSON_PRESERVE_ZERO_FRACTION`, while the artifact writers omitted it. Any float landing
+on a whole number — `rate()` returns `float`, so `service_accuracy: 1.0`, `title_binding.rate: 1.0` —
+was persisted as `1`, re-read as an `int`, and could never reproduce the hash taken over it. Corpus
+artifacts verified only because they carry no computed rates, which is why this survived undetected.
+A sweep of all private artifacts found 24 affected, all from the two OoS writers; five further
+apparent hits were `manifest_hash` fields that hash an *input*, not the artifact.
+
+Three things were done:
+
+1. **The writers were fixed** through one shared helper, `CanonicalJson::encodeReadable()`, so the
+   readable and hashed forms cannot drift apart again. Every self-hashing writer now uses it.
+2. **Verification is enforced** fail-closed for both candidate and replicate, with tamper tests. The
+   scorer test helper now rehashes a mutated candidate, mirroring the corpus path — leaving the stale
+   hash in place had silently made every mutation test a tamper case, which is exactly why the
+   scorer's failure to verify went unnoticed.
+3. **The two artifacts the accepted score consumes were restamped** by
+   `evidence:rebaseline-hash`. This is a **one-time re-baseline forced by an encoder defect, not a
+   fresh attestation**: it cannot distinguish encoder loss from an edit. Superseded artifacts (v3–v5,
+   luna) were deliberately *not* restamped — restamping them would falsely imply they had been
+   verified.
+
+**What corroborates the re-baseline.** Every other binding is untouched and still checked: corpus
+hash, parser surface hash, per-source input hashes. Beyond those, rescoring the banked candidate at
+its recorded parser surface reproduced the previously reported metrics with **zero differences**,
+and the safety-fixture results hash reproduced exactly — independent evidence that the content did
+not move, which is the guarantee the self-hash was supposed to provide.
+
+**How the rescore was run.** The banked candidate predates Delivery 7, so five surface files plus the
+fingerprint's own file list differ from HEAD. The rescore therefore pins those files to
+`c4455b897` — the candidate's recorded `application_commit` — reproducing surface hash
+`7acc08a86780…` exactly. This is safe for the disposition question because `planDisposition()` and
+`planHoldReasons()` are **byte-identical** between `c4455b897` and HEAD, so the corrected gate
+measures today's rule. The scorer itself is not part of the parser surface, so scoring changes do not
+disturb the binding.
+
+### Housekeeping (review findings 4 and 5)
+
+- `OosArchiveParseCacheBinding` kept its own shorter copy of the parser surface paths, omitting the
+  semantic decoder and continuation rule, the semantic DTOs and enums, the OpenAI payload and
+  schema-limit helpers and the transient-failure policy. Both now read one list,
+  `OosParserSurfaceFingerprint::Files`.
+- The stale "delete once the Luna adoption report is accepted" trigger was retargeted to IC8-only in
+  **six** files — the four the review named plus `OosParserArmPrimaryComparison` and
+  `OosSourceFaithfulnessLabels`.
+- Private-write ordering was **not** changed. The banked artifacts are already `0600` and the fixed
+  writers still chmod after creation; converting them to `PrivateEvidenceFile` is create-once
+  semantics that the rebaseline command deliberately needs to bypass. Left as noted debt.
+
+### Consequences for the plan
+
+The Delivery 6 acceptance recorded in §9.6 stands for gates 1–4 and 6–11 but **not for gate 5**,
+which failed on 8 scope misfilings. That was an accuracy finding against the arm, not a safety
+breach: nothing was finalised or published, the archive path is operator-invoked, and weekly Mailgun
+ingress is still not configured. §9.17 resolves it.
+
+## 9.17 `content_scope` was an undefined label — 2026-08-21
+
+**The 8 misfilings were not one finding.** Adjudicating each against its source text splits them:
+the **3 over-claims are real parser defects** — `2023-10-15-hymns`, `2026-08-02-pm` and `2024-05-12`
+are "here are the hymns for tomorrow" emails, songs and at most a reading, called `full`. The **5
+under-claims are truth-label errors**: `2018-04-15-am` evening is the single line "Final hymn – 436",
+labelled `full`; `2017-04-30`, `2016-04-03` and `2016-03-20` evening are second-service stubs; and
+`2018-11-18` is a bare hymn list of exactly the kind truth *did* flag elsewhere.
+
+**The root cause is that the term was never defined.** `CompileOosSemanticAnnotations` derived scope
+as `IncompleteService flag ? 'partial' : 'full'`, and `incomplete_service` appears nowhere in
+`OosSemanticAnnotationPrompt` or `OosSemanticAnnotationSchema` — it is a bare enum value among
+eight. Truth `full` was therefore the *absence of a flag*, not an assertion, the same fail-open shape
+fixed in `typedPlan()` one layer down. It is the only uncertainty code used anywhere in the corpus:
+7 of 51 service groups. Annotator and model were each guessing at the same undefined term, and their
+guesses were self-consistent but different.
+
+**The rule now written down.** A plan is `full` only when its items include at least one *structural
+frame* item — welcome, notices, prayer, children's talk, call to worship, communion, benediction,
+transition (`OosSemanticItemKind::structuralFrame()`). A plan of nothing but songs, readings and a
+sermon heading is a contribution to an order, not the order itself. The `incomplete_service` flag is
+still honoured first, so the model may only ever *narrow* the claim. The rule downgrades and never
+upgrades, so a wrong answer holds a plan rather than misfiling one — which matters because
+`ChurchServiceProjector::projectionRecords()` filters on `payload_complete` with no review gate, so
+a hymn list marked `full` becomes the projected running order.
+
+Alternatives measured and rejected: "no sermon item" couples a *scope* gate to item recall, and
+"songs only" misses `2024-05-12`, which carries a reading.
+
+**Why no arm was needed.** Candidate artifacts retain `attempts[].final_annotations`, so a
+compiler-side rule can be replayed against real model output at zero spend. Across all nine banked
+runs — terra and luna, prompt versions v3–v6, both replicates — raw scope disagreements of 3–9 fall
+to 0 or 1 under this rule. **Caveat: the rule was fitted on terra-v6 and the corroboration reuses the
+same 38 sources**, so this is a domain rule justified by its definition, not an independent measurement.
+
+**Recompilation, not re-running.** `oos:recompile-semantic-candidate-evidence` replays a banked
+candidate through the current compiler from the annotations it already stores. This is not a second
+`evidence:rebaseline-hash`: that re-derived a hash from whatever a file held and could not tell
+encoder loss from an edit, whereas here the model's own output — annotations, patch, telemetry,
+usage, price bindings — is carried across byte-identically and only the *derived* compilation moves,
+deterministically and reproducibly by anyone holding the same annotations. It fails closed on an
+artifact that does not reproduce its own evidence hash, verifies each result's `source_hash` against
+the supplied corpus before recompiling, and refuses an artifact already recompiled. `parser_surface`
+and `inputs.corpus_hash` are restamped because the scorer reads them as "what compiled these plans";
+both originals are preserved in a `recompilation` block. This also retires §9.16's pinned-surface
+rescore recipe: a recompiled artifact is stamped at HEAD and scores there directly.
+
+**Measured result.** Truth regenerated by `oos:adjudicate-semantic-corpus` over the frozen
+`-prefilled` worksheet and the banked decisions (corpus hash
+`f4bfb40c79942fd30dc3247f8641e0966be493811903c929ea8fb05556ba5b26`) moved **exactly 6 plans**, all
+`full`→`partial`, with every service, date and item title unchanged: the 5 adjudicated above plus
+`2015-10-18` evening, where truth was wrong and the candidate wrong the same way, so it had never
+surfaced as a disagreement. The v6 candidate and its replicate recompiled with **3 and 2 sources
+changed** respectively — only the over-claims. Scoring the pair:
+
+- **gate 5 passes**: 47 evidence-tier eligible plans, **0 incorrect unattended imports, 0 misfiled
+  evidence admissions** (was 8);
+- `content_scope_accuracy` 0.833 → **1.0**;
+- stability improved as a side effect — `field_decomposition.service_date_scope` 1 → 0,
+  `self_disagreements` 16 → 15, `outcome_rate` 28.9% → **26.3%** (still above the §9.12 diagnostic
+  ceiling, and still covered by that section's exemption);
+- every other numeric metric — items, kinds, title binding, identity, repair, cost — is **unchanged**.
+
+**Verdict `pass` on all ten scored gates.** Note that the §9.6 accepted artifact's gate-5 `pass` was
+vacuous — it reported 0 eligible plans because the old rule could not reach the evidence tier. This
+is the first gate-5 pass that measures anything.
+
+Gate 5 is closed and Email RG-A is unblocked.
+
 ## 10. Non-goals
 
 - fine-tuning before the annotation architecture and golden evaluation establish a residual need;
