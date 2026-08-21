@@ -100,6 +100,59 @@ class OosServiceDateResolverTest extends TestCase
         $this->assertNull($this->resolver()->resolve($source, [1]));
     }
 
+    #[Test]
+    public function an_impossible_explicit_day_and_month_resolves_to_null_rather_than_a_normalised_date(): void
+    {
+        // Carbon normalises 31 February to 3 March rather than rejecting it. Resolving that would
+        // hand the weekly evidence path a plausible but wrong service identity, which no manifest
+        // is there to contradict, so the impossible date must be refused outright.
+        $source = OosEmailSourceDocument::fromContext(
+            'Order of service',
+            'Service on 31st February 2018',
+            '2018-02-14',
+        );
+
+        $this->assertNull($this->resolver()->resolve($source, [1]));
+    }
+
+    #[Test]
+    public function an_impossible_explicit_numeric_date_resolves_to_null_rather_than_a_normalised_date(): void
+    {
+        $source = OosEmailSourceDocument::fromContext(
+            'Order of service',
+            'Service on 31/2/2018',
+            '2018-02-14',
+        );
+
+        $this->assertNull($this->resolver()->resolve($source, [1]));
+    }
+
+    #[Test]
+    public function an_impossible_iso_date_resolves_to_null_rather_than_a_normalised_date(): void
+    {
+        $source = OosEmailSourceDocument::fromContext(
+            'Order of service',
+            'Service on 2018-02-31',
+            '2018-02-14',
+        );
+
+        $this->assertNull($this->resolver()->resolve($source, [1]));
+    }
+
+    #[Test]
+    public function a_real_end_of_month_date_still_resolves(): void
+    {
+        // The guard must refuse only dates that do not exist. A genuine 29 February in a leap year
+        // is the case most likely to be broken by an over-eager overflow check.
+        $source = OosEmailSourceDocument::fromContext(
+            'Order of service',
+            'Service on 29th February 2020',
+            '2020-02-14',
+        );
+
+        $this->assertSame('2020-02-29', $this->resolver()->resolve($source, [1]));
+    }
+
     private function resolver(): OosServiceDateResolver
     {
         return new OosServiceDateResolver;

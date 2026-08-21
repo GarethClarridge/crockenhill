@@ -19,17 +19,23 @@ class OosServiceDateResolver
         ], is_string(...)));
 
         if (preg_match('/\b(20\d{2})-(\d{2})-(\d{2})\b/', $evidence, $matches) === 1) {
-            return $this->date('Y-m-d', $matches[0]);
+            return $this->date('!Y-m-d', $matches[0], (int) $matches[3], (int) $matches[1]);
         }
 
         if (preg_match('/\b(\d{1,2})[\/.](\d{1,2})[\/.](20\d{2})\b/', $evidence, $matches) === 1) {
-            return $this->date('!j/n/Y', $matches[0]);
+            // `$matches[0]` rather than the recomposed groups on purpose: the pattern also admits a
+            // `.` separator, which this format has never parsed, and normalising it here would newly
+            // resolve dates the corpus was measured without. That is a separate question from the
+            // overflow guard below and is left to the historic lane to decide deliberately.
+            return $this->date('!j/n/Y', $matches[0], (int) $matches[1], (int) $matches[3]);
         }
 
         if (preg_match('/\b(\d{1,2})(?:st|nd|rd|th)?\s+(January|February|March|April|May|June|July|August|September|October|November|December)(?:\s+(20\d{2}))?\b/iu', $evidence, $matches) === 1) {
             $year = $matches[3] ?? $this->contextYear($source);
 
-            return $year === null ? null : $this->date('!j F Y', "{$matches[1]} {$matches[2]} {$year}");
+            return $year === null
+                ? null
+                : $this->date('!j F Y', "{$matches[1]} {$matches[2]} {$year}", (int) $matches[1], (int) $year);
         }
 
         return $this->relativeDate($source, $evidence);
@@ -94,12 +100,29 @@ class OosServiceDateResolver
         }
     }
 
-    private function date(string $format, string $value): ?string
+    /**
+     * Parse an explicit source-stated date, refusing one that does not exist.
+     *
+     * Carbon *normalises* an overflowing date rather than rejecting it: `31 February 2018` parses
+     * to `3 March 2018`, and `31/2/2018` the same. Without this check an impossible source value
+     * would silently become a plausible *different* service identity, which is worse than no date
+     * at all: the archive path has manifest corroboration to catch it, but the weekly evidence path
+     * has no manifest and would keep the wrong identity.
+     *
+     * The guard compares the parsed day and year against the digits the source actually stated
+     * rather than reformatting the string, because the calling patterns accept separators and month
+     * spellings that a round-trip would not reproduce (`8.1.2018`, `2nd february`). Any overflow
+     * moves the day, so a day that survives unchanged means the date exists. {@see self::receivedDate()}
+     * makes the same refusal for the single fixed format it accepts.
+     */
+    private function date(string $format, string $value, int $statedDay, int $statedYear): ?string
     {
         try {
             $date = CarbonImmutable::createFromFormat($format, $value);
 
-            return $date instanceof CarbonImmutable ? $date->toDateString() : null;
+            return $date instanceof CarbonImmutable && $date->day === $statedDay && $date->year === $statedYear
+                ? $date->toDateString()
+                : null;
         } catch (Throwable) {
             return null;
         }
