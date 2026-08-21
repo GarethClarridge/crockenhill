@@ -20,8 +20,13 @@ use RuntimeException;
 /**
  * Executes one frozen OoS parser evaluation arm against the approved corpus.
  *
- * This one-shot surface is deleted once the Luna adoption report is accepted and no rerun remains,
- * or at historic-import IC8 closeout at the latest.
+ * This one-shot surface is deleted at historic-import IC8 closeout.
+ *
+ * The trigger was formerly "once the Luna adoption report is accepted, or IC8 at the latest". The
+ * Luna decision is closed, so that wording now reads as licence to delete this immediately. It is
+ * not: the parser plan was later amended to retain the evaluation machinery through IC8, because
+ * §9.12 requires `outcome_rate` to be re-read on any future arm rather than treated as settled.
+ * IC8 is therefore the only trigger.
  */
 class OosParserArmRunner
 {

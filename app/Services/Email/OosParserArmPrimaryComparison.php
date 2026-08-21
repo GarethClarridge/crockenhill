@@ -39,8 +39,9 @@ use RuntimeException;
  *   adjudicated, so their correctness is unknown; the Newcombe bound is minimised over every
  *   feasible allocation of them rather than assuming a favourable one.
  *
- * This one-shot surface is deleted once the Luna adoption report is accepted and no rerun remains,
- * or at historic-import IC8 closeout at the latest.
+ * This one-shot surface is deleted at historic-import IC8 closeout. The former "once the Luna
+ * adoption report is accepted" trigger is stale: that decision is closed, but the parser plan was
+ * amended to retain the evaluation machinery through IC8, so IC8 is the only trigger.
  */
 class OosParserArmPrimaryComparison
 {

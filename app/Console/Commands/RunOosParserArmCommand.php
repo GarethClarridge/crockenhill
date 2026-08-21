@@ -16,8 +16,9 @@ use Throwable;
 /**
  * Run one frozen OoS parser model-evaluation arm on a certified rehearsal database.
  *
- * Delete once the Luna adoption report is accepted and no rerun remains, or at historic-import
- * IC8 closeout at the latest.
+ * Delete at historic-import IC8 closeout. The former "once the Luna adoption report is accepted"
+ * trigger is stale: that decision is closed, but the parser plan was amended to retain the
+ * evaluation machinery through IC8, so IC8 is the only trigger.
  */
 class RunOosParserArmCommand extends Command
 {

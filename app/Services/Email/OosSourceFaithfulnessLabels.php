@@ -31,8 +31,9 @@ use RuntimeException;
  * "No schema validator" in the plan means no external JSON Schema dependency. It does not mean an
  * unvalidated artifact: the version constant and the runtime shape checks below are the validation.
  *
- * This one-shot surface is deleted once the Luna adoption report is accepted and no rerun remains,
- * or at historic-import IC8 closeout at the latest.
+ * This one-shot surface is deleted at historic-import IC8 closeout. The former "once the Luna
+ * adoption report is accepted" trigger is stale: that decision is closed, but the parser plan was
+ * amended to retain the evaluation machinery through IC8, so IC8 is the only trigger.
  */
 class OosSourceFaithfulnessLabels
 {
