@@ -17,9 +17,7 @@
 > signed act (§8). The one-shot windowed operation, its ingress freeze and its G-gate ladder no
 > longer exist.
 >
-> **Cannot proceed without a human:** the song-identity decision HIR-D8 corroboration now depends
-> on (§2.5 — resolve song titles through the catalogue in the normalizer or in the projector, both
-> of which change a hash-bound contract); disposition of the catalogued rehearsal's 26 held source
+> **Cannot proceed without a human:** disposition of the catalogued rehearsal's 26 held source
 > entries (§6 IC1 — reason categories overlap, and the earlier "~14" and "41" are superseded); the
 > video
 > curation worksheet adjudication and manifest freeze (IC5); recovery of source material for the
@@ -154,9 +152,13 @@ sides through the catalogue would agree on 162/298 and 154/298. Count is 238/298
 it does not depend on titles. Of the song assertions, 104 of 1,315 Email titles fail to resolve
 against 4 of 1,346 OpenLP titles — the Email side is the noisy one.
 
-**This is an open maintainer decision, not a defect that was fixed here.** Until it is decided,
-HIR-D8's corroboration path cannot finalise a service on this corpus and its acceptance criteria
-cannot be met.
+**Decided 2026-08-21 by the maintainer: resolve song identity in
+`ChurchServiceAssertionNormalizer` (the evidence-level placement).** The reasoning and the
+measurement that produced it are recorded below; invariant 4 is amended accordingly in §3.2. The
+alternative — resolving at comparison time in `ChurchServiceProjector::songDimensionValue()` — was
+considered and **rejected**, for the reason in "why comparison time is the wrong placement" below.
+Until it is implemented (IC3), HIR-D8's corroboration path cannot finalise a service on this corpus
+and its acceptance criteria cannot be met.
 
 **Framing corrected 2026-08-21 against the code; the decision stays open.** The earlier reading —
 that both placements change a hash-bound portable contract, and that the normalizer placement
@@ -193,7 +195,60 @@ Email/OpenLP agreement an artifact of shared normalisation rather than two indep
 recording the same service, which is precisely what HIR-D8 corroboration claims to prove. That
 third consequence is contained but not eliminated at comparison time: routing can be re-derived,
 the dependence is announced by the policy version, and no stored row or hash carries the inference
-forward.
+forward. **That containment argument is superseded by the measurement below** — it weighed the
+placements' side effects without establishing that comparison-time resolution repairs the defect,
+which it does not.
+
+**The measurement that decided it 2026-08-21.** The framing correction above established that the
+placements differ in what they touch. Inspecting the catalogued rehearsal established that they
+differ in what they *fix*, and that the comparison-time placement fixes nothing.
+
+Because every historic assertion has a null `song_canonical_key`, `matchPair()`'s **tier-1
+`song_identity` match never fires anywhere in the historic corpus**. Song matching therefore runs
+entirely on the tier-3 anchored-title and tier-4 anchored-position fallbacks, which were designed
+as a last resort and have become the only resort. The consequence is a defect in the projection
+itself, not merely in review routing:
+
+- Across the 269 dual-source (Email + OpenLP) pending proposals, **264 carry more song items than
+  either source lists**, because each song is projected twice — once per source. Only 5 merge
+  cleanly. The corpus carries **1,024 surplus song items**.
+- The fallbacks also mis-pair. In service 297 (morning, 2021-10-24) both sources list the same six
+  songs in the same order, but the projected item filed under canonical identity
+  `songs:nip 'come people of the risen king'` carries the title *"The Best Book To Read"* — Email's
+  first song merged with OpenLP's third by position. The mis-pairing raises no conflict of its own.
+
+The Email side's titles carry the projectionist's shorthand (`NIP`, quotation marks, `Praise! 873`,
+parenthetical performance notes) while OpenLP carries the archive file's own title, so string
+equality reports six-of-six disagreement on a service a reader would call identical.
+
+**Why comparison time is the wrong placement.** Service 297's stored staging reasons are exactly
+two entries — `corroboration_mismatch` on song membership and on song order. Resolving titles at
+comparison time removes both, `stagingReasons` becomes empty, and
+{@see IngestChurchServiceSourceRevision} then takes the `else` branch and **applies the projection
+unattended**. What it would apply is the eleven-item merge, mis-titled item included. The placement
+does not repair the merge; it removes the reviewer who would have caught it, across 264 services.
+Its "changes no hash" property is a symptom of that inertness, not a safety property.
+
+**Why the normalizer placement is correct.** A stored `song_canonical_key` makes tier 1 fire, so
+the six assertions collapse into six items; the mis-pairing cannot form, because tier 1 refuses two
+non-identical strong identities outright instead of degrading to position; and corroboration then
+agrees because the items genuinely agree rather than because the comparison was loosened. The
+projection hash changes precisely because the projection is better.
+
+**Accepted costs, recorded rather than mitigated away.**
+
+1. *Stored evidence and hashes become catalogue-dependent.* A catalogue edit is henceforth a
+   reprojection event, not a lookup-table tidy-up: it changes assertions, `proposed_hash`, and
+   therefore the acceptance state of exported bundles. Handle it as a versioned reprojection round
+   under the existing `policyVersion` machinery, which {@see ChurchServiceConvergenceBundleImporter}
+   already enforces on both import paths.
+2. *Partial circularity of corroboration.* The catalogue was built partly from these same sources
+   (IC3), so some Email/OpenLP agreement reflects shared normalisation rather than two independent
+   authors. This is accepted **because storing the key makes it inspectable**: an agreement resting
+   on a resolved key is distinguishable in the data from a literal-title agreement, which it would
+   not be under comparison-time resolution. Era accuracy reporting (§8) must not present
+   key-resolved agreement as independent corroboration without that split.
+3. *Invariant 4 is amended, not bent.* See §3.2.
 
 ### 2.6 Carried and lapsed prior decisions
 
@@ -241,7 +296,7 @@ Every one is enforced by landed code and named tests; none may be weakened by an
 | 1 | No public surface exposes quarantined or pre-boundary content (audience preservation, was F29) | The §3.1 read-side services and `SermonExposurePolicy`; release only via signed batch |
 | 2 | Exact approved manifests — never globs, rescans or ad-hoc subsets — are the sole mutation authority (was F37/F48) | `OosCurationManifest`, `OpenLpCurationManifest`, `HistoricVideoCurationManifest`, plan-hash checks in every import command |
 | 3 | Parsing, provenance and mutation bind to one immutable byte snapshot whose hash equals the approved manifest hash (was F49/F50, B15) | `OosArchiveParseCacheBinding` (HIR2), snapshot checks in the OoS/OpenLP importers |
-| 4 | Source evidence is immutable and single-origin; supersession is explicit lineage; source silence never removes another source's occurrence (was F30, B3, B5) | `IngestChurchServiceSourceRevision`, source adapters, `ChurchServiceProjector` |
+| 4 | Source evidence is immutable and single-origin, **save for versioned catalogue resolution** (amended 2026-08-21, §2.5); supersession is explicit lineage; source silence never removes another source's occurrence (was F30, B3, B5) | `IngestChurchServiceSourceRevision`, source adapters, `ChurchServiceProjector` |
 | 5 | Manual final authority is never silently overwritten by machine evidence (was F40) | Projector/review-state services |
 | 6 | Object storage is create-only under a prior durable claim; no DB transaction spans object I/O; cleanup deletes only exact owned receipts or not at all (was F45-objects, HIR7) | `HistoricSermonPublicationService`, `HistoricReleaseObjectStore` implementations |
 | 7 | Historic bulk work emits no external notification, model/domain event or after-commit authoritative side effect; ordinary weekly processing still alerts (was F51/F52) | `ProcessingNotificationRouter` historic containment, convergence event audit |
@@ -252,6 +307,25 @@ Every one is enforced by landed code and named tests; none may be weakened by an
 | 12 | The date/identity manifest-corroboration gate on email extraction stays fail-closed (8/8 recall measured) | `OosArchiveEvaluator` gate reasons |
 | 13 | Approved video bytes are hash-verified immediately before dispatch and outputs hash-verified after (was F31) | `HistoricVideoImporter`, `HistoricVideoCurationManifest::verifiedPath()` |
 | 14 | Same-day special-service identity collisions fail closed; curated occasion/title facts are carried (was F44) | Identity resolver + manifest curation fields |
+
+**Amendment to invariant 4, 2026-08-21 (maintainer, §2.5).** `song_canonical_key` may be resolved
+against the song catalogue when an assertion is normalised, so that stored evidence carries an
+inference made at normalisation time rather than a literal source string alone. The immutability
+that invariant 4 protects is thereby narrowed, deliberately, to this shape:
+
+- What a source *said* remains immutable: `source_title` and `normalized_title` are never rewritten
+  by catalogue state, and no other field may acquire a catalogue dependence under this amendment.
+- The resolved key is reproducible, not free-form: it must be derivable from the catalogue plus the
+  source title, so any assertion can be re-derived from its byte snapshot and a stated catalogue
+  version. Invariant 3's snapshot binding is untouched.
+- A catalogue change is a **reprojection event**. It may change assertions, `canonical_identity` and
+  `proposed_hash`, and therefore may invalidate approved proposals and exported bundles. It is
+  carried out as a versioned round under `policyVersion`, never as an in-place edit.
+- Single-origin is unaffected: resolution adds a key to one source's own assertion and never merges,
+  borrows or infers content across sources.
+
+Anything wider than this — resolving titles, borrowing another source's text, or storing a key that
+cannot be re-derived — remains prohibited by invariant 4 as written.
 
 The permanent regression canary (`HistoricNormalOutputContractTest` and the WP0/B-series red-test
 suite) is retained forever as the portable-processing contract, exactly as the archived plan's
@@ -591,6 +665,35 @@ now supplies the first-pass measurement (§6 IC1), but not the
 catalogued, projection-complete certificate required to accept HIR-D8. The parser cannot change
 evidence admission, finalisation or publication policy.
 
+**IC3 item 8 — song identity resolution at normalisation (decided 2026-08-21, §2.5; unstarted).**
+Implements the maintainer decision and the invariant 4 amendment (§3.2). Scope, in order:
+
+1. Resolve `song_canonical_key` in `ChurchServiceAssertionNormalizer` for song assertions from
+   both the Email and OpenLP adapters, from the source title plus the catalogue. The resolver must
+   be deterministic and re-derivable; record the catalogue version it resolved against. Unresolved
+   titles stay null and fall through to the existing tiers — resolution fills gaps, it never
+   overrules (carried from the gate 9 parity rule).
+2. Bump `ChurchServiceProjector::$policyVersion`, so existing bundles and proposals are refused
+   rather than silently re-interpreted, and reprojection is explicit.
+3. Re-run the catalogued RG-A replay from the recovered cache with zero model calls, and record
+   against the pre-change baseline: 756 services, 627 Email identities, 427 OpenLP, 298 overlaps,
+   531 pending proposals, 158 finalised, 264/269 services with surplus song items, 1,024 surplus
+   song items corpus-wide.
+4. Assert the projection defect is actually gone, not merely the conflicts: surplus song items on
+   dual-source services must reach zero or be enumerated by reason, and service 297 must project
+   six song items with correct titles. **A drop in conflicts alone does not satisfy this step** —
+   that is exactly the outcome the rejected placement would have produced.
+5. Report corroboration agreement split by how it was reached — resolved key versus literal title —
+   per §2.5 accepted cost 2, so §8 era accuracy never presents key-resolved agreement as
+   independent corroboration.
+6. Regression cover for the amendment's boundary: `normalized_title` and `source_title` unchanged
+   by catalogue state; a re-derivation test proving the key is reproducible from snapshot plus
+   catalogue version.
+
+Expected direction from the §2.5 measurement, to be confirmed rather than assumed: membership
+agreement 0/298 → 162/298 and order 0/298 → 154/298. That still leaves roughly 136 overlaps routed
+to review on genuine cross-source disagreement, which is designed residue, not a shortfall.
+
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 
 Production holds 3 services with 32 canonical items and zero source records (measured 2026-08-09;
@@ -729,7 +832,7 @@ narrower `needs_review` semantics on purpose.
 
 | Item | Blocks | State |
 |---|---|---|
-| **Song identity for HIR-D8 corroboration**: resolve song titles through the catalogue in `ChurchServiceProjector::songDimensionValue()` at comparison time (no hash changes; conflict set and therefore finalisation changes; declare via `policyVersion`) or in `ChurchServiceAssertionNormalizer` (stored evidence carries an inference made now — invariant **4**, and `proposed_hash` changes via `strongIdentity()`) | All of HIR-D8 — corroboration finalised **zero** services on the catalogued corpus | Maintainer. Measured 2026-08-21: raw titles agree on membership 0/298 and order 0/298; catalogue-resolved would agree on 162/298 and 154/298. Framing corrected 2026-08-21 — the options are **not** symmetrical and the invariant cited earlier (3/10) was wrong; see §2.5 |
+| ~~**Song identity for HIR-D8 corroboration**~~ | — | **DECIDED 2026-08-21: resolve in `ChurchServiceAssertionNormalizer`** (§2.5), invariant 4 amended (§3.2), implementation queued as IC3 item 8. Comparison-time resolution was considered and rejected: it would have auto-applied 264 services' duplicated song items unattended |
 | **Portable bundle ignored-line provenance**: persist `ignored_lines`, bump the bundle format, regenerate the bundle and its hashes | Portable apply — `preflightPortable()` refuses 403 of 554 entries | Maintainer; enumerated in `rga-catalogued-portable-structural-holds-20260821.json` (§6 IC1). The recovered "24 refusals" figure is withdrawn |
 | Disposition the 26 held semantic Email sources, or rule on them as `--accepted-holds`; reason counts overlap, so do not turn their sum into a workload | Email-lane settlement / F1 reporting / `expectation_mismatch` | Operator. Prior ~14, RG0A's 19 and the recovered run's 41 are superseded |
 | Source recovery for the 3 unevidenced current-era services | IC4 | Operator |
