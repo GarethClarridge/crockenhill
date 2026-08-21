@@ -17,8 +17,11 @@
 > signed act (§8). The one-shot windowed operation, its ingress freeze and its G-gate ladder no
 > longer exist.
 >
-> **Cannot proceed without a human:** the email identity/date adjudications the first semantic RG-A
-> measures (§6 IC1 — the earlier "~14" is a superseded legacy-v12 estimate); the video
+> **Cannot proceed without a human:** the song-identity decision HIR-D8 corroboration now depends
+> on (§2.5 — resolve song titles through the catalogue in the normalizer or in the projector, both
+> of which change a hash-bound contract); disposition of the catalogued rehearsal's 26 held source
+> entries (§6 IC1 — reason categories overlap, and the earlier "~14" and "41" are superseded); the
+> video
 > curation worksheet adjudication and manifest freeze (IC5); recovery of source material for the
 > three unevidenced current-era production services (IC4); every release batch (§8); and the
 > editorial/consent policy decision before large public releases (§8.4).
@@ -88,22 +91,74 @@ kept and in service.
 
 Maintainer's call, against the review's recommendation to parallelise; do not re-propose
 parallelism. The email lane **settles** when: (a) IC1 is implemented and a staging round shows
-holds reduced to the identity/content-invalid residue; (b) the ~14 genuinely-manual adjudications
-are done; and (c) IC3's ground truth exists. That state triggers IC5.
+holds reduced to the identity/content-invalid residue; (b) the genuinely-manual adjudications
+measured by the first semantic RG-A are done; and (c) IC3's ground truth exists. That state triggers
+IC5. The earlier "~14" figure is a superseded legacy-v12 estimate, not a release condition.
 
 ### 2.5 HIR-D8 — cross-source corroboration may finalise unattended
 
 **Decided 2026-08-19 by the maintainer: yes.** Independent cross-source corroboration may replace
 the 0.90 model-confidence threshold for unattended finalisation, but only for the dimension the
-source actually proves. A hymn-workbook agreement proves song membership, never count or sequence;
-an OpenLP agreement may prove count and sequence. Source absence is neutral, not disagreement, and
-a cross-source mismatch routes the affected dimension to review rather than finalising it. The
+source actually proves. A hymn-workbook agreement proves actual song usage, never count or sequence;
+an OpenLP agreement proves planned song membership, count and sequence. Source absence is neutral,
+not disagreement, and a cross-source mismatch routes the affected dimension to review rather than
+finalising it. The
 identity/date manifest-corroboration gate remains unchanged, adjudication still never manufactures
 `consensus`, and unattended publication remains impossible. For uncorroborated dimensions, the
 existing confidence-plus-consensus path remains until separately changed on evidence.
 
-This closes HIR-D8's policy decision. IC3 still owns the implementation and the measured regression
-evidence proving that the projector finalises only the corroborated dimensions.
+**Implementation status 2026-08-21.** IC3 now records whether Email evidence cleared the existing
+confidence-and-consensus route and the shared projector fail-closes evidence-tier Email plans by
+dimension: OpenLP corroborates planned song membership, count and order; livestream corroborates
+observed song order; missing evidence stays in review; and a mismatch creates an explicit review
+conflict. The existing confidence-and-consensus route is unchanged. Hymn-workbook evidence remains
+the source for actual song usage when IC6 binds that source lane. Focused projector and ingestion
+regressions pass.
+
+**Recovered corpus measurement 2026-08-21.** The deleted semantic evaluation was recovered from
+the local MySQL binlog and replayed from all 554 exact semantic-cache entries with zero fresh model
+calls. The corrected clean import created 438 entries, retained 75 as evidence, held 41 for review
+and failed none. OpenLP then staged all 427 approved archives without failure. Of 627 staged Email
+service identities, 298 have OpenLP evidence: 29 automatically converged and 269 produced pending
+cross-source mismatches (song membership 269, order 269, count 55). Of the 329 without OpenLP, 262
+produced uncorroborated-dimension proposals and 67 currently have no pending proposal.
+
+This established the first-pass residue, but it was **diagnostic evidence, not an accepted
+HIR-D8/RG-A certificate**: the rehearsal had no seeded song catalogue (the import report therefore
+resolved 0 of 2,639 song items) and every pending proposal also carried
+`incomplete_projection_audit`. It is superseded by the catalogued replay below. Its "29
+automatically converged" figure in particular is **withdrawn** — see the corrected reading.
+
+**Catalogued replay 2026-08-21: HIR-D8 finalised nothing, and the 29 were misread.** The recovered
+evidence was replayed on a certified-clean rehearsal carrying the song catalogue, again with zero
+model calls (IC1). With the catalogue present, song-title resolution moves from 0 to 2,378 of 2,639
+items, but **every projection figure is unchanged**: 756 services, 627 Email identities, 427 OpenLP,
+298 overlaps, 531 pending proposals, 158 finalised. Dimension outcomes are `corroboration_mismatch`
+on song membership 269, song order 269 and song count 55, plus `uncorroborated_content_dimension`
+across all three dimensions for 263 services.
+
+All 650 staged Email revisions carry `unattended_content_finalization: false`, and all 29 services
+previously described as "automatically converged" carry `payload_complete = 0`. They are *partial*
+Email evidence, which {@see InboundEmailImportService::retainPlanEvidence()} deliberately keeps out
+of the projection; they finalised on **OpenLP alone**. So cross-source corroboration finalised
+**zero** services on this corpus, and the earlier 29 must not be cited as evidence that the HIR-D8
+path works.
+
+The cause is measured, not inferred. `ChurchServiceProjector::songDimensionValue()` compares
+`song_canonical_key ?? normalized_title`, but neither `EmailSourceAdapter` nor `OpenLpSourceAdapter`
+resolves songs against the catalogue, and `ChurchServiceAssertionNormalizer` only carries a
+pre-declared key or a supplied `song_id` — so every historic assertion has a null key and the
+comparison degrades to raw title equality between two independently authored sources. Measured over
+the 298 overlaps: raw comparison agrees on song membership 0/298 and order 0/298; resolving both
+sides through the catalogue would agree on 162/298 and 154/298. Count is 238/298 either way, since
+it does not depend on titles. Of the song assertions, 104 of 1,315 Email titles fail to resolve
+against 4 of 1,346 OpenLP titles — the Email side is the noisy one.
+
+**This is an open maintainer decision, not a defect that was fixed here.** Resolving titles in the
+normalizer would make evidence depend on mutable catalogue state (invariants 3 and 10); resolving
+them in the projector at comparison time would make `proposed_hash` catalogue-dependent. Both change
+a hash-bound portable contract, so neither was taken. Until it is decided, HIR-D8's corroboration
+path cannot finalise a service on this corpus and its acceptance criteria cannot be met.
 
 ### 2.6 Carried and lapsed prior decisions
 
@@ -117,7 +172,8 @@ return of the drive), FR-D9 (fail-closed manifest adjudication with written reas
 path), and HIR-D5/D6/D7 (investment discipline and Axis B, now amended by REV-D2). Decisions whose
 object was the one-shot operation — the 480-minute ingress window, checkpoint window splits,
 freeze/approval protection (FR-D5/D6/D7 in part) — **lapse with the machinery rather than being
-relitigated**. HIR-D8 is decided in §2.5; its implementation remains IC3 work.
+relitigated**. HIR-D8 is decided and its projector implementation has landed (§2.5); the corrected,
+catalogued corpus certificate remains IC3 work.
 
 ## 3. Safety model
 
@@ -272,8 +328,9 @@ disagreements, 8 date corrections).
 
 Ordered; **IC1 and IC2 landed on 2026-08-15** (`e5a81d191`, `aeeed8332`, with follow-up
 `a4be644fd` closing the review gaps found in both). IC3's shared semantic-parser handoff is
-complete; its next staging slice is Email RG-A. IC4 runs any time, and IC5 starts on the §2.4
-trigger.
+complete. The corrected Email rehearsal has now run without fresh model calls; its next slice is
+the catalogued, portable-audit-complete RG-A correction described under IC1, not another semantic
+evaluation. IC4 runs any time, and IC5 starts on the §2.4 trigger.
 
 ### IC1 — Email evidence-tier import (implements REV-D2) — **IMPLEMENTED 2026-08-15**
 
@@ -311,17 +368,139 @@ evidence is outstanding, not its code.
 **RG0A status 2026-08-21: passed.** The semantic Email corpus was evaluated, its measured
 identity/date residue was adjudicated, and the cache-backed replay reduced the honest residue to 19
 accepted partial-evidence holds. This is the completed analysis and authority checkpoint, not a
-clean-staging RG-A certificate: the final clean-database restage would require a new 554-source model
-evaluation and is deliberately deferred by the maintainer. Do not describe RG-A itself as passed or
-use RG0A to authorise production mutation.
+clean-staging RG-A certificate. The corrected semantic cache and its evidence were subsequently
+recovered, so the claim that a clean restage requires a new 554-source model evaluation is
+withdrawn; the 19-hold figure is also superseded by the corrected rehearsal below. Do not describe
+RG-A itself as passed or use RG0A to authorise production mutation.
+
+**Corrected recovered rehearsal 2026-08-21: ran; RG-A remains open.** MySQL binlog recovery
+restored all 554 `archive-v13:semantic-annotations-v1` cache entries. A fail-closed cache-only
+evaluation selected all 554 approved sources without a model call. Its clean import report (SHA-256
+`40d7c046fbfa3c0ff5d28c2011f4d3a44c253ec0841560ed034065e81f46177d`) records 438 `created`,
+75 `evidence_retained`, 41 `held_for_review` and zero failures. Its overlapping held-reason counts
+are: low confidence 41, source gate 24, no items 23, missing identity 11, unknown content scope 10
+and content invalid 2. The portable assertion bundle is retained at
+`storage/scratch/semantic-rg-a-recovered-assertions-20260821.json` (SHA-256
+`7189a6b5a1fb6e06463626dd4b0203f0295cc23197d7f3336d3ee0025ab61061`); the recovered cache-only
+report is SHA-256 `477adb042e3f43d7babc79f4fc6ff84cb31eeca680ed10ace2352a46c31cd4f1`.
+
+The Email-lane census after staging OpenLP is
+`storage/scratch/semantic-rg-a-email-census-after-openlp-20260821.json` (SHA-256
+`9ae87fd32e0350bfe9f06c8a7ec70e3cbe23d719e87ab04b7ca3ee8c076b825e`). It contains 248
+unclassified classes covering 531 pending proposals. The gate blockers are `membership_mismatch`
+(`source_item_projection_stale`) and `expectation_mismatch`: 30 approved sources / 29 manifest
+identities did not stage, while 116 beyond-manifest identities are explained and zero are
+unexplained. Only 158 of 756 staged services carry projection policy v3 and 531 proposal services
+are stale for census purposes. These are measured repair inputs, not operator decisions and not a
+reason to buy another whole-corpus model run.
+
+**Catalogued RG-A replay 2026-08-21: still open, with the blockers now attributed.** The recovered
+evidence was replayed on a fresh `crockenhill_rehearsal_catalogued`, provisioned and certified
+clean, then seeded with the song catalogue before staging. Zero fresh model calls: the run is
+`--cache-only`, which refuses unless every selected source has a reusable raw parse cache, and all
+554 did. Reproducible seed and artifacts:
+
+| Artifact | SHA-256 |
+|---|---|
+| Song catalogue source `storage/scratch/songs.sqlite` (`service-tracking:sync-songs`) | `d02a274df8a70a2e8f048061fd7890b592d932c960c617c01f173cbb7023a791` |
+| Seeded reference tables dump (1,159 songs, 594 authors, 2 songbooks, 1,386 author links, 754 book links) | `791ddab2da5060aee6a7ecb830de6687db2877523c11b438cc04ba4608dda5d9` |
+| Import report `rga-catalogued-import-20260821.json` | `009e8ca4a9a824ba4825313f9dc3e3fa561b879cd5f0a44fc849bb094ee64358` |
+| OpenLP dry run `rga-catalogued-openlp-dryrun-20260821.json` (plan hash `7acb266f…`, unchanged) | `041d5b12ef4979a33d4846182bc8db08c2296de61d31368aa2a082e7ff9bca27` |
+| Email membership `rga-catalogued-email-membership-20260821.json` (membership hash `d8abdc92…`, byte-identical to the recovered run) | `07c577269e7b13a0bfc110b02e40173eb09a2e309628ba9df247e987238193c3` |
+| OpenLP membership `rga-catalogued-openlp-membership-20260821.json` | `7eeff761d1b9002e157c3dda18249f97b34a4016bed4f826bd1dd476c4230523` |
+| Corpus expectation `rga-catalogued-expectation-20260821.json` (expectation hash `d9702172…`) | `3742a1d8311d4301f85239707d68c4de49b9eb7737532538ba5df0b0e0ea9a4e` |
+| Proposal census `rga-catalogued-census-20260821.json` | `3674a53a5053acd8dc1b420e034f55ea693bb381d95f58051b25f4a4c751fa1e` |
+| Portable structural holds `rga-catalogued-portable-structural-holds-20260821.json` | `c953c40c7418cbc69904085c2fe0687060c221a7ce2f630b5f23896495c4e0db` |
+| Staged rehearsal dump `rehearsal-catalogued-staged-2026-08-21.sql` | `598caa9b0fa141db95389b901c89b411b6e4dc459e79d63ddd4b5afdf3328af4` |
+
+Every private artifact is `0600`. The recovered inputs and the recovered rehearsal database are
+retained untouched; the diagnostic database is dumped at
+`rehearsal-recovered-diagnostic-2026-08-21.sql` (`b4fbf829f9f01f4dfb6be41cf376e95edd31b0cf88e91a661d3a91f029e6ac30`).
+
+**What the catalogue changed.** Song-title resolution moves from 0 to 2,378 of 2,639 items (90.1%),
+and plans with every song resolved from 0 to 472 of 657. Dispositions become 438 `created`,
+74 `evidence_retained`, 16 `merged`, 26 `held_for_review`, zero failures; hold-reason categories are
+low confidence 26, source gate 24, no items 23, missing identity 11, unknown content scope 10,
+content invalid 2. OpenLP staged all 427 again (129 created, 298 updated, 0 failures).
+
+**What the catalogue did not change: anything the gate measures.** 756 services, 627 Email
+identities, 427 OpenLP, 298 overlaps, 531 pending proposals, 158 finalised — identical to the
+recovered run, for the reason recorded in §2.5. The census gate still **fails** on
+`membership_mismatch` (`source_item_projection_stale`) and `expectation_mismatch`, with 248
+unclassified classes over 531 proposals. **RG-A is not passed and HIR-D8 is not accepted.**
+
+**The four accounting items, resolved.**
+
+1. *The 67 staged Email identities with no pending proposal are correct, not a gap.* Every one has
+   `payload_complete = 0`: `retainPlanEvidence()` ingests them with `project: false`, so they hold
+   no canonical items and stage no proposal by design, and `ChurchServiceCorpusMembership` already
+   exempts them from `source_item_projection_stale`. No change is required and none was made.
+2. *The 30 unstaged approved sources / 29 identities are honest hold residue.* They resolve to 26
+   `held_for_review` entries plus four whose manifest-expected plan key held while a sibling plan
+   imported. `oos:generate-corpus-expectation --accepted-holds=` exists precisely for these and
+   takes an operator ruling per `{item_key, reason}`. **No accepted hold was invented**, so
+   `accepted_holds` stays 0 and `expectation_mismatch` stays a blocker. This is the §10 operator
+   item, now reduced from 41 to 26 held sources.
+3. *`incomplete_projection_audit` on every pending proposal was a defect, now fixed.*
+   `ChurchServiceProjector::hasCompleteAudit()` returns false on *any* conflict, and
+   `IngestChurchServiceSourceRevision::stagingReasons()` called it and then also appended
+   `$projection->conflicts` — so the reason appeared on 100% of the 531 proposals while naming
+   nothing an operator could act on, and masked the class each proposal belonged to.
+   `hasCompleteFieldDecisionAudit()` splits the explanation half out; `hasCompleteAudit()` and its
+   bundle callers are unchanged. The catalogued census carries the reason on **zero** proposals.
+4. *`source_item_projection_stale` is not an independent failure.* `projection_policy_version` is
+   written only by `ChurchServiceProjectionPersister::apply()`, which the staging branch skips, so
+   stale services and pending proposals are the same 531 set by construction. It clears when the
+   proposals clear — which, per §2.5, currently requires the corroboration decision.
+
+**Correctness fixes made under the HIR-D5/D7 exception**, each with a red test first:
+
+- **Create/merge classification asymmetry** (`InboundEmailImportService`). `mergeOrCreatePlan()`
+  returns `Created` for a new service whether or not the projector staged a proposal, but the merge
+  arm returned `HeldForReview` for exactly that state — so an entry whose source revision *was*
+  written reported as unimported and stopped later entries superseding it. The projector arm now
+  reports `Merged`; the compatibility-merge arm keeps its older meaning, because it stages a
+  structure merge without ingesting a projected revision. This is what the two focused failures at
+  `ImportOosArchiveCommandTest.php` 1179 and 1344 were reporting: **the expectations were right and
+  the implementation was wrong.** Holds fall 41 → 26 with no change to what staged.
+- **Human approval was treated as unattended evidence** (`EmailSourceAdapter`). The adapter set
+  `unattended_content_finalization` from `$plan->isAutoImportable()` alone, so an admin-approved
+  import entered the evidence tier and §2.5's dimension corroboration reopened a service a person
+  had just approved — invariant 5 read backwards. The adapter now takes `reviewedByPerson`.
+- **A partial review closed itself** (`ChurchServiceProjectionPersister`, `IngestChurchServiceSourceRevision`).
+  The persister retracted `needs_review` whenever an automatic projection landed, and the ingest
+  action marked *every* pending proposal stale before projecting. Together they dropped proposals a
+  reviewer had deliberately left pending out of the attention inbox. The retraction now requires no
+  pending proposal to remain, and the stale sweep no longer applies to a `Manual` revision, which
+  `ReviewChurchServiceEvidence` owns explicitly.
+
+These three restored six pre-existing failures in `EvidenceReviewTest`,
+`ApproveInboundEmailImportTest`, `ChurchServiceProposalRuleServiceTest`,
+`ChurchServiceConvergenceBundleRoundTripTest` and `ChurchServiceConvergenceBundleImporterTest`. None
+of them can affect the staged corpus: it holds 0 Manual source records, 0 reviewed imports and 0
+review sessions, and all 650 Email revisions carry `unattended_content_finalization: false`.
+
+**The portable bundle's structural re-validation is incomplete — open.** Replaying
+`semantic-rg-a-recovered-assertions-20260821.json` through `preflightPortable()` refuses **403** of
+554 entries, not 24; the enumerated, reasoned holds are in the artifact above and fail-closed
+`apply()` was left exactly as it is. The dominant reason (2,121 occurrences) is "Source line N was
+not classified as evidence, an item, or ignored context", and the cause is that the bundle never
+ships the ignored-line half of the provenance: `OosArchiveAssertionBundle::export()`'s `Arr::only()`
+allowlist omits `ignored_lines`, `structuralReasons()` therefore builds an
+`OosEmailItemExtractionResult` with none, and `processing_metadata.parsing` does not persist them in
+the first place. Closing it means persisting ignored lines, bumping the bundle format and
+regenerating the bundle and all its hashes — a change to a hash-bound portable contract, so it was
+**not** made here. The 24 figure in the recovered baseline is not reproducible and should be treated
+as withdrawn pending that work.
 
 **Superseded numbers (2026-08-21).** The `~20 identity + ~33 content-invalid` shape and the
 `~14 manual adjudications` handed to the operator are **legacy v12 estimates and must not be carried
 forward as facts**. They were produced by the deleted legacy extractor. The semantic parser routes
 differently — the 38-source truth corpus scores 36 `review_required`, 2 `invalid_extraction` and 0
 `auto_importable`, against the legacy baseline's 4/31/3 — and the semantic cache namespace prevents
-any legacy raw-cache reuse, so RG-A re-runs the model rather than replaying those numbers. Treat the
-first semantic RG-A as the new operational baseline and take the residue from its measured census.
+any legacy raw-cache reuse. The recovered corrected semantic run above is now the operational
+baseline. Reuse its hash-bound cache/assertion artifacts; do not re-run the whole corpus merely to
+reproduce evidence that now exists again.
 
 ### IC2 — Incremental apply semantics — **IMPLEMENTED 2026-08-15**
 
@@ -370,10 +549,12 @@ narrow repair, objective evaluation and shared weekly/historic cutover. Delivery
 passed, the semantic parser is the sole path, and the legacy whole-document path is deleted; its
 remaining evaluation surfaces have IC8 retirement ownership. The report's queued implementation
 order `5, 1, 7, 3` remains evidence, not an executable backlog. IC3 retains the authoritative item
-truth, HIR-D8 corroboration and all historic staging/round evidence. The next Email RG-A staging
-round measures its actual operator residue; the earlier ~14 identity/date adjudications is a
-superseded legacy-v12 estimate. The parser cannot change evidence admission, finalisation or
-publication policy.
+truth, HIR-D8 corroboration and all historic staging/round evidence. **HIR-D8's current projector
+implementation is complete**; its accepted Email RG-A corpus certificate remains. The earlier ~14
+identity/date adjudications is a superseded legacy-v12 estimate. The recovered 2026-08-21 rehearsal
+now supplies the first-pass measurement (§6 IC1), but not the
+catalogued, projection-complete certificate required to accept HIR-D8. The parser cannot change
+evidence admission, finalisation or publication policy.
 
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 
@@ -513,8 +694,9 @@ narrower `needs_review` semantics on purpose.
 
 | Item | Blocks | State |
 |---|---|---|
-| HIR-D8 implementation: dimension-specific corroboration replaces the 0.90 gate where an independent source agrees | Wider automatic finalisation only | Policy decided 2026-08-19 (§2.5); IC3 implementation and regression measurement remain |
-| Manual email adjudications, count to be measured by the first semantic RG-A (the earlier ~14 — 6 identity, 8 date — is a superseded legacy-v12 estimate) | F1 completeness closure | Operator, after IC1's staging round |
+| **Song identity for HIR-D8 corroboration**: resolve song titles through the catalogue in `ChurchServiceAssertionNormalizer` (evidence becomes catalogue-dependent, invariants 3/10) or in `ChurchServiceProjector` at comparison time (`proposed_hash` becomes catalogue-dependent) | All of HIR-D8 — corroboration finalised **zero** services on the catalogued corpus | Maintainer. Measured 2026-08-21: raw titles agree on membership 0/298 and order 0/298; catalogue-resolved would agree on 162/298 and 154/298 (§2.5) |
+| **Portable bundle ignored-line provenance**: persist `ignored_lines`, bump the bundle format, regenerate the bundle and its hashes | Portable apply — `preflightPortable()` refuses 403 of 554 entries | Maintainer; enumerated in `rga-catalogued-portable-structural-holds-20260821.json` (§6 IC1). The recovered "24 refusals" figure is withdrawn |
+| Disposition the 26 held semantic Email sources, or rule on them as `--accepted-holds`; reason counts overlap, so do not turn their sum into a workload | Email-lane settlement / F1 reporting / `expectation_mismatch` | Operator. Prior ~14, RG0A's 19 and the recovered run's 41 are superseded |
 | Source recovery for the 3 unevidenced current-era services | IC4 | Operator |
 | Video curation worksheet adjudication + freeze | IC5 bulk pass | Operator, on the §2.4 trigger |
 | Era release sign-offs and the §8.4 policy decision | Each RG-C release | Maintainer/church |
