@@ -17,7 +17,8 @@
 > signed act (§8). The one-shot windowed operation, its ingress freeze and its G-gate ladder no
 > longer exist.
 >
-> **Cannot proceed without a human:** the ~14 email identity/date adjudications (§6 IC1); the video
+> **Cannot proceed without a human:** the email identity/date adjudications the first semantic RG-A
+> measures (§6 IC1 — the earlier "~14" is a superseded legacy-v12 estimate); the video
 > curation worksheet adjudication and manifest freeze (IC5); recovery of source material for the
 > three unevidenced current-era production services (IC4); every release batch (§8); and the
 > editorial/consent policy decision before large public releases (§8.4).
@@ -269,9 +270,11 @@ disagreements, 8 date corrections).
 
 ## 6. Work packages
 
-Ordered; IC1–IC3 are current, IC4 runs any time, IC5 starts on the §2.4 trigger.
+Ordered; **IC1 and IC2 landed on 2026-08-15** (`e5a81d191`, `aeeed8332`, with follow-up
+`a4be644fd` closing the review gaps found in both). IC3 is the current package, IC4 runs any time,
+IC5 starts on the §2.4 trigger.
 
-### IC1 — Email evidence-tier import (implements REV-D2)
+### IC1 — Email evidence-tier import (implements REV-D2) — **IMPLEMENTED 2026-08-15**
 
 **Behaviour contract.** For an archive or weekly email plan with disposition
 `ReviewRequired` (`OosEmailParseDisposition`) whose identity is manifest-corroborated (archive) or
@@ -296,11 +299,23 @@ invalid plan still imports nothing; convergence with an agreeing OpenLP archive 
 human review (B11 behaviour); a second import round is an exact no-op per service.
 
 **Acceptance.** A staging round (RG-A) shows held residue ≈ the identity + content-invalid
-families (~20 + ~33 plans on v12 shape, vs 370 held sources today); staged identity coverage from
-157 toward the 393-of-394 the held backlog covers; the 82 already-converged Email/OpenLP services
-unchanged (`already_present`). Then hand the operator the ~14 manual items.
+families; staged identity coverage from 157 toward the 393-of-394 the held backlog covers; the 82
+already-converged Email/OpenLP services unchanged (`already_present`). Then hand the operator the
+residue the round actually measures.
 
-### IC2 — Incremental apply semantics
+**Status 2026-08-15:** the behaviour, seams and red tests are implemented and merged. The RG-A
+staging round itself has **not** been run against the semantic parser, so this package's acceptance
+evidence is outstanding, not its code.
+
+**Superseded numbers (2026-08-21).** The `~20 identity + ~33 content-invalid` shape and the
+`~14 manual adjudications` handed to the operator are **legacy v12 estimates and must not be carried
+forward as facts**. They were produced by the deleted legacy extractor. The semantic parser routes
+differently — the 38-source truth corpus scores 36 `review_required`, 2 `invalid_extraction` and 0
+`auto_importable`, against the legacy baseline's 4/31/3 — and the semantic cache namespace prevents
+any legacy raw-cache reuse, so RG-A re-runs the model rather than replaying those numbers. Treat the
+first semantic RG-A as the new operational baseline and take the residue from its measured census.
+
+### IC2 — Incremental apply semantics — **IMPLEMENTED 2026-08-15**
 
 Re-scope `ConvergeHistoricChurchService`'s batch admission from "whole approved corpus applicable
 or refuse" to "apply every applicable service; report the rest" — per-service lock, classification
@@ -488,7 +503,7 @@ narrower `needs_review` semantics on purpose.
 | Item | Blocks | State |
 |---|---|---|
 | HIR-D8 implementation: dimension-specific corroboration replaces the 0.90 gate where an independent source agrees | Wider automatic finalisation only | Policy decided 2026-08-19 (§2.5); IC3 implementation and regression measurement remain |
-| ~14 manual email adjudications (6 identity, 8 date) | F1 completeness closure | Operator, after IC1's staging round |
+| Manual email adjudications, count to be measured by the first semantic RG-A (the earlier ~14 — 6 identity, 8 date — is a superseded legacy-v12 estimate) | F1 completeness closure | Operator, after IC1's staging round |
 | Source recovery for the 3 unevidenced current-era services | IC4 | Operator |
 | Video curation worksheet adjudication + freeze | IC5 bulk pass | Operator, on the §2.4 trigger |
 | Era release sign-offs and the §8.4 policy decision | Each RG-C release | Maintainer/church |
