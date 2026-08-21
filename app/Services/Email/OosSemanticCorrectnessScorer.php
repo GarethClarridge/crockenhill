@@ -7,7 +7,11 @@ namespace App\Services\Email;
 use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailServicePlan;
 use App\Data\OosEmailSourceDocument;
+use App\Enums\OosEmailContentScope;
+use App\Enums\OosEmailParseDisposition;
+use App\Enums\OosEmailPlanHoldReason;
 use App\Enums\SermonService;
+use App\Jobs\ProcessInboundOosEmail;
 use App\Support\CanonicalJson;
 use App\Support\RepositoryCommit;
 use RuntimeException;
@@ -245,6 +249,22 @@ class OosSemanticCorrectnessScorer
     private function armRefusals(array $corpus, array $artifact, string $label, string $corpusHash, array $surface): array
     {
         $refusals = [];
+        $recordedEvidenceHash = $artifact['evidence_hash'] ?? null;
+        $withoutEvidenceHash = $artifact;
+        unset($withoutEvidenceHash['evidence_hash']);
+
+        // The arm artifact is written once and hashed over itself, exactly as the truth corpus is.
+        // Copying that hash into the score without recomputing it left the create-once evidence
+        // chain unenforced: results, attempts, usage or price data could be edited after generation
+        // and still score. Refuse a drifted artifact outright rather than reporting a figure derived
+        // from content that no longer matches what the arm produced.
+        if (! is_string($recordedEvidenceHash) || ! hash_equals($recordedEvidenceHash, CanonicalJson::hash($withoutEvidenceHash))) {
+            $refusals[] = "The {$label} arm artifact does not reproduce its own evidence hash, so its contents "
+                .'have drifted since the arm was run.';
+
+            return $refusals;
+        }
+
         $boundCorpus = $artifact['inputs']['corpus_hash'] ?? null;
 
         if (! is_string($boundCorpus) || ! hash_equals($corpusHash, $boundCorpus)) {
@@ -495,7 +515,9 @@ class OosSemanticCorrectnessScorer
         return [
             'service' => is_string($plan['service'] ?? null) ? $plan['service'] : null,
             'date' => is_string($plan['date'] ?? null) ? $plan['date'] : null,
-            'content_scope' => is_string($plan['content_scope'] ?? null) ? $plan['content_scope'] : 'full',
+            // A plan that states no scope is unknown, not full. Defaulting to `full` silently scored an
+            // unstated scope as a confident claim and would have admitted it to the evidence tier.
+            'content_scope' => is_string($plan['content_scope'] ?? null) ? $plan['content_scope'] : 'unknown',
             'service_evidence_line_ids' => $this->integerList($plan['service_evidence_line_ids'] ?? null),
             'items' => array_map($this->typedItem(...), $this->list($plan, 'items')),
             'confidence' => (float) ($plan['confidence'] ?? 0.0),
@@ -741,13 +763,34 @@ class OosSemanticCorrectnessScorer
     }
 
     /**
-     * Which way the pipeline could route this source, bounded from above.
+     * Which way the pipeline could route this source, bounded from above, for *both* unattended tiers.
      *
-     * A plan can only import unattended if its confidence reaches the auto-import threshold: every
-     * other condition in the disposition rule can hold a plan but never release one, and the semantic
-     * path never sets consensus. Eligibility is therefore a superset of what would actually import,
-     * which is the safe direction for a safety gate — it can overstate the risk, never understate it.
-     * The threshold is recorded so a config change that widened it fails this gate loudly.
+     * This once tested only `confidence >= auto_import_threshold` and claimed every other disposition
+     * condition could hold a plan but never release one. Historic REV-D2 ended that: since IC1,
+     * {@see OosEmailServicePlan::isEvidenceImportable()} releases a `ReviewRequired` plan whose
+     * identity is trustworthy, and {@see ProcessInboundOosEmail} and
+     * {@see InboundEmailImportService::importPlan()} both admit that tier with no administrator. The
+     * semantic compiler fixes extracted confidence at 0.75, below the 0.90 threshold, so the old test
+     * was not merely incomplete — it was unreachable, and reported zero eligible plans while 36
+     * review-required sources could enter the real evidence path.
+     *
+     * Both tiers are now answered by the production DTO rather than by a copy of its conditions. The
+     * candidate artifact records the compiled extraction, not the disposition the parser assigned
+     * afterwards, so each tier's disposition-dependent condition is bounded above instead of guessed:
+     *
+     * - Auto: `AutoImportable` additionally requires confidence at or above the threshold, so a plan
+     *   below it can never reach that tier.
+     * - Evidence: `ReviewRequired` with at least one hold reason that is not `MissingIdentity`. A plan
+     *   with no service or date already fails `isImportable()`, so the `MissingIdentity` exclusion
+     *   cannot widen this set, and assuming a hold reason is present can only widen it.
+     *
+     * Both approximations therefore err towards *more* eligibility, which is the safe direction for a
+     * safety gate. What each tier must then be correct about differs, and deliberately so: an
+     * auto-import must match truth exactly, while REV-D2 admits evidence-tier content precisely
+     * because its content confidence is not trusted. Holding the evidence tier to exact content would
+     * contradict the policy it exists to implement, so it is judged on identity and scope — the
+     * dimensions that decide *which service the content is filed against* — and its item-level
+     * accuracy is governed by gate 6 and by the quarantine that keeps it unreviewed and unfinalised.
      *
      * @param  list<array<string, mixed>>  $plans
      * @param  list<array<string, mixed>>  $pairs
@@ -757,32 +800,57 @@ class OosSemanticCorrectnessScorer
     {
         $threshold = (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90);
         $importable = 0;
-        $eligible = [];
+        $autoEligible = [];
+        $evidenceEligible = [];
 
         foreach ($plans as $index => $plan) {
-            $servicePlan = new OosEmailServicePlan(
-                service: is_string($plan['service'] ?? null) ? SermonService::tryFrom($plan['service']) : null,
-                date: is_string($plan['date'] ?? null) ? $plan['date'] : null,
-                items: $this->placeholderItems($plan),
-                confidence: (float) ($plan['confidence'] ?? 0.0),
-                needsReview: true,
-                shouldImport: false,
+            $confidence = (float) ($plan['confidence'] ?? 0.0);
+            $scope = OosEmailContentScope::tryFrom(is_string($plan['content_scope'] ?? null) ? $plan['content_scope'] : '')
+                ?? OosEmailContentScope::Unknown;
+            $identity = [
+                'service' => is_string($plan['service'] ?? null) ? SermonService::tryFrom($plan['service']) : null,
+                'date' => is_string($plan['date'] ?? null) ? $plan['date'] : null,
+                'items' => $this->placeholderItems($plan),
+            ];
+
+            $autoPlan = new OosEmailServicePlan(
+                ...$identity,
+                confidence: $confidence,
+                needsReview: false,
+                shouldImport: true,
+                disposition: OosEmailParseDisposition::AutoImportable,
+                contentScope: $scope,
             );
 
-            if (! $servicePlan->isImportable()) {
+            $evidencePlan = new OosEmailServicePlan(
+                ...$identity,
+                confidence: $confidence,
+                needsReview: true,
+                shouldImport: false,
+                disposition: OosEmailParseDisposition::ReviewRequired,
+                holdReasons: [OosEmailPlanHoldReason::LowConfidence],
+                contentScope: $scope,
+            );
+
+            if (! $autoPlan->isImportable()) {
                 continue;
             }
 
             $importable++;
+            $entry = ['plan_key' => $autoPlan->key(), 'plan_index' => $index, 'confidence' => $confidence];
 
-            if ((float) ($plan['confidence'] ?? 0.0) >= $threshold) {
-                $eligible[] = ['plan_key' => $servicePlan->key(), 'plan_index' => $index, 'confidence' => (float) ($plan['confidence'] ?? 0.0)];
+            // Mirrors production, where a plan carries exactly one disposition: a plan at or above the
+            // threshold is the auto tier's, and everything else falls to the evidence tier's test.
+            if ($confidence >= $threshold && $autoPlan->isAutoImportable()) {
+                $autoEligible[] = $entry;
+            } elseif ($evidencePlan->isEvidenceImportable()) {
+                $evidenceEligible[] = $entry;
             }
         }
 
         $incorrect = [];
 
-        foreach ($eligible as $entry) {
+        foreach ($autoEligible as $entry) {
             $pair = $this->pairForCandidatePlan($pairs, $entry['plan_index']);
 
             if ($pair === null
@@ -796,13 +864,29 @@ class OosSemanticCorrectnessScorer
             }
         }
 
+        $misfiled = [];
+
+        foreach ($evidenceEligible as $entry) {
+            $pair = $this->pairForCandidatePlan($pairs, $entry['plan_index']);
+
+            if ($pair === null
+                || $pair['service_matches'] !== true
+                || $pair['date_matches'] !== true
+                || $pair['scope_matches'] !== true) {
+                $misfiled[] = $entry['plan_key'];
+            }
+        }
+
         return [
             'auto_import_threshold' => $threshold,
             'importable_plans' => $importable,
-            'unattended_eligible_plans' => count($eligible),
+            'unattended_eligible_plans' => count($autoEligible) + count($evidenceEligible),
+            'auto_import_eligible_plans' => count($autoEligible),
+            'evidence_import_eligible_plans' => count($evidenceEligible),
             'incorrect_unattended_imports' => $incorrect,
+            'misfiled_evidence_admissions' => $misfiled,
             'category' => match (true) {
-                $eligible !== [] => 'auto_importable',
+                $autoEligible !== [] => 'auto_importable',
                 $importable > 0 => 'review_required',
                 default => 'invalid_extraction',
             },
@@ -1297,16 +1381,25 @@ class OosSemanticCorrectnessScorer
         $categories = ['auto_importable' => 0, 'review_required' => 0, 'invalid_extraction' => 0];
         $legacyCategories = $categories;
         $eligible = 0;
+        $autoEligible = 0;
+        $evidenceEligible = 0;
         $incorrect = [];
+        $misfiled = [];
 
         foreach ($sources as $source) {
             /** @var array<string, mixed> $routing */
             $routing = $source['routing'];
             $categories[(string) $routing['category']]++;
             $eligible += (int) $routing['unattended_eligible_plans'];
+            $autoEligible += (int) $routing['auto_import_eligible_plans'];
+            $evidenceEligible += (int) $routing['evidence_import_eligible_plans'];
 
             foreach ($this->stringList($routing['incorrect_unattended_imports']) as $planKey) {
                 $incorrect[] = ['item_key' => $source['item_key'], 'plan_key' => $planKey];
+            }
+
+            foreach ($this->stringList($routing['misfiled_evidence_admissions']) as $planKey) {
+                $misfiled[] = ['item_key' => $source['item_key'], 'plan_key' => $planKey];
             }
 
             /** @var array<string, mixed> $legacy */
@@ -1319,14 +1412,23 @@ class OosSemanticCorrectnessScorer
         }
 
         return [
-            'rule' => 'A plan is counted as able to import unattended when it is importable and its confidence '
-                .'reaches the auto-import threshold. Every other disposition condition can only hold a plan, so '
-                .'this bounds the unattended set from above and can overstate the risk but never understate it.',
+            'rule' => 'A plan is counted as able to import unattended when the production DTO admits it to either '
+                .'tier: auto-import at or above the confidence threshold, or REV-D2 evidence import below it. Both '
+                .'tiers are bounded from above, so this can overstate the admitted set but never understate it.',
+            'correctness_rule' => 'An auto-import must match adjudicated truth exactly. An evidence admission is '
+                .'judged on identity and scope only: REV-D2 admits content whose confidence is not trusted on '
+                .'purpose, so requiring exact content here would contradict the policy this tier implements. What '
+                .'the evidence tier must not do is file trusted-looking content against the wrong service, the '
+                .'wrong date or the wrong scope. Its item accuracy is governed by gate 6 and by the quarantine '
+                .'that keeps it unreviewed, unfinalised and outside release eligibility.',
             'auto_import_threshold' => (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90),
             'candidate_categories' => $categories,
             'legacy_categories' => $legacyCategories,
             'unattended_eligible_plans' => $eligible,
+            'auto_import_eligible_plans' => $autoEligible,
+            'evidence_import_eligible_plans' => $evidenceEligible,
             'incorrect_unattended_imports' => $incorrect,
+            'misfiled_evidence_admissions' => $misfiled,
         ];
     }
 
@@ -1634,8 +1736,16 @@ class OosSemanticCorrectnessScorer
                 $summary['unsatisfied'] === 0 && $summary['content_invalid_false_accepts'] === 0 ? 'pass' : 'fail',
                 $summary),
             $this->gate(5, 'zero_incorrect_unattended_imports', true,
-                $routing['incorrect_unattended_imports'] === [] ? 'pass' : 'fail',
-                ['rule' => $routing['rule'], 'unattended_eligible_plans' => $routing['unattended_eligible_plans'], 'incorrect_unattended_imports' => $routing['incorrect_unattended_imports']]),
+                $routing['incorrect_unattended_imports'] === [] && $routing['misfiled_evidence_admissions'] === [] ? 'pass' : 'fail',
+                [
+                    'rule' => $routing['rule'],
+                    'correctness_rule' => $routing['correctness_rule'],
+                    'unattended_eligible_plans' => $routing['unattended_eligible_plans'],
+                    'auto_import_eligible_plans' => $routing['auto_import_eligible_plans'],
+                    'evidence_import_eligible_plans' => $routing['evidence_import_eligible_plans'],
+                    'incorrect_unattended_imports' => $routing['incorrect_unattended_imports'],
+                    'misfiled_evidence_admissions' => $routing['misfiled_evidence_admissions'],
+                ]),
             $this->gate(6, 'item_precision_and_recall', true,
                 $items['precision'] >= self::ItemPrecisionFloor && $items['recall'] >= self::ItemRecallFloor ? 'pass' : 'fail',
                 $items + ['precision_floor' => self::ItemPrecisionFloor, 'recall_floor' => self::ItemRecallFloor]),

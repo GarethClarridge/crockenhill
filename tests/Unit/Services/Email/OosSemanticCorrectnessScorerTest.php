@@ -228,6 +228,80 @@ class OosSemanticCorrectnessScorerTest extends TestCase
     }
 
     #[Test]
+    public function an_evidence_tier_plan_filed_against_the_wrong_scope_fails_the_unattended_import_gate(): void
+    {
+        // The semantic compiler fixes confidence at 0.75, so no semantic plan ever reaches the 0.90
+        // auto-import threshold. Until REV-D2 was scored here that made gate 5 unreachable: it
+        // reported zero eligible plans while `isEvidenceImportable()` was admitting review-required
+        // plans to the real unattended path. This is the case the gate previously could not see.
+
+        $report = $this->score(candidateMutator: static function (array $candidate): array {
+            $candidate['results'][0]['extraction']['services'][0]['content_scope'] = 'partial';
+
+            return $candidate;
+        });
+
+        // The plan sits below the auto-import threshold, so it is admitted by the evidence tier
+        // alone — the tier the old gate could not reach.
+        $this->assertGreaterThan(0.75, $report['metrics']['routing']['auto_import_threshold']);
+        $this->assertSame(0, $report['metrics']['routing']['auto_import_eligible_plans']);
+        $this->assertSame(1, $report['metrics']['routing']['evidence_import_eligible_plans']);
+        $this->assertSame('fail', $this->gate($report, 5)['status']);
+        $this->assertSame([], $this->gate($report, 5)['detail']['incorrect_unattended_imports']);
+        $this->assertSame('morning:2099-01-04', $this->gate($report, 5)['detail']['misfiled_evidence_admissions'][0]['plan_key']);
+    }
+
+    #[Test]
+    public function an_evidence_tier_plan_that_only_loses_items_still_passes_the_unattended_import_gate(): void
+    {
+        // REV-D2 admits evidence-tier content precisely because its content confidence is not
+        // trusted. Item loss is gate 6's business and the quarantine's; failing gate 5 for it would
+        // contradict the policy this tier implements.
+        $report = $this->score(candidateMutator: static function (array $candidate): array {
+            array_pop($candidate['results'][0]['extraction']['services'][0]['items']);
+
+            return $candidate;
+        });
+
+        $this->assertSame(1, $report['metrics']['routing']['evidence_import_eligible_plans']);
+        $this->assertSame([], $this->gate($report, 5)['detail']['misfiled_evidence_admissions']);
+        $this->assertSame('pass', $this->gate($report, 5)['status']);
+    }
+
+    #[Test]
+    public function a_candidate_artifact_that_does_not_reproduce_its_own_evidence_hash_is_refused(): void
+    {
+        // The artifact is written once and hashed over itself. Copying that hash into the score
+        // without recomputing it left results, attempts, usage and price data editable after
+        // generation with no integrity refusal.
+        $report = $this->score(candidateMutator: static function (array $candidate): array {
+            $candidate['usage']['total_tokens'] = 999_999;
+
+            return $candidate;
+        }, rehash: false);
+
+        $this->assertSame('refused', $report['inference']['label']);
+        $this->assertStringContainsString(
+            'does not reproduce its own evidence hash',
+            $report['inference']['refusals'][0],
+        );
+    }
+
+    #[Test]
+    public function a_replicate_artifact_that_does_not_reproduce_its_own_evidence_hash_is_refused(): void
+    {
+        $report = $this->score(replicateMutator: static function (array $replicate): array {
+            $replicate['usage']['total_tokens'] = 999_999;
+
+            return $replicate;
+        }, rehash: false);
+
+        $this->assertSame('refused', $report['inference']['label']);
+        $this->assertTrue(collect($report['inference']['refusals'])
+            ->contains(fn (string $refusal): bool => str_contains($refusal, 'does not reproduce its own evidence hash')));
+    }
+
+    #[Test]
     public function a_dropped_item_is_a_recall_loss_rather_than_a_precision_loss(): void
     {
         $report = $this->score(candidateMutator: static function (array $candidate): array {
@@ -383,16 +457,37 @@ class OosSemanticCorrectnessScorerTest extends TestCase
         $candidate = $this->candidate($corpus);
 
         if ($candidateMutator !== null) {
-            $candidate = $candidateMutator($candidate);
+            // Rehashed for the same reason the corpus is: a mutator here is standing in for a
+            // *differently produced* arm, not for someone editing a banked artifact after the fact.
+            // Leaving the stale hash in place made every one of these tests a tamper case, which is
+            // why the scorer's failure to verify it went unnoticed. `rehash: false` opts back into
+            // genuine tampering, and one test uses it deliberately.
+            $candidate = $this->rehashed($candidateMutator($candidate), $rehash);
         }
 
         $replicate = null;
 
         if ($replicateMutator !== null) {
-            $replicate = $replicateMutator($this->candidate($corpus));
+            $replicate = $this->rehashed($replicateMutator($this->candidate($corpus)), $rehash);
         }
 
         return $this->scorer()->score($corpus, $candidate, $baseline, $this->safetyFixtures(), $replicate);
+    }
+
+    /**
+     * @param  array<string, mixed>  $artifact
+     * @return array<string, mixed>
+     */
+    private function rehashed(array $artifact, bool $rehash): array
+    {
+        if (! $rehash) {
+            return $artifact;
+        }
+
+        unset($artifact['evidence_hash']);
+        $artifact['evidence_hash'] = CanonicalJson::hash($artifact);
+
+        return $artifact;
     }
 
     private function scorer(): OosSemanticCorrectnessScorer
