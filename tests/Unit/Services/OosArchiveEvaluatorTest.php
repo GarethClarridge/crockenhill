@@ -76,12 +76,13 @@ class OosArchiveEvaluatorTest extends TestCase
 
         $this->assertSame(1, $result['song_link']['hits']);
         $this->assertSame(2, $result['song_link']['total']);
-        $this->assertSame(['stripped_number' => 1], $result['song_link']['by_type']);
+        // The NIP line reaches the same song as before; the marker now names why it was chosen.
+        $this->assertSame(['hymnbook_absent' => 1], $result['song_link']['by_type']);
         $this->assertSame(['A Chorus Nobody Catalogued'], $result['song_link']['unmatched_titles']);
 
         $aggregate = $evaluator->aggregate([$result, $result]);
 
-        $this->assertSame(['stripped_number' => 2], $aggregate['song_link_hit_rate']['by_type']);
+        $this->assertSame(['hymnbook_absent' => 2], $aggregate['song_link_hit_rate']['by_type']);
         $this->assertSame(['A Chorus Nobody Catalogued' => 2], $aggregate['song_link_hit_rate']['top_unmatched_titles']);
     }
 

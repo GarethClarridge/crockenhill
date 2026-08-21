@@ -24,8 +24,11 @@ class ChurchServiceProjector
      * Projections and bundles produced under version 3 compared raw titles and must be
      * reprojected rather than re-interpreted. See §2.5 and §3.2 of
      * `docs/plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md`.
+     *
+     * 5 (2026-08-22): a NIP ("not in Praise!") line resolves to a song the hymnbook does not
+     * number ahead of an identically titled numbered song, so keys move again on those lines.
      */
-    public const int PROJECTION_POLICY_VERSION = 4;
+    public const int PROJECTION_POLICY_VERSION = 5;
 
     public const string PROJECTION_POLICY_FORMAT = 'church-service-projection';
 

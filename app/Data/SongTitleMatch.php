@@ -20,6 +20,14 @@ class SongTitleMatch extends Data
 
     public const TYPE_FIRST_LINE = 'first_line';
 
+    /**
+     * A NIP ("not in Praise!") line matched a catalogue song that carries no hymnbook
+     * number, chosen ahead of a same-titled numbered song. Inferred rather than
+     * deterministic, because the source line names the song only by a prefix of the
+     * catalogue's title ("my hope is built" for "My hope is built on nothing less").
+     */
+    public const TYPE_HYMNBOOK_ABSENT = 'hymnbook_absent';
+
     public const TYPE_FUZZY = 'fuzzy';
 
     public function __construct(

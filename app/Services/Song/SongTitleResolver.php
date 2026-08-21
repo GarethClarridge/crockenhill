@@ -56,6 +56,15 @@ class SongTitleResolver
     private array $looseFirstLine = [];
 
     /**
+     * Loose keys of songs the hymnbook does not number, so a NIP ("not in Praise!") line can
+     * be steered to them ahead of an identically titled numbered song. Ambiguous keys are
+     * dropped, as everywhere else — the resolver never guesses between candidates.
+     *
+     * @var array<string, int>
+     */
+    private array $hymnbookAbsent = [];
+
+    /**
      * Every loose key of every song, ambiguous ones included — fuzzy scoring ranks
      * candidates and applies its own margin guard, so ambiguity-dropping is not needed here.
      *
@@ -117,6 +126,11 @@ class SongTitleResolver
     {
         [$probes, $fuzzyProbe] = $this->buildProbes($searchTitle);
 
+        $hymnbookAbsent = $this->hymnbookAbsentMatch($searchTitle, $probes);
+        if ($hymnbookAbsent instanceof SongTitleMatch) {
+            return $hymnbookAbsent;
+        }
+
         foreach ($probes as $probe) {
             $match = $this->deterministicMatch($probe);
             if ($match !== null) {
@@ -154,6 +168,7 @@ class SongTitleResolver
     private function buildLookups(iterable $rows): void
     {
         $ambiguousStripped = [];
+        $ambiguousHymnbookAbsent = [];
         $ambiguousTitle = [];
         $ambiguousAlternate = [];
         $ambiguousFirstLine = [];
@@ -179,9 +194,15 @@ class SongTitleResolver
                 $this->addLookupKey($this->stripped, $ambiguousStripped, $strippedKey, $songId);
             }
 
+            $numbered = is_string($row['praise_number'] ?? null) && trim((string) $row['praise_number']) !== '';
+
             foreach ($this->looseTitleKeys($row) as $key) {
                 $this->addLookupKey($this->looseTitle, $ambiguousTitle, $key, $songId);
                 $this->fuzzyCandidates[] = [$songId, $key];
+
+                if (! $numbered) {
+                    $this->addLookupKey($this->hymnbookAbsent, $ambiguousHymnbookAbsent, $key, $songId);
+                }
             }
 
             foreach ($this->looseAlternateKeys($row) as $key) {
@@ -197,6 +218,7 @@ class SongTitleResolver
         }
 
         $this->stripped = array_diff_key($this->stripped, $ambiguousStripped);
+        $this->hymnbookAbsent = array_diff_key($this->hymnbookAbsent, $ambiguousHymnbookAbsent);
         $this->looseTitle = array_diff_key($this->looseTitle, $ambiguousTitle);
         $this->looseAlternate = array_diff_key($this->looseAlternate, $ambiguousAlternate);
         $this->looseFirstLine = array_diff_key($this->looseFirstLine, $ambiguousFirstLine);
@@ -302,6 +324,71 @@ class SongTitleResolver
         }
 
         return [$probes, $withoutParenthetical !== '' ? $withoutParenthetical : $raw];
+    }
+
+    /**
+     * "NIP" is the projectionist's shorthand for *not in Praise!* — an assertion that the song
+     * is absent from the hymnbook. It is therefore evidence about which catalogue row is meant,
+     * not decoration: a NIP line naming "The Lord's my Shepherd" cannot be Whittingham's
+     * Praise! 23B and must be Townend's setting, which is what an independent OpenLP archive
+     * of the same service says. Without this the resolver silently manufactured that conflict.
+     *
+     * Only exact and word-boundary prefix matches count. Prefix carries real information —
+     * an email writes "my hope is built" for the catalogue's "My hope is built on nothing
+     * less" — whereas fuzzy resemblance does not: on this corpus it pairs "to God be the
+     * glory" with "Thine Be The Glory" and "tell all the world of Jesus" with "Tell Me The
+     * Stories Of Jesus", both different hymns whose numbered rows were already correct.
+     *
+     * A number written behind a NIP marker is a supplement number rather than a Praise! one
+     * {@see self::leadingPraiseNumber()}, so it is deliberately not treated as a positive
+     * signal that would override the marker.
+     *
+     * @param  list<string>  $probes
+     */
+    private function hymnbookAbsentMatch(string $searchTitle, array $probes): ?SongTitleMatch
+    {
+        if (preg_match('/^\s*\W*NIP\b/iu', $searchTitle) !== 1) {
+            return null;
+        }
+
+        foreach ($probes as $probe) {
+            $strippedKey = self::stripEmailDecoration($probe);
+
+            foreach ($this->looseKeysForProbe($probe, $strippedKey) as $key) {
+                $songId = $this->hymnbookAbsent[$key] ?? null;
+                if ($songId !== null) {
+                    return new SongTitleMatch($songId, SongTitleMatch::TYPE_HYMNBOOK_ABSENT);
+                }
+
+                $songId = $this->hymnbookAbsentByPrefix($key);
+                if ($songId !== null) {
+                    return new SongTitleMatch($songId, SongTitleMatch::TYPE_HYMNBOOK_ABSENT, self::CONTAINMENT_SCORE);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The single unnumbered song whose loose key extends this one at a word boundary, or null
+     * when none does or more than one song would qualify.
+     */
+    private function hymnbookAbsentByPrefix(string $key): ?int
+    {
+        if ($key === '' || count(explode(' ', $key)) < 2) {
+            return null;
+        }
+
+        $matches = [];
+
+        foreach ($this->hymnbookAbsent as $candidate => $songId) {
+            if (str_starts_with($candidate, $key.' ')) {
+                $matches[$songId] = true;
+            }
+        }
+
+        return count($matches) === 1 ? (int) array_key_first($matches) : null;
     }
 
     private function deterministicMatch(string $probe): ?SongTitleMatch

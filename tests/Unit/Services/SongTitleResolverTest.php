@@ -72,8 +72,10 @@ class SongTitleResolverTest extends TestCase
             'leading praise number' => ["299 'How sweet the name of Jesus sounds'", 1, SongTitleMatch::TYPE_PRAISE_NUMBER],
             'letter-variant praise number' => ["46a 'Crown him'", 2, SongTitleMatch::TYPE_PRAISE_NUMBER],
             'plain title vs number-suffixed key' => ['All heaven declares', 3, SongTitleMatch::TYPE_STRIPPED_NUMBER],
-            'NIP marker without a number' => ["NIP 'Speak O Lord'", 8, SongTitleMatch::TYPE_STRIPPED_NUMBER],
-            'NIP with mismatched quote' => ["NIP When I was lost'", 9, SongTitleMatch::TYPE_STRIPPED_NUMBER],
+            // These NIP lines already reached the right song; since the marker now selects it,
+            // the provenance names the reason rather than the number-stripping that got there.
+            'NIP marker without a number' => ["NIP 'Speak O Lord'", 8, SongTitleMatch::TYPE_HYMNBOOK_ABSENT],
+            'NIP with mismatched quote' => ["NIP When I was lost'", 9, SongTitleMatch::TYPE_HYMNBOOK_ABSENT],
             'alternate title behind NIP' => ["NIP 'His mercy is more'", 4, SongTitleMatch::TYPE_ALTERNATE_TITLE],
             'decorated alternate title' => ['#203 All Creatures Of Our God And King', 6, SongTitleMatch::TYPE_ALTERNATE_TITLE],
             'openlp @-segment probes the alternate search text' => ['unknown working title@when i fear my faith will fail', 5, SongTitleMatch::TYPE_EXACT],
@@ -102,7 +104,7 @@ class SongTitleResolverTest extends TestCase
             'praise-no label resolved by number when the title differs' => ['Praise no 452: Messiah dies', 26, SongTitleMatch::TYPE_PRAISE_NUMBER],
             // A NIP number is a supplement number, not a Praise! book number — this must
             // resolve by title, never via the praise_number map (26 has praise_number 452).
-            'nip number is not read as a praise number' => ["NIP 452 'Speak O Lord'", 8, SongTitleMatch::TYPE_STRIPPED_NUMBER],
+            'nip number is not read as a praise number' => ["NIP 452 'Speak O Lord'", 8, SongTitleMatch::TYPE_HYMNBOOK_ABSENT],
             'hymn label prefix' => ['Hymn: All heaven declares', 3, SongTitleMatch::TYPE_STRIPPED_NUMBER],
             'two-word song label' => ["Alternative final song: NIP 'Speak O Lord'", 8, SongTitleMatch::TYPE_STRIPPED_NUMBER],
             'bullet before a hymn label' => ['- Hymn: All heaven declares', 3, SongTitleMatch::TYPE_STRIPPED_NUMBER],

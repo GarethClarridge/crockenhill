@@ -775,6 +775,34 @@ Praise! 23B, so it is Townend's setting — which is what OpenLP said. The two s
 resolver manufactured the conflict. So both readings hold at once: the catalogue rows are genuinely
 distinct songs, *and* the resolver picked the wrong one of them by discarding what the source said.
 
+**Resolved 2026-08-22 — NIP now selects the row (`SongTitleMatch::TYPE_HYMNBOOK_ABSENT`).** A line
+marked NIP prefers a catalogue song the hymnbook does not number, on an **exact or word-boundary
+prefix match only**. Prefix carries information — an email writes `my hope is built` for the
+catalogue's *My hope is built on nothing less* (Cornerstone), and `man of sorrows` for *Man of
+sorrows, Lamb of God*. Fuzzy resemblance does not, and the corpus proves it: at a 0.75 cutoff it
+pairs `to God be the glory` with *Thine Be The Glory* and `tell all the world of Jesus` with *Tell
+Me The Stories Of Jesus* — different hymns whose numbered rows were already correct. Both near
+misses are permanent regression tests, so no later widening can reintroduce them. Ambiguous prefixes
+resolve to nothing, as everywhere else in this resolver.
+
+A number written behind a NIP marker is a supplement number rather than a Praise! one — already
+documented on {@see SongTitleResolver::leadingPraiseNumber()} — so it is deliberately not treated as
+positive evidence that would override the marker. The type is registered as an audited match
+everywhere inferred links are audited, so the link records that the marker drove the choice.
+
+Expected effect, to be confirmed by the replay rather than assumed: **28 of the 44** NIP-contradicting
+resolutions become correct (23 exact twins plus 5 prefixes), and 16 keep their numbered row. Under
+the maintainer's rule that **a different tune does not make a different hymn, while different or
+added words do**, most of those 16 are already right — `when i survey (modern tune)` is Watts #453
+and `yes finished… new version` is Wesley #452. `PROJECTION_POLICY_VERSION` is 5; the replay is
+**pending** and should be batched with the extraction work below rather than run twice.
+
+**A catalogue-coverage claim made here on 2026-08-21 is withdrawn.** The modern settings were
+reported as absent from the catalogue; they are present — *My hope is built on nothing less*
+(Mote / Liljero / Myrin / Morgan / Bradbury) and *Man of sorrows, Lamb of God* (Ligertwood /
+Crocker). The test that reported them missing required exact bare-title equality and never reached
+a longer catalogue title. There is no coverage gap here; there was a matching gap.
+
 **Cross-source corroboration now finalises, measured the way the withdrawn claim should have been.**
 Rather than reading `payload_complete` — which is absent from every one of the 650 Email records in
 both databases, so it cannot discriminate — this counts merged song items whose
@@ -805,6 +833,46 @@ song-identity figures. This run shows `Auto-import precision (identity) 77.6%`, 
 floor of 0.98, and `Item counts reconciled 0/1`; the 26 holds still await the maintainer's
 `--accepted-holds` ruling (§10). Song identity was one gate condition among several, and the others
 are unchanged by this work.
+
+**IC3 item 9 — Email song-reference extraction (queued 2026-08-22, unstarted).**
+The residue after item 8 is almost entirely Email-side: of 247 unresolved song assertions in the
+catalogued replay, **247 are Email** and OpenLP resolves against the same catalogue nearly
+perfectly. The catalogue is therefore not the limiting factor — reading the Email line is. At least
+**85 (34%)** name a song the catalogue already holds, and that is a floor, because the estimate used
+a strict similarity cutoff and left obvious cases out (`nip 'jesus is lord, the cry that echoes'`
+and `nip 'jesus is lord – the cry'` are the same song written three ways). About **15 (6%)** name no
+specific song at all — `hymn - gareth to choose`, `2 songs from holiday club (to follow)` — and must
+keep resolving to nothing.
+
+The classes are named, and each is a separate decision rather than one regex:
+
+1. **Prose wrappers** — `final hymn for evening – 313 'let us love and sing and wonder'`,
+   `welcome sheet: 'see what a morning'`, `my final hymn for the morning is 427 '…'`. The title is
+   present, wrapped in scheduling prose. Largest class.
+2. **Mojibake** — `nip â€˜behold the lambâ€™` is UTF-8 read as Latin-1. This is an encoding defect
+   in the email path, worth fixing on its own merits and not by teaching the matcher to read it.
+3. **Other hymnals** — `mp196 'good christian men rejoice'`. Only `Praise` and `NIP` are handled;
+   Mission Praise numbering is not.
+4. **Contractions and spelling variants** — `there's a hope` against the catalogue's
+   `there is a hope`.
+5. **Hymn numbers in unhandled line shapes** — 35 lines carry a number the catalogue holds.
+
+**The trap this work must not fall into.** A naive number pass matches
+`songs 2+3 - who, o lord, could save themselves?` to hymn **#3, *O Lord How Many Enemies*** — the
+`2+3` is a list position, not a hymn reference. A number must be in hymn-reference position to
+count. In this corpus a wrong link is worse than a null one, so every class above needs the same
+treatment NIP got: an exact/prefix rung with the near misses pinned as regression tests, never a
+widened fuzzy cutoff.
+
+**Variant parentheticals are the same discarded-constraint problem as NIP, and are harder.**
+`(cornerstone)`, `(getty version)`, `(modern tune)` and `(new version)` name which setting is meant,
+while `(v1 only remaining seated)` is a performance note; `buildProbes()` strips both alike. Under
+the maintainer's tune-versus-words rule a `(modern tune)` variant is the *same* hymn and needs no
+new row, whereas added words — Kauflin's extra verse on *Come O Fount* — make a different one. Do
+not attempt this class without that rule in hand.
+
+Sequencing: land with item 8's pending replay so `PROJECTION_POLICY_VERSION` moves once and the
+catalogued RG-A replay runs once, not twice.
 
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 

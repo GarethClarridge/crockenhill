@@ -29,6 +29,7 @@ class ChurchServiceSongLinker
     private const AUDITED_MATCH_TYPES = [
         SongTitleMatch::TYPE_FIRST_LINE,
         SongTitleMatch::TYPE_FUZZY,
+        SongTitleMatch::TYPE_HYMNBOOK_ABSENT,
     ];
 
     /**
