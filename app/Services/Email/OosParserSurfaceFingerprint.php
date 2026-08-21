@@ -27,8 +27,9 @@ use RuntimeException;
  * Per-file hashes are recorded as well as the combined one so a drift refusal can name the file that
  * moved instead of just asserting that something did.
  *
- * This one-shot surface is deleted once the Luna adoption report is accepted and no rerun remains,
- * or at historic-import IC8 closeout at the latest.
+ * This one-shot surface is deleted at historic-import IC8 closeout. The former "once the Luna
+ * adoption report is accepted" trigger is stale: that decision is closed, but the parser plan was
+ * amended to retain the evaluation machinery through IC8, so IC8 is the only trigger.
  */
 class OosParserSurfaceFingerprint
 {
@@ -39,7 +40,15 @@ class OosParserSurfaceFingerprint
      * arms to declare the *same list*: a file quietly dropped from here would otherwise stop being
      * drift-checked without anything saying so.
      */
-    private const Files = [
+    /**
+     * Public because {@see OosArchiveParseCacheBinding} needs the *same* list to
+     * decide when a cached archive parse has gone stale. It previously kept its own shorter copy,
+     * which omitted behaviour-bearing files this one covers — the semantic decoder and continuation
+     * rule, the semantic DTOs and enums, the OpenAI payload and schema-limit helpers and the
+     * transient-failure policy — so a change confined to any of those would not have moved the
+     * surface commit that warning is derived from. One list, read by both.
+     */
+    public const Files = [
         // The strict JSON schema, and the retry and adjudication calls.
         // Every system prompt variant. Which one an arm selected is a declared intervention and is
         // recorded in the run manifest; an *edit* to either text is not, and is caught here.

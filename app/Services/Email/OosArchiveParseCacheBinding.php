@@ -44,21 +44,6 @@ use Throwable;
 class OosArchiveParseCacheBinding
 {
     /** @var list<string> */
-    private const ParserSurfacePaths = [
-        'app/Services/Email/OosEmailParserService.php',
-        'app/Services/Email/OosEmailExtractionValidator.php',
-        'app/Data/OosEmailServicePlan.php',
-        'app/Data/OosEmailSourceDocument.php',
-        'app/Services/Email/OosSemanticParserCandidate.php',
-        'app/Services/Email/OpenAiOosSemanticAnnotator.php',
-        'app/Services/Email/OpenAiOosSemanticRepairer.php',
-        'app/Services/Email/OosSemanticAnnotationSchema.php',
-        'app/Services/Email/OosSemanticAnnotationValidator.php',
-        'app/Services/Email/ApplyOosSemanticAnnotationPatch.php',
-        'app/Services/Email/CompileOosSemanticAnnotations.php',
-        'app/Services/Email/OosServiceDateResolver.php',
-    ];
-
     /**
      * Version 1 is the raw-extraction cache.
      *
@@ -258,7 +243,7 @@ class OosArchiveParseCacheBinding
                 '-1',
                 '--format=%H',
                 '--',
-                ...self::ParserSurfacePaths,
+                ...OosParserSurfaceFingerprint::Files,
             ], base_path());
             $process->setTimeout(2);
             $process->run();
