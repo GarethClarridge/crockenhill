@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Services\Email\OosSemanticCorrectnessScorer;
 use App\Services\Email\RunOosSemanticSafetyFixtures;
+use App\Support\CanonicalJson;
 use Illuminate\Console\Command;
 use RuntimeException;
 use Throwable;
@@ -55,7 +56,7 @@ class ScoreOosSemanticCandidateCommand extends Command
                 $fixtures->run(),
                 is_string($replicatePath) && $replicatePath !== '' ? $this->json($this->path($replicatePath)) : null,
             );
-            $json = json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            $json = CanonicalJson::encodeReadable($report);
 
             if (file_put_contents($outputPath, $json.PHP_EOL) === false || ! chmod($outputPath, 0600)) {
                 throw new RuntimeException("Could not write private scoring artifact {$outputPath}.");

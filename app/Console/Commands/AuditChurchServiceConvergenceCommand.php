@@ -87,7 +87,7 @@ class AuditChurchServiceConvergenceCommand extends Command
                 ];
             }
 
-            $json = json_encode($report, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
+            $json = CanonicalJson::encodeReadable($report);
 
             if ($reportPath !== null && ! $this->option('verify-closeout')) {
                 $digest = $this->writeReport($reportPath, $json, $operationId !== null);

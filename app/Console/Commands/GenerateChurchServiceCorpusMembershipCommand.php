@@ -92,7 +92,7 @@ class GenerateChurchServiceCorpusMembershipCommand extends Command
         }
 
         $path = str_starts_with($output, '/') ? $output : storage_path("scratch/{$output}");
-        if (file_put_contents($path, json_encode($membership, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL) === false) {
+        if (file_put_contents($path, CanonicalJson::encodeReadable($membership).PHP_EOL) === false) {
             $this->error("Could not write membership artifact to {$path}.");
 
             return self::FAILURE;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\Email\OosSemanticCandidateEvidenceRunner;
+use App\Support\CanonicalJson;
 use Illuminate\Console\Command;
 use RuntimeException;
 use Throwable;
@@ -48,7 +49,7 @@ class RunOosSemanticCandidateEvidenceCommand extends Command
             }
 
             $artifact = $runner->run($this->json($corpusPath), $this->json($pricePath));
-            $json = json_encode($artifact, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            $json = CanonicalJson::encodeReadable($artifact);
 
             if (file_put_contents($outputPath, $json.PHP_EOL) === false || ! chmod($outputPath, 0600)) {
                 throw new RuntimeException("Could not write private candidate evidence {$outputPath}.");

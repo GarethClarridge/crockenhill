@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Services\Email\FreezeOosSemanticEvaluationCorpus;
 use App\Services\Email\OosCurationEntryFactory;
 use App\Services\Email\OosCurationManifest;
+use App\Support\CanonicalJson;
 use Illuminate\Console\Command;
 use RuntimeException;
 use Throwable;
@@ -67,7 +68,7 @@ class FreezeOosSemanticEvaluationCorpusCommand extends Command
                 $this->hardCases(),
             );
 
-            $json = json_encode($artifact, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            $json = CanonicalJson::encodeReadable($artifact);
 
             if (file_put_contents($outputPath, $json.PHP_EOL) === false || ! chmod($outputPath, 0600)) {
                 throw new RuntimeException("Could not write private evaluation corpus {$outputPath}.");

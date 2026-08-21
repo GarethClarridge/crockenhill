@@ -92,10 +92,11 @@ class GenerateOosCorpusExpectationCommand extends Command
             $expectation['approved_sources'],
         )));
 
-        $json = json_encode($expectation, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-
-        if (! is_string($json)) {
-            $this->error('The corpus expectation could not be encoded.');
+        // `encodeReadable()` throws rather than returning false, so the failure is caught, not tested.
+        try {
+            $json = CanonicalJson::encodeReadable($expectation);
+        } catch (Throwable $throwable) {
+            $this->error("The corpus expectation could not be encoded: {$throwable->getMessage()}");
 
             return self::FAILURE;
         }

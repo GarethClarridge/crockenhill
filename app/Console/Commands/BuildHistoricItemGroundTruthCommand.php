@@ -49,7 +49,7 @@ class BuildHistoricItemGroundTruthCommand extends Command
             );
             $path = $this->outputPath();
 
-            $this->createOnce($path, json_encode($artifact, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR).PHP_EOL);
+            $this->createOnce($path, CanonicalJson::encodeReadable($artifact).PHP_EOL);
 
             $this->report($artifact);
             $this->line("Artifact: {$path}");

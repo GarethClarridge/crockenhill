@@ -34,7 +34,7 @@ class CalibrateHistoricEmailContentCommand extends Command
                 $this->readArtifact('ground-truth'),
             );
             $path = $this->outputPath();
-            $this->createOnce($path, json_encode($artifact, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR).PHP_EOL);
+            $this->createOnce($path, CanonicalJson::encodeReadable($artifact).PHP_EOL);
 
             $this->line("Artifact: {$path}");
             $this->line('Artifact sha256: '.CanonicalJson::hash($artifact));

@@ -8,6 +8,7 @@ use App\Data\OosParserEvaluationArm;
 use App\Services\Email\OosCurationEntryFactory;
 use App\Services\Email\OosCurationManifest;
 use App\Services\Email\OosParserArmRunner;
+use App\Support\CanonicalJson;
 use App\Support\OpenAiRateLimitDiagnostics;
 use Illuminate\Console\Command;
 use RuntimeException;
@@ -339,7 +340,7 @@ class RunOosParserArmCommand extends Command
         }
 
         try {
-            fwrite($handle, json_encode($report, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR).PHP_EOL);
+            fwrite($handle, CanonicalJson::encodeReadable($report).PHP_EOL);
         } finally {
             fclose($handle);
         }
