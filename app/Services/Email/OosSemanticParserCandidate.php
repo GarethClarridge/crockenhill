@@ -85,7 +85,7 @@ class OosSemanticParserCandidate
 
         $compiled = $this->compiler->compile($source, $final);
         $compilation = [
-            'extraction' => $this->extractionArray($compiled->extraction),
+            'extraction' => $compiled->extraction->toArray(),
             'risk_signals' => $compiled->riskSignals,
         ];
         $attempt['compilation'] = $compilation;
@@ -199,20 +199,6 @@ class OosSemanticParserCandidate
             'openlp_corroboration' => null,
             'hymn_corroboration' => null,
             'catalogue_resolution' => null,
-        ];
-    }
-
-    /** @return array<string, mixed> */
-    private function extractionArray(OosEmailItemExtractionResult $extraction): array
-    {
-        return [
-            'items' => $extraction->items,
-            'confidence' => $extraction->confidence,
-            'notes' => $extraction->notes,
-            'services' => $extraction->services,
-            'service_count' => $extraction->serviceCount,
-            'ignored_lines' => $extraction->ignoredLines,
-            'provenance_complete' => $extraction->provenanceComplete,
         ];
     }
 }

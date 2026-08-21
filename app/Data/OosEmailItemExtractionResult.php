@@ -21,4 +21,23 @@ readonly class OosEmailItemExtractionResult
         public array $ignoredLines = [],
         public bool $provenanceComplete = false,
     ) {}
+
+    /**
+     * The evidence-artifact shape of an extraction, shared so the candidate parser, the arm runner
+     * and a recompilation cannot serialise the same result three different ways.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return [
+            'items' => $this->items,
+            'confidence' => $this->confidence,
+            'notes' => $this->notes,
+            'services' => $this->services,
+            'service_count' => $this->serviceCount,
+            'ignored_lines' => $this->ignoredLines,
+            'provenance_complete' => $this->provenanceComplete,
+        ];
+    }
 }

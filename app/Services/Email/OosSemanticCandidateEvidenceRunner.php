@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Email;
 
-use App\Data\OosEmailItemExtractionResult;
 use App\Support\CanonicalJson;
 use App\Support\RepositoryCommit;
 use RuntimeException;
@@ -56,7 +55,7 @@ class OosSemanticCandidateEvidenceRunner
             $results[] = [
                 'item_key' => $sourceRecord['item_key'],
                 'source_hash' => $source->inputHash(),
-                'extraction' => $this->extraction($outcome->extraction),
+                'extraction' => $outcome->extraction->toArray(),
                 'risk_signals' => $outcome->riskSignals,
                 'attempts' => $outcome->attempts,
             ];
@@ -93,20 +92,6 @@ class OosSemanticCandidateEvidenceRunner
         $artifact['evidence_hash'] = CanonicalJson::hash($artifact);
 
         return $artifact;
-    }
-
-    /** @return array<string, mixed> */
-    private function extraction(OosEmailItemExtractionResult $extraction): array
-    {
-        return [
-            'items' => $extraction->items,
-            'confidence' => $extraction->confidence,
-            'notes' => $extraction->notes,
-            'services' => $extraction->services,
-            'service_count' => $extraction->serviceCount,
-            'ignored_lines' => $extraction->ignoredLines,
-            'provenance_complete' => $extraction->provenanceComplete,
-        ];
     }
 
     /** @return array<string, mixed> */
