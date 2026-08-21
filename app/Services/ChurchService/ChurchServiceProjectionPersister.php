@@ -6,6 +6,7 @@ namespace App\Services\ChurchService;
 
 use App\Data\ChurchServiceProjection;
 use App\Enums\ChurchServiceCanonicalFinalization;
+use App\Enums\ChurchServiceProposalStatus;
 use App\Enums\ChurchServiceSource;
 use App\Events\ChurchServiceCanonicalListChanged;
 use App\Models\ChurchService;
@@ -46,6 +47,23 @@ class ChurchServiceProjectionPersister
                 'canonical_finalization' => $finalization,
                 'projection_policy_version' => (int) $policyVersion,
             ];
+
+            /*
+             * Retracting the review flag is only honest once nothing is still waiting for a
+             * person. A class rule that dispositions one of a service's proposals reaches here
+             * with the others still pending, and clearing the flag then drops those proposals
+             * out of the attention inbox with no route back to them.
+             */
+            if (
+                $finalization === ChurchServiceCanonicalFinalization::Automatic
+                && $lockedService->review_reason === 'projection_requires_review'
+                && ! $lockedService->mergeProposals()
+                    ->where('status', ChurchServiceProposalStatus::Pending)
+                    ->exists()
+            ) {
+                $state['needs_review'] = false;
+                $state['review_reason'] = null;
+            }
 
             if (! $force && $lockedService->canonical_hash === $projection->hash) {
                 if (

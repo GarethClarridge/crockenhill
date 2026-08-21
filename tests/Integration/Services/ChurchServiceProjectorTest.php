@@ -6,8 +6,10 @@ namespace Tests\Integration\Services;
 
 use App\Actions\IngestChurchServiceSourceRevision;
 use App\Data\ChurchServiceSourceRevision;
+use App\Enums\ChurchServiceCanonicalFinalization;
 use App\Enums\ChurchServiceEvidenceKind;
 use App\Enums\ChurchServiceOccurrenceState;
+use App\Enums\ChurchServiceProposalStatus;
 use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItemAssertion;
@@ -138,6 +140,118 @@ class ChurchServiceProjectorTest extends TestCase
         $this->assertCount(1, $service->items);
         $this->assertSame('song:come-thou-fount#1', $service->items->sole()->canonical_identity);
         $this->assertSame([], $service->mergeProposals()->get()->all());
+    }
+
+    #[Test]
+    public function an_evidence_tier_email_finalises_after_openlp_corroborates_planned_song_membership_count_and_order(): void
+    {
+        $service = ChurchService::factory()->create();
+        $emailFingerprint = [
+            'format' => 'email-plan',
+            'version' => 2,
+            'unattended_content_finalization' => false,
+        ];
+        $items = [
+            $this->item(1, 'songs', 'Come Thou Fount', 'come-thou-fount'),
+            $this->item(2, 'songs', 'Be Thou My Vision', 'be-thou-my-vision'),
+        ];
+
+        $this->ingestItems($service, ChurchServiceSource::Email, $items, processingFingerprint: $emailFingerprint);
+
+        $service->refresh();
+        $this->assertNull($service->canonical_finalization);
+        $this->assertTrue($service->needs_review);
+        $this->assertSame('projection_requires_review', $service->review_reason);
+        $this->assertContains(
+            'uncorroborated_content_dimension',
+            array_column($service->mergeProposals()->latest('id')->firstOrFail()->conflicts, 'kind'),
+        );
+
+        $this->ingestItems($service, ChurchServiceSource::OpenLp, $items);
+
+        $service->refresh();
+        $this->assertSame(ChurchServiceCanonicalFinalization::Automatic, $service->canonical_finalization);
+        $this->assertFalse($service->needs_review);
+        $this->assertNull($service->review_reason);
+        $this->assertSame([], $service->mergeProposals()->where('status', ChurchServiceProposalStatus::Pending)->get()->all());
+    }
+
+    #[Test]
+    public function an_email_that_cleared_confidence_and_consensus_remains_automatically_finalisable(): void
+    {
+        $service = ChurchService::factory()->create();
+
+        $this->ingestItems(
+            $service,
+            ChurchServiceSource::Email,
+            [$this->item(1, 'songs', 'Come Thou Fount', 'come-thou-fount')],
+            processingFingerprint: [
+                'format' => 'email-plan',
+                'version' => 2,
+                'unattended_content_finalization' => true,
+            ],
+        );
+
+        $this->assertSame(ChurchServiceCanonicalFinalization::Automatic, $service->fresh()->canonical_finalization);
+        $this->assertFalse($service->fresh()->needs_review);
+    }
+
+    #[Test]
+    public function an_independent_song_dimension_mismatch_stages_the_email_evidence_for_review(): void
+    {
+        $service = ChurchService::factory()->create();
+        $emailFingerprint = [
+            'format' => 'email-plan',
+            'version' => 2,
+            'unattended_content_finalization' => false,
+        ];
+
+        $this->ingestItems($service, ChurchServiceSource::Email, [
+            $this->item(1, 'songs', 'Come Thou Fount', 'come-thou-fount'),
+            $this->item(2, 'songs', 'Be Thou My Vision', 'be-thou-my-vision'),
+        ], processingFingerprint: $emailFingerprint);
+        $this->ingestItems($service, ChurchServiceSource::OpenLp, [
+            $this->item(1, 'songs', 'Come Thou Fount', 'come-thou-fount'),
+        ]);
+
+        $proposal = $service->fresh()->mergeProposals()->latest('id')->firstOrFail();
+
+        $this->assertTrue($service->fresh()->needs_review);
+        $this->assertContains('corroboration_mismatch', array_column($proposal->conflicts, 'kind'));
+        $this->assertContains(
+            'song_count',
+            array_column(
+                array_values(array_filter($proposal->conflicts, static fn (array $conflict): bool => $conflict['kind'] === 'corroboration_mismatch')),
+                'dimension',
+            ),
+        );
+    }
+
+    /**
+     * `incomplete_projection_audit` names one specific failure: the field-decision
+     * audit does not explain the items the projection produced. It is not a synonym
+     * for "this projection has conflicts" — those are appended to the staging reasons
+     * in their own right. Reporting both put the reason on 100% of the recovered
+     * rehearsal's 531 pending proposals, which hid the class each one actually
+     * belongs to from the §9 census.
+     */
+    #[Test]
+    public function a_proposal_staged_for_conflicts_alone_is_not_also_reported_as_an_incomplete_audit(): void
+    {
+        $service = ChurchService::factory()->create();
+
+        $this->ingestItems($service, ChurchServiceSource::Email, [
+            $this->item(1, 'songs', 'Come Thou Fount', 'come-thou-fount'),
+        ], processingFingerprint: [
+            'format' => 'email-plan',
+            'version' => 2,
+            'unattended_content_finalization' => false,
+        ]);
+
+        $kinds = array_column($service->fresh()->mergeProposals()->latest('id')->firstOrFail()->conflicts, 'kind');
+
+        $this->assertContains('uncorroborated_content_dimension', $kinds);
+        $this->assertNotContains('incomplete_projection_audit', $kinds);
     }
 
     #[Test]
@@ -491,6 +605,7 @@ class ChurchServiceProjectorTest extends TestCase
         ChurchServiceSource $source,
         array $items,
         ChurchServiceEvidenceKind $evidenceKind = ChurchServiceEvidenceKind::Planned,
+        array $processingFingerprint = ['format' => 'test', 'version' => 1],
     ): void {
         app(IngestChurchServiceSourceRevision::class)->execute(
             $service,
@@ -499,7 +614,7 @@ class ChurchServiceProjectorTest extends TestCase
                 sourceKey: "{$source->value}-{$service->getKey()}",
                 inputHash: CanonicalJson::hash($items),
                 assertions: app(ChurchServiceAssertionNormalizer::class)->normalize($items, $evidenceKind),
-                processingFingerprint: ['format' => 'test', 'version' => 1],
+                processingFingerprint: $processingFingerprint,
             ),
         );
     }

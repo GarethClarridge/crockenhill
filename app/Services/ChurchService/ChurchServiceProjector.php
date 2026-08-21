@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Actions\IngestChurchServiceSourceRevision;
 use App\Data\ChurchServiceProjection;
 use App\Enums\ChurchServiceEvidenceKind;
 use App\Enums\ChurchServiceOccurrenceState;
@@ -17,7 +18,7 @@ use RuntimeException;
 
 class ChurchServiceProjector
 {
-    public const int PROJECTION_POLICY_VERSION = 2;
+    public const int PROJECTION_POLICY_VERSION = 3;
 
     public const string PROJECTION_POLICY_FORMAT = 'church-service-projection';
 
@@ -78,6 +79,26 @@ class ChurchServiceProjector
             return false;
         }
 
+        return $this->hasCompleteFieldDecisionAudit($sourceRecords, $projection);
+    }
+
+    /**
+     * The explanation half of {@see hasCompleteAudit()} on its own: does the field-
+     * decision manifest account for the projection in both directions?
+     *
+     * Split out because a caller that reports conflicts separately must not also
+     * report them as a missing audit. {@see IngestChurchServiceSourceRevision}
+     * appends `$projection->conflicts` to its staging reasons, so asking the
+     * combined question there put `incomplete_projection_audit` on every conflicted
+     * proposal — a reason that named nothing an operator could act on and masked the
+     * class each proposal genuinely belonged to.
+     *
+     * @param  Collection<int, ChurchServiceSourceRecord>  $sourceRecords
+     */
+    public function hasCompleteFieldDecisionAudit(
+        Collection $sourceRecords,
+        ChurchServiceProjection $projection,
+    ): bool {
         $activeRecords = $this->activeRecords($sourceRecords);
         $expected = $this->projectionRecords($activeRecords, $this->manualRecord($activeRecords))
             ->flatMap(fn (ChurchServiceSourceRecord $record): Collection => $record->assertions
@@ -128,6 +149,7 @@ class ChurchServiceProjector
             ...$this->orderConflicts($groups),
             ...$matching['conflicts'],
             ...$this->fieldConflicts($groups),
+            ...$this->contentCorroborationConflicts($projectionRecords),
             ...$this->serviceContentConflicts($activeRecords, $manualRecord),
         ];
         $sourceSummary = $manualRecord instanceof ChurchServiceSourceRecord
@@ -1269,6 +1291,123 @@ class ChurchServiceProjector
             'section_type' => $assertion->section_type?->value,
             default => $assertion->{$field},
         };
+    }
+
+    /**
+     * An email plan admitted as evidence did not clear the existing
+     * confidence-and-consensus route. It can nevertheless settle unattended when
+     * an independent source proves the same content dimension. Absence of a
+     * corroborating source is deliberately not a disagreement; it leaves the
+     * dimension unfinalised and therefore stages a proposal. A contradictory
+     * independent source is an explicit mismatch.
+     *
+     * @param  Collection<int, ChurchServiceSourceRecord>  $records
+     * @return list<array<string, mixed>>
+     */
+    private function contentCorroborationConflicts(Collection $records): array
+    {
+        $conflicts = [];
+
+        foreach ($records->filter(fn (ChurchServiceSourceRecord $record): bool => $this->requiresContentCorroboration($record)) as $email) {
+            foreach (['song_membership', 'song_count', 'song_order'] as $dimension) {
+                $emailValue = $this->songDimensionValue($email, $dimension);
+                $candidates = $records
+                    ->filter(fn (ChurchServiceSourceRecord $record): bool => $this->sourceProvesDimension($record, $dimension))
+                    ->values();
+
+                if ($candidates->isEmpty()) {
+                    $conflicts[] = $this->unfinalisedDimension($email, $dimension);
+
+                    continue;
+                }
+
+                $mismatches = $candidates
+                    ->filter(fn (ChurchServiceSourceRecord $record): bool => $this->songDimensionValue($record, $dimension) !== $emailValue)
+                    ->values();
+
+                if ($mismatches->isNotEmpty()) {
+                    $conflicts[] = [
+                        'kind' => 'corroboration_mismatch',
+                        'dimension' => $dimension,
+                        'email_source_key' => $email->source_key,
+                        'sources' => $mismatches
+                            ->map(fn (ChurchServiceSourceRecord $record): string => $record->source->value.':'.$record->source_key)
+                            ->sort()
+                            ->values()
+                            ->all(),
+                        'reason' => "An independent source disagrees with the Email plan about {$dimension}.",
+                    ];
+
+                    continue;
+                }
+            }
+        }
+
+        return $conflicts;
+    }
+
+    private function requiresContentCorroboration(ChurchServiceSourceRecord $record): bool
+    {
+        if ($record->source !== ChurchServiceSource::Email) {
+            return false;
+        }
+
+        if (($record->processing_fingerprint['format'] ?? null) !== 'email-plan') {
+            return false;
+        }
+
+        return ($record->processing_fingerprint['unattended_content_finalization'] ?? false) !== true;
+    }
+
+    private function sourceProvesDimension(ChurchServiceSourceRecord $record, string $dimension): bool
+    {
+        return match ($record->source) {
+            ChurchServiceSource::OpenLp => true,
+            ChurchServiceSource::Livestream => $dimension === 'song_order',
+            default => false,
+        };
+    }
+
+    /** @return list<string>|int */
+    private function songDimensionValue(ChurchServiceSourceRecord $record, string $dimension): array|int
+    {
+        $songs = $record->assertions
+            ->filter(fn (ChurchServiceItemAssertion $assertion): bool => $this->semanticType($assertion) === 'song')
+            ->sortBy(fn (ChurchServiceItemAssertion $assertion): int => $assertion->source_position)
+            ->map(fn (ChurchServiceItemAssertion $assertion): string => $assertion->song_canonical_key ?? $assertion->normalized_title)
+            ->values()
+            ->all();
+        $songs = array_values($songs);
+
+        return match ($dimension) {
+            'song_membership' => $this->sortedUnique($songs),
+            'song_count' => count($songs),
+            'song_order' => $songs,
+            default => throw new RuntimeException("Unknown corroboration dimension {$dimension}."),
+        };
+    }
+
+    /** @return array<string, mixed> */
+    private function unfinalisedDimension(ChurchServiceSourceRecord $email, string $dimension): array
+    {
+        return [
+            'kind' => 'uncorroborated_content_dimension',
+            'dimension' => $dimension,
+            'email_source_key' => $email->source_key,
+            'reason' => "No independent source is available to corroborate the Email plan's {$dimension}.",
+        ];
+    }
+
+    /**
+     * @param  list<string>  $values
+     * @return list<string>
+     */
+    private function sortedUnique(array $values): array
+    {
+        $values = array_values(array_unique($values));
+        sort($values, SORT_STRING);
+
+        return $values;
     }
 
     /**

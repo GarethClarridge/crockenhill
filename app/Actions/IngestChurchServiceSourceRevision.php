@@ -136,6 +136,19 @@ class IngestChurchServiceSourceRevision
                 if ($stagingReasons !== []) {
                     $this->stageProposal($lockedService, $sourceRecord, $records, $stagingReasons);
                 } else {
+                    /*
+                     * A machine revision that projects directly has superseded whatever was
+                     * staged, so those proposals are stale. A Manual revision has not:
+                     * {@see \App\Actions\ServiceReview\ReviewChurchServiceEvidence} rules on
+                     * exactly the proposals the reviewer chose and leaves the rest pending on
+                     * purpose, so retiring them here would silently close a partial review.
+                     */
+                    if ($revision->source !== ChurchServiceSource::Manual) {
+                        $lockedService->mergeProposals()
+                            ->where('status', ChurchServiceProposalStatus::Pending)
+                            ->update(['status' => ChurchServiceProposalStatus::Stale->value]);
+                    }
+
                     $this->persister->apply(
                         $lockedService,
                         $projection,
@@ -317,7 +330,13 @@ class IngestChurchServiceSourceRevision
             ];
         }
 
-        if (! $this->projector->hasCompleteAudit($records, $projection)) {
+        /*
+         * The field-decision half only. Conflicts are appended below in their own
+         * right, so asking the combined question here reported every conflicted
+         * projection twice — once truthfully and once as an audit failure that
+         * named nothing an operator could act on.
+         */
+        if (! $this->projector->hasCompleteFieldDecisionAudit($records, $projection)) {
             $reasons[] = [
                 'kind' => 'incomplete_projection_audit',
                 'reason' => 'The active evidence set does not have a complete portable projection audit, so canonical finalisation must wait for review.',
