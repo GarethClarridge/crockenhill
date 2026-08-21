@@ -714,8 +714,66 @@ weekly order of service that spells the hymnbook's name naturally, and historic 
 wrong denominator. Fixed, with the hymn-number forms covered as a set so a later edit cannot repair
 one spelling and drop another.
 
-Steps 3–5 remain: the catalogued RG-A replay, the projection-defect assertion against the recorded
-baseline, and the resolved-key versus literal-title agreement split.
+**Replay completed 2026-08-21 (steps 3, 4, 5) — the defect is fixed and corroboration finalises.**
+Replayed on `crockenhill_rehearsal_catalogued_v4`, provisioned certified-clean, catalogue seeded
+(1,173 source songs → 1,159 canonical, `songs.sqlite` hash unchanged), recovered parse cache seeded
+(554 sources), OoS plan hash `2c139a880b78…` and OpenLP plan hash `7acb266f52c3…` both matching the
+recipe. `--cache-only`, so **zero model calls**. The v3 database is retained, and both sides were
+measured with one script rather than assembled by hand
+(`storage/scratch/ic3-item8-replay-20260821/`).
+
+Admission is undisturbed: 438 created, 74 evidence-retained, 26 held, 16 merged; 756 services, 627
+Email identities, 427 OpenLP archives, 298 overlaps, 0 failures.
+
+| Measure (all 298 overlaps) | v3 baseline | v4 replay |
+|---|---|---|
+| Song assertions carrying a catalogue key | 0 / 4,341 | **4,094 / 4,341** |
+| Services with surplus song items | 264 | **88** |
+| Surplus song items | 1,024 | **128** |
+| Pending proposals (corpus-wide) | 531 | **395** |
+| Finalised services (corpus-wide) | 158 | **294** |
+| `corroboration_mismatch` membership / order / count | 269 / 269 / 55 | **121 / 128 / 55** |
+
+**The residue is enumerated, as step 4 requires.** All 88 services and all 128 surplus items are
+attributed, none unexplained: **49 services / 84 items** carry a title the catalogue does not hold,
+so the key stays null and matching falls through to the existing tiers by design; **39 services /
+44 items** have both sources resolving to *different* catalogue entries, where tier 1 correctly
+refuses to merge two non-identical strong identities and routes the disagreement to review. Service
+297 is the worked example: 11 song items → 7, the position mis-pairing gone (*"The Best Book To
+Read"* now sits under its own identity), and the one surviving duplicate is Email resolving to
+`the lords my shepherd 23b` against OpenLP's `the lords my shepherd i will trust in you alone` —
+two genuinely different catalogue settings of Psalm 23.
+
+**Cross-source corroboration now finalises, measured the way the withdrawn claim should have been.**
+Rather than reading `payload_complete` — which is absent from every one of the 650 Email records in
+both databases, so it cannot discriminate — this counts merged song items whose
+`metadata.source_assertion_sources` carries *both* sources:
+
+| | v3 baseline | v4 replay |
+|---|---|---|
+| Finalised overlaps | 29 | **165** |
+| …with a song item corroborated by both sources | **0** | **136** |
+| …whose song items are OpenLP-only | 29 | 29 |
+| Song items carrying both sources | 0 | **565** |
+
+This independently reconfirms the withdrawal of the original "29 automatically converged": those
+same 29 are still OpenLP-only in v4 and still are not corroboration. The **136** services are new,
+and are the first services on this corpus that HIR-D8's corroboration path has actually finalised.
+
+**Step 5 — agreement split, and it is the uncomfortable number.** Of 1,340 Email song assertions on
+overlapping services: 1,170 (87.3%) agree with OpenLP *only* after both sides resolve through the
+catalogue, 6 (0.4%) agree on literal title, 103 (7.7%) are unresolved, 61 (4.6%) disagree. So of the
+1,176 agreements, **99.5% rest on the catalogue rather than on matching text**. Accepted cost 2 is
+therefore not a theoretical caveat on this corpus but the dominant case: §8 era accuracy reporting
+must present these as catalogue-resolved agreement, never as two independent authors writing the
+same thing. The catalogue is a legitimate anchor — it is the only vocabulary both sources reach —
+but it was built partly from these sources, and the reporting must keep that visible.
+
+**What this does not yet certify.** RG-A requires the full audit-report reconciliation, not only the
+song-identity figures. This run shows `Auto-import precision (identity) 77.6%`, well under the FR-D4
+floor of 0.98, and `Item counts reconciled 0/1`; the 26 holds still await the maintainer's
+`--accepted-holds` ruling (§10). Song identity was one gate condition among several, and the others
+are unchanged by this work.
 
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 
