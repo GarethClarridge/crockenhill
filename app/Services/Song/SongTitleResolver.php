@@ -444,7 +444,7 @@ class SongTitleResolver
     public static function stripEmailDecoration(string $title): string
     {
         $bare = (string) preg_replace(
-            '/^\s*(?:NIP\b\s*(?:\d{1,4}[a-z]?(?![\d,.]))?|(?:Praise\b\s*(?:no\.?|number)?\s*)?\d{1,4}[a-z]?(?![\d,.]))\s*[:\-\x{2013}\x{2014}]?\s*/iu',
+            '/^\s*(?:NIP\b\s*(?:\d{1,4}[a-z]?(?![\d,.]))?|(?:Praise\b!?\s*(?:no\.?|number)?\s*)?\d{1,4}[a-z]?(?![\d,.]))\s*[:\-\x{2013}\x{2014}]?\s*/iu',
             '',
             $title,
         );

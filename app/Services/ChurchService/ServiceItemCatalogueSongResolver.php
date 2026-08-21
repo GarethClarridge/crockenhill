@@ -51,7 +51,23 @@ class ServiceItemCatalogueSongResolver
             return $items;
         }
 
-        // Built at most once per merge, and only when there is something to resolve
+        return $this->resolveItems($items);
+    }
+
+    /**
+     * The same resolution without the incoming-source gate, for callers that have
+     * already decided the evidence is eligible.
+     * {@see ChurchServiceAssertionNormalizer} gates on
+     * planned evidence instead, because it normalises assertions rather than merging
+     * items. Both callers must reach the same answer for the same title, so the rule
+     * lives here once rather than being restated at each entry point.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array<int, array<string, mixed>>
+     */
+    public function resolveItems(array $items): array
+    {
+        // Built at most once per call, and only when there is something to resolve
         // — it loads a lookup over the whole catalogue.
         $songTitleResolver = null;
 

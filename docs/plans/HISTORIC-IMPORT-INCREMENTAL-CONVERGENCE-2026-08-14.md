@@ -665,7 +665,8 @@ now supplies the first-pass measurement (§6 IC1), but not the
 catalogued, projection-complete certificate required to accept HIR-D8. The parser cannot change
 evidence admission, finalisation or publication policy.
 
-**IC3 item 8 — song identity resolution at normalisation (decided 2026-08-21, §2.5; unstarted).**
+**IC3 item 8 — song identity resolution at normalisation (decided 2026-08-21, §2.5; steps 1, 2 and
+6 IMPLEMENTED 2026-08-21, steps 3–5 outstanding).**
 Implements the maintainer decision and the invariant 4 amendment (§3.2). Scope, in order:
 
 1. Resolve `song_canonical_key` in `ChurchServiceAssertionNormalizer` for song assertions from
@@ -693,6 +694,28 @@ Implements the maintainer decision and the invariant 4 amendment (§3.2). Scope,
 Expected direction from the §2.5 measurement, to be confirmed rather than assumed: membership
 agreement 0/298 → 162/298 and order 0/298 → 154/298. That still leaves roughly 136 overlaps routed
 to review on genuine cross-source disagreement, which is designed residue, not a shortfall.
+
+**Implementation status 2026-08-21 (steps 1, 2, 6).** `ChurchServiceAssertionNormalizer` resolves
+song identity for planned evidence only, so Email and OpenLP resolve while Livestream (stronger
+lyric/OCR evidence) and Manual (invariant 5) do not — the existing `ChurchServiceEvidenceKind`
+argument already separates exactly those sets, so no new plumbing was added. The rule was not
+copied: `ServiceItemCatalogueSongResolver` already existed for the live item-merge lane with this
+same rationale in its docblock, so its per-item resolution was extracted as `resolveItems()` and is
+now called by both lanes. The divergence this closes is that the live lane has resolved song
+identity through the catalogue for some time while the evidence lane compared raw strings.
+`PROJECTION_POLICY_VERSION` is 4. Pint, PHPStan and the full suite (7,044 tests) are green; the two
+Dusk failures seen on the first run were browser-transport timeouts and pass on re-run.
+
+**Out-of-scope fix taken deliberately: `Praise!` decoration.** `SongTitleResolver::stripEmailDecoration()`
+stripped `Praise 873` but not `Praise! 873`, so the hymnbook's own punctuation left songs unlinked.
+It was first assessed as not worth fixing on historic prevalence (8 of 4,341 song assertions) and
+that assessment was **wrong**: the resolver is shared with the live lane, so the miss recurs on every
+weekly order of service that spells the hymnbook's name naturally, and historic prevalence was the
+wrong denominator. Fixed, with the hymn-number forms covered as a set so a later edit cannot repair
+one spelling and drop another.
+
+Steps 3–5 remain: the catalogued RG-A replay, the projection-defect assertion against the recorded
+baseline, and the resolved-key versus literal-title agreement split.
 
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 

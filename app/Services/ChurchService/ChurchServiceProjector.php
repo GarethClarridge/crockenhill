@@ -18,7 +18,14 @@ use RuntimeException;
 
 class ChurchServiceProjector
 {
-    public const int PROJECTION_POLICY_VERSION = 3;
+    /**
+     * 4 (2026-08-21): planned evidence resolves song identity against the catalogue at
+     * normalisation, so tier-1 `song_identity` matching applies to historic sources.
+     * Projections and bundles produced under version 3 compared raw titles and must be
+     * reprojected rather than re-interpreted. See §2.5 and §3.2 of
+     * `docs/plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md`.
+     */
+    public const int PROJECTION_POLICY_VERSION = 4;
 
     public const string PROJECTION_POLICY_FORMAT = 'church-service-projection';
 

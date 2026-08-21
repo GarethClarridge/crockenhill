@@ -14,12 +14,17 @@ class ChurchServiceAssertionNormalizer
     /** The width of every text column on `church_service_item_assertions`. */
     private const MaxTextLength = 255;
 
+    public function __construct(
+        private readonly ServiceItemCatalogueSongResolver $catalogueSongResolver,
+    ) {}
+
     /**
      * @param  array<int, array<string, mixed>>  $items
      * @return list<array<string, mixed>>
      */
     public function normalize(array $items, ChurchServiceEvidenceKind $evidenceKind): array
     {
+        $items = $this->resolveSongIdentity($items, $evidenceKind);
         $assertions = [];
         $canonicalKeysBySongId = $this->canonicalKeysBySongId($items);
 
@@ -128,6 +133,39 @@ class ChurchServiceAssertionNormalizer
         $value = $item['scripture_reference'] ?? $metadata['scripture_reference'] ?? null;
 
         return $this->scalarOrNull($value);
+    }
+
+    /**
+     * Planned evidence resolves its song titles against the catalogue before it is
+     * stored, so both sides of a later comparison carry a song link.
+     *
+     * Without this, every historic assertion has a null `song_canonical_key`,
+     * {@see ChurchServiceProjector} never reaches its tier-1 `song_identity` match, and
+     * song matching degrades to the anchored-title and anchored-position fallbacks —
+     * which duplicate a song per source and can pair two different songs by position.
+     * The catalogue is the one vocabulary Email and OpenLP can each reach independently;
+     * their raw text agrees on almost nothing, because an Email plan carries the
+     * projectionist's shorthand while OpenLP carries the archive file's own title.
+     *
+     * Observed evidence is excluded because a detected run resolves songs from lyrics
+     * and OCR, which is stronger than a heard title. Manual evidence is excluded because
+     * a person's decision is not something machine inference may quietly restate.
+     *
+     * Maintainer decision 2026-08-21 and the invariant 4 amendment it required:
+     * see §2.5 and §3.2 of `docs/plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md`.
+     * The resolved key must stay re-derivable from the source snapshot plus the
+     * catalogue, so a catalogue change is a versioned reprojection rather than an edit.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array<int, array<string, mixed>>
+     */
+    private function resolveSongIdentity(array $items, ChurchServiceEvidenceKind $evidenceKind): array
+    {
+        if ($evidenceKind !== ChurchServiceEvidenceKind::Planned) {
+            return $items;
+        }
+
+        return $this->catalogueSongResolver->resolveItems($items);
     }
 
     /**
