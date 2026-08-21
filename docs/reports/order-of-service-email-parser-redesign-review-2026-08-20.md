@@ -4,7 +4,7 @@
 
 **Status:** Complete. **Findings actioned 2026-08-21** — all five verified against the code and
 addressed; see
-[`ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md` §9.16](../plans/ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md)
+[`ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md` §9.16](../archived-plans/ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md)
 for what was done and what the corrected evidence now says.
 
 Two things turned out differently from this report's recommendations, both recorded in §9.16:
@@ -21,7 +21,7 @@ Two things turned out differently from this report's recommendations, both recor
    — correcting it changes the verdict, and the v6 `pass` does not survive.
 
 **Scope:** The implementation and evidence behind
-[`ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md`](../plans/ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md),
+[`ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md`](../archived-plans/ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md),
 reviewed against its invariants and acceptance criteria and against the
 [`HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md`](../plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md)
 programme of record.

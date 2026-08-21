@@ -271,8 +271,9 @@ disagreements, 8 date corrections).
 ## 6. Work packages
 
 Ordered; **IC1 and IC2 landed on 2026-08-15** (`e5a81d191`, `aeeed8332`, with follow-up
-`a4be644fd` closing the review gaps found in both). IC3 is the current package, IC4 runs any time,
-IC5 starts on the §2.4 trigger.
+`a4be644fd` closing the review gaps found in both). IC3's shared semantic-parser handoff is
+complete; its next staging slice is Email RG-A. IC4 runs any time, and IC5 starts on the §2.4
+trigger.
 
 ### IC1 — Email evidence-tier import (implements REV-D2) — **IMPLEMENTED 2026-08-15**
 
@@ -355,14 +356,17 @@ configured only as the unchanged status quo; Luna was neither adopted nor reject
 536 model-discordant sources or run full replicates for that closed comparison. IC3's ground-truth
 and release-accuracy obligations remain unchanged.
 
-**Permanent parser handoff 2026-08-19.** The
-[OoS email parser redesign](ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md) now owns the
-executable parser sequence: lossless source annotation, deterministic compilation, narrow repair,
-objective evaluation and shared weekly/historic cutover. It supersedes the report's queued
-implementation order `5, 1, 7, 3`; those findings remain evidence, not an independently executable
-backlog. IC3 supplies the authoritative item truth, implements HIR-D8 corroboration and owns all
-historic staging/round evidence. The parser plan must not become an IC1 or IC5 prerequisite by
-omission, and it cannot change evidence admission, finalisation or publication policy.
+**Permanent parser handoff completed 2026-08-21.** The
+[archived OoS email parser redesign](../archived-plans/ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md)
+delivered the executable parser sequence: lossless source annotation, deterministic compilation,
+narrow repair, objective evaluation and shared weekly/historic cutover. Delivery 7 acceptance
+passed, the semantic parser is the sole path, and the legacy whole-document path is deleted; its
+remaining evaluation surfaces have IC8 retirement ownership. The report's queued implementation
+order `5, 1, 7, 3` remains evidence, not an executable backlog. IC3 retains the authoritative item
+truth, HIR-D8 corroboration and all historic staging/round evidence. The next Email RG-A staging
+round measures its actual operator residue; the earlier ~14 identity/date adjudications is a
+superseded legacy-v12 estimate. The parser cannot change evidence admission, finalisation or
+publication policy.
 
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 

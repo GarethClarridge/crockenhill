@@ -197,7 +197,7 @@
 > executable plan for the permanent shared email parser. The report and the archived
 > [model evaluation](../archived-plans/OOS-PARSER-MODEL-EVALUATION-2026-08-17.md) remain evidence.
 >
-> The [historic incremental convergence plan](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md)
+> The [historic incremental convergence plan](../plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md)
 > remains the sole owner of corpus authority, IC3 ground truth, historic staging/apply rounds,
 > evidence tiers, finalisation policy, release and historic closeout. This plan owns only the
 > parser used by both weekly and historic email intake. It must not delay IC1, start IC5 contrary

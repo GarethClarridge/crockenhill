@@ -7,10 +7,9 @@ maintainer decisions REV-D1–REV-D4 and archived as evidence records. This dire
 executable active plans only; completed or superseded decision records live in
 `docs/archived-plans/`.
 
-Updated **2026-08-19** to add the permanent OoS email-parser redesign after the prompt
-simplification screen confirmed that whole-document prompt tuning trades semantic instability for
-bookkeeping failures. Historic IC3 retains corpus truth and import policy; the new plan owns the
-shared weekly/historic parser implementation.
+Updated **2026-08-21** after the OoS email-parser redesign completed and was archived. Historic
+IC3 retains corpus truth and import policy; the shared semantic parser is now the sole
+weekly/historic implementation.
 
 ## How to use this index
 
@@ -29,7 +28,7 @@ shared weekly/historic parser implementation.
 | Concern | Sole owner | Consumers / boundary |
 |---|---|---|
 | Historic source acquisition, Email/OpenLP/video manifests, Bundle A/B, hymn evidence, production rounds, releases and retirement | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | Other plans may consume admitted sermons/songs later; they do not add import steps or gates |
-| Permanent weekly/historic OoS email normalisation, semantic annotation, deterministic compilation, targeted repair and parser evaluation | [OoS email parser redesign](ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md) | Historic IC3 supplies authoritative ground truth and consumes the parser; it still owns evidence tiers, finalisation policy and every historic round/release |
+| Permanent weekly/historic OoS email normalisation, semantic annotation, deterministic compilation, targeted repair and parser evaluation | Implemented; [archived OoS email parser redesign](../archived-plans/ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md) records its acceptance | Historic IC3 supplies authoritative ground truth and consumes the parser; it still owns evidence tiers, finalisation policy and every historic round/release |
 | Generic exception capture, release tags and Sentry privacy/noise policy | `SENTRY-ERROR-TRACKING.md` | Optional independent layer; historic D7 accepted rotating logs instead. It reports the architectural plan's final terminal-failure owner rather than defining state transitions |
 | Generic storage durability, queue timing, rotating logs, schema-compatible rollback, runtime versions/startup and permanent processing/UI ownership | `ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md` | Historic plans may impose stricter operation evidence; July/code-quality/design/search retain the narrower ownership listed here |
 | July deferred workflow decisions and duplicate-suite cleanup | Simplification closeout plan | No historic one-shot or bulk-backfill work remains in that plan |
@@ -93,8 +92,7 @@ None of these lanes blocks the public product sequence except where a plan expli
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
-| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Plan of record since 2026-08-14** (REV-D1–D4). All predecessor code landed; **IC1 and IC2 implemented 2026-08-15** (`e5a81d191`, `aeeed8332`, follow-up `a4be644fd`); IC3 is the current package; production mutation only as §7 rounds. The model-only nano/Luna evaluation closed without a verdict and is not an IC3 gate | Finish IC3's HIR-D8 corroboration; then a semantic Email RG-A staging round, whose measured residue replaces the superseded legacy-v12 estimates; IC4 back-fill is drive-free any time |
-| H0a | [OoS email parser redesign](ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md) | Deliveries 0–7 complete; the semantic parser is the sole weekly/historic path since 2026-08-20. The 2026-08-21 review slice (§9.16) corrected gate 5 to score the REV-D2 evidence tier, and §9.17 closed the 8 `content_scope` misfilings it exposed: the term was undefined, so a shared structural-frame rule now derives scope, and the recompiled v6 artifact scores **pass on all ten gates** with 0 misfiled evidence admissions | Archive the plan |
+| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Plan of record since 2026-08-14** (REV-D1–D4). All predecessor code landed; **IC1 and IC2 implemented 2026-08-15** (`e5a81d191`, `aeeed8332`, follow-up `a4be644fd`); IC3's shared semantic-parser handoff is complete and its gates passed. Production mutation remains §7 rounds. The model-only nano/Luna evaluation closed without a verdict and is not an IC3 gate | Run the semantic Email RG-A staging round; its measured residue replaces the superseded legacy-v12 estimates. IC4 back-fill is drive-free any time |
 | M0 | [Architectural maintainability delivery](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) | Not started; immediate safety lane and post-G9 permanent-core lane are explicitly separated | Record D1-D4; AM2 timing and AM3 log-rotation tests can start independently |
 | H1 | [Sentry error tracking](SENTRY-ERROR-TRACKING.md) | Optional; not installed; dependency approval required | If approved, install/configure errors-only capture; sequence caught terminal processing reporting after architecture AM8 |
 | M1 | [Code-quality remediation](CODE-QUALITY-REMEDIATION-2026-07-19.md) | WP2.1/WP6.1 done; other items open; level 8 | WP2's small fail-closed/config/signature fixes plus the computed-call structural guard |
@@ -123,10 +121,15 @@ None of these lanes blocks the public product sequence except where a plan expli
 | Newcomer photographs/consent, weekly editor, Christianity Explored decision | N3/N4/O18 only |
 | GA4 console access and key-event choice | GA6 |
 | Real OBS recordings + LocalVocal sidecars and preferred format | OBS Phase 0/1 |
-| Historic operator inputs: ~14 email adjudications, video worksheet, current-era source recovery, era releases, §8.4 policy | Only the historic programme; see the incremental convergence plan §10 |
+| Historic operator inputs: semantic Email RG-A's measured email adjudication residue (the legacy-v12 ~14 estimate is superseded), video worksheet, current-era source recovery, era releases, §8.4 policy | Only the historic programme; see the incremental convergence plan §10 |
 
 ## Recently archived or superseded
 
+- [OoS email parser redesign](../archived-plans/ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md)
+  — archived 2026-08-21 after Delivery 7 acceptance passed, the semantic parser became the sole
+  weekly/historic path, the legacy whole-document path was deleted, and every remaining evaluation
+  surface received explicit IC8 retirement ownership. Gate 5 now measures both REV-D2 unattended
+  tiers and passes on the recompiled v6 artifact; Email RG-A is unblocked.
 - [OoS parser Luna non-inferiority evaluation](../archived-plans/OOS-PARSER-MODEL-EVALUATION-2026-08-17.md)
   — closed 2026-08-18 without a model verdict. Both `effort=none` arms materially disagreed with
   themselves on the same deterministic 30-source sample (nano 24/30; Luna 19/30), so the planned
@@ -135,7 +138,7 @@ None of these lanes blocks the public product sequence except where a plan expli
   **Round six then ran the effort arms: `nano/low` is 77.0% at `n = 100` against `none`'s 80.0%, and
   routing stability got *worse*.** Reasoning effort is not the lever; do not run higher efforts or
   another model-only evaluation. The permanent response is now owned by the
-  [OoS email parser redesign](ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md): narrow semantic
+  [OoS email parser redesign](../archived-plans/ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md): narrow semantic
   annotation plus deterministic compilation, measured against IC3 truth rather than another
   whole-document prompt/model comparison.
 - [Historic archive final import readiness](../archived-plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md),
