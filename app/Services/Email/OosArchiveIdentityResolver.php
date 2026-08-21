@@ -14,8 +14,14 @@ use App\Enums\SermonService;
 
 class OosArchiveIdentityResolver
 {
+    private const OtherServiceEvidenceValidationReason = 'An other service requires explicit special-service evidence; ordinary notices are not a service order.';
+
     public function resolve(OosArchiveEntry $entry, OosEmailParseResult $parseResult): OosEmailParseResult
     {
+        if ($this->hasManifestAuthoritativeIdentity($entry)) {
+            $parseResult = $this->resolveManifestAuthoritativeIdentity($entry, $parseResult);
+        }
+
         $dateResolved = $this->resolveMissingDates($entry, $parseResult);
 
         return $this->applyCuratedContentScope($entry, $this->resolveIdentity($entry, $dateResolved));
@@ -48,7 +54,7 @@ class OosArchiveIdentityResolver
         $primaryPlanIndex = $this->primaryPlanIndex($parseResult);
         $plans = array_map(
             fn (OosEmailServicePlan $plan): OosEmailServicePlan => $plan->date === null
-                ? $this->withManifestDate($parseResult, $plan, $entry->groundTruthDate)
+                ? $this->withManifestDate($entry, $parseResult, $plan, $entry->groundTruthDate)
                 : $plan,
             $parseResult->servicePlans,
         );
@@ -89,6 +95,7 @@ class OosArchiveIdentityResolver
     }
 
     private function withManifestDate(
+        OosArchiveEntry $entry,
         OosEmailParseResult $parseResult,
         OosEmailServicePlan $plan,
         string $date,
@@ -114,6 +121,7 @@ class OosArchiveIdentityResolver
                 $date,
                 $plan->confidence,
                 $plan->contentScope,
+                $this->hasNamedSpecialServiceIdentity($entry, $plan->service),
             ),
             sourceProvenance: [
                 ...$plan->sourceProvenance,
@@ -121,6 +129,114 @@ class OosArchiveIdentityResolver
             ],
             contentScope: $plan->contentScope,
         );
+    }
+
+    private function hasManifestAuthoritativeIdentity(OosArchiveEntry $entry): bool
+    {
+        return $entry->curation['parse_decision'] === 'manifest-authoritative';
+    }
+
+    private function resolveManifestAuthoritativeIdentity(
+        OosArchiveEntry $entry,
+        OosEmailParseResult $parseResult,
+    ): OosEmailParseResult {
+        $service = SermonService::tryFrom($entry->servicesPresent[0] ?? '');
+
+        if (! $service instanceof SermonService) {
+            return $parseResult;
+        }
+
+        $plans = array_values(array_filter(
+            $parseResult->servicePlans,
+            static fn (OosEmailServicePlan $plan): bool => $plan->items !== [] && $plan->service === $service,
+        ));
+
+        if (count($plans) === 1) {
+            $plan = $plans[0];
+        } elseif (count($parseResult->servicePlans) === 1 && $parseResult->servicePlans[0]->items !== []) {
+            $plan = $parseResult->servicePlans[0];
+        } else {
+            return $parseResult;
+        }
+
+        $validationReasons = $this->manifestIdentityValidationReasons($plan, $service);
+        $contentValidationReasons = $this->manifestIdentityValidationReasons($plan, $service, contentReasons: true);
+
+        $authorityPlan = new OosEmailServicePlan(
+            service: $service,
+            date: $entry->groundTruthDate,
+            items: $plan->items,
+            confidence: $plan->confidence,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            validationReasons: $validationReasons,
+            contentValidationReasons: $contentValidationReasons,
+            holdReasons: $plan->holdReasons,
+            sourceProvenance: $plan->sourceProvenance,
+            contentScope: $plan->contentScope,
+        );
+        $disposition = $this->resolvedDisposition($parseResult, $authorityPlan, $service, $plan->confidence, $plan->contentScope);
+        $resolvedPlan = new OosEmailServicePlan(
+            service: $service,
+            date: $entry->groundTruthDate,
+            items: $plan->items,
+            confidence: $plan->confidence,
+            needsReview: $disposition !== OosEmailParseDisposition::AutoImportable,
+            shouldImport: $disposition === OosEmailParseDisposition::AutoImportable,
+            disposition: $disposition,
+            validationReasons: $validationReasons,
+            contentValidationReasons: $contentValidationReasons,
+            holdReasons: $this->resolvedHoldReasons(
+                $authorityPlan,
+                $disposition,
+                $service,
+                $entry->groundTruthDate,
+                $plan->confidence,
+                $plan->contentScope,
+                $this->hasNamedSpecialServiceIdentity($entry, $service),
+            ),
+            sourceProvenance: [...$plan->sourceProvenance, 'archive_identity' => 'manifest-authoritative'],
+            contentScope: $plan->contentScope,
+        );
+
+        return new OosEmailParseResult(
+            date: $resolvedPlan->date,
+            service: $resolvedPlan->service,
+            items: $resolvedPlan->items,
+            confidenceScore: $resolvedPlan->confidence,
+            needsReview: $resolvedPlan->needsReview,
+            shouldImport: $resolvedPlan->shouldImport,
+            importMetadata: $this->metadata($entry, $parseResult, $resolvedPlan),
+            servicePlans: [$resolvedPlan],
+            isLegacyFlattened: $parseResult->isLegacyFlattened,
+            disposition: $resolvedPlan->disposition,
+            validationReasons: $resolvedPlan->validationReasons,
+            extractionAttempts: $parseResult->extractionAttempts,
+            consensus: $parseResult->consensus,
+            adjudicated: $parseResult->adjudicated,
+        );
+    }
+
+    /** @return list<string> */
+    private function manifestIdentityValidationReasons(
+        OosEmailServicePlan $plan,
+        SermonService $resolvedService,
+        bool $contentReasons = false,
+    ): array {
+        $reasons = array_values(array_filter(
+            $contentReasons ? $plan->contentValidationReasons : $plan->validationReasons,
+            'is_string',
+        ));
+
+        if ($plan->service !== SermonService::Other || $resolvedService === SermonService::Other) {
+            return $reasons;
+        }
+
+        return array_values(array_filter(
+            $reasons,
+            static fn (string $reason): bool => $reason !== self::OtherServiceEvidenceValidationReason,
+        ));
     }
 
     private function primaryPlanIndex(OosEmailParseResult $parseResult): ?int
@@ -192,6 +308,7 @@ class OosArchiveIdentityResolver
                 $plan->date ?? $entry->groundTruthDate,
                 $confidence,
                 $plan->contentScope,
+                $this->hasNamedSpecialServiceIdentity($entry, $service),
             ),
             sourceProvenance: [
                 ...$plan->sourceProvenance,
@@ -227,7 +344,7 @@ class OosArchiveIdentityResolver
             fn (OosEmailServicePlan $plan): OosEmailServicePlan => $plan->date === $entry->groundTruthDate
                 && $plan->service instanceof SermonService
                 && in_array($plan->service->value, $entry->servicesPresent, true)
-                    ? $this->withCuratedContentScope($parseResult, $plan, $contentScope)
+                    ? $this->withCuratedContentScope($entry, $parseResult, $plan, $contentScope)
                     : $plan,
             $parseResult->servicePlans,
         );
@@ -264,6 +381,7 @@ class OosArchiveIdentityResolver
     }
 
     private function withCuratedContentScope(
+        OosArchiveEntry $entry,
         OosEmailParseResult $parseResult,
         OosEmailServicePlan $plan,
         OosEmailContentScope $contentScope,
@@ -291,6 +409,7 @@ class OosArchiveIdentityResolver
                 $plan->date,
                 $plan->confidence,
                 $contentScope,
+                $this->hasNamedSpecialServiceIdentity($entry, $plan->service),
             ),
             sourceProvenance: $plan->sourceProvenance,
             contentScope: $contentScope,
@@ -328,6 +447,13 @@ class OosArchiveIdentityResolver
         return $plan->confidence;
     }
 
+    private function hasNamedSpecialServiceIdentity(OosArchiveEntry $entry, ?SermonService $service): bool
+    {
+        return $service === SermonService::Other
+            && is_string($entry->curation['service_label'] ?? null)
+            && trim($entry->curation['service_label']) !== '';
+    }
+
     /**
      * `$contentScope` is the scope the replacement plan will carry, which is not always the one
      * the plan arrives with: applying a curated scope replaces an extractor `unknown` with the
@@ -347,6 +473,7 @@ class OosArchiveIdentityResolver
         ?string $date,
         float $confidence,
         OosEmailContentScope $contentScope,
+        bool $hasNamedSpecialServiceIdentity = false,
     ): array {
         if ($disposition === OosEmailParseDisposition::AutoImportable) {
             return [];
@@ -361,7 +488,7 @@ class OosArchiveIdentityResolver
             $reasons[] = OosEmailPlanHoldReason::UnknownContentScope;
         }
 
-        if ($service === null || $date === null || $service === SermonService::Other) {
+        if ($service === null || $date === null || ($service === SermonService::Other && ! $hasNamedSpecialServiceIdentity)) {
             $reasons[] = OosEmailPlanHoldReason::MissingIdentity;
         }
 

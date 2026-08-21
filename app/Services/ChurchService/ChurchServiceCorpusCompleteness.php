@@ -66,6 +66,7 @@ class ChurchServiceCorpusCompleteness
         $expectation = $this->expectation->certify($corpusExpectation);
         $policyVersion = $this->projector->policyFingerprint()['version'];
         $staged = $this->stagedServices();
+        $projectionEligible = $this->projectionEligibleServices();
         $projected = $this->projectedServices($policyVersion);
         $bySource = $this->stagedServicesBySource();
         $declared = $this->declaredSourceKinds();
@@ -77,7 +78,7 @@ class ChurchServiceCorpusCompleteness
             'expected_services_source' => $expectedFrom,
             'staged_services' => $staged,
             'projected_services' => $projected,
-            'stale_projection_services' => max(0, $staged - $projected),
+            'stale_projection_services' => max(0, $projectionEligible - $projected),
             'unstaged_services' => $expected === null ? null : max(0, $expected - $staged),
             'policy_version' => $policyVersion,
             'staged_services_by_source' => $bySource,
@@ -203,6 +204,14 @@ class ChurchServiceCorpusCompleteness
         return ChurchService::query()
             ->whereHas('sourceRecords')
             ->where('projection_policy_version', $policyVersion)
+            ->count();
+    }
+
+    /** Services carrying at least one complete source payload that must be projected. */
+    private function projectionEligibleServices(): int
+    {
+        return ChurchService::query()
+            ->whereHas('sourceRecords', static fn ($query) => $query->where('payload_complete', true))
             ->count();
     }
 

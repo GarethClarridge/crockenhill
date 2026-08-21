@@ -105,6 +105,100 @@ class ImportOosArchiveCommandTest extends TestCase
     }
 
     #[Test]
+    public function an_item_key_filter_evaluates_only_the_selected_same_date_entry(): void
+    {
+        $extractor = FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Amazing Grace']],
+            confidence: 0.99,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 0.99,
+            ]],
+        ));
+        $this->app->instance(OosSemanticParserCandidate::class, $extractor);
+        $corpus = $this->corpus([
+            ['key' => '2026-07-12-am', 'date' => '2026-07-12'],
+            ['key' => '2026-07-12-pm', 'date' => '2026-07-12', 'service' => 'evening', 'frontmatter_service' => 'evening'],
+        ]);
+        $report = $this->temporaryPath('json');
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--evaluate' => true,
+            '--fresh-parse' => true,
+            '--item-key' => ['2026-07-12-am'],
+            '--report' => $report,
+        ])->assertExitCode(0);
+
+        $this->assertSame(1, $extractor->calls);
+        $this->assertDatabaseCount('inbound_emails', 1);
+        $this->assertSame(['2026-07-12-am'], array_column($this->readReport($report)['entries'], 'item_key'));
+    }
+
+    #[Test]
+    public function an_item_key_filter_cannot_narrow_a_canonical_import(): void
+    {
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--import' => true,
+            '--plan-hash' => $this->planHash(),
+            '--item-key' => ['2026-07-12-am'],
+            '--report' => $this->temporaryPath('json'),
+        ])
+            ->expectsOutputToContain('Ad-hoc filters are only allowed')
+            ->assertExitCode(1);
+
+        $this->assertDatabaseCount('inbound_emails', 0);
+        $this->assertDatabaseCount('church_services', 0);
+    }
+
+    #[Test]
+    public function cache_only_evaluation_refuses_an_uncached_source_before_the_extractor_is_called(): void
+    {
+        $this->app->bind(OosSemanticParserCandidate::class, fn () => FixedOosSemanticParserCandidate::unreachable('Cache-only evaluation must not call the extractor.'));
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--evaluate' => true,
+            '--cache-only' => true,
+            '--report' => $this->temporaryPath('json'),
+        ])
+            ->expectsOutputToContain('Cache-only evaluation refused: 2026-07-12-am has no reusable raw parse cache.')
+            ->assertExitCode(1);
+
+        $this->assertDatabaseCount('inbound_emails', 0);
+    }
+
+    #[Test]
+    public function cache_only_import_stages_a_previously_evaluated_source_without_reparsing(): void
+    {
+        $extractor = $this->bindCountingExtractor();
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--evaluate' => true,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--import' => true,
+            '--cache-only' => true,
+            '--plan-hash' => $this->planHash(),
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $this->assertSame(1, $extractor->calls);
+        $this->assertDatabaseCount('church_services', 1);
+    }
+
+    #[Test]
     public function parse_runs_are_idempotent_and_hash_aware(): void
     {
         $extractor = FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(

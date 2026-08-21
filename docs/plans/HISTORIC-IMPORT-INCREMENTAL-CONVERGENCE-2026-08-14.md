@@ -308,6 +308,13 @@ residue the round actually measures.
 staging round itself has **not** been run against the semantic parser, so this package's acceptance
 evidence is outstanding, not its code.
 
+**RG0A status 2026-08-21: passed.** The semantic Email corpus was evaluated, its measured
+identity/date residue was adjudicated, and the cache-backed replay reduced the honest residue to 19
+accepted partial-evidence holds. This is the completed analysis and authority checkpoint, not a
+clean-staging RG-A certificate: the final clean-database restage would require a new 554-source model
+evaluation and is deliberately deferred by the maintainer. Do not describe RG-A itself as passed or
+use RG0A to authorise production mutation.
+
 **Superseded numbers (2026-08-21).** The `~20 identity + ~33 content-invalid` shape and the
 `~14 manual adjudications` handed to the operator are **legacy v12 estimates and must not be carried
 forward as facts**. They were produced by the deleted legacy extractor. The semantic parser routes

@@ -190,7 +190,6 @@ class ChurchServiceProposalCensusGate
 
         $expected = $corpus['expected_services'] ?? null;
         $staged = (int) ($corpus['staged_services'] ?? 0);
-        $projected = (int) ($corpus['projected_services'] ?? 0);
 
         /**
          * Scalar counts are the fallback instrument, not a second opinion. An
@@ -210,7 +209,7 @@ class ChurchServiceProposalCensusGate
             }
         }
 
-        if (! $hasApprovedMembership && $projected < $staged) {
+        if (! $hasApprovedMembership && (int) ($corpus['stale_projection_services'] ?? 0) > 0) {
             $blockers[] = self::PROJECTION_INCOMPLETE;
         }
 

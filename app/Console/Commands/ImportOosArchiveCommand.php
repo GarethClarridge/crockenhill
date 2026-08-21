@@ -79,7 +79,9 @@ class ImportOosArchiveCommand extends Command
                             {--plan-hash= : Exact plan_hash emitted by the dry run; required with --import}
                             {--accept-unevidenced-items : Stage even where curated identities already hold items no source explains (§13.5 F2)}
                             {--fresh-parse : Ignore cached parse results}
+                            {--cache-only : Refuse evaluation unless every selected source has a reusable raw parse cache}
                             {--limit= : Maximum entries to process}
+                            {--item-key=* : Include only these exact archive item keys}
                             {--date=* : Include only these resolved dates}
                             {--from= : Include dates on or after this date}
                             {--to= : Include dates on or before this date}
@@ -124,6 +126,18 @@ class ImportOosArchiveCommand extends Command
             return self::FAILURE;
         }
 
+        if ($this->option('cache-only') && ! in_array($mode, ['evaluate', 'import'], true)) {
+            $this->error('--cache-only is only allowed with --evaluate or --import.');
+
+            return self::FAILURE;
+        }
+
+        if ($this->option('cache-only') && $this->option('fresh-parse')) {
+            $this->error('--cache-only cannot be combined with --fresh-parse.');
+
+            return self::FAILURE;
+        }
+
         $this->line("Mode: {$mode}");
         $this->line('Mutation scope: '.match ($mode) {
             'reconcile' => 'none',
@@ -164,6 +178,10 @@ class ImportOosArchiveCommand extends Command
         }
 
         $entries = $this->filteredEntries($allEntries);
+
+        if ($this->option('cache-only') && ! $this->hasReusableRawCacheForEveryEntry($entries, $cacheBinding)) {
+            return self::FAILURE;
+        }
 
         try {
             if (in_array($mode, ['stage_assertions', 'apply_assertions'], true)) {
@@ -468,7 +486,39 @@ class ImportOosArchiveCommand extends Command
         return $this->stringOption('limit') !== null
             || $this->stringOption('from') !== null
             || $this->stringOption('to') !== null
+            || array_filter((array) $this->option('item-key'), 'is_string') !== []
             || array_filter((array) $this->option('date'), 'is_string') !== [];
+    }
+
+    /** @param list<OosArchiveEntry> $entries */
+    private function hasReusableRawCacheForEveryEntry(array $entries, OosArchiveParseCacheBinding $cacheBinding): bool
+    {
+        $inboundEmails = InboundEmail::query()
+            ->whereIn('message_id', array_map(static fn (OosArchiveEntry $entry): string => $entry->syntheticMessageId, $entries))
+            ->get()
+            ->keyBy('message_id');
+
+        foreach ($entries as $entry) {
+            $inboundEmail = $inboundEmails->get($entry->syntheticMessageId);
+            $metadata = $inboundEmail instanceof InboundEmail && is_array($inboundEmail->processing_metadata)
+                ? $inboundEmail->processing_metadata
+                : [];
+            $rawPayload = $cacheBinding->reusableRawPayload(
+                Arr::get($metadata, OosArchiveParseCacheBinding::MetadataKey),
+                $entry,
+                self::ParserVersion,
+            );
+
+            if ($rawPayload !== null) {
+                continue;
+            }
+
+            $this->error("Cache-only evaluation refused: {$entry->itemKey} has no reusable raw parse cache.");
+
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -584,11 +634,16 @@ class ImportOosArchiveCommand extends Command
      */
     private function filteredEntries(array $entries): array
     {
+        $itemKeys = array_values(array_filter((array) $this->option('item-key'), 'is_string'));
         $dates = array_values(array_filter((array) $this->option('date'), 'is_string'));
         $from = $this->stringOption('from');
         $to = $this->stringOption('to');
 
-        $entries = array_values(array_filter($entries, static function (OosArchiveEntry $entry) use ($dates, $from, $to): bool {
+        $entries = array_values(array_filter($entries, static function (OosArchiveEntry $entry) use ($itemKeys, $dates, $from, $to): bool {
+            if ($itemKeys !== [] && ! in_array($entry->itemKey, $itemKeys, true)) {
+                return false;
+            }
+
             if ($dates !== [] && ! in_array($entry->groundTruthDate, $dates, true)) {
                 return false;
             }

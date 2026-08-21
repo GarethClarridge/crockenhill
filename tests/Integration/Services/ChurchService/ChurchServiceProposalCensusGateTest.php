@@ -293,6 +293,14 @@ class ChurchServiceProposalCensusGateTest extends TestCase
         $this->assertNotContains('source_item_projection_stale', $result['corpus']['membership']['blockers']);
         $this->assertSame([], $result['corpus']['membership']['blockers']);
         $this->assertTrue($result['corpus']['membership']['approved']);
+        $this->assertSame(0, $result['corpus']['stale_projection_services']);
+
+        $resultWithoutMembership = app(ChurchServiceProposalCensusGate::class)->evaluate(
+            [],
+            app(ChurchServiceCorpusCompleteness::class)->evidence(),
+        );
+
+        $this->assertNotContains('projection_incomplete', $resultWithoutMembership['corpus_blockers']);
     }
 
     /**

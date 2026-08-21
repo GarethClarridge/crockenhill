@@ -9,6 +9,7 @@ use App\Data\OosEmailParseResult;
 use App\Data\OosEmailServicePlan;
 use App\Enums\OosEmailContentScope;
 use App\Enums\OosEmailParseDisposition;
+use App\Enums\OosEmailPlanHoldReason;
 use App\Enums\SermonService;
 use App\Services\Email\OosArchiveIdentityResolver;
 use Carbon\CarbonImmutable;
@@ -53,6 +54,149 @@ class OosArchiveIdentityResolverTest extends TestCase
         $this->assertSame(SermonService::Morning, $resolved->service);
         $this->assertSame('2026-07-19', $resolved->date);
         $this->assertArrayNotHasKey('archive_identity', $resolved->importMetadata);
+    }
+
+    #[Test]
+    public function manifest_authoritative_curation_selects_the_curated_service_from_a_multi_plan_parse_and_remaps_its_date(): void
+    {
+        $items = $this->items();
+        $plan = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2026-07-19',
+            items: $items,
+            confidence: 0.74,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+        );
+        $otherPlan = new OosEmailServicePlan(
+            service: SermonService::Evening,
+            date: '2026-07-19',
+            items: $items,
+            confidence: 0.74,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+        );
+        $parseResult = new OosEmailParseResult(
+            date: $plan->date,
+            service: $plan->service,
+            items: $items,
+            confidenceScore: $plan->confidence,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: [],
+            servicePlans: [$plan, $otherPlan],
+            disposition: $plan->disposition,
+        );
+
+        $resolved = (new OosArchiveIdentityResolver)->resolve(
+            $this->entry(service: 'morning', parseDecision: 'manifest-authoritative'),
+            $parseResult,
+        );
+
+        $this->assertSame(SermonService::Morning, $resolved->service);
+        $this->assertSame('2026-07-12', $resolved->date);
+        $this->assertSame(OosEmailParseDisposition::ReviewRequired, $resolved->disposition);
+        $this->assertTrue($resolved->servicePlans[0]->isEvidenceImportable());
+        $this->assertSame('manifest-authoritative', $resolved->servicePlans[0]->sourceProvenance['archive_identity']);
+    }
+
+    #[Test]
+    public function manifest_authoritative_curation_does_not_choose_between_multiple_matching_plans(): void
+    {
+        $result = $this->parseResult(service: SermonService::Morning, date: '2026-07-19');
+        $duplicate = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2026-07-26',
+            items: $this->items(),
+            confidence: 0.74,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+        );
+        $result = new OosEmailParseResult(
+            date: $result->date,
+            service: $result->service,
+            items: $result->items,
+            confidenceScore: $result->confidenceScore,
+            needsReview: $result->needsReview,
+            shouldImport: $result->shouldImport,
+            importMetadata: [],
+            servicePlans: [$result->servicePlans[0], $duplicate],
+            disposition: $result->disposition,
+        );
+
+        $resolved = (new OosArchiveIdentityResolver)->resolve(
+            $this->entry(service: 'morning', parseDecision: 'manifest-authoritative'),
+            $result,
+        );
+
+        $this->assertSame('2026-07-19', $resolved->date);
+        $this->assertCount(2, $resolved->servicePlans);
+    }
+
+    #[Test]
+    public function manifest_authoritative_curation_remaps_one_substantive_other_plan_to_the_curated_service(): void
+    {
+        $plan = new OosEmailServicePlan(
+            service: SermonService::Other,
+            date: '2026-07-19',
+            items: $this->items(),
+            confidence: 0.74,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::InvalidExtraction,
+            validationReasons: ['An other service requires explicit special-service evidence; ordinary notices are not a service order.'],
+            contentValidationReasons: ['An other service requires explicit special-service evidence; ordinary notices are not a service order.'],
+        );
+        $result = new OosEmailParseResult(
+            date: $plan->date,
+            service: $plan->service,
+            items: $plan->items,
+            confidenceScore: $plan->confidence,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: [],
+            servicePlans: [$plan],
+            disposition: $plan->disposition,
+        );
+
+        $resolved = (new OosArchiveIdentityResolver)->resolve(
+            $this->entry(service: 'morning', parseDecision: 'manifest-authoritative'),
+            $result,
+        );
+
+        $this->assertSame(SermonService::Morning, $resolved->service);
+        $this->assertSame('2026-07-12', $resolved->date);
+        $this->assertSame(OosEmailParseDisposition::ReviewRequired, $resolved->disposition);
+        $this->assertSame([], $resolved->validationReasons);
+        $this->assertTrue($resolved->servicePlans[0]->isEvidenceImportable());
+    }
+
+    #[Test]
+    public function a_manifest_label_makes_a_named_other_service_evidence_importable(): void
+    {
+        $resolved = (new OosArchiveIdentityResolver)->resolve(
+            $this->entry(service: 'other', serviceLabel: 'Good Friday'),
+            $this->parseResult(service: SermonService::Other, date: '2026-07-12', confidence: 0.74),
+        );
+
+        $this->assertSame(SermonService::Other, $resolved->service);
+        $this->assertNotContains(OosEmailPlanHoldReason::MissingIdentity, $resolved->servicePlans[0]->holdReasons);
+        $this->assertTrue($resolved->servicePlans[0]->isEvidenceImportable());
+    }
+
+    #[Test]
+    public function an_unnamed_other_service_remains_held_for_review(): void
+    {
+        $resolved = (new OosArchiveIdentityResolver)->resolve(
+            $this->entry(service: 'other'),
+            $this->parseResult(service: SermonService::Other, date: '2026-07-12'),
+        );
+
+        $this->assertContains(OosEmailPlanHoldReason::MissingIdentity, $resolved->servicePlans[0]->holdReasons);
+        $this->assertFalse($resolved->servicePlans[0]->isEvidenceImportable());
     }
 
     #[Test]
@@ -203,8 +347,13 @@ class OosArchiveIdentityResolverTest extends TestCase
         $this->assertTrue($resolved->servicePlans[0]->isAutoImportable());
     }
 
-    private function entry(?string $supersedesSourceKey = null, string $contentScope = 'full'): OosArchiveEntry
-    {
+    private function entry(
+        ?string $supersedesSourceKey = null,
+        string $contentScope = 'full',
+        string $service = 'evening',
+        string $parseDecision = 'strict',
+        ?string $serviceLabel = null,
+    ): OosArchiveEntry {
         return new OosArchiveEntry(
             index: 1,
             itemKey: '2026-07-12-pm',
@@ -212,16 +361,16 @@ class OosArchiveIdentityResolverTest extends TestCase
             bodyPlain: 'Amazing Grace',
             groundTruthDate: '2026-07-12',
             contentScope: $contentScope,
-            servicesPresent: ['evening'],
+            servicesPresent: [$service],
             itemLineCounts: [],
             curation: [
                 'date_decision' => 'explicit',
                 'date_decision_reason' => null,
-                'parse_decision' => 'strict',
+                'parse_decision' => $parseDecision,
                 'content_scope' => $contentScope,
                 'partial_scope_reason' => $contentScope === 'partial' ? 'supporting details only' : null,
                 'payload' => 'verbatim',
-                'service_label' => null,
+                'service_label' => $serviceLabel,
                 'title_override' => null,
                 'supersedes' => $supersedesSourceKey,
                 'expected_item_count' => null,
@@ -230,28 +379,21 @@ class OosArchiveIdentityResolverTest extends TestCase
                 'decision_rule_version' => 'test',
             ],
             syntheticMessageId: '<test>',
-            sourceKey: '<test>|evening:2026-07-12',
+            sourceKey: "<test>|{$service}:2026-07-12",
             supersedesSourceKey: $supersedesSourceKey,
             inputHash: str_repeat('a', 64),
             syntheticReceivedAt: CarbonImmutable::parse('2026-07-11 09:00:00'),
         );
     }
 
-    private function parseResult(?SermonService $service, ?string $date): OosEmailParseResult
+    private function parseResult(?SermonService $service, ?string $date, float $confidence = 0.95): OosEmailParseResult
     {
-        $items = [[
-            'position' => 1,
-            'type' => 'songs',
-            'title' => 'Amazing Grace',
-            'source_title' => 'Amazing Grace',
-            'openlp_search_title' => null,
-            'metadata' => null,
-        ]];
+        $items = $this->items();
         $plan = new OosEmailServicePlan(
             service: $service,
             date: $date,
             items: $items,
-            confidence: 0.95,
+            confidence: $confidence,
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::ReviewRequired,
@@ -261,12 +403,24 @@ class OosArchiveIdentityResolverTest extends TestCase
             date: $date,
             service: $service,
             items: $items,
-            confidenceScore: 0.95,
+            confidenceScore: $confidence,
             needsReview: true,
             shouldImport: false,
             importMetadata: [],
             servicePlans: [$plan],
             disposition: OosEmailParseDisposition::ReviewRequired,
         );
+    }
+
+    private function items(): array
+    {
+        return [[
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Amazing Grace',
+            'source_title' => 'Amazing Grace',
+            'openlp_search_title' => null,
+            'metadata' => null,
+        ]];
     }
 }
