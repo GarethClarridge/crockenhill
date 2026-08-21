@@ -527,7 +527,7 @@ class InboundEmailImportService
         ?int $reviewedByUserId,
         ?string $sourceInputHash,
     ): OosEmailImportPlanOutcome {
-        $churchService = DB::transaction(function () use ($inboundEmail, $plan, $service, $existingService, $importMetadata, $sourceInputHash): ChurchService {
+        $churchService = DB::transaction(function () use ($inboundEmail, $plan, $service, $existingService, $importMetadata, $sourceInputHash, $reviewedByUserId): ChurchService {
             $churchService = $existingService ?? ChurchService::query()->firstOrNew([
                 'date' => $plan->date,
                 'service' => $service->value,
@@ -547,7 +547,7 @@ class InboundEmailImportService
 
             $this->ingestSourceRevision->execute(
                 $churchService,
-                $this->sourceAdapter->adapt($inboundEmail, $plan, $sourceInputHash),
+                $this->sourceAdapter->adapt($inboundEmail, $plan, $sourceInputHash, $reviewedByUserId !== null),
                 project: false,
             );
 
@@ -596,7 +596,7 @@ class InboundEmailImportService
 
             $this->ingestSourceRevision->execute(
                 $churchService,
-                $this->sourceAdapter->adapt($inboundEmail, $plan, $sourceInputHash),
+                $this->sourceAdapter->adapt($inboundEmail, $plan, $sourceInputHash, $reviewedByUserId !== null),
             );
             $this->songLinker->linkForService($churchService);
 
@@ -661,7 +661,8 @@ class InboundEmailImportService
         ?int $reviewedByUserId,
         ?string $sourceInputHash,
     ): OosEmailImportPlanOutcome {
-        $mergeResult = DB::transaction(function () use ($inboundEmail, $plan, $existingService, $importMetadata, $reviewedByUserId, $sourceInputHash): StructureMergeResult {
+        $usedProjector = false;
+        $mergeResult = DB::transaction(function () use ($inboundEmail, $plan, $existingService, $importMetadata, $reviewedByUserId, $sourceInputHash, &$usedProjector): StructureMergeResult {
             $existingMetadata = $existingService->import_metadata?->toArray() ?? [];
             $mergedMetadata = $this->reviewStateForMerge(
                 array_replace_recursive($existingMetadata, $importMetadata),
@@ -681,11 +682,12 @@ class InboundEmailImportService
             $usesCompatibilityMerge = $this->compatibilityMerge->usesCompatibilityMerge($existingService);
             $ingestion = $this->ingestSourceRevision->execute(
                 $existingService,
-                $this->sourceAdapter->adapt($inboundEmail, $plan, $sourceInputHash),
+                $this->sourceAdapter->adapt($inboundEmail, $plan, $sourceInputHash, $reviewedByUserId !== null),
                 project: ! $usesCompatibilityMerge,
             );
 
             if (! $usesCompatibilityMerge) {
+                $usedProjector = true;
                 $churchService = $existingService->fresh(['items']) ?? $existingService;
                 $wasStaged = $churchService->mergeProposals()
                     ->where('trigger_source_record_id', $ingestion->sourceRecord->id)
@@ -725,11 +727,24 @@ class InboundEmailImportService
             'was_merged' => $mergeResult->wasMerged,
         ]));
 
+        /*
+         * A staged proposal on the projector path is not a refusal to admit the
+         * evidence: the source revision, its assertions and its lineage are all
+         * written, and the service carries the proposal for review. That is the same
+         * state {@see mergeOrCreatePlan()} reports as `Created` when the identity
+         * happens to be new, and REV-D2's evidence tier reaches it by design — the
+         * uncorroborated-dimension conflicts of §2.5 stage nearly every evidence-tier
+         * plan. Reporting it as held made an imported source read as unstaged in the
+         * RG-A expectation and stopped later entries superseding it.
+         *
+         * The compatibility-merge path keeps the older meaning: it stages a structure
+         * merge without ingesting a projected revision, so nothing merged.
+         */
         return new OosEmailImportPlanOutcome(
             $plan->key(),
             $plan->service,
             $plan->date,
-            $mergeResult->wasStaged
+            $mergeResult->wasStaged && ! $usedProjector
                 ? OosEmailImportOutcome::HeldForReview
                 : OosEmailImportOutcome::Merged,
             $mergeResult->churchService,

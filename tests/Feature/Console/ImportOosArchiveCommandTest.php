@@ -6,6 +6,7 @@ namespace Tests\Feature\Console;
 
 use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailSourceDocument;
+use App\Enums\ChurchServiceProposalStatus;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
@@ -23,6 +24,7 @@ use App\Services\Import\HistoricEmailEvidenceReleaseGate;
 use App\Services\Import\HistoricImportResourceIdentity;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Mockery\MockInterface;
@@ -1307,6 +1309,53 @@ class ImportOosArchiveCommandTest extends TestCase
         );
     }
 
+    /**
+     * The same staged evidence must classify the same way whichever service it lands on.
+     * `mergeOrCreatePlan()` returns `Created` for a new service regardless of whether the
+     * projector staged a proposal, so the merge arm returning `HeldForReview` for exactly
+     * that state made an entry whose source revision *was* written report as unimported —
+     * which the RG-A expectation then counted as an unstaged approved source.
+     */
+    #[Test]
+    public function staged_evidence_classifies_the_same_whether_the_service_is_new_or_existing(): void
+    {
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Abide With Me']],
+            confidence: 0.60,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'items' => [['type' => 'song', 'title' => 'Abide With Me']],
+                'confidence' => 0.60,
+            ]],
+        )));
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+
+        $created = $this->temporaryPath('json');
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
+            '--report' => $created,
+        ])->assertExitCode(0);
+
+        $service = ChurchService::query()->where('date', '2026-07-12')->firstOrFail();
+        $this->assertSame('created', $this->readReport($created)['entries'][0]['disposition']);
+        // The new service staged a proposal too: the two arms are in the same state.
+        $this->assertTrue($service->mergeProposals()->where('status', ChurchServiceProposalStatus::Pending)->exists());
+
+        $merged = $this->temporaryPath('json');
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--import' => true, '--plan-hash' => $this->planHash(),
+            '--fresh-parse' => true,
+            '--report' => $merged,
+        ])->assertExitCode(0);
+
+        $this->assertSame('merged', $this->readReport($merged)['entries'][0]['disposition']);
+        // Identical evidence is an idempotent no-op, so the lineage stays at one revision.
+        $this->assertSame(1, $service->sourceRecords()->count());
+    }
+
     #[Test]
     public function a_second_round_over_an_evidence_tier_plan_is_an_exact_no_op(): void
     {
@@ -1518,6 +1567,43 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertDatabaseCount('church_services', 1);
         $this->assertDatabaseCount('church_service_items', 1);
         $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
+    }
+
+    #[Test]
+    public function portable_assertions_accept_semantic_annotation_group_identifiers(): void
+    {
+        $this->bindPortableExtractor();
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $bundle = storage_path('scratch/tests/oos-semantic-identifiers-'.uniqid().'.json');
+        $this->temporaryPaths[] = $bundle;
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--export-bundle' => $bundle,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $payload = $this->readReport($bundle);
+        $payload['entries'][0]['parse']['extraction_attempts'] = [[
+            'final_annotations' => [
+                'services' => [['group_id' => 'G1']],
+                'annotations' => [['line_id' => 1, 'service_group_id' => 'G1']],
+                'shared_service_group_ids' => ['G1'],
+            ],
+        ]];
+        $payload['entries'][0]['payload_hash'] = CanonicalJson::hash(
+            Arr::except($payload['entries'][0], ['payload_hash']),
+        );
+        $payload['bundle_hash'] = CanonicalJson::hash(Arr::except($payload, ['bundle_hash']));
+        file_put_contents($bundle, CanonicalJson::encodeReadable($payload).PHP_EOL);
+
+        InboundEmail::query()->delete();
+        $this->app->bind(OosSemanticParserCandidate::class, fn () => FixedOosSemanticParserCandidate::unreachable('Portable bundle modes must not call the extractor.'));
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--import-bundle' => $bundle,
+        ])->assertExitCode(0);
     }
 
     /**

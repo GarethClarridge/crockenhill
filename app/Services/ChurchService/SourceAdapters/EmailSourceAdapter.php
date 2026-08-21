@@ -29,10 +29,15 @@ class EmailSourceAdapter
         return $email->message_id.'|'.$plan->key();
     }
 
+    /**
+     * @param  bool  $reviewedByPerson  A person approved this import, so the plan carries human
+     *                                  authority rather than the unattended parser's verdict.
+     */
     public function adapt(
         InboundEmail $email,
         OosEmailServicePlan $plan,
         ?string $inputHash = null,
+        bool $reviewedByPerson = false,
     ): ChurchServiceSourceRevision {
         $metadata = $email->processing_metadata ?? [];
         $batchHash = Arr::get($metadata, 'archive.curation_plan_hash');
@@ -70,8 +75,18 @@ class EmailSourceAdapter
             assertions: $this->normalizer->normalize($plan->items, ChurchServiceEvidenceKind::Planned),
             processingFingerprint: [
                 'format' => 'email-plan',
-                'version' => 1,
+                'version' => 2,
                 'manifest_supersedes_source_key' => $supersedesSourceKey,
+                // This is provenance for the shared projector, not a parser verdict it may
+                // infer later. A ReviewRequired plan can enter as evidence, but only an
+                // auto-importable plan cleared the existing confidence-and-consensus route.
+                //
+                // A person's approval clears it too, and by a stronger authority than either
+                // confidence or cross-source corroboration. Without this, §2.5's dimension
+                // corroboration reopened an import an admin had just approved, which is
+                // invariant 5 — manual authority is never overridden by machine evidence —
+                // read backwards.
+                'unattended_content_finalization' => $reviewedByPerson || $plan->isAutoImportable(),
             ],
             supersedesSourceKey: $supersedesSourceKey,
             batchHash: $batchHash,

@@ -629,7 +629,13 @@ class OosArchiveAssertionBundle
     {
         if ($key !== null && preg_match('/(^|_)id(s)?$/', $key) === 1
             && ! str_contains($key, 'line_id')
-            && ! in_array($key, ['synthetic_message_id', 'entry_identity'], true)) {
+            && ! in_array($key, [
+                'synthetic_message_id',
+                'entry_identity',
+                'group_id',
+                'service_group_id',
+                'shared_service_group_ids',
+            ], true)) {
             return $value !== null;
         }
 
