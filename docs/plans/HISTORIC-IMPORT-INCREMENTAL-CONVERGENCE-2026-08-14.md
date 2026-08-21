@@ -741,8 +741,20 @@ so the key stays null and matching falls through to the existing tiers by design
 refuses to merge two non-identical strong identities and routes the disagreement to review. Service
 297 is the worked example: 11 song items → 7, the position mis-pairing gone (*"The Best Book To
 Read"* now sits under its own identity), and the one surviving duplicate is Email resolving to
-`the lords my shepherd 23b` against OpenLP's `the lords my shepherd i will trust in you alone` —
-two genuinely different catalogue settings of Psalm 23.
+`the lords my shepherd 23b` against OpenLP's `the lords my shepherd i will trust in you alone`.
+
+**That second class is correct behaviour, not a backlog (checked 2026-08-21).** Matching first lines
+were initially read as evidence that such pairs are one song in two settings, and that reading is
+**withdrawn** — the catalogue's own authorship disproves it. `The Lord's My Shepherd #23B` is
+William Whittingham (1524–79) against Stuart Townend's `(I Will Trust In You Alone)`;
+`Bless the Lord, O my soul (10000 reasons)` is Jonas Myrin / Matt Redman against an unattributed
+`Bless the Lord, O My Soul`; `Come O Fount Of Every Blessing (plus extra verse)` is Bob Kauflin's
+added verse over Robert Robinson, so its words genuinely differ. Identical opening lines therefore
+do not establish identity, and a first-line merge rule would have collapsed distinct songs into one
+another. Tier 1's refusal to merge two non-identical strong identities is the correct outcome, and
+these belong in review where a person with context decides. Do not open a catalogue de-duplication
+work package on the strength of first-line similarity; `song_authors` is the far better
+discriminator and is already populated (595 authors).
 
 **Cross-source corroboration now finalises, measured the way the withdrawn claim should have been.**
 Rather than reading `payload_complete` — which is absent from every one of the 650 Email records in
