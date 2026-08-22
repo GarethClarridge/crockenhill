@@ -365,7 +365,7 @@ work or evidence.
 | Disposition | Findings |
 |---|---|
 | **Kept as hard invariant** | F29, F30, F31, F33, F34, F37, F40, F41 (lock half), F44, F48, F49, F50, F51, F52, F54, F55, F59; HIR1–HIR3, HIR6–HIR7 code |
-| **Kept as open work** | F60 (IC6), current-era back-fill (IC4), video manifest population (IC5), OpenLP v2 curation fields (IC5), HIR-D8 implementation (IC3) |
+| **Kept as open work** | F60 (IC6), current-era back-fill (IC4), video manifest population (IC5), OpenLP expectation producer (IC5 step 2; its v2-curation-field prerequisite closed 2026-08-23), HIR-D8 implementation (IC3) |
 | **Reframed as report** | F32 (per-source accounting; exit contract changes in IC2), F53 (exact membership), F57 (round audit completeness), per-round cost/throughput accounting (was F58's measurement half) |
 | **Closed with evidence** | F1 completeness (Email lane, 2026-08-16 — see below), F2, F3, F4, F42, F43, F46's guard code, F61, F62, F63, F64, F65, F66; B1–B21 (all repaired; red tests retained); HIR0–HIR7 landed |
 | **Lapsed with the one-shot model** | F35 (journal-resume proof), F36 (forensic two-copy custody ceremony — read-only original, one verified working copy and hash inventory remain required practice), F38 (checkpoint *exactness* gating — checkpoints stay as tooling), F39 (fingerprint *binding* — fingerprints stay as recorded provenance), F45 (timed restore/RPO/RTO drills — verified backups remain mandatory), F46 (freeze/watchboard/change-control window), F47 (forced-crash recovery proof), F56 (freeze-sweep semantics — ingress lock tooling retained for optional brief pauses), F58 (window budget); HIR4/HIR5 evidence obligations; HIR8 steps 1, 2, 4, 6–11; safety invariants 4, 5 and 9 of the archived safety plan |
@@ -385,7 +385,12 @@ approved entry's origin explains them on that entry's approved date — the hash
 which is exactly why the scalar comparison was the wrong instrument and is now suppressed whenever
 an expectation is present. Intentional holds carry an operator's written reason through
 `--accepted-holds`, on FR-D9's fail-closed-with-reasons pattern. **The OpenLP lane still has no
-producer**; populating the v2 curation fields (IC5 step 2) is what gives it one.
+producer.** Populating the v2 curation fields was the prerequisite and is now done (batch
+`openlp-curated-2026-08-23`, every include carrying `item_key`, `source_kind`, `parse_decision`,
+`concatenation_decision`, `expected_item_count` and an authority field), so what remains of IC5
+step 2 is the producer itself: the OpenLP analogue of `OosApprovedCorpus`, deriving the expectation
+from the approved OpenLP manifest alone. Until it exists the census can only ever declare `email`,
+and the 614 OpenLP identities stay uncertifiable however clean the corpus is.
 
 G0–G9 as a ladder is retired; their still-live content maps to RG-A/RG-B/RG-C and §3.2. The
 archived per-gate audit table's open items are absorbed as follows: G1/PR5's manifest-field
@@ -399,7 +404,8 @@ Locations: Email at `storage/scratch/oos` + `oos-verbatim` (local; authority bat
 inbox sweep folded in 20 further verbatim files — 18 included as morning full orders and partials,
 2 excluded — superseding `oos-curated-2026-08-12`'s 535/534/**521**; every figure measured against
 521 below predates it); OpenLP archives local at
-`storage/scratch/ServiceRecords` (427 included entries, staged); video on the Sonnics drive,
+`storage/scratch/ServiceRecords` (**655 raw / 614 included entries, staged 2026-08-23**; was 536/427
+until the 2016-2017 back catalogue was added — see §4's superseded-artifact note); video on the Sonnics drive,
 `Services/` root only (1.0 TB, 506 recordings, 462 identities; `_Rejected/` holds real service
 *segments*, not duplicates — 55 morning services degrade to `short_partial` without them, accepted
 scope cost); hymn workbook crosstabs 2004–2018 + 2023 (5,759 known-service occurrences over 1,306
@@ -521,6 +527,44 @@ clean, then seeded with the song catalogue before staging. Zero fresh model call
 | Proposal census `rga-catalogued-census-20260821.json` | `3674a53a5053acd8dc1b420e034f55ea693bb381d95f58051b25f4a4c751fa1e` |
 | Portable structural holds `rga-catalogued-portable-structural-holds-20260821.json` | `c953c40c7418cbc69904085c2fe0687060c221a7ce2f630b5f23896495c4e0db` |
 | Staged rehearsal dump `rehearsal-catalogued-staged-2026-08-21.sql` | `598caa9b0fa141db95389b901c89b411b6e4dc459e79d63ddd4b5afdf3328af4` |
+
+**Superseded on 2026-08-23 by the enlarged OpenLP corpus.** More `.osz` archives were added to
+`storage/scratch/ServiceRecords`, taking it from 536 raw (431 flat + 105 in `MorningServices/`) to
+**655 flat**, so batch `openlp-curated-2026-08-13` / plan hash `7acb266f…` no longer describes the
+corpus and `plan()` refuses it — the raw directory must match the manifest exactly, and it now has
+224 unmanifested files and 105 missing ones. The rows above stay as the record of that round; the
+OpenLP-derived rows are replaced by:
+
+| Artifact (all `0600`) | SHA-256 |
+|---|---|
+| OpenLP dry run `openlp-dryrun-20260823.json` (batch `openlp-curated-2026-08-23`, plan hash `64e8c36f…`) | `2559ec5e7ac43f684de62cb3adb420fec169f4d59fdb73f7af21934ed3ea4b34` |
+| OpenLP membership `rga-openlp-membership-20260823.json` (614 items) | `6f3d8f917f0f98a4d5cec3dfc4d1f8880c81b1250cda5dd0eeaea71505376cbd` |
+| Email membership `rga-email-membership-20260823.json` (650 items) | `07c577269e7b13a0bfc110b02e40173eb09a2e309628ba9df247e987238193c3` |
+| Proposal census `rga-census-20260823.json` | `a248c428b6b91b095fb5f77ff5fb7beb36dad2c52aadaa8bef951918b2c5ec26` |
+| Pre-apply backup `crockenhill_rehearsal-pre-openlp-v4-20260823.sql` | 74 MB, verified restorable by loading it |
+
+The Email membership is **byte-identical** to `rga-catalogued-email-membership-20260821.json`, which
+is the evidence that the Email lane is untouched by this. The Email **expectation is deliberately
+not regenerated**: the staged email `batch_hash` is still `2c139a880b78…`, which
+`rga-catalogued-expectation-20260821.json` matches, whereas the Email manifest has since moved to
+`oos-curated-2026-08-22-additional-services` — rebuilding from the current manifest would assert a
+batch that is not staged and raise `expectation_batch_unstaged` for reasons unrelated to OpenLP.
+
+The census was re-run against `crockenhill_rehearsal` after applying the new corpus (614/614
+archives, 0 failures, 106 services created, 508 updated). It **still fails on the same two
+blockers**, `membership_mismatch` (`source_item_projection_stale`) and `expectation_mismatch`:
+staged services 756 → 862, OpenLP evidence 427 → 614, projected services 158 → **287**, pending
+proposals unchanged at 531, unclassified classes 248 → 268. The enlarged corpus neither fixed nor
+worsened the gate, which is the expected result — those blockers are about Email projection
+staleness, not corpus membership. **RG-A is still not passed and HIR-D8 is still not accepted.**
+
+Two counts that look alarming in the rehearsal database and are not. OpenLP source records read
+427 → 1,041 because the table is append-only: there are only **614 distinct `source_key_hash`**
+values and 427 of the new rows carry `supersedes_id`, so 1,041 = 427 superseded + 614 current. And
+the importer's "Imports flagged for review: 329" is a state readout, not a delta — it counts each
+archive's service `needs_review` *after* import, including flags Email staging set earlier.
+Measured against the pre-apply backup: **0 services flipped in either direction**, and of the 106
+new services exactly **1** needs review (2016-05-29 evening, the AM/PM conflict below).
 
 Every private artifact is `0600`. The recovered inputs and the recovered rehearsal database are
 retained untouched; the diagnostic database is dumped at
@@ -1566,10 +1610,18 @@ The B13 false-acceptance reversal semantics are already implemented (PR16).
 ### IC5 — Video and OpenLP completion (starts on the §2.4 trigger)
 
 1. Reconcile the era-table denominators (§5) so release decisions use one accounting.
-2. Populate the OpenLP v2 curation fields (`item_key`, `source_kind`, `parse_decision`,
-   `concatenation_decision`, `expected_item_count`, `decided_by`/`decision_rule_version`) against
-   the authoritative local corpus and re-approve — the drive-mount requirement lapsed when the
-   corpus was found local at `storage/scratch/ServiceRecords`; verify no symlink-only paths remain.
+2. **Field population done 2026-08-23; the producer is what is left.** The v2 curation fields
+   (`item_key`, `source_kind`, `parse_decision`, `concatenation_decision`, `expected_item_count`,
+   `decided_by`/`decision_rule_version`) are populated for all 614 includes of batch
+   `openlp-curated-2026-08-23` against the local corpus, approved through `plan()` and
+   `validateIncludesForDryRun()`, and applied. No symlink-only paths remain: the inventory is 655
+   real files. Reading the 2016-2017 filename grammars needed a parser change (`177ccd4f1`),
+   because `validateIncludesForDryRun()` throws unconditionally when the parsed date disagrees with
+   the approved `resolved_date` — `manifest-authoritative` covers only the embedded-`.osj`
+   mismatch, so an operator cannot assert a date the parser cannot derive.
+   What remains is the **OpenLP expectation producer**: the analogue of `OosApprovedCorpus`, so a
+   census declared over `email,openlp` can certify. It must derive `batch_hash`, `input_hash` and
+   the source key from the approved manifest alone, exactly as the Email producer does.
 3. Video worksheet → adjudication → freeze: `historic-import:draft-video-curation` (cheap,
    repeatable), operator adjudication with written include/exclude reasons (FR-D9), then
    `historic-import:capture-video-curation` (hashes once at freeze; note
