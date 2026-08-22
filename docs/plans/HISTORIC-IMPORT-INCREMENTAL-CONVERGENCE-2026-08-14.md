@@ -1075,8 +1075,10 @@ five. Fragments are **preserved**: a stray hymn belonging to a service whose ord
 keeps its evidence rather than being discarded. `2023-12-24`'s second full order is the Christmas
 *morning* service — a different date, not a slot — declared `other` with the required label.
 
-**Measured.** `Auto-import precision (identity)` 456/588 = 77.6% → **585/588 = 99.49%** on the
-manifest change alone, and **585/585 = 100%** once the three parser fixes below land. Curation plan
+**Measured.** `Auto-import precision (identity)` 456/588 = 77.6% → **585/588 = 99.49%**, which
+clears the FR-D4 floor of 0.98 on the manifest change alone. The residual 3 are the `other`-slotted
+plans in point 1 below, held for review by design; 585/585 was considered and rejected as not worth
+a corpus re-parse. Curation plan
 hash `2c139a880b78…` → **`5a6bef7cf376…`**; the pinned rehearsal-recipe hash is stale by
 design and must be updated before the next replay so the mismatch is not read as a fault. The
 extraction cache is untouched — curation is not in `rawCacheKey()` — so the replay stays **zero
@@ -1087,14 +1089,24 @@ Pint, PHPStan, the full suite (7,102 tests, 84,128 assertions) and Dusk (55 test
 
 **Outstanding, and why each is not this item's work.**
 
-1. **Three parser slot fixes.** The manifest now declares what these documents hold, but the plans
-   do not match yet. `2015-12-20` (3 stray songs) and `2016-02-07` (4 stray songs) are plans the
-   parser invented from lines belonging to a service whose order is elsewhere; they must merge into
-   their parent. `2022-02-27` is a complete 12-item order the parser slotted `other`, which the
-   validator then refuses outright — *"An other service requires explicit special-service evidence"* —
-   so the second service is currently dropped, not merely mislabelled. Its four structurally
-   identical siblings are slotted `evening`; the work is in how a timed second service is slotted,
-   not a one-line defect.
+1. **Three `other`-slotted plans stay held for review — deliberately not a parser change.**
+   `2015-12-20` (3 stray songs), `2016-02-07` (4 stray songs) and `2022-02-27` (a complete 12-item
+   order whose source reads `Afternoon meeting (2pm) in village hall`) are slotted `other` by the
+   extractor and refused by the validator — *"An other service requires explicit special-service
+   evidence"*. All three appear in `held_plan_keys`: they are held and enumerated for review, not
+   dropped, which is the designed outcome rather than a defect.
+
+   **Do not "fix the parser" for these.** The slot is the extractor's own output
+   (`"service":"morning|evening|other|unknown"` in `OosEmailExtractionPrompt`), so there is no
+   file-specific lever, and a general one would be a prompt change to correct 3 documents out of
+   554. `ParserVersion` is part of `rawCacheKey`, so any parser change — prompt or deterministic
+   guard — re-parses the whole corpus with model calls. Worse, the archived model evaluation
+   measured source-exact self-disagreement of 24/30 at `effort=none` with item structure alone above
+   the 10% threshold, so a bump perturbs the corpus measurement *even with no prompt change*: the
+   re-run is itself a change to the thing being measured. Identity precision is **585/588 = 99.49%**
+   without any of it, clear of the 0.98 floor; the fixes were buying a nicer number, not a passing
+   one. Revisit only if review load justifies it, and then as a general slotting rule measured
+   across the corpus, never as a per-document correction.
 2. **`Item counts reconciled` 0 / 1** — one entry, `2026-02-22-am-revised`, asserted 13 items and
    parsed 14. It needs adjudicating, but a one-plan denominator should probably not gate RG-A at all.
 3. **The 26 held semantic Email sources** still need the `--accepted-holds` ruling (§10). Unchanged
@@ -1247,7 +1259,7 @@ narrower `needs_review` semantics on purpose.
 | **Portable bundle ignored-line provenance**: persist `ignored_lines`, bump the bundle format, regenerate the bundle and its hashes | Portable apply — `preflightPortable()` refuses 403 of 554 entries | Maintainer; enumerated in `rga-catalogued-portable-structural-holds-20260821.json` (§6 IC1). The recovered "24 refusals" figure is withdrawn |
 | Disposition the 26 held semantic Email sources, or rule on them as `--accepted-holds`; reason counts overlap, so do not turn their sum into a workload | Email-lane settlement / F1 reporting / `expectation_mismatch` | Operator. Prior ~14, RG0A's 19 and the recovered run's 41 are superseded |
 | ~~**Second services the manifest could not declare**~~ | — | **DECIDED 2026-08-22** (IC3 item 10): schema v2 `additional_services`, 137 entries re-curated, identity precision 77.6% → 99.49%. Plural `resolved_service` was considered and rejected: it is half the source key, so widening it would re-identify every staged revision |
-| **Three parser slot fixes**: merge `2015-12-20` / `2016-02-07` stray songs into their parent service; re-slot `2022-02-27`'s 12-item order from `other` to `evening` | The last 3 identity failures (585/588 → 585/585); `2022-02-27`'s second service is currently dropped by the `other` validator, not merely mislabelled | Queued, IC3 item 10 |
+| ~~Three parser slot fixes for `other`-slotted plans~~ | — | **NOT QUEUED 2026-08-22** (IC3 item 10): all three are held and enumerated for review, which is the designed outcome. The slot is the extractor's output, so a fix is a prompt change costing a full paid re-parse — and re-parsing is not idempotent (24/30 source-exact self-disagreement), so it would perturb the corpus to correct 3 of 554. Identity precision is 99.49% without them |
 | Source recovery for the 3 unevidenced current-era services | IC4 | Operator |
 | Video curation worksheet adjudication + freeze | IC5 bulk pass | Operator, on the §2.4 trigger |
 | Era release sign-offs and the §8.4 policy decision | Each RG-C release | Maintainer/church |
