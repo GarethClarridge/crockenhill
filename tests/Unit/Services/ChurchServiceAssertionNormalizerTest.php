@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Enums\ChurchServiceEvidenceKind;
+use App\Models\Song;
 use App\Services\ChurchService\ChurchServiceAssertionNormalizer;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ChurchServiceAssertionNormalizerTest extends TestCase
 {
+    use RefreshDatabase;
+
     #[Test]
     public function it_keeps_an_openlp_search_key_separate_from_the_catalogue_song_key(): void
     {
@@ -26,6 +30,27 @@ class ChurchServiceAssertionNormalizerTest extends TestCase
         self::assertNull($assertion['song_canonical_key']);
         self::assertSame('Grace, Amazing@', $assertion['metadata']['openlp_search_title']);
         self::assertSame('grace, amazing', $assertion['metadata']['openlp_search_key']);
+    }
+
+    /**
+     * Song identity is resolved from these strings, so the repair has to happen before that
+     * runs rather than on the way into the columns. The 2026-08-22 replay caught the wrong
+     * order: four titles were stored repaired and had already failed to resolve.
+     */
+    #[Test]
+    public function it_repairs_the_encoding_before_song_identity_is_resolved(): void
+    {
+        Song::factory()->create(['title' => 'Behold The Lamb', 'canonical_key' => 'behold the lamb']);
+
+        $assertion = app(ChurchServiceAssertionNormalizer::class)->normalize([
+            [
+                'position' => 1,
+                'type' => 'songs',
+                'title' => 'Communion Hymn: NIP â€˜Behold the Lambâ€™',
+            ],
+        ], ChurchServiceEvidenceKind::Planned)[0];
+
+        self::assertSame('behold the lamb', $assertion['song_canonical_key']);
     }
 
     /**

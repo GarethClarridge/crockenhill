@@ -25,20 +25,14 @@ class ChurchServiceAssertionNormalizer
      */
     public function normalize(array $items, ChurchServiceEvidenceKind $evidenceKind): array
     {
-        $items = $this->resolveSongIdentity($items, $evidenceKind);
+        $items = $this->resolveSongIdentity($this->repairItemEncoding($items), $evidenceKind);
         $assertions = [];
         $canonicalKeysBySongId = $this->canonicalKeysBySongId($items);
 
         foreach (array_values($items) as $index => $item) {
             $position = is_numeric($item['position'] ?? null) ? (int) $item['position'] : $index + 1;
-            // Repair double-encoded text before anything derives from it, so the stored title,
-            // the assertion key and the match key all agree with what the operator wrote. The
-            // banked archive parse cache is keyed on the source file's digest rather than on its
-            // body, so results extracted before the ingest-side repair still arrive damaged.
-            $title = MojibakeRepair::repair(trim((string) ($item['title'] ?? '')));
-            $sourceTitle = is_string($item['source_title'] ?? null)
-                ? MojibakeRepair::repair(trim($item['source_title']))
-                : null;
+            $title = trim((string) ($item['title'] ?? ''));
+            $sourceTitle = is_string($item['source_title'] ?? null) ? trim($item['source_title']) : null;
             $metadata = is_array($item['metadata'] ?? null) ? $item['metadata'] : null;
             if (is_array($metadata)) {
                 unset($metadata['source_assertion_hashes'], $metadata['source_assertion_sources'], $metadata['source_evidence']);
@@ -173,6 +167,33 @@ class ChurchServiceAssertionNormalizer
         }
 
         return $this->catalogueSongResolver->resolveItems($items);
+    }
+
+    /**
+     * Repair double-encoded titles before anything reads them — song identity is resolved from
+     * these strings, so repairing later would leave the matcher looking at "NIP â€˜Behold the
+     * Lambâ€™" while the stored title said something else. The 2026-08-22 replay caught exactly
+     * that: four titles were repaired on the way into the database but had already failed to
+     * resolve.
+     *
+     * The archive parse cache is keyed on the source file's digest rather than on its body, so
+     * results extracted before the ingest-side repair still arrive damaged and this is the only
+     * place that reaches them.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array<int, array<string, mixed>>
+     */
+    private function repairItemEncoding(array $items): array
+    {
+        foreach ($items as $index => $item) {
+            foreach (['title', 'source_title'] as $field) {
+                if (is_string($item[$field] ?? null)) {
+                    $items[$index][$field] = MojibakeRepair::repair($item[$field]);
+                }
+            }
+        }
+
+        return $items;
     }
 
     /**
