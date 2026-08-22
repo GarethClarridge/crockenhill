@@ -1224,6 +1224,62 @@ built, sized as: recompile `ignored_lines` from `final_annotations` into the sto
 and the cached `raw_result`, re-export, re-enumerate. Zero model spend either way. Until then the
 portable path stays at 151 of 554 and the §10 bundle item stays open.
 
+### IC3 item 12 — the ignored-line backfill: 151 → 510 of 554 (2026-08-22)
+
+`oos:backfill-archive-ignored-lines` recovers `ignored_lines` from the annotations the parse cache
+already holds. **Zero model calls.** Run on `crockenhill_rehearsal_catalogued_v7`: 554 sources
+examined, **544 backfilled, 1,823 ignored lines recovered, 10 skipped and named.**
+
+| Portable preflight | Before | After |
+|---|---|---|
+| Valid | 151 | **510** |
+| Invalid | 403 | **44** |
+
+| Artifact | SHA-256 |
+|---|---|
+| `rga-portable-assertions-20260822b.json` (format v2, 554 entries) | `83f550f7769faad43c48c8cd0a55da5d4f7428440a3df4c46566b5f9ea8ec85c` |
+| bundle_hash | `c3e4f57361e83c23c90719dc5a691cbcd2d8ce90d253c98bb879000bd3603211` |
+| `rga-portable-structural-holds-20260822.json` | `14f36118fb2bac18c481f012af8fb522e7ce95ff0d8b7362b27d7a382341c86b` |
+
+**A replay, not a repair.** No model output is rewritten: every annotation, patch and telemetry
+field is left byte-identical, and the one field written is derived from those annotations by
+`OosSemanticIgnoredLines` — the object the compiler itself now uses. The rule was *extracted*
+rather than copied, on the §6 lesson recorded for the primary comparator: two copies agree on the
+corpus that was checked and diverge later, and here the divergence would surface as the validator
+blaming a document for an unclassified line. `OosSemanticIgnoredLines.php` is registered in
+`OosParserSurfaceFingerprint::Files` — the rule moved out of a covered file, so the surface must
+follow it or an edit to what counts as an ignored line stops moving the fingerprint.
+
+Both halves are written — `parsing` for the export, `archive_parse_cache.raw_result` for the next
+`--cache-only` replay — and `raw_result_hash` is recomputed over what was written. Leaving it would
+have reproduced the `CanonicalJson` self-hash defect: a hash that no longer describes its payload
+verifies nothing while looking like it does.
+
+**The 10 skipped cost nothing.** Each has no single `selected` attempt because its parse failed
+validation outright, and all 10 are already `held_for_review` with `no_eligible_plan` — a subset of
+the standing 26 holds. They are skipped and enumerated rather than guessed at: inferring
+"ignored = every line no item claimed" would satisfy the coverage rule with no evidence the model
+ever saw those lines, which is a silent pass in place of an honest refusal.
+
+**The 44 survivors, and none of them is a regression.** A new reason appears —
+`An ignored-line reference does not exist in the source email` (11) — but **zero entries fail on it
+alone**: all 11 already carried `Service evidence line N does not exist` or
+`Item source line N does not exist`, so it is the same pre-existing line-numbering defect surfacing
+on the ignored-line half rather than a new fault.
+
+| Survivor | Count | What it is |
+|---|---|---|
+| Unclassified lines only | 12 | 10 are the skipped sources above; 2 (`2026-02-15`, `2026-07-05`) are annotation gaps — the model annotated nothing at all for a trailing block, correctly refused |
+| Evening boundary absent | 16 | Genuine finding |
+| Line reference does not exist | 13 + 11 + 6 | One numbering defect, three surfaces |
+| `other` slot without special-service evidence | 3 | Ruled not-queued in item 10 |
+| Duplicate service plan | 2 | Genuine finding |
+
+Classes overlap; do not sum. These are findings about documents and need dispositioning, not
+another format change.
+
+Pint, PHPStan, the full suite (7,113 tests, 84,169 assertions) and Dusk (55 tests) are green.
+
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 
 Production holds 3 services with 32 canonical items and zero source records (measured 2026-08-09;
@@ -1365,7 +1421,8 @@ narrower `needs_review` semantics on purpose.
 | ~~**Song identity for HIR-D8 corroboration**~~ | — | **DECIDED 2026-08-21: resolve in `ChurchServiceAssertionNormalizer`** (§2.5), invariant 4 amended (§3.2), implementation queued as IC3 item 8. Comparison-time resolution was considered and rejected: it would have auto-applied 264 services' duplicated song items unattended |
 | ~~**Portable bundle ignored-line provenance**~~ | — | **CODE DONE 2026-08-22** (IC3 item 11): `ignored_lines` persisted, bundle format v2, both tests retained. 373 of the 403 refusals were this defect alone. What remains is regenerating the bundle, which folds into the item-10 `entryAuthorityHash()` replay below |
 | ~~Regenerate the portable bundle on the moved `entryAuthorityHash()` and format v2~~ | — | **DONE 2026-08-22**, v7 replay, zero model calls. The bundle is current; the refusals are not fixed by it |
-| **Rule on backfilling `ignored_lines` into the banked parse cache** | Portable apply — still 151 of 554 | Maintainer. The cached `raw_result` is an encoded parse result written before the field existed, so the replay could not supply it; `final_annotations` in the same cache can, at zero spend. This mutates banked evidence, which is why it is a ruling and not a task |
+| ~~Rule on backfilling `ignored_lines` into the banked parse cache~~ | — | **DONE 2026-08-22** (IC3 item 12): approved and run, 544 backfilled at zero model spend, portable preflight 151 → 510 of 554 |
+| **Disposition the 44 remaining portable structural holds** | Portable apply | Maintainer; enumerated in `rga-portable-structural-holds-20260822.json`. Findings about documents, not a format change. 10 overlap the standing 26 held sources |
 | Disposition the 26 held semantic Email sources, or rule on them as `--accepted-holds`; reason counts overlap, so do not turn their sum into a workload | Email-lane settlement / F1 reporting / `expectation_mismatch` | Operator. Prior ~14, RG0A's 19 and the recovered run's 41 are superseded |
 | ~~**Second services the manifest could not declare**~~ | — | **DECIDED 2026-08-22** (IC3 item 10): schema v2 `additional_services`, 137 entries re-curated, identity precision 77.6% → 99.49%. Plural `resolved_service` was considered and rejected: it is half the source key, so widening it would re-identify every staged revision |
 | ~~Three parser slot fixes for `other`-slotted plans~~ | — | **NOT QUEUED 2026-08-22** (IC3 item 10): all three are held and enumerated for review, which is the designed outcome. The slot is the extractor's output, so a fix is a prompt change costing a full paid re-parse — and re-parsing is not idempotent (24/30 source-exact self-disagreement), so it would perturb the corpus to correct 3 of 554. Identity precision is 99.49% without them |
