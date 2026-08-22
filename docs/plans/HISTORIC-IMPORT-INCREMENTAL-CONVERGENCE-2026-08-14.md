@@ -947,6 +947,72 @@ songs and correctly refuses. Item 8's ceiling estimate of 85 reachable was a flo
 one version and one replay, exactly as the sequencing note requires. Pint, PHPStan, the full suite
 (7,091 tests) and Dusk (55 tests) are green.
 
+### Items 8 and 9 — the catalogued replay, run 2026-08-22
+
+`crockenhill_rehearsal_catalogued_v6`, provisioned certified-clean, catalogue seeded (1,173 source
+songs → 1,159 canonical, `songs.sqlite` hash unchanged), recovered parse cache seeded (554
+sources), OoS plan hash `2c139a880b78…` and OpenLP plan hash `7acb266f52c3…` both matching the
+recipe. `--cache-only`, and **all 554 entries reused their cache: zero model calls**. None of the
+changed files is in `OosParserSurfaceFingerprint::Files`, so the parser version did not move.
+Artifacts in `storage/scratch/ic3-item9-20260822/`.
+
+**Admission is undisturbed, again:** 438 created, 74 evidence-retained, 26 held, 16 merged; 756
+services, 627 Email identities, 427 OpenLP archives, 298 overlaps, 0 failures.
+
+| Measure | v4 (item 8 baseline) | v6 replay |
+|---|---|---|
+| Song assertions carrying a catalogue key (all sources) | 4,094 / 4,341 | **4,179 / 4,341** |
+| …Email only | 2,322 / 2,569 | **2,407 / 2,569** |
+| Services with surplus song items | 88 | **73** |
+| Surplus song items | 128 | **98** |
+| Pending proposals | 395 | **385** |
+| Finalised services | 294 | **304** |
+| Finalised overlaps | 165 | **175** |
+| …with a song item corroborated by both sources | 136 | **146** |
+| Song items carrying both sources | 565 | **613** |
+| `corroboration_mismatch` membership / order | 121 / 128 | **108 / 117** |
+| `field_conflict` | 4 | **0** |
+
+Assertion-level, joined on source key and position so a repaired title still pairs with its
+predecessor: **88 gained, 44 changed, 3 lost**. The 44 split into item 8's NIP work and item 9's
+list-position fix; the 3 losses are all removals of a wrong `Song N` → hymn *N* link where no real
+song was reachable.
+
+**The replay found a defect the tests had not.** The encoding repair sat inside
+`ChurchServiceAssertionNormalizer`'s per-item loop, while `resolveSongIdentity()` runs *ahead* of
+it — so four mojibake titles were stored repaired and had already failed to match. Fixed by
+repairing before identity resolution (`26d5ee820`); the regression test asserts the resolved song
+key rather than the stored title, so it fails on the old ordering. Email keys 2,403 → **2,407**,
+which is exactly what the offline harness predicted: the two now agree on all 2,569 assertions.
+
+**Item 8's NIP prediction is superseded by measurement, as it asked to be.** It predicted 28 of 44
+NIP-contradicting resolutions corrected and 16 retained. Measured: the denominator is **52**, not
+44 — item 9 made the marker position-independent, so eight more lines carry it — and the split is
+**32 corrected, 20 retained, 0 lost to nothing**. The 20 retained hold up against the maintainer's
+tune-versus-words rule: four are explicit tune variants (`when i survey (modern tune)` → #453),
+two carry an explicit number alongside the marker, and the rest have no unnumbered twin in the
+catalogue, so the resolver correctly declines to invent one. `man of sorrows what a name` → #433
+and `man of sorrows (oh, that rugged cross)` → the unnumbered Hillsong row is the discrimination
+working.
+
+**Agreement split, restated on the new corpus.** Of 1,340 Email song assertions on overlapping
+services: 1,214 (90.6%, was 87.3%) agree only after both sides resolve through the catalogue, 6
+(0.4%) agree on literal title, 69 (5.1%, was 7.7%) are unresolved, 51 (3.8%, was 4.6%) disagree.
+**99.5% of agreement still rests on the catalogue rather than on matching text** — unchanged, and
+§8 era accuracy reporting must keep presenting it that way.
+
+**Residue after both items: 162 Email assertions and 98 surplus items, all attributed.** The
+surplus is 38 services / 59 items whose title the catalogue does not resolve and 35 services / 39
+items where both sources resolve to *different* catalogue entries — the second class is still
+correct behaviour per the 2026-08-21 finding, not a backlog.
+
+**RG-A is unchanged and still fails.** `Auto-import precision (identity)` is **77.6%** against the
+FR-D4 floor of 0.98 and `Item counts reconciled` is **0 / 1** — both identical to the v4 run.
+Song identity was one gate condition among several and this work moved only that one
+(`Song-link hit rate` 93.6%, `Plans with every song resolved` 528 / 657). The blocker remains the
+date/identity resolver and the maintainer's `--accepted-holds` ruling on the 26 holds (§10), not
+song matching. Items 8 and 9 are closed; RG-A is not.
+
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 
 Production holds 3 services with 32 canonical items and zero source records (measured 2026-08-09;
