@@ -64,6 +64,11 @@ class OosParserSurfaceFingerprint
         'app/Services/Email/OosSemanticContinuationRule.php',
         'app/Services/Email/ApplyOosSemanticAnnotationPatch.php',
         'app/Services/Email/CompileOosSemanticAnnotations.php',
+        // The ignored-line half of the compiler's line partition, extracted so the archive backfill
+        // shares it. Listed here because the rule moved out of the file above, not because the
+        // surface grew: leaving it off would mean an edit to what counts as an ignored line no
+        // longer moved the fingerprint.
+        'app/Services/Email/OosSemanticIgnoredLines.php',
         'app/Services/Email/OosServiceDateResolver.php',
         'app/Services/Email/OosSemanticParserCandidate.php',
         // Item normalisation, disposition, hold reasons, content scope, date plausibility.

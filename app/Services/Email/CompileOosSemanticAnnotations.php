@@ -19,6 +19,7 @@ class CompileOosSemanticAnnotations
     public function __construct(
         private readonly OosSemanticAnnotationValidator $validator,
         private readonly OosServiceDateResolver $dateResolver,
+        private readonly OosSemanticIgnoredLines $ignoredLines = new OosSemanticIgnoredLines,
     ) {}
 
     public function compile(OosEmailSourceDocument $source, OosSemanticAnnotationResult $result): OosSemanticCompilationResult
@@ -35,7 +36,7 @@ class CompileOosSemanticAnnotations
             fn (OosCandidateService $service): array => $this->compileService($source, $result, $service),
             $services,
         );
-        $ignoredLines = $this->ignoredLines($result);
+        $ignoredLines = $this->ignoredLines->forResult($result);
         $uncertainties = $this->uncertainties($result);
         $riskSignals = [
             'implicit_or_ambiguous_boundary' => $this->hasUncertainty($uncertainties, OosSemanticUncertainty::AmbiguousBoundary),
@@ -173,33 +174,6 @@ class CompileOosSemanticAnnotations
             OosSemanticItemKind::Sermon => 'sermon',
             default => 'other',
         };
-    }
-
-    /** @return list<array{line_id:int,reason:string}> */
-    private function ignoredLines(OosSemanticAnnotationResult $result): array
-    {
-        $ignored = [];
-
-        foreach ($result->annotations as $annotation) {
-            if (in_array($annotation->role, [OosSemanticRole::Item, OosSemanticRole::Continuation, OosSemanticRole::ServiceBoundary], true)) {
-                continue;
-            }
-
-            if ($annotation->serviceGroupId !== null || $annotation->sharedServiceGroupIds !== []) {
-                continue;
-            }
-
-            $ignored[] = [
-                'line_id' => $annotation->lineId,
-                'reason' => match ($annotation->role) {
-                    OosSemanticRole::ForwardedContext => 'forwarded_header',
-                    OosSemanticRole::GreetingOrSignature => 'signature',
-                    default => 'context',
-                },
-            ];
-        }
-
-        return $ignored;
     }
 
     /** @return list<int> */
