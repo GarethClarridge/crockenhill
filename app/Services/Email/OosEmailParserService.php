@@ -884,15 +884,21 @@ class OosEmailParserService
         };
     }
 
+    /**
+     * Starts from {@see OosEmailSourceDocument::normaliseBody()} so the blank-line collapsing
+     * applied here and the line-splitting `fromContext()` applies downstream can never disagree,
+     * then goes further: trimming and space-collapsing clean up messy pasted-from-elsewhere
+     * bodies, but neither changes a line's blank-or-not status, so `fromContext()` deliberately
+     * does not apply them.
+     */
     private function normaliseWhitespace(?string $value): ?string
     {
         if (! is_string($value)) {
             return null;
         }
 
-        $normalised = preg_replace("/\r\n?/", "\n", $value) ?? $value;
+        $normalised = OosEmailSourceDocument::normaliseBody($value);
         $normalised = preg_replace('/[ \t]+/', ' ', $normalised) ?? $normalised;
-        $normalised = preg_replace("/\n{3,}/", "\n\n", $normalised) ?? $normalised;
         $trimmed = trim($normalised);
 
         return $trimmed === '' ? null : $trimmed;

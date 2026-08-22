@@ -45,4 +45,22 @@ class OosEmailSourceDocumentTest extends TestCase
             $differentWhitespace->lineRecords(),
         );
     }
+
+    /**
+     * The 2026-08-22 structural-holds defect: {@see OosArchiveAssertionBundle} built its exported
+     * `source_document` from a raw body while the live parser validated against a body with runs
+     * of blank lines already collapsed to one. A source with two-or-more consecutive blank lines
+     * therefore numbered every line after the run differently under each path, so a bundle's
+     * `service_evidence_line_ids` silently pointed at the wrong physical line.
+     */
+    #[Test]
+    public function it_collapses_runs_of_blank_lines_so_every_caller_numbers_lines_identically(): void
+    {
+        $body = "Morning:\n\nHymn 1\n\n\nEvening:\n\nHymn 2";
+
+        $document = OosEmailSourceDocument::fromContext('Order for Sunday', $body, '2026-08-19');
+
+        $this->assertSame([1, 3, 5, 7], $document->lineIds());
+        $this->assertSame('Evening:', $document->line(5));
+    }
 }

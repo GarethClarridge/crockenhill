@@ -29,8 +29,7 @@ readonly class OosEmailSourceDocument
 
     public static function fromContext(?string $subject, string $body, ?string $receivedDate): self
     {
-        $normalised = preg_replace("/\r\n?/", "\n", $body) ?? $body;
-        $physicalLines = explode("\n", $normalised);
+        $physicalLines = explode("\n", self::normaliseBody($body));
         $lines = [];
         $semanticLines = [];
 
@@ -227,6 +226,32 @@ readonly class OosEmailSourceDocument
             ),
             $this->semanticLineRecords(),
         ));
+    }
+
+    /**
+     * `fromContext()`'s one and only line-splitting normalisation, so every caller — the live
+     * parser and the archive bundle export alike — numbers a given body's lines identically.
+     *
+     * Before this was shared, {@see OosArchiveAssertionBundle} built its exported
+     * `source_document` from the raw body while {@see OosEmailParserService} built the document it
+     * actually validated the extraction against from a body with runs of blank lines already
+     * collapsed. A source with two or more consecutive blank lines therefore split into a
+     * different line count under each path, so a bundle's `source_document` silently disagreed
+     * with the `service_evidence_line_ids` / `source_line_ids` the banked extraction referenced —
+     * surfacing as spurious "line N does not exist" structural holds for a handful of documents,
+     * not a corrupted or stale source.
+     *
+     * Deliberately narrower than {@see OosEmailParserService}'s own cleanup: collapsing a run of
+     * blank lines is the one transform that changes *which* physical line a given line ID lands
+     * on, so it is the one every caller must agree on. Trimming and space-collapsing change a
+     * line's text but never its blank-or-not status, so they stay the parser's job — folding them
+     * in here would strip the padding {@see OosEmailSourceDocumentTest} pins in `exact_text`.
+     */
+    public static function normaliseBody(string $body): string
+    {
+        $normalised = preg_replace("/\r\n?/", "\n", $body) ?? $body;
+
+        return preg_replace("/\n{3,}/", "\n\n", $normalised) ?? $normalised;
     }
 
     private static function forwardedDepth(string $line): int
