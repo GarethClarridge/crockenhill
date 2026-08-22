@@ -1168,6 +1168,62 @@ real findings about documents and need dispositioning, not a format change.
 item 10's `5a6bef7cf376…`). The rehearsal recipe's pinned `2c139a88…` is stale and would report a
 plan-hash mismatch that reads like a fault.
 
+### IC3 item 11 replay — the bundle regenerated, the refusals did not move (2026-08-22)
+
+`crockenhill_rehearsal_catalogued_v7`, provisioned certified-clean, catalogue seeded (1,159
+canonical), recovered parse cache seeded (554 sources, all with a cached binding). Plan hash
+`5a6bef7cf3769f534de1ebee869b92a026c11d83777e25ab8f3d0e254fef3460` accepted. `--cache-only`, **zero
+model calls**.
+
+| Measure | v6 | v7 |
+|---|---|---|
+| Date accuracy | 99.8% | 99.8% |
+| Auto-import precision (identity) | 99.5% | 99.5% |
+| Held for review | 26 | 26 |
+| created / evidence_retained | 438 / 74 | 441 / 71 |
+
+**The three that moved are item 10's effect, not item 11's.** `2015-06-14`, `2016-05-01` and
+`2016-06-26` imported *identical* plan keys in both runs; what changed is that the manifest now
+declares the second service the document carries, so the entry is fully explained and reads
+`created` rather than `evidence_retained`. `2015-06-14` is one of the four item 10 checked against
+verbatim source.
+
+**The bundle regenerated cleanly and the refusals are unchanged: still 151 valid / 403 invalid, with
+byte-identical reason counts.**
+
+| Artifact | SHA-256 |
+|---|---|
+| `rga-portable-assertions-20260822.json` (format v2, 554 entries) | `ba2ae5a69e8117d23366c7210b84f3c0921e0d358ab6760d8b2370e31f6dfc5b` |
+| bundle_hash | `371b262f3b3138e0c19974ff1b5021a90de716638f4166ecd18dec8898a22d34` |
+| `rga-portable-structural-holds-20260822.json` | `6e4166078bd5b4a1de527890fc4382124c491e45077d951555a6eddd4b396183` |
+
+**Why, and it corrects a claim made when item 11 was scoped.** `archive_parse_cache.raw_result` is
+not raw model output despite the name — it is an `InboundEmailImportService::encodeParseResult()`
+payload, as that method's own docblock says ("the archive's raw-extraction cache is the one caller
+that does"). Its keys are the encoded parse-result keys, and it was written before `ignored_lines`
+existed, so a `--cache-only` replay decodes an empty list for all 554. Every exported entry carries
+`"ignored_lines": []`. The code path is correct — the synthetic reproduction exercises a real parse
+and passes — but the banked corpus has nothing to put through it.
+
+**The data is recoverable, free.** `extraction_attempts[].final_annotations` survives in the same
+cache with every line's `role`, `service_group_id` and `shared_service_group_ids` — exactly what
+`CompileOosSemanticAnnotations::ignoredLines()` consumes. The two compile rules also partition the
+document completely: a non-item line *inside* a service group becomes `service_evidence_line_ids`
+(`evidenceLineIds()`), one outside every group becomes an ignored line. So a recompile closes the
+coverage rule rather than merely reducing it.
+
+**The precedent exists in the evaluation lane and not in the import lane.**
+`oos:recompile-semantic-candidate-evidence` was built for exactly this move — its docblock reads
+"Candidate artifacts retain `attempts[].final_annotations` precisely so this is possible" — but it
+replays banked *candidate* artifacts, not the archive parse cache. The import lane has no
+equivalent.
+
+**Next step, and it is a decision, not a task.** Backfilling `ignored_lines` into banked evidence is
+a mutation of the cache the whole lane is replayed from. It needs a maintainer ruling before it is
+built, sized as: recompile `ignored_lines` from `final_annotations` into the stored parse payload
+and the cached `raw_result`, re-export, re-enumerate. Zero model spend either way. Until then the
+portable path stays at 151 of 554 and the §10 bundle item stays open.
+
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 
 Production holds 3 services with 32 canonical items and zero source records (measured 2026-08-09;
@@ -1308,7 +1364,8 @@ narrower `needs_review` semantics on purpose.
 |---|---|---|
 | ~~**Song identity for HIR-D8 corroboration**~~ | — | **DECIDED 2026-08-21: resolve in `ChurchServiceAssertionNormalizer`** (§2.5), invariant 4 amended (§3.2), implementation queued as IC3 item 8. Comparison-time resolution was considered and rejected: it would have auto-applied 264 services' duplicated song items unattended |
 | ~~**Portable bundle ignored-line provenance**~~ | — | **CODE DONE 2026-08-22** (IC3 item 11): `ignored_lines` persisted, bundle format v2, both tests retained. 373 of the 403 refusals were this defect alone. What remains is regenerating the bundle, which folds into the item-10 `entryAuthorityHash()` replay below |
-| **Regenerate the portable bundle** and its hashes, on the moved `entryAuthorityHash()` and bundle format v2 | Portable apply | Maintainer. One `--cache-only` replay covers both moves at zero model spend; pin plan hash `5a6bef7cf376…`, not `2c139a88…`. Expect ~30 genuine structural holds to survive and need dispositioning |
+| ~~Regenerate the portable bundle on the moved `entryAuthorityHash()` and format v2~~ | — | **DONE 2026-08-22**, v7 replay, zero model calls. The bundle is current; the refusals are not fixed by it |
+| **Rule on backfilling `ignored_lines` into the banked parse cache** | Portable apply — still 151 of 554 | Maintainer. The cached `raw_result` is an encoded parse result written before the field existed, so the replay could not supply it; `final_annotations` in the same cache can, at zero spend. This mutates banked evidence, which is why it is a ruling and not a task |
 | Disposition the 26 held semantic Email sources, or rule on them as `--accepted-holds`; reason counts overlap, so do not turn their sum into a workload | Email-lane settlement / F1 reporting / `expectation_mismatch` | Operator. Prior ~14, RG0A's 19 and the recovered run's 41 are superseded |
 | ~~**Second services the manifest could not declare**~~ | — | **DECIDED 2026-08-22** (IC3 item 10): schema v2 `additional_services`, 137 entries re-curated, identity precision 77.6% → 99.49%. Plural `resolved_service` was considered and rejected: it is half the source key, so widening it would re-identify every staged revision |
 | ~~Three parser slot fixes for `other`-slotted plans~~ | — | **NOT QUEUED 2026-08-22** (IC3 item 10): all three are held and enumerated for review, which is the designed outcome. The slot is the extractor's output, so a fix is a prompt change costing a full paid re-parse — and re-parsing is not idempotent (24/30 source-exact self-disagreement), so it would perturb the corpus to correct 3 of 554. Identity precision is 99.49% without them |
