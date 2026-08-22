@@ -1117,6 +1117,57 @@ Pint, PHPStan, the full suite (7,102 tests, 84,128 assertions) and Dusk (55 test
 Any figure quoted from that field as independent corroboration needs re-reading; the genuine
 cross-source corroboration measure is the census, not this.
 
+### IC3 item 11 — the portable bundle dropped its ignored lines (2026-08-22)
+
+**`preflightPortable()`'s 403 refusals were a bundle-format defect, not 403 bad documents.**
+Splitting `rga-catalogued-portable-structural-holds-20260821.json` by reason class:
+
+| | Entries |
+|---|---|
+| Refused **solely** for unclassified source lines | 373 |
+| Refused for at least one other reason as well | 30 |
+| Valid | 151 |
+
+**Root cause, and it is the same seam class as item 10.** `OosEmailExtractionValidator` requires
+every source line to be classified as service evidence, an item, or ignored context. The extractor
+produces those `ignored_lines` and `OosEmailParserService` carried them through the evening-evidence
+pass — then dropped them at the `OosEmailParseResult` boundary, which had no such field. They never
+reached `processing_metadata.parsing`, so `export()`'s `Arr::only` could not ship them, so
+`structuralReasons()` re-validated every shipped entry against an extraction that declared nothing
+ignored. Every greeting and signature in the corpus came back as an unaccounted line: 2,121 reason
+instances of one shape. Item 10 was a value that could only ever be written singular; this is a
+value that was produced and then discarded in transit. Both were invisible at every reading site.
+
+**Not derived, persisted.** Reconstructing "ignored = any line no item claimed" was rejected: it
+makes the rule vacuously true, and the rule's whole value is that the extractor *declared* each
+line's disposition. The field is threaded through the parse result, its encode/decode pair, the four
+`OosArchiveIdentityResolver` rebuilds that already carry `extractionAttempts` the same way, and the
+bundle's export and rebuild.
+
+**Bundle `VERSION` 1 → 2**, on item 10's reasoning: a v1 bundle is refused outright rather than read
+leniently, because a lenient read turns a check that cannot run into a silent pass. Malformed
+entries are dropped on restore but refused on import — a bad shape in the database is legacy
+residue, a bad shape in a bundle means the bundle is untrustworthy.
+
+**Reproduced before it was fixed.** With the fix stashed, a three-line source whose third line the
+extraction ignores stages as
+`"Source line 3 was not classified as evidence, an item, or ignored context."` and `--apply-bundle`
+refuses the bundle. Both tests are retained.
+
+Pint, PHPStan, the full suite (7,106 tests, 84,149 assertions) and Dusk (55 tests) are green.
+
+**Outstanding.** The bundle has not been regenerated — that is the §10 item, and it now folds
+together with item 10's `entryAuthorityHash()` move: one replay covers both. The expected outcome is
+portable-valid 151 → ~524 of 554, with ~30 genuine structural holds remaining (16 evening-boundary,
+13 non-existent service evidence lines, 6 non-existent item lines, the 3 `other`-slotted plans ruled
+not-queued in item 10, 2 duplicate plans; the classes overlap, so do not sum them). Those 30 are
+real findings about documents and need dispositioning, not a format change.
+
+**Before the replay:** the curation plan hash is
+`5a6bef7cf3769f534de1ebee869b92a026c11d83777e25ab8f3d0e254fef3460` (recomputed 2026-08-22, matching
+item 10's `5a6bef7cf376…`). The rehearsal recipe's pinned `2c139a88…` is stale and would report a
+plan-hash mismatch that reads like a fault.
+
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 
 Production holds 3 services with 32 canonical items and zero source records (measured 2026-08-09;
@@ -1256,7 +1307,8 @@ narrower `needs_review` semantics on purpose.
 | Item | Blocks | State |
 |---|---|---|
 | ~~**Song identity for HIR-D8 corroboration**~~ | — | **DECIDED 2026-08-21: resolve in `ChurchServiceAssertionNormalizer`** (§2.5), invariant 4 amended (§3.2), implementation queued as IC3 item 8. Comparison-time resolution was considered and rejected: it would have auto-applied 264 services' duplicated song items unattended |
-| **Portable bundle ignored-line provenance**: persist `ignored_lines`, bump the bundle format, regenerate the bundle and its hashes | Portable apply — `preflightPortable()` refuses 403 of 554 entries | Maintainer; enumerated in `rga-catalogued-portable-structural-holds-20260821.json` (§6 IC1). The recovered "24 refusals" figure is withdrawn |
+| ~~**Portable bundle ignored-line provenance**~~ | — | **CODE DONE 2026-08-22** (IC3 item 11): `ignored_lines` persisted, bundle format v2, both tests retained. 373 of the 403 refusals were this defect alone. What remains is regenerating the bundle, which folds into the item-10 `entryAuthorityHash()` replay below |
+| **Regenerate the portable bundle** and its hashes, on the moved `entryAuthorityHash()` and bundle format v2 | Portable apply | Maintainer. One `--cache-only` replay covers both moves at zero model spend; pin plan hash `5a6bef7cf376…`, not `2c139a88…`. Expect ~30 genuine structural holds to survive and need dispositioning |
 | Disposition the 26 held semantic Email sources, or rule on them as `--accepted-holds`; reason counts overlap, so do not turn their sum into a workload | Email-lane settlement / F1 reporting / `expectation_mismatch` | Operator. Prior ~14, RG0A's 19 and the recovered run's 41 are superseded |
 | ~~**Second services the manifest could not declare**~~ | — | **DECIDED 2026-08-22** (IC3 item 10): schema v2 `additional_services`, 137 entries re-curated, identity precision 77.6% → 99.49%. Plural `resolved_service` was considered and rejected: it is half the source key, so widening it would re-identify every staged revision |
 | ~~Three parser slot fixes for `other`-slotted plans~~ | — | **NOT QUEUED 2026-08-22** (IC3 item 10): all three are held and enumerated for review, which is the designed outcome. The slot is the extractor's output, so a fix is a prompt change costing a full paid re-parse — and re-parsing is not idempotent (24/30 source-exact self-disagreement), so it would perturb the corpus to correct 3 of 554. Identity precision is 99.49% without them |
