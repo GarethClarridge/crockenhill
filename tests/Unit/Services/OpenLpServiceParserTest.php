@@ -123,6 +123,117 @@ class OpenLpServiceParserTest extends TestCase
         $this->assertSame(SermonService::Other, $result->service);
     }
 
+    /**
+     * The 2016-2017 back catalogue named archives without separators, in three
+     * grammars none of which the parser originally read.
+     */
+    #[Test]
+    public function test_extracts_date_from_run_on_numeric_filename(): void
+    {
+        $upload = OpenLpArchiveFactory::makeUpload(
+            archiveName: '20160103am.osz',
+            osjName: '20160103am.osj',
+            payload: OpenLpArchiveFactory::payload()
+        );
+
+        $result = $this->parser->parse($upload);
+
+        $this->assertSame('2016-01-03', $result->date);
+        $this->assertSame(SermonService::Morning, $result->service);
+    }
+
+    #[Test]
+    public function test_extracts_date_from_run_on_textual_filename(): void
+    {
+        $upload = OpenLpArchiveFactory::makeUpload(
+            archiveName: '02July2017pm.osz',
+            osjName: '02July2017pm.osj',
+            payload: OpenLpArchiveFactory::payload()
+        );
+
+        $result = $this->parser->parse($upload);
+
+        $this->assertSame('2017-07-02', $result->date);
+        $this->assertSame(SermonService::Evening, $result->service);
+    }
+
+    /**
+     * Guards the format ordering in normaliseDate(): PHP's `Y` reads `17` as
+     * the year 17, so a two-digit year must meet `j F y` first.
+     */
+    #[Test]
+    public function test_extracts_date_from_run_on_two_digit_year_filename(): void
+    {
+        $upload = OpenLpArchiveFactory::makeUpload(
+            archiveName: '16July17am.osz',
+            osjName: '16July17am.osj',
+            payload: OpenLpArchiveFactory::payload()
+        );
+
+        $result = $this->parser->parse($upload);
+
+        $this->assertSame('2017-07-16', $result->date);
+        $this->assertSame(SermonService::Morning, $result->service);
+    }
+
+    /**
+     * Guards the pattern ordering in inferDateFromStem(): the two-digit-year
+     * run-on must not claim the first two digits of a four-digit year.
+     */
+    #[Test]
+    public function test_run_on_filename_does_not_truncate_a_four_digit_year(): void
+    {
+        $upload = OpenLpArchiveFactory::makeUpload(
+            archiveName: '1October2017am.osz',
+            osjName: '1October2017am.osj',
+            payload: OpenLpArchiveFactory::payload()
+        );
+
+        $result = $this->parser->parse($upload);
+
+        $this->assertSame('2017-10-01', $result->date);
+    }
+
+    /**
+     * The run-on numeric grammar is bounded so it cannot claim eight digits out
+     * of a longer run, which would silently invent a date.
+     */
+    #[Test]
+    public function test_run_on_numeric_grammar_ignores_a_longer_digit_run(): void
+    {
+        $upload = OpenLpArchiveFactory::makeUpload(
+            archiveName: '2016010312345.osz',
+            osjName: '2016010312345.osj',
+            payload: OpenLpArchiveFactory::payload()
+        );
+
+        $this->expectException(ValidationException::class);
+
+        $this->parser->parse($upload);
+    }
+
+    /**
+     * The back catalogue's embedded .osj names use a sixth grammar, a bare
+     * `ymd` (`160103am`). It is deliberately unsupported: too short to match
+     * without false positives, and leaving it unparseable means the embedded
+     * name raises no mismatch against an upload filename that already resolves.
+     */
+    #[Test]
+    public function test_six_digit_embedded_osj_date_is_left_unparsed(): void
+    {
+        $upload = OpenLpArchiveFactory::makeUpload(
+            archiveName: '20160103am.osz',
+            osjName: '160103am.osj',
+            payload: OpenLpArchiveFactory::payload()
+        );
+
+        $result = $this->parser->parse($upload);
+
+        $this->assertSame('2016-01-03', $result->date);
+        $this->assertSame('upload_filename', $result->importMetadata['parse_method']);
+        $this->assertFalse($result->importMetadata['filename_mismatch']);
+    }
+
     #[Test]
     public function test_fails_when_no_date_can_be_inferred(): void
     {

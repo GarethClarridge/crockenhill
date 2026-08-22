@@ -270,21 +270,38 @@ class OpenLpServiceParser
         ];
     }
 
+    /**
+     * Patterns are tried in order and the order is load-bearing: the four-digit
+     * year run-on must precede the two-digit one, or `02July2017` resolves as
+     * `02 July 2020`.
+     *
+     * The separator-less grammars are the 2016-2017 back catalogue, which named
+     * archives `20160103am`, `02July2017am` and `16July17am`. Their embedded
+     * `.osj` names use a sixth grammar (`160103am`, a bare `ymd`) that is
+     * deliberately *not* supported: it is too short to match without false
+     * positives, and leaving it unparseable keeps `identityFromFilename()`
+     * returning null for the embedded name, so no spurious `filename_mismatch`
+     * is raised against an upload filename that already resolves cleanly.
+     */
     private function inferDateFromStem(string $stem): ?string
     {
         $patterns = [
             '/(\d{4}-\d{2}-\d{2})/',
             '/\b(\d{1,2}-[A-Za-z]{3,9}-\d{2,4})\b/',
             '/\b(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})\b/',
+            '/(?<!\d)(\d{8})(?!\d)/',
+            '/(?<!\d)(\d{1,2})([A-Za-z]{3,9})(\d{4})(?!\d)/',
+            '/(?<!\d)(\d{1,2})([A-Za-z]{3,9})(\d{2})(?!\d)/',
         ];
 
         foreach ($patterns as $pattern) {
-            preg_match($pattern, $stem, $matches);
-            $rawDate = $matches[1] ?? null;
-
-            if (! is_string($rawDate)) {
+            if (preg_match($pattern, $stem, $matches) !== 1) {
                 continue;
             }
+
+            $rawDate = isset($matches[3])
+                ? "{$matches[1]} {$matches[2]} {$matches[3]}"
+                : $matches[1];
 
             $date = $this->normaliseDate($rawDate);
 
@@ -316,16 +333,27 @@ class OpenLpServiceParser
 
     private function normaliseDate(string $date): ?string
     {
+        /**
+         * Two-digit-year formats precede their four-digit counterparts. PHP's
+         * `Y` will happily read `17` as the year 17, so `16 July 17` must meet
+         * `j F y` first; a four-digit year reaching `j F y` is rejected by the
+         * trailing-data warning below, which is what makes the order safe.
+         */
         $formats = [
             'Y-m-d',
             'j-M-y',
             'd-M-y',
             'j-M-Y',
             'd-M-Y',
+            'j F y',
+            'd F y',
+            'j M y',
+            'd M y',
             'j F Y',
             'd F Y',
             'j M Y',
             'd M Y',
+            'Ymd',
         ];
 
         foreach ($formats as $format) {
