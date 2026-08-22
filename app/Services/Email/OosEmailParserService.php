@@ -152,6 +152,7 @@ class OosEmailParserService
             extractionAttempts: $attempts,
             consensus: $consensus,
             adjudicated: $adjudicated,
+            ignoredLines: $extraction->ignoredLines,
         );
     }
 

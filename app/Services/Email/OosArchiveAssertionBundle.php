@@ -25,7 +25,14 @@ class OosArchiveAssertionBundle
 {
     public const FORMAT = 'crockenhill-oos-assertions';
 
-    public const VERSION = 1;
+    /**
+     * Version 2 carries `ignored_lines`. A v1 bundle is refused rather than read: its parse
+     * payload dropped the extractor's line dispositions, so re-validating it reports every
+     * greeting and signature as an unclassified source line — a structural refusal that describes
+     * the bundle format, not the document. Reading v1 leniently would turn that into a silent
+     * pass, which is the worse of the two failures.
+     */
+    public const VERSION = 2;
 
     public const PROJECTOR_VERSION = 'email-plan-v2';
 
@@ -116,6 +123,7 @@ class OosArchiveAssertionBundle
                     'service_plans',
                     'extraction_attempts',
                     'consensus',
+                    'ignored_lines',
                 ]),
                 'validation' => [
                     'disposition' => $parsing['disposition'] ?? null,
@@ -597,6 +605,7 @@ class OosArchiveAssertionBundle
             confidence: (float) ($parse['confidence_score'] ?? 0),
             services: $services,
             serviceCount: count($services),
+            ignoredLines: $this->ignoredLines($parse['ignored_lines'] ?? null),
             provenanceComplete: true,
         );
 
@@ -703,12 +712,14 @@ class OosArchiveAssertionBundle
                 'needs_review',
                 'should_import',
                 'service_plans',
+                'ignored_lines',
             ]),
             servicePlans: $plans,
             disposition: $this->disposition($parse['disposition'] ?? null),
             validationReasons: $this->strings($parse['validation_reasons'] ?? null),
             extractionAttempts: $this->arrays($parse['extraction_attempts'] ?? null),
             consensus: (bool) ($parse['consensus'] ?? false),
+            ignoredLines: $this->ignoredLines($parse['ignored_lines'] ?? null),
         );
     }
 
@@ -780,6 +791,37 @@ class OosArchiveAssertionBundle
     private function nullableString(mixed $value): ?string
     {
         return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
+     * Malformed entries are refused, not skipped. Everywhere else in this class a bad shape means
+     * an untrustworthy bundle, and dropping an ignored line quietly would resurface as a source
+     * line the extraction never accounted for — blaming the document for a transport defect.
+     *
+     * @return list<array{line_id:int,reason:string}>
+     */
+    private function ignoredLines(mixed $ignoredLines): array
+    {
+        if ($ignoredLines === null) {
+            return [];
+        }
+
+        if (! is_array($ignoredLines) || ! array_is_list($ignoredLines)) {
+            throw new RuntimeException('OoS assertion payload ignored lines must be a list.');
+        }
+
+        $lines = [];
+
+        foreach ($ignoredLines as $ignoredLine) {
+            if (! is_array($ignoredLine) || ! is_int($ignoredLine['line_id'] ?? null)
+                || ! is_string($ignoredLine['reason'] ?? null)) {
+                throw new RuntimeException('OoS assertion payload has an invalid ignored line.');
+            }
+
+            $lines[] = ['line_id' => $ignoredLine['line_id'], 'reason' => $ignoredLine['reason']];
+        }
+
+        return $lines;
     }
 
     private function gitCommit(): string

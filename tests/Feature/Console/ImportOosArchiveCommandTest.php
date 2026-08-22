@@ -1569,6 +1569,91 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
     }
 
+    /**
+     * The bundle format's own regression, not the document's. Every real order of service ends in
+     * a greeting or a signature, and `OosEmailExtractionValidator` requires each source line to be
+     * classified as service evidence, an item, or ignored context. A v1 bundle dropped the
+     * extractor's `ignored_lines`, so re-validating a shipped entry reported every such line as
+     * unclassified: 373 of 554 corpus entries were refused for that reason alone, and `apply()`
+     * refuses the whole bundle when any entry is structurally invalid.
+     */
+    #[Test]
+    public function portable_assertions_carry_the_ignored_lines_the_structural_check_needs(): void
+    {
+        $this->bindPortableExtractorWithIgnoredLine();
+        $corpus = $this->corpus([[
+            'key' => '2026-07-12-am',
+            'date' => '2026-07-12',
+            'body' => "Morning service\nAmazing Grace\nEvery blessing, Jon",
+        ]]);
+        $bundle = storage_path('scratch/tests/oos-ignored-lines-'.uniqid().'.json');
+        $this->temporaryPaths[] = $bundle;
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--export-bundle' => $bundle,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $payload = $this->readReport($bundle);
+        $ignoredLine = $payload['entries'][0]['parse']['ignored_lines'][0];
+        $this->assertSame(2, $payload['version']);
+        $this->assertSame(3, $ignoredLine['line_id']);
+        $this->assertSame('signature', $ignoredLine['reason']);
+
+        InboundEmail::query()->delete();
+        $this->app->bind(OosSemanticParserCandidate::class, fn () => FixedOosSemanticParserCandidate::unreachable('Portable bundle modes must not call the extractor.'));
+
+        $this->artisan('oos:import-archive', [...$corpus, '--import-bundle' => $bundle])->assertExitCode(0);
+
+        // The signature line is accounted for, so the entry is not structurally held and apply
+        // does not refuse the bundle.
+        $stagedEmail = InboundEmail::query()->where('message_id', 'like', '<oos-%')->firstOrFail();
+        $this->assertSame(
+            [],
+            $stagedEmail->processing_metadata['parsing']['validation_reasons'],
+        );
+
+        $this->artisan('oos:import-archive', [...$corpus, '--apply-bundle' => $bundle])->assertExitCode(0);
+        $this->assertDatabaseCount('church_services', 1);
+    }
+
+    /**
+     * A v1 bundle is refused outright rather than read leniently. Its parse payload cannot
+     * distinguish a line the extractor deliberately ignored from one the extraction lost, so
+     * reading it would either refuse every entry or, worse, silently pass the check it cannot run.
+     */
+    #[Test]
+    public function portable_assertions_refuse_a_bundle_written_in_the_pre_ignored_lines_format(): void
+    {
+        $this->bindPortableExtractorWithIgnoredLine();
+        $corpus = $this->corpus([[
+            'key' => '2026-07-12-am',
+            'date' => '2026-07-12',
+            'body' => "Morning service\nAmazing Grace\nEvery blessing, Jon",
+        ]]);
+        $bundle = storage_path('scratch/tests/oos-v1-bundle-'.uniqid().'.json');
+        $this->temporaryPaths[] = $bundle;
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--export-bundle' => $bundle,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $payload = $this->readReport($bundle);
+        $payload['version'] = 1;
+        $payload['bundle_hash'] = CanonicalJson::hash(Arr::except($payload, ['bundle_hash']));
+        file_put_contents($bundle, CanonicalJson::encodeReadable($payload).PHP_EOL);
+
+        InboundEmail::query()->delete();
+
+        $this->artisan('oos:import-archive', [...$corpus, '--import-bundle' => $bundle])
+            ->assertExitCode(1);
+        $this->assertDatabaseCount('inbound_emails', 0);
+        $this->assertDatabaseCount('church_services', 0);
+    }
+
     #[Test]
     public function portable_assertions_accept_semantic_annotation_group_identifiers(): void
     {
@@ -1958,6 +2043,37 @@ class ImportOosArchiveCommandTest extends TestCase
                     'confidence' => 1.0,
                 ]],
                 serviceCount: 1,
+                provenanceComplete: true,
+            );
+        }));
+    }
+
+    /**
+     * Like {@see bindPortableExtractor()}, but the source carries a third line the extraction
+     * deliberately does not read — the shape of every real order of service.
+     */
+    private function bindPortableExtractorWithIgnoredLine(): void
+    {
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::using(function (OosEmailSourceDocument $source): OosEmailItemExtractionResult {
+            $item = [
+                'type' => 'song',
+                'title' => 'Amazing Grace',
+                'source_line_ids' => [2],
+                'continuation' => false,
+            ];
+
+            return new OosEmailItemExtractionResult(
+                items: [$item],
+                confidence: 1.0,
+                services: [[
+                    'service' => 'morning',
+                    'date' => '2026-07-12',
+                    'service_evidence_line_ids' => [1],
+                    'items' => [$item],
+                    'confidence' => 1.0,
+                ]],
+                serviceCount: 1,
+                ignoredLines: [['line_id' => 3, 'reason' => 'signature']],
                 provenanceComplete: true,
             );
         }));

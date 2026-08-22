@@ -91,6 +91,7 @@ class OosArchiveIdentityResolver
             extractionAttempts: $parseResult->extractionAttempts,
             consensus: $parseResult->consensus,
             adjudicated: $parseResult->adjudicated,
+            ignoredLines: $parseResult->ignoredLines,
         );
     }
 
@@ -215,6 +216,7 @@ class OosArchiveIdentityResolver
             extractionAttempts: $parseResult->extractionAttempts,
             consensus: $parseResult->consensus,
             adjudicated: $parseResult->adjudicated,
+            ignoredLines: $parseResult->ignoredLines,
         );
     }
 
@@ -332,6 +334,7 @@ class OosArchiveIdentityResolver
             extractionAttempts: $parseResult->extractionAttempts,
             consensus: $parseResult->consensus,
             adjudicated: $parseResult->adjudicated,
+            ignoredLines: $parseResult->ignoredLines,
         );
     }
 
@@ -377,6 +380,7 @@ class OosArchiveIdentityResolver
             extractionAttempts: $parseResult->extractionAttempts,
             consensus: $parseResult->consensus,
             adjudicated: $parseResult->adjudicated,
+            ignoredLines: $parseResult->ignoredLines,
         );
     }
 

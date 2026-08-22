@@ -6,6 +6,7 @@ namespace App\Data;
 
 use App\Enums\OosEmailParseDisposition;
 use App\Enums\SermonService;
+use App\Services\Email\OosEmailExtractionValidator;
 
 readonly class OosEmailParseResult
 {
@@ -20,11 +21,19 @@ readonly class OosEmailParseResult
      * deliberately not a gate input — an adjudicated plan stays held (HIR-D6, 2026-08-14). Never
      * collapse the two flags.
      *
+     * `ignoredLines` is the extractor's declaration that it *saw* a source line and chose not to
+     * extract from it. It is not decoration: {@see OosEmailExtractionValidator}
+     * requires every source line to be classified as service evidence, an item, or ignored
+     * context, so a parse that loses its ignored lines cannot be re-validated — the check fails
+     * open into "unaccounted line" for every greeting and signature in the document. It is
+     * therefore carried through every rebuild of this object, exactly like `extractionAttempts`.
+     *
      * @param  array<int, array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>  $items
      * @param  array<string, mixed>  $importMetadata
      * @param  list<OosEmailServicePlan>  $servicePlans
      * @param  list<string>  $validationReasons
      * @param  list<array<string, mixed>>  $extractionAttempts
+     * @param  list<array{line_id:int,reason:string}>  $ignoredLines
      */
     public function __construct(
         public ?string $date,
@@ -41,6 +50,7 @@ readonly class OosEmailParseResult
         public array $extractionAttempts = [],
         public bool $consensus = false,
         public bool $adjudicated = false,
+        public array $ignoredLines = [],
     ) {}
 
     /**

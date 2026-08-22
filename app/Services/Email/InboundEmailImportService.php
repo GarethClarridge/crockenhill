@@ -76,6 +76,11 @@ class InboundEmailImportService
             'validation_reasons' => $parseResult->validationReasons,
             'consensus' => $parseResult->consensus,
             'adjudicated' => $parseResult->adjudicated,
+            // Written authoritatively for the same reason as the validation fields: without the
+            // extractor's own line dispositions a stored parse cannot be re-validated, because
+            // OosEmailExtractionValidator has no way to tell a deliberately ignored greeting from
+            // a line the extraction silently lost.
+            'ignored_lines' => $parseResult->ignoredLines,
         ];
 
         return array_replace(
@@ -153,6 +158,7 @@ class InboundEmailImportService
                 'items',
                 'needs_review',
                 'should_import',
+                'ignored_lines',
             ]),
             servicePlans: $servicePlans,
             isLegacyFlattened: $isLegacyFlattened,
@@ -161,6 +167,7 @@ class InboundEmailImportService
             extractionAttempts: $this->storedAttempts(Arr::get($storedParseData, 'extraction_attempts')),
             consensus: (bool) Arr::get($storedParseData, 'consensus', false),
             adjudicated: (bool) Arr::get($storedParseData, 'adjudicated', false),
+            ignoredLines: $this->storedIgnoredLines(Arr::get($storedParseData, 'ignored_lines')),
         );
     }
 
@@ -471,6 +478,33 @@ class InboundEmailImportService
         }
 
         return array_values(array_filter($attempts, is_array(...)));
+    }
+
+    /**
+     * Shape-checked rather than passed through: a malformed entry would otherwise reach
+     * {@see OosEmailExtractionValidator} as an unusable line reference and be reported as a
+     * source defect, which is a lie about where the fault is.
+     *
+     * @return list<array{line_id:int,reason:string}>
+     */
+    private function storedIgnoredLines(mixed $ignoredLines): array
+    {
+        if (! is_array($ignoredLines)) {
+            return [];
+        }
+
+        $stored = [];
+
+        foreach ($ignoredLines as $ignoredLine) {
+            if (! is_array($ignoredLine) || ! is_int($ignoredLine['line_id'] ?? null)
+                || ! is_string($ignoredLine['reason'] ?? null)) {
+                continue;
+            }
+
+            $stored[] = ['line_id' => $ignoredLine['line_id'], 'reason' => $ignoredLine['reason']];
+        }
+
+        return $stored;
     }
 
     /**

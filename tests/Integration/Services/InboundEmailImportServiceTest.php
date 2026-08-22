@@ -213,6 +213,73 @@ class InboundEmailImportServiceTest extends TestCase
         $this->assertTrue($restored->consensus);
     }
 
+    /**
+     * The extractor's line dispositions are evidence, not display data: without them a stored
+     * parse cannot be re-validated, because `OosEmailExtractionValidator` cannot tell a
+     * deliberately ignored signature from a line the extraction lost. Malformed entries are
+     * dropped rather than passed through, so a bad shape is never reported as a source defect.
+     */
+    #[Test]
+    public function test_stores_and_restores_the_extractions_ignored_lines(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create();
+
+        $parseResult = new OosEmailParseResult(
+            date: '2025-03-09',
+            service: SermonService::Morning,
+            items: [
+                ['position' => 1, 'type' => 'songs', 'title' => 'In Christ Alone', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+            ],
+            confidenceScore: 0.92,
+            needsReview: false,
+            shouldImport: true,
+            importMetadata: ['confidence_score' => 0.92],
+            ignoredLines: [['line_id' => 4, 'reason' => 'signature']],
+        );
+
+        $this->service->storeParseResult($inboundEmail, $parseResult);
+
+        // Key order is asserted on the restored DTO rather than the JSON column: the column
+        // round-trips through canonical encoding, and it is the DTO shape the canonical payload
+        // hash is taken over.
+        $stored = $inboundEmail->fresh()->processing_metadata['parsing'];
+        $this->assertSame(4, $stored['ignored_lines'][0]['line_id']);
+        $this->assertSame('signature', $stored['ignored_lines'][0]['reason']);
+
+        $restored = $this->service->storedParseResult($inboundEmail->fresh());
+
+        $this->assertNotNull($restored);
+        $this->assertSame([['line_id' => 4, 'reason' => 'signature']], $restored->ignoredLines);
+        // Represented on the result's own property, so it must not also ride along in the
+        // parser's metadata bag, where a later encode would write it back a second time.
+        $this->assertArrayNotHasKey('ignored_lines', $restored->importMetadata);
+    }
+
+    #[Test]
+    public function test_a_stored_parse_with_malformed_ignored_lines_restores_none(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'parsing' => [
+                    'resolved_date' => '2025-03-09',
+                    'resolved_service' => 'morning',
+                    'items' => [],
+                    'ignored_lines' => [
+                        ['line_id' => 4, 'reason' => 'signature'],
+                        ['line_id' => '5', 'reason' => 'greeting'],
+                        ['reason' => 'greeting'],
+                        'not-an-array',
+                    ],
+                ],
+            ],
+        ]);
+
+        $restored = $this->service->storedParseResult($inboundEmail);
+
+        $this->assertNotNull($restored);
+        $this->assertSame([['line_id' => 4, 'reason' => 'signature']], $restored->ignoredLines);
+    }
+
     #[Test]
     public function test_a_stored_parse_without_a_disposition_is_never_auto_importable(): void
     {
