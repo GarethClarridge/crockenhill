@@ -66,7 +66,7 @@ class OosArchiveEvaluator
             $planRecords[] = $this->planRecord($entry, $plan, $gateReasons, $eligiblePlanKeys, $consensus, $songTitleResolver);
         }
 
-        $corroboratedPlanKeys = array_values(array_unique($eligiblePlanKeys));
+        $uniqueEligiblePlanKeys = array_values(array_unique($eligiblePlanKeys));
         $entryHeld = in_array($disposition, self::HeldDispositions, true);
         /**
          * Null means no import was attempted (a dry run, or an evaluate-only mode), which is not
@@ -128,7 +128,14 @@ class OosArchiveEvaluator
              * report meant to measure whether adjudication is trustworthy.
              */
             'adjudicated' => $parseResult !== null && $parseResult->adjudicated,
-            'corroborated_plan_keys' => $corroboratedPlanKeys,
+            /**
+             * Named for what it is. This is the deduplicated `$eligiblePlanKeys` argument — the
+             * plans the archive gate would import — and says nothing about a second source
+             * agreeing with them. It was called `corroborated_plan_keys` until 2026-08-22, which
+             * invited exactly the reading it cannot support: cross-source corroboration is
+             * measured by the census (§9), never by this field.
+             */
+            'eligible_plan_keys' => $uniqueEligiblePlanKeys,
             'imported_plan_keys' => $importedPlanKeys,
             'held_plan_keys' => $heldPlanKeys,
             'held' => $entryHeld,

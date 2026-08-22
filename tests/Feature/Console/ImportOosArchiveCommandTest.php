@@ -1119,10 +1119,10 @@ class ImportOosArchiveCommandTest extends TestCase
         $entryReport = $this->readReport($report)['entries'][0];
         $this->assertSame('held_for_review', $entryReport['disposition']);
         $this->assertSame(1, $entryReport['attempt_count']);
-        $this->assertSame([], $entryReport['corroborated_plan_keys']);
+        $this->assertSame([], $entryReport['eligible_plan_keys']);
         $this->assertNull($entryReport['imported_plan_keys']);
         $this->assertTrue($entryReport['held']);
-        $this->assertSame(['no_corroborated_plan'], $entryReport['gate_reasons']);
+        $this->assertSame(['no_eligible_plan'], $entryReport['gate_reasons']);
         $this->assertFalse($entryReport['adjudicated']);
         $this->assertSame(InboundEmailStatus::Pending, InboundEmail::query()->firstOrFail()->status);
         $this->assertSame(1, app(ReviewInboxQuery::class)->build()['counts']['emails']);

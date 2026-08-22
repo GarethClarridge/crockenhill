@@ -314,7 +314,7 @@ class OosArchiveEvaluatorTest extends TestCase
         $this->assertSame($plan->contentValidationReasons, $result['plans'][0]['content_validation_reasons']);
         $this->assertSame(2, $result['attempt_count']);
         $this->assertSame(['service', 'item_count'], $result['attempt_disagreement_categories']);
-        $this->assertSame(['morning:2026-07-12'], $result['corroborated_plan_keys']);
+        $this->assertSame(['morning:2026-07-12'], $result['eligible_plan_keys']);
         $this->assertSame([], $result['imported_plan_keys']);
         $this->assertSame(['morning:2026-07-12'], $result['held_plan_keys']);
         $this->assertTrue($result['held']);

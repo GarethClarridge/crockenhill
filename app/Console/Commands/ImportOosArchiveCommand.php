@@ -819,11 +819,17 @@ class ImportOosArchiveCommand extends Command
             $reasons[] = 'source_updated_after_import';
         }
 
-        // No plan the manifest corroborates — no parsed plan matches its resolved date and
-        // service. Importing would write a service the manifest does not approve, and import()
-        // rejects an empty plan list outright.
+        /**
+         * No parsed plan matches the manifest's resolved date and service. Importing would write a
+         * service the manifest does not approve, and import() rejects an empty plan list outright.
+         *
+         * Called `no_corroborated_plan` until 2026-08-22. The word was accurate — the manifest does
+         * corroborate an identity — but the report uses "corroboration" for the cross-source
+         * measure too, and the two were already being read as one. Named for the set it describes
+         * instead, so it reads the same way as `eligible_plan_keys`.
+         */
         if ($eligiblePlanKeys === []) {
-            $reasons[] = 'no_corroborated_plan';
+            $reasons[] = 'no_eligible_plan';
         }
 
         return array_values(array_unique($reasons));
