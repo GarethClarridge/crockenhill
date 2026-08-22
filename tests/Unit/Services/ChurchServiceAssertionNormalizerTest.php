@@ -28,6 +28,29 @@ class ChurchServiceAssertionNormalizerTest extends TestCase
         self::assertSame('grace, amazing', $assertion['metadata']['openlp_search_key']);
     }
 
+    /**
+     * The archive parse cache is keyed on the source file's digest rather than on its body, so
+     * results extracted before the ingest-side encoding repair still arrive double-encoded.
+     * Repairing here means the stored title, the assertion key and the song match key all
+     * describe the song the operator actually wrote down.
+     */
+    #[Test]
+    public function it_repairs_double_encoded_titles_before_anything_derives_from_them(): void
+    {
+        $assertion = app(ChurchServiceAssertionNormalizer::class)->normalize([
+            [
+                'position' => 1,
+                'type' => 'songs',
+                'title' => 'NIP â€˜Behold the Lambâ€™',
+                'source_title' => 'Communion hymn: NIP â€˜Behold the Lambâ€™',
+            ],
+        ], ChurchServiceEvidenceKind::Planned)[0];
+
+        self::assertSame('NIP ‘Behold the Lamb’', $assertion['title']);
+        self::assertSame('Communion hymn: NIP ‘Behold the Lamb’', $assertion['source_title']);
+        self::assertSame('communion hymn: nip ‘behold the lamb’', $assertion['normalized_title']);
+    }
+
     #[Test]
     public function it_retains_an_explicit_catalogue_song_key(): void
     {

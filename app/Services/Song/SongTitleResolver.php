@@ -283,11 +283,18 @@ class SongTitleResolver
     private function buildProbes(string $searchTitle): array
     {
         $probes = [];
-        $add = function (string $probe) use (&$probes): void {
+        $push = function (string $probe) use (&$probes): void {
             $probe = trim($probe);
             if ($probe !== '' && ! in_array($probe, $probes, true)) {
                 $probes[] = $probe;
             }
+        };
+
+        // Every probe is also offered with its shorthand written out, immediately after itself,
+        // so a later cleaning stage cannot be the only one that reaches the expansion.
+        $add = function (string $probe) use ($push): void {
+            $push($probe);
+            $push(self::expandWrittenShorthand($probe));
         };
 
         $raw = trim($searchTitle);
@@ -314,6 +321,24 @@ class SongTitleResolver
         $withoutParenthetical = trim((string) preg_replace('/\s*\([^)]*\)\s*$/u', '', $decorationStripped));
         $add($withoutParenthetical);
 
+        if (self::assertsHymnbookAbsence($raw)) {
+            $marklessLabelled = self::stripHymnbookAbsenceMarker($presentationStripped);
+            $add(self::stripLeadingLabel($marklessLabelled));
+
+            // "Song In Christ Alone (NIP)" writes the role word with no punctuation after it, so
+            // the label rung cannot see it. Removing a bare role word is only safe because the
+            // marker has already narrowed the answer to a song the hymnbook does not number: a
+            // title that genuinely opens with "Song" or "Hymn" has to also be unnumbered and to
+            // match the remainder exactly before this can mislead.
+            $add((string) preg_replace('/^\s*(?:songs?|sing|hymns?|carols?)\s+/iu', '', $marklessLabelled));
+        }
+
+        // Read the quotes off the raw line: stripEmailDecoration() trims a leading or trailing
+        // quote mark, which would leave the run's other half unpaired.
+        foreach (self::quotedRuns($raw) as $quoted) {
+            $add($quoted);
+        }
+
         // A trailing parenthetical is sometimes the song's alternate title ("(comfort and joy)")
         // — probe its content through the deterministic rungs only, skipping performance notes.
         if (preg_match('/\(([^)]+)\)\s*$/u', $decorationStripped, $matches) === 1) {
@@ -323,7 +348,59 @@ class SongTitleResolver
             }
         }
 
+        // A dash-separated tail is routinely an attribution or a scheduling note rather than
+        // part of the title — "Creator God - Ben Slee", "- NIP Creator God - see below". Probe
+        // the head as well, last, so a title that resolves whole always wins first.
+        foreach (preg_split('/\s+[\-\x{2013}\x{2014}]\s+/u', $withoutParenthetical, 2) ?: [] as $segment) {
+            $add($segment);
+        }
+
+        // A parenthesised book number is a hymn reference and cannot be a list position — the
+        // "#" or the book's own name says so ("Song 1 - Come thou fount of every blessing
+        // (#894)"). It is probed last, so a title the line also carries still wins first, and
+        // the marker must open the parenthetical: "(Crockenhill Praise 47)" names a different
+        // book and its number is not a Praise! number.
+        if (preg_match('/\((?:#|praise!?\s*|p)\s*(\d{1,4}[a-z]?)(?![\d,.])/iu', $raw, $bookNumber) === 1) {
+            $add($bookNumber[1]);
+        }
+
         return [$probes, $withoutParenthetical !== '' ? $withoutParenthetical : $raw];
+    }
+
+    /**
+     * The one quoted run inside a line, or none. Scheduling prose wraps the title rather
+     * than replacing it — "final hymn for evening – 313 'let us love and sing and wonder'",
+     * "welcome sheet: ‘see what a morning’" — and the quotes are where the writer said the
+     * title stops. Extracting them reaches the title without having to enumerate the prose.
+     *
+     * A closing quote may not be followed by a letter, so the apostrophe in "lord's my shepherd"
+     * does not end the run early. Straight and curly marks are one class on both sides because
+     * the corpus mixes them within a single reference ("“the only power that cleanses’").
+     *
+     * @return list<string>
+     */
+    private static function quotedRuns(string $title): array
+    {
+        if (preg_match_all('/[\x{2018}\x{201C}"\']\s*(.+?)\s*[\x{2019}\x{201D}"\'](?!\p{L})/u', $title, $matches) === false) {
+            return [];
+        }
+
+        $runs = [];
+
+        foreach ($matches[1] as $run) {
+            $run = trim($run);
+            if (mb_strlen($run) >= 4) {
+                $runs[] = $run;
+            }
+        }
+
+        $runs = array_values(array_unique($runs));
+
+        // Two quoted runs mean the writer offered a choice ("either 'great is thy
+        // faithfulness', 'amazing grace' or 'it is well with my soul'") or wrote two songs on
+        // one line. Resolving the first would pick a winner the source never picked, so an
+        // ambiguous line contributes nothing — the same refusal the lookup maps make.
+        return count($runs) === 1 ? $runs : [];
     }
 
     /**
@@ -347,7 +424,7 @@ class SongTitleResolver
      */
     private function hymnbookAbsentMatch(string $searchTitle, array $probes): ?SongTitleMatch
     {
-        if (preg_match('/^\s*\W*NIP\b/iu', $searchTitle) !== 1) {
+        if (! self::assertsHymnbookAbsence($searchTitle)) {
             return null;
         }
 
@@ -368,6 +445,31 @@ class SongTitleResolver
         }
 
         return null;
+    }
+
+    /**
+     * Whether a line carries the NIP marker at all. Operators write it wherever it reads
+     * naturally — leading ("NIP 'On the cross'"), trailing ("Beneath the cross of Jesus NIP")
+     * and parenthesised ("Song In Christ Alone (NIP)") all occur in the corpus — and the
+     * assertion is the same in every position, so position must not decide whether it counts.
+     * The word boundary keeps it a marker rather than a substring of a title.
+     */
+    private static function assertsHymnbookAbsence(string $title): bool
+    {
+        return preg_match('/(?<!\p{L})NIP(?!\p{L})/iu', $title) === 1;
+    }
+
+    /**
+     * The line with a standalone NIP marker removed wherever it sits, so the title either side
+     * of it becomes a probe. Leading markers are already handled by
+     * {@see self::stripEmailDecoration()}; this reaches the trailing and parenthesised ones.
+     */
+    private static function stripHymnbookAbsenceMarker(string $title): string
+    {
+        $bare = (string) preg_replace('/\(\s*NIP\s*\)/iu', ' ', $title);
+        $bare = (string) preg_replace('/(?<!\p{L})NIP(?!\p{L})/iu', ' ', $bare);
+
+        return trim((string) preg_replace('/\s+/u', ' ', $bare));
     }
 
     /**
@@ -541,6 +643,39 @@ class SongTitleResolver
     }
 
     /**
+     * Writes out the shorthand a catalogue title spells in full. Two forms only, both of which
+     * {@see Song::matchKey()} otherwise collapses to something that cannot match:
+     *
+     * - "&" becomes "and" — the email writes "Meekness & Majesty" for the catalogue's
+     *   "Meekness and Majesty", and matchKey turns the ampersand into a space, not a word.
+     * - A contraction becomes its two words — "there's a hope" for "There is a Hope".
+     *
+     * Only contractions that cannot also be possessives are expanded. "'s" is expanded after
+     * the handful of words where it can only be a verb; expanding it generally would turn
+     * "God's love" into "God is love" and hand a different catalogued song a false match.
+     */
+    private static function expandWrittenShorthand(string $title): string
+    {
+        $expanded = str_replace('&', ' and ', $title);
+
+        $expanded = (string) preg_replace(
+            [
+                '/\bn[\x{2019}\']t\b/iu',
+                '/(\p{L})[\x{2019}\']re\b/iu',
+                '/(\p{L})[\x{2019}\']ve\b/iu',
+                '/(\p{L})[\x{2019}\']ll\b/iu',
+                '/(\p{L})[\x{2019}\']m\b/iu',
+                '/\blet[\x{2019}\']s\b/iu',
+                '/\b(there|here|that|what|it|who|he|she|god)[\x{2019}\']s\b/iu',
+            ],
+            [' not', '$1 are', '$1 have', '$1 will', '$1 am', 'let us', '$1 is'],
+            $expanded,
+        );
+
+        return trim((string) preg_replace('/\s+/u', ' ', $expanded));
+    }
+
+    /**
      * Canonical key of a library entry with its trailing hymn-number suffix removed
      * ("all heaven declares 477" → "all heaven declares").
      */
@@ -561,13 +696,24 @@ class SongTitleResolver
      * in the 2026-08-16 item ground truth.
      *
      * The colon/dash is still required, so a title that merely starts with the word "Song" is
-     * left alone — except where the next character is a quote, a hash or a digit, which cannot
-     * open a title's second word and so identifies the label without risking a real one.
+     * left alone — except where the next character is a quote, a hash, a digit or the NIP
+     * marker, none of which can open a title's second word, so each identifies the label
+     * without risking a real one.
+     *
+     * A single digit after the role word is a **list position, not a hymn number**, and is
+     * consumed with the label: "Song 1 - Oceans" is the service's first song, and leaving the
+     * "1" to reach the Praise!-number rung linked seven such lines to *Happy The People Who
+     * Refuse #1* and five more to *O Lord How Many Enemies #3*. Services number their songs in
+     * single digits while the corpus writes every real Praise! reference with the book's
+     * printed two- or three-digit form ("Song 187 'O God beyond all praising'"), so the digit
+     * count separates the two without having to read the rest of the line. A number the writer
+     * marked as a reference — "(#894)", "Praise no 618" — is read by its own rung and is
+     * unaffected.
      */
     private static function stripLeadingLabel(string $title): string
     {
         $bare = (string) preg_replace(
-            '/^\s*(?:\p{L}+(?:[\'\x{2019}]s)?\s+){0,2}(?:songs?|hymns?|carols?)\s*(?:[:\-\x{2013}\x{2014}]\s*|(?=[#\d"\'\x{2018}\x{201C}]))/iu',
+            '/^\s*(?:\p{L}+(?:[\'\x{2019}]s)?\s+){0,2}(?:songs?|sing|hymns?|carols?)\s*(?:(?<index>\d(?![\d,.+]))\s*)?(?:[:.\-\x{2013}\x{2014}]+\s*|(?(index)\s*|(?=[#\d"\'\x{2018}\x{201C}]|NIP(?!\p{L}))))/iu',
             '',
             $title,
         );
@@ -587,6 +733,12 @@ class SongTitleResolver
         $withoutDuration = (string) preg_replace('/^\s*\[\s*\d+\s*m\s*\]\s*/iu', '', $title);
         $withoutBullet = (string) preg_replace('/^\s*(?:[-*>\x{2022}\x{2013}\x{2014}]+\s+)+/u', '', $withoutDuration);
 
-        return trim($withoutBullet);
+        // A leading "4. " enumerates the item; without removing it the Praise! reference behind
+        // it ("4. Praise no 618 - Facing a task unfinished") never reaches the number rung and a
+        // same-titled unnumbered song wins instead. Two digits and a following space at most, so
+        // this cannot bite into a decimal or a thousands separator.
+        $withoutEnumerator = (string) preg_replace('/^\s*\d{1,2}\.\s+/u', '', $withoutBullet);
+
+        return trim($withoutEnumerator);
     }
 }

@@ -106,7 +106,9 @@ class SongTitleResolverTest extends TestCase
             // resolve by title, never via the praise_number map (26 has praise_number 452).
             'nip number is not read as a praise number' => ["NIP 452 'Speak O Lord'", 8, SongTitleMatch::TYPE_HYMNBOOK_ABSENT],
             'hymn label prefix' => ['Hymn: All heaven declares', 3, SongTitleMatch::TYPE_STRIPPED_NUMBER],
-            'two-word song label' => ["Alternative final song: NIP 'Speak O Lord'", 8, SongTitleMatch::TYPE_STRIPPED_NUMBER],
+            // Same song as before; the marker no longer has to lead the line to count, so this
+            // now names the marker as the reason rather than the number-stripping behind it.
+            'two-word song label' => ["Alternative final song: NIP 'Speak O Lord'", 8, SongTitleMatch::TYPE_HYMNBOOK_ABSENT],
             'bullet before a hymn label' => ['- Hymn: All heaven declares', 3, SongTitleMatch::TYPE_STRIPPED_NUMBER],
             'planning duration before a song label' => ["[3m] Song: 344 'There is a Redeemer'", 10, SongTitleMatch::TYPE_PRAISE_NUMBER],
             'planning duration and bullet before a hymn label' => ['[3m] - Hymn 299', 1, SongTitleMatch::TYPE_PRAISE_NUMBER],

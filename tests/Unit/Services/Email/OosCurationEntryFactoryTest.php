@@ -58,6 +58,32 @@ class OosCurationEntryFactoryTest extends TestCase
     }
 
     /**
+     * 11 orders of service in the corpus were exported UTF-8 and read back as Windows-1252, so
+     * their quotes and dashes reach the extractor as "â€™". The bytes on disk are the approved
+     * payload and stay hashed as such — the manifest's digest is the authority — so the repair
+     * happens on the text handed onward, after verification.
+     */
+    #[Test]
+    public function it_repairs_double_encoded_payload_text_without_touching_the_approved_digest(): void
+    {
+        $path = $this->payload(<<<'MARKDOWN'
+            ---
+            title: "Order of service"
+            date: 2026-02-15
+            source_subject: "Order of service â€“ 15 February"
+            ---
+
+            Communion hymn: NIP â€˜Behold the Lambâ€™
+            MARKDOWN);
+
+        $entry = $this->factory()->entries($this->plan(['sha256' => str_repeat('b', 64)]), ['2026-02-15-am' => $path])[0];
+
+        $this->assertSame('Order of service – 15 February', $entry->subject);
+        $this->assertSame('Communion hymn: NIP ‘Behold the Lamb’', $entry->bodyPlain);
+        $this->assertSame(str_repeat('b', 64), $entry->inputHash);
+    }
+
+    /**
      * The manifest already holds the digest of the bytes the operator approved, so "has the
      * source changed since the last run" is answered by that rather than by a second hash of a
      * normalised derivative of it.

@@ -6,6 +6,7 @@ namespace App\Services\ChurchService;
 
 use App\Enums\ChurchServiceEvidenceKind;
 use App\Models\Song;
+use App\Support\MojibakeRepair;
 use BackedEnum;
 use Illuminate\Support\Str;
 
@@ -30,8 +31,14 @@ class ChurchServiceAssertionNormalizer
 
         foreach (array_values($items) as $index => $item) {
             $position = is_numeric($item['position'] ?? null) ? (int) $item['position'] : $index + 1;
-            $title = trim((string) ($item['title'] ?? ''));
-            $sourceTitle = is_string($item['source_title'] ?? null) ? trim($item['source_title']) : null;
+            // Repair double-encoded text before anything derives from it, so the stored title,
+            // the assertion key and the match key all agree with what the operator wrote. The
+            // banked archive parse cache is keyed on the source file's digest rather than on its
+            // body, so results extracted before the ingest-side repair still arrive damaged.
+            $title = MojibakeRepair::repair(trim((string) ($item['title'] ?? '')));
+            $sourceTitle = is_string($item['source_title'] ?? null)
+                ? MojibakeRepair::repair(trim($item['source_title']))
+                : null;
             $metadata = is_array($item['metadata'] ?? null) ? $item['metadata'] : null;
             if (is_array($metadata)) {
                 unset($metadata['source_assertion_hashes'], $metadata['source_assertion_sources'], $metadata['source_evidence']);

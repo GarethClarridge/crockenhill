@@ -30,7 +30,7 @@ class MailgunInboundWebhookController extends Controller
                 ['message_id' => (string) $request->messageId()],
                 [
                     'from' => (string) $request->input('from'),
-                    'subject' => (string) $request->input('subject'),
+                    'subject' => (string) $request->subject(),
                     'body_plain' => $request->bodyPlain(),
                     'body_html' => $request->bodyHtml(),
                     'received_at' => $request->receivedAt(),

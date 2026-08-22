@@ -9,6 +9,7 @@ use App\Data\OosCurationPlan;
 use App\Data\VerifiedSourceSnapshot;
 use App\Services\ChurchService\SourceAdapters\EmailSourceAdapter;
 use App\Support\MarkdownFrontmatter;
+use App\Support\MojibakeRepair;
 use Carbon\CarbonImmutable;
 use RuntimeException;
 
@@ -71,6 +72,15 @@ class OosCurationEntryFactory
                 $frontmatter = $this->frontmatter->read($payload);
                 $body = trim($this->frontmatter->body($payload));
             }
+
+            /**
+             * 11 orders of service in the corpus were exported UTF-8 and re-read as
+             * Windows-1252, so their quotes and dashes reach the extractor as "â€™". The bytes
+             * on disk are the approved payload and are hashed as such — the manifest's digest is
+             * the authority and must not be rewritten — so the repair happens here, after
+             * verification, on the text handed onward.
+             */
+            $body = MojibakeRepair::repair($body);
 
             if ($body === '') {
                 throw new RuntimeException("Approved OoS entry {$include['item_key']} has an empty body.");
@@ -136,7 +146,7 @@ class OosCurationEntryFactory
     private function subject(string $itemKey, array $frontmatter): string
     {
         foreach (['source_subject', 'title'] as $key) {
-            $value = trim($frontmatter[$key] ?? '');
+            $value = trim(MojibakeRepair::repair($frontmatter[$key] ?? ''));
 
             if ($value !== '') {
                 return $value;

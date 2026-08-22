@@ -834,7 +834,7 @@ floor of 0.98, and `Item counts reconciled 0/1`; the 26 holds still await the ma
 `--accepted-holds` ruling (§10). Song identity was one gate condition among several, and the others
 are unchanged by this work.
 
-**IC3 item 9 — Email song-reference extraction (queued 2026-08-22, unstarted).**
+**IC3 item 9 — Email song-reference extraction (BUILT 2026-08-22; replay pending with item 8).**
 The residue after item 8 is almost entirely Email-side: of 247 unresolved song assertions in the
 catalogued replay, **247 are Email** and OpenLP resolves against the same catalogue nearly
 perfectly. The catalogue is therefore not the limiting factor — reading the Email line is. At least
@@ -873,6 +873,79 @@ not attempt this class without that rule in hand.
 
 Sequencing: land with item 8's pending replay so `PROJECTION_POLICY_VERSION` moves once and the
 catalogued RG-A replay runs once, not twice.
+
+**Built 2026-08-22, and measured against the corpus rather than against its examples.** Every
+change was scored by resolving all 2,569 Email song assertions in `crockenhill_rehearsal_catalogued_v4`
+through the working tree's resolver and diffing against the same run before the change
+(`storage/scratch/ic3-item9-20260822/`), so the evidence is gains, *changes* and *losses* — not
+gains alone. Result: **71 newly resolved, 16 re-pointed at a different song, 3 links removed**;
+2,339 → 2,407 of 2,569 (93.7%). Every one of the 16 changes and all 3 removals were inspected
+individually and each is a correction.
+
+**The plan's named trap was not hypothetical — it was already live.** `stripLeadingLabel()`
+stripped `Song ` from `Song 1 - Oceans` and handed the `1` to the Praise!-number rung, so twelve
+corpus lines were linked to *Happy The People Who Refuse #1* and *O Lord How Many Enemies #3* —
+songs nobody had written down. Those are the 16 changes and 3 removals. The rule now consumes a
+**single digit** after the role word as a list position: services number their songs in single
+digits, while the corpus writes every real reference with the book's printed two- or three-digit
+form (`Song 187 'O God beyond all praising'`), so the digit count separates them without reading
+the rest of the line. `songs 2+3` still resolves to nothing, and a number the writer marked as a
+reference — `(#894)`, `Praise no 618` — is read by its own rung and is unaffected.
+
+**What each class needed.**
+
+1. **Prose wrappers** are read off the *quotes*, not by enumerating the prose: the writer already
+   said where the title stops. One quoted run per line only — `either 'great is thy faithfulness',
+   'amazing grace' or 'it is well with my soul'` offers a choice, and resolving the first would
+   pick a winner the source never picked. The run is taken from the raw line because
+   `stripEmailDecoration()` trims a leading or trailing quote and would leave the other half
+   unpaired. This is the largest single contributor.
+2. **Mojibake** is repaired at ingest, in `App\Support\MojibakeRepair`, not in the matcher. The
+   transform is applied only when it is **reversible** — re-damaging the candidate must reproduce
+   the input exactly — so accented prose and text that was never damaged are returned untouched.
+   It is wired at three boundaries: the Mailgun request (body, HTML and subject), the OoS archive
+   entry factory (after digest verification, since the approved bytes stay hashed as approved),
+   and `ChurchServiceAssertionNormalizer`. The last is required, not belt-and-braces: the archive
+   parse cache is keyed on the source file's **digest**, not its body, so results banked before
+   the ingest fix still arrive damaged — which is also why repairing the body costs the replay no
+   model calls.
+3. **Other hymnals** needed no rung of their own. `MP196 'Good Christian Men Rejoice'` resolves
+   through the quoted run, and `(p315)`/`(#894)` through the parenthesised book-number rung, which
+   requires the marker to *open* the parenthetical so `(Crockenhill Praise 47)` — a different
+   book — is not read as a Praise! number.
+4. **Contractions and `&`** are expanded per probe. Only contractions that cannot also be
+   possessives: expanding `'s` generally would turn `God's love` into `God is love` and hand a
+   different catalogued song a false match.
+5. **Hymn numbers in unhandled line shapes** are reached by three narrow additions: a full stop
+   counts as a label separator (`Hymn. 96`), a leading `4. ` enumerator is stripped (without it
+   `4. Praise no 618 - Facing a task unfinished` resolved to the *unnumbered* Getty rewrite
+   instead of #618, because the enumerator hid the explicit reference), and a dash-separated tail
+   is probed as an attribution (`Creator God - Ben Slee`).
+
+**NIP became position-independent, and that was a second discarded constraint.** Item 8 anchored
+the marker to the start of the line, so `Communion hymn – NIP 'Beneath the cross of Jesus'`,
+`Beneath the cross of Jesus NIP` and `Song In Christ Alone (NIP)` all had their marker ignored and
+kept resolving to the numbered twin. The assertion is the same wherever the operator wrote it.
+A role word standing immediately before the marker is now recognised as a label on that evidence
+(`Hymn NIP Creator God`), and only on NIP lines is a bare role word stripped — the marker has
+already narrowed the answer to an unnumbered song, so a title that genuinely opens with "Song" has
+to be unnumbered *and* match the remainder exactly before this can mislead.
+
+**Nothing was widened fuzzily.** Every addition is an exact or word-boundary rung, and the near
+misses are pinned: `tests/Unit/Services/Song/SongTitleResolverEmailReferenceTest.php` holds the
+list positions, the three-song choice and the lines that name no song, all verbatim from the
+corpus.
+
+**The residue is enumerated, not estimated.** 162 assertions remain unresolved: **83 (51%)** name a
+song the catalogue does not hold, **58 (36%)** name no specific song and must keep resolving to
+nothing (`hymn - gareth to choose`), and **21 (13%)** are still matcher gaps — almost all typos
+(`come o found of every blessing`, `when i fear my fail with fail`) which only a widened fuzzy
+cutoff would reach, plus `NIP 'On the cross'`, which is genuinely ambiguous between two catalogue
+songs and correctly refuses. Item 8's ceiling estimate of 85 reachable was a floor, as it said.
+
+`PROJECTION_POLICY_VERSION` stays at **5** — item 8's replay has not run yet, so both land under
+one version and one replay, exactly as the sequencing note requires. Pint, PHPStan, the full suite
+(7,091 tests) and Dusk (55 tests) are green.
 
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 

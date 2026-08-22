@@ -11,6 +11,24 @@ use Tests\TestCase;
 
 class StoreMailgunInboundEmailRequestTest extends TestCase
 {
+    /**
+     * A mail client that labels a UTF-8 body as Windows-1252 delivers curly quotes as "â€™".
+     * Repairing at the boundary keeps the damage out of the stored email, the extractor and
+     * everything downstream of them.
+     */
+    #[Test]
+    public function it_repairs_double_encoded_text_as_it_arrives(): void
+    {
+        $request = new StoreMailgunInboundEmailRequest;
+        $request->merge([
+            'subject' => 'Order of service â€“ Sunday',
+            'body-plain' => 'Communion hymn: NIP â€˜Behold the Lambâ€™',
+        ]);
+
+        $this->assertSame('Order of service – Sunday', $request->subject());
+        $this->assertSame('Communion hymn: NIP ‘Behold the Lamb’', $request->bodyPlain());
+    }
+
     #[Test]
     public function it_validates_max_lengths(): void
     {

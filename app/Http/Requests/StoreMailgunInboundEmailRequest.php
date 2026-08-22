@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Models\InboundEmail;
+use App\Support\MojibakeRepair;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
@@ -80,6 +81,15 @@ class StoreMailgunInboundEmailRequest extends FormRequest
         }
 
         return null;
+    }
+
+    /**
+     * The subject reaches the order-of-service extractor alongside the body, so it is repaired
+     * on the same terms rather than stored as delivered.
+     */
+    public function subject(): ?string
+    {
+        return $this->normaliseString($this->input('subject'));
     }
 
     public function bodyPlain(): ?string
@@ -172,7 +182,10 @@ class StoreMailgunInboundEmailRequest extends FormRequest
             return null;
         }
 
-        $trimmed = trim($value);
+        // Repair double-encoded text at the point it enters the application. A mail client that
+        // labels a UTF-8 body as Windows-1252 delivers curly quotes as "â€™", and everything
+        // downstream — the extractor, the stored body, the song matcher — reads the damage.
+        $trimmed = trim(MojibakeRepair::repair($value));
 
         return $trimmed === '' ? null : $trimmed;
     }
