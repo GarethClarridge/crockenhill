@@ -108,6 +108,73 @@ class OosEmailExtractionValidatorTest extends TestCase
         $this->assertSame([], $this->validator->validate($source, $extraction)->allReasons());
     }
 
+    /**
+     * F65 follow-up (2026-08-22): EVENING_SERVICE_PATTERN's bare `\bpm\b` cannot match "p.m." —
+     * the period between the letters breaks the word boundary the regex relies on, so a plan whose
+     * only evidence is a dotted time (as several catalogued sources write it) held for a boundary
+     * that was in fact stated.
+     */
+    #[Test]
+    public function a_dotted_pm_time_satisfies_the_evening_boundary(): void
+    {
+        $source = OosEmailSourceDocument::fromBody("6:00 p.m.\nWelcome\nHymn");
+        $extraction = new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.9,
+            services: [$this->plan('evening', [1], [[2], [3]])],
+            serviceCount: 1,
+            ignoredLines: [],
+            provenanceComplete: true,
+        );
+
+        $this->assertSame([], $this->validator->validate($source, $extraction)->allReasons());
+    }
+
+    /**
+     * F65 follow-up (2026-08-22, maintainer ruling): a stand-alone Carols by Candlelight service
+     * is always evening at this church, so "Candlelight" evidence alone satisfies the boundary —
+     * unlike bare "carol", which is not evening-specific (see the next test).
+     */
+    #[Test]
+    public function candlelight_evidence_satisfies_the_evening_boundary(): void
+    {
+        $source = OosEmailSourceDocument::fromBody("Carols by Candlelight\nWelcome\nCarol");
+        $extraction = new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.9,
+            services: [$this->plan('evening', [1], [[2], [3]])],
+            serviceCount: 1,
+            ignoredLines: [],
+            provenanceComplete: true,
+        );
+
+        $this->assertSame([], $this->validator->validate($source, $extraction)->allReasons());
+    }
+
+    /**
+     * "Carol" alone must not satisfy the boundary: it is also used generically for "hymn" ("the
+     * first hymn (or carol)") and as the given name "Carole" elsewhere in the corpus, so treating
+     * it as evening-specific would be a false positive, not a fix.
+     */
+    #[Test]
+    public function bare_carol_does_not_satisfy_the_evening_boundary(): void
+    {
+        $source = OosEmailSourceDocument::fromBody("Carol\nWelcome\nHymn");
+        $extraction = new OosEmailItemExtractionResult(
+            items: [],
+            confidence: 0.9,
+            services: [$this->plan('evening', [1], [[2], [3]])],
+            serviceCount: 1,
+            ignoredLines: [],
+            provenanceComplete: true,
+        );
+
+        $this->assertSame(
+            ['An evening service requires an explicit evening or PM boundary in its evidence lines.'],
+            $this->validator->validate($source, $extraction)->allReasons(),
+        );
+    }
+
     #[Test]
     public function two_items_claiming_the_same_line_is_still_a_content_finding(): void
     {

@@ -158,8 +158,19 @@ class OosSemanticAnnotationValidator
             return;
         }
 
-        if (! in_array($target->role, [OosSemanticRole::Item, OosSemanticRole::Continuation], true)
-            || $target->serviceGroupId !== $annotation->serviceGroupId) {
+        /**
+         * A service boundary line can also be the item itself (`boundary_also_item`) — the single
+         * line naming both "Final hymn for the morning" and the hymn. A continuation wrapping that
+         * hymn's title onto the next line targets the boundary line, not an `item` role, so the
+         * plain role check below would reject a structurally correct annotation. Found 2026-08-22:
+         * the repairer's only recourse was stripping the boundary role to satisfy this check, which
+         * then deleted the service group's one piece of boundary evidence — "fixing" a false
+         * `continuation_target_invalid` by introducing a real `service_boundary_missing`.
+         */
+        $targetIsItemLike = in_array($target->role, [OosSemanticRole::Item, OosSemanticRole::Continuation], true)
+            || ($target->role === OosSemanticRole::ServiceBoundary && $target->boundaryAlsoItem);
+
+        if (! $targetIsItemLike || $target->serviceGroupId !== $annotation->serviceGroupId) {
             $findings[] = $this->finding(
                 'continuation_target_invalid',
                 "Continuation line {$lineId} must extend an item in the same service group.",

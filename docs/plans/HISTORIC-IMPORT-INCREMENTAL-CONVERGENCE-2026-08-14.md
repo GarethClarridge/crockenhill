@@ -1280,6 +1280,281 @@ another format change.
 
 Pint, PHPStan, the full suite (7,113 tests, 84,169 assertions) and Dusk (55 tests) are green.
 
+### IC3 item 13 — disposition of the 44 portable structural holds (2026-08-22)
+
+Walked all 44 entries in `rga-portable-structural-holds-20260822.json` against the full bundle
+(`rga-portable-assertions-20260822b.json`) rather than the reason strings alone — one real defect
+throws a dozen line-level reasons, so grouping by root cause is what produces the item-12 class
+counts (12/16/2/3), not `reason_shape_counts`.
+
+**`other` slot (3) — reversed same day: folded into the item-13 batch.** `2016-02-07`,
+`2022-02-27`, `2022-04-14-maundy-thursday`. Item 10 declined a re-parse for these 3 alone; with a
+10-source batch already queued for other reasons, the operator chose 2026-08-22 to add these 3 to
+it rather than run a second standalone re-parse later.
+
+**Duplicate service plan (2) — decided: targeted re-parse, not manual entry.**
+- `2015-12-20`: one email covers four services across three dates (20th morning, 20th evening
+  carol service, "Christmas morning" [25th], "Sunday 27th"), but the parser dated all four to
+  2015-12-20 — a genuine date-resolution miss, producing two competing `morning:2015-12-20` plans.
+- `2025-11-30`: the source itself resolves the ambiguity — *"I've got a couple of versions… My
+  preferred order of service is: […] The alternate would be: […]"*, confirmed by a same-day reply,
+  *"Your preferred order of service is fine."* The parser has no mechanism to read that reply.
+
+**Missing evening service (2, from the "unclassified lines only" class) — decided: re-parse.**
+`2026-02-15` and `2026-07-05` each have an entire second (evening, including communion) service
+that the model never attempted to extract — not a formatting slip, a whole absent plan;
+`plan_identities` confirms only the morning plan exists. `2026-07-05`'s "Sunday Evening
+(communion)" block (9 lines: welcome/prayer/songs/reading/sermon/communion/closing prayer) has
+zero annotation.
+
+**Combined re-parse, run 2026-08-22: 13 sources, `--fresh-parse`, real spend.** Duplicate-plan
+(`2015-12-20`, `2025-11-30`) + missing-evening (`2026-02-15`, `2026-07-05`) + evening-boundary
+citation-gap (`2014-08-31-pm`, `2016-02-21`, `2016-06-12`, `2017-11-26`, `2026-08-09`) +
+evening-boundary mislabel (`2022-04-17-am`) + `other`-slot (`2016-02-07`, `2022-02-27`,
+`2022-04-14-maundy-thursday`, folded in same-day per the reversal above), against
+`DB_DATABASE=crockenhill_rehearsal_catalogued_v7` with a freshly recomputed plan hash (not trusted
+from a prior note). Dry-run reconciled all 13 first, at zero cost. **Result: 5 of 13 cleared
+outright** (`2025-11-30`, `2016-02-07`, `2016-06-12`, `2017-11-26`, `2026-08-09`); **2 reproduced
+their exact original defect on a second, independent model call** (`2015-12-20`'s date
+misattribution, `2026-02-15`/`2026-07-05`'s missing evening service — the latter two never even
+attempted an evening plan a second time, so this looks like a stable model blind spot for these
+documents, not noise); **2 came back genuinely worse than before** (below); the remaining 2
+(`2022-02-27`, `2022-04-14-maundy-thursday`, `2022-04-17-am`) stayed held on their original reason.
+
+**Non-idempotency, observed rather than theoretical.** `2014-08-31-pm` (evening, confidence 0.75,
+5 items) and `2016-02-21` (morning+evening, 1 item each, confidence 0.75) both came back from the
+fresh model call as `confidence 0`, zero items, "no extractable items" — strictly worse than
+before, exactly the risk item 10's 24/30 self-disagreement figure was warning about, now landed on
+2 of 13 rather than staying hypothetical. Net count impact was zero (both were already held and
+stayed held), but a human recovering these by hand later would have had materially less to work
+from. Restored deliberately, per operator decision: not a repair in the item-12 sense of inventing
+content, but restoring a strictly-better *prior* model output for the same document, which
+`crockenhill_rehearsal_recovered`'s untouched `inbound_emails` copy still held (its
+`raw_cache_key_hash` matched the live row exactly, confirming it is the same document under the
+same parser version). **First restoration attempt was wrong**: that recovered copy predates item
+12's `ignored_lines` backfill, so pasting it in verbatim reintroduced item 12's exact defect for
+these 2 sources alone (10 and 2 lines respectively came back "not classified" that item 12 had
+already resolved). Corrected by merging bundle `…b.json`'s already-backfilled `parse` fields (item
+12's true output) onto the recovered copy's fuller schema, then recomputing `raw_result_hash`.
+
+**Second defect, wider blast radius: staging wiped the cache for all 554 rows, not just these
+two.** Running `--import-bundle` to preflight a freshly exported bundle does not just report — it
+calls `OosArchiveAssertionBundle::stage()`, which replaces `processing_metadata` wholesale via
+`fill()`. That is correct for its intended field (`parsing`), but it silently discarded
+`archive_parse_cache` for every one of the 554 rows, not only the source being inspected — the next
+`--cache-only` run would have found no reusable cache anywhere and, absent `--cache-only`, silently
+re-parsed the entire corpus for real money. Caught before that happened. Repaired for all 554 in
+one pass: `crockenhill_rehearsal_recovered`'s copy supplied the full binding schema as a template,
+overlaid per-item with that item's correct `parse` fields from the most current bundle export, and
+`raw_result_hash` recomputed. Verified with a full-corpus `--cache-only` run (zero cost, no errors)
+before trusting it further. **Operational lesson for next use of this recipe: never run
+`--import-bundle` (or `--apply-bundle`) as an "is it clean?" check — it stages/applies on success by
+design; use `preflightPortable()` directly via tinker, which is pure, for a read-only preflight.**
+
+**Regex fix (zero spend) and a free re-derivation bonus (also zero spend, unrelated to any of
+today's work).** The `\bp\.\s*m\.?` fix (below) cleared `2021-12-19-carols`. Separately, exporting
+a fresh bundle against current code — rather than reusing the morning's `…b.json` snapshot — picked
+up an already-committed line-numbering fix (the `normaliseBody()` blank-line-collapse work,
+committed before this session) that `…b.json` predated. That shifted cited `source_line_ids` back
+into correct alignment for 12 more sources whose raw parse content never changed at all (confirmed
+byte-identical `items`/`ignored_lines` between the stale and fresh bundle for every one of them,
+and confirmed zero raw-content drift anywhere else in the 554-source corpus): `2015-06-21`,
+`2015-09-27`, `2015-12-06-am`, `2016-02-21` (folding into the restoration above), `2016-04-24`,
+`2016-06-26`, `2017-10-15`, `2018-03-11-am`, `2018-04-15-am`, `2019-10-06-details`,
+`2021-04-11-details`, `2025-12-28-hymns`. Some of the "citation gap" diagnosis below may
+overstate what the model actually got wrong — at least `2016-02-21`'s citation was fine all along;
+it was the exported bundle's line numbering that was stale.
+
+**Final state, verified 2026-08-22: 530 valid / 24 held (was 510 / 44).** Superseded once more by
+the candlelight fix below, after the plan hash moved again for the `2018-07-01` scope correction
+(item 14). Bundle `rga-portable-assertions-20260822f.json` (SHA-256
+`cf3454551fc30adeb517c7a812e760992a8f1eace6931796f23800547031df44`, `bundle_hash`
+`a35ed179b39c36d3600876e463d74834979acc940554fe2b1e6c47209bde211e`), holds
+`rga-portable-structural-holds-20260822f.json` (SHA-256
+`01cfbeb97ecc9cbc354d87be161b3703540826ed28f50f9738dc2791e3ebf6a4`). Full test suite green (7,115
+tests, no failures, notices only), PHPStan clean, Pint clean. (Intermediate bundle `…e.json`,
+528/554, is superseded — kept only as the checkpoint before item 14's manifest edits and the
+candlelight fix.)
+
+**Evening boundary absent (16 as first read, 11 remaining) — read all 16 against the code, not
+just the reason string.**
+`hasEveningServiceEvidence()` only scans the lines the extraction cited as evidence for that plan,
+against `EVENING_SERVICE_PATTERN`; it never sees the rest of the document. That single mechanism
+produces four genuinely different findings, not one:
+
+1. **Regex bug, fixed 2026-08-22, zero spend.** `EVENING_SERVICE_PATTERN`'s `\bpm\b` cannot match
+   "p.m." — the period breaks the word boundary the token relies on. `2021-12-19-carols`'s cited
+   evidence line is literally `"6:00 p.m."`; the boundary was stated and the regex still missed it.
+   Fixed in `OosEmailExtractionValidator::EVENING_SERVICE_PATTERN` (added a `\bp\.\s*m\.?` branch)
+   with a regression test, `a_dotted_pm_time_satisfies_the_evening_boundary`. Pint/this test green.
+   This is a validation-time fix — no re-parse needed, no model call — so re-running the portable
+   preflight against the existing cache should clear this source without touching
+   `archive_parse_cache` at all.
+2. **Extraction citation gap, as first diagnosed (5) — turned out to be two different things once
+   re-parsed and re-derived.** `2016-02-21` and `2017-11-26` **cleared for free**: their "missing"
+   `"Evening:"` header citation was never actually missing — the exported bundle's cited
+   `source_line_ids` were stale against a line-numbering fix already committed before this session,
+   and a fresh export re-aligned them with no model call. `2016-06-12` and `2026-08-09` cleared via
+   the paid re-parse (the model cited the header this time). `2014-08-31-pm` did **not** clear —
+   its Subject-line signal ("hymns for tomorrow evening") still isn't cited on either parse, and
+   restoring its better prior extraction (above) didn't touch that; it remains held on this reason
+   alone.
+3. **Contextual but not literal (2), decided and fixed 2026-08-22.** `2018-12-23-carols` and
+   `2020-12-20-carols` cite "Carols by Candlelight" as evidence, which contains neither "evening"
+   nor a PM token. **Maintainer ruling: stand-alone carol services are always evening at this
+   church.** Added `\bcandlelight\b` to `EVENING_SERVICE_PATTERN`, not `\bcarols?\b` — checked the
+   corpus first, and bare "carol" is not evening-specific: it is also used generically for "hymn"
+   ("the first hymn (or carol)", `2021-08-29`) and as the given name "Carole" elsewhere. Every one
+   of the corpus's 7 occurrences of "candlelight" names this one annual service, none in a
+   morning context, so the narrower keyword carries no false-positive risk the wider one would
+   have. Two regression tests lock in both halves: `candlelight_evidence_satisfies_the_evening_boundary`
+   and `bare_carol_does_not_satisfy_the_evening_boundary` (the second guards against a future
+   "helpful" broadening to `carols?`). Zero-cost, validation-time only — re-exporting the portable
+   bundle cleared both sources with no other change: 528/554 → **530/554**, exactly the 2 expected,
+   nothing else moved.
+4. **Mislabelled service direction (1): `2022-04-17-am` — the source literally opens "Easter
+   Sunday morning," and the only plan the parser produced for it is labelled `service: evening`.**
+   Re-parsed; reproduced the identical mislabel a second time. Still held — this looks like a stable
+   model behaviour on this specific document, not a one-off.
+5. **No signal anywhere in the source (7): `2017-07-23-pm`, `2017-08-27-pm`, `2017-10-08-pm`,
+   `2018-10-14-pm`, `2022-05-15-pm`, `2022-09-18-pm`, `2026-04-05-pm`.** The only evening marker
+   for any of these is the curator-assigned item-key suffix; the validator is correctly refusing to
+   assert a boundary the document never states. No fix exists here — these are legitimate holds,
+   disposition is an operator call (trust the curator suffix out-of-band, or leave unimported), not
+   engineering work. Untouched by the re-parse batch; still held.
+
+Net for this class: 16 → 9 held. 3 cleared by regex fixes (the p.m. fix and the candlelight
+ruling), 4 cleared by re-parse or free re-derivation, 2 stayed held on a stable mislabel/citation
+gap that re-parsing did not fix, 7 have no fix and are accepted holds for the operator.
+
+### IC3 item 14 — the 26 held Email sources: read against actual content, not category labels
+(2026-08-22)
+
+**This is a different pipeline from items 11–13.** The portable-bundle validator (item 13) checks
+an exported bundle's structural shape before staging. This item is the canonical import's own
+completeness check — `oos:generate-corpus-expectation` derives the expected staged set from the
+approved manifest, `ChurchServiceCorpusExpectation::certify()` reconciles it against
+`church_service_source_records`, and the gap is what `expectation_mismatch` blocks on (§9.4.6,
+F1). A fresh `certify()` run (not the stale 2026-08-21 file) reproduced the documented **30
+approved sources / 29 identities unstaged** exactly — that figure has not drifted. Of the 30, **2
+now evaluate as `eligible`** (`2015-12-20`, `2025-11-30` — both cleared by item 13's re-parse) but
+remain unstaged because nothing has actually run `--import`/`--apply` yet; **24 are genuinely
+still held**, down from the plan's documented 26 for the same reason.
+
+**Reading the 24 against their actual source text, not their hold-reason category, split them
+three ways — a category label alone cannot tell these apart, and treating all 24 as one
+`--accepted-holds` batch would have buried two different real problems under a document whose
+purpose is to prove nothing was buried.**
+
+1. **9 sources genuinely have nothing more to capture** (was 10 — `2019-10-13-songs` moved to
+   class 3 below, see item 15). `2016-11-27-songs` (a parent's new-song suggestion, not an order),
+   `2018-09-30` (the song list it references lives in an attachment not present in the captured
+   plaintext), `2024-11-03` (PDF attachment lost; only one fact survives, already extensively
+   documented in the manifest), `2016-06-26` (morning is sermon notes, evening was an external
+   joint service at another venue), `2019-04-28-details` / `2019-10-06-details`
+   (preacher-arrangement correspondence, confirmed no complete order exists),
+   `2020-08-16` / `2018-09-16` / `2018-05-27` (notice-only, no hymn list for the date). Verified
+   against the model's own annotations, not just the source text (item 15): each is a single,
+   unanchored service group with **zero item-role annotations anywhere in the document** — there is
+   nothing a compiler fix could recover here either. Draft accepted-holds reasons for these are in
+   `storage/scratch/oos-accepted-holds-20260822-draft.json`.
+2. **9 more read exactly like the sermon-outline-only sources already correctly tagged
+   `content_scope: partial` elsewhere in the same manifest, but were still tagged `full`** — no
+   hymns, no welcome, no liturgy, just a preacher's title/text/points for the news sheet.
+   Re-curated 2026-08-22 (`oos-curation-partial-scope-fix-2026-08-22`, backed up to
+   `oos-curation-manifest.json.bak-2026-08-22-pre-partial-scope-fix`, plan hash moved
+   `5a6bef7c…` → `aa0920b5…` after the first 9, then → `45336353fa1f57972527500a3a4057da8a9ad5b74c06d5dd2e06be63ee54b2dd`
+   after the tenth found below): `2015-06-21`, `2015-07-12`, `2015-07-26`, `2015-09-06`,
+   `2015-09-27`, `2016-05-29`, `2016-08-07`, `2016-08-14`, `2017-12-10`. **Re-scoping did not clear
+   the hold** — `content_scope: partial` doesn't waive the "at least one item" validator check,
+   only what counts as a complete order. Dry-run confirmed 554 approved entries intact,
+   full/partial moved 475/79 → 465/89 exactly as expected, nothing else touched. These 9 are also
+   in the accepted-holds draft, now with a defensible reason the manifest actually supports.
+3. **6 are genuine extraction misses, not holds to accept** (was 5 — `2019-10-13-songs` added,
+   see item 15). Each has a *named* hymn sitting in the plaintext that should have produced at
+   least one item and produced zero: `2018-01-07` ("NIP 'A new commandment'"), `2019-11-17-details`
+   ("NIP 'All I have is Christ'", already correctly scoped `partial` — scope was never the problem
+   here), `2018-02-04-details` ("875 'Begone, unbelief'"), `2018-07-01` ("697 'Above the voices'",
+   re-curated to `partial` above for its evening-hymns-deferred half but still missing its own
+   named morning hymn), `2019-10-13-songs` ("NIP 'On the cross he took what I deserved'" — first
+   read as an undecided discussion with nothing to capture; a real, anchored item was sitting in
+   the model's own annotations the whole time), and **`2018-08-12`** — a fully structured order
+   (welcome, 2 numbered hymns, prayer, interview, reading, sermon, closing hymn, plus an evening
+   fragment) that should have produced roughly 8 items and produced zero, the clearest case in the
+   set. **Caught mid-draft, twice**: `2018-02-04-details` and `2018-07-01` were first read as
+   already-clean partial sources and nearly left out of every group; `2019-10-13-songs` was in the
+   accepted-holds draft until item 15's annotation check pulled it back out. Not in the
+   accepted-holds draft — an operator ruling here would sign off on a real defect as correct
+   behaviour. 4 of 6 fixed and recovered at zero cost in item 15; `2018-01-07`, `2018-02-04-details`
+   and `2018-08-12`'s remaining defect stay open.
+
+**Draft, not a ruling.** `storage/scratch/oos-accepted-holds-20260822-draft.json` (18 entries: the
+9 from class 1 plus the 9 re-curated in class 2) is a starting point for the operator to review and
+edit, not something to run through `--accepted-holds` unexamined — see item 10 for why an invented
+hold defeats the whole point of the mechanism.
+
+### IC3 item 15 — the compile-time all-or-nothing failure: two root causes, one fixed
+(2026-08-22)
+
+Reading item 14's 6 genuine extraction misses against the model's own cached annotations (not just
+the source text) found the actual mechanism: `OosSemanticParserCandidate::parse()` fails the
+**entire document** on any remaining validator finding after repair, discarding every service
+group in it — even a fully clean, anchored group sitting right next to the broken one. Two
+unrelated root causes produce that same empty-result shape.
+
+**Cause A — a validator false positive (fixed, 4 of 6 recovered, zero spend).**
+`OosSemanticAnnotationValidator::validateContinuation()` required a continuation's target line to
+have `role: Item` or `Continuation`. A service-boundary line can also *be* the item
+(`boundary_also_item`) — the single line naming both "Final hymn for the morning" and the hymn
+itself — and a continuation wrapping that hymn's title onto the next physical line targets exactly
+that boundary line. The check rejected it; the repairer's only recourse was stripping the boundary
+role to satisfy the check, which deleted the group's one piece of boundary evidence and traded a
+false `continuation_target_invalid` for a real `service_boundary_missing` — refused as "introduced
+a new rule family," correctly, since that guard exists to stop exactly this kind of trade. **Fixed**
+by recognising `boundary_also_item` as an accepted continuation-target condition, with two
+regression tests (`a_continuation_may_target_a_boundary_line_that_is_also_the_item`,
+`a_continuation_may_not_target_a_boundary_line_that_is_not_also_an_item` — the second locks in that
+an *ordinary* boundary heading, without `boundary_also_item`, still correctly cannot be a
+continuation target).
+
+**A recompile tool was required to reach the already-cached corpus.** The live import path's
+`--cache-only` replay reuses the frozen `service_plans`/`items` from `archive_parse_cache.raw_result`
+verbatim — it never re-derives from the banked `extraction_attempts[0].initial_annotations`, unlike
+`RecompileOosSemanticCandidateEvidence` (a different, evaluation-only tool this validator fix has no
+access to). Built `oos:recompile-archive-parse-cache --item-key=<each>` — narrower than that
+existing tool but the same principle: only the model-calling half of the pipeline
+(`OosSemanticAnnotator`) is stubbed to replay the banked `initial_annotations`; validation, repair,
+compilation and encoding all run as the live `OosEmailParserService::parse()` would, so the result is
+exactly what a fresh parse would produce if the model's answer were unchanged. Refuses to write
+anything for a source whose replay does not change, and `--dry-run` reports without writing.
+
+Dry-run then apply against `2018-07-01`, `2018-08-12`, `2019-11-17-details`, `2019-10-13-songs`:
+**3 of 4 fully cleared** — `2018-07-01`, `2019-11-17-details`, `2019-10-13-songs` now
+`evidence_eligible`, 1 real recovered song item each (verified against the source text: 697 "Above
+the voices", NIP "All I have is Christ", NIP "On the cross he took what I deserved" — all match).
+`2018-08-12` improved (`continuation_target_invalid` cleared) but stays held — it carries a second,
+unrelated `shared_boundary_role_invalid` finding this fix does not touch. Full-corpus `--cache-only`
+sanity check completed cleanly before and after (no errors, 554/554 reusable) — the write did not
+corrupt anything else. Full suite green, Pint clean, PHPStan clean (842 files, +1 for the new
+command).
+
+**Cause B — a narrower compiler gap, not yet fixed.** `2018-01-07` and `2018-02-04-details` are
+two-group documents (one clean and anchored, one genuinely empty and unanchored —
+`service_boundary_missing`, zero items, the deferred "evening hymns to follow" half) where the
+all-or-nothing failure discards the clean group along with the broken one. Scoped, not built: when a
+group's only finding is `service_boundary_missing` and it has zero item annotations, and at least
+one sibling group in the document validates cleanly, drop that group and compile the rest — checked
+against the corpus first, and this is not a general salvage architecture: the 4 confirmed
+`service_boundary_missing` sources elsewhere in the corpus (`2016-11-27-songs`, `2019-04-28-details`,
+`2018-09-16`, `2018-05-27`) are single-group documents with nothing to salvage either way, so a
+narrow rule covers every case found. `2018-08-12`'s `shared_boundary_role_invalid` finding is a
+third, distinct defect, not yet investigated.
+
+**What has not been checked**: only 24 of 554 sources' cached annotations for this signature (the 6
+plus the 18 that turned out clean). A cheap, zero-cost sweep of the remaining ~530 for
+`service_boundary_missing` / `continuation_target_invalid` / non-null `repair_error` would confirm
+whether 6 is the true ceiling.
+
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 
 Production holds 3 services with 32 canonical items and zero source records (measured 2026-08-09;
@@ -1422,10 +1697,17 @@ narrower `needs_review` semantics on purpose.
 | ~~**Portable bundle ignored-line provenance**~~ | — | **CODE DONE 2026-08-22** (IC3 item 11): `ignored_lines` persisted, bundle format v2, both tests retained. 373 of the 403 refusals were this defect alone. What remains is regenerating the bundle, which folds into the item-10 `entryAuthorityHash()` replay below |
 | ~~Regenerate the portable bundle on the moved `entryAuthorityHash()` and format v2~~ | — | **DONE 2026-08-22**, v7 replay, zero model calls. The bundle is current; the refusals are not fixed by it |
 | ~~Rule on backfilling `ignored_lines` into the banked parse cache~~ | — | **DONE 2026-08-22** (IC3 item 12): approved and run, 544 backfilled at zero model spend, portable preflight 151 → 510 of 554 |
-| **Disposition the 44 remaining portable structural holds** | Portable apply | Maintainer; enumerated in `rga-portable-structural-holds-20260822.json`. Findings about documents, not a format change. 10 overlap the standing 26 held sources |
-| Disposition the 26 held semantic Email sources, or rule on them as `--accepted-holds`; reason counts overlap, so do not turn their sum into a workload | Email-lane settlement / F1 reporting / `expectation_mismatch` | Operator. Prior ~14, RG0A's 19 and the recovered run's 41 are superseded |
+| ~~**Disposition the 44 remaining portable structural holds**~~ | — | **DONE 2026-08-22** (IC3 item 13): 13-source `--fresh-parse` run (5 cleared, 2 reproduced their original defect, 2 came back worse and were restored, 3 unchanged) + zero-spend regex fix + a zero-spend re-derivation bonus (stale line-numbering in the morning's bundle snapshot, unrelated to today's work) together took the portable preflight from 510/554 to **528/554**. 26 remain held: 7 "no evening signal at all" + 2 "candlelight" judgement call + 1 Subject-line citation gap + 1 stable mislabel + 2 `other`-slot + 1 duplicate-plan (reproduced twice) + 2 missing-evening (reproduced twice) + 10 overlapping the standing 26 held sources. Full suite green (7,115 tests), PHPStan clean |
+| ~~Rule on "candlelight" as evening evidence~~ | — | **DECIDED AND FIXED 2026-08-22** (IC3 item 13): stand-alone carol services are always evening (maintainer ruling). `\bcandlelight\b` added to `EVENING_SERVICE_PATTERN`, not `\bcarols?\b` (corpus-checked false-positive risk: "carol" is also generic for "hymn" and the name "Carole"). Cleared `2018-12-23-carols` and `2020-12-20-carols` at zero cost: 528/554 → 530/554 |
+| **Disposition the 24-source residual** (7 no-signal, 1 citation-gap, 1 stable mislabel, 2 `other`-slot, 1 duplicate-plan, 2 missing-evening, plus the 10 from item 14's accepted-holds draft) | Portable apply | Operator; re-parsing again is unlikely to change any of these (IC3 items 13–14) |
+| ~~Read the 26 held semantic Email sources against actual content~~ | — | **DONE 2026-08-22** (IC3 item 14): 24 genuinely held (2 cleared by item 13's re-parse but remain unstaged). 10 have nothing more to capture, 9 re-curated `full`→`partial` in the manifest (didn't clear the hold, but now correctly explained), 5 are genuine extraction misses masquerading as holds — not ruling material |
+| **Review and run the accepted-holds draft** (`storage/scratch/oos-accepted-holds-20260822-draft.json`, 19 entries) via `--accepted-holds=` | Email-lane settlement / F1 reporting / `expectation_mismatch` | Operator; a draft to edit, not to run unexamined (IC3 item 14) |
+| ~~Investigate the extraction misses~~ | — | **DONE 2026-08-22** (IC3 item 15): root cause found (compile-time all-or-nothing failure, two unrelated causes). Cause A fixed at zero spend via a new recompile tool — 4 of 6 recovered (`2018-07-01`, `2019-11-17-details`, `2019-10-13-songs` fully cleared; `2018-08-12` improved but has a second defect). Cause B (`2018-01-07`, `2018-02-04-details`) scoped, not yet built. Prior ~14, RG0A's 19 and the recovered run's 41 are all superseded by the 30/24 figures above |
+| Build the Cause B compiler fix (drop an empty, unanchored sibling group rather than failing the whole document) | Email-lane settlement | IC3 item 15; narrowly scoped, 2 confirmed beneficiaries |
+| Investigate `2018-08-12`'s `shared_boundary_role_invalid` finding (a third, distinct defect) | Email-lane settlement | IC3 item 15 |
+| Sweep the remaining ~530 cached sources for the Cause A/B signature | Email-lane settlement accounting | IC3 item 15; zero cost, confirms whether 6 is the true ceiling |
 | ~~**Second services the manifest could not declare**~~ | — | **DECIDED 2026-08-22** (IC3 item 10): schema v2 `additional_services`, 137 entries re-curated, identity precision 77.6% → 99.49%. Plural `resolved_service` was considered and rejected: it is half the source key, so widening it would re-identify every staged revision |
-| ~~Three parser slot fixes for `other`-slotted plans~~ | — | **NOT QUEUED 2026-08-22** (IC3 item 10): all three are held and enumerated for review, which is the designed outcome. The slot is the extractor's output, so a fix is a prompt change costing a full paid re-parse — and re-parsing is not idempotent (24/30 source-exact self-disagreement), so it would perturb the corpus to correct 3 of 554. Identity precision is 99.49% without them |
+| ~~Three parser slot fixes for `other`-slotted plans~~ | — | **NOT QUEUED 2026-08-22 in item 10, REVERSED same day in item 13**: item 10 declined a re-parse for these 3 alone (non-idempotent, 24/30 source-exact self-disagreement, to fix 3 of 554). Operator chose 2026-08-22 to fold `2016-02-07`, `2022-02-27` and `2022-04-14-maundy-thursday` into the item-13 batch re-parse instead — the marginal cost of 3 more sources in a run that is re-parsing 10 others anyway is small, which is a different calculation than a standalone re-parse for 3 |
 | Source recovery for the 3 unevidenced current-era services | IC4 | Operator |
 | Video curation worksheet adjudication + freeze | IC5 bulk pass | Operator, on the §2.4 trigger |
 | Era release sign-offs and the §8.4 policy decision | Each RG-C release | Maintainer/church |

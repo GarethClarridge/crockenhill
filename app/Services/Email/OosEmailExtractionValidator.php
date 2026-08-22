@@ -12,7 +12,14 @@ use App\Enums\OosEmailStructuralFindingRule;
 
 class OosEmailExtractionValidator
 {
-    private const EVENING_SERVICE_PATTERN = '/(?:\bafternoon\b|\bevening\b|\btonight\b|\bpm\b|\b(?:1[6-9]|2[0-3])[:.]\d{2}\b|\b(?:5|6|7|8|9)\s*(?:[.:]\d{2}\s*)?pm\b)/iu';
+    /**
+     * `\bcandlelight\b`, not `\bcarols?\b`: a stand-alone Carols by Candlelight service is always
+     * evening at this church (maintainer ruling, 2026-08-22), but "carol" alone is not
+     * evening-specific — it is also used generically for "hymn" (e.g. "the first hymn (or carol)")
+     * and as the given name "Carole" elsewhere in the corpus. "Candlelight" has no such collision:
+     * every occurrence in the corpus names this one annual service.
+     */
+    private const EVENING_SERVICE_PATTERN = '/(?:\bafternoon\b|\bevening\b|\btonight\b|\bpm\b|\bp\.\s*m\.?|\bcandlelight\b|\b(?:1[6-9]|2[0-3])[:.]\d{2}\b|\b(?:5|6|7|8|9)\s*(?:[.:]\d{2}\s*)?pm\b)/iu';
 
     private const SERVICE_ITEM_PATTERN = '/^\s*(?:(?:welcome|opening\s+prayer|closing\s+prayer|prayers?|notices|sermon|message|bible\s+reading|reading|communion|children(?:\x{2019}|\x{27})?s\s+talk|family\s+talk|call\s+to\s+worship)\b|(?:hymn|song)\s*:|(?:nip|ch|mp|sofp)?\s*\d{1,4}\b)/iu';
 
