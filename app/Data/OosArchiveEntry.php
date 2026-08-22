@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Data;
 
+use App\Services\Email\FreezeOosSemanticEvaluationCorpus;
+use App\Services\Email\OosArchiveAssertionBundle;
+use App\Services\Email\OosArchiveIdentityResolver;
 use App\Services\Email\OosCurationManifest;
 use Carbon\CarbonImmutable;
 
@@ -46,9 +49,19 @@ readonly class OosArchiveEntry
      * @param  string  $contentScope  `full` or `partial`, straight from the manifest. A partial
      *                                asserts only part of an order — §8.4 forbids reading its
      *                                silence as disagreement — so it never imports unattended.
-     * @param  list<string>  $servicesPresent  the manifest's single `resolved_service`, kept as a
-     *                                         list because the parser may propose several plans and
-     *                                         only those the manifest corroborates may import.
+     * @param  list<string>  $servicesPresent  every service slot this *document* carries:
+     *                                         `resolved_service` first, then the manifest's
+     *                                         `additional_services`. The parser may propose several
+     *                                         plans and only those this list corroborates may
+     *                                         import. **Element 0 is identity-bearing and the order
+     *                                         is a contract**, not an implementation detail:
+     *                                         {@see OosArchiveAssertionBundle} builds `plan_key`
+     *                                         from it, {@see OosArchiveIdentityResolver} falls back
+     *                                         to it when a plan names no service, and
+     *                                         {@see FreezeOosSemanticEvaluationCorpus} keys the
+     *                                         frozen corpus on it. Only `resolved_service` is half
+     *                                         the source key, so only element 0 may fill those
+     *                                         roles — never `additional_services`.
      * @param  array<string, int>  $itemLineCounts  service => human-asserted item count. Empty
      *                                              unless someone read the source and said so;
      *                                              §7.5 keeps heuristic counts out of it.
