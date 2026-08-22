@@ -1013,6 +1013,98 @@ Song identity was one gate condition among several and this work moved only that
 date/identity resolver and the maintainer's `--accepted-holds` ruling on the 26 holds (§10), not
 song matching. Items 8 and 9 are closed; RG-A is not.
 
+### IC3 item 10 — `services_present` was a scalar (2026-08-22)
+
+**The RG-A identity blocker was never extraction, and never the date resolver.** Date accuracy in
+the v6 run is 553/554 (99.8%). All 132 `auto_import_precision` failures carry the correct date and
+non-empty items and fail on the *service slot* alone; all 132 sit inside one of the 138 entries the
+pipeline already flags `service_beyond_manifest`. Four were checked against verbatim source and are
+correct extractions of a real second service — `2015-06-14` literally reads
+`Evening Family/Youth Service:`, `2015-08-09` carries an `Evening Service:` section at line 66.
+
+**Root cause.** `OosCurationEntryFactory` built `servicesPresent: [$include['resolved_service']]`
+from a **scalar** manifest field. 138 of 554 entries (25%) are one Sunday email carrying both that
+morning's and that evening's orders, so a correctly-extracted second service scored as an identity
+error against the FR-D4 floor. `services_present` reads as a list at every consuming site —
+`ChurchServiceCorpusExpectation` validates against it, `autoImportPrecision()` scores against it —
+and the only thing that ever wrote it could write one element. This is F66's "validator without a
+producer" in its purest form: a single-element list is indistinguishable from a correct one at
+every reading site, so the defect was visible only where the value is produced.
+
+**Why the fix is additive rather than plural.** `resolved_service` is identity-bearing: it is half
+the source key (`OosCurationEntryFactory::sourceKey()`), it keys the one-active-leaf-per-service
+guard (§7.2 lineage), and `OosApprovedCorpus` derives F1 expected membership from it. Widening it
+would re-identify every staged revision in the corpus to fix a measurement. Schema **v2** therefore
+keeps `resolved_service` untouched and adds `additional_services` (plus `additional_service_labels`
+and `curation_note`), which feed `servicesPresent` only. `OosApprovedCorpus` is deliberately not
+changed: the hash-covered `service_beyond_manifest` rule still admits the extra identities, so
+expected membership is unmoved. The version bump is the load-bearing half — the field is additive
+and its absence unambiguous, but a v1 reader handed a v2 manifest would silently drop a declared
+second service, which is exactly the failure the field exists to end.
+
+**Adjudication, produced not asserted.** Artifacts in `storage/scratch/`, and the producer →
+rulings chain re-runs to a byte-identical artifact:
+
+| Artifact | SHA-256 |
+|---|---|
+| `services-present-adjudication-20260822.json` | `1c3546e59190730c4aab5eae9b7eb1446633508e043689492d1482fa937e0468` |
+| `services-present-adjudication-producer-20260822.py` (rule `oos-services-present-producer-v4`) | `0aa5dc0cb7826c4ba209c596c51f9a7b8c121371515fced5c4751117e1ccfc18` |
+| `services-present-rulings-20260822.py` (the maintainer's 2026-08-22 rulings) | `13098acd24994c6b94b6f9610fe6ef73a6388be68272a8ea3ef902223b35cab3` |
+
+**The rule is positional, not lexical:** a line counts as a service heading only when it *starts* with the service
+name, which is what separates `Evening Service – communion – 6pm` (a section) from
+`Final hymn for evening service – 641 '…'` (an item belonging to a service that is not in this
+document). Calibrated by negative control — the same rule against the service the manifest already
+declares finds it in **129/138 (93.5%)**, so the rule under-detects and routes to a human, which is
+the only direction it can err.
+
+| Decision | Count |
+|---|---|
+| `confirmed_present` (standalone heading in the body) | 118 |
+| `confirmed_present_afternoon_slot` | 8 |
+| `confirmed_second_service_slot_unresolved` | 3 |
+| `human_adjudication` | 11 |
+
+**Maintainer rulings, 2026-08-22.** The 118 accepted as a batch. Four afternoon/evening headings
+(`2015-11-08`, `2016-03-13`, `2016-06-12`, `2017-06-11`) are genuine evening services. The five
+2022 building-work Sundays (`2022-02-27`, `2022-03-06/13/20/27`) met at 10am in the rear hall and
+2pm in the village hall; the 2pm carried the children's talk and main sermon and was functioning as
+the main service, but is stored as **evening** because `SermonService` and the `{service}:{date}`
+plan key cannot hold two morning services on one date — recorded verbatim in `curation_note` on all
+five. Fragments are **preserved**: a stray hymn belonging to a service whose order is elsewhere
+keeps its evidence rather than being discarded. `2023-12-24`'s second full order is the Christmas
+*morning* service — a different date, not a slot — declared `other` with the required label.
+
+**Measured.** `Auto-import precision (identity)` 456/588 = 77.6% → **585/588 = 99.49%** on the
+manifest change alone, and **585/585 = 100%** once the three parser fixes below land. Curation plan
+hash `2c139a880b78…` → **`5a6bef7cf376…`**; the pinned rehearsal-recipe hash is stale by
+design and must be updated before the next replay so the mismatch is not read as a fault. The
+extraction cache is untouched — curation is not in `rawCacheKey()` — so the replay stays **zero
+model calls**. `entryAuthorityHash()` includes `services_present`, so the portable bundle needs
+regenerating; that is already the open §10 bundle item and the two should land together.
+
+Pint, PHPStan, the full suite (7,102 tests, 84,128 assertions) and Dusk (55 tests) are green.
+
+**Outstanding, and why each is not this item's work.**
+
+1. **Three parser slot fixes.** The manifest now declares what these documents hold, but the plans
+   do not match yet. `2015-12-20` (3 stray songs) and `2016-02-07` (4 stray songs) are plans the
+   parser invented from lines belonging to a service whose order is elsewhere; they must merge into
+   their parent. `2022-02-27` is a complete 12-item order the parser slotted `other`, which the
+   validator then refuses outright — *"An other service requires explicit special-service evidence"* —
+   so the second service is currently dropped, not merely mislabelled. Its four structurally
+   identical siblings are slotted `evening`; the work is in how a timed second service is slotted,
+   not a one-line defect.
+2. **`Item counts reconciled` 0 / 1** — one entry, `2026-02-22-am-revised`, asserted 13 items and
+   parsed 14. It needs adjudicating, but a one-plan denominator should probably not gate RG-A at all.
+3. **The 26 held semantic Email sources** still need the `--accepted-holds` ruling (§10). Unchanged
+   by this item.
+
+**A naming defect found on the way.** `corroborated_plan_keys` in the run report is
+`array_unique($eligiblePlanKeys)` (`OosArchiveEvaluator.php:69`) — eligibility, not corroboration.
+Any figure quoted from that field as independent corroboration needs re-reading; the genuine
+cross-source corroboration measure is the census, not this.
+
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 
 Production holds 3 services with 32 canonical items and zero source records (measured 2026-08-09;
@@ -1154,6 +1246,8 @@ narrower `needs_review` semantics on purpose.
 | ~~**Song identity for HIR-D8 corroboration**~~ | — | **DECIDED 2026-08-21: resolve in `ChurchServiceAssertionNormalizer`** (§2.5), invariant 4 amended (§3.2), implementation queued as IC3 item 8. Comparison-time resolution was considered and rejected: it would have auto-applied 264 services' duplicated song items unattended |
 | **Portable bundle ignored-line provenance**: persist `ignored_lines`, bump the bundle format, regenerate the bundle and its hashes | Portable apply — `preflightPortable()` refuses 403 of 554 entries | Maintainer; enumerated in `rga-catalogued-portable-structural-holds-20260821.json` (§6 IC1). The recovered "24 refusals" figure is withdrawn |
 | Disposition the 26 held semantic Email sources, or rule on them as `--accepted-holds`; reason counts overlap, so do not turn their sum into a workload | Email-lane settlement / F1 reporting / `expectation_mismatch` | Operator. Prior ~14, RG0A's 19 and the recovered run's 41 are superseded |
+| ~~**Second services the manifest could not declare**~~ | — | **DECIDED 2026-08-22** (IC3 item 10): schema v2 `additional_services`, 137 entries re-curated, identity precision 77.6% → 99.49%. Plural `resolved_service` was considered and rejected: it is half the source key, so widening it would re-identify every staged revision |
+| **Three parser slot fixes**: merge `2015-12-20` / `2016-02-07` stray songs into their parent service; re-slot `2022-02-27`'s 12-item order from `other` to `evening` | The last 3 identity failures (585/588 → 585/585); `2022-02-27`'s second service is currently dropped by the `other` validator, not merely mislabelled | Queued, IC3 item 10 |
 | Source recovery for the 3 unevidenced current-era services | IC4 | Operator |
 | Video curation worksheet adjudication + freeze | IC5 bulk pass | Operator, on the §2.4 trigger |
 | Era release sign-offs and the §8.4 policy decision | Each RG-C release | Maintainer/church |

@@ -47,6 +47,9 @@ class OosCurationEntryFactoryTest extends TestCase
         $entry = $this->factory()->entries($this->plan([
             'resolved_date' => '2026-02-15',
             'resolved_service' => 'morning',
+            'additional_services' => [],
+            'additional_service_labels' => [],
+            'curation_note' => null,
         ]), ['2026-03-15-2' => $path])[0];
 
         $this->assertSame('2026-02-15', $entry->groundTruthDate);
@@ -97,6 +100,49 @@ class OosCurationEntryFactoryTest extends TestCase
         )[0];
 
         $this->assertSame(str_repeat('b', 64), $entry->inputHash);
+    }
+
+    /**
+     * A quarter of the corpus is one Sunday email carrying both that morning's and that
+     * evening's orders. The entry is still *named* by one service — `resolved_service` is
+     * half the source key — so a declared second service must widen what the document is
+     * asserted to contain without moving the identity of the revision it stages.
+     */
+    #[Test]
+    public function a_declared_second_service_widens_the_document_without_moving_the_source_key(): void
+    {
+        $plan = $this->plan([
+            'resolved_service' => 'morning',
+            'additional_services' => ['evening'],
+        ]);
+
+        $entry = $this->factory()->entries(
+            $plan,
+            ['2026-02-15-am' => $this->payload("---\ndate: 2026-02-15\n---\n\nAmazing Grace")],
+        )[0];
+
+        $this->assertSame(['morning', 'evening'], $entry->servicesPresent);
+        $this->assertSame(
+            OosCurationEntryFactory::sourceKey('2026-02-15-am', 'morning', '2026-02-15'),
+            $entry->sourceKey,
+        );
+        $this->assertSame(['evening'], $entry->curation['additional_services']);
+    }
+
+    /**
+     * `expected_item_count` is asserted by a person who read the email, and they asserted it
+     * about the service the entry is named by. A second service must not silently inherit it.
+     */
+    #[Test]
+    public function a_declared_second_service_does_not_inherit_the_asserted_item_count(): void
+    {
+        $entry = $this->factory()->entries($this->plan([
+            'resolved_service' => 'morning',
+            'additional_services' => ['evening'],
+            'expected_item_count' => 9,
+        ]), ['2026-02-15-am' => $this->payload("---\ndate: 2026-02-15\n---\n\nAmazing Grace")])[0];
+
+        $this->assertSame(['morning' => 9], $entry->itemLineCounts);
     }
 
     #[Test]
@@ -220,6 +266,9 @@ class OosCurationEntryFactoryTest extends TestCase
             'source_date' => null,
             'resolved_date' => '2026-02-15',
             'resolved_service' => 'morning',
+            'additional_services' => [],
+            'additional_service_labels' => [],
+            'curation_note' => null,
             'service_label' => null,
             'title_override' => null,
             'date_decision' => 'explicit',

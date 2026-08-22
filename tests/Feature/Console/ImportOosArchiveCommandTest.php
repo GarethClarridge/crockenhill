@@ -2116,7 +2116,7 @@ class ImportOosArchiveCommandTest extends TestCase
         $manifest = $root.'/manifest.json';
         file_put_contents($manifest, json_encode([
             'format' => 'crockenhill-oos-curation',
-            'version' => 1,
+            'version' => 2,
             'batch_key' => 'oos-test-batch',
             'entries' => $manifestEntries,
         ], JSON_THROW_ON_ERROR));

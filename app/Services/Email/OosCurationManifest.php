@@ -48,7 +48,13 @@ class OosCurationManifest
 {
     private const Format = 'crockenhill-oos-curation';
 
-    private const Version = 1;
+    /**
+     * 2 adds `additional_services`. The field is additive and its absence is
+     * unambiguous, but the bump is not: a v1 reader handed a v2 manifest would
+     * silently drop a declared second service rather than refuse it, which is
+     * exactly the failure the field exists to end.
+     */
+    private const Version = 2;
 
     /** This manifest curates one source kind; the format is shared with OpenLP and livestream. */
     private const SourceKind = 'email';
@@ -527,6 +533,9 @@ class OosCurationManifest
                 'payload' => $this->reader->nullableString($entry, 'payload', self::Label),
                 'resolved_date' => $this->reader->nullableString($entry, 'resolved_date', self::Label),
                 'resolved_service' => $this->reader->nullableString($entry, 'resolved_service', self::Label),
+                'additional_services' => $this->stringList($entry, 'additional_services'),
+                'additional_service_labels' => $this->stringMap($entry, 'additional_service_labels'),
+                'curation_note' => $this->reader->nullableString($entry, 'curation_note', self::Label),
                 'service_label' => $this->reader->nullableString($entry, 'service_label', self::Label),
                 'title_override' => $this->reader->nullableString($entry, 'title_override', self::Label),
                 'date_decision' => $this->reader->nullableString($entry, 'date_decision', self::Label),
@@ -632,6 +641,8 @@ class OosCurationManifest
             );
         }
 
+        $this->validateAdditionalServices($entry, $itemKey, $validServices);
+
         $this->requireDecision($entry, 'date_decision', self::DateDecisions, $itemKey);
         $this->requireDecision($entry, 'content_scope', self::ContentScopes, $itemKey);
         $this->requireDecision($entry, 'parse_decision', self::ParseDecisions, $itemKey);
@@ -686,6 +697,109 @@ class OosCurationManifest
     }
 
     /**
+     * The services this document contains beyond the one it is named by.
+     *
+     * @param  array<string, mixed>  $entry
+     * @return list<string>
+     */
+    private function stringList(array $entry, string $key): array
+    {
+        $value = $entry[$key] ?? [];
+
+        if (! is_array($value) || array_is_list($value) === false) {
+            throw new RuntimeException(self::Label." entry {$key} must be a list.");
+        }
+
+        foreach ($value as $item) {
+            if (! is_string($item)) {
+                throw new RuntimeException(self::Label." entry {$key} must contain only strings.");
+            }
+        }
+
+        /** @var list<string> $value */
+        return $value;
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     * @return array<string, string>
+     */
+    private function stringMap(array $entry, string $key): array
+    {
+        $value = $entry[$key] ?? [];
+
+        if (! is_array($value)) {
+            throw new RuntimeException(self::Label." entry {$key} must be an object.");
+        }
+
+        $map = [];
+        foreach ($value as $mapKey => $mapValue) {
+            if (! is_string($mapKey) || ! is_string($mapValue)) {
+                throw new RuntimeException(self::Label." entry {$key} must map strings to strings.");
+            }
+            $map[$mapKey] = $mapValue;
+        }
+
+        return $map;
+    }
+
+    /**
+     * `additional_services` describes the document; `resolved_service` identifies the
+     * entry. Keeping them apart is what lets a second service be declared without
+     * re-identifying every staged revision in the corpus.
+     *
+     * @param  array<string, mixed>  $entry
+     * @param  list<string>  $validServices
+     */
+    private function validateAdditionalServices(array $entry, string $itemKey, array $validServices): void
+    {
+        /** @var list<string> $additional */
+        $additional = $entry['additional_services'];
+        /** @var array<string, string> $labels */
+        $labels = $entry['additional_service_labels'];
+
+        foreach ($additional as $service) {
+            if (! in_array($service, $validServices, true)) {
+                throw new RuntimeException(
+                    "Included entry {$itemKey} lists an invalid additional service {$service}; ".
+                    'valid services are '.implode(', ', $validServices).'.'
+                );
+            }
+
+            if ($service === $entry['resolved_service']) {
+                throw new RuntimeException(
+                    "Included entry {$itemKey} lists {$service} as an additional service, but that is ".
+                    'already its resolved service. A document cannot hold the same service twice: the '.
+                    'plan key is service:date, so the second would overwrite the first.'
+                );
+            }
+        }
+
+        if (count($additional) !== count(array_unique($additional))) {
+            throw new RuntimeException("Included entry {$itemKey} lists an additional service more than once.");
+        }
+
+        /** Same reason `service_label` is required for a resolved `other`: the slot alone loses the service. */
+        $needsLabel = in_array(SermonService::Other->value, $additional, true);
+        $hasLabel = array_key_exists(SermonService::Other->value, $labels);
+
+        if ($needsLabel !== $hasLabel) {
+            throw new RuntimeException(
+                "Included entry {$itemKey} must declare an additional_service_labels entry for ".
+                SermonService::Other->value.' exactly when it lists it as an additional service.'
+            );
+        }
+
+        foreach (array_keys($labels) as $labelled) {
+            if (! in_array($labelled, $additional, true)) {
+                throw new RuntimeException(
+                    "Included entry {$itemKey} labels additional service {$labelled}, which it does not list."
+                );
+            }
+        }
+    }
+
+    /**
      * @param  array<string, mixed>  $entry
      */
     private function validateNonInclude(array $entry): void
@@ -694,11 +808,21 @@ class OosCurationManifest
         $includeOnly = [
             'payload', 'resolved_date', 'resolved_service', 'service_label', 'title_override',
             'date_decision', 'date_decision_reason', 'content_scope', 'partial_scope_reason',
-            'supersedes', 'parse_decision', 'expected_item_count',
+            'supersedes', 'parse_decision', 'expected_item_count', 'curation_note',
         ];
 
         foreach ($includeOnly as $key) {
             if ($entry[$key] !== null) {
+                throw new RuntimeException(
+                    "Entry {$itemKey} is not imported and has contradictory disposition fields: ".
+                    "{$key} applies to includes only."
+                );
+            }
+        }
+
+        /** Normalised to `[]` rather than null, so emptiness is the assertion to make. */
+        foreach (['additional_services', 'additional_service_labels'] as $key) {
+            if ($entry[$key] !== []) {
                 throw new RuntimeException(
                     "Entry {$itemKey} is not imported and has contradictory disposition fields: ".
                     "{$key} applies to includes only."
@@ -752,6 +876,12 @@ class OosCurationManifest
                 }
             }
 
+            foreach (['additional_services', 'additional_service_labels'] as $key) {
+                if (! is_array($entry[$key])) {
+                    throw new RuntimeException("Validated include {$entry['item_key']} is missing {$key}.");
+                }
+            }
+
             $payloadPath = $entry['payload'] === 'formatted'
                 ? $entry['formatted_relative_path']
                 : $entry['verbatim_relative_path'];
@@ -778,6 +908,9 @@ class OosCurationManifest
                 'source_date' => $entry['source_date'],
                 'resolved_date' => $entry['resolved_date'],
                 'resolved_service' => $entry['resolved_service'],
+                'additional_services' => $entry['additional_services'],
+                'additional_service_labels' => $entry['additional_service_labels'],
+                'curation_note' => $entry['curation_note'],
                 'service_label' => $entry['service_label'],
                 'title_override' => $entry['title_override'],
                 'date_decision' => $entry['date_decision'],

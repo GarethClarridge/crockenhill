@@ -24,6 +24,8 @@ use RuntimeException;
  * one of those inferences is now a decision read off the plan. Nothing here
  * guesses; the only things read from the payload file are the two the manifest
  * does not carry — the email's subject and its body.
+ *
+ * @phpstan-import-type OosCurationInclude from OosCurationPlan
  */
 class OosCurationEntryFactory
 {
@@ -93,7 +95,19 @@ class OosCurationEntryFactory
                 bodyPlain: $body,
                 groundTruthDate: $include['resolved_date'],
                 contentScope: $include['content_scope'],
-                servicesPresent: [$include['resolved_service']],
+                /**
+                 * `resolved_service` names the entry — it is half the source key
+                 * ({@see self::sourceKey()}) and keys the one-active-leaf-per-service
+                 * invariant, so it stays a single identity-bearing value.
+                 *
+                 * `additional_services` is the other question this field was answering
+                 * badly: what the *document* contains. A quarter of the corpus is one
+                 * Sunday email carrying both that morning's and that evening's orders,
+                 * and while `servicesPresent` reads as a list everywhere downstream, the
+                 * only thing that ever wrote it could write exactly one element — so a
+                 * correctly-extracted second service scored as an identity error.
+                 */
+                servicesPresent: array_merge([$include['resolved_service']], $include['additional_services']),
                 itemLineCounts: $include['expected_item_count'] === null
                     ? []
                     : [$include['resolved_service'] => $include['expected_item_count']],
@@ -105,6 +119,9 @@ class OosCurationEntryFactory
                     'partial_scope_reason' => $include['partial_scope_reason'],
                     'payload' => $include['payload'],
                     'service_label' => $include['service_label'],
+                    'additional_services' => $include['additional_services'],
+                    'additional_service_labels' => $include['additional_service_labels'],
+                    'curation_note' => $include['curation_note'],
                     'title_override' => $include['title_override'],
                     'supersedes' => $include['supersedes'],
                     'expected_item_count' => $include['expected_item_count'],
@@ -200,8 +217,8 @@ class OosCurationEntryFactory
      * service yet. The manifest's include order is not lineage order, so make
      * the dependency explicit without changing any identity field.
      *
-     * @param  list<array<string, mixed>>  $includes
-     * @return list<array<string, mixed>>
+     * @param  list<OosCurationInclude>  $includes
+     * @return list<OosCurationInclude>
      */
     private function orderedIncludes(array $includes): array
     {
@@ -212,27 +229,35 @@ class OosCurationEntryFactory
 
         $ordered = [];
         $visited = [];
-        $visit = function (array $include) use (&$visit, &$ordered, &$visited, $byKey): void {
-            $itemKey = $include['item_key'];
-
-            if (isset($visited[$itemKey])) {
-                return;
-            }
-
-            $predecessor = $include['supersedes'];
-            if ($predecessor !== null) {
-                $visit($byKey[$predecessor]);
-            }
-
-            $visited[$itemKey] = true;
-            $ordered[] = $include;
-        };
 
         foreach ($includes as $include) {
-            $visit($include);
+            $this->visitInclude($include, $byKey, $ordered, $visited);
         }
 
         return $ordered;
+    }
+
+    /**
+     * @param  OosCurationInclude  $include
+     * @param  array<string, OosCurationInclude>  $byKey
+     * @param  list<OosCurationInclude>  $ordered
+     * @param  array<string, true>  $visited
+     */
+    private function visitInclude(array $include, array $byKey, array &$ordered, array &$visited): void
+    {
+        $itemKey = $include['item_key'];
+
+        if (isset($visited[$itemKey])) {
+            return;
+        }
+
+        $predecessor = $include['supersedes'];
+        if ($predecessor !== null) {
+            $this->visitInclude($byKey[$predecessor], $byKey, $ordered, $visited);
+        }
+
+        $visited[$itemKey] = true;
+        $ordered[] = $include;
     }
 
     private function receivedAt(?string $sourceDate, string $resolvedDate): CarbonImmutable

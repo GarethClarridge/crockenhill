@@ -200,7 +200,7 @@ class GenerateOosCorpusExpectationCommandTest extends TestCase
     {
         File::put($this->manifestPath, (string) json_encode([
             'format' => 'crockenhill-oos-curation',
-            'version' => 1,
+            'version' => 2,
             'batch_key' => 'oos-curated-test',
             'entries' => $entries,
         ], JSON_THROW_ON_ERROR));

@@ -100,7 +100,7 @@ class OosCurationManifestTest extends TestCase
     {
         File::put($this->manifestPath, json_encode([
             'format' => 'crockenhill-oos-curation',
-            'version' => 1,
+            'version' => 2,
             'batch_key' => $batchKey,
             'entries' => $entries,
         ], JSON_THROW_ON_ERROR));
@@ -172,6 +172,138 @@ class OosCurationManifestTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('The 2015-12-27 morning service has more than one active full order');
+
+        $this->plan();
+    }
+
+    #[Test]
+    public function an_entry_may_declare_the_second_service_its_document_also_carries(): void
+    {
+        $this->writeManifest([
+            $this->pairedEntry('2015-06-14', '2015-06-14', 'morning', [
+                'additional_services' => ['evening'],
+            ]),
+        ]);
+
+        $plan = $this->plan();
+
+        $this->assertSame(['evening'], $plan->includes[0]['additional_services']);
+        /** The entry is still identified by one service: the source key must not move. */
+        $this->assertSame('morning', $plan->includes[0]['resolved_service']);
+    }
+
+    #[Test]
+    public function an_entry_without_a_second_service_declares_an_empty_list(): void
+    {
+        $this->writeManifest([$this->pairedEntry('2015-12-13', '2015-12-13', 'morning')]);
+
+        $plan = $this->plan();
+
+        $this->assertSame([], $plan->includes[0]['additional_services']);
+        $this->assertSame([], $plan->includes[0]['additional_service_labels']);
+        $this->assertNull($plan->includes[0]['curation_note']);
+    }
+
+    #[Test]
+    public function it_rejects_an_additional_service_that_repeats_the_resolved_one(): void
+    {
+        $this->writeManifest([
+            $this->pairedEntry('2015-06-14', '2015-06-14', 'morning', [
+                'additional_services' => ['morning'],
+            ]),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('already its resolved service');
+
+        $this->plan();
+    }
+
+    #[Test]
+    public function it_rejects_an_unknown_additional_service(): void
+    {
+        $this->writeManifest([
+            $this->pairedEntry('2015-06-14', '2015-06-14', 'morning', [
+                'additional_services' => ['afternoon'],
+            ]),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('lists an invalid additional service afternoon');
+
+        $this->plan();
+    }
+
+    #[Test]
+    public function an_additional_other_service_must_carry_a_label(): void
+    {
+        $this->writeManifest([
+            $this->pairedEntry('2023-12-24', '2023-12-24', 'morning', [
+                'additional_services' => ['other'],
+            ]),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('must declare an additional_service_labels entry for other');
+
+        $this->plan();
+    }
+
+    #[Test]
+    public function it_rejects_a_label_for_a_service_the_entry_does_not_list(): void
+    {
+        $this->writeManifest([
+            $this->pairedEntry('2023-12-24', '2023-12-24', 'morning', [
+                'additional_services' => ['evening'],
+                'additional_service_labels' => ['morning' => 'Christmas morning service'],
+            ]),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('labels additional service morning, which it does not list');
+
+        $this->plan();
+    }
+
+    #[Test]
+    public function a_second_service_does_not_trip_the_one_active_full_order_invariant(): void
+    {
+        /**
+         * The guard keys on `resolved_service`, so two entries whose documents both
+         * carry an evening order stay legal as long as only one is *named* by it —
+         * which is what lets a later email amend a service already staged from another.
+         */
+        $this->writeManifest([
+            $this->pairedEntry('2015-06-14', '2015-06-14', 'morning', [
+                'additional_services' => ['evening'],
+            ]),
+            $this->pairedEntry('2015-06-14-pm', '2015-06-14', 'evening'),
+        ]);
+
+        $plan = $this->plan();
+
+        $this->assertCount(2, $plan->includes);
+    }
+
+    #[Test]
+    public function a_non_included_entry_cannot_declare_a_second_service(): void
+    {
+        $entry = $this->pairedEntry('2015-06-14', '2015-06-14', 'morning');
+        $this->writeManifest([array_merge($entry, [
+            'disposition' => 'exclude',
+            'exclusion_reason' => 'not an order of service',
+            'payload' => null,
+            'resolved_date' => null,
+            'resolved_service' => null,
+            'date_decision' => null,
+            'content_scope' => null,
+            'parse_decision' => null,
+            'expected_item_count' => null,
+            'additional_services' => ['evening'],
+        ])]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('additional_services applies to includes only');
 
         $this->plan();
     }
