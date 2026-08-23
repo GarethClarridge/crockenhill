@@ -62,15 +62,78 @@ class ChurchServiceCorpusExpectation
     public const string UNEXPLAINED_IDENTITY = 'unexplained_identity';
 
     /**
-     * @param  array<string, mixed>|null  $expectation
+     * Certify every lane a census declares, as one aggregate.
+     *
+     * There is one expectation artifact per approved manifest and there are two
+     * manifests, so a two-lane census is certified from two artifacts rather than
+     * from one spanning both: a fused artifact would have to carry a
+     * `manifest_hash` neither producer derived, which is exactly the property that
+     * makes an expectation checkable.
+     *
+     * The union in `expected_services` is the reason this aggregation cannot be
+     * left to the caller. Email and OpenLP describe *the same services* from
+     * different evidence, so summing the lanes' identity counts double-counts every
+     * service both lanes cover. Only the identity sets can be combined, and only
+     * this class holds them.
+     *
+     * @param  list<array<string, mixed>>  $expectations
      * @return array<string, mixed>
      */
-    public function certify(?array $expectation): array
+    public function certifyAll(array $expectations): array
     {
-        if ($expectation === null) {
-            return ['approved' => false, 'blockers' => ['expectation_unapproved']];
+        $lanes = [];
+        $sourceKinds = [];
+        $identities = [];
+        $blockers = [];
+        $expectedSources = 0;
+
+        foreach ($expectations as $expectation) {
+            $lane = $this->certify($expectation);
+            $source = $lane['source'];
+
+            /**
+             * A lane has one approved manifest. Two artifacts for the same lane are
+             * two conflicting statements of what it should contain, and silently
+             * taking either would let a stale manifest certify the round.
+             */
+            if (isset($sourceKinds[$source])) {
+                throw new RuntimeException(
+                    "Two corpus expectations describe the {$source} lane; a lane has one approved manifest, not two."
+                );
+            }
+
+            $sourceKinds[$source] = true;
+            $lanes[] = $lane;
+            $blockers = [...$blockers, ...$lane['blockers']];
+            $expectedSources += $lane['expected_sources'];
+
+            foreach ($lane['identities'] as $identity) {
+                $identities[$identity] = true;
+            }
         }
 
+        if ($lanes === []) {
+            return ['approved' => false, 'lanes' => [], 'source_kinds' => [], 'blockers' => ['expectation_unapproved']];
+        }
+
+        return [
+            'approved' => true,
+            'lanes' => $lanes,
+            'source_kinds' => array_keys($sourceKinds),
+            'expected_services' => count($identities),
+            'expected_sources' => $expectedSources,
+            'blockers' => array_values(array_unique($blockers)),
+        ];
+    }
+
+    /**
+     * Certify a single lane against its own approved manifest.
+     *
+     * @param  array<string, mixed>  $expectation
+     * @return array<string, mixed>
+     */
+    public function certify(array $expectation): array
+    {
         [$source, $batchHash, $sources, $acceptedHolds] = $this->validated($expectation);
 
         $approvedIdentities = [];
@@ -202,6 +265,7 @@ class ChurchServiceCorpusExpectation
             'source' => $source->value,
             'expected_services' => count($approvedIdentities),
             'expected_sources' => count($approvedSourceKeys),
+            'identities' => array_map($this->describe(...), array_keys($approvedIdentities)),
             'staged_identities' => count($stagedIdentities),
             'accepted_holds' => array_values($acceptedHolds),
             'unstaged_sources' => $unstagedSources,

@@ -305,16 +305,45 @@ class AuditChurchServiceEvidenceCoverageCommand extends Command
             return;
         }
 
-        $this->table(['Manifest reconciliation', 'Count'], [
-            ['approved sources', (string) $expectation['expected_sources']],
-            ['approved identities', (string) $expectation['expected_services']],
-            ['staged identities', (string) $expectation['staged_identities']],
-            ['approved sources not staged', (string) count($expectation['unstaged_sources'])],
-            ['approved identities not staged', (string) count($expectation['unstaged_identities'])],
-            ['beyond manifest, explained', (string) count($expectation['explained_beyond_manifest'])],
-            ['beyond manifest, unexplained', (string) count($expectation['unexplained_identities'])],
-            ['accepted holds', (string) count($expectation['accepted_holds'])],
-        ]);
+        /**
+         * A row per lane, because each lane is reconciled against its own approved
+         * manifest and a pooled total would let one lane's clean result stand in for
+         * the other's. Identities are deliberately not summed across lanes either:
+         * both lanes describe the same services, so only the union means anything and
+         * that is what the coverage table above already reports.
+         */
+        $this->table(
+            ['Manifest reconciliation', ...array_map(
+                static fn (array $lane): string => (string) $lane['source'],
+                $expectation['lanes'],
+            )],
+            [
+                ['approved sources', ...$this->laneCounts($expectation, 'expected_sources')],
+                ['approved identities', ...$this->laneCounts($expectation, 'expected_services')],
+                ['staged identities', ...$this->laneCounts($expectation, 'staged_identities')],
+                ['approved sources not staged', ...$this->laneCounts($expectation, 'unstaged_sources')],
+                ['approved identities not staged', ...$this->laneCounts($expectation, 'unstaged_identities')],
+                ['beyond manifest, explained', ...$this->laneCounts($expectation, 'explained_beyond_manifest')],
+                ['beyond manifest, unexplained', ...$this->laneCounts($expectation, 'unexplained_identities')],
+                ['accepted holds', ...$this->laneCounts($expectation, 'accepted_holds')],
+            ],
+        );
+    }
+
+    /**
+     * One lane's figure for a reconciliation key, whether it is stored as a count or
+     * as the list the count is taken over.
+     *
+     * @param  array<string, mixed>  $expectation
+     * @return list<string>
+     */
+    private function laneCounts(array $expectation, string $key): array
+    {
+        return array_values(array_map(static function (array $lane) use ($key): string {
+            $value = $lane[$key];
+
+            return (string) (is_array($value) ? count($value) : $value);
+        }, $expectation['lanes']));
     }
 
     private function formatNullableCount(?int $count): string

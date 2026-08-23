@@ -25,7 +25,7 @@ class ChurchServiceProposalCensusCommand extends Command
         {--json : Emit the full census as JSON instead of a table}
         {--gate : Exit non-zero unless every class is accounted for}
         {--membership= : Hash-verified item-level historic corpus membership JSON}
-        {--expectation= : Manifest-derived corpus expectation JSON from oos:generate-corpus-expectation}
+        {--expectation=* : Manifest-derived corpus expectation JSON; repeat once per declared source kind}
         {--expected-services= : The approved corpus manifest'."'".'s service count, overriding church.historic_corpus.expected_services}';
 
     protected $description = 'Report pending evidence proposals grouped by class, with the review-load gate';
@@ -189,6 +189,10 @@ class ChurchServiceProposalCensusCommand extends Command
      * identity an approved entry explains is the ordinary two-orders-per-email
      * shape, and an extra identity nothing explains is the F1 failure.
      *
+     * Each lane is reported against its own manifest rather than pooled, because a
+     * clean Email reconciliation says nothing about OpenLP and a summed residue
+     * would let one lane's zero mask the other's.
+     *
      * @param  array<string, mixed>  $corpus
      */
     private function reportExpectation(array $corpus): void
@@ -202,24 +206,45 @@ class ChurchServiceProposalCensusCommand extends Command
         }
 
         $this->line(sprintf(
-            '  Manifest expectation: batch %s, %d approved source(s) over %d identity(ies); %d staged.',
-            $expectation['batch_key'],
+            '  Manifest expectation: %d lane(s) covering %s, %d approved source(s) over %d distinct identity(ies).',
+            count($expectation['lanes']),
+            implode(', ', $expectation['source_kinds']),
             $expectation['expected_sources'],
             $expectation['expected_services'],
-            $expectation['staged_identities'],
+        ));
+
+        foreach ($expectation['lanes'] as $lane) {
+            $this->reportExpectationLane($lane);
+        }
+    }
+
+    /**
+     * One lane's reconciliation against its own manifest.
+     *
+     * @param  array<string, mixed>  $lane
+     */
+    private function reportExpectationLane(array $lane): void
+    {
+        $this->line(sprintf(
+            '    %s: batch %s, %d approved source(s) over %d identity(ies); %d staged.',
+            $lane['source'],
+            $lane['batch_key'],
+            $lane['expected_sources'],
+            $lane['expected_services'],
+            $lane['staged_identities'],
         ));
 
         $this->line(sprintf(
-            '    Unstaged: %d approved source(s), %d identity(ies). Beyond manifest: %d explained, %d unexplained. Accepted holds: %d.',
-            count($expectation['unstaged_sources']),
-            count($expectation['unstaged_identities']),
-            count($expectation['explained_beyond_manifest']),
-            count($expectation['unexplained_identities']),
-            count($expectation['accepted_holds']),
+            '      Unstaged: %d approved source(s), %d identity(ies). Beyond manifest: %d explained, %d unexplained. Accepted holds: %d.',
+            count($lane['unstaged_sources']),
+            count($lane['unstaged_identities']),
+            count($lane['explained_beyond_manifest']),
+            count($lane['unexplained_identities']),
+            count($lane['accepted_holds']),
         ));
 
-        foreach (array_slice($expectation['unexplained_identities'], 0, 10) as $extra) {
-            $this->warn("    Unexplained identity: {$extra['identity']}");
+        foreach (array_slice($lane['unexplained_identities'], 0, 10) as $extra) {
+            $this->warn("      Unexplained identity: {$extra['identity']}");
         }
     }
 
@@ -235,16 +260,24 @@ class ChurchServiceProposalCensusCommand extends Command
         return $membership->fromFile($path);
     }
 
-    /** @return array<string, mixed>|null */
-    private function expectation(ChurchServiceCorpusExpectation $expectation): ?array
+    /**
+     * One expectation artifact per lane, in the order given.
+     *
+     * There is one approved manifest per source kind and each artifact is a
+     * hash-locked derivation of exactly one of them, so a census covering two kinds
+     * is certified from two artifacts rather than from one spanning both.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function expectation(ChurchServiceCorpusExpectation $expectation): array
     {
-        $path = $this->option('expectation');
+        /** @var list<string> $paths */
+        $paths = array_values((array) $this->option('expectation'));
 
-        if (! is_string($path) || trim($path) === '') {
-            return null;
-        }
-
-        return $expectation->fromFile($path);
+        return array_values(array_map(
+            static fn (string $path): array => $expectation->fromFile($path),
+            array_filter($paths, static fn (string $path): bool => trim($path) !== ''),
+        ));
     }
 
     private function expectedServices(): ?int

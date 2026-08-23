@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceMergeProposal;
 use App\Models\ChurchServiceProposalClassReview;
@@ -11,6 +12,8 @@ use App\Models\ChurchServiceSourceRecord;
 use App\Models\User;
 use App\Services\ChurchService\ChurchServiceProjector;
 use App\Services\ChurchService\ChurchServiceProposalCensus;
+use App\Services\Email\OosApprovedCorpus;
+use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use PHPUnit\Framework\Attributes\Test;
@@ -19,6 +22,24 @@ use Tests\TestCase;
 class ChurchServiceProposalCensusCommandTest extends TestCase
 {
     use RefreshDatabase;
+
+    private const EmailBatchHash = 'aa11bb22cc33dd44ee55ff66aa77bb88cc99dd00ee11ff22aa33bb44cc55dd66';
+
+    private const OpenLpBatchHash = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+
+    /** @var list<string> */
+    private array $artifacts = [];
+
+    protected function tearDown(): void
+    {
+        foreach ($this->artifacts as $path) {
+            if (file_exists($path)) {
+                unlink($path);
+            }
+        }
+
+        parent::tearDown();
+    }
 
     #[Test]
     public function it_reports_an_empty_census(): void
@@ -75,6 +96,71 @@ class ChurchServiceProposalCensusCommandTest extends TestCase
             ->expectsOutputToContain('The census is empty.')
             ->expectsOutputToContain('1 service(s) staged, 1 projected')
             ->expectsOutputToContain('No hash-verified, item-level corpus membership is supplied')
+            ->assertFailed();
+    }
+
+    /**
+     * A census declaring two source kinds is certified from two expectation
+     * artifacts, because each is a hash-locked derivation of exactly one approved
+     * manifest and there is one manifest per lane. This is the option arity that
+     * made an `email,openlp` run assemblable at all; before it, the two lanes could
+     * only ever be certified in separate runs.
+     */
+    #[Test]
+    public function the_expectation_option_takes_one_artifact_per_declared_lane(): void
+    {
+        $service = ChurchService::factory()->create([
+            'projection_policy_version' => ChurchServiceProjector::PROJECTION_POLICY_VERSION,
+        ]);
+        $email = ChurchServiceSourceRecord::factory()->create([
+            'church_service_id' => $service->id,
+            'source' => ChurchServiceSource::Email,
+            'batch_hash' => self::EmailBatchHash,
+        ]);
+        $openLp = ChurchServiceSourceRecord::factory()->create([
+            'church_service_id' => $service->id,
+            'source' => ChurchServiceSource::OpenLp,
+            'batch_hash' => self::OpenLpBatchHash,
+        ]);
+        config()->set('church.historic_corpus.census_source_kinds', 'email,openlp');
+
+        $this->artisan('services:proposal-census', [
+            '--expectation' => [$this->expectationFile($email), $this->expectationFile($openLp)],
+        ])
+            ->expectsOutputToContain('2 lane(s) covering email, openlp')
+            ->expectsOutputToContain('email: batch email-curated-test')
+            ->expectsOutputToContain('openlp: batch openlp-curated-test')
+            ->assertSuccessful();
+    }
+
+    /**
+     * Supplying only the Email artifact leaves the F1 check silent about OpenLP, so
+     * the gate names the uncovered lane instead of reading one lane's clean
+     * reconciliation as covering both.
+     */
+    #[Test]
+    public function the_gate_option_fails_when_a_declared_lane_has_no_expectation(): void
+    {
+        $service = ChurchService::factory()->create([
+            'projection_policy_version' => ChurchServiceProjector::PROJECTION_POLICY_VERSION,
+        ]);
+        $email = ChurchServiceSourceRecord::factory()->create([
+            'church_service_id' => $service->id,
+            'source' => ChurchServiceSource::Email,
+            'batch_hash' => self::EmailBatchHash,
+        ]);
+        ChurchServiceSourceRecord::factory()->create([
+            'church_service_id' => $service->id,
+            'source' => ChurchServiceSource::OpenLp,
+            'batch_hash' => self::OpenLpBatchHash,
+        ]);
+        config()->set('church.historic_corpus.census_source_kinds', 'email,openlp');
+
+        $this->artisan('services:proposal-census', [
+            '--gate' => true,
+            '--expectation' => [$this->expectationFile($email)],
+        ])
+            ->expectsOutputToContain('No manifest-derived expectation covers a source kind this census claims to cover')
             ->assertFailed();
     }
 
@@ -155,5 +241,39 @@ class ChurchServiceProposalCensusCommandTest extends TestCase
                 'title' => 'Welcome',
             ]],
         ]);
+    }
+
+    /**
+     * A one-lane expectation artifact covering exactly the record given, written to
+     * disk so the command's own file reading is exercised rather than bypassed.
+     */
+    private function expectationFile(ChurchServiceSourceRecord $record): string
+    {
+        $expectation = [
+            'format' => OosApprovedCorpus::Format,
+            'version' => OosApprovedCorpus::Version,
+            'source' => $record->source->value,
+            'batch_key' => "{$record->source->value}-curated-test",
+            'batch_hash' => (string) $record->batch_hash,
+            'manifest_hash' => str_repeat('f', 64),
+            'approved_sources' => [[
+                'item_key' => $record->source_key,
+                'origin' => explode('|', $record->source_key, 2)[0],
+                'source_key' => $record->source_key,
+                'input_hash' => (string) $record->input_hash,
+                'identity' => [
+                    'date' => $record->churchService->date->toDateString(),
+                    'service' => $record->churchService->service->value,
+                ],
+                'content_scope' => 'full',
+            ]],
+        ];
+        $expectation['expectation_hash'] = CanonicalJson::hash($expectation);
+
+        $path = storage_path('scratch/expectation-'.bin2hex(random_bytes(6)).'.json');
+        file_put_contents($path, CanonicalJson::encodeReadable($expectation));
+        $this->artifacts[] = $path;
+
+        return $path;
     }
 }

@@ -344,6 +344,18 @@ Each lane round passes three gates; there is no other gate ladder.
   `services:proposal-census --expectation=` (or `church.historic_corpus.expectation`). Setting
   `HISTORIC_CORPUS_EXPECTED_SERVICES` by hand no longer certifies anything and is ignored while an
   expectation is present.
+
+  A round declaring more than one source kind is certified from **one artifact per lane**, because
+  each is a hash-locked derivation of exactly one approved manifest and there is one manifest per
+  lane. So an `email,openlp` round runs `oos:generate-corpus-expectation` *and*
+  `openlp:generate-corpus-expectation`, and passes both to `services:proposal-census
+  --expectation=<email> --expectation=<openlp>`. A declared kind with no artifact is
+  `expectation_source_kind_unapproved`: the Email reconciliation is never read as covering OpenLP.
+  Membership goes the other way — one certificate spans every lane, so
+  `services:generate-corpus-membership --source=email --batch-hash=<email> --source=openlp
+  --batch-hash=<openlp>` produces the single artifact `--membership=` takes. Note that the corpus
+  size the gate reports is the **union** of the lanes' approved identities, not their sum: both
+  lanes describe the same services from different evidence.
 - **RG-B (production apply):** approved manifest + plan hash presented; pre-round verified
   database backup taken; `HistoricImportProductionGuard` satisfied for the named round (IC2
   re-scopes it from one-shot GO to per-round approval); apply executes only §3.2-compliant writes;

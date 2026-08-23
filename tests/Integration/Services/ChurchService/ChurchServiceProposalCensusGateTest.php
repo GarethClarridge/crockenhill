@@ -31,6 +31,8 @@ class ChurchServiceProposalCensusGateTest extends TestCase
 
     private const EmailBatchHash = 'aa11bb22cc33dd44ee55ff66aa77bb88cc99dd00ee11ff22aa33bb44cc55dd66';
 
+    private const OpenLpBatchHash = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+
     #[Test]
     public function an_empty_census_does_not_pass_without_corpus_evidence(): void
     {
@@ -97,13 +99,13 @@ class ChurchServiceProposalCensusGateTest extends TestCase
             app(ChurchServiceCorpusCompleteness::class)->evidence(
                 $this->membership(ChurchServiceSourceRecord::query()->with('churchService')->get()),
                 null,
-                $expectation,
+                [$expectation],
             ),
         );
 
         $this->assertFalse($result['passes']);
         $this->assertContains('expectation_mismatch', $result['corpus_blockers']);
-        $this->assertSame(['2015-12-20-am'], array_column($result['corpus']['expectation']['unstaged_sources'], 'item_key'));
+        $this->assertSame(['2015-12-20-am'], array_column($result['corpus']['expectation']['lanes'][0]['unstaged_sources'], 'item_key'));
     }
 
     /**
@@ -167,14 +169,14 @@ class ChurchServiceProposalCensusGateTest extends TestCase
             app(ChurchServiceCorpusCompleteness::class)->evidence(
                 $this->membership(ChurchServiceSourceRecord::query()->with('churchService')->get()),
                 null,
-                $expectation,
+                [$expectation],
             ),
         );
 
         $this->assertSame(3, $result['corpus']['staged_services']);
         $this->assertSame(2, $result['corpus']['expected_services']);
         $this->assertNotContains('staged_above_expected', $result['corpus_blockers']);
-        $this->assertCount(1, $result['corpus']['expectation']['explained_beyond_manifest']);
+        $this->assertCount(1, $result['corpus']['expectation']['lanes'][0]['explained_beyond_manifest']);
         $this->assertSame([], $result['corpus_blockers']);
     }
 
@@ -373,7 +375,7 @@ class ChurchServiceProposalCensusGateTest extends TestCase
         ChurchServiceSourceRecord::factory()->create([
             'church_service_id' => ChurchService::query()->orderBy('id')->value('id'),
             'source' => ChurchServiceSource::OpenLp,
-            'batch_hash' => 'batch-openlp',
+            'batch_hash' => self::OpenLpBatchHash,
         ]);
         config()->set('church.historic_corpus.expected_services', 2);
         config()->set('church.historic_corpus.census_source_kinds', 'email,openlp');
@@ -388,6 +390,67 @@ class ChurchServiceProposalCensusGateTest extends TestCase
         $this->assertSame(['email' => 2, 'openlp' => 1], $result['corpus']['staged_services_by_source']);
     }
 
+    /**
+     * The expectation counterpart of the membership rule below. An expectation is
+     * derived from one approved manifest and there is one manifest per lane, so the
+     * Email artifact alone leaves the F1 check silent about OpenLP — a corpus where
+     * every declared kind is staged and certified, and where nothing has ever stated
+     * what the OpenLP lane was meant to contain.
+     */
+    #[Test]
+    public function an_email_only_expectation_cannot_certify_a_census_declared_over_email_and_openlp(): void
+    {
+        $this->stageAndProject(2, ChurchServiceSource::Email);
+        ChurchServiceSourceRecord::factory()->create([
+            'church_service_id' => ChurchService::query()->orderBy('id')->value('id'),
+            'source' => ChurchServiceSource::OpenLp,
+            'batch_hash' => self::OpenLpBatchHash,
+        ]);
+        config()->set('church.historic_corpus.census_source_kinds', 'email,openlp');
+
+        $result = app(ChurchServiceProposalCensusGate::class)->evaluate(
+            [],
+            app(ChurchServiceCorpusCompleteness::class)->evidence(
+                $this->membership(ChurchServiceSourceRecord::query()->with('churchService')->get()),
+                null,
+                [$this->expectation()],
+            ),
+        );
+
+        $this->assertFalse($result['passes']);
+        $this->assertContains('expectation_source_kind_unapproved', $result['corpus_blockers']);
+        $this->assertSame(['email'], $result['corpus']['expectation']['source_kinds']);
+    }
+
+    /**
+     * Both lanes describe the *same* services from different evidence, so the corpus
+     * size is the union of their approved identities and never the sum. Two email
+     * services with one of them also evidenced by OpenLP is a two-service corpus; a
+     * summed figure would call it three and then report a service as unstaged that
+     * is staged twice over.
+     */
+    #[Test]
+    public function two_lanes_covering_one_service_expect_it_once(): void
+    {
+        $this->stageAndProject(2, ChurchServiceSource::Email);
+        ChurchServiceSourceRecord::factory()->create([
+            'church_service_id' => ChurchService::query()->orderBy('id')->value('id'),
+            'source' => ChurchServiceSource::OpenLp,
+            'batch_hash' => self::OpenLpBatchHash,
+        ]);
+        config()->set('church.historic_corpus.census_source_kinds', 'email,openlp');
+
+        $result = app(ChurchServiceProposalCensusGate::class)->evaluate([], $this->evidence());
+
+        $this->assertSame(['email', 'openlp'], $result['corpus']['expectation']['source_kinds']);
+        $this->assertSame(3, $result['corpus']['expectation']['expected_sources']);
+        $this->assertSame(2, $result['corpus']['expected_services']);
+        $this->assertSame('manifest_expectation', $result['corpus']['expected_services_source']);
+        $this->assertSame(0, $result['corpus']['unstaged_services']);
+        $this->assertSame([], $result['corpus_blockers']);
+        $this->assertTrue($result['passes']);
+    }
+
     #[Test]
     public function an_unapproved_openlp_item_cannot_be_hidden_by_matching_global_service_counts(): void
     {
@@ -395,7 +458,7 @@ class ChurchServiceProposalCensusGateTest extends TestCase
         ChurchServiceSourceRecord::factory()->create([
             'church_service_id' => ChurchService::query()->orderBy('id')->value('id'),
             'source' => ChurchServiceSource::OpenLp,
-            'batch_hash' => 'batch-openlp',
+            'batch_hash' => self::OpenLpBatchHash,
         ]);
         config()->set('church.historic_corpus.expected_services', 2);
         config()->set('church.historic_corpus.census_source_kinds', 'email,openlp');
@@ -423,7 +486,7 @@ class ChurchServiceProposalCensusGateTest extends TestCase
         ChurchServiceSourceRecord::factory()->create([
             'church_service_id' => ChurchService::query()->orderBy('id')->value('id'),
             'source' => ChurchServiceSource::OpenLp,
-            'batch_hash' => 'batch-openlp',
+            'batch_hash' => self::OpenLpBatchHash,
         ]);
 
         $evidence = $this->evidence();
@@ -470,6 +533,29 @@ class ChurchServiceProposalCensusGateTest extends TestCase
         }
     }
 
+    /**
+     * One expectation artifact per lane the suite stages, which is what a census
+     * declaring both kinds has to be handed: a lane with no artifact is a lane the
+     * F1 check says nothing about, and the gate now refuses that rather than reading
+     * the Email reconciliation as covering both.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function expectations(): array
+    {
+        return array_values(array_filter([
+            $this->expectation(),
+            $this->expectation(
+                ChurchServiceSourceRecord::query()
+                    ->where('source', ChurchServiceSource::OpenLp)
+                    ->where('batch_hash', self::OpenLpBatchHash)
+                    ->with('churchService')
+                    ->orderBy('id')
+                    ->get(),
+            ),
+        ]));
+    }
+
     /** @return array<string, mixed> */
     private function evidence(): array
     {
@@ -480,15 +566,18 @@ class ChurchServiceProposalCensusGateTest extends TestCase
         return app(ChurchServiceCorpusCompleteness::class)->evidence(
             $records->isEmpty() ? null : $this->membership($records),
             null,
-            $this->expectation(),
+            $this->expectations(),
         );
     }
 
     /**
-     * The manifest-derived statement of what should be staged. Built here from the
-     * staged email revisions so these tests exercise the gate's wiring; that the
-     * *producer* derives the same keys from the manifest alone is
+     * The manifest-derived statement of what one lane should have staged. Built here
+     * from that lane's staged revisions so these tests exercise the gate's wiring;
+     * that the *producer* derives the same keys from the manifest alone is
      * {@see OosApprovedCorpusTest}'s subject.
+     *
+     * The lane and its batch are read off the records rather than fixed to Email, so
+     * the same helper produces the OpenLP artifact a two-kind census also needs.
      *
      * @return array<string, mixed>|null
      */
@@ -505,12 +594,14 @@ class ChurchServiceProposalCensusGateTest extends TestCase
             return null;
         }
 
+        $lane = $records->firstOrFail()->source;
+
         $expectation = [
             'format' => OosApprovedCorpus::Format,
             'version' => OosApprovedCorpus::Version,
-            'source' => OosApprovedCorpus::Source,
-            'batch_key' => 'oos-curated-test',
-            'batch_hash' => self::EmailBatchHash,
+            'source' => $lane->value,
+            'batch_key' => "{$lane->value}-curated-test",
+            'batch_hash' => (string) $records->firstOrFail()->batch_hash,
             'manifest_hash' => str_repeat('f', 64),
             'approved_sources' => $records
                 ->map(static fn (ChurchServiceSourceRecord $record): array => [

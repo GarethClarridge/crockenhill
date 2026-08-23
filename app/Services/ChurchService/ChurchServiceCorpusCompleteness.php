@@ -50,20 +50,22 @@ class ChurchServiceCorpusCompleteness
     ) {}
 
     /**
-     * @param  array<string, mixed>|null  $expectedMembership  Hash-verified source-item membership.
+     * @param  array<string, mixed>|null  $expectedMembership  Hash-verified source-item membership,
+     *                                                         spanning every source kind the census covers.
      * @param  int|null  $expectedServices  The approved manifest's service count; overrides both
      *                                      the expectation and the configured value.
-     * @param  array<string, mixed>|null  $corpusExpectation  Manifest-derived approved corpus.
+     * @param  list<array<string, mixed>>|null  $corpusExpectations  One manifest-derived approved corpus
+     *                                                               per lane. Null falls back to configuration.
      * @return CorpusEvidence
      */
     public function evidence(
         ?array $expectedMembership = null,
         ?int $expectedServices = null,
-        ?array $corpusExpectation = null,
+        ?array $corpusExpectations = null,
     ): array {
         $expectedMembership ??= $this->configuredMembership();
-        $corpusExpectation ??= $this->configuredExpectation();
-        $expectation = $this->expectation->certify($corpusExpectation);
+        $corpusExpectations ??= $this->configuredExpectations();
+        $expectation = $this->expectation->certifyAll($corpusExpectations);
         $policyVersion = $this->projector->policyFingerprint()['version'];
         $staged = $this->stagedServices();
         $projectionEligible = $this->projectionEligibleServices();
@@ -230,11 +232,24 @@ class ChurchServiceCorpusCompleteness
         return is_array($configured) ? $configured : null;
     }
 
-    /** @return array<string, mixed>|null */
-    private function configuredExpectation(): ?array
+    /**
+     * The configured expectation set, as a list of per-lane artifacts.
+     *
+     * A bare artifact is accepted as a one-lane set so a single-lane configuration
+     * does not have to be rewritten as a nested list to keep working.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function configuredExpectations(): array
     {
         $configured = config('church.historic_corpus.expectation');
 
-        return is_array($configured) ? $configured : null;
+        if (! is_array($configured) || $configured === []) {
+            return [];
+        }
+
+        return isset($configured['format'])
+            ? [$configured]
+            : array_values(array_filter($configured, is_array(...)));
     }
 }

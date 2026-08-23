@@ -224,12 +224,33 @@ class ChurchServiceCorpusExpectationTest extends TestCase
         app(ChurchServiceCorpusExpectation::class)->certify($expectation);
     }
 
+    /**
+     * A lane has exactly one approved manifest. Two artifacts naming the same lane
+     * are two conflicting statements of what it should contain, and quietly taking
+     * either would let a superseded manifest certify the round — so this is refused
+     * rather than reconciled.
+     */
+    #[Test]
+    public function two_expectations_for_one_lane_are_refused(): void
+    {
+        $this->stage('2015-12-13-am', '2015-12-13', 'morning');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Two corpus expectations describe the email lane');
+
+        app(ChurchServiceCorpusExpectation::class)->certifyAll([
+            $this->expectation([['2015-12-13-am', '2015-12-13', 'morning']]),
+            $this->expectation([['2015-12-13-am', '2015-12-13', 'morning']]),
+        ]);
+    }
+
     #[Test]
     public function an_unsupplied_expectation_is_unapproved_rather_than_empty(): void
     {
-        $result = app(ChurchServiceCorpusExpectation::class)->certify(null);
+        $result = app(ChurchServiceCorpusExpectation::class)->certifyAll([]);
 
         $this->assertFalse($result['approved']);
+        $this->assertSame([], $result['lanes']);
         $this->assertSame(['expectation_unapproved'], $result['blockers']);
     }
 

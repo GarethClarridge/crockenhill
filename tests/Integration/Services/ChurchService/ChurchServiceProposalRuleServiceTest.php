@@ -342,7 +342,7 @@ class ChurchServiceProposalRuleServiceTest extends TestCase
             ->map(static fn (ChurchServiceSource $source): string => $source->value)
             ->implode(','));
 
-        return app(ChurchServiceCorpusCompleteness::class)->evidence($this->membership(), null, $this->expectation());
+        return app(ChurchServiceCorpusCompleteness::class)->evidence($this->membership(), null, [$this->expectation()]);
     }
 
     /**

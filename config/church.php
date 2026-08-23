@@ -107,6 +107,11 @@ return [
         | identities that did *not* stage, and staged identities no approved entry
         | explains (F1).
         |
+        | One artifact per declared source kind: each is a hash-locked derivation
+        | of exactly one approved curation manifest, and there is one manifest per
+        | lane. A list of them is expected; a bare artifact is read as a one-lane
+        | set.
+        |
         | Null means unsupplied, which the gate refuses for the same reason it
         | refuses an unset corpus size.
         */

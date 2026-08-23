@@ -45,6 +45,8 @@ class ChurchServiceProposalCensusGate
 
     public const string EXPECTATION_MISMATCH = 'expectation_mismatch';
 
+    public const string EXPECTATION_SOURCE_KIND_UNAPPROVED = 'expectation_source_kind_unapproved';
+
     /**
      * @param  list<array<string, mixed>>  $classes
      * @param  array<string, mixed>  $corpus  Evidence from ChurchServiceCorpusCompleteness.
@@ -137,6 +139,7 @@ class ChurchServiceProposalCensusGate
             self::MEMBERSHIP_SOURCE_KIND_UNAPPROVED => 'The membership certificate has no approved items for a source kind this census claims to cover.',
             self::EXPECTATION_UNAPPROVED => 'No manifest-derived corpus expectation is supplied, so nothing states what the corpus was meant to contain and an entry that never staged cannot be detected. Produce one with oos:generate-corpus-expectation.',
             self::EXPECTATION_MISMATCH => 'The staged corpus and the approved manifest disagree: an approved entry did not stage, or an identity staged that no approved entry explains. Inspect the expectation reconciliation.',
+            self::EXPECTATION_SOURCE_KIND_UNAPPROVED => 'No manifest-derived expectation covers a source kind this census claims to cover, so nothing states what that lane was meant to contain. Supply one --expectation per declared kind.',
             default => $blocker,
         };
     }
@@ -186,6 +189,27 @@ class ChurchServiceProposalCensusGate
             $blockers[] = self::EXPECTATION_UNAPPROVED;
         } elseif (($expectation['blockers'] ?? []) !== []) {
             $blockers[] = self::EXPECTATION_MISMATCH;
+        }
+
+        /**
+         * An expectation is derived from one approved manifest and there is one
+         * manifest per lane, so a census declaring two kinds needs two of them.
+         * Without this the Email expectation alone would satisfy an `email,openlp`
+         * census and the F1 check would say nothing whatever about OpenLP — the
+         * exact hole the membership counterpart above already closes on its side.
+         *
+         * Only checked once an expectation is supplied: with none at all,
+         * `expectation_unapproved` has already said that no lane is covered, and
+         * naming the lanes again would be the same finding twice.
+         */
+        if ($hasApprovedExpectation && ($corpus['declared_source_kinds'] ?? null) !== null) {
+            $expectationSources = $expectation['source_kinds'] ?? [];
+            foreach ($corpus['declared_source_kinds'] as $source) {
+                if (! in_array($source, $expectationSources, true)) {
+                    $blockers[] = self::EXPECTATION_SOURCE_KIND_UNAPPROVED;
+                    break;
+                }
+            }
         }
 
         $expected = $corpus['expected_services'] ?? null;
