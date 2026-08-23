@@ -1643,6 +1643,21 @@ guard, zero model spend). Email-lane held sources **7 → 4**: `2018-08-12` 0 �
 `service_boundary_missing` sources named above as unsalvageable. Full suite green (7,157 tests),
 Pint clean, PHPStan clean, Dusk green.
 
+**Portable preflight re-checked 2026-08-23, zero spend: 530/554 → 540/554** (bundle regenerated as
+`storage/scratch/rga-portable-assertions-20260823.json`). Holds 24 → 14, no new holds. Verified
+zero-spend up front with `--evaluate --cache-only`, which refuses the run unless every one of the
+554 sources has a reusable cached payload — the replay preserves `version` and
+`raw_cache_key_hash`, so reusability is intact and a stale parser surface only warns.
+
+**Operational trap found the hard way:** `oos:import-archive --import-bundle` is *not* a read-only
+preflight. It calls `OosArchiveAssertionBundle::stage()`, which `firstOrNew()`s each
+`inbound_emails` row and overwrites `processing_metadata` — running it against the *source*
+environment wiped `archive_parse_cache` from all 554 v7 rows. It is built for a fresh target
+environment in a portable transfer, not for reading a number. Recovered from the pre-apply snapshot
+plus a re-run of the replay (zero spend). To read the figure without writing, call
+`preflightPortable()` directly: it is pure (hashing plus `structuralReasons()`), and `stage()` is
+the only writer.
+
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 
 Production holds 3 services with 32 canonical items and zero source records (measured 2026-08-09;
@@ -1795,7 +1810,7 @@ narrower `needs_review` semantics on purpose.
 | ~~Rule on backfilling `ignored_lines` into the banked parse cache~~ | — | **DONE 2026-08-22** (IC3 item 12): approved and run, 544 backfilled at zero model spend, portable preflight 151 → 510 of 554 |
 | ~~**Disposition the 44 remaining portable structural holds**~~ | — | **DONE 2026-08-22** (IC3 item 13): 13-source `--fresh-parse` run (5 cleared, 2 reproduced their original defect, 2 came back worse and were restored, 3 unchanged) + zero-spend regex fix + a zero-spend re-derivation bonus (stale line-numbering in the morning's bundle snapshot, unrelated to today's work) together took the portable preflight from 510/554 to **528/554**. 26 remain held: 7 "no evening signal at all" + 2 "candlelight" judgement call + 1 Subject-line citation gap + 1 stable mislabel + 2 `other`-slot + 1 duplicate-plan (reproduced twice) + 2 missing-evening (reproduced twice) + 10 overlapping the standing 26 held sources. Full suite green (7,115 tests), PHPStan clean |
 | ~~Rule on "candlelight" as evening evidence~~ | — | **DECIDED AND FIXED 2026-08-22** (IC3 item 13): stand-alone carol services are always evening (maintainer ruling). `\bcandlelight\b` added to `EVENING_SERVICE_PATTERN`, not `\bcarols?\b` (corpus-checked false-positive risk: "carol" is also generic for "hymn" and the name "Carole"). Cleared `2018-12-23-carols` and `2020-12-20-carols` at zero cost: 528/554 → 530/554 |
-| **Disposition the 24-source residual** (7 no-signal, 1 citation-gap, 1 stable mislabel, 2 `other`-slot, 1 duplicate-plan, 2 missing-evening, plus the 10 from item 14's accepted-holds draft) | Portable apply | Operator; re-parsing again is unlikely to change any of these (IC3 items 13–14). **Note 2026-08-23:** the standing 530/554 portable preflight figure predates the recovery of `2018-01-07`, `2018-02-04-details` and `2018-08-12` — re-check it before dispositioning, as the overlap with the semantic holds has moved. Not re-run here |
+| **Disposition the 14-source residual** (9 evening-boundary, 2 `other`-slot, 1 duplicate-plan, 2 coverage) | Portable apply | Operator; re-parsing again is unlikely to change any of these (IC3 items 13–14). **Re-checked 2026-08-23 at zero spend: portable preflight 530/554 → 540/554, holds 24 → 14, with 0 new holds.** All 10 cleared were "source line not classified as evidence, an item, or ignored context" — the replay rewrote every cache through current code, which populates `ignored_lines` correctly. Note 4 of the 10 (`2016-11-27-songs`, `2018-05-27`, `2018-09-16`, `2019-04-28-details`) remain *semantically* held: a semantically-failed extraction marks every line ignored context, so it satisfies the structural coverage rule without having recovered any item. The 2 remaining coverage holds (`2026-02-15`, `2026-07-05`) were held identically before this work |
 | ~~Read the 26 held semantic Email sources against actual content~~ | — | **DONE 2026-08-22** (IC3 item 14): 24 genuinely held (2 cleared by item 13's re-parse but remain unstaged). 10 have nothing more to capture, 9 re-curated `full`→`partial` in the manifest (didn't clear the hold, but now correctly explained), 5 are genuine extraction misses masquerading as holds — not ruling material |
 | **Review and run the accepted-holds draft** (`storage/scratch/oos-accepted-holds-20260822-draft.json`, 19 entries) via `--accepted-holds=` | Email-lane settlement / F1 reporting / `expectation_mismatch` | Operator; a draft to edit, not to run unexamined (IC3 item 14) |
 | ~~Investigate the extraction misses~~ | — | **DONE 2026-08-22** (IC3 item 15): root cause found (compile-time all-or-nothing failure, two unrelated causes). Cause A fixed at zero spend via a new recompile tool — 4 of 6 recovered (`2018-07-01`, `2019-11-17-details`, `2019-10-13-songs` fully cleared; `2018-08-12` improved but has a second defect). Cause B (`2018-01-07`, `2018-02-04-details`) scoped, not yet built. Prior ~14, RG0A's 19 and the recovered run's 41 are all superseded by the 30/24 figures above |
