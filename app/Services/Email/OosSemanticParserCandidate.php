@@ -58,15 +58,18 @@ class OosSemanticParserCandidate
          * Cause B (IC3 item 15, 2026-08-22): a validator finding with no repairable lines (a
          * `service_boundary_missing` group with nothing annotated for it) can never reach the
          * repairer above, yet this method's own all-or-nothing check below would otherwise
-         * discard a fully clean, anchored sibling group along with it. Delegates to
-         * {@see CompileOosSemanticAnnotations::salvageEmptyUnanchoredGroups()} rather than
-         * re-implementing the same narrow rule here.
+         * discard a fully clean, anchored sibling group along with it. Deterministic recoveries
+         * like that one belong to {@see CompileOosSemanticAnnotations::recoverFromFindings()};
+         * this delegates rather than re-implementing any of them here.
+         *
+         * Worth running even when the repairer above already ran and failed: a recovery that
+         * needs no model call is not made less applicable by a round-trip that did not land.
          */
         if ($finalFindings !== []) {
-            $salvaged = $this->compiler->salvageEmptyUnanchoredGroups($final, $finalFindings);
+            $recovered = $this->compiler->recoverFromFindings($source, $final, $finalFindings);
 
-            if ($salvaged instanceof OosSemanticAnnotationResult) {
-                $final = $salvaged;
+            if ($recovered instanceof OosSemanticAnnotationResult) {
+                $final = $recovered;
                 $finalFindings = $this->validator->validate($source, $final);
             }
         }

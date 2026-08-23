@@ -136,4 +136,95 @@ class OosSemanticParserCandidateTest extends TestCase
         $this->assertSame([], $outcome->attempts[0]['final_rule_codes']);
         $this->assertArrayHasKey('compilation', $outcome->attempts[0]);
     }
+
+    #[Test]
+    public function a_document_header_shared_by_both_service_groups_is_normalised_to_ignored_context(): void
+    {
+        // Reproduces 2018-08-12: the model annotates the date header as `notice_context` shared by
+        // both groups. Sharing belongs to boundaries, so the validator rejects it, and until this
+        // recovery existed a paid repair call was the only thing that cleared it.
+        $source = OosEmailSourceDocument::fromContext(
+            'Sunday 23 August 2026',
+            "Sunday 23 August 2026\nMorning Service\n248 Immortal, invisible\nEvening Service\n30 Amazing grace",
+            '2026-08-19',
+        );
+        $annotations = new OosSemanticAnnotationResult(
+            [
+                new OosCandidateService('morning', 'morning', [2]),
+                new OosCandidateService('evening', 'evening', [4]),
+            ],
+            [
+                1 => new OosSemanticLineAnnotation(1, OosSemanticRole::NoticeContext, null, null, null, null, ['morning', 'evening']),
+                2 => new OosSemanticLineAnnotation(2, OosSemanticRole::ServiceBoundary, 'morning', null, null, null),
+                3 => new OosSemanticLineAnnotation(3, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Song, null, null),
+                4 => new OosSemanticLineAnnotation(4, OosSemanticRole::ServiceBoundary, 'evening', null, null, null),
+                5 => new OosSemanticLineAnnotation(5, OosSemanticRole::Item, 'evening', OosSemanticItemKind::Song, null, null),
+            ],
+        );
+        $candidate = $this->candidateFor($annotations);
+
+        $outcome = $candidate->parse($source);
+
+        $this->assertSame(['shared_boundary_role_invalid'], $outcome->attempts[0]['initial_rule_codes']);
+        $this->assertSame([], $outcome->attempts[0]['final_rule_codes']);
+        $this->assertCount(2, $outcome->extraction->services);
+        $this->assertSame([], $outcome->attempts[0]['final_annotations']['annotations'][1]['shared_service_group_ids']);
+        $this->assertContains(
+            ['line_id' => 1, 'reason' => 'context'],
+            $outcome->extraction->ignoredLines,
+            'The header must land in ignored context, not vanish from the coverage partition.',
+        );
+    }
+
+    #[Test]
+    public function normalisation_leaves_a_shared_boundary_line_alone(): void
+    {
+        // The mechanism this rule must not break: one line naming both services at once is exactly
+        // what `shared_service_group_ids` is for, and carries a `service_boundary` role to say so.
+        $source = OosEmailSourceDocument::fromContext(
+            'Sunday 23 August 2026',
+            "Morning and Evening Services\n248 Immortal, invisible",
+            '2026-08-19',
+        );
+        $annotations = new OosSemanticAnnotationResult(
+            [
+                new OosCandidateService('morning', 'morning', [1]),
+                new OosCandidateService('evening', 'evening', [1]),
+            ],
+            [
+                1 => new OosSemanticLineAnnotation(1, OosSemanticRole::ServiceBoundary, 'morning', null, null, null, ['evening']),
+                2 => new OosSemanticLineAnnotation(2, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Song, null, null),
+            ],
+        );
+        $candidate = $this->candidateFor($annotations);
+
+        $outcome = $candidate->parse($source);
+
+        $this->assertSame([], $outcome->attempts[0]['initial_rule_codes']);
+        $this->assertSame(['evening'], $outcome->attempts[0]['final_annotations']['annotations'][1]['shared_service_group_ids']);
+    }
+
+    private function candidateFor(OosSemanticAnnotationResult $annotations): OosSemanticParserCandidate
+    {
+        $annotator = new class($annotations) implements OosSemanticAnnotator
+        {
+            public function __construct(private readonly OosSemanticAnnotationResult $result) {}
+
+            public function annotate(OosEmailSourceDocument $source): OosSemanticAnnotationResult
+            {
+                return $this->result;
+            }
+        };
+        $validator = new OosSemanticAnnotationValidator;
+
+        return new OosSemanticParserCandidate(
+            $annotator,
+            new CompileOosSemanticAnnotations($validator, new OosServiceDateResolver),
+            $validator,
+            new ApplyOosSemanticAnnotationPatch,
+            new OosParserSurfaceFingerprint,
+            new OosSemanticAnnotationSchema,
+            new OosSemanticAnnotationPrompt,
+        );
+    }
 }

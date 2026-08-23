@@ -29,13 +29,13 @@ class CompileOosSemanticAnnotations
         $findings = $this->validator->validate($source, $result);
 
         if ($findings !== []) {
-            $salvaged = $this->salvageEmptyUnanchoredGroups($result, $findings);
+            $recovered = $this->recoverFromFindings($source, $result, $findings);
 
-            if ($salvaged === null) {
+            if ($recovered === null) {
                 throw new OosSemanticCompilationException($findings);
             }
 
-            $result = $salvaged;
+            $result = $recovered;
             $findings = $this->validator->validate($source, $result);
 
             if ($findings !== []) {
@@ -87,6 +87,133 @@ class CompileOosSemanticAnnotations
     }
 
     /**
+     * Every deterministic recovery this compiler knows, applied in turn to a failing annotation.
+     *
+     * Each recovery is narrow and refuses the documents it does not understand, so the useful
+     * question is which ones apply *together*: `2018-02-04-details` carries three findings from
+     * three unrelated causes, and a single-recovery gate reports whichever one it happens to check
+     * first as the whole story. Re-validating between passes means a later recovery sees the
+     * findings the earlier one actually left, not the ones it started with.
+     *
+     * Returns the rewritten annotation when anything moved, or `null` when no recovery applied —
+     * deliberately *not* "the document now validates". A partial recovery still narrows the
+     * findings the caller reports, and both callers re-validate before trusting the result, so
+     * neither can mistake "something moved" for "this document is now clean".
+     *
+     * Called from {@see self::compile()} and {@see OosSemanticParserCandidate::parse()}, which has
+     * its own all-or-nothing gate on the validator's raw findings and so never reaches this
+     * class's own re-validated call to compile(). One shared implementation avoids the drift a
+     * second, hand-matched copy would invite.
+     *
+     * @param  list<OosSemanticFinding>  $findings
+     */
+    public function recoverFromFindings(OosEmailSourceDocument $source, OosSemanticAnnotationResult $result, array $findings): ?OosSemanticAnnotationResult
+    {
+        $recovered = null;
+
+        foreach ([
+            $this->normaliseNonBoundarySharedGroups(...),
+            $this->salvageEmptyUnanchoredGroups(...),
+        ] as $recovery) {
+            $next = $recovery($result, $findings);
+
+            if (! $next instanceof OosSemanticAnnotationResult) {
+                continue;
+            }
+
+            $recovered = $result = $next;
+            $findings = $this->validator->validate($source, $result);
+
+            if ($findings === []) {
+                break;
+            }
+        }
+
+        return $recovered;
+    }
+
+    /**
+     * Drop `shared_service_group_ids` from the non-boundary lines the validator has just rejected
+     * for carrying them.
+     *
+     * Found 2026-08-23 sweeping the rehearsal corpus: 26 of 554 sources annotate a document-level
+     * header — `# Sunday 12 August 2018` in `2018-08-12` — as `notice_context` shared by both that
+     * day's service groups. Sharing is a *boundary* mechanism, for the one line that names two
+     * services at once, so {@see OosSemanticAnnotationValidator} is right to reject it; the model
+     * is simply being imprecise about a line that belongs to the document rather than to either
+     * service. Until now the only thing that fixed it was a paid repair call, which is a
+     * model round-trip spent restating a rule the schema already states.
+     *
+     * Removing the IDs moves the line from one half of the coverage partition to the other: a line
+     * with no group at all is exactly what {@see OosSemanticIgnoredLines} claims as ignored
+     * context, where {@see self::evidenceLineIds()} had been claiming it as evidence for every
+     * group it named. Every line stays accounted for, which is what the validator's coverage rule
+     * requires. The trade is deliberate and small — a genuinely shared notice becomes ignored
+     * context instead of evidence for two services, rather than the whole document failing — and
+     * it is preferred over promoting one of the shared IDs to the primary group, which would
+     * invent a preference between two services the annotation never expressed.
+     *
+     * Unlike {@see self::salvageEmptyUnanchoredGroups()} this does not refuse a document carrying
+     * unrelated findings. Salvage *drops a service group*, so it needs every finding to agree that
+     * the group is spurious; this only removes IDs the validator has already declared illegal on
+     * those exact lines, and can neither invent evidence nor widen a group's membership. Nor can
+     * it strand a boundary line: the validator requires `role === ServiceBoundary` on every line a
+     * group cites as boundary evidence, so a line reaching this rule is one no group can be citing
+     * without already having been flagged.
+     *
+     * @param  list<OosSemanticFinding>  $findings
+     */
+    public function normaliseNonBoundarySharedGroups(OosSemanticAnnotationResult $result, array $findings): ?OosSemanticAnnotationResult
+    {
+        $lineIds = [];
+
+        foreach ($findings as $finding) {
+            if ($finding->code !== 'shared_boundary_role_invalid') {
+                continue;
+            }
+
+            foreach ($finding->lineIds as $lineId) {
+                $lineIds[$lineId] = true;
+            }
+        }
+
+        if ($lineIds === []) {
+            return null;
+        }
+
+        $rewrittenAnnotations = [];
+        $normalised = false;
+
+        foreach ($result->annotations as $lineId => $annotation) {
+            if (! isset($lineIds[$annotation->lineId])
+                || $annotation->role === OosSemanticRole::ServiceBoundary
+                || $annotation->sharedServiceGroupIds === []) {
+                $rewrittenAnnotations[$lineId] = $annotation;
+
+                continue;
+            }
+
+            $normalised = true;
+            $rewrittenAnnotations[$lineId] = new OosSemanticLineAnnotation(
+                lineId: $annotation->lineId,
+                role: $annotation->role,
+                serviceGroupId: $annotation->serviceGroupId,
+                itemKind: $annotation->itemKind,
+                continuationTargetLineId: $annotation->continuationTargetLineId,
+                uncertainty: $annotation->uncertainty,
+                sharedServiceGroupIds: [],
+                boundaryAlsoItem: $annotation->boundaryAlsoItem,
+            );
+        }
+
+        if (! $normalised) {
+            return null;
+        }
+
+        return new OosSemanticAnnotationResult($result->services, $rewrittenAnnotations, $result->telemetry);
+    }
+
+    /**
      * Cause B (IC3 item 15, 2026-08-22): `parse()`'s all-or-nothing failure discards a fully
      * clean, anchored service group along with a genuinely empty, unanchored sibling — the
      * deferred "evening hymns to follow" half of a two-service email that the annotator declares
@@ -106,10 +233,9 @@ class CompileOosSemanticAnnotations
      * refused as salvageable if one is found — a document inconsistency the compile-time failure
      * should still surface rather than paper over.
      *
-     * Public, and called from both here and {@see OosSemanticParserCandidate::parse()}: that
-     * candidate has its own all-or-nothing gate on the validator's raw findings, so a document
-     * discarded there never reaches this method's own re-validated call to {@see self::compile()}.
-     * One shared implementation avoids the drift a second, hand-matched copy would invite.
+     * Public because {@see self::recoverFromFindings()} sequences it alongside the other
+     * recoveries, and both {@see self::compile()} and {@see OosSemanticParserCandidate::parse()}
+     * enter through that one door.
      *
      * @param  list<OosSemanticFinding>  $findings
      */

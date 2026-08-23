@@ -41,13 +41,25 @@ use Illuminate\Console\Command;
  * that survives the fix, or a document this fix does not touch) — this is a diagnostic-and-repair
  * tool, not a blind rewrite. `--dry-run` reports without writing at all.
  *
+ * It also refuses to write a replay that comes out *worse* than the cache it would replace, which
+ * is the failure mode "changed" alone cannot see. Because the repairer is deliberately omitted
+ * below, every source whose findings were originally cleared by a repair call replays as a
+ * failure: found 2026-08-23, a full-corpus sweep reported 26 of 554 sources failing
+ * `shared_boundary_role_invalid` or `item_semantics_incomplete` that are healthy in the cache —
+ * 299 items across services that parse cleanly. All 26 hash differently from their cached result,
+ * so nothing but `--dry-run` stood between that sweep and overwriting them all with zero-item
+ * failures. A regression is reported, never written, and makes the command exit non-zero;
+ * `--allow-regression` is the deliberate override for the case where the worse result is the
+ * honest one.
+ *
  * Delete alongside the historic-import archive commands once no further cache replay is required.
  */
 class RecompileOosArchiveParseCacheCommand extends Command
 {
     protected $signature = 'oos:recompile-archive-parse-cache
                             {--item-key=* : Archive item keys to replay (required)}
-                            {--dry-run : Report what would change without writing}';
+                            {--dry-run : Report what would change without writing}
+                            {--allow-regression : Write even when the replay loses items or gains rule codes}';
 
     protected $description = 'Replay cached archive parses through the current parser code, from banked model annotations, with no model call';
 
@@ -63,9 +75,11 @@ class RecompileOosArchiveParseCacheCommand extends Command
         }
 
         $dryRun = (bool) $this->option('dry-run');
+        $allowRegression = (bool) $this->option('allow-regression');
         $rows = [];
         $changed = 0;
         $unchanged = 0;
+        $regressed = 0;
 
         foreach ($itemKeys as $itemKey) {
             $inboundEmail = InboundEmail::query()
@@ -89,14 +103,15 @@ class RecompileOosArchiveParseCacheCommand extends Command
 
             $before = data_get($stored, 'raw_result');
             $beforeItems = is_array($before['items'] ?? null) ? count($before['items']) : 0;
-            $beforeRuleCodes = data_get($before, 'extraction_attempts.0.final_rule_codes', []);
+            $beforeRuleCodes = $this->ruleCodes(data_get($before, 'extraction_attempts.0.final_rule_codes'));
 
             $replayed = $this->replay($inboundEmail, $initialAnnotations);
             $afterPayload = $importService->encodeParseResult($replayed);
             $afterItems = count($afterPayload['items'] ?? []);
-            $afterRuleCodes = data_get($afterPayload, 'extraction_attempts.0.final_rule_codes', []);
+            $afterRuleCodes = $this->ruleCodes(data_get($afterPayload, 'extraction_attempts.0.final_rule_codes'));
 
             $rowChanged = CanonicalJson::hash($before) !== CanonicalJson::hash($afterPayload);
+            $rowRegressed = $rowChanged && $this->isRegression($beforeItems, $afterItems, $beforeRuleCodes, $afterRuleCodes);
 
             $rows[] = [
                 $itemKey,
@@ -104,13 +119,26 @@ class RecompileOosArchiveParseCacheCommand extends Command
                 $afterItems,
                 implode(',', $beforeRuleCodes) ?: '—',
                 implode(',', $afterRuleCodes) ?: '—',
-                $rowChanged ? 'changed' : 'unchanged',
+                match (true) {
+                    $rowRegressed && $allowRegression => 'regressed (forced)',
+                    $rowRegressed => 'REGRESSED — not written',
+                    $rowChanged => 'changed',
+                    default => 'unchanged',
+                },
             ];
 
             if (! $rowChanged) {
                 $unchanged++;
 
                 continue;
+            }
+
+            if ($rowRegressed) {
+                $regressed++;
+
+                if (! $allowRegression) {
+                    continue;
+                }
             }
 
             $changed++;
@@ -136,7 +164,45 @@ class RecompileOosArchiveParseCacheCommand extends Command
                 : "{$changed} written, {$unchanged} unchanged. No model call made."
         );
 
-        return self::SUCCESS;
+        if ($regressed === 0) {
+            return self::SUCCESS;
+        }
+
+        if ($allowRegression) {
+            $this->warn("{$regressed} replayed worse than the cache and were written anyway (--allow-regression).");
+
+            return self::SUCCESS;
+        }
+
+        $this->error(
+            "{$regressed} replayed worse than the cache and were not written. A source whose findings "
+            .'were originally cleared by a repair call always replays as a failure here, because this '
+            .'command omits the repairer — check its cached final_rule_codes before reading one of these '
+            .'as a parser defect. Pass --allow-regression to write them anyway.'
+        );
+
+        return self::FAILURE;
+    }
+
+    /** @return list<string> */
+    private function ruleCodes(mixed $codes): array
+    {
+        return is_array($codes) ? array_values(array_filter($codes, 'is_string')) : [];
+    }
+
+    /**
+     * Is the replayed result strictly worse than the cache it would replace?
+     *
+     * Losing items is the visible half. Gaining a rule code matters even when the item count holds,
+     * because a code the cache does not carry means this replay found a document the live parser
+     * had already settled — the reverse of what a fix under test should do.
+     *
+     * @param  list<string>  $beforeRuleCodes
+     * @param  list<string>  $afterRuleCodes
+     */
+    private function isRegression(int $beforeItems, int $afterItems, array $beforeRuleCodes, array $afterRuleCodes): bool
+    {
+        return $afterItems < $beforeItems || array_diff($afterRuleCodes, $beforeRuleCodes) !== [];
     }
 
     /** @param array<string, mixed> $initialAnnotationsPayload */
