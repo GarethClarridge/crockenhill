@@ -43,6 +43,16 @@ use RuntimeException;
  */
 class ChurchServiceCorpusExpectation
 {
+    /**
+     * The artifact contract lives on the consumer that validates it, because
+     * both lanes produce it: {@see OosApprovedCorpus} for Email and
+     * {@see OpenLpApprovedCorpus} for OpenLP. Each producer restates these so
+     * existing call sites keep naming their own lane's constant.
+     */
+    public const string Format = 'crockenhill-historic-corpus-expectation';
+
+    public const int Version = 1;
+
     public const string EXPECTATION_BATCH_UNSTAGED = 'expectation_batch_unstaged';
 
     public const string APPROVED_SOURCE_UNSTAGED = 'approved_source_unstaged';
@@ -149,7 +159,7 @@ class ChurchServiceCorpusExpectation
             $explained = true;
 
             foreach (array_unique($sourceKeys) as $sourceKey) {
-                $origin = OosCurationEntryFactory::originOf($sourceKey);
+                $origin = $this->originOf($source, $sourceKey);
                 $origins[] = $origin;
 
                 /**
@@ -202,6 +212,26 @@ class ChurchServiceCorpusExpectation
         ];
     }
 
+    /**
+     * Which lane a staged source key can be traced back to an approved entry
+     * through. Only Email has a legitimate beyond-manifest widening: one email
+     * carries both of a Sunday's orders, so its source key embeds the message id
+     * that identifies the approved entry behind a second identity.
+     *
+     * An OpenLP `.osz` is exactly one service and the importer is handed that
+     * service's approved date and slot, so there is no second order to explain
+     * and no origin to trace. Returning null here is the substantive rule, not a
+     * gap: any identity staged from OpenLP that the manifest does not name is
+     * unexplained by construction, and must fail closed.
+     */
+    private function originOf(ChurchServiceSource $source, string $sourceKey): ?string
+    {
+        return match ($source) {
+            ChurchServiceSource::Email => OosCurationEntryFactory::originOf($sourceKey),
+            default => null,
+        };
+    }
+
     /** @return array<string, mixed> */
     public function fromFile(string $path): array
     {
@@ -237,8 +267,8 @@ class ChurchServiceCorpusExpectation
         $hashable = $expectation;
         unset($hashable['expectation_hash']);
 
-        if (($expectation['format'] ?? null) !== OosApprovedCorpus::Format
-            || ($expectation['version'] ?? null) !== OosApprovedCorpus::Version
+        if (($expectation['format'] ?? null) !== self::Format
+            || ($expectation['version'] ?? null) !== self::Version
             || ! is_string($hash)
             || ! hash_equals(CanonicalJson::hash($hashable), $hash)
             || ! is_string($expectation['batch_key'] ?? null)

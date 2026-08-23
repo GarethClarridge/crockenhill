@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Email;
 
 use App\Data\OosCurationPlan;
+use App\Services\ChurchService\ChurchServiceCorpusExpectation;
 use App\Services\ChurchService\SourceAdapters\EmailSourceAdapter;
 use App\Support\CanonicalJson;
 
@@ -45,9 +46,10 @@ use App\Support\CanonicalJson;
  */
 class OosApprovedCorpus
 {
-    public const string Format = 'crockenhill-historic-corpus-expectation';
+    /** The artifact contract is shared with the OpenLP lane and owned by its validator. */
+    public const string Format = ChurchServiceCorpusExpectation::Format;
 
-    public const int Version = 1;
+    public const int Version = ChurchServiceCorpusExpectation::Version;
 
     /** This producer speaks for the Email lane; OpenLP's manifest owns its own. */
     public const string Source = 'email';

@@ -8,10 +8,12 @@ use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceSourceRecord;
 use App\Services\ChurchService\ChurchServiceCorpusExpectation;
+use App\Services\ChurchService\OpenLpApprovedCorpus;
 use App\Services\Email\OosApprovedCorpus;
 use App\Services\Email\OosArchiveEvaluator;
 use App\Services\Email\OosCurationEntryFactory;
 use App\Support\CanonicalJson;
+use App\Support\ChurchServiceSourceKey;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
@@ -229,6 +231,100 @@ class ChurchServiceCorpusExpectationTest extends TestCase
 
         $this->assertFalse($result['approved']);
         $this->assertSame(['expectation_unapproved'], $result['blockers']);
+    }
+
+    /**
+     * The Email lane admits an extra identity when an approved entry's origin
+     * explains it, because one email carries both of a Sunday's orders. An
+     * OpenLP `.osz` is exactly one service, so there is nothing to widen and an
+     * unnamed identity must fail closed rather than borrow Email's rule.
+     */
+    #[Test]
+    public function an_openlp_identity_the_manifest_does_not_name_is_unexplained(): void
+    {
+        $approved = ChurchService::query()->firstOrCreate(
+            ['date' => '2016-01-03', 'service' => 'morning'],
+            ChurchService::factory()->make(['date' => '2016-01-03', 'service' => 'morning'])->getAttributes(),
+        );
+        $this->stageOpenLp($approved, '20160103am.osz');
+
+        $extra = ChurchService::query()->firstOrCreate(
+            ['date' => '2016-01-10', 'service' => 'evening'],
+            ChurchService::factory()->make(['date' => '2016-01-10', 'service' => 'evening'])->getAttributes(),
+        );
+        $this->stageOpenLp($extra, '20160110pm.osz');
+
+        $result = app(ChurchServiceCorpusExpectation::class)->certify(
+            $this->openLpExpectation([['openlp:20160103am.osz', '20160103am.osz', '2016-01-03', 'morning']]),
+        );
+
+        $this->assertSame([], $result['explained_beyond_manifest']);
+        $this->assertCount(1, $result['unexplained_identities']);
+        $this->assertContains(
+            ChurchServiceCorpusExpectation::UNEXPLAINED_IDENTITY,
+            $result['blockers'],
+        );
+    }
+
+    #[Test]
+    public function an_openlp_corpus_that_staged_exactly_its_manifest_reconciles_clean(): void
+    {
+        $service = ChurchService::query()->firstOrCreate(
+            ['date' => '2016-01-03', 'service' => 'morning'],
+            ChurchService::factory()->make(['date' => '2016-01-03', 'service' => 'morning'])->getAttributes(),
+        );
+        $this->stageOpenLp($service, '20160103am.osz');
+
+        $result = app(ChurchServiceCorpusExpectation::class)->certify(
+            $this->openLpExpectation([['openlp:20160103am.osz', '20160103am.osz', '2016-01-03', 'morning']]),
+        );
+
+        $this->assertSame([], $result['blockers']);
+        $this->assertSame(1, $result['expected_services']);
+        $this->assertSame(1, $result['staged_identities']);
+    }
+
+    private function stageOpenLp(ChurchService $service, string $logicalFilename): void
+    {
+        ChurchServiceSourceRecord::factory()->create([
+            'church_service_id' => $service->id,
+            'source' => ChurchServiceSource::OpenLp,
+            'batch_hash' => self::BatchHash,
+            'source_key' => $logicalFilename,
+        ]);
+    }
+
+    /**
+     * @param  list<array{0:string,1:string,2:string,3:string}>  $entries
+     * @return array<string, mixed>
+     */
+    private function openLpExpectation(array $entries): array
+    {
+        $sources = [];
+
+        foreach ($entries as [$itemKey, $logicalFilename, $date, $service]) {
+            $sources[] = [
+                'item_key' => $itemKey,
+                'origin' => $itemKey,
+                'source_key' => ChurchServiceSourceKey::canonical($logicalFilename),
+                'input_hash' => hash('sha256', $itemKey),
+                'identity' => ['date' => $date, 'service' => $service],
+                'content_scope' => 'full',
+            ];
+        }
+
+        $expectation = [
+            'format' => OpenLpApprovedCorpus::Format,
+            'version' => OpenLpApprovedCorpus::Version,
+            'source' => OpenLpApprovedCorpus::Source,
+            'batch_key' => 'openlp-curated-test',
+            'batch_hash' => self::BatchHash,
+            'manifest_hash' => str_repeat('f', 64),
+            'approved_sources' => $sources,
+        ];
+        $expectation['expectation_hash'] = CanonicalJson::hash($expectation);
+
+        return $expectation;
     }
 
     private function stage(string $itemKey, string $date, string $service): ChurchService
