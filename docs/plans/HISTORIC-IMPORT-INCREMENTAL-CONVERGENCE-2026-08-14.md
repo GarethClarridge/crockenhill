@@ -1588,28 +1588,60 @@ Dry-run then apply against `2018-07-01`, `2018-08-12`, `2019-11-17-details`, `20
 **3 of 4 fully cleared** — `2018-07-01`, `2019-11-17-details`, `2019-10-13-songs` now
 `evidence_eligible`, 1 real recovered song item each (verified against the source text: 697 "Above
 the voices", NIP "All I have is Christ", NIP "On the cross he took what I deserved" — all match).
-`2018-08-12` improved (`continuation_target_invalid` cleared) but stays held — it carries a second,
-unrelated `shared_boundary_role_invalid` finding this fix does not touch. Full-corpus `--cache-only`
+`2018-08-12` improved (`continuation_target_invalid` cleared) but stayed held on a second,
+unrelated `shared_boundary_role_invalid` finding this fix did not touch (Cause C below, since fixed). Full-corpus `--cache-only`
 sanity check completed cleanly before and after (no errors, 554/554 reusable) — the write did not
 corrupt anything else. Full suite green, Pint clean, PHPStan clean (842 files, +1 for the new
 command).
 
-**Cause B — a narrower compiler gap, not yet fixed.** `2018-01-07` and `2018-02-04-details` are
+**Cause B — FIXED 2026-08-23 (`cbc54b054`).** `2018-01-07` and `2018-02-04-details` are
 two-group documents (one clean and anchored, one genuinely empty and unanchored —
 `service_boundary_missing`, zero items, the deferred "evening hymns to follow" half) where the
-all-or-nothing failure discards the clean group along with the broken one. Scoped, not built: when a
+all-or-nothing failure discards the clean group along with the broken one. Built as
+`CompileOosSemanticAnnotations::salvageEmptyUnanchoredGroups()`: when a
 group's only finding is `service_boundary_missing` and it has zero item annotations, and at least
 one sibling group in the document validates cleanly, drop that group and compile the rest — checked
 against the corpus first, and this is not a general salvage architecture: the 4 confirmed
 `service_boundary_missing` sources elsewhere in the corpus (`2016-11-27-songs`, `2019-04-28-details`,
 `2018-09-16`, `2018-05-27`) are single-group documents with nothing to salvage either way, so a
-narrow rule covers every case found. `2018-08-12`'s `shared_boundary_role_invalid` finding is a
-third, distinct defect, not yet investigated.
+narrow rule covers every case found. The real gate proved to be
+`OosSemanticParserCandidate::parse()`'s own early return, not `compile()`; both now enter recovery
+through one shared door.
 
-**What has not been checked**: only 24 of 554 sources' cached annotations for this signature (the 6
-plus the 18 that turned out clean). A cheap, zero-cost sweep of the remaining ~530 for
-`service_boundary_missing` / `continuation_target_invalid` / non-null `repair_error` would confirm
-whether 6 is the true ceiling.
+**Cause C — `shared_boundary_role_invalid`, FIXED 2026-08-23 (`d583576ea`).** `2018-08-12`'s third
+defect is the model annotating a document-level header (`# Sunday 12 August 2018`) as
+`notice_context` *shared* by both service groups. Sharing is a boundary mechanism, so the validator
+is right to reject it; a paid repair call was the only thing that had ever cleared it.
+`CompileOosSemanticAnnotations::normaliseNonBoundarySharedGroups()` now drops the IDs from exactly
+the lines the validator named, moving the line from `evidenceLineIds()` to
+`OosSemanticIgnoredLines` — the two halves of the coverage partition, so every line stays accounted
+for. Sequenced with the Cause B salvage by a new `recoverFromFindings()` that re-validates between
+passes, which is what recovers `2018-02-04-details` (three findings, three unrelated causes, no
+single recovery could clear it).
+
+**The full-corpus sweep is DONE (2026-08-23, zero cost, all 554).** It first appeared to surface a
+26-source `shared_boundary_role_invalid` defect class; that reading was wrong and is corrected here.
+`RecompileOosArchiveParseCacheCommand::replay()` passes `'repairer' => null` by design, so *any*
+source whose findings were originally cleared by a repair call necessarily replays as a failure. All
+26 were healthy in the cache (1–15 items, no final rule codes); only `2018-08-12` and
+`2018-02-04-details` were genuinely held. The same is true of the 2 `item_semantics_incomplete`
+sources (`2020-03-29`, `2025-07-27`): both carry a banked repair patch supplying an `item_kind` the
+model had to *judge* (`benediction`, flagged `ambiguous_item_kind`), which no deterministic rule can
+invent — correctly left to the repairer.
+
+**A real hazard the sweep exposed, now closed.** The replay command wrote on hash inequality alone,
+which every source trips because the hash covers `parser_surface_hash`. A non-`--dry-run` sweep
+would have overwritten those 26 good caches with zero-item failures, destroying **299 items**;
+only `--dry-run` discipline prevented it. `isRegression()` now refuses any write that loses items or
+gains a rule code the cache does not carry, reports the row, and exits non-zero.
+`--allow-regression` is the deliberate override.
+
+**Applied to `crockenhill_rehearsal_catalogued_v7` 2026-08-23** (552 written, 2 refused by the new
+guard, zero model spend). Email-lane held sources **7 → 4**: `2018-08-12` 0 → 15 items,
+`2018-01-07` 0 → 1, `2018-02-04-details` 0 → 1. Corpus item total reconciles exactly, 5826 → 5843
+(+17, fully accounted for by those three). The remaining four are exactly the single-group
+`service_boundary_missing` sources named above as unsalvageable. Full suite green (7,157 tests),
+Pint clean, PHPStan clean, Dusk green.
 
 ### IC4 — Current-era evidence back-fill (drive-free; any time)
 
@@ -1763,15 +1795,16 @@ narrower `needs_review` semantics on purpose.
 | ~~Rule on backfilling `ignored_lines` into the banked parse cache~~ | — | **DONE 2026-08-22** (IC3 item 12): approved and run, 544 backfilled at zero model spend, portable preflight 151 → 510 of 554 |
 | ~~**Disposition the 44 remaining portable structural holds**~~ | — | **DONE 2026-08-22** (IC3 item 13): 13-source `--fresh-parse` run (5 cleared, 2 reproduced their original defect, 2 came back worse and were restored, 3 unchanged) + zero-spend regex fix + a zero-spend re-derivation bonus (stale line-numbering in the morning's bundle snapshot, unrelated to today's work) together took the portable preflight from 510/554 to **528/554**. 26 remain held: 7 "no evening signal at all" + 2 "candlelight" judgement call + 1 Subject-line citation gap + 1 stable mislabel + 2 `other`-slot + 1 duplicate-plan (reproduced twice) + 2 missing-evening (reproduced twice) + 10 overlapping the standing 26 held sources. Full suite green (7,115 tests), PHPStan clean |
 | ~~Rule on "candlelight" as evening evidence~~ | — | **DECIDED AND FIXED 2026-08-22** (IC3 item 13): stand-alone carol services are always evening (maintainer ruling). `\bcandlelight\b` added to `EVENING_SERVICE_PATTERN`, not `\bcarols?\b` (corpus-checked false-positive risk: "carol" is also generic for "hymn" and the name "Carole"). Cleared `2018-12-23-carols` and `2020-12-20-carols` at zero cost: 528/554 → 530/554 |
-| **Disposition the 24-source residual** (7 no-signal, 1 citation-gap, 1 stable mislabel, 2 `other`-slot, 1 duplicate-plan, 2 missing-evening, plus the 10 from item 14's accepted-holds draft) | Portable apply | Operator; re-parsing again is unlikely to change any of these (IC3 items 13–14) |
+| **Disposition the 24-source residual** (7 no-signal, 1 citation-gap, 1 stable mislabel, 2 `other`-slot, 1 duplicate-plan, 2 missing-evening, plus the 10 from item 14's accepted-holds draft) | Portable apply | Operator; re-parsing again is unlikely to change any of these (IC3 items 13–14). **Note 2026-08-23:** the standing 530/554 portable preflight figure predates the recovery of `2018-01-07`, `2018-02-04-details` and `2018-08-12` — re-check it before dispositioning, as the overlap with the semantic holds has moved. Not re-run here |
 | ~~Read the 26 held semantic Email sources against actual content~~ | — | **DONE 2026-08-22** (IC3 item 14): 24 genuinely held (2 cleared by item 13's re-parse but remain unstaged). 10 have nothing more to capture, 9 re-curated `full`→`partial` in the manifest (didn't clear the hold, but now correctly explained), 5 are genuine extraction misses masquerading as holds — not ruling material |
 | **Review and run the accepted-holds draft** (`storage/scratch/oos-accepted-holds-20260822-draft.json`, 19 entries) via `--accepted-holds=` | Email-lane settlement / F1 reporting / `expectation_mismatch` | Operator; a draft to edit, not to run unexamined (IC3 item 14) |
 | ~~Investigate the extraction misses~~ | — | **DONE 2026-08-22** (IC3 item 15): root cause found (compile-time all-or-nothing failure, two unrelated causes). Cause A fixed at zero spend via a new recompile tool — 4 of 6 recovered (`2018-07-01`, `2019-11-17-details`, `2019-10-13-songs` fully cleared; `2018-08-12` improved but has a second defect). Cause B (`2018-01-07`, `2018-02-04-details`) scoped, not yet built. Prior ~14, RG0A's 19 and the recovered run's 41 are all superseded by the 30/24 figures above |
-| Build the Cause B compiler fix (drop an empty, unanchored sibling group rather than failing the whole document) | Email-lane settlement | IC3 item 15; narrowly scoped, 2 confirmed beneficiaries |
-| Investigate `2018-08-12`'s `shared_boundary_role_invalid` finding (a third, distinct defect) | Email-lane settlement | IC3 item 15 |
-| Sweep the remaining ~530 cached sources for the Cause A/B signature | Email-lane settlement accounting | IC3 item 15; zero cost, confirms whether 6 is the true ceiling |
+| ~~Build the Cause B compiler fix~~ | — | **DONE 2026-08-23** (`cbc54b054`): `salvageEmptyUnanchoredGroups()`. The real gate was `OosSemanticParserCandidate::parse()`'s own early return, not `compile()` — fixing only the compiler changed nothing in production. Both beneficiaries recovered |
+| ~~Investigate `2018-08-12`'s `shared_boundary_role_invalid` finding~~ | — | **DONE AND FIXED 2026-08-23** (`d583576ea`): a document-level date header annotated `notice_context` *shared* by both groups. `normaliseNonBoundarySharedGroups()` drops the illegal IDs so the line falls through to `OosSemanticIgnoredLines`. Cleared 0 → 15 items. Chained with Cause B via `recoverFromFindings()`, which also recovered `2018-02-04-details` |
+| ~~Sweep the remaining ~530 cached sources for the Cause A/B signature~~ | — | **DONE 2026-08-23**, all 554, zero cost. 6 was *not* the ceiling but the excess was measurement error: the replay omits the repairer, so every repair-cleared source reads as a failure. 26 apparent `shared_boundary_role_invalid` + 2 `item_semantics_incomplete` were all healthy in cache. Exposed a real hazard — the command wrote on hash inequality alone and a non-dry-run sweep would have destroyed 299 items; now guarded by `isRegression()` |
 | ~~**Second services the manifest could not declare**~~ | — | **DECIDED 2026-08-22** (IC3 item 10): schema v2 `additional_services`, 137 entries re-curated, identity precision 77.6% → 99.49%. Plural `resolved_service` was considered and rejected: it is half the source key, so widening it would re-identify every staged revision |
 | ~~Three parser slot fixes for `other`-slotted plans~~ | — | **NOT QUEUED 2026-08-22 in item 10, REVERSED same day in item 13**: item 10 declined a re-parse for these 3 alone (non-idempotent, 24/30 source-exact self-disagreement, to fix 3 of 554). Operator chose 2026-08-22 to fold `2016-02-07`, `2022-02-27` and `2022-04-14-maundy-thursday` into the item-13 batch re-parse instead — the marginal cost of 3 more sources in a run that is re-parsing 10 others anyway is small, which is a different calculation than a standalone re-parse for 3 |
+| ~~Apply the recovered replays to the rehearsal cache~~ | — | **DONE 2026-08-23**: 552 written, 2 refused by the new regression guard, zero model spend. Email-lane holds **7 → 4**; corpus item total 5826 → 5843, reconciled exactly |
 | Source recovery for the 3 unevidenced current-era services | IC4 | Operator |
 | Video curation worksheet adjudication + freeze | IC5 bulk pass | Operator, on the §2.4 trigger |
 | Era release sign-offs and the §8.4 policy decision | Each RG-C release | Maintainer/church |
