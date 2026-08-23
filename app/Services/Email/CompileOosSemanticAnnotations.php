@@ -9,6 +9,8 @@ use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailSourceDocument;
 use App\Data\OosSemanticAnnotationResult;
 use App\Data\OosSemanticCompilationResult;
+use App\Data\OosSemanticFinding;
+use App\Data\OosSemanticLineAnnotation;
 use App\Enums\OosSemanticItemKind;
 use App\Enums\OosSemanticRole;
 use App\Enums\OosSemanticUncertainty;
@@ -27,7 +29,18 @@ class CompileOosSemanticAnnotations
         $findings = $this->validator->validate($source, $result);
 
         if ($findings !== []) {
-            throw new OosSemanticCompilationException($findings);
+            $salvaged = $this->salvageEmptyUnanchoredGroups($result, $findings);
+
+            if ($salvaged === null) {
+                throw new OosSemanticCompilationException($findings);
+            }
+
+            $result = $salvaged;
+            $findings = $this->validator->validate($source, $result);
+
+            if ($findings !== []) {
+                throw new OosSemanticCompilationException($findings);
+            }
         }
 
         $services = $result->services;
@@ -71,6 +84,93 @@ class CompileOosSemanticAnnotations
             ),
             riskSignals: $riskSignals,
         );
+    }
+
+    /**
+     * Cause B (IC3 item 15, 2026-08-22): `parse()`'s all-or-nothing failure discards a fully
+     * clean, anchored service group along with a genuinely empty, unanchored sibling — the
+     * deferred "evening hymns to follow" half of a two-service email that the annotator declares
+     * as a group but never annotates an item for. Corpus-checked against `2018-01-07` and
+     * `2018-02-04-details`: the empty group still typically owns a `notice_context` line (the
+     * "hymns to follow" sentence itself), so the salvageable condition is zero *item* annotations,
+     * not zero annotations of any kind — every other `service_boundary_missing` source in the
+     * corpus is a single-group document with nothing to salvage either way, so this narrow rule
+     * covers every case found without a general salvage architecture.
+     *
+     * Dropping the group's service entry alone would strand any non-item line still pointing at
+     * it — neither evidence for a service (nothing compiles that group any more) nor eligible for
+     * {@see OosSemanticIgnoredLines}, which deliberately skips any line still carrying a service
+     * group ID. So the orphaned lines are re-homed to no group, which is exactly what makes that
+     * class treat them as ignored context instead. A `service_boundary` or `continuation` role
+     * line cannot be re-homed that way without inventing evidence it never had, so the group is
+     * refused as salvageable if one is found — a document inconsistency the compile-time failure
+     * should still surface rather than paper over.
+     *
+     * Public, and called from both here and {@see OosSemanticParserCandidate::parse()}: that
+     * candidate has its own all-or-nothing gate on the validator's raw findings, so a document
+     * discarded there never reaches this method's own re-validated call to {@see self::compile()}.
+     * One shared implementation avoids the drift a second, hand-matched copy would invite.
+     *
+     * @param  list<OosSemanticFinding>  $findings
+     */
+    public function salvageEmptyUnanchoredGroups(OosSemanticAnnotationResult $result, array $findings): ?OosSemanticAnnotationResult
+    {
+        $droppableGroupIds = [];
+
+        foreach ($findings as $finding) {
+            if ($finding->code !== 'service_boundary_missing' || $finding->groupId === null) {
+                return null;
+            }
+
+            $droppableGroupIds[$finding->groupId] = true;
+        }
+
+        $remainingServices = array_values(array_filter(
+            $result->services,
+            static fn (OosCandidateService $service): bool => ! isset($droppableGroupIds[$service->groupId]),
+        ));
+
+        if ($remainingServices === [] || count($remainingServices) === count($result->services)) {
+            return null;
+        }
+
+        $rewrittenAnnotations = [];
+
+        foreach ($result->annotations as $lineId => $annotation) {
+            $belongsToDroppedGroup = isset($droppableGroupIds[$annotation->serviceGroupId])
+                || array_any($annotation->sharedServiceGroupIds, static fn (string $groupId): bool => isset($droppableGroupIds[$groupId]));
+
+            if (! $belongsToDroppedGroup) {
+                $rewrittenAnnotations[$lineId] = $annotation;
+
+                continue;
+            }
+
+            $isItemLike = $annotation->role === OosSemanticRole::Item
+                || $annotation->boundaryAlsoItem
+                || $annotation->role === OosSemanticRole::Continuation
+                || $annotation->role === OosSemanticRole::ServiceBoundary;
+
+            if ($isItemLike) {
+                return null;
+            }
+
+            $rewrittenAnnotations[$lineId] = new OosSemanticLineAnnotation(
+                lineId: $annotation->lineId,
+                role: $annotation->role,
+                serviceGroupId: null,
+                itemKind: $annotation->itemKind,
+                continuationTargetLineId: $annotation->continuationTargetLineId,
+                uncertainty: $annotation->uncertainty,
+                sharedServiceGroupIds: array_values(array_filter(
+                    $annotation->sharedServiceGroupIds,
+                    static fn (string $groupId): bool => ! isset($droppableGroupIds[$groupId]),
+                )),
+                boundaryAlsoItem: $annotation->boundaryAlsoItem,
+            );
+        }
+
+        return new OosSemanticAnnotationResult($remainingServices, $rewrittenAnnotations, $result->telemetry);
     }
 
     /**

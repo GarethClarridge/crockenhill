@@ -8,6 +8,7 @@ use App\Contracts\OosSemanticAnnotator;
 use App\Contracts\OosSemanticRepairer;
 use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailSourceDocument;
+use App\Data\OosSemanticAnnotationResult;
 use App\Data\OosSemanticFinding;
 use App\Data\OosSemanticParserOutcome;
 use App\Support\CanonicalJson;
@@ -50,6 +51,23 @@ class OosSemanticParserCandidate
                 $repairError = $exception->getMessage();
                 $final = $initial;
                 $finalFindings = $initialFindings;
+            }
+        }
+
+        /**
+         * Cause B (IC3 item 15, 2026-08-22): a validator finding with no repairable lines (a
+         * `service_boundary_missing` group with nothing annotated for it) can never reach the
+         * repairer above, yet this method's own all-or-nothing check below would otherwise
+         * discard a fully clean, anchored sibling group along with it. Delegates to
+         * {@see CompileOosSemanticAnnotations::salvageEmptyUnanchoredGroups()} rather than
+         * re-implementing the same narrow rule here.
+         */
+        if ($finalFindings !== []) {
+            $salvaged = $this->compiler->salvageEmptyUnanchoredGroups($final, $finalFindings);
+
+            if ($salvaged instanceof OosSemanticAnnotationResult) {
+                $final = $salvaged;
+                $finalFindings = $this->validator->validate($source, $final);
             }
         }
 

@@ -85,4 +85,55 @@ class OosSemanticParserCandidateTest extends TestCase
         $this->assertArrayHasKey('schema_hash', $outcome->attempts[0]);
         $this->assertSame('gpt-5.6-terra-test', $outcome->attempts[0]['repair_telemetry']['returned_model']);
     }
+
+    #[Test]
+    public function an_unrepairable_empty_unanchored_sibling_group_is_salvaged_rather_than_failing_the_whole_document(): void
+    {
+        // Reproduces 2018-01-07: a `service_boundary_missing` finding carries no line IDs, so
+        // `isRepairable()` never even offers it to the repairer — the candidate's own
+        // all-or-nothing check is the only place this document could still be discarded.
+        $source = OosEmailSourceDocument::fromContext(
+            'Sunday 23 August 2026',
+            "Morning Service\nWelcome and notices\n248 Immortal, invisible\nEvening: hymns to follow",
+            '2026-08-19',
+        );
+        $annotations = new OosSemanticAnnotationResult(
+            [
+                new OosCandidateService('morning', 'morning', [1]),
+                new OosCandidateService('evening', 'evening', []),
+            ],
+            [
+                1 => new OosSemanticLineAnnotation(1, OosSemanticRole::ServiceBoundary, 'morning', null, null, null),
+                2 => new OosSemanticLineAnnotation(2, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Welcome, null, null),
+                3 => new OosSemanticLineAnnotation(3, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Song, null, null),
+                4 => new OosSemanticLineAnnotation(4, OosSemanticRole::SupportingDetail, 'evening', null, null, null),
+            ],
+        );
+        $annotator = new class($annotations) implements OosSemanticAnnotator
+        {
+            public function __construct(private readonly OosSemanticAnnotationResult $result) {}
+
+            public function annotate(OosEmailSourceDocument $source): OosSemanticAnnotationResult
+            {
+                return $this->result;
+            }
+        };
+        $validator = new OosSemanticAnnotationValidator;
+        $candidate = new OosSemanticParserCandidate(
+            $annotator,
+            new CompileOosSemanticAnnotations($validator, new OosServiceDateResolver),
+            $validator,
+            new ApplyOosSemanticAnnotationPatch,
+            new OosParserSurfaceFingerprint,
+            new OosSemanticAnnotationSchema,
+            new OosSemanticAnnotationPrompt,
+        );
+
+        $outcome = $candidate->parse($source);
+
+        $this->assertCount(1, $outcome->extraction->services);
+        $this->assertSame('morning', $outcome->extraction->services[0]['service']);
+        $this->assertSame([], $outcome->attempts[0]['final_rule_codes']);
+        $this->assertArrayHasKey('compilation', $outcome->attempts[0]);
+    }
 }

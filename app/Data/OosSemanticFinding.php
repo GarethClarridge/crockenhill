@@ -15,9 +15,10 @@ readonly class OosSemanticFinding
         public string $message,
         public array $lineIds,
         public array $repairableFields = [],
+        public ?string $groupId = null,
     ) {}
 
-    /** @return array{code:string,message:string,line_ids:list<int>,repairable_fields:list<string>} */
+    /** @return array{code:string,message:string,line_ids:list<int>,repairable_fields:list<string>,group_id:?string} */
     public function toArray(): array
     {
         return [
@@ -25,6 +26,7 @@ readonly class OosSemanticFinding
             'message' => $this->message,
             'line_ids' => $this->lineIds,
             'repairable_fields' => $this->repairableFields,
+            'group_id' => $this->groupId,
         ];
     }
 }

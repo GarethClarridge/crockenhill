@@ -232,6 +232,93 @@ class CompileOosSemanticAnnotationsTest extends TestCase
         $this->assertSame('partial', $service['content_scope']);
     }
 
+    #[Test]
+    public function a_genuinely_empty_unanchored_sibling_group_is_dropped_rather_than_failing_the_whole_document(): void
+    {
+        $source = OosEmailSourceDocument::fromContext(
+            'Sunday 23 August 2026',
+            "Morning Service\nWelcome and notices\n248 Immortal, invisible\nEvening hymns to follow",
+            '2026-08-19',
+        );
+        $annotations = new OosSemanticAnnotationResult(
+            [
+                new OosCandidateService('morning', 'morning', [1]),
+                new OosCandidateService('evening', 'evening', []),
+            ],
+            [
+                1 => $this->annotation(1, OosSemanticRole::ServiceBoundary, 'morning'),
+                2 => $this->annotation(2, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Welcome),
+                3 => $this->annotation(3, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Song),
+                4 => $this->annotation(4, OosSemanticRole::GreetingOrSignature),
+            ],
+        );
+
+        $compiled = $this->compiler()->compile($source, $annotations)->extraction;
+
+        $this->assertCount(1, $compiled->services);
+        $this->assertSame('morning', $compiled->services[0]['service']);
+        $this->assertSame([['line_id' => 4, 'reason' => 'signature']], $compiled->ignoredLines);
+    }
+
+    #[Test]
+    public function the_empty_groups_own_notice_line_is_re_homed_to_ignored_context_rather_than_blocking_the_drop(): void
+    {
+        // Reproduces 2018-01-07's actual shape: the deferred group still owns a `notice_context`
+        // line (the "hymns to follow" sentence itself) even though it has no item and no boundary.
+        $source = OosEmailSourceDocument::fromContext(
+            'Sunday 23 August 2026',
+            "Morning Service\nWelcome and notices\n248 Immortal, invisible\nEvening: hymns to follow",
+            '2026-08-19',
+        );
+        $annotations = new OosSemanticAnnotationResult(
+            [
+                new OosCandidateService('morning', 'morning', [1]),
+                new OosCandidateService('evening', 'evening', []),
+            ],
+            [
+                1 => $this->annotation(1, OosSemanticRole::ServiceBoundary, 'morning'),
+                2 => $this->annotation(2, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Welcome),
+                3 => $this->annotation(3, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Song),
+                4 => $this->annotation(4, OosSemanticRole::SupportingDetail, 'evening'),
+            ],
+        );
+
+        $compiled = $this->compiler()->compile($source, $annotations)->extraction;
+
+        $this->assertCount(1, $compiled->services);
+        $this->assertSame('morning', $compiled->services[0]['service']);
+        $this->assertSame([['line_id' => 4, 'reason' => 'context']], $compiled->ignoredLines);
+    }
+
+    #[Test]
+    public function an_empty_group_still_carrying_boundary_or_item_evidence_still_fails_the_whole_document(): void
+    {
+        $source = OosEmailSourceDocument::fromContext(
+            'Sunday 23 August 2026',
+            "Morning Service\nWelcome and notices\n248 Immortal, invisible\nEvening hymn: 960",
+            '2026-08-19',
+        );
+        $annotations = new OosSemanticAnnotationResult(
+            [
+                new OosCandidateService('morning', 'morning', [1]),
+                new OosCandidateService('evening', 'evening', []),
+            ],
+            [
+                1 => $this->annotation(1, OosSemanticRole::ServiceBoundary, 'morning'),
+                2 => $this->annotation(2, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Welcome),
+                3 => $this->annotation(3, OosSemanticRole::Item, 'morning', OosSemanticItemKind::Song),
+                4 => $this->annotation(4, OosSemanticRole::Item, 'evening', OosSemanticItemKind::Song),
+            ],
+        );
+
+        try {
+            $this->compiler()->compile($source, $annotations);
+            $this->fail('Expected the empty group carrying an item to still fail compilation.');
+        } catch (OosSemanticCompilationException $exception) {
+            $this->assertSame(['service_boundary_missing'], array_map(static fn ($f) => $f->code, $exception->findings));
+        }
+    }
+
     private function annotation(
         int $lineId,
         OosSemanticRole $role,

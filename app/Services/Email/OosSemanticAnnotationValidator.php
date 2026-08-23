@@ -40,7 +40,7 @@ class OosSemanticAnnotationValidator
             $groups[$service->groupId] = true;
 
             if ($service->boundaryLineIds === []) {
-                $findings[] = $this->finding('service_boundary_missing', "Service group {$service->groupId} has no boundary evidence.", []);
+                $findings[] = $this->finding('service_boundary_missing', "Service group {$service->groupId} has no boundary evidence.", [], groupId: $service->groupId);
             }
 
             foreach ($service->boundaryLineIds as $lineId) {
@@ -184,8 +184,8 @@ class OosSemanticAnnotationValidator
      * @param  list<int>  $lineIds
      * @param  list<string>  $repairableFields
      */
-    private function finding(string $code, string $message, array $lineIds, array $repairableFields = []): OosSemanticFinding
+    private function finding(string $code, string $message, array $lineIds, array $repairableFields = [], ?string $groupId = null): OosSemanticFinding
     {
-        return new OosSemanticFinding($code, $message, $lineIds, $repairableFields);
+        return new OosSemanticFinding($code, $message, $lineIds, $repairableFields, $groupId);
     }
 }
