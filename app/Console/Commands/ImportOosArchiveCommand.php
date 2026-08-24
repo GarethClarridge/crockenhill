@@ -305,6 +305,7 @@ class ImportOosArchiveCommand extends Command
                         $inboundEmail,
                         $parseResult,
                         onlyPlanKeys: $eligiblePlanKeys,
+                        sourceInputHash: $entry->inputHash,
                     );
                     // Taken from the importer rather than re-derived from plan dispositions: a
                     // partially failed entry really did import the plans it reports here.

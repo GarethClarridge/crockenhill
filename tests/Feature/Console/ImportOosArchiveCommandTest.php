@@ -12,6 +12,7 @@ use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\ChurchServiceSourceRecord;
 use App\Models\InboundEmail;
 use App\Models\Sermon;
 use App\Queries\AdminAttentionCounts;
@@ -1451,6 +1452,42 @@ class ImportOosArchiveCommandTest extends TestCase
         // curation feedback about an under-describing entry, not a dropped order.
         $this->assertContains('service_beyond_manifest', $entry['parse_flags']);
         $this->assertSame(1, $payload['aggregate']['parse_flag_counts']['service_beyond_manifest']);
+    }
+
+    /**
+     * The live import path called {@see InboundEmailImportService::import()} without its
+     * `sourceInputHash` argument, so {@see EmailSourceAdapter::adapt()} fell back to hashing the
+     * stored `InboundEmail` row instead of the manifest's approved verbatim digest — the value
+     * {@see ChurchServiceCorpusExpectation::certify()} compares staged records against. On the
+     * full corpus this made `approved_source_input_hash_mismatch` fire for 531 of 554 sources; the
+     * bundle-staging path already threaded the hash through correctly, which is why this went
+     * unnoticed until a direct `--import` run was reconciled against the expectation.
+     */
+    #[Test]
+    public function a_staged_record_carries_the_manifests_verbatim_input_hash_not_a_re_derived_one(): void
+    {
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::returning(new OosEmailItemExtractionResult(
+            items: [['type' => 'song', 'title' => 'Amazing Grace']],
+            confidence: 1.0,
+            services: [[
+                'service' => 'morning',
+                'date' => '2026-07-12',
+                'items' => [['type' => 'song', 'title' => 'Amazing Grace']],
+                'confidence' => 1.0,
+            ]],
+        )));
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $report = $this->temporaryPath('json');
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus, '--import' => true, '--plan-hash' => $this->planHash(), '--report' => $report,
+        ])->assertExitCode(0);
+
+        $payload = $this->readReport($report);
+        $manifestInputHash = $payload['entries'][0]['input_hash'];
+        $stagedInputHash = ChurchServiceSourceRecord::query()->firstOrFail()->input_hash;
+
+        $this->assertSame($manifestInputHash, $stagedInputHash);
     }
 
     /**

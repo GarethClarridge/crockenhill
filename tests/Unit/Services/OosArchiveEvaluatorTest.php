@@ -503,12 +503,14 @@ class OosArchiveEvaluatorTest extends TestCase
     }
 
     /**
-     * A held plan inside an entry that imported another plan is reported at plan level but must
-     * not be counted as a held *source*, or the census stops being comparable to the recorded
-     * held-source baseline.
+     * A held plan inside an entry that imported another plan must not be counted as a held
+     * *source*, or the census stops being comparable to the recorded held-source baseline — but
+     * its reason still belongs in the entry's own `hold_reason_categories`, the same as
+     * `held_plan_keys` already names the plan itself. Gating that field on the entry's overall
+     * disposition silently dropped it whenever a sibling plan happened to import cleanly.
      */
     #[Test]
-    public function it_counts_a_held_plan_inside_an_imported_entry_at_plan_level_only(): void
+    public function it_counts_a_held_plan_inside_an_imported_entry_without_counting_it_as_a_held_source(): void
     {
         $imported = new OosEmailServicePlan(
             service: SermonService::Morning,
@@ -550,11 +552,14 @@ class OosArchiveEvaluatorTest extends TestCase
         $this->assertFalse($result['held']);
         $this->assertSame(['morning:2026-07-12'], $result['imported_plan_keys']);
         $this->assertSame(['evening:2026-07-12'], $result['held_plan_keys']);
-        $this->assertSame([], $result['hold_reason_categories']);
+        // The entry as a whole isn't held (its morning plan imported), but its evening plan is —
+        // hold_reason_categories must say why, the same as held_plan_keys already does, rather
+        // than reading as if the held plan had no reason at all.
+        $this->assertSame(['low_confidence'], $result['hold_reason_categories']);
         $this->assertSame(['low_confidence'], $result['plans'][1]['hold_reasons']);
 
         $aggregate = (new OosArchiveEvaluator)->aggregate([$result]);
-        $this->assertSame([], $aggregate['hold_reason_category_counts']);
+        $this->assertSame(['low_confidence' => 1], $aggregate['hold_reason_category_counts']);
         $this->assertSame(['low_confidence' => 1], $aggregate['held_plan_reason_counts']);
     }
 

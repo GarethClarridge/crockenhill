@@ -139,7 +139,7 @@ class OosArchiveEvaluator
             'imported_plan_keys' => $importedPlanKeys,
             'held_plan_keys' => $heldPlanKeys,
             'held' => $entryHeld,
-            'hold_reason_categories' => $this->holdReasonCategories($planRecords, $gateReasons, $entryHeld),
+            'hold_reason_categories' => $this->holdReasonCategories($planRecords, $gateReasons, $entryHeld, $heldPlanKeys),
             'confidence' => $confidence,
             'disposition' => $disposition,
             'gate_eligible' => $parseResult !== null && $gateReasons === [],
@@ -258,19 +258,36 @@ class OosArchiveEvaluator
      *
      * Reasons are read from what the parser recorded, never rebuilt from reason text.
      *
+     * A dual-service entry (e.g. one email asserting both a morning and evening order) can have
+     * one plan genuinely held while its sibling imports cleanly. The entry-level disposition then
+     * reads `created`/`merged`, not one of {@see self::HeldDispositions}, so gating on `$entryHeld`
+     * alone silently dropped the held plan's reasons — the plan stayed in `held_plan_keys`, but
+     * `hold_reason_categories` reported nothing, as if it had none. `$heldPlanKeys` (when the
+     * import actually ran) says exactly which plans were held; only fall back to "every plan or
+     * none" via `$entryHeld` when import was never attempted at all (dry run/evaluate), where no
+     * per-plan held set exists to consult.
+     *
      * @param  list<array<string, mixed>>  $plans
      * @param  list<string>  $gateReasons
+     * @param  list<string>|null  $heldPlanKeys
      * @return list<string>
      */
-    private function holdReasonCategories(array $plans, array $gateReasons, bool $entryHeld): array
+    private function holdReasonCategories(array $plans, array $gateReasons, bool $entryHeld, ?array $heldPlanKeys): array
     {
-        if (! $entryHeld) {
+        $heldPlans = $heldPlanKeys === null
+            ? ($entryHeld ? $plans : [])
+            : array_values(array_filter(
+                $plans,
+                static fn (array $plan): bool => in_array($plan['plan_key'], $heldPlanKeys, true),
+            ));
+
+        if ($heldPlans === [] && $gateReasons === []) {
             return [];
         }
 
         $categories = $gateReasons === [] ? [] : ['source_gate'];
 
-        foreach ($plans as $plan) {
+        foreach ($heldPlans as $plan) {
             foreach ($plan['hold_reasons'] ?? [] as $reason) {
                 $categories[] = $reason;
             }
