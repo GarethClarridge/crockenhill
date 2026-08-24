@@ -94,8 +94,25 @@ class OosServiceDateResolver
             return null;
         }
 
+        /**
+         * `tomorrow` is honoured only where it lands on a Sunday.
+         *
+         * The word is matched anywhere in the flattened evidence, so it frequently modifies
+         * something other than the service: "I'll send the PPT to the admin address tomorrow or
+         * Saturday" in a Thursday email resolved a Sunday service to the Friday, because this rung
+         * was tested before every other and returned unconditionally. Nothing here can tell what a
+         * relative marker refers to, but a `tomorrow` that is not a Sunday is evidence it refers to
+         * something else, and the rungs below — a named day, or the Sunday on or after receipt —
+         * answer that source better than a bare offset does.
+         *
+         * Almost every genuine use arrives on a Saturday, where the guard is a no-op.
+         */
         if (preg_match('/\btomorrow\b/iu', $evidence) === 1) {
-            return $received->addDay()->toDateString();
+            $tomorrow = $received->addDay();
+
+            if ($tomorrow->isSunday()) {
+                return $tomorrow->toDateString();
+            }
         }
 
         if (preg_match('/\b(?:this|next)\s+sunday\b/iu', $evidence, $matches) === 1) {

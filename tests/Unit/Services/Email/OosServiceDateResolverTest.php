@@ -191,6 +191,36 @@ class OosServiceDateResolverTest extends TestCase
         $this->assertSame('2020-02-29', $this->resolver()->resolve($source, [1]));
     }
 
+    #[Test]
+    public function a_tomorrow_that_does_not_land_on_a_sunday_falls_through_to_the_named_day(): void
+    {
+        // Corpus source 2024-10-06, received Thursday 2024-10-03. The word "tomorrow" here says
+        // when the PowerPoint will be sent, not when the service is, but relativeDate() tested it
+        // first and matched it anywhere in the flattened evidence — landing a Sunday service on
+        // Friday 2024-10-04. The same sentence names "Sunday morning", which resolves correctly.
+        $source = OosEmailSourceDocument::fromContext(
+            'Sunday am',
+            "Here is the running order for Sunday morning. I'll send the PPT for the family/children's talk slot to the admin email address tomorrow or Saturday.",
+            '2024-10-03',
+        );
+
+        $this->assertSame('2024-10-06', $this->resolver()->resolve($source, [1]));
+    }
+
+    #[Test]
+    public function a_tomorrow_that_lands_on_a_sunday_still_resolves_to_it(): void
+    {
+        // Saturday. Thirty-five of the corpus's thirty-six "tomorrow" plans have this shape, where
+        // received + 1 genuinely is the service date, so the guard above must leave them alone.
+        $source = OosEmailSourceDocument::fromContext(
+            'Order of service',
+            'Here are the songs for tomorrow morning:',
+            '2026-08-22',
+        );
+
+        $this->assertSame('2026-08-23', $this->resolver()->resolve($source, [1]));
+    }
+
     private function resolver(): OosServiceDateResolver
     {
         return new OosServiceDateResolver;
