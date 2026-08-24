@@ -119,6 +119,34 @@ class ChurchServiceProposalCensus
             }
         }
 
+        /**
+         * Corroboration conflicts are about a whole-service dimension — song membership,
+         * count or order — and name no single item, so they carry neither a canonical
+         * identity nor an assertion key. Falling straight through to the first proposed
+         * item labelled them with whatever happened to sit first in the order of service,
+         * which is usually the welcome line: 100 unrelated services were filed under
+         * `custom:welcome and any notices` and one shape appeared under six spellings.
+         * The dimension is the thing the sources actually disagree about, so it names the
+         * class and one judgement can settle it.
+         */
+        if ($subject === null) {
+            $dimensions = [];
+
+            foreach ($this->conflicts($proposal) as $conflict) {
+                $dimension = $conflict['dimension'] ?? null;
+
+                if (is_string($dimension) && $dimension !== '') {
+                    $dimensions[$dimension] = true;
+                }
+            }
+
+            if ($dimensions !== []) {
+                $names = array_keys($dimensions);
+                sort($names);
+                $subject = 'dimension:'.implode('+', $names);
+            }
+        }
+
         if ($subject === null) {
             foreach ($this->proposedItems($proposal) as $item) {
                 $candidate = $item['canonical_identity'] ?? $item['title'] ?? null;
