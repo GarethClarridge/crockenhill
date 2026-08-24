@@ -150,6 +150,34 @@ class OosServiceDateResolverTest extends TestCase
     }
 
     #[Test]
+    public function a_yearless_month_name_before_the_received_month_rolls_forward_to_next_year(): void
+    {
+        // Sent 2022-12-31 for "1st January" with no year stated. contextYear() previously
+        // defaulted to the received date's own year (2022), landing the plan a full year early
+        // (2022-01-01, a Saturday) instead of the intended New Year's Day service (2023-01-01, a
+        // Sunday) — the December-to-January boundary these emails routinely cross.
+        $source = OosEmailSourceDocument::fromContext(
+            'Hymns for 1st January am',
+            'Here are the hymns/songs for tomorrow morning:',
+            '2022-12-31',
+        );
+
+        $this->assertSame('2023-01-01', $this->resolver()->resolve($source, [1]));
+    }
+
+    #[Test]
+    public function a_yearless_month_name_on_or_after_the_received_month_stays_in_the_received_year(): void
+    {
+        $source = OosEmailSourceDocument::fromContext(
+            'Order of service',
+            'Service on 10th October',
+            '2024-10-03',
+        );
+
+        $this->assertSame('2024-10-10', $this->resolver()->resolve($source, [1]));
+    }
+
+    #[Test]
     public function a_real_end_of_month_date_still_resolves(): void
     {
         // The guard must refuse only dates that do not exist. A genuine 29 February in a leap year

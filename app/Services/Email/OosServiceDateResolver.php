@@ -31,7 +31,7 @@ class OosServiceDateResolver
         }
 
         if (preg_match('/\b(\d{1,2})(?:st|nd|rd|th)?\s+(January|February|March|April|May|June|July|August|September|October|November|December)(?:\s+(20\d{2}))?\b/iu', $evidence, $matches) === 1) {
-            $year = $matches[3] ?? $this->contextYear($source);
+            $year = $matches[3] ?? $this->contextYear($source, $matches[2]);
 
             return $year === null
                 ? null
@@ -123,9 +123,25 @@ class OosServiceDateResolver
         return $date->isSunday() ? $date->toDateString() : $date->next(CarbonImmutable::SUNDAY)->toDateString();
     }
 
-    private function contextYear(OosEmailSourceDocument $source): ?string
+    /**
+     * These emails normally describe services from the receipt date through the following two
+     * weeks (see relativeDate() above), so a yearless month name is always the *next* occurrence
+     * of that month on or after receipt — not necessarily the receipt date's own calendar year.
+     * A month chronologically earlier than the received month names a date the corpus has already
+     * passed if read in the received year, so it must be next year's occurrence instead: the
+     * December-email-about-a-January-service shape that crosses a year boundary.
+     */
+    private function contextYear(OosEmailSourceDocument $source, string $monthName): ?string
     {
-        return $this->receivedDate($source)?->format('Y');
+        $received = $this->receivedDate($source);
+
+        if (! $received instanceof CarbonImmutable) {
+            return null;
+        }
+
+        $month = CarbonImmutable::parse("1 {$monthName}")->month;
+
+        return (string) ($month < $received->month ? $received->year + 1 : $received->year);
     }
 
     private function receivedDate(OosEmailSourceDocument $source): ?CarbonImmutable
