@@ -633,7 +633,18 @@ class OosArchiveIdentityResolver
             $reasons[] = OosEmailPlanHoldReason::MissingIdentity;
         }
 
-        if ($confidence < (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90)) {
+        /**
+         * Compared against the *review* threshold, not the auto-import one.
+         *
+         * {@see CompileOosSemanticAnnotations} sets every compiled plan to 0.75 and
+         * {@see OosEmailParserService} then caps it downwards per finding — 0.74 for a missing
+         * identity or an implausible date, 0.40 for no items. 0.75 is therefore the ceiling, and
+         * comparing it to a 0.90 auto-import threshold made this reason fire on *every* plan the
+         * semantic parser produced: 710 of 710 on the rehearsal corpus, which is not a signal.
+         * Against the 0.75 review threshold it fires only where a finding actually reduced the
+         * score — 105 of 710 — which is what the reason has always claimed to mean.
+         */
+        if ($confidence < (float) config('service-tracking.email_parsing.review_threshold', 0.75)) {
             $reasons[] = OosEmailPlanHoldReason::LowConfidence;
         }
 

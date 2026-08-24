@@ -37,7 +37,13 @@ enum OosEmailPlanHoldReason: string
     /** No usable service/date pair to import against. */
     case MissingIdentity = 'missing_identity';
 
-    /** Below the configured automatic-import threshold. */
+    /**
+     * A finding reduced this plan's confidence below the configured review threshold.
+     *
+     * Not the auto-import threshold, which it was compared against until 2026-08-24: the semantic
+     * compiler's 0.75 is a ceiling that findings cap downwards, so against 0.90 this reason was
+     * true of every plan and distinguished nothing.
+     */
     case LowConfidence = 'low_confidence';
 
     /**

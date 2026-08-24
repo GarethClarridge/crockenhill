@@ -886,7 +886,10 @@ class ImportOosArchiveCommand extends Command
             }
         }
 
-        $threshold = (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90);
+        // The review threshold, for the reason given at OosArchiveIdentityResolver's matching
+        // rung: 0.75 is the compiled ceiling, so comparing it to the 0.90 auto-import threshold
+        // flagged every plan and reported nothing.
+        $threshold = (float) config('service-tracking.email_parsing.review_threshold', 0.75);
         if ($parseResult->confidenceScore < $threshold) {
             $flags[] = 'low_confidence';
         }

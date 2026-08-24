@@ -57,6 +57,57 @@ class OosArchiveIdentityResolverTest extends TestCase
     }
 
     #[Test]
+    public function an_uncapped_plan_is_not_flagged_low_confidence(): void
+    {
+        // 0.75 is the compiled ceiling, not a middling score. Compared against the 0.90 auto-import
+        // threshold this reason fired on all 710 rehearsal plans and distinguished nothing; against
+        // the 0.75 review threshold an uncapped plan is correctly unflagged.
+        $resolved = $this->resolveWithConfidence(0.75);
+
+        $this->assertNotContains(OosEmailPlanHoldReason::LowConfidence, $resolved->servicePlans[0]->holdReasons);
+    }
+
+    #[Test]
+    public function a_plan_capped_by_a_finding_is_flagged_low_confidence(): void
+    {
+        // 0.74 is what OosEmailParserService caps a plan to for a missing identity or an
+        // implausible date, so it is exactly the case the reason should name.
+        $resolved = $this->resolveWithConfidence(0.74);
+
+        $this->assertContains(OosEmailPlanHoldReason::LowConfidence, $resolved->servicePlans[0]->holdReasons);
+    }
+
+    private function resolveWithConfidence(float $confidence): OosEmailParseResult
+    {
+        $items = $this->items();
+        $plan = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2026-07-12',
+            items: $items,
+            confidence: $confidence,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            dispositionRecorded: true,
+        );
+
+        return (new OosArchiveIdentityResolver)->resolve(
+            $this->entry(service: 'morning', parseDecision: 'manifest-authoritative'),
+            new OosEmailParseResult(
+                date: $plan->date,
+                service: $plan->service,
+                items: $items,
+                confidenceScore: $confidence,
+                needsReview: true,
+                shouldImport: false,
+                importMetadata: [],
+                servicePlans: [$plan],
+                disposition: $plan->disposition,
+            ),
+        );
+    }
+
+    #[Test]
     public function manifest_authoritative_curation_selects_the_curated_service_from_a_multi_plan_parse_and_remaps_its_date(): void
     {
         $items = $this->items();
