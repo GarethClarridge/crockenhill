@@ -407,7 +407,7 @@ class OosParserEntryPointParityTest extends TestCase
         $manifest = $root.'/manifest.json';
         file_put_contents($manifest, json_encode([
             'format' => 'crockenhill-oos-curation',
-            'version' => 2,
+            'version' => 3,
             'batch_key' => 'oos-parity-batch',
             'entries' => [[
                 'item_key' => self::ItemKey,

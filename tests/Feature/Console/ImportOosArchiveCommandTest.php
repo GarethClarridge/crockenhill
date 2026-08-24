@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Data\OosArchiveEntry;
 use App\Data\OosEmailItemExtractionResult;
 use App\Data\OosEmailSourceDocument;
 use App\Enums\ChurchServiceProposalStatus;
@@ -17,12 +18,14 @@ use App\Queries\AdminAttentionCounts;
 use App\Queries\ReviewInboxQuery;
 use App\Services\ChurchService\ChurchServiceEvidenceSet;
 use App\Services\ChurchService\ChurchServiceSongLinker;
+use App\Services\Email\OosArchiveAssertionBundle;
 use App\Services\Email\OosArchiveParseCacheBinding;
 use App\Services\Email\OosCurationManifest;
 use App\Services\Email\OosSemanticParserCandidate;
 use App\Services\Import\HistoricEmailEvidenceReleaseGate;
 use App\Services\Import\HistoricImportResourceIdentity;
 use App\Support\CanonicalJson;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Config;
@@ -1937,10 +1940,35 @@ class ImportOosArchiveCommandTest extends TestCase
     }
 
     #[Test]
-    public function production_revalidation_holds_a_structurally_invalid_shipped_entry_without_a_canonical_write(): void
+    public function bundle_apply_imports_valid_entries_and_retains_structurally_invalid_entries_for_review(): void
     {
-        $this->bindPortableExtractor();
-        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $this->app->instance(OosSemanticParserCandidate::class, FixedOosSemanticParserCandidate::using(function (OosEmailSourceDocument $source): OosEmailItemExtractionResult {
+            $date = str_contains($source->subject, '2026-07-19') ? '2026-07-19' : '2026-07-12';
+            $item = [
+                'type' => 'song',
+                'title' => 'Amazing Grace',
+                'source_line_ids' => [2],
+                'continuation' => false,
+            ];
+
+            return new OosEmailItemExtractionResult(
+                items: [$item],
+                confidence: 1.0,
+                services: [[
+                    'service' => 'morning',
+                    'date' => $date,
+                    'service_evidence_line_ids' => [1],
+                    'items' => [$item],
+                    'confidence' => 1.0,
+                ]],
+                serviceCount: 1,
+                provenanceComplete: true,
+            );
+        }));
+        $corpus = $this->corpus([
+            ['key' => '2026-07-12-am', 'date' => '2026-07-12'],
+            ['key' => '2026-07-19-am', 'date' => '2026-07-19'],
+        ]);
         $bundle = storage_path('scratch/tests/oos-invalid-'.uniqid().'.json');
         $this->temporaryPaths[] = $bundle;
         $this->artisan('oos:import-archive', [
@@ -1951,9 +1979,9 @@ class ImportOosArchiveCommandTest extends TestCase
         InboundEmail::query()->delete();
 
         $payload = $this->readReport($bundle);
-        $payload['entries'][0]['parse']['service_plans'][0]['source_provenance']['items'][0]['source_line_ids'] = [999];
-        $payload['entries'][0]['payload_hash'] = CanonicalJson::hash(
-            array_diff_key($payload['entries'][0], ['payload_hash' => true]),
+        $payload['entries'][1]['parse']['service_plans'][0]['source_provenance']['items'][0]['source_line_ids'] = [999];
+        $payload['entries'][1]['payload_hash'] = CanonicalJson::hash(
+            array_diff_key($payload['entries'][1], ['payload_hash' => true]),
         );
         $payload['bundle_hash'] = CanonicalJson::hash(array_diff_key($payload, ['bundle_hash' => true]));
         file_put_contents($bundle, json_encode($payload, JSON_THROW_ON_ERROR));
@@ -1961,11 +1989,122 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->artisan('oos:import-archive', [...$corpus, '--import-bundle' => $bundle])
             ->assertExitCode(0);
 
-        $this->assertDatabaseCount('church_services', 0);
-        $this->assertSame(InboundEmailStatus::Pending, InboundEmail::query()->firstOrFail()->status);
         $this->artisan('oos:import-archive', [...$corpus, '--apply-bundle' => $bundle])
-            ->assertExitCode(1);
+            ->assertExitCode(0);
+
+        $this->assertDatabaseCount('church_services', 1);
+        $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
+        $heldKeys = InboundEmail::query()
+            ->where('status', InboundEmailStatus::Pending)
+            ->get()
+            ->map(fn (InboundEmail $email): string => $email->processing_metadata['archive']['item_key'])
+            ->sort()
+            ->values()
+            ->all();
+
+        $this->assertSame(['2026-07-19-am'], $heldKeys);
+        $this->assertDatabaseMissing('church_services', ['date' => '2026-07-19', 'service' => 'morning']);
+    }
+
+    #[Test]
+    public function bundle_stage_and_apply_leave_an_assertion_without_an_eligible_plan_pending(): void
+    {
+        $entry = new OosArchiveEntry(
+            index: 1,
+            itemKey: '2026-07-26-am',
+            subject: 'Archive note',
+            bodyPlain: '',
+            groundTruthDate: '2026-07-26',
+            contentScope: 'full',
+            servicesPresent: ['morning'],
+            itemLineCounts: [],
+            curation: [
+                'date_decision' => 'explicit',
+                'date_decision_reason' => null,
+                'parse_decision' => 'strict',
+                'service_assignments' => [],
+                'content_scope' => 'full',
+                'partial_scope_reason' => null,
+                'payload' => 'verbatim',
+                'service_label' => null,
+                'title_override' => null,
+                'supersedes' => null,
+                'expected_item_count' => null,
+                'decided_by' => null,
+                'decided_at' => null,
+                'decision_rule_version' => null,
+            ],
+            syntheticMessageId: '<oos-no-eligible-plan@crockenhill.test>',
+            sourceKey: '2026-07-26-am',
+            supersedesSourceKey: null,
+            inputHash: hash('sha256', 'no eligible plan'),
+            syntheticReceivedAt: CarbonImmutable::parse('2026-07-26T10:00:00+00:00'),
+        );
+        $preflight = [
+            'valid' => [[
+                'entry' => $entry,
+                'payload' => [
+                    'curation_plan_hash' => 'test-plan',
+                    'parser_version' => 'test-parser',
+                    'plan_identities' => [],
+                    'parse' => [
+                        'resolved_date' => null,
+                        'resolved_service' => null,
+                        'items' => [],
+                        'confidence_score' => 0.0,
+                        'needs_review' => true,
+                        'should_import' => false,
+                        'disposition' => 'invalid_extraction',
+                        'validation_reasons' => [],
+                        'service_plans' => [],
+                        'extraction_attempts' => [],
+                        'consensus' => false,
+                        'ignored_lines' => [],
+                    ],
+                ],
+            ]],
+            'invalid' => [],
+        ];
+
+        $bundle = app(OosArchiveAssertionBundle::class);
+        $bundle->stage($preflight);
+        $bundle->apply($preflight);
+
         $this->assertDatabaseCount('church_services', 0);
+        $this->assertSame(InboundEmailStatus::Pending, InboundEmail::query()->sole()->status);
+    }
+
+    #[Test]
+    public function bundle_apply_preserves_review_plan_hold_reasons_for_evidence_import(): void
+    {
+        $this->bindPortableExtractor();
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $bundle = storage_path('scratch/tests/oos-evidence-holds-'.uniqid().'.json');
+        $this->temporaryPaths[] = $bundle;
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--export-bundle' => $bundle,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $payload = $this->readReport($bundle);
+        $payload['entries'][0]['parse']['service_plans'][0]['disposition'] = 'review_required';
+        $payload['entries'][0]['parse']['service_plans'][0]['hold_reasons'] = ['low_confidence'];
+        $payload['entries'][0]['payload_hash'] = CanonicalJson::hash(
+            array_diff_key($payload['entries'][0], ['payload_hash' => true]),
+        );
+        $payload['bundle_hash'] = CanonicalJson::hash(array_diff_key($payload, ['bundle_hash' => true]));
+        file_put_contents($bundle, json_encode($payload, JSON_THROW_ON_ERROR));
+
+        InboundEmail::query()->delete();
+        $this->app->bind(OosSemanticParserCandidate::class, fn () => FixedOosSemanticParserCandidate::unreachable('Portable bundle modes must not call the extractor.'));
+
+        $this->artisan('oos:import-archive', [...$corpus, '--import-bundle' => $bundle])->assertExitCode(0);
+        $this->artisan('oos:import-archive', [...$corpus, '--apply-bundle' => $bundle])->assertExitCode(0);
+
+        $this->assertDatabaseCount('church_services', 1);
+        $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
     }
 
     #[Test]
@@ -2232,7 +2371,7 @@ class ImportOosArchiveCommandTest extends TestCase
         $manifest = $root.'/manifest.json';
         file_put_contents($manifest, json_encode([
             'format' => 'crockenhill-oos-curation',
-            'version' => 2,
+            'version' => 3,
             'batch_key' => 'oos-test-batch',
             'entries' => $manifestEntries,
         ], JSON_THROW_ON_ERROR));

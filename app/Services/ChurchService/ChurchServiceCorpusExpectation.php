@@ -57,6 +57,10 @@ class ChurchServiceCorpusExpectation
 
     public const string APPROVED_SOURCE_UNSTAGED = 'approved_source_unstaged';
 
+    public const string APPROVED_SOURCE_INPUT_HASH_MISMATCH = 'approved_source_input_hash_mismatch';
+
+    public const string APPROVED_SOURCE_CONTENT_SCOPE_MISMATCH = 'approved_source_content_scope_mismatch';
+
     public const string MANIFEST_IDENTITY_UNSTAGED = 'manifest_identity_unstaged';
 
     public const string UNEXPLAINED_IDENTITY = 'unexplained_identity';
@@ -138,6 +142,7 @@ class ChurchServiceCorpusExpectation
 
         $approvedIdentities = [];
         $approvedSourceKeys = [];
+        $approvedSourcesByKey = [];
         $approvedDateByOrigin = [];
 
         foreach ($sources as $approved) {
@@ -145,6 +150,7 @@ class ChurchServiceCorpusExpectation
             $approvedIdentities[$identity] ??= [];
             $approvedIdentities[$identity][] = $approved['item_key'];
             $approvedSourceKeys[$approved['source_key']] = $approved['item_key'];
+            $approvedSourcesByKey[$approved['source_key']] = $approved;
             $approvedDateByOrigin[$approved['origin']] = $approved['identity']['date'];
         }
 
@@ -162,6 +168,8 @@ class ChurchServiceCorpusExpectation
 
         $stagedSourceKeys = [];
         $stagedIdentities = [];
+        $inputHashMismatches = [];
+        $contentScopeMismatches = [];
 
         foreach ($records as $record) {
             $service = $record->churchService;
@@ -171,6 +179,23 @@ class ChurchServiceCorpusExpectation
             }
 
             $stagedSourceKeys[$record->source_key] = true;
+
+            $approved = $approvedSourcesByKey[$record->source_key] ?? null;
+
+            if ($approved !== null && ! hash_equals($approved['input_hash'], $record->input_hash)) {
+                $inputHashMismatches[$record->source_key] = [
+                    'item_key' => $approved['item_key'],
+                    'source_key' => $record->source_key,
+                ];
+            }
+
+            if ($approved !== null && $this->expectedPayloadComplete($approved['content_scope']) !== $record->payload_complete) {
+                $contentScopeMismatches[$record->source_key] = [
+                    'item_key' => $approved['item_key'],
+                    'source_key' => $record->source_key,
+                ];
+            }
+
             $identity = $this->identityKey($service->date->toDateString(), $service->service->value);
             $stagedIdentities[$identity][] = $record->source_key;
         }
@@ -248,6 +273,14 @@ class ChurchServiceCorpusExpectation
             $blockers[] = self::APPROVED_SOURCE_UNSTAGED;
         }
 
+        if ($inputHashMismatches !== []) {
+            $blockers[] = self::APPROVED_SOURCE_INPUT_HASH_MISMATCH;
+        }
+
+        if ($contentScopeMismatches !== []) {
+            $blockers[] = self::APPROVED_SOURCE_CONTENT_SCOPE_MISMATCH;
+        }
+
         if ($unstagedIdentities !== []) {
             $blockers[] = self::MANIFEST_IDENTITY_UNSTAGED;
         }
@@ -269,6 +302,8 @@ class ChurchServiceCorpusExpectation
             'staged_identities' => count($stagedIdentities),
             'accepted_holds' => array_values($acceptedHolds),
             'unstaged_sources' => $unstagedSources,
+            'input_hash_mismatches' => array_values($inputHashMismatches),
+            'content_scope_mismatches' => array_values($contentScopeMismatches),
             'unstaged_identities' => $unstagedIdentities,
             'explained_beyond_manifest' => $explainedExtras,
             'unexplained_identities' => $unexplainedExtras,
@@ -363,6 +398,7 @@ class ChurchServiceCorpusExpectation
                 || ! is_string($approved['source_key'] ?? null)
                 || ! is_string($approved['input_hash'] ?? null)
                 || ! is_string($approved['content_scope'] ?? null)
+                || ! in_array($approved['content_scope'], ['full', 'partial'], true)
                 || ! is_array($approved['identity'] ?? null)
                 || ! is_string($approved['identity']['date'] ?? null)
                 || ! is_string($approved['identity']['service'] ?? null)) {
@@ -440,6 +476,11 @@ class ChurchServiceCorpusExpectation
     private function identityKey(string $date, string $service): string
     {
         return "{$date}\0{$service}";
+    }
+
+    private function expectedPayloadComplete(string $contentScope): bool
+    {
+        return $contentScope === 'full';
     }
 
     private function describe(string $identity): string

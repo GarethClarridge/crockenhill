@@ -38,7 +38,52 @@ class OosServiceDateResolver
                 : $this->date('!j F Y', "{$matches[1]} {$matches[2]} {$year}", (int) $matches[1], (int) $year);
         }
 
+        if (preg_match('/\bchristmas\s+(?:morning|day)\b/iu', $evidence) === 1) {
+            return $this->contextDate($source, 12, 25);
+        }
+
+        if (preg_match('/\bsunday(?:\s+(?:morning|evening))?\s*\(?\s*(\d{1,2})(?:st|nd|rd|th)?\b/iu', $evidence, $matches) === 1) {
+            return $this->contextMonthSunday($source, (int) $matches[1]);
+        }
+
         return $this->relativeDate($source, $evidence);
+    }
+
+    private function contextDate(OosEmailSourceDocument $source, int $month, int $day): ?string
+    {
+        $received = $this->receivedDate($source);
+
+        if (! $received instanceof CarbonImmutable) {
+            return null;
+        }
+
+        $date = CarbonImmutable::create($received->year, $month, $day);
+
+        if (! $date instanceof CarbonImmutable || $date->month !== $month || $date->day !== $day) {
+            return null;
+        }
+
+        return $date->toDateString();
+    }
+
+    private function contextMonthSunday(OosEmailSourceDocument $source, int $day): ?string
+    {
+        $received = $this->receivedDate($source);
+
+        if (! $received instanceof CarbonImmutable) {
+            return null;
+        }
+
+        $date = CarbonImmutable::create($received->year, $received->month, $day);
+
+        if (! $date instanceof CarbonImmutable
+            || $date->month !== $received->month
+            || $date->day !== $day
+            || ! $date->isSunday()) {
+            return null;
+        }
+
+        return $date->toDateString();
     }
 
     private function relativeDate(OosEmailSourceDocument $source, string $evidence): ?string

@@ -175,6 +175,69 @@ class OosArchiveIdentityResolverTest extends TestCase
     }
 
     #[Test]
+    public function a_manifest_service_assignment_reverses_only_the_recorded_early_2022_slots(): void
+    {
+        $items = $this->items();
+        $tenThirtyPlan = new OosEmailServicePlan(
+            service: SermonService::Morning,
+            date: '2022-02-27',
+            items: $items,
+            confidence: 0.95,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::ReviewRequired,
+        );
+        $twoPmPlan = new OosEmailServicePlan(
+            service: SermonService::Other,
+            date: '2022-02-27',
+            items: $items,
+            confidence: 0.95,
+            needsReview: true,
+            shouldImport: false,
+            disposition: OosEmailParseDisposition::InvalidExtraction,
+            validationReasons: ['An other service requires explicit special-service evidence; ordinary notices are not a service order.'],
+            contentValidationReasons: ['An other service requires explicit special-service evidence; ordinary notices are not a service order.'],
+        );
+        $parseResult = new OosEmailParseResult(
+            date: $tenThirtyPlan->date,
+            service: $tenThirtyPlan->service,
+            items: $items,
+            confidenceScore: 0.95,
+            needsReview: true,
+            shouldImport: false,
+            importMetadata: [],
+            servicePlans: [$tenThirtyPlan, $twoPmPlan],
+            disposition: OosEmailParseDisposition::ReviewRequired,
+            consensus: true,
+        );
+
+        $resolved = (new OosArchiveIdentityResolver)->resolve(
+            $this->entry(
+                service: 'morning',
+                parseDecision: 'manifest-authoritative',
+                additionalServices: ['evening'],
+                serviceAssignments: [
+                    ['source_service' => 'morning', 'resolved_service' => 'evening'],
+                    ['source_service' => 'other', 'resolved_service' => 'morning'],
+                ],
+                date: '2022-02-27',
+            ),
+            $parseResult,
+        );
+
+        $this->assertSame(SermonService::Morning, $resolved->service);
+        $this->assertSame(['evening', 'morning'], array_map(
+            static fn (OosEmailServicePlan $plan): string => $plan->service?->value ?? 'unknown',
+            $resolved->servicePlans,
+        ));
+        $this->assertSame([], $resolved->servicePlans[1]->validationReasons);
+        $this->assertSame([
+            'source_service' => 'other',
+            'resolved_service' => 'morning',
+        ], $resolved->servicePlans[1]->sourceProvenance['curated_service_assignment']);
+    }
+
+    #[Test]
     public function a_manifest_label_makes_a_named_other_service_evidence_importable(): void
     {
         $resolved = (new OosArchiveIdentityResolver)->resolve(
@@ -353,20 +416,24 @@ class OosArchiveIdentityResolverTest extends TestCase
         string $service = 'evening',
         string $parseDecision = 'strict',
         ?string $serviceLabel = null,
+        array $additionalServices = [],
+        array $serviceAssignments = [],
+        string $date = '2026-07-12',
     ): OosArchiveEntry {
         return new OosArchiveEntry(
             index: 1,
             itemKey: '2026-07-12-pm',
             subject: 'Order of service',
             bodyPlain: 'Amazing Grace',
-            groundTruthDate: '2026-07-12',
+            groundTruthDate: $date,
             contentScope: $contentScope,
-            servicesPresent: [$service],
+            servicesPresent: [$service, ...$additionalServices],
             itemLineCounts: [],
             curation: [
                 'date_decision' => 'explicit',
                 'date_decision_reason' => null,
                 'parse_decision' => $parseDecision,
+                'service_assignments' => $serviceAssignments,
                 'content_scope' => $contentScope,
                 'partial_scope_reason' => $contentScope === 'partial' ? 'supporting details only' : null,
                 'payload' => 'verbatim',

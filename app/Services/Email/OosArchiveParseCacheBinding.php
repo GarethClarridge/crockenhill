@@ -147,6 +147,7 @@ class OosArchiveParseCacheBinding
             'content_scope' => $entry->contentScope,
             'partial_scope_reason' => $entry->curation['partial_scope_reason'] ?? null,
             'parse_decision' => $entry->curation['parse_decision'],
+            'service_assignments' => $entry->curation['service_assignments'],
             'date_decision' => $entry->curation['date_decision'],
             'date_decision_reason' => $entry->curation['date_decision_reason'] ?? null,
             'service_label' => $entry->curation['service_label'] ?? null,

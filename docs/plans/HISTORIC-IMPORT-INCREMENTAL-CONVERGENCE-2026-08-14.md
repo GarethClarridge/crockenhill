@@ -17,12 +17,43 @@
 > signed act (§8). The one-shot windowed operation, its ingress freeze and its G-gate ladder no
 > longer exist.
 >
-> **Cannot proceed without a human:** disposition of the catalogued rehearsal's 26 held source
-> entries (§6 IC1 — reason categories overlap, and the earlier "~14" and "41" are superseded); the
-> video
-> curation worksheet adjudication and manifest freeze (IC5); recovery of source material for the
-> three unevidenced current-era production services (IC4); every release batch (§8); and the
-> editorial/consent policy decision before large public releases (§8.4).
+> **Execution status verified 2026-08-24.** Start with §0. The long IC1–IC3 narrative in §6 is an
+> evidence journal, not an executable backlog. Do not restart closed parser/model work from it.
+>
+> **Cannot proceed without a human:** review of the 18-entry accepted-holds draft; approval of any
+> residual Email proposal classes that are genuinely irreducible; video worksheet exceptions and
+> manifest freeze; recovery of authoritative source material for any current-era services still
+> reported as unevidenced; every release batch; and the §8.4 publication-policy decision.
+
+## 0. Current execution brief — use this for new work
+
+This is the complete remaining sequence. A cheaper agent should work one numbered slice at a time,
+run the named acceptance check, update this table, and stop. Do not infer extra work from an old
+count or a closed investigation later in this document.
+
+| Order | Slice | Current state | Done when |
+|---|---|---|---|
+| 1 | **Settle Email + OpenLP RG-A** | In progress in the current worktree. Email manifest v3 has 557 entries (554 include, 3 exclude), 540 primary identities and 18 draft accepted holds. OpenLP is frozen at 655 entries (614 include, 36 duplicate-of, 5 exclude) and has its expectation producer. | A clean rehearsal stages the current Email portable-valid subset and all 614 OpenLP includes; every invalid/held Email entry is named; Email and OpenLP expectations plus one combined membership artifact reconcile; the census has no corpus blocker. Review only high-volume proposal classes with a plausible shared fix. Enumerated residual proposals do **not** block video merely because no class-review row was created for every unique title. |
+| 2 | **Close the thin production-round gaps** | Not complete; IC2 was overstated. Canonical Email import and convergence bind their guard to corpus/plan hashes, but portable Email apply, OpenLP apply and video dispatch do not all do so. Video dispatch also fails to attach the immutable operation required by notification suppression, and its documented checkpoint/resume behaviour does not exist. | Focused tests prove each mutating lane binds the approved operation/manifest/plan; a historic video reaches completion with notifications suppressed and nested jobs owned; a stopped full-manifest video run resumes without treating its own exact completed runs as corpus skips. No new audit framework is required. |
+| 3 | **Curate and calibrate video** | The mounted `/Volumes/Sonnics/Services` corpus is 1.0 TB, 649 recording files, 462 service identities (347 morning, 115 evening). No worksheet or frozen manifest exists. Duration recovery, including headerless WebM packet counting, is already implemented. | Draft one worksheet, review exceptions rather than 462 ordinary includes, freeze one full-corpus manifest, then run a small representative calibration through the real livestream pipeline. |
+| 4 | **Run definitive historic video processing** | Blocked by slices 1–3 and REV-D4. | The same frozen full manifest is dispatched in bounded resumable passes through `UnifiedMediaProcessor` as `livestream`; completed work is reused by exact manifest job key; per-era Bundle A exports select completed IDs from that one staging context. |
+| 5 | **Current-era source back-fill** | Operator-dependent and based on a 2026-08-09 production count. | Re-run `audit:service-evidence-coverage`; for each still-unevidenced service recover a real source, ingest it through the ordinary source-revision path, then reproject. Never manufacture evidence to preserve the old count of three. |
+| 6 | **Hymn convergence** | Import controls exist; the apply artifact is stale relative to the final converged corpus. | Regenerate the reconciliation from the August workbook against the exact converged corpus, review its reported exceptions, bind the resulting artifact to its operation, and apply it once. |
+| 7 | **Production rounds and release** | No lane is authorised by this plan alone. | Per lane: verified backup, hash-bound approval, apply, evidence pack, review. Release remains a separate signed era batch after §8 checks. |
+| 8 | **Retire one-shot code** | Waits for historic closeout. | IC8. |
+
+### 0.1 Design rule: bulk is only orchestration
+
+Historic-only code may select approved inputs, verify hashes, concatenate declared segments, bind
+private staging/operation context, pace dispatch and transport results. It must not reimplement
+segmentation, transcription, structure detection, song matching, sermon extraction, analysis,
+thumbnailing or review. `HistoricVideoImporter` already calls `UnifiedMediaProcessor::process()`
+with type `livestream`, which reaches the same `ProcessingPipelineBuilder::buildLivestreamChainJobs()`
+used by the weekly upload. Preserve that seam; the corpus is meant to exercise it.
+
+Do not add Horizon, a second batch framework, a new historic processing pipeline, or a general
+audit subsystem for this one-off. Prefer a small command fix and focused regression test. The
+round evidence pack may be a reviewed collection of existing JSON reports with their hashes.
 
 ## 1. Goal and value
 
@@ -92,6 +123,12 @@ parallelism. The email lane **settles** when: (a) IC1 is implemented and a stagi
 holds reduced to the identity/content-invalid residue; (b) the genuinely-manual adjudications
 measured by the first semantic RG-A are done; and (c) IC3's ground truth exists. That state triggers
 IC5. The earlier "~14" figure is a superseded legacy-v12 estimate, not a release condition.
+
+**Operational reading 2026-08-24:** IC1 and IC3 are done. The trigger now means §0 slice 1: current
+Email/OpenLP manifests reconcile on a clean rehearsal, the operator approves the 18 accepted-hold
+reasons, and every remaining invalid/proposal is enumerated. It does not require hand-classifying
+hundreds of one-off title-specific proposal classes before video supplies the next corroborating
+source; inspect and automate only repeated classes with a credible shared weekly-path improvement.
 
 ### 2.5 HIR-D8 — cross-source corroboration may finalise unattended
 
@@ -377,7 +414,7 @@ work or evidence.
 | Disposition | Findings |
 |---|---|
 | **Kept as hard invariant** | F29, F30, F31, F33, F34, F37, F40, F41 (lock half), F44, F48, F49, F50, F51, F52, F54, F55, F59; HIR1–HIR3, HIR6–HIR7 code |
-| **Kept as open work** | F60 (IC6), current-era back-fill (IC4), video manifest population (IC5), OpenLP expectation producer (IC5 step 2; its v2-curation-field prerequisite closed 2026-08-23), HIR-D8 implementation (IC3) |
+| **Kept as open work** | F60 (IC6), current-era back-fill (IC4, after remeasurement), Email/OpenLP RG-A settlement, video manifest population and resumable operation binding (IC5) |
 | **Reframed as report** | F32 (per-source accounting; exit contract changes in IC2), F53 (exact membership), F57 (round audit completeness), per-round cost/throughput accounting (was F58's measurement half) |
 | **Closed with evidence** | F1 completeness (Email lane, 2026-08-16 — see below), F2, F3, F4, F42, F43, F46's guard code, F61, F62, F63, F64, F65, F66; B1–B21 (all repaired; red tests retained); HIR0–HIR7 landed |
 | **Lapsed with the one-shot model** | F35 (journal-resume proof), F36 (forensic two-copy custody ceremony — read-only original, one verified working copy and hash inventory remain required practice), F38 (checkpoint *exactness* gating — checkpoints stay as tooling), F39 (fingerprint *binding* — fingerprints stay as recorded provenance), F45 (timed restore/RPO/RTO drills — verified backups remain mandatory), F46 (freeze/watchboard/change-control window), F47 (forced-crash recovery proof), F56 (freeze-sweep semantics — ingress lock tooling retained for optional brief pauses), F58 (window budget); HIR4/HIR5 evidence obligations; HIR8 steps 1, 2, 4, 6–11; safety invariants 4, 5 and 9 of the archived safety plan |
@@ -396,13 +433,11 @@ approved entry's origin explains them on that entry's approved date — the hash
 `service_beyond_manifest` rule — because one email legitimately stages both that Sunday's orders,
 which is exactly why the scalar comparison was the wrong instrument and is now suppressed whenever
 an expectation is present. Intentional holds carry an operator's written reason through
-`--accepted-holds`, on FR-D9's fail-closed-with-reasons pattern. **The OpenLP lane still has no
-producer.** Populating the v2 curation fields was the prerequisite and is now done (batch
-`openlp-curated-2026-08-23`, every include carrying `item_key`, `source_kind`, `parse_decision`,
-`concatenation_decision`, `expected_item_count` and an authority field), so what remains of IC5
-step 2 is the producer itself: the OpenLP analogue of `OosApprovedCorpus`, deriving the expectation
-from the approved OpenLP manifest alone. Until it exists the census can only ever declare `email`,
-and the 614 OpenLP identities stay uncertifiable however clean the corpus is.
+`--accepted-holds`, on FR-D9's fail-closed-with-reasons pattern. **The OpenLP lane now has its
+producer.** The populated v2 curation fields in batch `openlp-curated-2026-08-23` feed
+`OpenLpApprovedCorpus`, which derives the expectation from the approved OpenLP manifest alone.
+The combined census accepts one hash-locked expectation per lane, so its `email,openlp` round can
+now certify all 614 staged OpenLP identities alongside Email.
 
 G0–G9 as a ladder is retired; their still-live content maps to RG-A/RG-B/RG-C and §3.2. The
 archived per-gate audit table's open items are absorbed as follows: G1/PR5's manifest-field
@@ -411,21 +446,20 @@ lane; G7/G8 window approvals → RG-B per round; G9 → historic closeout.
 
 ## 5. Corpus facts and evidence regimes
 
-Locations: Email at `storage/scratch/oos` + `oos-verbatim` (local; authority batch
-`oos-curated-2026-08-16`: 555 entries, 552 included, 3 excluded, **538 identities**. The 2026-08-16
-inbox sweep folded in 20 further verbatim files — 18 included as morning full orders and partials,
-2 excluded — superseding `oos-curated-2026-08-12`'s 535/534/**521**; every figure measured against
-521 below predates it); OpenLP archives local at
-`storage/scratch/ServiceRecords` (**655 raw / 614 included entries, staged 2026-08-23**; was 536/427
-until the 2016-2017 back catalogue was added — see §4's superseded-artifact note); video on the Sonnics drive,
-`Services/` root only (1.0 TB, 506 recordings, 462 identities; `_Rejected/` holds real service
-*segments*, not duplicates — 55 morning services degrade to `short_partial` without them, accepted
-scope cost); hymn workbook crosstabs 2004–2018 + 2023 (5,759 known-service occurrences over 1,306
-identities; 888 identities have no other source; date-only lane implemented and quarantined).
+Locations (recounted 2026-08-24): Email at `storage/scratch/oos` + `oos-verbatim`, authority batch
+`oos-curated-2026-08-22-additional-services` (557 entries: 554 include, 3 exclude; 540 distinct
+primary identities and 665 identities when declared additional services are included); OpenLP at
+`storage/scratch/ServiceRecords`, authority batch `openlp-curated-2026-08-23` (655 entries: 614
+include, 36 duplicate-of, 5 exclude); video at `/Volumes/Sonnics/Services` (1.0 TB, 649 supported
+recording files grouped into 462 identities: 347 morning, 115 evening). The old 506-file and
+`_Rejected/` descriptions predate the mounted corpus's current layout and are retired. The hymn
+workbook crosstabs cover 2004–2018 + 2023 (5,759 known-service occurrences over 1,306 identities;
+888 identities have no other source; date-only lane implemented and quarantined).
 
-**Eras are defined by which sources survive** (measured 2026-08-14; denominators 193-vs-220 and
-**538**-vs-662 still need reconciling before release decisions — IC5 prep; the Email denominator was
-521 when this was written and moved on 2026-08-16):
+**Eras are defined by which sources survive.** Do not reconcile the opaque historic pairs
+`193/220` or `538/662`; their source manifests have moved. Before a release decision, derive each
+era denominator afresh from the exact approved Email, OpenLP, video and hymn artifacts used by that
+round and retain the producing report.
 
 | Era | Surviving sources | Accuracy method |
 |---|---|---|
@@ -453,11 +487,10 @@ disagreements, 8 date corrections).
 
 ## 6. Work packages
 
-Ordered; **IC1 and IC2 landed on 2026-08-15** (`e5a81d191`, `aeeed8332`, with follow-up
-`a4be644fd` closing the review gaps found in both). IC3's shared semantic-parser handoff is
-complete. The corrected Email rehearsal has now run without fresh model calls; its next slice is
-the catalogued, portable-audit-complete RG-A correction described under IC1, not another semantic
-evaluation. IC4 runs any time, and IC5 starts on the §2.4 trigger.
+The executable order is §0. IC1's evidence-tier behaviour and IC3's shared semantic-parser,
+ground-truth and corroboration work are complete. IC2's per-service convergence semantics landed,
+but its claim that every production lane was hash-bound was too broad; §0 slice 2 owns the remaining
+portable Email, OpenLP and video command boundaries. Do not buy another whole-corpus model run.
 
 ### IC1 — Email evidence-tier import (implements REV-D2) — **IMPLEMENTED 2026-08-15**
 
@@ -667,7 +700,7 @@ any legacy raw-cache reuse. The recovered corrected semantic run above is now th
 baseline. Reuse its hash-bound cache/assertion artifacts; do not re-run the whole corpus merely to
 reproduce evidence that now exists again.
 
-### IC2 — Incremental apply semantics — **IMPLEMENTED 2026-08-15**
+### IC2 — Incremental apply semantics — **CORE LANDED; COMMAND BINDINGS STILL OPEN**
 
 Re-scope `ConvergeHistoricChurchService`'s batch admission from "whole approved corpus applicable
 or refuse" to "apply every applicable service; report the rest" — per-service lock, classification
@@ -676,6 +709,13 @@ F32): exit non-zero only for processing *errors*; held/pending residue is report
 audit report. Re-scope `HistoricImportProductionGuard` from one-shot GO to per-round approval
 (named round operation + manifest/plan hashes + backup receipt). Keep `HistoricImportJournal`/
 checkpoint tooling for long passes; drop their exactness assertions from acceptance.
+
+**Correction 2026-08-24.** The convergence core and canonical `oos:import-archive --import` path
+meet that contract. The portable Email bundle path, OpenLP apply and historic-video command still
+call `HistoricImportProductionGuard` without all round corpus/plan bindings. Historic video also
+does not pass a `HistoricImportOperation` into `HistoricVideoImporter`, although downstream
+notification isolation requires it. Treat §0 slice 2 as an IC2 completion prerequisite; do not
+authorise production mutation from the earlier “implemented” label.
 
 ### IC3 — Item-level ground truth (queued parser plan item 0)
 
@@ -1669,7 +1709,7 @@ The B13 false-acceptance reversal semantics are already implemented (PR16).
 ### IC5 — Video and OpenLP completion (starts on the §2.4 trigger)
 
 1. Reconcile the era-table denominators (§5) so release decisions use one accounting.
-2. **Field population done 2026-08-23; the producer is what is left.** The v2 curation fields
+2. **OpenLP manifest and expectation producer done 2026-08-23.** The v2 curation fields
    (`item_key`, `source_kind`, `parse_decision`, `concatenation_decision`, `expected_item_count`,
    `decided_by`/`decision_rule_version`) are populated for all 614 includes of batch
    `openlp-curated-2026-08-23` against the local corpus, approved through `plan()` and
@@ -1678,21 +1718,29 @@ The B13 false-acceptance reversal semantics are already implemented (PR16).
    because `validateIncludesForDryRun()` throws unconditionally when the parsed date disagrees with
    the approved `resolved_date` — `manifest-authoritative` covers only the embedded-`.osj`
    mismatch, so an operator cannot assert a date the parser cannot derive.
-   What remains is the **OpenLP expectation producer**: the analogue of `OosApprovedCorpus`, so a
-   census declared over `email,openlp` can certify. It must derive `batch_hash`, `input_hash` and
-   the source key from the approved manifest alone, exactly as the Email producer does.
-3. Video worksheet → adjudication → freeze: `historic-import:draft-video-curation` (cheap,
-   repeatable), operator adjudication with written include/exclude reasons (FR-D9), then
+   `OpenLpApprovedCorpus` now derives `batch_hash`, `input_hash` and the source key from the
+   approved manifest alone, and `openlp:generate-corpus-expectation` produces the lane artifact
+   consumed alongside Email by an `email,openlp` census.
+3. Video worksheet → exception review → freeze: `historic-import:draft-video-curation` (cheap,
+   repeatable), operator review of anomalous grades/grouping and written reasons for exclusions
+   (ordinary includes are approved by the recorded rule version, not 462 individual clicks), then
    `historic-import:capture-video-curation` (hashes once at freeze; note
    `HistoricVideoCurationManifest::verifiedPath()` re-hashes the 1.0 TB corpus — ~3 h at
-   87.7 MB/s — on every `plan()` call; schedule around it). The manifest must carry the *graded*
-   corroboration field (recording completeness, not presence) and inventory `Evening/` itself.
-   WebM YouTube backups need packet-count duration recovery (no header duration).
-4. Calibration slice under the definitive local runtime (short/long, codec families, concat/
-   re-encode, era spread), publishing p50/p95 throughput and a cost/capacity forecast the
-   maintainer accepts — then the bulk pass in 25-recording/12-hour checkpoints (tooling, not
-   gates), through `sermons:import-historic-videos` into the isolated staging context.
-5. Stage results, export Bundle A per era as eras complete, and include per-era accuracy (with its
+   87.7 MB/s — on every `plan()` call; schedule around it). The graded corroboration field and
+   headerless-WebM packet-count duration recovery are already implemented and tested.
+4. Before paid/bulk work, finish §0 slice 2. In particular, the command must accept and bind the
+   immutable operation used by notification suppression, and bounded dispatch must resume against
+   the **same full manifest**. Do not implement “checkpoint manifests”: different plan hashes create
+   different staging roots and cannot be exported as one Bundle A.
+5. Run a representative calibration through the real weekly livestream job chain (short/long,
+   codec families, single/concat/re-encode and era spread). Record p50/p95 wall time, failures,
+   model cost and the accepted worker width. This is evidence for choosing the dispatch throttle,
+   not a new performance framework.
+6. Run the definitive corpus in bounded resumable passes through
+   `sermons:import-historic-videos`. Exact completed runs belonging to the same manifest item are
+   successful prior work; unrelated same-date runs, pending review, failures and changed source
+   hashes remain explicit dispositions.
+7. Stage results, export Bundle A per era as eras complete, and include per-era accuracy (with its
    evidence basis: derived-from-corroboration or hand-verified) in the round reports.
 
 ### IC6 — Hymn lane
@@ -1762,14 +1810,16 @@ Run the lane's apply command with the round's operation id. Per-service transact
 classification as landed. First hard error stops the round (residue is fine; errors are not);
 fix forward and re-run — re-runs classify completed services `already_present`.
 
-### 7.3 Audit report (per round, replaces exact closeout)
+### 7.3 Round evidence pack (replaces exact closeout)
 
-One command/report reconciling, against the approved manifests: per-source membership and
-disposition (created / merged / evidence_retained / held-by-reason / failed), identity accounting
-under the F1 rule (zero unexplained), asset receipts vs claims (orphans enumerated), Scripture
-settlement, notification/dispatch silence, and cost/duration. Committed to the private batch
-ledger. Drives the completeness number; blocks nothing except by the maintainer choosing to act
-on it. Re-run on the health-check schedule to detect drift (as the archived plan already chose).
+The earlier plan promised one aggregate command that does not exist. Do not build a general audit
+framework for a one-off import. Assemble and hash the existing lane report, manifest expectation,
+combined membership/census, asset audit (for media), Scripture settlement, operation notification/
+nested-job ledger and cost/duration output. Add a short cover record naming the round, commit,
+operation id, manifest/plan hashes, backup receipt and every non-zero residue. Store it in the
+private batch ledger and have the maintainer review it. An unexplained identity, changed input hash,
+unowned asset or external historic notification is a defect; an enumerated hold/pending proposal is
+reported recoverable residue.
 
 ## 8. Release policy
 
@@ -1802,6 +1852,19 @@ narrower `needs_review` semantics on purpose.
 
 ## 10. Open decisions and operator inputs
 
+Only these rows are open. The larger table below is the detailed investigation/decision journal;
+some operator reminders are repeated there, but §0 and this short table control sequencing.
+
+| Open item | Owner / next action | Blocks |
+|---|---|---|
+| Finish and verify the in-progress Email v3 service-assignment/portable-subset work | Coding agent; preserve the current worktree, run focused tests, regenerate cache-only artifacts | Final Email/OpenLP RG-A |
+| Review the 18-entry accepted-holds draft | Operator; edit reasons before passing it to the expectation producer | Email expectation reconciliation |
+| Run the combined clean RG-A and inspect only repeated/high-volume proposal classes | Coding agent prepares artifacts; operator rules on genuinely irreducible repeated classes | REV-D4 video trigger |
+| Bind portable Email, OpenLP and video mutations to exact round authority; make video operation-bound and resumable | Coding agent, focused command/integration tests | First production round and definitive video |
+| Re-run current-era evidence coverage and recover any still-missing sources | Operator supplies source material; agent uses ordinary ingest/reprojection | IC4 only |
+| Review video worksheet exceptions and freeze manifest | Operator | Definitive video |
+| Approve each era release and §8.4 publication policy | Maintainer/church | RG-C only |
+
 | Item | Blocks | State |
 |---|---|---|
 | ~~**Song identity for HIR-D8 corroboration**~~ | — | **DECIDED 2026-08-21: resolve in `ChurchServiceAssertionNormalizer`** (§2.5), invariant 4 amended (§3.2), implementation queued as IC3 item 8. Comparison-time resolution was considered and rejected: it would have auto-applied 264 services' duplicated song items unattended |
@@ -1810,9 +1873,9 @@ narrower `needs_review` semantics on purpose.
 | ~~Rule on backfilling `ignored_lines` into the banked parse cache~~ | — | **DONE 2026-08-22** (IC3 item 12): approved and run, 544 backfilled at zero model spend, portable preflight 151 → 510 of 554 |
 | ~~**Disposition the 44 remaining portable structural holds**~~ | — | **DONE 2026-08-22** (IC3 item 13): 13-source `--fresh-parse` run (5 cleared, 2 reproduced their original defect, 2 came back worse and were restored, 3 unchanged) + zero-spend regex fix + a zero-spend re-derivation bonus (stale line-numbering in the morning's bundle snapshot, unrelated to today's work) together took the portable preflight from 510/554 to **528/554**. 26 remain held: 7 "no evening signal at all" + 2 "candlelight" judgement call + 1 Subject-line citation gap + 1 stable mislabel + 2 `other`-slot + 1 duplicate-plan (reproduced twice) + 2 missing-evening (reproduced twice) + 10 overlapping the standing 26 held sources. Full suite green (7,115 tests), PHPStan clean |
 | ~~Rule on "candlelight" as evening evidence~~ | — | **DECIDED AND FIXED 2026-08-22** (IC3 item 13): stand-alone carol services are always evening (maintainer ruling). `\bcandlelight\b` added to `EVENING_SERVICE_PATTERN`, not `\bcarols?\b` (corpus-checked false-positive risk: "carol" is also generic for "hymn" and the name "Carole"). Cleared `2018-12-23-carols` and `2020-12-20-carols` at zero cost: 528/554 → 530/554 |
-| **Disposition the 14-source residual** (9 evening-boundary, 2 `other`-slot, 1 duplicate-plan, 2 coverage) | Portable apply | Operator; re-parsing again is unlikely to change any of these (IC3 items 13–14). **Re-checked 2026-08-23 at zero spend: portable preflight 530/554 → 540/554, holds 24 → 14, with 0 new holds.** All 10 cleared were "source line not classified as evidence, an item, or ignored context" — the replay rewrote every cache through current code, which populates `ignored_lines` correctly. Note 4 of the 10 (`2016-11-27-songs`, `2018-05-27`, `2018-09-16`, `2019-04-28-details`) remain *semantically* held: a semantically-failed extraction marks every line ignored context, so it satisfies the structural coverage rule without having recovered any item. The 2 remaining coverage holds (`2026-02-15`, `2026-07-05`) were held identically before this work |
+| **Enumerate the 14-source portable residual** (9 evening-boundary, 2 `other`-slot, 1 duplicate-plan, 2 coverage) | RG-A report, not an all-or-nothing apply gate | Re-parsing again is unlikely to change these (IC3 items 13–14). **Re-checked 2026-08-23 at zero spend: portable preflight 530/554 → 540/554, holds 24 → 14, with 0 new holds.** The in-progress portable-subset work applies independently valid entries and retains invalid ones as review evidence; it must prove that behaviour before this row ceases to block. The 2 remaining coverage holds (`2026-02-15`, `2026-07-05`) were held identically before this work |
 | ~~Read the 26 held semantic Email sources against actual content~~ | — | **DONE 2026-08-22** (IC3 item 14): 24 genuinely held (2 cleared by item 13's re-parse but remain unstaged). 10 have nothing more to capture, 9 re-curated `full`→`partial` in the manifest (didn't clear the hold, but now correctly explained), 5 are genuine extraction misses masquerading as holds — not ruling material |
-| **Review and run the accepted-holds draft** (`storage/scratch/oos-accepted-holds-20260822-draft.json`, 19 entries) via `--accepted-holds=` | Email-lane settlement / F1 reporting / `expectation_mismatch` | Operator; a draft to edit, not to run unexamined (IC3 item 14) |
+| **Review and run the accepted-holds draft** (`storage/scratch/oos-accepted-holds-20260822-draft.json`, 18 entries) via `--accepted-holds=` | Email-lane settlement / F1 reporting / `expectation_mismatch` | Operator; a draft to edit, not to run unexamined (IC3 item 14) |
 | ~~Investigate the extraction misses~~ | — | **DONE 2026-08-22** (IC3 item 15): root cause found (compile-time all-or-nothing failure, two unrelated causes). Cause A fixed at zero spend via a new recompile tool — 4 of 6 recovered (`2018-07-01`, `2019-11-17-details`, `2019-10-13-songs` fully cleared; `2018-08-12` improved but has a second defect). Cause B (`2018-01-07`, `2018-02-04-details`) scoped, not yet built. Prior ~14, RG0A's 19 and the recovered run's 41 are all superseded by the 30/24 figures above |
 | ~~Build the Cause B compiler fix~~ | — | **DONE 2026-08-23** (`cbc54b054`): `salvageEmptyUnanchoredGroups()`. The real gate was `OosSemanticParserCandidate::parse()`'s own early return, not `compile()` — fixing only the compiler changed nothing in production. Both beneficiaries recovered |
 | ~~Investigate `2018-08-12`'s `shared_boundary_role_invalid` finding~~ | — | **DONE AND FIXED 2026-08-23** (`d583576ea`): a document-level date header annotated `notice_context` *shared* by both groups. `normaliseNonBoundarySharedGroups()` drops the illegal IDs so the line falls through to `OosSemanticIgnoredLines`. Cleared 0 → 15 items. Chained with Cause B via `recoverFromFindings()`, which also recovered `2018-02-04-details` |

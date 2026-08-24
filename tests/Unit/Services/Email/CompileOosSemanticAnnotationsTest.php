@@ -233,6 +233,43 @@ class CompileOosSemanticAnnotationsTest extends TestCase
     }
 
     #[Test]
+    public function it_preserves_distinct_dates_for_four_orders_in_one_christmas_email(): void
+    {
+        $source = OosEmailSourceDocument::fromContext(
+            'Christmas orders',
+            "Sunday morning (20th)\nMorning hymn\nSunday evening (20th)\nEvening hymn\nChristmas morning\nChristmas hymn\nSunday 27th (morning only)\nLater hymn",
+            '2015-12-15',
+        );
+        $annotations = new OosSemanticAnnotationResult(
+            [
+                new OosCandidateService('morning-20', 'morning', [1]),
+                new OosCandidateService('evening-20', 'evening', [3]),
+                new OosCandidateService('christmas', 'other', [5]),
+                new OosCandidateService('morning-27', 'morning', [7]),
+            ],
+            [
+                1 => $this->annotation(1, OosSemanticRole::ServiceBoundary, 'morning-20'),
+                2 => $this->annotation(2, OosSemanticRole::Item, 'morning-20', OosSemanticItemKind::Song),
+                3 => $this->annotation(3, OosSemanticRole::ServiceBoundary, 'evening-20'),
+                4 => $this->annotation(4, OosSemanticRole::Item, 'evening-20', OosSemanticItemKind::Song),
+                5 => $this->annotation(5, OosSemanticRole::ServiceBoundary, 'christmas'),
+                6 => $this->annotation(6, OosSemanticRole::Item, 'christmas', OosSemanticItemKind::Song),
+                7 => $this->annotation(7, OosSemanticRole::ServiceBoundary, 'morning-27'),
+                8 => $this->annotation(8, OosSemanticRole::Item, 'morning-27', OosSemanticItemKind::Song),
+            ],
+        );
+
+        $extraction = $this->compiler()->compile($source, $annotations)->extraction;
+        $validation = (new OosEmailExtractionValidator)->validate($source, $extraction);
+
+        $this->assertSame(
+            ['morning:2015-12-20', 'evening:2015-12-20', 'other:2015-12-25', 'morning:2015-12-27'],
+            array_map(static fn (array $service): string => "{$service['service']}:{$service['date']}", $extraction->services),
+        );
+        $this->assertSame([], $validation->allReasons());
+    }
+
+    #[Test]
     public function a_genuinely_empty_unanchored_sibling_group_is_dropped_rather_than_failing_the_whole_document(): void
     {
         $source = OosEmailSourceDocument::fromContext(

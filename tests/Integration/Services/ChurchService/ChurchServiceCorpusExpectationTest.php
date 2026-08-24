@@ -73,6 +73,36 @@ class ChurchServiceCorpusExpectationTest extends TestCase
         $this->assertSame(2, $result['staged_identities']);
     }
 
+    #[Test]
+    public function a_staged_source_with_a_different_input_hash_is_a_named_blocker(): void
+    {
+        $this->stage('2015-12-13-am', '2015-12-13', 'morning');
+
+        ChurchServiceSourceRecord::query()->sole()->update([
+            'input_hash' => str_repeat('b', 64),
+        ]);
+
+        $result = $this->certify([['2015-12-13-am', '2015-12-13', 'morning']]);
+
+        $this->assertContains(ChurchServiceCorpusExpectation::APPROVED_SOURCE_INPUT_HASH_MISMATCH, $result['blockers']);
+        $this->assertSame(['2015-12-13-am'], array_column($result['input_hash_mismatches'], 'item_key'));
+    }
+
+    #[Test]
+    public function a_full_source_staged_as_partial_is_a_named_blocker(): void
+    {
+        $this->stage('2015-12-13-am', '2015-12-13', 'morning');
+
+        ChurchServiceSourceRecord::query()->sole()->update([
+            'payload_complete' => false,
+        ]);
+
+        $result = $this->certify([['2015-12-13-am', '2015-12-13', 'morning']]);
+
+        $this->assertContains(ChurchServiceCorpusExpectation::APPROVED_SOURCE_CONTENT_SCOPE_MISMATCH, $result['blockers']);
+        $this->assertSame(['2015-12-13-am'], array_column($result['content_scope_mismatches'], 'item_key'));
+    }
+
     /**
      * The reason a scalar count is the wrong instrument. One approved email
      * routinely carries both that Sunday's morning and evening orders, and
@@ -312,6 +342,7 @@ class ChurchServiceCorpusExpectationTest extends TestCase
             'source' => ChurchServiceSource::OpenLp,
             'batch_hash' => self::BatchHash,
             'source_key' => $logicalFilename,
+            'input_hash' => hash('sha256', "openlp:{$logicalFilename}"),
         ]);
     }
 
@@ -360,6 +391,7 @@ class ChurchServiceCorpusExpectationTest extends TestCase
             'source' => ChurchServiceSource::Email,
             'batch_hash' => self::BatchHash,
             'source_key' => OosCurationEntryFactory::sourceKey($itemKey, $service, $date),
+            'input_hash' => hash('sha256', $itemKey),
         ]);
 
         return $churchService;

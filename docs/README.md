@@ -39,5 +39,5 @@ Rules for using this folder, written for AI agents as much as humans:
   saying what superseded them — or are simply deleted (git history is the real archive).
   Point-in-time review/audit reports should be deleted once their findings are folded into
   `issues/README.md` or a plan.
-- The plans index was last reconciled against the codebase **2026-08-12**. The broader docs cleanup
+- The plans index was last reconciled against the codebase **2026-08-24**. The broader docs cleanup
   was last performed **2026-07-05** (it removed ~50 stale files; use git history for older material).

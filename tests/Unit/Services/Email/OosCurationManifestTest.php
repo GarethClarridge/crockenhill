@@ -100,7 +100,7 @@ class OosCurationManifestTest extends TestCase
     {
         File::put($this->manifestPath, json_encode([
             'format' => 'crockenhill-oos-curation',
-            'version' => 2,
+            'version' => 3,
             'batch_key' => $batchKey,
             'entries' => $entries,
         ], JSON_THROW_ON_ERROR));
@@ -190,6 +190,45 @@ class OosCurationManifestTest extends TestCase
         $this->assertSame(['evening'], $plan->includes[0]['additional_services']);
         /** The entry is still identified by one service: the source key must not move. */
         $this->assertSame('morning', $plan->includes[0]['resolved_service']);
+    }
+
+    #[Test]
+    public function a_manifest_authoritative_entry_may_assign_its_parser_slots_to_its_declared_services(): void
+    {
+        $this->writeManifest([
+            $this->pairedEntry('2022-02-27', '2022-02-27', 'morning', [
+                'additional_services' => ['evening'],
+                'parse_decision' => 'manifest-authoritative',
+                'service_assignments' => [
+                    ['source_service' => 'morning', 'resolved_service' => 'evening'],
+                    ['source_service' => 'other', 'resolved_service' => 'morning'],
+                ],
+            ]),
+        ]);
+
+        $plan = $this->plan();
+
+        $this->assertSame([
+            ['source_service' => 'morning', 'resolved_service' => 'evening'],
+            ['source_service' => 'other', 'resolved_service' => 'morning'],
+        ], $plan->includes[0]['service_assignments']);
+    }
+
+    #[Test]
+    public function service_assignments_require_manifest_authoritative_parsing(): void
+    {
+        $this->writeManifest([
+            $this->pairedEntry('2022-02-27', '2022-02-27', 'morning', [
+                'service_assignments' => [
+                    ['source_service' => 'morning', 'resolved_service' => 'morning'],
+                ],
+            ]),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('may declare service_assignments only with manifest-authoritative parsing');
+
+        $this->plan();
     }
 
     #[Test]

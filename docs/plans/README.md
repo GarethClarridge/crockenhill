@@ -1,15 +1,15 @@
 # Plans index
 
-Last comprehensively reconciled **2026-08-14**, when the historic programme's three prior
+Last comprehensively reconciled **2026-08-24**. The historic programme's three prior
 authorities were superseded by the single
 [incremental convergence plan](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) under
 maintainer decisions REV-D1–REV-D4 and archived as evidence records. This directory contains
 executable active plans only; completed or superseded decision records live in
 `docs/archived-plans/`.
 
-Updated **2026-08-21** after the OoS email-parser redesign completed and was archived. Historic
-IC3 retains corpus truth and import policy; the shared semantic parser is now the sole
-weekly/historic implementation.
+The OoS email-parser redesign is archived and the shared semantic parser is the sole weekly/
+historic implementation. The historic plan now opens with a short execution brief; its long IC1–
+IC3 narrative is evidence, not backlog.
 
 ## How to use this index
 
@@ -70,9 +70,9 @@ join the same features.
 ## Parallel programme and maintenance lanes
 
 ```text
-HISTORIC IC1-IC3 email/ground truth ──> IC5 video ──> IC6 hymn ──> IC7 rounds ──> releases ──> IC8
-            │                                                          │
-            └── IC4 current-era back-fill (any time)                   └── first round needs AM3 D1
+HISTORIC Email+OpenLP RG-A ──> thin round/video fixes ──> video ──> hymn ──> rounds/releases ──> IC8
+            │
+            └── current-era source back-fill after production remeasurement
 
 OOS PARSER D0-D5 deterministic build ──> D6 paid evaluation ──> D7 approved shared cutover
                  └── consumes IC3 truth; does not own or block historic rounds by omission
@@ -92,7 +92,7 @@ None of these lanes blocks the public product sequence except where a plan expli
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
-| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Plan of record since 2026-08-14** (REV-D1–D4). All predecessor code landed; **IC1 and IC2 implemented 2026-08-15** (`e5a81d191`, `aeeed8332`, follow-up `a4be644fd`); IC3's shared semantic-parser handoff is complete and its gates passed. **RG0A passed 2026-08-21** as the semantic Email evaluation/adjudication checkpoint. The recovered 554-source semantic cache/evidence was replayed on a certified-clean, catalogue-bearing rehearsal with zero model calls: 438 created, 74 evidence-retained, 16 merged, 26 held, 0 failed; song resolution 0 → 90.1%. **RG-A still fails** (`membership_mismatch`, `expectation_mismatch`, 248 unclassified classes) and **HIR-D8 is not accepted**: cross-source corroboration finalised zero services, because the projector compares raw titles and no adapter resolves songs to the catalogue. Production mutation remains §7 rounds. | Two maintainer decisions now gate the lane: where to resolve song identity for corroboration, and whether to ship `ignored_lines` in the portable bundle (see §2.5 and §10). Then rule on the 26 held sources as `--accepted-holds`. Do not buy another whole-corpus model run. |
+| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Plan of record; reconciled 2026-08-24.** IC1 and IC3 are complete, including semantic-parser cutover, catalogue song identity, HIR-D8 implementation, ignored-line recovery and both manifest-derived expectation producers. Current manifests: Email 557 entries (554 include; 18 draft accepted holds), OpenLP 655 entries (614 include). Email v3 settlement is in progress in the worktree. IC2's core convergence semantics landed, but portable Email/OpenLP/video command bindings and video operation/resume behaviour are still open. No production mutation is authorised. | Finish the current Email v3/portable-subset slice without more model work; operator reviews 18 hold reasons; run one clean combined RG-A. Then close the thin command-binding/video-resume gaps before drafting and freezing the mounted 462-identity video corpus. |
 | M0 | [Architectural maintainability delivery](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) | Not started; immediate safety lane and post-G9 permanent-core lane are explicitly separated | Record D1-D4; AM2 timing and AM3 log-rotation tests can start independently |
 | H1 | [Sentry error tracking](SENTRY-ERROR-TRACKING.md) | Optional; not installed; dependency approval required | If approved, install/configure errors-only capture; sequence caught terminal processing reporting after architecture AM8 |
 | M1 | [Code-quality remediation](CODE-QUALITY-REMEDIATION-2026-07-19.md) | WP2.1/WP6.1 done; other items open; level 8 | WP2's small fail-closed/config/signature fixes plus the computed-call structural guard |
@@ -121,7 +121,7 @@ None of these lanes blocks the public product sequence except where a plan expli
 | Newcomer photographs/consent, weekly editor, Christianity Explored decision | N3/N4/O18 only |
 | GA4 console access and key-event choice | GA6 |
 | Real OBS recordings + LocalVocal sidecars and preferred format | OBS Phase 0/1 |
-| Historic operator inputs: the song-identity decision HIR-D8 depends on, the portable-bundle ignored-line decision, disposition the catalogued rehearsal's 26 held sources (legacy-v12 ~14, RG0A's 19 and the recovered 41 are superseded), video worksheet, current-era source recovery, era releases, §8.4 policy | Only the historic programme; see the incremental convergence plan §10 |
+| Historic operator inputs: review the 18 accepted-hold reasons; rule only on genuinely irreducible repeated proposal classes; video worksheet exceptions/freeze; current-era source recovery after remeasurement; era releases; §8.4 policy | Only the historic programme; see the incremental convergence plan §0 and §10 |
 
 ## Recently archived or superseded
 

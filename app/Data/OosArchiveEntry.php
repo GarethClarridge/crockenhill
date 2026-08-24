@@ -31,6 +31,7 @@ use Carbon\CarbonImmutable;
  *     date_decision:string,
  *     date_decision_reason:?string,
  *     parse_decision:string,
+ *     service_assignments:list<array{source_service:string,resolved_service:string}>,
  *     content_scope:string,
  *     partial_scope_reason:?string,
  *     payload:string,

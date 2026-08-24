@@ -115,6 +115,7 @@ class OosCurationEntryFactory
                     'date_decision' => $include['date_decision'],
                     'date_decision_reason' => $include['date_decision_reason'],
                     'parse_decision' => $include['parse_decision'],
+                    'service_assignments' => $include['service_assignments'],
                     'content_scope' => $include['content_scope'],
                     'partial_scope_reason' => $include['partial_scope_reason'],
                     'payload' => $include['payload'],

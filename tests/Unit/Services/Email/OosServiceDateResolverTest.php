@@ -52,18 +52,28 @@ class OosServiceDateResolverTest extends TestCase
     }
 
     #[Test]
-    public function the_fallback_is_suppressed_when_an_evidence_line_names_a_special_service(): void
+    public function christmas_morning_resolves_to_christmas_day_in_the_context_year(): void
     {
-        // Christmas Day 2023 fell on a Monday. Guessing "the next Sunday" (2023-12-31) would be
-        // a plausible but wrong date; a named special service is not "the next Sunday", so this
-        // must resolve to null rather than that guess.
         $source = OosEmailSourceDocument::fromContext(
             'Order of service',
             'Christmas morning service',
             '2023-12-25',
         );
 
-        $this->assertNull($this->resolver()->resolve($source, [1]));
+        $this->assertSame('2023-12-25', $this->resolver()->resolve($source, [1]));
+    }
+
+    #[Test]
+    public function it_resolves_sunday_ordinals_within_the_context_month(): void
+    {
+        $source = OosEmailSourceDocument::fromContext(
+            'Order of service',
+            "Sunday morning (20th)\nSunday 27th (morning only)",
+            '2015-12-15',
+        );
+
+        $this->assertSame('2015-12-20', $this->resolver()->resolve($source, [1]));
+        $this->assertSame('2015-12-27', $this->resolver()->resolve($source, [2]));
     }
 
     #[Test]

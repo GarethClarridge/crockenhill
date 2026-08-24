@@ -19,6 +19,7 @@ namespace App\Data;
  *     resolved_service:string,
  *     additional_services:list<string>,
  *     additional_service_labels:array<string, string>,
+ *     service_assignments:list<array{source_service:string,resolved_service:string}>,
  *     curation_note:?string,
  *     service_label:?string,
  *     title_override:?string,

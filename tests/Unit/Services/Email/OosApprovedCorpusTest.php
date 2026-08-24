@@ -159,6 +159,7 @@ class OosApprovedCorpusTest extends TestCase
             'resolved_service' => $service,
             'additional_services' => [],
             'additional_service_labels' => [],
+            'service_assignments' => [],
             'curation_note' => null,
             'service_label' => null,
             'title_override' => null,

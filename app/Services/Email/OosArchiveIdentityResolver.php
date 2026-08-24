@@ -18,7 +18,9 @@ class OosArchiveIdentityResolver
 
     public function resolve(OosArchiveEntry $entry, OosEmailParseResult $parseResult): OosEmailParseResult
     {
-        if ($this->hasManifestAuthoritativeIdentity($entry)) {
+        if ($this->hasServiceAssignments($entry)) {
+            $parseResult = $this->resolveServiceAssignments($entry, $parseResult);
+        } elseif ($this->hasManifestAuthoritativeIdentity($entry)) {
             $parseResult = $this->resolveManifestAuthoritativeIdentity($entry, $parseResult);
         }
 
@@ -135,6 +137,128 @@ class OosArchiveIdentityResolver
     private function hasManifestAuthoritativeIdentity(OosArchiveEntry $entry): bool
     {
         return $entry->curation['parse_decision'] === 'manifest-authoritative';
+    }
+
+    private function hasServiceAssignments(OosArchiveEntry $entry): bool
+    {
+        return $this->hasManifestAuthoritativeIdentity($entry)
+            && $entry->curation['service_assignments'] !== [];
+    }
+
+    /**
+     * A manifest service assignment corrects a known historical parser slot,
+     * rather than teaching the parser a new time-of-day heuristic. Each plan
+     * remains independently bound to the source lines from which it came, and
+     * the assignment itself travels in provenance for portable preflight.
+     */
+    private function resolveServiceAssignments(
+        OosArchiveEntry $entry,
+        OosEmailParseResult $parseResult,
+    ): OosEmailParseResult {
+        /** @var list<array{source_service:string,resolved_service:string}> $assignments */
+        $assignments = $entry->curation['service_assignments'];
+        $bySource = [];
+
+        foreach ($assignments as $assignment) {
+            $bySource[$assignment['source_service']] = $assignment['resolved_service'];
+        }
+
+        $plans = array_map(function (OosEmailServicePlan $plan) use ($bySource, $entry, $parseResult): OosEmailServicePlan {
+            if (! $plan->service instanceof SermonService || ! isset($bySource[$plan->service->value])) {
+                return $plan;
+            }
+
+            $sourceService = $plan->service;
+            $resolvedService = SermonService::from($bySource[$sourceService->value]);
+            $validationReasons = $this->manifestIdentityValidationReasons($plan, $resolvedService);
+            $contentValidationReasons = $this->manifestIdentityValidationReasons($plan, $resolvedService, contentReasons: true);
+            $authorityPlan = new OosEmailServicePlan(
+                service: $resolvedService,
+                date: $plan->date,
+                items: $plan->items,
+                confidence: $plan->confidence,
+                needsReview: true,
+                shouldImport: false,
+                disposition: OosEmailParseDisposition::ReviewRequired,
+                validationReasons: $validationReasons,
+                contentValidationReasons: $contentValidationReasons,
+                holdReasons: $plan->holdReasons,
+                sourceProvenance: $plan->sourceProvenance,
+                contentScope: $plan->contentScope,
+            );
+            $disposition = $this->resolvedDisposition(
+                $parseResult,
+                $authorityPlan,
+                $resolvedService,
+                $plan->confidence,
+                $plan->contentScope,
+            );
+
+            return new OosEmailServicePlan(
+                service: $resolvedService,
+                date: $plan->date,
+                items: $plan->items,
+                confidence: $plan->confidence,
+                needsReview: $disposition !== OosEmailParseDisposition::AutoImportable,
+                shouldImport: $disposition === OosEmailParseDisposition::AutoImportable,
+                disposition: $disposition,
+                validationReasons: $validationReasons,
+                contentValidationReasons: $contentValidationReasons,
+                holdReasons: $this->resolvedHoldReasons(
+                    $authorityPlan,
+                    $disposition,
+                    $resolvedService,
+                    $plan->date,
+                    $plan->confidence,
+                    $plan->contentScope,
+                    $this->hasNamedSpecialServiceIdentity($entry, $resolvedService),
+                ),
+                sourceProvenance: [
+                    ...$plan->sourceProvenance,
+                    'archive_identity' => 'manifest-authoritative',
+                    'curated_service_assignment' => [
+                        'source_service' => $sourceService->value,
+                        'resolved_service' => $resolvedService->value,
+                    ],
+                ],
+                contentScope: $plan->contentScope,
+            );
+        }, $parseResult->servicePlans);
+
+        $primaryService = SermonService::tryFrom($entry->servicesPresent[0] ?? '');
+        $primary = null;
+
+        if ($primaryService instanceof SermonService) {
+            foreach ($plans as $plan) {
+                if ($plan->service === $primaryService && $plan->items !== []) {
+                    $primary = $plan;
+
+                    break;
+                }
+            }
+        }
+
+        if (! $primary instanceof OosEmailServicePlan) {
+            return $parseResult;
+        }
+
+        return new OosEmailParseResult(
+            date: $primary->date,
+            service: $primary->service,
+            items: $primary->items,
+            confidenceScore: $primary->confidence,
+            needsReview: $primary->needsReview,
+            shouldImport: $primary->shouldImport,
+            importMetadata: $this->metadata($entry, $parseResult, $primary),
+            servicePlans: $plans,
+            isLegacyFlattened: $parseResult->isLegacyFlattened,
+            disposition: $primary->disposition,
+            validationReasons: $primary->validationReasons,
+            extractionAttempts: $parseResult->extractionAttempts,
+            consensus: $parseResult->consensus,
+            adjudicated: $parseResult->adjudicated,
+            ignoredLines: $parseResult->ignoredLines,
+        );
     }
 
     private function resolveManifestAuthoritativeIdentity(

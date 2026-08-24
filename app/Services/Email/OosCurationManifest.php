@@ -49,12 +49,12 @@ class OosCurationManifest
     private const Format = 'crockenhill-oos-curation';
 
     /**
-     * 2 adds `additional_services`. The field is additive and its absence is
-     * unambiguous, but the bump is not: a v1 reader handed a v2 manifest would
-     * silently drop a declared second service rather than refuse it, which is
-     * exactly the failure the field exists to end.
+     * 3 adds `service_assignments`: per-document mappings from a parser's
+     * source slot to the manifest's canonical slot. A v2 reader would silently
+     * ignore that authority and use the parser's identity instead, so it must
+     * refuse this newer format rather than accepting a different import.
      */
-    private const Version = 2;
+    private const Version = 3;
 
     /** This manifest curates one source kind; the format is shared with OpenLP and livestream. */
     private const SourceKind = 'email';
@@ -535,6 +535,7 @@ class OosCurationManifest
                 'resolved_service' => $this->reader->nullableString($entry, 'resolved_service', self::Label),
                 'additional_services' => $this->stringList($entry, 'additional_services'),
                 'additional_service_labels' => $this->stringMap($entry, 'additional_service_labels'),
+                'service_assignments' => $this->serviceAssignments($entry),
                 'curation_note' => $this->reader->nullableString($entry, 'curation_note', self::Label),
                 'service_label' => $this->reader->nullableString($entry, 'service_label', self::Label),
                 'title_override' => $this->reader->nullableString($entry, 'title_override', self::Label),
@@ -642,6 +643,7 @@ class OosCurationManifest
         }
 
         $this->validateAdditionalServices($entry, $itemKey, $validServices);
+        $this->validateServiceAssignments($entry, $itemKey, $validServices);
 
         $this->requireDecision($entry, 'date_decision', self::DateDecisions, $itemKey);
         $this->requireDecision($entry, 'content_scope', self::ContentScopes, $itemKey);
@@ -800,6 +802,85 @@ class OosCurationManifest
     }
 
     /**
+     * A service assignment is a narrow, reviewed correction to how this one
+     * document's parser slots map to the church's canonical service slots. It
+     * is deliberately not a time-of-day rule: that would make an historical
+     * exception silently affect a later source.
+     *
+     * @param  array<string, mixed>  $entry
+     * @param  list<string>  $validServices
+     */
+    private function validateServiceAssignments(array $entry, string $itemKey, array $validServices): void
+    {
+        /** @var list<array{source_service:string,resolved_service:string}> $assignments */
+        $assignments = $entry['service_assignments'];
+
+        if ($assignments === []) {
+            return;
+        }
+
+        if ($entry['parse_decision'] !== 'manifest-authoritative') {
+            throw new RuntimeException(
+                "Included entry {$itemKey} may declare service_assignments only with manifest-authoritative parsing."
+            );
+        }
+
+        $sources = [];
+        $resolved = [];
+        $servicesPresent = [$entry['resolved_service'], ...$entry['additional_services']];
+
+        foreach ($assignments as $assignment) {
+            if (! in_array($assignment['source_service'], $validServices, true)
+                || ! in_array($assignment['resolved_service'], $validServices, true)) {
+                throw new RuntimeException("Included entry {$itemKey} has an invalid service assignment.");
+            }
+
+            if (! in_array($assignment['resolved_service'], $servicesPresent, true)) {
+                throw new RuntimeException(
+                    "Included entry {$itemKey} assigns to {$assignment['resolved_service']}, which it does not declare."
+                );
+            }
+
+            if (isset($sources[$assignment['source_service']]) || isset($resolved[$assignment['resolved_service']])) {
+                throw new RuntimeException("Included entry {$itemKey} repeats a source or resolved service assignment.");
+            }
+
+            $sources[$assignment['source_service']] = true;
+            $resolved[$assignment['resolved_service']] = true;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     * @return list<array{source_service:string,resolved_service:string}>
+     */
+    private function serviceAssignments(array $entry): array
+    {
+        $value = $entry['service_assignments'] ?? [];
+
+        if (! is_array($value) || ! array_is_list($value)) {
+            throw new RuntimeException(self::Label.' entry service_assignments must be a list.');
+        }
+
+        $assignments = [];
+
+        foreach ($value as $assignment) {
+            if (! is_array($assignment)
+                || ! is_string($assignment['source_service'] ?? null)
+                || ! is_string($assignment['resolved_service'] ?? null)) {
+                throw new RuntimeException(self::Label.' entry service_assignments must contain source_service and resolved_service strings.');
+            }
+
+            $assignments[] = [
+                'source_service' => $assignment['source_service'],
+                'resolved_service' => $assignment['resolved_service'],
+            ];
+        }
+
+        return $assignments;
+    }
+
+    /**
      * @param  array<string, mixed>  $entry
      */
     private function validateNonInclude(array $entry): void
@@ -821,7 +902,7 @@ class OosCurationManifest
         }
 
         /** Normalised to `[]` rather than null, so emptiness is the assertion to make. */
-        foreach (['additional_services', 'additional_service_labels'] as $key) {
+        foreach (['additional_services', 'additional_service_labels', 'service_assignments'] as $key) {
             if ($entry[$key] !== []) {
                 throw new RuntimeException(
                     "Entry {$itemKey} is not imported and has contradictory disposition fields: ".
@@ -876,7 +957,7 @@ class OosCurationManifest
                 }
             }
 
-            foreach (['additional_services', 'additional_service_labels'] as $key) {
+            foreach (['additional_services', 'additional_service_labels', 'service_assignments'] as $key) {
                 if (! is_array($entry[$key])) {
                     throw new RuntimeException("Validated include {$entry['item_key']} is missing {$key}.");
                 }
@@ -910,6 +991,7 @@ class OosCurationManifest
                 'resolved_service' => $entry['resolved_service'],
                 'additional_services' => $entry['additional_services'],
                 'additional_service_labels' => $entry['additional_service_labels'],
+                'service_assignments' => $entry['service_assignments'],
                 'curation_note' => $entry['curation_note'],
                 'service_label' => $entry['service_label'],
                 'title_override' => $entry['title_override'],

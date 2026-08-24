@@ -12,6 +12,7 @@ use App\Data\OosEmailSourceDocument;
 use App\Enums\InboundEmailStatus;
 use App\Enums\OosEmailContentScope;
 use App\Enums\OosEmailParseDisposition;
+use App\Enums\OosEmailPlanHoldReason;
 use App\Enums\SermonService;
 use App\Models\InboundEmail;
 use App\Support\CanonicalJson;
@@ -230,6 +231,7 @@ class OosArchiveAssertionBundle
             $reasons = $this->structuralReasons(
                 OosEmailSourceDocument::fromBody($entry->bodyPlain),
                 $parse,
+                $entry,
             );
             $record = ['entry' => $entry, 'payload' => $payload];
 
@@ -314,7 +316,7 @@ class OosArchiveAssertionBundle
             }
 
             $record = ['entry' => $entry, 'payload' => $payload];
-            $reasons = $this->structuralReasons($sourceDocument, $parse);
+            $reasons = $this->structuralReasons($sourceDocument, $parse, $entry);
 
             if ($reasons === []) {
                 $valid[] = $record;
@@ -395,6 +397,7 @@ class OosArchiveAssertionBundle
      *     date_decision:string,
      *     date_decision_reason:?string,
      *     parse_decision:string,
+     *     service_assignments:list<array{source_service:string,resolved_service:string}>,
      *     content_scope:string,
      *     partial_scope_reason:?string,
      *     payload:string,
@@ -422,6 +425,7 @@ class OosArchiveAssertionBundle
             'date_decision' => $curation['date_decision'],
             'date_decision_reason' => $this->nullableString($curation['date_decision_reason'] ?? null),
             'parse_decision' => $curation['parse_decision'],
+            'service_assignments' => $this->portableServiceAssignments($curation['service_assignments'] ?? []),
             'content_scope' => $curation['content_scope'],
             'partial_scope_reason' => $this->nullableString($curation['partial_scope_reason'] ?? null),
             'payload' => $curation['payload'],
@@ -433,6 +437,31 @@ class OosArchiveAssertionBundle
             'decided_at' => $this->nullableString($curation['decided_at'] ?? null),
             'decision_rule_version' => $this->nullableString($curation['decision_rule_version'] ?? null),
         ];
+    }
+
+    /** @return list<array{source_service:string,resolved_service:string}> */
+    private function portableServiceAssignments(mixed $assignments): array
+    {
+        if (! is_array($assignments) || ! array_is_list($assignments)) {
+            throw new RuntimeException('OoS assertion bundle service assignments must be a list.');
+        }
+
+        $normalized = [];
+
+        foreach ($assignments as $assignment) {
+            if (! is_array($assignment)
+                || ! is_string($assignment['source_service'] ?? null)
+                || ! is_string($assignment['resolved_service'] ?? null)) {
+                throw new RuntimeException('OoS assertion bundle contains an invalid service assignment.');
+            }
+
+            $normalized[] = [
+                'source_service' => $assignment['source_service'],
+                'resolved_service' => $assignment['resolved_service'],
+            ];
+        }
+
+        return $normalized;
     }
 
     private function portableSourceDocument(mixed $records): OosEmailSourceDocument
@@ -478,6 +507,8 @@ class OosArchiveAssertionBundle
                 }
             }
 
+            $parseResult = $this->parseResultFromPayload(['parse' => $parse]);
+            $hasEligiblePlan = $reasons === [] && $this->eligiblePlanKeys($entry, $parseResult) !== [];
             $email = InboundEmail::query()->firstOrNew(['message_id' => $entry->syntheticMessageId]);
             $email->fill([
                 'from' => 'Order of Service Archive <archive@crockenhill.local>',
@@ -485,7 +516,7 @@ class OosArchiveAssertionBundle
                 'body_plain' => null,
                 'body_html' => null,
                 'received_at' => $entry->syntheticReceivedAt,
-                'status' => $reasons === [] ? InboundEmailStatus::ArchiveEval : InboundEmailStatus::Pending,
+                'status' => $hasEligiblePlan ? InboundEmailStatus::ArchiveEval : InboundEmailStatus::Pending,
                 'processing_metadata' => [
                     'archive' => [
                         'item_key' => $entry->itemKey,
@@ -511,11 +542,12 @@ class OosArchiveAssertionBundle
      */
     public function apply(array $preflight): void
     {
-        if ($preflight['invalid'] !== []) {
-            throw new RuntimeException('Structurally invalid shipped entries must be reviewed before bundle apply.');
-        }
-
         DB::transaction(function () use ($preflight): void {
+            /**
+             * `stage()` has already marked every structurally invalid entry Pending with its
+             * revalidation reasons. Applying the verified subset must not erase that visible
+             * review evidence or let it block independent, valid archive assertions.
+             */
             foreach ($preflight['valid'] as $record) {
                 $entry = $record['entry'];
                 $email = InboundEmail::query()
@@ -523,13 +555,18 @@ class OosArchiveAssertionBundle
                     ->lockForUpdate()
                     ->firstOrFail();
                 $parseResult = $this->parseResultFromPayload($record['payload']);
+                $eligiblePlanKeys = $this->eligiblePlanKeys($entry, $parseResult);
+
+                if ($eligiblePlanKeys === []) {
+                    continue;
+                }
 
                 $email->status = InboundEmailStatus::Pending;
                 $email->save();
                 $result = $this->importService->import(
                     $email,
                     $parseResult,
-                    onlyPlanKeys: $this->eligiblePlanKeys($entry, $parseResult),
+                    onlyPlanKeys: $eligiblePlanKeys,
                     sourceInputHash: (string) $record['payload']['input_hash'],
                 );
 
@@ -564,8 +601,11 @@ class OosArchiveAssertionBundle
      * @param  array<string, mixed>  $parse
      * @return list<string>
      */
-    private function structuralReasons(OosEmailSourceDocument $sourceDocument, array $parse): array
-    {
+    private function structuralReasons(
+        OosEmailSourceDocument $sourceDocument,
+        array $parse,
+        OosArchiveEntry $entry,
+    ): array {
         $services = [];
 
         foreach ($parse['service_plans'] ?? [] as $plan) {
@@ -591,7 +631,7 @@ class OosArchiveAssertionBundle
             }
 
             $services[] = [
-                'service' => $plan['service'] ?? null,
+                'service' => $this->serviceForStructuralValidation($entry, $plan, $provenance),
                 'date' => $plan['date'] ?? null,
                 'content_scope' => $plan['content_scope'] ?? 'full',
                 'service_evidence_line_ids' => $provenance['service_evidence_line_ids'] ?? [],
@@ -612,6 +652,39 @@ class OosArchiveAssertionBundle
         return $this->validator
             ->validate($sourceDocument, $extraction)
             ->allReasons();
+    }
+
+    /**
+     * The parser's source slot remains the validator's concern. A matching,
+     * versioned assignment supplies the distinct canonical identity; without
+     * it, the final service value must prove itself directly from the source.
+     * Mapping `other` to a canonical non-other slot is the sole case where the
+     * source identity's special-service rule would otherwise reject the very
+     * correction the manifest explicitly records.
+     *
+     * @param  array<string, mixed>  $plan
+     * @param  array<string, mixed>  $provenance
+     */
+    private function serviceForStructuralValidation(
+        OosArchiveEntry $entry,
+        array $plan,
+        array $provenance,
+    ): mixed {
+        $assignment = $provenance['curated_service_assignment'] ?? null;
+
+        if (! is_array($assignment)
+            || ! is_string($assignment['source_service'] ?? null)
+            || ! is_string($assignment['resolved_service'] ?? null)
+            || ($plan['service'] ?? null) !== $assignment['resolved_service']
+            || $entry->curation['parse_decision'] !== 'manifest-authoritative'
+            || ! in_array($assignment, $entry->curation['service_assignments'], true)) {
+            return $plan['service'] ?? null;
+        }
+
+        return $assignment['source_service'] === SermonService::Other->value
+            && $assignment['resolved_service'] !== SermonService::Other->value
+                ? $assignment['resolved_service']
+                : $assignment['source_service'];
     }
 
     /** @return array<string, mixed> */
@@ -688,6 +761,8 @@ class OosArchiveAssertionBundle
                 shouldImport: (bool) ($plan['should_import'] ?? false),
                 disposition: $this->disposition($plan['disposition'] ?? null),
                 validationReasons: $this->strings($plan['validation_reasons'] ?? null),
+                contentValidationReasons: $this->strings($plan['content_validation_reasons'] ?? null),
+                holdReasons: $this->holdReasons($plan['hold_reasons'] ?? null),
                 sourceProvenance: is_array($plan['source_provenance'] ?? null) ? $plan['source_provenance'] : [],
                 contentScope: is_string($plan['content_scope'] ?? null)
                     ? OosEmailContentScope::tryFrom($plan['content_scope']) ?? OosEmailContentScope::Unknown
@@ -788,6 +863,15 @@ class OosArchiveAssertionBundle
         return array_values(array_filter($values, is_array(...)));
     }
 
+    /** @return list<OosEmailPlanHoldReason> */
+    private function holdReasons(mixed $values): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (string $value): ?OosEmailPlanHoldReason => OosEmailPlanHoldReason::tryFrom($value),
+            $this->strings($values),
+        )));
+    }
+
     private function nullableString(mixed $value): ?string
     {
         return is_string($value) && $value !== '' ? $value : null;
@@ -847,6 +931,7 @@ class OosArchiveAssertionBundle
             if ($plan->date === $entry->groundTruthDate
                 && $plan->service !== null
                 && $plan->items !== []
+                && ($plan->isAutoImportable() || $plan->isEvidenceImportable())
                 && ($entry->assertsFullOrder()
                     || in_array($plan->service->value, $entry->servicesPresent, true))) {
                 $keys[] = $plan->key();
