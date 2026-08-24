@@ -820,6 +820,7 @@ class OosSemanticCorrectnessScorer
                 shouldImport: true,
                 disposition: OosEmailParseDisposition::AutoImportable,
                 contentScope: $scope,
+                dispositionRecorded: true,
             );
 
             $evidencePlan = new OosEmailServicePlan(
@@ -830,6 +831,10 @@ class OosSemanticCorrectnessScorer
                 disposition: OosEmailParseDisposition::ReviewRequired,
                 holdReasons: [OosEmailPlanHoldReason::LowConfidence],
                 contentScope: $scope,
+                // Both synthetics stand in for a plan the production pipeline dispositioned, so the
+                // decision is recorded by construction. Without this the evidence bound below would
+                // be unreachable — the same failure this method's docblock records fixing once.
+                dispositionRecorded: true,
             );
 
             if (! $autoPlan->isImportable()) {

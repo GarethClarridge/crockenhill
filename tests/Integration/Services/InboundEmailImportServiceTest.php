@@ -111,6 +111,7 @@ class InboundEmailImportServiceTest extends TestCase
                 needsReview: false,
                 shouldImport: true,
                 disposition: OosEmailParseDisposition::AutoImportable,
+                dispositionRecorded: true,
                 contentScope: OosEmailContentScope::Full,
             )],
             disposition: OosEmailParseDisposition::AutoImportable,
@@ -366,6 +367,7 @@ class InboundEmailImportServiceTest extends TestCase
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::ReviewRequired,
+            dispositionRecorded: true,
             holdReasons: [OosEmailPlanHoldReason::LowConfidence],
         );
         $parseResult = new OosEmailParseResult(
@@ -418,6 +420,7 @@ class InboundEmailImportServiceTest extends TestCase
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::ReviewRequired,
+            dispositionRecorded: true,
             holdReasons: [OosEmailPlanHoldReason::LowConfidence],
         );
         $parseResult = new OosEmailParseResult(
@@ -477,6 +480,7 @@ class InboundEmailImportServiceTest extends TestCase
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::ReviewRequired,
+            dispositionRecorded: true,
             holdReasons: [OosEmailPlanHoldReason::LowConfidence],
         );
         $parseResult = new OosEmailParseResult(
@@ -520,6 +524,9 @@ class InboundEmailImportServiceTest extends TestCase
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::InvalidExtraction,
+            // Recorded, so the disposition stays the only reason this plan is refused the
+            // evidence tier — otherwise the assertion would pass on provenance instead.
+            dispositionRecorded: true,
             validationReasons: ['Item 1 merges separate source lines.'],
             holdReasons: [OosEmailPlanHoldReason::ContentInvalid],
         );
@@ -570,6 +577,7 @@ class InboundEmailImportServiceTest extends TestCase
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::ReviewRequired,
+            dispositionRecorded: true,
             holdReasons: [OosEmailPlanHoldReason::LowConfidence],
         );
         $parseResult = new OosEmailParseResult(
@@ -732,6 +740,9 @@ class InboundEmailImportServiceTest extends TestCase
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::InvalidExtraction,
+            // Recorded, so the disposition stays the only reason this plan is refused the
+            // evidence tier — otherwise the assertion would pass on provenance instead.
+            dispositionRecorded: true,
             validationReasons: ['Item 1 merges separate source lines.'],
         );
         $parseResult = new OosEmailParseResult(

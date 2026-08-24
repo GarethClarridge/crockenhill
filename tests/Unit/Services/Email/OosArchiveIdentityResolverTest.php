@@ -68,6 +68,7 @@ class OosArchiveIdentityResolverTest extends TestCase
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::ReviewRequired,
+            dispositionRecorded: true,
         );
         $otherPlan = new OosEmailServicePlan(
             service: SermonService::Evening,
@@ -77,6 +78,7 @@ class OosArchiveIdentityResolverTest extends TestCase
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::ReviewRequired,
+            dispositionRecorded: true,
         );
         $parseResult = new OosEmailParseResult(
             date: $plan->date,
@@ -114,6 +116,7 @@ class OosArchiveIdentityResolverTest extends TestCase
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::ReviewRequired,
+            dispositionRecorded: true,
         );
         $result = new OosEmailParseResult(
             date: $result->date,
@@ -147,6 +150,7 @@ class OosArchiveIdentityResolverTest extends TestCase
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::InvalidExtraction,
+            dispositionRecorded: true,
             validationReasons: ['An other service requires explicit special-service evidence; ordinary notices are not a service order.'],
             contentValidationReasons: ['An other service requires explicit special-service evidence; ordinary notices are not a service order.'],
         );
@@ -186,6 +190,7 @@ class OosArchiveIdentityResolverTest extends TestCase
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::ReviewRequired,
+            dispositionRecorded: true,
         );
         $twoPmPlan = new OosEmailServicePlan(
             service: SermonService::Other,
@@ -195,6 +200,7 @@ class OosArchiveIdentityResolverTest extends TestCase
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::InvalidExtraction,
+            dispositionRecorded: true,
             validationReasons: ['An other service requires explicit special-service evidence; ordinary notices are not a service order.'],
             contentValidationReasons: ['An other service requires explicit special-service evidence; ordinary notices are not a service order.'],
         );
@@ -336,6 +342,7 @@ class OosArchiveIdentityResolverTest extends TestCase
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::ReviewRequired,
+            dispositionRecorded: true,
             contentScope: OosEmailContentScope::Unknown,
         );
         $result = new OosEmailParseResult(
@@ -389,6 +396,7 @@ class OosArchiveIdentityResolverTest extends TestCase
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::ReviewRequired,
+            dispositionRecorded: true,
             contentScope: OosEmailContentScope::Unknown,
         );
         $result = new OosEmailParseResult(
@@ -464,6 +472,7 @@ class OosArchiveIdentityResolverTest extends TestCase
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::ReviewRequired,
+            dispositionRecorded: true,
         );
 
         return new OosEmailParseResult(

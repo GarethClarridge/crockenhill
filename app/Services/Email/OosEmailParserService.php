@@ -399,6 +399,8 @@ class OosEmailParserService
             needsReview: $needsReview,
             shouldImport: $shouldImport,
             disposition: $disposition,
+            // The validator has just run and this disposition is its finding, not a default.
+            dispositionRecorded: true,
             validationReasons: $validationReasons,
             contentValidationReasons: $contentReasons,
             holdReasons: $holdReasons,

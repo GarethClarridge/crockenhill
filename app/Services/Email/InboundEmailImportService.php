@@ -193,6 +193,9 @@ class InboundEmailImportService
             // A flattened payload predates per-plan dispositions entirely, so it can never be
             // auto-imported unattended; ApproveInboundEmailImport re-parses it for an admin.
             disposition: OosEmailParseDisposition::ReviewRequired,
+            // Stated rather than left to the default: this disposition is precisely the fallback
+            // that must not be mistaken for a recorded decision, so it is refused the evidence tier.
+            dispositionRecorded: false,
         )];
     }
 
@@ -230,6 +233,7 @@ class InboundEmailImportService
                 contentScope: is_string($storedPlan['content_scope'] ?? null)
                     ? OosEmailContentScope::tryFrom($storedPlan['content_scope']) ?? OosEmailContentScope::Unknown
                     : OosEmailContentScope::Full,
+                dispositionRecorded: $this->storedDispositionRecorded($storedPlan),
             );
         }
 
@@ -363,6 +367,9 @@ class InboundEmailImportService
                 shouldImport: $parseResult->shouldImport,
                 disposition: $parseResult->disposition,
                 validationReasons: $parseResult->validationReasons,
+                // Synthesised from a parse result that carries its own disposition, so the
+                // decision is the parser's rather than a decode fallback.
+                dispositionRecorded: true,
             )];
         }
 
@@ -432,6 +439,30 @@ class InboundEmailImportService
      * the email body. Never infer AutoImportable from that: an admin can still approve it, and a
      * re-parse replaces the payload outright.
      */
+    /**
+     * Whether a stored plan's disposition is a recorded decision rather than {@see self::storedDisposition()}'s
+     * default.
+     *
+     * Prefers the explicit flag. A payload written before that flag existed carries no such key,
+     * and for those the presence of a recognisable `disposition` *is* the same signal — it is
+     * precisely the case `storedDisposition()` would otherwise have to default. Checked against the
+     * 710 banked rehearsal plans before this was relied on: all 710 carry a recognisable one, so no
+     * already-banked plan loses its evidence-tier eligibility on the first read under this field.
+     *
+     * @param  array<string, mixed>  $storedPlan
+     */
+    private function storedDispositionRecorded(array $storedPlan): bool
+    {
+        if (array_key_exists('disposition_recorded', $storedPlan)) {
+            return (bool) $storedPlan['disposition_recorded'];
+        }
+
+        $disposition = $storedPlan['disposition'] ?? null;
+
+        return is_string($disposition)
+            && OosEmailParseDisposition::tryFrom($disposition) instanceof OosEmailParseDisposition;
+    }
+
     private function storedDisposition(mixed $value): OosEmailParseDisposition
     {
         if (is_string($value)) {

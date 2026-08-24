@@ -36,6 +36,16 @@ readonly class OosEmailServicePlan
         public array $holdReasons = [],
         public array $sourceProvenance = [],
         public OosEmailContentScope $contentScope = OosEmailContentScope::Full,
+        /**
+         * Whether `$disposition` is a decision something actually recorded, rather than the
+         * fallback {@see InboundEmailImportService::storedDisposition()} returns when a stored
+         * payload carries no recognisable disposition at all.
+         *
+         * Defaults to `false` so a construction site that has not thought about it fails closed:
+         * an unrecorded disposition is refused the unattended evidence tier by
+         * {@see self::isEvidenceImportable()} rather than admitted to it.
+         */
+        public bool $dispositionRecorded = false,
     ) {}
 
     /**
@@ -78,15 +88,22 @@ readonly class OosEmailServicePlan
      * REV-D2: a `ReviewRequired` plan the unattended pipeline may still import as source
      * evidence — created or merged, but left unreviewed and unfinalised — because its identity
      * is trustworthy even though its content confidence is not. `MissingIdentity` is excluded
-     * because that *is* the identity failure REV-D2 keeps held; `holdReasons !== []` excludes a
-     * legacy pre-validator parse, whose `ReviewRequired` disposition is a fallback default with
-     * no recorded reason, not a validator finding (see `InboundEmailImportService::storedDisposition()`).
-     * `InvalidExtraction` plans never reach here at all: they carry a different disposition.
+     * because that *is* the identity failure REV-D2 keeps held. `InvalidExtraction` plans never
+     * reach here at all: they carry a different disposition.
+     *
+     * The second condition asks whether the disposition was *recorded* rather than defaulted. It
+     * used to ask `holdReasons !== []` and infer the same thing, which worked only by coincidence:
+     * the semantic compiler fixes confidence at 0.75 against a 0.90 threshold, so every plan it
+     * produces carries `LowConfidence` and therefore a non-empty hold list. That made a flag whose
+     * name describes content quality silently load-bearing for provenance — 666 of the rehearsal's
+     * 674 `ReviewRequired` plans had `LowConfidence` as their *only* hold reason, so retiring the
+     * constant would have emptied their hold lists and dropped every one of them out of this tier.
+     * Asking the question directly decouples the two.
      */
     public function isEvidenceImportable(): bool
     {
         return $this->disposition === OosEmailParseDisposition::ReviewRequired
-            && $this->holdReasons !== []
+            && $this->dispositionRecorded
             && ! in_array(OosEmailPlanHoldReason::MissingIdentity, $this->holdReasons, true)
             && $this->contentScope !== OosEmailContentScope::Unknown
             && $this->isImportable();
@@ -107,6 +124,7 @@ readonly class OosEmailServicePlan
             holdReasons: $this->holdReasons,
             sourceProvenance: $this->sourceProvenance,
             contentScope: $contentScope,
+            dispositionRecorded: $this->dispositionRecorded,
         );
     }
 
@@ -124,7 +142,12 @@ readonly class OosEmailServicePlan
      * archive identity resolution, and read back by a third place, so a field added to one copy
      * was silently dropped from every plan that passed through another.
      *
-     * @return array{plan_key:string,service:?string,date:?string,content_scope:string,items:array<int,array<string,mixed>>,confidence:float,needs_review:bool,should_import:bool,disposition:string,validation_reasons:list<string>,content_validation_reasons:list<string>,hold_reasons:list<string>,source_provenance:array<string,mixed>}
+     * `disposition_recorded` is written explicitly rather than left to be re-derived on read. A
+     * payload that predates it is still read correctly — a recognisable `disposition` means the
+     * decision was recorded — but relying on that inference forever would reintroduce exactly the
+     * kind of implicit provenance signal this field exists to replace.
+     *
+     * @return array{plan_key:string,service:?string,date:?string,content_scope:string,items:array<int,array<string,mixed>>,confidence:float,needs_review:bool,should_import:bool,disposition:string,disposition_recorded:bool,validation_reasons:list<string>,content_validation_reasons:list<string>,hold_reasons:list<string>,source_provenance:array<string,mixed>}
      */
     public function toMetadataArray(): array
     {
@@ -138,6 +161,7 @@ readonly class OosEmailServicePlan
             'needs_review' => $this->needsReview,
             'should_import' => $this->shouldImport,
             'disposition' => $this->disposition->value,
+            'disposition_recorded' => $this->dispositionRecorded,
             'validation_reasons' => $this->validationReasons,
             'content_validation_reasons' => $this->contentValidationReasons,
             'hold_reasons' => $this->holdReasonValues(),

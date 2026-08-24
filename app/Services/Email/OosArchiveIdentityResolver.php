@@ -115,6 +115,13 @@ class OosArchiveIdentityResolver
             needsReview: $disposition !== OosEmailParseDisposition::AutoImportable,
             shouldImport: $disposition === OosEmailParseDisposition::AutoImportable,
             disposition: $disposition,
+            /**
+             * Carried from the plan being resolved rather than asserted here. Resolution re-decides
+             * *which* disposition applies, but it cannot make a decision have been recorded that
+             * was not: a plan that arrived as a decode fallback stays one, and stays out of the
+             * unattended evidence tier. Every site in this class carries it the same way.
+             */
+            dispositionRecorded: $plan->dispositionRecorded,
             validationReasons: $plan->validationReasons,
             contentValidationReasons: $plan->contentValidationReasons,
             holdReasons: $this->resolvedHoldReasons(
@@ -180,6 +187,7 @@ class OosArchiveIdentityResolver
                 needsReview: true,
                 shouldImport: false,
                 disposition: OosEmailParseDisposition::ReviewRequired,
+                dispositionRecorded: $plan->dispositionRecorded,
                 validationReasons: $validationReasons,
                 contentValidationReasons: $contentValidationReasons,
                 holdReasons: $plan->holdReasons,
@@ -202,6 +210,7 @@ class OosArchiveIdentityResolver
                 needsReview: $disposition !== OosEmailParseDisposition::AutoImportable,
                 shouldImport: $disposition === OosEmailParseDisposition::AutoImportable,
                 disposition: $disposition,
+                dispositionRecorded: $plan->dispositionRecorded,
                 validationReasons: $validationReasons,
                 contentValidationReasons: $contentValidationReasons,
                 holdReasons: $this->resolvedHoldReasons(
@@ -295,6 +304,7 @@ class OosArchiveIdentityResolver
             needsReview: true,
             shouldImport: false,
             disposition: OosEmailParseDisposition::ReviewRequired,
+            dispositionRecorded: $plan->dispositionRecorded,
             validationReasons: $validationReasons,
             contentValidationReasons: $contentValidationReasons,
             holdReasons: $plan->holdReasons,
@@ -310,6 +320,7 @@ class OosArchiveIdentityResolver
             needsReview: $disposition !== OosEmailParseDisposition::AutoImportable,
             shouldImport: $disposition === OosEmailParseDisposition::AutoImportable,
             disposition: $disposition,
+            dispositionRecorded: $plan->dispositionRecorded,
             validationReasons: $validationReasons,
             contentValidationReasons: $contentValidationReasons,
             holdReasons: $this->resolvedHoldReasons(
@@ -425,6 +436,7 @@ class OosArchiveIdentityResolver
             needsReview: $disposition !== OosEmailParseDisposition::AutoImportable,
             shouldImport: $disposition === OosEmailParseDisposition::AutoImportable,
             disposition: $disposition,
+            dispositionRecorded: $plan->dispositionRecorded,
             validationReasons: $plan->validationReasons,
             contentValidationReasons: $plan->contentValidationReasons,
             holdReasons: $this->resolvedHoldReasons(
@@ -528,6 +540,7 @@ class OosArchiveIdentityResolver
             needsReview: $disposition !== OosEmailParseDisposition::AutoImportable,
             shouldImport: $disposition === OosEmailParseDisposition::AutoImportable,
             disposition: $disposition,
+            dispositionRecorded: $plan->dispositionRecorded,
             validationReasons: $plan->validationReasons,
             contentValidationReasons: $plan->contentValidationReasons,
             holdReasons: $this->resolvedHoldReasons(

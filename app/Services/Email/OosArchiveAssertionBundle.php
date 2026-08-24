@@ -767,6 +767,13 @@ class OosArchiveAssertionBundle
                 contentScope: is_string($plan['content_scope'] ?? null)
                     ? OosEmailContentScope::tryFrom($plan['content_scope']) ?? OosEmailContentScope::Unknown
                     : OosEmailContentScope::Full,
+                // Same derivation as InboundEmailImportService::storedDispositionRecorded(): prefer
+                // the explicit flag, and read a bundle written before it existed by whether the
+                // disposition it carries is one that was recorded rather than defaulted.
+                dispositionRecorded: array_key_exists('disposition_recorded', $plan)
+                    ? (bool) $plan['disposition_recorded']
+                    : is_string($plan['disposition'] ?? null)
+                        && OosEmailParseDisposition::tryFrom($plan['disposition']) instanceof OosEmailParseDisposition,
             );
         }
 
