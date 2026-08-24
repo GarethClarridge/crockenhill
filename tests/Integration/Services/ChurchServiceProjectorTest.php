@@ -176,6 +176,77 @@ class ChurchServiceProjectorTest extends TestCase
         $this->assertSame([], $service->mergeProposals()->where('status', ChurchServiceProposalStatus::Pending)->get()->all());
     }
 
+    /**
+     * Livestream was restricted to `song_order` alone, with no rationale recorded in
+     * the plan or the code. The restriction cannot hold: all three dimensions are
+     * views of one list, so proving the sequence proves the set and its size. The
+     * maintainer ruled on 2026-08-24 that a livestream corroborates all three — it is
+     * the record of what was actually sung, where OpenLP is only the plan.
+     */
+    #[Test]
+    public function an_evidence_tier_email_finalises_after_a_livestream_corroborates_all_three_song_dimensions(): void
+    {
+        $service = ChurchService::factory()->create();
+        $items = [
+            $this->item(1, 'songs', 'Come Thou Fount', 'come-thou-fount'),
+            $this->item(2, 'songs', 'Be Thou My Vision', 'be-thou-my-vision'),
+        ];
+
+        $this->ingestItems($service, ChurchServiceSource::Email, $items, processingFingerprint: [
+            'format' => 'email-plan',
+            'version' => 2,
+            'unattended_content_finalization' => false,
+        ]);
+
+        $service->refresh();
+        $this->assertNull($service->canonical_finalization);
+        $this->assertContains(
+            'uncorroborated_content_dimension',
+            array_column($service->mergeProposals()->latest('id')->firstOrFail()->conflicts, 'kind'),
+        );
+
+        $this->ingestItems($service, ChurchServiceSource::Livestream, $items);
+
+        $service->refresh();
+        $this->assertSame(ChurchServiceCanonicalFinalization::Automatic, $service->canonical_finalization);
+        $this->assertFalse($service->needs_review);
+        $this->assertSame([], $service->mergeProposals()->where('status', ChurchServiceProposalStatus::Pending)->get()->all());
+    }
+
+    /** A livestream that disagrees is a mismatch on every dimension it now proves, not just order. */
+    #[Test]
+    public function a_livestream_that_disagrees_stages_membership_and_count_alongside_order(): void
+    {
+        $service = ChurchService::factory()->create();
+
+        $this->ingestItems($service, ChurchServiceSource::Email, [
+            $this->item(1, 'songs', 'Come Thou Fount', 'come-thou-fount'),
+            $this->item(2, 'songs', 'Be Thou My Vision', 'be-thou-my-vision'),
+        ], processingFingerprint: [
+            'format' => 'email-plan',
+            'version' => 2,
+            'unattended_content_finalization' => false,
+        ]);
+
+        // The second song was planned but not sung, which only a recording can show.
+        $this->ingestItems($service, ChurchServiceSource::Livestream, [
+            $this->item(1, 'songs', 'Come Thou Fount', 'come-thou-fount'),
+        ]);
+
+        $service->refresh();
+        $proposal = $service->mergeProposals()->latest('id')->firstOrFail();
+        $dimensions = array_column(
+            array_values(array_filter(
+                $proposal->conflicts,
+                static fn (array $conflict): bool => $conflict['kind'] === 'corroboration_mismatch',
+            )),
+            'dimension',
+        );
+
+        sort($dimensions);
+        $this->assertSame(['song_count', 'song_membership', 'song_order'], $dimensions);
+    }
+
     #[Test]
     public function an_email_that_cleared_confidence_and_consensus_remains_automatically_finalisable(): void
     {

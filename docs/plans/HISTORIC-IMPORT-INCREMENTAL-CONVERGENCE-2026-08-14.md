@@ -157,6 +157,37 @@ conflict. The existing confidence-and-consensus route is unchanged. Hymn-workboo
 the source for actual song usage when IC6 binds that source lane. Focused projector and ingestion
 regressions pass.
 
+**Amended 2026-08-24 by the maintainer: a livestream corroborates all three song
+dimensions.** The implementation above restricted livestream to `song_order` alone. No rationale
+for that restriction was ever recorded — not in this plan, where the sentence above simply asserts
+it, and not in `ChurchServiceProjector::sourceProvesDimension()`, which carried no docblock. The
+restriction is unsound on the code's own arithmetic: `songDimensionValue()` builds one list of song
+keys in `source_position` order and returns three views of it — `song_order` *is* the list,
+`song_membership` is that list deduplicated and sorted, `song_count` is its length. Membership and
+count are pure functions of order, so a source trusted to prove the sequence has by construction
+proved the set and its size. Granting authority over the value while withholding it from the
+derivations cannot be expressed coherently.
+
+The maintainer's reasoning also inverts the earlier intuition about which source closes the set: a
+livestream is the record of what was *actually* sung, whereas OpenLP is a *plan*, and a planned song
+may be dropped on the day. For actual membership the recording is the stronger witness. `Livestream`
+now proves every dimension; the docblock records the reasoning and
+`ChurchServiceProjectorTest` pins both the finalisation and the mismatch shape (a song planned but
+not sung now raises a mismatch on all three dimensions, not just order).
+
+**Open decision — are three dimensions one comparison?** Because all three derive from one list, a
+`song_order` mismatch and a `song_membership` mismatch on the same service are usually a single
+disagreement counted up to three times. The 2026-08-24 census shows exactly that shape: `song_order`
+245, `song_membership` 235, `song_count` 180 across 398 proposals, with
+`dimension:song_count+song_membership+song_order` the dominant class. `song_count` in particular
+adds little as an independent check — it is `count($songs)` before deduplication, so it differs from
+`count(song_membership)` only where a service repeats a song, and it agrees more often than the
+others precisely because it is the weakest signal. Collapsing the three into one comparison would
+reduce review load and stop triple-counting, but it changes the HIR-D8 corroboration contract and
+the shape of every recorded conflict, so it is **not** actioned here. Decide it before the video
+lane produces corroborating assertions at scale (IC5).
+
+
 **Recovered corpus measurement 2026-08-21.** The deleted semantic evaluation was recovered from
 the local MySQL binlog and replayed from all 554 exact semantic-cache entries with zero fresh model
 calls. The corrected clean import created 438 entries, retained 75 as evidence, held 41 for review

@@ -1369,11 +1369,27 @@ class ChurchServiceProjector
         return ($record->processing_fingerprint['unattended_content_finalization'] ?? false) !== true;
     }
 
+    /**
+     * Which sources may corroborate a song dimension, per HIR-D8 (§2.5): a source
+     * proves only the dimension it actually witnesses.
+     *
+     * Livestream was previously restricted to `song_order` alone. That was unsound,
+     * and no rationale for it was ever recorded — in the plan or here. All three
+     * dimensions are views of one list ({@see self::songDimensionValue()}):
+     * `song_order` *is* the list, `song_membership` is that list deduplicated and
+     * sorted, and `song_count` is its length. Both are pure functions of the order,
+     * so a source trusted to prove the sequence has by construction proved the set
+     * and its size; granting authority over the value and withholding it from the
+     * derivations cannot be expressed coherently.
+     *
+     * The maintainer ruled on 2026-08-24 that a livestream corroborates all three.
+     * Note this makes the recording the stronger witness of what was *actually*
+     * sung: OpenLP is a plan, and a planned song may be dropped on the day.
+     */
     private function sourceProvesDimension(ChurchServiceSourceRecord $record, string $dimension): bool
     {
         return match ($record->source) {
-            ChurchServiceSource::OpenLp => true,
-            ChurchServiceSource::Livestream => $dimension === 'song_order',
+            ChurchServiceSource::OpenLp, ChurchServiceSource::Livestream => true,
             default => false,
         };
     }
