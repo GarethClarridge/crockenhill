@@ -17,26 +17,44 @@
 > signed act (§8). The one-shot windowed operation, its ingress freeze and its G-gate ladder no
 > longer exist.
 >
-> **Execution status verified 2026-08-24.** Start with §0. The long IC1–IC3 narrative in §6 is an
+> **Execution status verified 2026-08-25.** Start with §0. The long IC1–IC3 narrative in §6 is an
 > evidence journal, not an executable backlog. Do not restart closed parser/model work from it.
 >
-> **Cannot proceed without a human:** approval of any residual Email proposal classes that are
-> genuinely irreducible (the accepted-holds draft, 18 entries reviewed and approved 2026-08-24, grew
-> to 20 the same day — `2024-10-06` and `2016-05-01-pm` — then to **19** (`2024-10-06` fixed in the
-> resolver, not held) then to **18** (`2016-05-01-pm` turned out not to be a hold at all — its plan
-> extracts one spurious, unresolved item rather than the expected zero, so it's now excluded from
-> the curation manifest instead, per §10). The 18 remaining still need operator sign-off.
-> `oos:generate-corpus-expectation` has been re-run against the 18-entry draft and the updated
-> manifest: **553 approved sources / 539 identities / 18 accepted holds**);
+> **Email/OpenLP corpus settlement is complete.** The final expectation is **553 approved sources /
+> 539 identities / 20 operator-approved accepted holds**. Both lanes reconcile with zero unstaged
+> approved sources, zero unstaged identities and zero unexplained identities. The remaining red
+> proposal census is a cross-source convergence result, not an Email/OpenLP corpus defect and not a
+> reason to delay the video source that can supply its missing evidence.
+>
+> **Cannot proceed without a human:**
 > video worksheet exceptions and manifest freeze; recovery of authoritative source material for any
 > current-era services still reported as unevidenced; every release batch; and the §8.4
 > publication-policy decision.
 
 ## 0. Current execution brief — use this for new work
 
+### 0.1 Binding execution sequence — 2026-08-25
+
 This is the complete remaining sequence. A cheaper agent should work one numbered slice at a time,
-run the named acceptance check, update this table, and stop. Do not infer extra work from an old
-count or a closed investigation later in this document.
+run the named acceptance check, update this table, and stop. Do not infer work from the older
+2026-08-24 execution snapshot or a closed investigation later in this document.
+
+| Order | Slice | Current state | Done when |
+|---|---|---|---|
+| 1 | **Email + OpenLP corpus settlement** | **DONE 2026-08-24.** Final expectation: 553 approved sources / 539 identities / 20 operator-approved holds. Both lanes reconcile: 0 unstaged approved sources, 0 unstaged identities and 0 unexplained identities. Date accuracy is 100.0%; automatic identity precision is 99.7% against the 0.98 floor. The census contains 398 proposals in 21 classes: 223 services lack any corroborating source and 135 currently disagree with one. `source_item_projection_stale` is expected while those proposals remain. | Closed. This is the REV-D4 trigger for IC5. Do not mark an evidence-dependent class `automated` or `irreducible` merely to make the final convergence gate green. |
+| 2 | **Close the production-round authority gaps** | Open. Portable Email apply, OpenLP apply and video dispatch do not all bind the approved operation/manifest/plan. Video dispatch also lacks the promised same-manifest resume behaviour. | Focused tests prove every mutating lane binds its exact authority; a stopped full-manifest video run resumes its own completed work; historic notification containment reaches nested jobs. No new audit framework. |
+| 3 | **Carry historic-video corroboration authority end to end** | Open and mandatory before any video calibration. The manifest grades each recording, but the grade is not carried into the Livestream source revision; the projector therefore currently trusts every Livestream as if it captured the full service. | The hash-bound manifest grade reaches processing metadata and the Livestream source fingerprint. Only `full` historic recordings may corroborate song membership, count and order. `short_partial`, `fragmented`, `unknown`, and a missing grade on a historic source are neutral and fail closed. Focused importer/adapter/projector tests cover full and non-full recordings. |
+| 4 | **Curate and calibrate video** | REV-D4 trigger reached. Mounted corpus: 1.0 TB, 649 files, 462 service identities. No worksheet or frozen manifest. | Draft one worksheet, review exceptions rather than 462 ordinary includes, freeze one full-corpus manifest, then run a representative calibration through the real livestream pipeline after slices 2–3 pass. |
+| 5 | **Run definitive historic video processing and re-census** | Blocked by slices 2–4 and operator manifest freeze. | Dispatch the same frozen manifest in bounded resumable passes. Then regenerate membership and the proposal census. The 223-service awaiting-evidence population must either finalise on a `full` recording or remain explicitly unresolved; re-evaluate the 135 prior disagreements with the new evidence before calling any residue irreducible. The final convergence gate remains red until every surviving class has a truthful terminal disposition. |
+| 6 | **Current-era source back-fill** | Operator-dependent and based on a 2026-08-09 production count. | Re-run `audit:service-evidence-coverage`; recover each real source still missing, ingest it through the ordinary revision path and reproject. Never manufacture evidence. |
+| 7 | **Hymn convergence** | Import controls exist; the apply artifact is stale relative to the final converged corpus. | Regenerate against the exact converged corpus, review exceptions, bind the artifact to its operation and apply once. Hymn evidence proves song membership only, never count or order. |
+| 8 | **Production rounds, release and retirement** | No lane is authorised by this plan alone. | Run RG-B per lane and RG-C per era; release remains separately signed. Retire one-shot code only at historic closeout (IC8). |
+
+### 0.2 Superseded 2026-08-24 execution snapshot
+
+The table below is retained as the evidence journal for the Email/OpenLP settlement. Its slice
+states and next actions are superseded by §0.1. In particular, do not try to mark all 21 proposal
+classes before video, and do not interpret the red final convergence gate as reversing REV-D4.
 
 | Order | Slice | Current state | Done when |
 |---|---|---|---|
@@ -49,7 +67,7 @@ count or a closed investigation later in this document.
 | 7 | **Production rounds and release** | No lane is authorised by this plan alone. | Per lane: verified backup, hash-bound approval, apply, evidence pack, review. Release remains a separate signed era batch after §8 checks. |
 | 8 | **Retire one-shot code** | Waits for historic closeout. | IC8. |
 
-### 0.1 Design rule: bulk is only orchestration
+### 0.3 Design rule: bulk is only orchestration
 
 Historic-only code may select approved inputs, verify hashes, concatenate declared segments, bind
 private staging/operation context, pace dispatch and transport results. It must not reimplement
@@ -131,11 +149,14 @@ holds reduced to the identity/content-invalid residue; (b) the genuinely-manual 
 measured by the first semantic RG-A are done; and (c) IC3's ground truth exists. That state triggers
 IC5. The earlier "~14" figure is a superseded legacy-v12 estimate, not a release condition.
 
-**Operational reading 2026-08-24:** IC1 and IC3 are done. The trigger now means §0 slice 1: current
-Email/OpenLP manifests reconcile on a clean rehearsal, the operator approves the 18 accepted-hold
-reasons, and every remaining invalid/proposal is enumerated. It does not require hand-classifying
-hundreds of one-off title-specific proposal classes before video supplies the next corroborating
-source; inspect and automate only repeated classes with a credible shared weekly-path improvement.
+**Operational reading amended 2026-08-25:** IC1 and IC3 are done, the current Email/OpenLP manifests
+reconcile on a clean rehearsal, all 20 accepted holds are operator-approved, and every remaining
+invalid/proposal is enumerated. The REV-D4 trigger is therefore **met**. It is a source-lane
+settlement trigger, not the final §9 convergence gate: requiring that gate to pass before IC5 would
+make video wait for the video evidence needed to clear 223 uncorroborated services. The gate remains
+red truthfully until that evidence arrives. Do not force evidence-dependent classes into the
+terminal `automated` or `irreducible` statuses; inspect and automate only repeated classes with a
+credible shared weekly-path improvement, then re-census after IC5.
 
 ### 2.5 HIR-D8 — cross-source corroboration may finalise unattended
 
@@ -149,16 +170,15 @@ identity/date manifest-corroboration gate remains unchanged, adjudication still 
 `consensus`, and unattended publication remains impossible. For uncorroborated dimensions, the
 existing confidence-plus-consensus path remains until separately changed on evidence.
 
-**Implementation status 2026-08-21.** IC3 now records whether Email evidence cleared the existing
-confidence-and-consensus route and the shared projector fail-closes evidence-tier Email plans by
-dimension: OpenLP corroborates planned song membership, count and order; livestream corroborates
-observed song order; missing evidence stays in review; and a mismatch creates an explicit review
-conflict. The existing confidence-and-consensus route is unchanged. Hymn-workbook evidence remains
-the source for actual song usage when IC6 binds that source lane. Focused projector and ingestion
-regressions pass.
+**Implementation status 2026-08-21, superseded in part below.** IC3 records whether Email evidence
+cleared the existing confidence-and-consensus route and the shared projector fail-closes
+evidence-tier Email plans by dimension. OpenLP corroborates planned song membership, count and
+order; missing evidence stays in review; and a mismatch creates an explicit review conflict. The
+existing confidence-and-consensus route is unchanged. Hymn-workbook evidence proves actual song
+membership only when IC6 binds that source lane. The later amendments below govern Livestream.
 
-**Amended 2026-08-24 by the maintainer: a livestream corroborates all three song
-dimensions.** The implementation above restricted livestream to `song_order` alone. No rationale
+**Amended 2026-08-24 by the maintainer: a complete livestream corroborates all three song
+dimensions.** The implementation above restricted Livestream to `song_order` alone. No rationale
 for that restriction was ever recorded — not in this plan, where the sentence above simply asserts
 it, and not in `ChurchServiceProjector::sourceProvesDimension()`, which carried no docblock. The
 restriction is unsound on the code's own arithmetic: `songDimensionValue()` builds one list of song
@@ -169,23 +189,39 @@ proved the set and its size. Granting authority over the value while withholding
 derivations cannot be expressed coherently.
 
 The maintainer's reasoning also inverts the earlier intuition about which source closes the set: a
-livestream is the record of what was *actually* sung, whereas OpenLP is a *plan*, and a planned song
-may be dropped on the day. For actual membership the recording is the stronger witness. `Livestream`
-now proves every dimension; the docblock records the reasoning and
+complete livestream is the record of what was *actually* sung, whereas OpenLP is a *plan*, and a
+planned song may be dropped on the day. For actual membership the complete recording is the stronger
+witness. The intended contract is that a complete Livestream proves every dimension; the current
+implementation is temporarily broader than that contract, as qualified below. The docblock records the reasoning and
 `ChurchServiceProjectorTest` pins both the finalisation and the mismatch shape (a song planned but
 not sung now raises a mismatch on all three dimensions, not just order).
 
-**Open decision — are three dimensions one comparison?** Because all three derive from one list, a
+**Safety qualification discovered 2026-08-25; implementation required before IC5 calibration.**
+The sentence above means a recording that captures the complete service. The historic manifest
+already records `HistoricVideoCorroborationGrade`, whose `full` value alone may corroborate song
+membership. That grade currently stops at the manifest: `HistoricVideoImporter` does not carry it
+into processing metadata, `LivestreamSourceAdapter` does not bind it into the source revision, and
+`sourceProvesDimension()` consequently trusts every Livestream record. That would let a sermon-only
+historic clip with no song assertions disagree with an Email plan on all three dimensions. Slice 3
+in §0.1 and IC5 require the grade to reach the source fingerprint and require historic
+`short_partial`, `fragmented`, `unknown`, or missing grades to remain neutral. Ordinary weekly
+livestream behaviour is unchanged by this historic qualification.
+
+**Decided 2026-08-25 — retain three separate verdicts.** Because all three derive from one list, a
 `song_order` mismatch and a `song_membership` mismatch on the same service are usually a single
-disagreement counted up to three times. The 2026-08-24 census shows exactly that shape: `song_order`
+disagreement described by several facets. The 2026-08-24 census shows exactly that shape: `song_order`
 245, `song_membership` 235, `song_count` 180 across 398 proposals, with
 `dimension:song_count+song_membership+song_order` the dominant class. `song_count` in particular
 adds little as an independent check — it is `count($songs)` before deduplication, so it differs from
 `count(song_membership)` only where a service repeats a song, and it agrees more often than the
-others precisely because it is the weakest signal. Collapsing the three into one comparison would
-reduce review load and stop triple-counting, but it changes the HIR-D8 corroboration contract and
-the shape of every recorded conflict, so it is **not** actioned here. Decide it before the video
-lane produces corroborating assertions at scale (IC5).
+others precisely because it is the weakest signal. The 76 all-three classes versus 59
+membership-plus-order classes show that these facets distinguish changed membership/order with the
+same count from additions or omissions. More importantly, `occurrence_count == service_count` on all
+21 census classes proves there is already one proposal and one human decision per service, not three.
+`ChurchServiceProposalCensus::subject()` now groups the facets into one dimension-set subject. Keep
+the three verdicts for diagnosis; report unique proposals/services as the primary review-load number,
+and treat per-dimension totals as overlapping, non-additive diagnostics. No projector contract change
+is required before IC5 on this account.
 
 
 **Recovered corpus measurement 2026-08-21.** The deleted semantic evaluation was recovered from
@@ -431,6 +467,13 @@ Each lane round passes three gates; there is no other gate ladder.
   --batch-hash=<openlp>` produces the single artifact `--membership=` takes. Note that the corpus
   size the gate reports is the **union** of the lanes' approved identities, not their sum: both
   lanes describe the same services from different evidence.
+
+  **Sequencing rule (2026-08-25):** this final convergence gate is expected to remain red while an
+  approved later source is still needed to resolve a proposal. A red gate still prevents RG-B for
+  the affected converged service state, but it does not undo a source-lane settlement trigger such
+  as REV-D4 or forbid staging the named next source. The Email/OpenLP rehearsal has 223 services in
+  exactly that state awaiting video. `source_item_projection_stale` is truthful until their
+  proposals settle; do not suppress it or invent a terminal class status to make the gate pass.
 - **RG-B (production apply):** approved manifest + plan hash presented; pre-round verified
   database backup taken; `HistoricImportProductionGuard` satisfied for the named round (IC2
   re-scopes it from one-shot GO to per-round approval); apply executes only §3.2-compliant writes;
@@ -452,7 +495,7 @@ work or evidence.
 | Disposition | Findings |
 |---|---|
 | **Kept as hard invariant** | F29, F30, F31, F33, F34, F37, F40, F41 (lock half), F44, F48, F49, F50, F51, F52, F54, F55, F59; HIR1–HIR3, HIR6–HIR7 code |
-| **Kept as open work** | F60 (IC6), current-era back-fill (IC4, after remeasurement), Email/OpenLP RG-A settlement, video manifest population and resumable operation binding (IC5) |
+| **Kept as open work** | F60 (IC6), current-era back-fill (IC4, after remeasurement), post-video convergence census, video corroboration-grade propagation, video manifest population and resumable operation binding (IC5) |
 | **Reframed as report** | F32 (per-source accounting; exit contract changes in IC2), F53 (exact membership), F57 (round audit completeness), per-round cost/throughput accounting (was F58's measurement half) |
 | **Closed with evidence** | F1 completeness (Email lane, 2026-08-16 — see below), F2, F3, F4, F42, F43, F46's guard code, F61, F62, F63, F64, F65, F66; B1–B21 (all repaired; red tests retained); HIR0–HIR7 landed |
 | **Lapsed with the one-shot model** | F35 (journal-resume proof), F36 (forensic two-copy custody ceremony — read-only original, one verified working copy and hash inventory remain required practice), F38 (checkpoint *exactness* gating — checkpoints stay as tooling), F39 (fingerprint *binding* — fingerprints stay as recorded provenance), F45 (timed restore/RPO/RTO drills — verified backups remain mandatory), F46 (freeze/watchboard/change-control window), F47 (forced-crash recovery proof), F56 (freeze-sweep semantics — ingress lock tooling retained for optional brief pauses), F58 (window budget); HIR4/HIR5 evidence obligations; HIR8 steps 1, 2, 4, 6–11; safety invariants 4, 5 and 9 of the archived safety plan |
@@ -1770,16 +1813,30 @@ The B13 false-acceptance reversal semantics are already implemented (PR16).
    immutable operation used by notification suppression, and bounded dispatch must resume against
    the **same full manifest**. Do not implement “checkpoint manifests”: different plan hashes create
    different staging roots and cannot be exported as one Bundle A.
-5. Run a representative calibration through the real weekly livestream job chain (short/long,
+5. **Before calibration, carry the historic corroboration grade into the source revision.** The
+   manifest work item already has `manifest_corroboration`; include it in hash-bound processing
+   metadata and in `LivestreamSourceAdapter`'s processing fingerprint. Update
+   `ChurchServiceProjector::sourceProvesDimension()` so a historic Livestream proves song
+   membership, count and order only when its grade is `full`. Historic `short_partial`,
+   `fragmented`, `unknown`, and missing grades prove none of those dimensions: source absence is
+   neutral, so they must neither finalise nor create a mismatch. Keep weekly Livestream behaviour
+   unchanged. Required tests: full historic recording finalises matching Email evidence; a full
+   disagreement raises all three facets; each non-full grade and a missing historic grade leaves the
+   Email dimensions uncorroborated; the grade survives importer → processing log → source revision
+   and changes the revision fingerprint/hash.
+6. Run a representative calibration through the real weekly livestream job chain (short/long,
    codec families, single/concat/re-encode and era spread). Record p50/p95 wall time, failures,
    model cost and the accepted worker width. This is evidence for choosing the dispatch throttle,
    not a new performance framework.
-6. Run the definitive corpus in bounded resumable passes through
+7. Run the definitive corpus in bounded resumable passes through
    `sermons:import-historic-videos`. Exact completed runs belonging to the same manifest item are
    successful prior work; unrelated same-date runs, pending review, failures and changed source
    hashes remain explicit dispositions.
-7. Stage results, export Bundle A per era as eras complete, and include per-era accuracy (with its
-   evidence basis: derived-from-corroboration or hand-verified) in the round reports.
+8. Stage results, regenerate membership and the proposal census, then export Bundle A per era as
+   eras complete. The 223 services currently lacking any corroborating source may finalise only
+   where a `full` recording agrees. Re-evaluate the 135 pre-video disagreements against the added
+   evidence before declaring any surviving class irreducible. Include per-era accuracy and its
+   evidence basis (derived-from-corroboration or hand-verified) in the round reports.
 
 ### IC6 — Hymn lane
 
@@ -1888,13 +1945,31 @@ dispositions with `decision_rule_version`); hand humans only irreducible ambigui
 imports (IC1) enter the census, not the weekly attention inbox. The weekly inbox keeps its
 narrower `needs_review` semantics on purpose.
 
+**Nonterminal evidence dependencies (2026-08-25).** The persisted class-review statuses
+`automated` and `irreducible` are terminal. A class waiting for a named, approved later source is
+neither. Record that dependency in this plan and leave the class unclassified until the source is
+staged and the census is regenerated. Do not add an `awaiting_evidence` status merely to advance
+sequencing: if such a status is later added for UI clarity, the gate must list it separately,
+require a reason naming the dependency, and remain red while any such class exists. An unknown
+status currently falls through the gate's terminal accounting, so adding the constant alone would
+be unsafe. REV-D4 independently permits the named next source to stage while this gate is red.
+
 ## 10. Open decisions and operator inputs
 
 Only these rows are open. The larger table below is the detailed investigation/decision journal;
 some operator reminders are repeated there, but §0 and this short table control sequencing.
 
+**Correction to the struck 2026-08-24 RG-A row below:** its final sentence claiming 207 classes and
+~63% reducible content shapes is false and retracted. The corrected census is 398 proposals in 21
+dimension-labelled classes, with one proposal per service. No liturgical-framing or asset exemption
+exists. The 223-service class awaits a corroborating source; the 135 current disagreements and the
+small tail are re-censused after video before any terminal classification. The row remains only to
+preserve the sequence of the investigation.
+
 | Open item | Owner / next action | Blocks |
 |---|---|---|
+| Carry historic-video corroboration grade into the Livestream source revision and fail closed for every non-full/missing historic grade | Coding agent, focused importer/adapter/projector tests specified in IC5 item 5 | Any paid video calibration or definitive video pass |
+| Re-census the 223 awaiting-video services and 135 current disagreements after full-grade video evidence is staged | Coding agent after IC5 definitive staging; operator handles only the surviving irreducible residue | Final convergence RG-A and release evidence, not the REV-D4 start of IC5 |
 | ~~Re-run the combined clean-rehearsal RG-A against the current expectation and inspect only repeated/high-volume proposal classes it surfaces~~ | — | **DONE 2026-08-24** (second combined run, `crockenhill_rehearsal_rga_20260824d`, zero model spend). This row's "regenerate the expectation first: 20 → 19" instruction was already stale when written — `2016-05-01-pm` was excluded the same day, taking the draft to 18 — and the run then took it to **20** by adding two genuine holds. Do not read a hold count off this row; the current expectation is `oos-corpus-expectation-20260824e.json` at **553 approved sources / 539 identities / 20 holds**. Both lanes reconcile with 0 unstaged approved sources and 0 unstaged identities. The proposal-class review is done (207 classes / 398 proposals, ~63% reducible to two shared shapes); see the §0 slice-1 row for the full result. |
 | Bind portable Email, OpenLP and video mutations to exact round authority; make video operation-bound and resumable | Coding agent, focused command/integration tests | First production round and definitive video |
 | Re-run current-era evidence coverage and recover any still-missing sources | Operator supplies source material; agent uses ordinary ingest/reprojection | IC4 only |
