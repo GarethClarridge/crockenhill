@@ -15,6 +15,7 @@ use App\Enums\OosEmailParseDisposition;
 use App\Enums\OosEmailPlanHoldReason;
 use App\Enums\SermonService;
 use App\Models\InboundEmail;
+use App\Services\Import\HistoricImportProductionGuard;
 use App\Support\CanonicalJson;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
@@ -158,91 +159,38 @@ class OosArchiveAssertionBundle
     }
 
     /**
+     * The two hashes a portable apply presents to the RG-B production guard, verified.
+     *
+     * The portable path has no curation manifest to consult — that is the point of it — so its
+     * approved-corpus authority is the bundle's own `bundle_hash`, and its reviewed-plan authority
+     * is the `curation_plan_hash` the export bound into it. Both are covered by `bundle_hash`,
+     * which is checked here before either is returned, so the guard is never handed a hash the
+     * bundle merely claims.
+     *
+     * Fails closed on a missing or blank `curation_plan_hash`: returning null there would let the
+     * guard skip its round binding on exactly the artifact that needs it most
+     * (IC2 §0.1 slice 2; {@see HistoricImportProductionGuard::refusalFor()}).
+     *
      * @param  array<string, mixed>  $bundle
-     * @param  list<OosArchiveEntry>  $archiveEntries
-     * @return array{valid:list<array{entry:OosArchiveEntry,payload:array<string,mixed>}>,invalid:list<array{entry:OosArchiveEntry,payload:array<string,mixed>,reasons:list<string>}>}
+     * @return array{bundle_hash:string,curation_plan_hash:string}
      */
-    public function preflight(array $bundle, array $archiveEntries, string $curationPlanHash, string $parserVersion): array
+    public function portableAuthority(array $bundle): array
     {
         $suppliedHash = $bundle['bundle_hash'] ?? null;
         $hashable = Arr::except($bundle, ['bundle_hash']);
 
-        if (($bundle['format'] ?? null) !== self::FORMAT
-            || ($bundle['version'] ?? null) !== self::VERSION
-            || ! is_string($suppliedHash)
-            || ! hash_equals(CanonicalJson::hash($hashable), $suppliedHash)) {
+        if (($bundle['format'] ?? null) !== self::FORMAT || ($bundle['version'] ?? null) !== self::VERSION
+            || ! is_string($suppliedHash) || ! hash_equals(CanonicalJson::hash($hashable), $suppliedHash)) {
             throw new RuntimeException('OoS assertion bundle format, version or bundle hash is invalid.');
         }
 
-        if (($bundle['curation_plan_hash'] ?? null) !== $curationPlanHash) {
-            throw new RuntimeException('OoS assertion bundle was exported against a different curation plan.');
+        $curationPlanHash = $bundle['curation_plan_hash'] ?? null;
+
+        if (! is_string($curationPlanHash) || trim($curationPlanHash) === '') {
+            throw new RuntimeException('OoS assertion bundle carries no curation plan hash to bind an approval to.');
         }
 
-        $entriesByIdentity = [];
-        foreach ($archiveEntries as $entry) {
-            $entriesByIdentity[$entry->syntheticMessageId] = $entry;
-        }
-
-        $payloads = $bundle['entries'] ?? null;
-        if (! is_array($payloads) || count($payloads) !== count($entriesByIdentity)) {
-            throw new RuntimeException('OoS assertion bundle does not represent every approved archive entry.');
-        }
-
-        $valid = [];
-        $invalid = [];
-        $seen = [];
-
-        foreach ($payloads as $rawPayload) {
-            $payload = $this->bundleEntry($rawPayload);
-
-            $identity = $payload['entry_identity'] ?? null;
-            if (! is_string($identity) || isset($seen[$identity]) || ! isset($entriesByIdentity[$identity])) {
-                throw new RuntimeException('OoS assertion bundle contains an unknown or duplicate entry identity.');
-            }
-
-            $seen[$identity] = true;
-            $entry = $entriesByIdentity[$identity];
-
-            if (($payload['input_hash'] ?? null) !== $entry->inputHash
-                || ($payload['curation_plan_hash'] ?? null) !== $curationPlanHash
-                || ($payload['parser_version'] ?? null) !== $parserVersion
-                || ($payload['projector_version'] ?? null) !== self::PROJECTOR_VERSION
-                || ($payload['fingerprints'] ?? null) !== $this->fingerprints()) {
-                throw new RuntimeException("OoS assertion bundle fingerprint mismatch for entry {$entry->itemKey}.");
-            }
-
-            if (($payload['plan_identities'] ?? null) !== [[
-                'plan_key' => $entry->servicesPresent[0].':'.$entry->groundTruthDate,
-                'source_key' => $entry->sourceKey,
-                'supersedes_source_key' => $entry->supersedesSourceKey,
-            ]]) {
-                throw new RuntimeException("OoS assertion bundle plan identity mismatch for entry {$entry->itemKey}.");
-            }
-
-            $parse = $payload['parse'] ?? null;
-            $payloadHash = $payload['payload_hash'] ?? null;
-            if (! is_string($payloadHash)
-                || ! hash_equals(CanonicalJson::hash(Arr::except($payload, ['payload_hash'])), $payloadHash)
-                || ! is_array($parse)
-                || $this->containsDatabaseId($parse)) {
-                throw new RuntimeException("OoS assertion bundle entry {$entry->itemKey} is invalid or contains a database ID.");
-            }
-
-            $reasons = $this->structuralReasons(
-                OosEmailSourceDocument::fromBody($entry->bodyPlain),
-                $parse,
-                $entry,
-            );
-            $record = ['entry' => $entry, 'payload' => $payload];
-
-            if ($reasons === []) {
-                $valid[] = $record;
-            } else {
-                $invalid[] = [...$record, 'reasons' => $reasons];
-            }
-        }
-
-        return ['valid' => $valid, 'invalid' => $invalid];
+        return ['bundle_hash' => $suppliedHash, 'curation_plan_hash' => $curationPlanHash];
     }
 
     /**
@@ -255,13 +203,7 @@ class OosArchiveAssertionBundle
      */
     public function preflightPortable(array $bundle): array
     {
-        $suppliedHash = $bundle['bundle_hash'] ?? null;
-        $hashable = Arr::except($bundle, ['bundle_hash']);
-
-        if (($bundle['format'] ?? null) !== self::FORMAT || ($bundle['version'] ?? null) !== self::VERSION
-            || ! is_string($suppliedHash) || ! hash_equals(CanonicalJson::hash($hashable), $suppliedHash)) {
-            throw new RuntimeException('OoS assertion bundle format, version or bundle hash is invalid.');
-        }
+        $this->portableAuthority($bundle);
 
         $valid = [];
         $invalid = [];

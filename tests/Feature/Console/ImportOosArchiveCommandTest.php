@@ -24,6 +24,7 @@ use App\Services\Email\OosArchiveParseCacheBinding;
 use App\Services\Email\OosCurationManifest;
 use App\Services\Email\OosSemanticParserCandidate;
 use App\Services\Import\HistoricEmailEvidenceReleaseGate;
+use App\Services\Import\HistoricImportProductionGuard;
 use App\Services\Import\HistoricImportResourceIdentity;
 use App\Support\CanonicalJson;
 use Carbon\CarbonImmutable;
@@ -1607,6 +1608,78 @@ class ImportOosArchiveCommandTest extends TestCase
         $this->assertDatabaseCount('church_services', 1);
         $this->assertDatabaseCount('church_service_items', 1);
         $this->assertDatabaseHas('church_services', ['date' => '2026-07-12', 'service' => 'morning']);
+    }
+
+    /**
+     * IC2 §0.1 slice 2: a portable apply binds the guard to the bundle's own verified authority.
+     *
+     * This lane deliberately has no curation manifest to consult, which is why it was the last one
+     * still calling the guard with the command name alone: an approval signed for one bundle
+     * authorised applying any other. Its approved-corpus hash is the bundle's `bundle_hash` and its
+     * reviewed plan is the `curation_plan_hash` the export bound in, both covered by the bundle
+     * hash the guard is only handed after verification.
+     */
+    #[Test]
+    public function a_portable_apply_binds_the_guard_to_the_bundles_own_verified_authority(): void
+    {
+        $this->bindPortableExtractor();
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $bundle = storage_path('scratch/tests/oos-authority-'.uniqid().'.json');
+        $this->temporaryPaths[] = $bundle;
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--export-bundle' => $bundle,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $payload = $this->readReport($bundle);
+        $received = [];
+
+        $this->mock(HistoricImportProductionGuard::class)
+            ->shouldReceive('refusalFor')
+            ->once()
+            ->andReturnUsing(function (...$arguments) use (&$received): ?string {
+                $received = $arguments;
+
+                return 'refused by the test double';
+            });
+
+        $this->artisan('oos:import-archive', [...$corpus, '--apply-bundle' => $bundle])
+            ->assertExitCode(1);
+
+        self::assertSame('oos:import-archive --apply-bundle', $received[0]);
+        self::assertSame($payload['bundle_hash'], $received[2]);
+        self::assertSame($payload['curation_plan_hash'], $received[3]);
+    }
+
+    /**
+     * A bundle carrying no plan hash cannot be applied at all, rather than being applied with the
+     * guard's round binding silently skipped. Passing null there would have restored exactly the
+     * gap this lane just closed, on the one artifact that has no manifest to fall back to.
+     */
+    #[Test]
+    public function a_portable_bundle_without_a_curation_plan_hash_is_refused(): void
+    {
+        $this->bindPortableExtractor();
+        $corpus = $this->corpus([['key' => '2026-07-12-am', 'date' => '2026-07-12']]);
+        $bundle = storage_path('scratch/tests/oos-planless-'.uniqid().'.json');
+        $this->temporaryPaths[] = $bundle;
+
+        $this->artisan('oos:import-archive', [
+            ...$corpus,
+            '--export-bundle' => $bundle,
+            '--report' => $this->temporaryPath('json'),
+        ])->assertExitCode(0);
+
+        $payload = $this->readReport($bundle);
+        $payload['curation_plan_hash'] = '';
+        $payload['bundle_hash'] = CanonicalJson::hash(Arr::except($payload, ['bundle_hash']));
+        file_put_contents($bundle, CanonicalJson::encodeReadable($payload).PHP_EOL);
+
+        $this->artisan('oos:import-archive', [...$corpus, '--apply-bundle' => $bundle])
+            ->assertExitCode(1)
+            ->expectsOutputToContain('carries no curation plan hash');
     }
 
     /**

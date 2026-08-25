@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Data\HistoricImportOperationIdentity;
+use App\Enums\HistoricImportOperationState;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
+use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
+use App\Services\Import\HistoricImportProductionGuard;
 use App\Services\Media\Video\HistoricVideoCurationManifest;
 use App\Services\Media\Video\HistoricVideoImporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -62,20 +66,136 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     }
 
     /**
-     * Dispatch is a production-once operation, and the refusal comes before the
-     * manifest requirement so that "no approved import operation" is what an
-     * operator is told rather than "no manifest" — the manifest is not the
-     * problem.
+     * An unapproved production dispatch is refused with the approval message, not a softer one.
+     *
+     * The refusal used to be raised before the manifest was even read, so that an operator heard
+     * "no approved import operation" rather than "no manifest". IC2 §0.1 slice 2 reverses that
+     * order deliberately: the approval is now bound to one round's manifest and plan hashes, so the
+     * command must know its manifest before it can ask whether the round is approved. The old
+     * ordering belonged to the one-shot GO, where an approval existed independently of any corpus
+     * and "no manifest" really was the lesser complaint. Under per-round approval a dispatch with
+     * no manifest cannot have a valid approval either, so naming the missing manifest first is
+     * accurate rather than evasive.
      */
     #[Test]
     public function an_unapproved_production_dispatch_is_refused(): void
     {
+        $this->createFakeVideo("{$this->temporaryDirectory}/2021-04-12 10-02-00.mkv");
+        $manifestPath = $this->historicManifest('2021-04-12 10-02-00.mkv', '2021-04-12', 'morning');
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+        $operation = $this->historicVideoOperation($plan->manifestHash);
+
         Config::set('church.historic_corpus.production_import_approval', null);
         $this->app['env'] = 'production';
 
-        $this->artisan('sermons:import-historic-videos', ['--dir' => $this->temporaryDirectory])
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--manifest' => $manifestPath,
+            '--plan-hash' => $plan->planHash,
+            '--operation' => $operation->operation_id,
+        ])
             ->expectsOutputToContain('no approved G8 import operation is recorded')
             ->assertExitCode(1);
+    }
+
+    /**
+     * A dispatch with no manifest still refuses, and says so, rather than dispatching.
+     *
+     * Retained alongside the reordering above so the manifest requirement is proved by a test of
+     * its own instead of riding on the production guard's ordering.
+     */
+    #[Test]
+    public function a_definitive_dispatch_without_a_manifest_is_refused(): void
+    {
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+        ])
+            ->expectsOutputToContain('An approved historic-video manifest is required')
+            ->assertExitCode(1);
+    }
+
+    /**
+     * IC2 §0.1 slice 2: dispatch presents its manifest, plan and operation to the guard.
+     *
+     * All three were absent, so an approval bound to any round authorised dispatching any corpus.
+     * The operation matters twice over — see the command's `resolveOperation()` docblock on why a
+     * dispatch without one queues work that cannot route a notification.
+     */
+    #[Test]
+    public function dispatch_binds_the_guard_to_its_manifest_plan_and_operation(): void
+    {
+        $this->createFakeVideo("{$this->temporaryDirectory}/2021-04-12 10-02-00.mkv");
+        $manifestPath = $this->historicManifest('2021-04-12 10-02-00.mkv', '2021-04-12', 'morning');
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+        $operation = $this->historicVideoOperation($plan->manifestHash);
+        $received = [];
+
+        $this->mock(HistoricImportProductionGuard::class)
+            ->shouldReceive('refusalFor')
+            ->once()
+            ->andReturnUsing(function (...$arguments) use (&$received): ?string {
+                $received = $arguments;
+
+                return 'refused by the test double';
+            });
+
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--manifest' => $manifestPath,
+            '--plan-hash' => $plan->planHash,
+            '--operation' => $operation->operation_id,
+        ])->assertExitCode(1);
+
+        self::assertSame('sermons:import-historic-videos', $received[0]);
+        self::assertSame($operation->operation_id, $received[1]);
+        self::assertSame($plan->manifestHash, $received[2]);
+        self::assertSame($plan->planHash, $received[3]);
+    }
+
+    /**
+     * An operation prepared for a different corpus cannot lend its identity to this dispatch.
+     *
+     * Without this the `--operation` option would be a formality: any prepared operation would
+     * satisfy it, including one bound to the Email or hymn lane, and the notification containment
+     * it exists to carry would be attached to the wrong round.
+     */
+    #[Test]
+    public function a_dispatch_refuses_an_operation_bound_to_another_corpus(): void
+    {
+        $this->createFakeVideo("{$this->temporaryDirectory}/2021-04-12 10-02-00.mkv");
+        $manifestPath = $this->historicManifest('2021-04-12 10-02-00.mkv', '2021-04-12', 'morning');
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+        $foreign = $this->historicVideoOperation(str_repeat('f', 64));
+
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--manifest' => $manifestPath,
+            '--plan-hash' => $plan->planHash,
+            '--operation' => $foreign->operation_id,
+        ])
+            ->assertExitCode(1)
+            ->expectsOutputToContain("carries no 'historic_video' binding for this approved manifest");
+    }
+
+    #[Test]
+    public function a_definitive_dispatch_without_an_operation_is_refused(): void
+    {
+        $this->createFakeVideo("{$this->temporaryDirectory}/2021-04-12 10-02-00.mkv");
+        $manifestPath = $this->historicManifest('2021-04-12 10-02-00.mkv', '2021-04-12', 'morning');
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--manifest' => $manifestPath,
+            '--plan-hash' => $plan->planHash,
+        ])
+            ->assertExitCode(1)
+            ->expectsOutputToContain('must name its immutable operation with --operation');
     }
 
     #[Test]
@@ -328,22 +448,19 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $manifestPath = $this->historicManifest('YouTubeDownloads/12 April Sermon.mp4', '2021-04-12', 'morning');
         $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
 
+        $operation = $this->historicVideoOperation($plan->manifestHash);
+
         $this->mock(HistoricVideoImporter::class)
             ->shouldReceive('import')
             ->once()
-            ->andReturn([
-                'dispatched' => 1, 'concatenated' => 0, 'concatenated_reencoded' => 0,
-                'enriched' => 0, 'skipped_exists' => 0, 'skipped_inflight' => 0,
-                'skipped_pending_review' => 0, 'skipped_small' => 0, 'skipped_audio_dup' => 0,
-                'skipped_no_date' => 0, 'skipped_unclassified' => 0, 'skipped_low_disk' => 0,
-                'errors' => 0, 'bytes_processed' => 1024, 'bytes_skipped' => 0,
-            ]);
+            ->andReturn($this->importMetrics(['dispatched' => 1, 'bytes_processed' => 1024]));
 
         $this->artisan('sermons:import-historic-videos', [
             '--dir' => $this->temporaryDirectory,
             '--allow-local-storage' => true,
             '--manifest' => $manifestPath,
             '--plan-hash' => $plan->planHash,
+            '--operation' => $operation->operation_id,
         ])
             ->assertExitCode(0);
     }
@@ -357,21 +474,18 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
         $approvedWorkItems = null;
         $stagingContext = null;
+        $dispatchedOperation = null;
+        $operation = $this->historicVideoOperation($plan->manifestHash);
 
         $this->mock(HistoricVideoImporter::class)
             ->shouldReceive('import')
             ->once()
-            ->andReturnUsing(function (...$arguments) use (&$approvedWorkItems, &$stagingContext): array {
+            ->andReturnUsing(function (...$arguments) use (&$approvedWorkItems, &$stagingContext, &$dispatchedOperation): array {
                 $approvedWorkItems = $arguments[18] ?? null;
                 $stagingContext = $arguments[19] ?? null;
+                $dispatchedOperation = $arguments[20] ?? null;
 
-                return [
-                    'dispatched' => 1, 'concatenated' => 0, 'concatenated_reencoded' => 0,
-                    'enriched' => 0, 'skipped_exists' => 0, 'skipped_inflight' => 0,
-                    'skipped_pending_review' => 0, 'skipped_small' => 0, 'skipped_audio_dup' => 0,
-                    'skipped_no_date' => 0, 'skipped_unclassified' => 0, 'skipped_low_disk' => 0,
-                    'errors' => 0, 'bytes_processed' => 1024, 'bytes_skipped' => 0,
-                ];
+                return $this->importMetrics(['dispatched' => 1, 'bytes_processed' => 1024]);
             });
 
         $this->artisan('sermons:import-historic-videos', [
@@ -379,8 +493,11 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             '--allow-local-storage' => true,
             '--manifest' => $manifestPath,
             '--plan-hash' => $plan->planHash,
+            '--operation' => $operation->operation_id,
         ])->assertExitCode(0);
 
+        self::assertInstanceOf(HistoricImportOperation::class, $dispatchedOperation);
+        self::assertSame($operation->operation_id, $dispatchedOperation->operation_id);
         self::assertIsArray($approvedWorkItems);
         self::assertCount(1, $approvedWorkItems);
         self::assertSame('2021-04-12', $approvedWorkItems[0]['date']->toDateString());
@@ -410,13 +527,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $this->mock(HistoricVideoImporter::class)
             ->shouldReceive('import')
             ->once()
-            ->andReturn([
-                'dispatched' => 0, 'concatenated' => 0, 'concatenated_reencoded' => 0,
-                'enriched' => 0, 'skipped_exists' => 0, 'skipped_inflight' => 0,
-                'skipped_pending_review' => 0, 'skipped_small' => 0, 'skipped_audio_dup' => 0,
-                'skipped_no_date' => 0, 'skipped_unclassified' => 0, 'skipped_low_disk' => 0,
-                'errors' => 2, 'bytes_processed' => 0, 'bytes_skipped' => 0,
-            ]);
+            ->andReturn($this->importMetrics(['errors' => 2]));
 
         $this->artisan('sermons:import-historic-videos', [
             '--dir' => $this->temporaryDirectory,
@@ -650,6 +761,40 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     }
 
     /** @param array<string, mixed> $overrides */
+    /**
+     * The immutable operation a definitive dispatch must name, bound to this manifest.
+     *
+     * Bound by `manifest_hashes['historic_video']`, which is what the command checks: an operation
+     * prepared for another lane's corpus cannot lend its identity to a video dispatch.
+     */
+    private function historicVideoOperation(string $manifestHash): HistoricImportOperation
+    {
+        $identity = HistoricImportOperationIdentity::fromBindings(
+            batchKey: 'historic-video-test-batch',
+            manifestHashes: ['historic_video' => $manifestHash],
+            planHash: str_repeat('b', 64),
+            targetFingerprint: str_repeat('c', 64),
+        );
+
+        return HistoricImportOperation::query()->create([
+            ...$identity->toArray(),
+            'state' => HistoricImportOperationState::Planned,
+        ]);
+    }
+
+    /** @return array<string, int> */
+    private function importMetrics(array $overrides = []): array
+    {
+        return [
+            'dispatched' => 0, 'concatenated' => 0, 'concatenated_reencoded' => 0,
+            'enriched' => 0, 'skipped_exists' => 0, 'resumed_completed' => 0,
+            'skipped_inflight' => 0, 'skipped_pending_review' => 0, 'skipped_small' => 0,
+            'skipped_audio_dup' => 0, 'skipped_no_date' => 0, 'skipped_unclassified' => 0,
+            'skipped_low_disk' => 0, 'errors' => 0, 'bytes_processed' => 0, 'bytes_skipped' => 0,
+            ...$overrides,
+        ];
+    }
+
     private function historicManifest(string $relativePath, string $date, string $service, array $overrides = []): string
     {
         $path = "{$this->temporaryDirectory}/{$relativePath}";

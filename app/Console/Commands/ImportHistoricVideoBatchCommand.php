@@ -4,22 +4,33 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Models\HistoricImportOperation;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Import\HistoricImportProductionGuard;
 use App\Services\Media\Video\HistoricVideoCurationManifest;
 use App\Services\Media\Video\HistoricVideoImporter;
+use App\Services\Processing\ProcessingNotificationRouter;
+use App\Services\Sermon\LivestreamSegmentationService;
 use App\Support\CanonicalJson;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
+use RuntimeException;
 use Throwable;
 
 class ImportHistoricVideoBatchCommand extends Command
 {
+    /**
+     * The manifest binding an operation must carry to own a historic-video dispatch, matching the
+     * source kind an operator passes to `historic-import:prepare-operation --manifest=`.
+     */
+    private const SourceKind = 'historic_video';
+
     protected $signature = 'sermons:import-historic-videos
                             {--dir= : Root directory (default: /Volumes/CBC Drive/ServiceVideos)}
                             {--manifest= : Approved historic-video curation manifest}
                             {--plan-hash= : Exact plan_hash emitted by the approved manifest preflight}
+                            {--operation= : Immutable historic import operation id this dispatch belongs to (required without --dry-run)}
                             {--from= : Only files from this date (YYYY-MM-DD)}
                             {--until= : Only files up to this date (YYYY-MM-DD)}
                             {--include-unclassified : Process files outside morning (10:00-12:59) and evening (17:00-21:00) windows}
@@ -97,6 +108,7 @@ class ImportHistoricVideoBatchCommand extends Command
             : null;
         $plan = null;
         $stagingContext = null;
+        $operation = null;
 
         if ($manifestPath !== null) {
             try {
@@ -121,16 +133,38 @@ class ImportHistoricVideoBatchCommand extends Command
                 return self::FAILURE;
             }
 
-            $refusal = $productionGuard->refusalFor('sermons:import-historic-videos');
-
-            if ($refusal !== null) {
-                $this->error($refusal);
+            if ($plan === null) {
+                $this->error('An approved historic-video manifest is required before dispatch.');
 
                 return self::FAILURE;
             }
 
-            if ($plan === null) {
-                $this->error('An approved historic-video manifest is required before dispatch.');
+            /**
+             * Resolved before the guard so the guard can bind to it. Invariant 7 needs the
+             * operation for a second reason: {@see LivestreamSegmentationService}
+             * only stamps `historic_import_operation_id` on the processing log when the metadata
+             * carries an `operation_id`, and {@see ProcessingNotificationRouter}
+             * throws on a log that has historic metadata but no operation binding. A dispatch
+             * without an operation therefore did not merely skip an approval check — it queued work
+             * that fails the moment the pipeline tries to route a notification.
+             */
+            try {
+                $operation = $this->resolveOperation($plan->manifestHash);
+            } catch (Throwable $exception) {
+                $this->error($exception->getMessage());
+
+                return self::FAILURE;
+            }
+
+            $refusal = $productionGuard->refusalFor(
+                'sermons:import-historic-videos',
+                $operation->operation_id,
+                roundCorpusHash: $plan->manifestHash,
+                planHash: $plan->planHash,
+            );
+
+            if ($refusal !== null) {
+                $this->error($refusal);
 
                 return self::FAILURE;
             }
@@ -203,6 +237,7 @@ class ImportHistoricVideoBatchCommand extends Command
                 reportPath: $reportPath,
                 approvedWorkItems: $approvedWorkItems,
                 stagingContext: $stagingContext,
+                operation: $operation,
             );
         } catch (Throwable $exception) {
             $this->error($exception->getMessage());
@@ -213,6 +248,12 @@ class ImportHistoricVideoBatchCommand extends Command
         $this->newLine();
         $this->info('Historic video import completed.');
 
+        /**
+         * `resumed_completed` is deliberately outside this total. It counts work this exact
+         * manifest already finished, which is progress carried forward rather than corpus that was
+         * passed over, and folding it into "skipped" is what made a resumed pass look like a
+         * no-op run.
+         */
         $totalSkipped = $metrics['skipped_exists']
             + $metrics['skipped_inflight']
             + $metrics['skipped_pending_review']
@@ -228,6 +269,7 @@ class ImportHistoricVideoBatchCommand extends Command
                 ['Dispatched', (string) $metrics['dispatched']],
                 ['  → Concatenated (lossless)', (string) $metrics['concatenated']],
                 ['  → Concatenated (re-encoded)', (string) $metrics['concatenated_reencoded']],
+                ['Resumed (already completed by this manifest)', (string) $metrics['resumed_completed']],
                 ['Skipped (total)', (string) $totalSkipped],
                 ['  → Already processed', (string) $metrics['skipped_exists']],
                 ['  → In-flight', (string) $metrics['skipped_inflight']],
@@ -250,6 +292,54 @@ class ImportHistoricVideoBatchCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * The immutable operation this dispatch belongs to, refusing anything it cannot own.
+     *
+     * Mirrors `service-tracking:import-historic-song-usage-reports`: name the operation, prove it
+     * exists, and prove it carries a manifest binding for *this* lane's approved corpus. The last
+     * check is what stops an operation prepared for the Email or hymn lane from lending its
+     * identity to a video dispatch — the operation's recorded `historic_video` manifest hash must
+     * be the manifest this run is about to dispatch.
+     */
+    private function resolveOperation(string $manifestHash): HistoricImportOperation
+    {
+        $operationId = $this->option('operation');
+        $operationId = is_string($operationId) && trim($operationId) !== '' ? trim($operationId) : null;
+
+        if ($operationId === null) {
+            throw new RuntimeException(
+                'A definitive historic-video dispatch must name its immutable operation with --operation.',
+            );
+        }
+
+        $operation = HistoricImportOperation::query()->where('operation_id', $operationId)->first();
+
+        if (! $operation instanceof HistoricImportOperation) {
+            throw new RuntimeException("Historic import operation {$operationId} does not exist.");
+        }
+
+        $bound = $operation->manifest_hashes[self::SourceKind] ?? null;
+
+        if (! is_string($bound) || ! hash_equals($bound, $manifestHash)) {
+            throw new RuntimeException(
+                "Operation {$operationId} carries no '".self::SourceKind."' binding for this approved manifest.",
+            );
+        }
+
+        /**
+         * Invariant 7 is enforced downstream by refusing to route a notification for an operation
+         * that permits them, but by then the work is queued. Refusing here means an operation
+         * prepared without external containment cannot dispatch historic video at all.
+         */
+        if ($operation->notification_mode !== 'external_disabled') {
+            throw new RuntimeException(
+                "Operation {$operationId} does not suppress external notifications, so it cannot own historic video work.",
+            );
+        }
+
+        return $operation;
     }
 
     private function checkStorageDisk(): bool

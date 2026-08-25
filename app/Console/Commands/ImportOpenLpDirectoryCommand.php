@@ -92,7 +92,19 @@ class ImportOpenLpDirectoryCommand extends Command
             return $this->writeDryRunReport($plan->report(), $manifestOption);
         }
 
-        $refusal = $productionGuard->refusalFor('service-tracking:import-openlp-services --apply');
+        /**
+         * IC2 §0.1 slice 2: the approval binds to this round's exact corpus and reviewed plan, not
+         * merely to the command name. Without the hashes an approval signed for one OpenLP batch
+         * authorised an apply of any other, which is the authority gap the canonical
+         * `oos:import-archive --import` path never had. `manifestHash` is this command's own notion
+         * of its approved corpus — see {@see HistoricImportProductionGuard::refusalFor()} on why an
+         * approval is signed per command rather than per round.
+         */
+        $refusal = $productionGuard->refusalFor(
+            'service-tracking:import-openlp-services --apply',
+            roundCorpusHash: $plan->manifestHash,
+            planHash: $plan->planHash,
+        );
 
         if ($refusal !== null) {
             $this->error($refusal);

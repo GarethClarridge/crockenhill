@@ -13,6 +13,7 @@ use App\Models\Sermon;
 use App\Services\HistoricMedia\HistoricProcessingFingerprint;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingGuard;
+use App\Services\Media\TempDiskSpace;
 use App\Services\Media\Video\HistoricVideoImporter;
 use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -560,6 +561,124 @@ class HistoricVideoImporterTest extends TestCase
         $this->assertSame(0, $metrics['dispatched']);
     }
 
+    /**
+     * IC2 §0.1 slice 2: a stopped pass must recognise its own completed work when it restarts.
+     *
+     * The date/service existence check cannot tell this run's finished item from a service some
+     * other source produced, so a resumed full-manifest pass reported its entire completed prefix
+     * as `skipped_exists` — the tag that means "something else already covers this", which is what
+     * an operator investigates. The manifest job key is the exact identity and is already the
+     * durable lock, so it decides first.
+     */
+    #[Test]
+    public function it_reports_its_own_completed_manifest_work_as_resumed_not_as_an_existing_service(): void
+    {
+        $path = $this->temporaryDirectory.'/2022-01-16 10-38-15.mkv';
+        $this->createFakeVideo($path);
+
+        MediaProcessingLog::factory()->create([
+            'processing_type' => MediaType::Livestream,
+            'extracted_date' => '2022-01-16',
+            'extracted_service' => SermonService::Morning,
+            'status' => ProcessingStatus::Completed,
+            'dedup_key' => $this->manifestJobKey([$path], $path),
+        ]);
+
+        $metrics = $this->runImport();
+
+        $this->assertSame(1, $metrics['resumed_completed']);
+        $this->assertSame(0, $metrics['skipped_exists']);
+        $this->assertSame(0, $metrics['dispatched']);
+    }
+
+    /**
+     * The converse, and the reason the distinction is worth drawing: a completed livestream this
+     * manifest did not produce is still a corpus skip, not resumed progress.
+     */
+    #[Test]
+    public function a_completed_livestream_from_another_source_is_still_reported_as_an_existing_service(): void
+    {
+        $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
+
+        MediaProcessingLog::factory()->create([
+            'processing_type' => MediaType::Livestream,
+            'extracted_date' => '2022-01-16',
+            'extracted_service' => SermonService::Morning,
+            'status' => ProcessingStatus::Completed,
+            'dedup_key' => 'some-other-run-'.hash('sha256', 'foreign'),
+        ]);
+
+        $metrics = $this->runImport();
+
+        $this->assertSame(0, $metrics['resumed_completed']);
+        $this->assertSame(1, $metrics['skipped_exists']);
+        $this->assertSame(0, $metrics['dispatched']);
+    }
+
+    /**
+     * A half-finished multi-segment item dispatches its remainder instead of stalling.
+     *
+     * Its own completed segment puts a completed livestream at the item's date and slot, so the
+     * date/service check would report `skip-exists` and the second segment would never be
+     * dispatched — the resumed pass would stop exactly where it stopped before, permanently.
+     */
+    #[Test]
+    public function a_partially_completed_item_dispatches_only_its_unfinished_segments(): void
+    {
+        $dir = $this->temporaryDirectory.'/2023-12-10';
+        mkdir($dir);
+        $first = "{$dir}/10-23.mkv";
+        $second = "{$dir}/10-44.mkv";
+        $this->createFakeVideo($first);
+        $this->createFakeVideo($second);
+
+        MediaProcessingLog::factory()->create([
+            'processing_type' => MediaType::Livestream,
+            'extracted_date' => '2023-12-10',
+            'extracted_service' => SermonService::Morning,
+            'status' => ProcessingStatus::Completed,
+            'dedup_key' => $this->manifestJobKey([$first, $second], $first),
+        ]);
+
+        $dedupKeys = [];
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->twice()
+            ->withArgs(function (string $type, mixed $file, ?string $clientFileDate, array $options) use (&$dedupKeys): bool {
+                $dedupKeys[] = $options['dedup_key'] ?? null;
+
+                return true;
+            })
+            ->andReturn(ProcessingResult::success('processing-id', 'queued'));
+
+        $metrics = $this->runImportWithProcessor($processor, noConcat: true, tempDiskMinFreeGb: 0);
+
+        $this->assertSame(0, $metrics['resumed_completed'], 'A partial item is not a resumed one.');
+        $this->assertSame(0, $metrics['skipped_exists'], 'Its own completed segment is not a corpus collision.');
+        $this->assertContains($this->manifestJobKey([$first, $second], $second), $dedupKeys);
+    }
+
+    /**
+     * The fail-closed temp-disk floor still stops dispatch, and says which metric it used.
+     *
+     * Pinned explicitly because the shared helper now passes a floor of 0 — without this the
+     * importer could stop guarding disk space entirely and every test here would still pass.
+     */
+    #[Test]
+    public function a_full_temp_disk_stops_dispatch(): void
+    {
+        $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
+
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldNotReceive('process');
+
+        // A floor no real volume can satisfy, so the refusal is the floor's and not the host's.
+        $metrics = $this->runImportWithProcessor($processor, tempDiskMinFreeGb: 1024 * 1024);
+
+        $this->assertSame(1, $metrics['skipped_low_disk']);
+        $this->assertSame(0, $metrics['dispatched']);
+    }
+
     #[Test]
     public function it_skips_when_inflight_livestream_exists_for_date_and_service(): void
     {
@@ -769,6 +888,20 @@ class HistoricVideoImporterTest extends TestCase
     /**
      * @return array{dispatched: int, concatenated: int, concatenated_reencoded: int, enriched: int, skipped_exists: int, skipped_inflight: int, skipped_pending_review: int, skipped_small: int, skipped_audio_dup: int, skipped_no_date: int, skipped_unclassified: int, skipped_low_disk: int, errors: int, bytes_processed: int, bytes_skipped: int}
      */
+    /**
+     * The temp-disk floor defaults to 0 so these tests measure classification, not the host.
+     *
+     * It was 1 GB, which made every dispatching test in this file depend on the free space of
+     * whatever volume backs `storage/app`. On a developer machine that is the bind-mounted project
+     * directory, so once the host disk filled, 17 of these tests failed together with
+     * `skipped_low_disk` — the importer fails closed by design, before it ever classifies anything.
+     * Note that the container's `/` is a different filesystem with plenty of room, so `df -h /`
+     * reports healthy while the mount that actually matters is full; measure
+     * {@see TempDiskSpace::path()} itself.
+     *
+     * The floor is not untested as a result: `a_full_temp_disk_stops_dispatch` below sets it
+     * explicitly, which is the honest place for that behaviour to be pinned.
+     */
     private function runImportWithProcessor(
         mixed $processor,
         int $minSizeMb = 1,
@@ -776,7 +909,7 @@ class HistoricVideoImporterTest extends TestCase
         ?int $defaultYear = null,
         bool $noConcat = true,
         bool $reEncodeMismatched = false,
-        int $tempDiskMinFreeGb = 1,
+        int $tempDiskMinFreeGb = 0,
         int $parallel = 1,
         int $pollIntervalSeconds = 5,
         int $perFileTimeoutSeconds = 60,
@@ -816,6 +949,29 @@ class HistoricVideoImporterTest extends TestCase
             reportPath: $reportPath,
             stagingContext: $stagingContext,
         );
+    }
+
+    /**
+     * The dedup key {@see HistoricVideoImporter} would use, recomputed here rather than exposed.
+     *
+     * `$itemFiles` is the item's whole file list, because an unmanifested item derives its key from
+     * every source it groups — passing one file of a grouped item yields a key the importer never
+     * uses, which is a mistake worth failing on rather than papering over. `$sourcePath` is the
+     * segment being dispatched, omitted for a concatenated item.
+     *
+     * Mirroring the importer's private construction is deliberate: if the two diverge these tests
+     * fail, which is the point — a resume key that no longer matches the dispatch key is exactly
+     * the silent failure this guards.
+     *
+     * @param  list<string>  $itemFiles
+     */
+    private function manifestJobKey(array $itemFiles, ?string $sourcePath = null): string
+    {
+        $manifestHash = hash('sha256', $this->temporaryDirectory);
+        $itemKey = 'legacy-'.hash('sha256', implode("\0", $itemFiles));
+        $identity = "historic-video\0{$manifestHash}\0{$itemKey}";
+
+        return hash('sha256', $sourcePath === null ? $identity : "{$identity}\0{$sourcePath}");
     }
 
     private function createFakeVideo(string $path, int $sizeBytes = 2 * 1024 * 1024): void

@@ -10,6 +10,7 @@ use App\Enums\ChurchServiceSource;
 use App\Models\ChurchService;
 use App\Services\ChurchService\ImportChurchServiceFromOpenLp;
 use App\Services\ChurchService\OpenLpCurationManifest;
+use App\Services\Import\HistoricImportProductionGuard;
 use App\Services\Song\OpenLpServiceParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
+use Tests\Unit\Services\Import\HistoricImportProductionGuardTest;
 
 class ImportOpenLpDirectoryCommandTest extends TestCase
 {
@@ -114,6 +116,43 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
             ->expectsOutputToContain('no approved G8 import operation is recorded');
 
         $this->assertDatabaseCount('church_services', 0);
+    }
+
+    /**
+     * IC2 §0.1 slice 2: the apply presents this round's exact corpus and plan to the guard.
+     *
+     * Without the hashes the guard fell back to its pre-IC2 operation/target check, so an approval
+     * signed for one OpenLP batch authorised an apply of any other — the lane was guarded against
+     * running unapproved, but not against running the wrong corpus under a real approval. The guard
+     * itself already refuses a mismatch ({@see HistoricImportProductionGuardTest});
+     * what needed proving is that this command hands it something to refuse.
+     */
+    #[Test]
+    public function the_apply_binds_the_guard_to_its_exact_manifest_and_plan(): void
+    {
+        [$rawDirectory, $manifestPath] = $this->validCurationFixture();
+        $plan = app(OpenLpCurationManifest::class)->plan($rawDirectory, $manifestPath);
+        $received = [];
+
+        $this->mock(HistoricImportProductionGuard::class)
+            ->shouldReceive('refusalFor')
+            ->once()
+            ->andReturnUsing(function (...$arguments) use (&$received): ?string {
+                $received = $arguments;
+
+                return 'refused by the test double';
+            });
+
+        $this->artisan('service-tracking:import-openlp-services', [
+            '--path' => $rawDirectory,
+            '--manifest' => $manifestPath,
+            '--apply' => true,
+            '--plan-hash' => $plan->planHash,
+        ])->assertFailed();
+
+        self::assertSame('service-tracking:import-openlp-services --apply', $received[0]);
+        self::assertSame($plan->manifestHash, $received[2]);
+        self::assertSame($plan->planHash, $received[3]);
     }
 
     #[Test]

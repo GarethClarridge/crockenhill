@@ -30,6 +30,7 @@ use Illuminate\Support\Str;
  *     concatenated_reencoded: int,
  *     enriched: int,
  *     skipped_exists: int,
+ *     resumed_completed: int,
  *     skipped_inflight: int,
  *     skipped_pending_review: int,
  *     skipped_small: int,
@@ -86,6 +87,7 @@ class HistoricVideoImporter
      *     concatenated_reencoded: int,
      *     enriched: int,
      *     skipped_exists: int,
+     *     resumed_completed: int,
      *     skipped_inflight: int,
      *     skipped_pending_review: int,
      *     skipped_small: int,
@@ -137,6 +139,7 @@ class HistoricVideoImporter
             'concatenated_reencoded' => 0,
             'enriched' => 0,
             'skipped_exists' => 0,
+            'resumed_completed' => 0,
             'skipped_inflight' => 0,
             'skipped_pending_review' => 0,
             'skipped_small' => 0,
@@ -219,8 +222,52 @@ class HistoricVideoImporter
                 continue;
             }
 
+            /**
+             * Resume before the generic existence check, never after it.
+             *
+             * A stopped full-manifest pass restarts against a database already holding its own
+             * completed runs. {@see self::checkExistence()} only asks whether *some* completed
+             * livestream exists for the date and slot, so it reported this run's own finished work
+             * as `skip-exists` — the same tag it uses for a service some other source produced. The
+             * two mean opposite things to an operator: one is resumed progress, the other is a
+             * corpus collision worth investigating, and a resumed pass reported the whole corpus as
+             * the second.
+             *
+             * The manifest job key is the exact identity, and it is already the durable lock —
+             * `dedup_key` is uniquely indexed and {@see UnifiedMediaProcessor::process()} reuses a
+             * run that carries it. Checking it here rather than relying on that reuse avoids
+             * re-concatenating a finished multi-segment item purely to be told it is a duplicate.
+             */
+            $plannedKeys = $stagingContext instanceof HistoricStagingContext
+                ? $this->plannedJobKeys($item, $stagingContext, $noConcat)
+                : [];
+            $resumedKeys = $plannedKeys === []
+                ? []
+                : $this->completedOwnJobKeys($plannedKeys);
+
+            if ($resumedKeys !== [] && $resumedKeys === $plannedKeys) {
+                $metrics['resumed_completed']++;
+                $metrics['bytes_skipped'] += $bytes;
+                $decisions[$decisionIndex] = ['decision' => 'resume-completed', 'label' => $label];
+                $onProgress?->__invoke('[resume-completed]', $label, 'already completed by this exact manifest item');
+
+                continue;
+            }
+
             if (! $force) {
                 $existenceTag = $this->checkExistence($date, $service);
+
+                /**
+                 * A partially resumed item has itself put a completed log at this date and slot, so
+                 * `skip-exists` here is this run's own work reflected back and must not stop the
+                 * remainder from dispatching. Only that one verdict is discounted: an in-flight or
+                 * review-pending run at the same identity is still someone else's claim on it, and
+                 * the item's finished keys are settled by the processor's `dedup_key` reuse rather
+                 * than re-dispatched.
+                 */
+                if ($existenceTag === 'skip-exists' && $resumedKeys !== []) {
+                    $existenceTag = null;
+                }
 
                 if ($existenceTag !== null) {
                     $detail = $this->existenceDetail($date, $service, $existenceTag);
@@ -1120,6 +1167,70 @@ class HistoricVideoImporter
         }
 
         return false;
+    }
+
+    /**
+     * The exact `dedup_key` set this item would dispatch, mirroring
+     * {@see self::dispatchItemWithinStagingContext()} branch for branch.
+     *
+     * It must keep mirroring it: a key computed here that the dispatch would not use makes a
+     * resumable pass either re-dispatch finished work or skip unfinished work, and both failures
+     * are silent. The branches are deliberately duplicated rather than shared, because the dispatch
+     * side decides per item *while concatenating* and this side must decide before spending that
+     * time.
+     *
+     * @param  array<string, mixed>  $item
+     * @return list<string>
+     */
+    private function plannedJobKeys(array $item, HistoricStagingContext $stagingContext, bool $noConcat): array
+    {
+        $files = $item['files'] ?? [];
+
+        if (! is_array($files) || $files === []) {
+            return [];
+        }
+
+        if (isset($item['manifest_concatenation'])) {
+            return count($files) === 1
+                ? [$this->manifestItemDedupKey($item, $stagingContext, $files[0])]
+                : [$this->manifestItemDedupKey($item, $stagingContext)];
+        }
+
+        if (count($files) > 1 && ! $noConcat) {
+            return [$this->manifestItemDedupKey($item, $stagingContext)];
+        }
+
+        $keys = [];
+
+        foreach ($files as $path) {
+            $keys[] = $this->manifestItemDedupKey($item, $stagingContext, $path);
+        }
+
+        return $keys;
+    }
+
+    /**
+     * Which of this item's own planned job keys already hold a completed run.
+     *
+     * Returned in planned order so the caller can compare it against the full planned set by
+     * equality: a partial match means the item is genuinely half-done and must proceed to dispatch,
+     * where the processor's `dedup_key` reuse settles the finished half without re-running it.
+     *
+     * @param  list<string>  $planned
+     * @return list<string>
+     */
+    private function completedOwnJobKeys(array $planned): array
+    {
+        $completed = MediaProcessingLog::query()
+            ->whereIn('dedup_key', $planned)
+            ->where('status', ProcessingStatus::Completed->value)
+            ->pluck('dedup_key')
+            ->all();
+
+        return array_values(array_filter(
+            $planned,
+            static fn (string $key): bool => in_array($key, $completed, true),
+        ));
     }
 
     private function checkExistence(Carbon $date, SermonService $service): ?string

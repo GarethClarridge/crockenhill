@@ -183,16 +183,6 @@ class ImportOosArchiveCommand extends Command
             return self::FAILURE;
         }
 
-        try {
-            if (in_array($mode, ['stage_assertions', 'apply_assertions'], true)) {
-                return $this->runBundleMode($assertionBundle, $entries, $plan, $productionGuard);
-            }
-        } catch (Throwable $throwable) {
-            $this->error($throwable->getMessage());
-
-            return self::FAILURE;
-        }
-
         $dryRun = $mode === 'reconcile';
         $shouldImport = $mode === 'import';
 
@@ -550,18 +540,26 @@ class ImportOosArchiveCommand extends Command
         ));
     }
 
-    /**
-     * @param  list<OosArchiveEntry>  $entries
-     */
-    private function runBundleMode(
+    private function runPortableBundleMode(
         OosArchiveAssertionBundle $assertionBundle,
-        array $entries,
-        OosCurationPlan $plan,
         HistoricImportProductionGuard $productionGuard,
     ): int {
         $isApply = $this->stringOption('apply-bundle') !== null;
+        $path = $this->stringOption($isApply ? 'apply-bundle' : 'import-bundle');
+        $bundle = $this->readBundle((string) $path);
+
+        /**
+         * IC2 §0.1 slice 2: this lane carries no curation manifest, so it presents the bundle's own
+         * verified hashes instead — otherwise an approval signed for one bundle authorised applying
+         * any other. Reading and verifying the artifact ahead of the guard mutates nothing;
+         * {@see OosArchiveAssertionBundle::portableAuthority()} refuses before returning a hash,
+         * and `stage()`/`apply()` — the only writers here — still run after the refusal check.
+         */
+        $authority = $assertionBundle->portableAuthority($bundle);
         $refusal = $productionGuard->refusalFor(
             'oos:import-archive '.($isApply ? '--apply-bundle' : '--import-bundle'),
+            roundCorpusHash: $authority['bundle_hash'],
+            planHash: $authority['curation_plan_hash'],
         );
 
         if ($refusal !== null) {
@@ -570,42 +568,7 @@ class ImportOosArchiveCommand extends Command
             return self::FAILURE;
         }
 
-        $bundlePath = $this->stringOption('import-bundle') ?? $this->stringOption('apply-bundle');
-        $bundle = $this->readBundle((string) $bundlePath);
-        $preflight = $assertionBundle->preflight($bundle, $entries, $plan->planHash, self::ParserVersion);
-
-        if ($this->stringOption('import-bundle') !== null) {
-            $assertionBundle->stage($preflight);
-            $this->info(sprintf(
-                'Staged %d valid and %d review-held OoS assertion entries.',
-                count($preflight['valid']),
-                count($preflight['invalid']),
-            ));
-
-            return self::SUCCESS;
-        }
-
-        $assertionBundle->apply($preflight);
-        $this->info(sprintf('Applied %d OoS assertion entries.', count($preflight['valid'])));
-
-        return self::SUCCESS;
-    }
-
-    private function runPortableBundleMode(
-        OosArchiveAssertionBundle $assertionBundle,
-        HistoricImportProductionGuard $productionGuard,
-    ): int {
-        $isApply = $this->stringOption('apply-bundle') !== null;
-        $refusal = $productionGuard->refusalFor('oos:import-archive '.($isApply ? '--apply-bundle' : '--import-bundle'));
-
-        if ($refusal !== null) {
-            $this->error($refusal);
-
-            return self::FAILURE;
-        }
-
-        $path = $this->stringOption($isApply ? 'apply-bundle' : 'import-bundle');
-        $preflight = $assertionBundle->preflightPortable($this->readBundle((string) $path));
+        $preflight = $assertionBundle->preflightPortable($bundle);
 
         if (! $isApply) {
             $assertionBundle->stage($preflight);
