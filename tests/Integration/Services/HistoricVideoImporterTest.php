@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Data\ProcessingResult;
+use App\Enums\HistoricVideoCorroborationGrade;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
@@ -14,6 +15,7 @@ use App\Services\HistoricMedia\HistoricProcessingFingerprint;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\TempDiskSpace;
+use App\Services\Media\Video\HistoricVideoCurationManifest;
 use App\Services\Media\Video\HistoricVideoImporter;
 use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -659,6 +661,70 @@ class HistoricVideoImporterTest extends TestCase
     }
 
     /**
+     * §0.1 slice 3, the first link: the approved grade travels with the recording it describes.
+     *
+     * The manifest already graded every recording, but the grade stopped there — nothing carried it
+     * into the pipeline, so a sermon-only clip and a complete service arrived downstream
+     * indistinguishable. It is recorded rather than re-measured because the operator approved it
+     * and `manifest_hash` covers it.
+     */
+    #[Test]
+    public function it_carries_the_approved_corroboration_grade_into_processing_metadata(): void
+    {
+        $relativePath = '2022-01-16 18-38-15.mkv';
+        $path = $this->temporaryDirectory.'/'.$relativePath;
+        $this->createFakeVideo($path);
+        $captured = null;
+
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->once()
+            ->withArgs(function (string $type, mixed $file, ?string $clientFileDate, array $options) use (&$captured): bool {
+                $captured = $options['processing_metadata']['historic_import'] ?? null;
+
+                return true;
+            })
+            ->andReturn(ProcessingResult::success('historic-graded', 'ok'));
+
+        $this->runImportWithApprovedItem($processor, $path, $relativePath, HistoricVideoCorroborationGrade::ShortPartial);
+
+        $this->assertIsArray($captured);
+        $this->assertSame('short_partial', $captured['corroboration_grade']);
+    }
+
+    /**
+     * A work item with no grade records null, never a default.
+     *
+     * The downstream rule treats an ungraded historic recording as unproven, so the honest value
+     * here is the absence itself. Substituting a grade — even `unknown` — would be inventing
+     * evidence about how much of a service was captured.
+     */
+    #[Test]
+    public function an_ungraded_work_item_records_a_null_corroboration_grade(): void
+    {
+        $relativePath = '2022-01-16 18-38-15.mkv';
+        $path = $this->temporaryDirectory.'/'.$relativePath;
+        $this->createFakeVideo($path);
+        $captured = null;
+
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->once()
+            ->withArgs(function (string $type, mixed $file, ?string $clientFileDate, array $options) use (&$captured): bool {
+                $captured = $options['processing_metadata']['historic_import'] ?? null;
+
+                return true;
+            })
+            ->andReturn(ProcessingResult::success('historic-ungraded', 'ok'));
+
+        $this->runImportWithApprovedItem($processor, $path, $relativePath, null);
+
+        $this->assertIsArray($captured);
+        $this->assertArrayHasKey('corroboration_grade', $captured);
+        $this->assertNull($captured['corroboration_grade']);
+    }
+
+    /**
      * The fail-closed temp-disk floor still stops dispatch, and says which metric it used.
      *
      * Pinned explicitly because the shared helper now passes a floor of 0 — without this the
@@ -917,6 +983,7 @@ class HistoricVideoImporterTest extends TestCase
         bool $dryRun = false,
         bool $force = false,
         ?string $reportPath = null,
+        ?array $approvedWorkItems = null,
     ): array {
         $stagingGuard = app(HistoricStagingGuard::class);
         $stagingContext = $dryRun
@@ -947,8 +1014,50 @@ class HistoricVideoImporterTest extends TestCase
             perFileTimeoutSeconds: $perFileTimeoutSeconds,
             limit: $limit,
             reportPath: $reportPath,
+            approvedWorkItems: $approvedWorkItems,
             stagingContext: $stagingContext,
         );
+    }
+
+    /**
+     * Dispatch one approved manifest work item, optionally graded, through a supplied processor.
+     *
+     * Mirrors the shape {@see HistoricVideoCurationManifest::plan()}
+     * builds, so these tests exercise the same item contract a definitive run would.
+     */
+    private function runImportWithApprovedItem(
+        mixed $processor,
+        string $path,
+        string $relativePath,
+        ?HistoricVideoCorroborationGrade $grade,
+    ): array {
+        $size = filesize($path);
+        $hash = hash_file('sha256', $path);
+        $this->assertIsInt($size);
+        $this->assertIsString($hash);
+
+        $item = [
+            'manifest_item_key' => 'video-1',
+            'tag' => 'livestream',
+            'label' => $relativePath,
+            'files' => [$path],
+            'source_files' => [[
+                'relative_path' => $relativePath,
+                'sha256' => $hash,
+                'byte_size' => $size,
+            ]],
+            'date' => Carbon::parse('2022-01-16'),
+            'service' => SermonService::Evening,
+            'client_file_date' => '2022-01-16 18:38:15',
+            'bytes' => $size,
+            'manifest_concatenation' => 'separate',
+        ];
+
+        if ($grade instanceof HistoricVideoCorroborationGrade) {
+            $item['manifest_corroboration'] = $grade;
+        }
+
+        return $this->runImportWithProcessor($processor, approvedWorkItems: [$item]);
     }
 
     /**

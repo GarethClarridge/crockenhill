@@ -5,16 +5,19 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\ChurchServiceSource;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\ChurchServiceSourceRecord;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\User;
+use App\Services\ChurchService\ChurchServiceProjector;
 use App\Services\ChurchService\LivestreamChurchServiceProjectionService;
 use App\Services\Public\PublicSongUsageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -999,6 +1002,94 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $this->assertSame(1, $projection['confidence_summary']['high'], 'Song A should be high');
         $this->assertSame(1, $projection['confidence_summary']['medium'], 'Sermon should be medium');
         $this->assertSame(1, $projection['confidence_summary']['low'], 'Prayer should be low');
+    }
+
+    /**
+     * §0.1 slice 3, the middle link: the manifest grade must survive into the source revision.
+     *
+     * The grade was already recorded in the manifest and is now carried into processing metadata,
+     * but {@see ChurchServiceProjector} reads the *source record's*
+     * fingerprint, not the processing log. Without this hop the projector cannot tell a sermon-only
+     * clip from a complete service and trusts both.
+     */
+    #[Test]
+    public function test_a_historic_livestream_carries_its_corroboration_grade_into_the_source_revision(): void
+    {
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        $log->forceFill([
+            'processing_metadata' => [
+                'historic_import' => [
+                    'tag' => 'livestream',
+                    'label' => '2026-03-23 10-02-00.mkv',
+                    'corroboration_grade' => 'short_partial',
+                ],
+            ],
+        ])->saveQuietly();
+
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Sermon, 'title' => 'The Prodigal Son', 'confidence' => 0.9],
+        ]);
+
+        $result = $this->service->project($log);
+
+        $record = ChurchServiceSourceRecord::query()
+            ->where('church_service_id', $result['church_service_id'])
+            ->where('source', ChurchServiceSource::Livestream->value)
+            ->firstOrFail();
+
+        $this->assertTrue($record->processing_fingerprint['historic_import']);
+        $this->assertSame('short_partial', $record->processing_fingerprint['corroboration_grade']);
+    }
+
+    /**
+     * A historic recording whose grade never arrived is marked historic with a null grade.
+     *
+     * The marker matters more than the grade here: it is what makes the projector fail closed. If
+     * an ungraded historic revision were left unmarked it would be indistinguishable from a weekly
+     * upload and would be trusted outright.
+     */
+    #[Test]
+    public function test_an_ungraded_historic_livestream_is_still_marked_historic(): void
+    {
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        $log->forceFill([
+            'processing_metadata' => ['historic_import' => ['tag' => 'livestream', 'label' => 'ungraded.mkv']],
+        ])->saveQuietly();
+
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Sermon, 'title' => 'The Prodigal Son', 'confidence' => 0.9],
+        ]);
+
+        $result = $this->service->project($log);
+
+        $record = ChurchServiceSourceRecord::query()
+            ->where('church_service_id', $result['church_service_id'])
+            ->where('source', ChurchServiceSource::Livestream->value)
+            ->firstOrFail();
+
+        $this->assertTrue($record->processing_fingerprint['historic_import']);
+        $this->assertNull($record->processing_fingerprint['corroboration_grade']);
+    }
+
+    /** An ordinary weekly upload gains neither key, so nothing about weekly processing changes. */
+    #[Test]
+    public function test_an_ordinary_livestream_revision_carries_no_historic_corroboration_keys(): void
+    {
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Sermon, 'title' => 'The Prodigal Son', 'confidence' => 0.9],
+        ]);
+
+        $result = $this->service->project($log);
+
+        $record = ChurchServiceSourceRecord::query()
+            ->where('church_service_id', $result['church_service_id'])
+            ->where('source', ChurchServiceSource::Livestream->value)
+            ->firstOrFail();
+
+        $this->assertArrayNotHasKey('historic_import', $record->processing_fingerprint);
+        $this->assertArrayNotHasKey('corroboration_grade', $record->processing_fingerprint);
     }
 
     private function createProcessingLog(

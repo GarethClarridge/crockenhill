@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -211,6 +212,131 @@ class ChurchServiceProjectorTest extends TestCase
         $this->assertSame(ChurchServiceCanonicalFinalization::Automatic, $service->canonical_finalization);
         $this->assertFalse($service->needs_review);
         $this->assertSame([], $service->mergeProposals()->where('status', ChurchServiceProposalStatus::Pending)->get()->all());
+    }
+
+    /**
+     * §0.1 slice 3: a historic recording graded `full` corroborates exactly as a weekly one does.
+     *
+     * The 2026-08-24 ruling is about a recording of the whole service. A `full` grade is the
+     * manifest's approved statement that this recording is one, so nothing about it should differ.
+     */
+    #[Test]
+    public function a_full_historic_livestream_corroborates_all_three_song_dimensions(): void
+    {
+        $service = ChurchService::factory()->create();
+        $items = [
+            $this->item(1, 'songs', 'Come Thou Fount', 'come-thou-fount'),
+            $this->item(2, 'songs', 'Be Thou My Vision', 'be-thou-my-vision'),
+        ];
+
+        $this->ingestItems($service, ChurchServiceSource::Email, $items, processingFingerprint: [
+            'format' => 'email-plan',
+            'version' => 2,
+            'unattended_content_finalization' => false,
+        ]);
+
+        $this->ingestItems($service, ChurchServiceSource::Livestream, $items, processingFingerprint: [
+            'format' => 'livestream-projection',
+            'version' => 1,
+            'historic_import' => true,
+            'corroboration_grade' => 'full',
+        ]);
+
+        $service->refresh();
+        $this->assertSame(ChurchServiceCanonicalFinalization::Automatic, $service->canonical_finalization);
+        $this->assertFalse($service->needs_review);
+    }
+
+    /**
+     * The safety property this slice exists for: an incomplete historic recording is neutral.
+     *
+     * Much of 2020 is sermon-only. Such a clip carries no song assertions, so if it were trusted it
+     * would "disagree" with a complete Email plan on all three dimensions at once and route a
+     * correct service to review — manufacturing a conflict out of a recording that simply was not
+     * running yet. HIR-D8 is explicit that source absence is not disagreement, and an incomplete
+     * recording is absence of song evidence. It must leave the dimension unfinalised, exactly as if
+     * no recording existed.
+     *
+     * @param  string  $grade  Every non-full grade, and the ungraded case, behave identically.
+     */
+    #[Test]
+    #[DataProvider('nonCorroboratingHistoricGrades')]
+    public function a_historic_livestream_that_is_not_full_leaves_song_dimensions_unfinalised(?string $grade): void
+    {
+        $service = ChurchService::factory()->create();
+
+        $this->ingestItems($service, ChurchServiceSource::Email, [
+            $this->item(1, 'songs', 'Come Thou Fount', 'come-thou-fount'),
+            $this->item(2, 'songs', 'Be Thou My Vision', 'be-thou-my-vision'),
+        ], processingFingerprint: [
+            'format' => 'email-plan',
+            'version' => 2,
+            'unattended_content_finalization' => false,
+        ]);
+
+        // A sermon-only clip: it witnessed the service, but not a single song.
+        $this->ingestItems($service, ChurchServiceSource::Livestream, [
+            $this->item(1, 'custom', 'Sermon', 'sermon'),
+        ], processingFingerprint: [
+            'format' => 'livestream-projection',
+            'version' => 1,
+            'historic_import' => true,
+            'corroboration_grade' => $grade,
+        ]);
+
+        $service->refresh();
+        $conflicts = $service->mergeProposals()->latest('id')->firstOrFail()->conflicts;
+        $kinds = array_unique(array_column($conflicts, 'kind'));
+
+        $this->assertNotSame(ChurchServiceCanonicalFinalization::Automatic, $service->canonical_finalization);
+        $this->assertContains('uncorroborated_content_dimension', $kinds);
+        $this->assertNotContains(
+            'corroboration_mismatch',
+            $kinds,
+            'An incomplete recording must be neutral, never a source of disagreement.',
+        );
+    }
+
+    /** @return array<string, array{0: string|null}> */
+    public static function nonCorroboratingHistoricGrades(): array
+    {
+        return [
+            'sermon-only clip' => ['short_partial'],
+            'several files, completeness unadjudicated' => ['fragmented'],
+            'duration never established' => ['unknown'],
+            'grade never arrived' => [null],
+        ];
+    }
+
+    /**
+     * The qualification is scoped to historic recordings and must not touch weekly processing.
+     *
+     * An ordinary livestream carries no `historic_import` marker, so it is trusted as before. This
+     * is pinned separately because the cheapest wrong implementation — requiring a `full` grade of
+     * every livestream — would pass every historic test above and silently stop the weekly path
+     * corroborating anything.
+     */
+    #[Test]
+    public function an_ordinary_weekly_livestream_is_unaffected_by_the_historic_grade_rule(): void
+    {
+        $service = ChurchService::factory()->create();
+        $items = [$this->item(1, 'songs', 'Come Thou Fount', 'come-thou-fount')];
+
+        $this->ingestItems($service, ChurchServiceSource::Email, $items, processingFingerprint: [
+            'format' => 'email-plan',
+            'version' => 2,
+            'unattended_content_finalization' => false,
+        ]);
+
+        // No historic_import key and no grade: the weekly upload's fingerprint shape.
+        $this->ingestItems($service, ChurchServiceSource::Livestream, $items, processingFingerprint: [
+            'format' => 'livestream-projection',
+            'version' => 1,
+            'processing_id' => 'weekly-run',
+        ]);
+
+        $service->refresh();
+        $this->assertSame(ChurchServiceCanonicalFinalization::Automatic, $service->canonical_finalization);
     }
 
     /** A livestream that disagrees is a mismatch on every dimension it now proves, not just order. */

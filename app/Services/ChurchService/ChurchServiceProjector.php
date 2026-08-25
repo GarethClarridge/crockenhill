@@ -9,6 +9,7 @@ use App\Data\ChurchServiceProjection;
 use App\Enums\ChurchServiceEvidenceKind;
 use App\Enums\ChurchServiceOccurrenceState;
 use App\Enums\ChurchServiceSource;
+use App\Enums\HistoricVideoCorroborationGrade;
 use App\Models\ChurchServiceItemAssertion;
 use App\Models\ChurchServiceSourceRecord;
 use App\Support\CanonicalJson;
@@ -1385,13 +1386,49 @@ class ChurchServiceProjector
      * The maintainer ruled on 2026-08-24 that a livestream corroborates all three.
      * Note this makes the recording the stronger witness of what was *actually*
      * sung: OpenLP is a plan, and a planned song may be dropped on the day.
+     *
+     * That ruling is about a recording of the *whole service*, which is what an
+     * ordinary weekly livestream is. The historic corpus is not uniform in that
+     * way — much of 2020 is sermon-only — so a historic recording is trusted here
+     * only at grade `full`. See {@see self::livestreamProvesSongDimensions()}.
      */
     private function sourceProvesDimension(ChurchServiceSourceRecord $record, string $dimension): bool
     {
         return match ($record->source) {
-            ChurchServiceSource::OpenLp, ChurchServiceSource::Livestream => true,
+            ChurchServiceSource::OpenLp => true,
+            ChurchServiceSource::Livestream => $this->livestreamProvesSongDimensions($record),
             default => false,
         };
+    }
+
+    /**
+     * Whether this Livestream record witnessed enough of the service to corroborate its songs.
+     *
+     * A weekly livestream records the service as it happens, so it is trusted exactly as before —
+     * this qualification changes nothing about ordinary processing. A *historic* recording is only
+     * as good as what the drive actually holds: a 22-minute sermon clip carries no song assertions
+     * at all, and trusting it would let it "disagree" with a complete Email plan on all three song
+     * dimensions and route a correct service to review. Worse, since the three dimensions are views
+     * of one list, that single bad witness contradicts membership, count and order together.
+     *
+     * Only `full` corroborates. `short_partial`, `fragmented` and `unknown` are neutral — they leave
+     * the dimension unfinalised rather than contradicting it, which is HIR-D8's rule that source
+     * absence is not disagreement. A historic record with no grade is neutral for the same reason:
+     * the grade is the evidence that the recording is complete, and its absence is not that evidence.
+     */
+    private function livestreamProvesSongDimensions(ChurchServiceSourceRecord $record): bool
+    {
+        $fingerprint = $record->processing_fingerprint;
+
+        if (($fingerprint['historic_import'] ?? null) !== true) {
+            return true;
+        }
+
+        $grade = HistoricVideoCorroborationGrade::tryFrom(
+            is_string($fingerprint['corroboration_grade'] ?? null) ? $fingerprint['corroboration_grade'] : '',
+        );
+
+        return $grade?->corroboratesSongMembership() === true;
     }
 
     /** @return list<string>|int */

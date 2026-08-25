@@ -6,6 +6,7 @@ namespace App\Services\Media\Video;
 
 use App\Data\HistoricStagingContext;
 use App\Data\ProcessingResult;
+use App\Enums\HistoricVideoCorroborationGrade;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
@@ -13,6 +14,7 @@ use App\Exceptions\HistoricSourceIntegrityException;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\ChurchService\SourceAdapters\LivestreamSourceAdapter;
 use App\Services\HistoricMedia\HistoricProcessingFingerprint;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\TempDiskSpace;
@@ -1393,7 +1395,7 @@ class HistoricVideoImporter
      * WP-A4: enough provenance to identify a service's source files on the drive
      * by hash, long after the drive is unmounted.
      *
-     * @param  array{tag: string, label: string, files: list<string>, editorial_facts?: array<string, string|null>|null}  $item
+     * @param  array{tag: string, label: string, files: list<string>, editorial_facts?: array<string, string|null>|null, manifest_corroboration?: HistoricVideoCorroborationGrade|null}  $item
      * @param  'none'|'lossless'|'re-encoded'  $concatenation  How the dispatched file was produced
      * @param  string|null  $jobKey  The dedup key this dispatch actually used; recorded so the
      *                               orchestrator derives chain identity from the same value
@@ -1440,6 +1442,23 @@ class HistoricVideoImporter
         $historicImport['staging_context'] = $stagingContext->toArray();
         $historicImport['job_key'] = $jobKey;
         $historicImport['operation_id'] = $operation?->operation_id;
+
+        /**
+         * The grade travels with the recording so the projector can decide what it is entitled to
+         * corroborate (plan §2.5 safety qualification, §0.1 slice 3). Recorded here rather than
+         * re-derived downstream because it is a *curated* fact: the operator approved it in the
+         * manifest, `manifest_hash` above covers it, and re-measuring a duration later could
+         * disagree with what was approved.
+         *
+         * Null when a work item carries no grade — an unmanifested or legacy dispatch. That stays
+         * null deliberately: {@see LivestreamSourceAdapter}
+         * treats an ungraded historic recording as neutral, so an unknown grade can never be read
+         * as a full one.
+         */
+        $grade = $item['manifest_corroboration'] ?? null;
+        $historicImport['corroboration_grade'] = $grade instanceof HistoricVideoCorroborationGrade
+            ? $grade->value
+            : null;
 
         return [
             'historic_import' => $historicImport,
