@@ -1862,6 +1862,16 @@ The B13 false-acceptance reversal semantics are already implemented (PR16).
    production — so an ambiguous target cannot inherit the exemption. A named-but-unreadable path is
    still an error, so a typo can never be mistaken for deliberate omission. The command reports which
    binding it used. Three focused tests, including a verified-non-vacuous production carve-out.
+3b. **Calibration operation prepared 2026-08-26.** `historic-782d23a784cc392bda02071b3079efff`,
+   binding hash `782d23a784cc392bda02071b3079efff03e3554913895422da592dd21efdab96`, state `planned`,
+   `notification_mode` `external_disabled`, bound to `historic_video=1ae7e4fc…` and plan hash
+   `8ecec582…`, `max_cost_minor_units` 200 ($2, the incumbent pipeline ceiling), accepted deadline
+   2026-09-09. Rehearsal target, so no runtime evidence: the fingerprint falls back to the target
+   per §3a. The deadline is inert for this operation — its three consumers are the test-only
+   checkpoint runtime, the production-only approval manifest, and `HistoricConvergenceAdmission`,
+   which belongs to the convergence phase — so it was set generously because `firstOrCreate` keys
+   on the binding hash alone and a passed deadline cannot be corrected without deleting the row.
+   Re-running `prepare-operation` with these exact inputs is idempotent and returns the same id.
 4. Before paid/bulk work, finish §0 slice 2. In particular, the command must accept and bind the
    immutable operation used by notification suppression, and bounded dispatch must resume against
    the **same full manifest**. Do not implement “checkpoint manifests”: different plan hashes create
