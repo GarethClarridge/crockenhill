@@ -22,6 +22,7 @@ use App\Services\Media\Audio\MockServiceTranscriptionService;
 use App\Services\Media\Audio\MockTranscriptionService;
 use App\Services\Media\Audio\OpenAiServiceTranscriptionService;
 use App\Services\Sermon\MockSermonAnalysisService;
+use App\Services\Sermon\SermonAnalysisEvaluationTelemetry;
 use App\Services\Sermon\SermonAnalysisService;
 use GuzzleHttp\Client;
 use Illuminate\Support\ServiceProvider;
@@ -54,6 +55,7 @@ class AiServiceProvider extends ServiceProvider
         });
 
         $this->app->alias(ClientContract::class, 'openai');
+        $this->app->singleton(SermonAnalysisEvaluationTelemetry::class);
         $this->app->bind(SermonAnalysisInterface::class, function ($app): SermonAnalysisInterface {
             $serviceType = config('media-processing.analysis.service', 'openai');
 

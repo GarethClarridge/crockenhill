@@ -44,8 +44,8 @@ run the named acceptance check, update this table, and stop. Do not infer work f
 | 1 | **Email + OpenLP corpus settlement** | **DONE 2026-08-24.** Final expectation: 553 approved sources / 539 identities / 20 operator-approved holds. Both lanes reconcile: 0 unstaged approved sources, 0 unstaged identities and 0 unexplained identities. Date accuracy is 100.0%; automatic identity precision is 99.7% against the 0.98 floor. The census contains 398 proposals in 21 classes: 223 services lack any corroborating source and 135 currently disagree with one. `source_item_projection_stale` is expected while those proposals remain. | Closed. This is the REV-D4 trigger for IC5. Do not mark an evidence-dependent class `automated` or `irreducible` merely to make the final convergence gate green. |
 | 2 | **Close the production-round authority gaps** | **DONE 2026-08-26.** All three unbound lanes now present their own hashes: OpenLP apply passes `manifestHash`/`planHash`; the portable Email apply presents the bundle's verified `bundle_hash` + `curation_plan_hash` (new `OosArchiveAssertionBundle::portableAuthority()`, which refuses a bundle with no plan hash rather than passing null and silently skipping the round binding); video dispatch passes manifest, plan **and** a new required `--operation`. The video operation closed a live defect, not just a missing check: `LivestreamSegmentationService` only stamps `historic_import_operation_id` when the metadata carries an `operation_id`, and `ProcessingNotificationRouter` throws on a log with historic metadata and no operation binding — so every historic video dispatch was queueing work that would fail at its first notification. Resume now decides on the exact manifest job key before the date/service existence check, reporting `resumed_completed` instead of mislabelling a resumed pass's own completed prefix as `skipped_exists`. Deleted as dead on the way through: `ImportOosArchiveCommand::runBundleMode()` and `OosArchiveAssertionBundle::preflight()` were unreachable (the portable branch returns first), and one of the three unbound guard sites was inside them. Ordering change recorded: the video production refusal now comes *after* the manifest requirement, because a per-round approval cannot be checked before the round's manifest is known — the old ordering belonged to the one-shot GO, where approval existed independently of a corpus. Final integration coverage proves the metadata operation reaches the processing-log FK before dispatch and that a pipeline-spawned auto-publication job is owned by the same operation and log while completion mail remains suppressed. 11 new/updated focused tests across the slice; Pint and PHPStan green. | Focused tests prove every mutating lane binds its exact authority; a stopped full-manifest video run resumes its own completed work; historic notification containment reaches nested jobs. No new audit framework. Closed. |
 | 3 | **Carry historic-video corroboration authority end to end** | **DONE 2026-08-25.** The grade now travels the full chain in three hops. (1) `HistoricVideoImporter::historicImportMetadata()` records the manifest's approved `corroboration_grade` alongside `manifest_hash` — recorded, not re-measured, because the operator approved it and the manifest hash covers it; an ungraded item records null rather than a default. (2) `LivestreamSourceAdapter::adapt()` derives two provenance keys from the processing log itself — `historic_import: true` and the grade — so a historic recording cannot reach the projector looking like a weekly upload. These are provenance only: `inputHash` is computed from assertions and service content, so no content hash moves and no approved proposal or exported bundle is invalidated. (3) `ChurchServiceProjector::sourceProvesDimension()` delegates Livestream to `livestreamProvesSongDimensions()`, which trusts a weekly livestream exactly as before and a historic one only at grade `full`. `short_partial`, `fragmented`, `unknown` and a missing grade are all neutral — they leave the dimension unfinalised rather than contradicting it, per HIR-D8's rule that source absence is not disagreement. This closes the hole where a sermon-only 2020 clip, carrying no song assertions, would have "disagreed" with a complete Email plan on all three song dimensions at once and routed a correct service to review. 11 focused tests across importer, adapter and projector, including a data provider over every non-full grade and a weekly-path regression guard; the projector tests were verified to fail when the gate is removed. Pint and PHPStan green. | The hash-bound manifest grade reaches processing metadata and the Livestream source fingerprint. Only `full` historic recordings may corroborate song membership, count and order. `short_partial`, `fragmented`, `unknown`, and a missing grade on a historic source are neutral and fail closed. Focused importer/adapter/projector tests cover full and non-full recordings. |
-| 4 | **Curate and calibrate video** | REV-D4 trigger reached. Mounted corpus: 1.0 TB, 649 files, 462 service identities. No worksheet or frozen manifest. | Draft one worksheet, review exceptions rather than 462 ordinary includes, freeze one full-corpus manifest, then run a representative calibration through the real livestream pipeline after slices 2–3 pass. |
-| 5 | **Run definitive historic video processing and re-census** | Blocked by slices 2–4 and operator manifest freeze. | Dispatch the same frozen manifest in bounded resumable passes. Then regenerate membership and the proposal census. The 223-service awaiting-evidence population must either finalise on a `full` recording or remain explicitly unresolved; re-evaluate the 135 prior disagreements with the new evidence before calling any residue irreducible. The final convergence gate remains red until every surviving class has a truthful terminal disposition. |
+| 4 | **Curate and calibrate video** | **CURATION DONE 2026-08-26; calibration and model comparison specified but not run or authorised.** The adjudicated worksheet contains 472 identities / 510 recordings: 470 includes and 2 excludes. Coverage is 290 `full`, 172 `short_partial` and 10 `fragmented` (8 included). The operator approved inclusion of all nine identities after the former 2026-07-19 boundary, exclusion of the two 49-second 2020-06-28 incidental clips, and every recommendation from the exception investigation. The other exclusion is `2025-06-13-morning`, a Friday-afternoon special event whose directory asserted a false morning-service identity. Eleven overlapping physical files were moved recoverably to `/Volumes/Sonnics/Services Quarantine/historic-video-curation-20260826`; the joint 2021-09-05 recording was retained under Evening. Frozen batch `historic-video-full-corpus-20260826`: private manifest `historic-video-curation-manifest-20260826.json`, manifest hash `7b7bf68840477d8d522afaf94da6bba5990bfd74d7b5fdf88b477111051f0788`, derived plan hash `65dfd15c7a6905f1abac246a670c4136749b5ce13edec44a83715e1ee4bee15c`. | After explicit authorization, execute IC5 item 6 in order: build the private reviewed truth set, run the incumbent six-identity pipeline calibration, then run only gated cheaper-model arms against the banked transcripts. Record p50/p95 wall time, failures, retries/rechecks, per-operation token cost and accepted worker width. No paid calibration arm or definitive dispatch is yet authorised. |
+| 5 | **Run definitive historic video processing and re-census** | Blocked only by slice 4 calibration evidence and a separately approved operation/round; the full-corpus manifest is frozen. | Dispatch the same frozen manifest in bounded resumable passes. Then regenerate membership and the proposal census. The 223-service awaiting-evidence population must either finalise on a `full` recording or remain explicitly unresolved; re-evaluate the 135 prior disagreements with the new evidence before calling any residue irreducible. The final convergence gate remains red until every surviving class has a truthful terminal disposition. |
 | 6 | **Current-era source back-fill** | Operator-dependent and based on a 2026-08-09 production count. | Re-run `audit:service-evidence-coverage`; recover each real source still missing, ingest it through the ordinary revision path and reproject. Never manufacture evidence. |
 | 7 | **Hymn convergence** | Import controls exist; the apply artifact is stale relative to the final converged corpus. | Regenerate against the exact converged corpus, review exceptions, bind the artifact to its operation and apply once. Hymn evidence proves song membership only, never count or order. |
 | 8 | **Production rounds, release and retirement** | No lane is authorised by this plan alone. | Run RG-B per lane and RG-C per era; release remains separately signed. Retire one-shot code only at historic closeout (IC8). |
@@ -1802,13 +1802,22 @@ The B13 false-acceptance reversal semantics are already implemented (PR16).
    `OpenLpApprovedCorpus` now derives `batch_hash`, `input_hash` and the source key from the
    approved manifest alone, and `openlp:generate-corpus-expectation` produces the lane artifact
    consumed alongside Email by an `email,openlp` census.
-3. Video worksheet → exception review → freeze: `historic-import:draft-video-curation` (cheap,
-   repeatable), operator review of anomalous grades/grouping and written reasons for exclusions
-   (ordinary includes are approved by the recorded rule version, not 462 individual clicks), then
-   `historic-import:capture-video-curation` (hashes once at freeze; note
-   `HistoricVideoCurationManifest::verifiedPath()` re-hashes the 1.0 TB corpus — ~3 h at
-   87.7 MB/s — on every `plan()` call; schedule around it). The graded corroboration field and
-   headerless-WebM packet-count duration recovery are already implemented and tested.
+3. **Video worksheet → exception review → freeze done 2026-08-26.** The adjudicated worksheet is
+   `storage/app/private/historic-video-curation-worksheet-adjudicated-20260826.json`; the frozen v4
+   manifest is `storage/app/private/historic-video-curation-manifest-20260826.json`, batch
+   `historic-video-full-corpus-20260826`. It contains 472 identities / 510 recordings: 470 includes
+   and 2 excludes; 290 are `full`, 172 `short_partial`, and 10 `fragmented` (8 included). The
+   manifest hash is `7b7bf68840477d8d522afaf94da6bba5990bfd74d7b5fdf88b477111051f0788` and
+   the derived plan hash is `65dfd15c7a6905f1abac246a670c4136749b5ce13edec44a83715e1ee4bee15c`.
+   Operator decisions: include all nine identities after 2026-07-19; exclude
+   `2020-06-28-morning` because its two incidental clips total only 49 seconds; accept all other
+   investigated recommendations, including exclusion of `2025-06-13-morning` because it is a
+   Friday-afternoon special event rather than the morning service asserted by its directory.
+   Eleven overlapping physical files were moved recoverably to
+   `/Volumes/Sonnics/Services Quarantine/historic-video-curation-20260826`; the joint 2021-09-05
+   recording was retained as Evening. The graded corroboration field and headerless-WebM
+   packet-count duration recovery are implemented and tested. A future `plan()` still re-hashes
+   the approximately 1.0 TB corpus; schedule around the observed approximately three-hour pass.
 4. Before paid/bulk work, finish §0 slice 2. In particular, the command must accept and bind the
    immutable operation used by notification suppression, and bounded dispatch must resume against
    the **same full manifest**. Do not implement “checkpoint manifests”: different plan hashes create
@@ -1824,10 +1833,110 @@ The B13 false-acceptance reversal semantics are already implemented (PR16).
    disagreement raises all three facets; each non-full grade and a missing historic grade leaves the
    Email dimensions uncorroborated; the grade survives importer → processing log → source revision
    and changes the revision fingerprint/hash.
-6. Run a representative calibration through the real weekly livestream job chain (short/long,
-   codec families, single/concat/re-encode and era spread). Record p50/p95 wall time, failures,
-   model cost and the accepted worker width. This is evidence for choosing the dispatch throttle,
-   not a new performance framework.
+6. **Calibration and model comparison specified 2026-08-26; not run and not authorised.** Use these
+   six frozen-manifest identities in an isolated staging context through the real weekly livestream
+   job chain:
+
+   | Identity | Minutes | Shape / purpose |
+   |---|---:|---|
+   | `2020-04-26-morning` | 39.51 | MP4 single, `short_partial`, earliest era |
+   | `2022-06-05-morning` | 42.83 | MKV single, short `full` service |
+   | `2024-01-14-morning` | 64.15 | MKV, five fragments, ordinary lossless concat |
+   | `2024-12-22-evening` | 45.62 | MKV, ten fragments, high fragment count |
+   | `2025-02-02-morning` | 80.04 | WebM single, long service and distinct container family |
+   | `2026-07-26-morning` | 81.01 | MKV single, long recent/post-boundary service |
+
+   Total calibration input is 353.16 minutes (5 h 53 m). No frozen-manifest item naturally needs
+   re-encoding: all included fragmented identities are lossless-compatible. Exercise the existing
+   re-encode fallback only with a temporary incompatible derivative of `2024-12-22-evening` in the
+   isolated calibration context; never alter the source, worksheet or manifest, and never admit the
+   derivative as corpus evidence. Use the project's configured local Whisper paths for both whole-
+   service and sermon transcription: `TRANSCRIPTION_SERVICE_TYPE=local`,
+   `SERVICE_TRANSCRIPTION_SERVICE=local`, host service `http://host.docker.internal:2022`, model
+   `large-v3-turbo`. Local Whisper has zero API charge and serialises by default, so worker-width
+   evidence must distinguish useful FFmpeg/video concurrency from workers merely waiting behind
+   the one Whisper resource. Paid calls in the incumbent arm are service-structure detection
+   (`gpt-5.6-sol` / `medium`) and sermon analysis (`gpt-5.6-terra` / `low`). Expected incumbent
+   pipeline-calibration API spend is $0.80–$1.30 with a separate $2 ceiling. Record actual token
+   usage, p50/p95 wall time, failures/rechecks and accepted worker width. The full 470-identity
+   include set is 23,696.83 minutes (394.95 hours); local transcription keeps its API cost at zero,
+   while current Sol/Terra assumptions put the definitive model spend at approximately $60–$90,
+   central estimate approximately $70, with a $100 planning ceiling. These estimates are neither an
+   authorization nor a target: the measured accepted arm replaces them before definitive approval.
+
+   **6a — Bank identical, human-reviewed inputs before any candidate call.** Run the six identities
+   once through the real pipeline with the incumbent configuration. Retain the exact whole-service
+   transcript, extracted-sermon transcript, offered OoS items, RMS artifact, model outputs and
+   `OpenAI chat completion usage` lines keyed by processing id. Do not retranscribe or re-extract for
+   candidate arms: every arm must receive byte-identical semantic inputs. Build a permission-
+   restricted `structure:evaluate` manifest from those artifacts. A human must watch the six
+   recordings and record expected section types and boundaries, primary sermon, children's-talk
+   distinction, reading references and OoS anchorings; incumbent output is not truth. Hash the
+   manifest and every banked transcript and record those hashes in each arm report.
+
+   Before paid comparison, add the smallest missing evaluation surface for sermon analysis. It must
+   accept the six banked sermon transcripts, run a named model/effort arm without mutating sermons,
+   and write a permission-restricted JSON artifact containing input hashes, raw structured outputs,
+   validation result, latency and usage attribution for blinded human scoring. It must reuse the
+   existing analysis service and remain behind its existing contract, not become a second analysis
+   implementation. If implemented as a one-shot Artisan command, its class docblock must require
+   deletion at IC8 closeout. Cover artifact binding, no-mutation behaviour and failure/truncation
+   reporting with focused PHPUnit tests; run PHPStan and Pint. `structure:evaluate` remains the
+   structure runner—do not build another one.
+
+   **6b — Run arms sequentially and stop early.** Set `OPENAI_EVALUATION_ARM` uniquely for every arm
+   so the existing usage logger can attribute spend. Use Sail and process-environment overrides; do
+   not edit `.env` or application defaults during the experiment. Application code must continue to
+   read the model and effort through `config(...)`. Every report must name the commit, service tier,
+   requested and returned model, configured and effective reasoning effort, corpus hash,
+   prompt/surface hash, input/cached-input/output/reasoning tokens, latency, retries/rechecks and
+   projected 470-identity cost at a dated official price snapshot. Keep calls serial for deterministic
+   attribution. Existing client timeouts and retry behaviour remain authoritative; do not improvise
+   a second transport path. The comparison-arm spend ceiling is **$5 in addition to** the incumbent
+   pipeline ceiling; crossing it requires fresh operator authorization.
+
+   Run service-structure arms in this order:
+
+   1. incumbent `gpt-5.6-sol` / `medium` once against the banked corpus;
+   2. candidate `gpt-5.6-terra` / `medium` once;
+   3. only if step 2 clears every single-draw safety gate, candidate `gpt-5.6-terra` / `low` once;
+   4. repeat each candidate that cleared those gates, with unchanged inputs and surface, and apply
+      the final two-draw gates below.
+
+   Do not test Luna for service structure unless Terra fails the economic gate and the operator
+   separately authorizes a wider capability jump. Run sermon-analysis arms independently in this
+   order: incumbent `gpt-5.6-terra` / `low`, candidate `gpt-5.6-luna` / `low`, then Luna / `none`
+   only if Luna / `low` clears every single-draw safety gate; repeat each candidate that clears those
+   gates once and apply the final two-draw gates below. A failed arm stops its descendants but does
+   not stop the independent call family.
+
+   **6c — Gates are consequence-based, not aggregate-score based.** A service-structure candidate
+   passes only when both draws have: the correct single primary sermon and correct sermon versus
+   children's-talk judgement on all six; sermon start and end each within 30 seconds of reviewed
+   truth on all six; no candidate-only hard validation failure, manual-review disposition, wrong
+   Bible-reading pairing or projection-changing OoS anchoring; no regression in section-type,
+   reading-reference, song-title or OoS-anchor metrics; and no draw-to-draw difference in primary
+   sermon identity or import disposition. Aggregate accuracy cannot excuse one wrong extraction.
+
+   Score sermon analysis blind to arm using the retained outputs. Factual invention, wrong main
+   Scripture reference, changed theological meaning, schema failure or validator failure is an
+   automatic arm failure. Otherwise score factual faithfulness, title, public summary, British
+   English and stability. A candidate passes only with no automatic failure, no lower per-sermon
+   factual-faithfulness result than the incumbent, and no materially worse title or summary on more
+   than one of six sermons in either draw. Record the human ruling beside the unedited outputs; do
+   not let a model grade itself.
+
+   **6d — Adoption and cost rule.** Adopt the cheapest passing arm separately for service structure
+   and sermon analysis only when its projected 470-identity cost is at least 15% lower for that call
+   family. Price the six first-attempt calls from their actual input, cached-input, output and
+   reasoning usage, then apply the observed extra-call rate for retries/rechecks:
+   `sum(first-attempt cost) / 6 × 470 × observed calls per identity`. Report each call family and the
+   combined total separately. If no candidate passes, retain the incumbent. If a candidate passes,
+   changing the production default still requires an explicit operator decision recorded here; an
+   evaluation result alone does not authorize a config change or definitive import.
+
+   This is bounded calibration evidence, not a permanent performance framework. Retain the accepted
+   report with the historic batch ledger and delete comparison-only command code at IC8 closeout.
 7. Run the definitive corpus in bounded resumable passes through
    `sermons:import-historic-videos`. Exact completed runs belonging to the same manifest item are
    successful prior work; unrelated same-date runs, pending review, failures and changed source
@@ -1968,12 +2077,10 @@ preserve the sequence of the investigation.
 
 | Open item | Owner / next action | Blocks |
 |---|---|---|
-| Carry historic-video corroboration grade into the Livestream source revision and fail closed for every non-full/missing historic grade | Coding agent, focused importer/adapter/projector tests specified in IC5 item 5 | Any paid video calibration or definitive video pass |
 | Re-census the 223 awaiting-video services and 135 current disagreements after full-grade video evidence is staged | Coding agent after IC5 definitive staging; operator handles only the surviving irreducible residue | Final convergence RG-A and release evidence, not the REV-D4 start of IC5 |
 | ~~Re-run the combined clean-rehearsal RG-A against the current expectation and inspect only repeated/high-volume proposal classes it surfaces~~ | — | **DONE 2026-08-24** (second combined run, `crockenhill_rehearsal_rga_20260824d`, zero model spend). This row's "regenerate the expectation first: 20 → 19" instruction was already stale when written — `2016-05-01-pm` was excluded the same day, taking the draft to 18 — and the run then took it to **20** by adding two genuine holds. Do not read a hold count off this row; the current expectation is `oos-corpus-expectation-20260824e.json` at **553 approved sources / 539 identities / 20 holds**. Both lanes reconcile with 0 unstaged approved sources and 0 unstaged identities. The proposal-class review is done (207 classes / 398 proposals, ~63% reducible to two shared shapes); see the §0 slice-1 row for the full result. |
-| Bind portable Email, OpenLP and video mutations to exact round authority; make video operation-bound and resumable | Coding agent, focused command/integration tests | First production round and definitive video |
 | Re-run current-era evidence coverage and recover any still-missing sources | Operator supplies source material; agent uses ordinary ingest/reprojection | IC4 only |
-| Review video worksheet exceptions and freeze manifest | Operator | Definitive video |
+| Run and approve the six-identity local-Whisper video calibration and gated cheaper-model comparison in IC5 item 6 | Coding agent first adds the bounded sermon-analysis evaluator and prepares human-reviewed truth; paid incumbent and candidate arms run only after operator authorization. Operator records the accepted model/effort for each call family, worker width and measured 470-identity cost | Definitive video dispatch |
 | Approve each era release and §8.4 publication policy | Maintainer/church | RG-C only |
 
 | Item | Blocks | State |

@@ -46,6 +46,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
         private readonly SermonRepository $sermonRepository,
         private readonly SermonAnalysisValidator $validator,
         private readonly SermonAnalysisPromptBuilder $promptBuilder,
+        private readonly ?SermonAnalysisEvaluationTelemetry $evaluationTelemetry = null,
     ) {
         // Only verify OpenAI API key if using the OpenAI service
         $analysisService = config('media-processing.analysis.service', 'openai');
@@ -208,9 +209,9 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
         $prompt = $this->promptBuilder->buildAnalysisPrompt($transcript, $existingSeries);
         $response = $this->executeAiRequest($prompt, $model, $processingId);
-        OpenAiUsageLogger::log($response, 'sermon_analysis', $model, $processingId, (string) config('media-processing.analysis.reasoning_effort', 'low'));
-
         $apiTime = microtime(true) - $apiStartTime;
+        OpenAiUsageLogger::log($response, 'sermon_analysis', $model, $processingId, (string) config('media-processing.analysis.reasoning_effort', 'low'));
+        $this->evaluationTelemetry?->recordResponse($response, $apiTime);
 
         $this->logger->logApiCall(
             $processingId,
@@ -238,6 +239,8 @@ class SermonAnalysisService implements SermonAnalysisInterface
                 strlen($validatedData['title'])
             ));
         }
+
+        $this->evaluationTelemetry?->recordValidation($validatedData);
 
         $this->logger->logProcessingStep(
             $processingId,
@@ -298,7 +301,8 @@ class SermonAnalysisService implements SermonAnalysisInterface
     private function executeAiRequest(string $prompt, string $model, string $processingId): CreateResponse
     {
         try {
-            return OpenAI::chat()->create(OpenAiChatPayload::forModel([
+            $configuredReasoningEffort = (string) config('media-processing.analysis.reasoning_effort', 'low');
+            $payload = OpenAiChatPayload::forModel([
                 'model' => $model,
                 'messages' => [
                     [
@@ -315,7 +319,10 @@ class SermonAnalysisService implements SermonAnalysisInterface
                 // Headroom for reasoning models, whose hidden reasoning tokens share this budget
                 // with the visible JSON; classic models stop early so the ceiling costs nothing.
                 'max_completion_tokens' => 4000,
-            ], reasoningEffort: (string) config('media-processing.analysis.reasoning_effort', 'low')));
+            ], reasoningEffort: $configuredReasoningEffort);
+            $this->evaluationTelemetry?->recordRequest($processingId, $payload, $configuredReasoningEffort);
+
+            return OpenAI::chat()->create($payload);
         } catch (ErrorException $e) {
             throw $e;
         } catch (\TypeError $e) {
