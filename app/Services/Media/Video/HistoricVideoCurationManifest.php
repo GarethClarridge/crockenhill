@@ -24,8 +24,27 @@ class HistoricVideoCurationManifest
 
     private const SUPPORTED_EXTENSIONS = ['avi', 'mkv', 'mov', 'mp4', 'webm'];
 
-    public function plan(string $rawDirectory, string $manifestPath): HistoricVideoCurationPlan
-    {
+    /**
+     * Build the approved plan, optionally re-reading every included recording to prove its bytes
+     * still match the frozen manifest.
+     *
+     * `$verifySourceContents` exists because that content check reads the whole included corpus —
+     * roughly 1.0 TB, about three hours — and it is redundant for any file this pass will actually
+     * dispatch: {@see HistoricVideoImporter} re-checks size and SHA-256
+     * per file immediately before FFmpeg consumes it, and refuses the item otherwise. Its unique
+     * coverage is the files a bounded pass does *not* dispatch, which is fail-fast evidence worth
+     * three hours before a definitive run and pure cost while iterating towards one.
+     *
+     * Skipping it never weakens the plan's identity: `manifestHash` and `planHash` are derived from
+     * the manifest's *declared* metadata, so both hashes are byte-identical either way. What a
+     * caller gives up is the stronger claim that holding a plan hash proves the whole corpus was
+     * intact at plan time. Existence, symlink, root-containment and byte-size checks always run.
+     */
+    public function plan(
+        string $rawDirectory,
+        string $manifestPath,
+        bool $verifySourceContents = true,
+    ): HistoricVideoCurationPlan {
         $rawRoot = realpath($rawDirectory);
 
         if (! is_string($rawRoot) || ! is_dir($rawRoot)) {
@@ -96,7 +115,7 @@ class HistoricVideoCurationManifest
             $bytes = 0;
 
             foreach ($entry['files'] as $file) {
-                $files[] = $this->verifiedPath($rawRoot, $file);
+                $files[] = $this->verifiedPath($rawRoot, $file, $verifySourceContents);
                 $bytes += $file['byte_size'];
             }
 
@@ -563,8 +582,17 @@ class HistoricVideoCurationManifest
         );
     }
 
-    /** @param array{relative_path:string,sha256:string,byte_size:int} $file */
-    private function verifiedPath(string $rawRoot, array $file): string
+    /**
+     * The cheap checks are unconditional; only the whole-file read is gated.
+     *
+     * `filesize()` is a stat call, so refusing a missing, truncated, replaced or re-encoded source
+     * costs nothing and stays on every path. Reading the file to compare SHA-256 is the three-hour
+     * pass, and what it uniquely catches beyond the size check is same-length corruption — which
+     * the importer's pre-FFmpeg gate catches anyway for every file actually dispatched.
+     *
+     * @param  array{relative_path:string,sha256:string,byte_size:int}  $file
+     */
+    private function verifiedPath(string $rawRoot, array $file, bool $verifyContents): string
     {
         $path = "{$rawRoot}/{$file['relative_path']}";
 
@@ -578,11 +606,18 @@ class HistoricVideoCurationManifest
             throw new RuntimeException("Historic video source escapes its root: {$file['relative_path']}");
         }
 
-        $size = filesize($realPath);
+        if (filesize($realPath) !== $file['byte_size']) {
+            throw new RuntimeException("Historic video source changed: {$file['relative_path']}");
+        }
+
+        if (! $verifyContents) {
+            return $realPath;
+        }
+
         $hash = hash_file('sha256', $realPath);
 
-        if ($size !== $file['byte_size'] || ! is_string($hash) || ! hash_equals($file['sha256'], $hash)) {
-            throw new RuntimeException("Historic video source changed: {$file['relative_path']}");
+        if (! is_string($hash) || ! hash_equals($file['sha256'], $hash)) {
+            throw new RuntimeException("Historic video source content changed: {$file['relative_path']}");
         }
 
         return $realPath;

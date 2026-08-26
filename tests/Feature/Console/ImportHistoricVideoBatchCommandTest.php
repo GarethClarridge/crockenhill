@@ -587,6 +587,100 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
     }
 
+    /**
+     * Which guarantee a run bought must be legible in its own output, because the two dispatches
+     * are otherwise indistinguishable — same manifest, same plan hash, same round.
+     */
+    #[Test]
+    public function the_dispatch_reports_whether_it_verified_corpus_contents(): void
+    {
+        $this->createFakeVideo("{$this->temporaryDirectory}/2021-04-12 10-02-00.mkv");
+        $manifestPath = $this->historicManifest('2021-04-12 10-02-00.mkv', '2021-04-12', 'morning');
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+        $operation = $this->historicVideoOperation($plan->manifestHash);
+
+        $arguments = [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--manifest' => $manifestPath,
+            '--plan-hash' => $plan->planHash,
+            '--operation' => $operation->operation_id,
+        ];
+
+        $this->artisan('sermons:import-historic-videos', $arguments)
+            ->expectsOutputToContain('Corpus contents not re-read');
+
+        $this->artisan('sermons:import-historic-videos', $arguments + ['--verify-corpus' => true])
+            ->expectsOutputToContain('Corpus contents verified against the approved manifest.');
+    }
+
+    /**
+     * The guarantee that lets `--verify-corpus` stay optional: skipping the content re-read must
+     * not move the plan hash. If it did, a bounded pass would belong to a different round than the
+     * definitive run and the frozen manifest would need re-approval to iterate against.
+     */
+    #[Test]
+    public function the_plan_hash_is_identical_with_and_without_content_verification(): void
+    {
+        $relativePath = '2021-04-12 18-02-00.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}");
+        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'evening');
+        $manifests = app(HistoricVideoCurationManifest::class);
+
+        $verified = $manifests->plan($this->temporaryDirectory, $manifestPath, true);
+        $unverified = $manifests->plan($this->temporaryDirectory, $manifestPath, false);
+
+        $this->assertSame($verified->manifestHash, $unverified->manifestHash);
+        $this->assertSame($verified->planHash, $unverified->planHash);
+        $this->assertEquals($verified->workItems, $unverified->workItems);
+    }
+
+    /**
+     * Same-length corruption is the only drift the byte-size check cannot see, so it is exactly
+     * what the opt-in content read buys — and what the importer still catches before FFmpeg.
+     */
+    #[Test]
+    public function the_manifest_rejects_same_size_corruption_only_when_verifying_contents(): void
+    {
+        $relativePath = '2021-04-12 18-02-00.mkv';
+        $path = "{$this->temporaryDirectory}/{$relativePath}";
+        $this->createFakeVideo($path);
+        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'evening');
+
+        $handle = fopen($path, 'r+b');
+        $this->assertIsResource($handle);
+        fwrite($handle, 'corrupted');
+        fclose($handle);
+        clearstatcache(true, $path);
+
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath, false);
+        $this->assertCount(1, $plan->workItems);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("Historic video source content changed: {$relativePath}");
+
+        app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath, true);
+    }
+
+    /**
+     * Everything a stat call can see stays unconditional, so a truncated, replaced or re-encoded
+     * source is refused on the cheap path too.
+     */
+    #[Test]
+    public function the_manifest_rejects_a_resized_recording_without_verifying_contents(): void
+    {
+        $relativePath = '2021-04-12 18-02-00.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}");
+        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'evening');
+
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}", 36 * 1024 * 1024);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("Historic video source changed: {$relativePath}");
+
+        app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath, false);
+    }
+
     #[Test]
     public function the_manifest_rejects_a_segment_count_that_contradicts_its_files(): void
     {

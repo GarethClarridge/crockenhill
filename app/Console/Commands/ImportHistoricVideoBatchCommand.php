@@ -30,6 +30,7 @@ class ImportHistoricVideoBatchCommand extends Command
                             {--dir= : Root directory (default: /Volumes/CBC Drive/ServiceVideos)}
                             {--manifest= : Approved historic-video curation manifest}
                             {--plan-hash= : Exact plan_hash emitted by the approved manifest preflight}
+                            {--verify-corpus : Re-read every included recording to prove its bytes still match the manifest (~1.0 TB, hours); off while iterating, on for the definitive run}
                             {--operation= : Immutable historic import operation id this dispatch belongs to (required without --dry-run)}
                             {--from= : Only files from this date (YYYY-MM-DD)}
                             {--until= : Only files up to this date (YYYY-MM-DD)}
@@ -111,13 +112,27 @@ class ImportHistoricVideoBatchCommand extends Command
         $operation = null;
 
         if ($manifestPath !== null) {
+            /**
+             * The content re-read is opt-in because it costs a whole-corpus pass and is redundant
+             * for every file this run dispatches — {@see HistoricVideoImporter} re-checks size and
+             * SHA-256 immediately before FFmpeg. Buy it for the definitive run, where fail-fast
+             * over the files this pass will *not* touch is worth the hours; skip it while
+             * iterating. Either way the plan hash is identical, so the flag can never change which
+             * round this dispatch belongs to.
+             */
+            $verifyCorpus = (bool) $this->option('verify-corpus');
+
             try {
-                $plan = $curationManifest->plan($directory, $manifestPath);
+                $plan = $curationManifest->plan($directory, $manifestPath, $verifyCorpus);
             } catch (Throwable $exception) {
                 $this->error($exception->getMessage());
 
                 return self::FAILURE;
             }
+
+            $this->line($verifyCorpus
+                ? 'Corpus contents verified against the approved manifest.'
+                : 'Corpus contents not re-read (--verify-corpus off); every dispatched file is still verified before FFmpeg.');
 
             $approvedWorkItems = $plan->workItems;
             $defaultYear = null;

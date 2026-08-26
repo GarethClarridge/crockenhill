@@ -1816,8 +1816,25 @@ The B13 false-acceptance reversal semantics are already implemented (PR16).
    Eleven overlapping physical files were moved recoverably to
    `/Volumes/Sonnics/Services Quarantine/historic-video-curation-20260826`; the joint 2021-09-05
    recording was retained as Evening. The graded corroboration field and headerless-WebM
-   packet-count duration recovery are implemented and tested. A future `plan()` still re-hashes
-   the approximately 1.0 TB corpus; schedule around the observed approximately three-hour pass.
+   packet-count duration recovery are implemented and tested.
+
+   **The whole-corpus content re-read is now opt-in (2026-08-26).** `plan()` previously read all
+   approximately 1.0 TB — about three hours — on every call, including a six-file calibration pass.
+   That read is redundant for any file a pass dispatches: `HistoricVideoImporter`
+   re-checks size and SHA-256 per file immediately before FFmpeg and refuses the item otherwise,
+   proven by an existing tamper test. Existence, symlink, root-containment and byte-size checks
+   remain unconditional, so a missing, truncated, replaced or re-encoded source is still refused on
+   the cheap path; only same-length corruption needs the full read. `sermons:import-historic-videos`
+   therefore takes `--verify-corpus`, and the dispatch prints which guarantee it bought.
+
+   **Run bounded/calibration passes without it; run the definitive pass with it.** Its unique
+   coverage is the files a bounded pass does *not* dispatch, which is fail-fast evidence worth hours
+   before a 470-identity run and pure cost while iterating towards one. `manifestHash` and
+   `planHash` are derived from the manifest's declared metadata and are byte-identical either way —
+   pinned by a regression test — so the flag can never change which round a dispatch belongs to and
+   the frozen `7b7bf688…`/`65dfd15c…` artifacts need no re-freeze or re-approval. What a run without
+   the flag gives up is only the stronger claim that holding a plan hash proves the whole corpus was
+   intact at plan time.
 4. Before paid/bulk work, finish §0 slice 2. In particular, the command must accept and bind the
    immutable operation used by notification suppression, and bounded dispatch must resume against
    the **same full manifest**. Do not implement “checkpoint manifests”: different plan hashes create
