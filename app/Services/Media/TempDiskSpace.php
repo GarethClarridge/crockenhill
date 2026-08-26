@@ -38,12 +38,36 @@ class TempDiskSpace
     }
 
     /**
+     * Whether the operator has declared this temp volume unmeasurable.
+     *
+     * This exists because `disk_free_space()` does not always fail honestly. Through a Docker bind
+     * mount onto a nested APFS volume it returns the *parent* filesystem's figure — a confidently
+     * wrong number rather than `false` — so no amount of care inside a check can tell it is being
+     * lied to. The operator declares the volume unreadable and carries the headroom judgement.
+     *
+     * Deliberately its own key rather than a floor of zero. Zero already means "no floor, but still
+     * refuse work larger than the readable free space", which TempDiskSpaceTest pins; unmeasurable
+     * is a different statement from unbounded.
+     *
+     * Every gate that sizes work from free space must consult this, or disabling it at one gate
+     * simply moves the failure to the next one.
+     */
+    public static function checksDisabled(): bool
+    {
+        return (bool) config('media-processing.storage.temp_disk_unmeasurable', false);
+    }
+
+    /**
      * Whether the temp disk has room for `$requiredBytes` of work without dropping
      * below the configured free-space floor. Returns true when free space cannot be
      * measured (e.g. unsupported filesystem) so an unmeasurable disk never blocks.
      */
     public static function hasSpaceFor(int $requiredBytes): bool
     {
+        if (self::checksDisabled()) {
+            return true;
+        }
+
         $freeBytes = @disk_free_space(self::path());
 
         if ($freeBytes === false) {

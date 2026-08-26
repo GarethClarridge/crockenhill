@@ -55,6 +55,13 @@ return [
             'visibility' => 'public',
         ],
 
+        'historic_temp' => [
+            'driver' => 'local',
+            'root' => env('HISTORIC_TEMP_ROOT', storage_path('app/private/historic-temp')),
+            'visibility' => 'private',
+            'throw' => true,
+        ],
+
         'historic_staging' => [
             'driver' => 'local',
             'root' => env('HISTORIC_STAGING_ROOT', storage_path('app/private/historic-staging')),

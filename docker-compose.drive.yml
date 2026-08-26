@@ -16,9 +16,18 @@
 # below in .env to match wherever the drive mounts; each falls back to an empty
 # local stub directory so a partially-configured .env still starts.
 
+# The source mounts are read-only: the corpus is irreplaceable evidence and nothing in the
+# pipeline has any business writing to it.
+#
+# `CBC_HISTORIC_WORK_PATH` is the one writable drive mount, and it exists because the historic
+# pipeline's working space cannot live on the project volume. `historic_staging` and the temp disk
+# both default under `storage/`, which is the host bind mount; on a full boot volume a dispatch
+# either refuses at the temp-disk guard or dies mid-transcode. The Docker overlay is not an
+# alternative — its disk image is itself a file on that same full host volume.
 x-cbc-video-mount: &cbc-video-mount
     volumes:
         - '${CBC_SERVICE_VIDEOS_PATH:-./storage/mnt/service-videos}:/mnt/cbc-service-videos:ro'
+        - '${CBC_HISTORIC_WORK_PATH:-./storage/mnt/historic-work}:/mnt/historic-work'
 
 services:
     laravel.test:
@@ -26,6 +35,7 @@ services:
             - '${CBC_SERVICE_VIDEOS_PATH:-./storage/mnt/service-videos}:/mnt/cbc-service-videos:ro'
             - '${CBC_AUDIO_MP3_PATH:-./storage/mnt/audio-mp3}:/mnt/cbc-audio-mp3:ro'
             - '${CBC_SERVICES_PATH:-./storage/mnt/services}:/mnt/cbc-services:ro'
+            - '${CBC_HISTORIC_WORK_PATH:-./storage/mnt/historic-work}:/mnt/historic-work'
     queue.worker: *cbc-video-mount
     queue.worker-video: *cbc-video-mount
     queue.worker-historic-ffmpeg: *cbc-video-mount

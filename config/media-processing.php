@@ -60,13 +60,22 @@ return [
         'transcript_disk' => env('TRANSCRIPT_STORAGE_DISK', env('SERMON_STORAGE_DISK', env('FILESYSTEM_DISK', 'local'))),
         'historic_staging_disk' => env('HISTORIC_STAGING_DISK', 'historic_staging'),
         'historic_quarantine_disk' => env('HISTORIC_QUARANTINE_DISK', 'historic_quarantine'),
-        'temp_disk' => 'local',
+        // MEDIA_PROCESSING_TEMP_DISK moves the pipeline's working space off the project volume.
+        // Historic passes need tens of GB of concat/transcode scratch that `local`
+        // (storage_path('app')) cannot supply when the host volume is full.
+        'temp_disk' => env('MEDIA_PROCESSING_TEMP_DISK', 'local'),
         'metadata_cache_ttl' => (int) env('SERMON_METADATA_CACHE_TTL', 3600),
         // Shared minimum free-space floor (GB) for the local temp disk — the genuine
         // pipeline bottleneck. The upload validator and the historic importer guard read
         // this single value via TempDiskSpace so they never disagree about how much
         // headroom a dispatch needs.
         'temp_disk_min_free_gb' => (int) env('MEDIA_PROCESSING_TEMP_DISK_MIN_FREE_GB', 20),
+        // Declares the temp volume's free space unreadable from this process, so every gate that
+        // sizes work from it stands down and the operator carries the headroom judgement instead.
+        // Needed when the temp disk is a Docker bind mount onto a nested volume: disk_free_space()
+        // then reports the *parent* filesystem, a confidently wrong number rather than a failure,
+        // which no check can detect from the inside. Never set this on a volume that can be read.
+        'temp_disk_unmeasurable' => (bool) env('MEDIA_PROCESSING_TEMP_DISK_UNMEASURABLE', false),
         'paths' => [
             'audio' => 'sermons/audio',
             'video' => 'sermons/video',

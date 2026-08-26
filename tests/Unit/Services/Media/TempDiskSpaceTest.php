@@ -83,4 +83,25 @@ class TempDiskSpaceTest extends TestCase
 
         $this->assertTrue(TempDiskSpace::hasSpaceFor(1024));
     }
+
+    /**
+     * Unmeasurable is a different statement from unbounded: a floor of zero still refuses work
+     * larger than the readable free space, which the test above pins. This key exists for a volume
+     * whose free space cannot be read at all.
+     */
+    #[Test]
+    public function has_space_for_returns_true_when_the_volume_is_declared_unmeasurable(): void
+    {
+        Config::set('media-processing.storage.temp_disk_min_free_gb', 1024 * 1024);
+        Config::set('media-processing.storage.temp_disk_unmeasurable', true);
+
+        $this->assertTrue(TempDiskSpace::checksDisabled());
+        $this->assertTrue(TempDiskSpace::hasSpaceFor(1024 ** 5));
+    }
+
+    #[Test]
+    public function checks_are_enabled_by_default(): void
+    {
+        $this->assertFalse(TempDiskSpace::checksDisabled());
+    }
 }

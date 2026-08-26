@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Media\Video;
 
+use App\Services\Media\TempDiskSpace;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -110,6 +111,10 @@ class VideoStorageService
      */
     public function validateStorageSpace(int $requiredBytes): bool
     {
+        if (TempDiskSpace::checksDisabled()) {
+            return true;
+        }
+
         try {
             $available = disk_free_space(Storage::disk($this->tempDisk())->path(''));
 

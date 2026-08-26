@@ -1287,6 +1287,14 @@ class HistoricVideoImporter
      */
     private function hasTempDiskSpace(array $files, int $minFreeGb): bool
     {
+        // An unmeasurable temp volume must short-circuit before the requirement below, because
+        // `max($minFreeBytes, $totalFileBytes * 2)` still demands twice the source size however low
+        // the floor is set. Without this, a volume whose free space cannot be read silently skips
+        // every item — the failure mode the error branch below exists to make loud.
+        if (TempDiskSpace::checksDisabled()) {
+            return true;
+        }
+
         $freeBytes = disk_free_space($this->tempDiskPath());
 
         if ($freeBytes === false) {
