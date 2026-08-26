@@ -28,7 +28,7 @@ class PrepareHistoricImportOperationCommand extends Command
         {plan-hash? : Approved operation plan SHA-256}
         {--anchors : Read-only: report this host'."'".'s resource anchors and exit without touching anything}
         {--manifest=* : Exact source=sha256 manifest binding; repeat for every source}
-        {--runtime-evidence= : Exact definitive-runtime evidence JSON}
+        {--runtime-evidence= : Exact definitive-runtime evidence JSON; required on a production target, optional for a rehearsal one}
         {--deadline= : Accepted ISO-8601 operation deadline}
         {--max-cost= : Accepted maximum cost in minor currency units}';
 
@@ -38,6 +38,7 @@ class PrepareHistoricImportOperationCommand extends Command
         HistoricImportTargetFingerprint $target,
         HistoricImportRuntimePreflight $runtime,
         HistoricImportJournal $journal,
+        HistoricImportProductionGuard $productionGuard,
     ): int {
         if ($this->option('anchors')) {
             return $this->reportAnchors(
@@ -60,12 +61,39 @@ class PrepareHistoricImportOperationCommand extends Command
                 throw new RuntimeException('Historic import operation requires a future --deadline and non-negative --max-cost.');
             }
 
+            $evidence = $this->runtimeEvidence();
+
+            /**
+             * Runtime evidence is required on a production target and optional on a rehearsal one.
+             *
+             * The 15-key attestation was built for the one-shot GO (commit `ceaadb103`), where a
+             * single definitive operation carried the whole import. REV-D1–D4 replaced that with
+             * incremental convergence, whose bounded staging passes are re-run repeatedly and
+             * released from nowhere. Asserting production properties — encryption at rest,
+             * verified provider connectivity — about a throwaway calibration on a local private
+             * disk would be manufacturing evidence, not recording it.
+             *
+             * The narrowing is deliberate and bounded to a rehearsal target.
+             * {@see HistoricImportOperationIdentity::fromBindings()} already models the absent
+             * case, falling back to the target fingerprint, and the only consumer of the stored
+             * value ({@see HistoricImportCheckpointRuntime::assertRuntimeBinding()}) compares it
+             * with `hash_equals` — it detects a runtime that changed mid-operation and never
+             * re-validates the attestation's substance. A rehearsal operation keeps that
+             * change-detection property intact; what it gives up is the production-grade claim,
+             * which a rehearsal target has no business making.
+             */
+            if ($evidence === null && $productionGuard->guardsCurrentEnvironment()) {
+                throw new RuntimeException(
+                    'A production historic import operation requires --runtime-evidence; only a rehearsal target may omit it.',
+                );
+            }
+
             $identity = HistoricImportOperationIdentity::fromBindings(
                 batchKey: trim((string) $this->argument('batch')),
                 manifestHashes: $this->manifestHashes(),
                 planHash: strtolower(trim((string) $this->argument('plan-hash'))),
                 targetFingerprint: $target->hash(),
-                runtimeFingerprint: $runtime->fingerprint($this->runtimeEvidence()),
+                runtimeFingerprint: $evidence === null ? null : $runtime->fingerprint($evidence),
             );
             $operation = HistoricImportOperation::query()->firstOrCreate(
                 ['binding_hash' => $identity->bindingHash],
@@ -95,6 +123,9 @@ class PrepareHistoricImportOperationCommand extends Command
             $this->info("Operation ID: {$operation->operation_id}");
             $this->line("Target fingerprint: {$operation->target_fingerprint}");
             $this->line("Runtime fingerprint: {$operation->runtime_fingerprint}");
+            $this->line($evidence === null
+                ? 'Runtime binding: rehearsal target, no runtime evidence offered (fingerprint falls back to the target).'
+                : 'Runtime binding: attested by the supplied runtime evidence.');
             $this->line("Binding hash: {$operation->binding_hash}");
 
             return self::SUCCESS;
@@ -192,13 +223,22 @@ class PrepareHistoricImportOperationCommand extends Command
         return $hashes;
     }
 
-    /** @return array<string, mixed> */
-    private function runtimeEvidence(): array
+    /**
+     * Null means the operator did not offer runtime evidence at all; a named path that cannot be
+     * read is still a failure, so a typo can never be mistaken for a deliberate omission.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function runtimeEvidence(): ?array
     {
         $path = $this->option('runtime-evidence');
 
-        if (! is_string($path) || trim($path) === '' || ! is_file(trim($path))) {
-            throw new RuntimeException('Historic import operation requires --runtime-evidence.');
+        if (! is_string($path) || trim($path) === '') {
+            return null;
+        }
+
+        if (! is_file(trim($path))) {
+            throw new RuntimeException('Historic import runtime evidence path is not a readable file.');
         }
 
         $evidence = json_decode((string) file_get_contents(trim($path)), true, flags: JSON_THROW_ON_ERROR);
