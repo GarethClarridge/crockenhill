@@ -12,8 +12,10 @@ use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Jobs\AutoPublishServiceSection;
 use App\Jobs\PrepareSectionPublicationCandidates;
+use App\Jobs\SendCompletionNotification;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\ServiceSection;
@@ -29,12 +31,15 @@ use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
 class PrepareSectionPublicationCandidatesTest extends TestCase
 {
+    use CreatesHistoricImportOperations;
     use RefreshDatabase;
 
     #[Test]
@@ -544,6 +549,91 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             // Verify it was dispatched for the correct section.
             return $job->serviceSectionId === $section->id;
         });
+    }
+
+    #[Test]
+    public function historic_completion_suppresses_notifications_and_owns_nested_publication_work(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        Bus::fake([AutoPublishServiceSection::class]);
+        Mail::fake();
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => [
+                'song' => SongPublicationHandler::class,
+            ],
+            'media-processing.email.send_success_notifications' => true,
+            'media-processing.email.admin_email' => 'admin@example.com',
+        ]);
+
+        $operation = $this->createHistoricImportOperation();
+        $song = Song::factory()->create();
+        $churchService = ChurchService::factory()->create();
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'song_id' => $song->id,
+        ]);
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'historic_import_operation_id' => $operation->id,
+            'source_file_path' => 'livestreams/source.mp4',
+            'church_service_id' => $churchService->id,
+            'processing_metadata' => [
+                'historic_import' => [
+                    'operation_id' => $operation->operation_id,
+                    'job_key' => 'historic-video-job',
+                ],
+            ],
+        ]);
+
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'status' => ServiceSectionStatus::Identified->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+            'metadata' => ['confidence_level' => 'high'],
+            'start_time' => 60.0,
+            'end_time' => 300.0,
+        ]);
+
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->willReturn('temp/section-video.mp4');
+        $videoExtractor->expects($this->never())
+            ->method('extractOptimizedAudio');
+
+        (new PrepareSectionPublicationCandidates($processingLog))->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class),
+        );
+        (new SendCompletionNotification($processingLog))->handle();
+
+        $nestedJob = HistoricImportNestedJob::query()->sole();
+
+        $this->assertSame($operation->id, $nestedJob->historic_import_operation_id);
+        $this->assertSame($processingLog->id, $nestedJob->media_processing_log_id);
+        $this->assertSame(AutoPublishServiceSection::class, $nestedJob->job_type);
+        $this->assertSame("auto-publish-section-{$section->id}", $nestedJob->job_key);
+        $this->assertSame('queued', $nestedJob->state);
+        Bus::assertDispatched(
+            AutoPublishServiceSection::class,
+            fn (AutoPublishServiceSection $job): bool => $job->serviceSectionId === $section->id,
+        );
+        Mail::assertNothingSent();
+        $this->assertSame(['success'], $operation->alerts()->pluck('kind')->all());
+        $this->assertSame(1, $operation->journalEntries()->where('event', 'notification_suppressed')->count());
     }
 
     #[Test]

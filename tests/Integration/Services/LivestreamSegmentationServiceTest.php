@@ -24,10 +24,12 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
 class LivestreamSegmentationServiceTest extends TestCase
 {
+    use CreatesHistoricImportOperations;
     use RefreshDatabase;
 
     private LivestreamSegmentationService $service;
@@ -147,6 +149,27 @@ class LivestreamSegmentationServiceTest extends TestCase
             'processing_type' => 'livestream',
             'status' => 'pending',
         ]);
+    }
+
+    #[Test]
+    public function historic_operation_metadata_binds_the_processing_log_before_dispatch(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $file = UploadedFile::fake()->create('2024-01-14_morning.mp4', 50000, 'video/mp4');
+        $this->setupLivestreamMocks('2024-01-14_morning.mp4');
+
+        $result = $this->service->startProcessing($file, processingMetadata: [
+            'historic_import' => [
+                'operation_id' => $operation->operation_id,
+                'job_key' => 'historic-video-job',
+            ],
+        ]);
+
+        $processingLog = MediaProcessingLog::query()
+            ->where('processing_id', $result->processingId)
+            ->sole();
+
+        $this->assertSame($operation->id, $processingLog->historic_import_operation_id);
     }
 
     #[Test]
