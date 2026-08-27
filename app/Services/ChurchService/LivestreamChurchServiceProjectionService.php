@@ -105,7 +105,12 @@ class LivestreamChurchServiceProjectionService
         $beforeSnapshot = $this->canonicalStateService->snapshot($churchService);
 
         /**
-         * @var array{church_service: ChurchService, sync_result: array{conflicts: array<int, array<string, mixed>>}, needs_review: bool, staged: bool} $result
+         * `ordering_conflict` is the reason string when the item sync hit the active-position
+         * unique constraint, and null otherwise. It is carried out of the transaction rather than
+         * returned as a skip from inside it, because the closure and `projectItems()` have
+         * different contracts and returning one from the other is what crashed this method.
+         *
+         * @var array{church_service: ChurchService, sync_result: array{conflicts: array<int, array<string, mixed>>}, needs_review: bool, staged: bool, ordering_conflict: string|null} $result
          */
         $result = DB::transaction(function () use ($processingLog, $sections, $itemPayloads, $churchService, $identity, $isNewService, $structureContent, $refining): array {
             $projectionMetadata = [
@@ -157,6 +162,7 @@ class LivestreamChurchServiceProjectionService
                     'sync_result' => [],
                     'needs_review' => true,
                     'staged' => true,
+                    'ordering_conflict' => null,
                 ];
             }
 
@@ -174,7 +180,23 @@ class LivestreamChurchServiceProjectionService
                         'church_service_id' => $churchService->id,
                     ]);
 
-                    return $this->skipped('Service item ordering constraint violated during livestream projection', $churchService->id);
+                    /**
+                     * Return the *closure's* contract, not the method's.
+                     *
+                     * This previously returned {@see self::skipped()}, whose shape belongs to
+                     * `project()`'s caller. Inside the transaction that produced an array with no
+                     * `church_service` key, so the graceful skip this branch exists to perform
+                     * crashed with `Undefined array key "church_service"` — on every retry, turning
+                     * a recoverable skip into a permanently failed job. The conflict is carried out
+                     * of the transaction and translated below instead.
+                     */
+                    return [
+                        'church_service' => $churchService,
+                        'sync_result' => [],
+                        'needs_review' => false,
+                        'staged' => false,
+                        'ordering_conflict' => 'Service item ordering constraint violated during livestream projection',
+                    ];
                 }
 
                 throw $exception;
@@ -206,8 +228,17 @@ class LivestreamChurchServiceProjectionService
                 'sync_result' => $syncResult,
                 'needs_review' => $needsReview,
                 'staged' => false,
+                'ordering_conflict' => null,
             ];
         });
+
+        // Translated here rather than inside the transaction, so the skip is reported on the
+        // contract `project()`'s caller expects while the committed work stays consistent.
+        if ($result['ordering_conflict'] !== null) {
+            // The closure's own service, not the outer nullable one: a conflict can only arise
+            // once items are being synced, so this is always the service that was written to.
+            return $this->skipped($result['ordering_conflict'], $result['church_service']->id);
+        }
 
         $churchService = $result['church_service'];
         $needsReview = $result['needs_review'];

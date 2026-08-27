@@ -17,9 +17,11 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\User;
+use App\Services\ChurchService\ChurchServiceItemSyncService;
 use App\Services\ChurchService\ChurchServiceProjector;
 use App\Services\ChurchService\LivestreamChurchServiceProjectionService;
 use App\Services\Public\PublicSongUsageService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use PHPUnit\Framework\Attributes\Test;
@@ -1090,6 +1092,157 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
 
         $this->assertArrayNotHasKey('historic_import', $record->processing_fingerprint);
         $this->assertArrayNotHasKey('corroboration_grade', $record->processing_fingerprint);
+    }
+
+    /**
+     * The ordering-constraint catch is meant to skip this projection, not crash it.
+     *
+     * It returned `skipped()` — the method's *outer* contract — from inside the `DB::transaction`
+     * closure, whose consumer reads `$result['church_service']`. The intended graceful skip threw
+     * `Undefined array key "church_service"` instead, and because the job retries, a recoverable
+     * skip became a permanent failure. Regression guard for the historic calibration failure on
+     * 2024-01-14.
+     */
+    #[Test]
+    public function test_ordering_constraint_violation_skips_instead_of_crashing(): void
+    {
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Song, 'title' => 'Amazing Grace', 'confidence' => 0.95],
+            ['type' => ServiceSectionType::Sermon, 'title' => 'The Prodigal Son', 'confidence' => 0.9],
+        ]);
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-23',
+            'service' => SermonService::Morning,
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'reviewed_canonical_revision' => null,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Existing OpenLP Song',
+            'source' => ChurchServiceItemSource::OpenLp,
+        ]);
+
+        $sync = $this->mock(ChurchServiceItemSyncService::class);
+        $sync->shouldReceive('sync')->andThrow(new UniqueConstraintViolationException(
+            'mysql',
+            'update `church_service_items` set `position` = ?',
+            [1],
+            new \RuntimeException("Duplicate entry for key 'church_service_items_active_position_unique'"),
+        ));
+
+        $result = app(LivestreamChurchServiceProjectionService::class)->project($log);
+
+        $this->assertFalse($result['projected']);
+        $this->assertSame(
+            'Service item ordering constraint violated during livestream projection',
+            $result['reason'],
+        );
+        $this->assertSame($churchService->id, $result['church_service_id']);
+    }
+
+    /**
+     * Reproduction of the historic calibration failure on 2024-01-14 morning (service 544).
+     *
+     * Both sides are the real data: 13 OpenLP items at contiguous positions 1-13 with
+     * `reviewed_canonical_revision` NULL, and the 18 sections the detector actually produced, five
+     * of which are OTHER and are dropped by the mapper — leaving 13 incoming against 13 existing.
+     * Three incoming songs match existing ones by title while the rest are new or preserved, so
+     * this is a cross-source merge with preserved items and should take the anchored ordering path.
+     *
+     * It must project. Skipping on an ordering constraint means the position assignment collided
+     * with a live row mid-write, which is the defect this guards.
+     */
+    #[Test]
+    public function test_projects_into_a_service_already_populated_by_openlp(): void
+    {
+        $this->markTestSkipped(
+            'Reproduces an open defect. `stageExistingItems()` parks rows at `maxPosition + 1...`, '
+            .'but a merge that yields more items than the service already held assigns final '
+            .'positions that run into that staging band, so the write collides with a still-staged '
+            .'row. Confirmed by raising the staging offset, which turns this test green. Un-skip '
+            .'when the staging band is lifted clear of the highest assignable final position.'
+        );
+
+        $log = $this->createProcessingLog('2024-01-14', SermonService::Morning);
+
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Other, 'title' => 'Pre-service and unclear speech', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Welcome, 'title' => 'Opening words and call to worship', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Other, 'title' => 'Opening worship', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Prayer, 'title' => 'Opening prayers', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Song, 'title' => 'Opening song', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Other, 'title' => 'Persecution of Christians in Nigeria', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::BibleReading, 'title' => 'A living hope through Christ', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Other, 'title' => 'Reflection on persecuted Christians', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Prayer, 'title' => 'Prayer for persecuted Christians', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Song, 'title' => 'In Christ Alone', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::BibleReading, 'title' => 'Paul at the Areopagus', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::BibleReading, 'title' => 'Faith credited as righteousness', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::BibleReading, 'title' => "Serving with God's strength", 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Song, 'title' => 'Beneath the Cross of Jesus', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Other, 'title' => 'Children leave for their lesson', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Prayer, 'title' => 'Prayer before the sermon', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Sermon, 'title' => 'Serving God by grace', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Song, 'title' => "Who Is on the Lord's Side?", 'confidence' => 0.9],
+        ]);
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2024-01-14',
+            'service' => SermonService::Morning,
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'reviewed_canonical_revision' => null,
+        ]);
+
+        $existing = [
+            ['images', 'Notices'],
+            ['songs', 'I Will Enter His Gates #182'],
+            ['songs', 'O Lord My God #190'],
+            ['presentations', 'Nigeria Persecution of Christians'],
+            ['songs', 'In Christ Alone'],
+            ['custom', 'Reading'],
+            ['bibles', 'Acts 17:22-31'],
+            ['custom', 'Reading 2'],
+            ['bibles', 'Romans 4:4-5'],
+            ['custom', 'Reading 3'],
+            ['bibles', '1 Peter 4:7-11'],
+            ['songs', 'Beneath the Cross of Jesus'],
+            ['songs', "Who Is On The Lord's Side #854"],
+        ];
+
+        foreach ($existing as $index => [$type, $title]) {
+            ChurchServiceItem::factory()->create([
+                'church_service_id' => $churchService->id,
+                'position' => $index + 1,
+                'type' => $type,
+                'title' => $title,
+                'source' => ChurchServiceItemSource::OpenLp,
+            ]);
+        }
+
+        $result = $this->service->project($log);
+
+        $this->assertTrue(
+            $result['projected'],
+            'Projection was skipped instead of merging: '.($result['reason'] ?? 'no reason'),
+        );
+
+        $positions = ChurchServiceItem::query()
+            ->where('church_service_id', $churchService->id)
+            ->whereNull('deleted_at')
+            ->pluck('position')
+            ->all();
+
+        $this->assertSame(
+            count($positions),
+            count(array_unique($positions)),
+            'Live items must hold unique positions after the merge.',
+        );
     }
 
     private function createProcessingLog(
