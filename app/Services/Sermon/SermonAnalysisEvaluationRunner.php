@@ -40,6 +40,7 @@ class SermonAnalysisEvaluationRunner
         string $manifestPath,
         string $arm,
         array $priceSnapshot,
+        int $delaySeconds = 0,
     ): array {
         $manifestContents = file_get_contents($manifestPath);
 
@@ -65,7 +66,19 @@ class SermonAnalysisEvaluationRunner
         $results = [];
         $runStartedAt = microtime(true);
 
-        foreach ($entries as $entry) {
+        foreach ($entries as $offset => $entry) {
+            /**
+             * Pacing, not a second transport path.
+             *
+             * Six back-to-back calls trip the provider's request rate limit, which fails five of
+             * six arms and makes the report worthless. Sleeping between calls keeps them serial —
+             * which IC5 item 6b requires for deterministic attribution — without touching the
+             * client's own timeout and retry behaviour, which stays authoritative.
+             */
+            if ($offset > 0 && $delaySeconds > 0) {
+                sleep($delaySeconds);
+            }
+
             $this->telemetry->begin($entry['label'], $entry['input_sha256']);
             $processingId = $entry['processing_id'];
             $startedAt = microtime(true);

@@ -24,6 +24,7 @@ class EvaluateSermonAnalysisCommand extends Command
         {--manifest= : Private manifest of banked sermon transcript files}
         {--arm= : Unique evaluation arm name, matching OPENAI_EVALUATION_ARM}
         {--price-snapshot= : Dated official OpenAI price snapshot JSON}
+        {--delay=0 : Seconds to wait between calls; six back-to-back calls trip the provider rate limit}
         {--output= : New permission-restricted JSON report path}';
 
     protected $description = 'Run one report-only sermon-analysis model arm against banked transcripts';
@@ -38,7 +39,7 @@ class EvaluateSermonAnalysisCommand extends Command
             $priceSnapshot = $this->readPriceSnapshot();
             $outputPath = $this->newOutputPath();
 
-            $report = $runner->run($manifestPath, $arm, $priceSnapshot);
+            $report = $runner->run($manifestPath, $arm, $priceSnapshot, max(0, (int) $this->option('delay')));
             $this->createOnce($outputPath, CanonicalJson::encodeReadable($report).PHP_EOL);
 
             $this->line("Report: {$outputPath}");
