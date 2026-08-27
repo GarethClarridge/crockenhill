@@ -17,6 +17,7 @@ use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\TempDiskSpace;
 use App\Services\Media\Video\HistoricVideoCurationManifest;
 use App\Services\Media\Video\HistoricVideoImporter;
+use App\Services\Media\Video\HistoricVideoReencodeConcatenator;
 use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -196,6 +197,7 @@ class HistoricVideoImporterTest extends TestCase
             $processor,
             app(HistoricStagingContextRegistry::class),
             app(HistoricProcessingFingerprint::class),
+            app(HistoricVideoReencodeConcatenator::class),
         ))->import(
             directory: $this->temporaryDirectory,
             dryRun: false,
@@ -996,6 +998,7 @@ class HistoricVideoImporterTest extends TestCase
             $processor,
             app(HistoricStagingContextRegistry::class),
             app(HistoricProcessingFingerprint::class),
+            app(HistoricVideoReencodeConcatenator::class),
         );
 
         return $importer->import(

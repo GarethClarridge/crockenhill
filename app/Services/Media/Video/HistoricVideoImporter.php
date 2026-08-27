@@ -67,6 +67,7 @@ class HistoricVideoImporter
         private readonly UnifiedMediaProcessor $processor,
         private readonly HistoricStagingContextRegistry $stagingContextRegistry,
         private readonly HistoricProcessingFingerprint $fingerprints,
+        private readonly HistoricVideoReencodeConcatenator $reencodeConcatenator,
     ) {}
 
     /**
@@ -1021,27 +1022,12 @@ class HistoricVideoImporter
         $this->assertApprovedSourceFilesAreUnchanged($item);
         $this->ensureTempDir();
 
-        $inputs = implode(' ', array_map(fn (string $f) => '-i '.escapeshellarg($f), $item['files']));
-        $filterInputs = implode('', array_map(fn (int $i) => "[{$i}:v][{$i}:a]", array_keys($item['files'])));
-        $segmentCount = count($item['files']);
-        $filter = "{$filterInputs}concat=n={$segmentCount}:v=1:a=1[outv][outa]";
-
         $outputRelativePath = self::TEMP_DIR.'/'.Str::uuid().'.mp4';
         $outputPath = Storage::disk($this->historicTempDisk())->path($outputRelativePath);
-        $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg');
-
-        $cmd = escapeshellarg($ffmpegPath)
-            ." {$inputs}"
-            .' -filter_complex '.escapeshellarg($filter)
-            .' -map [outv] -map [outa]'
-            .' -c:v libx264 -preset veryfast -c:a aac -b:a 192k'
-            .' '.escapeshellarg($outputPath)
-            .' 2>&1';
-
-        exec($cmd, $cmdOutput, $returnCode);
-
-        if ($returnCode !== 0) {
-            return ['tag' => 'error', 'processing_id' => '', 'detail' => 'FFmpeg re-encode concat failed: '.implode(' ', array_slice($cmdOutput, -3))];
+        try {
+            $this->reencodeConcatenator->concatenate($item['files'], $outputPath);
+        } catch (\RuntimeException $exception) {
+            return ['tag' => 'error', 'processing_id' => '', 'detail' => $exception->getMessage()];
         }
 
         $result = $this->dispatchConcatFile($outputPath, $item, 're-encoded', $stagingContext, $operation);
