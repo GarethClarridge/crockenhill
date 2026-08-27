@@ -1324,7 +1324,7 @@ class ChurchServiceItemSyncService
         $this->stageExistingItems($churchService, [
             ...$this->matchedItems($plan),
             ...$preservedItems,
-        ]);
+        ], $this->createdItemCount($plan));
 
         $position = 0;
 
@@ -1351,7 +1351,7 @@ class ChurchServiceItemSyncService
         array $plan,
         ChurchServiceItemSource $incomingSource
     ): void {
-        $this->stageExistingItems($churchService, $this->matchedItems($plan));
+        $this->stageExistingItems($churchService, $this->matchedItems($plan), $this->createdItemCount($plan));
 
         $occupiedPositions = [];
 
@@ -1461,19 +1461,45 @@ class ChurchServiceItemSyncService
      *
      * @param  list<ChurchServiceItem>  $items
      */
-    private function stageExistingItems(ChurchService $churchService, array $items): void
+    /**
+     * Park existing rows above every position this pass can assign, then write final positions.
+     *
+     * The band must clear the highest *assignable* position, not merely the current maximum.
+     * `maxPosition` describes the service before the merge, while the positions about to be written
+     * describe it after: a merge that grows the service assigns final positions that run straight
+     * into the parked rows and collides with the active-position unique constraint. That is why
+     * only growing merges failed — a service that shrank or stayed the same size never reached the
+     * band. `$additionalItems` is the number of rows this pass will create.
+     *
+     * @param  list<ChurchServiceItem>  $items
+     */
+    private function stageExistingItems(ChurchService $churchService, array $items, int $additionalItems = 0): void
     {
         if ($items === []) {
             return;
         }
 
-        $maxPosition = (int) ChurchServiceItem::query()->withTrashed()
-            ->where('church_service_id', $churchService->id)
-            ->max('position');
+        $existing = ChurchServiceItem::query()->withTrashed()
+            ->where('church_service_id', $churchService->id);
+
+        $maxPosition = (int) (clone $existing)->max('position');
+        $rowCount = (int) (clone $existing)->count();
+
+        // Final positions run 1..N where N cannot exceed the rows already present plus the rows
+        // this pass creates, so a band starting above both bounds can never be written into.
+        $ceiling = max($maxPosition, $rowCount + $additionalItems);
 
         foreach ($items as $index => $item) {
-            $this->repositionItem($item, $maxPosition + $index + 1);
+            $this->repositionItem($item, $ceiling + $index + 1);
         }
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $plan
+     */
+    private function createdItemCount(array $plan): int
+    {
+        return count(array_filter($plan, static fn (array $entry): bool => $entry['kind'] !== 'update'));
     }
 
     private function repositionItem(ChurchServiceItem $item, int $position): void

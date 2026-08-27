@@ -1161,14 +1161,6 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     #[Test]
     public function test_projects_into_a_service_already_populated_by_openlp(): void
     {
-        $this->markTestSkipped(
-            'Reproduces an open defect. `stageExistingItems()` parks rows at `maxPosition + 1...`, '
-            .'but a merge that yields more items than the service already held assigns final '
-            .'positions that run into that staging band, so the write collides with a still-staged '
-            .'row. Confirmed by raising the staging offset, which turns this test green. Un-skip '
-            .'when the staging band is lifted clear of the highest assignable final position.'
-        );
-
         $log = $this->createProcessingLog('2024-01-14', SermonService::Morning);
 
         $this->createSections($log, [
