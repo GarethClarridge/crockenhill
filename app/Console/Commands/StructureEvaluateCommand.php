@@ -11,12 +11,15 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\ChurchService\Structure\ValidationContext;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
+use Throwable;
 
 /**
  * The maintainer's go/no-go instrument for the LLM structure detector: runs
@@ -47,6 +50,7 @@ class StructureEvaluateCommand extends Command
                             {--manifest= : Path to a JSON manifest of services with expectations}
                             {--processing-id=* : Evaluate stored runs by processing id (detection summary + validation only unless the manifest carries expectations)}
                             {--detector= : Structure detector to use (mock|openai); defaults to the bound detector, so a bare run never costs money}
+                            {--price-snapshot= : Dated official OpenAI price snapshot JSON; when given, each entry and the aggregate are costed}
                             {--report= : Write the full JSON report to this path}';
 
     protected $description = 'Evaluate the LLM service-structure detector against human-reviewed expectations';
@@ -54,6 +58,7 @@ class StructureEvaluateCommand extends Command
     public function handle(
         ServiceStructureValidator $validator,
         SilenceSnapService $snapService,
+        ServiceStructureEvaluationTelemetry $usageTelemetry,
     ): int {
         $detectorOption = $this->option('detector');
 
@@ -62,6 +67,7 @@ class StructureEvaluateCommand extends Command
         }
 
         $detector = app(ServiceStructureInterface::class);
+        $priceSnapshot = $this->readPriceSnapshot();
 
         $entries = $this->collectEntries();
 
@@ -74,7 +80,7 @@ class StructureEvaluateCommand extends Command
         $results = [];
 
         foreach ($entries as $entry) {
-            $results[] = $this->evaluateEntry($entry, $detector, $snapService, $validator);
+            $results[] = $this->evaluateEntry($entry, $detector, $snapService, $validator, $usageTelemetry, $priceSnapshot);
         }
 
         $report = [
@@ -88,6 +94,70 @@ class StructureEvaluateCommand extends Command
         $this->writeReport($report);
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function readPriceSnapshot(): ?array
+    {
+        $path = $this->option('price-snapshot');
+
+        if (! is_string($path) || $path === '') {
+            return null;
+        }
+
+        if (! is_file($path) || ! is_readable($path)) {
+            throw new RuntimeException("--price-snapshot must point to a readable file: {$path}.");
+        }
+
+        $contents = file_get_contents($path);
+
+        if (! is_string($contents)) {
+            throw new RuntimeException("Unable to read price snapshot at {$path}.");
+        }
+
+        try {
+            $snapshot = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        } catch (Throwable $throwable) {
+            throw new RuntimeException('The price snapshot is not valid JSON.', previous: $throwable);
+        }
+
+        if (! is_array($snapshot)) {
+            throw new RuntimeException('The price snapshot must contain a JSON object.');
+        }
+
+        $model = (string) config('media-processing.service_structure.model', 'gpt-5.6-sol');
+        $prices = $snapshot['models'][$model] ?? null;
+
+        if (! is_array($prices) || ! is_numeric($prices['input'] ?? null) || ! is_numeric($prices['output'] ?? null)) {
+            throw new RuntimeException("Price snapshot does not bind {$model} input/output prices.");
+        }
+
+        return $snapshot;
+    }
+
+    /**
+     * @param  array<string, mixed>  $usage
+     * @param  array<string, mixed>  $priceSnapshot
+     */
+    private function cost(array $usage, array $priceSnapshot): float
+    {
+        $model = (string) config('media-processing.service_structure.model', 'gpt-5.6-sol');
+        $prices = $priceSnapshot['models'][$model] ?? [];
+        $inputPrice = (float) ($prices['input'] ?? 0);
+        $cachedInputPrice = (float) ($prices['cached_input'] ?? $inputPrice);
+        $outputPrice = (float) ($prices['output'] ?? 0);
+
+        $inputTokens = (int) ($usage['input_tokens'] ?? 0);
+        $cachedInputTokens = min($inputTokens, (int) ($usage['cached_input_tokens'] ?? 0));
+        $outputTokens = (int) ($usage['output_tokens'] ?? 0);
+
+        return (
+            (($inputTokens - $cachedInputTokens) * $inputPrice)
+            + ($cachedInputTokens * $cachedInputPrice)
+            + ($outputTokens * $outputPrice)
+        ) / 1_000_000;
     }
 
     /**
@@ -125,6 +195,7 @@ class StructureEvaluateCommand extends Command
 
     /**
      * @param  array<string, mixed>  $entry
+     * @param  array<string, mixed>|null  $priceSnapshot
      * @return array<string, mixed>
      */
     private function evaluateEntry(
@@ -132,6 +203,8 @@ class StructureEvaluateCommand extends Command
         ServiceStructureInterface $detector,
         SilenceSnapService $snapService,
         ServiceStructureValidator $validator,
+        ServiceStructureEvaluationTelemetry $usageTelemetry,
+        ?array $priceSnapshot,
     ): array {
         $label = is_string($entry['label'] ?? null) ? $entry['label'] : ($entry['processing_id'] ?? 'unlabelled');
 
@@ -143,6 +216,8 @@ class StructureEvaluateCommand extends Command
             $startedAt = microtime(true);
             $structure = $detector->detect($transcript, $oosPayloads, $log?->processing_id);
             $latency = round(microtime(true) - $startedAt, 3);
+            $usage = $usageTelemetry->take();
+            $costUsd = $usage === null || $priceSnapshot === null ? null : round($this->cost($usage, $priceSnapshot), 8);
 
             $structure = $this->snapIfPossible($structure, $log, $snapService);
 
@@ -164,6 +239,8 @@ class StructureEvaluateCommand extends Command
                 'label' => $label,
                 'error' => null,
                 'latency_seconds' => $latency,
+                'usage' => $usage,
+                'cost_usd' => $costUsd,
                 'hard_failure_codes' => $result->failureCodes(),
                 'hard_failure_messages' => array_column($result->hardFailures, 'message'),
                 'soft_flag_count' => array_sum(array_map(
@@ -180,8 +257,15 @@ class StructureEvaluateCommand extends Command
                 'song_titles' => $this->titleMetrics($result->structure, $expected, 'song_titles', 'songTitle'),
                 'reading_references' => $this->titleMetrics($result->structure, $expected, 'reading_references', 'readingReference'),
             ];
-        } catch (\Throwable $throwable) {
-            return ['label' => $label, 'error' => $throwable->getMessage()];
+        } catch (Throwable $throwable) {
+            // The call may have billed before the failure — a malformed response throws
+            // after OpenAiServiceStructureService has already recorded its usage. Take it
+            // so a failed entry's spend still shows up rather than silently leaking into
+            // whichever entry runs next.
+            $usage = $usageTelemetry->take();
+            $costUsd = $usage === null || $priceSnapshot === null ? null : round($this->cost($usage, $priceSnapshot), 8);
+
+            return ['label' => $label, 'error' => $throwable->getMessage(), 'usage' => $usage, 'cost_usd' => $costUsd];
         }
     }
 
@@ -215,7 +299,7 @@ class StructureEvaluateCommand extends Command
         $log = MediaProcessingLog::query()->where('processing_id', $processingId)->first();
 
         if (! $log instanceof MediaProcessingLog) {
-            throw new \RuntimeException("Processing run not found: {$processingId}");
+            throw new RuntimeException("Processing run not found: {$processingId}");
         }
 
         return $log;
@@ -234,7 +318,7 @@ class StructureEvaluateCommand extends Command
                 : ($entry['__manifest_dir'] ?? '.').'/'.$transcriptFile;
 
             if (! is_file($path)) {
-                throw new \RuntimeException("Transcript file not found: {$path}");
+                throw new RuntimeException("Transcript file not found: {$path}");
             }
 
             $transcript = ChurchServiceTranscript::fromArray(json_decode((string) file_get_contents($path), true));
@@ -242,7 +326,7 @@ class StructureEvaluateCommand extends Command
             $transcriptPath = $log?->serviceTranscriptPath();
 
             if ($transcriptPath === null) {
-                throw new \RuntimeException('No transcript available: give the entry a transcript_file or a processing_id with a stored transcript.');
+                throw new RuntimeException('No transcript available: give the entry a transcript_file or a processing_id with a stored transcript.');
             }
 
             $artifactDisk = ServiceArtifactDisk::for($transcriptPath);
@@ -252,7 +336,7 @@ class StructureEvaluateCommand extends Command
         }
 
         if ($transcript->isEmpty()) {
-            throw new \RuntimeException('Transcript contains no cues.');
+            throw new RuntimeException('Transcript contains no cues.');
         }
 
         return $transcript;
@@ -534,6 +618,56 @@ class StructureEvaluateCommand extends Command
                 static fn (array $result): float => (float) ($result['latency_seconds'] ?? 0.0),
                 $evaluated
             )),
+            'usage' => $this->aggregateUsage($results),
+        ];
+    }
+
+    /**
+     * Usage/cost is aggregated across every result, including failed entries — a call can
+     * bill OpenAI and then fail decoding or validation, and item 6d's economic comparison
+     * needs the true spend of a run, not just the spend of the entries that happened to pass.
+     *
+     * @param  list<array<string, mixed>>  $results
+     * @return array<string, mixed>
+     */
+    private function aggregateUsage(array $results): array
+    {
+        $totals = [
+            'input_tokens' => 0,
+            'cached_input_tokens' => 0,
+            'output_tokens' => 0,
+            'reasoning_tokens' => 0,
+            'total_tokens' => 0,
+        ];
+        $costs = [];
+        $usageMissing = 0;
+
+        foreach ($results as $result) {
+            $usage = is_array($result['usage'] ?? null) ? $result['usage'] : null;
+
+            if ($usage === null) {
+                $usageMissing++;
+
+                continue;
+            }
+
+            foreach ($totals as $key => $value) {
+                $totals[$key] = $value + (int) ($usage[$key] ?? 0);
+            }
+
+            if (is_numeric($result['cost_usd'] ?? null)) {
+                $costs[] = (float) $result['cost_usd'];
+            }
+        }
+
+        $totalCost = $costs === [] ? null : array_sum($costs);
+
+        return [
+            'calls' => count($results) - $usageMissing,
+            'usage_missing_count' => $usageMissing,
+            'tokens' => $totals,
+            'total_cost_usd' => $totalCost === null ? null : round($totalCost, 8),
+            'mean_cost_usd' => $totalCost === null ? null : round($totalCost / count($costs), 8),
         ];
     }
 
@@ -577,6 +711,15 @@ class StructureEvaluateCommand extends Command
             $aggregate['sermon']['within_30s_rate'] === null ? 'n/a' : sprintf('%.0f%%', $aggregate['sermon']['within_30s_rate'] * 100),
             $aggregate['section_type_accuracy'] === null ? 'n/a' : sprintf('%.0f%%', $aggregate['section_type_accuracy'] * 100),
             $aggregate['hard_validation_failure_rate'] === null ? 'n/a' : sprintf('%.0f%%', $aggregate['hard_validation_failure_rate'] * 100),
+        ));
+
+        $usage = $aggregate['usage'];
+        $this->info(sprintf(
+            'Usage: %d call(s) with usage (%d missing), %s tokens total%s',
+            $usage['calls'],
+            $usage['usage_missing_count'],
+            number_format($usage['tokens']['total_tokens']),
+            $usage['total_cost_usd'] === null ? '' : sprintf(', $%.6f total ($%.6f mean/entry)', $usage['total_cost_usd'], $usage['mean_cost_usd']),
         ));
     }
 

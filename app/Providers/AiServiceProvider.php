@@ -12,6 +12,7 @@ use App\Contracts\ServiceTranscriptionInterface;
 use App\Contracts\TranscriptionServiceInterface;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
 use App\Services\ChurchService\Structure\OpenAiServiceStructureService;
+use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
 use App\Services\Email\OosParserEvaluationTelemetry;
 use App\Services\Email\OpenAiOosSemanticAnnotator;
 use App\Services\Email\OpenAiOosSemanticRepairer;
@@ -89,6 +90,7 @@ class AiServiceProvider extends ServiceProvider
             };
         });
 
+        $this->app->singleton(ServiceStructureEvaluationTelemetry::class);
         $this->app->bind(ServiceStructureInterface::class, function ($app): ServiceStructureInterface {
             $detector = (string) config('media-processing.service_structure.detector', 'mock');
 

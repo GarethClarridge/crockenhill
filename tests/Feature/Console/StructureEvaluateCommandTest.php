@@ -9,6 +9,9 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
+use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -126,6 +129,86 @@ class StructureEvaluateCommandTest extends TestCase
         $this->assertContains('unknown_oos_item', $service['hard_failure_codes']);
         $this->assertNotEmpty($service['hard_failure_messages']);
         $this->assertStringContainsString('999', implode(' ', $service['hard_failure_messages']));
+    }
+
+    #[Test]
+    public function a_priced_openai_run_records_usage_and_cost_per_entry_and_in_the_aggregate(): void
+    {
+        Config::set('media-processing.analysis.openai_api_key', 'test-key');
+        Config::set('media-processing.service_structure.model', 'gpt-5.6-sol');
+
+        // The manifest below has two entries, each of which calls detect() once — the fake
+        // must serve one response per call, or the second entry finds no fake response left.
+        $fakeResponse = CreateResponse::fake([
+            'choices' => [[
+                'message' => [
+                    'content' => json_encode([
+                        'sections' => [[
+                            'type' => 'welcome',
+                            'title' => 'Welcome',
+                            'start_time' => 0.0,
+                            'end_time' => 20.0,
+                            'confidence' => 0.95,
+                            'oos_item_id' => 1,
+                            'song_title' => null,
+                            'reading_reference' => null,
+                            'sermon_reference' => null,
+                            'summary' => null,
+                            'notes' => [],
+                        ]],
+                        'summary' => null,
+                        'notices' => [],
+                        'chapter_markers' => [],
+                        'notes' => [],
+                    ]),
+                ],
+            ]],
+            'usage' => [
+                'prompt_tokens' => 100_000,
+                'completion_tokens' => 10_000,
+                'total_tokens' => 110_000,
+            ],
+        ]);
+
+        OpenAI::fake([$fakeResponse, $fakeResponse]);
+
+        $priceSnapshotPath = storage_path('app/temp/price-snapshot-'.uniqid().'.json');
+        file_put_contents($priceSnapshotPath, (string) json_encode([
+            'taken_at' => '2026-08-28',
+            'models' => ['gpt-5.6-sol' => ['input' => 2.0, 'output' => 8.0]],
+        ]));
+
+        try {
+            $this->artisan('structure:evaluate', [
+                '--manifest' => base_path('tests/Fixtures/StructureEval/manifest.json'),
+                '--detector' => 'openai',
+                '--price-snapshot' => $priceSnapshotPath,
+                '--report' => $this->reportPath,
+            ])->assertSuccessful();
+        } finally {
+            unlink($priceSnapshotPath);
+        }
+
+        $report = json_decode((string) file_get_contents($this->reportPath), true);
+
+        // 100,000 input tokens * $2/M + 10,000 output tokens * $8/M = $0.28 per call.
+        foreach ($report['services'] as $service) {
+            $this->assertSame([
+                'input_tokens' => 100_000,
+                'cached_input_tokens' => 0,
+                'output_tokens' => 10_000,
+                'reasoning_tokens' => 0,
+                'total_tokens' => 110_000,
+            ], $service['usage']);
+            $this->assertEqualsWithDelta(0.28, $service['cost_usd'], 0.0000001);
+        }
+
+        $usage = $report['aggregate']['usage'];
+        $this->assertSame(2, $usage['calls']);
+        $this->assertSame(0, $usage['usage_missing_count']);
+        $this->assertSame(220_000, $usage['tokens']['total_tokens']);
+        $this->assertEqualsWithDelta(0.56, $usage['total_cost_usd'], 0.0000001);
+        $this->assertEqualsWithDelta(0.28, $usage['mean_cost_usd'], 0.0000001);
     }
 
     #[Test]

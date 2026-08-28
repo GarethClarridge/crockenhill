@@ -27,16 +27,11 @@ class OpenAiUsageLogger
         ?string $processingId = null,
         ?string $requestedReasoningEffort = null,
     ): void {
-        if ($response->usage === null) {
+        $usage = self::extractUsage($response);
+
+        if ($usage === null) {
             return;
         }
-
-        $cachedInputTokens = $response->usage->promptTokensDetails === null
-            ? 0
-            : $response->usage->promptTokensDetails->cachedTokens;
-        $reasoningTokens = $response->usage->completionTokensDetails === null
-            ? 0
-            : ($response->usage->completionTokensDetails->reasoningTokens ?? 0);
 
         Log::info('OpenAI chat completion usage', [
             'operation' => $operation,
@@ -49,11 +44,33 @@ class OpenAiUsageLogger
                 ? null
                 : OpenAiChatPayload::effectiveReasoningEffort($requestedModel, $requestedReasoningEffort),
             'service_tier' => config('openai.service_tier'),
-            'input_tokens' => $response->usage->promptTokens,
-            'cached_input_tokens' => $cachedInputTokens,
-            'output_tokens' => $response->usage->completionTokens,
-            'reasoning_tokens' => $reasoningTokens,
-            'total_tokens' => $response->usage->totalTokens,
+            ...$usage,
         ]);
+    }
+
+    /**
+     * The token-usage shape shared by the log line above and any caller that
+     * wants to cost a call itself (a `structure:evaluate`/`sermons:evaluate-analysis`
+     * report, for instance) without re-deriving it from the raw response.
+     *
+     * @return array{input_tokens: int, cached_input_tokens: int, output_tokens: int, reasoning_tokens: int, total_tokens: int}|null
+     */
+    public static function extractUsage(CreateResponse $response): ?array
+    {
+        if ($response->usage === null) {
+            return null;
+        }
+
+        return [
+            'input_tokens' => $response->usage->promptTokens,
+            'cached_input_tokens' => $response->usage->promptTokensDetails === null
+                ? 0
+                : $response->usage->promptTokensDetails->cachedTokens,
+            'output_tokens' => $response->usage->completionTokens ?? 0,
+            'reasoning_tokens' => $response->usage->completionTokensDetails === null
+                ? 0
+                : ($response->usage->completionTokensDetails->reasoningTokens ?? 0),
+            'total_tokens' => $response->usage->totalTokens,
+        ];
     }
 }

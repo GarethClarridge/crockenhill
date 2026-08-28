@@ -79,6 +79,10 @@ Rules:
 - Use British English in all titles and notes.
 TEXT;
 
+    public function __construct(
+        private readonly ?ServiceStructureEvaluationTelemetry $evaluationTelemetry = null,
+    ) {}
+
     public function detect(
         ChurchServiceTranscript $transcript,
         array $oosItems,
@@ -118,6 +122,7 @@ TEXT;
         }
 
         OpenAiUsageLogger::log($response, 'service_structure', $model, $processingId, (string) config('media-processing.service_structure.reasoning_effort', 'medium'));
+        $this->evaluationTelemetry?->record($response);
 
         $content = $response->choices[0]->message->content ?? null;
 

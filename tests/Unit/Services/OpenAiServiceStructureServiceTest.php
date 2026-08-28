@@ -8,6 +8,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\OpenAiServiceStructureService;
+use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
 use Illuminate\Support\Facades\Config;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Resources\Chat;
@@ -110,6 +111,56 @@ class OpenAiServiceStructureServiceTest extends TestCase
                 && $parameters['reasoning_effort'] === 'medium'
                 && ! array_key_exists('temperature', $parameters);
         });
+    }
+
+    #[Test]
+    public function it_records_usage_into_an_injected_evaluation_telemetry(): void
+    {
+        OpenAI::fake([
+            CreateResponse::fake([
+                'choices' => [[
+                    'message' => [
+                        'content' => json_encode([
+                            'sections' => [[
+                                'type' => 'welcome',
+                                'title' => 'Welcome',
+                                'start_time' => 0.0,
+                                'end_time' => 60.0,
+                                'confidence' => 0.95,
+                                'oos_item_id' => 1,
+                                'song_title' => null,
+                                'reading_reference' => null,
+                                'sermon_reference' => null,
+                                'summary' => null,
+                                'notes' => [],
+                            ]],
+                            'summary' => null,
+                            'notices' => [],
+                            'chapter_markers' => [],
+                            'notes' => [],
+                        ]),
+                    ],
+                ]],
+                'usage' => [
+                    'prompt_tokens' => 3000,
+                    'completion_tokens' => 400,
+                    'total_tokens' => 3400,
+                ],
+            ]),
+        ]);
+
+        $telemetry = new ServiceStructureEvaluationTelemetry;
+        $service = new OpenAiServiceStructureService($telemetry);
+
+        $service->detect($this->transcript(), $this->oosItems());
+
+        $this->assertSame([
+            'input_tokens' => 3000,
+            'cached_input_tokens' => 0,
+            'output_tokens' => 400,
+            'reasoning_tokens' => 0,
+            'total_tokens' => 3400,
+        ], $telemetry->take());
     }
 
     #[Test]

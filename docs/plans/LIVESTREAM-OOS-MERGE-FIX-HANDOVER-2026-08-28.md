@@ -289,3 +289,24 @@ future report can diagnose which two OoS items/positions trip
 
 This does not by itself explain the 2024-01-14 inversion — that still needs a
 report run (bound detector, so it bills) to read the new field.
+
+## Addendum — structure:evaluate now costs its own runs
+
+Item 6d's economic adoption gate (candidate must cost 15%+ less than the incumbent) could not be
+measured before this: `structure:evaluate` ran real paid calls but never recorded what they cost.
+
+- `OpenAiUsageLogger::extractUsage()` factors the token-usage shape already used for the log line
+  into something a caller can reuse, rather than only ever writing to the application log.
+- `ServiceStructureEvaluationTelemetry` (new, singleton) captures the usage of the OpenAI call
+  `OpenAiServiceStructureService::detect()` just made, addressed by the evaluator to the manifest
+  entry that triggered it — the same call-and-consume shape `SermonAnalysisEvaluationTelemetry`
+  established for `sermons:evaluate-analysis`.
+- `structure:evaluate` gained `--price-snapshot=` (optional, same dated-JSON shape as the sermon
+  evaluator's). Every report entry now carries `usage` and `cost_usd`; the aggregate carries total
+  tokens, `total_cost_usd` and `mean_cost_usd`. A failed entry that still billed (a malformed
+  response, say) keeps its usage rather than losing it to whichever entry runs next.
+- Cost is aggregated across **every** entry, not just the ones that validated — a run's true spend
+  includes its failures.
+
+Two structure-arm reports (incumbent vs candidate) run with `--price-snapshot` now settle item 6d
+directly from their `aggregate.usage.mean_cost_usd`, without hand-totalling usage log lines.
