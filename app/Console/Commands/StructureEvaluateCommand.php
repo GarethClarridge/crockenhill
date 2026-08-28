@@ -165,6 +165,7 @@ class StructureEvaluateCommand extends Command
                 'error' => null,
                 'latency_seconds' => $latency,
                 'hard_failure_codes' => $result->failureCodes(),
+                'hard_failure_messages' => array_column($result->hardFailures, 'message'),
                 'soft_flag_count' => array_sum(array_map(
                     static fn (ServiceStructureSection $section): int => count($section->reviewFlags),
                     $result->structure->sections

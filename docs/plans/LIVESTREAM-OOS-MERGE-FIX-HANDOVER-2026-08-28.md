@@ -276,3 +276,16 @@ item list.
 | Post-merge ruling | `storage/app/private/structure-arms-ruling-postmerge-20260828.md` |
 | Re-projection before-state | `storage/app/private/reprojection-before-20260828.json` |
 | Live OoS item dump | `storage/app/private/live-oos-items-20260828.json` |
+
+## Addendum — hard-failure messages now retained
+
+The first "still open" item above is closed. `StructureEvaluateCommand::evaluateEntry()`
+now writes `hard_failure_messages` alongside `hard_failure_codes` on every report
+entry, sourced from `ValidationResult::$hardFailures` (which already carried
+`code` + `message` per failure — nothing new had to be computed, just kept). A
+future report can diagnose which two OoS items/positions trip
+`out_of_order_oos_items` on 2024-01-14 without a fresh paid run. Covered by
+`StructureEvaluateCommandTest::a_hard_failure_records_the_validators_message_alongside_its_code`.
+
+This does not by itself explain the 2024-01-14 inversion — that still needs a
+report run (bound detector, so it bills) to read the new field.

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Data\ServiceStructure;
+use App\Data\ServiceStructureSection;
+use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -89,6 +92,40 @@ class StructureEvaluateCommandTest extends TestCase
         $this->assertEquals(0.0, $wrong['oos_anchoring']['recall']);
         $this->assertEquals(0.0, $wrong['song_titles']['rate']);
         $this->assertEquals(0.0, $wrong['reading_references']['rate']);
+    }
+
+    #[Test]
+    public function a_hard_failure_records_the_validators_message_alongside_its_code(): void
+    {
+        // A section claiming an OoS item id that doesn't exist for this
+        // service trips the `unknown_oos_item` hard failure. The report must
+        // keep the validator's message, not just the code, or a failure like
+        // this cannot be diagnosed without re-running detection.
+        MockServiceStructureService::useStructure(new ServiceStructure([
+            new ServiceStructureSection(
+                type: ServiceSectionType::Sermon,
+                title: 'Sermon',
+                startTime: 0.0,
+                endTime: 60.0,
+                confidence: 1.0,
+                oosItemId: 999,
+                songTitle: null,
+                readingReference: null,
+            ),
+        ]));
+
+        $this->artisan('structure:evaluate', [
+            '--manifest' => base_path('tests/Fixtures/StructureEval/manifest.json'),
+            '--detector' => 'mock',
+            '--report' => $this->reportPath,
+        ])->assertSuccessful();
+
+        $report = json_decode((string) file_get_contents($this->reportPath), true);
+        $service = $report['services'][0];
+
+        $this->assertContains('unknown_oos_item', $service['hard_failure_codes']);
+        $this->assertNotEmpty($service['hard_failure_messages']);
+        $this->assertStringContainsString('999', implode(' ', $service['hard_failure_messages']));
     }
 
     #[Test]
