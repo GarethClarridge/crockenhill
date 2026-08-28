@@ -3,6 +3,12 @@
 Written 2026-08-28. The next session builds the merge fix; this records what is
 already known so none of it has to be rediscovered.
 
+> **STATUS 2026-08-28 — the fix is built, shipped and measured.** Commit
+> `d6070899a` carries the section's `reading_reference` onto the projected item and
+> teaches merge tier 5 to read it. Services 406, 617, 627 and 544 were re-projected.
+> Four paid `structure:evaluate` draws followed. See **Outcome** at the foot of this
+> document, which corrects one prediction below that turned out to be wrong.
+
 ## The defect in one paragraph
 
 A livestream projection meeting an existing OpenLP order of service duplicates the
@@ -94,6 +100,14 @@ the correct answer to a corrupt question, and only the merge fix removes it.
 
 Verification needs a paid `structure:evaluate` run and was deliberately deferred.
 
+> **VERIFIED 2026-08-28, and half of this was wrong.** The `duplicate_oos_item` /
+> `unknown_oos_item` half is confirmed: neither code appears in any of the four
+> post-fix arms. The `out_of_order_oos_items` half is confirmed as far as the
+> orphan deletion goes, but the closing claim — *only the merge fix removes it* —
+> is **falsified**. It persists on 2024-01-14 in all four post-fix arms, with the
+> three duplicated readings merged away and the survivors anchoring in performance
+> order. See **Outcome**.
+
 ## Consequences for IC5 item 6 calibration
 
 The structure arms were scored against this contamination, so **every
@@ -134,3 +148,131 @@ services. That is four paid runs and should follow the merge fix, not precede it
   a pre-sermon prayer may be included or excluded needs the latter.
 - Song-title misses cannot be diagnosed: `titleMetrics()` retains counts, never the
   detected strings.
+
+---
+
+# Outcome — 2026-08-28
+
+## What was built
+
+Commit `d6070899a`, two files plus four tests.
+
+- `LivestreamSectionToServiceItemMapper::buildMetadata()` emits
+  `metadata.scripture_reference` from the section's `reading_reference`.
+- `ChurchServiceItemSyncService::hasAgreeingScriptureReference()` offers that field
+  as a third candidate per side, alongside `title` and `source_title`.
+  `ScriptureReferenceResolver::anyReferencesAgree()` already took lists, so the
+  change is additive and the crossing-overlap rejection is untouched.
+
+**Metadata, not `source_title`,** as the warning above asks. `source_title` means
+"the line the originating source actually carried"; it is exposed by
+`ChurchServiceItemResource`, edited in the admin form, and read by
+`ChurchServiceSongLinker`. The detector carried a descriptive title *plus* a
+separate reference field, and the item should say so. The descriptive title is
+untouched.
+
+The reference is read on **both** sides of the comparison, because either source
+may arrive first. `mergeMetadataForSources()` then carries it onto the surviving
+row, so it persists for later runs.
+
+Gates: 7265 tests pass (86846 assertions), pint clean, PHPStan clean, Dusk 55 pass.
+The merge test was confirmed to fail without the sync-service change.
+
+## Re-projection
+
+Ran `LivestreamChurchServiceProjectionService::project(refining: true)` per service
+— *not* `service-tracking:reproject-current-era`, which is a different (pure)
+projector with no per-service filter. Before-state:
+`storage/app/private/reprojection-before-20260828.json`.
+
+| service | date | items before | after | outcome |
+|---|---|---|---|---|
+| 544 | 2024-01-14 | 24 | **21** | 3 readings merged |
+| 406 | 2022-06-05 | 12 | **11** | 1 reading merged |
+| 617 | 2024-12-22 | 24 | 24 | no OpenLP readings exist to merge into |
+| 627 | 2025-02-02 | 16 | 16 | reading already merged; song duplicate remains |
+
+544 came out exactly as the evidence table predicted: 3639 / 3641 / 3643 survive
+with their OpenLP identification authority and now carry the references, sections
+612 / 613 / 614 point at them, and the projection interleaves (livestream 1–6,
+OpenLP 7–19, livestream 20–21) instead of being appended wholesale. Zero orphaned
+section links across all four services.
+
+**617 and 627 not shrinking is correct.** 617 is the carol service — its OpenLP
+plan holds no `bibles` items at all. 627's single reading had already merged; what
+remains there is a *song* duplicate, `#4258 "This Earth Belongs To God #024b"`
+against `#6563 "This Earth Belongs To God"`, which needs title normalisation, not a
+scripture reference. If the "7" and "3" in the table above counted trashed rows,
+both services were already clean.
+
+**Note for anyone reading item ids in this document:** re-projection soft-deletes
+and recreates projection items, so every livestream item id above has changed. The
+ids in the evidence table (6647–6649) and in the 544 position listing no longer
+exist. The OpenLP ids (3639, 3641, 3643, 2728, 4257) are stable.
+
+## The manifest had to be refreshed first — and this nearly wasted the run
+
+`StructureEvaluateCommand::resolveOosItems()` prefers a manifest entry's frozen
+`oos_items` over the live database. `manifest-with-truth-20260828.json` froze the
+**pre-merge** lists — 2024-01-14 still named 6647 / 6648 / 6649 beside 3639 / 3641
+/ 3643. Running the arms against it would have re-measured the exact contamination
+this fix removes, at full cost, and reported no change.
+
+`manifest-with-truth-postmerge-20260828.json` (sha256 `c47357e4…`) replaces
+`oos_items` from the live database for the four re-projected services and changes
+nothing else. Transcripts are byte-identical (all six `transcript_sha256`
+verified), so the detector's input is unchanged and only the validator's context
+moves. The human truth is time- and text-keyed rather than item-id keyed, so it
+carried over untouched — worth knowing, because it is what made the refresh safe.
+
+Also worth knowing: `structure:evaluate --detector` defaults to the bound detector
+on the grounds that "a bare run never costs money". This project binds `openai`.
+**Every bare run bills here.**
+
+## The 6c ruling
+
+Four paid draws, arms 09–12, at commit `d6070899a`. Full ruling in
+`storage/app/private/structure-arms-ruling-postmerge-20260828.md`; the 2026-08-28
+ruling now carries a superseded header and is retained for provenance.
+
+**Neither ground of the Terra/medium FAIL reproduces.** The candidate-only hard
+failure on 2024-12-22 is gone in all four arms. The song-title regression on
+2020-04-26 is gone — every arm scores 1.00 — and the candidate leads the aggregate
+in both draws (75.0% / 87.5% against the incumbent's 68.8% / 68.8%). It also leads
+on section types, reading references and latency.
+
+**This does not adopt the candidate.** Item 6d's rule is economic and
+`structure:evaluate` still records no usage or cost, so the 15%-cheaper test cannot
+be evaluated. The safety gate is cleared; the economic gate is unmeasurable. The
+incumbent is retained **by default, not on merit** — a different position from the
+withdrawn ruling, and one that a cost-instrumented re-run could overturn.
+
+**Draw-to-draw stability improved sharply.** The parent ruling saw same-model
+divergence on 5 of 6 services; post-fix the incumbent's draws differ on one. Much
+of what read as detector non-determinism was the validator reacting to a duplicated
+item list.
+
+## Still open
+
+- **2024-01-14 still fails `out_of_order_oos_items` in all four arms.** The
+  prediction that only the merge fix removes it is falsified. The readings now
+  anchor in performance order, so the surviving inversion is something else — and
+  the specific anchor pair is **not recoverable**, because `evaluateEntry()` keeps
+  `hard_failure_codes` and discards the validator's message, which names both items
+  and both positions. Retaining that message is the cheap fix and should precede
+  any further paid run.
+- **2025-02-02 regressed for the incumbent**, failing both post-fix draws where it
+  previously failed one. Its unmerged song duplicate is the obvious suspect.
+- Sermon arms 03 (Luna/none) and 04 (Luna/low draw 2) remain **run but unscored**.
+- Every service still ends the sermon early, all six, all arms. Unexplained.
+- `titleMetrics()` still retains counts and never the detected strings.
+
+## Artifacts added
+
+| what | where |
+|---|---|
+| Post-merge truth manifest | `…/structure-eval-20260827/manifest-with-truth-postmerge-20260828.json` (sha256 `c47357e4…`) |
+| Structure arms 09–12 | `storage/app/private/arm-{09,10,11,12}-structure-*-postmerge*.json` |
+| Post-merge ruling | `storage/app/private/structure-arms-ruling-postmerge-20260828.md` |
+| Re-projection before-state | `storage/app/private/reprojection-before-20260828.json` |
+| Live OoS item dump | `storage/app/private/live-oos-items-20260828.json` |
