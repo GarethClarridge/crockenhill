@@ -9,6 +9,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Jobs\TranscribeFullService;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\MockServiceTranscriptionService;
+use App\Services\Media\Audio\ServiceTranscriptRecovery;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\TranscriptPromptEchoDetector;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -191,12 +192,83 @@ class TranscribeFullServiceTest extends TestCase
         $this->assertNotContains((string) $log->serviceTranscriptPath(), $log->temporaryFilePaths());
     }
 
-    private function runJob(MediaProcessingLog $log): void
+    #[Test]
+    public function it_recovers_a_pathological_window_before_persisting_the_transcript(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        Storage::disk('local')->put((string) $log->source_file_path, 'fake video bytes');
+        $initial = ChurchServiceTranscript::fromCues($this->repeatedThankYouCues(), 1500.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER);
+        $recovered = ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 1200.0, 'text' => 'Recovered carol service content.'],
+        ], 1500.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER);
+        MockServiceTranscriptionService::useTranscript($initial);
+
+        $recovery = $this->mock(ServiceTranscriptRecovery::class);
+        $recovery->shouldReceive('recover')
+            ->once()
+            ->withArgs(fn (ChurchServiceTranscript $transcript, string $path, string $processingId): bool => $transcript->cues === $initial->cues
+                && $path !== ''
+                && $processingId === $log->processing_id)
+            ->andReturn($recovered);
+
+        $this->runJob($log, $recovery);
+
+        $stored = ChurchServiceTranscript::fromArray(
+            json_decode((string) Storage::disk('local')->get((string) $log->refresh()->serviceTranscriptPath()), true),
+        );
+
+        $this->assertSame('Recovered carol service content.', $stored->cues[0]['text']);
+        $this->assertSame([], $stored->unobservableWindows);
+    }
+
+    #[Test]
+    public function it_persists_unobservable_windows_when_targeted_retranscription_still_fails(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        Storage::disk('local')->put((string) $log->source_file_path, 'fake video bytes');
+        MockServiceTranscriptionService::useTranscript(
+            ChurchServiceTranscript::fromCues($this->repeatedThankYouCues(), 1500.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER),
+        );
+        $unobservable = ChurchServiceTranscript::fromCues(
+            [],
+            1500.0,
+            ChurchServiceTranscript::SOURCE_LOCAL_WHISPER,
+            [['start' => 0.0, 'end' => 1200.0, 'reason' => 'retranscription_failed']],
+        );
+
+        $recovery = $this->mock(ServiceTranscriptRecovery::class);
+        $recovery->shouldReceive('recover')->once()->andReturn($unobservable);
+
+        $this->runJob($log, $recovery);
+
+        $stored = ChurchServiceTranscript::fromArray(
+            json_decode((string) Storage::disk('local')->get((string) $log->refresh()->serviceTranscriptPath()), true),
+        );
+
+        $this->assertSame([], $stored->cues);
+        $this->assertSame($unobservable->unobservableWindows, $stored->unobservableWindows);
+        $this->assertSame($unobservable->unobservableWindows, $log->refresh()->serviceTranscriptUnobservableWindows());
+    }
+
+    /** @return list<array{start: float, end: float, text: string}> */
+    private function repeatedThankYouCues(): array
+    {
+        $cues = [];
+
+        for ($index = 0; $index < 40; $index++) {
+            $cues[] = ['start' => $index * 30.0, 'end' => ($index + 1) * 30.0, 'text' => 'Thank you.'];
+        }
+
+        return $cues;
+    }
+
+    private function runJob(MediaProcessingLog $log, ?ServiceTranscriptRecovery $recovery = null): void
     {
         (new TranscribeFullService($log))->handle(
             app(StorageAdapterHelper::class),
             app(ServiceTranscriptionInterface::class),
             app(TranscriptPromptEchoDetector::class),
+            $recovery ?? app(ServiceTranscriptRecovery::class),
         );
     }
 }

@@ -31,7 +31,7 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
         private readonly ?ServiceArtifactStorage $artifactStorage = null,
     ) {}
 
-    public function transcribeService(string $audioOrVideoPath, string $processingId): ChurchServiceTranscript
+    public function transcribeService(string $audioOrVideoPath, string $processingId, ?string $prompt = null): ChurchServiceTranscript
     {
         if (empty(config('media-processing.transcription.openai_api_key'))) {
             throw new NonRetryableTranscriptionException('OpenAI API key not configured for service transcription');
@@ -52,8 +52,8 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
 
         try {
             $transcript = filesize($audioPath) <= $this->maxUploadBytes()
-                ? $this->transcribeWhole($audioPath, $processingId)
-                : $this->transcribeInChunks($audioPath, $processingId);
+                ? $this->transcribeWhole($audioPath, $processingId, $prompt)
+                : $this->transcribeInChunks($audioPath, $processingId, $prompt);
             $this->artifacts()->archiveAudio($processingId, $audioPath, [
                 'profile' => TranscriptionAudioProfile::fallback() + ['codec' => 'mp3'],
             ]);
@@ -102,9 +102,9 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
         return false;
     }
 
-    private function transcribeWhole(string $audioPath, string $processingId): ChurchServiceTranscript
+    private function transcribeWhole(string $audioPath, string $processingId, ?string $prompt = null): ChurchServiceTranscript
     {
-        $response = $this->requestVerboseTranscription($audioPath, $processingId);
+        $response = $this->requestVerboseTranscription($audioPath, $processingId, null, 0.0, $prompt);
 
         return ChurchServiceTranscript::fromCues(
             $this->cuesFromResponse($response, 0.0),
@@ -113,7 +113,7 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
         );
     }
 
-    private function transcribeInChunks(string $audioPath, string $processingId): ChurchServiceTranscript
+    private function transcribeInChunks(string $audioPath, string $processingId, ?string $prompt = null): ChurchServiceTranscript
     {
         $duration = $this->chunkingService->getAudioDuration($audioPath);
         $chunkPaths = $this->chunkingService->createAudioChunks($audioPath, $processingId, $duration);
@@ -131,7 +131,7 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
         try {
             foreach ($chunkPaths as $index => $chunkPath) {
                 $chunkStart = $this->chunkStartSeconds($index);
-                $response = $this->requestVerboseTranscription($chunkPath, $processingId, $index, $chunkStart);
+                $response = $this->requestVerboseTranscription($chunkPath, $processingId, $index, $chunkStart, $prompt);
 
                 foreach ($this->cuesFromResponse($response, $chunkStart) as $cue) {
                     // Cues ending inside the duplicated window were already
@@ -175,6 +175,7 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
         string $processingId,
         ?int $chunkIndex = null,
         float $offsetSeconds = 0.0,
+        ?string $prompt = null,
     ): TranscriptionResponse {
         $apiStartTime = microtime(true);
         $model = (string) config('media-processing.service_structure.transcription_model', 'whisper-1');
@@ -186,7 +187,7 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
                 'response_format' => 'verbose_json',
                 'timestamp_granularities' => ['word', 'segment'],
                 'language' => 'en',
-                'prompt' => (string) config('media-processing.transcription.prompts.full_service'),
+                'prompt' => $prompt ?? (string) config('media-processing.transcription.prompts.full_service'),
             ]);
 
             $payload = $response->toArray();

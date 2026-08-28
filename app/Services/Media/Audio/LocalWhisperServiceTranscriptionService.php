@@ -24,7 +24,7 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
         private readonly ?ServiceArtifactStorage $artifactStorage = null,
     ) {}
 
-    public function transcribeService(string $audioOrVideoPath, string $processingId): ChurchServiceTranscript
+    public function transcribeService(string $audioOrVideoPath, string $processingId, ?string $prompt = null): ChurchServiceTranscript
     {
         if (! file_exists($audioOrVideoPath)) {
             throw new TranscriptionException("Recording not found for service transcription: {$audioOrVideoPath}");
@@ -42,7 +42,7 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
         $audioPath = $this->chunkingService->compressAudioForTranscription($audioOrVideoPath, $processingId);
 
         try {
-            $transcript = $this->requestVerboseTranscription($audioPath, $processingId);
+            $transcript = $this->requestVerboseTranscription($audioPath, $processingId, $prompt);
             $this->artifacts()->archiveAudio($processingId, $audioPath, [
                 'profile' => TranscriptionAudioProfile::fallback() + ['codec' => 'mp3'],
             ]);
@@ -93,7 +93,7 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
         return false;
     }
 
-    private function requestVerboseTranscription(string $audioPath, string $processingId): ChurchServiceTranscript
+    private function requestVerboseTranscription(string $audioPath, string $processingId, ?string $prompt = null): ChurchServiceTranscript
     {
         $baseUrl = (string) config('media-processing.transcription.local_whisper_url');
         $transcriptionPath = (string) config('media-processing.transcription.local_whisper_transcription_path', '/v1/audio/transcriptions');
@@ -114,7 +114,7 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
                     'language' => 'en',
                     'response_format' => 'verbose_json',
                     'timestamp_granularities[]' => 'word',
-                    'prompt' => (string) config('media-processing.transcription.prompts.full_service'),
+                    'prompt' => $prompt ?? (string) config('media-processing.transcription.prompts.full_service'),
                 ]);
         } catch (Exception $e) {
             $this->logger->logApiCall(

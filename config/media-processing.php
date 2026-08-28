@@ -320,6 +320,13 @@ return [
         'snap_window_seconds' => (int) env('SERVICE_STRUCTURE_SNAP_WINDOW', 30),
         'min_section_seconds' => (int) env('SERVICE_STRUCTURE_MIN_SECTION', 15),
         'coverage_floor' => (float) env('SERVICE_STRUCTURE_COVERAGE_FLOOR', 0.7),
+        'transcript_recovery' => [
+            'enabled' => env('SERVICE_TRANSCRIPT_RECOVERY_ENABLED', true),
+            'min_repeated_cues' => (int) env('SERVICE_TRANSCRIPT_RECOVERY_MIN_REPEATED_CUES', 6),
+            'min_window_seconds' => (float) env('SERVICE_TRANSCRIPT_RECOVERY_MIN_WINDOW_SECONDS', 120),
+            'max_phrase_words' => (int) env('SERVICE_TRANSCRIPT_RECOVERY_MAX_PHRASE_WORDS', 12),
+            'max_gap_seconds' => (float) env('SERVICE_TRANSCRIPT_RECOVERY_MAX_GAP_SECONDS', 60),
+        ],
     ],
 
     /*

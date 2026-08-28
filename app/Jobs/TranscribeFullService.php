@@ -10,6 +10,7 @@ use App\Enums\ProcessingStep;
 use App\Enums\ServiceStructureMode;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\ServiceArtifactStorage;
+use App\Services\Media\Audio\ServiceTranscriptRecovery;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\ServiceArtifactDisk;
@@ -64,6 +65,7 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
         StorageAdapterHelper $storageHelper,
         ServiceTranscriptionInterface $transcriptionService,
         TranscriptPromptEchoDetector $promptEchoDetector,
+        ServiceTranscriptRecovery $transcriptRecovery,
     ): void {
         if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
             return;
@@ -109,18 +111,23 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
             );
 
             $filteredTranscript = $this->filterTranscript($transcript, $promptEchoDetector);
+            $recoveredTranscript = $transcriptRecovery->recover(
+                $filteredTranscript,
+                $localSourcePath,
+                $this->processingLog->processing_id,
+            );
 
             $transcriptPath = app(ServiceArtifactStorage::class)->putJson(
                 $this->processingLog->processing_id,
                 'normalized',
-                $filteredTranscript->toArray(),
+                $recoveredTranscript->toArray(),
             );
 
-            $this->processingLog->putServiceTranscriptPath($transcriptPath);
+            $this->processingLog->putServiceTranscriptPath($transcriptPath, $recoveredTranscript->unobservableWindows);
 
             $this->logStepComplete(
                 ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
-                sprintf('Transcribed %d cue(s) covering %.0fs', count($filteredTranscript->cues), $filteredTranscript->duration)
+                sprintf('Transcribed %d cue(s) covering %.0fs', count($recoveredTranscript->cues), $recoveredTranscript->duration)
             );
         } catch (\Throwable $throwable) {
             Log::error('Full-service transcription failed', [
@@ -193,6 +200,7 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
             )),
             $transcript->duration,
             $transcript->source,
+            $transcript->unobservableWindows,
         );
     }
 

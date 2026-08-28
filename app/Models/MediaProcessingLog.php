@@ -590,12 +590,34 @@ class MediaProcessingLog extends Model
         return Storage::disk($artifactDisk)->exists($transcriptPath);
     }
 
-    public function putServiceTranscriptPath(string $path): void
+    /** @param  list<array{start: float, end: float, reason: string}>  $unobservableWindows */
+    public function putServiceTranscriptPath(string $path, array $unobservableWindows = []): void
     {
         $processingMetadata = $this->processing_metadata?->toArray() ?? [];
         $processingMetadata['service_transcript_path'] = $path;
+        $processingMetadata['service_transcript_unobservable_windows'] = $unobservableWindows;
 
         $this->forceFill(['processing_metadata' => $processingMetadata])->save();
+    }
+
+    /** @return list<array{start: float, end: float, reason: string}> */
+    public function serviceTranscriptUnobservableWindows(): array
+    {
+        $metadata = $this->processing_metadata?->toArray() ?? [];
+        $windows = $metadata['service_transcript_unobservable_windows'] ?? null;
+
+        if (! is_array($windows)) {
+            return [];
+        }
+
+        return array_values(array_map(
+            static fn (array $window): array => [
+                'start' => (float) $window['start'],
+                'end' => (float) $window['end'],
+                'reason' => (string) $window['reason'],
+            ],
+            $windows,
+        ));
     }
 
     public function isAutoTrimVideoRun(): bool

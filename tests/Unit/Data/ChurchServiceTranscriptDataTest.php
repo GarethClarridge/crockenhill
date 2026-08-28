@@ -11,6 +11,22 @@ use Tests\TestCase;
 class ChurchServiceTranscriptDataTest extends TestCase
 {
     #[Test]
+    public function it_round_trips_and_prompts_with_unobservable_windows(): void
+    {
+        $transcript = ChurchServiceTranscript::fromCues(
+            [['start' => 1200.0, 'end' => 1230.0, 'text' => 'The reading begins.']],
+            1500.0,
+            ChurchServiceTranscript::SOURCE_LOCAL_WHISPER,
+            [['start' => 0.0, 'end' => 1200.0, 'reason' => 'retranscription_failed']],
+        );
+
+        $restored = ChurchServiceTranscript::fromArray($transcript->toArray());
+
+        $this->assertSame($transcript->unobservableWindows, $restored->unobservableWindows);
+        $this->assertStringContainsString('[0:00-20:00] TRANSCRIPT UNOBSERVABLE', $restored->toPromptText());
+    }
+
+    #[Test]
     public function from_cues_normalises_orders_and_drops_invalid_cues(): void
     {
         $transcript = ChurchServiceTranscript::fromCues([

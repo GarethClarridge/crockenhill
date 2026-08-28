@@ -23,11 +23,13 @@ final readonly class ChurchServiceTranscript extends JsonData
      * @param  list<array{start: float, end: float, text: string}>  $cues  Ordered by start time
      * @param  float  $duration  Total recording duration in seconds
      * @param  string  $source  One of the SOURCE_* constants
+     * @param  list<array{start: float, end: float, reason: string}>  $unobservableWindows
      */
     public function __construct(
         public array $cues,
         public float $duration,
         public string $source,
+        public array $unobservableWindows = [],
     ) {}
 
     /**
@@ -37,8 +39,9 @@ final readonly class ChurchServiceTranscript extends JsonData
      * clamped to be at least the start time; cues are sorted chronologically.
      *
      * @param  array<int, mixed>  $cues
+     * @param  array<int, mixed>  $unobservableWindows
      */
-    public static function fromCues(array $cues, float $duration, string $source): self
+    public static function fromCues(array $cues, float $duration, string $source, array $unobservableWindows = []): self
     {
         $normalised = [];
 
@@ -72,11 +75,14 @@ final readonly class ChurchServiceTranscript extends JsonData
         usort($normalised, static fn (array $left, array $right): int => $left['start'] <=> $right['start']);
 
         $lastCueEnd = $normalised === [] ? 0.0 : max(array_column($normalised, 'end'));
+        $normalisedWindows = self::normaliseUnobservableWindows($unobservableWindows);
+        $lastWindowEnd = $normalisedWindows === [] ? 0.0 : max(array_column($normalisedWindows, 'end'));
 
         return new self(
             cues: $normalised,
-            duration: max(0.0, $duration, $lastCueEnd),
+            duration: max(0.0, $duration, $lastCueEnd, $lastWindowEnd),
             source: $source,
+            unobservableWindows: $normalisedWindows,
         );
     }
 
@@ -88,11 +94,12 @@ final readonly class ChurchServiceTranscript extends JsonData
             is_array($payload['cues'] ?? null) ? $payload['cues'] : [],
             (float) (self::floatOrNull($payload['duration'] ?? null) ?? 0.0),
             self::stringOrNull($payload['source'] ?? null) ?? self::SOURCE_MOCK,
+            is_array($payload['unobservable_windows'] ?? null) ? $payload['unobservable_windows'] : [],
         );
     }
 
     /**
-     * @return array{cues: list<array{start: float, end: float, text: string}>, duration: float, source: string}
+     * @return array{cues: list<array{start: float, end: float, text: string}>, duration: float, source: string, unobservable_windows: list<array{start: float, end: float, reason: string}>}
      */
     public function toArray(): array
     {
@@ -100,6 +107,7 @@ final readonly class ChurchServiceTranscript extends JsonData
             'cues' => $this->cues,
             'duration' => $this->duration,
             'source' => $this->source,
+            'unobservable_windows' => $this->unobservableWindows,
         ];
     }
 
@@ -119,17 +127,33 @@ final readonly class ChurchServiceTranscript extends JsonData
             return sprintf('%d:%02d', intdiv($totalSeconds, 60), $totalSeconds % 60);
         };
 
-        $lines = array_map(
-            static fn (array $cue): string => sprintf(
-                '[%s-%s] %s',
-                $format($cue['start']),
-                $format($cue['end']),
-                $cue['text']
-            ),
+        $entries = array_map(
+            static fn (array $cue): array => [
+                'start' => $cue['start'],
+                'line' => sprintf(
+                    '[%s-%s] %s',
+                    $format($cue['start']),
+                    $format($cue['end']),
+                    $cue['text']
+                ),
+            ],
             $this->cues
         );
 
-        return implode("\n", $lines);
+        foreach ($this->unobservableWindows as $window) {
+            $entries[] = [
+                'start' => $window['start'],
+                'line' => sprintf(
+                    '[%s-%s] TRANSCRIPT UNOBSERVABLE',
+                    $format($window['start']),
+                    $format($window['end']),
+                ),
+            ];
+        }
+
+        usort($entries, static fn (array $left, array $right): int => $left['start'] <=> $right['start']);
+
+        return implode("\n", array_column($entries, 'line'));
     }
 
     /**
@@ -163,5 +187,36 @@ final readonly class ChurchServiceTranscript extends JsonData
     public function isEmpty(): bool
     {
         return $this->cues === [];
+    }
+
+    /**
+     * @param  array<int, mixed>  $windows
+     * @return list<array{start: float, end: float, reason: string}>
+     */
+    private static function normaliseUnobservableWindows(array $windows): array
+    {
+        $normalised = [];
+
+        foreach ($windows as $window) {
+            if (! is_array($window) || ! is_numeric($window['start'] ?? null) || ! is_numeric($window['end'] ?? null)) {
+                continue;
+            }
+
+            $reason = $window['reason'] ?? null;
+            if (! is_string($reason) || trim($reason) === '') {
+                continue;
+            }
+
+            $start = max(0.0, (float) $window['start']);
+            $normalised[] = [
+                'start' => $start,
+                'end' => max($start, (float) $window['end']),
+                'reason' => trim($reason),
+            ];
+        }
+
+        usort($normalised, static fn (array $left, array $right): int => $left['start'] <=> $right['start']);
+
+        return $normalised;
     }
 }

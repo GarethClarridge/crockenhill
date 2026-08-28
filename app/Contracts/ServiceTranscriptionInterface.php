@@ -13,8 +13,12 @@ interface ServiceTranscriptionInterface
      *
      * @param  string  $audioOrVideoPath  Absolute path to the recording (audio or video)
      * @param  string  $processingId  Processing ID for logging
+     * @param  string|null  $prompt  Priming text; null uses the configured full-service prompt,
+     *                               and an empty string asks for no priming at all. An isolated
+     *                               window passes '' because whole-service priming makes the
+     *                               model emit service-shaped text over music and silence.
      *
      * @throws \Exception When transcription fails
      */
-    public function transcribeService(string $audioOrVideoPath, string $processingId): ChurchServiceTranscript;
+    public function transcribeService(string $audioOrVideoPath, string $processingId, ?string $prompt = null): ChurchServiceTranscript;
 }

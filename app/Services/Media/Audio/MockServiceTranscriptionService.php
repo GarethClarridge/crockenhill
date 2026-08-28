@@ -27,7 +27,7 @@ class MockServiceTranscriptionService implements ServiceTranscriptionInterface
         self::$fixtureTranscript = $transcript;
     }
 
-    public function transcribeService(string $audioOrVideoPath, string $processingId): ChurchServiceTranscript
+    public function transcribeService(string $audioOrVideoPath, string $processingId, ?string $prompt = null): ChurchServiceTranscript
     {
         $this->logger->logProcessingStep(
             $processingId,
