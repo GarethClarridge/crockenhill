@@ -347,4 +347,62 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
         $this->assertSame(1, $result[0]['position']);
         $this->assertSame(2, $result[1]['position']);
     }
+
+    #[Test]
+    public function test_carries_the_sections_reading_reference_onto_the_projected_item(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::BibleReading,
+            'section_order' => 1,
+            'title' => 'Paul addresses the Areopagus',
+            'confidence' => 0.9,
+            'metadata' => [
+                'reading_reference' => 'Acts 17:22-31',
+            ],
+        ]);
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->orderBy('section_order')
+            ->get();
+
+        $result = $this->mapper->map($sections, $log->processing_id);
+
+        $this->assertCount(1, $result);
+        $this->assertSame(
+            'Paul addresses the Areopagus',
+            $result[0]['title'],
+            'The descriptive title is editorial output and must survive intact.',
+        );
+        $this->assertSame('Acts 17:22-31', $result[0]['metadata']['scripture_reference']);
+    }
+
+    #[Test]
+    public function test_omits_the_scripture_reference_when_the_section_names_no_passage(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Song,
+            'section_order' => 1,
+            'title' => 'Amazing Grace',
+            'confidence' => 0.9,
+            'metadata' => [],
+        ]);
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->orderBy('section_order')
+            ->get();
+
+        $result = $this->mapper->map($sections, $log->processing_id);
+
+        $this->assertArrayNotHasKey('scripture_reference', $result[0]['metadata']);
+    }
 }

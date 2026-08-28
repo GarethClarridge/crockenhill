@@ -499,13 +499,40 @@ class ChurchServiceItemSyncService
             return false;
         }
 
-        // Both fields are offered rather than one preferred: OpenLP keeps the
+        // Every field is offered rather than one preferred: OpenLP keeps the
         // canonical reference in title and an unparseable copyright header in
         // source_title, so preferring either field alone silences half the corpus.
+        // A detected reading carries neither — its title is descriptive ("Paul
+        // addresses the Areopagus") and the passage sits in metadata, so without
+        // that third candidate the projection can never anchor to the plan.
         return $this->scriptureResolver->anyReferencesAgree(
-            [$existingItem->title, $existingItem->source_title],
-            [$incomingItem['title'], $incomingItem['source_title']],
+            [
+                $existingItem->title,
+                $existingItem->source_title,
+                $this->scriptureReferenceFromMetadata(is_array($existingItem->metadata) ? $existingItem->metadata : null),
+            ],
+            [
+                $incomingItem['title'],
+                $incomingItem['source_title'],
+                $this->scriptureReferenceFromMetadata($incomingItem['metadata']),
+            ],
         );
+    }
+
+    /**
+     * The passage a source named separately from the item's title.
+     *
+     * @param  array<string, mixed>|null  $metadata
+     */
+    private function scriptureReferenceFromMetadata(?array $metadata): ?string
+    {
+        $reference = $metadata['scripture_reference'] ?? null;
+
+        if (! is_string($reference) || trim($reference) === '') {
+            return null;
+        }
+
+        return trim($reference);
     }
 
     /**

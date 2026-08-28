@@ -1455,6 +1455,63 @@ class ChurchServiceItemSyncServiceTest extends TestCase
     }
 
     #[Test]
+    public function test_a_detected_reading_anchors_to_the_plan_by_its_metadata_reference(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        $planned = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 7,
+            'type' => 'bibles',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'Acts 17:22-31',
+            'source_title' => 'Acts 17:22-31',
+        ]);
+
+        // The projection names the reading descriptively and holds the passage
+        // beside it, exactly as LivestreamSectionToServiceItemMapper writes it.
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'bibles', 'Paul addresses the Areopagus', null, null, [
+                'scripture_reference' => 'Acts 17:22-31',
+            ]),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertCount(
+            1,
+            $churchService->items()->get(),
+            'A descriptive title with an agreeing reference must merge, not duplicate the plan.',
+        );
+        $this->assertSame('Acts 17:22-31', $planned->refresh()->title);
+    }
+
+    #[Test]
+    public function test_a_detected_reading_of_a_different_passage_stays_a_separate_item(): void
+    {
+        $churchService = ChurchService::factory()->create(['source' => 'openlp']);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 7,
+            'type' => 'bibles',
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'title' => 'Acts 17:22-31',
+            'source_title' => 'Acts 17:22-31',
+        ]);
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'bibles', 'Faith credited as righteousness', null, null, [
+                'scripture_reference' => 'Romans 4:4-5',
+            ]),
+        ], ChurchServiceItemSource::Livestream);
+
+        $this->assertCount(
+            2,
+            $churchService->items()->get(),
+            'Two different passages are two readings, however the metadata is carried.',
+        );
+    }
+
+    #[Test]
     public function test_a_reading_that_runs_past_the_planned_one_stays_a_separate_item(): void
     {
         $churchService = ChurchService::factory()->create(['source' => 'openlp']);

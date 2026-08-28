@@ -135,11 +135,18 @@ class LivestreamSectionToServiceItemMapper
      * `livestream_service_section_id`) and are written as top-level payload keys
      * by the mapper. Duplicating them inside the JSON blob invited drift.
      *
-     * @return array{section_summary: string|null, livestream_projection: array{source_segment_ids: array<int, int>, confidence_level: string, needs_manual_review: bool}}
+     * `scripture_reference` carries the passage the detector named on the section.
+     * Without it a reading projects as a descriptive title alone — "Paul addresses
+     * the Areopagus" — and every merge tier fails against the order of service's
+     * "Acts 17:22-31", so the plan duplicates instead of merging. The reference is
+     * provenance and rides beside the title rather than replacing it: the
+     * descriptive title is what the public archive shows.
+     *
+     * @return array{section_summary: string|null, livestream_projection: array{source_segment_ids: array<int, int>, confidence_level: string, needs_manual_review: bool}, scripture_reference?: string}
      */
     private function buildMetadata(ServiceSection $section): array
     {
-        return [
+        $metadata = [
             'section_summary' => $section->summary,
             'livestream_projection' => [
                 'source_segment_ids' => $section->source_segment_ids ?? [],
@@ -147,6 +154,14 @@ class LivestreamSectionToServiceItemMapper
                 'needs_manual_review' => (bool) $section->needs_manual_review,
             ],
         ];
+
+        $readingReference = $section->metadata?->readingReference;
+
+        if (is_string($readingReference) && trim($readingReference) !== '') {
+            $metadata['scripture_reference'] = trim($readingReference);
+        }
+
+        return $metadata;
     }
 
     private function confidenceLevel(?float $confidence): string
