@@ -308,5 +308,37 @@ measured before this: `structure:evaluate` ran real paid calls but never recorde
 - Cost is aggregated across **every** entry, not just the ones that validated — a run's true spend
   includes its failures.
 
-Two structure-arm reports (incumbent vs candidate) run with `--price-snapshot` now settle item 6d
-directly from their `aggregate.usage.mean_cost_usd`, without hand-totalling usage log lines.
+Two structure-arm reports (incumbent vs candidate) run with `--price-snapshot` would settle item
+6d directly from their `aggregate.usage.mean_cost_usd` — for any *future* comparison. Arms 09–12
+above already ran, though, and `OpenAiUsageLogger` had already logged their real usage before this
+instrumentation existed. A further paid run to get their cost would have re-bought data already
+owned; the fix only needed applying backwards, from the log, at zero spend.
+
+## Addendum — item 6d closed from the existing log, no new run
+
+Isolated the 24 relevant `service_structure` log lines by `evaluation_arm` label
+(`structure-incumbent-sol-medium[-rerun]` / `structure-candidate-terra-medium[-rerun]`, 2026-08-28)
+and priced them against `openai-price-snapshot-20260827.json`. Candidate `gpt-5.6-terra`/medium
+costs **52.3%** less per service than incumbent `gpt-5.6-sol`/medium ($0.059/service vs $0.124/service
+pooled across both draws; 52.0% on the conservative uncached-only reading) — well clear of the 15%
+threshold in either reading, so no further draw could plausibly change the verdict. Full derivation
+in `storage/app/private/structure-arms-ruling-postmerge-20260828.md` under **Item 6d closed**.
+
+**Both IC5 item-6 gates are now cleared on the structure side: safety (6c) and economic (6d).**
+Adoption remains a separate, deliberately-gated step — an explicit recorded operator decision, not
+an automatic consequence of a passing gate.
+
+## Addendum — adopted and deployed, 2026-08-28
+
+Both gates cleared on both call families, so the operator recorded an adoption decision in the plan of
+record under IC5 item 6d and deployed it the same day. Structure detection moved to `gpt-5.6-luna`/`medium`
+(94.5% cheaper than the retired `gpt-5.6-sol`/`medium`, and cheaper again than the also-passing
+`gpt-5.6-terra`/`medium` at 52.3%); sermon analysis moved to `gpt-5.6-luna`/`low`, retiring
+`gpt-5.6-terra`/`low`. `.env` and `.env.example` updated, and the six queue workers restarted — they read
+`.env` once at boot, so processing would otherwise have kept using the retired models while one-off
+`artisan` commands showed the new ones.
+
+The open items listed above are unaffected by the adoption: the 2024-01-14 `out_of_order_oos_items`
+anchor pair still needs one fresh billed `structure:evaluate` run to read the newly retained message, the
+2025-02-02 song duplicate still needs title normalisation, the early sermon end is still unexplained, and
+`titleMetrics()` still discards the detected title strings.
