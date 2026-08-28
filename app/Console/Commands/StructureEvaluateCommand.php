@@ -442,6 +442,10 @@ class StructureEvaluateCommand extends Command
 
         return [
             'detected' => true,
+            'detected_start_time' => round($detected->startTime, 2),
+            'detected_end_time' => round($detected->endTime, 2),
+            'expected_start_time' => round((float) $expectedSermon['start_time'], 2),
+            'expected_end_time' => round((float) $expectedSermon['end_time'], 2),
             'start_delta' => $startDelta,
             'end_delta' => $endDelta,
             'within_15s' => abs($startDelta) <= 15.0 && abs($endDelta) <= 15.0,
@@ -552,23 +556,42 @@ class StructureEvaluateCommand extends Command
 
         $detectedValues = array_values(array_filter(array_map(
             static fn (ServiceStructureSection $section): ?string => is_string($section->{$property})
-                ? mb_strtolower(trim($section->{$property}))
+                ? trim($section->{$property})
                 : null,
             $structure->sections
         )));
 
+        $normalise = static fn (string $value): string => mb_strtolower(trim($value));
+        $detectedNormalised = array_map($normalise, $detectedValues);
+
         $matched = 0;
+        $matchedNormalised = [];
+        $missed = [];
 
         foreach ($expectedValues as $expectedValue) {
-            if (is_string($expectedValue) && in_array(mb_strtolower(trim($expectedValue)), $detectedValues, true)) {
-                $matched++;
+            if (! is_string($expectedValue)) {
+                continue;
             }
+
+            if (in_array($normalise($expectedValue), $detectedNormalised, true)) {
+                $matched++;
+                $matchedNormalised[] = $normalise($expectedValue);
+
+                continue;
+            }
+
+            $missed[] = $expectedValue;
         }
 
         return [
             'expected' => count($expectedValues),
             'matched' => $matched,
             'rate' => $expectedValues === [] ? null : round($matched / count($expectedValues), 3),
+            'missed' => $missed,
+            'unmatched_detected' => array_values(array_filter(
+                $detectedValues,
+                static fn (string $value): bool => ! in_array($normalise($value), $matchedNormalised, true)
+            )),
         ];
     }
 

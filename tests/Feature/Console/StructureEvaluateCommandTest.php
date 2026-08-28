@@ -98,6 +98,62 @@ class StructureEvaluateCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_retains_the_detected_sermon_times_alongside_the_deltas(): void
+    {
+        // A delta alone cannot be traced back to a boundary: diagnosing one meant
+        // reconstructing the detected time as expected + delta by hand. Both sides
+        // of the subtraction are now in the report.
+        $this->artisan('structure:evaluate', [
+            '--manifest' => base_path('tests/Fixtures/StructureEval/manifest.json'),
+            '--detector' => 'mock',
+            '--report' => $this->reportPath,
+        ])->assertSuccessful();
+
+        $report = json_decode((string) file_get_contents($this->reportPath), true);
+        $wrong = $report['services'][1]['sermon'];
+
+        $this->assertEquals(430.0, $wrong['detected_start_time']);
+        $this->assertEquals(2200.0, $wrong['detected_end_time']);
+        $this->assertEquals(700.0, $wrong['expected_start_time']);
+        $this->assertEquals(2100.0, $wrong['expected_end_time']);
+
+        $this->assertEquals(
+            $wrong['detected_end_time'] - $wrong['expected_end_time'],
+            $wrong['end_delta'],
+            'The retained times must be the operands the delta was computed from.'
+        );
+        $this->assertEquals(
+            $wrong['detected_start_time'] - $wrong['expected_start_time'],
+            $wrong['start_delta']
+        );
+    }
+
+    #[Test]
+    public function it_names_the_missed_and_unmatched_titles_not_just_their_counts(): void
+    {
+        // Counts alone made a title miss undiagnosable — a rate of 0.0 said nothing
+        // about which title was expected or what the detector actually returned.
+        $this->artisan('structure:evaluate', [
+            '--manifest' => base_path('tests/Fixtures/StructureEval/manifest.json'),
+            '--detector' => 'mock',
+            '--report' => $this->reportPath,
+        ])->assertSuccessful();
+
+        $report = json_decode((string) file_get_contents($this->reportPath), true);
+
+        $accurate = $report['services'][0];
+        $this->assertSame([], $accurate['song_titles']['missed'], 'A fully matched service misses nothing.');
+
+        $wrong = $report['services'][1];
+        $this->assertSame(['How Great Thou Art'], $wrong['song_titles']['missed']);
+        $this->assertSame(['Joshua 1:1-9'], $wrong['reading_references']['missed']);
+        $this->assertNotEmpty(
+            $wrong['song_titles']['unmatched_detected'],
+            'The title the detector actually returned must be readable from the report.'
+        );
+    }
+
+    #[Test]
     public function a_hard_failure_records_the_validators_message_alongside_its_code(): void
     {
         // A section claiming an OoS item id that doesn't exist for this

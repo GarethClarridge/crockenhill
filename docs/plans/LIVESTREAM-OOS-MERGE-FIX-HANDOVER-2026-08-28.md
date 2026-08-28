@@ -141,13 +141,15 @@ services. That is four paid runs and should follow the merge fix, not precede it
 
 - Sermon arms 03 (Luna/none) and 04 (Luna/low draw 2) are **run but unscored**;
   6c needs blinded human scoring, including draw-to-draw stability against arm 02.
-- Every service ends the sermon early (-0.8 to -25s, all six, both arms). A
-  consistent signed bias, unexplained.
+- ~~Every service ends the sermon early (-0.8 to -25s, all six, both arms). A
+  consistent signed bias, unexplained.~~ **CLOSED 2026-08-28 — it was a
+  truth-definition artifact, not a detector defect.** See the addendum below.
 - `structure:evaluate` records no usage or cost, and scores only the primary sermon
   boundary — item 6b requires the former, and the operator's 2026-08-28 ruling that
   a pre-sermon prayer may be included or excluded needs the latter.
-- Song-title misses cannot be diagnosed: `titleMetrics()` retains counts, never the
-  detected strings.
+- ~~Song-title misses cannot be diagnosed: `titleMetrics()` retains counts, never the
+  detected strings.~~ **CLOSED 2026-08-28** — `missed` and `unmatched_detected` are
+  now in the report.
 
 ---
 
@@ -264,8 +266,10 @@ item list.
 - **2025-02-02 regressed for the incumbent**, failing both post-fix draws where it
   previously failed one. Its unmerged song duplicate is the obvious suspect.
 - Sermon arms 03 (Luna/none) and 04 (Luna/low draw 2) remain **run but unscored**.
-- Every service still ends the sermon early, all six, all arms. Unexplained.
-- `titleMetrics()` still retains counts and never the detected strings.
+- ~~Every service still ends the sermon early, all six, all arms. Unexplained.~~
+  **CLOSED 2026-08-28** — see the sermon-end addendum below.
+- ~~`titleMetrics()` still retains counts and never the detected strings.~~
+  **CLOSED 2026-08-28.**
 
 ## Artifacts added
 
@@ -339,6 +343,45 @@ record under IC5 item 6d and deployed it the same day. Structure detection moved
 `artisan` commands showed the new ones.
 
 The open items listed above are unaffected by the adoption: the 2024-01-14 `out_of_order_oos_items`
-anchor pair still needs one fresh billed `structure:evaluate` run to read the newly retained message, the
-2025-02-02 song duplicate still needs title normalisation, the early sermon end is still unexplained, and
-`titleMetrics()` still discards the detected title strings.
+anchor pair still needs one fresh billed `structure:evaluate` run to read the newly retained message, and
+the 2025-02-02 song duplicate still needs title normalisation. The remaining two — the "early" sermon end
+and `titleMetrics()`'s missing strings — were both closed later the same day; see the addendum below.
+
+## Addendum — the sermon "early end" was a truth-definition artifact, closed 2026-08-28
+
+Full write-up and rescored figures:
+`storage/app/private/calibration-review-pack/sermon-end-boundary-finding-20260828.md`.
+
+The detector was never ending sermons early. It ends where its prompt tells it to — *"the
+sermon ends when the preacher stops speaking"* — while the worksheet truth is **contiguous by
+construction**, so its sermon end is the *next item's start* and includes the closing-hymn
+announcement. The reported delta was the distance between two definitions.
+
+The diagnosis came from the shape of the data before any code was read: `start_delta` swings
+widely between models on the same service while `end_delta` is nearly frozen per service across
+all ten arms and three models — a number that does not move when the model changes is not being
+produced by the model. The control case confirms it: **2024-12-22-evening is the one service
+whose sermon truth was transcript-derived** rather than worksheet-marked, and it is the only one
+with a near-zero delta (-0.78s).
+
+Sermon `end_time` was re-derived from the banked cues on the five worksheet-marked services,
+operator-authorised, into a **new** file
+`structure-eval-20260827/manifest-with-truth-speechend-20260828.json` (sha256 `74818198…`,
+recorded in `truth-hash-speechend-20260828.json`). Only the sermon end changed; the transcripts
+are untouched, so `banked-input-hashes.json` stays valid.
+
+Because `end_delta` is `detected - expected`, the detected times were recoverable exactly and
+every arm was **rescored arithmetically at zero spend**. For the adopted arm,
+`mean_abs_end_delta` falls **16.46s → 0.68s** and `within_15s_rate` rises **0.167 → 0.667**;
+worst case across all six services is -2.50s and three are within 0.2s. **There is no residue,
+no content defect, and no reason to hold slice 5.** The 6c/6d rulings are unaffected — every arm
+was scored against the same biased truth — but the absolute `mean_abs_end_delta` /
+`within_15s_rate` / `within_30s_rate` figures in arms 05–14 must not be quoted as accuracy.
+
+`start_delta` remains genuinely noisy and is now the sole contributor to sub-threshold sermon
+scores. That is untouched by this finding.
+
+Committed alongside: `StructureEvaluateCommand` now retains
+`detected_start_time`/`detected_end_time`/`expected_start_time`/`expected_end_time` on the sermon
+metric and `missed`/`unmatched_detected` on the title metrics, so neither of these diagnoses will
+need hand-reconstruction again.
