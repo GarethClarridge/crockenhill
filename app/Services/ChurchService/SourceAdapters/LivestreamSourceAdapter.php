@@ -84,6 +84,7 @@ class LivestreamSourceAdapter
         return [
             'historic_import' => true,
             'corroboration_grade' => is_string($grade) ? $grade : null,
+            'transcript_unobservable_windows' => $processingLog->serviceTranscriptUnobservableWindows(),
         ];
     }
 

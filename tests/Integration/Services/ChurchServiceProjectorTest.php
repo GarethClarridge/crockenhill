@@ -247,6 +247,41 @@ class ChurchServiceProjectorTest extends TestCase
         $this->assertFalse($service->needs_review);
     }
 
+    #[Test]
+    public function a_full_historic_livestream_with_an_unobservable_transcript_window_is_neutral(): void
+    {
+        $service = ChurchService::factory()->create();
+        $emailItems = [
+            $this->item(1, 'songs', 'Come Thou Fount', 'come-thou-fount'),
+            $this->item(2, 'songs', 'Be Thou My Vision', 'be-thou-my-vision'),
+        ];
+
+        $this->ingestItems($service, ChurchServiceSource::Email, $emailItems, processingFingerprint: [
+            'format' => 'email-plan',
+            'version' => 2,
+            'unattended_content_finalization' => false,
+        ]);
+        $this->ingestItems($service, ChurchServiceSource::Livestream, [
+            $this->item(1, 'custom', 'Sermon', 'sermon'),
+        ], processingFingerprint: [
+            'format' => 'livestream-projection',
+            'version' => 1,
+            'historic_import' => true,
+            'corroboration_grade' => 'full',
+            'transcript_unobservable_windows' => [
+                ['start' => 0.0, 'end' => 1200.0, 'reason' => 'retranscription_failed'],
+            ],
+        ]);
+
+        $service->refresh();
+        $conflicts = $service->mergeProposals()->latest('id')->firstOrFail()->conflicts;
+        $kinds = array_unique(array_column($conflicts, 'kind'));
+
+        $this->assertNotSame(ChurchServiceCanonicalFinalization::Automatic, $service->canonical_finalization);
+        $this->assertContains('uncorroborated_content_dimension', $kinds);
+        $this->assertNotContains('corroboration_mismatch', $kinds);
+    }
+
     /**
      * The safety property this slice exists for: an incomplete historic recording is neutral.
      *

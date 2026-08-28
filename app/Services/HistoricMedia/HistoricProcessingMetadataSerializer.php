@@ -15,6 +15,7 @@ class HistoricProcessingMetadataSerializer
         'service_structure',
         'service_structure_result',
         'service_transcript_path',
+        'service_transcript_unobservable_windows',
         'raw_service_transcript_path',
         'compressed_service_audio_path',
         'processing_fingerprint',

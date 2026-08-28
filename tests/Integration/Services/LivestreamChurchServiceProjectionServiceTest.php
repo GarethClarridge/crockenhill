@@ -1043,6 +1043,34 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $this->assertSame('short_partial', $record->processing_fingerprint['corroboration_grade']);
     }
 
+    #[Test]
+    public function test_a_historic_livestream_carries_transcript_observability_into_the_source_revision(): void
+    {
+        $windows = [['start' => 0.0, 'end' => 1200.0, 'reason' => 'retranscription_failed']];
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        $log->forceFill([
+            'processing_metadata' => [
+                'historic_import' => [
+                    'tag' => 'livestream',
+                    'corroboration_grade' => 'full',
+                ],
+                'service_transcript_unobservable_windows' => $windows,
+            ],
+        ])->saveQuietly();
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Sermon, 'title' => 'The Prodigal Son', 'confidence' => 0.9],
+        ]);
+
+        $result = $this->service->project($log);
+
+        $record = ChurchServiceSourceRecord::query()
+            ->where('church_service_id', $result['church_service_id'])
+            ->where('source', ChurchServiceSource::Livestream->value)
+            ->firstOrFail();
+
+        $this->assertEquals($windows, $record->processing_fingerprint['transcript_unobservable_windows']);
+    }
+
     /**
      * A historic recording whose grade never arrived is marked historic with a null grade.
      *

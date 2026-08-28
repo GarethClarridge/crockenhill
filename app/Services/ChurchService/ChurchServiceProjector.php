@@ -1424,6 +1424,10 @@ class ChurchServiceProjector
             return true;
         }
 
+        if (($fingerprint['transcript_unobservable_windows'] ?? []) !== []) {
+            return false;
+        }
+
         $grade = HistoricVideoCorroborationGrade::tryFrom(
             is_string($fingerprint['corroboration_grade'] ?? null) ? $fingerprint['corroboration_grade'] : '',
         );
