@@ -34,6 +34,7 @@ class ImportHistoricVideoBatchCommand extends Command
                             {--operation= : Immutable historic import operation id this dispatch belongs to (required without --dry-run)}
                             {--from= : Only files from this date (YYYY-MM-DD)}
                             {--until= : Only files up to this date (YYYY-MM-DD)}
+                            {--only= : Comma-separated manifest item keys to dispatch this pass (manifest mode only); the rest of the approved corpus stays pending for a later pass}
                             {--include-unclassified : Process files outside morning (10:00-12:59) and evening (17:00-21:00) windows}
                             {--default-year= : Fallback year for YouTubeDownloads files lacking a year}
                             {--min-size-mb=30 : Skip files smaller than this (MB)}
@@ -111,6 +112,12 @@ class ImportHistoricVideoBatchCommand extends Command
         $stagingContext = null;
         $operation = null;
 
+        if ($manifestPath === null && is_string($this->option('only')) && trim((string) $this->option('only')) !== '') {
+            $this->error('--only names manifest item keys, so it requires --manifest.');
+
+            return self::FAILURE;
+        }
+
         if ($manifestPath !== null) {
             /**
              * The content re-read is opt-in because it costs a whole-corpus pass and is redundant
@@ -139,6 +146,55 @@ class ImportHistoricVideoBatchCommand extends Command
             $includeUnclassified = false;
             $from = null;
             $until = null;
+
+            /**
+             * A checkpoint selector, not a corpus filter — which is why it is permitted where
+             * --from/--until/--limit are refused. Those three select a different corpus and leave
+             * no trace of having done so. `--only` cannot: the manifest and plan hashes are
+             * computed from the manifest's entries rather than from the work items, so a bounded
+             * pass belongs to exactly the same approved round as a full one, its dispatches carry
+             * the same {@see HistoricVideoImporter} dedup keys, and everything it does not touch
+             * stays pending for a later pass instead of being silently dropped.
+             *
+             * This exists because the alternative the definitive-run guard points at — stopping
+             * and resuming against manifest order — cannot produce a representative first pass.
+             * The manifest is date-sorted and format tracks the recording era, so a chronological
+             * prefix reaches no `.mkv` container and no concatenation above two files until it has
+             * run most of the corpus.
+             */
+            $only = $this->parseOnly($this->option('only'));
+
+            if ($only === false) {
+                return self::FAILURE;
+            }
+
+            if ($only !== []) {
+                $selected = array_values(array_filter(
+                    $approvedWorkItems,
+                    fn (array $item): bool => in_array($item['manifest_item_key'], $only, true),
+                ));
+
+                $found = array_map(fn (array $item): string => $item['manifest_item_key'], $selected);
+                $unknown = array_values(array_diff($only, $found));
+
+                if ($unknown !== []) {
+                    $this->error(
+                        'These --only keys are not included work items in the approved manifest: '
+                        .implode(', ', $unknown)
+                    );
+
+                    return self::FAILURE;
+                }
+
+                $approvedWorkItems = $selected;
+
+                $this->warn(sprintf(
+                    'Bounded pass: dispatching %d of %d approved work items. The remaining %d stay pending for a later pass.',
+                    count($selected),
+                    count($plan->workItems),
+                    count($plan->workItems) - count($selected),
+                ));
+            }
         }
 
         if (! $dryRun) {
@@ -385,6 +441,31 @@ class ImportHistoricVideoBatchCommand extends Command
         }
 
         return true;
+    }
+
+    /**
+     * Manifest item keys named by --only, or false when the option is malformed.
+     *
+     * @return list<string>|false
+     */
+    private function parseOnly(mixed $option): array|false
+    {
+        if (! is_string($option) || trim($option) === '') {
+            return [];
+        }
+
+        $keys = array_values(array_unique(array_filter(
+            array_map(trim(...), explode(',', $option)),
+            fn (string $key): bool => $key !== '',
+        )));
+
+        if ($keys === []) {
+            $this->error('--only was given but names no manifest item keys.');
+
+            return false;
+        }
+
+        return $keys;
     }
 
     private function parseDate(mixed $option, string $flagName): Carbon|false|null

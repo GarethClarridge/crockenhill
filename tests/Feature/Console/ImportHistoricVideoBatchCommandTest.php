@@ -889,6 +889,80 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         ];
     }
 
+    // ---- --only: bounded passes within one approved round ----
+
+    #[Test]
+    public function only_requires_a_manifest(): void
+    {
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--only' => 'some-item-key',
+        ])
+            ->expectsOutputToContain('--only names manifest item keys, so it requires --manifest.')
+            ->assertExitCode(1);
+    }
+
+    #[Test]
+    public function only_refuses_a_key_that_is_not_an_approved_work_item(): void
+    {
+        $this->createFakeVideo("{$this->temporaryDirectory}/2021-04-12 10-02-00.mkv");
+        $manifestPath = $this->historicManifest('2021-04-12 10-02-00.mkv', '2021-04-12', 'morning');
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+        $operation = $this->historicVideoOperation($plan->manifestHash);
+
+        // A silent no-op here would be the dangerous outcome: a bounded pass that
+        // dispatches nothing looks exactly like a fully-resumed one.
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--manifest' => $manifestPath,
+            '--plan-hash' => $plan->planHash,
+            '--operation' => $operation->operation_id,
+            '--only' => 'no-such-item-key',
+        ])
+            ->expectsOutputToContain('no-such-item-key')
+            ->assertExitCode(1);
+    }
+
+    /**
+     * The property that makes --only safe where --from/--until are refused: a bounded
+     * pass belongs to the same approved round as a full one. The manifest and plan
+     * hashes are derived from the manifest entries, not from the selected work items,
+     * so selecting a subset cannot move the round the dispatch binds to.
+     */
+    #[Test]
+    public function a_bounded_pass_binds_to_the_same_round_as_a_full_pass(): void
+    {
+        $this->createFakeVideo("{$this->temporaryDirectory}/2021-04-12 10-02-00.mkv");
+        $manifestPath = $this->historicManifest('2021-04-12 10-02-00.mkv', '2021-04-12', 'morning');
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+        $operation = $this->historicVideoOperation($plan->manifestHash);
+        $itemKey = $plan->workItems[0]['manifest_item_key'];
+        $received = [];
+
+        $this->mock(HistoricImportProductionGuard::class)
+            ->shouldReceive('refusalFor')
+            ->once()
+            ->andReturnUsing(function (...$arguments) use (&$received): ?string {
+                $received = $arguments;
+
+                return 'refused by the test double';
+            });
+
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--manifest' => $manifestPath,
+            '--plan-hash' => $plan->planHash,
+            '--operation' => $operation->operation_id,
+            '--only' => $itemKey,
+        ])->assertExitCode(1);
+
+        self::assertSame($plan->manifestHash, $received[2]);
+        self::assertSame($plan->planHash, $received[3]);
+    }
+
     private function historicManifest(string $relativePath, string $date, string $service, array $overrides = []): string
     {
         $path = "{$this->temporaryDirectory}/{$relativePath}";
