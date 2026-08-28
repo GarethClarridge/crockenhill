@@ -150,6 +150,35 @@ final readonly class ServiceStructureSection extends JsonData
     }
 
     /**
+     * A copy of this section as it must be read on a recording that contains no
+     * songs — a concatenated historic recording, assembled from the fragments
+     * between songs that were excised for copyright.
+     *
+     * The window is kept, because something was said in it and coverage has to
+     * account for it. What goes is every song claim: the type, the song title,
+     * and the anchor onto an order-of-service song item, which could only ever
+     * have been a guess at a sequence the audio cannot establish.
+     */
+    public function asNonSongInSongLessRecording(): self
+    {
+        return new self(
+            type: ServiceSectionType::Other,
+            title: $this->title,
+            startTime: $this->startTime,
+            endTime: $this->endTime,
+            confidence: $this->confidence,
+            oosItemId: null,
+            songTitle: null,
+            readingReference: $this->readingReference,
+            sermonReference: $this->sermonReference,
+            notes: [...$this->notes, 'Detected as a song, but this recording is concatenated and contains no songs.'],
+            reviewFlags: $this->reviewFlags,
+            snapDeltas: $this->snapDeltas,
+            summary: $this->summary,
+        );
+    }
+
+    /**
      * A copy carrying additional review flags (deduplicated).
      *
      * @param  list<string>  $flags

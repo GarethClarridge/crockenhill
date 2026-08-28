@@ -623,7 +623,11 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
         $structure = $this->snapToSilences($structure, $snapService);
 
-        $result = $validator->validate($structure, ValidationContext::for($transcript, $oosItems));
+        $result = $validator->validate($structure, ValidationContext::for(
+            $transcript,
+            $oosItems,
+            ValidationContext::recordingOmitsSongs($this->processingLog->processing_metadata),
+        ));
 
         return [$result, $transcript];
     }

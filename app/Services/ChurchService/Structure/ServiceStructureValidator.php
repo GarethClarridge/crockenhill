@@ -125,6 +125,8 @@ class ServiceStructureValidator
             ]);
         }
 
+        $structure = $this->dropSongsTheRecordingCannotContain($structure, $context);
+
         $this->checkChronology($structure, $hardFailures);
         $this->checkRecordingBounds($structure, $context, $hardFailures);
         $this->checkCoverage($structure, $context, $hardFailures);
@@ -216,6 +218,55 @@ class ServiceStructureValidator
     private static function normaliseSongTitle(string $title): string
     {
         return trim((string) preg_replace('/[^a-z0-9]+/', ' ', mb_strtolower($title)));
+    }
+
+    /**
+     * Reclassify song sections on a recording that contains no songs.
+     *
+     * A concatenated historic recording is the fragments that survive between the
+     * songs; the songs themselves were excised for copyright before the recording
+     * was ever assembled. Asking a detector to find them is asking for a wrong
+     * answer, and it produced two: a candidate arm labelled four song sections
+     * across the unhearable first nineteen minutes of the 2024-12-22 carol service
+     * and then anchored them to carol items out of printed order, failing hard on
+     * `out_of_order_oos_items` for a sequence nothing in the audio could establish.
+     *
+     * The section is not deleted — something was said in that window and coverage
+     * still has to account for it — but it cannot be a song, so it loses the type,
+     * the song title and any claim on an order-of-service item.
+     */
+    private function dropSongsTheRecordingCannotContain(ServiceStructure $structure, ValidationContext $context): ServiceStructure
+    {
+        if (! $context->recordingOmitsSongs) {
+            return $structure;
+        }
+
+        $sections = [];
+        $changed = false;
+
+        foreach ($structure->sections as $section) {
+            if ($section->type !== ServiceSectionType::Song) {
+                $sections[] = $section;
+
+                continue;
+            }
+
+            $changed = true;
+            $sections[] = $section->asNonSongInSongLessRecording();
+        }
+
+        if (! $changed) {
+            return $structure;
+        }
+
+        return new ServiceStructure(
+            $sections,
+            [...$structure->notes, 'Song sections were reclassified: this recording is concatenated, so it contains no songs.'],
+            $structure->model,
+            $structure->summary,
+            $structure->notices,
+            $structure->chapterMarkers,
+        );
     }
 
     /**

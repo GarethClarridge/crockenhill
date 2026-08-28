@@ -652,6 +652,100 @@ class ServiceStructureValidatorTest extends TestCase
         $this->assertSame([], $this->songSectionFlags($result));
     }
 
+    /**
+     * A concatenated historic recording is assembled from the fragments that
+     * survive between the songs, which were excised for copyright — the
+     * 2024-12-22 evening service is 10 fragments against 9 songs on record, and
+     * 10 fragments have exactly 9 gaps. A song section there is necessarily wrong.
+     */
+    #[Test]
+    public function song_sections_are_reclassified_on_a_recording_that_omits_songs(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('bible_reading', 0.0, 120.0, oosItemId: 3),
+            $this->songSection('O Come All You Faithful'),
+        ]);
+
+        $result = $this->validator->validate($structure, $this->songLessContext());
+
+        $song = $result->structure->sections[1];
+
+        $this->assertSame(ServiceSectionType::Other, $song->type);
+        $this->assertNull($song->songTitle);
+        $this->assertNull($song->oosItemId, 'a song section must not keep its claim on an OoS item');
+    }
+
+    #[Test]
+    public function a_song_less_recording_keeps_the_window_it_reclassifies(): void
+    {
+        $structure = ServiceStructure::fromSections([$this->songSection('O Come All You Faithful')]);
+
+        $result = $this->validator->validate($structure, $this->songLessContext());
+
+        $this->assertCount(1, $result->structure->sections, 'the window is reclassified, never dropped');
+        $this->assertSame(120.0, $result->structure->sections[0]->startTime);
+        $this->assertSame(420.0, $result->structure->sections[0]->endTime);
+    }
+
+    /**
+     * The 2026-08-26 defect: four song sections over the unhearable first
+     * nineteen minutes of the carol service, anchored to carol items out of
+     * printed order, failing hard on a sequence the audio cannot establish.
+     */
+    #[Test]
+    public function reclassifying_songs_removes_the_out_of_order_failure_they_caused(): void
+    {
+        $context = new ValidationContext(
+            recordingDuration: 2430.0,
+            speechDuration: 2300.0,
+            oosItemTypes: [7 => ServiceSectionType::Song, 8 => ServiceSectionType::Song],
+            oosItemPositions: [7 => 2, 8 => 1],
+            oosItemRawTypes: [7 => 'songs', 8 => 'songs'],
+            recordingOmitsSongs: true,
+        );
+
+        $structure = ServiceStructure::fromSections([
+            $this->section('song', 120.0, 300.0, oosItemId: 7),
+            $this->section('song', 300.0, 480.0, oosItemId: 8),
+        ]);
+
+        $withSongs = $this->validator->validate(
+            $structure,
+            new ValidationContext(
+                recordingDuration: 2430.0,
+                speechDuration: 2300.0,
+                oosItemTypes: [7 => ServiceSectionType::Song, 8 => ServiceSectionType::Song],
+                oosItemPositions: [7 => 2, 8 => 1],
+                oosItemRawTypes: [7 => 'songs', 8 => 'songs'],
+            ),
+        );
+
+        $this->assertContains('out_of_order_oos_items', $withSongs->failureCodes());
+        $this->assertNotContains('out_of_order_oos_items', $this->validator->validate($structure, $context)->failureCodes());
+    }
+
+    #[Test]
+    public function a_normal_recording_keeps_its_song_sections(): void
+    {
+        $structure = ServiceStructure::fromSections([$this->songSection('O Come All You Faithful')]);
+
+        $result = $this->validator->validate($structure, $this->context());
+
+        $this->assertSame(ServiceSectionType::Song, $result->structure->sections[0]->type);
+        $this->assertSame('O Come All You Faithful', $result->structure->sections[0]->songTitle);
+    }
+
+    private function songLessContext(): ValidationContext
+    {
+        return new ValidationContext(
+            recordingDuration: 2430.0,
+            speechDuration: 2300.0,
+            oosItemTypes: [2 => ServiceSectionType::Song, 3 => ServiceSectionType::BibleReading],
+            oosItemPositions: [2 => 2, 3 => 3],
+            recordingOmitsSongs: true,
+        );
+    }
+
     private function structureWithSongMarker(
         string $sectionTitle,
         string $markerTitle,

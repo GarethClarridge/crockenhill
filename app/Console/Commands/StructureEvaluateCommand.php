@@ -148,7 +148,14 @@ class StructureEvaluateCommand extends Command
 
             $result = $validator->validate(
                 $structure,
-                new ValidationContext($transcript->duration, $transcript->speechDuration(), $oosItemTypes, $transcript->cues, $oosItemPositions)
+                new ValidationContext(
+                    $transcript->duration,
+                    $transcript->speechDuration(),
+                    $oosItemTypes,
+                    $transcript->cues,
+                    $oosItemPositions,
+                    recordingOmitsSongs: $this->recordingOmitsSongs($entry, $log),
+                )
             );
 
             $expected = is_array($entry['expected'] ?? null) ? $entry['expected'] : [];
@@ -175,6 +182,22 @@ class StructureEvaluateCommand extends Command
         } catch (\Throwable $throwable) {
             return ['label' => $label, 'error' => $throwable->getMessage()];
         }
+    }
+
+    /**
+     * A manifest entry may declare `recording_omits_songs` directly, for a banked
+     * transcript with no stored run behind it; otherwise the run's own historic
+     * import metadata answers it.
+     *
+     * @param  array<string, mixed>  $entry
+     */
+    private function recordingOmitsSongs(array $entry, ?MediaProcessingLog $log): bool
+    {
+        if (is_bool($entry['recording_omits_songs'] ?? null)) {
+            return $entry['recording_omits_songs'];
+        }
+
+        return ValidationContext::recordingOmitsSongs($log?->processing_metadata);
     }
 
     /**
