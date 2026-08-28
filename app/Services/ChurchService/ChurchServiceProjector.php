@@ -12,6 +12,7 @@ use App\Enums\ChurchServiceSource;
 use App\Enums\HistoricVideoCorroborationGrade;
 use App\Models\ChurchServiceItemAssertion;
 use App\Models\ChurchServiceSourceRecord;
+use App\Models\Song;
 use App\Support\CanonicalJson;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -474,14 +475,24 @@ class ChurchServiceProjector
         $rightIdentity = $this->strongIdentity($right);
 
         if ($leftIdentity !== null && $rightIdentity !== null) {
-            if ($leftIdentity !== $rightIdentity) {
-                return null;
+            if ($leftIdentity === $rightIdentity) {
+                return [
+                    'tier' => 1,
+                    'method' => str_starts_with($leftIdentity, 'song:') ? 'song_identity' : 'scripture_reference',
+                ];
             }
 
-            return [
-                'tier' => 1,
-                'method' => str_starts_with($leftIdentity, 'song:') ? 'song_identity' : 'scripture_reference',
-            ];
+            // Two song identities may differ only because the catalogue holds the
+            // same hymn twice — once with its praise number baked into the title
+            // and once without. Without this, the mismatch hard-stops before the
+            // title tiers and both sources project their own item, duplicating the
+            // hymn. Scripture identities stay strict: a different reference is a
+            // different passage.
+            if ($this->sameSongIgnoringPraiseNumber($leftIdentity, $rightIdentity)) {
+                return ['tier' => 1, 'method' => 'song_identity_praise_number'];
+            }
+
+            return null;
         }
 
         if ($this->sameNormalizedTitle($left, $right)) {
@@ -497,6 +508,24 @@ class ChurchServiceProjector
         }
 
         return null;
+    }
+
+    /**
+     * Whether two strong identities are both songs naming one hymn whose catalogue
+     * rows disagree only about the praise number. Surfaced as its own match method
+     * so the underlying catalogue duplication stays visible in projection evidence
+     * rather than being silently absorbed.
+     */
+    private function sameSongIgnoringPraiseNumber(string $left, string $right): bool
+    {
+        if (! str_starts_with($left, 'song:') || ! str_starts_with($right, 'song:')) {
+            return false;
+        }
+
+        return Song::sameHymnIgnoringPraiseNumber(
+            Str::after($left, 'song:'),
+            Str::after($right, 'song:'),
+        );
     }
 
     private function sameNormalizedTitle(

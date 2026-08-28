@@ -160,4 +160,49 @@ class SongTest extends TestCase
 
         $this->assertNull($display);
     }
+
+    #[Test]
+    public function it_reads_the_same_hymn_through_an_omitted_or_padded_praise_number(): void
+    {
+        // The catalogue holds some hymns twice — once imported with the praise
+        // number baked into the title, once without — so these two keys are one hymn.
+        $this->assertTrue(Song::sameHymnIgnoringPraiseNumber('here is love', 'here is love 424'));
+        $this->assertTrue(Song::sameHymnIgnoringPraiseNumber('here is love 424', 'here is love'));
+
+        // Leading zeros are not an identity: "#024b" and "#24b" are one hymn.
+        $this->assertTrue(Song::sameHymnIgnoringPraiseNumber(
+            'this earth belongs to god 024b',
+            'this earth belongs to god 24b',
+        ));
+
+        // The '#' sigil survives on a directly-catalogued title but not on an
+        // OpenLP search title, so both stored forms must compare equal.
+        $this->assertTrue(Song::sameHymnIgnoringPraiseNumber(
+            'facing a task unfinished #618',
+            'facing a task unfinished',
+        ));
+    }
+
+    #[Test]
+    public function it_keeps_two_different_praise_numbers_apart(): void
+    {
+        // A shared title can cover genuinely distinct settings, and the number is
+        // the only thing separating them — this is the rule's safety boundary.
+        $this->assertFalse(Song::sameHymnIgnoringPraiseNumber('amazing grace 100', 'amazing grace 200'));
+
+        // Different hymns never match, numbered or not.
+        $this->assertFalse(Song::sameHymnIgnoringPraiseNumber('here is love', 'here is love divine'));
+        $this->assertFalse(Song::sameHymnIgnoringPraiseNumber('', ''));
+    }
+
+    #[Test]
+    public function it_splits_a_praise_number_off_a_canonical_key(): void
+    {
+        $this->assertSame(['here is love', '424'], Song::splitPraiseNumber('here is love 424'));
+        $this->assertSame(['this earth belongs to god', '24b'], Song::splitPraiseNumber('This Earth Belongs To God #024b'));
+        $this->assertSame(['here is love', null], Song::splitPraiseNumber('here is love'));
+
+        // A title that simply ends in a word, not a number, keeps all of itself.
+        $this->assertSame(['ten thousand reasons', null], Song::splitPraiseNumber('ten thousand reasons'));
+    }
 }

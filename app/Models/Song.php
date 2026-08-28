@@ -194,6 +194,55 @@ class Song extends Model
         return $normalised === '' ? '0' : $normalised;
     }
 
+    /**
+     * Split a canonical key into its title base and its trailing praise number.
+     *
+     * Catalogue titles often carry the praise number inline ("Beneath The Cross
+     * Of Jesus #699") even though {@see self::$praise_number} holds it in its own
+     * column, so the stored canonical key inherits it. The same hymn imported
+     * once with the number and once without therefore produces two keys.
+     *
+     * @return array{0: string, 1: ?string} base title, normalised praise number or null
+     */
+    public static function splitPraiseNumber(string $canonicalKey): array
+    {
+        // The '#' sigil survives on a directly-catalogued title ("… #618") but is
+        // stripped from an OpenLP search title, so both stored forms must split.
+        if (preg_match('/^(.*?)\s+#?(\d+[a-z]?)$/', self::canonicalizeKey($canonicalKey), $matches) !== 1) {
+            return [self::canonicalizeKey($canonicalKey), null];
+        }
+
+        return [$matches[1], self::normalisePraiseNumber($matches[2])];
+    }
+
+    /**
+     * Whether two canonical keys name the same hymn, differing only in how the
+     * praise number was carried.
+     *
+     * Two shapes are the same hymn. One side may omit the number entirely
+     * ("here is love" vs "here is love 424") — the catalogue holds one row
+     * imported with its number and one without. Or both may carry it with
+     * different zero padding ("this earth belongs to god 024b" vs "… 24b").
+     *
+     * Two *different* numbers under one title are NOT merged: a shared title
+     * can cover genuinely distinct settings, and the number is the only thing
+     * separating them.
+     *
+     * Comparison-only, in the manner of {@see self::matchKey()} — the stored
+     * canonical key is uniquely indexed and stays exactly as catalogued.
+     */
+    public static function sameHymnIgnoringPraiseNumber(string $left, string $right): bool
+    {
+        [$leftBase, $leftNumber] = self::splitPraiseNumber($left);
+        [$rightBase, $rightNumber] = self::splitPraiseNumber($right);
+
+        if ($leftBase === '' || $leftBase !== $rightBase) {
+            return false;
+        }
+
+        return $leftNumber === null || $rightNumber === null || $leftNumber === $rightNumber;
+    }
+
     public static function canonicalizeKey(string $value): string
     {
         // OpenLP search_title uses @ to delimit alternate search text — strip it.
