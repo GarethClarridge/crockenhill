@@ -14,6 +14,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Queries\ReviewInboxQuery;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongLyricOcrService;
 use App\Services\Song\SongLyricsMatchingService;
@@ -330,6 +331,76 @@ class MatchSongsFromTranscriptTest extends TestCase
         $this->assertSame('What love could remember', $section->title);
         $this->assertArrayNotHasKey('song_title', $section->metadata->toArray());
         $this->assertSame(1, app(ReviewInboxQuery::class)->build()['counts']['sections']);
+    }
+
+    /**
+     * The 2026-08-26 defect: the detector named a song twice for the same window and
+     * disagreed with itself, then a 1.000-confidence match wrote the wrong catalogue
+     * title over the heard one and broke the merge into the planned item. Confidence
+     * cannot arbitrate that, so a flagged section keeps its heard title regardless.
+     */
+    #[Test]
+    public function it_withholds_the_catalogue_title_when_the_section_contradicts_its_chapter_marker(): void
+    {
+        config(['media-processing.song_matching.title_writeback_min_confidence' => 0.5]);
+
+        $song = Song::factory()->create([
+            'title' => 'His Mercy Is More',
+            'canonical_key' => 'his mercy is more',
+            'first_line_key' => 'what love could remember no wrongs we have done',
+            'lyrics_plain' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $item = ChurchServiceItem::factory()->create([
+            'title' => 'What love could remember',
+            'song_id' => null,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
+            'church_service_item_id' => $item->id,
+            'title' => 'What love could remember',
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'What love could remember no wrongs we have done',
+                'review_flags' => [
+                    'unmatched_song_section',
+                    ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH,
+                ],
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(StorageAdapterHelper::class),
+            app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
+        );
+
+        $section->refresh();
+        $item->refresh();
+
+        // The match is still recorded — the guard withholds the title, not the evidence.
+        $this->assertSame($song->id, $section->metadata['transcript_song_match']['song_id'] ?? null);
+        $this->assertSame('What love could remember', $section->title);
+        $this->assertArrayNotHasKey('song_title', $section->metadata->toArray());
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+
+        // The linked item keeps the heard title and gains no link.
+        $this->assertSame('What love could remember', $item->title);
+        $this->assertNull($item->song_id);
+
+        // The disagreement is unresolved, so the flag and the review survive.
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH,
+            $section->metadata['review_flags'] ?? [],
+        );
+        $this->assertTrue($section->needs_manual_review);
     }
 
     #[Test]

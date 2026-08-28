@@ -9,6 +9,7 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\ValidationContext;
+use App\Services\ChurchService\Structure\ValidationResult;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -528,6 +529,172 @@ class ServiceStructureValidatorTest extends TestCase
                 9 => 'presentations',
             ],
         );
+    }
+
+    /**
+     * Both pairs are the real 2026-08-26 defects, pinned verbatim: section 508
+     * scored 0.980 and section 519 scored 1.000, and neither was flagged.
+     */
+    #[Test]
+    public function a_song_section_named_differently_from_its_chapter_marker_is_flagged(): void
+    {
+        foreach ([
+            ['How Lovely On The Mountains', 'Jesus Is Lord'],
+            ['Almighty Lord Most High Draw Near', 'God of Glory'],
+        ] as [$sectionTitle, $markerTitle]) {
+            $result = $this->validator->validate(
+                $this->structureWithSongMarker($sectionTitle, $markerTitle),
+                $this->context(),
+            );
+
+            $this->assertSame(
+                [ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH],
+                $this->songSectionFlags($result),
+                "{$sectionTitle} vs {$markerTitle}",
+            );
+        }
+    }
+
+    #[Test]
+    public function a_song_section_agreeing_with_its_chapter_marker_is_not_flagged(): void
+    {
+        $result = $this->validator->validate(
+            $this->structureWithSongMarker('God Of Glory', 'God of Glory'),
+            $this->context(),
+        );
+
+        $this->assertSame([], $this->songSectionFlags($result));
+    }
+
+    /**
+     * The benign difference in the corpus: the catalogue carries a hymnbook
+     * number the marker does not. Containment must treat that as agreement, or
+     * the guard flags six correct sections for every real defect it finds.
+     */
+    #[Test]
+    public function a_hymnbook_number_or_casing_difference_is_not_a_mismatch(): void
+    {
+        foreach ([
+            ['Come And See #415', 'Come and See'],
+            ['All Praise To Him', 'All Praise to Him'],
+            ['What A Friend We Have In Jesus #614', 'What a Friend We Have in Jesus'],
+        ] as [$sectionTitle, $markerTitle]) {
+            $result = $this->validator->validate(
+                $this->structureWithSongMarker($sectionTitle, $markerTitle),
+                $this->context(),
+            );
+
+            $this->assertSame([], $this->songSectionFlags($result), "{$sectionTitle} vs {$markerTitle}");
+        }
+    }
+
+    #[Test]
+    public function a_song_section_with_no_covering_marker_is_not_flagged(): void
+    {
+        $result = $this->validator->validate(
+            $this->structureWithSongMarker('How Lovely On The Mountains', 'Jesus Is Lord', markerStart: 1800.0, markerEnd: 1900.0),
+            $this->context(),
+        );
+
+        $this->assertSame([], $this->songSectionFlags($result));
+    }
+
+    #[Test]
+    public function a_non_song_section_is_never_flagged_for_naming_its_marker_differently(): void
+    {
+        $structure = ServiceStructure::fromSections(
+            [$this->section('prayer', 120.0, 420.0, oosItemId: 5)],
+            chapterMarkers: [['title' => 'Opening prayer', 'start_time' => 120.0, 'end_time' => 420.0]],
+        );
+
+        $result = $this->validator->validate($structure, $this->context());
+
+        $flags = $result->structure->sections[0]->reviewFlags;
+
+        $this->assertNotContains(ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH, $flags);
+    }
+
+    /**
+     * Snapping moves section edges to silence after the markers are written, so
+     * the two almost never share a boundary. Overlap, not equality, decides.
+     */
+    #[Test]
+    public function a_marker_is_matched_by_overlap_not_by_exact_boundaries(): void
+    {
+        $result = $this->validator->validate(
+            $this->structureWithSongMarker('How Lovely On The Mountains', 'Jesus Is Lord', markerStart: 118.4, markerEnd: 423.9),
+            $this->context(),
+        );
+
+        $this->assertSame(
+            [ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH],
+            $this->songSectionFlags($result),
+        );
+    }
+
+    /**
+     * A song section spanning two markers takes the one it overlaps most, not
+     * the first one it touches.
+     */
+    #[Test]
+    public function the_most_overlapping_marker_wins_when_a_section_spans_two(): void
+    {
+        $structure = ServiceStructure::fromSections(
+            [$this->songSection('God Of Glory')],
+            chapterMarkers: [
+                ['title' => 'Call to worship', 'start_time' => 100.0, 'end_time' => 140.0],
+                ['title' => 'God of Glory', 'start_time' => 140.0, 'end_time' => 420.0],
+            ],
+        );
+
+        $result = $this->validator->validate($structure, $this->context());
+
+        $this->assertSame([], $this->songSectionFlags($result));
+    }
+
+    private function structureWithSongMarker(
+        string $sectionTitle,
+        string $markerTitle,
+        float $markerStart = 120.0,
+        float $markerEnd = 420.0,
+    ): ServiceStructure {
+        return ServiceStructure::fromSections(
+            [$this->songSection($sectionTitle)],
+            chapterMarkers: [['title' => $markerTitle, 'start_time' => $markerStart, 'end_time' => $markerEnd]],
+        );
+    }
+
+    private function songSection(string $songTitle): ServiceStructureSection
+    {
+        $section = ServiceStructureSection::fromArray([
+            'type' => 'song',
+            'start_time' => 120.0,
+            'end_time' => 420.0,
+            'confidence' => 0.98,
+            'oos_item_id' => 2,
+            'song_title' => $songTitle,
+        ]);
+
+        assert($section instanceof ServiceStructureSection);
+
+        return $section;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function songSectionFlags(ValidationResult $result): array
+    {
+        foreach ($result->structure->sections as $section) {
+            if ($section->type === ServiceSectionType::Song) {
+                return array_values(array_filter(
+                    $section->reviewFlags,
+                    static fn (string $flag): bool => $flag === ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH,
+                ));
+            }
+        }
+
+        return [];
     }
 
     private function section(

@@ -7,6 +7,7 @@ namespace App\Services\ChurchService\Structure;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
+use App\Services\ChurchService\ChurchServiceSongLinker;
 use App\Support\ServiceSectionConfidence;
 
 /**
@@ -37,6 +38,25 @@ class ServiceStructureValidator
     public const FLAG_MISSING_PREACHED_READING = 'structure_missing_preached_reading';
 
     /**
+     * The detector names a song twice for the same window — once as the section's
+     * `songTitle`, once as the chapter marker covering it — and nothing downstream
+     * reconciles them. When they name different songs, one of them is wrong, and
+     * the section's confidence says nothing about which: both observed cases scored
+     * 0.98 and 1.000 with `needs_manual_review` false.
+     *
+     * The consequence is not cosmetic. The section's `songTitle` drives the
+     * catalogue link, {@see ChurchServiceSongLinker}
+     * writes that song's title onto the item, and the marker's naming survives only
+     * inside `source_evidence`, where nothing reads it. A wrong link also breaks the
+     * merge into the planned OoS item, which mints a duplicate item instead.
+     *
+     * This flag records the disagreement only. It deliberately does not pick a
+     * winner: the marker was right in both observed cases, but two cases are not a
+     * rule, and guessing is what produced the defect.
+     */
+    public const FLAG_SONG_TITLE_MARKER_MISMATCH = 'song_title_marker_mismatch';
+
+    /**
      * All review flags that an alignment/structure pass owns and recalculates:
      * cleared at the start of each run and only re-added when still applicable.
      * These flags are cleared before each validation pass so re-runs are
@@ -55,6 +75,7 @@ class ServiceStructureValidator
         self::FLAG_LOW_CONFIDENCE,
         self::FLAG_MICRO_SECTION,
         self::FLAG_BENEDICTION_SUSPECT,
+        self::FLAG_SONG_TITLE_MARKER_MISMATCH,
         'unknown_section_type',
     ];
 
@@ -117,6 +138,84 @@ class ServiceStructureValidator
             hardFailures: $hardFailures,
             unmatchedOosItemIds: $this->unmatchedOosItemIds($structure, $context),
         );
+    }
+
+    /**
+     * Does the chapter marker covering this song section name a different song than
+     * the section itself?
+     *
+     * Only songs are checked: a marker over a prayer or a reading is a description,
+     * not a second naming of the same thing. Comparison is on normalised text with
+     * containment allowed, so "All Praise to Him" against "All Praise To Him" and
+     * "Come And See" against "Come And See #415" are agreement, not disagreement —
+     * hymnbook numbers and casing are the common benign difference.
+     *
+     * @param  list<array{title: string, start_time: float, end_time: float}>|array<int|string, mixed>  $chapterMarkers
+     */
+    private function songTitleContradictsChapterMarker(ServiceStructureSection $section, array $chapterMarkers): bool
+    {
+        if ($section->type !== ServiceSectionType::Song) {
+            return false;
+        }
+
+        $sectionTitle = self::normaliseSongTitle((string) $section->songTitle);
+
+        if ($sectionTitle === '') {
+            return false;
+        }
+
+        $markerTitle = self::normaliseSongTitle(
+            $this->coveringChapterMarkerTitle($section, $chapterMarkers) ?? ''
+        );
+
+        if ($markerTitle === '') {
+            return false;
+        }
+
+        return ! str_contains($sectionTitle, $markerTitle) && ! str_contains($markerTitle, $sectionTitle);
+    }
+
+    /**
+     * The title of the marker overlapping this section by the most time, or null
+     * when no marker covers it.
+     *
+     * Boundaries are compared with overlap rather than equality: snapping moves a
+     * section's edges to silence after the markers are written, so the two rarely
+     * share an exact boundary.
+     *
+     * @param  list<array{title: string, start_time: float, end_time: float}>|array<int|string, mixed>  $chapterMarkers
+     */
+    private function coveringChapterMarkerTitle(ServiceStructureSection $section, array $chapterMarkers): ?string
+    {
+        $bestTitle = null;
+        $bestOverlap = 0.0;
+
+        foreach ($chapterMarkers as $marker) {
+            if (! is_array($marker)) {
+                continue;
+            }
+
+            $title = $marker['title'] ?? null;
+
+            if (! is_string($title)) {
+                continue;
+            }
+
+            $overlap = min($section->endTime, (float) ($marker['end_time'] ?? 0))
+                - max($section->startTime, (float) ($marker['start_time'] ?? 0));
+
+            if ($overlap > $bestOverlap) {
+                $bestOverlap = $overlap;
+                $bestTitle = $title;
+            }
+        }
+
+        return $bestTitle;
+    }
+
+    private static function normaliseSongTitle(string $title): string
+    {
+        return trim((string) preg_replace('/[^a-z0-9]+/', ' ', mb_strtolower($title)));
     }
 
     /**
@@ -423,6 +522,10 @@ class ServiceStructureValidator
 
             if (isset($crossTypeInversions[$index])) {
                 $flags[] = self::FLAG_OOS_CROSS_TYPE_INVERSION;
+            }
+
+            if ($this->songTitleContradictsChapterMarker($section, $structure->chapterMarkers)) {
+                $flags[] = self::FLAG_SONG_TITLE_MARKER_MISMATCH;
             }
 
             $sections[] = $flags === [] ? $section : $section->withReviewFlags($flags);

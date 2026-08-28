@@ -14,6 +14,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongLyricOcrService;
 use App\Services\Song\SongLyricsMatchingService;
@@ -402,7 +403,20 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             // song_title_hint keeps the heard text as evidence; a shaky fuzzy
             // match must not present a confidently wrong title.
             $writebackThreshold = (float) config('media-processing.song_matching.title_writeback_min_confidence', 0.75);
-            $writeCatalogueTitle = $confidence >= $writebackThreshold;
+
+            // Confidence cannot arbitrate a naming the detector already contradicted
+            // itself on: both observed mismatches scored 0.98 and 1.000. Where the
+            // validator flagged the section's songTitle as disagreeing with its own
+            // chapter marker, hold the catalogue title back and leave the section for
+            // review — writing it through is what overwrote the heard title and broke
+            // the merge into the planned item.
+            $markerMismatch = in_array(
+                ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH,
+                $metadataArray['review_flags'] ?? [],
+                true,
+            );
+
+            $writeCatalogueTitle = $confidence >= $writebackThreshold && ! $markerMismatch;
 
             if ($writeCatalogueTitle) {
                 $displayTitle = $this->catalogueDisplayTitle($matchedTitle);
@@ -415,6 +429,11 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                 $metadataArray['review_flags'] ?? [],
                 fn (mixed $flag): bool => $flag !== 'unmatched_song_section'
             ));
+
+            // Keep the mismatch flag: a match does not settle which naming was right.
+            if ($markerMismatch && ! in_array(ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH, $reviewFlags, true)) {
+                $reviewFlags[] = ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH;
+            }
             $metadataArray['review_flags'] = $reviewFlags;
 
             if (($metadataArray['review_reason'] ?? null) === 'unmatched_song_section') {
