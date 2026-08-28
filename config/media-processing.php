@@ -230,6 +230,34 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Video Extraction
+    |--------------------------------------------------------------------------
+    |
+    | Sermon and section clips are extracted with a stream copy, so the output
+    | inherits the source bitrate. That is right for the current recording setup
+    | (2.6-4.6 Mbps) but not for camera-original historic material, where a
+    | 22 Mbps source yields a multi-gigabyte clip carrying fidelity nothing
+    | plays: the site serves web video, and the archive is the source file, not
+    | the extract.
+    |
+    | Above `reencode_above_mbps` the extract is re-encoded instead. The default
+    | sits in the gap between the legacy camera era and the current OBS era, so
+    | ordinary weekly uploads stream-copy byte-identically and only heavyweight
+    | material is touched. Set to 0 to always stream copy.
+    |
+    | Quality is expressed as CRF rather than a target bitrate: a fixed bitrate
+    | would inflate an already-small source while degrading it, whereas CRF
+    | spends bits only where the picture needs them.
+    |
+    */
+    'video_extraction' => [
+        'reencode_above_mbps' => (float) env('VIDEO_EXTRACTION_REENCODE_ABOVE_MBPS', 6.0),
+        'reencode_crf' => (int) env('VIDEO_EXTRACTION_REENCODE_CRF', 23),
+        'reencode_preset' => env('VIDEO_EXTRACTION_REENCODE_PRESET', 'medium'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Audio Enhancement
     |--------------------------------------------------------------------------
     */

@@ -206,4 +206,128 @@ class VideoExtractionServiceTest extends TestCase
             $this->assertStringContainsString('FFmpeg is unavailable', $e->getMessage());
         }
     }
+
+    // ---- Re-encode threshold (media-processing.video_extraction) ----
+
+    /**
+     * Stands in for ffmpeg/ffprobe. `$probeBitrate` is what ffprobe reports for
+     * `format=bit_rate`; the ffmpeg stub records the argv it was called with so a
+     * test can assert which branch ran, then writes the output file and exits 0.
+     */
+    private function stubFfmpegAndFfprobe(int $probeBitrate): string
+    {
+        $argvLog = storage_path('framework/testing/ffmpeg-argv.log');
+        @unlink($argvLog);
+
+        $ffmpegStub = storage_path('framework/testing/ffmpeg-stub.sh');
+        file_put_contents(
+            $ffmpegStub,
+            "#!/bin/sh\n"
+            .'echo "$@" >> '.escapeshellarg($argvLog)."\n"
+            .'for last in "$@"; do :; done'."\n"
+            .'printf \'fake-video\' > "$last"'."\n"
+        );
+        chmod($ffmpegStub, 0755);
+
+        $ffprobeStub = storage_path('framework/testing/ffprobe-stub.sh');
+        file_put_contents($ffprobeStub, "#!/bin/sh\necho {$probeBitrate}\n");
+        chmod($ffprobeStub, 0755);
+
+        Config::set('media-processing.ffmpeg.ffmpeg_path', $ffmpegStub);
+        Config::set('media-processing.ffmpeg.ffprobe_path', $ffprobeStub);
+
+        return $argvLog;
+    }
+
+    #[Test]
+    public function it_stream_copies_a_source_at_or_below_the_reencode_threshold(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+        $argvLog = $this->stubFfmpegAndFfprobe(2_600_000); // 2.6 Mbps - a current-era upload
+
+        $relativePath = $this->service->extractSegmentAsFile(
+            '/tmp/input.mp4',
+            (object) ['start_time' => 1.0, 'end_time' => 5.0]
+        );
+
+        $argv = file_get_contents($argvLog);
+        $this->assertStringContainsString('-c copy', $argv);
+        $this->assertStringNotContainsString('libx264', $argv);
+        $this->assertTrue(Storage::disk('local')->exists($relativePath));
+    }
+
+    #[Test]
+    public function it_reencodes_a_source_above_the_reencode_threshold(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+        Config::set('media-processing.video_extraction.reencode_crf', 23);
+        $argvLog = $this->stubFfmpegAndFfprobe(21_800_000); // 21.8 Mbps - camera-original
+
+        $relativePath = $this->service->extractSegmentAsFile(
+            '/tmp/input.mp4',
+            (object) ['start_time' => 1.0, 'end_time' => 5.0]
+        );
+
+        $argv = file_get_contents($argvLog);
+        $this->assertStringContainsString('libx264', $argv);
+        $this->assertStringContainsString('-crf 23', $argv);
+        $this->assertStringNotContainsString('-c copy', $argv);
+        $this->assertTrue(Storage::disk('local')->exists($relativePath));
+    }
+
+    #[Test]
+    public function a_zero_threshold_always_stream_copies(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 0.0);
+        $argvLog = $this->stubFfmpegAndFfprobe(48_900_000); // the heaviest source in the corpus
+
+        $this->service->extractSegmentAsFile(
+            '/tmp/input.mp4',
+            (object) ['start_time' => 1.0, 'end_time' => 5.0]
+        );
+
+        $this->assertStringContainsString('-c copy', file_get_contents($argvLog));
+    }
+
+    #[Test]
+    public function an_unreadable_source_bitrate_falls_back_to_stream_copy(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+        $argvLog = $this->stubFfmpegAndFfprobe(0);
+
+        // ffprobe reporting nothing usable must not be read as "below threshold"
+        // by accident; a stream copy is never wrong, only sometimes larger.
+        $ffprobeStub = storage_path('framework/testing/ffprobe-stub.sh');
+        file_put_contents($ffprobeStub, "#!/bin/sh\nexit 1\n");
+        chmod($ffprobeStub, 0755);
+
+        $this->service->extractSegmentAsFile(
+            '/tmp/input.mp4',
+            (object) ['start_time' => 1.0, 'end_time' => 5.0]
+        );
+
+        $this->assertStringContainsString('-c copy', file_get_contents($argvLog));
+    }
+
+    #[Test]
+    public function a_reencoded_extract_is_written_to_the_configured_temp_disk_as_a_relative_path(): void
+    {
+        Storage::fake('historic_temp');
+        Config::set('media-processing.storage.temp_disk', 'historic_temp');
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+        $this->stubFfmpegAndFfprobe(21_800_000);
+
+        $relativePath = $this->service->extractSegmentAsFile(
+            '/tmp/input.mp4',
+            (object) ['start_time' => 1.0, 'end_time' => 5.0]
+        );
+
+        // Regression: the re-encode branch wrote to storage_path('app/temp') and
+        // returned an absolute path, ignoring the configured temp disk. Callers
+        // store this value verbatim in processing_log.video_file_path, so an
+        // absolute path is not merely untidy - it is a different contract.
+        $this->assertStringStartsNotWith('/', $relativePath);
+        $this->assertTrue(Storage::disk('historic_temp')->exists($relativePath));
+        $this->assertFalse(Storage::disk('local')->exists($relativePath));
+    }
 }

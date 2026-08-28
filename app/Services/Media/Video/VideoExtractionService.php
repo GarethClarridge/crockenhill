@@ -10,7 +10,6 @@ use App\Services\Processing\StorageAdapterHelper;
 use App\Traits\RequiresFfmpeg;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\Format\Audio\Mp3;
-use FFMpeg\Format\Video\X264;
 use FFMpeg\Media\Video;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
@@ -85,6 +84,16 @@ class VideoExtractionService
 
             $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path');
             $duration = $endTime - $startTime;
+
+            /**
+             * A stream copy inherits the source bitrate, which is right for the
+             * current recording setup but wasteful for camera-original material.
+             * Deciding here rather than in the caller keeps the weekly upload and
+             * the historic import on one rule.
+             */
+            if ($this->shouldReencodeSource($inputPath)) {
+                return $this->extractSegmentWithReencoding($inputPath, $segment, $outputFilename);
+            }
 
             // Use stream copy for maximum speed and quality preservation
             $command = [
@@ -355,42 +364,67 @@ class VideoExtractionService
         $endTime = $segment->endTime ?? $segment->end_time ?? 0;
         $duration = $endTime - $startTime;
 
-        Log::info('Using re-encoding fallback for video extraction', [
+        Log::info('Using re-encoding for video extraction', [
             'input_path' => $inputPath,
             'start_time' => $startTime,
             'duration' => $duration,
         ]);
 
-        $tempPath = storage_path('app/temp/'.Str::uuid().'.mp4');
+        /**
+         * This writes through the configured temp disk and returns a disk-relative
+         * path, matching {@see extractSegmentAsFile()}. It previously wrote to
+         * storage_path('app/temp') and returned an absolute path, which ignored
+         * `media-processing.storage.temp_disk` and handed callers a path shape
+         * they store verbatim in `processing_log.video_file_path`.
+         */
+        $tempDisk = config('media-processing.storage.temp_disk', 'local');
+        $relativePath = 'temp/'.Str::uuid().'.mp4';
+        $tempPath = Storage::disk($tempDisk)->path($relativePath);
+
+        Storage::disk($tempDisk)->makeDirectory(dirname($relativePath));
 
         try {
-            $video = $this->requireFfmpeg()->open($inputPath);
+            $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path');
 
-            // Apply time filters to extract the specific segment
-            $video
-                ->filters()
-                ->clip(TimeCode::fromSeconds($startTime), TimeCode::fromSeconds($duration));
+            $command = [
+                $ffmpegPath,
+                '-i', escapeshellarg($inputPath),
+                '-ss', (string) $startTime,
+                '-t', (string) $duration,
+                '-c:v', 'libx264',
+                '-crf', (string) (int) config('media-processing.video_extraction.reencode_crf', 23),
+                '-preset', (string) config('media-processing.video_extraction.reencode_preset', 'medium'),
+                '-c:a', 'aac',
+                '-avoid_negative_ts', 'make_zero',
+                escapeshellarg($tempPath),
+            ];
 
-            // Configure video format
-            $format = new X264;
-            $format->setAudioCodec('aac');
+            exec(implode(' ', $command).' 2>&1', $output, $returnCode);
 
-            // Save the extracted segment
-            $video->save($format, $tempPath);
+            if ($returnCode !== 0) {
+                throw new VideoProcessingException(
+                    'FFmpeg re-encode failed: '.implode("\n", $output)
+                );
+            }
 
-            Log::info('Video segment extracted with re-encoding (fallback)', [
+            if (! $this->fileExists($relativePath, $tempDisk)) {
+                throw new VideoProcessingException('Re-encoded output file was not created: '.$tempPath);
+            }
+
+            Log::info('Video segment extracted with re-encoding', [
                 'input_path' => $inputPath,
                 'output_path' => $tempPath,
+                'relative_path' => $relativePath,
                 'start_time' => $startTime,
                 'end_time' => $endTime,
                 'duration' => $duration,
-                'output_size' => filesize($tempPath),
+                'output_size' => $this->getFileSize($relativePath, $tempDisk),
             ]);
 
-            return $tempPath;
+            return $relativePath;
 
         } catch (\Exception $e) {
-            Log::error('Re-encoding fallback also failed', [
+            Log::error('Re-encoding extraction failed', [
                 'error' => $e->getMessage(),
                 'input_path' => $inputPath,
                 'start_time' => $startTime,
@@ -399,6 +433,70 @@ class VideoExtractionService
 
             throw $e;
         }
+    }
+
+    /**
+     * Whether this source is wasteful enough to be worth re-encoding its extracts.
+     *
+     * Fails safe: an unreadable bitrate, an unset threshold or a probe error all
+     * leave the existing stream-copy behaviour in place, because a stream copy is
+     * never wrong — only sometimes larger than it needs to be.
+     */
+    private function shouldReencodeSource(string $inputPath): bool
+    {
+        $thresholdMbps = (float) config('media-processing.video_extraction.reencode_above_mbps', 0.0);
+
+        if ($thresholdMbps <= 0.0) {
+            return false;
+        }
+
+        $bitrateMbps = $this->probeSourceBitrateMbps($inputPath);
+
+        if ($bitrateMbps === null || $bitrateMbps <= $thresholdMbps) {
+            return false;
+        }
+
+        Log::info('Re-encoding video extract: source bitrate exceeds threshold', [
+            'input_path' => $inputPath,
+            'source_bitrate_mbps' => round($bitrateMbps, 2),
+            'threshold_mbps' => $thresholdMbps,
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Overall container bitrate of the source, in Mbps, or null when unreadable.
+     */
+    private function probeSourceBitrateMbps(string $inputPath): ?float
+    {
+        $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
+
+        if (! is_string($ffprobePath) || $ffprobePath === '') {
+            return null;
+        }
+
+        $command = implode(' ', [
+            $ffprobePath,
+            '-v', 'error',
+            '-show_entries', 'format=bit_rate',
+            '-of', 'default=nw=1:nk=1',
+            escapeshellarg($inputPath),
+        ]);
+
+        exec($command.' 2>/dev/null', $output, $returnCode);
+
+        if ($returnCode !== 0) {
+            return null;
+        }
+
+        $raw = trim(implode('', $output));
+
+        if (! is_numeric($raw) || (float) $raw <= 0.0) {
+            return null;
+        }
+
+        return (float) $raw / 1_000_000;
     }
 
     /**
