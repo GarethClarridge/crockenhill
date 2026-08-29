@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property list<array<string, mixed>> $proposed_items
+ * @property list<array<string, mixed>> $conflicts
  * @property ChurchServiceProposalStatus $status
  * @property int|null $decision_rule_id
  */

@@ -166,6 +166,25 @@ class LivestreamChurchServiceProjectionService
                 ];
             }
 
+            /**
+             * The source revision is ingested before the items are synchronised.
+             *
+             * Only the projector writes `source_assertion_hashes`, so every item
+             * the sync creates is unevidenced at the moment it is written. With
+             * the ingest running second it read those brand-new items as legacy
+             * content no source explains and staged a proposal against evidence
+             * the same run had just produced — all 24 proposals the historic
+             * video pilot raised were this and nothing else.
+             *
+             * Ingesting first means the guard sees the service as it stood
+             * before this run touched it, which is the population it exists to
+             * protect, and the evidence is on record before the sync refines it.
+             */
+            $this->ingestSourceRevision->execute(
+                $churchService,
+                $this->sourceAdapter->adapt($processingLog, $itemPayloads, $structureContent),
+            );
+
             try {
                 $syncResult = $this->itemSyncService->sync(
                     $churchService,
@@ -201,11 +220,6 @@ class LivestreamChurchServiceProjectionService
 
                 throw $exception;
             }
-
-            $this->ingestSourceRevision->execute(
-                $churchService,
-                $this->sourceAdapter->adapt($processingLog, $itemPayloads, $structureContent),
-            );
 
             $freshService = $churchService->fresh() ?? $churchService;
 

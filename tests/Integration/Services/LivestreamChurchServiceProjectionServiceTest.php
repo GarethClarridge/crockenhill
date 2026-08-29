@@ -41,6 +41,68 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $this->service = app(LivestreamChurchServiceProjectionService::class);
     }
 
+    /**
+     * Every one of the 24 merge proposals the historic-video pilot produced was
+     * `unnormalized_legacy_items`, and the projection caused all of them: it
+     * synchronised its own canonical items first, and the ingest that followed
+     * read those brand-new items as legacy content no source explains.
+     */
+    #[Test]
+    public function test_a_fresh_projection_raises_no_unevidenced_legacy_proposal(): void
+    {
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Song, 'title' => 'Amazing Grace', 'confidence' => 0.95],
+            ['type' => ServiceSectionType::Sermon, 'title' => 'The Prodigal Son', 'confidence' => 0.9],
+        ]);
+
+        $result = $this->service->project($log);
+
+        $churchService = ChurchService::query()->findOrFail($result['church_service_id']);
+        $proposals = $churchService->mergeProposals()->get();
+
+        $this->assertCount(
+            0,
+            $proposals,
+            'The projection raised a proposal against evidence it had just written itself.',
+        );
+        $this->assertCount(2, $churchService->items()->get());
+    }
+
+    /**
+     * The rule the pilot tripped is still right: a service holding items from
+     * before the normalized-evidence regime must stage rather than project,
+     * because projecting would delete items no source explains.
+     */
+    #[Test]
+    public function test_a_genuine_legacy_item_still_stages_a_proposal(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-23',
+            'service' => SermonService::Morning->value,
+        ]);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'title' => 'A hymn nobody recorded evidence for',
+            'type' => 'songs',
+            'position' => 1,
+            'source' => ChurchServiceItemSource::Manual,
+            'metadata' => [],
+        ]);
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Song, 'title' => 'Amazing Grace', 'confidence' => 0.95],
+        ]);
+
+        $this->service->project($log);
+
+        $this->assertNotEmpty(
+            $churchService->mergeProposals()->get()->pluck('conflicts')->flatten(1)
+                ->where('kind', 'unnormalized_legacy_items'),
+        );
+    }
+
     #[Test]
     public function test_creates_new_service_and_items_when_no_matching_service_exists(): void
     {
@@ -736,6 +798,13 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
 
         $this->assertSame(['Opening Song', 'The faithfulness of God'], $firstPass);
         $this->assertSame($firstPass, $secondPass, 'A second projection of the same run must not duplicate or reorder items.');
+
+        /**
+         * An exact reprojection must not accumulate review work either. This
+         * service opens holding an evidence-free OpenLP item, so the first pass
+         * legitimately stages one proposal against it; the second adds nothing.
+         */
+        $this->assertCount(1, $churchService->mergeProposals()->get());
     }
 
     /**
@@ -981,7 +1050,13 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $this->assertSame(1, $result['items_projected'], 'Only the SONG section should be projected');
 
         $churchService = ChurchService::query()->find($result['church_service_id']);
-        $this->assertTrue($churchService->needs_review, 'The normalized song proposal must remain visible for review.');
+        /**
+         * This assertion read `assertFalse` until the normalized-evidence work
+         * made every projection stage a proposal against its own new items. That
+         * proposal is what set `needs_review`, and it is gone, so the test says
+         * again what its name says: an excluded section does not flag review.
+         */
+        $this->assertFalse($churchService->needs_review, 'needs_review must not be set by the excluded OTHER section');
     }
 
     #[Test]
