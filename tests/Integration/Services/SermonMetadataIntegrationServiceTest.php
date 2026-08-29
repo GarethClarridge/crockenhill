@@ -234,6 +234,66 @@ class SermonMetadataIntegrationServiceTest extends TestCase
         Storage::disk('public')->assertExists($finalPath);
     }
 
+    /**
+     * The guard exists so an accidental rewrite cannot clobber published audio.
+     * Re-cutting a sermon is not accidental, but it must still be the only way past
+     * the guard.
+     */
+    #[Test]
+    public function it_refuses_to_replace_a_published_video_for_an_ordinary_run(): void
+    {
+        [$service, $log, $sermon] = $this->runReplacingAPublishedVideo(reExtraction: false);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Refusing to overwrite existing sermon video');
+
+        $service->storeVideoForSermon($log->processing_id, $sermon->id);
+    }
+
+    #[Test]
+    public function it_replaces_a_published_video_for_a_re_extraction_and_clears_the_flag(): void
+    {
+        [$service, $log, $sermon] = $this->runReplacingAPublishedVideo(reExtraction: true);
+
+        $finalPath = $service->storeVideoForSermon($log->processing_id, $sermon->id);
+
+        $this->assertSame("sermons/{$sermon->id}/video.mp4", $finalPath);
+        $this->assertSame('the-new-cut', Storage::disk('public')->get($finalPath));
+        $this->assertFalse($log->fresh()?->isReExtraction());
+    }
+
+    /**
+     * @return array{0: SermonMetadataIntegrationService, 1: MediaProcessingLog, 2: Sermon}
+     */
+    private function runReplacingAPublishedVideo(bool $reExtraction): array
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+        ]);
+
+        $sermon = Sermon::factory()->create();
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'video_file_path' => 'temp/sermon-video.mp4',
+        ]);
+
+        Storage::disk('local')->put('temp/sermon-video.mp4', 'the-new-cut');
+        Storage::disk('public')->put("sermons/{$sermon->id}/video.mp4", 'the-already-published-cut');
+
+        if ($reExtraction) {
+            $log->markAsReExtraction();
+        }
+
+        $service = $this->partialMock(SermonMetadataIntegrationService::class, function ($mock): void {
+            $mock->shouldReceive('validateVideoFile')->andReturnTrue();
+        });
+
+        return [$service, $log, $sermon];
+    }
+
     #[Test]
     public function it_stores_historic_import_videos_in_the_ordinary_sermon_layout(): void
     {

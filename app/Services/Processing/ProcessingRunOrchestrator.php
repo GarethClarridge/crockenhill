@@ -175,6 +175,10 @@ class ProcessingRunOrchestrator
                     );
                 }
 
+                // The store step refuses to overwrite a published video unless the run
+                // says it is deliberately re-cutting one.
+                $processingLog->markAsReExtraction();
+
                 return $this->retryWithChainFromPlan($processingLog, $plan);
             });
         } catch (\Throwable $exception) {

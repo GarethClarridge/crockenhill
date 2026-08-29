@@ -14,6 +14,8 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Services\HistoricMedia\HistoricStagingGuard;
+use App\Services\Processing\ProcessingRunOrchestrator;
+use App\Services\Processing\SermonMetadataIntegrationService;
 use App\Support\ServiceArtifactDisk;
 use Database\Factories\MediaProcessingLogFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -432,6 +434,36 @@ class MediaProcessingLog extends Model
         $jobKey = data_get($this->processing_metadata?->toArray(), 'historic_import.job_key');
 
         return is_string($jobKey) && $jobKey !== '' ? $jobKey : null;
+    }
+
+    /**
+     * Whether this run is re-cutting a sermon that has already been published.
+     *
+     * Set by {@see ProcessingRunOrchestrator::reExtract()} and
+     * cleared once the new video is stored. It is the one signal that permits replacing
+     * an existing sermon video: the guard in
+     * {@see SermonMetadataIntegrationService} otherwise refuses,
+     * which is right for every accidental rewrite but wrong for a deliberate re-cut.
+     */
+    public function isReExtraction(): bool
+    {
+        return (bool) data_get($this->processing_metadata?->toArray(), 're_extraction.requested');
+    }
+
+    public function markAsReExtraction(): void
+    {
+        $metadata = $this->processing_metadata?->toArray() ?? [];
+        $metadata['re_extraction'] = ['requested' => true, 'requested_at' => now()->toISOString()];
+
+        $this->forceFill(['processing_metadata' => $metadata])->save();
+    }
+
+    public function clearReExtraction(): void
+    {
+        $metadata = $this->processing_metadata?->toArray() ?? [];
+        unset($metadata['re_extraction']);
+
+        $this->forceFill(['processing_metadata' => $metadata])->save();
     }
 
     /**

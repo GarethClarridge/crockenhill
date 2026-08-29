@@ -93,8 +93,13 @@ class SermonMetadataIntegrationService
             'sermon_disk' => config('media-processing.storage.sermon_disk', 'public'),
         ]);
 
+        $processing = MediaProcessingLog::query()->where('processing_id', $processingId)->first();
+        $isReExtraction = $processing instanceof MediaProcessingLog && $processing->isReExtraction();
+
         // Simple organization by sermon ID
-        $finalVideoPath = $this->organizeVideoFile($videoPath, $sermonId);
+        $finalVideoPath = $this->organizeVideoFile($videoPath, $sermonId, $isReExtraction);
+
+        $processing?->clearReExtraction();
 
         return $finalVideoPath;
     }
@@ -220,7 +225,12 @@ class SermonMetadataIntegrationService
         return hash_equals($sourceHash, $storedHash);
     }
 
-    private function organizeVideoFile(string $videoPath, int $sermonId): string
+    /**
+     * @param  bool  $replaceExisting  Whether a stored video with different content may be
+     *                                 replaced. Only a deliberate re-cut sets this; see
+     *                                 {@see MediaProcessingLog::isReExtraction()}.
+     */
+    private function organizeVideoFile(string $videoPath, int $sermonId, bool $replaceExisting = false): string
     {
         $sermonDiskName = config('media-processing.storage.sermon_disk', 'public');
 
@@ -236,7 +246,19 @@ class SermonMetadataIntegrationService
                 return $finalPath;
             }
 
-            throw new \RuntimeException("Refusing to overwrite existing sermon video with different content: {$finalPath}");
+            if (! $replaceExisting) {
+                throw new \RuntimeException("Refusing to overwrite existing sermon video with different content: {$finalPath}");
+            }
+
+            // Re-cutting a sermon means replacing its video. The old file is removed only
+            // here, with the replacement already validated and in hand, so the sermon is
+            // never left with neither.
+            Log::info('Replacing sermon video for a re-extraction', [
+                'sermon_id' => $sermonId,
+                'final_path' => $finalPath,
+            ]);
+
+            $sermonDisk->delete($finalPath);
         }
 
         // Ensure the directory exists

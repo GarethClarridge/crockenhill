@@ -25,7 +25,8 @@ class ReExtractSermonCommand extends Command
 {
     protected $signature = 'sermons:re-extract
                             {processing_id : The processing ID of the run to re-cut}
-                            {--dry-run : Report the span change without dispatching}';
+                            {--dry-run : Report the span change without dispatching}
+                            {--yes : Skip the confirmation prompt (for non-interactive use)}';
 
     protected $description = "Re-cut a finished run's sermon from its existing service structure";
 
@@ -96,7 +97,7 @@ class ReExtractSermonCommand extends Command
             return self::SUCCESS;
         }
 
-        if (! $this->confirm('Re-cut and republish this sermon?', false)) {
+        if (! $this->option('yes') && ! $this->confirm('Re-cut and republish this sermon?', false)) {
             $this->line('Aborted.');
 
             return self::SUCCESS;
