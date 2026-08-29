@@ -1,7 +1,7 @@
 # Historic Video Pilot-to-Bulk Plan
 
 **Date:** 2026-08-29
-**Status:** In progress — Phase 0 inventory implemented; its first capture failed closed and no further historic-video dispatch is authorised
+**Status:** In progress — Phases 0–3 complete; Phase 4 blocked on an operator decision and no further historic-video dispatch is authorised
 **Scope:** Correct the pilot findings, prove bounded staging reclamation, run a fresh canary, and process the remaining historic-video corpus safely
 **Related plan:** `HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md` remains the authority for the wider historic-import programme
 
@@ -59,19 +59,116 @@ The pilot's livestream projection synchronises canonical service items before in
 
 | Phase | State | Evidence |
 |---|---|---|
-| 0 — Freeze and inventory | In progress | `historic:inventory-video-pilot` captures a create-once private ledger. The definitive 2026-08-29 capture hash was `cb7dc11b6ffb8070f077ecd94255696362ffd6e5ac227a6132cf00e0acde5697`; its exit gate failed. |
-| 1–9 | Not started | Blocked behind the Phase 0 exit gate. |
+| 0 — Freeze and inventory | Complete | Ledger `historic-video-pilot-ledger-20260829-v4.json`, hash `f3d31fef71eb21746fc5f0fb919d28f9a79ebc0af8b2c7af02820844f9b7e71c`, exit gate PASS. |
+| 1 — Sermon metadata | Complete | Commit `85f9a56a2`. |
+| 2 — Service projection | Complete | Commit `e8fc05a88`. |
+| 3 — Song and section eligibility | Complete | Commit `bd7d1bf27`. |
+| 4 — Cost accounting | Blocked | Needs the operator's ruling on the cap and currency, below. |
+| 5–9 | Not started | 5, 7, 8 and 9 need operator runs. |
 
-The first capture reconciled the immutable selection and operation but found:
+### Phase 0 outcome
 
-- the $10 operation authority (`max_cost_minor_units = 1000`) has no currency binding and no usage entries;
-- 16 selected keys produced 16 processing rows for only 15 identities;
-- `2023-09-03-morning` has no processing row;
-- `2020-03-22-morning` owns the expected failed RMS run and its completed retry;
-- all 15 completed runs currently fail portable graph inventory because `service_structure` retains a local identity or runtime field;
-- unreadable macOS `._*` sidecars prevent a deep inventory of the 16.05 GB batch root, so no byte census can yet be claimed.
+The first capture's three failures were each a defect in the capture, not in the
+pilot.
+
+Portable inventory refused every completed run on `service_structure.sections[].oos_item_id`,
+a local order-of-service row identity the export had no business carrying, and
+behind it on four more fields: two staging-relative paths duplicating what the
+section records already carry, a rejected local structure proposal, the run's own
+UUID inside a publication-candidate record (which travels), and the speaker
+model's local profile row (which does not).
+
+The byte census returned nothing because macOS writes an AppleDouble sidecar
+beside every staged file on the exFAT drive, Docker cannot stat those from inside
+the container, and Flysystem's deep listing abandons the whole listing on the
+first entry it cannot stat.
+
+Membership is now settled per identity rather than by counting rows. The final
+ledger accounts for all 16 identities — 14 completed, one completed after a
+failed attempt (`2020-03-22-morning`), one skipped because a sermon already stood
+on the date (`2023-09-03-morning`, sermon 862) — and all 609 files under the
+16.05 GB batch root: 287 durable outputs, 304 platform sidecars, 15 orphaned RMS
+working copies, two orphaned extraction working copies and one orphaned thumbnail
+frame.
+
+Two findings carry into later phases:
+
+- **The drive returns an I/O error** reading `livestream/temp/8cfacc7b-….mp4`, a
+  4.9 GB partial copy from the failed run. Phase 6's preflight must treat
+  `drive_read_failures` as a drive-health signal.
+- **The pipeline leaks its RMS working copies.** `GenerateRmsLog` archives the log
+  to a durable artifact path and never deletes `temp/rms_<uuid>.log`. Fifteen
+  identities left 200 MB behind under job UUIDs no run records. Phase 6's bounded
+  retention policy has to cover them.
+
+### Phase 1 outcome
+
+Two of the section's claims did not survive the data.
+
+**Scripture reference needed no repair.** It was applied correctly on fourteen of
+fifteen sermons; the fifteenth produced no reference to apply. The field trace
+§2.2 called for found the AI job's existing path working as designed.
+
+**ID3 never blocked anything.** ID3 metadata was null on every pilot run, and
+`JsonData::stringOrNull` already trims blanks to null at the read boundary. Blank
+now reads as absent at every decision site regardless, so it cannot.
+
+What was real: all fifteen sermons kept a filename title, every duration was null,
+and the series assignments were worse than absent. `PlaceholderSermonTitle` now
+recognises the shapes the pilot produced — bare service slots, and the
+`[YouTube backup]` suffix the archive stamps on a recovered upload — with no
+false positive on a curated title. Duration is derived from the extracted span.
+
+Series is settled by corroboration. Date adjacency cannot do it: the archive's
+series members predate the video corpus by years, so the nearest sibling of even
+a correct assignment is thousands of days away. A series named after a book of
+the Bible can be checked against the sermon's own reference, and on the pilot
+that test accepts all five right answers (John, Job, Philippians, Exodus,
+2 Peter) and refuses all three wrong ones ("Easter: Good Friday" on a September
+evening, "Abraham" on Genesis 44, "Hope In Hurtful Times" with no reference).
+A historic run applies only what it corroborates and records the rest as a
+suggestion; a live run is unchanged, because its series is one the model has real
+context for.
+
+### Phase 2 outcome
+
+§2.3's diagnosis was right and its scope was not. The projection did synchronise
+canonical items before ingesting the source revision explaining them, and since
+only the projector writes `source_assertion_hashes`, every synced item was
+unevidenced when the guard looked at it. The revision is ingested first now.
+
+But that accounts for a third of the pilot's proposals, not all of them.
+`service:reconcile-self-projected-proposals` settles them from stored sections
+and source revisions at no model spend, and retired 7 of 21. The other 14 stand
+on services that already held evidence-free OpenLP items before the pilot began,
+which is the case the guard was built for. They are review work, not defects.
+
+### Phase 3 outcome
+
+The pilot published three song clips it should not have, and the review policy
+now holds exactly those and two more — five of 41 song sections — while letting
+the other 36 through.
+
+The adjacent pair is not a split song. Sections 677 and 678 of run 945 are
+contiguous to the millisecond and resolve to the same song, but their
+`song_title_hint` values and summaries disagree: the second is the Doxology,
+which the matcher folded into the hymn before it. §2.4's first item asks for a
+merge before extraction, and merging these would destroy a distinction the
+evidence already records. The pair reaches a reviewer instead.
 
 The private ledger is retained at `storage/app/private/historic-video-pilot-ledger-20260829-v2.json`. It is deliberately not a committed artifact because it contains the complete private processing graph and staging paths. The earlier `historic-video-pilot-ledger-20260829.json` capture predates explicit graph-error gating and is retained only as superseded evidence.
+
+### Operator decisions outstanding
+
+1. **Cost authority.** The immutable operation records `max_cost_minor_units = 1000`
+   while the checked-in incremental plan records 200. Which is authorised, and in
+   what currency? Phase 4's reservation cannot refuse a request without it.
+2. **Residue tolerance.** The pilot's two content defects
+   (`2023-08-20-morning` OoS ordering, `2024-07-28-morning` multi-sermon) have
+   since completed, so the ~12.5% residue question from the 2026-08-29 run is
+   settled for those two. Confirm before sizing the first bulk pass.
+3. **The 4.9 GB unreadable staging file.** Delete it as failed-run residue, or
+   investigate the drive first?
 
 ### Phase 0 — Freeze and inventory the pilot
 
