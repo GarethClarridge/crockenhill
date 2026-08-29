@@ -28,8 +28,13 @@ interface SectionPublicationHandler
     /** Runs after extraction — type-specific enrichment (e.g. speaker detection). */
     public function afterExtraction(ServiceSection $section): void;
 
-    /** Whether admin approval is needed before publishing. */
-    public function requiresApproval(): bool;
+    /**
+     * Whether admin approval is needed before publishing this section.
+     *
+     * Takes the section because the answer is not always a property of the type.
+     * A song publishes itself, but a fragmentary or duplicated one must not.
+     */
+    public function requiresApproval(ServiceSection $section): bool;
 
     /** Create the downstream artifact (Sermon, SongVideo, etc.). */
     public function publish(ServiceSection $section): void;

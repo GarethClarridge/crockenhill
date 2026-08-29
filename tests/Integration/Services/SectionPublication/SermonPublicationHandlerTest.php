@@ -66,7 +66,7 @@ class SermonPublicationHandlerTest extends TestCase
     #[Test]
     public function it_requires_approval(): void
     {
-        $this->assertTrue($this->handler->requiresApproval());
+        $this->assertTrue($this->handler->requiresApproval(ServiceSection::factory()->make()));
     }
 
     #[Test]

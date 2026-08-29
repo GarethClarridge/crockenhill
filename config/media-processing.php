@@ -296,6 +296,16 @@ return [
     'section_classification' => [
         'prefer_high_confidence_sermon_section' => env('SERVICE_SECTION_PREFER_HIGH_CONFIDENCE_SERMON', true),
         'adjacent_merge_max_gap_seconds' => (int) env('SERVICE_SECTION_ADJACENT_MERGE_MAX_GAP_SECONDS', 2),
+
+        /*
+         * The shortest song clip that may publish itself.
+         *
+         * Below this a clip reaches a reviewer instead. A doxology or a chorus
+         * really can be this short, so the rule holds the clip rather than
+         * rejecting it. Every historic-video pilot clip that should have been
+         * seen ran under a minute; every clip that was fine ran over two.
+         */
+        'song_minimum_automatic_duration_seconds' => (float) env('SERVICE_SECTION_SONG_MIN_AUTO_DURATION', 90),
     ],
 
     /*

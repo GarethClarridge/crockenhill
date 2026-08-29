@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\ChurchService\SectionPublication;
 
 use App\Contracts\SectionPublicationHandler;
+use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
@@ -34,12 +35,14 @@ class SongPublicationHandler implements SectionPublicationHandler
      * @param  ServiceSectionPublicationTransitionService  $publicationTransitions  Service for managing section state transitions
      * @param  AudioEnhancementService  $audioEnhancement  Service for normalizing audio in video files
      * @param  StorageAdapterHelper  $storageHelper  Service for cross-disk storage operations
+     * @param  SongPublicationReviewPolicy  $reviewPolicy  Names the doubts that stop a clip publishing itself
      */
     public function __construct(
         private readonly SongVideoService $songVideoService,
         private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
         private readonly AudioEnhancementService $audioEnhancement,
         private readonly StorageAdapterHelper $storageHelper,
+        private readonly SongPublicationReviewPolicy $reviewPolicy,
     ) {}
 
     /**
@@ -93,11 +96,32 @@ class SongPublicationHandler implements SectionPublicationHandler
     }
 
     /**
-     * {@inheritDoc}
+     * A whole, singular, corroborated song clip publishes itself; anything the
+     * review policy can name a doubt about reaches a person first, with the
+     * doubt recorded on the section so they can see what it was.
      */
-    public function requiresApproval(): bool
+    public function requiresApproval(ServiceSection $section): bool
     {
-        return false;
+        $reasons = $this->reviewPolicy->reviewReasons($section);
+
+        if ($reasons === []) {
+            return false;
+        }
+
+        $section->metadata = ServiceSectionMetadata::fromArray(array_replace(
+            $section->metadata?->toArray() ?? [],
+            ['song_publication_review' => [
+                'reasons' => $reasons,
+                'decided_at' => now()->toISOString(),
+            ]],
+        ));
+
+        Log::info('Holding a song clip for review before publication', $this->sanitizeArrayForLog([
+            'service_section_id' => $section->id,
+            'reasons' => array_column($reasons, 'kind'),
+        ]));
+
+        return true;
     }
 
     /**

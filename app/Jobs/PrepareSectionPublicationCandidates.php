@@ -144,7 +144,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 continue;
             }
 
-            if (! $handler->requiresApproval()) {
+            if (! $handler->requiresApproval($section)) {
                 $section->save();
                 $jobKey = 'auto-publish-section-'.$section->id;
 

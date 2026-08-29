@@ -14,6 +14,7 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
 use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
+use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\Media\Audio\AudioEnhancementService;
 use App\Services\Processing\StorageAdapterHelper;
@@ -45,6 +46,7 @@ class SongPublicationHandlerTest extends TestCase
             app(ServiceSectionPublicationTransitionService::class),
             $this->audioEnhancement,
             app(StorageAdapterHelper::class),
+            app(SongPublicationReviewPolicy::class),
         );
     }
 
@@ -83,9 +85,59 @@ class SongPublicationHandlerTest extends TestCase
     }
 
     #[Test]
-    public function it_does_not_require_approval(): void
+    public function it_does_not_require_approval_for_a_whole_song(): void
     {
-        $this->assertFalse($this->handler->requiresApproval());
+        $song = Song::factory()->create();
+        $section = $this->makePublishableSection($song, 'sections/whole-song.mp4');
+        $section->forceFill(['start_time' => 600.0, 'end_time' => 840.0, 'duration' => 240.0])->save();
+
+        $this->assertFalse($this->handler->requiresApproval($section->fresh()));
+    }
+
+    /**
+     * The pilot published a 20-second clip whose own notes recorded that the
+     * transcript held the hymn's introduction and no sung lyrics.
+     */
+    #[Test]
+    public function it_requires_approval_for_a_clip_too_short_to_be_a_whole_song(): void
+    {
+        $song = Song::factory()->create();
+        $section = $this->makePublishableSection($song, 'sections/short-song.mp4');
+        $section->forceFill(['start_time' => 515.0, 'end_time' => 534.95, 'duration' => 19.95])->save();
+        $section = $section->fresh();
+
+        $this->assertTrue($this->handler->requiresApproval($section));
+        $this->assertSame(
+            ['short_song_clip'],
+            array_column($section->metadata->toArray()['song_publication_review']['reasons'], 'kind'),
+        );
+    }
+
+    /**
+     * Two contiguous sections of one recording resolved to one song: the pilot
+     * published a 224-second hymn and then the 23-second doxology that followed
+     * it, both as the same song.
+     */
+    #[Test]
+    public function it_requires_approval_for_an_adjacent_section_of_the_same_song(): void
+    {
+        $song = Song::factory()->create();
+        $first = $this->makePublishableSection($song, 'sections/first.mp4');
+        $first->forceFill(['start_time' => 1729.38, 'end_time' => 1953.83, 'duration' => 224.45])->save();
+        $second = ServiceSection::factory()->create([
+            'media_processing_log_id' => $first->media_processing_log_id,
+            'church_service_item_id' => $first->church_service_item_id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'extracted_video_path' => 'sections/second.mp4',
+            'start_time' => 1953.83,
+            'end_time' => 2153.83,
+            'duration' => 200.0,
+        ]);
+
+        $this->assertTrue($this->handler->requiresApproval($second->fresh()));
+        $this->assertTrue($this->handler->requiresApproval($first->fresh()));
     }
 
     #[Test]

@@ -92,7 +92,7 @@ class SermonPublicationHandler implements SectionPublicationHandler
     /**
      * {@inheritDoc}
      */
-    public function requiresApproval(): bool
+    public function requiresApproval(ServiceSection $section): bool
     {
         return true;
     }
