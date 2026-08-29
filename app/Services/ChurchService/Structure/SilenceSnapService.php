@@ -6,8 +6,10 @@ namespace App\Services\ChurchService\Structure;
 
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
+use App\Enums\ServiceSectionType;
 use App\Exceptions\SegmentationException;
 use App\Services\Media\Audio\RmsAnalysisService;
+use App\Services\Sermon\SermonExtractionPlanResolver;
 
 /**
  * Deterministic boundary refinement: LLM-proposed section times are proposals;
@@ -18,6 +20,15 @@ use App\Services\Media\Audio\RmsAnalysisService;
 class SilenceSnapService
 {
     private const BOUNDARY_ROUNDING_OVERLAP_SECONDS = 2.0;
+
+    /**
+     * Section types a preacher may hand off to mid-sermon without the sermon
+     * having ended. Deliberately narrow: a song or a children's talk between
+     * two sermon sections means two separate talks, which must keep failing.
+     *
+     * @var list<value-of<ServiceSectionType>>
+     */
+    private const SERMON_INTERRUPTION_TYPES = ['bible_reading', 'prayer'];
 
     public function __construct(
         private readonly RmsAnalysisService $rmsAnalysisService,
@@ -39,7 +50,9 @@ class SilenceSnapService
         if ($silences === []) {
             return $this->withSections(
                 $structure,
-                $this->reconcileBoundaryRoundingOverlaps($structure, $structure->sections),
+                $this->mergeInterruptedSermon(
+                    $this->reconcileBoundaryRoundingOverlaps($structure, $structure->sections),
+                ),
             );
         }
 
@@ -83,8 +96,117 @@ class SilenceSnapService
 
         return $this->withSections(
             $structure,
-            $this->reconcileBoundaryRoundingOverlaps($structure, $snapped),
+            $this->mergeInterruptedSermon(
+                $this->reconcileBoundaryRoundingOverlaps($structure, $snapped),
+            ),
         );
+    }
+
+    /**
+     * Rebuild one sermon from fragments a mid-sermon reading or prayer split apart.
+     *
+     * A preacher pausing to have someone read, then resuming, is one sermon, not
+     * two — the 2024-07-28 corpus run has the request on the transcript ("we've got
+     * time, Andrew, would you like to read for us? Revelation 5"), a reading, then
+     * the same sermon concluding. The detector reads that correctly; it was the
+     * validator's "at most one sermon" rule that had no way to express it.
+     *
+     * The merged section absorbs the interruption rather than nesting it, so the
+     * sermon stays a single contiguous span and every downstream consumer —
+     * {@see SermonExtractionPlanResolver} above all, which
+     * takes the *first* matching section and would otherwise publish a sermon
+     * missing its conclusion — needs no change.
+     *
+     * Deliberately narrow. It exists only so a structure the detector typed as two
+     * sermons can be valid; it does not decide what audio gets published. Which
+     * trailing sections belong to the published sermon is
+     * {@see SermonExtractionPlanResolver}'s question, and it
+     * answers that without destroying section data. So the group grows only from a
+     * sermon, through an interruption, into another *sermon* — a song between two
+     * sermons still ends it and keeps failing validation as two separate talks —
+     * and a merge exceeding the configured sermon ceiling is refused. The result is
+     * flagged for manual review, because the merge moves the sermon's own boundaries.
+     *
+     * @param  list<ServiceStructureSection>  $sections
+     * @return list<ServiceStructureSection>
+     */
+    private function mergeInterruptedSermon(array $sections): array
+    {
+        $first = null;
+
+        foreach ($sections as $index => $section) {
+            if ($section->type === ServiceSectionType::Sermon) {
+                $first = $index;
+
+                break;
+            }
+        }
+
+        if ($first === null) {
+            return $sections;
+        }
+
+        // Walk forward while the service is still alternating between the sermon
+        // and something it was interrupted by. A continuation only counts once an
+        // interruption has been seen, and anything else — a song above all — ends
+        // the group.
+        $last = null;
+        $interrupted = false;
+
+        for ($index = $first + 1; $index < count($sections); $index++) {
+            $type = $sections[$index]->type->value;
+
+            if (in_array($type, self::SERMON_INTERRUPTION_TYPES, true)) {
+                $interrupted = true;
+
+                continue;
+            }
+
+            if ($interrupted && $type === ServiceSectionType::Sermon->value) {
+                $last = $index;
+
+                continue;
+            }
+
+            break;
+        }
+
+        if ($last === null) {
+            return $sections;
+        }
+
+        $start = $sections[$first]->startTime;
+        $end = $sections[$last]->endTime;
+        $maxDuration = (float) config(
+            'media-processing.section_extraction.enhanced_sermon.max_sermon_duration_seconds',
+            2700,
+        );
+
+        if ($maxDuration > 0.0 && ($end - $start) > $maxDuration) {
+            return $sections;
+        }
+
+        $absorbed = [];
+
+        for ($index = $first + 1; $index <= $last; $index++) {
+            $absorbed[] = $sections[$index]->type->value;
+        }
+
+        $merged = $sections[$first]
+            ->withTimes($start, $end, [sprintf(
+                'Sermon interrupted by %s and resumed; merged %d following sections into one sermon (%.1fs-%.1fs).',
+                implode(', ', array_unique(array_intersect($absorbed, self::SERMON_INTERRUPTION_TYPES))),
+                count($absorbed),
+                $start,
+                $end,
+            )])
+            ->withReviewFlags([ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED]);
+
+        return [
+            ...array_slice($sections, 0, $first),
+            $merged,
+            ...array_slice($sections, $last + 1),
+        ];
     }
 
     /**

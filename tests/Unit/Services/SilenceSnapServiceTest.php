@@ -6,6 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\Media\Audio\RmsAnalysisService;
 use Illuminate\Support\Facades\Config;
@@ -97,6 +98,101 @@ class SilenceSnapServiceTest extends TestCase
         $this->assertSame(1831.5, $snapped->sections[1]->startTime);
         $this->assertSame(['start' => 0.0, 'end' => -0.5], $snapped->sections[0]->snapDeltas);
         $this->assertSame(['start' => 0.5, 'end' => 0.0], $snapped->sections[1]->snapDeltas);
+    }
+
+    /**
+     * The real 2024-07-28 shape: a preacher hands off to a reader mid-sermon and
+     * then resumes. That is one sermon, and the merge is what lets the validator's
+     * "at most one sermon" rule stay true without losing the conclusion.
+     */
+    #[Test]
+    public function it_merges_sermon_fragments_split_by_a_mid_sermon_reading(): void
+    {
+        $rmsLog = $this->rmsLog([[0.0, -20.0], [4000.0, -20.0]]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('song', 1500.0, 1890.0),
+            $this->section('sermon', 1896.0, 2679.9),
+            $this->section('bible_reading', 2682.0, 2895.0),
+            $this->section('sermon', 2912.0, 3055.0),
+            $this->section('prayer', 3119.2, 3142.0),
+        ]);
+
+        $snapped = $this->service->snap($structure, $rmsLog);
+
+        $sermons = array_values(array_filter(
+            $snapped->sections,
+            static fn ($section): bool => $section->type->value === 'sermon',
+        ));
+
+        $this->assertCount(1, $sermons);
+        $this->assertSame(1896.0, $sermons[0]->startTime);
+        $this->assertSame(3055.0, $sermons[0]->endTime);
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED,
+            $sermons[0]->reviewFlags,
+        );
+        $this->assertSame(
+            ['song', 'sermon', 'prayer'],
+            array_map(static fn ($section): string => $section->type->value, $snapped->sections),
+        );
+    }
+
+    #[Test]
+    public function it_merges_sermon_fragments_split_by_a_mid_sermon_prayer(): void
+    {
+        $rmsLog = $this->rmsLog([[0.0, -20.0], [4000.0, -20.0]]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('sermon', 1000.0, 1800.0),
+            $this->section('prayer', 1805.0, 1900.0),
+            $this->section('sermon', 1905.0, 2400.0),
+        ]);
+
+        $snapped = $this->service->snap($structure, $rmsLog);
+
+        $this->assertCount(1, $snapped->sections);
+        $this->assertSame(1000.0, $snapped->sections[0]->startTime);
+        $this->assertSame(2400.0, $snapped->sections[0]->endTime);
+    }
+
+    /**
+     * Two sermons separated by a song are two talks, not one interrupted sermon.
+     * Merging them would publish the wrong span, so this must keep failing
+     * validation.
+     */
+    #[Test]
+    public function it_leaves_two_sermons_separated_by_a_song_alone(): void
+    {
+        $rmsLog = $this->rmsLog([[0.0, -20.0], [4000.0, -20.0]]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('sermon', 1000.0, 1800.0),
+            $this->section('song', 1805.0, 2000.0),
+            $this->section('sermon', 2005.0, 2400.0),
+        ]);
+
+        $snapped = $this->service->snap($structure, $rmsLog);
+
+        $this->assertCount(3, $snapped->sections);
+    }
+
+    /**
+     * A merge that would exceed the sermon ceiling is more likely two talks than
+     * one interrupted sermon, so it is left for validation to reject.
+     */
+    #[Test]
+    public function it_refuses_a_merge_that_would_exceed_the_sermon_ceiling(): void
+    {
+        config(['media-processing.section_extraction.enhanced_sermon.max_sermon_duration_seconds' => 600]);
+
+        $rmsLog = $this->rmsLog([[0.0, -20.0], [4000.0, -20.0]]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('sermon', 1000.0, 1400.0),
+            $this->section('bible_reading', 1405.0, 1500.0),
+            $this->section('sermon', 1505.0, 2400.0),
+        ]);
+
+        $snapped = $this->service->snap($structure, $rmsLog);
+
+        $this->assertCount(3, $snapped->sections);
     }
 
     #[Test]

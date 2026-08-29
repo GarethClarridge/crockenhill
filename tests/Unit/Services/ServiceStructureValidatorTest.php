@@ -238,10 +238,12 @@ class ServiceStructureValidatorTest extends TestCase
     }
 
     #[Test]
-    public function same_type_oos_items_claimed_out_of_planned_order_fail_hard(): void
+    public function same_type_oos_items_claimed_out_of_planned_order_are_flagged_not_failed(): void
     {
-        // Two songs swapped by the detector pass the existence, duplicate and
-        // type checks — only their planned positions expose the mix-up.
+        // Two songs claimed against inverted planned positions. This was a hard
+        // failure on the premise that only a detector swap could produce it; the
+        // 2023-08-20 corpus run showed the service leader reordering songs live
+        // and the detector reading it correctly, so it is a review flag now.
         $structure = ServiceStructure::fromSections([
             $this->section('welcome', 0.0, 120.0, oosItemId: 1),
             $this->section('song', 120.0, 420.0, oosItemId: 6),
@@ -251,7 +253,11 @@ class ServiceStructureValidatorTest extends TestCase
 
         $result = $this->validator->validate($structure, $this->contextWithSongBlock());
 
-        $this->assertContains('out_of_order_oos_items', $result->failureCodes());
+        $this->assertNotContains('out_of_order_oos_items', $result->failureCodes());
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_OOS_SAME_TYPE_INVERSION,
+            $result->structure->sections[2]->reviewFlags,
+        );
     }
 
     #[Test]
@@ -307,10 +313,11 @@ class ServiceStructureValidatorTest extends TestCase
     }
 
     #[Test]
-    public function same_raw_type_items_claimed_out_of_printed_order_still_fail_hard(): void
+    public function same_raw_type_items_claimed_out_of_printed_order_are_flagged_not_failed(): void
     {
-        // Two `presentations` items form a genuine same-type chain: claiming
-        // the later-printed one first still signals a detector swap.
+        // Two `presentations` items form a genuine same-type chain. Claiming the
+        // later-printed one first is still worth an operator's eye, but it no
+        // longer blocks the whole service.
         $structure = ServiceStructure::fromSections([
             $this->section('welcome', 0.0, 120.0, oosItemId: 1),
             $this->section('other', 120.0, 300.0, oosItemId: 9),
@@ -320,8 +327,11 @@ class ServiceStructureValidatorTest extends TestCase
 
         $result = $this->validator->validate($structure, $this->contextWithSemanticOtherCollision());
 
-        $this->assertFalse($result->passed());
-        $this->assertContains('out_of_order_oos_items', $result->failureCodes());
+        $this->assertNotContains('out_of_order_oos_items', $result->failureCodes());
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_OOS_SAME_TYPE_INVERSION,
+            $result->structure->sections[2]->reviewFlags,
+        );
     }
 
     #[Test]
@@ -720,8 +730,13 @@ class ServiceStructureValidatorTest extends TestCase
             ),
         );
 
-        $this->assertContains('out_of_order_oos_items', $withSongs->failureCodes());
-        $this->assertNotContains('out_of_order_oos_items', $this->validator->validate($structure, $context)->failureCodes());
+        // Dropping the songs the recording cannot contain also drops the claims
+        // that could invert, so only the songs-present arm carries the flag.
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_OOS_SAME_TYPE_INVERSION,
+            $withSongs->structure->sections[1]->reviewFlags,
+        );
+        $this->assertSame([], $this->validator->validate($structure, $context)->structure->sections[0]->reviewFlags);
     }
 
     #[Test]

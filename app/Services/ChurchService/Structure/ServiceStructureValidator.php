@@ -8,6 +8,7 @@ use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\ChurchServiceSongLinker;
+use App\Support\SectionReviewFlagPolicy;
 use App\Support\ServiceSectionConfidence;
 
 /**
@@ -26,6 +27,36 @@ class ServiceStructureValidator
     public const FLAG_BENEDICTION_SUSPECT = 'structure_benediction_suspect';
 
     public const FLAG_OOS_CROSS_TYPE_INVERSION = 'structure_oos_cross_type_inversion';
+
+    /**
+     * A section claims an OoS item printed *before* one an earlier section
+     * already claimed, within the same OpenLP item type.
+     *
+     * This was a hard failure on the premise that only a same-type inversion
+     * could mean the detector had swapped two sections. The 2023-08-20 corpus
+     * run disproved it: the transcript has the service leader announcing the
+     * deviation out loud ("It's not in the book", "Not that song — we're going
+     * to sing that"), and the detector's claims matched the sung lyrics. Songs
+     * really are performed out of printed order here — 2 of 35 services with
+     * two or more persisted song claims (6%) already show it, against 42% for
+     * the cross-type inversion that has always been tolerated.
+     *
+     * So it is a flag, not a blocker. Unlike {@see self::FLAG_OOS_CROSS_TYPE_INVERSION}
+     * it is NOT demoted in {@see SectionReviewFlagPolicy}: at 6% it is
+     * both rare enough to review and the stronger of the two signals. It does not
+     * block sermon auto-extraction — an ordering flag says nothing about boundaries.
+     */
+    public const FLAG_OOS_SAME_TYPE_INVERSION = 'structure_oos_same_type_inversion';
+
+    /**
+     * One sermon that {@see SilenceSnapService}
+     * rebuilt from sermon fragments separated only by a reading or a prayer.
+     *
+     * Deliberately forces manual review and blocks auto-extraction: the merge
+     * moves the sermon's own boundaries, and the pattern is rare enough that a
+     * human should confirm it rather than have a mis-merge publish silently.
+     */
+    public const FLAG_SERMON_INTERRUPTION_MERGED = 'structure_sermon_interruption_merged';
 
     public const FLAG_OOS_STRUCTURE_MISMATCH = 'oos_structure_mismatch';
 
@@ -131,9 +162,9 @@ class ServiceStructureValidator
         $this->checkRecordingBounds($structure, $context, $hardFailures);
         $this->checkCoverage($structure, $context, $hardFailures);
         $this->checkSermons($structure, $hardFailures);
-        $crossTypeInversions = $this->checkOosAnchoring($structure, $context, $hardFailures);
+        $inversions = $this->checkOosAnchoring($structure, $context, $hardFailures);
 
-        $annotated = $this->annotateSoftFlags($structure, $context, $crossTypeInversions);
+        $annotated = $this->annotateSoftFlags($structure, $context, $inversions);
 
         return new ValidationResult(
             structure: $annotated,
@@ -440,8 +471,9 @@ class ServiceStructureValidator
 
     /**
      * @param  list<array{code: string, message: string}>  $hardFailures
-     * @return array<int, true> Indices of sections whose claimed item precedes
-     *                          an earlier-claimed item of a different type.
+     * @return array{cross_type: array<int, true>, same_type: array<int, true>} Section
+     *                                                                          indices whose claimed item precedes an earlier-claimed
+     *                                                                          item, split by whether the two share an OpenLP type.
      */
     private function checkOosAnchoring(ServiceStructure $structure, ValidationContext $context, array &$hardFailures): array
     {
@@ -451,6 +483,7 @@ class ServiceStructureValidator
         $lastClaimedByType = [];
         $highestClaimedPosition = null;
         $crossTypeInversions = [];
+        $sameTypeInversions = [];
 
         foreach ($structure->sections as $index => $section) {
             $itemId = $section->oosItemId;
@@ -500,17 +533,9 @@ class ServiceStructureValidator
                 $lastOfType = $lastClaimedByType[$orderingType] ?? null;
 
                 if ($lastOfType !== null && $position < $lastOfType['position']) {
-                    $hardFailures[] = [
-                        'code' => 'out_of_order_oos_items',
-                        'message' => sprintf(
-                            'Section %d claims OoS item %d (position %d) after item %d (position %d); claimed items of the same type must follow the planned order.',
-                            $index + 1,
-                            $itemId,
-                            $position,
-                            $lastOfType['itemId'],
-                            $lastOfType['position']
-                        ),
-                    ];
+                    // The high-water mark is deliberately not advanced: a later
+                    // claim is still measured against the furthest item reached.
+                    $sameTypeInversions[$index] = true;
                 } else {
                     $lastClaimedByType[$orderingType] = ['itemId' => $itemId, 'position' => $position];
 
@@ -539,13 +564,13 @@ class ServiceStructureValidator
             }
         }
 
-        return $crossTypeInversions;
+        return ['cross_type' => $crossTypeInversions, 'same_type' => $sameTypeInversions];
     }
 
     /**
-     * @param  array<int, true>  $crossTypeInversions
+     * @param  array{cross_type: array<int, true>, same_type: array<int, true>}  $inversions
      */
-    private function annotateSoftFlags(ServiceStructure $structure, ValidationContext $context, array $crossTypeInversions): ServiceStructure
+    private function annotateSoftFlags(ServiceStructure $structure, ValidationContext $context, array $inversions): ServiceStructure
     {
         $minSectionSeconds = (float) config('media-processing.service_structure.min_section_seconds', 15);
 
@@ -571,8 +596,12 @@ class ServiceStructureValidator
                 $flags[] = self::FLAG_BENEDICTION_SUSPECT;
             }
 
-            if (isset($crossTypeInversions[$index])) {
+            if (isset($inversions['cross_type'][$index])) {
                 $flags[] = self::FLAG_OOS_CROSS_TYPE_INVERSION;
+            }
+
+            if (isset($inversions['same_type'][$index])) {
+                $flags[] = self::FLAG_OOS_SAME_TYPE_INVERSION;
             }
 
             if ($this->songTitleContradictsChapterMarker($section, $structure->chapterMarkers)) {

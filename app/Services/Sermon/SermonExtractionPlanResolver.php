@@ -17,6 +17,21 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 class SermonExtractionPlanResolver
 {
+    /**
+     * Section types that may form the sermon's conclusion when they follow it.
+     *
+     * A song is deliberately absent: it is the boundary, never part of the sermon.
+     * So are welcome/notices/children's talk, which are separate service elements
+     * wherever they fall.
+     *
+     * @var list<ServiceSectionType>
+     */
+    private const SERMON_TRAILING_TYPES = [
+        ServiceSectionType::Prayer,
+        ServiceSectionType::BibleReading,
+        ServiceSectionType::Other,
+    ];
+
     public function __construct(
         private readonly ScriptureReferenceResolver $scriptureReferences,
     ) {}
@@ -106,6 +121,12 @@ class SermonExtractionPlanResolver
             ]);
         }
 
+        // A sermon runs to the next song in all but a handful of services, and the
+        // sections in between — a closing prayer above all — are the sermon's
+        // conclusion, not separate elements. Resolve the published end before any
+        // plan is built so every branch below publishes the same span.
+        [$sermonEnd, $trailingSectionIds] = $this->resolveSermonEnd($processingLog, $sermonSection);
+
         $bibleSection = $this->selectBibleReading($processingLog, $sermonSection);
         if (! $bibleSection instanceof ServiceSection) {
             return [
@@ -113,11 +134,12 @@ class SermonExtractionPlanResolver
                 'source' => 'service_sections',
                 'segments' => [[
                     'start_time' => (float) $sermonSection->start_time,
-                    'end_time' => (float) $sermonSection->end_time,
+                    'end_time' => $sermonEnd,
                 ]],
                 'metadata' => [
                     'strategy' => 'sermon_only',
                     'sermon_section_id' => $sermonSection->id,
+                    'trailing_section_ids' => $trailingSectionIds,
                 ],
             ];
         }
@@ -131,11 +153,12 @@ class SermonExtractionPlanResolver
                 'source' => 'service_sections',
                 'segments' => [[
                     'start_time' => (float) $sermonSection->start_time,
-                    'end_time' => (float) $sermonSection->end_time,
+                    'end_time' => $sermonEnd,
                 ]],
                 'metadata' => [
                     'strategy' => 'sermon_only_invalid_bible_timing',
                     'sermon_section_id' => $sermonSection->id,
+                    'trailing_section_ids' => $trailingSectionIds,
                     'bible_section_id' => $bibleSection->id,
                     'gap_seconds' => $gapSeconds,
                 ],
@@ -148,11 +171,12 @@ class SermonExtractionPlanResolver
                 'source' => 'service_sections',
                 'segments' => [[
                     'start_time' => (float) $bibleSection->start_time,
-                    'end_time' => (float) $sermonSection->end_time,
+                    'end_time' => $sermonEnd,
                 ]],
                 'metadata' => [
                     'strategy' => 'adjacent_bible_plus_sermon',
                     'sermon_section_id' => $sermonSection->id,
+                    'trailing_section_ids' => $trailingSectionIds,
                     'bible_section_id' => $bibleSection->id,
                     'gap_seconds' => $gapSeconds,
                 ],
@@ -168,11 +192,12 @@ class SermonExtractionPlanResolver
                 'source' => 'service_sections',
                 'segments' => [[
                     'start_time' => (float) $sermonSection->start_time,
-                    'end_time' => (float) $sermonSection->end_time,
+                    'end_time' => $sermonEnd,
                 ]],
                 'metadata' => [
                     'strategy' => 'sermon_only_reading_gap_exceeded',
                     'sermon_section_id' => $sermonSection->id,
+                    'trailing_section_ids' => $trailingSectionIds,
                     'bible_section_id' => $bibleSection->id,
                     'gap_seconds' => $gapSeconds,
                     'max_pairing_gap_seconds' => $maxPairingGapSeconds,
@@ -194,12 +219,13 @@ class SermonExtractionPlanResolver
                     ],
                     [
                         'start_time' => (float) $sermonSection->start_time,
-                        'end_time' => (float) $sermonSection->end_time,
+                        'end_time' => $sermonEnd,
                     ],
                 ],
                 'metadata' => [
                     'strategy' => 'non_adjacent_bible_plus_sermon_concat',
                     'sermon_section_id' => $sermonSection->id,
+                    'trailing_section_ids' => $trailingSectionIds,
                     'bible_section_id' => $bibleSection->id,
                     'gap_seconds' => $gapSeconds,
                 ],
@@ -211,15 +237,77 @@ class SermonExtractionPlanResolver
             'source' => 'service_sections',
             'segments' => [[
                 'start_time' => (float) $sermonSection->start_time,
-                'end_time' => (float) $sermonSection->end_time,
+                'end_time' => $sermonEnd,
             ]],
             'metadata' => [
                 'strategy' => 'sermon_only_concat_disabled',
                 'sermon_section_id' => $sermonSection->id,
+                'trailing_section_ids' => $trailingSectionIds,
                 'bible_section_id' => $bibleSection->id,
                 'gap_seconds' => $gapSeconds,
             ],
         ];
+    }
+
+    /**
+     * The published sermon ends at the next song, not at the sermon section's own end.
+     *
+     * Sermon-to-prayer is continuous speech from one voice, which is the boundary the
+     * detector places least reliably; a plan that depends on it being right is fragile,
+     * and the failure is asymmetric — over-running gives a listener a topically
+     * continuous closing prayer, while stopping short truncates the sermon mid-thought,
+     * as the 2024-07-28 corpus run did by publishing to 2690s and losing the closing
+     * appeal that ran to ~3055s.
+     *
+     * This is the forward mirror of the reading pairing above: the same
+     * `adjacent_gap_seconds` guard, so a section beyond that gap is a separate element
+     * and ends the span. A song always ends it. The result is refused if it would take
+     * the sermon past the plausible ceiling, since that signals under-segmentation
+     * rather than a long conclusion.
+     *
+     * @return array{0: float, 1: list<int>}
+     */
+    private function resolveSermonEnd(MediaProcessingLog $processingLog, ServiceSection $sermonSection): array
+    {
+        $sermonEnd = (float) $sermonSection->end_time;
+
+        /** @var EloquentCollection<int, ServiceSection> $following */
+        $following = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->where('start_time', '>=', $sermonSection->end_time)
+            ->where('id', '!=', $sermonSection->id)
+            ->whereColumn('end_time', '>', 'start_time')
+            ->orderBy('start_time')
+            ->get();
+
+        $adjacentGapSeconds = (float) config('media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds', 60);
+        $maxSermonDuration = (float) config('media-processing.section_extraction.enhanced_sermon.max_sermon_duration_seconds', 2700);
+
+        $absorbed = [];
+        $cursor = $sermonEnd;
+
+        foreach ($following as $section) {
+            if (! in_array($section->section_type, self::SERMON_TRAILING_TYPES, true)) {
+                break;
+            }
+
+            if (((float) $section->start_time - $cursor) > $adjacentGapSeconds) {
+                break;
+            }
+
+            $cursor = (float) $section->end_time;
+            $absorbed[] = $section;
+        }
+
+        if ($absorbed === []) {
+            return [$sermonEnd, []];
+        }
+
+        if ($maxSermonDuration > 0.0 && ($cursor - (float) $sermonSection->start_time) > $maxSermonDuration) {
+            return [$sermonEnd, []];
+        }
+
+        return [$cursor, array_map(static fn (ServiceSection $section): int => $section->id, $absorbed)];
     }
 
     /**

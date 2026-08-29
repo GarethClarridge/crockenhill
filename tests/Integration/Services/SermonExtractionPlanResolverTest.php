@@ -199,6 +199,88 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame('adjacent_bible_plus_sermon', $plan['metadata']['strategy']);
     }
 
+    /**
+     * The forward mirror of the reading pairing: a closing prayer is the sermon's
+     * conclusion, and sermon-to-prayer is the boundary the detector places least
+     * reliably, so the published span runs through it rather than depending on it.
+     */
+    #[Test]
+    public function it_extends_the_published_span_through_an_adjacent_closing_prayer(): void
+    {
+        config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
+
+        $log = $this->logWithSermon(630.0, 2100.0);
+        $prayer = $this->section($log, ServiceSectionType::Prayer, 3, 2110.0, 2260.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame(2260.0, $plan['segments'][0]['end_time']);
+        $this->assertSame([$prayer->id], $plan['metadata']['trailing_section_ids']);
+    }
+
+    #[Test]
+    public function it_stops_the_published_span_at_the_next_song(): void
+    {
+        config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
+
+        $log = $this->logWithSermon(630.0, 2100.0);
+        $this->section($log, ServiceSectionType::Song, 3, 2110.0, 2300.0);
+        $this->section($log, ServiceSectionType::Prayer, 4, 2310.0, 2400.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame(2100.0, $plan['segments'][0]['end_time']);
+        $this->assertSame([], $plan['metadata']['trailing_section_ids']);
+    }
+
+    #[Test]
+    public function it_does_not_extend_across_a_gap_wider_than_the_adjacency_window(): void
+    {
+        config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
+
+        $log = $this->logWithSermon(630.0, 2100.0);
+        $this->section($log, ServiceSectionType::Prayer, 3, 2400.0, 2500.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame(2100.0, $plan['segments'][0]['end_time']);
+    }
+
+    /**
+     * The 2024-07-28 shape: the detector typed the sermon's conclusion `other`
+     * after a mid-sermon reading, and the recording is a concatenation with its
+     * songs excised, so there is no song to stop at.
+     */
+    #[Test]
+    public function it_extends_through_a_mid_sermon_reading_and_an_other_typed_conclusion(): void
+    {
+        config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
+
+        $log = $this->logWithSermon(1896.0, 2690.0);
+        $this->section($log, ServiceSectionType::BibleReading, 3, 2690.0, 2895.0);
+        $this->section($log, ServiceSectionType::Other, 4, 2912.0, 3055.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame(3055.0, $plan['segments'][0]['end_time']);
+    }
+
+    #[Test]
+    public function it_refuses_an_extension_that_would_pass_the_sermon_ceiling(): void
+    {
+        config([
+            'media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60,
+            'media-processing.section_extraction.enhanced_sermon.max_sermon_duration_seconds' => 1500,
+        ]);
+
+        $log = $this->logWithSermon(630.0, 2100.0);
+        $this->section($log, ServiceSectionType::Prayer, 3, 2110.0, 2600.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame(2100.0, $plan['segments'][0]['end_time']);
+    }
+
     #[Test]
     public function it_uses_concat_mode_for_non_adjacent_bible_and_sermon_when_enabled(): void
     {
@@ -519,6 +601,36 @@ class SermonExtractionPlanResolverTest extends TestCase
             'church_service_id' => $service->id,
             'type' => 'bibles',
             'title' => 'Colossians 1:15-23',
+        ]);
+    }
+
+    private function logWithSermon(float $start, float $end): MediaProcessingLog
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        $this->section($log, ServiceSectionType::Sermon, 2, $start, $end);
+
+        return $log;
+    }
+
+    private function section(
+        MediaProcessingLog $log,
+        ServiceSectionType $type,
+        int $order,
+        float $start,
+        float $end,
+    ): ServiceSection {
+        return ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => $type->value,
+            'section_order' => $order,
+            'start_time' => $start,
+            'end_time' => $end,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
         ]);
     }
 }

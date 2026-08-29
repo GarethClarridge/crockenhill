@@ -33,6 +33,7 @@ class SermonAutoExtractionPolicy
      */
     private const NON_DISQUALIFYING_REVIEW_FLAGS = [
         ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION,
+        ServiceStructureValidator::FLAG_OOS_SAME_TYPE_INVERSION,
         ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
     ];
 

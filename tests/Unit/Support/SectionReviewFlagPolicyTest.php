@@ -7,6 +7,7 @@ namespace Tests\Unit\Support;
 use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Support\SectionReviewFlagPolicy;
+use App\Support\SermonAutoExtractionPolicy;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -96,6 +97,54 @@ class SectionReviewFlagPolicyTest extends TestCase
         $this->assertTrue(SectionReviewFlagPolicy::requiresManualReview(
             ServiceSectionType::Notices,
             [ServiceStructureValidator::FLAG_OOS_STRUCTURE_MISMATCH, 'unmatched_song_section'],
+        ));
+    }
+
+    /**
+     * The two ordering flags are deliberately treated differently. A cross-type
+     * inversion fires on ~42% of services with OoS claims — reviewing them all
+     * would be noise. A same-type inversion fires on ~6%, and is the stronger
+     * signal, so it is worth an operator's eye.
+     */
+    #[Test]
+    public function a_same_type_oos_inversion_forces_review_though_a_cross_type_one_does_not(): void
+    {
+        $this->assertTrue(SectionReviewFlagPolicy::requiresManualReview(
+            ServiceSectionType::Song,
+            [ServiceStructureValidator::FLAG_OOS_SAME_TYPE_INVERSION],
+        ));
+
+        $this->assertFalse(SectionReviewFlagPolicy::requiresManualReview(
+            ServiceSectionType::Song,
+            [ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION],
+        ));
+    }
+
+    #[Test]
+    public function a_merged_interrupted_sermon_forces_review(): void
+    {
+        $this->assertTrue(SectionReviewFlagPolicy::requiresManualReview(
+            ServiceSectionType::Sermon,
+            [ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED],
+        ));
+    }
+
+    /**
+     * Ordering flags question which OoS item a section aligns to, never its
+     * boundaries, so they must not demote extraction. The merge flag moves the
+     * sermon's own boundaries, so it must.
+     */
+    #[Test]
+    public function ordering_flags_permit_auto_extraction_but_the_sermon_merge_flag_does_not(): void
+    {
+        $this->assertTrue(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(
+            true,
+            [ServiceStructureValidator::FLAG_OOS_SAME_TYPE_INVERSION],
+        ));
+
+        $this->assertFalse(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(
+            true,
+            [ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED],
         ));
     }
 }
