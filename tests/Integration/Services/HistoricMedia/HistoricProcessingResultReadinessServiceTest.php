@@ -176,4 +176,55 @@ class HistoricProcessingResultReadinessServiceTest extends TestCase
             $settled->reasons,
         );
     }
+
+    #[Test]
+    public function artifacts_under_the_unresolved_date_fallback_are_not_settled(): void
+    {
+        $run = $this->runWithArtifactPath('service-transcripts/unknown-date/morning-abc123.raw.json');
+
+        $result = app(HistoricProcessingResultReadinessService::class)->audit($run);
+
+        $this->assertFalse($result->ready);
+        $this->assertContains(
+            'Durable service artifacts are stored under the unresolved-date fallback.',
+            $result->reasons,
+        );
+    }
+
+    #[Test]
+    public function artifacts_foldered_under_a_real_date_stay_settled(): void
+    {
+        $run = $this->runWithArtifactPath('service-transcripts/2020-03-22/morning-abc123.raw.json');
+
+        $result = app(HistoricProcessingResultReadinessService::class)->audit($run);
+
+        $this->assertTrue($result->ready, implode("\n", $result->reasons));
+    }
+
+    /**
+     * An otherwise-settled run carrying one durable artifact at the given path, so a
+     * readiness failure isolates the foldering check rather than any other reason.
+     */
+    private function runWithArtifactPath(string $path): MediaProcessingLog
+    {
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1/video.mp4',
+            'transcript_file_path' => 'sermons/1/transcript.txt',
+            'thumbnail_file_path' => 'sermons/1/thumbnail.webp',
+        ]);
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'sermon_id' => $sermon->id,
+            'processing_metadata' => [
+                'service_artifacts' => [
+                    ['kind' => 'raw', 'path' => $path, 'sha256' => str_repeat('a', 64)],
+                ],
+            ],
+        ]);
+        SermonProcessingStep::factory()->create([
+            'processing_id' => $run->processing_id,
+            'status' => ProcessingStatus::Completed,
+        ]);
+
+        return $run;
+    }
 }

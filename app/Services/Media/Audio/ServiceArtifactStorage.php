@@ -21,6 +21,14 @@ final class ServiceArtifactStorage
     public const METADATA_KEY = 'service_artifacts';
 
     /**
+     * Folder used when the run cannot supply a date.
+     *
+     * Shared with the historic readiness audit so the writer and the check that
+     * rejects it cannot drift apart.
+     */
+    public const UNRESOLVED_DATE = 'unknown-date';
+
+    /**
      * @param  array<string, mixed>  $payload
      * @param  array<string, mixed>  $context  Provenance recorded alongside the artifact
      */
@@ -176,7 +184,7 @@ final class ServiceArtifactStorage
     private function basePath(string $processingId): string
     {
         $log = MediaProcessingLog::query()->where('processing_id', $processingId)->first();
-        $date = $log?->extracted_date?->format('Y-m-d') ?? 'unknown-date';
+        $date = $log?->extracted_date?->format('Y-m-d') ?? self::UNRESOLVED_DATE;
         $service = $log?->extracted_service->value ?? 'other';
 
         return "service-transcripts/{$date}/{$service}-{$processingId}";

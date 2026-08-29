@@ -6,12 +6,14 @@ namespace App\Services\HistoricMedia;
 
 use App\Data\HistoricProcessingResultReadiness;
 use App\Enums\ProcessingStatus;
+use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
+use App\Services\Media\Audio\ServiceArtifactStorage;
 use Illuminate\Support\Facades\Bus;
 use Throwable;
 
@@ -67,6 +69,8 @@ class HistoricProcessingResultReadinessService
 
         if (! is_array($artifacts) || $artifacts === []) {
             $reasons[] = 'Durable service artifact manifest is missing.';
+        } else {
+            $this->auditArtifactFoldering($artifacts, $reasons);
         }
 
         foreach ($processingLog->serviceSections as $section) {
@@ -90,6 +94,42 @@ class HistoricProcessingResultReadinessService
             reasons: array_values(array_unique($reasons)),
             logicalHash: $logicalHash,
         );
+    }
+
+    /**
+     * Artifacts written under the unresolved-date fallback are durable but not findable.
+     *
+     * {@see ServiceArtifactStorage::basePath()} folders every artifact under the run's
+     * `extracted_date`, falling back to {@see ServiceArtifactStorage::UNRESOLVED_DATE}
+     * when the log cannot supply one. The fallback rightly keeps a write from failing
+     * for a one-off replay driven by a synthetic processing id, but across a bounded
+     * corpus pass it collapses every identity into one flat folder whose only
+     * identifying signal is the processing id. Failing the first identity of a pass is
+     * cheap; discovering it once a whole round has landed is not.
+     *
+     * Only the date is checked. `other` is a legitimate {@see SermonService}
+     * case, so the service segment cannot distinguish a real value from the fallback.
+     *
+     * @param  array<int|string, mixed>  $artifacts
+     * @param  list<string>  $reasons
+     */
+    private function auditArtifactFoldering(array $artifacts, array &$reasons): void
+    {
+        $fallbackSegment = '/'.ServiceArtifactStorage::UNRESOLVED_DATE.'/';
+
+        foreach ($artifacts as $artifact) {
+            if (! is_array($artifact)) {
+                continue;
+            }
+
+            $path = $artifact['path'] ?? null;
+
+            if (is_string($path) && str_contains($path, $fallbackSegment)) {
+                $reasons[] = 'Durable service artifacts are stored under the unresolved-date fallback.';
+
+                return;
+            }
+        }
     }
 
     /** @param list<string> $reasons */
