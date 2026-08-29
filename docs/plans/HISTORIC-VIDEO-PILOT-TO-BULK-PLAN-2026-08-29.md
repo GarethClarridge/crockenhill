@@ -1,7 +1,7 @@
 # Historic Video Pilot-to-Bulk Plan
 
 **Date:** 2026-08-29
-**Status:** Proposed — no further historic-video dispatch is authorised by this plan
+**Status:** In progress — Phase 0 inventory implemented; its first capture failed closed and no further historic-video dispatch is authorised
 **Scope:** Correct the pilot findings, prove bounded staging reclamation, run a fresh canary, and process the remaining historic-video corpus safely
 **Related plan:** `HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md` remains the authority for the wider historic-import programme
 
@@ -54,6 +54,24 @@ The pilot's livestream projection synchronises canonical service items before in
 - Operator output does not distinguish all terminal dispositions clearly enough for a multi-pass run.
 
 ## 3. Delivery plan
+
+### Implementation progress
+
+| Phase | State | Evidence |
+|---|---|---|
+| 0 — Freeze and inventory | In progress | `historic:inventory-video-pilot` captures a create-once private ledger. The definitive 2026-08-29 capture hash was `cb7dc11b6ffb8070f077ecd94255696362ffd6e5ac227a6132cf00e0acde5697`; its exit gate failed. |
+| 1–9 | Not started | Blocked behind the Phase 0 exit gate. |
+
+The first capture reconciled the immutable selection and operation but found:
+
+- the $10 operation authority (`max_cost_minor_units = 1000`) has no currency binding and no usage entries;
+- 16 selected keys produced 16 processing rows for only 15 identities;
+- `2023-09-03-morning` has no processing row;
+- `2020-03-22-morning` owns the expected failed RMS run and its completed retry;
+- all 15 completed runs currently fail portable graph inventory because `service_structure` retains a local identity or runtime field;
+- unreadable macOS `._*` sidecars prevent a deep inventory of the 16.05 GB batch root, so no byte census can yet be claimed.
+
+The private ledger is retained at `storage/app/private/historic-video-pilot-ledger-20260829-v2.json`. It is deliberately not a committed artifact because it contains the complete private processing graph and staging paths. The earlier `historic-video-pilot-ledger-20260829.json` capture predates explicit graph-error gating and is retained only as superseded evidence.
 
 ### Phase 0 — Freeze and inventory the pilot
 
