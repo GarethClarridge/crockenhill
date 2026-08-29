@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Services\Processing;
 
 use App\Contracts\ProvidesSafeMessage;
+use App\Data\HistoricStagingContext;
 use App\Data\ProcessingResult;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\HistoricProcessingThroughput;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Video\VideoStorageService;
 use Illuminate\Bus\Batch;
 use Illuminate\Support\Facades\Bus;
@@ -33,6 +35,7 @@ class ProcessingRunOrchestrator
         private readonly MediaProcessingRunTransitionService $processingRunTransitions,
         private readonly VideoStorageService $videoStorageService,
         private readonly HistoricProcessingThroughput $historicProcessingThroughput,
+        private readonly HistoricStagingContextRegistry $stagingContextRegistry,
     ) {}
 
     /**
@@ -120,22 +123,24 @@ class ProcessingRunOrchestrator
     public function retry(MediaProcessingLog $processingLog): ProcessingResult
     {
         try {
-            if (! $processingLog->status->isRetryable()) {
-                return ProcessingResult::failure(
-                    processingId: $processingLog->processing_id,
-                    message: 'Processing is not in failed or cancelled state',
-                    errorCode: 'PROCESSING_NOT_FAILED'
+            $stagingContext = $processingLog->historicStagingContext();
+
+            if ($stagingContext instanceof HistoricStagingContext) {
+                return $this->stagingContextRegistry->within(
+                    $stagingContext,
+                    fn (): ProcessingResult => $this->runRetry($processingLog),
                 );
             }
 
-            /** @var RetryPlan $retryPlan */
-            $retryPlan = $this->phaseRegistry->retryPlanFor($processingLog);
+            if ($processingLog->historicImportJobKey() !== null && ! $this->stagingContextRegistry->isActive()) {
+                return ProcessingResult::failure(
+                    processingId: $processingLog->processing_id,
+                    message: 'This historic run records no staging context, so a retry cannot resolve its retained artifacts.',
+                    errorCode: 'HISTORIC_STAGING_CONTEXT_MISSING'
+                );
+            }
 
-            return match ($retryPlan['action']) {
-                'dispatch_chain', 'dispatch_livestream_chain' => $this->retryWithChainFromPlan($processingLog, $retryPlan),
-                'restart_livestream' => $this->restartLivestream($processingLog),
-                'manual_review' => $this->markForManualReviewFromPlan($processingLog, $retryPlan),
-            };
+            return $this->runRetry($processingLog);
         } catch (\Throwable $exception) {
             Log::error('Failed to retry processing run', [
                 'processing_id' => $processingLog->processing_id,
@@ -153,6 +158,34 @@ class ProcessingRunOrchestrator
                 errorCode: 'RETRY_FAILED'
             );
         }
+    }
+
+    /**
+     * Resolve and dispatch the retry plan. Always runs with the run's historic staging
+     * context active when it has one, so artifact keys resolve against the same batch root
+     * the original attempt wrote them under.
+     */
+    private function runRetry(MediaProcessingLog $processingLog): ProcessingResult
+    {
+        if (! $processingLog->status->isRetryable()) {
+            return ProcessingResult::failure(
+                processingId: $processingLog->processing_id,
+                message: 'Processing is not in failed or cancelled state',
+                errorCode: 'PROCESSING_NOT_FAILED'
+            );
+        }
+
+        /** @var RetryPlan $retryPlan */
+        $retryPlan = $this->phaseRegistry->retryPlanFor($processingLog);
+
+        return match ($retryPlan['action']) {
+            'dispatch_chain', 'dispatch_livestream_chain' => $this->retryWithChainFromPlan($processingLog, $retryPlan),
+            'restart_livestream' => $this->restartLivestream($processingLog),
+            'manual_review' => $this->markForManualReviewFromPlan($processingLog, $retryPlan),
+            default => throw new \InvalidArgumentException(
+                'Unknown retry plan action: '.get_debug_type($retryPlan['action'])
+            ),
+        };
     }
 
     /**

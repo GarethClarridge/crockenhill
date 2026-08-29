@@ -17,6 +17,8 @@ use App\Services\Media\Audio\RmsAnalysisService;
  */
 class SilenceSnapService
 {
+    private const BOUNDARY_ROUNDING_OVERLAP_SECONDS = 2.0;
+
     public function __construct(
         private readonly RmsAnalysisService $rmsAnalysisService,
     ) {}
@@ -35,7 +37,10 @@ class SilenceSnapService
         $silences = $this->silenceTimes($rmsLogContent);
 
         if ($silences === []) {
-            return $structure;
+            return $this->withSections(
+                $structure,
+                $this->reconcileBoundaryRoundingOverlaps($structure, $structure->sections),
+            );
         }
 
         $window = (float) config('media-processing.service_structure.snap_window_seconds', 30);
@@ -76,8 +81,58 @@ class SilenceSnapService
                 ->withSnapDeltas($newStart - $section->startTime, $newEnd - $section->endTime);
         }
 
+        return $this->withSections(
+            $structure,
+            $this->reconcileBoundaryRoundingOverlaps($structure, $snapped),
+        );
+    }
+
+    /**
+     * @param  list<ServiceStructureSection>  $sections
+     * @return list<ServiceStructureSection>
+     */
+    private function reconcileBoundaryRoundingOverlaps(ServiceStructure $original, array $sections): array
+    {
+        foreach (array_keys($sections) as $index) {
+            if ($index === 0) {
+                continue;
+            }
+
+            $previous = $sections[$index - 1];
+            $current = $sections[$index];
+            $overlap = $previous->endTime - $current->startTime;
+
+            if ($overlap <= 0.0 || $overlap > self::BOUNDARY_ROUNDING_OVERLAP_SECONDS) {
+                continue;
+            }
+
+            $boundary = ($previous->endTime + $current->startTime) / 2.0;
+            $note = sprintf('Reconciled %.1fs boundary-rounding overlap at %.1fs.', $overlap, $boundary);
+            $originalPrevious = $original->sections[$index - 1];
+            $originalCurrent = $original->sections[$index];
+
+            $sections[$index - 1] = $previous
+                ->withTimes($previous->startTime, $boundary, [$note])
+                ->withSnapDeltas(
+                    $previous->startTime - $originalPrevious->startTime,
+                    $boundary - $originalPrevious->endTime,
+                );
+            $sections[$index] = $current
+                ->withTimes($boundary, $current->endTime, [$note])
+                ->withSnapDeltas(
+                    $boundary - $originalCurrent->startTime,
+                    $current->endTime - $originalCurrent->endTime,
+                );
+        }
+
+        return array_values($sections);
+    }
+
+    /** @param list<ServiceStructureSection> $sections */
+    private function withSections(ServiceStructure $structure, array $sections): ServiceStructure
+    {
         return ServiceStructure::fromSections(
-            $snapped,
+            $sections,
             $structure->notes,
             $structure->model,
             $structure->summary,

@@ -60,8 +60,8 @@ class MediaProcessingRunTransitionService
     /**
      * Transition a run to the 'completed' state.
      *
-     * Marks the run as successful, records completion time, and clears the
-     * deduplication key to allow the same file to be processed again if needed.
+     * Marks the run as successful and records completion time. Historic runs
+     * retain their manifest key so a restarted import recognises finished work.
      *
      * @param  MediaProcessingLog  $processingLog  The log record to update
      * @param  string|null  $step  The final step name (defaults to 'completed')
@@ -78,15 +78,15 @@ class MediaProcessingRunTransitionService
             'current_step' => ProcessingStep::canonicalize($step ?? 'completed'),
             'completed_at' => now(),
             'error_message' => $errorMessage,
-            'dedup_key' => null,
+            'dedup_key' => $processingLog->historicImportJobKey(),
         ]);
     }
 
     /**
      * Transition a run to the 'failed' state.
      *
-     * Records the error message and completion time, and clears the
-     * deduplication key so that a fresh upload attempt can be made.
+     * Records the error message and completion time. Ordinary uploads release
+     * their deduplication key; historic runs retain their immutable manifest key.
      *
      * @param  MediaProcessingLog  $processingLog  The log record to update
      * @param  string  $errorMessage  Descriptive error message for the failure
@@ -100,7 +100,7 @@ class MediaProcessingRunTransitionService
             'current_step' => ProcessingStep::canonicalize($step ?? $processingLog->current_step),
             'error_message' => $errorMessage,
             'completed_at' => now(),
-            'dedup_key' => null,
+            'dedup_key' => $processingLog->historicImportJobKey(),
         ]);
     }
 
@@ -109,7 +109,7 @@ class MediaProcessingRunTransitionService
      *
      * This terminal transition is allowed even if the run is already cancelled,
      * to ensure consistent state after user intervention. Clears the
-     * deduplication key to allow re-uploading.
+     * deduplication key to allow an explicitly cancelled source to be re-dispatched.
      *
      * @param  MediaProcessingLog  $processingLog  The log record to update
      * @param  string|null  $message  Optional cancellation reason
@@ -165,7 +165,7 @@ class MediaProcessingRunTransitionService
             'current_step' => 'manual_review_required',
             'error_message' => $reasonMessage,
             'processing_metadata' => $metadata,
-            'dedup_key' => null,
+            'dedup_key' => $processingLog->historicImportJobKey(),
         ]);
     }
 
@@ -264,7 +264,7 @@ class MediaProcessingRunTransitionService
      * Reset a run's status and timestamps for a retry attempt.
      *
      * Clears error messages and completion times, transitions status to 'pending',
-     * and regenerates the deduplication key to prevent concurrent duplicate uploads.
+     * and restores the run's stable deduplication key to prevent concurrent duplicates.
      *
      * @param  MediaProcessingLog  $processingLog  The log record to reset
      * @return bool True if the reset was successful
@@ -276,7 +276,7 @@ class MediaProcessingRunTransitionService
             'error_message' => null,
             'started_at' => null,
             'completed_at' => null,
-            'dedup_key' => $processingLog->buildDedupKey(),
+            'dedup_key' => $processingLog->historicImportJobKey() ?? $processingLog->buildDedupKey(),
         ]);
     }
 

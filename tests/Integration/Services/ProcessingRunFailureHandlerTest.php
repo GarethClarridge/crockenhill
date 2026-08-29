@@ -10,6 +10,7 @@ use App\Mail\LivestreamProcessingFailed;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Video\VideoStorageService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
+use App\Services\Processing\ProcessingNotificationRouter;
 use App\Services\Processing\ProcessingRunFailureHandler;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
@@ -140,6 +141,42 @@ class ProcessingRunFailureHandlerTest extends TestCase
             new \RuntimeException('boom'),
             ProcessingRunFailureHandler::PROFILE_LIVESTREAM
         );
+    }
+
+    #[Test]
+    public function it_retains_historic_livestream_inputs_after_terminal_failure_for_phase_retry(): void
+    {
+        Mail::fake();
+        $jobKey = hash('sha256', 'historic-failed-job');
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'source_file_path' => 'livestreams/source.mp4',
+            'dedup_key' => $jobKey,
+            'processing_metadata' => [
+                'historic_import' => [
+                    'job_key' => $jobKey,
+                ],
+                'extracted_segment_path' => 'livestreams/segment.mp4',
+                'extracted_audio_path' => 'livestreams/segment.mp3',
+            ],
+        ]);
+
+        $storageService = $this->mock(VideoStorageService::class);
+        $storageService->shouldNotReceive('cleanupTemporaryFiles');
+        $notificationRouter = $this->mock(ProcessingNotificationRouter::class);
+        $notificationRouter->shouldReceive('suppressIfHistoric')->once()->andReturnTrue();
+
+        $this->app->forgetInstance(ProcessingRunFailureHandler::class);
+
+        app(ProcessingRunFailureHandler::class)->handle(
+            $log->processing_id,
+            new \RuntimeException('boom'),
+            ProcessingRunFailureHandler::PROFILE_LIVESTREAM,
+        );
+
+        $log->refresh();
+
+        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame($jobKey, $log->dedup_key);
     }
 
     // ── Guard conditions ──────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Data\HistoricStagingContext;
 use App\Data\ProcessingManualReviewMetadata;
 use App\Data\ProcessingMetadata;
 use App\Data\ProcessingMetadataCast;
@@ -12,6 +13,7 @@ use App\Data\SermonAnalysisCast;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
+use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Support\ServiceArtifactDisk;
 use Database\Factories\MediaProcessingLogFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -423,6 +425,31 @@ class MediaProcessingLog extends Model
     public function isCancelled(): bool
     {
         return $this->status === ProcessingStatus::Cancelled;
+    }
+
+    public function historicImportJobKey(): ?string
+    {
+        $jobKey = data_get($this->processing_metadata?->toArray(), 'historic_import.job_key');
+
+        return is_string($jobKey) && $jobKey !== '' ? $jobKey : null;
+    }
+
+    /**
+     * The staging context this run's artifacts were written under, if it was dispatched
+     * as part of an approved historic batch.
+     *
+     * The batch root lives in the staging disk's *root* — see
+     * {@see HistoricStagingGuard::activate()} — not in the
+     * artifact keys this record holds, so those keys only resolve while this context is
+     * active. Any surface resuming or retrying the run must reactivate it first.
+     *
+     * @throws \RuntimeException If a recorded context is malformed.
+     */
+    public function historicStagingContext(): ?HistoricStagingContext
+    {
+        $context = data_get($this->processing_metadata?->toArray(), 'historic_import.staging_context');
+
+        return is_array($context) ? HistoricStagingContext::fromArray($context) : null;
     }
 
     public function isDegradedCompletion(): bool

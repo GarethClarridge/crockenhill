@@ -16,6 +16,8 @@ use App\Jobs\SendCompletionNotification;
 use App\Jobs\TranscribeAudio;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\MediaProcessingLog;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\Video\VideoStorageService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\Processing\ProcessingPipelineBuilder;
@@ -24,8 +26,10 @@ use App\Services\Processing\ProcessingRunOrchestrator;
 use Illuminate\Bus\PendingBatch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Laravel\SerializableClosure\SerializableClosure;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
@@ -229,6 +233,99 @@ class ProcessingRunOrchestratorTest extends TestCase
             SendCompletionNotification::class,
             CleanupTemporaryFiles::class,
         ]);
+    }
+
+    /**
+     * The batch root lives in the staging disk's *root*, not in the artifact keys a run
+     * records: {@see HistoricStagingGuard::activate()} appends
+     * `historic-batches/<plan-hash>` to it. A retry dispatched without reactivating the run's
+     * own context therefore resumes on a worker whose staging disk sits one directory above
+     * the retained transcript, and DetectServiceStructure fails with "Full-service transcript
+     * artifact missing" whatever the original defect was.
+     */
+    #[Test]
+    public function it_retries_a_historic_run_with_its_recorded_staging_context_active(): void
+    {
+        Bus::fake();
+
+        $stagingRoot = sys_get_temp_dir().'/orchestrator-staging-'.uniqid();
+        mkdir($stagingRoot, 0755, true);
+        config([
+            'filesystems.disks.historic_staging.root' => $stagingRoot,
+            'media-processing.storage.historic_staging_disk' => 'historic_staging',
+            'media-processing.storage.sermon_disk' => 'historic_staging',
+            'media-processing.storage.transcript_disk' => 'historic_staging',
+        ]);
+        Storage::forgetDisk('historic_staging');
+
+        $stagingContext = app(HistoricStagingGuard::class)->contextForApprovedPlan(
+            hash('sha256', 'manifest'),
+            hash('sha256', 'plan'),
+        );
+        $transcriptKey = 'service-transcripts/2025-02-09/morning-retry.normalized.json';
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->failed()->create([
+            'current_step' => 'detecting_service_structure_failed',
+            'error_message' => 'Detected sections overlap.',
+            'processing_metadata' => [
+                'historic_import' => [
+                    'job_key' => 'historic-job-key',
+                    'staging_context' => $stagingContext->toArray(),
+                ],
+                'service_transcript_path' => $transcriptKey,
+            ],
+        ]);
+
+        app(HistoricStagingContextRegistry::class)->within(
+            $stagingContext,
+            static fn () => Storage::disk('historic_staging')->put($transcriptKey, '{"cues":[]}'),
+        );
+
+        $transcriptReadable = null;
+        // Partial: the phase registry also asks the real builder for the chain's job classes
+        // when it resolves the retry cursor.
+        $builder = $this->partialMock(ProcessingPipelineBuilder::class);
+        $builder->shouldReceive('buildLivestreamChainJobs')
+            ->andReturnUsing(function (MediaProcessingLog $log) use (&$transcriptReadable): array {
+                $transcriptReadable = $log->hasStoredServiceTranscript();
+
+                return [new CleanupTemporaryFiles($log)];
+            });
+
+        $this->app->forgetInstance(ProcessingRunOrchestrator::class);
+        $result = app(ProcessingRunOrchestrator::class)->retry($processingLog);
+
+        File::deleteDirectory($stagingRoot);
+
+        $this->assertTrue($result->success, $result->message);
+        $this->assertTrue(
+            $transcriptReadable,
+            'The retry ran outside the run\'s historic staging context, so its retained '
+            .'full-service transcript was not readable at the key the run recorded.',
+        );
+    }
+
+    /**
+     * A historic run with no recorded staging context cannot resolve its own artifacts, so a
+     * retry must refuse rather than silently resume against an un-rooted staging disk.
+     */
+    #[Test]
+    public function it_refuses_to_retry_a_historic_run_that_records_no_staging_context(): void
+    {
+        Bus::fake();
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->failed()->create([
+            'current_step' => 'detecting_service_structure_failed',
+            'processing_metadata' => [
+                'historic_import' => ['job_key' => 'historic-job-key'],
+            ],
+        ]);
+
+        $result = app(ProcessingRunOrchestrator::class)->retry($processingLog);
+
+        $this->assertFalse($result->success);
+        $this->assertSame('HISTORIC_STAGING_CONTEXT_MISSING', $result->errorCode);
+        Bus::assertNothingDispatched();
     }
 
     #[Test]

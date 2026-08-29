@@ -144,4 +144,32 @@ class MediaProcessingRunTransitionServiceTest extends TestCase
             $log->dedup_key
         );
     }
+
+    #[Test]
+    public function it_preserves_the_manifest_job_key_through_historic_terminal_transitions_and_retry(): void
+    {
+        $jobKey = hash('sha256', 'historic-manifest-job');
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'dedup_key' => $jobKey,
+            'processing_metadata' => [
+                'historic_import' => [
+                    'job_key' => $jobKey,
+                ],
+            ],
+        ]);
+
+        $this->assertTrue($this->service->markAsFailed($log, 'Temporary failure'));
+        $this->assertSame($jobKey, $log->dedup_key);
+
+        $this->assertTrue($this->service->resetForRetry($log));
+        $this->assertSame($jobKey, $log->dedup_key);
+
+        $this->assertTrue($this->service->markForManualReview($log, 'llm_structure_validation_failed', 'Invalid structure'));
+        $this->assertSame($jobKey, $log->dedup_key);
+
+        $this->assertTrue($this->service->resetForRetry($log));
+
+        $this->assertTrue($this->service->markAsCompleted($log));
+        $this->assertSame($jobKey, $log->dedup_key);
+    }
 }

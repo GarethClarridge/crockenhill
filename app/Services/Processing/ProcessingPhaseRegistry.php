@@ -141,6 +141,22 @@ class ProcessingPhaseRegistry
         }
 
         $pipeline = $processingLog->processingPipelineProfile();
+
+        if ($step === 'manual_review_required'
+            && ($processingLog->manualReviewMetadata()['reason_code'] ?? null) === 'llm_structure_validation_failed') {
+            $phase = $this->phaseForPipelineStep($pipeline, 'detect_service_structure');
+
+            if ($phase !== null && $phase['job_offset'] !== null) {
+                return [
+                    'action' => $phase['retry_action'] ?? 'dispatch_chain',
+                    'pipeline' => $pipeline,
+                    'job_offset' => $phase['job_offset'],
+                    'rerun_strategy' => 'targeted_reset',
+                    'reset_scope' => 'service_structure_validation',
+                ];
+            }
+        }
+
         $phase = $this->phaseForPipelineStep($pipeline, $step);
 
         if ($phase !== null && $phase['job_offset'] !== null) {

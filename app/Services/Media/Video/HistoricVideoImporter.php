@@ -19,8 +19,10 @@ use App\Services\HistoricMedia\HistoricProcessingFingerprint;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\TempDiskSpace;
 use App\Services\Processing\UnifiedMediaProcessor;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -33,6 +35,8 @@ use Illuminate\Support\Str;
  *     enriched: int,
  *     skipped_exists: int,
  *     resumed_completed: int,
+ *     resumed_inflight: int,
+ *     retried_failed: int,
  *     skipped_inflight: int,
  *     skipped_pending_review: int,
  *     skipped_small: int,
@@ -91,6 +95,8 @@ class HistoricVideoImporter
      *     enriched: int,
      *     skipped_exists: int,
      *     resumed_completed: int,
+     *     resumed_inflight: int,
+     *     retried_failed: int,
      *     skipped_inflight: int,
      *     skipped_pending_review: int,
      *     skipped_small: int,
@@ -143,6 +149,8 @@ class HistoricVideoImporter
             'enriched' => 0,
             'skipped_exists' => 0,
             'resumed_completed' => 0,
+            'resumed_inflight' => 0,
+            'retried_failed' => 0,
             'skipped_inflight' => 0,
             'skipped_pending_review' => 0,
             'skipped_small' => 0,
@@ -244,9 +252,12 @@ class HistoricVideoImporter
             $plannedKeys = $stagingContext instanceof HistoricStagingContext
                 ? $this->plannedJobKeys($item, $stagingContext, $noConcat)
                 : [];
-            $resumedKeys = $plannedKeys === []
+            $ownRuns = $plannedKeys === []
+                ? collect()
+                : $this->preferredOwnRunsForJobKeys($plannedKeys, $this->ownRunsForJobKeys($plannedKeys));
+            $resumedKeys = $ownRuns->isEmpty()
                 ? []
-                : $this->completedOwnJobKeys($plannedKeys);
+                : $this->completedOwnJobKeys($plannedKeys, $ownRuns);
 
             if ($resumedKeys !== [] && $resumedKeys === $plannedKeys) {
                 $metrics['resumed_completed']++;
@@ -255,6 +266,97 @@ class HistoricVideoImporter
                 $onProgress?->__invoke('[resume-completed]', $label, 'already completed by this exact manifest item');
 
                 continue;
+            }
+
+            $coveredKeys = $resumedKeys;
+            $retryBlocked = false;
+            $limitReached = false;
+            $hasOwnInflight = false;
+
+            foreach ($ownRuns as $ownRun) {
+                $jobKey = $this->jobKeyForRun($ownRun);
+
+                if ($jobKey === null || in_array($jobKey, $resumedKeys, true)) {
+                    continue;
+                }
+
+                if (in_array($ownRun->status, [ProcessingStatus::Pending, ProcessingStatus::Started, ProcessingStatus::Processing], true)) {
+                    $hasOwnInflight = true;
+                    $metrics['resumed_inflight']++;
+                    $coveredKeys[] = $jobKey;
+                    $inflight[] = $ownRun->processing_id;
+                    $decisions[$decisionIndex] = [
+                        'decision' => 'resume-inflight',
+                        'label' => $label,
+                        'processing_id' => $ownRun->processing_id,
+                    ];
+                    $onProgress?->__invoke('[resume-inflight]', $label, "waiting for processing_id={$ownRun->processing_id}");
+
+                    continue;
+                }
+
+                if ($ownRun->status !== ProcessingStatus::Failed
+                    || ($ownRun->requiresManualSermonReview() && ! $this->isStructureValidationFailure($ownRun))) {
+                    continue;
+                }
+
+                if ($limit > 0 && $dispatched >= $limit) {
+                    $limitReached = true;
+
+                    break;
+                }
+
+                if (count($inflight) >= $parallel) {
+                    $this->recordTerminalOutcomes($metrics, $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds));
+                    $inflight = [];
+                }
+
+                $retry = $this->processor->retry($ownRun->processing_id);
+                $coveredKeys[] = $jobKey;
+
+                if (! $retry->success) {
+                    $metrics['errors']++;
+                    $retryBlocked = true;
+                    $onProgress?->__invoke('[retry-error]', $label, $retry->message);
+
+                    continue;
+                }
+
+                $hasOwnInflight = true;
+                $dispatched++;
+                $metrics['retried_failed']++;
+                $inflight[] = $ownRun->processing_id;
+                $decisions[$decisionIndex] = [
+                    'decision' => 'retry-failed',
+                    'label' => $label,
+                    'processing_id' => $ownRun->processing_id,
+                ];
+                $onProgress?->__invoke('[retry-failed]', $label, "resumed processing_id={$ownRun->processing_id}");
+            }
+
+            $coveredKeys = array_values(array_unique($coveredKeys));
+            $inflight = array_values(array_unique($inflight));
+
+            if ($limitReached) {
+                break;
+            }
+
+            if ($retryBlocked) {
+                continue;
+            }
+
+            if ($plannedKeys !== [] && count($coveredKeys) === count($plannedKeys)) {
+                if ($parallel === 1 || count($inflight) >= $parallel) {
+                    $this->recordTerminalOutcomes($metrics, $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds));
+                    $inflight = [];
+                }
+
+                continue;
+            }
+
+            if (count($inflight) >= $parallel) {
+                $this->recordTerminalOutcomes($metrics, $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds));
+                $inflight = [];
             }
 
             if (! $force) {
@@ -269,6 +371,10 @@ class HistoricVideoImporter
                  * than re-dispatched.
                  */
                 if ($existenceTag === 'skip-exists' && $resumedKeys !== []) {
+                    $existenceTag = null;
+                }
+
+                if ($existenceTag === 'skip-inflight' && $hasOwnInflight) {
                     $existenceTag = null;
                 }
 
@@ -1205,20 +1311,92 @@ class HistoricVideoImporter
      * where the processor's `dedup_key` reuse settles the finished half without re-running it.
      *
      * @param  list<string>  $planned
+     * @param  Collection<int, MediaProcessingLog>  $runs
      * @return list<string>
      */
-    private function completedOwnJobKeys(array $planned): array
+    private function completedOwnJobKeys(array $planned, Collection $runs): array
     {
-        $completed = MediaProcessingLog::query()
-            ->whereIn('dedup_key', $planned)
-            ->where('status', ProcessingStatus::Completed->value)
-            ->pluck('dedup_key')
+        $completed = $runs
+            ->filter(static fn (MediaProcessingLog $run): bool => $run->status === ProcessingStatus::Completed)
+            ->map(fn (MediaProcessingLog $run): ?string => $this->jobKeyForRun($run))
+            ->filter(static fn (?string $jobKey): bool => is_string($jobKey))
+            ->values()
             ->all();
 
         return array_values(array_filter(
             $planned,
             static fn (string $key): bool => in_array($key, $completed, true),
         ));
+    }
+
+    /**
+     * Match both the live unique lock and the immutable metadata identity. Historic runs created
+     * before resumability was fixed cleared `dedup_key` at terminal transitions, but their
+     * hash-bound metadata still carries the exact job key and must remain resumable.
+     *
+     * @param  list<string>  $jobKeys
+     * @return Collection<int, MediaProcessingLog>
+     */
+    private function ownRunsForJobKeys(array $jobKeys): Collection
+    {
+        return MediaProcessingLog::query()
+            ->where(function (Builder $query) use ($jobKeys): void {
+                $query
+                    ->whereIn('dedup_key', $jobKeys)
+                    ->orWhereIn('processing_metadata->historic_import->job_key', $jobKeys);
+            })
+            ->get();
+    }
+
+    /**
+     * Older terminal transitions released the live key, so more than one row can carry the same
+     * immutable historic job key. Act on exactly one: completed work wins, then active work, then
+     * the newest failed attempt. This prevents retrying a stale failure beside a successful or
+     * currently running replacement.
+     *
+     * @param  list<string>  $plannedJobKeys
+     * @param  Collection<int, MediaProcessingLog>  $runs
+     * @return Collection<int, MediaProcessingLog>
+     */
+    private function preferredOwnRunsForJobKeys(array $plannedJobKeys, Collection $runs): Collection
+    {
+        return collect($plannedJobKeys)
+            ->map(function (string $jobKey) use ($runs): ?MediaProcessingLog {
+                return $runs
+                    ->filter(fn (MediaProcessingLog $run): bool => $this->jobKeyForRun($run) === $jobKey)
+                    ->sortByDesc(fn (MediaProcessingLog $run): array => [
+                        $this->historicRunPriority($run),
+                        $run->id,
+                    ])
+                    ->first();
+            })
+            ->filter(static fn (?MediaProcessingLog $run): bool => $run instanceof MediaProcessingLog)
+            ->values();
+    }
+
+    private function historicRunPriority(MediaProcessingLog $run): int
+    {
+        if ($run->status === ProcessingStatus::Completed) {
+            return 3;
+        }
+
+        if (in_array($run->status, [ProcessingStatus::Pending, ProcessingStatus::Started, ProcessingStatus::Processing], true)) {
+            return 2;
+        }
+
+        return $run->status === ProcessingStatus::Failed ? 1 : 0;
+    }
+
+    private function jobKeyForRun(MediaProcessingLog $run): ?string
+    {
+        $jobKey = $run->historicImportJobKey() ?? $run->dedup_key;
+
+        return is_string($jobKey) && $jobKey !== '' ? $jobKey : null;
+    }
+
+    private function isStructureValidationFailure(MediaProcessingLog $run): bool
+    {
+        return ($run->manualReviewMetadata()['reason_code'] ?? null) === 'llm_structure_validation_failed';
     }
 
     private function checkExistence(Carbon $date, SermonService $service): ?string

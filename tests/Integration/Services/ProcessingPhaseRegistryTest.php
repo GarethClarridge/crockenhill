@@ -349,4 +349,27 @@ class ProcessingPhaseRegistryTest extends TestCase
 
         $this->assertSame(2, $registry->retryPlanFor($detectLog)['job_offset']);
     }
+
+    #[Test]
+    public function structure_validation_manual_review_retries_from_detection_only(): void
+    {
+        $registry = app(ProcessingPhaseRegistry::class);
+        $log = MediaProcessingLog::factory()->livestream()->failed()->create([
+            'current_step' => 'manual_review_required',
+            'processing_metadata' => [
+                'manual_review' => [
+                    'status' => 'required',
+                    'reason_code' => 'llm_structure_validation_failed',
+                ],
+            ],
+        ]);
+
+        $plan = $registry->retryPlanFor($log);
+        $detectPhase = collect($registry->phasesForPipeline('livestream'))
+            ->firstWhere('step', 'detect_service_structure');
+
+        $this->assertSame('dispatch_livestream_chain', $plan['action']);
+        $this->assertSame($detectPhase['job_offset'], $plan['job_offset']);
+        $this->assertSame('service_structure_validation', $plan['reset_scope']);
+    }
 }

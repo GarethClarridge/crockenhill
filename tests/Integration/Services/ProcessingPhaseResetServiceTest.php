@@ -97,6 +97,31 @@ class ProcessingPhaseResetServiceTest extends TestCase
         $this->assertNull($log->rms_stats);
     }
 
+    #[Test]
+    public function it_clears_only_the_active_review_marker_for_a_structure_validation_retry(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->failed()->create([
+            'processing_metadata' => [
+                'manual_review' => [
+                    'status' => 'required',
+                    'reason_code' => 'llm_structure_validation_failed',
+                ],
+                'service_transcript_path' => 'historic/transcript.json',
+                'service_structure_proposal' => ['passed_validation' => false],
+            ],
+        ]);
+
+        $this->service->resetForRetry($log, [
+            'action' => 'dispatch_livestream_chain',
+            'reset_scope' => 'service_structure_validation',
+        ]);
+
+        $metadata = $log->fresh()?->processing_metadata?->toArray() ?? [];
+        $this->assertArrayNotHasKey('manual_review', $metadata);
+        $this->assertSame('historic/transcript.json', $metadata['service_transcript_path']);
+        $this->assertArrayHasKey('service_structure_proposal', $metadata);
+    }
+
     // ── reset_scope: submit_to_processing ─────────────────────────────────────
 
     #[Test]

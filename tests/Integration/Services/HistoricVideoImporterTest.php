@@ -18,10 +18,12 @@ use App\Services\Media\TempDiskSpace;
 use App\Services\Media\Video\HistoricVideoCurationManifest;
 use App\Services\Media\Video\HistoricVideoImporter;
 use App\Services\Media\Video\HistoricVideoReencodeConcatenator;
+use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
@@ -33,6 +35,9 @@ class HistoricVideoImporterTest extends TestCase
 
     private string $temporaryDirectory;
 
+    /** The shipped staging root, captured before setUp redirects it into the test directory. */
+    private string $configuredStagingRoot;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -42,11 +47,21 @@ class HistoricVideoImporterTest extends TestCase
 
         // A historic batch may only run with media output isolated on the private
         // staging disk; every dispatch case below assumes that configuration.
+        // Keep staging output inside the test's own directory. The real
+        // HISTORIC_STAGING_ROOT is the mounted archive drive, and the guard
+        // fingerprints this root, so it must exist before any context is built.
+        $this->configuredStagingRoot = (string) config('filesystems.disks.historic_staging.root');
+        $stagingRoot = $this->temporaryDirectory.'/staging';
+        mkdir($stagingRoot, 0755, true);
+
         config([
             'media-processing.storage.historic_staging_disk' => 'historic_staging',
             'media-processing.storage.sermon_disk' => 'historic_staging',
             'media-processing.storage.transcript_disk' => 'historic_staging',
+            'filesystems.disks.historic_staging.root' => $stagingRoot,
         ]);
+
+        Storage::forgetDisk('historic_staging');
     }
 
     protected function tearDown(): void
@@ -318,7 +333,7 @@ class HistoricVideoImporterTest extends TestCase
         $this->assertIsArray($configuration);
         $this->assertArrayNotHasKey('url', $configuration);
         $this->assertSame('private', $configuration['visibility']);
-        $this->assertStringContainsString('/private/historic-staging', $configuration['root']);
+        $this->assertStringContainsString('/private/historic-staging', $this->configuredStagingRoot);
         $this->assertSame('historic_staging', config('media-processing.storage.historic_staging_disk'));
     }
 
@@ -580,19 +595,203 @@ class HistoricVideoImporterTest extends TestCase
         $path = $this->temporaryDirectory.'/2022-01-16 10-38-15.mkv';
         $this->createFakeVideo($path);
 
-        MediaProcessingLog::factory()->create([
+        $jobKey = $this->manifestJobKey([$path], $path);
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
             'processing_type' => MediaType::Livestream,
             'extracted_date' => '2022-01-16',
             'extracted_service' => SermonService::Morning,
-            'status' => ProcessingStatus::Completed,
-            'dedup_key' => $this->manifestJobKey([$path], $path),
+            'dedup_key' => $jobKey,
+            'processing_metadata' => [
+                'historic_import' => [
+                    'job_key' => $jobKey,
+                ],
+            ],
         ]);
+        app(MediaProcessingRunTransitionService::class)->markAsCompleted($log);
 
         $metrics = $this->runImport();
 
         $this->assertSame(1, $metrics['resumed_completed']);
         $this->assertSame(0, $metrics['skipped_exists']);
         $this->assertSame(0, $metrics['dispatched']);
+    }
+
+    #[Test]
+    public function it_retries_its_exact_failed_manifest_run_without_redispatching_the_source(): void
+    {
+        $path = $this->temporaryDirectory.'/2022-01-16 10-38-15.mkv';
+        $this->createFakeVideo($path);
+        $jobKey = $this->manifestJobKey([$path], $path);
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'processing_type' => MediaType::Livestream,
+            'extracted_date' => '2022-01-16',
+            'extracted_service' => SermonService::Morning,
+            'dedup_key' => $jobKey,
+            'processing_metadata' => [
+                'historic_import' => [
+                    'job_key' => $jobKey,
+                ],
+            ],
+        ]);
+        app(MediaProcessingRunTransitionService::class)->markForManualReview(
+            $log,
+            'llm_structure_validation_failed',
+            'Detected sections overlap.',
+        );
+
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldNotReceive('process');
+        $processor->shouldReceive('retry')
+            ->once()
+            ->with($log->processing_id)
+            ->andReturnUsing(function () use ($log): ProcessingResult {
+                $log->update(['status' => ProcessingStatus::Completed]);
+
+                return ProcessingResult::success($log->processing_id, 'retried');
+            });
+
+        $metrics = $this->runImportWithProcessor($processor);
+
+        $this->assertSame(1, $metrics['retried_failed']);
+        $this->assertSame(0, $metrics['dispatched']);
+        $this->assertSame(0, $metrics['errors']);
+    }
+
+    #[Test]
+    public function it_readopts_its_exact_inflight_manifest_run_after_the_dispatcher_restarts(): void
+    {
+        $path = $this->temporaryDirectory.'/2022-01-16 10-38-15.mkv';
+        $this->createFakeVideo($path);
+        $jobKey = $this->manifestJobKey([$path], $path);
+        MediaProcessingLog::factory()->livestream()->processing()->create([
+            'processing_type' => MediaType::Livestream,
+            'extracted_date' => '2022-01-16',
+            'extracted_service' => SermonService::Morning,
+            'dedup_key' => $jobKey,
+            'processing_metadata' => [
+                'historic_import' => [
+                    'job_key' => $jobKey,
+                ],
+            ],
+        ]);
+
+        $processCalls = 0;
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->andReturnUsing(function () use (&$processCalls): ProcessingResult {
+                $processCalls++;
+
+                return ProcessingResult::success('unexpected-redispatch', 'redispatched');
+            });
+        $processor->shouldNotReceive('retry');
+
+        $metrics = $this->runImportWithProcessor($processor, perFileTimeoutSeconds: 0);
+
+        $this->assertSame(0, $processCalls);
+        $this->assertSame(1, $metrics['resumed_inflight']);
+        $this->assertSame(1, $metrics['timed_out']);
+        $this->assertSame(0, $metrics['dispatched']);
+    }
+
+    #[Test]
+    public function a_partially_inflight_item_dispatches_its_missing_segment(): void
+    {
+        $directory = $this->temporaryDirectory.'/2023-12-10';
+        mkdir($directory);
+        $first = "{$directory}/10-23.mkv";
+        $second = "{$directory}/10-44.mkv";
+        $this->createFakeVideo($first);
+        $this->createFakeVideo($second);
+        $jobKey = $this->manifestJobKey([$first, $second], $first);
+
+        MediaProcessingLog::factory()->livestream()->processing()->create([
+            'extracted_date' => '2023-12-10',
+            'extracted_service' => SermonService::Morning,
+            'dedup_key' => $jobKey,
+            'processing_metadata' => ['historic_import' => ['job_key' => $jobKey]],
+        ]);
+
+        $dedupKeys = [];
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldNotReceive('retry');
+        $processor->shouldReceive('process')
+            ->twice()
+            ->andReturnUsing(function (string $type, mixed $file, ?string $clientFileDate, array $options) use (&$dedupKeys): ProcessingResult {
+                $dedupKeys[] = $options['dedup_key'];
+
+                return ProcessingResult::success('processing-'.count($dedupKeys), 'queued');
+            });
+
+        $metrics = $this->runImportWithProcessor($processor, noConcat: true, perFileTimeoutSeconds: 0);
+
+        $this->assertSame(0, $metrics['skipped_inflight']);
+        $this->assertContains($this->manifestJobKey([$first, $second], $second), $dedupKeys);
+    }
+
+    #[Test]
+    public function a_completed_legacy_duplicate_wins_over_a_failed_run_with_the_same_job_key(): void
+    {
+        $path = $this->temporaryDirectory.'/2022-01-16 10-38-15.mkv';
+        $this->createFakeVideo($path);
+        $jobKey = $this->manifestJobKey([$path], $path);
+        $metadata = ['historic_import' => ['job_key' => $jobKey]];
+
+        MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => '2022-01-16',
+            'extracted_service' => SermonService::Morning,
+            'dedup_key' => null,
+            'processing_metadata' => $metadata,
+        ]);
+        MediaProcessingLog::factory()->livestream()->failed()->create([
+            'extracted_date' => '2022-01-16',
+            'extracted_service' => SermonService::Morning,
+            'dedup_key' => null,
+            'processing_metadata' => $metadata,
+        ]);
+
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldNotReceive('process');
+        $processor->shouldNotReceive('retry');
+
+        $metrics = $this->runImportWithProcessor($processor);
+
+        $this->assertSame(1, $metrics['resumed_completed']);
+        $this->assertSame(0, $metrics['retried_failed']);
+    }
+
+    #[Test]
+    public function failed_run_retries_obey_the_import_limit(): void
+    {
+        $paths = [
+            $this->temporaryDirectory.'/2022-01-16 10-38-15.mkv',
+            $this->temporaryDirectory.'/2023-01-15 10-38-15.mkv',
+        ];
+
+        foreach ($paths as $path) {
+            $this->createFakeVideo($path);
+            $jobKey = $this->manifestJobKey([$path], $path);
+            MediaProcessingLog::factory()->livestream()->failed()->create([
+                'extracted_date' => substr(basename($path), 0, 10),
+                'extracted_service' => SermonService::Morning,
+                'current_step' => 'detect_service_structure',
+                'dedup_key' => $jobKey,
+                'processing_metadata' => ['historic_import' => ['job_key' => $jobKey]],
+            ]);
+        }
+
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldNotReceive('process');
+        $processor->shouldReceive('retry')
+            ->once()
+            ->andReturnUsing(function (string $processingId): ProcessingResult {
+                MediaProcessingLog::query()->where('processing_id', $processingId)->update(['status' => ProcessingStatus::Completed]);
+
+                return ProcessingResult::success($processingId, 'retried');
+            });
+
+        $metrics = $this->runImportWithProcessor($processor, limit: 1);
+
+        $this->assertSame(1, $metrics['retried_failed']);
     }
 
     /**
@@ -938,9 +1137,7 @@ class HistoricVideoImporterTest extends TestCase
         return $processor;
     }
 
-    /**
-     * @return array{dispatched: int, concatenated: int, concatenated_reencoded: int, enriched: int, skipped_exists: int, skipped_inflight: int, skipped_pending_review: int, skipped_small: int, skipped_audio_dup: int, skipped_no_date: int, skipped_unclassified: int, skipped_low_disk: int, errors: int, bytes_processed: int, bytes_skipped: int}
-     */
+    /** @return array<string, int> */
     private function runImport(
         int $minSizeMb = 1,
         bool $includeUnclassified = false,
@@ -953,9 +1150,7 @@ class HistoricVideoImporterTest extends TestCase
         return $this->runImportWithProcessor($processor, minSizeMb: $minSizeMb, includeUnclassified: $includeUnclassified, defaultYear: $defaultYear, force: $force, limit: $limit);
     }
 
-    /**
-     * @return array{dispatched: int, concatenated: int, concatenated_reencoded: int, enriched: int, skipped_exists: int, skipped_inflight: int, skipped_pending_review: int, skipped_small: int, skipped_audio_dup: int, skipped_no_date: int, skipped_unclassified: int, skipped_low_disk: int, errors: int, bytes_processed: int, bytes_skipped: int}
-     */
+    /** @return array<string, int> */
     /**
      * The temp-disk floor defaults to 0 so these tests measure classification, not the host.
      *

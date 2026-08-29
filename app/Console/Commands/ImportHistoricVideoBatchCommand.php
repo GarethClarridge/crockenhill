@@ -341,6 +341,8 @@ class ImportHistoricVideoBatchCommand extends Command
                 ['  → Concatenated (lossless)', (string) $metrics['concatenated']],
                 ['  → Concatenated (re-encoded)', (string) $metrics['concatenated_reencoded']],
                 ['Resumed (already completed by this manifest)', (string) $metrics['resumed_completed']],
+                ['Resumed (already in flight)', (string) $metrics['resumed_inflight']],
+                ['Retried (failed exact manifest run)', (string) $metrics['retried_failed']],
                 ['Skipped (total)', (string) $totalSkipped],
                 ['  → Already processed', (string) $metrics['skipped_exists']],
                 ['  → In-flight', (string) $metrics['skipped_inflight']],

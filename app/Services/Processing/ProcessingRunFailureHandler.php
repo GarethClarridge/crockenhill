@@ -97,7 +97,7 @@ class ProcessingRunFailureHandler
         $processingLog->update([
             'status' => ProcessingStatus::Failed,
             'error_message' => "Audio processing failed: {$message}",
-            'dedup_key' => null,
+            'dedup_key' => $processingLog->historicImportJobKey(),
         ]);
     }
 
@@ -106,7 +106,7 @@ class ProcessingRunFailureHandler
         $processingLog->update([
             'status' => ProcessingStatus::Failed,
             'error_message' => "Video processing failed: {$message}",
-            'dedup_key' => null,
+            'dedup_key' => $processingLog->historicImportJobKey(),
         ]);
     }
 
@@ -116,6 +116,10 @@ class ProcessingRunFailureHandler
             $processingLog,
             "Video auto-trim processing failed: {$message}"
         );
+
+        if ($processingLog->historicImportJobKey() !== null) {
+            return;
+        }
 
         $tempFiles = $this->segmentationTempFiles($processingLog);
 
@@ -127,23 +131,20 @@ class ProcessingRunFailureHandler
     private function markLivestreamFailure(MediaProcessingLog $processingLog, \Throwable $exception, string $message): void
     {
         $this->processingRunTransitions->markAsFailed($processingLog, $message);
+
+        if ($processingLog->historicImportJobKey() !== null) {
+            $this->suppressHistoricFailureNotification($processingLog, $exception, $message);
+
+            return;
+        }
+
         $tempFiles = $this->segmentationTempFiles($processingLog);
 
         if ($tempFiles !== []) {
             $this->storageService->cleanupTemporaryFiles($tempFiles);
         }
 
-        if (app(ProcessingNotificationRouter::class)->suppressIfHistoric(
-            $processingLog,
-            'failure',
-            'error',
-            [
-                'stage' => $processingLog->current_step,
-                'message' => $message,
-                'exception_class' => $exception::class,
-                'exception_fingerprint' => hash('sha256', $exception->getMessage()),
-            ],
-        )) {
+        if ($this->suppressHistoricFailureNotification($processingLog, $exception, $message)) {
             return;
         }
 
@@ -161,6 +162,24 @@ class ProcessingRunFailureHandler
                 'email_error' => $mailException->getMessage(),
             ]));
         }
+    }
+
+    private function suppressHistoricFailureNotification(
+        MediaProcessingLog $processingLog,
+        \Throwable $exception,
+        string $message,
+    ): bool {
+        return app(ProcessingNotificationRouter::class)->suppressIfHistoric(
+            $processingLog,
+            'failure',
+            'error',
+            [
+                'stage' => $processingLog->current_step,
+                'message' => $message,
+                'exception_class' => $exception::class,
+                'exception_fingerprint' => hash('sha256', $exception->getMessage()),
+            ],
+        );
     }
 
     private function safeMessage(\Throwable $exception, string $profile): string

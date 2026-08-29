@@ -607,6 +607,11 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             '--operation' => $operation->operation_id,
         ];
 
+        $this->mock(HistoricVideoImporter::class)
+            ->shouldReceive('import')
+            ->twice()
+            ->andReturn($this->importMetrics());
+
         $this->artisan('sermons:import-historic-videos', $arguments)
             ->expectsOutputToContain('Corpus contents not re-read');
 
@@ -882,6 +887,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         return [
             'dispatched' => 0, 'concatenated' => 0, 'concatenated_reencoded' => 0,
             'enriched' => 0, 'skipped_exists' => 0, 'resumed_completed' => 0,
+            'resumed_inflight' => 0, 'retried_failed' => 0,
             'skipped_inflight' => 0, 'skipped_pending_review' => 0, 'skipped_small' => 0,
             'skipped_audio_dup' => 0, 'skipped_no_date' => 0, 'skipped_unclassified' => 0,
             'skipped_low_disk' => 0, 'errors' => 0, 'bytes_processed' => 0, 'bytes_skipped' => 0,

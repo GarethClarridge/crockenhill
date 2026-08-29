@@ -80,6 +80,44 @@ class SilenceSnapServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_reconciles_a_one_second_boundary_rounding_overlap(): void
+    {
+        $rmsLog = $this->rmsLog([
+            [0.0, -20.0],
+            [2400.0, -20.0],
+        ]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('bible_reading', 1200.0, 1832.0),
+            $this->section('prayer', 1831.0, 1900.0),
+        ]);
+
+        $snapped = $this->service->snap($structure, $rmsLog);
+
+        $this->assertSame(1831.5, $snapped->sections[0]->endTime);
+        $this->assertSame(1831.5, $snapped->sections[1]->startTime);
+        $this->assertSame(['start' => 0.0, 'end' => -0.5], $snapped->sections[0]->snapDeltas);
+        $this->assertSame(['start' => 0.5, 'end' => 0.0], $snapped->sections[1]->snapDeltas);
+    }
+
+    #[Test]
+    public function it_does_not_hide_a_material_section_overlap(): void
+    {
+        $rmsLog = $this->rmsLog([
+            [0.0, -20.0],
+            [2400.0, -20.0],
+        ]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('song', 100.0, 400.0),
+        ]);
+
+        $snapped = $this->service->snap($structure, $rmsLog);
+
+        $this->assertSame(120.0, $snapped->sections[0]->endTime);
+        $this->assertSame(100.0, $snapped->sections[1]->startTime);
+    }
+
+    #[Test]
     public function shared_boundaries_snap_together_and_stay_chronological(): void
     {
         // Silences at 95 s and 155 s. Each shared boundary must move to the

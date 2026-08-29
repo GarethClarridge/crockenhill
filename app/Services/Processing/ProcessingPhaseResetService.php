@@ -21,9 +21,18 @@ class ProcessingPhaseResetService
 
         match ($resetScope) {
             'analyze_segments' => $this->resetAnalyzeSegments($processingLog),
+            'service_structure_validation' => $this->resetServiceStructureValidation($processingLog),
             'submit_to_processing' => $this->resetSubmitToProcessing($processingLog),
             default => null,
         };
+    }
+
+    private function resetServiceStructureValidation(MediaProcessingLog $processingLog): void
+    {
+        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
+        unset($metadata['manual_review']);
+
+        $processingLog->update(['processing_metadata' => $metadata]);
     }
 
     private function resetAnalyzeSegments(MediaProcessingLog $processingLog): void
