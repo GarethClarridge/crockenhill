@@ -215,6 +215,34 @@ class ProcessingPhaseRegistry
         };
     }
 
+    /**
+     * The plan for re-cutting a finished run's sermon from its existing structure.
+     *
+     * Re-extraction is a retry that starts at the extraction phase: the sections,
+     * transcript and RMS log are already right, and only the published span needs
+     * rebuilding. Reusing the retry plan shape keeps chain construction in one
+     * place rather than growing a parallel dispatch path.
+     *
+     * @return RetryPlan|null
+     */
+    public function reExtractionPlanFor(MediaProcessingLog $processingLog): ?array
+    {
+        $pipeline = $processingLog->processingPipelineProfile();
+        $phase = $this->phaseForPipelineStep($pipeline, 'extraction');
+
+        if ($phase === null || $phase['job_offset'] === null) {
+            return null;
+        }
+
+        return [
+            'action' => $phase['retry_action'] ?? 'dispatch_chain',
+            'pipeline' => $pipeline,
+            'job_offset' => $phase['job_offset'],
+            'rerun_strategy' => 'targeted_reset',
+            'reset_scope' => 'submit_to_processing',
+        ];
+    }
+
     /** @return ProcessingPhase|null */
     private function phaseForPipelineStep(string $pipeline, ?string $step): ?array
     {

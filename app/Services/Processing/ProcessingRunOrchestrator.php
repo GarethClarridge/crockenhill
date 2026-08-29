@@ -123,24 +123,10 @@ class ProcessingRunOrchestrator
     public function retry(MediaProcessingLog $processingLog): ProcessingResult
     {
         try {
-            $stagingContext = $processingLog->historicStagingContext();
-
-            if ($stagingContext instanceof HistoricStagingContext) {
-                return $this->stagingContextRegistry->within(
-                    $stagingContext,
-                    fn (): ProcessingResult => $this->runRetry($processingLog),
-                );
-            }
-
-            if ($processingLog->historicImportJobKey() !== null && ! $this->stagingContextRegistry->isActive()) {
-                return ProcessingResult::failure(
-                    processingId: $processingLog->processing_id,
-                    message: 'This historic run records no staging context, so a retry cannot resolve its retained artifacts.',
-                    errorCode: 'HISTORIC_STAGING_CONTEXT_MISSING'
-                );
-            }
-
-            return $this->runRetry($processingLog);
+            return $this->withRecordedStagingContext(
+                $processingLog,
+                fn (): ProcessingResult => $this->runRetry($processingLog),
+            );
         } catch (\Throwable $exception) {
             Log::error('Failed to retry processing run', [
                 'processing_id' => $processingLog->processing_id,
@@ -158,6 +144,76 @@ class ProcessingRunOrchestrator
                 errorCode: 'RETRY_FAILED'
             );
         }
+    }
+
+    /**
+     * Re-cut a finished run's sermon from the structure it already has.
+     *
+     * Confirming or correcting a service's structure changes where the sermon
+     * starts and ends, so the published audio has to be rebuilt — but the
+     * transcript, RMS log and sections are all still right, and re-running
+     * detection would spend an LLM call to produce a different answer, since the
+     * detector is not deterministic across passes. So this resumes at the
+     * extraction phase, exactly as a retry from that phase would.
+     *
+     * Unlike {@see self::retry()} it accepts a completed run: that is the whole
+     * point. It refuses one whose source media has already been cleaned up, which
+     * is the common case for a run that finished — see the command for what an
+     * operator can do about that.
+     */
+    public function reExtract(MediaProcessingLog $processingLog): ProcessingResult
+    {
+        try {
+            return $this->withRecordedStagingContext($processingLog, function () use ($processingLog): ProcessingResult {
+                $plan = $this->phaseRegistry->reExtractionPlanFor($processingLog);
+
+                if ($plan === null) {
+                    return ProcessingResult::failure(
+                        processingId: $processingLog->processing_id,
+                        message: 'This run has no extraction phase to resume from.',
+                        errorCode: 'NO_EXTRACTION_PHASE'
+                    );
+                }
+
+                return $this->retryWithChainFromPlan($processingLog, $plan);
+            });
+        } catch (\Throwable $exception) {
+            Log::error('Failed to re-extract sermon', [
+                'processing_id' => $processingLog->processing_id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return ProcessingResult::failure(
+                processingId: $processingLog->processing_id,
+                message: 'Failed to re-extract sermon: '.$exception->getMessage(),
+                errorCode: 'RE_EXTRACTION_FAILED'
+            );
+        }
+    }
+
+    /**
+     * Run a callback with the historic staging context the run recorded, so its
+     * retained artifacts resolve against the batch root they were written under.
+     *
+     * @param  \Closure(): ProcessingResult  $callback
+     */
+    private function withRecordedStagingContext(MediaProcessingLog $processingLog, \Closure $callback): ProcessingResult
+    {
+        $stagingContext = $processingLog->historicStagingContext();
+
+        if ($stagingContext instanceof HistoricStagingContext) {
+            return $this->stagingContextRegistry->within($stagingContext, $callback);
+        }
+
+        if ($processingLog->historicImportJobKey() !== null && ! $this->stagingContextRegistry->isActive()) {
+            return ProcessingResult::failure(
+                processingId: $processingLog->processing_id,
+                message: 'This historic run records no staging context, so its retained artifacts cannot be resolved.',
+                errorCode: 'HISTORIC_STAGING_CONTEXT_MISSING'
+            );
+        }
+
+        return $callback();
     }
 
     /**
