@@ -166,12 +166,15 @@ class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationIn
             'passes_margin' => $passesMargin,
         ]);
 
+        $candidates = SpeakerMatchResult::namedCandidates($profiles, $scores);
+
         if ($passesAccept && $passesMargin) {
             return SpeakerMatchResult::matched(
                 profile: $topProfile,
                 topScore: $topScore,
                 secondScore: $secondScore,
                 allScores: $scores,
+                candidates: $candidates,
             );
         }
 
@@ -184,6 +187,7 @@ class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationIn
             secondScore: $secondScore,
             allScores: $scores,
             reason: $reason,
+            candidates: $candidates,
         );
     }
 

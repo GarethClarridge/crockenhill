@@ -81,6 +81,30 @@ final readonly class SermonCreationOptions
     }
 
     /**
+     * The sermon's playable length.
+     *
+     * A livestream sermon is cut from a known span of the service recording, but
+     * the livestream factory passes only the boundaries, so every historic-video
+     * sermon was created with a null duration while the numbers that produce it
+     * sat on the same record. Where an explicit duration exists it wins; where it
+     * is absent or zero, the extracted span supplies it.
+     */
+    public function resolvedDuration(): ?float
+    {
+        if ($this->duration !== null && $this->duration > 0.0) {
+            return $this->duration;
+        }
+
+        if ($this->segmentStartTime === null
+            || $this->segmentEndTime === null
+            || $this->segmentEndTime <= $this->segmentStartTime) {
+            return null;
+        }
+
+        return round($this->segmentEndTime - $this->segmentStartTime, 3);
+    }
+
+    /**
      * Create options for audio upload processing
      *
      * @param  array{

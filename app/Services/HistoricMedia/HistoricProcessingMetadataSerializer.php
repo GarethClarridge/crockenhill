@@ -21,14 +21,32 @@ class HistoricProcessingMetadataSerializer
         'processing_fingerprint',
     ];
 
+    /**
+     * Local-only keys the export drops rather than guards.
+     *
+     * `extracted_audio_path` and `extracted_segment_path` are staging-relative
+     * working copies of paths the section and run records already carry through
+     * the asset roles, so the metadata copy is runtime state. Left unlisted they
+     * hit the path branch of `guardUnknownKey`, which is what made every pilot
+     * run fail portable inventory.
+     *
+     * `service_structure_proposal` is a rejected structure proposal kept for
+     * local review. It names local order-of-service item keys and describes a
+     * revision that was never applied, so it is local review state; it is listed
+     * here rather than left to the generic `proposal` guard, which still fails
+     * closed for any proposal key nobody has classified.
+     */
     private const RUNTIME_KEYS = [
         'historic_promotion',
         'attempt_count',
         'enhanced_audio_file_path',
+        'extracted_audio_path',
+        'extracted_segment_path',
         'job_id',
         'owner_user_id',
         'queue_name',
         'retry_state',
+        'service_structure_proposal',
         'source_file_path',
     ];
 
@@ -55,6 +73,10 @@ class HistoricProcessingMetadataSerializer
                 $value = $this->portableHistoricImport($value);
             }
 
+            if ($key === 'service_structure' && is_array($value)) {
+                $value = $this->portableServiceStructure($value);
+            }
+
             $this->guardPortableValue($key, $value);
             $portable[$key] = $value;
         }
@@ -62,6 +84,41 @@ class HistoricProcessingMetadataSerializer
         ksort($portable);
 
         return $portable;
+    }
+
+    /**
+     * Structure sections carry `oos_item_id`, the local primary key of the
+     * order-of-service item a section was aligned to. That identity means
+     * nothing at the destination — the same service is a different row there —
+     * so it is dropped rather than carried.
+     *
+     * Only this one known-local key is removed. Anything else identity-bearing
+     * that appears in `service_structure` later still reaches `guardPortableValue`
+     * and fails the export closed, which is the behaviour that surfaced this
+     * field in the first place.
+     *
+     * @param  array<string, mixed>  $structure
+     * @return array<string, mixed>
+     */
+    private function portableServiceStructure(array $structure): array
+    {
+        if (! is_array($structure['sections'] ?? null)) {
+            return $structure;
+        }
+
+        $sections = [];
+
+        foreach ($structure['sections'] as $section) {
+            if (is_array($section)) {
+                unset($section['oos_item_id']);
+            }
+
+            $sections[] = $section;
+        }
+
+        $structure['sections'] = $sections;
+
+        return $structure;
     }
 
     /**

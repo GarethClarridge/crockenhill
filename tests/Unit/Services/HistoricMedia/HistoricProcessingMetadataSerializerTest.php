@@ -69,6 +69,46 @@ class HistoricProcessingMetadataSerializerTest extends TestCase
         ]);
     }
 
+    /**
+     * Every pilot run failed portable inventory on this one field: the aligner
+     * writes `oos_item_id` onto each structure section, and the guard correctly
+     * refused to carry a local primary key. The section itself is portable, so
+     * the identity is dropped and the rest travels.
+     */
+    #[Test]
+    public function it_drops_the_local_oos_item_identity_from_structure_sections(): void
+    {
+        $result = (new HistoricProcessingMetadataSerializer)->serialize([
+            'service_structure' => [
+                'model' => 'sol',
+                'sections' => [[
+                    'type' => 'sermon',
+                    'title' => 'Opening pastoral reflection',
+                    'oos_item_id' => 4211,
+                    'start_time' => 0,
+                    'end_time' => 367.998,
+                ]],
+            ],
+        ]);
+
+        $this->assertArrayNotHasKey('oos_item_id', $result['service_structure']['sections'][0]);
+        $this->assertSame('sermon', $result['service_structure']['sections'][0]['type']);
+        $this->assertSame(367.998, $result['service_structure']['sections'][0]['end_time']);
+        $this->assertSame('sol', $result['service_structure']['model']);
+    }
+
+    #[Test]
+    public function it_still_rejects_an_unknown_structure_identity(): void
+    {
+        $this->expectException(RuntimeException::class);
+
+        (new HistoricProcessingMetadataSerializer)->serialize([
+            'service_structure' => [
+                'sections' => [['church_service_id' => 515]],
+            ],
+        ]);
+    }
+
     #[Test]
     public function it_rejects_absolute_paths(): void
     {

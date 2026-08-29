@@ -480,6 +480,16 @@ class HistoricProcessingResultInventory
                 continue;
             }
 
+            /**
+             * The speaker model records which local `speaker_profiles` row it
+             * matched. The decision itself travels as `preacher_slug`, the
+             * confidence and margin, so the profile row identity carries no
+             * meaning at the destination and is dropped.
+             */
+            if ($key === 'matched_profile_id') {
+                continue;
+            }
+
             if ($key === 'preacher_id') {
                 $preacherName = $metadata['preacher_name'] ?? null;
 
@@ -587,6 +597,17 @@ class HistoricProcessingResultInventory
 
     private function isKnownPortableIdentityKey(string $key, bool $allowAssetPaths): bool
     {
+        /**
+         * `processing_id` is a UUID the bundle carries as `processing_key` and
+         * the persister recreates verbatim, so it is not a local row identity.
+         * `portableHashValue` already exempts it; the durable-metadata guard did
+         * not, which failed every run whose section metadata records the
+         * publication-candidate extraction that produced it.
+         */
+        if ($key === 'processing_id') {
+            return true;
+        }
+
         return $allowAssetPaths && in_array($key, [
             'selected_thumbnail_candidate_id',
             'id',

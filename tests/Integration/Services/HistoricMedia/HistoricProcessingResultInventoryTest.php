@@ -239,6 +239,54 @@ class HistoricProcessingResultInventoryTest extends TestCase
         ];
     }
 
+    /**
+     * Every pilot run carried these two shapes and every one failed portable
+     * inventory on them: the run's own UUID inside the publication-candidate
+     * extraction record, and the local speaker-profile row the speaker model
+     * matched. The UUID travels; the profile row identity does not.
+     */
+    #[Test]
+    public function it_carries_the_run_uuid_and_drops_the_local_speaker_profile_identity(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'processing_id' => 'pilot-metadata-shapes',
+        ]);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_order' => 1,
+            'section_type' => ServiceSectionType::ChildrensTalk,
+            'source_segment_ids' => [],
+            'metadata' => [
+                'publication_candidate_extraction' => [
+                    'processing_id' => 'pilot-metadata-shapes',
+                    'extracted_at' => '2026-08-29T08:51:59+00:00',
+                ],
+                'childrens_talk_speaker' => [
+                    'predicted' => [
+                        'outcome' => 'matched',
+                        'confidence' => 0.975,
+                        'preacher_id' => null,
+                        'matched_profile_id' => 2,
+                    ],
+                ],
+            ],
+        ]);
+
+        $graph = app(HistoricProcessingResultInventory::class)->build($run->fresh());
+        $metadata = $graph['sections'][0]['metadata'];
+
+        $this->assertSame(
+            'pilot-metadata-shapes',
+            $metadata['publication_candidate_extraction']['processing_id'],
+        );
+        $this->assertArrayNotHasKey(
+            'matched_profile_id',
+            $metadata['childrens_talk_speaker']['predicted'],
+        );
+        $this->assertSame(0.975, $metadata['childrens_talk_speaker']['predicted']['confidence']);
+    }
+
     #[Test]
     public function it_rejects_unclassified_relative_metadata_paths(): void
     {

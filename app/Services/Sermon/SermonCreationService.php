@@ -236,8 +236,8 @@ class SermonCreationService
 
         // A stored duration of 0 (or null) counts as missing, so a richer
         // livestream/video source can still backfill the real length.
-        if (($existing->duration === null || $existing->duration <= 0) && filled($options->duration)) {
-            $updates['duration'] = $options->duration;
+        if (($existing->duration === null || $existing->duration <= 0) && filled($options->resolvedDuration())) {
+            $updates['duration'] = $options->resolvedDuration();
         }
 
         // Preacher: only replace the placeholder "Visiting Speaker" default.
@@ -305,13 +305,17 @@ class SermonCreationService
             }
         }
 
-        if (filled($options->duration)) {
-            $updates['duration'] = $options->duration;
+        if (filled($options->resolvedDuration())) {
+            $updates['duration'] = $options->resolvedDuration();
         }
 
         // AI-derived fields: refresh when not Manual.
-        $this->refreshAiField($existing, $updates, 'series', $options->id3Series ?? ($options->aiAnalysis['series'] ?? null));
-        $this->refreshAiField($existing, $updates, 'reference', $options->id3Reference ?? ($options->aiAnalysis['reference'] ?? null));
+        $this->refreshAiField($existing, $updates, 'series', filled($options->id3Series)
+            ? $options->id3Series
+            : ($options->aiAnalysis['series'] ?? null));
+        $this->refreshAiField($existing, $updates, 'reference', filled($options->id3Reference)
+            ? $options->id3Reference
+            : ($options->aiAnalysis['reference'] ?? null));
 
         if (isset($options->aiAnalysis['points'])) {
             $updates['points'] = $options->aiAnalysis['points'];
@@ -372,7 +376,9 @@ class SermonCreationService
             return;
         }
 
-        $value = $options->id3Series ?? ($options->aiAnalysis['series'] ?? null);
+        $value = filled($options->id3Series)
+            ? $options->id3Series
+            : ($options->aiAnalysis['series'] ?? null);
 
         if (filled($value)) {
             $updates['series'] = $value;
@@ -388,7 +394,9 @@ class SermonCreationService
             return;
         }
 
-        $value = $options->id3Reference ?? ($options->aiAnalysis['reference'] ?? null);
+        $value = filled($options->id3Reference)
+            ? $options->id3Reference
+            : ($options->aiAnalysis['reference'] ?? null);
 
         if (filled($value)) {
             $updates['reference'] = $value;
@@ -483,7 +491,7 @@ class SermonCreationService
             'preacher_confidence' => $preacher['preacher_confidence'],
             'needs_preacher_review' => $preacher['needs_review'],
             'source_type' => $options->sourceType,
-            'duration' => $options->duration,
+            'duration' => $options->resolvedDuration(),
         ];
 
         if ($options->videoFilePath) {

@@ -11,7 +11,9 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Media\Audio\TranscriptStorageService;
 use App\Services\Public\SermonRepository;
+use App\Services\Sermon\SermonSeriesCorroboration;
 use App\Services\Sermon\SermonSlugGenerator;
+use App\Support\PlaceholderSermonTitle;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -109,7 +111,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
 
             // Only update title if neither ID3 nor an existing curated title is present
             $id3Title = $id3Metadata?->title;
-            $hasValidId3Title = $id3Title !== null && ! $this->looksLikeFilename($id3Title);
+            $hasValidId3Title = filled($id3Title) && ! $this->looksLikeFilename($id3Title);
 
             if (! $hasValidId3Title && $this->looksLikeFilename($sermon->title)) {
                 $updateData['title'] = $analysis->title;
@@ -122,16 +124,21 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 $this->applyAiSlug($sermon, $analysis->title, $updateData);
             }
 
-            // Only update series if not already set on the sermon or in ID3 tags
-            if ($sermon->series === null && $id3Metadata?->series === null) {
-                $updateData['series'] = $analysis->series;
-            }
-
             // Only update reference if not already set on the sermon or in ID3 tags
-            if ($sermon->reference === null && $id3Metadata?->reference === null) {
+            if (blank($sermon->reference) && blank($id3Metadata?->reference)) {
                 $updateData['reference'] = $analysis->reference;
                 // Clear any stale passage link so the old text is not shown while re-enrichment runs
                 $updateData['scripture_passage_id'] = null;
+            }
+
+            // Only update series if not already set on the sermon or in ID3 tags
+            if (blank($sermon->series) && blank($id3Metadata?->series)) {
+                $this->applyAnalysisSeries(
+                    $sermon,
+                    $analysis->series,
+                    $updateData['reference'] ?? $sermon->reference,
+                    $updateData,
+                );
             }
 
             // Always update summary and points — no human-edit path exists for these fields
@@ -185,7 +192,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
 
                     // Only update fields not set by ID3 tags OR if ID3 title looks like a filename
                     $id3Title = $id3Metadata?->title;
-                    $hasValidId3Title = $id3Title !== null
+                    $hasValidId3Title = filled($id3Title)
                         && ! $this->looksLikeFilename($id3Title);
 
                     // A filename-derived title must not displace a curated one, nor a
@@ -197,10 +204,10 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                         $this->applyAiSlug($sermon, $fallbackAnalysis->title, $updateData);
                         $updateData['title'] = $fallbackAnalysis->title;
                     }
-                    if ($sermon->series === null && $id3Metadata?->series === null) {
+                    if (blank($sermon->series) && blank($id3Metadata?->series)) {
                         $updateData['series'] = $fallbackAnalysis->series;
                     }
-                    if ($sermon->reference === null && $id3Metadata?->reference === null) {
+                    if (blank($sermon->reference) && blank($id3Metadata?->reference)) {
                         $updateData['reference'] = $fallbackAnalysis->reference;
                         // Clear stale passage link so old text is not shown during re-enrichment
                         $updateData['scripture_passage_id'] = null;
@@ -311,55 +318,63 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * Check if a string looks like a filename rather than a proper title
+     * Apply the analysed series, or hold it back for review.
+     *
+     * On a historic run the model is naming a series from a list it cannot
+     * check, and the pilot showed it reaching: a September sermon joined
+     * "Easter: Good Friday", and one on Genesis 44 joined "Abraham". A series
+     * named after a Bible book can be checked against the sermon's own
+     * reference, and on the pilot that test accepted every right answer and
+     * refused every wrong one. Anything it cannot corroborate is recorded as a
+     * suggestion instead of written to the sermon.
+     *
+     * A live run keeps the previous behaviour: its series is the one the church
+     * is currently preaching, which the model has real context for.
+     *
+     * @param  array<string, mixed>  $updateData
+     */
+    private function applyAnalysisSeries(
+        Sermon $sermon,
+        ?string $series,
+        ?string $reference,
+        array &$updateData,
+    ): void {
+        if ($this->processingLog->historic_import_operation_id === null
+            || $series === null
+            || app(SermonSeriesCorroboration::class)->corroborates($series, $reference)) {
+            $updateData['series'] = $series;
+
+            return;
+        }
+
+        Log::info('Holding an uncorroborated historic series for review', [
+            'processing_id' => $this->processingLog->processing_id,
+            'sermon_id' => $sermon->id,
+            'suggested_series' => $series,
+            'reference' => $reference,
+        ]);
+
+        $this->processingLog->update([
+            'processing_metadata' => array_merge(
+                $this->processingLog->processing_metadata?->toArray() ?? [],
+                [
+                    'sermon_series_suggestion' => [
+                        'series' => $series,
+                        'reference' => $reference,
+                        'reason' => 'not_corroborated_by_reference',
+                        'suggested_at' => now()->toISOString(),
+                    ],
+                ],
+            ),
+        ]);
+    }
+
+    /**
+     * Check if a string looks like a filename rather than a proper title.
      */
     private function looksLikeFilename(string $title): bool
     {
-        $normalizedTitle = trim($title);
-
-        if (preg_match('/^untitled(?:\s+sermon)?$/i', $normalizedTitle) === 1) {
-            return true;
-        }
-
-        if (preg_match('/^(morning|evening|other)\s+sermon\s+-\s+/i', $normalizedTitle) === 1) {
-            return true;
-        }
-
-        if (preg_match('/^sermon\s+-\s+/i', $normalizedTitle) === 1) {
-            return true;
-        }
-
-        // Check for file extension
-        if (preg_match('/\.(mp3|wav|m4a|mp4|mov|avi|mkv|flac|aac|ogg)$/i', $normalizedTitle)) {
-            return true;
-        }
-
-        // Check for bare time-like titles created from raw filenames, e.g. "18 08" or "10 31 2"
-        if (preg_match('/^\d{1,2}(?:\s+\d{2})+(?:\s+\d+)?$/', $normalizedTitle)) {
-            return true;
-        }
-
-        // Check for date-only titles created from date-named uploads, e.g.
-        // "Sunday 3Rd May 2026" (title-cased from "Sunday 3rd May 2026.mp4")
-        if (preg_match(
-            '/^(?:(?:sun|mon|tues|wednes|thurs|fri|satur)day\s+)?\d{1,2}(?:st|nd|rd|th)?\s+[a-z]+\s+\d{4}$/i',
-            $normalizedTitle
-        )) {
-            return true;
-        }
-
-        // Check for hash-like patterns (long strings of random characters)
-        // Look for 20+ contiguous lowercase letters/numbers without spaces
-        if (preg_match('/[a-z0-9]{20,}/i', $normalizedTitle)) {
-            return true;
-        }
-
-        // Check for UUID-like patterns
-        if (preg_match('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $normalizedTitle)) {
-            return true;
-        }
-
-        return false;
+        return PlaceholderSermonTitle::matches($title);
     }
 
     protected function onJobFailure(\Throwable $exception): void

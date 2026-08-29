@@ -20,6 +20,7 @@ class InventoryHistoricVideoPilotCommand extends Command
     protected $signature = 'historic:inventory-video-pilot
                             {selection : Exact pilot-selection JSON file}
                             {--operation= : Immutable operation id that owned the pilot}
+                            {--manifest= : Approved curation manifest naming the date and service of every identity}
                             {--output= : New permission-restricted ledger JSON path}';
 
     protected $description = 'Capture the exact operation, graph and staged-byte ledger for a historic-video pilot';
@@ -28,9 +29,11 @@ class InventoryHistoricVideoPilotCommand extends Command
     {
         try {
             $output = $this->newOutputPath();
+            $manifest = $this->option('manifest');
             $report = $ledger->build(
                 $this->argument('selection'),
                 $this->requiredOption('operation'),
+                is_string($manifest) && trim($manifest) !== '' ? trim($manifest) : null,
             );
             $this->createOnce($output, CanonicalJson::encodeReadable($report).PHP_EOL);
 

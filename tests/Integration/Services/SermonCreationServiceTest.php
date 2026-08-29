@@ -543,6 +543,48 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('test-processing-id', $sermon->livestream_processing_id);
         $this->assertEquals('2022-01-16', $sermon->date->toDateString());
         $this->assertEquals(SermonService::Evening, $sermon->service);
+
+        /**
+         * Every historic-video pilot sermon was created with a null duration
+         * while the span it was cut from sat on the same record. The livestream
+         * factory passes boundaries and no duration, so the span supplies it.
+         */
+        $this->assertEquals(3479.5, $sermon->duration);
+    }
+
+    #[Test]
+    public function it_prefers_an_explicit_duration_over_the_extracted_span(): void
+    {
+        $options = new SermonCreationOptions(
+            audioFilePath: 'audio/test.mp3',
+            originalFilename: 'sermon.mp3',
+            sourceType: SermonSourceType::Livestream,
+            segmentStartTime: 120.5,
+            segmentEndTime: 3600.0,
+            duration: 900.0,
+        );
+
+        $this->assertEquals(900.0, $options->resolvedDuration());
+    }
+
+    #[Test]
+    public function it_reports_no_duration_when_the_span_is_unusable(): void
+    {
+        $withoutSpan = new SermonCreationOptions(
+            audioFilePath: 'audio/test.mp3',
+            originalFilename: 'sermon.mp3',
+            sourceType: SermonSourceType::Livestream,
+        );
+        $inverted = new SermonCreationOptions(
+            audioFilePath: 'audio/test.mp3',
+            originalFilename: 'sermon.mp3',
+            sourceType: SermonSourceType::Livestream,
+            segmentStartTime: 3600.0,
+            segmentEndTime: 120.5,
+        );
+
+        $this->assertNull($withoutSpan->resolvedDuration());
+        $this->assertNull($inverted->resolvedDuration());
     }
 
     #[Test]
