@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Media\Video;
 
 use App\Services\Media\TempDiskSpace;
+use App\Support\Path;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -64,43 +65,89 @@ class VideoStorageService
     }
 
     /**
+     * Delete a run's working copies, and nothing else.
+     *
+     * Deletion is confined to the disks that hold working copies — the temp disk
+     * and, during a historic pass, the private staging disk. It used to fall
+     * through to `file_exists()` and a raw `unlink()` on whatever string it was
+     * given, which had two ways to reach the wrong bytes: an absolute path could
+     * name anything the container can write, including the irreplaceable source
+     * corpus, and a disk-relative path resolves against the working directory, so
+     * `sermons/video/x.mp4` meant a file in the project root. Neither was ever
+     * needed — every path reaching here is stored disk-relative.
+     *
+     * Quarantine is deliberately absent from the allow-list. Promoted assets are
+     * durable output, not working copies, and processing cleanup has no business
+     * deleting them (plan §Phase 5, item 6).
+     *
      * @param  array<int, string>  $filePaths
      */
     public function cleanupTemporaryFiles(array $filePaths): void
     {
         $deletedCount = 0;
+        $refused = [];
 
-        // Clean up specific files passed in the array
         foreach ($filePaths as $filePath) {
             if ($filePath === '') {
                 continue;
             }
 
-            try {
-                // Try temp disk first
-                if (Storage::disk($this->tempDisk())->exists($filePath)) {
-                    Storage::disk($this->tempDisk())->delete($filePath);
-                    $deletedCount++;
-                    Log::debug('Deleted temp file', ['file' => $filePath, 'disk' => $this->tempDisk()]);
-                }
-                // Check if it's an absolute path (for local files)
-                elseif (file_exists($filePath)) {
-                    unlink($filePath);
-                    $deletedCount++;
-                    Log::debug('Deleted local temp file', ['file' => $filePath]);
-                }
-            } catch (\Exception $e) {
-                Log::warning('Failed to delete temp file', [
-                    'file' => $filePath,
-                    'error' => $e->getMessage(),
-                ]);
+            if (Path::isUnsafe($filePath)) {
+                $refused[] = $filePath;
+
+                continue;
             }
+
+            foreach ($this->workingCopyDisks() as $disk) {
+                try {
+                    if (! Storage::disk($disk)->exists($filePath)) {
+                        continue;
+                    }
+
+                    Storage::disk($disk)->delete($filePath);
+                    $deletedCount++;
+                    Log::debug('Deleted working copy', ['file' => $filePath, 'disk' => $disk]);
+
+                    break;
+                } catch (\Exception $e) {
+                    Log::warning('Failed to delete working copy', [
+                        'file' => $filePath,
+                        'disk' => $disk,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        if ($refused !== []) {
+            Log::warning('Refused to delete paths that are not disk-relative working copies', [
+                'files' => $refused,
+            ]);
         }
 
         Log::info('Temporary files cleaned up', [
             'file_count' => count($filePaths),
             'deleted_count' => $deletedCount,
+            'refused_count' => count($refused),
         ]);
+    }
+
+    /**
+     * The disks a working copy may live on, most likely first.
+     *
+     * @return list<string>
+     */
+    private function workingCopyDisks(): array
+    {
+        $disks = [$this->tempDisk()];
+        $staging = (string) config('media-processing.storage.historic_staging_disk', '');
+        $quarantine = (string) config('media-processing.storage.historic_quarantine_disk', '');
+
+        if ($staging !== '' && $staging !== $quarantine && ! in_array($staging, $disks, true)) {
+            $disks[] = $staging;
+        }
+
+        return $disks;
     }
 
     /**

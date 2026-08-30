@@ -56,6 +56,55 @@ class VideoStorageServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_cleans_up_working_copies_from_the_historic_staging_disk(): void
+    {
+        Storage::fake('historic_staging');
+        Config::set('media-processing.storage.historic_staging_disk', 'historic_staging');
+        Config::set('media-processing.storage.historic_quarantine_disk', 'historic_quarantine');
+        Storage::disk('historic_staging')->put('temp/extracted.wav', 'content');
+
+        $this->service->cleanupTemporaryFiles(['temp/extracted.wav']);
+
+        Storage::disk('historic_staging')->assertMissing('temp/extracted.wav');
+    }
+
+    /**
+     * Quarantine holds promoted durable output. Processing cleanup must not be
+     * able to reach it even when handed a path that exists there.
+     */
+    #[Test]
+    public function it_never_deletes_from_the_quarantine_disk(): void
+    {
+        Storage::fake('historic_quarantine');
+        Config::set('media-processing.storage.historic_staging_disk', 'historic_staging');
+        Config::set('media-processing.storage.historic_quarantine_disk', 'historic_quarantine');
+        Storage::disk('historic_quarantine')->put('sermons/video/promoted.mp4', 'durable');
+
+        $this->service->cleanupTemporaryFiles(['sermons/video/promoted.mp4']);
+
+        Storage::disk('historic_quarantine')->assertExists('sermons/video/promoted.mp4');
+    }
+
+    /**
+     * An absolute path used to reach `unlink()` directly, which on a historic
+     * pass means the read-only source corpus was protected by the mount option
+     * rather than by anything in the code.
+     */
+    #[Test]
+    public function it_refuses_absolute_and_traversing_paths(): void
+    {
+        $outside = tempnam(sys_get_temp_dir(), 'cleanup-guard');
+        $this->assertIsString($outside);
+        file_put_contents($outside, 'irreplaceable');
+
+        $this->service->cleanupTemporaryFiles([$outside, '../../etc/passwd']);
+
+        $this->assertFileExists($outside);
+
+        unlink($outside);
+    }
+
+    #[Test]
     public function it_validates_storage_space(): void
     {
         // validateStorageSpace uses disk_free_space which is hard to mock without overcomplicating.
