@@ -1,7 +1,7 @@
 # Historic Video Pilot-to-Bulk Plan
 
 **Date:** 2026-08-29
-**Status:** In progress — Phases 0–3 complete; Phase 4 blocked on an operator decision and no further historic-video dispatch is authorised
+**Status:** In progress — Phases 0–3 and 6 complete; Phase 4 blocked on an operator decision and no further historic-video dispatch is authorised
 **Scope:** Correct the pilot findings, prove bounded staging reclamation, run a fresh canary, and process the remaining historic-video corpus safely
 **Related plan:** `HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md` remains the authority for the wider historic-import programme
 
@@ -64,7 +64,9 @@ The pilot's livestream projection synchronises canonical service items before in
 | 2 — Service projection | Complete | Commit `e8fc05a88`. |
 | 3 — Song and section eligibility | Complete | Commit `bd7d1bf27`. |
 | 4 — Cost accounting | Blocked | Needs the operator's ruling on the cap and currency, below. |
-| 5–9 | Not started | 5, 7, 8 and 9 need operator runs. |
+| 5 — Transfer and reclaim | Not started | Needs an operator run. |
+| 6 — Bounded-run hardening | Complete | Runbook `docs/operations/historic-video-pass-control.md`. |
+| 7–9 | Not started | Need operator runs. |
 
 ### Phase 0 outcome
 
@@ -100,6 +102,49 @@ Two findings carry into later phases:
   to a durable artifact path and never deletes `temp/rms_<uuid>.log`. Fifteen
   identities left 200 MB behind under job UUIDs no run records. Phase 6's bounded
   retention policy has to cover them.
+
+### Phase 6 outcome
+
+**§2.1's capacity premise is a measurement artefact.** `df` and
+`disk_free_space()` inside the container report the host's boot volume, not the
+bind-mounted drive: 30 GiB free of 461 GiB, against a drive holding **444 GiB
+free of 1.8 TiB**. `TempDiskSpace` already documents exactly this failure and the
+operator had already set `MEDIA_PROCESSING_TEMP_DISK_UNMEASURABLE=true`, so every
+gate was correctly standing down — silently, which is how the wrong number
+reached a plan.
+
+Re-derived from the manifest: the 454 remaining identities hold **979 GiB** of
+source, and the pilot turned 76.3 GiB of source into 15 GiB of staging. That puts
+the remainder's staging need between **192 GiB** (scaling by source bytes) and
+**452 GiB** (scaling by the pilot's per-identity figure, which overstates it — the
+pilot deliberately took the heaviest member of each cell, at 4.77 GiB of source
+per identity against the remainder's 2.16 GiB mean). The transfer-and-reclaim
+architecture survives; the urgency behind it does not.
+
+`sermons:import-historic-videos` now states what the pass needs — the floor, plus
+twice the largest concurrent sources for FFmpeg's working copies — and says
+plainly that it cannot measure what is there, naming the host command that can.
+
+Four other defects fixed:
+
+- **The overlap lock expired six times sooner than its job could finish.**
+  `PrepareSectionPublicationCandidates` allows 1800 seconds and released its lock
+  after 300, so any extraction past five minutes left the door open behind it.
+  All the section-publication locks now follow the `$this->timeout + 120` rule
+  the rest of the pipeline already used.
+- **Two paid stages retried with no delay.** `DetectServiceStructure` and
+  `MatchSongsFromTranscript` bill a provider and had no `backoff()`, so a rate
+  limit burned all three attempts in seconds and paid for each request that
+  reached the model.
+- **A stale mount no longer fails every remaining item.** Dispatch stops at the
+  first unreadable source, nothing already dispatched is disturbed, and the same
+  `--only` keys resume the pass.
+- **Terminal outcomes are named.** Failures, cancellations, timeouts and skips
+  are reported individually with their processing id, identity and stage, not
+  only as counts.
+
+The RMS working-copy leak is closed: `GenerateRmsLog` deletes its temp file after
+archiving, in a `finally` so a failed archive leaves no orphan either.
 
 ### Phase 1 outcome
 

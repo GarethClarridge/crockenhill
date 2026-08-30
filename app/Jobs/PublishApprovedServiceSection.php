@@ -38,7 +38,7 @@ class PublishApprovedServiceSection implements ShouldQueue
         return [
             (new WithoutOverlapping('publish-service-section-'.$this->serviceSectionId))
                 ->releaseAfter(60)
-                ->expireAfter(300),
+                ->expireAfter($this->timeout + 120),
         ];
     }
 

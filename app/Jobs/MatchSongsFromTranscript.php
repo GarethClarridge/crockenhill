@@ -49,6 +49,22 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
     }
 
     /**
+     * Seconds to wait before each retry.
+     *
+     * This stage bills a provider. Without a backoff the queue retries at once,
+     * so a rate limit or a 5xx burns all three attempts in seconds — and pays
+     * for each one that reached the model before failing. The delays match
+     * {@see ProcessTranscriptWithAI::backoff()}, the pipeline's other
+     * paid stage.
+     *
+     * @return array<int, int>
+     */
+    public function backoff(): array
+    {
+        return [120, 300, 600];
+    }
+
+    /**
      * @return array<int, object>
      */
     public function middleware(): array

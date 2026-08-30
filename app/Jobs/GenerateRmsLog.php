@@ -92,10 +92,25 @@ class GenerateRmsLog implements ShouldQueue
             }
 
             $temporaryRmsLogPath = $segmentationService->generateRmsLog($videoPath);
-            $rmsLogPath = app(ServiceArtifactStorage::class)->archiveRms(
-                $this->processingLog->processing_id,
-                $temporaryRmsLogPath,
-            );
+
+            try {
+                $rmsLogPath = app(ServiceArtifactStorage::class)->archiveRms(
+                    $this->processingLog->processing_id,
+                    $temporaryRmsLogPath,
+                );
+            } finally {
+                /**
+                 * The archive is a copy, and nothing ever removed the original.
+                 * `generateRmsLog` names it after a fresh UUID rather than the
+                 * run, so no record points at it and no later cleanup could find
+                 * it: the historic-video pilot left fifteen of them, 200 MB, on
+                 * a drive whose free space is the thing gating the bulk run.
+                 *
+                 * Deleted in `finally` because a failed archive leaves the same
+                 * orphan behind, and the retry writes its own.
+                 */
+                Storage::disk($tempDisk)->delete($temporaryRmsLogPath);
+            }
 
             $this->processingLog->update([
                 'rms_log_path' => $rmsLogPath,

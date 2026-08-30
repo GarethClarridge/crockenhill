@@ -47,10 +47,19 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
      */
     public function middleware(): array
     {
+        /**
+         * The lock has to outlive the job it guards.
+         *
+         * It expired after 300 seconds against an 1800-second timeout, so any
+         * run past five minutes — which extraction of a full service routinely
+         * is — left its own lock open and let a second copy start extracting the
+         * same sections. The bulk run makes that the normal case rather than the
+         * unlucky one.
+         */
         return [
             (new WithoutOverlapping('prepare-section-publications-'.$this->processingLog->id))
                 ->releaseAfter(60)
-                ->expireAfter(300),
+                ->expireAfter($this->timeout + 120),
         ];
     }
 

@@ -881,7 +881,10 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         ]);
     }
 
-    /** @return array<string, int> */
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
     private function importMetrics(array $overrides = []): array
     {
         return [
@@ -891,6 +894,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             'skipped_inflight' => 0, 'skipped_pending_review' => 0, 'skipped_small' => 0,
             'skipped_audio_dup' => 0, 'skipped_no_date' => 0, 'skipped_unclassified' => 0,
             'skipped_low_disk' => 0, 'errors' => 0, 'bytes_processed' => 0, 'bytes_skipped' => 0,
+            'terminal_outcomes' => [], 'aborted_stale_mount' => false,
             ...$overrides,
         ];
     }

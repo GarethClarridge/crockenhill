@@ -91,6 +91,17 @@ class GenerateRmsLogTest extends TestCase
             $log->rms_log_path,
         );
 
+        /**
+         * The archive is a copy. The original is named after a fresh UUID that
+         * no record points at, so nothing could ever find it again — the
+         * historic-video pilot left fifteen of them on the drive whose free
+         * space gates the bulk run.
+         */
+        $this->assertFalse(
+            Storage::disk('local')->exists('rms-logs/'.$log->processing_id.'.json'),
+            'The RMS working copy outlived the run that made it.',
+        );
+
         @unlink($absolutePath);
     }
 

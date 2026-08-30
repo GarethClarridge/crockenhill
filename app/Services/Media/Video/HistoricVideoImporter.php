@@ -49,6 +49,8 @@ use Illuminate\Support\Str;
  *     terminal_cancelled: int,
  *     terminal_skipped: int,
  *     timed_out: int,
+ *     terminal_outcomes: list<array{processing_id: string, status: string, stage: string|null, item_key: string|null}>,
+ *     aborted_stale_mount: bool,
  *     bytes_processed: int,
  *     bytes_skipped: int
  * }
@@ -109,6 +111,12 @@ class HistoricVideoImporter
      *     terminal_cancelled: int,
      *     terminal_skipped: int,
      *     timed_out: int,
+     *     terminal_outcomes: list<array{processing_id: string, status: string, stage: string|null, item_key: string|null}>,
+     *     aborted_stale_mount: bool,
+     *     aborted_stale_mount: bool,
+     *     terminal_outcomes: list<array{processing_id: string, status: string, stage: string|null, item_key: string|null}>,
+     *     aborted_stale_mount: bool,
+     *     aborted_stale_mount: bool,
      *     bytes_processed: int,
      *     bytes_skipped: int
      * }
@@ -163,6 +171,14 @@ class HistoricVideoImporter
             'terminal_cancelled' => 0,
             'terminal_skipped' => 0,
             'timed_out' => 0,
+            /**
+             * Every run that reached a terminal state this pass was not asking
+             * for, named. The counts alone tell an operator that something went
+             * wrong across a five-day multi-pass run without telling them where
+             * to look, which is the difference between a report and a number.
+             */
+            'terminal_outcomes' => [],
+            'aborted_stale_mount' => false,
             'bytes_processed' => 0,
             'bytes_skipped' => 0,
         ];
@@ -393,6 +409,25 @@ class HistoricVideoImporter
 
                     continue;
                 }
+            }
+
+            if (! $dryRun && ! $this->sourcesStillMounted($item['files'])) {
+                /**
+                 * The drive went stale twice during the pilot. Every item after
+                 * that reads as a missing source, so continuing turns one mount
+                 * problem into as many permanent failures as there are items
+                 * left. The pass stops instead: nothing after this is dispatched,
+                 * nothing already dispatched is disturbed, and re-running the
+                 * same `--only` keys resumes from here once the drive is back.
+                 */
+                $metrics['aborted_stale_mount'] = true;
+                $onProgress?->__invoke(
+                    '[abort-stale-mount]',
+                    $label,
+                    'source files are no longer readable; stopping dispatch so the pass stays resumable',
+                );
+
+                break;
             }
 
             if (! $dryRun && ! $this->hasTempDiskSpace($item['files'], $tempDiskMinFreeGb)) {
@@ -1479,6 +1514,27 @@ class HistoricVideoImporter
         return $freeBytes >= $required;
     }
 
+    /**
+     * Whether this item's sources are still where the plan verified them.
+     *
+     * The manifest checks existence, size and hash for the whole corpus before a
+     * pass begins, which says nothing about the drive an hour later. This is the
+     * cheap per-item recheck: readable, and still the size the plan recorded.
+     * A hash here would re-read the whole corpus item by item.
+     *
+     * @param  list<string>  $files
+     */
+    private function sourcesStillMounted(array $files): bool
+    {
+        foreach ($files as $file) {
+            if (! is_file($file) || ! is_readable($file)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private function tempDiskPath(): string
     {
         return TempDiskSpace::path();
@@ -1544,7 +1600,12 @@ class HistoricVideoImporter
      */
     private function recordTerminalOutcomes(array &$metrics, array $outcomes): void
     {
-        foreach ($outcomes as $status) {
+        $runs = MediaProcessingLog::query()
+            ->whereIn('processing_id', array_keys($outcomes))
+            ->get(['processing_id', 'current_step', 'processing_metadata'])
+            ->keyBy('processing_id');
+
+        foreach ($outcomes as $processingId => $status) {
             // Static keys throughout: a computed offset would erase the literal
             // shape import() declares, which is what the callers type against.
             if ($status === ProcessingStatus::Failed->value) {
@@ -1559,6 +1620,18 @@ class HistoricVideoImporter
                 continue;
             }
 
+            $run = $runs->get($processingId);
+            $itemKey = data_get(
+                $run?->processing_metadata?->toArray(),
+                'historic_import.manifest_item_key',
+            );
+
+            $metrics['terminal_outcomes'][] = [
+                'processing_id' => $processingId,
+                'status' => $status,
+                'stage' => is_string($run?->current_step) ? $run->current_step : null,
+                'item_key' => is_string($itemKey) ? $itemKey : null,
+            ];
             $metrics['errors']++;
         }
     }

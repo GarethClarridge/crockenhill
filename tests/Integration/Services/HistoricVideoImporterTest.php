@@ -1218,6 +1218,69 @@ class HistoricVideoImporterTest extends TestCase
     }
 
     /**
+     * The source drive went stale twice during the pilot. Every remaining item
+     * then reads as a missing source, so a pass that carried on would turn one
+     * mount problem into as many permanent failures as there are items left.
+     */
+    #[Test]
+    public function it_stops_dispatching_when_the_source_drive_stops_being_readable(): void
+    {
+        $present = $this->temporaryDirectory.'/2022-01-23 - Evening Service.mp4';
+        $this->createFakeVideo($present);
+        $vanished = $this->temporaryDirectory.'/never-mounted/2022-01-16 - Evening Service.mp4';
+        $presentSize = filesize($present);
+        $presentHash = hash_file('sha256', $present);
+        $this->assertIsInt($presentSize);
+        $this->assertIsString($presentHash);
+
+        $metrics = $this->runImportWithProcessor(
+            $this->mockProcessorSuccess(),
+            approvedWorkItems: [
+                [
+                    'manifest_item_key' => 'item-present',
+                    'tag' => 'livestream',
+                    'label' => 'item-present',
+                    'files' => [$present],
+                    'source_files' => [[
+                        'relative_path' => '2022-01-23 - Evening Service.mp4',
+                        'sha256' => $presentHash,
+                        'byte_size' => $presentSize,
+                    ]],
+                    'date' => Carbon::parse('2022-01-23'),
+                    'service' => SermonService::Evening,
+                    'client_file_date' => '2022-01-23 18:38:15',
+                    'bytes' => $presentSize,
+                    'manifest_concatenation' => 'separate',
+                ],
+                [
+                    'manifest_item_key' => 'item-vanished',
+                    'tag' => 'livestream',
+                    'label' => 'item-vanished',
+                    'files' => [$vanished],
+                    'source_files' => [[
+                        'relative_path' => '2022-01-16 - Evening Service.mp4',
+                        'sha256' => str_repeat('a', 64),
+                        'byte_size' => 1024,
+                    ]],
+                    'date' => Carbon::parse('2022-01-16'),
+                    'service' => SermonService::Evening,
+                    'client_file_date' => '2022-01-16 18:38:15',
+                    'bytes' => 1024,
+                    'manifest_concatenation' => 'separate',
+                ],
+            ],
+        );
+
+        $this->assertTrue($metrics['aborted_stale_mount']);
+        $this->assertSame(
+            1,
+            $metrics['dispatched'],
+            'The item read before the drive went stale should still have been dispatched.',
+        );
+        $this->assertSame(0, $metrics['errors'], 'A stale mount is not a per-item failure.');
+    }
+
+    /**
      * Dispatch one approved manifest work item, optionally graded, through a supplied processor.
      *
      * Mirrors the shape {@see HistoricVideoCurationManifest::plan()}

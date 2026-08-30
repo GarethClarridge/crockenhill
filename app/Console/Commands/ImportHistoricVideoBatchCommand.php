@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Models\HistoricImportOperation;
 use App\Services\HistoricMedia\HistoricStagingGuard;
+use App\Services\HistoricMedia\HistoricStagingHeadroom;
 use App\Services\Import\HistoricImportProductionGuard;
 use App\Services\Media\Video\HistoricVideoCurationManifest;
 use App\Services\Media\Video\HistoricVideoImporter;
@@ -272,6 +273,10 @@ class ImportHistoricVideoBatchCommand extends Command
         $this->line('Directory: '.$directory);
         $this->line('Sermon storage disk: '.config('media-processing.storage.sermon_disk', 'local'));
 
+        if ($approvedWorkItems !== null) {
+            $this->reportStagingHeadroom($approvedWorkItems, $parallel, $tempDiskMinFreeGb);
+        }
+
         if ($parallel > 1) {
             $this->line("Parallel dispatch: {$parallel} concurrent jobs");
         } else {
@@ -358,6 +363,37 @@ class ImportHistoricVideoBatchCommand extends Command
             ]
         );
 
+        /**
+         * Counts alone tell an operator that a five-day multi-pass run went
+         * wrong without telling them where to look. Every run that reached a
+         * terminal state the pass did not ask for is named here, with the stage
+         * it stopped at, so the next pass can be prepared against the actual
+         * failures rather than a total.
+         */
+        if ($metrics['terminal_outcomes'] !== []) {
+            $this->newLine();
+            $this->line('Terminal outcomes this pass:');
+            $this->table(
+                ['Identity', 'Processing ID', 'Outcome', 'Stage'],
+                array_map(static fn (array $outcome): array => [
+                    $outcome['item_key'] ?? '(unbound)',
+                    $outcome['processing_id'],
+                    $outcome['status'],
+                    $outcome['stage'] ?? '(none recorded)',
+                ], $metrics['terminal_outcomes']),
+            );
+        }
+
+        if ($metrics['aborted_stale_mount']) {
+            $this->error(
+                'The source drive stopped being readable mid-pass, so dispatch stopped. Nothing already '
+                .'dispatched was disturbed. Remount the drive and re-run this pass with the same --only '
+                .'keys; the items it did not reach are still pending.',
+            );
+
+            return self::FAILURE;
+        }
+
         if ($metrics['errors'] > 0 || (! $dryRun && $totalSkipped > 0)) {
             $this->error('Approved historic-video corpus closeout is incomplete; skipped, timed-out and failed items are not exact completion.');
 
@@ -413,6 +449,59 @@ class ImportHistoricVideoBatchCommand extends Command
         }
 
         return $operation;
+    }
+
+    /**
+     * State what the pass needs of the drive, and whether this process can see
+     * how much is there.
+     *
+     * The pilot-to-bulk plan was sized against "30 GB available of 461 GB", read
+     * from `df` inside the container, which reports the host's boot volume and
+     * not the bind-mounted drive — the drive holds 444 GiB free. The gates were
+     * already standing down correctly, because the operator had declared the
+     * volume unmeasurable; nothing said so out loud, so a wrong number reached a
+     * plan. Now it does.
+     */
+    /**
+     * @param  list<array<string, mixed>>  $workItems  The pass's own items, after --only narrows them
+     */
+    private function reportStagingHeadroom(
+        array $workItems,
+        int $parallel,
+        int $tempDiskMinFreeGb,
+    ): void {
+        $report = app(HistoricStagingHeadroom::class)->report(
+            $workItems,
+            $parallel,
+            $tempDiskMinFreeGb,
+        );
+        $gib = static fn (?int $bytes): string => $bytes === null
+            ? 'unknown'
+            : number_format($bytes / 1024 ** 3, 1).' GiB';
+
+        $this->line(sprintf(
+            'Pass needs: %s free (%s floor + %s for %d concurrent job(s)); %d identities, %s of source, largest %s.',
+            $gib($report['required_free_bytes']),
+            $gib($report['minimum_free_bytes']),
+            $gib($report['concurrent_working_bytes']),
+            max(1, $parallel),
+            $report['item_count'],
+            $gib($report['selected_source_bytes']),
+            $gib($report['largest_source_bytes']),
+        ));
+
+        if ($report['measurable']) {
+            $this->line('Staging free space: '.$gib($report['process_reported_free_bytes']).'.');
+
+            return;
+        }
+
+        $this->warn(sprintf(
+            'Staging free space is NOT measurable from this process. It reports %s, which is the '
+            .'parent filesystem rather than the drive. Confirm the real figure on the host with: %s',
+            $gib($report['process_reported_free_bytes']),
+            $report['host_command'],
+        ));
     }
 
     private function checkStorageDisk(): bool

@@ -38,7 +38,7 @@ class AutoPublishServiceSection implements ShouldQueue
         return [
             (new WithoutOverlapping('auto-publish-service-section-'.$this->serviceSectionId))
                 ->releaseAfter(60)
-                ->expireAfter(300),
+                ->expireAfter($this->timeout + 120),
         ];
     }
 
