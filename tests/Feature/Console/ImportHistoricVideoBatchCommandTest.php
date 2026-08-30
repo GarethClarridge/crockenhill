@@ -587,12 +587,8 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
     }
 
-    /**
-     * Which guarantee a run bought must be legible in its own output, because the two dispatches
-     * are otherwise indistinguishable — same manifest, same plan hash, same round.
-     */
     #[Test]
-    public function the_dispatch_reports_whether_it_verified_corpus_contents(): void
+    public function the_dispatch_verifies_only_the_selected_sources_immediately_before_staging(): void
     {
         $this->createFakeVideo("{$this->temporaryDirectory}/2021-04-12 10-02-00.mkv");
         $manifestPath = $this->historicManifest('2021-04-12 10-02-00.mkv', '2021-04-12', 'morning');
@@ -609,14 +605,51 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
 
         $this->mock(HistoricVideoImporter::class)
             ->shouldReceive('import')
-            ->twice()
+            ->once()
             ->andReturn($this->importMetrics());
 
         $this->artisan('sermons:import-historic-videos', $arguments)
-            ->expectsOutputToContain('Corpus contents not re-read');
+            ->expectsOutputToContain('Only selected sources are verified immediately before durable staging and dispatch.');
+    }
 
-        $this->artisan('sermons:import-historic-videos', $arguments + ['--verify-corpus' => true])
-            ->expectsOutputToContain('Corpus contents verified against the approved manifest.');
+    #[Test]
+    public function an_unmeasurable_staging_volume_requires_sufficient_operation_bound_host_evidence(): void
+    {
+        Config::set('media-processing.storage.temp_disk_unmeasurable', true);
+        $relativePath = '2021-04-12 10-02-00.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}");
+        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'morning');
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+        $operation = $this->historicVideoOperation($plan->manifestHash);
+        $arguments = [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--manifest' => $manifestPath,
+            '--plan-hash' => $plan->planHash,
+            '--operation' => $operation->operation_id,
+        ];
+
+        $this->mock(HistoricVideoImporter::class)->shouldNotReceive('import');
+
+        $this->artisan('sermons:import-historic-videos', $arguments)
+            ->expectsOutputToContain('supply readable operation-bound --host-capacity-evidence')
+            ->assertFailed();
+
+        $evidencePath = "{$this->temporaryDirectory}/host-capacity.json";
+        file_put_contents($evidencePath, json_encode([
+            'operation_id' => $operation->operation_id,
+            'plan_hash' => $plan->planHash,
+            'available_bytes' => 10 * 1024 ** 4,
+        ], JSON_THROW_ON_ERROR));
+
+        $this->mock(HistoricVideoImporter::class)
+            ->shouldReceive('import')
+            ->once()
+            ->andReturn($this->importMetrics());
+
+        $this->artisan('sermons:import-historic-videos', $arguments + ['--host-capacity-evidence' => $evidencePath])
+            ->expectsOutputToContain('Operation-bound host capacity evidence satisfies')
+            ->assertSuccessful();
     }
 
     /**

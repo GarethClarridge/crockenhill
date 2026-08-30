@@ -11,6 +11,7 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Exceptions\HistoricSourceIntegrityException;
+use App\Exceptions\HistoricSourceMountException;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -45,11 +46,6 @@ use Illuminate\Support\Str;
  *     skipped_unclassified: int,
  *     skipped_low_disk: int,
  *     errors: int,
- *     terminal_failed: int,
- *     terminal_cancelled: int,
- *     terminal_skipped: int,
- *     timed_out: int,
- *     terminal_outcomes: list<array{processing_id: string, status: string, stage: string|null, item_key: string|null}>,
  *     aborted_stale_mount: bool,
  *     bytes_processed: int,
  *     bytes_skipped: int
@@ -107,15 +103,6 @@ class HistoricVideoImporter
      *     skipped_unclassified: int,
      *     skipped_low_disk: int,
      *     errors: int,
-     *     terminal_failed: int,
-     *     terminal_cancelled: int,
-     *     terminal_skipped: int,
-     *     timed_out: int,
-     *     terminal_outcomes: list<array{processing_id: string, status: string, stage: string|null, item_key: string|null}>,
-     *     aborted_stale_mount: bool,
-     *     aborted_stale_mount: bool,
-     *     terminal_outcomes: list<array{processing_id: string, status: string, stage: string|null, item_key: string|null}>,
-     *     aborted_stale_mount: bool,
      *     aborted_stale_mount: bool,
      *     bytes_processed: int,
      *     bytes_skipped: int
@@ -167,23 +154,11 @@ class HistoricVideoImporter
             'skipped_unclassified' => 0,
             'skipped_low_disk' => 0,
             'errors' => 0,
-            'terminal_failed' => 0,
-            'terminal_cancelled' => 0,
-            'terminal_skipped' => 0,
-            'timed_out' => 0,
-            /**
-             * Every run that reached a terminal state this pass was not asking
-             * for, named. The counts alone tell an operator that something went
-             * wrong across a five-day multi-pass run without telling them where
-             * to look, which is the difference between a report and a number.
-             */
-            'terminal_outcomes' => [],
             'aborted_stale_mount' => false,
             'bytes_processed' => 0,
             'bytes_skipped' => 0,
         ];
 
-        $inflight = [];
         $dispatched = 0;
         $decisions = [];
 
@@ -300,7 +275,6 @@ class HistoricVideoImporter
                     $hasOwnInflight = true;
                     $metrics['resumed_inflight']++;
                     $coveredKeys[] = $jobKey;
-                    $inflight[] = $ownRun->processing_id;
                     $decisions[$decisionIndex] = [
                         'decision' => 'resume-inflight',
                         'label' => $label,
@@ -322,11 +296,6 @@ class HistoricVideoImporter
                     break;
                 }
 
-                if (count($inflight) >= $parallel) {
-                    $this->recordTerminalOutcomes($metrics, $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds));
-                    $inflight = [];
-                }
-
                 $retry = $this->processor->retry($ownRun->processing_id);
                 $coveredKeys[] = $jobKey;
 
@@ -341,7 +310,6 @@ class HistoricVideoImporter
                 $hasOwnInflight = true;
                 $dispatched++;
                 $metrics['retried_failed']++;
-                $inflight[] = $ownRun->processing_id;
                 $decisions[$decisionIndex] = [
                     'decision' => 'retry-failed',
                     'label' => $label,
@@ -351,8 +319,6 @@ class HistoricVideoImporter
             }
 
             $coveredKeys = array_values(array_unique($coveredKeys));
-            $inflight = array_values(array_unique($inflight));
-
             if ($limitReached) {
                 break;
             }
@@ -362,17 +328,7 @@ class HistoricVideoImporter
             }
 
             if ($plannedKeys !== [] && count($coveredKeys) === count($plannedKeys)) {
-                if ($parallel === 1 || count($inflight) >= $parallel) {
-                    $this->recordTerminalOutcomes($metrics, $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds));
-                    $inflight = [];
-                }
-
                 continue;
-            }
-
-            if (count($inflight) >= $parallel) {
-                $this->recordTerminalOutcomes($metrics, $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds));
-                $inflight = [];
             }
 
             if (! $force) {
@@ -411,23 +367,32 @@ class HistoricVideoImporter
                 }
             }
 
-            if (! $dryRun && ! $this->sourcesStillMounted($item['files'])) {
-                /**
-                 * The drive went stale twice during the pilot. Every item after
-                 * that reads as a missing source, so continuing turns one mount
-                 * problem into as many permanent failures as there are items
-                 * left. The pass stops instead: nothing after this is dispatched,
-                 * nothing already dispatched is disturbed, and re-running the
-                 * same `--only` keys resumes from here once the drive is back.
-                 */
-                $metrics['aborted_stale_mount'] = true;
-                $onProgress?->__invoke(
-                    '[abort-stale-mount]',
-                    $label,
-                    'source files are no longer readable; stopping dispatch so the pass stays resumable',
-                );
+            if (! $dryRun) {
+                try {
+                    $this->assertApprovedSourceFilesAreUnchanged($item);
+                } catch (HistoricSourceMountException $exception) {
+                    $metrics['aborted_stale_mount'] = true;
+                    $decisions[$decisionIndex] = [
+                        'decision' => 'aborted_stale_mount',
+                        'work_item_tag' => $tag,
+                        'label' => $label,
+                        'detail' => $exception->getMessage(),
+                    ];
+                    $onProgress?->__invoke('[abort-stale-mount]', $label, $exception->getMessage());
 
-                break;
+                    break;
+                } catch (HistoricSourceIntegrityException $exception) {
+                    $metrics['errors']++;
+                    $decisions[$decisionIndex] = [
+                        'decision' => 'source_integrity_failed',
+                        'work_item_tag' => $tag,
+                        'label' => $label,
+                        'detail' => $exception->getMessage(),
+                    ];
+                    $onProgress?->__invoke('[error]', $label, $exception->getMessage());
+
+                    continue;
+                }
             }
 
             if (! $dryRun && ! $this->hasTempDiskSpace($item['files'], $tempDiskMinFreeGb)) {
@@ -447,11 +412,6 @@ class HistoricVideoImporter
                 continue;
             }
 
-            if ($parallel === 1 && $inflight !== []) {
-                $this->recordTerminalOutcomes($metrics, $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds));
-                $inflight = [];
-            }
-
             try {
                 $results = $this->dispatchItem($item, $noConcat, $reEncodeMismatched, $stagingContext, $operation);
 
@@ -464,7 +424,6 @@ class HistoricVideoImporter
                     }
 
                     $processingId = $result['processing_id'];
-                    $inflight[] = $processingId;
                     $decisions[$decisionIndex] = [
                         'decision' => 'dispatched',
                         'work_item_tag' => $tag,
@@ -487,11 +446,18 @@ class HistoricVideoImporter
                         sleep($delay);
                     }
 
-                    if (count($inflight) >= $parallel) {
-                        $this->recordTerminalOutcomes($metrics, $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds));
-                        $inflight = [];
-                    }
                 }
+            } catch (HistoricSourceMountException $exception) {
+                $metrics['aborted_stale_mount'] = true;
+                $decisions[$decisionIndex] = [
+                    'decision' => 'aborted_stale_mount',
+                    'work_item_tag' => $tag,
+                    'label' => $label,
+                    'detail' => $exception->getMessage(),
+                ];
+                $onProgress?->__invoke('[abort-stale-mount]', $label, $exception->getMessage());
+
+                break;
             } catch (\Throwable $e) {
                 $metrics['errors']++;
                 $decisions[$decisionIndex] = [
@@ -508,10 +474,6 @@ class HistoricVideoImporter
                 ]);
                 $onProgress?->__invoke('[error]', $label, $e->getMessage());
             }
-        }
-
-        if ($inflight !== []) {
-            $this->recordTerminalOutcomes($metrics, $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds));
         }
 
         if ($reportPath !== null) {
@@ -1269,15 +1231,23 @@ class HistoricVideoImporter
 
             $root = substr($path, 0, -strlen($suffix));
 
-            if ($root === '' || ! is_dir($root) || ! is_file($path) || $this->containsSourceSymlink($root, $relativePath)) {
+            if ($root === '' || $this->containsSourceSymlink($root, $relativePath)) {
                 throw new HistoricSourceIntegrityException("Historic video source integrity failure: {$relativePath}");
+            }
+
+            if (! is_dir($root) || ! is_file($path)) {
+                throw new HistoricSourceMountException("Historic video source is no longer available: {$relativePath}");
             }
 
             clearstatcache(true, $path);
             $size = filesize($path);
             $hash = hash_file('sha256', $path);
 
-            if ($size !== $source['byte_size'] || ! is_string($hash) || ! hash_equals($source['sha256'], $hash)) {
+            if ($size === false || $hash === false) {
+                throw new HistoricSourceMountException("Historic video source could not be read: {$relativePath}");
+            }
+
+            if ($size !== $source['byte_size'] || ! hash_equals($source['sha256'], $hash)) {
                 throw new HistoricSourceIntegrityException("Historic video source changed after approval: {$relativePath}");
             }
         }
@@ -1514,126 +1484,9 @@ class HistoricVideoImporter
         return $freeBytes >= $required;
     }
 
-    /**
-     * Whether this item's sources are still where the plan verified them.
-     *
-     * The manifest checks existence, size and hash for the whole corpus before a
-     * pass begins, which says nothing about the drive an hour later. This is the
-     * cheap per-item recheck: readable, and still the size the plan recorded.
-     * A hash here would re-read the whole corpus item by item.
-     *
-     * @param  list<string>  $files
-     */
-    private function sourcesStillMounted(array $files): bool
-    {
-        foreach ($files as $file) {
-            if (! is_file($file) || ! is_readable($file)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     private function tempDiskPath(): string
     {
         return TempDiskSpace::path();
-    }
-
-    /**
-     * Poll each processing_id until it leaves Pending/Processing, up to the per-file timeout.
-     *
-     * @param  list<string>  $processingIds
-     * @return array<string, string>
-     */
-    private function waitForInflight(array $processingIds, int $pollIntervalSeconds, int $perFileTimeoutSeconds): array
-    {
-        $deadline = time() + $perFileTimeoutSeconds;
-
-        while (time() < $deadline) {
-            $stillRunning = MediaProcessingLog::query()
-                ->whereIn('processing_id', $processingIds)
-                ->whereIn('status', [ProcessingStatus::Pending->value, ProcessingStatus::Started->value, ProcessingStatus::Processing->value])
-                ->exists();
-
-            if (! $stillRunning) {
-                return MediaProcessingLog::query()
-                    ->whereIn('processing_id', $processingIds)
-                    ->pluck('status', 'processing_id')
-                    ->map(fn (ProcessingStatus|string $status): string => $status instanceof ProcessingStatus ? $status->value : $status)
-                    ->all();
-            }
-
-            if ($pollIntervalSeconds > 0) {
-                sleep($pollIntervalSeconds);
-            }
-        }
-
-        // Past the deadline only the runs still moving are timed out. Marking the
-        // whole batch would inflate `errors` with runs that finished cleanly while
-        // one slow neighbour held the poll open.
-        $statuses = MediaProcessingLog::query()
-            ->whereIn('processing_id', $processingIds)
-            ->pluck('status', 'processing_id')
-            ->map(fn (ProcessingStatus|string $status): string => $status instanceof ProcessingStatus ? $status->value : $status)
-            ->all();
-
-        $outcomes = [];
-
-        foreach ($processingIds as $processingId) {
-            $status = $statuses[$processingId] ?? null;
-            $outcomes[$processingId] = in_array($status, [
-                ProcessingStatus::Pending->value,
-                ProcessingStatus::Started->value,
-                ProcessingStatus::Processing->value,
-            ], true) || $status === null
-                ? 'timed_out'
-                : $status;
-        }
-
-        return $outcomes;
-    }
-
-    /**
-     * @param  ImportMetrics  $metrics
-     * @param  array<string, string>  $outcomes
-     */
-    private function recordTerminalOutcomes(array &$metrics, array $outcomes): void
-    {
-        $runs = MediaProcessingLog::query()
-            ->whereIn('processing_id', array_keys($outcomes))
-            ->get(['processing_id', 'current_step', 'processing_metadata'])
-            ->keyBy('processing_id');
-
-        foreach ($outcomes as $processingId => $status) {
-            // Static keys throughout: a computed offset would erase the literal
-            // shape import() declares, which is what the callers type against.
-            if ($status === ProcessingStatus::Failed->value) {
-                $metrics['terminal_failed']++;
-            } elseif ($status === ProcessingStatus::Cancelled->value) {
-                $metrics['terminal_cancelled']++;
-            } elseif ($status === ProcessingStatus::Skipped->value) {
-                $metrics['terminal_skipped']++;
-            } elseif ($status === 'timed_out') {
-                $metrics['timed_out']++;
-            } else {
-                continue;
-            }
-
-            $run = $runs->get($processingId);
-            $itemKey = data_get(
-                $run?->processing_metadata?->toArray(),
-                'historic_import.manifest_item_key',
-            );
-
-            $metrics['terminal_outcomes'][] = [
-                'processing_id' => $processingId,
-                'status' => $status,
-                'stage' => is_string($run?->current_step) ? $run->current_step : null,
-                'item_key' => is_string($itemKey) ? $itemKey : null,
-            ];
-            $metrics['errors']++;
-        }
     }
 
     /**

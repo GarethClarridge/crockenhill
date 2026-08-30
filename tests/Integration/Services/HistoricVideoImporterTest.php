@@ -338,7 +338,7 @@ class HistoricVideoImporterTest extends TestCase
     }
 
     #[Test]
-    public function it_counts_a_failed_pipeline_as_an_import_error(): void
+    public function it_does_not_poll_or_classify_terminal_pipeline_state_after_enqueueing(): void
     {
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
 
@@ -358,12 +358,12 @@ class HistoricVideoImporterTest extends TestCase
 
         $metrics = $this->runImportWithProcessor($processor);
 
-        $this->assertSame(1, $metrics['errors']);
-        $this->assertSame(1, $metrics['terminal_failed']);
+        $this->assertSame(0, $metrics['errors']);
+        $this->assertArrayNotHasKey('terminal_failed', $metrics);
     }
 
     #[Test]
-    public function it_counts_a_pipeline_timeout_as_an_import_error(): void
+    public function it_exits_without_waiting_for_an_inflight_pipeline(): void
     {
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
 
@@ -385,8 +385,8 @@ class HistoricVideoImporterTest extends TestCase
             pollIntervalSeconds: 0,
         );
 
-        $this->assertSame(1, $metrics['errors']);
-        $this->assertSame(1, $metrics['timed_out']);
+        $this->assertSame(0, $metrics['errors']);
+        $this->assertArrayNotHasKey('timed_out', $metrics);
     }
 
     #[Test]
@@ -689,7 +689,7 @@ class HistoricVideoImporterTest extends TestCase
 
         $this->assertSame(0, $processCalls);
         $this->assertSame(1, $metrics['resumed_inflight']);
-        $this->assertSame(1, $metrics['timed_out']);
+        $this->assertArrayNotHasKey('timed_out', $metrics);
         $this->assertSame(0, $metrics['dispatched']);
     }
 

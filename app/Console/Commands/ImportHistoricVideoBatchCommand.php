@@ -31,7 +31,6 @@ class ImportHistoricVideoBatchCommand extends Command
                             {--dir= : Root directory (default: /Volumes/CBC Drive/ServiceVideos)}
                             {--manifest= : Approved historic-video curation manifest}
                             {--plan-hash= : Exact plan_hash emitted by the approved manifest preflight}
-                            {--verify-corpus : Re-read every included recording to prove its bytes still match the manifest (~1.0 TB, hours); off while iterating, on for the definitive run}
                             {--operation= : Immutable historic import operation id this dispatch belongs to (required without --dry-run)}
                             {--from= : Only files from this date (YYYY-MM-DD)}
                             {--until= : Only files up to this date (YYYY-MM-DD)}
@@ -43,9 +42,8 @@ class ImportHistoricVideoBatchCommand extends Command
                             {--reencode-mismatched : Re-encode segments with mismatched codecs before concatenation}
                             {--allow-local-storage : Allow running with SERMON_STORAGE_DISK=local}
                             {--temp-disk-min-free-gb= : Minimum free space (GB) on the pipeline temp disk before dispatch (default: media-processing.storage.temp_disk_min_free_gb)}
-                            {--parallel=1 : Max concurrent in-flight dispatches}
-                            {--poll-interval=30 : Seconds between status polls when serial-dispatching}
-                            {--per-file-timeout=7200 : Max seconds to wait for a single file\'s pipeline to finish}
+                            {--host-capacity-evidence= : JSON evidence binding host free bytes to this operation and plan when staging capacity is unmeasurable}
+                            {--parallel=1 : Worker concurrency used to calculate dispatch headroom}
                             {--dry-run : Show what would happen, no work}
                             {--delay=0 : Seconds between dispatches}
                             {--limit=0 : Max sermons to import this run (0 = no limit)}
@@ -85,8 +83,6 @@ class ImportHistoricVideoBatchCommand extends Command
         $tempDiskMinFreeGbOption = $this->option('temp-disk-min-free-gb');
         $tempDiskMinFreeGb = max(1, (int) ($tempDiskMinFreeGbOption ?? config('media-processing.storage.temp_disk_min_free_gb', 20)));
         $parallel = max(1, (int) $this->option('parallel'));
-        $pollInterval = max(5, (int) $this->option('poll-interval'));
-        $perFileTimeout = max(60, (int) $this->option('per-file-timeout'));
         $limit = max(0, (int) $this->option('limit'));
         $reportOption = $this->option('report');
         $reportPath = is_string($reportOption) && trim($reportOption) !== '' ? $reportOption : null;
@@ -120,27 +116,15 @@ class ImportHistoricVideoBatchCommand extends Command
         }
 
         if ($manifestPath !== null) {
-            /**
-             * The content re-read is opt-in because it costs a whole-corpus pass and is redundant
-             * for every file this run dispatches — {@see HistoricVideoImporter} re-checks size and
-             * SHA-256 immediately before FFmpeg. Buy it for the definitive run, where fail-fast
-             * over the files this pass will *not* touch is worth the hours; skip it while
-             * iterating. Either way the plan hash is identical, so the flag can never change which
-             * round this dispatch belongs to.
-             */
-            $verifyCorpus = (bool) $this->option('verify-corpus');
-
             try {
-                $plan = $curationManifest->plan($directory, $manifestPath, $verifyCorpus);
+                $plan = $curationManifest->plan($directory, $manifestPath);
             } catch (Throwable $exception) {
                 $this->error($exception->getMessage());
 
                 return self::FAILURE;
             }
 
-            $this->line($verifyCorpus
-                ? 'Corpus contents verified against the approved manifest.'
-                : 'Corpus contents not re-read (--verify-corpus off); every dispatched file is still verified before FFmpeg.');
+            $this->line('Only selected sources are verified immediately before durable staging and dispatch.');
 
             $approvedWorkItems = $plan->workItems;
             $defaultYear = null;
@@ -274,14 +258,26 @@ class ImportHistoricVideoBatchCommand extends Command
         $this->line('Sermon storage disk: '.config('media-processing.storage.sermon_disk', 'local'));
 
         if ($approvedWorkItems !== null) {
-            $this->reportStagingHeadroom($approvedWorkItems, $parallel, $tempDiskMinFreeGb);
+            $headroom = $this->reportStagingHeadroom($approvedWorkItems, $parallel, $tempDiskMinFreeGb);
+
+            if (! $dryRun && ! $headroom['measurable']) {
+                if (! $operation instanceof HistoricImportOperation || $plan === null) {
+                    $this->error('An unmeasurable staging volume requires an approved operation and plan before dispatch.');
+
+                    return self::FAILURE;
+                }
+
+                try {
+                    $this->assertHostCapacityEvidence($operation, $plan->planHash, $headroom);
+                } catch (Throwable $exception) {
+                    $this->error($exception->getMessage());
+
+                    return self::FAILURE;
+                }
+            }
         }
 
-        if ($parallel > 1) {
-            $this->line("Parallel dispatch: {$parallel} concurrent jobs");
-        } else {
-            $this->line('Serial dispatch: waiting for each file before dispatching next');
-        }
+        $this->line("Dispatcher headroom assumes {$parallel} concurrent worker job(s); it records processing IDs and exits after enqueueing.");
 
         try {
             $metrics = $importer->import(
@@ -296,8 +292,8 @@ class ImportHistoricVideoBatchCommand extends Command
                 reEncodeMismatched: $reEncodeMismatched,
                 tempDiskMinFreeGb: $tempDiskMinFreeGb,
                 parallel: $parallel,
-                pollIntervalSeconds: $pollInterval,
-                perFileTimeoutSeconds: $perFileTimeout,
+                pollIntervalSeconds: 0,
+                perFileTimeoutSeconds: 0,
                 limit: $limit,
                 onProgress: function (string $tag, string $label, ?string $detail): void {
                     $line = "{$tag} {$label}";
@@ -362,27 +358,6 @@ class ImportHistoricVideoBatchCommand extends Command
                 ['Bytes skipped', $this->formatBytes($metrics['bytes_skipped'])],
             ]
         );
-
-        /**
-         * Counts alone tell an operator that a five-day multi-pass run went
-         * wrong without telling them where to look. Every run that reached a
-         * terminal state the pass did not ask for is named here, with the stage
-         * it stopped at, so the next pass can be prepared against the actual
-         * failures rather than a total.
-         */
-        if ($metrics['terminal_outcomes'] !== []) {
-            $this->newLine();
-            $this->line('Terminal outcomes this pass:');
-            $this->table(
-                ['Identity', 'Processing ID', 'Outcome', 'Stage'],
-                array_map(static fn (array $outcome): array => [
-                    $outcome['item_key'] ?? '(unbound)',
-                    $outcome['processing_id'],
-                    $outcome['status'],
-                    $outcome['stage'] ?? '(none recorded)',
-                ], $metrics['terminal_outcomes']),
-            );
-        }
 
         if ($metrics['aborted_stale_mount']) {
             $this->error(
@@ -464,12 +439,13 @@ class ImportHistoricVideoBatchCommand extends Command
      */
     /**
      * @param  list<array<string, mixed>>  $workItems  The pass's own items, after --only narrows them
+     * @return array{measurable:bool,process_reported_free_bytes:int|null,host_command:string,item_count:int,selected_source_bytes:int,largest_source_bytes:int,concurrent_working_bytes:int,minimum_free_bytes:int,required_free_bytes:int}
      */
     private function reportStagingHeadroom(
         array $workItems,
         int $parallel,
         int $tempDiskMinFreeGb,
-    ): void {
+    ): array {
         $report = app(HistoricStagingHeadroom::class)->report(
             $workItems,
             $parallel,
@@ -493,7 +469,7 @@ class ImportHistoricVideoBatchCommand extends Command
         if ($report['measurable']) {
             $this->line('Staging free space: '.$gib($report['process_reported_free_bytes']).'.');
 
-            return;
+            return $report;
         }
 
         $this->warn(sprintf(
@@ -502,6 +478,48 @@ class ImportHistoricVideoBatchCommand extends Command
             $gib($report['process_reported_free_bytes']),
             $report['host_command'],
         ));
+
+        return $report;
+    }
+
+    /**
+     * @param  array{required_free_bytes:int}  $headroom
+     */
+    private function assertHostCapacityEvidence(
+        HistoricImportOperation $operation,
+        string $planHash,
+        array $headroom,
+    ): void {
+        $path = $this->option('host-capacity-evidence');
+
+        if (! is_string($path) || trim($path) === '' || ! is_file($path) || ! is_readable($path)) {
+            throw new RuntimeException('Staging capacity is unmeasurable: supply readable operation-bound --host-capacity-evidence from the host df check.');
+        }
+
+        $contents = file_get_contents($path);
+
+        if (! is_string($contents) || strlen($contents) > 16 * 1024) {
+            throw new RuntimeException('Host capacity evidence is unreadable or exceeds the 16 KB limit.');
+        }
+
+        try {
+            $evidence = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            throw new RuntimeException('Host capacity evidence must be a JSON object.');
+        }
+
+        if (! is_array($evidence)
+            || ($evidence['operation_id'] ?? null) !== $operation->operation_id
+            || ($evidence['plan_hash'] ?? null) !== $planHash
+            || ! is_int($evidence['available_bytes'] ?? null)) {
+            throw new RuntimeException('Host capacity evidence must bind this operation and plan and contain integer available_bytes.');
+        }
+
+        if ($evidence['available_bytes'] < $headroom['required_free_bytes']) {
+            throw new RuntimeException('Host capacity evidence is below this pass\'s required staging headroom.');
+        }
+
+        $this->info('Operation-bound host capacity evidence satisfies the required staging headroom.');
     }
 
     private function checkStorageDisk(): bool
