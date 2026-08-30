@@ -1,20 +1,20 @@
 # Historic Video Pilot-to-Bulk Plan
 
 **Date:** 2026-08-29
-**Status:** In progress — Phases 0–3 and 6 complete; Phase 4 blocked on an operator decision and no further historic-video dispatch is authorised
-**Scope:** Correct the pilot findings, prove bounded staging reclamation, run a fresh canary, and process the remaining historic-video corpus safely
+**Status:** In progress — Phases 0–4 complete; Phase 6 is partially complete; Phase 5 and the remaining Phase 6 status-report work block the canary; no further historic-video dispatch is authorised
+**Scope:** Correct the pilot findings, prove direct private asset promotion and bounded temporary cleanup, run a fresh canary, and process the remaining historic-video corpus safely
 **Related plan:** `HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md` remains the authority for the wider historic-import programme
 
 ## 1. Decision
 
 Do not start the remaining historic-video identities yet.
 
-The pilot proved that the processing path can produce useful results and that failed runs can be resumed, but it also exposed launch-blocking defects in disk custody, metadata application, service projection, cost accounting and long-running operation control. The remainder must run as bounded, resumable passes, with each pass transferred into private quarantine, audited and reclaimed before the next begins.
+The pilot proved that the processing path can produce useful results and that failed runs can be resumed, but it also exposed launch-blocking defects in disk custody, metadata application, service projection and long-running operation control. The remainder must run as bounded, resumable passes inside one cumulative operation and database. Passes bound runtime and concurrency; they are not separate evidence islands and do not close a mini-corpus before the next begins.
 
 Two distinctions are load-bearing:
 
-1. `historic-import:release-batch` is not a disk-reclamation command. It copies quarantined assets to the public disk and marks the named records published. Staging reclamation needs a separate, verified path and must not make anything public.
-2. The historic-operation cost field does not currently enforce video-pipeline spend. `HistoricImportCostLedger` has no pipeline call sites, and recording usage after a provider call cannot prevent that call from crossing a cap. The checked-in incremental plan also records `max_cost_minor_units` as 200 ($2), while the pilot review referred to a $10 cap. The immutable operation record and an explicit currency binding must settle that discrepancy before another paid run.
+1. `historic-import:release-batch` is a later public-release command, not part of processing custody. Completed historic assets should be promoted directly to their permanent private quarantine location, verified once, and remain private until separately authorised release. Only retryable working copies and temporary FFmpeg artifacts belong on staging.
+2. The historic-operation cost apparatus does not protect this pipeline: `HistoricImportCostLedger` has no production pipeline call sites, and the operation cap was designed when the substantially more expensive Sol model made per-run cost a material operational risk. Historic processing now uses Luna and the operator decided on 2026-08-30 that an internal reservation/settlement system would be disproportionate. Phase 4 therefore neutralises every live dependency before the canary and defers physical schema/code removal to IC8 closeout. Existing model/token/request telemetry, retry backoff and the provider-side project limit remain; they are enough to diagnose runaway or duplicate calls without turning pricing into a second accounting system.
 
 ## 2. Pilot findings to address
 
@@ -22,8 +22,8 @@ Two distinctions are load-bearing:
 
 - `/mnt/historic-work` had about 30 GB available of 461 GB after the pilot.
 - The 16-identity selection consumed about 16 GB: roughly 8.7 GB sermon video, 4.6 GB retained source/staging material, and 1.3 GB audio, transcripts and section publications.
-- The remaining corpus cannot fit without a transfer-and-reclaim cycle.
-- No supported staging-reclaim command currently exists. The existing bundle transfer can copy and verify staging assets into private destination quarantine, but public release is a different operation.
+- The earlier claim that the remaining corpus cannot fit without a transfer-and-reclaim cycle was based on the host boot volume, not the historic drive, and is withdrawn.
+- The corrected capacity estimate does not justify a bespoke per-pass Bundle A, transfer, audit, reclaim and receipt protocol before the canary measures actual retained and peak bytes. Direct private promotion plus ordinary verified cleanup is the default architecture.
 
 ### 2.2 Sermon metadata
 
@@ -60,12 +60,12 @@ The pilot's livestream projection synchronises canonical service items before in
 | Phase | State | Evidence |
 |---|---|---|
 | 0 — Freeze and inventory | Complete | Ledger `historic-video-pilot-ledger-20260829-v4.json`, hash `f3d31fef71eb21746fc5f0fb919d28f9a79ebc0af8b2c7af02820844f9b7e71c`, exit gate PASS. |
-| 1 — Sermon metadata | Complete | Commit `85f9a56a2`. |
+| 1 — Sermon metadata | Complete | Commit `1f17b3320` adds a pilot-bound, idempotent replay of banked `ai_analysis` with zero analysis-provider calls. |
 | 2 — Service projection | Complete | Commit `e8fc05a88`. |
 | 3 — Song and section eligibility | Complete | Commit `bd7d1bf27`. |
-| 4 — Cost accounting | Blocked | Needs the operator's ruling on the cap and currency, below. |
-| 5 — Transfer and reclaim | Not started | Needs an operator run. |
-| 6 — Bounded-run hardening | Complete | Runbook `docs/operations/historic-video-pass-control.md`. |
+| 4 — Neutralise internal cost apparatus | Complete | Commit `82be34700` removes live cap/ledger reads and writes while retaining the inert schema and compatibility code for IC8 closeout. |
+| 5 — Canary custody instrumentation | Not started | Add only the minimum direct-promotion safety and measurements needed for the canary; let measured evidence decide whether more cleanup work exists. |
+| 6 — Copy-and-enqueue dispatch | Partially complete | Commit `6c6b0a7a8` removes whole-corpus verification and polling, adds operation-bound capacity evidence, and aborts stale mounts. The database status report and a true content-read-I/O regression test remain. |
 | 7–9 | Not started | Need operator runs. |
 
 ### Phase 0 outcome
@@ -118,8 +118,12 @@ source, and the pilot turned 76.3 GiB of source into 15 GiB of staging. That put
 the remainder's staging need between **192 GiB** (scaling by source bytes) and
 **452 GiB** (scaling by the pilot's per-identity figure, which overstates it — the
 pilot deliberately took the heaviest member of each cell, at 4.77 GiB of source
-per identity against the remainder's 2.16 GiB mean). The transfer-and-reclaim
-architecture survives; the urgency behind it does not.
+per identity against the remainder's 2.16 GiB mean).
+
+That correction removes the premise for building a per-pass transfer-and-reclaim
+architecture now. The canary must measure peak working bytes and retained bytes
+after direct promotion. Build specialised reclamation only if those measurements
+show that ordinary cleanup cannot keep the operation inside the verified capacity.
 
 `sermons:import-historic-videos` now states what the pass needs — the floor, plus
 twice the largest concurrent sources for FFmpeg's working copies — and says
@@ -145,6 +149,21 @@ Four other defects fixed:
 
 The RMS working-copy leak is closed: `GenerateRmsLog` deletes its temp file after
 archiving, in a `finally` so a failed archive leaves no orphan either.
+
+**Partially resolved by commit `6c6b0a7a8` (2026-08-30).** When staging capacity
+is declared unmeasurable, definitive dispatch now fails closed unless a small JSON
+evidence file binds sufficient `available_bytes` to the exact operation and plan.
+The dispatcher no longer accepts `--verify-corpus`, `--poll-interval` or
+`--per-file-timeout`, and no longer waits for workers. Every selected source is
+size- and SHA-256-checked immediately before staging; a missing/unreadable source
+aborts further dispatch as `aborted_stale_mount`, while a readable mismatch is an
+identity-level integrity failure.
+
+The remaining work is intentionally named: add the database-read operation/pass
+status report, and add a regression test for an *existing* path whose content read
+fails after preliminary filesystem checks pass. The current stale-mount test
+covers a vanished source and both absent and sufficient host-capacity evidence are
+covered. No dispatcher process may be treated as status evidence.
 
 ### Phase 1 outcome
 
@@ -175,6 +194,17 @@ A historic run applies only what it corroborates and records the rest as a
 suggestion; a live run is unchanged, because its series is one the model has real
 context for.
 
+**Resolved by commit `1f17b3320` (2026-08-30).** The commit proves
+the corrected rules for future processing, but the exit gate is specifically
+about repairing the completed pilot from banked analysis at zero model spend.
+`ProcessTranscriptWithAI` always calls the analysis provider before applying its
+result, and duration is repaired only while creating or upserting a sermon. The
+new `historic-import:replay-video-pilot-analysis` command instead replays exact,
+completed pilot processing IDs owned by the named operation. It uses banked
+`ai_analysis` only, preserves curated fields, reports each changed/refused field,
+and is idempotent. Its regression test binds an analysis provider that must never
+be called and proves a second replay is a no-op.
+
 ### Phase 2 outcome
 
 §2.3's diagnosis was right and its scope was not. The projection did synchronise
@@ -203,17 +233,37 @@ evidence already records. The pair reaches a reviewer instead.
 
 The private ledger is retained at `storage/app/private/historic-video-pilot-ledger-20260829-v2.json`. It is deliberately not a committed artifact because it contains the complete private processing graph and staging paths. The earlier `historic-video-pilot-ledger-20260829.json` capture predates explicit graph-error gating and is retained only as superseded evidence.
 
+### Phase 4 outcome
+
+Commit `82be34700` removes `--max-cost` from historic-operation preparation and
+removes cap/currency/usage claims from the pilot ledger. The existing schema,
+models and isolated ledger tests remain inert for compatibility and IC8 closeout;
+no dispatch or preparation path reads or writes them. Provider model/token/request
+telemetry, retry backoff and the provider-side project limit remain unchanged.
+
 ### Operator decisions outstanding
 
-1. **Cost authority.** The immutable operation records `max_cost_minor_units = 1000`
-   while the checked-in incremental plan records 200. Which is authorised, and in
-   what currency? Phase 4's reservation cannot refuse a request without it.
-2. **Residue tolerance.** The pilot's two content defects
+1. **Residue tolerance.** The pilot's two content defects
    (`2023-08-20-morning` OoS ordering, `2024-07-28-morning` multi-sermon) have
    since completed, so the ~12.5% residue question from the 2026-08-29 run is
    settled for those two. Confirm before sizing the first bulk pass.
-3. **The 4.9 GB unreadable staging file.** Delete it as failed-run residue, or
+2. **The 4.9 GB unreadable staging file.** Delete it as failed-run residue, or
    investigate the drive first?
+
+### Operator decisions settled
+
+1. **Internal cost control (2026-08-30).** Do not build reservation and
+   settlement accounting for the Luna-based historic pipeline. Neutralise the
+   historic-operation cap and cost ledger before the canary, then delete their
+   inert schema/code at IC8 closeout. Retain ordinary provider usage telemetry,
+   retry controls and the provider-side project limit.
+2. **Pass orchestration (2026-08-30).** A pass is a bounded dispatch checkpoint,
+   not a process the operator must keep alive and not an evidence round. Verify
+   and copy each selected source into operation-owned staging, enqueue it, then
+   let the normal workers and database-owned status carry the run.
+3. **Corpus verification (2026-08-30).** Do not re-read the untouched ~1 TB
+   corpus before a bounded pass. Verify the immutable manifest/plan binding and
+   hash only that pass's selected sources immediately before their durable copy.
 
 ### Phase 0 — Freeze and inventory the pilot
 
@@ -225,7 +275,7 @@ Record:
 - the relationship between the reported 13 sermons, completed processing runs, pre-existing sermons and failures;
 - disk use per identity, separated into durable output, retryable input, concatenation, temporary data and unexplained residue;
 - every resulting service, sermon, children's talk, song video, usage record, section and merge proposal;
-- current operation state, deadline, cost authority, currency assumption and recorded usage;
+- current operation state and deadline, plus the legacy cost fields and usage rows as descriptive evidence rather than effective authority;
 - deployed commit and worker fingerprint, including models, reasoning effort, size limits, queue widths and storage roots.
 
 **Exit gate:** Every identity and every byte under the batch root has a named owner and disposition.
@@ -275,80 +325,122 @@ Reconcile pilot proposals from stored sections and source revisions at zero mode
 
 **Exit gate:** No obviously fragmentary or adjacent-duplicate song clip is automatically release-eligible.
 
-### Phase 4 — Make cost accounting and the cap effective
+### Phase 4 — Neutralise the internal cost-accounting apparatus
 
-Every paid structure and sermon-analysis request must record:
+The reservation/settlement design was proportionate when the historic pipeline
+used Sol and a single mistaken bulk run could create material spend. The pipeline
+now uses Luna, the operator no longer considers model cost a launch risk, and the
+existing apparatus does not protect the video pipeline anyway:
+`HistoricImportCostLedger` has no production pipeline call sites. Completing it
+would add concurrency, retry, pricing-version and currency correctness problems
+to prevent a risk now better bounded externally.
 
-- historic operation ID and manifest item key;
-- stable request key;
-- requested and returned model;
-- input, cached-input, output and reasoning tokens;
-- pricing snapshot and currency;
-- calculated cost and retry relationship.
+Before the canary, neutralise the unused internal cost-control surface:
 
-Implement an atomic reservation before each outbound request, followed by settlement to the actual provider usage. A request must not start if its conservative reservation would breach the authorised operation limit. Retried request keys must remain idempotent. A provider-side project limit remains the external backstop.
+- stop requiring or writing `max_cost_minor_units` when a historic operation is
+  prepared;
+- remove cap/currency claims from operation fingerprints, ledgers, closeout
+  output and related plans where they imply enforcement that no longer exists;
+- preserve model identity and provider-returned token/request telemetry already
+  emitted by the actual analysis stages. Do not add pricing snapshots, currency
+  conversion, reservations or settlement records;
+- retain progressive retry backoff, request rate limiting and the provider-side
+  project spending limit. These remain the fail-safe for accidental retry storms
+  or a mistakenly enlarged dispatch.
 
-Before another paid run, reconcile:
+Do not make destructive schema cleanup a launch dependency. Leave the old column,
+table, model and compatibility surface inert during the import. At historic
+closeout, after proving no production caller depends on them, remove
+`HistoricImportCostLedger`, `HistoricImportUsageEntry`, their isolated tests and
+the persistence schema using the repository's expand/contract deployment rule.
+This avoids spending two deployments on dead storage before the canary while
+still ending with no permanent cost-accounting residue.
 
-- whether the immutable authority is $2 or $10;
-- the authorised currency;
-- actual pilot spend where provider telemetry permits it;
-- projected remaining spend using measured p95 rather than the mean;
-- retry and canary headroom.
+This simplification does not weaken idempotency: stable request/job keys and the
+canary's zero-additional-call replay criterion remain mandatory. Cost telemetry
+must not be confused with call deduplication.
 
-**Exit gate:** A canary request cannot be issued without sufficient reserved budget, and internal aggregate usage agrees with provider reporting within an agreed tolerance.
+**Pre-canary exit gate:** No production or command path requires, reads or writes
+the internal cost cap/ledger, the release remains compatible with the old schema,
+and model/token/request telemetry plus the external provider limit remain
+available. Dropping the inert schema is an IC8 closeout task, not a dispatch gate.
 
-### Phase 5 — Build and prove private transfer and staging reclamation
+### Phase 5 — Prepare minimum custody instrumentation for the canary
 
-The supported per-pass custody flow is:
+Do not build the previously proposed per-pass Bundle A → transfer → audit →
+reclaim protocol unless measured canary evidence proves it necessary. It was a
+response to an incorrect capacity premise and would make runtime checkpoints
+look like independent evidence rounds.
 
-1. Export an exact Bundle A for the completed pass.
-2. Copy assets from private staging to the private destination quarantine disk using create-only semantics.
-3. Verify every destination's byte size and SHA-256.
-4. Audit the imported database/media graph and operation binding.
-5. Confirm that no active, failed-retryable or queued job still references the candidate staging paths.
-6. Dry-run an exact, enumerated reclaim.
-7. Delete only verified batch-owned staging and temporary copies.
-8. Write a reclaim receipt containing every removed path, size, hash, operation/pass owner and total reclaimed bytes.
-9. Re-run transfer and audit to prove an exact no-op.
+Build only the minimum custody path the canary needs:
 
-The reclaim implementation must:
+1. Every pass writes services, sections, assertions, provenance and review state
+   into the same operation-bound cumulative database.
+2. Once a durable output is complete, promote it directly from working staging
+   to its permanent private quarantine path using create-only semantics.
+3. Verify destination byte size and SHA-256, persist the private destination
+   identity on the owning record, and verify the database/media link before
+   removing the working copy.
+4. Instrument peak working bytes, bytes promoted, bytes retained on staging and
+   unexplained residue. Ordinary cleanup may delete only temporary FFmpeg,
+   concatenation, extraction and duplicate staging copies whose durable
+   destination is verified and which no active, queued or retryable job references.
+5. Retain inputs and working assets needed by failed-retryable runs until those
+   runs reach a truthful terminal disposition or an explicit operator decision.
+6. Never delete source-drive files, private quarantine assets or public assets as
+   part of processing cleanup.
+7. Re-running the same pass must reuse the cumulative records and promoted
+   assets, perform no duplicate model calls, and make cleanup an exact no-op.
 
-- fail closed on unknown paths, missing hashes, unexpected links, active references or destination mismatch;
-- distinguish successful-run residue from retryable failure residue;
-- never delete source-drive files, destination quarantine assets or public assets;
-- be idempotent and declare its one-shot deletion trigger if implemented as an Artisan command;
-- honour the approved rollback-retention policy rather than silently shortening it.
+The canary in Phase 7 is the design proof: it must report peak working bytes, bytes retained
+on staging after promotion, bytes promoted to private quarantine and unexplained
+residue. Do not require a comprehensive promotion/cleanup refactor before that
+measurement. If the existing path plus the minimum safeguards leaves capacity
+safe, no further custody implementation is needed. If it does not, stop and design the smallest exact
+change supported by the measured residue; do not generalise from the old pilot
+estimate.
 
-**Exit gate:** The current pilot completes this cycle, returns the expected disk space and publishes nothing.
+Bundle A is not a per-pass advancement mechanism. Generate the authoritative
+portable bundle only after the cumulative corpus has converged, optionally split
+by release era. If processing and the convergence database are on different
+machines, a per-pass bundle may be used purely as transport into the same
+cumulative destination graph; it does not close that pass as a mini-corpus.
 
-### Phase 6 — Harden bounded-run operation
+**Ready-for-canary gate:** Direct promotion is create-only and hash-verified,
+cleanup cannot touch sources, quarantine assets or active/retryable work, and the
+four byte measures are instrumented. Phase 7 closes the custody question from
+measured results; any follow-up must name the residue that justifies it.
+
+### Phase 6 — Make dispatch short-lived and database-owned
 
 #### Pass selection and sizing
 
 - Select passes with immutable `--only` manifest keys, never `--limit`.
-- Begin with 10–16 representative identities per pass.
-- Calculate the permitted size as the smaller of disk capacity and the safe operating window.
-- Use p95 peak bytes per identity and p95 duration, not averages.
+- Use 10–16 identities only for the representative canary. It is not a bulk-pass rule.
+- After the canary, calculate each bulk pass from a resource envelope: selected source bytes, largest concurrent sources, measured p95 peak working bytes, measured p95 duration, worker concurrency and the chosen 12- or 24-hour operating window.
 - Reserve enough disk for the configured minimum-free threshold, the largest selected source, FFmpeg working copies and all concurrent in-flight jobs.
-- Keep the initial size unchanged for at least three clean cycles before considering an increase.
+- Do not require three same-sized cycles before changing a pass. Change the membership whenever the same measured byte/time envelope supports it; a pass may contain fewer large identities or more small ones.
 
-#### Drive and stop behaviour
+#### Verify, copy, enqueue and exit
 
-- Verify the mount, selected files and expected hashes before every pass and before dispatching each item.
-- A stale mount stops new dispatches and leaves the pass resumable; it must not turn every pending item into a permanent failure.
-- Document and rehearse the real in-container stop sequence: stop dispatch, gracefully stop historic workers, then verify queues and processing states.
-- Record the dispatch process and worker process identities; killing only the outer wrapper is not an accepted stop.
+- Remove `--verify-corpus`. Do not re-read future pass members merely because they share the frozen manifest.
+- For each selected item, verify the mount, expected size and SHA-256, then copy the source into operation-owned staging before enqueueing. The worker must never depend on the removable source drive remaining mounted.
+- A read/I/O failure stops new copies and dispatches as `aborted_stale_mount`; it does not mark the remaining selection permanently failed. A readable hash/size mismatch remains a source-integrity failure.
+- Once selected sources are durably staged and their processing IDs recorded, the command exits. Remove importer polling, `--poll-interval`, `--per-file-timeout` and `waitForInflight()` rather than maintaining a multi-hour outer process.
+- Queue workers own execution. A separate operation/pass status report reads processing IDs and truthful terminal dispositions from the database; it never infers completion from the dispatcher still running or from an empty queue.
+- Stopping future work means stop invoking the dispatcher. Graceful worker restart remains an ordinary queue operation for jobs already running, not a historic wrapper PID procedure.
 
 #### Queue safety
 
 - Align `PrepareSectionPublicationCandidates`' overlap lock with its 1,800-second timeout plus grace.
 - Add bounded/exponential backoff and rate limiting to paid external stages.
-- Set the importer wait timeout from measured pilot p95 plus margin.
 - Surface failures, cancellations, timeouts, skips and manual-review outcomes separately, with affected processing IDs and stages.
 - Define a bounded retention policy for failed-run working files.
 
-**Exit gate:** A controlled interruption can be resumed without duplicate records, assets, notifications or paid calls.
+**Exit gate:** The dispatcher verifies and durably stages only the selected sources,
+records their processing IDs, enqueues them and exits; status is reproducible from
+the database; an interrupted or repeated dispatch resumes without duplicate
+records, assets, notifications or provider calls.
 
 ### Phase 7 — Run a fresh untouched canary
 
@@ -366,13 +458,16 @@ Select 10–16 identities not touched by the pilot, stratified across:
 Acceptance criteria:
 
 - no system or code failures;
+- the dispatcher exits after all selected sources are verified, durably staged and enqueued;
 - every input reaches a truthful terminal disposition;
 - titles, references, durations, series policy and speaker-review evidence are correct;
 - no projection-generated legacy-item conflicts;
 - song and section eligibility behaves correctly;
-- cost and peak disk telemetry are complete per identity;
+- model/token/request and peak-disk telemetry are complete per identity;
+- measured source bytes, peak working bytes, p95 duration and worker concurrency produce the explicit 12- or 24-hour resource envelope used to size bulk passes;
 - the neutral/unobservable transcript rate is measured rather than extrapolated from the six-item calibration set;
-- the pass completes the full transfer, audit and reclaim cycle;
+- durable outputs are verified in permanent private quarantine and staging retains only bounded active/retryable work;
+- the pass's evidence is present in the same cumulative graph as all earlier Email, OpenLP and video evidence;
 - re-running the identical canary is a no-op with zero new AI spend.
 
 Any new systemic defect blocks the bulk run. Genuine, enumerated content-review cases do not.
@@ -381,18 +476,18 @@ Any new systemic defect blocks the bulk run. Genuine, enumerated content-review 
 
 For each pass:
 
-1. Preflight the mount, selected hashes, disk reserve, workers, models, budget and manifest keys.
-2. Dispatch only those immutable keys.
-3. Monitor terminal outcomes, cost, drive health and disk watermark.
-4. Stop immediately for mount instability, budget risk, unexplained duplicates, destination mismatch or recurring systemic failure.
+1. Preflight the mount, selected-item hashes, operation-bound host disk evidence, workers, models, provider project limit, manifest keys and the measured byte/time envelope. Do not hash unselected future items.
+2. Verify and durably stage only those immutable keys, enqueue them, record their processing IDs and let the dispatcher exit.
+3. Read pass status from the database and monitor terminal outcomes, provider request/token anomalies, drive health and disk watermark.
+4. Stop new dispatch immediately for mount instability, unexpected provider-call growth, unexplained duplicates, destination mismatch or recurring systemic failure. Gracefully stop workers only when already-running jobs themselves must be halted.
 5. Reconcile services, sermons, sections, songs and review residue.
-6. Export and transfer the pass into private quarantine.
-7. Verify hashes, asset receipts, database graph and operation ownership.
-8. Reclaim only the verified staging inventory.
-9. Record reclaimed bytes and remaining manifest membership.
-10. Start the next pass only after the prior pass is closed.
+6. Verify completed assets in permanent private quarantine and their database/operation ownership.
+7. Clean only verified temporary copies no active, queued or retryable run references.
+8. Record peak working bytes, staging residue and remaining manifest membership.
+9. Re-census the cumulative graph for diagnostics; do not treat a partial-pass census as final convergence.
+10. Start the next pass only after the prior pass has truthful terminal dispositions and bounded residue.
 
-The pass report must name every non-zero residue. An empty queue is not evidence of successful completion.
+The pass report must name every non-zero residue. An empty queue is not evidence of successful completion. Pass closure is operational only: all evidence remains active in the same cumulative corpus for later cross-source convergence.
 
 **Exit gate:** Every approved manifest item is completed, explicitly held/excluded, or named as unresolved; no pass retains unexplained staging data.
 
@@ -405,13 +500,16 @@ After all processing passes:
 3. Resolve surviving proposals by class rather than by repetitive individual review where a safe deterministic rule exists.
 4. Complete editorial QA for titles, slugs, references, series, speakers, songs, children's talks and occasions.
 5. Audit exact assets, Scripture settlement, quarantine visibility and notification containment.
-6. Resolve the current seam between the incremental-round plan and the release command's requirement that the operation be `Complete`. Do not manufacture completion state to bypass it.
-7. Complete the required truth-set spot checks and public acceptance journeys.
-8. Create separately signed, era-sized release authorisations.
-9. Run `historic-import:release-batch --dry-run` before each public release.
-10. Release only the exact authorised membership, observe it for the recorded rollback window, and retain the release ledger.
+6. Regenerate the hymn-usage apply artifact against this exact converged graph, so spreadsheet evidence is compared with all Email, OpenLP and video evidence rather than with individual passes.
+7. Generate and verify the authoritative Bundle A, optionally split by release era for transport and release handling.
+8. Resolve the current seam between the incremental-round plan and the release command's requirement that the operation be `Complete`. Do not manufacture completion state to bypass it.
+9. Complete the required truth-set spot checks and public acceptance journeys.
+10. Create separately signed, era-sized release authorisations.
+11. Run `historic-import:release-batch --dry-run` before each public release.
+12. Release only the exact authorised membership, observe it for the recorded rollback window, and retain the release ledger.
+13. At IC8 closeout, remove the inert cost column/table, ledger model/service and isolated tests together with the remaining one-shot historic-import surface.
 
-Public release remains a separate human-authorised act. It is never a side effect of import, transfer or disk reclamation.
+Public release remains a separate human-authorised act. It is never a side effect of processing, private promotion, temporary cleanup or bundle generation.
 
 ## 4. Go/no-go summary
 
@@ -421,11 +519,14 @@ The remainder may start only when all of these are true:
 - [ ] Title, Scripture, duration and slug application pass real-shape regression tests.
 - [ ] Service projection no longer conflicts with its own evidence.
 - [ ] Fragmentary/duplicate song candidates fail closed to review.
-- [ ] Cost currency and cap authority are unambiguous.
-- [ ] Paid calls reserve and settle against an enforced operation budget.
-- [ ] Private transfer, audit and exact staging reclaim succeed end to end.
-- [ ] The real worker stop/resume procedure is rehearsed.
+- [ ] Production and command paths no longer require, read or write the internal cost cap/ledger; inert schema deletion is assigned to IC8 closeout, while model/token/request telemetry, retry controls and the provider-side project limit remain.
+- [ ] Unmeasurable staging capacity fails closed unless sufficient operation-bound host evidence is supplied.
+- [ ] A content-read I/O failure aborts further dispatch as a stale-mount event.
+- [ ] Banked pilot analysis repairs the completed pilot records with zero provider calls and is idempotent.
+- [ ] The dispatcher verifies and durably stages selected sources, records processing IDs, enqueues and exits; no worker depends on the removable source mount and no whole-corpus verification remains.
 - [ ] A fresh untouched canary passes all acceptance criteria.
+- [ ] The canary proves direct private promotion and bounded temporary cleanup without fragmenting the cumulative evidence graph.
+- [ ] The canary's measured byte/time envelope, not an identity-count rule, sizes the first bulk pass.
 - [ ] Re-running that canary is an exact no-op with zero additional model spend.
 
 Until then, the remaining historic-video dispatch is **NO-GO**.
