@@ -1,7 +1,7 @@
 # Historic Video Pilot-to-Bulk Plan
 
 **Date:** 2026-08-29
-**Status:** In progress — Phases 0–6 complete and the Phase 7 canary has been dispatched and resumed under operation 3; the run result and its code remediation are recorded below, but the operator reconciliation and identical-canary proof remain outstanding, so bulk processing remains NO-GO
+**Status:** In progress — Phases 0–6 complete and the Phase 7 canary has been dispatched and resumed under operation 3; the run, first remediation and media-output evaluation are recorded below. That evaluation found new duration, orchestration, title, boundary and song-custody blockers. Bulk processing remains NO-GO until they are implemented, the canary rows/assets are repaired, and an identical-canary replay proves zero new work and spend.
 **Scope:** Correct the pilot findings, prove direct private asset promotion and bounded temporary cleanup, run a fresh canary, and process the remaining historic-video corpus safely
 **Related plan:** `HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md` remains the authority for the wider historic-import programme
 
@@ -66,7 +66,7 @@ The pilot's livestream projection synchronises canonical service items before in
 | 4 — Neutralise internal cost apparatus | Complete | Commit `82be34700` removes live cap/ledger reads and writes while retaining the inert schema and compatibility code for IC8 closeout. |
 | 5 — Canary custody instrumentation | Complete | Commits `c61c8c7af` (direct create-only promotion into quarantine), `81ca5f3d9` (cleanup confined to working-copy disks) plus this commit's four byte measures, reported by `historic-import:video-pass-status --measures`. |
 | 6 — Copy-and-enqueue dispatch | Complete | Commit `6c6b0a7a8` removes polling, adds operation-bound capacity evidence, and aborts stale mounts. Commit `3cb189f5b` adds the database-owned `historic-import:video-pass-status` report and the content-read-I/O regression test. **Its whole-corpus-verification claim was false until 2026-08-30**: `6c6b0a7a8` deleted the opt-in `--verify-corpus` flag *and* the argument it passed, so `plan()` fell back to its `true` default and every invocation — dry runs and `--only` passes included — re-read ~1.0 TB. Now fixed at the call site with `verifySourceContents: false`, proved by `a_bounded_pass_does_not_read_the_contents_of_unselected_sources`. A 14-item dry run went from over three hours to 23 seconds. |
-| 7 — Fresh canary | Run complete; remediation implemented, acceptance blocked | Operation 3 was dispatched and resumed after a stale-mount abort. The duration, stranded-tail, custody-measurement and pilot-custody fixes are implemented and tested; the operation-bound repairs, corrected report and identical-canary proof have not yet been run. |
+| 7 — Fresh canary | Run and media evaluation complete; further remediation required | Operation 3 was dispatched and resumed after a stale-mount abort. The first duration, stranded-tail, custody-measurement and pilot-custody fixes are implemented and tested, but the output audit found fresh-sermon duration, untracked video-storage, filename-title, song-boundary and song-custody defects. The operation-bound repairs and identical-canary proof have not been run. |
 | 8–9 | Not started | The remainder and public-release phases remain gated on a clean Phase 7 acceptance. |
 
 ### Phase 0 outcome
@@ -336,6 +336,18 @@ None. The two that stood on 2026-08-30 are recorded as settled below.
 7. **Canary operation (2026-08-30).** The canary dispatches under the existing
    operation 3 (`historic-video-full-corpus-20260826`), as the first bounded pass
    of the cumulative operation rather than a separate evidence island.
+8. **Sermon ending versus closing-song introduction (2026-08-30).** Prefer an
+   inclusive sermon ending. A closing-song introduction may be the sermon's
+   rhetorical conclusion, so an `other` classification, a generated title such
+   as "Closing Song Introduction", proximity to a song or a transcript phrase
+   such as "let's sing" is not enough authority to truncate it. Stop the sermon
+   automatically only where affirmative timed song evidence establishes that the
+   following material belongs independently to the song. If the conclusion and
+   introduction are interwoven, or the boundary is otherwise ambiguous, retain
+   the material in the quarantined sermon asset and require review before release.
+   Fail closed to review, not to an irreversible automatic cut. Sermon and song
+   assets are not required to partition the source: a reviewed sermon may retain
+   its rhetorical introduction while the song asset starts later at the singing.
 
 ### Phase 0 — Freeze and inventory the pilot
 
@@ -659,10 +671,12 @@ the non-zero custody residue also remain. The identical-canary zero-additional-A
 spend replay was not run. These findings block the Phase 8 bulk run; no further
 historic-video dispatch is authorised until they are reconciled.
 
-### Phase 7 remediation implementation, 2026-08-30
+### Phase 7 initial remediation implementation, 2026-08-30
 
-The code-side blockers are repaired, but no production row or asset has been
-changed by this implementation work:
+The blockers known from the first status reconciliation are repaired in code, but
+no production row or asset was changed by this implementation work. The later
+media-output evaluation below found additional blockers; this section must not be
+read as claiming Phase 7 is code-complete:
 
 - Existing-sermon refresh now derives duration from
   `MediaProcessingLog::extractedSermonMediaDuration()`. A concatenated extraction
@@ -698,39 +712,312 @@ assertions, and the companion one-shot deletion-trigger test passed with three;
 no historic-processing test failed. Treat the parallel-only scan as a quality-gate
 environment finding, not as Phase 7 acceptance evidence.
 
+### Phase 7 media-output evaluation and bulk decision, 2026-08-30
+
+The canary media and its stored graph were reviewed after the initial remediation.
+This was a read-only evaluation: it changed no row, asset or operation state. The
+review covered every produced canary asset rather than only the three replacement
+videos:
+
+- 12 sermon videos: the eleven database-complete sermons plus the stranded
+  `2024-03-03-morning` video on staging;
+- 32 song videos: 23 `SongVideo` rows automatically marked `published` and nine
+  extracted candidates correctly held for approval or review;
+- four extracted children's-talk candidates; and
+- the timestamped normalized service transcripts, section boundaries, extraction
+  plans, AI analysis, speaker evidence, quality verdicts, FFprobe duration/codec/
+  audio results, storage paths and operation ownership for those assets.
+
+Every reviewed file was decodable and carried audio. The sermon bodies were
+visually coherent, the song identities were generally supported by lyrics or
+transcript, and the four children's-talk candidates contained the expected talk.
+The canary also behaved correctly in several important fail-closed cases:
+
+- `2023-07-16-morning` remained manual review because no speech block met the
+  20-minute sermon threshold;
+- `2026-04-02-evening` truthfully failed because its full-service transcript had
+  no cues;
+- sermon 903's very dark video was rejected as `mostly_black`; and
+- short, partial, adjacent or inferred song cases such as sections 802, 806, 813,
+  820, 832, 846 and 872 were not automatically published.
+
+Those successes do not offset the systemic findings below. Phase 7 remains
+**NO-GO** for bulk.
+
+#### Finding M1 — extracted media, not planned wall-clock span, is duration authority
+
+Fresh concatenated sermons still store the outer source window rather than the
+length of the emitted media. `SermonCreationOptions::fromLivestream()` receives
+only `segment_start_time` and `segment_end_time`; `resolvedDuration()` therefore
+subtracts them and includes the gap deliberately omitted by `concat_spans`. The
+initial remediation corrected only the existing-sermon refresh branch and its
+repair command. It did not correct creation of a fresh sermon.
+
+| Sermon | Stored duration | FFprobe duration | Explanation |
+|---|---:|---:|---|
+| 900 — 2021-09-12 | 2,039.900 s | 1,789.722 s | Fresh concat; stored outer window. |
+| 899 — 2021-12-19 | 986.990 s | 822.729 s | Fresh concat; stored outer window. |
+| 898 — 2022-01-23 | 2,124.000 s | 1,938.613 s | Fresh concat; stored outer window. |
+| 897 — 2022-07-24 | 2,371.940 s | 2,129.979 s | Fresh concat; stored outer window. |
+| 895 — 2025-10-19 | 1,881.000 s | 1,758.354 s | Fresh concat; stored outer window. |
+| 902 — 2020-04-05 | 1,349.000 s | 1,320.297 s | Requested span ran beyond the emitted source. |
+
+The extraction job also records `trim.final_duration` and the later repair derives
+duration from planned segment boundaries. That remains theoretical when FFmpeg
+emits less media at source EOF. The durable extracted file must therefore be
+probed after extraction, and its observed duration stored separately from the
+requested plan. The requested segments remain provenance; they are not playable-
+duration authority.
+
+Implementation and proof required:
+
+1. After successful extraction, FFprobe the exact emitted video (and reject an
+   unreadable or zero-length result). Persist observed duration alongside the
+   requested segments.
+2. Pass that observed duration into fresh `SermonCreationOptions`; use it in the
+   existing-sermon refresh and the bounded duration-repair service too.
+3. Keep segment start/end as source timestamps. Do not rewrite them into output-
+   relative timestamps merely to make subtraction work.
+4. Add regression tests for a fresh concat sermon, an existing concat sermon, a
+   single span truncated by source EOF and idempotent banked repair. Stored and
+   FFprobe duration must differ by no more than 1.5 seconds.
+5. Repair all affected canary rows from their verified assets after deployment;
+   do not pay for new analysis.
+
+#### Finding M2 — sermon video storage is outside the operation-owned chain
+
+`SubmitToProcessing` dispatches `StoreSermonVideo` independently. The serial chain
+can proceed to quality assessment, thumbnailing, promotion and cleanup without
+knowing whether that job is queued, running, retrying or permanently failed. It is
+not a `HistoricImportNestedJob`, so historic readiness cannot account for it.
+
+The canary reached this race rather than merely exposing it in theory. Sermons 898
+and 899 logged three create-only overwrite failures during re-extraction; later
+quality assessment reported `missing_video_file`. Promotion and cleanup then
+removed the staging sermon audio while repeated speaker-identification work still
+needed it, producing two `Audio file not found` provider errors. The rows failed
+closed to `Visiting Speaker`, but these were system failures rather than genuine
+low-confidence decisions. The same detached work explains why a terminal-looking
+chain can strand a promotion tail.
+
+Implementation and proof required:
+
+1. Make sermon storage an ordered, operation-owned prerequisite of video quality,
+   thumbnailing, promotion and cleanup. Prefer putting it in the serial chain; if
+   it must remain nested, register it, await it explicitly and make readiness name
+   its state.
+2. A permanent storage failure must make the processing disposition truthful.
+   Quality assessment must never turn a storage race into `missing_video_file`.
+3. Cleanup must not delete any source, extracted video, audio or enhanced audio
+   referenced by queued, active or retryable storage, quality or speaker work.
+4. Preserve create-only/hash-verified idempotence. A retry against identical bytes
+   is success; different existing bytes remain a guarded conflict.
+5. Follow the existing historic queue conventions: timeout below `retry_after`,
+   bounded backoff, explicit `failed()` handling and operation-bound tests covering
+   delayed storage, retry, failure, promotion and cleanup ordering.
+
+#### Finding M3 — generated filename titles still survive good analysis
+
+Sermons 898 and 899 retained `Sunday 23 January 2022 101` and
+`Carols By Candlelight 19 December 2021` even though banked analysis supplied
+`Praying for our daily needs` and `God’s indescribable gift`. The placeholder
+recogniser cannot safely infer every filename shape and correctly refuses to
+broaden itself far enough to overwrite a possibly curated event title.
+
+The durable fix is provenance, not another permissive regular expression:
+
+1. Persist whether the incumbent title was generated from filename/service-slot
+   fallback or supplied by a curator/portable fact.
+2. Allow analysis to replace only a proven generated placeholder. Preserve the
+   current regex recogniser as a legacy fallback for rows predating provenance.
+3. Preserve curated titles and slugs. Re-slug only when the replaced title also
+   generated the current slug.
+4. Test both canary shapes, a genuine curated date/event title, reruns and banked
+   repair with zero provider calls.
+5. Repair 898 and 899 only after their provenance is proven; do not treat their
+   current non-null text as editorial authority merely because it exists.
+
+#### Finding M4 — song videos have no complete historic custody model
+
+The canary automatically created 23 `SongVideo` rows holding about 783 MiB. Every
+row has database `publication_state = published`, null
+`historic_import_operation_id`, and a path that resolves only through the current
+global sermon disk. `SongVideo` has no per-asset disk identity and historic
+promotion handles `Sermon`, not `SongVideo`. A further nine held song candidates
+occupy about 240 MiB under section-publication paths. These files explain a
+substantial and legitimate part of retained staging, but their present rows cannot
+prove durable ownership or survive a disk/configuration change.
+
+Before bulk:
+
+1. Give `SongVideo` a durable asset-disk identity and populate its exact historic
+   operation ownership.
+2. Create historic song rows quarantined by default. Database `published` must
+   never describe a private staging-only historic asset.
+3. Resolve URLs from the recorded disk, subject to the same private-staging guard,
+   rather than whichever disk happens to be globally configured later.
+4. Promote release-eligible and review-held song assets create-only into private
+   quarantine, verify size/hash and database linkage, then reclaim only the
+   verified duplicate working copy.
+5. Backfill the 23 canary rows and account for the nine held candidates without
+   making anything public. The migration must follow expand/contract because the
+   existing code and rows already lack this identity.
+6. Test create, retry, conflicting destination, partial failure, cleanup refusal,
+   URL resolution and idempotent canary repair.
+
+#### Finding M5 — song publication needs a song-specific boundary gate
+
+The 23 automatically published rows generally matched the intended hymn, but at
+least the following canary sections carry material spoken framing or following
+content and form the mandatory regression/review set: 894, 881, 884, 862, 824,
+828, 830, 907, 919, 899 and 901. Section 894 is the clearest example: its
+`O Church Arise` asset contains roughly 29 seconds of spoken introduction and
+roughly 29 seconds of the following benediction. Section 907 retains about 27
+seconds after the singing. Several others retain 14–25 seconds of introduction.
+
+This does **not** imply that the sermon must be cut at the same point. Sermon and
+song are different editorial products and may legitimately overlap in source
+time. Apply the following asymmetric policy:
+
+- For the sermon, preserve an ambiguous/interwoven conclusion and song
+  introduction. Automatically stop only on affirmative timed song evidence; if
+  ambiguity remains, quarantine the inclusive sermon and mark a boundary review.
+- For the song video, the releaseable product should be the singing/performance,
+  not an unrelated announcement, sermon conclusion, benediction or next item.
+  Derive a defensible inner performance interval from positive evidence, or keep
+  the existing inclusive candidate but route it to review. Never guess a tighter
+  destructive cut from title text or one transcript phrase.
+- A matched song identity and ordinary duration do not prove clean boundaries.
+  Record why the interval is release-eligible, including the evidence for its
+  start and end, so an intentionally short song can still pass.
+
+Regression fixtures must include: a clean song; a long spoken introduction; a
+trailing benediction; two adjacent songs; an interwoven sermon conclusion/song
+introduction that stays in the sermon but not the releaseable song clip; and an
+ambiguous transition that is retained privately and held for review.
+
+#### Finding M6 — inferred song eligibility does not enforce its stated confidence
+
+`SongPublicationHandler::isEligible()` documents a high-confidence inferred match
+but accepts every inferred match with a linked song. The link alone is
+insufficient. Apply the existing configured confidence/corroboration policy and
+route anything below it to review. Tests must cover below, exactly at and above
+the threshold, plus confirmed and independently corroborated paths. Do not encode
+the threshold a second time in the handler.
+
+#### Finding M7 — children's-talk safety is sound, but boundaries create scale risk
+
+Mandatory approval kept all four children's-talk candidates private, which is the
+correct safety property. Three candidates nevertheless contain following material:
+section 891 includes about 140 seconds of subsequent prayer, while 842 and 809
+include introductions to the next song. Section 874 was clean in the reviewed
+samples.
+
+Do not automatically trim a prayer merely because it follows the talk: as with a
+sermon conclusion, it may be editorially integral. Preserve the inclusive
+candidate, surface the tail evidence to the reviewer, and support a bounded recut
+when the reviewer decides it is separate. Improve section evidence where possible,
+but keep mandatory approval. This is a manual-work and output-quality risk at bulk
+scale, not an unsafe automatic-publication defect while that gate remains.
+
+#### Finding M8 — current canary state still needs exact reconciliation
+
+The post-evaluation status remains 11 completed, one manual review, one failed and
+one in progress. The corrected scoped measures report 50.46 GiB peak working,
+3.85 GiB promoted, 2.29 GiB retained on staging, 5.19 GiB residue, 2.29 GiB of it
+accounted by runs, and 4.41 GiB held in quarantine. The non-zero difference still
+requires a path census; the labels above are not permission to delete it.
+
+Canary-specific repairs after M1–M7 are implemented:
+
+- recover `2024-03-03-morning` processing
+  `127173a4-4a90-4ec7-8f0a-2184a04db4e6`; sermon 896 currently has a valid
+  1,967.030-second staging video but null disk/operation ownership and a published
+  state;
+- re-extract sermon 893 from a freshly verified operation-owned source, or hold it
+  explicitly: its surviving 1,128.645-second asset does not represent the current
+  2,168-second concat plan;
+- repair the duration rows enumerated in M1 from observed media duration;
+- repair titles 898 and 899 from banked analysis only after provenance proves the
+  incumbent is generated;
+- replay speaker identification for 898 and 899 only after the ordered custody
+  fix makes their banked audio available, with no duplicate sermon-analysis call;
+- quarantine, operation-bind and promote the 23 song rows, and account for every
+  held song/children's-talk candidate; and
+- enumerate every byte behind the remaining 5.19 GiB residue before reclaiming any
+  path.
+
+Each repair must bind exact operation and processing/section IDs, default to dry
+run, require explicit confirmation to apply, make no provider call unless the
+specific repair intrinsically requires one, and prove an identical replay is a
+no-op.
+
+#### Implementation map for the next agent
+
+Start from these existing seams; do not create a parallel historic pipeline:
+
+| Work | Primary code seams | Minimum focused proof |
+|---|---|---|
+| M1 duration | `app/Jobs/ExtractSermon.php`, `app/Models/MediaProcessingLog.php`, `app/Data/SermonCreationOptions.php`, `app/Jobs/SubmitToProcessing.php`, `app/Services/HistoricMedia/HistoricVideoSermonDurationRepair.php` | Fresh and existing concat, source-EOF truncation, repair dry-run/apply/replay. |
+| M2 ordering | `app/Jobs/SubmitToProcessing.php`, `app/Jobs/StoreSermonVideo.php`, `app/Services/Processing/ProcessingPipelineBuilder.php`, `app/Services/HistoricMedia/HistoricProcessingResultReadinessService.php` | Delayed/retried/failed storage cannot be overtaken by quality, promotion or cleanup. |
+| M3 title provenance | `app/Support/PlaceholderSermonTitle.php`, `app/Jobs/ProcessTranscriptWithAI.php`, `app/Data/SermonCreationOptions.php`, `app/Services/Sermon/SermonCreationService.php`, the bounded banked replay service | Both canary filename shapes change; a curated date/event title never does. |
+| M4 song custody | `app/Models/SongVideo.php`, `app/Services/Song/SongVideoService.php`, `app/Services/HistoricMedia/HistoricAssetPromotion.php`, filesystem schema/migrations, custody census and cleanup | Historic create/promote/resolve/retry/conflict/cleanup plus exact canary backfill replay. |
+| M5–M6 song gate | `app/Services/ChurchService/SectionPublication/SongPublicationHandler.php`, song matching/write-back, section publication candidate preparation | The six boundary fixtures named in M5 and threshold/corroboration cases in M6. |
+| M7 talk review | sermon section publication handler, section candidate preparation and the existing approval/re-extraction path | Inclusive ambiguous tail remains private; reviewed recut is exact and idempotent. |
+
+Inspect sibling tests before adding new ones. Keep PHPUnit `#[Test]` style and the
+repository's existing historic operation factories/helpers. A reported defect
+gets its reproducing test first, then the fix. Do not add coverage to the legacy
+duplicate admin suites named in the repository do-not-invest list.
+
 #### Required operator sequence
 
-1. Deploy this exact tree and restart every historic worker so the dispatcher,
-   jobs and commands share one fingerprint.
-2. From `historic-import:video-pass-status`, retain the exact processing ID for
+1. Implement M1–M7 with focused regression coverage. Run PHPStan, Pint and the
+   full parallel suite. Do not deploy only the row-repair commands while the
+   forward pipeline can recreate the same defects.
+2. Deploy that exact tree and restart every historic worker so the dispatcher,
+   jobs, nested-work tracking and repair commands share one fingerprint.
+3. From `historic-import:video-pass-status`, retain the exact processing ID for
    `2024-03-03-morning`. Dry-run the status again, then run
    `historic-import:recover-processing-tail <processing-id> --operation=historic-60b16730090144bd307984abf538a7d7`.
-   Wait for promotion and cleanup to reach a truthful terminal state.
-3. Retain the exact processing IDs linked to sermons 898, 899 and 901. Run
+   Wait for promotion and cleanup to reach a truthful terminal state and verify
+   sermon 896 is private, operation-bound and resolvable from quarantine.
+4. Repair or explicitly hold sermon 893, then run the observed-media duration
+   repair for every M1 row. The existing command may be reused only after it reads
+   the persisted observed duration rather than summing the requested plan. Retain
+   the exact processing IDs linked to sermons 898, 899 and 901 when running
    `historic-import:repair-video-sermon-durations --operation=historic-60b16730090144bd307984abf538a7d7 --processing-id=<id>`
    once per exact ID set, review the dry-run table, then repeat with `--apply --yes`.
-   Metadata must equal the recorded extracted-span duration. FFprobe may differ
-   by at most 1.5 seconds for container/timestamp rounding; any larger difference
-   remains a blocker.
-4. Split the 21 pilot processing IDs by their exact owning operation (2 or 3).
+   Metadata must equal FFprobe within 1.5 seconds; any larger difference remains a
+   blocker.
+5. Apply the provenance-bound title repair to 898 and 899, and the bounded speaker
+   replay to their exact banked audio. Prove curated fields are unchanged and no
+   sermon-analysis request was made.
+6. Run the dry-run-first song-custody repair for the exact 23 canary `SongVideo`
+   rows and every held canary candidate. Verify private state, operation and disk
+   ownership, destination hashes and absence of verified duplicate staging copies.
+7. Split the 21 pilot processing IDs by their exact owning operation (2 or 3).
    For each operation run `historic-import:repair-video-pilot-custody` with every
    exact `--processing-id`, retain the dry-run table, then repeat with
    `--apply --yes`. Verify every repaired sermon is `quarantined`, names
    `historic_quarantine`, belongs to that operation, resolves every asset there,
    and retains no duplicate staging copy.
-5. Re-run `historic-import:video-pass-status --measures` for the frozen 14 keys.
+8. Re-run `historic-import:video-pass-status --measures` for the frozen 14 keys.
    Export the path census for every non-zero byte: owned active/retryable work,
    named operation artifact, platform sidecar or genuine orphan. Do not delete a
    path merely because the earlier unscoped report called it residue.
-6. Record the acceptance evidence still absent from the first result: per-identity
+9. Record the acceptance evidence still absent from the first result: per-identity
    title/reference/duration/series/speaker audit, projection and song eligibility,
    model/token/request counts, neutral/unobservable transcript rate, elapsed and
    p95 duration, observed worker concurrency, and the resulting 12- or 24-hour
-   resource envelope.
-7. Dispatch the identical frozen 14-key selection. It passes only if it creates no
+   resource envelope. Record the M5 canary sections as reviewed, not silently
+   accepted because their song identities were correct.
+10. Dispatch the identical frozen 14-key selection. It passes only if it creates no
    processing identity, provider call, asset or notification, all 14 identities
-   retain truthful terminal dispositions, and custody residue is zero or exactly
-   enumerated. Only then may Phase 8 start.
+   retain truthful terminal dispositions, observed media durations remain correct,
+   all sermon/song assets are private and operation-owned, ambiguous boundaries
+   remain reviewable, and custody residue is zero or exactly enumerated. Only then
+   may Phase 8 start.
 
 ### Phase 8 — Process the remainder as a closed pass loop
 
@@ -776,9 +1063,19 @@ Public release remains a separate human-authorised act. It is never a side effec
 The remainder may start only when all of these are true:
 
 - [ ] Pilot membership and disk ownership reconcile exactly.
-- [x] Title, Scripture, duration and slug application pass real-shape regression tests.
+- [ ] Title, Scripture, observed-media duration and slug application pass both the
+  pilot and fresh-canary shapes; M1 and M3 remain outstanding.
 - [x] Service projection no longer conflicts with its own evidence.
 - [x] Fragmentary/duplicate song candidates fail closed to review.
+- [ ] Sermon video storage, quality, promotion and cleanup are one truthfully
+  ordered operation-owned sequence; M2 remains outstanding.
+- [ ] Historic song videos are operation-bound, quarantined, disk-identifiable and
+  create-only/hash-verified before staging cleanup; M4 remains outstanding.
+- [ ] Automatically published song clips have defensible performance boundaries,
+  and inferred matches enforce the configured confidence/corroboration policy;
+  M5 and M6 remain outstanding.
+- [ ] Ambiguous sermon and children's-talk endings are preserved inclusively and
+  held for review rather than being automatically truncated or released.
 - [x] Production and command paths no longer require, read or write the internal cost cap/ledger; inert schema deletion is assigned to IC8 closeout, while model/token/request telemetry, retry controls and the provider-side project limit remain.
 - [x] Unmeasurable staging capacity fails closed unless sufficient operation-bound host evidence is supplied.
 - [x] A content-read I/O failure aborts further dispatch as a stale-mount event.
