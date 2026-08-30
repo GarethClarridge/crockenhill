@@ -1,7 +1,7 @@
 # Historic Video Pilot-to-Bulk Plan
 
 **Date:** 2026-08-29
-**Status:** In progress — Phases 0–4 complete; Phase 6 is partially complete; Phase 5 and the remaining Phase 6 status-report work block the canary; no further historic-video dispatch is authorised
+**Status:** In progress — Phases 0–4 and 6 complete; Phase 5 blocks the canary; no further historic-video dispatch is authorised
 **Scope:** Correct the pilot findings, prove direct private asset promotion and bounded temporary cleanup, run a fresh canary, and process the remaining historic-video corpus safely
 **Related plan:** `HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md` remains the authority for the wider historic-import programme
 
@@ -65,7 +65,7 @@ The pilot's livestream projection synchronises canonical service items before in
 | 3 — Song and section eligibility | Complete | Commit `bd7d1bf27`. |
 | 4 — Neutralise internal cost apparatus | Complete | Commit `82be34700` removes live cap/ledger reads and writes while retaining the inert schema and compatibility code for IC8 closeout. |
 | 5 — Canary custody instrumentation | Not started | Add only the minimum direct-promotion safety and measurements needed for the canary; let measured evidence decide whether more cleanup work exists. |
-| 6 — Copy-and-enqueue dispatch | Complete | Commit `6c6b0a7a8` removes whole-corpus verification and polling, adds operation-bound capacity evidence, and aborts stale mounts. The database-owned `historic-import:video-pass-status` report and content-read-I/O regression test complete the phase. |
+| 6 — Copy-and-enqueue dispatch | Complete | Commit `6c6b0a7a8` removes whole-corpus verification and polling, adds operation-bound capacity evidence, and aborts stale mounts. Commit `3cb189f5b` adds the database-owned `historic-import:video-pass-status` report and the content-read-I/O regression test, completing the phase. |
 | 7–9 | Not started | Need operator runs. |
 
 ### Phase 0 outcome
