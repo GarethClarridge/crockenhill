@@ -90,6 +90,8 @@ class InventoryHistoricVideoPilotCommandTest extends TestCase
         $this->assertSame('manifest_item:pilot-one', $ledger['staging_files'][0]['owner']);
         $this->assertSame(hash('sha256', 'audio'), $ledger['staging_files'][0]['sha256']);
         $this->assertSame(0600, fileperms($output) & 0777);
+        $this->assertArrayNotHasKey('max_cost_minor_units', $ledger['operation']);
+        $this->assertArrayNotHasKey('usage', $ledger['operation']);
     }
 
     #[Test]

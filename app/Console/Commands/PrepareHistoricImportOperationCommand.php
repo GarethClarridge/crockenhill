@@ -29,8 +29,7 @@ class PrepareHistoricImportOperationCommand extends Command
         {--anchors : Read-only: report this host'."'".'s resource anchors and exit without touching anything}
         {--manifest=* : Exact source=sha256 manifest binding; repeat for every source}
         {--runtime-evidence= : Exact definitive-runtime evidence JSON; required on a production target, optional for a rehearsal one}
-        {--deadline= : Accepted ISO-8601 operation deadline}
-        {--max-cost= : Accepted maximum cost in minor currency units}';
+        {--deadline= : Accepted ISO-8601 operation deadline}';
 
     protected $description = 'Create or resolve the immutable target-bound historic import operation';
 
@@ -55,10 +54,9 @@ class PrepareHistoricImportOperationCommand extends Command
             }
 
             $deadline = Carbon::parse((string) $this->option('deadline'));
-            $maxCost = filter_var($this->option('max-cost'), FILTER_VALIDATE_INT);
 
-            if ($deadline->isPast() || ! is_int($maxCost) || $maxCost < 0) {
-                throw new RuntimeException('Historic import operation requires a future --deadline and non-negative --max-cost.');
+            if ($deadline->isPast()) {
+                throw new RuntimeException('Historic import operation requires a future --deadline.');
             }
 
             $evidence = $this->runtimeEvidence();
@@ -101,14 +99,12 @@ class PrepareHistoricImportOperationCommand extends Command
                     ...$identity->toArray(),
                     'state' => HistoricImportOperationState::Planned,
                     'accepted_deadline' => $deadline,
-                    'max_cost_minor_units' => $maxCost,
                 ],
             );
 
             if (! $operation->wasRecentlyCreated
-                && ($operation->accepted_deadline?->toIso8601String() !== $deadline->toIso8601String()
-                    || $operation->max_cost_minor_units !== $maxCost)) {
-                throw new RuntimeException('Existing immutable operation has different deadline or cost authority.');
+                && $operation->accepted_deadline?->toIso8601String() !== $deadline->toIso8601String()) {
+                throw new RuntimeException('Existing immutable operation has a different deadline.');
             }
 
             if ($operation->wasRecentlyCreated) {
@@ -116,7 +112,6 @@ class PrepareHistoricImportOperationCommand extends Command
                     'binding_hash' => $operation->binding_hash,
                     'target_fingerprint' => $operation->target_fingerprint,
                     'accepted_deadline' => $deadline->toIso8601String(),
-                    'max_cost_minor_units' => $maxCost,
                 ]);
             }
 

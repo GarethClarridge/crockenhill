@@ -33,7 +33,6 @@ class PrepareHistoricImportOperationCommandTest extends TestCase
             '--manifest' => ['video='.str_repeat('b', 64), 'oos='.str_repeat('c', 64)],
             '--runtime-evidence' => $runtimePath,
             '--deadline' => now()->addDay()->startOfSecond()->toIso8601String(),
-            '--max-cost' => '25000',
         ];
 
         try {
@@ -50,7 +49,6 @@ class PrepareHistoricImportOperationCommandTest extends TestCase
         $this->assertDatabaseHas('historic_import_operations', [
             'target_fingerprint' => $target,
             'runtime_fingerprint' => $runtimeFingerprint,
-            'max_cost_minor_units' => 25_000,
         ]);
         $this->assertDatabaseCount('historic_import_journal_entries', 1);
     }
@@ -74,7 +72,6 @@ class PrepareHistoricImportOperationCommandTest extends TestCase
             'plan-hash' => str_repeat('e', 64),
             '--manifest' => ['historic_video='.str_repeat('f', 64)],
             '--deadline' => now()->addDay()->startOfSecond()->toIso8601String(),
-            '--max-cost' => '200',
         ])
             ->expectsOutputToContain("Runtime fingerprint: {$target}")
             ->expectsOutputToContain('no runtime evidence offered')
@@ -83,7 +80,6 @@ class PrepareHistoricImportOperationCommandTest extends TestCase
         $this->assertDatabaseHas('historic_import_operations', [
             'target_fingerprint' => $target,
             'runtime_fingerprint' => $target,
-            'max_cost_minor_units' => 200,
         ]);
     }
 
@@ -102,7 +98,6 @@ class PrepareHistoricImportOperationCommandTest extends TestCase
             'plan-hash' => str_repeat('e', 64),
             '--manifest' => ['historic_video='.str_repeat('f', 64)],
             '--deadline' => now()->addDay()->startOfSecond()->toIso8601String(),
-            '--max-cost' => '200',
         ])
             ->expectsOutputToContain('requires --runtime-evidence')
             ->assertExitCode(1);
@@ -123,7 +118,6 @@ class PrepareHistoricImportOperationCommandTest extends TestCase
             '--manifest' => ['historic_video='.str_repeat('f', 64)],
             '--runtime-evidence' => '/nonexistent/runtime-evidence.json',
             '--deadline' => now()->addDay()->startOfSecond()->toIso8601String(),
-            '--max-cost' => '200',
         ])
             ->expectsOutputToContain('not a readable file')
             ->assertExitCode(1);

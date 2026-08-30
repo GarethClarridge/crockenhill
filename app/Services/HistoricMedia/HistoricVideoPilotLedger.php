@@ -138,13 +138,7 @@ class HistoricVideoPilotLedger
                 'plan_hash' => $operation->plan_hash,
                 'runtime_fingerprint' => $operation->runtime_fingerprint,
                 'notification_mode' => $operation->notification_mode,
-                'max_cost_minor_units' => $operation->max_cost_minor_units,
                 'accepted_deadline' => $operation->accepted_deadline?->toISOString(),
-                'usage' => [
-                    'entries' => $operation->usageEntries()->count(),
-                    'cost_minor_units' => (int) $operation->usageEntries()->sum('cost_minor_units'),
-                    'currencies' => $operation->usageEntries()->distinct()->orderBy('currency')->pluck('currency')->all(),
-                ],
             ],
             'reconciliation' => [
                 'selected_items' => count($selectedKeys),
