@@ -71,6 +71,30 @@ class HistoricProcessingResultAssetTransfer
      */
     public function copyToDestinations(array $assets, array $destinations): array
     {
+        return $this->copy($assets, $destinations, requireOperationOwnedPaths: true);
+    }
+
+    /**
+     * Direct pipeline output already has its canonical relative path. Its
+     * operation ownership is persisted on the sermon when promotion binds the
+     * record, rather than encoded into a second path namespace.
+     *
+     * @param  list<array<string, mixed>>  $assets
+     * @param  array<string, string>  $destinations
+     * @return list<string>
+     */
+    public function copyPipelineAssetsToDestinations(array $assets, array $destinations): array
+    {
+        return $this->copy($assets, $destinations, requireOperationOwnedPaths: false);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $assets
+     * @param  array<string, string>  $destinations
+     * @return list<string>
+     */
+    private function copy(array $assets, array $destinations, bool $requireOperationOwnedPaths): array
+    {
         $source = $this->stagingDisk();
         $target = Storage::disk($this->targetDiskName());
         $created = [];
@@ -86,7 +110,11 @@ class HistoricProcessingResultAssetTransfer
                         throw new RuntimeException("No production path was allocated for asset role {$role}.");
                     }
 
-                    $this->assertOperationOwnedProductionPath($targetPath);
+                    $this->guardPath($targetPath);
+
+                    if ($requireOperationOwnedPaths) {
+                        $this->assertOperationOwnedProductionPath($targetPath);
+                    }
 
                     if ($target->exists($targetPath)) {
                         $this->verifyAtPath($target, $targetPath, $asset);

@@ -271,6 +271,12 @@ class ImportHistoricVideoBatchCommand extends Command
             }
         }
 
+        if (! $dryRun && $this->parseOnly($this->option('only')) === []) {
+            $this->error('Definitive historic-video dispatch requires a non-empty --only manifest-key list.');
+
+            return self::FAILURE;
+        }
+
         $this->line("Dispatcher headroom assumes {$parallel} concurrent worker job(s); it records processing IDs and exits after enqueueing.");
 
         try {

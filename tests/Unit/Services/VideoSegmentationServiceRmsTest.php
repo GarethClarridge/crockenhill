@@ -45,6 +45,19 @@ class VideoSegmentationServiceRmsTest extends TestCase
     // ---- extractRmsData tests ----
 
     #[Test]
+    public function failed_rms_generation_removes_its_incomplete_log(): void
+    {
+        Config::set('media-processing.ffmpeg.ffmpeg_path', '/definitely/missing/ffmpeg');
+
+        try {
+            $this->service->generateRmsLog('/definitely/missing/video.mp4');
+            $this->fail('RMS generation should fail when FFmpeg is unavailable.');
+        } catch (\Throwable) {
+            $this->assertSame([], Storage::disk('local')->allFiles('temp'));
+        }
+    }
+
+    #[Test]
     public function it_extracts_rms_data_from_log_content(): void
     {
         $logContent = $this->buildRmsLog([

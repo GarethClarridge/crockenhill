@@ -178,7 +178,7 @@ final class HistoricAssetPromotion
             $destinations[$asset['path']] = $asset['path'];
         }
 
-        $this->transfer->copyToDestinations($pending, $destinations);
+        $this->transfer->copyPipelineAssetsToDestinations($pending, $destinations);
 
         $this->bindToQuarantine($sermon, $log, $quarantineName);
 
@@ -244,7 +244,10 @@ final class HistoricAssetPromotion
                 continue;
             }
 
-            $staging->delete($asset['path']);
+            if (! $staging->delete($asset['path'])) {
+                throw new RuntimeException("Promoted historic asset {$asset['path']} could not be removed from staging.");
+            }
+
             $reclaimed += $asset['size'];
         }
 

@@ -94,6 +94,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             '--manifest' => $manifestPath,
             '--plan-hash' => $plan->planHash,
             '--operation' => $operation->operation_id,
+            '--only' => $plan->workItems[0]['manifest_item_key'],
         ])
             ->expectsOutputToContain('no approved G8 import operation is recorded')
             ->assertExitCode(1);
@@ -461,6 +462,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             '--manifest' => $manifestPath,
             '--plan-hash' => $plan->planHash,
             '--operation' => $operation->operation_id,
+            '--only' => $plan->workItems[0]['manifest_item_key'],
         ])
             ->assertExitCode(0);
     }
@@ -494,6 +496,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             '--manifest' => $manifestPath,
             '--plan-hash' => $plan->planHash,
             '--operation' => $operation->operation_id,
+            '--only' => $plan->workItems[0]['manifest_item_key'],
         ])->assertExitCode(0);
 
         self::assertInstanceOf(HistoricImportOperation::class, $dispatchedOperation);
@@ -601,6 +604,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             '--manifest' => $manifestPath,
             '--plan-hash' => $plan->planHash,
             '--operation' => $operation->operation_id,
+            '--only' => $plan->workItems[0]['manifest_item_key'],
         ];
 
         $this->mock(HistoricVideoImporter::class)
@@ -627,6 +631,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             '--manifest' => $manifestPath,
             '--plan-hash' => $plan->planHash,
             '--operation' => $operation->operation_id,
+            '--only' => $plan->workItems[0]['manifest_item_key'],
         ];
 
         $this->mock(HistoricVideoImporter::class)->shouldNotReceive('import');
@@ -933,6 +938,25 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     }
 
     // ---- --only: bounded passes within one approved round ----
+
+    #[Test]
+    public function a_definitive_dispatch_requires_bounded_manifest_membership(): void
+    {
+        $this->createFakeVideo("{$this->temporaryDirectory}/2021-04-12 10-02-00.mkv");
+        $manifestPath = $this->historicManifest('2021-04-12 10-02-00.mkv', '2021-04-12', 'morning');
+        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
+        $operation = $this->historicVideoOperation($plan->manifestHash);
+
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--manifest' => $manifestPath,
+            '--plan-hash' => $plan->planHash,
+            '--operation' => $operation->operation_id,
+        ])
+            ->expectsOutputToContain('Definitive historic-video dispatch requires a non-empty --only manifest-key list.')
+            ->assertExitCode(1);
+    }
 
     #[Test]
     public function only_requires_a_manifest(): void

@@ -63,7 +63,7 @@ class HistoricVideoPassStatusCommand extends Command
         $this->line("Database-owned pass status — {$dispositions}.");
 
         if ($this->option('measures')) {
-            $this->reportMeasures($measures->report($operation));
+            $this->reportMeasures($measures->report($operation, $itemKeys));
         }
 
         return self::SUCCESS;

@@ -109,11 +109,41 @@ class HistoricVideoPassMeasuresTest extends TestCase
         $this->assertSame(75, $measures['unexplained_residue_bytes']);
     }
 
+    #[Test]
+    public function it_scopes_recorded_and_retained_bytes_to_the_selected_manifest_items(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $selected = $this->runWithPromotion($operation, [
+            'promoted_bytes' => 100,
+            'reclaimed_bytes' => 80,
+            'staging_bytes_before_reclaim' => 900,
+        ], 'selected');
+        $this->runWithPromotion($operation, [
+            'promoted_bytes' => 500,
+            'reclaimed_bytes' => 500,
+            'staging_bytes_before_reclaim' => 2000,
+        ], 'other');
+
+        $selected->forceFill(['source_file_path' => 'temp/selected.mp4'])->save();
+        Storage::disk('historic_staging')->put('temp/selected.mp4', str_repeat('a', 40));
+        Storage::disk('historic_staging')->put('temp/other.mp4', str_repeat('b', 70));
+
+        $measures = app(HistoricVideoPassMeasures::class)->report($operation, ['selected']);
+
+        $this->assertSame(100, $measures['promoted_bytes']);
+        $this->assertSame(80, $measures['reclaimed_bytes']);
+        $this->assertSame(900, $measures['peak_working_bytes']);
+        $this->assertSame(40, $measures['staging_retained_bytes']);
+    }
+
     /**
      * @param  array<string, int>|null  $promotion
      */
-    private function runWithPromotion(HistoricImportOperation $operation, ?array $promotion): MediaProcessingLog
-    {
+    private function runWithPromotion(
+        HistoricImportOperation $operation,
+        ?array $promotion,
+        ?string $itemKey = null,
+    ): MediaProcessingLog {
         return MediaProcessingLog::factory()->livestream()->create([
             'historic_import_operation_id' => $operation->id,
             'status' => ProcessingStatus::Completed,
@@ -122,7 +152,10 @@ class HistoricVideoPassMeasuresTest extends TestCase
             'stored_file_path' => null,
             'enhanced_audio_file_path' => null,
             'video_file_path' => null,
-            'processing_metadata' => $promotion === null ? [] : ['historic_promotion' => $promotion],
+            'processing_metadata' => array_filter([
+                'historic_promotion' => $promotion,
+                'historic_import' => $itemKey === null ? null : ['manifest_item_key' => $itemKey],
+            ], static fn (mixed $value): bool => $value !== null),
         ]);
     }
 }

@@ -6,11 +6,13 @@ namespace Tests\Unit\Jobs;
 
 use App\Jobs\AutoPublishServiceSection;
 use App\Jobs\DetectServiceStructure;
+use App\Jobs\GenerateRmsLog;
 use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Models\MediaProcessingLog;
+use App\Services\Media\Video\VideoSegmentationService;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use PHPUnit\Framework\Attributes\Test;
 use ReflectionProperty;
@@ -95,6 +97,15 @@ class PipelineQueueSafetyTest extends TestCase
             );
             $this->assertGreaterThan(0, $backoff[0], $name);
         }
+    }
+
+    #[Test]
+    public function rms_generation_process_finishes_before_its_queue_job_timeout(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->make(['id' => 1]);
+        $job = new GenerateRmsLog($log);
+
+        $this->assertGreaterThan(VideoSegmentationService::RmsProcessTimeoutSeconds, $job->timeout);
     }
 
     private function expiresAfter(WithoutOverlapping $middleware): int

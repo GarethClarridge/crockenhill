@@ -8,7 +8,7 @@ use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Sermon\SermonPromotionAssets;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -45,6 +45,7 @@ class HistoricVideoPassMeasures
     ) {}
 
     /**
+     * @param  list<string>  $itemKeys
      * @return array{
      *     runs: int,
      *     runs_reporting_promotion: int,
@@ -57,12 +58,17 @@ class HistoricVideoPassMeasures
      *     quarantine_bytes: int
      * }
      */
-    public function report(HistoricImportOperation $operation): array
+    public function report(HistoricImportOperation $operation, array $itemKeys = []): array
     {
-        $runs = MediaProcessingLog::query()
+        $operationRuns = MediaProcessingLog::query()
             ->where('historic_import_operation_id', $operation->id)
             ->orderBy('id')
             ->get();
+        $runs = $itemKeys === []
+            ? $operationRuns
+            : $operationRuns->filter(
+                fn (MediaProcessingLog $run): bool => in_array($this->manifestItemKey($run), $itemKeys, true),
+            )->values();
 
         $promotedBytes = 0;
         $reclaimedBytes = 0;
@@ -83,15 +89,13 @@ class HistoricVideoPassMeasures
         }
 
         $stagingSizes = $this->fileSizes($this->staging->stagingDisk());
-        $accountedPaths = $this->accountedStagingPaths($runs);
-
-        $accountedBytes = 0;
-
-        foreach ($accountedPaths as $path) {
-            $accountedBytes += $stagingSizes[$path] ?? 0;
-        }
-
-        $retainedBytes = array_sum($stagingSizes);
+        $selectedPaths = $this->accountedStagingPaths($runs);
+        $accountedBytes = $this->bytesAtPaths($stagingSizes, $selectedPaths);
+        $retainedBytes = $itemKeys === [] ? array_sum($stagingSizes) : $accountedBytes;
+        $operationAccountedBytes = $this->bytesAtPaths(
+            $stagingSizes,
+            $this->accountedStagingPaths($operationRuns),
+        );
 
         return [
             'runs' => $runs->count(),
@@ -101,9 +105,43 @@ class HistoricVideoPassMeasures
             'peak_working_bytes' => $peakWorkingBytes,
             'staging_retained_bytes' => $retainedBytes,
             'staging_accounted_bytes' => $accountedBytes,
-            'unexplained_residue_bytes' => max(0, $retainedBytes - $accountedBytes),
-            'quarantine_bytes' => array_sum($this->fileSizes($this->quarantineDisk())),
+            'unexplained_residue_bytes' => max(0, array_sum($stagingSizes) - $operationAccountedBytes),
+            'quarantine_bytes' => $this->quarantineBytes($runs, $itemKeys === []),
         ];
+    }
+
+    private function manifestItemKey(MediaProcessingLog $run): ?string
+    {
+        $itemKey = data_get($run->processing_metadata?->toArray(), 'historic_import.manifest_item_key');
+
+        return is_string($itemKey) && $itemKey !== '' ? $itemKey : null;
+    }
+
+    /**
+     * @param  array<string, int>  $sizes
+     * @param  list<string>  $paths
+     */
+    private function bytesAtPaths(array $sizes, array $paths): int
+    {
+        $bytes = 0;
+
+        foreach ($paths as $path) {
+            $bytes += $sizes[$path] ?? 0;
+        }
+
+        return $bytes;
+    }
+
+    /** @param Collection<int, MediaProcessingLog> $runs */
+    private function quarantineBytes(Collection $runs, bool $entireDisk): int
+    {
+        $sizes = $this->fileSizes($this->quarantineDisk());
+
+        if ($entireDisk) {
+            return array_sum($sizes);
+        }
+
+        return $this->bytesAtPaths($sizes, $this->sermonAssetPaths($runs));
     }
 
     /**
@@ -125,6 +163,21 @@ class HistoricVideoPassMeasures
                 $paths[] = $path;
             }
 
+            $paths = [...$paths, ...$this->sermonAssetPaths(collect([$run]))];
+        }
+
+        return array_values(array_unique($paths));
+    }
+
+    /**
+     * @param  Collection<int, MediaProcessingLog>  $runs
+     * @return list<string>
+     */
+    private function sermonAssetPaths(Collection $runs): array
+    {
+        $paths = [];
+
+        foreach ($runs as $run) {
             $sermons = Sermon::query()
                 ->where(function ($query) use ($run): void {
                     $query->where('livestream_processing_id', $run->processing_id);

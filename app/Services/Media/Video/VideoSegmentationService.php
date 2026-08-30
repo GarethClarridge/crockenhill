@@ -26,6 +26,8 @@ use Symfony\Component\Process\Process;
  */
 class VideoSegmentationService
 {
+    public const RmsProcessTimeoutSeconds = 7100;
+
     private ?FFProbe $ffprobe = null;
 
     private readonly string $tempDisk;
@@ -86,7 +88,7 @@ class VideoSegmentationService
             ];
 
             $process = new Process($command);
-            $process->setTimeout(7200); // 2 hour timeout for large files
+            $process->setTimeout(self::RmsProcessTimeoutSeconds);
             $process->run();
 
             if (! $process->isSuccessful()) {
@@ -102,6 +104,17 @@ class VideoSegmentationService
             return $rmsLogPath;
 
         } catch (\Exception $e) {
+            try {
+                if (! Storage::disk($this->tempDisk)->delete($rmsLogPath)) {
+                    Log::warning('Failed to remove incomplete RMS log', ['rms_log_path' => $rmsLogPath]);
+                }
+            } catch (\Throwable $cleanupException) {
+                Log::warning('Failed to remove incomplete RMS log', [
+                    'rms_log_path' => $rmsLogPath,
+                    'error' => $cleanupException->getMessage(),
+                ]);
+            }
+
             Log::error('Failed to generate RMS log', [
                 'error' => $e->getMessage(),
                 'video_path' => $videoPath,

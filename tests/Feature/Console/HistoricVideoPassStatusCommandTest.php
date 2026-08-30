@@ -42,6 +42,18 @@ class HistoricVideoPassStatusCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_reports_mixed_terminal_when_manual_review_and_system_failure_both_exist(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $this->createRun($operation->id, 'mixed', ProcessingStatus::Failed, 'manual_review_required');
+        $this->createRun($operation->id, 'mixed', ProcessingStatus::Failed, 'extracting_audio');
+
+        $report = app(HistoricVideoPassStatus::class)->report($operation, ['mixed']);
+
+        self::assertSame('mixed_terminal', $report[0]['disposition']);
+    }
+
+    #[Test]
     public function it_reports_the_custody_byte_measures_on_request(): void
     {
         Storage::fake('historic_staging');

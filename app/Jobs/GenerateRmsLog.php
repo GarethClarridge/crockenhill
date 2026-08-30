@@ -24,7 +24,7 @@ class GenerateRmsLog implements ShouldQueue
 
     public int $tries = 3;
 
-    public int $timeout = 3600;
+    public int $timeout = 7200;
 
     public function __construct(
         private MediaProcessingLog $processingLog

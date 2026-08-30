@@ -12,6 +12,7 @@ use App\Models\Sermon;
 use App\Services\HistoricMedia\HistoricAssetPromotion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\Concerns\CreatesHistoricImportOperations;
@@ -74,6 +75,18 @@ class HistoricAssetPromotionTest extends TestCase
         $this->assertSame('historic_quarantine', $sermon->asset_disk);
         $this->assertSame(SermonPublicationState::Quarantined, $sermon->publication_state);
         $this->assertSame($log->historic_import_operation_id, $sermon->historic_import_operation_id);
+    }
+
+    #[Test]
+    public function it_accepts_unchanged_pipeline_paths_in_production_quarantine(): void
+    {
+        $this->app['env'] = 'production';
+        [$log] = $this->historicRun();
+        $this->stage('sermons/video/pilot.mp4', 'video bytes');
+
+        app(HistoricAssetPromotion::class)->promoteRun($log);
+
+        Storage::disk('historic_quarantine')->assertExists('sermons/video/pilot.mp4');
     }
 
     #[Test]
@@ -149,6 +162,32 @@ class HistoricAssetPromotionTest extends TestCase
                 'someone else',
                 Storage::disk('historic_quarantine')->get('sermons/video/pilot.mp4'),
             );
+        }
+    }
+
+    #[Test]
+    public function it_fails_when_a_verified_working_copy_cannot_be_deleted(): void
+    {
+        [$log, $sermon] = $this->historicRun();
+        $this->stage('sermons/video/pilot.mp4', 'video bytes');
+        $realStaging = Storage::disk('historic_staging');
+        $realQuarantine = Storage::disk('historic_quarantine');
+        $staging = Mockery::mock($realStaging);
+        $staging->shouldReceive('delete')
+            ->once()
+            ->with('sermons/video/pilot.mp4')
+            ->andReturnFalse();
+        Storage::shouldReceive('disk')->with('historic_staging')->andReturn($staging);
+        Storage::shouldReceive('disk')->with('historic_quarantine')->andReturn($realQuarantine);
+
+        try {
+            app(HistoricAssetPromotion::class)->promoteRun($log);
+            $this->fail('Promotion should fail when its staging copy cannot be removed.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('could not be removed from staging', $exception->getMessage());
+            $this->assertTrue($realStaging->exists('sermons/video/pilot.mp4'));
+            $this->assertTrue($realQuarantine->exists('sermons/video/pilot.mp4'));
+            $this->assertSame(SermonPublicationState::Quarantined, $sermon->fresh()->publication_state);
         }
     }
 

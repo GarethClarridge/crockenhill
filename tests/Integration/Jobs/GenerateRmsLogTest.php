@@ -24,7 +24,7 @@ class GenerateRmsLogTest extends TestCase
         $job = new GenerateRmsLog($log);
 
         $this->assertEquals(3, $job->tries);
-        $this->assertEquals(3600, $job->timeout);
+        $this->assertEquals(7200, $job->timeout);
     }
 
     #[Test]

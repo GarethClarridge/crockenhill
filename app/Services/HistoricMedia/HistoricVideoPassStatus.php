@@ -96,10 +96,16 @@ class HistoricVideoPassStatus
             return 'in_progress';
         }
 
-        if (collect($runs)->contains(
+        $manualReviewRuns = collect($runs)->filter(
             static fn (MediaProcessingLog $run): bool => $run->status === ProcessingStatus::Failed
                 && $run->current_step === 'manual_review_required',
-        )) {
+        );
+
+        if ($manualReviewRuns->isNotEmpty() && $manualReviewRuns->count() !== count($runs)) {
+            return 'mixed_terminal';
+        }
+
+        if ($manualReviewRuns->isNotEmpty()) {
             return 'manual_review';
         }
 
