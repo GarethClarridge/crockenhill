@@ -336,18 +336,23 @@ None. The two that stood on 2026-08-30 are recorded as settled below.
 7. **Canary operation (2026-08-30).** The canary dispatches under the existing
    operation 3 (`historic-video-full-corpus-20260826`), as the first bounded pass
    of the cumulative operation rather than a separate evidence island.
-8. **Sermon ending versus closing-song introduction (2026-08-30).** Prefer an
-   inclusive sermon ending. A closing-song introduction may be the sermon's
-   rhetorical conclusion, so an `other` classification, a generated title such
-   as "Closing Song Introduction", proximity to a song or a transcript phrase
-   such as "let's sing" is not enough authority to truncate it. Stop the sermon
-   automatically only where affirmative timed song evidence establishes that the
-   following material belongs independently to the song. If the conclusion and
-   introduction are interwoven, or the boundary is otherwise ambiguous, retain
-   the material in the quarantined sermon asset and require review before release.
-   Fail closed to review, not to an irreversible automatic cut. Sermon and song
-   assets are not required to partition the source: a reviewed sermon may retain
-   its rhetorical introduction while the song asset starts later at the singing.
+8. **Sermon ending versus closing-song introduction (2026-08-30; refined
+   2026-08-31).** Prefer an inclusive sermon ending. A closing-song introduction
+   may be the sermon's rhetorical conclusion, so an `other` classification, a
+   generated title such as "Closing Song Introduction", proximity to a song or a
+   transcript phrase such as "let's sing" is not enough authority to truncate it.
+   Stop the sermon automatically only where affirmative timed evidence establishes
+   that the following material is a separate item. Otherwise retain a short,
+   adjacent spoken bridge automatically when it plausibly serves as both sermon
+   conclusion and song introduction. Ambiguity alone is an acceptable inclusive
+   result, not a review reason. Require review only for material-risk evidence:
+   conflicting boundaries, clearly unrelated content, multiple following items
+   merged into the sermon, or an unusually long tail corroborated by evidence
+   other than duration alone. Do not add a provider call or a blanket review gate
+   to make this decision; use the existing service-structure evidence and record
+   the boundary decision and its evidence. Sermon and song assets need not
+   partition the source: the sermon may retain the rhetorical introduction while
+   the song asset starts later at the singing.
 
 ### Phase 0 — Freeze and inventory the pilot
 
@@ -880,8 +885,14 @@ song are different editorial products and may legitimately overlap in source
 time. Apply the following asymmetric policy:
 
 - For the sermon, preserve an ambiguous/interwoven conclusion and song
-  introduction. Automatically stop only on affirmative timed song evidence; if
-  ambiguity remains, quarantine the inclusive sermon and mark a boundary review.
+  introduction. Automatically stop only on affirmative timed evidence for a
+  separate next item. A short, adjacent spoken bridge that plausibly belongs to
+  both products remains in the sermon automatically; ambiguity by itself must not
+  set `needs_review` or otherwise block release. Route only material-risk cases to
+  review: conflicting boundary evidence, clearly unrelated content, multiple
+  following items merged into the sermon, or an unusually long tail corroborated
+  by non-duration evidence. A duration threshold may be a configurable guard but
+  must never be the sole authority for a cut or review hold.
 - For the song video, the releaseable product should be the singing/performance,
   not an unrelated announcement, sermon conclusion, benediction or next item.
   Derive a defensible inner performance interval from positive evidence, or keep
@@ -891,10 +902,21 @@ time. Apply the following asymmetric policy:
   Record why the interval is release-eligible, including the evidence for its
   start and end, so an intentionally short song can still pass.
 
+Of the 12 canary services that produced sermon sections, ten had no trailing
+`other` section. The other two retained spoken bridges of approximately 44 and 11
+seconds. Both are acceptable inclusive sermon outputs under this policy and add
+zero sermon-boundary reviews. Treating either ambiguity as a hold would create a
+16.7% canary review rate and is explicitly rejected as too costly before a
+hundreds-of-services run. This does not relax any independent review reason, and
+it does not change the existing mandatory approval policy for children's talks.
+
 Regression fixtures must include: a clean song; a long spoken introduction; a
 trailing benediction; two adjacent songs; an interwoven sermon conclusion/song
-introduction that stays in the sermon but not the releaseable song clip; and an
-ambiguous transition that is retained privately and held for review.
+introduction that stays in the sermon but not the releaseable song clip; a short
+ambiguous spoken bridge that is retained without creating a sermon review; and a
+material-risk transition that is held because independent evidence conflicts or
+shows unrelated/merged content. Assert that title text, one transcript phrase and
+duration alone cannot create either a destructive sermon cut or a review hold.
 
 #### Finding M6 — inferred song eligibility does not enforce its stated confidence
 
@@ -962,7 +984,7 @@ Start from these existing seams; do not create a parallel historic pipeline:
 | M2 ordering | `app/Jobs/SubmitToProcessing.php`, `app/Jobs/StoreSermonVideo.php`, `app/Services/Processing/ProcessingPipelineBuilder.php`, `app/Services/HistoricMedia/HistoricProcessingResultReadinessService.php` | Delayed/retried/failed storage cannot be overtaken by quality, promotion or cleanup. |
 | M3 title provenance | `app/Support/PlaceholderSermonTitle.php`, `app/Jobs/ProcessTranscriptWithAI.php`, `app/Data/SermonCreationOptions.php`, `app/Services/Sermon/SermonCreationService.php`, the bounded banked replay service | Both canary filename shapes change; a curated date/event title never does. |
 | M4 song custody | `app/Models/SongVideo.php`, `app/Services/Song/SongVideoService.php`, `app/Services/HistoricMedia/HistoricAssetPromotion.php`, filesystem schema/migrations, custody census and cleanup | Historic create/promote/resolve/retry/conflict/cleanup plus exact canary backfill replay. |
-| M5–M6 song gate | `app/Services/ChurchService/SectionPublication/SongPublicationHandler.php`, song matching/write-back, section publication candidate preparation | The six boundary fixtures named in M5 and threshold/corroboration cases in M6. |
+| M5–M6 song gate | `app/Services/ChurchService/SectionPublication/SongPublicationHandler.php`, song matching/write-back, sermon/section publication candidate preparation | The boundary fixtures named in M5, including no sermon hold for the short ambiguous bridge, and threshold/corroboration cases in M6. Do not add a separate model call or blanket sermon-review rule. |
 | M7 talk review | sermon section publication handler, section candidate preparation and the existing approval/re-extraction path | Inclusive ambiguous tail remains private; reviewed recut is exact and idempotent. |
 
 Inspect sibling tests before adding new ones. Keep PHPUnit `#[Test]` style and the
@@ -1015,9 +1037,10 @@ duplicate admin suites named in the repository do-not-invest list.
 10. Dispatch the identical frozen 14-key selection. It passes only if it creates no
    processing identity, provider call, asset or notification, all 14 identities
    retain truthful terminal dispositions, observed media durations remain correct,
-   all sermon/song assets are private and operation-owned, ambiguous boundaries
-   remain reviewable, and custody residue is zero or exactly enumerated. Only then
-   may Phase 8 start.
+   all sermon/song assets are private and operation-owned, inclusive ambiguous
+   sermon bridges remain automatic, every material-risk boundary remains
+   reviewable, and custody residue is zero or exactly enumerated. Only then may
+   Phase 8 start.
 
 ### Phase 8 — Process the remainder as a closed pass loop
 
@@ -1074,8 +1097,11 @@ The remainder may start only when all of these are true:
 - [ ] Automatically published song clips have defensible performance boundaries,
   and inferred matches enforce the configured confidence/corroboration policy;
   M5 and M6 remain outstanding.
-- [ ] Ambiguous sermon and children's-talk endings are preserved inclusively and
-  held for review rather than being automatically truncated or released.
+- [ ] Short ambiguous/interwoven sermon endings are preserved inclusively without
+  creating a review hold; affirmative separate-item evidence may stop them, and
+  only material-risk boundary evidence routes a sermon to review.
+- [ ] Children's-talk endings are preserved inclusively, their tail evidence is
+  surfaced, and the existing mandatory approval remains in force.
 - [x] Production and command paths no longer require, read or write the internal cost cap/ledger; inert schema deletion is assigned to IC8 closeout, while model/token/request telemetry, retry controls and the provider-side project limit remain.
 - [x] Unmeasurable staging capacity fails closed unless sufficient operation-bound host evidence is supplied.
 - [x] A content-read I/O failure aborts further dispatch as a stale-mount event.
