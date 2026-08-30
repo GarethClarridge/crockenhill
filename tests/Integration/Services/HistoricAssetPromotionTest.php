@@ -7,7 +7,6 @@ namespace Tests\Integration\Services;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonPublicationState;
-use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\HistoricMedia\HistoricAssetPromotion;
@@ -15,10 +14,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
 class HistoricAssetPromotionTest extends TestCase
 {
+    use CreatesHistoricImportOperations;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -182,17 +183,7 @@ class HistoricAssetPromotionTest extends TestCase
      */
     private function historicRun(): array
     {
-        $operation = HistoricImportOperation::query()->create([
-            'operation_id' => 'historic-'.str_repeat('a', 32),
-            'binding_hash' => str_repeat('b', 64),
-            'batch_key' => 'asset-promotion-test',
-            'manifest_hashes' => ['video' => str_repeat('c', 64)],
-            'plan_hash' => str_repeat('d', 64),
-            'target_fingerprint' => str_repeat('e', 64),
-            'runtime_fingerprint' => str_repeat('f', 64),
-            'notification_mode' => 'external_disabled',
-            'max_cost_minor_units' => 100,
-        ]);
+        $operation = $this->createHistoricImportOperation();
 
         $log = MediaProcessingLog::factory()->create([
             'processing_type' => MediaType::Livestream,

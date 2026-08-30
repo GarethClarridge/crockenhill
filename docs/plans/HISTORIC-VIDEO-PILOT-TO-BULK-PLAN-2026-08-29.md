@@ -1,7 +1,7 @@
 # Historic Video Pilot-to-Bulk Plan
 
 **Date:** 2026-08-29
-**Status:** In progress — Phases 0–4 and 6 complete; Phase 5 blocks the canary; no further historic-video dispatch is authorised
+**Status:** In progress — Phases 0–6 complete; the canary (Phase 7) is the next step and needs an operator run; no further historic-video dispatch is authorised until it is scheduled
 **Scope:** Correct the pilot findings, prove direct private asset promotion and bounded temporary cleanup, run a fresh canary, and process the remaining historic-video corpus safely
 **Related plan:** `HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md` remains the authority for the wider historic-import programme
 
@@ -64,7 +64,7 @@ The pilot's livestream projection synchronises canonical service items before in
 | 2 — Service projection | Complete | Commit `e8fc05a88`. |
 | 3 — Song and section eligibility | Complete | Commit `bd7d1bf27`. |
 | 4 — Neutralise internal cost apparatus | Complete | Commit `82be34700` removes live cap/ledger reads and writes while retaining the inert schema and compatibility code for IC8 closeout. |
-| 5 — Canary custody instrumentation | Not started | Add only the minimum direct-promotion safety and measurements needed for the canary; let measured evidence decide whether more cleanup work exists. |
+| 5 — Canary custody instrumentation | Complete | Commits `c61c8c7af` (direct create-only promotion into quarantine), `81ca5f3d9` (cleanup confined to working-copy disks) plus this commit's four byte measures, reported by `historic-import:video-pass-status --measures`. |
 | 6 — Copy-and-enqueue dispatch | Complete | Commit `6c6b0a7a8` removes whole-corpus verification and polling, adds operation-bound capacity evidence, and aborts stale mounts. Commit `3cb189f5b` adds the database-owned `historic-import:video-pass-status` report and the content-read-I/O regression test, completing the phase. |
 | 7–9 | Not started | Need operator runs. |
 
@@ -102,6 +102,57 @@ Two findings carry into later phases:
   to a durable artifact path and never deletes `temp/rms_<uuid>.log`. Fifteen
   identities left 200 MB behind under job UUIDs no run records. Phase 6's bounded
   retention policy has to cover them.
+
+### Phase 5 outcome
+
+**The direct processing lane never promoted anything.** Everything the pilot
+produced was written to staging and left there. Nothing set `sermons.asset_disk`,
+so the column the whole quarantine model reads was null, and the records were
+created in the column default `published` state while their bytes sat on a
+removable working volume. The bundle-import lane had done the opposite all along
+— `HistoricMediaGraphPersister` creates its sermons `Quarantined` with
+`asset_disk` set — so the two lanes disagreed about what a historic record is.
+`PromoteHistoricAssets` now closes that gap on the same convention: the stored
+path never changes, only the disk identity does, which is exactly what
+`HistoricSermonPublicationService` does in the other direction at release.
+
+**Quarantine was configured onto the wrong volume.** `HISTORIC_QUARANTINE_ROOT`
+was unset, so the disk fell back under `storage/` — the project bind mount, on the
+boot volume with 30 GiB free. Staging and temp had been deliberately moved to the
+CBC drive for exactly this reason and quarantine was left behind. It is now set
+to `/mnt/historic-work/quarantine`, and `.env.example` says why it must sit on the
+same writable volume. Operator decision, 2026-08-30: quarantine lives on the CBC
+drive, accepting that quarantined assets are unreachable while the drive is
+detached.
+
+**Cleanup could reach anything.** `VideoStorageService::cleanupTemporaryFiles()`
+tried the temp disk and then fell through to `file_exists()` plus a raw
+`unlink()` on whatever string it was handed. An absolute path could name anything
+the container can write, including the source corpus — protected only by the
+mount being read-only, not by any code — and a disk-relative path resolved
+against the working directory, meaning `sermons/video/x.mp4` was a file in the
+project root. Deletion is now confined to an allow-list of working-copy disks
+(temp, and staging during a pass); quarantine is deliberately absent.
+
+**Item 5 was already satisfied.** `ProcessingRunFailureHandler` returns before
+cleanup for any run carrying a historic import job key, and
+`it_retains_historic_livestream_inputs_after_terminal_failure_for_phase_retry`
+already locked that in. Verified rather than rebuilt.
+
+**Peak working bytes is a sample, and says so.** A continuous gauge would need a
+sampler outside the pipeline. Instead each run records the total staging bytes at
+its own high-water moment — durable output written, nothing reclaimed yet — and
+the pass-level peak is the maximum of those samples. The other three measures are
+`promoted_bytes` (summed from the same records), `staging_retained_bytes` (walked
+live) and `unexplained_residue_bytes` (retained minus what any run can account
+for, as a working copy it owns or unpromoted output). Residue is the number a
+later reclamation change would have to name as its justification.
+
+**Song videos cannot be promoted yet.** `SongVideo` has no `asset_disk` column and
+`SongVideoService::getVideoUrl()` always builds a sermon-disk URL, so promoting
+their bytes would break resolution. They stay on staging and are counted as
+accounted-for, not residue. Giving `SongVideo` a disk identity is the follow-up if
+the canary shows their retained bytes matter.
 
 ### Phase 6 outcome
 

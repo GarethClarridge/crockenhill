@@ -8,6 +8,7 @@ use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\HistoricVideoPassStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
@@ -37,6 +38,30 @@ class HistoricVideoPassStatusCommandTest extends TestCase
             '--only' => 'finished,review,running,not-dispatched',
         ])
             ->expectsOutputToContain('Database-owned pass status')
+            ->assertExitCode(0);
+    }
+
+    #[Test]
+    public function it_reports_the_custody_byte_measures_on_request(): void
+    {
+        Storage::fake('historic_staging');
+        Storage::fake('historic_quarantine');
+        config()->set('media-processing.storage.historic_staging_disk', 'historic_staging');
+        config()->set('media-processing.storage.historic_quarantine_disk', 'historic_quarantine');
+        config()->set('media-processing.storage.sermon_disk', 'historic_staging');
+        config()->set('media-processing.storage.transcript_disk', 'historic_staging');
+        config()->set('thumbnail-generation.storage.disk', 'historic_staging');
+
+        $operation = $this->createHistoricImportOperation();
+        $this->createRun($operation->id, 'finished', ProcessingStatus::Completed, 'completed');
+
+        $this->artisan('historic-import:video-pass-status', [
+            '--operation' => $operation->operation_id,
+            '--only' => 'finished',
+            '--measures' => true,
+        ])
+            ->expectsOutputToContain('Peak working (sampled at promotion)')
+            ->expectsOutputToContain('Unexplained residue')
             ->assertExitCode(0);
     }
 

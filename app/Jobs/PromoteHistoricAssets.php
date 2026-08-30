@@ -102,7 +102,8 @@ class PromoteHistoricAssets extends ProcessingJob implements ShouldQueue
      *     assets_promoted: int,
      *     assets_already_promoted: int,
      *     promoted_bytes: int,
-     *     reclaimed_bytes: int
+     *     reclaimed_bytes: int,
+     *     staging_bytes_before_reclaim: int
      * }  $totals
      */
     private function recordMeasures(MediaProcessingLog $processingLog, array $totals): void

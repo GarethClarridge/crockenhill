@@ -58,7 +58,8 @@ final class HistoricAssetPromotion
      *     assets_promoted: int,
      *     assets_already_promoted: int,
      *     promoted_bytes: int,
-     *     reclaimed_bytes: int
+     *     reclaimed_bytes: int,
+     *     staging_bytes_before_reclaim: int
      * }
      */
     public function promoteRun(MediaProcessingLog $log): array
@@ -71,6 +72,17 @@ final class HistoricAssetPromotion
             'assets_already_promoted' => 0,
             'promoted_bytes' => 0,
             'reclaimed_bytes' => 0,
+            /**
+             * The pass's peak working bytes, sampled.
+             *
+             * Taken here because this is the high-water moment for a run: its
+             * durable output has been written and nothing has been reclaimed
+             * yet, while every other run still in flight is also holding its
+             * own working copies. A continuous gauge would need a sampler
+             * outside the pipeline; the maximum of these samples is what the
+             * canary reports, and it is honest about being a sample.
+             */
+            'staging_bytes_before_reclaim' => $this->stagingBytes(),
         ];
 
         foreach ($this->sermonsForRun($log) as $sermon) {
@@ -237,6 +249,24 @@ final class HistoricAssetPromotion
         }
 
         return $reclaimed;
+    }
+
+    /**
+     * Total bytes currently held on the working staging disk.
+     *
+     * A metadata-only walk: sizes come from the filesystem's own records, so no
+     * asset content is read.
+     */
+    private function stagingBytes(): int
+    {
+        $staging = Storage::disk($this->staging->stagingDisk());
+        $bytes = 0;
+
+        foreach ($staging->allFiles() as $path) {
+            $bytes += $staging->size($path);
+        }
+
+        return $bytes;
     }
 
     private function hash(FilesystemAdapter $disk, string $path): string
