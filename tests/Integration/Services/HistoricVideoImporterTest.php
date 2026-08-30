@@ -1181,6 +1181,7 @@ class HistoricVideoImporterTest extends TestCase
         bool $force = false,
         ?string $reportPath = null,
         ?array $approvedWorkItems = null,
+        bool $failSourceContentRead = false,
     ): array {
         $stagingGuard = app(HistoricStagingGuard::class);
         $stagingContext = $dryRun
@@ -1189,7 +1190,15 @@ class HistoricVideoImporterTest extends TestCase
                 hash('sha256', $this->temporaryDirectory),
                 hash('sha256', $this->temporaryDirectory.'|plan'),
             );
-        $importer = new HistoricVideoImporter(
+        $importer = $failSourceContentRead
+            ? new class($processor, app(HistoricStagingContextRegistry::class), app(HistoricProcessingFingerprint::class), app(HistoricVideoReencodeConcatenator::class)) extends HistoricVideoImporter
+            {
+                protected function sourceFileSha256(string $path): ?string
+                {
+                    return null;
+                }
+            }
+        : new HistoricVideoImporter(
             $processor,
             app(HistoricStagingContextRegistry::class),
             app(HistoricProcessingFingerprint::class),
@@ -1278,6 +1287,42 @@ class HistoricVideoImporterTest extends TestCase
             'The item read before the drive went stale should still have been dispatched.',
         );
         $this->assertSame(0, $metrics['errors'], 'A stale mount is not a per-item failure.');
+    }
+
+    #[Test]
+    public function it_stops_dispatching_when_a_present_source_fails_while_its_contents_are_read(): void
+    {
+        $path = $this->temporaryDirectory.'/2022-01-23 - Evening Service.mp4';
+        $this->createFakeVideo($path);
+        $size = filesize($path);
+        $hash = hash_file('sha256', $path);
+        $this->assertIsInt($size);
+        $this->assertIsString($hash);
+
+        $metrics = $this->runImportWithProcessor(
+            $this->mockProcessorSuccess(),
+            approvedWorkItems: [[
+                'manifest_item_key' => 'item-content-read-failure',
+                'tag' => 'livestream',
+                'label' => 'item-content-read-failure',
+                'files' => [$path],
+                'source_files' => [[
+                    'relative_path' => '2022-01-23 - Evening Service.mp4',
+                    'sha256' => $hash,
+                    'byte_size' => $size,
+                ]],
+                'date' => Carbon::parse('2022-01-23'),
+                'service' => SermonService::Evening,
+                'client_file_date' => '2022-01-23 18:38:15',
+                'bytes' => $size,
+                'manifest_concatenation' => 'separate',
+            ]],
+            failSourceContentRead: true,
+        );
+
+        $this->assertTrue($metrics['aborted_stale_mount']);
+        $this->assertSame(0, $metrics['dispatched']);
+        $this->assertSame(0, $metrics['errors']);
     }
 
     /**

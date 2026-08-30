@@ -65,7 +65,7 @@ The pilot's livestream projection synchronises canonical service items before in
 | 3 — Song and section eligibility | Complete | Commit `bd7d1bf27`. |
 | 4 — Neutralise internal cost apparatus | Complete | Commit `82be34700` removes live cap/ledger reads and writes while retaining the inert schema and compatibility code for IC8 closeout. |
 | 5 — Canary custody instrumentation | Not started | Add only the minimum direct-promotion safety and measurements needed for the canary; let measured evidence decide whether more cleanup work exists. |
-| 6 — Copy-and-enqueue dispatch | Partially complete | Commit `6c6b0a7a8` removes whole-corpus verification and polling, adds operation-bound capacity evidence, and aborts stale mounts. The database status report and a true content-read-I/O regression test remain. |
+| 6 — Copy-and-enqueue dispatch | Complete | Commit `6c6b0a7a8` removes whole-corpus verification and polling, adds operation-bound capacity evidence, and aborts stale mounts. The database-owned `historic-import:video-pass-status` report and content-read-I/O regression test complete the phase. |
 | 7–9 | Not started | Need operator runs. |
 
 ### Phase 0 outcome
@@ -159,11 +159,15 @@ size- and SHA-256-checked immediately before staging; a missing/unreadable sourc
 aborts further dispatch as `aborted_stale_mount`, while a readable mismatch is an
 identity-level integrity failure.
 
-The remaining work is intentionally named: add the database-read operation/pass
-status report, and add a regression test for an *existing* path whose content read
-fails after preliminary filesystem checks pass. The current stale-mount test
-covers a vanished source and both absent and sufficient host-capacity evidence are
-covered. No dispatcher process may be treated as status evidence.
+The remaining work is complete. `historic-import:video-pass-status` requires the
+immutable operation and the exact `--only` manifest keys, reads only
+operation-bound `MediaProcessingLog` rows, and names every selected item as
+`not_dispatched`, `in_progress`, `completed`, `skipped`, `failed`, `cancelled`,
+`manual_review` or `mixed_terminal` with its processing IDs and current stages.
+It never reads queue state, worker processes or storage. The stale-mount
+regression suite now separately proves an existing source can pass the preliminary
+filesystem checks yet fail while its contents are read; dispatch stops as
+`aborted_stale_mount` with no item-level integrity error.
 
 ### Phase 1 outcome
 

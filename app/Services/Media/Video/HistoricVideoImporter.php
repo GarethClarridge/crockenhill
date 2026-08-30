@@ -1241,9 +1241,9 @@ class HistoricVideoImporter
 
             clearstatcache(true, $path);
             $size = filesize($path);
-            $hash = hash_file('sha256', $path);
+            $hash = $this->sourceFileSha256($path);
 
-            if ($size === false || $hash === false) {
+            if ($size === false || $hash === null) {
                 throw new HistoricSourceMountException("Historic video source could not be read: {$relativePath}");
             }
 
@@ -1266,6 +1266,13 @@ class HistoricVideoImporter
         }
 
         return false;
+    }
+
+    protected function sourceFileSha256(string $path): ?string
+    {
+        $hash = hash_file('sha256', $path);
+
+        return is_string($hash) ? $hash : null;
     }
 
     /**

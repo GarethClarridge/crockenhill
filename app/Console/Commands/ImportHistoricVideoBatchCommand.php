@@ -261,12 +261,6 @@ class ImportHistoricVideoBatchCommand extends Command
             $headroom = $this->reportStagingHeadroom($approvedWorkItems, $parallel, $tempDiskMinFreeGb);
 
             if (! $dryRun && ! $headroom['measurable']) {
-                if (! $operation instanceof HistoricImportOperation || $plan === null) {
-                    $this->error('An unmeasurable staging volume requires an approved operation and plan before dispatch.');
-
-                    return self::FAILURE;
-                }
-
                 try {
                     $this->assertHostCapacityEvidence($operation, $plan->planHash, $headroom);
                 } catch (Throwable $exception) {
