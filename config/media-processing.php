@@ -114,6 +114,10 @@ return [
     */
     'historic_import' => [
         'evidence_signing_key' => env('HISTORIC_IMPORT_EVIDENCE_SIGNING_KEY'),
+        // A processing row must have been inactive for this long before the
+        // operator may recover its promotion/cleanup tail. This prevents a
+        // recovery invocation from racing a live worker.
+        'tail_recovery_stale_after_seconds' => (int) env('HISTORIC_IMPORT_TAIL_RECOVERY_STALE_AFTER_SECONDS', 3600),
         /*
          * HIR-D3 decided, against recommendation, that recovery evidence is
          * signed with the approval key above rather than a separate

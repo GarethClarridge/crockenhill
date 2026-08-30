@@ -1,7 +1,7 @@
 # Historic Video Pilot-to-Bulk Plan
 
 **Date:** 2026-08-29
-**Status:** In progress — Phases 0–6 complete; the canary (Phase 7) is the next step and needs an operator run; no further historic-video dispatch is authorised until it is scheduled
+**Status:** In progress — Phases 0–6 complete and the Phase 7 canary has been dispatched and resumed under operation 3; the run result and its code remediation are recorded below, but the operator reconciliation and identical-canary proof remain outstanding, so bulk processing remains NO-GO
 **Scope:** Correct the pilot findings, prove direct private asset promotion and bounded temporary cleanup, run a fresh canary, and process the remaining historic-video corpus safely
 **Related plan:** `HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md` remains the authority for the wider historic-import programme
 
@@ -65,8 +65,9 @@ The pilot's livestream projection synchronises canonical service items before in
 | 3 — Song and section eligibility | Complete | Commit `bd7d1bf27`. |
 | 4 — Neutralise internal cost apparatus | Complete | Commit `82be34700` removes live cap/ledger reads and writes while retaining the inert schema and compatibility code for IC8 closeout. |
 | 5 — Canary custody instrumentation | Complete | Commits `c61c8c7af` (direct create-only promotion into quarantine), `81ca5f3d9` (cleanup confined to working-copy disks) plus this commit's four byte measures, reported by `historic-import:video-pass-status --measures`. |
-| 6 — Copy-and-enqueue dispatch | Complete | Commit `6c6b0a7a8` removes whole-corpus verification and polling, adds operation-bound capacity evidence, and aborts stale mounts. Commit `3cb189f5b` adds the database-owned `historic-import:video-pass-status` report and the content-read-I/O regression test, completing the phase. |
-| 7–9 | Not started | Need operator runs. |
+| 6 — Copy-and-enqueue dispatch | Complete | Commit `6c6b0a7a8` removes polling, adds operation-bound capacity evidence, and aborts stale mounts. Commit `3cb189f5b` adds the database-owned `historic-import:video-pass-status` report and the content-read-I/O regression test. **Its whole-corpus-verification claim was false until 2026-08-30**: `6c6b0a7a8` deleted the opt-in `--verify-corpus` flag *and* the argument it passed, so `plan()` fell back to its `true` default and every invocation — dry runs and `--only` passes included — re-read ~1.0 TB. Now fixed at the call site with `verifySourceContents: false`, proved by `a_bounded_pass_does_not_read_the_contents_of_unselected_sources`. A 14-item dry run went from over three hours to 23 seconds. |
+| 7 — Fresh canary | Run complete; remediation implemented, acceptance blocked | Operation 3 was dispatched and resumed after a stale-mount abort. The duration, stranded-tail, custody-measurement and pilot-custody fixes are implemented and tested; the operation-bound repairs, corrected report and identical-canary proof have not yet been run. |
+| 8–9 | Not started | The remainder and public-release phases remain gated on a clean Phase 7 acceptance. |
 
 ### Phase 0 outcome
 
@@ -298,12 +299,7 @@ telemetry, retry backoff and the provider-side project limit remain unchanged.
 
 ### Operator decisions outstanding
 
-1. **Residue tolerance.** The pilot's two content defects
-   (`2023-08-20-morning` OoS ordering, `2024-07-28-morning` multi-sermon) have
-   since completed, so the ~12.5% residue question from the 2026-08-29 run is
-   settled for those two. Confirm before sizing the first bulk pass.
-2. **The 4.9 GB unreadable staging file.** Delete it as failed-run residue, or
-   investigate the drive first?
+None. The two that stood on 2026-08-30 are recorded as settled below.
 
 ### Operator decisions settled
 
@@ -319,6 +315,27 @@ telemetry, retry backoff and the provider-side project limit remain unchanged.
 3. **Corpus verification (2026-08-30).** Do not re-read the untouched ~1 TB
    corpus before a bounded pass. Verify the immutable manifest/plan binding and
    hash only that pass's selected sources immediately before their durable copy.
+4. **Residue tolerance (2026-08-30).** Settled at zero, not ~12.5%. Every
+   operation-3 identity reached `completed`: `2023-08-20-morning` produced sermon
+   891 and `2024-07-28-morning` sermon 890, so both 2026-08-29 content defects
+   are closed. Fifteen identities dispatched, one (`2023-09-03-morning`) skipped
+   because sermon 862 already stood on the date.
+5. **The 4.9 GB unreadable staging file (2026-08-30).** Moot and closed. The file
+   is gone — the pilot batch root's `livestream/temp` was emptied at 07:38 on
+   2026-08-30 — and `diskutil verifyVolume` reports the exFAT volume clean.
+   It was a partial copy the failed run *wrote*, never source evidence, so an
+   aborted write explains it without implicating the drive. The drive exposes no
+   SMART data over USB, so filesystem verification plus per-file SHA-256 at
+   dispatch is the available health signal.
+6. **Verification scope fix (2026-08-30).** Fix at the call site by passing
+   `verifySourceContents: false` rather than restoring a `--verify-corpus` flag.
+   Existence, symlink, root-containment and byte-size checks still run for every
+   manifest entry, the manifest and plan hashes are unchanged, and
+   `HistoricVideoImporter` re-checks size and SHA-256 per file immediately before
+   FFmpeg, so no dispatched byte goes unverified and no config seam is re-added.
+7. **Canary operation (2026-08-30).** The canary dispatches under the existing
+   operation 3 (`historic-video-full-corpus-20260826`), as the first bounded pass
+   of the cumulative operation rather than a separate evidence island.
 
 ### Phase 0 — Freeze and inventory the pilot
 
@@ -527,6 +544,194 @@ Acceptance criteria:
 
 Any new systemic defect blocks the bulk run. Genuine, enumerated content-review cases do not.
 
+### Phase 7 preparation, 2026-08-30
+
+Prepared and verified; the dispatch and monitored worker run are complete. The canary
+was dispatched under operation 3 and resumed after the removable-volume fault described
+below.
+
+**Drive.** Mounted via `COMPOSE_FILE=docker-compose.yml:docker-compose.drive.yml`.
+`/mnt/cbc-services` shows all 416 date folders read-only; `/mnt/historic-work` is
+writable on the dispatcher and all five workers. The first attempt failed on a
+stale Docker Desktop `/host_mnt/Volumes/Sonnics` bind entry; remounting the volume
+clears it, restarting Docker Desktop does not.
+
+**Pilot repair.** `historic-import:replay-video-pilot-analysis` run against
+operations 2 and 3 (21 runs), zero provider calls. Title, slug and duration are
+now 21/21; reference 20/21 (888 has none); series 10/21; preacher 21/21. A second
+run changes nothing, proving idempotence. Curated titles on 871 and 874 were
+correctly refused.
+
+**Two residues remain on the pilot cohort, both pre-existing.** All 21 sermons
+still have `asset_disk` null — Phase 5's promotion applies to new runs, and the
+pilot's bytes were never promoted out of working staging. All 21 are also
+`publication_state = published`, so `SermonExposurePolicy::isWholeContentPublic()`
+returns true for every one of them while their assets sit unpromoted on a
+removable volume. Repairing their metadata has made them *look* complete on public
+surfaces without changing that. Retro-promotion and publication state for the
+pilot cohort need an explicit decision before Phase 9.
+
+**Selection (14 identities, 32.8 GB, 9.83 h of content).** Derived from the 470
+approved includes minus 22 pilot-touched identities minus 43 whose date already
+carries a sermon, leaving a dispatchable pool of 405.
+
+```
+--only=2020-04-05-morning,2020-07-12-morning,2021-09-12-morning,2021-12-19-evening,\
+2022-01-23-morning,2022-07-24-morning,2022-12-11-evening,2023-07-16-morning,\
+2024-03-03-morning,2025-06-08-morning,2025-10-19-morning,2026-04-02-evening,\
+2026-05-17-morning,2026-05-24-evening
+```
+
+Every Phase 7 stratum is covered: all three corroboration classes, both
+concatenation modes, all seven eras, mp4/mkv/webm, both services, evidence
+present and absent, songs, children's talks, a >7 GB source, and both sides of the
+6 Mbps re-encode threshold. Three constraints shaped it:
+
+- **Only 8 concatenated (`lossless`) identities exist in the whole corpus and the
+  pilot consumed 7.** `2026-04-02-evening` is the sole untouched one, so it is
+  mandatory in any canary. Its two segments are codec-*matched* (h264/aac both),
+  which means **concat codec-mismatch has no untouched representative anywhere**;
+  `historic-import:prove-video-reencode-fallback` covers that path in isolation.
+- Only 3 pool identities carry Email evidence; all three are selected.
+- `2020-07-12-morning` is webm/VP9 reporting **no container duration and no
+  bitrate**, which exercises the unreadable-bitrate fail-safe branch of
+  `VideoExtractionService::shouldReencode()`.
+
+**Dry run.** Clean: 14 dispatched, 0 skipped, 0 errors, in 23 seconds. The report
+returns plan hash `8ecec582…` and manifest hash `1ae7e4fc…`, both matching
+operation 3 — confirming a bounded pass binds to the same approved round as a
+full one.
+
+### Phase 7 run result, 2026-08-30
+
+**Dispatch and recovery.** Operation 3 (`historic-60b16730090144bd307984abf538a7d7`,
+batch `historic-video-full-corpus-20260826`) dispatched the frozen 14-key selection
+with the unchanged manifest and plan bindings. The first dispatch stopped after 11
+items when the mounted exFAT volume returned `errno=5` during a source hash read.
+The volume was unmounted, verified clean with `diskutil verifyVolume`, remounted,
+and the Docker bind was revalidated before resuming. The remaining three keys were
+then dispatched by the same bounded pass. No further mount or I/O failure occurred;
+all four historic queues drained to zero.
+
+**Final database-owned disposition.** Eleven items completed, one is held for manual
+review, one failed on content evidence, and one remains unresolved in an orphaned
+promotion tail:
+
+- `2023-07-16-morning` is `manual_review`: no speech block met the 20-minute sermon
+  threshold.
+- `2026-04-02-evening` is `failed`: the stored full-service transcript contained no
+  cues. This is a truthful content failure, not a mount failure.
+- `2024-03-03-morning` remains `processing` at the notification-skipped tail after
+  its `promoting_historic_assets` step was orphaned by the interruption; there is no
+  queued job to resume it through an official command.
+
+The other eleven items, including the approved re-extraction runs for `2020-07-12`,
+`2021-12-19` and `2022-01-23`, are database-complete. `2026-05-17` was not re-cut:
+its source was already cleaned up by the completed run, so no additional overwrite
+was attempted.
+
+**Approved overwrite verification.** The re-extraction command was run with its
+guarded `--yes` overwrite path only for the three source-available conflicts. The
+resulting files are valid media in permanent private quarantine:
+
+| Sermon | Quarantine output | Verified bytes | Verified duration | SHA-256 |
+|---|---|---:|---:|---|
+| #898 — 2022-01-23 morning | `sermons/898/video.mp4` | 302,346,096 | 1,938.613 s | `c509a426962aec0767ab45f7df5dfa5c8855c20985d5b730dd0a7b91bd309d68` |
+| #899 — 2021-12-19 evening | `sermons/899/video.mp4` | 152,303,373 | 822.729 s | `e5cb48f035e75c1551e3e614bdd66477615ca25aa6d034a45f24e8f3e7215f22` |
+| #901 — 2020-07-12 morning | `sermons/901/video.mp4` | 116,033,352 | 1,785.002 s | `7eedf051364df6edbccced0adad8c871137c27326bdee6835c34c4b6a56ee5c3` |
+
+The affected database rows now identify `asset_disk = historic_quarantine` and
+`publication_state = quarantined`; no live public release occurred. The pre-existing
+#893 output remains unchanged at 654,775,915 bytes and 1,128.645 seconds because its
+source was unavailable for a safe re-cut.
+
+**Custody measures.** The final read-only status report recorded peak working bytes
+of 50.46 GiB, 3.85 GiB promoted during this run, 0 bytes retained on staging, and
+4.41 GiB held in quarantine. It also reported 24.68 GiB of unexplained residue,
+with 0 bytes attributed by the run-accounting line. That non-zero residue is recorded
+as a reconciliation finding rather than treated as clean custody evidence.
+
+**Acceptance outcome.** Phase 7 is operationally complete but does not pass its
+acceptance gate. The verified replacement files have durations of 1,938.613 s,
+822.729 s and 1,785.002 s, while the corresponding sermon metadata still records
+2,124 s, 986.99 s and 1,786.009 s. The unresolved #2024-03-03 promotion tail and
+the non-zero custody residue also remain. The identical-canary zero-additional-AI-
+spend replay was not run. These findings block the Phase 8 bulk run; no further
+historic-video dispatch is authorised until they are reconciled.
+
+### Phase 7 remediation implementation, 2026-08-30
+
+The code-side blockers are repaired, but no production row or asset has been
+changed by this implementation work:
+
+- Existing-sermon refresh now derives duration from
+  `MediaProcessingLog::extractedSermonMediaDuration()`. A concatenated extraction
+  records the sum of emitted spans, not the wall-clock window across omitted gaps,
+  and curated sermon fields are unchanged.
+- `historic-import:repair-video-sermon-durations` repairs already-completed,
+  private operation-owned sermons from that same banked extraction plan. It is an
+  exact-ID, dry-run-first, duration-only operation and dispatches no jobs or model
+  requests. `--apply` requires `--yes`; an identical replay is a no-op.
+- `historic-import:recover-processing-tail` recovers only the idempotent
+  `PromoteHistoricAssets` → `CleanupTemporaryFiles` tail of a stale operation-bound
+  run. It rejects fresh, terminal, non-historic, wrong-stage, wrong-operation and
+  staging-context-mismatched rows. A row-locked recovery claim prevents duplicate
+  dispatch.
+- Custody measures now activate the operation's recorded
+  `historic-batches/{planHash}` staging context. Previous batches and files outside
+  that root are excluded; temporary files, sermon assets, RMS logs and retained
+  service artifacts owned by the operation are accounted; unknown files inside
+  the active batch remain residue.
+- `historic-import:repair-video-pilot-custody` provides the fail-closed repair for
+  the 21 pre-promotion pilot sermons. It requires the exact owning operation and
+  exact completed processing IDs, is dry-run-first, quarantines all valid rows
+  before copying, and delegates create-only/hash-verified promotion and staging
+  reclamation to the existing custody service. A failed promotion leaves the row
+  private and its staging source retained; a repeated successful repair is a no-op.
+
+Focused verification covers 100 tests and 380 assertions across dispatch,
+recovery, duration, promotion, custody measures and status. PHPStan reports zero
+errors and Pint is clean. The full parallel suite ran 7,436 tests: 7,435 passed
+and the existing committed-JSON baseline scan failed because one parallel worker
+observed no tracked Git files. That exact test immediately passed alone with 28
+assertions, and the companion one-shot deletion-trigger test passed with three;
+no historic-processing test failed. Treat the parallel-only scan as a quality-gate
+environment finding, not as Phase 7 acceptance evidence.
+
+#### Required operator sequence
+
+1. Deploy this exact tree and restart every historic worker so the dispatcher,
+   jobs and commands share one fingerprint.
+2. From `historic-import:video-pass-status`, retain the exact processing ID for
+   `2024-03-03-morning`. Dry-run the status again, then run
+   `historic-import:recover-processing-tail <processing-id> --operation=historic-60b16730090144bd307984abf538a7d7`.
+   Wait for promotion and cleanup to reach a truthful terminal state.
+3. Retain the exact processing IDs linked to sermons 898, 899 and 901. Run
+   `historic-import:repair-video-sermon-durations --operation=historic-60b16730090144bd307984abf538a7d7 --processing-id=<id>`
+   once per exact ID set, review the dry-run table, then repeat with `--apply --yes`.
+   Metadata must equal the recorded extracted-span duration. FFprobe may differ
+   by at most 1.5 seconds for container/timestamp rounding; any larger difference
+   remains a blocker.
+4. Split the 21 pilot processing IDs by their exact owning operation (2 or 3).
+   For each operation run `historic-import:repair-video-pilot-custody` with every
+   exact `--processing-id`, retain the dry-run table, then repeat with
+   `--apply --yes`. Verify every repaired sermon is `quarantined`, names
+   `historic_quarantine`, belongs to that operation, resolves every asset there,
+   and retains no duplicate staging copy.
+5. Re-run `historic-import:video-pass-status --measures` for the frozen 14 keys.
+   Export the path census for every non-zero byte: owned active/retryable work,
+   named operation artifact, platform sidecar or genuine orphan. Do not delete a
+   path merely because the earlier unscoped report called it residue.
+6. Record the acceptance evidence still absent from the first result: per-identity
+   title/reference/duration/series/speaker audit, projection and song eligibility,
+   model/token/request counts, neutral/unobservable transcript rate, elapsed and
+   p95 duration, observed worker concurrency, and the resulting 12- or 24-hour
+   resource envelope.
+7. Dispatch the identical frozen 14-key selection. It passes only if it creates no
+   processing identity, provider call, asset or notification, all 14 identities
+   retain truthful terminal dispositions, and custody residue is zero or exactly
+   enumerated. Only then may Phase 8 start.
+
 ### Phase 8 — Process the remainder as a closed pass loop
 
 For each pass:
@@ -571,14 +776,14 @@ Public release remains a separate human-authorised act. It is never a side effec
 The remainder may start only when all of these are true:
 
 - [ ] Pilot membership and disk ownership reconcile exactly.
-- [ ] Title, Scripture, duration and slug application pass real-shape regression tests.
-- [ ] Service projection no longer conflicts with its own evidence.
-- [ ] Fragmentary/duplicate song candidates fail closed to review.
-- [ ] Production and command paths no longer require, read or write the internal cost cap/ledger; inert schema deletion is assigned to IC8 closeout, while model/token/request telemetry, retry controls and the provider-side project limit remain.
-- [ ] Unmeasurable staging capacity fails closed unless sufficient operation-bound host evidence is supplied.
-- [ ] A content-read I/O failure aborts further dispatch as a stale-mount event.
-- [ ] Banked pilot analysis repairs the completed pilot records with zero provider calls and is idempotent.
-- [ ] The dispatcher verifies and durably stages selected sources, records processing IDs, enqueues and exits; no worker depends on the removable source mount and no whole-corpus verification remains.
+- [x] Title, Scripture, duration and slug application pass real-shape regression tests.
+- [x] Service projection no longer conflicts with its own evidence.
+- [x] Fragmentary/duplicate song candidates fail closed to review.
+- [x] Production and command paths no longer require, read or write the internal cost cap/ledger; inert schema deletion is assigned to IC8 closeout, while model/token/request telemetry, retry controls and the provider-side project limit remain.
+- [x] Unmeasurable staging capacity fails closed unless sufficient operation-bound host evidence is supplied.
+- [x] A content-read I/O failure aborts further dispatch as a stale-mount event.
+- [x] Banked pilot analysis repairs the completed pilot records with zero provider calls and is idempotent.
+- [x] The dispatcher verifies and durably stages selected sources, records processing IDs, enqueues and exits; no worker depends on the removable source mount and no whole-corpus verification remains.
 - [ ] A fresh untouched canary passes all acceptance criteria.
 - [ ] The canary proves direct private promotion and bounded temporary cleanup without fragmenting the cumulative evidence graph.
 - [ ] The canary's measured byte/time envelope, not an identity-count rule, sizes the first bulk pass.

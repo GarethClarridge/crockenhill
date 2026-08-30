@@ -229,13 +229,28 @@ class SubmitToProcessing implements ShouldQueue
 
     private function refreshExistingLivestreamSermon(Sermon $sermon): Sermon
     {
-        $sermon->update([
+        $updates = [
             'audio_file_path' => $this->processingLog->audio_file_path,
             'source_type' => SermonSourceType::Livestream,
             'livestream_processing_id' => $this->processingLog->processing_id,
             'segment_start_time' => $this->processingLog->sermon_start_time,
             'segment_end_time' => $this->processingLog->sermon_end_time,
-        ]);
+        ];
+
+        $duration = $this->processingLog->extractedSermonMediaDuration();
+
+        if ($duration === null
+            && $this->processingLog->sermon_start_time !== null
+            && $this->processingLog->sermon_end_time !== null
+            && $this->processingLog->sermon_end_time > $this->processingLog->sermon_start_time) {
+            $duration = $this->processingLog->sermon_end_time - $this->processingLog->sermon_start_time;
+        }
+
+        if ($duration !== null) {
+            $updates['duration'] = $duration;
+        }
+
+        $sermon->update($updates);
 
         return $sermon->fresh() ?? $sermon;
     }

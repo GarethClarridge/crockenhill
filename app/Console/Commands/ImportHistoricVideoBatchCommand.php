@@ -117,14 +117,28 @@ class ImportHistoricVideoBatchCommand extends Command
 
         if ($manifestPath !== null) {
             try {
-                $plan = $curationManifest->plan($directory, $manifestPath);
+                /**
+                 * Contents are deliberately not re-read here. Verifying them reads the whole
+                 * included corpus — roughly 1.0 TB, about three hours — before `--only` has
+                 * narrowed anything, which a bounded pass must never pay. Existence, symlink,
+                 * root-containment and byte-size checks still run for every manifest entry, the
+                 * manifest and plan hashes are unchanged either way, and
+                 * {@see HistoricVideoImporter} re-checks size and
+                 * SHA-256 per file immediately before FFmpeg consumes it, so no dispatched byte
+                 * goes unverified.
+                 */
+                $plan = $curationManifest->plan(
+                    $directory,
+                    $manifestPath,
+                    verifySourceContents: false,
+                );
             } catch (Throwable $exception) {
                 $this->error($exception->getMessage());
 
                 return self::FAILURE;
             }
 
-            $this->line('Only selected sources are verified immediately before durable staging and dispatch.');
+            $this->line('Corpus contents are not re-read; every dispatched file is verified before FFmpeg consumes it.');
 
             $approvedWorkItems = $plan->workItems;
             $defaultYear = null;

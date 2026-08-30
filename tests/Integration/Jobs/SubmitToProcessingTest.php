@@ -163,6 +163,59 @@ class SubmitToProcessingTest extends TestCase
     }
 
     #[Test]
+    public function it_refreshes_existing_sermon_duration_from_the_extracted_concat_plan(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('sermons/audio/refreshed-duration.mp3', 'fake-audio-content');
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $sermon = Sermon::factory()->fromLivestream()->create([
+            'audio_file_path' => 'sermons/audio/original-duration.mp3',
+            'duration' => 3600.0,
+            'title' => 'Curated sermon title',
+            'reference' => 'John 3:16',
+            'series' => 'Curated series',
+            'preacher' => 'Curated preacher',
+            'livestream_processing_id' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'audio_file_path' => 'sermons/audio/refreshed-duration.mp3',
+            'original_filename' => '2026-01-15-livestream.mp4',
+            'video_file_path' => 'temp/video.mp4',
+            'sermon_start_time' => 300.0,
+            'sermon_end_time' => 2100.0,
+            'processing_metadata' => [
+                'sermon_extraction_plan' => [
+                    'segments' => [
+                        ['start_time' => 300.0, 'end_time' => 1200.0],
+                        ['start_time' => 1500.0, 'end_time' => 2100.0],
+                    ],
+                ],
+            ],
+        ]);
+
+        $mockCreationService = $this->createMock(SermonCreationService::class);
+        $mockCreationService->expects($this->never())->method('createSermon');
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->zeroOrMoreTimes();
+
+        $job = new SubmitToProcessing($log);
+        $job->handle($mockCreationService);
+
+        $sermon->refresh();
+
+        $this->assertEquals(1500.0, $sermon->duration);
+        $this->assertSame('Curated sermon title', $sermon->title);
+        $this->assertSame('John 3:16', $sermon->reference);
+        $this->assertSame('Curated series', $sermon->series);
+        $this->assertSame('Curated preacher', $sermon->preacher);
+    }
+
+    #[Test]
     public function failed_method_marks_processing_log_as_failed(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->processing()->create();

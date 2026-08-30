@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\HistoricMedia;
 
+use App\Data\HistoricStagingContext;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Sermon\SermonPromotionAssets;
+use App\Support\Path;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 /**
  * The four byte measures Phase 5 requires the canary to report.
@@ -42,6 +45,7 @@ class HistoricVideoPassMeasures
     public function __construct(
         private readonly SermonPromotionAssets $assets,
         private readonly HistoricStagingGuard $staging,
+        private readonly HistoricStagingContextRegistry $stagingContextRegistry,
     ) {}
 
     /**
@@ -70,6 +74,37 @@ class HistoricVideoPassMeasures
                 fn (MediaProcessingLog $run): bool => in_array($this->manifestItemKey($run), $itemKeys, true),
             )->values();
 
+        $stagingContext = $this->stagingContextFor($operation, $operationRuns);
+
+        return $this->stagingContextRegistry->within(
+            $stagingContext,
+            fn (): array => $this->reportWithinStagingContext($operationRuns, $runs, $itemKeys, $stagingContext),
+        );
+    }
+
+    /**
+     * @param  Collection<int, MediaProcessingLog>  $operationRuns
+     * @param  Collection<int, MediaProcessingLog>  $runs
+     * @param  list<string>  $itemKeys
+     * @return array{
+     *     runs: int,
+     *     runs_reporting_promotion: int,
+     *     promoted_bytes: int,
+     *     reclaimed_bytes: int,
+     *     peak_working_bytes: int,
+     *     staging_retained_bytes: int,
+     *     staging_accounted_bytes: int,
+     *     unexplained_residue_bytes: int,
+     *     quarantine_bytes: int
+     * }
+     */
+    private function reportWithinStagingContext(
+        Collection $operationRuns,
+        Collection $runs,
+        array $itemKeys,
+        HistoricStagingContext $stagingContext,
+    ): array {
+
         $promotedBytes = 0;
         $reclaimedBytes = 0;
         $peakWorkingBytes = 0;
@@ -89,12 +124,12 @@ class HistoricVideoPassMeasures
         }
 
         $stagingSizes = $this->fileSizes($this->staging->stagingDisk());
-        $selectedPaths = $this->accountedStagingPaths($runs);
+        $selectedPaths = $this->accountedStagingPaths($runs, $stagingContext);
         $accountedBytes = $this->bytesAtPaths($stagingSizes, $selectedPaths);
         $retainedBytes = $itemKeys === [] ? array_sum($stagingSizes) : $accountedBytes;
         $operationAccountedBytes = $this->bytesAtPaths(
             $stagingSizes,
-            $this->accountedStagingPaths($operationRuns),
+            $this->accountedStagingPaths($operationRuns, $stagingContext),
         );
 
         return [
@@ -106,8 +141,102 @@ class HistoricVideoPassMeasures
             'staging_retained_bytes' => $retainedBytes,
             'staging_accounted_bytes' => $accountedBytes,
             'unexplained_residue_bytes' => max(0, array_sum($stagingSizes) - $operationAccountedBytes),
-            'quarantine_bytes' => $this->quarantineBytes($runs, $itemKeys === []),
+            'quarantine_bytes' => $this->quarantineBytes($runs, $itemKeys === [], $stagingContext),
         ];
+    }
+
+    /**
+     * Resolve the exact private root used by this operation. A historic run's
+     * paths are relative to that root, so measuring the unscoped staging disk
+     * would include prior batches and files outside historic processing.
+     *
+     * @param  Collection<int, MediaProcessingLog>  $runs
+     */
+    private function stagingContextFor(
+        HistoricImportOperation $operation,
+        Collection $runs,
+    ): HistoricStagingContext {
+        $contexts = [];
+        $missingContextRunIds = [];
+
+        foreach ($runs as $run) {
+            $context = $run->historicStagingContext();
+
+            if ($context instanceof HistoricStagingContext) {
+                $contexts[] = $context;
+
+                continue;
+            }
+
+            $missingContextRunIds[] = $run->processing_id;
+        }
+
+        if ($contexts === []) {
+            $manifestHash = $this->operationManifestHash($operation);
+
+            if ($manifestHash === null) {
+                throw new RuntimeException('Historic custody measures require the operation manifest hash.');
+            }
+
+            return $this->staging->contextForApprovedPlan($manifestHash, $operation->plan_hash);
+        }
+
+        if ($missingContextRunIds !== []) {
+            throw new RuntimeException(
+                'Historic custody measures cannot mix runs with and without an approved staging context. '
+                .'These runs carry none: '.implode(', ', $missingContextRunIds).'.'
+            );
+        }
+
+        $context = $contexts[0];
+
+        foreach (array_slice($contexts, 1) as $other) {
+            if ($other->toArray() === $context->toArray()) {
+                continue;
+            }
+
+            throw new RuntimeException(
+                'Historic custody measures must select runs from one approved staging context.'
+            );
+        }
+
+        $this->assertOperationContext($operation, $context);
+
+        return $context;
+    }
+
+    private function assertOperationContext(
+        HistoricImportOperation $operation,
+        HistoricStagingContext $context,
+    ): void {
+        if (! hash_equals($operation->plan_hash, $context->planHash)) {
+            throw new RuntimeException(
+                'Historic custody measures staging context does not match the operation plan hash.'
+            );
+        }
+
+        $manifestHash = $this->operationManifestHash($operation);
+
+        if ($manifestHash !== null && ! hash_equals($manifestHash, $context->manifestHash)) {
+            throw new RuntimeException(
+                'Historic custody measures staging context does not match the operation manifest hash.'
+            );
+        }
+    }
+
+    private function operationManifestHash(HistoricImportOperation $operation): ?string
+    {
+        foreach (['historic_video', 'video'] as $sourceKind) {
+            $manifestHash = $operation->manifest_hashes[$sourceKind] ?? null;
+
+            if (is_string($manifestHash) && $manifestHash !== '') {
+                return $manifestHash;
+            }
+        }
+
+        return count($operation->manifest_hashes) === 1
+            ? array_values($operation->manifest_hashes)[0]
+            : null;
     }
 
     private function manifestItemKey(MediaProcessingLog $run): ?string
@@ -133,15 +262,18 @@ class HistoricVideoPassMeasures
     }
 
     /** @param Collection<int, MediaProcessingLog> $runs */
-    private function quarantineBytes(Collection $runs, bool $entireDisk): int
-    {
+    private function quarantineBytes(
+        Collection $runs,
+        bool $entireDisk,
+        HistoricStagingContext $stagingContext,
+    ): int {
         $sizes = $this->fileSizes($this->quarantineDisk());
 
         if ($entireDisk) {
             return array_sum($sizes);
         }
 
-        return $this->bytesAtPaths($sizes, $this->sermonAssetPaths($runs));
+        return $this->bytesAtPaths($sizes, $this->sermonAssetPaths($runs, $stagingContext));
     }
 
     /**
@@ -154,16 +286,74 @@ class HistoricVideoPassMeasures
      * @param  Collection<int, MediaProcessingLog>  $runs
      * @return list<string>
      */
-    private function accountedStagingPaths(Collection $runs): array
-    {
+    private function accountedStagingPaths(
+        Collection $runs,
+        HistoricStagingContext $stagingContext,
+    ): array {
         $paths = [];
 
         foreach ($runs as $run) {
             foreach ($run->temporaryFilePaths() as $path) {
+                $normalizedPath = $this->pathWithinActiveStaging($path, $stagingContext);
+
+                if ($normalizedPath !== null) {
+                    $paths[] = $normalizedPath;
+                }
+            }
+
+            foreach ($this->runOwnedStagingPaths($run, $stagingContext) as $path) {
                 $paths[] = $path;
             }
 
-            $paths = [...$paths, ...$this->sermonAssetPaths(collect([$run]))];
+            foreach ($this->sermonAssetPaths(collect([$run]), $stagingContext) as $path) {
+                $paths[] = $path;
+            }
+        }
+
+        return array_values(array_unique($paths));
+    }
+
+    /**
+     * Service artifacts are deliberately retained across cleanup, so they are
+     * still accounted staging output even though they are not temporary files.
+     * Older runs only carried the RMS path column; newer artifact writers also
+     * record the disk and path in the service-artifacts metadata list.
+     *
+     * @return list<string>
+     */
+    private function runOwnedStagingPaths(
+        MediaProcessingLog $run,
+        HistoricStagingContext $stagingContext,
+    ): array {
+        $paths = [];
+        $rmsPath = $this->pathWithinActiveStaging($run->rms_log_path ?? '', $stagingContext);
+
+        if ($rmsPath !== null) {
+            $paths[] = $rmsPath;
+        }
+
+        $artifacts = data_get($run->processing_metadata?->toArray(), 'service_artifacts');
+
+        if (! is_array($artifacts)) {
+            return $paths;
+        }
+
+        foreach ($artifacts as $artifact) {
+            if (! is_array($artifact) || ($artifact['disk'] ?? null) !== $stagingContext->stagingDisk) {
+                continue;
+            }
+
+            $path = $artifact['path'] ?? null;
+
+            if (! is_string($path)) {
+                continue;
+            }
+
+            $normalizedPath = $this->pathWithinActiveStaging($path, $stagingContext);
+
+            if ($normalizedPath !== null) {
+                $paths[] = $normalizedPath;
+            }
         }
 
         return array_values(array_unique($paths));
@@ -173,8 +363,10 @@ class HistoricVideoPassMeasures
      * @param  Collection<int, MediaProcessingLog>  $runs
      * @return list<string>
      */
-    private function sermonAssetPaths(Collection $runs): array
-    {
+    private function sermonAssetPaths(
+        Collection $runs,
+        HistoricStagingContext $stagingContext,
+    ): array {
         $paths = [];
 
         foreach ($runs as $run) {
@@ -190,12 +382,39 @@ class HistoricVideoPassMeasures
 
             foreach ($sermons as $sermon) {
                 foreach ($this->assets->referencesForSermon($sermon) as $reference) {
-                    $paths[] = $reference['path'];
+                    $normalizedPath = $this->pathWithinActiveStaging($reference['path'], $stagingContext);
+
+                    if ($normalizedPath !== null) {
+                        $paths[] = $normalizedPath;
+                    }
                 }
             }
         }
 
         return array_values(array_unique($paths));
+    }
+
+    private function pathWithinActiveStaging(
+        string $path,
+        HistoricStagingContext $stagingContext,
+    ): ?string {
+        $path = str_replace('\\', '/', trim($path));
+
+        if ($path === '' || Path::isUnsafe($path)) {
+            return null;
+        }
+
+        $batchRoot = trim(str_replace('\\', '/', $stagingContext->batchRoot), '/');
+
+        if ($path === $batchRoot) {
+            return null;
+        }
+
+        if (str_starts_with($path, "{$batchRoot}/")) {
+            return substr($path, strlen($batchRoot) + 1);
+        }
+
+        return ltrim($path, '/');
     }
 
     /**

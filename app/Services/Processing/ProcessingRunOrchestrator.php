@@ -7,13 +7,20 @@ namespace App\Services\Processing;
 use App\Contracts\ProvidesSafeMessage;
 use App\Data\HistoricStagingContext;
 use App\Data\ProcessingResult;
+use App\Enums\HistoricImportOperationState;
 use App\Enums\ProcessingStatus;
+use App\Enums\ProcessingStep;
+use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\PromoteHistoricAssets;
+use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Video\VideoStorageService;
+use Carbon\CarbonInterface;
 use Illuminate\Bus\Batch;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -28,6 +35,18 @@ use Illuminate\Support\Facades\Log;
  */
 class ProcessingRunOrchestrator
 {
+    /** @var list<string> */
+    private const HistoricTailSteps = [
+        'notification_sent',
+        'notification_skipped',
+        'notification_failed',
+        'notification_failed_permanently',
+        'promoting_historic_assets',
+        'cleanup',
+    ];
+
+    private const DefaultHistoricTailRecoveryStaleAfterSeconds = 3600;
+
     public function __construct(
         private readonly ProcessingPipelineBuilder $pipelineBuilder,
         private readonly ProcessingPhaseRegistry $phaseRegistry,
@@ -147,6 +166,98 @@ class ProcessingRunOrchestrator
     }
 
     /**
+     * Recover only the promotion and cleanup tail of an interrupted historic run.
+     *
+     * This is deliberately separate from {@see self::retry()}: a stale processing
+     * row is not a failed run, and retrying it through the phase registry could
+     * repeat paid or otherwise irreversible stages. The caller must name the
+     * immutable operation that owns the run; both the foreign key and the
+     * operation identity recorded in the run metadata are checked before the two
+     * idempotent tail jobs are dispatched.
+     */
+    public function recoverHistoricTail(
+        MediaProcessingLog $processingLog,
+        HistoricImportOperation $operation,
+    ): ProcessingResult {
+        return $this->withRecordedStagingContext($processingLog, function () use ($processingLog, $operation): ProcessingResult {
+            return DB::transaction(function () use ($processingLog, $operation): ProcessingResult {
+                $lockedLog = MediaProcessingLog::query()
+                    ->whereKey($processingLog->getKey())
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $lockedLog instanceof MediaProcessingLog) {
+                    return ProcessingResult::failure(
+                        processingId: $processingLog->processing_id,
+                        message: 'The processing run disappeared before recovery could be claimed.',
+                        errorCode: 'HISTORIC_TAIL_RUN_MISSING',
+                    );
+                }
+
+                $metadata = $lockedLog->processing_metadata?->toArray() ?? [];
+                $claim = $metadata['historic_tail_recovery'] ?? null;
+                $validationError = $this->historicTailValidationError(
+                    $lockedLog,
+                    $operation,
+                    checkStaleness: $claim === null,
+                );
+
+                if ($validationError !== null) {
+                    return ProcessingResult::failure(
+                        processingId: $lockedLog->processing_id,
+                        message: $validationError['message'],
+                        errorCode: $validationError['code'],
+                    );
+                }
+
+                if ($claim !== null) {
+                    if (! is_array($claim)
+                        || ($claim['operation_id'] ?? null) !== $operation->operation_id
+                        || ($claim['processing_id'] ?? null) !== $lockedLog->processing_id) {
+                        return ProcessingResult::failure(
+                            processingId: $lockedLog->processing_id,
+                            message: 'The processing run has an invalid or foreign historic tail recovery claim.',
+                            errorCode: 'HISTORIC_TAIL_CLAIM_MISMATCH',
+                        );
+                    }
+
+                    return ProcessingResult::success(
+                        processingId: $lockedLog->processing_id,
+                        message: 'Historic promotion and cleanup tail was already claimed; no duplicate chain dispatched.',
+                        statusUrl: route('api.media.processing.status', ['processingId' => $lockedLog->processing_id]),
+                        details: ['already_claimed' => true],
+                    );
+                }
+
+                $metadata['historic_tail_recovery'] = [
+                    'operation_id' => $operation->operation_id,
+                    'processing_id' => $lockedLog->processing_id,
+                    'job_key' => $lockedLog->historicImportJobKey(),
+                    'claimed_at' => now()->toISOString(),
+                ];
+                $lockedLog->forceFill(['processing_metadata' => $metadata])->save();
+
+                $pipeline = $lockedLog->processingPipelineProfile();
+                $this->dispatchChain(
+                    [
+                        new PromoteHistoricAssets($lockedLog),
+                        new CleanupTemporaryFiles($lockedLog),
+                    ],
+                    $this->queueForPipeline($pipeline),
+                    $lockedLog,
+                    $this->failureProfileForPipeline($pipeline),
+                );
+
+                return ProcessingResult::success(
+                    processingId: $lockedLog->processing_id,
+                    message: 'Historic promotion and cleanup tail dispatched.',
+                    statusUrl: route('api.media.processing.status', ['processingId' => $lockedLog->processing_id]),
+                );
+            });
+        });
+    }
+
+    /**
      * Re-cut a finished run's sermon from the structure it already has.
      *
      * Confirming or correcting a service's structure changes where the sermon
@@ -245,6 +356,156 @@ class ProcessingRunOrchestrator
             default => throw new \InvalidArgumentException(
                 'Unknown retry plan action: '.get_debug_type($retryPlan['action'])
             ),
+        };
+    }
+
+    /**
+     * @return array{code: string, message: string}|null
+     */
+    private function historicTailValidationError(
+        MediaProcessingLog $processingLog,
+        HistoricImportOperation $operation,
+        bool $checkStaleness = true,
+    ): ?array {
+        if ($processingLog->status !== ProcessingStatus::Processing) {
+            return [
+                'code' => 'HISTORIC_TAIL_NOT_PROCESSING',
+                'message' => 'Historic tail recovery requires a run that must still be processing.',
+            ];
+        }
+
+        if ($processingLog->historic_import_operation_id === null
+            || $processingLog->historicImportJobKey() === null) {
+            return [
+                'code' => 'HISTORIC_TAIL_NOT_HISTORIC',
+                'message' => 'The processing run is not a historic run owned by an import operation.',
+            ];
+        }
+
+        if ($processingLog->historic_import_operation_id !== $operation->id) {
+            return [
+                'code' => 'HISTORIC_TAIL_OPERATION_MISMATCH',
+                'message' => 'The processing run does not belong to the named historic operation.',
+            ];
+        }
+
+        $recordedOperationId = data_get(
+            $processingLog->processing_metadata?->toArray(),
+            'historic_import.operation_id',
+        );
+
+        if (! is_string($recordedOperationId) || $recordedOperationId !== $operation->operation_id) {
+            return [
+                'code' => 'HISTORIC_TAIL_METADATA_OPERATION_MISMATCH',
+                'message' => 'The processing metadata operation identity does not match the named historic operation.',
+            ];
+        }
+
+        $stagingContext = $processingLog->historicStagingContext();
+
+        if ($stagingContext instanceof HistoricStagingContext
+            && ! $this->stagingContextMatchesOperation($stagingContext, $operation)) {
+            return [
+                'code' => 'HISTORIC_TAIL_STAGING_CONTEXT_MISMATCH',
+                'message' => 'The staging context manifest and plan hashes do not match the named historic operation.',
+            ];
+        }
+
+        if ($operation->state === HistoricImportOperationState::Complete) {
+            return [
+                'code' => 'HISTORIC_TAIL_OPERATION_CLOSED',
+                'message' => 'The named historic operation is already closed.',
+            ];
+        }
+
+        if ($operation->accepted_deadline?->isPast() === true) {
+            return [
+                'code' => 'HISTORIC_TAIL_OPERATION_EXPIRED',
+                'message' => 'The named historic operation deadline has elapsed.',
+            ];
+        }
+
+        if ($checkStaleness && ! $this->historicTailIsStale($processingLog)) {
+            return [
+                'code' => 'HISTORIC_TAIL_NOT_STALE',
+                'message' => 'The processing run is not stale; refusing to recover a fresh or live run.',
+            ];
+        }
+
+        if (! in_array($this->canonicalTailStep($processingLog->current_step), self::HistoricTailSteps, true)) {
+            return [
+                'code' => 'HISTORIC_TAIL_WRONG_STEP',
+                'message' => 'The processing run is not at the promotion/cleanup tail.',
+            ];
+        }
+
+        return null;
+    }
+
+    private function stagingContextMatchesOperation(
+        HistoricStagingContext $stagingContext,
+        HistoricImportOperation $operation,
+    ): bool {
+        $manifestHashes = $operation->manifest_hashes;
+        $expectedManifestHash = $manifestHashes['historic_video'] ?? $manifestHashes['video'] ?? null;
+
+        if (! is_string($expectedManifestHash) || $expectedManifestHash === '') {
+            return false;
+        }
+
+        if ($operation->plan_hash === '') {
+            return false;
+        }
+
+        return hash_equals($expectedManifestHash, $stagingContext->manifestHash)
+            && hash_equals($operation->plan_hash, $stagingContext->planHash);
+    }
+
+    private function historicTailIsStale(MediaProcessingLog $processingLog): bool
+    {
+        $lastActivity = collect([$processingLog->started_at, $processingLog->updated_at])
+            ->filter(static fn (mixed $timestamp): bool => $timestamp instanceof CarbonInterface)
+            ->sortByDesc(static fn (CarbonInterface $timestamp): int => $timestamp->getTimestamp())
+            ->first();
+
+        if (! $lastActivity instanceof CarbonInterface) {
+            return false;
+        }
+
+        $configuredThreshold = config(
+            'media-processing.historic_import.tail_recovery_stale_after_seconds',
+            self::DefaultHistoricTailRecoveryStaleAfterSeconds,
+        );
+        $threshold = is_numeric($configuredThreshold) ? (int) $configuredThreshold : 0;
+
+        if ($threshold <= 0) {
+            return false;
+        }
+
+        return $lastActivity->isBefore(now()->subSeconds($threshold));
+    }
+
+    private function canonicalTailStep(?string $step): ?string
+    {
+        return $step === null ? null : ProcessingStep::canonicalize($step);
+    }
+
+    private function queueForPipeline(string $pipeline): string
+    {
+        return match ($pipeline) {
+            'video', 'video_auto_trim' => $this->videoQueue(),
+            'livestream' => $this->livestreamQueue(),
+            default => $this->audioQueue(),
+        };
+    }
+
+    private function failureProfileForPipeline(string $pipeline): string
+    {
+        return match ($pipeline) {
+            'video' => ProcessingRunFailureHandler::PROFILE_VIDEO,
+            'video_auto_trim' => ProcessingRunFailureHandler::PROFILE_VIDEO_AUTO_TRIM,
+            'livestream' => ProcessingRunFailureHandler::PROFILE_LIVESTREAM,
+            default => ProcessingRunFailureHandler::PROFILE_AUDIO,
         };
     }
 

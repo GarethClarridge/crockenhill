@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Data\HistoricStagingContext;
 use App\Enums\ProcessingStatus;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\HistoricMedia\HistoricVideoPassMeasures;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -27,6 +29,10 @@ class HistoricVideoPassMeasuresTest extends TestCase
         Storage::fake('historic_staging');
         Storage::fake('historic_quarantine');
 
+        config()->set(
+            'filesystems.disks.historic_staging.root',
+            Storage::disk('historic_staging')->path(''),
+        );
         config()->set('media-processing.storage.historic_staging_disk', 'historic_staging');
         config()->set('media-processing.storage.historic_quarantine_disk', 'historic_quarantine');
         config()->set('media-processing.storage.sermon_disk', 'historic_staging');
@@ -38,9 +44,10 @@ class HistoricVideoPassMeasuresTest extends TestCase
     public function it_sums_promotion_records_and_takes_the_peak_from_their_samples(): void
     {
         $operation = $this->createHistoricImportOperation();
+        $context = $this->stagingContextFor($operation);
 
-        $this->runWithPromotion($operation, ['promoted_bytes' => 100, 'reclaimed_bytes' => 100, 'staging_bytes_before_reclaim' => 900]);
-        $this->runWithPromotion($operation, ['promoted_bytes' => 250, 'reclaimed_bytes' => 200, 'staging_bytes_before_reclaim' => 1500]);
+        $this->runWithPromotion($operation, ['promoted_bytes' => 100, 'reclaimed_bytes' => 100, 'staging_bytes_before_reclaim' => 900], stagingContext: $context);
+        $this->runWithPromotion($operation, ['promoted_bytes' => 250, 'reclaimed_bytes' => 200, 'staging_bytes_before_reclaim' => 1500], stagingContext: $context);
 
         $measures = app(HistoricVideoPassMeasures::class)->report($operation);
 
@@ -54,7 +61,8 @@ class HistoricVideoPassMeasuresTest extends TestCase
     public function it_measures_bytes_held_on_each_disk_right_now(): void
     {
         $operation = $this->createHistoricImportOperation();
-        Storage::disk('historic_staging')->put('temp/leftover.wav', str_repeat('a', 64));
+        $context = $this->stagingContextFor($operation);
+        Storage::disk('historic_staging')->put("{$context->batchRoot}/temp/leftover.wav", str_repeat('a', 64));
         Storage::disk('historic_quarantine')->put('sermons/video/promoted.mp4', str_repeat('b', 128));
 
         $measures = app(HistoricVideoPassMeasures::class)->report($operation);
@@ -70,7 +78,8 @@ class HistoricVideoPassMeasuresTest extends TestCase
     public function unpromoted_output_a_run_owns_is_not_counted_as_residue(): void
     {
         $operation = $this->createHistoricImportOperation();
-        $log = $this->runWithPromotion($operation, null);
+        $context = $this->stagingContextFor($operation);
+        $log = $this->runWithPromotion($operation, null, stagingContext: $context);
 
         Sermon::factory()->create([
             'livestream_processing_id' => $log->processing_id,
@@ -81,12 +90,30 @@ class HistoricVideoPassMeasuresTest extends TestCase
             'thumbnail_metadata' => null,
         ]);
 
-        Storage::disk('historic_staging')->put('sermons/video/owned.mp4', str_repeat('a', 40));
+        $log->forceFill([
+            'rms_log_path' => 'service-transcripts/2024-01-01/morning-'.$log->processing_id.'.rms.json',
+            'processing_metadata' => [
+                'historic_import' => [
+                    'staging_context' => $context->toArray(),
+                ],
+                'service_artifacts' => [[
+                    'kind' => 'rms',
+                    'disk' => 'historic_staging',
+                    'path' => 'service-transcripts/2024-01-01/morning-'.$log->processing_id.'.rms.json',
+                ]],
+            ],
+        ])->save();
+
+        Storage::disk('historic_staging')->put("{$context->batchRoot}/sermons/video/owned.mp4", str_repeat('a', 40));
+        Storage::disk('historic_staging')->put(
+            "{$context->batchRoot}/service-transcripts/2024-01-01/morning-{$log->processing_id}.rms.json",
+            str_repeat('b', 12),
+        );
 
         $measures = app(HistoricVideoPassMeasures::class)->report($operation);
 
-        $this->assertSame(40, $measures['staging_retained_bytes']);
-        $this->assertSame(40, $measures['staging_accounted_bytes']);
+        $this->assertSame(52, $measures['staging_retained_bytes']);
+        $this->assertSame(52, $measures['staging_accounted_bytes']);
         $this->assertSame(0, $measures['unexplained_residue_bytes']);
     }
 
@@ -98,9 +125,10 @@ class HistoricVideoPassMeasuresTest extends TestCase
     public function staging_bytes_no_run_can_explain_are_reported_as_unexplained_residue(): void
     {
         $operation = $this->createHistoricImportOperation();
-        $this->runWithPromotion($operation, null);
+        $context = $this->stagingContextFor($operation);
+        $this->runWithPromotion($operation, null, stagingContext: $context);
 
-        Storage::disk('historic_staging')->put('temp/rms_0d1c2b3a.log', str_repeat('a', 75));
+        Storage::disk('historic_staging')->put("{$context->batchRoot}/temp/rms_0d1c2b3a.log", str_repeat('a', 75));
 
         $measures = app(HistoricVideoPassMeasures::class)->report($operation);
 
@@ -113,20 +141,21 @@ class HistoricVideoPassMeasuresTest extends TestCase
     public function it_scopes_recorded_and_retained_bytes_to_the_selected_manifest_items(): void
     {
         $operation = $this->createHistoricImportOperation();
+        $context = $this->stagingContextFor($operation);
         $selected = $this->runWithPromotion($operation, [
             'promoted_bytes' => 100,
             'reclaimed_bytes' => 80,
             'staging_bytes_before_reclaim' => 900,
-        ], 'selected');
+        ], 'selected', $context);
         $this->runWithPromotion($operation, [
             'promoted_bytes' => 500,
             'reclaimed_bytes' => 500,
             'staging_bytes_before_reclaim' => 2000,
-        ], 'other');
+        ], 'other', $context);
 
         $selected->forceFill(['source_file_path' => 'temp/selected.mp4'])->save();
-        Storage::disk('historic_staging')->put('temp/selected.mp4', str_repeat('a', 40));
-        Storage::disk('historic_staging')->put('temp/other.mp4', str_repeat('b', 70));
+        Storage::disk('historic_staging')->put("{$context->batchRoot}/temp/selected.mp4", str_repeat('a', 40));
+        Storage::disk('historic_staging')->put("{$context->batchRoot}/temp/other.mp4", str_repeat('b', 70));
 
         $measures = app(HistoricVideoPassMeasures::class)->report($operation, ['selected']);
 
@@ -136,6 +165,35 @@ class HistoricVideoPassMeasuresTest extends TestCase
         $this->assertSame(40, $measures['staging_retained_bytes']);
     }
 
+    #[Test]
+    public function it_scopes_residue_to_the_recorded_batch_root(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $context = $this->stagingContextFor($operation);
+        $run = $this->runWithPromotion($operation, null, 'selected', $context);
+
+        $run->forceFill(['source_file_path' => 'temp/owned.mp4'])->save();
+        Storage::disk('historic_staging')->put(
+            "{$context->batchRoot}/temp/owned.mp4",
+            str_repeat('a', 40),
+        );
+        Storage::disk('historic_staging')->put(
+            "{$context->batchRoot}/temp/unknown.log",
+            str_repeat('b', 7),
+        );
+        Storage::disk('historic_staging')->put(
+            'historic-batches/previous-plan/temp/previous.mp4',
+            str_repeat('c', 100),
+        );
+        Storage::disk('historic_staging')->put('outside-batch.txt', str_repeat('d', 200));
+
+        $measures = app(HistoricVideoPassMeasures::class)->report($operation);
+
+        $this->assertSame(47, $measures['staging_retained_bytes']);
+        $this->assertSame(40, $measures['staging_accounted_bytes']);
+        $this->assertSame(7, $measures['unexplained_residue_bytes']);
+    }
+
     /**
      * @param  array<string, int>|null  $promotion
      */
@@ -143,6 +201,7 @@ class HistoricVideoPassMeasuresTest extends TestCase
         HistoricImportOperation $operation,
         ?array $promotion,
         ?string $itemKey = null,
+        ?HistoricStagingContext $stagingContext = null,
     ): MediaProcessingLog {
         return MediaProcessingLog::factory()->livestream()->create([
             'historic_import_operation_id' => $operation->id,
@@ -154,8 +213,19 @@ class HistoricVideoPassMeasuresTest extends TestCase
             'video_file_path' => null,
             'processing_metadata' => array_filter([
                 'historic_promotion' => $promotion,
-                'historic_import' => $itemKey === null ? null : ['manifest_item_key' => $itemKey],
+                'historic_import' => $itemKey === null && $stagingContext === null ? null : array_filter([
+                    'manifest_item_key' => $itemKey,
+                    'staging_context' => $stagingContext?->toArray(),
+                ], static fn (mixed $value): bool => $value !== null),
             ], static fn (mixed $value): bool => $value !== null),
         ]);
+    }
+
+    private function stagingContextFor(HistoricImportOperation $operation): HistoricStagingContext
+    {
+        return app(HistoricStagingGuard::class)->contextForApprovedPlan(
+            $operation->manifest_hashes['video'],
+            $operation->plan_hash,
+        );
     }
 }

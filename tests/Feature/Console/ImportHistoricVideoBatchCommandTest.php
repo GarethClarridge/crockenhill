@@ -157,6 +157,92 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     }
 
     /**
+     * A bounded pass must not re-read the corpus it is not dispatching.
+     *
+     * Verifying manifest contents reads every included recording — roughly 1.0 TB and about
+     * three hours against the real corpus — and it happens while the plan is built, before
+     * --only has narrowed anything, so a 14-item canary would pay it in full. The unselected
+     * entry below declares a SHA-256 that does not match its bytes while its byte size is
+     * honest: a dispatcher that reads contents refuses the plan outright, and one that only
+     * stats accepts it and goes on to refuse for the expected reason instead.
+     *
+     * Nothing dispatched loses verification. Size, symlink and root-containment checks still
+     * run for every manifest entry, and {@see HistoricVideoImporter}
+     * re-checks size and SHA-256 per file immediately before FFmpeg consumes it.
+     */
+    #[Test]
+    public function a_bounded_pass_does_not_read_the_contents_of_unselected_sources(): void
+    {
+        $selected = '2021-04-12 10-02-00.mkv';
+        $unselected = '2021-04-19 10-02-00.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$selected}");
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$unselected}");
+
+        $manifestPath = $this->historicManifestWithEntries([
+            $this->historicManifestEntry($selected, '2021-04-12', 'morning'),
+            $this->historicManifestEntry($unselected, '2021-04-19', 'morning', [
+                'sha256' => str_repeat('0', 64),
+            ]),
+        ]);
+
+        $plan = app(HistoricVideoCurationManifest::class)->plan(
+            $this->temporaryDirectory,
+            $manifestPath,
+            verifySourceContents: false,
+        );
+        $operation = $this->historicVideoOperation($plan->manifestHash);
+        $approvedWorkItems = null;
+
+        $this->mock(HistoricVideoImporter::class)
+            ->shouldReceive('import')
+            ->once()
+            ->andReturnUsing(function (...$arguments) use (&$approvedWorkItems): array {
+                $approvedWorkItems = $arguments[18] ?? null;
+
+                return $this->importMetrics(['dispatched' => 1, 'bytes_processed' => 1024]);
+            });
+
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--manifest' => $manifestPath,
+            '--plan-hash' => $plan->planHash,
+            '--operation' => $operation->operation_id,
+            '--only' => 'approved-'.hash('sha256', $selected),
+        ])
+            ->doesntExpectOutputToContain('content changed')
+            ->expectsOutputToContain('Corpus contents are not re-read')
+            ->expectsOutputToContain('Bounded pass: dispatching 1 of 2 approved work items.')
+            ->assertSuccessful();
+
+        self::assertIsArray($approvedWorkItems);
+        self::assertCount(1, $approvedWorkItems);
+        self::assertSame('approved-'.hash('sha256', $selected), $approvedWorkItems[0]['manifest_item_key']);
+    }
+
+    /**
+     * The byte-size check stays on every path, so a source that changed length is still
+     * refused while the plan is built — without reading a byte of the corpus.
+     */
+    #[Test]
+    public function a_source_whose_size_no_longer_matches_the_manifest_is_still_refused(): void
+    {
+        $relativePath = '2021-04-12 10-02-00.mkv';
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}");
+        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'morning');
+        $this->createFakeVideo("{$this->temporaryDirectory}/{$relativePath}", 36 * 1024 * 1024);
+
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--dry-run' => true,
+            '--manifest' => $manifestPath,
+        ])
+            ->expectsOutputToContain("Historic video source changed: {$relativePath}")
+            ->assertExitCode(1);
+    }
+
+    /**
      * An operation prepared for a different corpus cannot lend its identity to this dispatch.
      *
      * Without this the `--operation` option would be a formality: any prepared operation would
@@ -590,8 +676,13 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
     }
 
+    /**
+     * Reports what the dispatcher actually does, and proves a bounded pass still reaches the
+     * importer. The behavioural claim — that unselected sources are never read — is proved by
+     * {@see self::a_bounded_pass_does_not_read_the_contents_of_unselected_sources()}.
+     */
     #[Test]
-    public function the_dispatch_verifies_only_the_selected_sources_immediately_before_staging(): void
+    public function the_dispatch_reports_that_corpus_contents_are_not_re_read(): void
     {
         $this->createFakeVideo("{$this->temporaryDirectory}/2021-04-12 10-02-00.mkv");
         $manifestPath = $this->historicManifest('2021-04-12 10-02-00.mkv', '2021-04-12', 'morning');
@@ -613,7 +704,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             ->andReturn($this->importMetrics());
 
         $this->artisan('sermons:import-historic-videos', $arguments)
-            ->expectsOutputToContain('Only selected sources are verified immediately before durable staging and dispatch.');
+            ->expectsOutputToContain('Corpus contents are not re-read; every dispatched file is verified before FFmpeg consumes it.');
     }
 
     #[Test]
@@ -1028,6 +1119,61 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
 
         self::assertSame($plan->manifestHash, $received[2]);
         self::assertSame($plan->planHash, $received[3]);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $entries
+     */
+    private function historicManifestWithEntries(array $entries): string
+    {
+        $manifestPath = sys_get_temp_dir().'/historic-video-manifest-'.uniqid().'.json';
+        $this->temporaryManifestPaths[] = $manifestPath;
+
+        file_put_contents($manifestPath, json_encode([
+            'format' => 'crockenhill-historic-video-curation',
+            'version' => 4,
+            'batch_key' => 'historic-video-test-batch',
+            'entries' => $entries,
+        ], JSON_THROW_ON_ERROR));
+
+        return $manifestPath;
+    }
+
+    /**
+     * @param  array<string, mixed>  $fileOverrides
+     * @return array<string, mixed>
+     */
+    private function historicManifestEntry(string $relativePath, string $date, string $service, array $fileOverrides = []): array
+    {
+        $path = "{$this->temporaryDirectory}/{$relativePath}";
+
+        return [
+            'item_key' => 'approved-'.hash('sha256', $relativePath),
+            'source_kind' => 'livestream',
+            'disposition' => 'include',
+            'exclusion_reason' => null,
+            'duplicate_of' => null,
+            'date' => $date,
+            'service' => $service,
+            'concatenation' => 'single',
+            'client_file_date' => "{$date} 12:00:00",
+            'expected_occurrence_count' => 1,
+            'corroboration' => 'full',
+            'decision' => ['approved_rule_version' => 'test-v1'],
+            'editorial_facts' => [
+                'occasion' => null,
+                'title' => null,
+                'speaker' => null,
+                'scripture_reference' => null,
+                'series' => null,
+            ],
+            'files' => [[
+                'relative_path' => $relativePath,
+                'sha256' => hash_file('sha256', $path),
+                'byte_size' => filesize($path),
+                ...$fileOverrides,
+            ]],
+        ];
     }
 
     private function historicManifest(string $relativePath, string $date, string $service, array $overrides = []): string
