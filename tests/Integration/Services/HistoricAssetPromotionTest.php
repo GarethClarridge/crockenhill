@@ -1,0 +1,225 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Integration\Services;
+
+use App\Enums\MediaType;
+use App\Enums\ProcessingStatus;
+use App\Enums\SermonPublicationState;
+use App\Models\HistoricImportOperation;
+use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
+use App\Services\HistoricMedia\HistoricAssetPromotion;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
+use Tests\TestCase;
+
+class HistoricAssetPromotionTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Storage::fake('historic_staging');
+        Storage::fake('historic_quarantine');
+
+        config()->set('media-processing.storage.historic_staging_disk', 'historic_staging');
+        config()->set('media-processing.storage.historic_quarantine_disk', 'historic_quarantine');
+
+        /**
+         * The staging guard refuses to promote unless every media output disk is
+         * the staging disk, which is exactly the configuration a historic pass
+         * runs under.
+         */
+        config()->set('media-processing.storage.sermon_disk', 'historic_staging');
+        config()->set('media-processing.storage.transcript_disk', 'historic_staging');
+        config()->set('thumbnail-generation.storage.disk', 'historic_staging');
+    }
+
+    #[Test]
+    public function it_promotes_staged_assets_to_quarantine_and_reclaims_the_working_copies(): void
+    {
+        [$log, $sermon] = $this->historicRun();
+        $this->stage('sermons/video/pilot.mp4', 'video bytes');
+        $this->stage('transcripts/pilot.txt', 'transcript bytes');
+
+        $totals = app(HistoricAssetPromotion::class)->promoteRun($log);
+
+        Storage::disk('historic_quarantine')->assertExists('sermons/video/pilot.mp4');
+        Storage::disk('historic_quarantine')->assertExists('transcripts/pilot.txt');
+        $this->assertSame(
+            'video bytes',
+            Storage::disk('historic_quarantine')->get('sermons/video/pilot.mp4'),
+        );
+
+        Storage::disk('historic_staging')->assertMissing('sermons/video/pilot.mp4');
+        Storage::disk('historic_staging')->assertMissing('transcripts/pilot.txt');
+
+        $this->assertSame(1, $totals['sermons']);
+        $this->assertSame(2, $totals['assets_promoted']);
+        $this->assertSame(0, $totals['assets_already_promoted']);
+        $this->assertSame(
+            strlen('video bytes') + strlen('transcript bytes'),
+            $totals['promoted_bytes'],
+        );
+        $this->assertSame($totals['promoted_bytes'], $totals['reclaimed_bytes']);
+
+        $sermon->refresh();
+        $this->assertSame('historic_quarantine', $sermon->asset_disk);
+        $this->assertSame(SermonPublicationState::Quarantined, $sermon->publication_state);
+        $this->assertSame($log->historic_import_operation_id, $sermon->historic_import_operation_id);
+    }
+
+    #[Test]
+    public function it_leaves_the_stored_paths_untouched_so_only_the_disk_identity_moves(): void
+    {
+        [$log, $sermon] = $this->historicRun();
+        $this->stage('sermons/video/pilot.mp4', 'video bytes');
+
+        app(HistoricAssetPromotion::class)->promoteRun($log);
+
+        $sermon->refresh();
+        $this->assertSame('sermons/video/pilot.mp4', $sermon->video_file_path);
+    }
+
+    #[Test]
+    public function repeating_a_promotion_is_an_exact_no_op(): void
+    {
+        [$log, $sermon] = $this->historicRun();
+        $this->stage('sermons/video/pilot.mp4', 'video bytes');
+
+        app(HistoricAssetPromotion::class)->promoteRun($log);
+        $totals = app(HistoricAssetPromotion::class)->promoteRun($log);
+
+        $this->assertSame(0, $totals['assets_promoted']);
+        $this->assertSame(1, $totals['assets_already_promoted']);
+        $this->assertSame(0, $totals['promoted_bytes']);
+        $this->assertSame(0, $totals['reclaimed_bytes']);
+        $this->assertSame(
+            'video bytes',
+            Storage::disk('historic_quarantine')->get('sermons/video/pilot.mp4'),
+        );
+    }
+
+    /**
+     * A retry that resumes at extraction writes fresh bytes under the same paths
+     * while the record is already bound to quarantine. Treating `asset_disk` as a
+     * promoted flag would strand them on the working volume forever.
+     */
+    #[Test]
+    public function it_promotes_fresh_staging_output_for_a_record_already_bound_to_quarantine(): void
+    {
+        [$log, $sermon] = $this->historicRun();
+        $this->stage('sermons/video/pilot.mp4', 'video bytes');
+        app(HistoricAssetPromotion::class)->promoteRun($log);
+
+        Storage::disk('historic_quarantine')->delete('sermons/video/pilot.mp4');
+        $this->stage('sermons/video/pilot.mp4', 're-extracted bytes');
+
+        $totals = app(HistoricAssetPromotion::class)->promoteRun($log);
+
+        $this->assertSame(1, $totals['assets_promoted']);
+        $this->assertSame(
+            're-extracted bytes',
+            Storage::disk('historic_quarantine')->get('sermons/video/pilot.mp4'),
+        );
+        Storage::disk('historic_staging')->assertMissing('sermons/video/pilot.mp4');
+    }
+
+    #[Test]
+    public function it_refuses_to_overwrite_a_destination_holding_different_bytes(): void
+    {
+        [$log] = $this->historicRun();
+        $this->stage('sermons/video/pilot.mp4', 'video bytes');
+        Storage::disk('historic_quarantine')->put('sermons/video/pilot.mp4', 'someone else');
+
+        $this->expectException(RuntimeException::class);
+
+        try {
+            app(HistoricAssetPromotion::class)->promoteRun($log);
+        } finally {
+            Storage::disk('historic_staging')->assertExists('sermons/video/pilot.mp4');
+            $this->assertSame(
+                'someone else',
+                Storage::disk('historic_quarantine')->get('sermons/video/pilot.mp4'),
+            );
+        }
+    }
+
+    #[Test]
+    public function it_refuses_when_a_referenced_asset_exists_on_neither_disk(): void
+    {
+        [$log] = $this->historicRun();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('is on neither staging nor quarantine');
+
+        app(HistoricAssetPromotion::class)->promoteRun($log);
+    }
+
+    #[Test]
+    public function a_non_historic_run_promotes_nothing(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'processing_type' => MediaType::Livestream,
+            'status' => ProcessingStatus::Processing,
+            'historic_import_operation_id' => null,
+        ]);
+
+        $totals = app(HistoricAssetPromotion::class)->promoteRun($log);
+
+        $this->assertSame(0, $totals['sermons']);
+        $this->assertSame(0, $totals['assets_promoted']);
+    }
+
+    /**
+     * @return array{0: MediaProcessingLog, 1: Sermon}
+     */
+    private function historicRun(): array
+    {
+        $operation = HistoricImportOperation::query()->create([
+            'operation_id' => 'historic-'.str_repeat('a', 32),
+            'binding_hash' => str_repeat('b', 64),
+            'batch_key' => 'asset-promotion-test',
+            'manifest_hashes' => ['video' => str_repeat('c', 64)],
+            'plan_hash' => str_repeat('d', 64),
+            'target_fingerprint' => str_repeat('e', 64),
+            'runtime_fingerprint' => str_repeat('f', 64),
+            'notification_mode' => 'external_disabled',
+            'max_cost_minor_units' => 100,
+        ]);
+
+        $log = MediaProcessingLog::factory()->create([
+            'processing_type' => MediaType::Livestream,
+            'status' => ProcessingStatus::Processing,
+            'historic_import_operation_id' => $operation->id,
+        ]);
+
+        $sermon = Sermon::factory()->create([
+            'livestream_processing_id' => $log->processing_id,
+            'video_file_path' => 'sermons/video/pilot.mp4',
+            'audio_file_path' => null,
+            'transcript_file_path' => null,
+            'thumbnail_file_path' => null,
+            'thumbnail_metadata' => null,
+        ]);
+
+        return [$log, $sermon];
+    }
+
+    private function stage(string $path, string $contents): void
+    {
+        Storage::disk('historic_staging')->put($path, $contents);
+
+        $sermon = Sermon::query()->firstOrFail();
+
+        if (str_starts_with($path, 'transcripts/')) {
+            $sermon->forceFill(['transcript_file_path' => $path])->save();
+        }
+    }
+}

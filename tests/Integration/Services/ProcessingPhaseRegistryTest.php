@@ -21,6 +21,7 @@ use App\Jobs\MergeSongContinuations;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
+use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
@@ -52,6 +53,7 @@ class ProcessingPhaseRegistryTest extends TestCase
             'analyze_transcript',
             'send_notification',
             'notification_complete',
+            'promote_historic_assets',
             'cleanup',
         ], array_column($phases, 'key'));
     }
@@ -198,7 +200,8 @@ class ProcessingPhaseRegistryTest extends TestCase
                     4 => TranscribeAudio::class,
                     5 => ProcessTranscriptWithAI::class,
                     6 => SendCompletionNotification::class,
-                    7 => CleanupTemporaryFiles::class,
+                    7 => PromoteHistoricAssets::class,
+                    8 => CleanupTemporaryFiles::class,
                 ],
             ],
             [
@@ -212,7 +215,8 @@ class ProcessingPhaseRegistryTest extends TestCase
                     7 => AssessSermonVideoQuality::class,
                     8 => GenerateThumbnail::class,
                     9 => SendCompletionNotification::class,
-                    10 => CleanupTemporaryFiles::class,
+                    10 => PromoteHistoricAssets::class,
+                    11 => CleanupTemporaryFiles::class,
                 ],
             ],
             [
@@ -230,7 +234,8 @@ class ProcessingPhaseRegistryTest extends TestCase
                     11 => AssessSermonVideoQuality::class,
                     12 => GenerateThumbnail::class,
                     13 => SendCompletionNotification::class,
-                    14 => CleanupTemporaryFiles::class,
+                    14 => PromoteHistoricAssets::class,
+                    15 => CleanupTemporaryFiles::class,
                 ],
             ],
             [
@@ -251,7 +256,8 @@ class ProcessingPhaseRegistryTest extends TestCase
                     14 => GenerateThumbnail::class,
                     15 => PrepareSectionPublicationCandidates::class,
                     16 => SendCompletionNotification::class,
-                    17 => CleanupTemporaryFiles::class,
+                    17 => PromoteHistoricAssets::class,
+                    18 => CleanupTemporaryFiles::class,
                 ],
             ],
         ];

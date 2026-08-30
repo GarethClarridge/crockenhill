@@ -22,6 +22,7 @@ use App\Jobs\MergeSongContinuations;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
+use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeFullService;
@@ -558,6 +559,7 @@ class MediaUploadTest extends TestCase
             GenerateThumbnail::class,
             PrepareSectionPublicationCandidates::class,
             SendCompletionNotification::class,
+            PromoteHistoricAssets::class,
             CleanupTemporaryFiles::class,
         ]);
     }

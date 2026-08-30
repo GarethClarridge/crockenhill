@@ -21,6 +21,7 @@ use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
+use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
@@ -317,6 +318,7 @@ class ProcessingPhaseRegistry
             $this->phase('analyze_transcript', ProcessTranscriptWithAI::class, 'analyzing_transcript', progress: 85),
             $this->phase('send_notification', SendCompletionNotification::class, 'sending_notification', progress: 92),
             $this->phase('notification_complete', SendCompletionNotification::class, 'notification_sent', progress: 92),
+            $this->phase('promote_historic_assets', PromoteHistoricAssets::class, 'promoting_historic_assets', progress: 94),
             $this->phase('cleanup', CleanupTemporaryFiles::class, 'cleanup', progress: 95),
         ];
     }
@@ -335,6 +337,7 @@ class ProcessingPhaseRegistry
             $this->phase('generate_thumbnail', GenerateThumbnail::class, 'generating_thumbnail', progress: 89),
             $this->phase('send_notification', SendCompletionNotification::class, 'sending_notification', progress: 92),
             $this->phase('notification_complete', SendCompletionNotification::class, 'notification_sent', progress: 92),
+            $this->phase('promote_historic_assets', PromoteHistoricAssets::class, 'promoting_historic_assets', progress: 94),
             $this->phase('cleanup', CleanupTemporaryFiles::class, 'cleanup', progress: 95),
         ];
     }
@@ -360,6 +363,7 @@ class ProcessingPhaseRegistry
             $this->phase('generate_thumbnail', GenerateThumbnail::class, 'generating_thumbnail', progress: 89),
             $this->phase('send_notification', SendCompletionNotification::class, 'sending_notification', progress: 92),
             $this->phase('notification_complete', SendCompletionNotification::class, 'notification_sent', progress: 92),
+            $this->phase('promote_historic_assets', PromoteHistoricAssets::class, 'promoting_historic_assets', progress: 94),
             $this->phase('cleanup', CleanupTemporaryFiles::class, 'cleanup', progress: 95),
         ];
     }
@@ -386,6 +390,7 @@ class ProcessingPhaseRegistry
             $this->phase('prepare_section_publication_candidates', PrepareSectionPublicationCandidates::class, 'preparing_section_publication_candidates', progress: 84, retryAction: 'dispatch_livestream_chain'),
             $this->phase('send_notification', SendCompletionNotification::class, 'sending_notification', progress: 92, retryAction: 'dispatch_livestream_chain'),
             $this->phase('notification_complete', SendCompletionNotification::class, 'notification_sent', progress: 92, retryAction: 'dispatch_livestream_chain'),
+            $this->phase('promote_historic_assets', PromoteHistoricAssets::class, 'promoting_historic_assets', progress: 94, retryAction: 'dispatch_livestream_chain'),
             $this->phase('cleanup', CleanupTemporaryFiles::class, 'cleanup', progress: 95, retryAction: 'dispatch_livestream_chain'),
         ];
     }

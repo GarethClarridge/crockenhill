@@ -12,6 +12,7 @@ use App\Jobs\ExtractAudioFromVideo;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
+use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\TranscribeAudio;
 use App\Mail\LivestreamProcessingFailed;
@@ -136,6 +137,7 @@ class ProcessingRunOrchestratorTest extends TestCase
             TranscribeAudio::class,
             ProcessTranscriptWithAI::class,
             SendCompletionNotification::class,
+            PromoteHistoricAssets::class,
             CleanupTemporaryFiles::class,
         ]);
     }
@@ -231,6 +233,7 @@ class ProcessingRunOrchestratorTest extends TestCase
             GenerateThumbnail::class,
             PrepareSectionPublicationCandidates::class,
             SendCompletionNotification::class,
+            PromoteHistoricAssets::class,
             CleanupTemporaryFiles::class,
         ]);
     }
@@ -421,6 +424,7 @@ class ProcessingRunOrchestratorTest extends TestCase
             AssessSermonVideoQuality::class,
             GenerateThumbnail::class,
             SendCompletionNotification::class,
+            PromoteHistoricAssets::class,
             CleanupTemporaryFiles::class,
         ]);
     }

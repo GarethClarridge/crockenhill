@@ -21,6 +21,7 @@ use App\Jobs\MergeSongContinuations;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
+use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
@@ -52,6 +53,7 @@ class ProcessingPipelineBuilder
             new TranscribeAudio($log),
             new ProcessTranscriptWithAI($log),
             new SendCompletionNotification($log),
+            new PromoteHistoricAssets($log),
             new CleanupTemporaryFiles($log),
         ];
     }
@@ -74,6 +76,7 @@ class ProcessingPipelineBuilder
             new AssessSermonVideoQuality($log),
             new GenerateThumbnail($log),
             new SendCompletionNotification($log),
+            new PromoteHistoricAssets($log),
             new CleanupTemporaryFiles($log),
         ];
     }
@@ -101,6 +104,7 @@ class ProcessingPipelineBuilder
             new AssessSermonVideoQuality($log),
             new GenerateThumbnail($log),
             new SendCompletionNotification($log),
+            new PromoteHistoricAssets($log),
             new CleanupTemporaryFiles($log),
         ];
     }
@@ -147,6 +151,7 @@ class ProcessingPipelineBuilder
             new GenerateThumbnail($log),
             new PrepareSectionPublicationCandidates($log),
             new SendCompletionNotification($log),
+            new PromoteHistoricAssets($log),
             new CleanupTemporaryFiles($log),
         ];
     }
@@ -186,6 +191,7 @@ class ProcessingPipelineBuilder
             new GenerateThumbnail($log),
             new PrepareSectionPublicationCandidates($log),
             new SendCompletionNotification($log),
+            new PromoteHistoricAssets($log),
             new CleanupTemporaryFiles($log),
         ];
     }
@@ -207,6 +213,7 @@ class ProcessingPipelineBuilder
             new AssessSermonVideoQuality($log),
             new GenerateThumbnail($log),
             new SendCompletionNotification($log),
+            new PromoteHistoricAssets($log),
             new CleanupTemporaryFiles($log),
         ];
     }
