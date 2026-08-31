@@ -197,7 +197,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             ->shouldReceive('import')
             ->once()
             ->andReturnUsing(function (...$arguments) use (&$approvedWorkItems): array {
-                $approvedWorkItems = $arguments[18] ?? null;
+                $approvedWorkItems = $arguments[17] ?? null;
 
                 return $this->importMetrics(['dispatched' => 1, 'bytes_processed' => 1024]);
             });
@@ -569,9 +569,9 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             ->shouldReceive('import')
             ->once()
             ->andReturnUsing(function (...$arguments) use (&$approvedWorkItems, &$stagingContext, &$dispatchedOperation): array {
-                $approvedWorkItems = $arguments[18] ?? null;
-                $stagingContext = $arguments[19] ?? null;
-                $dispatchedOperation = $arguments[20] ?? null;
+                $approvedWorkItems = $arguments[17] ?? null;
+                $stagingContext = $arguments[18] ?? null;
+                $dispatchedOperation = $arguments[19] ?? null;
 
                 return $this->importMetrics(['dispatched' => 1, 'bytes_processed' => 1024]);
             });

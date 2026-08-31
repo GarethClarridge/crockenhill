@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Tests\Integration\Jobs;
 
 use App\Data\LivestreamSegment as LivestreamSegmentData;
+use App\Enums\ProcessingStatus;
 use App\Jobs\AnalyzeSegments;
 use App\Models\MediaProcessingLog;
+use App\Models\SermonProcessingStep;
 use App\Services\Media\Video\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -86,6 +88,13 @@ class AnalyzeSegmentsBaselineTest extends TestCase
 
         $this->assertEqualsWithDelta(300.0, (float) $processingLog->sermon_start_time, 0.01);
         $this->assertEqualsWithDelta(1700.0, (float) $processingLog->sermon_end_time, 0.01);
+        $this->assertSame(
+            ProcessingStatus::Completed,
+            SermonProcessingStep::query()
+                ->where('processing_id', $processingLog->processing_id)
+                ->where('step', 'analyzing_segments')
+                ->value('status'),
+        );
     }
 
     #[Test]
@@ -126,6 +135,58 @@ class AnalyzeSegmentsBaselineTest extends TestCase
 
         $this->assertNull($processingLog->sermon_start_time);
         $this->assertNull($processingLog->sermon_end_time);
+        $this->assertSame(
+            ProcessingStatus::Completed,
+            SermonProcessingStep::query()
+                ->where('processing_id', $processingLog->processing_id)
+                ->where('step', 'analyzing_segments')
+                ->value('status'),
+        );
+    }
+
+    #[Test]
+    public function it_records_segment_analysis_failure(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->processing()->create([
+            'rms_log_path' => 'temp/rms.log',
+        ]);
+        $mockService = Mockery::mock(VideoSegmentationService::class);
+        $mockService->shouldReceive('analyzeSegments')
+            ->once()
+            ->andThrow(new \RuntimeException('RMS analysis failed'));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('RMS analysis failed');
+
+        try {
+            (new AnalyzeSegments($processingLog))->handle($mockService);
+        } finally {
+            $this->assertSame(
+                ProcessingStatus::Failed,
+                SermonProcessingStep::query()
+                    ->where('processing_id', $processingLog->processing_id)
+                    ->where('step', 'analyzing_segments')
+                    ->value('status'),
+            );
+        }
+    }
+
+    #[Test]
+    public function it_records_segment_analysis_skip_when_cancelled(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->cancelled()->create();
+        $mockService = Mockery::mock(VideoSegmentationService::class);
+        $mockService->shouldNotReceive('analyzeSegments');
+
+        (new AnalyzeSegments($processingLog))->handle($mockService);
+
+        $this->assertSame(
+            ProcessingStatus::Skipped,
+            SermonProcessingStep::query()
+                ->where('processing_id', $processingLog->processing_id)
+                ->where('step', 'analyzing_segments')
+                ->value('status'),
+        );
     }
 
     private function createMockRmsLog(string $path, float $duration): void

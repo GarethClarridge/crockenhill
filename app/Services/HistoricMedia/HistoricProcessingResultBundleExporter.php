@@ -199,7 +199,7 @@ class HistoricProcessingResultBundleExporter
                     throw new RuntimeException("Historic processing run {$run->processing_id} has no pinned processing fingerprint.");
                 }
 
-                return $fingerprint;
+                return $this->fingerprints->normalize($fingerprint);
             })
             ->all();
 

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Jobs;
 
+use App\Enums\ProcessingStatus;
 use App\Jobs\ExtractAudioFromVideo;
 use App\Models\MediaProcessingLog;
+use App\Models\SermonProcessingStep;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -101,6 +103,13 @@ class ExtractAudioFromVideoTest extends TestCase
         $this->assertEquals('sermons/audio/extracted.mp3', $log->audio_file_path);
         $this->assertEquals('audio_extraction_complete', $log->current_step);
         $this->assertEquals('processing', $log->status->value);
+        $this->assertSame(
+            ProcessingStatus::Completed,
+            SermonProcessingStep::query()
+                ->where('processing_id', $log->processing_id)
+                ->where('step', 'extracting_audio')
+                ->value('status'),
+        );
 
         @unlink($absolutePath);
     }
@@ -186,6 +195,13 @@ class ExtractAudioFromVideoTest extends TestCase
         $log->refresh();
         $this->assertEquals('failed', $log->status->value);
         $this->assertStringContainsString('Audio extraction failed', $log->error_message);
+        $this->assertSame(
+            ProcessingStatus::Failed,
+            SermonProcessingStep::query()
+                ->where('processing_id', $log->processing_id)
+                ->where('step', 'extracting_audio')
+                ->value('status'),
+        );
     }
 
     #[Test]
@@ -215,6 +231,14 @@ class ExtractAudioFromVideoTest extends TestCase
 
         $job = new ExtractAudioFromVideo($log);
         $job->handle($mockExtractor);
+
+        $this->assertSame(
+            ProcessingStatus::Skipped,
+            SermonProcessingStep::query()
+                ->where('processing_id', $log->processing_id)
+                ->where('step', 'extracting_audio')
+                ->value('status'),
+        );
     }
 
     #[Test]

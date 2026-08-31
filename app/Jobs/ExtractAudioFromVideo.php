@@ -9,6 +9,7 @@ use App\Enums\LivestreamSegmentClassification;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
+use App\Services\Processing\SermonProcessingStepTransitions;
 use App\Traits\ChecksCancellation;
 use FFMpeg\FFProbe;
 use Illuminate\Bus\Queueable;
@@ -36,13 +37,29 @@ class ExtractAudioFromVideo implements ShouldQueue
 
     public function handle(
         VideoExtractionService $videoExtractor,
-        ?MediaProcessingRunTransitionService $processingRunTransitions = null
+        ?MediaProcessingRunTransitionService $processingRunTransitions = null,
+        ?SermonProcessingStepTransitions $processingStepTransitions = null,
     ): void {
         $processingRunTransitions ??= app(MediaProcessingRunTransitionService::class);
+        $processingStepTransitions ??= app(SermonProcessingStepTransitions::class);
 
         if ($this->abortIfCancelled('ExtractAudioFromVideo')) {
+            if ($this->processingLog->isCancelled()) {
+                $processingStepTransitions->markAsSkipped(
+                    $this->processingLog->processing_id,
+                    'extracting_audio',
+                    'Processing cancelled before audio extraction.',
+                );
+            }
+
             return;
         }
+
+        $processingStepTransitions->markAsStarted(
+            $this->processingLog->processing_id,
+            'extracting_audio',
+            'Extracting audio from video.',
+        );
 
         Log::info('Extracting audio from video', [
             'processing_id' => $this->processingLog->processing_id,
@@ -127,14 +144,24 @@ class ExtractAudioFromVideo implements ShouldQueue
                 'final_size_mb' => round($audioExtractionResult['final_size'] / 1024 / 1024, 1),
                 'valid_for_transcription' => $audioExtractionResult['valid_for_transcription'],
             ]);
+            $processingStepTransitions->markAsCompleted(
+                $this->processingLog->processing_id,
+                'extracting_audio',
+                'Audio extracted from video.',
+            );
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Audio extraction from video failed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
             ]);
 
             $processingRunTransitions->markAsFailed($this->processingLog, 'Audio extraction failed: '.$e->getMessage());
+            $processingStepTransitions->markAsFailed(
+                $this->processingLog->processing_id,
+                'extracting_audio',
+                'Audio extraction failed: '.$e->getMessage(),
+            );
 
             throw $e;
         }
@@ -164,6 +191,23 @@ class ExtractAudioFromVideo implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
+        $processingLog = $this->processingLog->fresh();
+        $processingStepTransitions = app(SermonProcessingStepTransitions::class);
+
+        if ($processingLog instanceof MediaProcessingLog && $processingLog->isCancelled()) {
+            $processingStepTransitions->markAsSkipped(
+                $this->processingLog->processing_id,
+                'extracting_audio',
+                'Processing cancelled before the final audio-extraction attempt.',
+            );
+        } else {
+            $processingStepTransitions->markAsFailed(
+                $this->processingLog->processing_id,
+                'extracting_audio',
+                'Audio extraction job failed: '.$exception->getMessage(),
+            );
+        }
+
         app(MediaProcessingRunTransitionService::class)
             ->markAsFailed($this->processingLog, 'Audio extraction job failed: '.$exception->getMessage());
     }

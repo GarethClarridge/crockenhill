@@ -24,45 +24,99 @@ use App\Services\Media\TempDiskSpace;
  */
 class HistoricStagingHeadroom
 {
+    public function __construct(
+        private readonly HistoricProcessingThroughput $throughput,
+    ) {}
+
     /**
-     * @param  list<array<string, mixed>>  $workItems  Curation-plan work items; only `bytes` is read
+     * @param  list<array<string, mixed>>  $workItems  Curation-plan work items
      * @return array{
      *     measurable: bool,
      *     process_reported_free_bytes: int|null,
      *     host_command: string,
      *     item_count: int,
      *     selected_source_bytes: int,
+     *     selected_input_bytes: int,
+     *     selected_unstaged_input_bytes: int,
      *     largest_source_bytes: int,
      *     concurrent_working_bytes: int,
+     *     concurrent_transient_bytes: int,
+     *     configured_worker_widths: array<string, int>,
      *     minimum_free_bytes: int,
      *     required_free_bytes: int
      * }
      */
-    public function report(array $workItems, int $parallel, int $minimumFreeGb): array
+    public function report(array $workItems, int $minimumFreeGb): array
     {
         $sizes = array_map(static fn (array $item): int => (int) ($item['bytes'] ?? 0), $workItems);
         rsort($sizes);
         $minimumFreeBytes = $minimumFreeGb * 1024 ** 3;
+        $selectedSourceBytes = array_sum($sizes);
+        $selectedUnstagedInputBytes = array_sum(array_map(
+            fn (array $item): int => $this->unstagedInputBytes($item),
+            $workItems,
+        ));
+        $workerWidths = $this->throughput->configuredWidths();
+        $ffmpegWorkers = $workerWidths['ffmpeg'];
 
         /**
          * FFmpeg reads a source and writes beside it, so an item in flight
-         * occupies about twice its source — the same rule the importer's own
-         * per-item guard applies. The pass needs that much for every job running
-         * at once, on top of the floor.
+         * occupies about twice its source. This is deliberately derived from
+         * the configured FFmpeg worker pool, not from a dispatcher option that
+         * never starts workers. The source copies that have not already been
+         * staged are a separate pre-copy term below.
          */
-        $concurrent = 2 * array_sum(array_slice($sizes, 0, max(1, $parallel)));
+        $concurrent = 2 * array_sum(array_slice($sizes, 0, $ffmpegWorkers));
 
         return [
             'measurable' => ! TempDiskSpace::checksDisabled(),
             'process_reported_free_bytes' => $this->processReportedFreeBytes(),
             'host_command' => 'df -h "$CBC_HISTORIC_WORK_PATH"',
             'item_count' => count($workItems),
-            'selected_source_bytes' => array_sum($sizes),
+            'selected_source_bytes' => $selectedSourceBytes,
+            'selected_input_bytes' => $selectedSourceBytes,
+            'selected_unstaged_input_bytes' => $selectedUnstagedInputBytes,
             'largest_source_bytes' => $sizes === [] ? 0 : $sizes[0],
             'concurrent_working_bytes' => $concurrent,
+            'concurrent_transient_bytes' => $concurrent,
+            'configured_worker_widths' => $workerWidths,
             'minimum_free_bytes' => $minimumFreeBytes,
-            'required_free_bytes' => $minimumFreeBytes + $concurrent,
+            'required_free_bytes' => $minimumFreeBytes + $selectedUnstagedInputBytes + $concurrent,
         ];
+    }
+
+    /** @param array<string, mixed> $item */
+    private function unstagedInputBytes(array $item): int
+    {
+        $sourceBytes = max(0, (int) ($item['bytes'] ?? 0));
+
+        if (($item['already_staged'] ?? false) === true) {
+            return 0;
+        }
+
+        $alreadyStagedBytes = $item['already_staged_bytes'] ?? null;
+
+        if (is_int($alreadyStagedBytes) || is_float($alreadyStagedBytes)) {
+            return max(0, $sourceBytes - min($sourceBytes, (int) $alreadyStagedBytes));
+        }
+
+        $sourceFiles = $item['source_files'] ?? null;
+
+        if (! is_array($sourceFiles)) {
+            return $sourceBytes;
+        }
+
+        $stagedBytes = 0;
+
+        foreach ($sourceFiles as $source) {
+            if (! is_array($source) || ($source['already_staged'] ?? false) !== true) {
+                continue;
+            }
+
+            $stagedBytes += max(0, (int) ($source['byte_size'] ?? 0));
+        }
+
+        return max(0, $sourceBytes - min($sourceBytes, $stagedBytes));
     }
 
     /**

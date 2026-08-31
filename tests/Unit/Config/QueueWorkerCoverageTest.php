@@ -41,10 +41,9 @@ class QueueWorkerCoverageTest extends TestCase
     }
 
     /**
-     * The historic processing fingerprint records each stage's worker width as
-     * reproducibility data. If compose sized its pools from a different variable
-     * than the fingerprint reads, the fingerprint would describe a pass that
-     * never happened.
+     * The historic execution profile records each stage's worker width. If
+     * compose sized its pools from a different variable than the profile reads,
+     * the report would describe a pass that never happened.
      */
     #[Test]
     public function historic_worker_pools_are_sized_from_the_variables_the_fingerprint_records(): void

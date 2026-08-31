@@ -8,6 +8,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Media\Video\VideoSegmentationService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
+use App\Services\Processing\SermonProcessingStepTransitions;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -32,9 +33,11 @@ class GenerateRmsLog implements ShouldQueue
 
     public function handle(
         VideoSegmentationService $segmentationService,
-        ?MediaProcessingRunTransitionService $processingRunTransitions = null
+        ?MediaProcessingRunTransitionService $processingRunTransitions = null,
+        ?SermonProcessingStepTransitions $processingStepTransitions = null,
     ): void {
         $processingRunTransitions ??= app(MediaProcessingRunTransitionService::class);
+        $processingStepTransitions ??= app(SermonProcessingStepTransitions::class);
 
         try {
             $processingLog = $this->processingLog->fresh();
@@ -45,6 +48,11 @@ class GenerateRmsLog implements ShouldQueue
             $this->processingLog = $processingLog;
 
             if ($this->processingLog->isCancelled()) {
+                $processingStepTransitions->markAsSkipped(
+                    $this->processingLog->processing_id,
+                    'rms_generation',
+                    'Processing cancelled before RMS generation.',
+                );
                 Log::info('GenerateRmsLog job skipped: processing cancelled', [
                     'processing_id' => $this->processingLog->processing_id,
                 ]);
@@ -61,6 +69,11 @@ class GenerateRmsLog implements ShouldQueue
 
             // Update status to show RMS generation is starting
             $processingRunTransitions->markAsProcessing($this->processingLog, 'rms_generation');
+            $processingStepTransitions->markAsStarted(
+                $this->processingLog->processing_id,
+                'rms_generation',
+                'Generating RMS log.',
+            );
 
             $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
             $videoPath = Storage::disk($tempDisk)
@@ -121,9 +134,15 @@ class GenerateRmsLog implements ShouldQueue
                 'rms_log_path' => $rmsLogPath,
             ]);
 
+            $processingStepTransitions->markAsCompleted(
+                $this->processingLog->processing_id,
+                'rms_generation',
+                'RMS log generated.',
+            );
+
             // Job chain will automatically proceed to next job
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('RMS log generation failed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
@@ -131,6 +150,11 @@ class GenerateRmsLog implements ShouldQueue
             ]);
 
             $processingRunTransitions->markAsFailed($this->processingLog, 'RMS log generation failed: '.$e->getMessage());
+            $processingStepTransitions->markAsFailed(
+                $this->processingLog->processing_id,
+                'rms_generation',
+                'RMS log generation failed: '.$e->getMessage(),
+            );
 
             // Cleanup will be handled by the chain failure handler
 
@@ -145,6 +169,23 @@ class GenerateRmsLog implements ShouldQueue
             'error' => $exception->getMessage(),
             'attempts' => $this->attempts(),
         ]);
+
+        $processingLog = $this->processingLog->fresh();
+        $processingStepTransitions = app(SermonProcessingStepTransitions::class);
+
+        if ($processingLog instanceof MediaProcessingLog && $processingLog->isCancelled()) {
+            $processingStepTransitions->markAsSkipped(
+                $this->processingLog->processing_id,
+                'rms_generation',
+                'Processing cancelled before the final RMS attempt.',
+            );
+        } else {
+            $processingStepTransitions->markAsFailed(
+                $this->processingLog->processing_id,
+                'rms_generation',
+                'RMS log generation failed after '.$this->tries.' attempts: '.$exception->getMessage(),
+            );
+        }
 
         app(MediaProcessingRunTransitionService::class)->markAsFailed(
             $this->processingLog,

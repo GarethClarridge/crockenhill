@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Jobs;
 
+use App\Enums\ProcessingStatus;
 use App\Jobs\GenerateRmsLog;
 use App\Models\MediaProcessingLog;
+use App\Models\SermonProcessingStep;
 use App\Services\Media\Video\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
@@ -89,6 +91,13 @@ class GenerateRmsLogTest extends TestCase
         $this->assertEquals(
             'service-transcripts/unknown-date/other-'.$log->processing_id.'.rms.json',
             $log->rms_log_path,
+        );
+        $this->assertSame(
+            ProcessingStatus::Completed,
+            SermonProcessingStep::query()
+                ->where('processing_id', $log->processing_id)
+                ->where('step', 'rms_generation')
+                ->value('status'),
         );
 
         /**
@@ -178,6 +187,13 @@ class GenerateRmsLogTest extends TestCase
         $log->refresh();
         $this->assertEquals('failed', $log->status->value);
         $this->assertStringContainsString('RMS log generation failed', $log->error_message);
+        $this->assertSame(
+            ProcessingStatus::Failed,
+            SermonProcessingStep::query()
+                ->where('processing_id', $log->processing_id)
+                ->where('step', 'rms_generation')
+                ->value('status'),
+        );
     }
 
     #[Test]
@@ -207,6 +223,14 @@ class GenerateRmsLogTest extends TestCase
 
         $job = new GenerateRmsLog($log);
         $job->handle($mockService);
+
+        $this->assertSame(
+            ProcessingStatus::Skipped,
+            SermonProcessingStep::query()
+                ->where('processing_id', $log->processing_id)
+                ->where('step', 'rms_generation')
+                ->value('status'),
+        );
     }
 
     #[Test]

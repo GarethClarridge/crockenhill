@@ -43,7 +43,6 @@ class ImportHistoricVideoBatchCommand extends Command
                             {--allow-local-storage : Allow running with SERMON_STORAGE_DISK=local}
                             {--temp-disk-min-free-gb= : Minimum free space (GB) on the pipeline temp disk before dispatch (default: media-processing.storage.temp_disk_min_free_gb)}
                             {--host-capacity-evidence= : JSON evidence binding host free bytes to this operation and plan when staging capacity is unmeasurable}
-                            {--parallel=1 : Worker concurrency used to calculate dispatch headroom}
                             {--dry-run : Show what would happen, no work}
                             {--delay=0 : Seconds between dispatches}
                             {--limit=0 : Max sermons to import this run (0 = no limit)}
@@ -82,7 +81,6 @@ class ImportHistoricVideoBatchCommand extends Command
         $minSizeMb = max(1, (int) $this->option('min-size-mb'));
         $tempDiskMinFreeGbOption = $this->option('temp-disk-min-free-gb');
         $tempDiskMinFreeGb = max(1, (int) ($tempDiskMinFreeGbOption ?? config('media-processing.storage.temp_disk_min_free_gb', 20)));
-        $parallel = max(1, (int) $this->option('parallel'));
         $limit = max(0, (int) $this->option('limit'));
         $reportOption = $this->option('report');
         $reportPath = is_string($reportOption) && trim($reportOption) !== '' ? $reportOption : null;
@@ -271,7 +269,7 @@ class ImportHistoricVideoBatchCommand extends Command
         $this->line('Sermon storage disk: '.config('media-processing.storage.sermon_disk', 'local'));
 
         if ($approvedWorkItems !== null) {
-            $headroom = $this->reportStagingHeadroom($approvedWorkItems, $parallel, $tempDiskMinFreeGb);
+            $headroom = $this->reportStagingHeadroom($approvedWorkItems, $tempDiskMinFreeGb);
 
             if (! $dryRun && ! $headroom['measurable']) {
                 try {
@@ -290,7 +288,7 @@ class ImportHistoricVideoBatchCommand extends Command
             return self::FAILURE;
         }
 
-        $this->line("Dispatcher headroom assumes {$parallel} concurrent worker job(s); it records processing IDs and exits after enqueueing.");
+        $this->line('Dispatcher uses the configured historic worker pools; it records processing IDs and exits after enqueueing.');
 
         try {
             $metrics = $importer->import(
@@ -304,7 +302,6 @@ class ImportHistoricVideoBatchCommand extends Command
                 noConcat: $noConcat,
                 reEncodeMismatched: $reEncodeMismatched,
                 tempDiskMinFreeGb: $tempDiskMinFreeGb,
-                parallel: $parallel,
                 pollIntervalSeconds: 0,
                 perFileTimeoutSeconds: 0,
                 limit: $limit,
@@ -452,32 +449,50 @@ class ImportHistoricVideoBatchCommand extends Command
      */
     /**
      * @param  list<array<string, mixed>>  $workItems  The pass's own items, after --only narrows them
-     * @return array{measurable:bool,process_reported_free_bytes:int|null,host_command:string,item_count:int,selected_source_bytes:int,largest_source_bytes:int,concurrent_working_bytes:int,minimum_free_bytes:int,required_free_bytes:int}
+     * @return array{
+     *     measurable:bool,
+     *     process_reported_free_bytes:int|null,
+     *     host_command:string,
+     *     item_count:int,
+     *     selected_source_bytes:int,
+     *     selected_input_bytes:int,
+     *     selected_unstaged_input_bytes:int,
+     *     largest_source_bytes:int,
+     *     concurrent_working_bytes:int,
+     *     concurrent_transient_bytes:int,
+     *     configured_worker_widths:array<string, int>,
+     *     minimum_free_bytes:int,
+     *     required_free_bytes:int
+     * }
      */
     private function reportStagingHeadroom(
         array $workItems,
-        int $parallel,
         int $tempDiskMinFreeGb,
     ): array {
-        $report = app(HistoricStagingHeadroom::class)->report(
-            $workItems,
-            $parallel,
-            $tempDiskMinFreeGb,
-        );
+        $report = app(HistoricStagingHeadroom::class)->report($workItems, $tempDiskMinFreeGb);
         $gib = static fn (?int $bytes): string => $bytes === null
             ? 'unknown'
             : number_format($bytes / 1024 ** 3, 1).' GiB';
 
         $this->line(sprintf(
-            'Pass needs: %s free (%s floor + %s for %d concurrent job(s)); %d identities, %s of source, largest %s.',
+            'Pass needs: %s free (%s floor + %s selected inputs not already staged + %s concurrent FFmpeg transient); %d identities, %s selected source, largest %s.',
             $gib($report['required_free_bytes']),
             $gib($report['minimum_free_bytes']),
-            $gib($report['concurrent_working_bytes']),
-            max(1, $parallel),
+            $gib($report['selected_unstaged_input_bytes']),
+            $gib($report['concurrent_transient_bytes']),
             $report['item_count'],
             $gib($report['selected_source_bytes']),
             $gib($report['largest_source_bytes']),
         ));
+        $widths = $report['configured_worker_widths'];
+        $this->line(sprintf(
+            'Configured historic stage workers: ffmpeg=%d, whisper=%d, llm=%d, orchestration=%d.',
+            $widths['ffmpeg'],
+            $widths['whisper'],
+            $widths['llm'],
+            $widths['orchestration'],
+        ));
+        $this->line('Retained M9 review-source bytes are already represented by available free space and are not added again; use --measures for the database-owned retained-byte measure.');
 
         if ($report['measurable']) {
             $this->line('Staging free space: '.$gib($report['process_reported_free_bytes']).'.');

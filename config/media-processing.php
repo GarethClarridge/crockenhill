@@ -109,7 +109,8 @@ return [
     | Historic imports use dedicated queues, so calibration can set the width
     | of the CPU-bound, single-GPU and remote-API stages independently without
     | changing the scheduling of the current weekly media pipeline. These values
-    | are captured in the historic processing fingerprint.
+    | are captured as historic execution evidence, separately from the durable
+    | processing fingerprint.
     |
     */
     'historic_import' => [

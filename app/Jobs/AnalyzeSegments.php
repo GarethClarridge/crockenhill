@@ -10,6 +10,7 @@ use App\Models\LivestreamSegment as LivestreamSegmentModel;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Video\VideoSegmentationService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
+use App\Services\Processing\SermonProcessingStepTransitions;
 use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -33,17 +34,32 @@ class AnalyzeSegments implements ShouldQueue
 
     public function handle(
         VideoSegmentationService $segmentationService,
-        ?MediaProcessingRunTransitionService $processingRunTransitions = null
+        ?MediaProcessingRunTransitionService $processingRunTransitions = null,
+        ?SermonProcessingStepTransitions $processingStepTransitions = null,
     ): void {
         $processingRunTransitions ??= app(MediaProcessingRunTransitionService::class);
+        $processingStepTransitions ??= app(SermonProcessingStepTransitions::class);
 
         if ($this->abortIfCancelled('AnalyzeSegments')) {
+            if ($this->processingLog->isCancelled()) {
+                $processingStepTransitions->markAsSkipped(
+                    $this->processingLog->processing_id,
+                    ProcessingStep::AnalyzingSegments->value,
+                    'Processing cancelled before segment analysis.',
+                );
+            }
+
             return;
         }
 
         try {
             // Update status to show segmentation is starting
             $processingRunTransitions->markAsProcessing($this->processingLog, ProcessingStep::Segmentation->value);
+            $processingStepTransitions->markAsStarted(
+                $this->processingLog->processing_id,
+                ProcessingStep::AnalyzingSegments->value,
+                'Analyzing RMS segments.',
+            );
 
             Log::info('Starting segment analysis', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -81,8 +97,13 @@ class AnalyzeSegments implements ShouldQueue
             }
 
             $processingRunTransitions->updateRunFields($this->processingLog, $baselineFields);
+            $processingStepTransitions->markAsCompleted(
+                $this->processingLog->processing_id,
+                ProcessingStep::AnalyzingSegments->value,
+                'RMS segments analyzed.',
+            );
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Segment analysis failed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
@@ -90,6 +111,11 @@ class AnalyzeSegments implements ShouldQueue
             ]);
 
             $processingRunTransitions->markAsFailed($this->processingLog, 'Segment analysis failed: '.$e->getMessage());
+            $processingStepTransitions->markAsFailed(
+                $this->processingLog->processing_id,
+                ProcessingStep::AnalyzingSegments->value,
+                'Segment analysis failed: '.$e->getMessage(),
+            );
 
             // Cleanup will be handled by the chain failure handler
 
@@ -199,6 +225,23 @@ class AnalyzeSegments implements ShouldQueue
             'error' => $exception->getMessage(),
             'attempts' => $this->attempts(),
         ]);
+
+        $processingLog = $this->processingLog->fresh();
+        $processingStepTransitions = app(SermonProcessingStepTransitions::class);
+
+        if ($processingLog instanceof MediaProcessingLog && $processingLog->isCancelled()) {
+            $processingStepTransitions->markAsSkipped(
+                $this->processingLog->processing_id,
+                ProcessingStep::AnalyzingSegments->value,
+                'Processing cancelled before the final segment-analysis attempt.',
+            );
+        } else {
+            $processingStepTransitions->markAsFailed(
+                $this->processingLog->processing_id,
+                ProcessingStep::AnalyzingSegments->value,
+                'Segment analysis failed after '.$this->tries.' attempts: '.$exception->getMessage(),
+            );
+        }
 
         app(MediaProcessingRunTransitionService::class)->markAsFailed(
             $this->processingLog,

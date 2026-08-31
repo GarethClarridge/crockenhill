@@ -17,6 +17,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\ChurchService\SourceAdapters\LivestreamSourceAdapter;
 use App\Services\HistoricMedia\HistoricProcessingFingerprint;
+use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\TempDiskSpace;
 use App\Services\Processing\UnifiedMediaProcessor;
@@ -72,6 +73,7 @@ class HistoricVideoImporter
         private readonly HistoricProcessingFingerprint $fingerprints,
         private readonly HistoricVideoReencodeConcatenator $reencodeConcatenator,
         private readonly VideoStorageService $videoStorageService,
+        private readonly ?HistoricProcessingThroughput $throughput = null,
     ) {}
 
     /**
@@ -121,7 +123,6 @@ class HistoricVideoImporter
         bool $noConcat,
         bool $reEncodeMismatched,
         int $tempDiskMinFreeGb,
-        int $parallel,
         int $pollIntervalSeconds,
         int $perFileTimeoutSeconds,
         int $limit,
@@ -137,6 +138,22 @@ class HistoricVideoImporter
             if (! $stagingContext instanceof HistoricStagingContext) {
                 throw new \RuntimeException('Historic video dispatch requires the approved staging and manifest context.');
             }
+        }
+
+        /**
+         * These values are invariant for one importer pass. Compute them once
+         * before the first item is dispatched and carry the immutable arrays
+         * into every item's metadata; a new importer instance must recompute
+         * them after a binary or configuration change.
+         */
+        /** @var array<string, mixed>|null $processingFingerprint */
+        $processingFingerprint = null;
+        /** @var array<string, array{routing_fingerprint:string,worker_width:int}>|null $executionProfile */
+        $executionProfile = null;
+
+        if (! $dryRun && $stagingContext instanceof HistoricStagingContext) {
+            $processingFingerprint = $this->fingerprints->forStagingContext($stagingContext);
+            $executionProfile = ($this->throughput ?? app(HistoricProcessingThroughput::class))->executionProfile();
         }
 
         $metrics = [
@@ -415,7 +432,15 @@ class HistoricVideoImporter
             }
 
             try {
-                $results = $this->dispatchItem($item, $noConcat, $reEncodeMismatched, $stagingContext, $operation);
+                $results = $this->dispatchItem(
+                    $item,
+                    $noConcat,
+                    $reEncodeMismatched,
+                    $stagingContext,
+                    $operation,
+                    $processingFingerprint,
+                    $executionProfile,
+                );
 
                 foreach ($results as $result) {
                     if ($result['tag'] === 'error') {
@@ -875,6 +900,8 @@ class HistoricVideoImporter
      * Dispatch a single work item through the livestream pipeline.
      *
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int, manifest_concatenation?:string}  $item
+     * @param  array<string, mixed>|null  $processingFingerprint
+     * @param  array<string, array{routing_fingerprint:string,worker_width:int}>|null  $executionProfile
      * @return list<array{tag: string, processing_id: string, detail: string|null}>
      */
     private function dispatchItem(
@@ -883,6 +910,8 @@ class HistoricVideoImporter
         bool $reEncodeMismatched,
         ?HistoricStagingContext $stagingContext,
         ?HistoricImportOperation $operation,
+        ?array $processingFingerprint,
+        ?array $executionProfile,
     ): array {
         if (! $stagingContext instanceof HistoricStagingContext) {
             throw new \RuntimeException('Historic video dispatch requires the approved staging and manifest context.');
@@ -890,12 +919,22 @@ class HistoricVideoImporter
 
         return $this->stagingContextRegistry->within(
             $stagingContext,
-            fn (): array => $this->dispatchItemWithinStagingContext($item, $noConcat, $reEncodeMismatched, $stagingContext, $operation),
+            fn (): array => $this->dispatchItemWithinStagingContext(
+                $item,
+                $noConcat,
+                $reEncodeMismatched,
+                $stagingContext,
+                $operation,
+                $processingFingerprint,
+                $executionProfile,
+            ),
         );
     }
 
     /**
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int, manifest_concatenation?:string}  $item
+     * @param  array<string, mixed>|null  $processingFingerprint
+     * @param  array<string, array{routing_fingerprint:string,worker_width:int}>|null  $executionProfile
      * @return list<array{tag: string, processing_id: string, detail: string|null}>
      */
     private function dispatchItemWithinStagingContext(
@@ -904,12 +943,14 @@ class HistoricVideoImporter
         bool $reEncodeMismatched,
         HistoricStagingContext $stagingContext,
         ?HistoricImportOperation $operation,
+        ?array $processingFingerprint,
+        ?array $executionProfile,
     ): array {
         $files = $item['files'];
 
         if (isset($item['manifest_concatenation'])) {
             if (count($files) === 1) {
-                return $this->dispatchFiles($item, $files, $stagingContext, $operation);
+                return $this->dispatchFiles($item, $files, $stagingContext, $operation, $processingFingerprint, $executionProfile);
             }
 
             if (! in_array($item['manifest_concatenation'], ['lossless', 'reencoded'], true)) {
@@ -920,8 +961,8 @@ class HistoricVideoImporter
 
             try {
                 return [$item['manifest_concatenation'] === 'lossless'
-                    ? $this->concatLossless($item, $stagedFiles, $stagingContext, $operation)
-                    : $this->concatWithReencode($item, $stagedFiles, $stagingContext, $operation)];
+                    ? $this->concatLossless($item, $stagedFiles, $stagingContext, $operation, $processingFingerprint, $executionProfile)
+                    : $this->concatWithReencode($item, $stagedFiles, $stagingContext, $operation, $processingFingerprint, $executionProfile)];
             } finally {
                 $this->cleanupStagedFiles($stagedFiles);
             }
@@ -931,19 +972,29 @@ class HistoricVideoImporter
             $stagedFiles = $this->stageSourceFiles($item);
 
             try {
-                return [$this->dispatchMultiSegment($item, $stagedFiles, $reEncodeMismatched, $stagingContext, $operation)];
+                return [$this->dispatchMultiSegment(
+                    $item,
+                    $stagedFiles,
+                    $reEncodeMismatched,
+                    $stagingContext,
+                    $operation,
+                    $processingFingerprint,
+                    $executionProfile,
+                )];
             } finally {
                 $this->cleanupStagedFiles($stagedFiles);
             }
         }
 
         // With --no-concat, dispatch every segment individually so none are silently dropped.
-        return $this->dispatchFiles($item, $files, $stagingContext, $operation);
+        return $this->dispatchFiles($item, $files, $stagingContext, $operation, $processingFingerprint, $executionProfile);
     }
 
     /**
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
      * @param  list<string>  $files
+     * @param  array<string, mixed>|null  $processingFingerprint
+     * @param  array<string, array{routing_fingerprint:string,worker_width:int}>|null  $executionProfile
      * @return list<array{tag: string, processing_id: string, detail: string|null}>
      */
     private function dispatchFiles(
@@ -951,6 +1002,8 @@ class HistoricVideoImporter
         array $files,
         HistoricStagingContext $stagingContext,
         ?HistoricImportOperation $operation,
+        ?array $processingFingerprint,
+        ?array $executionProfile,
     ): array {
         $results = [];
         foreach ($files as $path) {
@@ -971,7 +1024,16 @@ class HistoricVideoImporter
                 options: [
                     'dedup_key' => $jobKey,
                     'skip_file_hash' => true,
-                    'processing_metadata' => $this->historicImportMetadata($item, $path, 'none', $stagingContext, $jobKey, $operation),
+                    'processing_metadata' => $this->historicImportMetadata(
+                        $item,
+                        $path,
+                        'none',
+                        $stagingContext,
+                        $jobKey,
+                        $operation,
+                        $processingFingerprint,
+                        $executionProfile,
+                    ),
                 ],
                 serviceOverride: $item['service'],
                 serviceDateOverride: $item['date']->toDateString(),
@@ -990,6 +1052,8 @@ class HistoricVideoImporter
     /**
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
      * @param  list<StagedFile>  $stagedFiles
+     * @param  array<string, mixed>|null  $processingFingerprint
+     * @param  array<string, array{routing_fingerprint:string,worker_width:int}>|null  $executionProfile
      * @return array{tag: string, processing_id: string, detail: string|null}
      */
     private function dispatchMultiSegment(
@@ -998,6 +1062,8 @@ class HistoricVideoImporter
         bool $reEncodeMismatched,
         HistoricStagingContext $stagingContext,
         ?HistoricImportOperation $operation,
+        ?array $processingFingerprint,
+        ?array $executionProfile,
     ): array {
         $files = $this->stagedFullPaths($stagedFiles);
 
@@ -1006,10 +1072,24 @@ class HistoricVideoImporter
                 return ['tag' => 'error', 'processing_id' => '', 'detail' => 'codec mismatch in segment group (use --reencode-mismatched to override)'];
             }
 
-            return $this->concatWithReencode($item, $stagedFiles, $stagingContext, $operation);
+            return $this->concatWithReencode(
+                $item,
+                $stagedFiles,
+                $stagingContext,
+                $operation,
+                $processingFingerprint,
+                $executionProfile,
+            );
         }
 
-        return $this->concatLossless($item, $stagedFiles, $stagingContext, $operation);
+        return $this->concatLossless(
+            $item,
+            $stagedFiles,
+            $stagingContext,
+            $operation,
+            $processingFingerprint,
+            $executionProfile,
+        );
     }
 
     /**
@@ -1149,6 +1229,8 @@ class HistoricVideoImporter
     /**
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
      * @param  list<StagedFile>  $stagedFiles
+     * @param  array<string, mixed>|null  $processingFingerprint
+     * @param  array<string, array{routing_fingerprint:string,worker_width:int}>|null  $executionProfile
      * @return array{tag: string, processing_id: string, detail: string|null}
      */
     private function concatLossless(
@@ -1156,6 +1238,8 @@ class HistoricVideoImporter
         array $stagedFiles,
         HistoricStagingContext $stagingContext,
         ?HistoricImportOperation $operation,
+        ?array $processingFingerprint,
+        ?array $executionProfile,
     ): array {
         $concatPath = $this->buildConcatFile($this->stagedFullPaths($stagedFiles));
 
@@ -1183,7 +1267,16 @@ class HistoricVideoImporter
         }
 
         try {
-            $result = $this->dispatchConcatFile($outputPath, $outputRelativePath, $item, 'lossless', $stagingContext, $operation);
+            $result = $this->dispatchConcatFile(
+                $outputPath,
+                $outputRelativePath,
+                $item,
+                'lossless',
+                $stagingContext,
+                $operation,
+                $processingFingerprint,
+                $executionProfile,
+            );
         } catch (\Throwable $exception) {
             Storage::disk($this->historicTempDisk())->delete($outputRelativePath);
 
@@ -1202,6 +1295,8 @@ class HistoricVideoImporter
     /**
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
      * @param  list<StagedFile>  $stagedFiles
+     * @param  array<string, mixed>|null  $processingFingerprint
+     * @param  array<string, array{routing_fingerprint:string,worker_width:int}>|null  $executionProfile
      * @return array{tag: string, processing_id: string, detail: string|null}
      */
     private function concatWithReencode(
@@ -1209,6 +1304,8 @@ class HistoricVideoImporter
         array $stagedFiles,
         HistoricStagingContext $stagingContext,
         ?HistoricImportOperation $operation,
+        ?array $processingFingerprint,
+        ?array $executionProfile,
     ): array {
         $this->ensureTempDir();
 
@@ -1226,7 +1323,16 @@ class HistoricVideoImporter
         }
 
         try {
-            $result = $this->dispatchConcatFile($outputPath, $outputRelativePath, $item, 're-encoded', $stagingContext, $operation);
+            $result = $this->dispatchConcatFile(
+                $outputPath,
+                $outputRelativePath,
+                $item,
+                're-encoded',
+                $stagingContext,
+                $operation,
+                $processingFingerprint,
+                $executionProfile,
+            );
         } catch (\Throwable $exception) {
             Storage::disk($this->historicTempDisk())->delete($outputRelativePath);
 
@@ -1245,6 +1351,8 @@ class HistoricVideoImporter
     /**
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
      * @param  'lossless'|'re-encoded'  $concatenation
+     * @param  array<string, mixed>|null  $processingFingerprint
+     * @param  array<string, array{routing_fingerprint:string,worker_width:int}>|null  $executionProfile
      */
     private function dispatchConcatFile(
         string $outputPath,
@@ -1253,6 +1361,8 @@ class HistoricVideoImporter
         string $concatenation,
         HistoricStagingContext $stagingContext,
         ?HistoricImportOperation $operation,
+        ?array $processingFingerprint,
+        ?array $executionProfile,
     ): ProcessingResult {
         $filename = $item['date']->format('Y-m-d').' '.$item['service']->value.'.mkv';
         $file = new UploadedFile($outputPath, $filename, null, null, true);
@@ -1283,6 +1393,8 @@ class HistoricVideoImporter
                     $stagingContext,
                     $jobKey,
                     $operation,
+                    $processingFingerprint,
+                    $executionProfile,
                     stagedDerivative: [
                         'path' => $outputRelativePath,
                         'size' => $outputSize,
@@ -1692,6 +1804,8 @@ class HistoricVideoImporter
      * @param  'none'|'lossless'|'re-encoded'  $concatenation  How the dispatched file was produced
      * @param  string|null  $jobKey  The dedup key this dispatch actually used; recorded so the
      *                               orchestrator derives chain identity from the same value
+     * @param  array<string, mixed>|null  $processingFingerprint  Pass-scoped durable identity
+     * @param  array<string, mixed>|null  $executionProfile  Pass-scoped queue/worker evidence
      * @param  array<string, mixed>|null  $stagedDerivative  Operation-owned concat output to adopt
      * @return array<string, mixed>
      */
@@ -1702,6 +1816,8 @@ class HistoricVideoImporter
         ?HistoricStagingContext $stagingContext = null,
         ?string $jobKey = null,
         ?HistoricImportOperation $operation = null,
+        ?array $processingFingerprint = null,
+        ?array $executionProfile = null,
         ?array $stagedDerivative = null,
     ): array {
         $sources = $this->historicSourceMetadata($item);
@@ -1733,6 +1849,8 @@ class HistoricVideoImporter
         $historicImport['staging_context'] = $stagingContext->toArray();
         $historicImport['job_key'] = $jobKey;
         $historicImport['operation_id'] = $operation?->operation_id;
+        $historicImport['execution_profile'] = $executionProfile
+            ?? ($this->throughput ?? app(HistoricProcessingThroughput::class))->executionProfile();
 
         if ($stagedDerivative !== null) {
             $historicImport['staged_derivative'] = $stagedDerivative;
@@ -1757,7 +1875,8 @@ class HistoricVideoImporter
 
         return [
             'historic_import' => $historicImport,
-            'processing_fingerprint' => $this->fingerprints->forStagingContext($stagingContext),
+            'processing_fingerprint' => $processingFingerprint
+                ?? $this->fingerprints->forStagingContext($stagingContext),
         ];
     }
 

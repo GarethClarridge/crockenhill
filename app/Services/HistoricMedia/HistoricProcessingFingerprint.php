@@ -16,6 +16,8 @@ use Symfony\Component\Process\Process;
  */
 final class HistoricProcessingFingerprint
 {
+    private const LEGACY_FORMAT = 'crockenhill.historic-media-processing.v1';
+
     /**
      * The complete set of inputs that determine the durable media output, and
      * nothing else. Adding a key here is a deliberate statement that changing it
@@ -35,18 +37,13 @@ final class HistoricProcessingFingerprint
         'service_structure',
         'segmentation',
         'section_classification',
-        'throughput',
     ];
-
-    public function __construct(
-        private readonly HistoricProcessingThroughput $throughput,
-    ) {}
 
     /** @return array<string, mixed> */
     public function forStagingContext(HistoricStagingContext $context): array
     {
         return [
-            'format' => 'crockenhill.historic-media-processing.v1',
+            'format' => self::LEGACY_FORMAT,
             'source_manifest_hash' => $context->manifestHash,
             'transcription' => [
                 'service' => config('media-processing.transcription.service'),
@@ -75,18 +72,53 @@ final class HistoricProcessingFingerprint
             'service_structure' => config('media-processing.service_structure'),
             'segmentation' => config('media-processing.segmentation'),
             'section_classification' => config('media-processing.section_classification'),
-            'throughput' => $this->throughput->fingerprint(),
         ];
     }
 
     /** @param array<string, mixed> $fingerprint */
     public function assertMatchesCurrentConfiguration(HistoricStagingContext $context, array $fingerprint): void
     {
-        $this->assertPortable($fingerprint);
+        $fingerprint = $this->normalize($fingerprint);
+        $current = $this->normalize($this->forStagingContext($context));
 
-        if (CanonicalJson::hash($fingerprint) !== CanonicalJson::hash($this->forStagingContext($context))) {
+        if (CanonicalJson::hash($fingerprint) !== CanonicalJson::hash($current)) {
             throw new RuntimeException('Historic processing fingerprint does not match the approved media configuration and source manifest.');
         }
+    }
+
+    /**
+     * Return the one canonical durable fingerprint representation.
+     *
+     * The first historic schema recorded queue widths under throughput. That
+     * field was execution evidence, not a byte-affecting input, so it is
+     * accepted only on that known legacy format and removed before comparison
+     * or export. Every other unknown key remains a hard failure.
+     *
+     * @param  array<string, mixed>  $fingerprint
+     * @return array<string, mixed>
+     */
+    public function normalize(array $fingerprint): array
+    {
+        if (array_key_exists('throughput', $fingerprint)) {
+            if (($fingerprint['format'] ?? null) !== self::LEGACY_FORMAT) {
+                throw new RuntimeException(
+                    'Historic processing fingerprint may carry legacy throughput only on the existing v1 schema.'
+                );
+            }
+
+            unset($fingerprint['throughput']);
+        }
+
+        $unknown = array_diff(array_keys($fingerprint), self::PortableKeys);
+
+        if ($unknown !== []) {
+            throw new RuntimeException(
+                'Historic processing fingerprint must not pin non-media input: '.implode(', ', $unknown).'. '
+                .'Projector, review, bundle, export and auditor code are covered by the projection policy version instead.'
+            );
+        }
+
+        return $fingerprint;
     }
 
     /**
@@ -101,14 +133,7 @@ final class HistoricProcessingFingerprint
      */
     public function assertPortable(array $fingerprint): void
     {
-        $unknown = array_diff(array_keys($fingerprint), self::PortableKeys);
-
-        if ($unknown !== []) {
-            throw new RuntimeException(
-                'Historic processing fingerprint must not pin non-media input: '.implode(', ', $unknown).'. '
-                .'Projector, review, bundle, export and auditor code are covered by the projection policy version instead.'
-            );
-        }
+        $this->normalize($fingerprint);
     }
 
     /** @return array{sha256: string, version: string} */

@@ -9,6 +9,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Media\Thumbnail\ThumbnailGenerationService;
 use App\Services\Media\Video\FrameExtractionService;
+use App\Services\Processing\SermonProcessingStepTransitions;
 use App\Services\Sermon\SermonExposurePolicy;
 use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -69,11 +70,30 @@ class GenerateThumbnail implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(ThumbnailGenerationService $thumbnailService, FrameExtractionService $frameExtractionService): void
-    {
+    public function handle(
+        ThumbnailGenerationService $thumbnailService,
+        FrameExtractionService $frameExtractionService,
+        ?SermonProcessingStepTransitions $processingStepTransitions = null,
+    ): void {
+        $processingStepTransitions ??= app(SermonProcessingStepTransitions::class);
+
         if ($this->abortIfCancelled('GenerateThumbnail')) {
+            if ($this->processingLog->exists) {
+                $processingStepTransitions->markAsSkipped(
+                    $this->processingLog->processing_id,
+                    'generating_thumbnail',
+                    'Processing cancelled before thumbnail generation.',
+                );
+            }
+
             return;
         }
+
+        $processingStepTransitions->markAsStarted(
+            $this->processingLog->processing_id,
+            'generating_thumbnail',
+            'Generating thumbnail.',
+        );
 
         // Read the cached local path written by AssessSermonVideoQuality to avoid a second S3 download.
         $cachedLocalVideoPath = $this->resolveCachedLocalVideoPath();
@@ -87,6 +107,11 @@ class GenerateThumbnail implements ShouldQueue
                     'video_path' => $this->videoPath,
                     'processing_id' => $this->processingLog->processing_id,
                 ]);
+                $processingStepTransitions->markAsSkipped(
+                    $this->processingLog->processing_id,
+                    'generating_thumbnail',
+                    'Sermon or video path is missing.',
+                );
 
                 return;
             }
@@ -104,6 +129,11 @@ class GenerateThumbnail implements ShouldQueue
                 Log::warning('Sermon not found for thumbnail generation', [
                     'sermon_id' => $this->sermonId,
                 ]);
+                $processingStepTransitions->markAsSkipped(
+                    $this->processingLog->processing_id,
+                    'generating_thumbnail',
+                    'Sermon record is missing.',
+                );
 
                 return;
             }
@@ -114,6 +144,11 @@ class GenerateThumbnail implements ShouldQueue
                     'video_path' => $this->videoPath,
                     'processing_id' => $this->processingLog->processing_id,
                 ]);
+                $processingStepTransitions->markAsSkipped(
+                    $this->processingLog->processing_id,
+                    'generating_thumbnail',
+                    'Video quality verdict does not allow a public thumbnail.',
+                );
 
                 return;
             }
@@ -130,6 +165,11 @@ class GenerateThumbnail implements ShouldQueue
                         'video_path' => $this->videoPath,
                         'disk' => $this->disk,
                     ]);
+                    $processingStepTransitions->markAsSkipped(
+                        $this->processingLog->processing_id,
+                        'generating_thumbnail',
+                        'Video file is missing.',
+                    );
 
                     return;
                 }
@@ -150,15 +190,25 @@ class GenerateThumbnail implements ShouldQueue
                     'thumbnail_path' => $result->thumbnailPath,
                     'metadata' => $result->metadata,
                 ]);
+                $processingStepTransitions->markAsCompleted(
+                    $this->processingLog->processing_id,
+                    'generating_thumbnail',
+                    'Thumbnail generated.',
+                );
             } else {
                 // Log warning but don't fail - thumbnails are optional
                 Log::warning('Thumbnail generation skipped', [
                     'sermon_id' => $this->sermonId,
                     'reason' => $result->errorMessage,
                 ]);
+                $processingStepTransitions->markAsSkipped(
+                    $this->processingLog->processing_id,
+                    'generating_thumbnail',
+                    $result->errorMessage ?? 'Thumbnail generation was not required.',
+                );
             }
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // Log error but don't throw - thumbnail failures should never affect processing
             Log::warning('Thumbnail generation job encountered an error', [
                 'sermon_id' => $this->sermonId,
@@ -166,6 +216,11 @@ class GenerateThumbnail implements ShouldQueue
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+            $processingStepTransitions->markAsFailed(
+                $this->processingLog->processing_id,
+                'generating_thumbnail',
+                'Thumbnail generation failed: '.$e->getMessage(),
+            );
         } finally {
             // Clean up the cached local video passed from AssessSermonVideoQuality
             $frameExtractionService->cleanupDownloadedVideo($cachedLocalVideoPath);
@@ -278,6 +333,23 @@ class GenerateThumbnail implements ShouldQueue
             'error' => $exception->getMessage(),
             'attempts' => $this->attempts(),
         ]);
+
+        $processingLog = $this->processingLog->fresh();
+        $processingStepTransitions = app(SermonProcessingStepTransitions::class);
+
+        if ($processingLog instanceof MediaProcessingLog && $processingLog->isCancelled()) {
+            $processingStepTransitions->markAsSkipped(
+                $this->processingLog->processing_id,
+                'generating_thumbnail',
+                'Processing cancelled before the final thumbnail attempt.',
+            );
+        } else {
+            $processingStepTransitions->markAsFailed(
+                $this->processingLog->processing_id,
+                'generating_thumbnail',
+                'Thumbnail generation failed permanently: '.$exception->getMessage(),
+            );
+        }
 
         // Don't mark processing as failed - thumbnails are optional
         // The main processing pipeline should continue unaffected

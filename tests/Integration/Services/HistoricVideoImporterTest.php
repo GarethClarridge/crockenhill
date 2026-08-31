@@ -200,6 +200,74 @@ class HistoricVideoImporterTest extends TestCase
     }
 
     #[Test]
+    public function it_computes_pass_identity_once_and_recomputes_for_a_fresh_importer(): void
+    {
+        $firstPath = $this->temporaryDirectory.'/2022-01-16 18-38-15.mkv';
+        $secondPath = $this->temporaryDirectory.'/2022-01-23 18-38-15.mkv';
+        $this->createFakeVideo($firstPath);
+        $this->createFakeVideo($secondPath);
+
+        $versionCallsPath = $this->temporaryDirectory.'/binary-version-calls.log';
+        $binaryPath = $this->temporaryDirectory.'/historic-binary';
+        $binary = <<<'SH'
+#!/bin/sh
+if [ "$1" = "-version" ]; then
+    printf '%s\n' version >> __VERSION_CALLS_PATH__
+    printf '%s\n' 'ffmpeg version m12-test'
+    exit 0
+fi
+printf '%s\n' '{"streams":[{"codec_type":"video","codec_name":"h264","width":1280,"height":720,"r_frame_rate":"25/1"},{"codec_type":"audio","codec_name":"aac","sample_rate":"48000"}]}'
+SH;
+        $binary = str_replace('__VERSION_CALLS_PATH__', escapeshellarg($versionCallsPath), $binary);
+        $this->assertNotFalse(file_put_contents($binaryPath, $binary));
+        $this->assertTrue(chmod($binaryPath, 0755));
+
+        config([
+            'media-processing.ffmpeg.ffmpeg_path' => $binaryPath,
+            'media-processing.ffmpeg.ffprobe_path' => $binaryPath,
+        ]);
+
+        $captured = [];
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->times(3)
+            ->withArgs(function (string $type, mixed $file, ?string $clientFileDate, array $options) use (&$captured): bool {
+                $captured[] = [
+                    'fingerprint' => $options['processing_metadata']['processing_fingerprint'] ?? null,
+                    'execution_profile' => $options['processing_metadata']['historic_import']['execution_profile'] ?? null,
+                ];
+
+                return $type === 'livestream' && $clientFileDate !== null;
+            })
+            ->andReturnUsing(function (): ProcessingResult {
+                return ProcessingResult::success('historic-'.uniqid(), 'ok');
+            });
+
+        $this->runImportWithProcessor($processor, approvedWorkItems: [
+            $this->approvedWorkItemFor($firstPath, 'item-one', Carbon::parse('2022-01-16')),
+            $this->approvedWorkItemFor($secondPath, 'item-two', Carbon::parse('2022-01-23')),
+        ]);
+
+        $versionCalls = file($versionCallsPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $this->assertIsArray($versionCalls);
+        $this->assertCount(2, $versionCalls, 'One pass should verify ffmpeg and ffprobe once each.');
+        $this->assertCount(2, $captured);
+        $this->assertSame($captured[0]['fingerprint'], $captured[1]['fingerprint']);
+        $this->assertSame($captured[0]['execution_profile'], $captured[1]['execution_profile']);
+
+        $this->runImportWithProcessor($processor, approvedWorkItems: [
+            $this->approvedWorkItemFor($firstPath, 'item-one-fresh-pass', Carbon::parse('2022-01-30')),
+        ]);
+
+        $versionCalls = file($versionCallsPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $this->assertIsArray($versionCalls);
+        $this->assertCount(4, $versionCalls, 'A fresh importer pass should recompute both binary checks.');
+        $this->assertCount(3, $captured);
+        $this->assertSame($captured[0]['fingerprint'], $captured[2]['fingerprint']);
+        $this->assertSame($captured[0]['execution_profile'], $captured[2]['execution_profile']);
+    }
+
+    #[Test]
     public function an_approved_source_changed_before_dispatch_creates_no_processing_state(): void
     {
         $relativePath = '2022-01-16 18-38-15.mkv';
@@ -235,7 +303,6 @@ class HistoricVideoImporterTest extends TestCase
             noConcat: true,
             reEncodeMismatched: false,
             tempDiskMinFreeGb: 0,
-            parallel: 1,
             pollIntervalSeconds: 1,
             perFileTimeoutSeconds: 1,
             limit: 0,
@@ -418,7 +485,6 @@ class HistoricVideoImporterTest extends TestCase
             noConcat: false,
             reEncodeMismatched: false,
             tempDiskMinFreeGb: 0,
-            parallel: 1,
             pollIntervalSeconds: 1,
             perFileTimeoutSeconds: 1,
             limit: 0,
@@ -1348,7 +1414,6 @@ class HistoricVideoImporterTest extends TestCase
         bool $noConcat = true,
         bool $reEncodeMismatched = false,
         int $tempDiskMinFreeGb = 0,
-        int $parallel = 1,
         int $pollIntervalSeconds = 5,
         int $perFileTimeoutSeconds = 60,
         int $limit = 0,
@@ -1383,7 +1448,6 @@ class HistoricVideoImporterTest extends TestCase
             noConcat: $noConcat,
             reEncodeMismatched: $reEncodeMismatched,
             tempDiskMinFreeGb: $tempDiskMinFreeGb,
-            parallel: $parallel,
             pollIntervalSeconds: $pollIntervalSeconds,
             perFileTimeoutSeconds: $perFileTimeoutSeconds,
             limit: $limit,
@@ -1535,6 +1599,36 @@ class HistoricVideoImporterTest extends TestCase
         }
 
         return $this->runImportWithProcessor($processor, approvedWorkItems: [$item]);
+    }
+
+    /** @return array<string, mixed> */
+    private function approvedWorkItemFor(string $path, string $itemKey, Carbon $date): array
+    {
+        $size = filesize($path);
+        $hash = hash_file('sha256', $path);
+
+        if (! is_int($size) || ! is_string($hash)) {
+            throw new RuntimeException("Unable to inspect approved test source {$path}.");
+        }
+
+        $relativePath = basename($path);
+
+        return [
+            'manifest_item_key' => $itemKey,
+            'tag' => 'livestream',
+            'label' => $relativePath,
+            'files' => [$path],
+            'source_files' => [[
+                'relative_path' => $relativePath,
+                'sha256' => $hash,
+                'byte_size' => $size,
+            ]],
+            'date' => $date,
+            'service' => SermonService::Evening,
+            'client_file_date' => $date->copy()->setTime(18, 38, 15)->format('Y-m-d H:i:s'),
+            'bytes' => $size,
+            'manifest_concatenation' => 'separate',
+        ];
     }
 
     /**

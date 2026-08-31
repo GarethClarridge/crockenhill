@@ -1,0 +1,259 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Integration\Services\HistoricMedia;
+
+use App\Enums\HistoricImportCheckpointState;
+use App\Enums\ProcessingStatus;
+use App\Models\HistoricImportOperation;
+use App\Models\HistoricImportUsageEntry;
+use App\Models\MediaProcessingLog;
+use App\Models\SermonProcessingStep;
+use App\Services\HistoricMedia\HistoricVideoPassPerformance;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
+use Tests\TestCase;
+
+class HistoricVideoPassPerformanceTest extends TestCase
+{
+    use CreatesHistoricImportOperations;
+    use RefreshDatabase;
+
+    private const GIB = 1024 ** 3;
+
+    #[Test]
+    public function it_reports_scoped_run_timings_retries_clean_samples_and_missing_coverage(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $this->createRun(
+            $operation,
+            'item-one',
+            'run-one',
+            ProcessingStatus::Completed,
+            1,
+            '2026-08-31 12:00:00.000000',
+            '2026-08-31 12:00:10.123456',
+            '2026-08-31 12:00:20.123456',
+            [
+                'trim' => ['observed_duration' => 1800.0],
+                'api_response_times_ms' => [100.0, 200.0],
+                'historic_import' => [
+                    'execution_profile' => [
+                        'ffmpeg' => ['routing_fingerprint' => str_repeat('a', 64), 'worker_width' => 1],
+                    ],
+                ],
+            ],
+            4 * self::GIB,
+        );
+        $this->createStep('run-one', 'rms_generation', ProcessingStatus::Completed, '2026-08-31 12:00:10.123456', '2026-08-31 12:00:12.123456');
+        $this->createStep('run-one', 'analyzing_segments', ProcessingStatus::Completed, '2026-08-31 12:00:15.123456', '2026-08-31 12:00:20.123456');
+        $this->createStep('run-one', 'generating_thumbnail', ProcessingStatus::Skipped, '2026-08-31 12:00:20.123456', '2026-08-31 12:00:20.123456');
+        $this->createStep('run-one', 'future_step', ProcessingStatus::Completed, '2026-08-31 12:00:21.123456', '2026-08-31 12:00:22.123456');
+
+        $this->createRun(
+            $operation,
+            'item-two',
+            'run-retried',
+            ProcessingStatus::Completed,
+            2,
+            '2026-08-31 12:00:30.000000',
+            '2026-08-31 12:00:31.000000',
+            '2026-08-31 12:00:40.000000',
+            [],
+            2 * self::GIB,
+        );
+        $this->createRun(
+            $operation,
+            'item-two',
+            'run-in-progress',
+            ProcessingStatus::Processing,
+            1,
+            '2026-08-31 12:00:50.000000',
+            null,
+            null,
+            [],
+            1 * self::GIB,
+        );
+        $this->createRun(
+            $this->createHistoricImportOperation(),
+            'item-one',
+            'run-other-operation',
+            ProcessingStatus::Completed,
+            1,
+            '2026-08-31 11:00:00.000000',
+            '2026-08-31 11:00:01.000000',
+            '2026-08-31 11:00:02.000000',
+            [],
+            99 * self::GIB,
+        );
+
+        $report = app(HistoricVideoPassPerformance::class)->report(
+            $operation,
+            ['item-one', 'item-two', 'not-dispatched'],
+        );
+
+        $this->assertSame(['item-one', 'item-two', 'not-dispatched'], $report['item_keys']);
+        $this->assertCount(3, $report['runs']);
+        $this->assertSame('completed', $report['items'][0]['disposition']);
+        $this->assertSame('in_progress', $report['items'][1]['disposition']);
+        $this->assertSame('not_dispatched', $report['items'][2]['disposition']);
+
+        $firstRun = $report['runs'][0];
+        $this->assertSame(10.0, $firstRun['queue_delay_seconds']);
+        $this->assertSame(10.0, $firstRun['elapsed_seconds']);
+        $this->assertSame(1800.0, $firstRun['content_seconds']);
+        $this->assertSame(4 * self::GIB, $firstRun['source_bytes']);
+        $this->assertSame('complete', $firstRun['timing_state']);
+        $this->assertSame(1, $firstRun['execution_profile']['ffmpeg']['worker_width']);
+        $this->assertSame([100.0, 200.0], $firstRun['api_response_times_ms']);
+
+        $inProgressRun = $report['runs'][2];
+        $this->assertNull($inProgressRun['completed_at']);
+        $this->assertNull($inProgressRun['elapsed_seconds']);
+        $this->assertSame('incomplete', $inProgressRun['timing_state']);
+
+        $this->assertSame(3, $report['all_runs']['run_count']);
+        $this->assertSame(2, $report['all_runs']['timed_run_count']);
+        $this->assertSame(1, $report['all_runs']['runs_missing_timing_count']);
+        $this->assertSame(1, $report['all_runs']['retried_run_count']);
+        $this->assertSame(1, $report['clean_first_attempt']['run_count']);
+        $this->assertSame('run-retried', $report['all_runs']['runs_with_retries'][0]);
+
+        $this->assertSame('unknown', $report['runs'][0]['steps'][3]['stage']);
+        $this->assertSame(3.0, $report['step_summary']['analyzing_segments']['p50_queue_wait_seconds']);
+        $this->assertSame(5.0, $report['step_summary']['analyzing_segments']['p95_active_duration_seconds']);
+        $this->assertSame(1, $report['step_summary']['generating_thumbnail']['skipped_count']);
+        $this->assertSame(3, $report['step_summary']['extracting_audio']['missing_coverage_count']);
+        $this->assertSame(1, $report['stages']['max_overlapping_step_intervals']['unknown']);
+        $this->assertSame(
+            ['ffmpeg', 'whisper', 'llm', 'orchestration'],
+            array_keys($report['configured_worker_widths']),
+        );
+        $this->assertSame(2, $report['usage']['api_response_time_summary_ms']['count']);
+    }
+
+    #[Test]
+    public function it_keeps_usage_counts_scoped_to_selected_items(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $checkpoint = $operation->checkpoints()->create([
+            'checkpoint_key' => 'performance',
+            'ordinal' => 1,
+            'membership_hash' => str_repeat('1', 64),
+            'item_keys' => ['item-one'],
+            'forecast_seconds' => 60,
+            'accepted_cost_minor_units' => 1000,
+            'state' => HistoricImportCheckpointState::Complete,
+        ]);
+
+        HistoricImportUsageEntry::query()->create([
+            'historic_import_operation_id' => $operation->id,
+            'historic_import_checkpoint_id' => $checkpoint->id,
+            'request_key' => 'selected-request',
+            'item_key' => 'item-one',
+            'provider' => 'openai',
+            'model' => 'whisper-1',
+            'calls' => 2,
+            'input_tokens' => 10,
+            'output_tokens' => 20,
+            'audio_seconds' => 30,
+            'cost_minor_units' => 4,
+            'currency' => 'GBP',
+            'recorded_at' => now(),
+        ]);
+        HistoricImportUsageEntry::query()->create([
+            'historic_import_operation_id' => $operation->id,
+            'historic_import_checkpoint_id' => $checkpoint->id,
+            'request_key' => 'unselected-request',
+            'item_key' => 'item-two',
+            'provider' => 'openai',
+            'model' => 'whisper-1',
+            'calls' => 9,
+            'input_tokens' => 90,
+            'output_tokens' => 90,
+            'audio_seconds' => 90,
+            'cost_minor_units' => 90,
+            'currency' => 'GBP',
+            'recorded_at' => now(),
+        ]);
+
+        $report = app(HistoricVideoPassPerformance::class)->report($operation, ['item-one']);
+
+        $this->assertSame(1, $report['usage']['request_count']);
+        $this->assertSame(2, $report['usage']['call_count']);
+        $this->assertSame(10, $report['usage']['input_tokens']);
+        $this->assertSame(20, $report['usage']['output_tokens']);
+        $this->assertSame(4, $report['usage']['cost_minor_units']);
+        $this->assertSame('openai/whisper-1', $report['usage']['by_model'][0]['provider'].'/'.$report['usage']['by_model'][0]['model']);
+    }
+
+    #[Test]
+    public function it_uses_nearest_rank_percentiles_and_null_for_no_samples(): void
+    {
+        $performance = app(HistoricVideoPassPerformance::class);
+
+        $this->assertSame(
+            ['p50' => 2.0, 'p95' => 4.0, 'max' => 4.0, 'count' => 4],
+            $performance->percentiles([1.0, 2.0, 3.0, 4.0]),
+        );
+        $this->assertSame(
+            ['p50' => null, 'p95' => null, 'max' => null, 'count' => 0],
+            $performance->percentiles([]),
+        );
+    }
+
+    private function createRun(
+        HistoricImportOperation $operation,
+        string $itemKey,
+        string $processingId,
+        ProcessingStatus $status,
+        int $attemptCount,
+        string $createdAt,
+        ?string $startedAt,
+        ?string $completedAt,
+        array $extraMetadata,
+        int $sourceBytes,
+    ): MediaProcessingLog {
+        $historicImport = [
+            'manifest_item_key' => $itemKey,
+            'sources' => [['path' => $itemKey.'.mkv', 'size' => $sourceBytes]],
+            ...(is_array($extraMetadata['historic_import'] ?? null) ? $extraMetadata['historic_import'] : []),
+        ];
+        unset($extraMetadata['historic_import']);
+
+        return MediaProcessingLog::factory()->livestream()->create([
+            'processing_id' => $processingId,
+            'historic_import_operation_id' => $operation->id,
+            'status' => $status,
+            'current_step' => $status === ProcessingStatus::Processing ? 'analyzing_segments' : 'completed',
+            'attempt_count' => $attemptCount,
+            'file_size' => $sourceBytes,
+            'duration' => 3600.0,
+            'created_at' => $createdAt,
+            'started_at' => $startedAt,
+            'completed_at' => $completedAt,
+            'processing_metadata' => [
+                'historic_import' => $historicImport,
+                ...$extraMetadata,
+            ],
+        ]);
+    }
+
+    private function createStep(
+        string $processingId,
+        string $step,
+        ProcessingStatus $status,
+        string $startedAt,
+        string $completedAt,
+    ): SermonProcessingStep {
+        return SermonProcessingStep::query()->create([
+            'processing_id' => $processingId,
+            'step' => $step,
+            'status' => $status,
+            'started_at' => $startedAt,
+            'completed_at' => $completedAt,
+        ]);
+    }
+}

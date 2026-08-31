@@ -6,10 +6,12 @@ namespace Tests\Integration;
 
 use App\Data\ThumbnailResult;
 use App\Enums\MediaType;
+use App\Enums\ProcessingStatus;
 use App\Enums\SermonVideoQualityStatus;
 use App\Jobs\GenerateThumbnail;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Models\SermonProcessingStep;
 use App\Services\Media\Thumbnail\ThumbnailGenerationService;
 use App\Services\Media\Video\FrameExtractionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -111,6 +113,13 @@ class GenerateThumbnailJobTest extends TestCase
         $this->assertNotNull($sermon->thumbnail_generated_at);
         $this->assertSame('candidate-3', $sermon->thumbnail_metadata?->selectedThumbnailCandidateId);
         $this->assertSame('sermons/thumbnails/test-plain.jpg', $sermon->thumbnail_metadata?->thumbnailCandidates[0]['plain_path']);
+        $this->assertSame(
+            ProcessingStatus::Completed,
+            SermonProcessingStep::query()
+                ->where('processing_id', $log->processing_id)
+                ->where('step', 'generating_thumbnail')
+                ->value('status'),
+        );
 
         Log::shouldHaveReceived('info')->atLeast()->once();
         Log::shouldNotHaveReceived('warning');
@@ -139,6 +148,13 @@ class GenerateThumbnailJobTest extends TestCase
         $this->assertNull($sermon->thumbnail_file_path);
         $this->assertNull($sermon->thumbnail_generated_at);
         $this->assertNull($sermon->thumbnail_metadata);
+        $this->assertSame(
+            ProcessingStatus::Skipped,
+            SermonProcessingStep::query()
+                ->where('processing_id', $log->processing_id)
+                ->where('step', 'generating_thumbnail')
+                ->value('status'),
+        );
 
         Log::shouldHaveReceived('info')->atLeast()->once();
         Log::shouldHaveReceived('warning')->atLeast()->once();
@@ -163,6 +179,13 @@ class GenerateThumbnailJobTest extends TestCase
         Log::shouldHaveReceived('error')->once()->with(
             'Missing sermon ID or video path for thumbnail generation',
             \Mockery::any()
+        );
+        $this->assertSame(
+            ProcessingStatus::Skipped,
+            SermonProcessingStep::query()
+                ->where('processing_id', $log->processing_id)
+                ->where('step', 'generating_thumbnail')
+                ->value('status'),
         );
     }
 
@@ -189,6 +212,13 @@ class GenerateThumbnailJobTest extends TestCase
                 'disk' => 'public',
             ]
         );
+        $this->assertSame(
+            ProcessingStatus::Skipped,
+            SermonProcessingStep::query()
+                ->where('processing_id', $log->processing_id)
+                ->where('step', 'generating_thumbnail')
+                ->value('status'),
+        );
     }
 
     #[Test]
@@ -210,6 +240,13 @@ class GenerateThumbnailJobTest extends TestCase
 
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
+        $this->assertSame(
+            ProcessingStatus::Skipped,
+            SermonProcessingStep::query()
+                ->where('processing_id', $log->processing_id)
+                ->where('step', 'generating_thumbnail')
+                ->value('status'),
+        );
 
         Log::shouldHaveReceived('info')->twice();
         Log::shouldNotHaveReceived('warning');
@@ -236,6 +273,13 @@ class GenerateThumbnailJobTest extends TestCase
 
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
+        $this->assertSame(
+            ProcessingStatus::Failed,
+            SermonProcessingStep::query()
+                ->where('processing_id', $log->processing_id)
+                ->where('step', 'generating_thumbnail')
+                ->value('status'),
+        );
 
         Log::shouldHaveReceived('info')->atLeast()->once();
         Log::shouldHaveReceived('warning')->atLeast()->once();
@@ -335,6 +379,13 @@ class GenerateThumbnailJobTest extends TestCase
         $job->handle($mockService, $this->createStub(FrameExtractionService::class));
 
         Log::shouldHaveReceived('info')->once()->with('GenerateThumbnail job skipped: processing cancelled', \Mockery::any());
+        $this->assertSame(
+            ProcessingStatus::Skipped,
+            SermonProcessingStep::query()
+                ->where('processing_id', $log->processing_id)
+                ->where('step', 'generating_thumbnail')
+                ->value('status'),
+        );
     }
 
     private function createProcessingLog(

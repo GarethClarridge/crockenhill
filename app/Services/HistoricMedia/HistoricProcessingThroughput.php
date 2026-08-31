@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\HistoricMedia;
 
+use App\Enums\ProcessingStep;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\CreateSermonTranscriptFromService;
@@ -29,6 +30,9 @@ use RuntimeException;
  */
 final class HistoricProcessingThroughput
 {
+    /** @var list<string> */
+    private const STAGES = ['ffmpeg', 'whisper', 'llm', 'orchestration'];
+
     /** @var array<string, list<class-string>> */
     private const JOB_STAGES = [
         'ffmpeg' => [
@@ -55,6 +59,80 @@ final class HistoricProcessingThroughput
             ProcessTranscriptWithAI::class,
             ProjectLivestreamServiceStructure::class,
         ],
+    ];
+
+    /**
+     * Every step the historic pipeline can expose has an explicit owner. The
+     * report deliberately returns 'unknown' for anything not listed here so a
+     * new step cannot silently inflate orchestration throughput.
+     *
+     * @var array<string, string>
+     */
+    private const STEP_STAGES = [
+        'audio_processing_initiated' => 'orchestration',
+        'video_processing_initiated' => 'orchestration',
+        'initiated_from_livestream' => 'orchestration',
+        'validating' => 'ffmpeg',
+        'audio_validation_complete' => 'ffmpeg',
+        'video_validation_complete' => 'ffmpeg',
+        'rms_generation' => 'ffmpeg',
+        'segmentation' => 'ffmpeg',
+        'segmenting' => 'ffmpeg',
+        'analyzing_segments' => 'ffmpeg',
+        'extracting_audio' => 'ffmpeg',
+        'audio_extraction_complete' => 'ffmpeg',
+        'audio_enhancement' => 'ffmpeg',
+        'audio_enhancement_complete' => 'ffmpeg',
+        'audio_enhancement_skipped' => 'ffmpeg',
+        'extraction' => 'ffmpeg',
+        'extract_sermon' => 'ffmpeg',
+        'extracting_sermon' => 'ffmpeg',
+        'extraction_complete' => 'ffmpeg',
+        'assessing_video_quality' => 'ffmpeg',
+        'generating_thumbnail' => 'ffmpeg',
+        'prepare_section_publication_candidates' => 'ffmpeg',
+        'preparing_section_publication_candidates' => 'ffmpeg',
+        'transcribe_full_service' => 'whisper',
+        'transcribing_audio' => 'whisper',
+        'transcribing' => 'whisper',
+        'transcription_completed' => 'whisper',
+        'transcription' => 'whisper',
+        'detect_service_structure' => 'llm',
+        'project_livestream_service_structure' => 'llm',
+        'match_songs_from_transcript' => 'llm',
+        'merging_song_continuations' => 'llm',
+        'analyzing_transcript' => 'llm',
+        'ai_analysis_completed' => 'llm',
+        'ai_analysis_fallback' => 'llm',
+        'analyzing' => 'llm',
+        'sermon_creation' => 'orchestration',
+        'creating_sermon' => 'orchestration',
+        'creating_sermon_transcript' => 'whisper',
+        'creating_sermon_record' => 'orchestration',
+        'sermon_record_created' => 'orchestration',
+        'creating' => 'orchestration',
+        'identifying_speaker' => 'orchestration',
+        'sermon_submitted' => 'orchestration',
+        'promoting_historic_assets' => 'orchestration',
+        'cleanup' => 'orchestration',
+        'sending_notification' => 'orchestration',
+        'notification_sent' => 'orchestration',
+        'notification_skipped' => 'orchestration',
+        'notification_failed' => 'orchestration',
+        'notification_failed_permanently' => 'orchestration',
+        'completed' => 'orchestration',
+        'completed_with_basic_data' => 'orchestration',
+        'job_chain_failed' => 'orchestration',
+        'creating_sermon_record_failed' => 'orchestration',
+        'transcribing_audio_failed' => 'whisper',
+        'analyzing_transcript_failed' => 'llm',
+        'manual_review_required' => 'orchestration',
+        'manual_review_confirmed' => 'orchestration',
+        'cancelled' => 'orchestration',
+        'preparing' => 'orchestration',
+        'restarting_from_beginning' => 'orchestration',
+        'storage' => 'orchestration',
+        'analysis' => 'llm',
     ];
 
     public function queueFor(object $job): string
@@ -106,23 +184,21 @@ final class HistoricProcessingThroughput
     }
 
     /**
-     * This is part of the historic processing fingerprint. The configured width
-     * is reproducibility data for a calibrated bulk pass, even though it does
-     * not itself alter bytes emitted by an individual job.
+     * Worker widths and queue routing are execution evidence, not byte-affecting
+     * identity. They are retained with each historic run so a later report can
+     * explain what actually ran.
      *
-     * Width buys concurrency *across* services, never within one: a service's
-     * pipeline is a single serial `Bus::chain`, so routing its jobs to different
-     * queues changes which pool executes each step, not how many run at once.
-     * The number of services in flight is set by the importer's `--parallel`,
-     * and these widths cap how many of them may sit in a given stage together.
+     * Width buys concurrency across services, never within one: a service's
+     * pipeline is a single serial Bus::chain, so routing its jobs to different
+     * queues changes which pool executes each step, not the bytes it emits.
      *
      * @return array<string, array{routing_fingerprint:string,worker_width:int}>
      */
-    public function fingerprint(): array
+    public function executionProfile(): array
     {
         $stages = [];
 
-        foreach (array_keys(self::JOB_STAGES + ['orchestration' => []]) as $stage) {
+        foreach (self::STAGES as $stage) {
             $configuration = $this->stage($stage);
             $stages[$stage] = [
                 'routing_fingerprint' => hash('sha256', $configuration['queue']),
@@ -133,6 +209,41 @@ final class HistoricProcessingThroughput
         ksort($stages);
 
         return $stages;
+    }
+
+    /**
+     * Kept as a compatibility alias for callers that only need the old
+     * execution-evidence shape. New durable fingerprints must not call this.
+     *
+     * @return array<string, array{routing_fingerprint:string,worker_width:int}>
+     */
+    public function fingerprint(): array
+    {
+        return $this->executionProfile();
+    }
+
+    /** @return array<string, int> */
+    public function configuredWidths(): array
+    {
+        $widths = [];
+
+        foreach (self::STAGES as $stage) {
+            $widths[$stage] = $this->stage($stage)['workers'];
+        }
+
+        return $widths;
+    }
+
+    /**
+     * Resolve a persisted processing-step name to the resource stage that owns
+     * it. No fallback is permitted: an unrecognised step is evidence that the
+     * map needs updating, not orchestration work by default.
+     */
+    public function stageForStep(string $step): string
+    {
+        $canonicalStep = ProcessingStep::canonicalize($step) ?? $step;
+
+        return self::STEP_STAGES[$canonicalStep] ?? 'unknown';
     }
 
     /** @return array{queue:string,workers:int} */

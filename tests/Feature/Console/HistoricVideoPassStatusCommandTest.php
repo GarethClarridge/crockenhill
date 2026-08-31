@@ -8,6 +8,7 @@ use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\HistoricVideoPassStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
@@ -75,6 +76,56 @@ class HistoricVideoPassStatusCommandTest extends TestCase
             ->expectsOutputToContain('Peak working (sampled at promotion)')
             ->expectsOutputToContain('Unexplained residue')
             ->assertExitCode(0);
+    }
+
+    #[Test]
+    public function it_creates_a_performance_report_once_at_an_absolute_path(): void
+    {
+        File::ensureDirectoryExists(storage_path('scratch'));
+        $operation = $this->createHistoricImportOperation();
+        $this->createRun($operation->id, 'finished', ProcessingStatus::Completed, 'completed');
+        $path = storage_path('scratch/m12-performance-'.uniqid().'.json');
+
+        try {
+            $this->artisan('historic-import:video-pass-status', [
+                '--operation' => $operation->operation_id,
+                '--only' => 'finished',
+                '--performance' => true,
+                '--performance-report' => $path,
+            ])
+                ->expectsOutputToContain('Database-owned historic-video performance')
+                ->expectsOutputToContain('Performance report: '.$path)
+                ->assertExitCode(0);
+
+            $payload = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+            $this->assertSame('crockenhill.historic-video-pass-performance', $payload['format']);
+            $this->assertSame($operation->operation_id, $payload['operation_id']);
+            $this->assertSame(['finished'], $payload['item_keys']);
+            $this->assertSame(0600, fileperms($path) & 0777);
+
+            $this->artisan('historic-import:video-pass-status', [
+                '--operation' => $operation->operation_id,
+                '--only' => 'finished',
+                '--performance' => true,
+                '--performance-report' => $path,
+            ])
+                ->expectsOutputToContain('Refusing to overwrite existing performance report')
+                ->assertExitCode(1);
+        } finally {
+            File::delete($path);
+        }
+    }
+
+    #[Test]
+    public function it_requires_performance_for_a_performance_report_path(): void
+    {
+        $this->artisan('historic-import:video-pass-status', [
+            '--operation' => 'operation-not-used',
+            '--only' => 'item',
+            '--performance-report' => '/tmp/m12-performance.json',
+        ])
+            ->expectsOutputToContain('--performance-report requires --performance.')
+            ->assertExitCode(1);
     }
 
     #[Test]
