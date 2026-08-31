@@ -509,15 +509,33 @@ class MediaProcessingLog extends Model
     }
 
     /**
-     * Duration of the extracted sermon media, in seconds.
+     * Duration observed in the emitted sermon media, in seconds.
      *
-     * A concat plan joins several source spans across a gap, so the media that
-     * was actually cut is the sum of those spans — not sermon_end_time minus
-     * sermon_start_time, which spans the gap too. The run bounds stay the true
-     * source window (so segment_end_time remains a real livestream timestamp),
-     * and callers read the honest duration here. Returns null when no
-     * extraction plan has been recorded, leaving callers to fall back to the
-     * continuous span.
+     * This value is populated from FFprobe after the emitted sermon video is
+     * written. It is distinct from the planned sum returned by
+     * extractedSermonMediaDuration(), and returns null for missing, unreadable
+     * or non-positive metadata.
+     */
+    public function observedSermonMediaDuration(): ?float
+    {
+        $duration = data_get($this->processing_metadata?->toArray(), 'trim.observed_duration');
+
+        if (! is_numeric($duration)) {
+            return null;
+        }
+
+        $duration = (float) $duration;
+
+        return is_finite($duration) && $duration > 0.0 ? $duration : null;
+    }
+
+    /**
+     * Planned duration of the sermon extraction, in seconds.
+     *
+     * A concat plan joins several source spans across a gap, so this sums the
+     * requested spans rather than inspecting the emitted media. The run bounds
+     * stay the true source window (so segment_end_time remains a real livestream
+     * timestamp). Use observedSermonMediaDuration() for the playable duration.
      */
     public function extractedSermonMediaDuration(): ?float
     {
@@ -525,11 +543,11 @@ class MediaProcessingLog extends Model
     }
 
     /**
-     * The recorded sermon extraction plan's overall source span and true media
+     * The recorded sermon extraction plan's overall source span and planned
      * duration. `start`/`end` are the first span's start and the last span's
      * end (the true source window); `duration` sums the spans, excluding any
      * concat gap between them. Callers compare start/end against a Sermon's
-     * current bounds to detect a later manual edit that invalidates duration.
+     * current bounds to detect a later manual edit that invalidates the plan.
      *
      * @return array{start: float, end: float, duration: float}|null
      */

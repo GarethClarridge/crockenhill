@@ -83,11 +83,10 @@ final readonly class SermonCreationOptions
     /**
      * The sermon's playable length.
      *
-     * A livestream sermon is cut from a known span of the service recording, but
-     * the livestream factory passes only the boundaries, so every historic-video
-     * sermon was created with a null duration while the numbers that produce it
-     * sat on the same record. Where an explicit duration exists it wins; where it
-     * is absent or zero, the extracted span supplies it.
+     * A livestream sermon is cut from source-timestamped spans of the service
+     * recording. Where FFprobe has observed the emitted media length, that
+     * explicit duration wins; where it is absent or zero, the source span
+     * supplies the fallback.
      */
     public function resolvedDuration(): ?float
     {
@@ -202,6 +201,7 @@ final readonly class SermonCreationOptions
             needsPreacherReview: $facts?->speaker === null ? null : false,
             service: $log->extracted_service,
             date: $log->extracted_date?->toDateString(),
+            duration: $log->observedSermonMediaDuration(),
             editorialFacts: $facts,
         );
     }

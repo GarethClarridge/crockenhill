@@ -16,6 +16,7 @@ use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Traits\DetectsStorageType;
+use FFMpeg\FFProbe;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -41,7 +42,8 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
         VideoStorageService $storageService,
         StorageAdapterHelper $storageHelper,
         SermonExtractionPlanResolver $planResolver,
-        SermonCandidateConfidenceService $sermonConfidenceService
+        SermonCandidateConfidenceService $sermonConfidenceService,
+        ?FFProbe $ffprobe = null,
     ): void {
         try {
             $processingLog = $this->processingLog->fresh();
@@ -84,6 +86,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 throw new \Exception('Invalid sermon extraction plan: no extraction segments were resolved');
             }
 
+            $plannedDuration = $this->totalPlannedDuration($extractionPlan['segments']);
             $this->recordExtractionPlanAudit($extractionPlan);
 
             Log::info('Starting sermon extraction', [
@@ -140,8 +143,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                     );
 
                     $sermonVideoAbsolutePath = Storage::disk($tempDisk)->path($sermonVideoPath);
-                    $concatDuration = $this->totalPlannedDuration($extractionPlan['segments']);
-                    $audioSegment = $this->createSermonSegment(0.0, $concatDuration);
+                    $audioSegment = $this->createSermonSegment(0.0, $plannedDuration);
 
                     $audioExtractionResult = $videoExtractor->extractOptimizedAudio(
                         $sermonVideoAbsolutePath,
@@ -159,6 +161,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                         $sermonSegment,
                         $this->processingLog->processing_id.'_sermon.mp4'
                     );
+                    $sermonVideoAbsolutePath = Storage::disk($tempDisk)->path($sermonVideoPath);
 
                     $audioExtractionResult = $videoExtractor->extractOptimizedAudio(
                         $videoPath,
@@ -168,6 +171,11 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 }
 
                 $sermonAudioPath = $audioExtractionResult['audio_path'];
+                $observedDuration = $this->probeObservedDuration(
+                    $sermonVideoAbsolutePath,
+                    $storageHelper,
+                    $ffprobe,
+                );
             } finally {
                 // Clean up temporary S3 download file if we created one
                 if ($isS3TempDisk) {
@@ -202,7 +210,8 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                         'extracted_audio_path' => $sermonAudioPath,
                         'trim' => [
                             'original_duration' => $this->processingLog->duration,
-                            'final_duration' => $this->totalPlannedDuration($extractionPlan['segments']),
+                            'final_duration' => $plannedDuration,
+                            'observed_duration' => $observedDuration,
                             'trim_start' => (float) $extractionPlan['segments'][0]['start_time'],
                             'trim_end' => (float) $extractionPlan['segments'][count($extractionPlan['segments']) - 1]['end_time'],
                             'segments' => $extractionPlan['segments'],
@@ -233,6 +242,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
                 'video_path' => $sermonVideoPath,
                 'audio_path' => $sermonAudioPath,
+                'observed_duration' => $observedDuration,
                 'audio_full_path' => $audioExtractionResult['full_path'],
                 'compression_applied' => $audioExtractionResult['compression_applied'],
                 'original_audio_size_mb' => round($audioExtractionResult['original_size'] / 1024 / 1024, 1),
@@ -334,6 +344,40 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
 
         if ($duration <= 0.0) {
             throw new \Exception('Invalid extraction plan duration');
+        }
+
+        return $duration;
+    }
+
+    private function probeObservedDuration(
+        string $videoPath,
+        StorageAdapterHelper $storageHelper,
+        ?FFProbe $ffprobe,
+    ): float {
+        $ffprobe ??= $storageHelper->createFFMpeg()?->getFFProbe();
+
+        if (! $ffprobe instanceof FFProbe) {
+            throw new \RuntimeException('FFprobe is unavailable for the extracted sermon video.');
+        }
+
+        try {
+            $durationValue = $ffprobe->format($videoPath)->get('duration');
+        } catch (\Throwable $exception) {
+            throw new \RuntimeException(
+                "Unable to read the extracted sermon video duration: {$videoPath}",
+                0,
+                $exception
+            );
+        }
+
+        if (! is_numeric($durationValue)) {
+            throw new \RuntimeException("FFprobe returned an unreadable duration for the extracted sermon video: {$videoPath}");
+        }
+
+        $duration = (float) $durationValue;
+
+        if (! is_finite($duration) || $duration <= 0.0) {
+            throw new \RuntimeException("The extracted sermon video must have a positive duration: {$videoPath}");
         }
 
         return $duration;
@@ -461,9 +505,9 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
      * end — so segment_end_time remains a real livestream timestamp (it is
      * surfaced as one by SermonMetadataIntegrationService::getLivestreamInfo).
      * A concat plan joins several spans across a gap, so end minus start would
-     * overstate the media actually cut; the honest duration is derived from the
-     * recorded segment list via MediaProcessingLog::extractedSermonMediaDuration(),
-     * which getSegmentDuration and StandardProcessingResponse read instead.
+     * overstate the requested media duration. The planned sum remains available
+     * through MediaProcessingLog::extractedSermonMediaDuration(); the emitted
+     * video's FFprobe result is stored separately as observed duration.
      *
      * @param  array{mode: string, source: string, segments: array<int, array{start_time: float, end_time: float}>, metadata: array<string, mixed>}  $extractionPlan
      */

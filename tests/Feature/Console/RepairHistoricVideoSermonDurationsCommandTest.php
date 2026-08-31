@@ -36,7 +36,7 @@ class RepairHistoricVideoSermonDurationsCommandTest extends TestCase
             '--processing-id' => [$log->processing_id],
         ])
             ->expectsOutputToContain('DRY RUN')
-            ->expectsOutputToContain('1500')
+            ->expectsOutputToContain('1425.5')
             ->assertSuccessful();
 
         self::assertSame(3600.0, (float) $sermon->fresh()->duration);
@@ -59,7 +59,7 @@ class RepairHistoricVideoSermonDurationsCommandTest extends TestCase
     }
 
     #[Test]
-    public function it_repairs_only_duration_from_the_gapped_extraction_plan(): void
+    public function it_repairs_only_duration_from_observed_extracted_media(): void
     {
         [$operation, $log, $sermon] = $this->historicRun();
 
@@ -73,7 +73,7 @@ class RepairHistoricVideoSermonDurationsCommandTest extends TestCase
             ->assertSuccessful();
 
         $sermon->refresh();
-        self::assertSame(1500.0, (float) $sermon->duration);
+        self::assertSame(1425.5, (float) $sermon->duration);
         self::assertSame('Curated title', $sermon->title);
         self::assertSame('John 3:16', $sermon->reference);
         self::assertSame('Curated series', $sermon->series);
@@ -109,7 +109,7 @@ class RepairHistoricVideoSermonDurationsCommandTest extends TestCase
             ->assertFailed();
 
         $metadata = $log->processing_metadata?->toArray() ?? [];
-        unset($metadata['sermon_extraction_plan']);
+        unset($metadata['sermon_extraction_plan'], $metadata['trim']['observed_duration']);
         $log->forceFill([
             'status' => ProcessingStatus::Completed,
             'processing_metadata' => $metadata,
@@ -121,7 +121,7 @@ class RepairHistoricVideoSermonDurationsCommandTest extends TestCase
             '--operation' => $operation->operation_id,
             '--processing-id' => [$log->processing_id],
         ])
-            ->expectsOutputToContain('no positive recorded extraction duration')
+            ->expectsOutputToContain('no positive observed extraction duration')
             ->assertFailed();
     }
 
@@ -162,6 +162,10 @@ class RepairHistoricVideoSermonDurationsCommandTest extends TestCase
                         ['start_time' => 300.0, 'end_time' => 1200.0],
                         ['start_time' => 1500.0, 'end_time' => 2100.0],
                     ],
+                ],
+                'trim' => [
+                    'final_duration' => 1500.0,
+                    'observed_duration' => 1425.5,
                 ],
             ],
         ]);

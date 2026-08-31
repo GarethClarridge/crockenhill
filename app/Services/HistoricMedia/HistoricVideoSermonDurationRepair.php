@@ -60,10 +60,10 @@ final class HistoricVideoSermonDurationRepair
 
             $this->assertRunOwnership($run, $operation);
             $sermon = $this->sermonForRun($run, $operation);
-            $duration = $run->extractedSermonMediaDuration();
+            $duration = $run->observedSermonMediaDuration();
 
             if ($duration === null || $duration <= 0) {
-                throw new RuntimeException("Processing run {$processingId} has no positive recorded extraction duration.");
+                throw new RuntimeException("Processing run {$processingId} has no positive observed extraction duration.");
             }
 
             $currentDuration = $sermon->duration === null ? null : (float) $sermon->duration;
@@ -109,10 +109,10 @@ final class HistoricVideoSermonDurationRepair
                 }
 
                 $this->assertRunOwnership($run, $operation);
-                $repairedDuration = $run->extractedSermonMediaDuration();
+                $repairedDuration = $run->observedSermonMediaDuration();
 
                 if ($repairedDuration === null || $repairedDuration <= 0) {
-                    throw new RuntimeException("Processing run {$run->processing_id} has no positive recorded extraction duration.");
+                    throw new RuntimeException("Processing run {$run->processing_id} has no positive observed extraction duration.");
                 }
 
                 $sermon = Sermon::query()->whereKey($entry['sermon']->id)->lockForUpdate()->first();

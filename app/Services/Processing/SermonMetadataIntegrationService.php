@@ -308,7 +308,7 @@ class SermonMetadataIntegrationService
             return null;
         }
 
-        // A concat cut spans a gap between source segments, so its true media
+        // A concat cut spans a gap between source segments, so its planned
         // duration is the sum of the extracted spans recorded on the processing
         // log — not segment_end_time - segment_start_time, which would count the
         // gap. Only trust the recorded duration while the plan still describes

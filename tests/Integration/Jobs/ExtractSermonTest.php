@@ -15,9 +15,12 @@ use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\ChurchServiceProcessingTimeline;
+use FFMpeg\FFProbe;
+use FFMpeg\FFProbe\DataMapping\Format;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
@@ -127,7 +130,12 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
-        $this->runJob($job, $mockExtractor, $mockStorage);
+        $this->runJob(
+            $job,
+            $mockExtractor,
+            $mockStorage,
+            $this->probeWithDuration(1792.25, Storage::disk('local')->path('extracted/sermon-video.mp4')),
+        );
 
         $log->refresh();
         $this->assertEquals('extraction_complete', $log->current_step);
@@ -136,6 +144,18 @@ class ExtractSermonTest extends TestCase
         $this->assertNotNull($log->processing_metadata);
         $this->assertArrayHasKey('audio_compression', $log->processing_metadata);
         $this->assertTrue($log->processing_metadata['audio_compression']['compression_applied']);
+        $this->assertEqualsWithDelta(
+            1800.0,
+            (float) data_get($log->processing_metadata?->toArray(), 'trim.final_duration'),
+            0.01
+        );
+        $this->assertEqualsWithDelta(
+            1792.25,
+            (float) data_get($log->processing_metadata?->toArray(), 'trim.observed_duration'),
+            0.01
+        );
+        $this->assertEqualsWithDelta(1792.25, (float) $log->observedSermonMediaDuration(), 0.01);
+        $this->assertEqualsWithDelta(1800.0, (float) $log->extractedSermonMediaDuration(), 0.01);
 
         // The resolved plan is recorded so the cut's provenance survives log rotation.
         $plan = $log->processing_metadata['sermon_extraction_plan'] ?? null;
@@ -499,7 +519,12 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
-        $this->runJob($job, $mockExtractor, $mockStorage);
+        $this->runJob(
+            $job,
+            $mockExtractor,
+            $mockStorage,
+            $this->probeWithDuration(1325.25, $concatVideo),
+        );
 
         $log->refresh();
         $this->assertSame('extraction_complete', $log->current_step);
@@ -508,11 +533,14 @@ class ExtractSermonTest extends TestCase
         // The concat cut joins a 180s reading and a 1200s sermon across a gap.
         // The run bounds keep the true source window (reading start 120 →
         // sermon end 2100) so segment_end_time stays a real livestream
-        // timestamp; the honest 1380s media duration is derived from the
-        // recorded segment list, excluding the gap.
+        // timestamp; the planned 1380s duration is derived from the recorded
+        // segment list, excluding the gap, while the emitted media is probed
+        // separately.
         $this->assertEqualsWithDelta(120.0, (float) $log->sermon_start_time, 0.01);
         $this->assertEqualsWithDelta(2100.0, (float) $log->sermon_end_time, 0.01);
         $this->assertEqualsWithDelta(1380.0, (float) $log->extractedSermonMediaDuration(), 0.01);
+        $this->assertEqualsWithDelta(1380.0, (float) data_get($log->processing_metadata?->toArray(), 'trim.final_duration'), 0.01);
+        $this->assertEqualsWithDelta(1325.25, (float) $log->observedSermonMediaDuration(), 0.01);
 
         @unlink($videoFile);
         @unlink($extractedAudioFile);
@@ -1018,6 +1046,69 @@ class ExtractSermonTest extends TestCase
     }
 
     #[Test]
+    public function it_rejects_a_zero_length_extracted_video(): void
+    {
+        config(['media-processing.storage.temp_disk' => 'local']);
+        config(['filesystems.disks.local.driver' => 'local']);
+
+        $tempDir = storage_path('app/livestreams');
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+        $videoFile = $tempDir.'/zero-duration-video.mp4';
+        file_put_contents($videoFile, str_repeat("\x00", 1024));
+
+        $extractedDir = storage_path('app/extracted');
+        if (! is_dir($extractedDir)) {
+            mkdir($extractedDir, 0755, true);
+        }
+        $extractedAudioFile = $extractedDir.'/zero-duration-audio.mp3';
+        file_put_contents($extractedAudioFile, str_repeat("\xFF\xFB", 512));
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => 300.0,
+            'sermon_end_time' => 2100.0,
+            'source_file_path' => 'livestreams/zero-duration-video.mp4',
+        ]);
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->willReturn('extracted/zero-duration-video.mp4');
+        $mockExtractor->expects($this->once())
+            ->method('extractOptimizedAudio')
+            ->willReturn([
+                'audio_path' => 'extracted/zero-duration-audio.mp3',
+                'full_path' => $extractedAudioFile,
+                'original_size' => 1024,
+                'final_size' => 512,
+                'compression_applied' => false,
+                'compression_ratio' => 1.0,
+                'valid_for_transcription' => true,
+            ]);
+
+        $mockStorage = $this->createStub(VideoStorageService::class);
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('error')->once();
+
+        $job = new ExtractSermon($log);
+
+        try {
+            $this->runJob($job, $mockExtractor, $mockStorage, $this->probeWithDuration(0.0));
+            $this->fail('Expected zero-duration extraction to fail');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('positive duration', $exception->getMessage());
+        }
+
+        $log->refresh();
+        $this->assertSame('failed', $log->status->value);
+
+        @unlink($videoFile);
+        @unlink($extractedAudioFile);
+    }
+
+    #[Test]
     public function failed_method_marks_processing_log_as_failed(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->processing()->create();
@@ -1035,14 +1126,37 @@ class ExtractSermonTest extends TestCase
     private function runJob(
         ExtractSermon $job,
         VideoExtractionService $mockExtractor,
-        VideoStorageService $mockStorage
+        VideoStorageService $mockStorage,
+        ?FFProbe $ffprobe = null,
     ): void {
         $job->handle(
             $mockExtractor,
             $mockStorage,
             app(StorageAdapterHelper::class),
             app(SermonExtractionPlanResolver::class),
-            app(SermonCandidateConfidenceService::class)
+            app(SermonCandidateConfidenceService::class),
+            $ffprobe ?? $this->probeWithDuration(1800.0),
         );
+    }
+
+    private function probeWithDuration(float $duration, ?string $expectedPath = null): FFProbe
+    {
+        $format = $this->createStub(Format::class);
+        $format->method('get')->willReturn($duration);
+
+        if ($expectedPath === null) {
+            $ffprobe = $this->createStub(FFProbe::class);
+            $ffprobe->method('format')->willReturn($format);
+
+            return $ffprobe;
+        }
+
+        $ffprobe = $this->createMock(FFProbe::class);
+        $ffprobe->expects($this->once())
+            ->method('format')
+            ->with($expectedPath)
+            ->willReturn($format);
+
+        return $ffprobe;
     }
 }

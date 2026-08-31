@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Jobs;
 
+use App\Data\SermonCreationOptions;
 use App\Jobs\StoreSermonVideo;
 use App\Jobs\SubmitToProcessing;
 use App\Models\MediaProcessingLog;
@@ -84,7 +85,7 @@ class SubmitToProcessingTest extends TestCase
     }
 
     #[Test]
-    public function it_creates_sermon_record_and_dispatches_store_sermon_video(): void
+    public function it_creates_sermon_with_observed_duration_for_a_concat_extraction(): void
     {
         Storage::fake('public');
         Storage::disk('public')->put('sermons/audio/test-audio.mp3', 'fake-audio-content');
@@ -95,6 +96,21 @@ class SubmitToProcessingTest extends TestCase
             'audio_file_path' => 'sermons/audio/test-audio.mp3',
             'original_filename' => '2026-01-15-livestream.mp4',
             'video_file_path' => 'temp/video.mp4',
+            'sermon_start_time' => 120.0,
+            'sermon_end_time' => 2100.0,
+            'processing_metadata' => [
+                'sermon_extraction_plan' => [
+                    'mode' => 'concat_spans',
+                    'segments' => [
+                        ['start_time' => 120.0, 'end_time' => 300.0],
+                        ['start_time' => 900.0, 'end_time' => 2100.0],
+                    ],
+                ],
+                'trim' => [
+                    'final_duration' => 1380.0,
+                    'observed_duration' => 1325.25,
+                ],
+            ],
         ]);
 
         $createdSermon = Sermon::factory()->create();
@@ -102,6 +118,13 @@ class SubmitToProcessingTest extends TestCase
         $mockCreationService = $this->createMock(SermonCreationService::class);
         $mockCreationService->expects($this->once())
             ->method('createSermon')
+            ->with(
+                $this->isInstanceOf(MediaProcessingLog::class),
+                $this->callback(function (SermonCreationOptions $options): bool {
+                    return $options->duration === 1325.25
+                        && $options->resolvedDuration() === 1325.25;
+                }),
+            )
             ->willReturn($createdSermon);
 
         Log::shouldReceive('info')->atLeast()->once();
@@ -163,7 +186,7 @@ class SubmitToProcessingTest extends TestCase
     }
 
     #[Test]
-    public function it_refreshes_existing_sermon_duration_from_the_extracted_concat_plan(): void
+    public function it_refreshes_existing_sermon_duration_from_observed_concat_media(): void
     {
         Storage::fake('public');
         Storage::disk('public')->put('sermons/audio/refreshed-duration.mp3', 'fake-audio-content');
@@ -194,6 +217,10 @@ class SubmitToProcessingTest extends TestCase
                         ['start_time' => 1500.0, 'end_time' => 2100.0],
                     ],
                 ],
+                'trim' => [
+                    'final_duration' => 1500.0,
+                    'observed_duration' => 1425.5,
+                ],
             ],
         ]);
 
@@ -208,7 +235,7 @@ class SubmitToProcessingTest extends TestCase
 
         $sermon->refresh();
 
-        $this->assertEquals(1500.0, $sermon->duration);
+        $this->assertEquals(1425.5, $sermon->duration);
         $this->assertSame('Curated sermon title', $sermon->title);
         $this->assertSame('John 3:16', $sermon->reference);
         $this->assertSame('Curated series', $sermon->series);
