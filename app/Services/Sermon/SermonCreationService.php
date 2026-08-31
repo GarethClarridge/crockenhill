@@ -8,6 +8,7 @@ use App\Data\SermonCreationOptions;
 use App\Enums\MediaType;
 use App\Enums\PreacherSource;
 use App\Enums\SermonContentType;
+use App\Enums\SermonPublicationState;
 use App\Enums\SermonRichnessLevel;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
@@ -454,7 +455,18 @@ class SermonCreationService
             $preacher,
         );
 
+        if ($processingLog->historic_import_operation_id !== null) {
+            $sermonData['publication_state'] = SermonPublicationState::Quarantined;
+            $sermonData['asset_disk'] = $this->sermonDisk();
+            $sermonData['historic_import_operation_id'] = $processingLog->historic_import_operation_id;
+        }
+
         return Sermon::query()->create($sermonData);
+    }
+
+    private function sermonDisk(): string
+    {
+        return (string) config('media-processing.storage.sermon_disk', config('filesystems.default', 'local'));
     }
 
     /**

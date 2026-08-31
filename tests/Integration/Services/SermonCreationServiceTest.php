@@ -7,6 +7,7 @@ namespace Tests\Integration\Services;
 use App\Data\SermonCreationOptions;
 use App\Enums\PreacherSource;
 use App\Enums\SermonContentType;
+use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\SermonTitleProvenance;
@@ -548,6 +549,10 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('2022-01-16', $sermon->date->toDateString());
         $this->assertEquals(SermonService::Evening, $sermon->service);
         $this->assertSame(SermonTitleProvenance::Generated, $sermon->title_provenance);
+        $sermon->refresh();
+        $this->assertSame(SermonPublicationState::Published, $sermon->publication_state);
+        $this->assertNull($sermon->asset_disk);
+        $this->assertNull($sermon->historic_import_operation_id);
 
         /**
          * Every historic-video pilot sermon was created with a null duration

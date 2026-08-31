@@ -364,10 +364,9 @@ final class HistoricAssetPromotion
      * Bind the record to its promoted bytes and to the operation that produced
      * them, in one locked write.
      *
-     * `publication_state` moves to quarantined deliberately. A historic sermon
-     * created by this lane inherited the column default of `published` while its
-     * assets sat on a removable working volume; nothing downstream should treat
-     * that as a released record.
+     * Sermons created by the current direct lane are already quarantined before
+     * this job runs. The conditional state update remains for pre-M10 rows that
+     * inherited the published default while their assets sat on staging.
      */
     private function bindToQuarantine(Sermon $sermon, MediaProcessingLog $log, string $quarantine): void
     {
@@ -378,11 +377,24 @@ final class HistoricAssetPromotion
                 throw new RuntimeException("Sermon {$sermon->getKey()} disappeared while being promoted.");
             }
 
-            $locked->forceFill([
+            $updates = [
                 'asset_disk' => $quarantine,
-                'publication_state' => SermonPublicationState::Quarantined,
                 'historic_import_operation_id' => $log->historic_import_operation_id,
-            ])->save();
+            ];
+
+            if ($locked->publication_state !== SermonPublicationState::Quarantined) {
+                $updates['publication_state'] = SermonPublicationState::Quarantined;
+            }
+
+            if (
+                $locked->publication_state === SermonPublicationState::Quarantined
+                && $locked->asset_disk === $updates['asset_disk']
+                && $locked->historic_import_operation_id === $updates['historic_import_operation_id']
+            ) {
+                return;
+            }
+
+            $locked->forceFill($updates)->save();
         });
 
         $sermon->refresh();

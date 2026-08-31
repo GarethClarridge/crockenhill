@@ -129,6 +129,28 @@ class HistoricAssetPromotionTest extends TestCase
         );
     }
 
+    #[Test]
+    public function it_rebinds_a_newly_created_quarantined_sermon_without_demoting_its_publication_state(): void
+    {
+        [$log, $sermon] = $this->historicRun();
+        $sermon->forceFill([
+            'publication_state' => SermonPublicationState::Quarantined,
+            'asset_disk' => 'historic_staging',
+            'historic_import_operation_id' => $log->historic_import_operation_id,
+        ])->save();
+        $this->stage('sermons/video/pilot.mp4', 'video bytes');
+
+        $totals = app(HistoricAssetPromotion::class)->promoteRun($log);
+
+        $this->assertSame(1, $totals['assets_promoted']);
+        $sermon->refresh();
+        $this->assertSame(SermonPublicationState::Quarantined, $sermon->publication_state);
+        $this->assertSame('historic_quarantine', $sermon->asset_disk);
+        $this->assertSame($log->historic_import_operation_id, $sermon->historic_import_operation_id);
+        Storage::disk('historic_staging')->assertMissing('sermons/video/pilot.mp4');
+        Storage::disk('historic_quarantine')->assertExists('sermons/video/pilot.mp4');
+    }
+
     /**
      * A retry that resumes at extraction writes fresh bytes under the same paths
      * while the record is already bound to quarantine. Treating `asset_disk` as a

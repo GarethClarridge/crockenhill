@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Jobs;
 
 use App\Data\SermonCreationOptions;
+use App\Enums\SermonPublicationState;
 use App\Jobs\StoreSermonVideo;
 use App\Jobs\SubmitToProcessing;
 use App\Models\HistoricImportNestedJob;
@@ -380,5 +381,36 @@ class SubmitToProcessingTest extends TestCase
         $this->assertSame(0, $nested->attempts);
         $this->assertNotNull($nested->dispatched_at);
         Queue::assertPushed(StoreSermonVideo::class);
+    }
+
+    #[Test]
+    public function it_creates_historic_sermons_quarantined_and_bound_to_staging_before_promotion(): void
+    {
+        Storage::fake('historic_staging');
+        Storage::disk('historic_staging')->put('sermons/audio/historic-audio.mp3', 'fake-audio-content');
+
+        config(['media-processing.storage.sermon_disk' => 'historic_staging']);
+
+        $operation = $this->createHistoricImportOperation();
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'historic_import_operation_id' => $operation->id,
+            'audio_file_path' => 'sermons/audio/historic-audio.mp3',
+            'original_filename' => '2099-01-15-morning.mkv',
+            'extracted_date' => '2099-01-15',
+            'extracted_service' => 'morning',
+            'video_file_path' => 'sermons/video/historic-video.mp4',
+            'sermon_start_time' => 120.0,
+            'sermon_end_time' => 1800.0,
+        ]);
+
+        (new SubmitToProcessing($log))->handle(app(SermonCreationService::class));
+
+        $sermon = Sermon::query()
+            ->where('livestream_processing_id', $log->processing_id)
+            ->sole();
+
+        $this->assertSame(SermonPublicationState::Quarantined, $sermon->publication_state);
+        $this->assertSame('historic_staging', $sermon->asset_disk);
+        $this->assertSame($operation->id, $sermon->historic_import_operation_id);
     }
 }
