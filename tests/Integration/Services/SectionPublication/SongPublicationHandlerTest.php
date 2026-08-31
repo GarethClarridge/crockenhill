@@ -91,7 +91,35 @@ class SongPublicationHandlerTest extends TestCase
         $section = $this->makePublishableSection($song, 'sections/whole-song.mp4');
         $section->forceFill(['start_time' => 600.0, 'end_time' => 840.0, 'duration' => 240.0])->save();
 
-        $this->assertFalse($this->handler->requiresApproval($section->fresh()));
+        $section = $section->fresh();
+
+        $this->assertFalse($this->handler->requiresApproval($section));
+        $this->assertSame(
+            'retain_inclusive_candidate',
+            $section->metadata->toArray()['song_publication_boundary']['action'],
+        );
+    }
+
+    #[Test]
+    public function it_clears_a_stale_song_review_when_the_current_boundary_is_clean(): void
+    {
+        $song = Song::factory()->create();
+        $section = $this->makePublishableSection($song, 'sections/whole-song.mp4');
+        $section->forceFill([
+            'start_time' => 600.0,
+            'end_time' => 840.0,
+            'duration' => 240.0,
+            'metadata' => [
+                'song_publication_review' => [
+                    'reasons' => [['kind' => 'song_boundary_spoken_framing', 'detail' => 'stale']],
+                ],
+            ],
+        ])->save();
+
+        $section = $section->fresh();
+
+        $this->assertFalse($this->handler->requiresApproval($section));
+        $this->assertArrayNotHasKey('song_publication_review', $section->metadata->toArray());
     }
 
     /**

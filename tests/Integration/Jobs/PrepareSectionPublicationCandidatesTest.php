@@ -623,6 +623,103 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     }
 
     #[Test]
+    public function it_routes_a_song_with_corroborated_boundary_risk_to_review(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        Bus::fake([AutoPublishServiceSection::class]);
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.storage.transcript_disk' => 'local',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => [
+                'song' => SongPublicationHandler::class,
+            ],
+        ]);
+
+        $song = Song::factory()->create();
+        $churchService = ChurchService::factory()->create();
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'song_id' => $song->id,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'source_file_path' => 'livestreams/source.mp4',
+            'church_service_id' => $churchService->id,
+        ]);
+        $transcriptPath = 'service-transcripts/test-'.$processingLog->processing_id.'.normalized.json';
+        $rmsPath = 'service-transcripts/test-'.$processingLog->processing_id.'.rms.json';
+
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
+        Storage::disk('local')->put($transcriptPath, json_encode([
+            'cues' => [
+                ['start' => 60.0, 'end' => 72.0, 'text' => 'Please stand as we sing.'],
+                ['start' => 80.0, 'end' => 180.0, 'text' => 'We will sing now.'],
+            ],
+            'duration' => 300.0,
+            'source' => 'mock',
+        ], JSON_THROW_ON_ERROR));
+        Storage::disk('local')->put($rmsPath, implode("\n", [
+            'pts_time:60.000',
+            'lavfi.astats.Overall.RMS_level=-20.0',
+            'pts_time:72.000',
+            'lavfi.astats.Overall.RMS_level=-20.0',
+            'pts_time:76.000',
+            'lavfi.astats.Overall.RMS_level=-20.0',
+            'pts_time:80.000',
+            'lavfi.astats.Overall.RMS_level=-20.0',
+        ]));
+        $processingLog->putServiceTranscriptPath($transcriptPath);
+        $processingLog->forceFill(['rms_log_path' => $rmsPath])->save();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'status' => ServiceSectionStatus::Identified->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+            'metadata' => ['confidence_level' => 'high'],
+            'start_time' => 60.0,
+            'end_time' => 300.0,
+        ]);
+
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->willReturn('temp/section-video.mp4');
+        $videoExtractor->expects($this->never())
+            ->method('extractOptimizedAudio');
+
+        (new PrepareSectionPublicationCandidates($processingLog))->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class),
+        );
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
+        $this->assertSame(
+            ['song_boundary_spoken_framing'],
+            array_column($section->metadata->toArray()['song_publication_review']['reasons'], 'kind'),
+        );
+        $this->assertSame(
+            'retain_inclusive_candidate',
+            $section->metadata->toArray()['song_publication_boundary']['action'],
+        );
+        $this->assertSame(60.0, (float) $section->start_time);
+        $this->assertSame(300.0, (float) $section->end_time);
+        Bus::assertNotDispatched(AutoPublishServiceSection::class);
+    }
+
+    #[Test]
     public function historic_completion_suppresses_notifications_and_owns_nested_publication_work(): void
     {
         Storage::fake('local');

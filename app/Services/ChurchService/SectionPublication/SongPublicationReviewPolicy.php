@@ -31,10 +31,43 @@ use App\Models\ServiceSection;
  */
 class SongPublicationReviewPolicy
 {
+    public function __construct(
+        private readonly SongPublicationBoundaryEvidenceService $boundaryEvidence,
+    ) {}
+
     /**
      * @return list<array{kind: string, detail: string}>
      */
     public function reviewReasons(ServiceSection $section): array
+    {
+        return $this->assess($section)['reasons'];
+    }
+
+    /**
+     * @return array{
+     *     reasons: list<array{kind: string, detail: string}>,
+     *     boundary_evidence: array<string, mixed>
+     * }
+     */
+    public function assess(ServiceSection $section): array
+    {
+        $boundaryEvidence = $this->boundaryEvidence->assess($section);
+        $reasons = $this->nonBoundaryReviewReasons($section);
+
+        foreach ($boundaryEvidence['risks'] as $risk) {
+            $reasons[] = $risk;
+        }
+
+        return [
+            'reasons' => $reasons,
+            'boundary_evidence' => $boundaryEvidence,
+        ];
+    }
+
+    /**
+     * @return list<array{kind: string, detail: string}>
+     */
+    private function nonBoundaryReviewReasons(ServiceSection $section): array
     {
         $reasons = [];
 

@@ -103,19 +103,25 @@ class SongPublicationHandler implements SectionPublicationHandler
      */
     public function requiresApproval(ServiceSection $section): bool
     {
-        $reasons = $this->reviewPolicy->reviewReasons($section);
+        $assessment = $this->reviewPolicy->assess($section);
+        $reasons = $assessment['reasons'];
+        $metadata = $section->metadata?->toArray() ?? [];
+        $metadata[SongPublicationBoundaryEvidenceService::METADATA_KEY] = $assessment['boundary_evidence'];
+
+        if ($reasons !== []) {
+            $metadata['song_publication_review'] = [
+                'reasons' => $reasons,
+                'decided_at' => now()->toISOString(),
+            ];
+        } else {
+            unset($metadata['song_publication_review']);
+        }
+
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
 
         if ($reasons === []) {
             return false;
         }
-
-        $section->metadata = ServiceSectionMetadata::fromArray(array_replace(
-            $section->metadata?->toArray() ?? [],
-            ['song_publication_review' => [
-                'reasons' => $reasons,
-                'decided_at' => now()->toISOString(),
-            ]],
-        ));
 
         Log::info('Holding a song clip for review before publication', $this->sanitizeArrayForLog([
             'service_section_id' => $section->id,

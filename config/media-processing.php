@@ -487,6 +487,16 @@ return [
         ],
         'require_high_confidence' => env('SERVICE_SECTION_PUBLISH_REQUIRE_HIGH_CONFIDENCE', true),
         'retain_unpublished_hours' => (int) env('SERVICE_SECTION_RETAIN_UNPUBLISHED_HOURS', 48),
+        'song_boundary' => [
+            // A gap beyond this point is too far into the candidate to trust as
+            // a harmless framing pause. It is still kept in the inclusive clip
+            // and sent to review; no pre-bulk recut is attempted.
+            'max_spoken_framing_seconds' => (float) env('SERVICE_SECTION_SONG_MAX_SPOKEN_FRAMING_SECONDS', 30),
+            'minimum_wordless_gap_seconds' => (float) env('SERVICE_SECTION_SONG_MIN_WORDLESS_GAP_SECONDS', 3),
+            'minimum_rms_active_ratio' => (float) env('SERVICE_SECTION_SONG_MIN_RMS_ACTIVE_RATIO', 0.25),
+            'trailing_evidence_window_seconds' => (float) env('SERVICE_SECTION_SONG_TRAILING_EVIDENCE_WINDOW_SECONDS', 60),
+            'minimum_trailing_cue_seconds' => (float) env('SERVICE_SECTION_SONG_MIN_TRAILING_CUE_SECONDS', 10),
+        ],
     ],
 
     /*
