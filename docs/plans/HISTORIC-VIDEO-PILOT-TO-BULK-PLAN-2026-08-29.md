@@ -1110,6 +1110,72 @@ material-risk transition that is held because independent evidence conflicts or
 shows unrelated/merged content. Assert that title text, one transcript phrase and
 duration alone cannot create either a destructive sermon cut or a review hold.
 
+#### Finding M5a — remove the zero-yield sung-transcript lyrics fallback
+
+The corpus result recorded in M5 is also a deletion decision, not an invitation
+to tune the matcher. `MatchSongsFromTranscript` currently tries three evidence
+sources in order for every unmatched song section: title hint, projected-lyrics
+OCR, then the slice of the full-service transcript covering the section. The
+first two paths produced all 177 observed matches; the final transcript-to-lyrics
+path produced zero and left all eleven sections that reached it unmatched. The
+generic matcher is not the failed component: the same
+`SongLyricsMatchingService::matchFromLyrics()` method turns clean OCR and title
+text into useful catalogue matches. The failed assumption is that the existing
+speech transcript contains reliable sung lyrics.
+
+**Decision recorded 2026-08-31: remove only the final full-service
+transcript-to-lyrics fallback before the next canary/bulk run.** Do not remove
+`SongLyricsMatchingService`, title-hint matching, OCR sampling/matching, stored
+OCR evidence or the `lyrics_threshold` used by those productive paths. Do not
+lower the threshold, add a music transcription provider/model, add a dedicated
+song-opening transcription call or otherwise start a lyric-transcription project.
+The demonstrated upside is bounded to the eleven residual sections, while a
+best-of-catalogue fuzzy false positive can write a catalogue link and influence
+downstream song usage and publication handling. An unmatched section already
+has the correct fail-closed outcome: `UnmatchedSongReviewApplicator` keeps it for
+review.
+
+Implementation scope for the next agent:
+
+1. In `app/Jobs/MatchSongsFromTranscript.php`, stop after the OCR attempt. If
+   title hint and OCR both fail, leave the section unmatched and let the existing
+   post-loop `UnmatchedSongReviewApplicator` apply the review state. Do not change
+   matching order, matched counts or review handling for the surviving paths.
+2. Delete `matchSectionFromServiceTranscript()`, the private
+   `loadServiceTranscript()` helper that becomes unused, and the now-unused
+   `App\Data\ChurchServiceTranscript` import from that job. Keep the service
+   transcript itself and its durable path: other pipeline stages use it, and M5's
+   deferred boundary measurement depends on it.
+3. Preserve `SongLyricsMatchingService::matchFromLyrics()` and its integration
+   tests. It remains the shared clean-text matcher for title hints and OCR, so
+   neither the service nor fuzzy/canonical/first-line matching is dead code.
+   Preserve `SongLyricOcrService` and all `match_source = ocr` and title-hint
+   source values unchanged.
+4. Replace
+   `MatchSongsFromTranscriptTest::it_matches_an_unmatched_section_from_the_full_service_transcript()`
+   with a regression proving the opposite production policy: with OCR disabled,
+   no title hint and a service-transcript slice that exactly resembles a
+   catalogue song's lyrics, the job leaves the section unmatched, creates no
+   `transcript_song_match`, and retains the `unmatched_song_section` review flag.
+   Keep the existing title-hint and OCR feature tests as proof that the two
+   productive paths still match.
+5. Do not migrate or rewrite historical metadata whose
+   `transcript_song_match.match_source` is `lyrics`; it remains valid historical
+   evidence. Require only that no live code path can create a new `lyrics` match
+   source. Do not add a replacement config flag for a path being deliberately
+   deleted.
+6. Run the focused `tests/Feature/Jobs/MatchSongsFromTranscriptTest.php`, then
+   PHPStan, Pint and the full parallel suite under the repository's normal Sail
+   workflow.
+
+Acceptance is observable: the focused fail-closed regression passes; existing
+title-hint and OCR matches still pass with their original source/confidence
+metadata; a code search finds no live writer of `match_source = lyrics`; and an
+unmatched section no longer loads or scans the stored service transcript and song
+catalogue after OCR has failed. This is a small pre-bulk deletion: it removes a
+zero-yield decision path and its false-positive surface without changing any
+input, provider call or successful result observed in the measured corpus.
+
 #### Finding M6 — inferred song eligibility does not enforce its stated confidence
 
 `SongPublicationHandler::isEligible()` documents a high-confidence inferred match
@@ -1363,6 +1429,7 @@ Start from these existing seams; do not create a parallel historic pipeline:
 | M3 title provenance | `app/Support/PlaceholderSermonTitle.php`, `app/Jobs/ProcessTranscriptWithAI.php`, `app/Data/SermonCreationOptions.php`, `app/Services/Sermon/SermonCreationService.php`, the bounded banked replay service | Both canary filename shapes change; a curated date/event title never does. |
 | M4 song custody | `app/Models/SongVideo.php`, `app/Services/Song/SongVideoService.php`, `app/Services/HistoricMedia/HistoricAssetPromotion.php`, filesystem schema/migrations, custody census and cleanup | Historic create/promote/resolve/retry/conflict/cleanup plus exact canary backfill replay. |
 | M5–M6 song gate | `app/Services/ChurchService/SectionPublication/SongPublicationHandler.php`, song matching/write-back, sermon/section publication candidate preparation | The boundary fixtures named in M5, including no sermon hold for the short ambiguous bridge, and threshold/corroboration cases in M6. Do not add a separate model call or blanket sermon-review rule. |
+| M5a transcript-lyrics deletion | `app/Jobs/MatchSongsFromTranscript.php`, `tests/Feature/Jobs/MatchSongsFromTranscriptTest.php` | Exact lyric-like service transcript remains unmatched after title/OCR failure; existing title-hint and OCR matches remain unchanged; no live `lyrics` source writer remains. |
 | M7 talk review | sermon section publication handler, section candidate preparation and the existing approval/re-extraction path | Inclusive ambiguous tail remains private; reviewed recut is exact and idempotent. |
 | M10 historic sermon quarantine | `app/Services/Sermon/SermonCreationService.php`, `app/Jobs/SubmitToProcessing.php`, `app/Services/HistoricMedia/HistoricAssetPromotion.php` | Stranded historic run stays quarantined and disk-bound; ordinary livestream still publishes; promotion replay idempotent over pre- and post-change rows. |
 | M9 review-source retention | `app/Jobs/CleanupTemporaryFiles.php`, `app/Models/MediaProcessingLog.php` (`temporaryFilePaths()`), `app/Services/HistoricMedia/HistoricVideoPassMeasures.php`, `HistoricStagingHeadroom`, the reclamation sweep and `sermons:re-extract` | Unflagged run cleans up as today; each flagged shape retains its source; resolution makes it reclaimable and the sweep is idempotent; retained bytes appear in measures and headroom. |
