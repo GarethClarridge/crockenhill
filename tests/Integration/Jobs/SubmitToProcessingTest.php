@@ -7,6 +7,7 @@ namespace Tests\Integration\Jobs;
 use App\Data\SermonCreationOptions;
 use App\Jobs\StoreSermonVideo;
 use App\Jobs\SubmitToProcessing;
+use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Processing\MediaProcessingRunTransitionService;
@@ -16,10 +17,12 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
 class SubmitToProcessingTest extends TestCase
 {
+    use CreatesHistoricImportOperations;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -339,6 +342,43 @@ class SubmitToProcessingTest extends TestCase
         $this->assertSame($log->processing_id, $sermon->livestream_processing_id);
         $this->assertSame(1, Sermon::query()->where('livestream_processing_id', $log->processing_id)->count());
 
+        Queue::assertPushed(StoreSermonVideo::class);
+    }
+
+    #[Test]
+    public function it_registers_historic_video_storage_as_operation_owned_nested_work(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('sermons/audio/historic-audio.mp3', 'fake-audio-content');
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $operation = $this->createHistoricImportOperation();
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'historic_import_operation_id' => $operation->id,
+            'audio_file_path' => 'sermons/audio/historic-audio.mp3',
+            'video_file_path' => 'temp/historic-video.mp4',
+        ]);
+        $sermon = Sermon::factory()->create();
+
+        $mockCreationService = $this->createMock(SermonCreationService::class);
+        $mockCreationService->expects($this->once())
+            ->method('createSermon')
+            ->willReturn($sermon);
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->zeroOrMoreTimes();
+
+        (new SubmitToProcessing($log))->handle($mockCreationService);
+
+        $nested = HistoricImportNestedJob::query()->sole();
+        $this->assertSame($operation->id, $nested->historic_import_operation_id);
+        $this->assertSame($log->id, $nested->media_processing_log_id);
+        $this->assertSame(StoreSermonVideo::class, $nested->job_type);
+        $this->assertSame(StoreSermonVideo::nestedJobKey($log->processing_id), $nested->job_key);
+        $this->assertSame('queued', $nested->state);
+        $this->assertSame(0, $nested->attempts);
+        $this->assertNotNull($nested->dispatched_at);
         Queue::assertPushed(StoreSermonVideo::class);
     }
 }

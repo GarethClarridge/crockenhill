@@ -56,25 +56,7 @@ class ProcessingPhaseRegistry
      */
     public function phasesForPipeline(string $pipeline): array
     {
-        $definitions = $this->phaseDefinitionsForPipeline($pipeline);
-
-        $jobClasses = $this->jobClassesForPipeline($pipeline);
-        $lastOffset = max(1, count($jobClasses) - 1);
-
-        return array_map(function (array $phase) use ($jobClasses, $lastOffset): array {
-            $offset = array_search($phase['anchor_job'], $jobClasses, true);
-            $resolvedOffset = $offset === false ? null : $offset;
-
-            return [
-                ...$phase,
-                'job_offset' => $resolvedOffset,
-                'progress' => isset($phase['progress'])
-                    ? $phase['progress']
-                    : ($resolvedOffset === null
-                    ? ($phase['retry_action'] ?? null) === 'restart_livestream' ? 10 : 50
-                    : min(95, 10 + (int) round(($resolvedOffset / $lastOffset) * 85))),
-            ];
-        }, $definitions);
+        return $this->resolvePhasesForJobClasses($pipeline, $this->jobClassesForPipeline($pipeline));
     }
 
     public function progressForStep(?string $step, ?MediaType $mediaType = null): int
@@ -109,7 +91,7 @@ class ProcessingPhaseRegistry
         $pipeline = $processingLog->processingPipelineProfile();
         $step = $this->canonicalStep($processingLog->current_step);
 
-        foreach ($this->phasesForPipeline($pipeline) as $phase) {
+        foreach ($this->phasesForProcessingLog($processingLog) as $phase) {
             if ($phase['step'] === $step) {
                 return $phase['progress'];
             }
@@ -145,7 +127,7 @@ class ProcessingPhaseRegistry
 
         if ($step === 'manual_review_required'
             && ($processingLog->manualReviewMetadata()['reason_code'] ?? null) === 'llm_structure_validation_failed') {
-            $phase = $this->phaseForPipelineStep($pipeline, 'detect_service_structure');
+            $phase = $this->phaseForProcessingLogStep($processingLog, 'detect_service_structure');
 
             if ($phase !== null && $phase['job_offset'] !== null) {
                 return [
@@ -158,7 +140,7 @@ class ProcessingPhaseRegistry
             }
         }
 
-        $phase = $this->phaseForPipelineStep($pipeline, $step);
+        $phase = $this->phaseForProcessingLogStep($processingLog, $step);
 
         if ($phase !== null && $phase['job_offset'] !== null) {
             return [
@@ -229,7 +211,7 @@ class ProcessingPhaseRegistry
     public function reExtractionPlanFor(MediaProcessingLog $processingLog): ?array
     {
         $pipeline = $processingLog->processingPipelineProfile();
-        $phase = $this->phaseForPipelineStep($pipeline, 'extraction');
+        $phase = $this->phaseForProcessingLogStep($processingLog, 'extraction');
 
         if ($phase === null || $phase['job_offset'] === null) {
             return null;
@@ -244,10 +226,70 @@ class ProcessingPhaseRegistry
         ];
     }
 
-    /** @return ProcessingPhase|null */
-    private function phaseForPipelineStep(string $pipeline, ?string $step): ?array
+    /**
+     * Resolve offsets against the exact chain shape that will be dispatched for
+     * this run. Historic livestreams have one additional wait gate; ordinary
+     * runs continue to use the cached live pipeline shape.
+     *
+     * @return list<ProcessingPhase>
+     */
+    private function phasesForProcessingLog(MediaProcessingLog $processingLog): array
     {
-        foreach ($this->phasesForPipeline($pipeline) as $phase) {
+        return $this->resolvePhasesForJobClasses(
+            $processingLog->processingPipelineProfile(),
+            $this->jobClassesForProcessingLog($processingLog),
+        );
+    }
+
+    /**
+     * @param  list<class-string>  $jobClasses
+     * @return list<ProcessingPhase>
+     */
+    private function resolvePhasesForJobClasses(string $pipeline, array $jobClasses): array
+    {
+        $lastOffset = max(1, count($jobClasses) - 1);
+
+        return array_map(function (array $phase) use ($jobClasses, $lastOffset): array {
+            $offset = array_search($phase['anchor_job'], $jobClasses, true);
+            $resolvedOffset = $offset === false ? null : $offset;
+
+            return [
+                ...$phase,
+                'job_offset' => $resolvedOffset,
+                'progress' => isset($phase['progress'])
+                    ? $phase['progress']
+                    : ($resolvedOffset === null
+                    ? ($phase['retry_action'] ?? null) === 'restart_livestream' ? 10 : 50
+                    : min(95, 10 + (int) round(($resolvedOffset / $lastOffset) * 85))),
+            ];
+        }, $this->phaseDefinitionsForPipeline($pipeline));
+    }
+
+    /** @return list<class-string> */
+    private function jobClassesForProcessingLog(MediaProcessingLog $processingLog): array
+    {
+        if ($processingLog->historic_import_operation_id === null) {
+            return $this->jobClassesForPipeline($processingLog->processingPipelineProfile());
+        }
+
+        $jobs = match ($processingLog->processingPipelineProfile()) {
+            'audio' => $this->pipelineBuilder->buildAudioPipeline($processingLog),
+            'video' => $this->pipelineBuilder->buildDirectVideoPipeline($processingLog),
+            'video_auto_trim' => $this->pipelineBuilder->buildAutoTrimVideoPipeline($processingLog),
+            'livestream' => $this->pipelineBuilder->buildLivestreamChainJobs($processingLog),
+            default => [],
+        };
+
+        return array_values(array_map(
+            static fn (object $job): string => $job::class,
+            $jobs,
+        ));
+    }
+
+    /** @return ProcessingPhase|null */
+    private function phaseForProcessingLogStep(MediaProcessingLog $processingLog, ?string $step): ?array
+    {
+        foreach ($this->phasesForProcessingLog($processingLog) as $phase) {
             if ($phase['step'] === $step) {
                 return $phase;
             }

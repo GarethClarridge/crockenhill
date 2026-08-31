@@ -8,9 +8,12 @@ use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Processing\SermonMetadataIntegrationService;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -232,6 +235,49 @@ class SermonMetadataIntegrationServiceTest extends TestCase
 
         $this->assertSame("sermons/{$sermon->id}/video.mp4", $finalPath);
         Storage::disk('public')->assertExists($finalPath);
+    }
+
+    #[Test]
+    public function it_rejects_a_new_sermon_destination_with_a_size_mismatch(): void
+    {
+        Storage::fake('local');
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+        ]);
+
+        $sermon = Sermon::factory()->create();
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'video_file_path' => 'temp/sermon-video.mp4',
+        ]);
+        $sourceDisk = Storage::disk('local');
+        $sourceDisk->put('temp/sermon-video.mp4', str_repeat('video-bytes', 128));
+        $sourceSize = $sourceDisk->size('temp/sermon-video.mp4');
+        $finalPath = "sermons/{$sermon->id}/video.mp4";
+
+        $destinationDisk = Mockery::mock(Filesystem::class);
+        $destinationDisk->shouldReceive('exists')->once()->with($finalPath)->andReturnFalse();
+        $destinationDisk->shouldReceive('makeDirectory')->once()->with("sermons/{$sermon->id}")->andReturnTrue();
+        $destinationDisk->shouldReceive('put')->once()
+            ->with($finalPath, Mockery::on(static fn (mixed $stream): bool => is_resource($stream)))
+            ->andReturnTrue();
+        $destinationDisk->shouldReceive('size')->once()->with($finalPath)->andReturn($sourceSize - 1);
+
+        Storage::shouldReceive('disk')->with('local')->twice()->andReturn($sourceDisk);
+        Storage::shouldReceive('disk')->with('public')->once()->andReturn($destinationDisk);
+
+        $service = $this->partialMock(SermonMetadataIntegrationService::class, function ($mock): void {
+            $mock->shouldReceive('validateVideoFile')->once()->andReturnTrue();
+        });
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('debug')->zeroOrMoreTimes();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('size mismatch');
+
+        $service->storeVideoForSermon($log->processing_id, $sermon->id);
     }
 
     /**

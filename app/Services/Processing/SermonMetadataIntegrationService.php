@@ -85,11 +85,15 @@ class SermonMetadataIntegrationService
 
         $sourceFileSize = filesize($videoPath);
 
+        if ($sourceFileSize === false) {
+            throw new \RuntimeException("Unable to determine sermon video size: {$videoPath}");
+        }
+
         Log::info('Preparing sermon video for permanent storage', [
             'processing_id' => $processingId,
             'sermon_id' => $sermonId,
             'source_path' => $videoPath,
-            'source_size_bytes' => $sourceFileSize === false ? null : $sourceFileSize,
+            'source_size_bytes' => $sourceFileSize,
             'sermon_disk' => config('media-processing.storage.sermon_disk', 'public'),
         ]);
 
@@ -97,7 +101,7 @@ class SermonMetadataIntegrationService
         $isReExtraction = $processing instanceof MediaProcessingLog && $processing->isReExtraction();
 
         // Simple organization by sermon ID
-        $finalVideoPath = $this->organizeVideoFile($videoPath, $sermonId, $isReExtraction);
+        $finalVideoPath = $this->organizeVideoFile($videoPath, $sermonId, $sourceFileSize, $isReExtraction);
 
         $processing?->clearReExtraction();
 
@@ -230,8 +234,12 @@ class SermonMetadataIntegrationService
      *                                 replaced. Only a deliberate re-cut sets this; see
      *                                 {@see MediaProcessingLog::isReExtraction()}.
      */
-    private function organizeVideoFile(string $videoPath, int $sermonId, bool $replaceExisting = false): string
-    {
+    private function organizeVideoFile(
+        string $videoPath,
+        int $sermonId,
+        int $sourceFileSize,
+        bool $replaceExisting = false,
+    ): string {
         $sermonDiskName = config('media-processing.storage.sermon_disk', 'public');
 
         // Get the sermon storage disk
@@ -286,6 +294,13 @@ class SermonMetadataIntegrationService
 
         if ($storedFileSize === 0) {
             throw new \RuntimeException("Persisted sermon video has zero size on {$sermonDiskName}: {$finalPath}");
+        }
+
+        if ($storedFileSize !== $sourceFileSize) {
+            throw new \RuntimeException(
+                "Persisted sermon video size mismatch on {$sermonDiskName}: {$finalPath} "
+                ."(expected {$sourceFileSize} bytes, got {$storedFileSize} bytes)",
+            );
         }
 
         Log::info('Video file organized', [

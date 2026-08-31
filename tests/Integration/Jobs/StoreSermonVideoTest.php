@@ -5,16 +5,19 @@ declare(strict_types=1);
 namespace Tests\Integration\Jobs;
 
 use App\Jobs\StoreSermonVideo;
+use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Processing\SermonMetadataIntegrationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
 class StoreSermonVideoTest extends TestCase
 {
+    use CreatesHistoricImportOperations;
     use RefreshDatabase;
 
     #[Test]
@@ -26,6 +29,7 @@ class StoreSermonVideoTest extends TestCase
 
         $this->assertEquals(3, $job->tries);
         $this->assertEquals(1800, $job->timeout);
+        $this->assertSame([60, 300], $job->backoff());
     }
 
     #[Test]
@@ -49,6 +53,88 @@ class StoreSermonVideoTest extends TestCase
 
         $job = new StoreSermonVideo($log, $sermon->id);
         $job->handle($mockMetadataService);
+    }
+
+    #[Test]
+    public function historic_storage_is_operation_owned_and_marked_complete_after_linking(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'historic_import_operation_id' => $operation->id,
+            'video_file_path' => 'temp/sermon.mp4',
+        ]);
+        $sermon = Sermon::factory()->create();
+        $nested = HistoricImportNestedJob::query()->create([
+            'historic_import_operation_id' => $operation->id,
+            'media_processing_log_id' => $log->id,
+            'job_key' => StoreSermonVideo::nestedJobKey($log->processing_id),
+            'job_type' => StoreSermonVideo::class,
+            'state' => 'queued',
+            'attempts' => 0,
+            'dispatched_at' => now(),
+        ]);
+
+        $mockMetadataService = $this->createMock(SermonMetadataIntegrationService::class);
+        $mockMetadataService->expects($this->once())
+            ->method('storeVideoForSermon')
+            ->with($log->processing_id, $sermon->id)
+            ->willReturn("sermons/{$sermon->id}/video.mp4");
+        $mockMetadataService->expects($this->once())
+            ->method('linkVideoToSermon')
+            ->with($log->processing_id, $sermon->id, "sermons/{$sermon->id}/video.mp4");
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        (new StoreSermonVideo($log, $sermon->id))->handle($mockMetadataService);
+
+        $nested->refresh();
+        $this->assertSame($operation->id, $nested->historic_import_operation_id);
+        $this->assertSame($log->id, $nested->media_processing_log_id);
+        $this->assertSame('completed', $nested->state);
+        $this->assertSame(1, $nested->attempts);
+        $this->assertNotNull($nested->settled_at);
+    }
+
+    #[Test]
+    public function retryable_storage_is_recorded_before_the_exception_is_rethrown(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'historic_import_operation_id' => $operation->id,
+            'video_file_path' => 'temp/sermon.mp4',
+        ]);
+        $sermon = Sermon::factory()->create();
+        $nested = HistoricImportNestedJob::query()->create([
+            'historic_import_operation_id' => $operation->id,
+            'media_processing_log_id' => $log->id,
+            'job_key' => StoreSermonVideo::nestedJobKey($log->processing_id),
+            'job_type' => StoreSermonVideo::class,
+            'state' => 'queued',
+            'attempts' => 0,
+            'dispatched_at' => now(),
+        ]);
+
+        $mockMetadataService = $this->createMock(SermonMetadataIntegrationService::class);
+        $mockMetadataService->expects($this->once())
+            ->method('storeVideoForSermon')
+            ->willThrowException(new \RuntimeException('S3 upload timed out'));
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('S3 upload timed out');
+
+        try {
+            (new StoreSermonVideo($log, $sermon->id))->handle($mockMetadataService);
+        } finally {
+            $nested->refresh();
+            $this->assertSame('retryable', $nested->state);
+            $this->assertSame(1, $nested->attempts);
+            $this->assertSame(
+                hash('sha256', \RuntimeException::class."\0S3 upload timed out"),
+                $nested->error_fingerprint,
+            );
+        }
     }
 
     #[Test]
@@ -84,7 +170,19 @@ class StoreSermonVideoTest extends TestCase
     #[Test]
     public function failed_method_logs_permanent_failure(): void
     {
-        $log = MediaProcessingLog::factory()->livestream()->processing()->create();
+        $operation = $this->createHistoricImportOperation();
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'historic_import_operation_id' => $operation->id,
+        ]);
+        $nested = HistoricImportNestedJob::query()->create([
+            'historic_import_operation_id' => $operation->id,
+            'media_processing_log_id' => $log->id,
+            'job_key' => StoreSermonVideo::nestedJobKey($log->processing_id),
+            'job_type' => StoreSermonVideo::class,
+            'state' => 'retryable',
+            'attempts' => 3,
+            'dispatched_at' => now(),
+        ]);
 
         Log::shouldReceive('error')->once()->withArgs(fn (string $message) => str_contains($message, 'StoreSermonVideo'));
 
@@ -92,10 +190,13 @@ class StoreSermonVideoTest extends TestCase
         $job->failed(new \Exception('S3 upload timed out'));
 
         $log->refresh();
+        $nested->refresh();
 
         $this->assertSame('failed', $log->status->value);
-        $this->assertSame('sermon_creation', $log->current_step);
+        $this->assertSame('sermon_submitted', $log->current_step);
         $this->assertStringContainsString('Sermon video upload failed after 3 attempts', (string) $log->error_message);
+        $this->assertSame('failed', $nested->state);
+        $this->assertNotNull($nested->settled_at);
     }
 
     #[Test]

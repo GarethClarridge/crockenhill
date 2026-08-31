@@ -6,15 +6,21 @@ namespace Tests\Integration\Jobs;
 
 use App\Enums\ProcessingStatus;
 use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\StoreSermonVideo;
+use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
+use App\Models\SermonProcessingStep;
 use App\Services\Media\Video\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
 class CleanupTemporaryFilesTest extends TestCase
 {
+    use CreatesHistoricImportOperations;
     use RefreshDatabase;
 
     #[Test]
@@ -224,5 +230,154 @@ class CleanupTemporaryFilesTest extends TestCase
 
         $this->assertEquals(1, $job->tries);
         $this->assertEquals(300, $job->timeout);
+    }
+
+    #[Test]
+    public function it_refuses_to_delete_working_copies_while_historic_video_storage_is_unsettled(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'historic_import_operation_id' => $operation->id,
+            'source_file_path' => 'temp/source-video.mp4',
+            'video_file_path' => 'temp/sermon-video.mp4',
+            'enhanced_audio_file_path' => 'temp/enhanced-audio.mp3',
+        ]);
+        HistoricImportNestedJob::query()->create([
+            'historic_import_operation_id' => $operation->id,
+            'media_processing_log_id' => $log->id,
+            'job_key' => StoreSermonVideo::nestedJobKey($log->processing_id),
+            'job_type' => StoreSermonVideo::class,
+            'state' => 'retryable',
+            'attempts' => 1,
+            'dispatched_at' => now(),
+        ]);
+
+        Queue::fake();
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage->expects($this->never())->method('cleanupTemporaryFiles');
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->once();
+
+        (new CleanupTemporaryFiles($log))->handle($mockStorage);
+
+        $log->refresh();
+        $this->assertSame('processing', $log->status->value);
+        Queue::assertPushed(CleanupTemporaryFiles::class);
+    }
+
+    #[Test]
+    public function it_refuses_to_delete_working_copies_while_historic_speaker_work_is_active(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'historic_import_operation_id' => $operation->id,
+            'source_file_path' => 'temp/source-video.mp4',
+        ]);
+        SermonProcessingStep::factory()->create([
+            'processing_id' => $log->processing_id,
+            'step' => 'identifying_speaker',
+            'status' => ProcessingStatus::Started,
+        ]);
+
+        Queue::fake();
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage->expects($this->never())->method('cleanupTemporaryFiles');
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->once();
+
+        (new CleanupTemporaryFiles($log))->handle($mockStorage);
+
+        $log->refresh();
+        $this->assertSame('processing', $log->status->value);
+        Queue::assertPushed(CleanupTemporaryFiles::class);
+    }
+
+    #[Test]
+    public function it_fails_the_run_rather_than_stranding_it_when_storage_failed_permanently(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'historic_import_operation_id' => $operation->id,
+            'source_file_path' => 'temp/source-video.mp4',
+        ]);
+        HistoricImportNestedJob::query()->create([
+            'historic_import_operation_id' => $operation->id,
+            'media_processing_log_id' => $log->id,
+            'job_key' => StoreSermonVideo::nestedJobKey($log->processing_id),
+            'job_type' => StoreSermonVideo::class,
+            'state' => 'failed',
+            'attempts' => 3,
+            'dispatched_at' => now(),
+        ]);
+
+        Queue::fake();
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage->expects($this->never())->method('cleanupTemporaryFiles');
+
+        (new CleanupTemporaryFiles($log))->handle($mockStorage);
+
+        $log->refresh();
+        $this->assertSame('failed', $log->status->value);
+        $this->assertStringContainsString('never settled', (string) $log->error_message);
+        Queue::assertNotPushed(CleanupTemporaryFiles::class);
+    }
+
+    #[Test]
+    public function it_fails_the_run_once_the_historic_deferral_budget_is_exhausted(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'historic_import_operation_id' => $operation->id,
+            'source_file_path' => 'temp/source-video.mp4',
+        ]);
+        HistoricImportNestedJob::query()->create([
+            'historic_import_operation_id' => $operation->id,
+            'media_processing_log_id' => $log->id,
+            'job_key' => StoreSermonVideo::nestedJobKey($log->processing_id),
+            'job_type' => StoreSermonVideo::class,
+            'state' => 'retryable',
+            'attempts' => 1,
+            'dispatched_at' => now(),
+        ]);
+
+        Queue::fake();
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage->expects($this->never())->method('cleanupTemporaryFiles');
+
+        (new CleanupTemporaryFiles($log, historicDeferrals: 12))->handle($mockStorage);
+
+        $log->refresh();
+        $this->assertSame('failed', $log->status->value);
+        Queue::assertNotPushed(CleanupTemporaryFiles::class);
+    }
+
+    #[Test]
+    public function it_does_not_defer_cleanup_for_an_ordinary_livestream_run(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'source_file_path' => 'temp/source-video.mp4',
+        ]);
+        SermonProcessingStep::factory()->create([
+            'processing_id' => $log->processing_id,
+            'step' => 'identifying_speaker',
+            'status' => ProcessingStatus::Started,
+        ]);
+
+        Queue::fake();
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage->expects($this->once())->method('cleanupTemporaryFiles');
+
+        (new CleanupTemporaryFiles($log))->handle($mockStorage);
+
+        $log->refresh();
+        $this->assertSame('completed', $log->status->value);
+        Queue::assertNotPushed(CleanupTemporaryFiles::class);
     }
 }

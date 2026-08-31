@@ -6,6 +6,7 @@ namespace Tests\Feature\Console;
 
 use App\Enums\ProcessingStatus;
 use App\Jobs\AnalyzeSegments;
+use App\Jobs\AwaitHistoricSermonVideoStorage;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\PromoteHistoricAssets;
@@ -67,6 +68,7 @@ class RecoverHistoricProcessingTailCommandTest extends TestCase
             ->assertSuccessful();
 
         Bus::assertChained([
+            AwaitHistoricSermonVideoStorage::class,
             PromoteHistoricAssets::class,
             CleanupTemporaryFiles::class,
         ]);
@@ -98,7 +100,7 @@ class RecoverHistoricProcessingTailCommandTest extends TestCase
             $operation->operation_id,
             data_get($processingLog->processing_metadata?->toArray(), 'historic_tail_recovery.operation_id'),
         );
-        self::assertCount(1, Bus::dispatched(PromoteHistoricAssets::class));
+        self::assertCount(1, Bus::dispatched(AwaitHistoricSermonVideoStorage::class));
     }
 
     #[Test]

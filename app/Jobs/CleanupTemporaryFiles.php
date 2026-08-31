@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Enums\ProcessingStatus;
+use App\Enums\ProcessingStep;
+use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
+use App\Models\SermonProcessingStep;
 use App\Services\Media\Video\VideoStorageService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -21,8 +25,25 @@ class CleanupTemporaryFiles implements ShouldQueue
 
     public int $timeout = 300;
 
+    /**
+     * How many times a historic cleanup may stand itself back down while work it
+     * would orphan is still in flight. Twelve deferrals of
+     * {@see self::HISTORIC_DEFERRAL_DELAY_SECONDS} give an hour, comfortably past
+     * a retrying speaker or storage job, after which the run is failed rather
+     * than left sitting in `processing` with nothing left to advance it.
+     */
+    private const MAX_HISTORIC_DEFERRALS = 12;
+
+    private const HISTORIC_DEFERRAL_DELAY_SECONDS = 300;
+
+    /**
+     * @param  int  $historicDeferrals  How many times this cleanup has already
+     *                                  stood down for unsettled historic work.
+     *                                  Only a deferred successor sets this.
+     */
     public function __construct(
-        private MediaProcessingLog $processingLog
+        private MediaProcessingLog $processingLog,
+        private int $historicDeferrals = 0,
     ) {}
 
     public function handle(
@@ -47,6 +68,13 @@ class CleanupTemporaryFiles implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
                 'processing_type' => $this->processingLog->processing_type,
             ]);
+
+            $unsettledWork = $this->unsettledHistoricMediaWork();
+            if ($unsettledWork !== null) {
+                $this->refuseCleanup($unsettledWork, $processingRunTransitions);
+
+                return;
+            }
 
             $tempFiles = $this->processingLog->temporaryFilePaths();
 
@@ -107,6 +135,92 @@ class CleanupTemporaryFiles implements ShouldQueue
     {
         if (in_array($this->processingLog->current_step, ['notification_failed', 'notification_failed_permanently'], true)) {
             return $this->processingLog->error_message;
+        }
+
+        return null;
+    }
+
+    /**
+     * Refusing to delete is only half of a truthful refusal. A bare return would
+     * leave the run sitting in `processing` with no error and nothing left in the
+     * chain to advance it -- the same stranded tail this guard exists to prevent.
+     * So in-flight work earns a bounded deferral, and work that can no longer
+     * settle fails the run closed where readiness and tail recovery can see it.
+     *
+     * @param  array{description:string,terminal:bool}  $unsettledWork
+     */
+    private function refuseCleanup(
+        array $unsettledWork,
+        MediaProcessingRunTransitionService $processingRunTransitions,
+    ): void {
+        $canDefer = ! $unsettledWork['terminal']
+            && $this->historicDeferrals < self::MAX_HISTORIC_DEFERRALS;
+
+        Log::warning('Refusing temporary file cleanup while historic media work is unsettled', [
+            'processing_id' => $this->processingLog->processing_id,
+            'work' => $unsettledWork['description'],
+            'deferrals' => $this->historicDeferrals,
+            'deferring' => $canDefer,
+        ]);
+
+        if ($canDefer) {
+            dispatch(new self($this->processingLog, $this->historicDeferrals + 1))
+                ->delay(self::HISTORIC_DEFERRAL_DELAY_SECONDS);
+
+            return;
+        }
+
+        $processingRunTransitions->markAsFailed(
+            $this->processingLog,
+            'Refused to clean up temporary files: historic media work never settled ('
+            .$unsettledWork['description'].').',
+            ProcessingStep::SermonSubmitted->value,
+        );
+    }
+
+    /**
+     * Work that still references this run's working copies. `terminal` marks work
+     * that can no longer settle on its own, so waiting for it would never end.
+     *
+     * @return array{description:string,terminal:bool}|null
+     */
+    private function unsettledHistoricMediaWork(): ?array
+    {
+        if ($this->processingLog->historic_import_operation_id === null) {
+            return null;
+        }
+
+        $nestedStorage = HistoricImportNestedJob::query()
+            ->where('historic_import_operation_id', $this->processingLog->historic_import_operation_id)
+            ->where('media_processing_log_id', $this->processingLog->id)
+            ->where('job_key', StoreSermonVideo::nestedJobKey($this->processingLog->processing_id))
+            ->where('job_type', StoreSermonVideo::class)
+            ->whereIn('state', ['queued', 'running', 'retryable', 'failed'])
+            ->first();
+
+        if ($nestedStorage instanceof HistoricImportNestedJob) {
+            return [
+                'description' => $nestedStorage->job_key.' (state: '.$nestedStorage->state.')',
+                'terminal' => $nestedStorage->state === 'failed',
+            ];
+        }
+
+        $unsettledStep = SermonProcessingStep::query()
+            ->where('processing_id', $this->processingLog->processing_id)
+            ->whereIn('step', ['assessing_video_quality', 'identifying_speaker'])
+            ->whereIn('status', [
+                ProcessingStatus::Pending->value,
+                ProcessingStatus::Started->value,
+                ProcessingStatus::Processing->value,
+                ProcessingStatus::Failed->value,
+            ])
+            ->first();
+
+        if ($unsettledStep instanceof SermonProcessingStep) {
+            return [
+                'description' => $unsettledStep->step.' (state: '.$unsettledStep->status->value.')',
+                'terminal' => $unsettledStep->status === ProcessingStatus::Failed,
+            ];
         }
 
         return null;

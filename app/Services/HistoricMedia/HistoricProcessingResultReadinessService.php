@@ -9,6 +9,7 @@ use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Jobs\StoreSermonVideo;
 use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
@@ -255,13 +256,26 @@ class HistoricProcessingResultReadinessService
         }
 
         $unsettled = HistoricImportNestedJob::query()
+            ->where('historic_import_operation_id', $processingLog->historic_import_operation_id)
             ->where('media_processing_log_id', $processingLog->id)
             ->where('state', '!=', 'completed')
-            ->pluck('job_key')
+            ->get(['job_key', 'job_type', 'state']);
+
+        $storage = $unsettled
+            ->filter(static fn (HistoricImportNestedJob $job): bool => $job->job_type === StoreSermonVideo::class)
+            ->map(static fn (HistoricImportNestedJob $job): string => $job->job_key.' (state: '.$job->state.')')
+            ->all();
+        $publication = $unsettled
+            ->reject(static fn (HistoricImportNestedJob $job): bool => $job->job_type === StoreSermonVideo::class)
+            ->map(static fn (HistoricImportNestedJob $job): string => $job->job_key.' (state: '.$job->state.')')
             ->all();
 
-        if ($unsettled !== []) {
-            $reasons[] = 'Historic nested publication work is not terminal-complete: '.implode(', ', $unsettled).'.';
+        if ($storage !== []) {
+            $reasons[] = 'Historic sermon video storage is not terminal-complete: '.implode(', ', $storage).'.';
+        }
+
+        if ($publication !== []) {
+            $reasons[] = 'Historic nested publication work is not terminal-complete: '.implode(', ', $publication).'.';
         }
     }
 }

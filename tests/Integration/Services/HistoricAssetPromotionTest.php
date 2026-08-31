@@ -7,6 +7,9 @@ namespace Tests\Integration\Services;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonPublicationState;
+use App\Jobs\PromoteHistoricAssets;
+use App\Jobs\StoreSermonVideo;
+use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\HistoricMedia\HistoricAssetPromotion;
@@ -200,6 +203,26 @@ class HistoricAssetPromotionTest extends TestCase
         $this->expectExceptionMessage('is on neither staging nor quarantine');
 
         app(HistoricAssetPromotion::class)->promoteRun($log);
+    }
+
+    #[Test]
+    public function promotion_cannot_overtake_unsettled_historic_video_storage(): void
+    {
+        [$log] = $this->historicRun();
+        HistoricImportNestedJob::query()->create([
+            'historic_import_operation_id' => $log->historic_import_operation_id,
+            'media_processing_log_id' => $log->id,
+            'job_key' => StoreSermonVideo::nestedJobKey($log->processing_id),
+            'job_type' => StoreSermonVideo::class,
+            'state' => 'retryable',
+            'attempts' => 1,
+            'dispatched_at' => now(),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('video storage is unsettled');
+
+        (new PromoteHistoricAssets($log))->handle(app(HistoricAssetPromotion::class));
     }
 
     #[Test]

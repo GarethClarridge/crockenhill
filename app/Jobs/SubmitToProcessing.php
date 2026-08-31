@@ -7,8 +7,10 @@ namespace App\Jobs;
 use App\Data\SermonCreationOptions;
 use App\Enums\ProcessingStep;
 use App\Enums\SermonSourceType;
+use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\Sermon\SermonCreationService;
 use App\Traits\ChecksCancellation;
@@ -161,9 +163,9 @@ class SubmitToProcessing implements ShouldQueue
                 ]);
             }
 
-            // Dispatch video upload independently so it does not block audio processing.
-            // AssessSermonVideoQuality and GenerateThumbnail both handle a missing video_file_path gracefully.
-            dispatch(new StoreSermonVideo($this->processingLog, $sermonId));
+            // Keep video upload independent so it does not block transcription, but make
+            // historic uploads operation-owned so the downstream historic chain can await it.
+            $this->dispatchSermonVideo($sermonId);
 
             // Validate that the sermon record has a valid audio file path
             if ($sermonId) {
@@ -267,5 +269,69 @@ class SubmitToProcessing implements ShouldQueue
             ->where('livestream_processing_id', $this->processingLog->processing_id)
             ->latest('id')
             ->first();
+    }
+
+    private function dispatchSermonVideo(int $sermonId): void
+    {
+        $videoJob = new StoreSermonVideo($this->processingLog, $sermonId);
+        $operationId = $this->processingLog->historic_import_operation_id;
+
+        if ($operationId === null) {
+            dispatch($videoJob);
+
+            return;
+        }
+
+        $nestedJob = HistoricImportNestedJob::query()->firstOrNew([
+            'historic_import_operation_id' => $operationId,
+            'job_key' => StoreSermonVideo::nestedJobKey($this->processingLog->processing_id),
+        ]);
+
+        if ($nestedJob->exists
+            && ($nestedJob->media_processing_log_id !== $this->processingLog->id
+                || $nestedJob->job_type !== StoreSermonVideo::class)) {
+            throw new \RuntimeException(
+                'Historic sermon video storage is owned by a different processing run: '
+                .$this->processingLog->processing_id,
+            );
+        }
+
+        if ($nestedJob->exists && $nestedJob->state === 'completed' && ! $this->processingLog->isReExtraction()) {
+            Log::info('Historic sermon video storage already completed, skipping duplicate dispatch', [
+                'processing_id' => $this->processingLog->processing_id,
+                'sermon_id' => $sermonId,
+            ]);
+
+            return;
+        }
+
+        if ($nestedJob->exists && in_array($nestedJob->state, ['queued', 'running', 'retryable'], true)) {
+            return;
+        }
+
+        if ($nestedJob->exists && ! in_array($nestedJob->state, ['failed', 'cancelled', 'completed'], true)) {
+            throw new \RuntimeException(
+                "Historic sermon video storage has an unknown nested state '{$nestedJob->state}' for processing ID: "
+                .$this->processingLog->processing_id,
+            );
+        }
+
+        $nestedJob->forceFill([
+            'media_processing_log_id' => $this->processingLog->id,
+            'job_type' => StoreSermonVideo::class,
+            'state' => 'queued',
+            'attempts' => 0,
+            'error_fingerprint' => null,
+            'dispatched_at' => now(),
+            'settled_at' => null,
+        ])->save();
+
+        $pendingDispatch = dispatch($videoJob);
+        $historicQueue = app(HistoricProcessingThroughput::class)
+            ->historicQueueFor(StoreSermonVideo::class);
+
+        if ($historicQueue !== null) {
+            $pendingDispatch->onQueue($historicQueue);
+        }
     }
 }

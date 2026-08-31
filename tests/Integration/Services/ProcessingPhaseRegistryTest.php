@@ -8,6 +8,7 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
+use App\Jobs\AwaitHistoricSermonVideoStorage;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\CreateSermonTranscriptFromService;
@@ -31,10 +32,12 @@ use App\Services\Processing\ProcessingPhaseRegistry;
 use App\Services\Processing\ProcessingPipelineBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
 class ProcessingPhaseRegistryTest extends TestCase
 {
+    use CreatesHistoricImportOperations;
     use RefreshDatabase;
 
     #[Test]
@@ -273,6 +276,26 @@ class ProcessingPhaseRegistryTest extends TestCase
                 );
             }
         }
+    }
+
+    #[Test]
+    public function historic_retry_offsets_include_the_video_storage_wait_gate(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $log = MediaProcessingLog::factory()->livestream()->failed()->create([
+            'historic_import_operation_id' => $operation->id,
+            'current_step' => 'assessing_video_quality',
+        ]);
+
+        $plan = app(ProcessingPhaseRegistry::class)->retryPlanFor($log);
+
+        $this->assertSame('dispatch_livestream_chain', $plan['action']);
+        $this->assertSame(14, $plan['job_offset']);
+        $this->assertSame(
+            AwaitHistoricSermonVideoStorage::class,
+            app(ProcessingPipelineBuilder::class)
+                ->buildLivestreamChainJobs($log)[13]::class,
+        );
     }
 
     #[Test]

@@ -6,6 +6,7 @@ namespace App\Services\Processing;
 
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
+use App\Jobs\AwaitHistoricSermonVideoStorage;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\CreateSermonTranscriptFromService;
@@ -147,6 +148,7 @@ class ProcessingPipelineBuilder
             new IdentifySpeaker($log),
             new CreateSermonTranscriptFromService($log),
             new ProcessTranscriptWithAI($log),
+            ...$this->historicSermonVideoStorageGate($log),
             new AssessSermonVideoQuality($log),
             new GenerateThumbnail($log),
             new PrepareSectionPublicationCandidates($log),
@@ -187,6 +189,7 @@ class ProcessingPipelineBuilder
             new IdentifySpeaker($log),
             new CreateSermonTranscriptFromService($log),
             new ProcessTranscriptWithAI($log),
+            ...$this->historicSermonVideoStorageGate($log),
             new AssessSermonVideoQuality($log),
             new GenerateThumbnail($log),
             new PrepareSectionPublicationCandidates($log),
@@ -216,5 +219,20 @@ class ProcessingPipelineBuilder
             new PromoteHistoricAssets($log),
             new CleanupTemporaryFiles($log),
         ];
+    }
+
+    /**
+     * Keep the detached video copy out of the live chain while making every
+     * historic media-output step wait for its operation-owned completion row.
+     *
+     * @return list<object>
+     */
+    private function historicSermonVideoStorageGate(MediaProcessingLog $log): array
+    {
+        if ($log->historic_import_operation_id === null) {
+            return [];
+        }
+
+        return [new AwaitHistoricSermonVideoStorage($log)];
     }
 }

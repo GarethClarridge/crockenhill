@@ -6,6 +6,7 @@ namespace Tests\Integration\Services\HistoricMedia;
 
 use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Jobs\StoreSermonVideo;
 use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -165,15 +166,40 @@ class HistoricProcessingResultReadinessServiceTest extends TestCase
 
         $pending = app(HistoricProcessingResultReadinessService::class)->audit($run);
         $this->assertContains(
-            'Historic nested publication work is not terminal-complete: auto-publish-section-1.',
+            'Historic nested publication work is not terminal-complete: auto-publish-section-1 (state: running).',
             $pending->reasons,
         );
 
         $nested->update(['state' => 'completed', 'settled_at' => now()]);
         $settled = app(HistoricProcessingResultReadinessService::class)->audit($run->fresh());
         $this->assertNotContains(
-            'Historic nested publication work is not terminal-complete: auto-publish-section-1.',
+            'Historic nested publication work is not terminal-complete: auto-publish-section-1 (state: running).',
             $settled->reasons,
+        );
+    }
+
+    #[Test]
+    public function historic_video_storage_readiness_reports_the_nested_job_state(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'historic_import_operation_id' => $operation->id,
+        ]);
+        HistoricImportNestedJob::query()->create([
+            'historic_import_operation_id' => $operation->id,
+            'media_processing_log_id' => $run->id,
+            'job_key' => StoreSermonVideo::nestedJobKey($run->processing_id),
+            'job_type' => StoreSermonVideo::class,
+            'state' => 'retryable',
+            'attempts' => 1,
+            'dispatched_at' => now(),
+        ]);
+
+        $result = app(HistoricProcessingResultReadinessService::class)->audit($run);
+
+        $this->assertContains(
+            'Historic sermon video storage is not terminal-complete: '.StoreSermonVideo::nestedJobKey($run->processing_id).' (state: retryable).',
+            $result->reasons,
         );
     }
 

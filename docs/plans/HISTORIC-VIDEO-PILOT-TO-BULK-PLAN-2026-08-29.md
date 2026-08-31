@@ -1839,8 +1839,16 @@ The remainder may start only when all of these are true:
   pilot and fresh-canary shapes; M1 and M3 remain outstanding.
 - [x] Service projection no longer conflicts with its own evidence.
 - [x] Fragmentary/duplicate song candidates fail closed to review.
-- [ ] Sermon video storage, quality, promotion and cleanup are one truthfully
-  ordered operation-owned sequence; M2 remains outstanding.
+- [x] Sermon video storage, quality, promotion and cleanup are one truthfully
+  ordered operation-owned sequence. `StoreSermonVideo` stays detached from the
+  live chain as decided, but historic runs register it as an operation-owned
+  nested job and a historic-only `AwaitHistoricSermonVideoStorage` gate holds the
+  chain at the media-output boundary until it settles. Quality, thumbnailing,
+  promotion and cleanup are therefore all downstream of settled storage; the wait
+  is bounded by `retryUntil()`, promotion refuses unsettled storage, cleanup
+  refuses to orphan in-flight storage or speaker work and either defers or fails
+  the run rather than stranding it, and readiness names the storage job's state
+  separately from publication work.
 - [ ] Historic song videos are operation-bound, quarantined, disk-identifiable and
   create-only/size-verified before staging cleanup, with conflict-only hashing for
   an existing destination; M4 and M11 remain outstanding.

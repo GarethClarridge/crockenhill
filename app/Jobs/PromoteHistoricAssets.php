@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\HistoricAssetPromotion;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -71,6 +72,26 @@ class PromoteHistoricAssets extends ProcessingJob implements ShouldQueue
             ]);
 
             return;
+        }
+
+        $unsettledStorage = HistoricImportNestedJob::query()
+            ->where('historic_import_operation_id', $processingLog->historic_import_operation_id)
+            ->where('media_processing_log_id', $processingLog->id)
+            ->where('job_key', StoreSermonVideo::nestedJobKey($processingLog->processing_id))
+            ->where('job_type', StoreSermonVideo::class)
+            ->whereIn('state', ['queued', 'running', 'retryable', 'failed'])
+            ->first();
+
+        if ($unsettledStorage instanceof HistoricImportNestedJob) {
+            Log::warning('Refusing historic asset promotion while video storage is unsettled', [
+                'processing_id' => $processingLog->processing_id,
+                'nested_job_key' => $unsettledStorage->job_key,
+                'nested_state' => $unsettledStorage->state,
+            ]);
+
+            throw new \RuntimeException(
+                'Historic video storage is unsettled for processing ID: '.$processingLog->processing_id,
+            );
         }
 
         $this->logStepStart('promoting_historic_assets', 'Promoting historic assets to private quarantine');

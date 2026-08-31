@@ -10,6 +10,7 @@ use App\Data\ProcessingResult;
 use App\Enums\HistoricImportOperationState;
 use App\Enums\ProcessingStatus;
 use App\Enums\ProcessingStep;
+use App\Jobs\AwaitHistoricSermonVideoStorage;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\PromoteHistoricAssets;
 use App\Models\HistoricImportOperation;
@@ -240,6 +241,7 @@ class ProcessingRunOrchestrator
                 $pipeline = $lockedLog->processingPipelineProfile();
                 $this->dispatchChain(
                     [
+                        new AwaitHistoricSermonVideoStorage($lockedLog),
                         new PromoteHistoricAssets($lockedLog),
                         new CleanupTemporaryFiles($lockedLog),
                     ],

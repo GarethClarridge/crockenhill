@@ -6,6 +6,7 @@ namespace Tests\Integration\Services;
 
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
+use App\Jobs\AwaitHistoricSermonVideoStorage;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\CreateSermonTranscriptFromService;
@@ -32,10 +33,12 @@ use App\Models\MediaProcessingLog;
 use App\Services\Processing\ProcessingPipelineBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
 class ProcessingPipelineBuilderTest extends TestCase
 {
+    use CreatesHistoricImportOperations;
     use RefreshDatabase;
 
     private ProcessingPipelineBuilder $builder;
@@ -200,6 +203,37 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertInstanceOf(SendCompletionNotification::class, $jobs[16]);
         $this->assertInstanceOf(PromoteHistoricAssets::class, $jobs[17]);
         $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[18]);
+    }
+
+    #[Test]
+    public function historic_livestreams_wait_for_video_storage_before_video_outputs(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'historic_import_operation_id' => $operation->id,
+        ]);
+
+        $jobs = $this->builder->buildLivestreamChainJobs($log);
+        $classes = array_map(static fn (object $job): string => $job::class, $jobs);
+
+        $analysisPosition = array_search(ProcessTranscriptWithAI::class, $classes, true);
+        $waitPosition = array_search(AwaitHistoricSermonVideoStorage::class, $classes, true);
+        $qualityPosition = array_search(AssessSermonVideoQuality::class, $classes, true);
+        $thumbnailPosition = array_search(GenerateThumbnail::class, $classes, true);
+        $promotionPosition = array_search(PromoteHistoricAssets::class, $classes, true);
+        $cleanupPosition = array_search(CleanupTemporaryFiles::class, $classes, true);
+
+        $this->assertIsInt($analysisPosition);
+        $this->assertIsInt($waitPosition);
+        $this->assertIsInt($qualityPosition);
+        $this->assertIsInt($thumbnailPosition);
+        $this->assertIsInt($promotionPosition);
+        $this->assertIsInt($cleanupPosition);
+        $this->assertGreaterThan($analysisPosition, $waitPosition);
+        $this->assertGreaterThan($waitPosition, $qualityPosition);
+        $this->assertGreaterThan($qualityPosition, $thumbnailPosition);
+        $this->assertGreaterThan($thumbnailPosition, $promotionPosition);
+        $this->assertGreaterThan($promotionPosition, $cleanupPosition);
     }
 
     #[Test]
