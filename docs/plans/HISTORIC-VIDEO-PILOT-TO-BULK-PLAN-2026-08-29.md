@@ -206,10 +206,12 @@ archiving, in a `finally` so a failed archive leaves no orphan either.
 is declared unmeasurable, definitive dispatch now fails closed unless a small JSON
 evidence file binds sufficient `available_bytes` to the exact operation and plan.
 The dispatcher no longer accepts `--verify-corpus`, `--poll-interval` or
-`--per-file-timeout`, and no longer waits for workers. Every selected source is
-size- and SHA-256-checked immediately before staging; a missing/unreadable source
-aborts further dispatch as `aborted_stale_mount`, while a readable mismatch is an
-identity-level integrity failure.
+`--per-file-timeout`, and no longer waits for workers. At that commit every
+selected source was size- and SHA-256-checked immediately before staging; M11 and
+decision 9 intentionally supersede the content-hash half of that implementation.
+A missing/unreadable source still aborts further dispatch as
+`aborted_stale_mount`, while a readable size mismatch remains an identity-level
+integrity failure.
 
 The remaining work is complete. `historic-import:video-pass-status` requires the
 immutable operation and the exact `--only` manifest keys, reads only
@@ -314,7 +316,9 @@ None. The two that stood on 2026-08-30 are recorded as settled below.
    let the normal workers and database-owned status carry the run.
 3. **Corpus verification (2026-08-30).** Do not re-read the untouched ~1 TB
    corpus before a bounded pass. Verify the immutable manifest/plan binding and
-   hash only that pass's selected sources immediately before their durable copy.
+   inspect only that pass's selected source paths and metadata before their
+   durable copy. Decision 9 below supersedes the original requirement to re-hash
+   selected source contents.
 4. **Residue tolerance (2026-08-30).** Settled at zero, not ~12.5%. Every
    operation-3 identity reached `completed`: `2023-08-20-morning` produced sermon
    891 and `2024-07-28-morning` sermon 890, so both 2026-08-29 content defects
@@ -325,14 +329,15 @@ None. The two that stood on 2026-08-30 are recorded as settled below.
    2026-08-30 — and `diskutil verifyVolume` reports the exFAT volume clean.
    It was a partial copy the failed run *wrote*, never source evidence, so an
    aborted write explains it without implicating the drive. The drive exposes no
-   SMART data over USB, so filesystem verification plus per-file SHA-256 at
-   dispatch is the available health signal.
+   SMART data over USB, so filesystem verification plus ordinary read/copy
+   failures are the available drive-health signals. A content hash is not a
+   meaningful health monitor for a mount that disappears loudly.
 6. **Verification scope fix (2026-08-30).** Fix at the call site by passing
    `verifySourceContents: false` rather than restoring a `--verify-corpus` flag.
    Existence, symlink, root-containment and byte-size checks still run for every
-   manifest entry, the manifest and plan hashes are unchanged, and
-   `HistoricVideoImporter` re-checks size and SHA-256 per file immediately before
-   FFmpeg, so no dispatched byte goes unverified and no config seam is re-added.
+   manifest entry, and the manifest and plan hashes are unchanged. Decision 9
+   removes the later selected-file content re-read as a deliberate
+   proportionality decision; no config seam is re-added.
 7. **Canary operation (2026-08-30).** The canary dispatches under the existing
    operation 3 (`historic-video-full-corpus-20260826`), as the first bounded pass
    of the cumulative operation rather than a separate evidence island.
@@ -353,6 +358,21 @@ None. The two that stood on 2026-08-30 are recorded as settled below.
    the boundary decision and its evidence. Sermon and song assets need not
    partition the source: the sermon may retain the rhetorical introduction while
    the song asset starts later at the singing.
+9. **Routine historic-video hash reads (2026-08-31).** Remove them from bounded
+   dispatch and ordinary new-asset promotion. The frozen manifest retains the
+   SHA-256 values captured when the corpus was approved, but a pass does not
+   re-read selected source contents merely to prove they still have those values.
+   The accepted residual risk is that a same-size, silently corrupted or replaced
+   file could pass path/size checks and be processed. That event is judged
+   extremely unlikely in this one-operator, non-adversarial import; the archive
+   originals remain unchanged through closeout, generated assets remain private,
+   FFmpeg/media review catch most material defects, and an affected identity can
+   be reprocessed. The observed risk is loud mount/I/O failure, which ordinary
+   copy operations already expose. Hash only on an existing-destination conflict,
+   where exact equality distinguishes an idempotent replay from a refusal, or
+   during a targeted investigation. Bundle/export/transport hashes are outside
+   this decision because they protect portable evidence crossing a machine or
+   trust boundary after processing, not throughput during the bulk run.
 
 ### Phase 0 — Freeze and inventory the pilot
 
@@ -365,7 +385,10 @@ Record:
 - disk use per identity, separated into durable output, retryable input, concatenation, temporary data and unexplained residue;
 - every resulting service, sermon, children's talk, song video, usage record, section and merge proposal;
 - current operation state and deadline, plus the legacy cost fields and usage rows as descriptive evidence rather than effective authority;
-- deployed commit and worker fingerprint, including models, reasoning effort, size limits, queue widths and storage roots.
+- deployed commit and durable processing fingerprint, including the byte-affecting
+  models, reasoning effort, size limits and storage roots; record queue routing
+  and configured worker widths separately as the execution profile required by
+  M12.
 
 **Exit gate:** Every identity and every byte under the batch root has a named owner and disposition.
 
@@ -467,9 +490,10 @@ Build only the minimum custody path the canary needs:
    into the same operation-bound cumulative database.
 2. Once a durable output is complete, promote it directly from working staging
    to its permanent private quarantine path using create-only semantics.
-3. Verify destination byte size and SHA-256, persist the private destination
-   identity on the owning record, and verify the database/media link before
-   removing the working copy.
+3. Verify destination byte size, persist the private destination identity on the
+   owning record, and verify the database/media link before removing the working
+   copy. Hash only when a destination already exists and exact equality must
+   distinguish an idempotent replay from a conflict.
 4. Instrument peak working bytes, bytes promoted, bytes retained on staging and
    unexplained residue. Ordinary cleanup may delete only temporary FFmpeg,
    concatenation, extraction and duplicate staging copies whose durable
@@ -495,7 +519,7 @@ by release era. If processing and the convergence database are on different
 machines, a per-pass bundle may be used purely as transport into the same
 cumulative destination graph; it does not close that pass as a mini-corpus.
 
-**Ready-for-canary gate:** Direct promotion is create-only and hash-verified,
+**Ready-for-canary gate:** Direct promotion is create-only and size-verified,
 cleanup cannot touch sources, quarantine assets or active/retryable work, and the
 four byte measures are instrumented. Phase 7 closes the custody question from
 measured results; any follow-up must name the residue that justifies it.
@@ -507,14 +531,17 @@ measured results; any follow-up must name the residue that justifies it.
 - Select passes with immutable `--only` manifest keys, never `--limit`.
 - Use 10–16 identities only for the representative canary. It is not a bulk-pass rule.
 - After the canary, calculate each bulk pass from a resource envelope: selected source bytes, largest concurrent sources, measured p95 peak working bytes, measured p95 duration, worker concurrency and the chosen 12- or 24-hour operating window.
-- Reserve enough disk for the configured minimum-free threshold, the largest selected source, FFmpeg working copies and all concurrent in-flight jobs.
+- Reserve enough disk for the configured minimum-free threshold, every selected
+  input not already staged and the configured number of concurrent FFmpeg working
+  sets. Retained review sources are already reflected in current free space: name
+  them in the evidence, but do not add their bytes to the requirement again.
 - Do not require three same-sized cycles before changing a pass. Change the membership whenever the same measured byte/time envelope supports it; a pass may contain fewer large identities or more small ones.
 
 #### Verify, copy, enqueue and exit
 
 - Remove `--verify-corpus`. Do not re-read future pass members merely because they share the frozen manifest.
-- For each selected item, verify the mount, expected size and SHA-256, then copy the source into operation-owned staging before enqueueing. The worker must never depend on the removable source drive remaining mounted.
-- A read/I/O failure stops new copies and dispatches as `aborted_stale_mount`; it does not mark the remaining selection permanently failed. A readable hash/size mismatch remains a source-integrity failure.
+- For each selected item, verify root containment, absence of symlinks, regular-file existence and expected byte size, then copy the source into a unique operation-owned staging path before enqueueing. Verify the copy call succeeded and the closed destination has the expected byte size. Do not re-hash the source or the ordinary new destination. The worker must never depend on the removable source drive remaining mounted.
+- A read/I/O failure or short/long copy stops new copies and dispatches as `aborted_stale_mount`; it does not mark the remaining selection permanently failed. A readable byte-size mismatch remains a source-integrity failure. Same-size silent corruption/replacement is the explicitly accepted residual risk in decision 9.
 - Once selected sources are durably staged and their processing IDs recorded, the command exits. Remove importer polling, `--poll-interval`, `--per-file-timeout` and `waitForInflight()` rather than maintaining a multi-hour outer process.
 - Queue workers own execution. A separate operation/pass status report reads processing IDs and truthful terminal dispositions from the database; it never infers completion from the dispatcher still running or from an empty queue.
 - Stopping future work means stop invoking the dispatcher. Graceful worker restart remains an ordinary queue operation for jobs already running, not a historic wrapper PID procedure.
@@ -526,7 +553,7 @@ measured results; any follow-up must name the residue that justifies it.
 - Surface failures, cancellations, timeouts, skips and manual-review outcomes separately, with affected processing IDs and stages.
 - Define a bounded retention policy for failed-run working files.
 
-**Exit gate:** The dispatcher verifies and durably stages only the selected sources,
+**Exit gate:** The dispatcher metadata-checks and durably stages only the selected sources,
 records their processing IDs, enqueues them and exits; status is reproducible from
 the database; an interrupted or repeated dispatch resumes without duplicate
 records, assets, notifications or provider calls.
@@ -547,7 +574,7 @@ Select 10–16 identities not touched by the pilot, stratified across:
 Acceptance criteria:
 
 - no system or code failures;
-- the dispatcher exits after all selected sources are verified, durably staged and enqueued;
+- the dispatcher exits after all selected source paths/sizes are checked, copied, destination-size-verified, durably staged and enqueued;
 - every input reaches a truthful terminal disposition;
 - titles, references, durations, series policy and speaker-review evidence are correct;
 - no projection-generated legacy-item conflicts;
@@ -704,7 +731,7 @@ read as claiming Phase 7 is code-complete:
 - `historic-import:repair-video-pilot-custody` provides the fail-closed repair for
   the 21 pre-promotion pilot sermons. It requires the exact owning operation and
   exact completed processing IDs, is dry-run-first, quarantines all valid rows
-  before copying, and delegates create-only/hash-verified promotion and staging
+  before copying, and delegates create-only/size-verified promotion and staging
   reclamation to the existing custody service. A failed promotion leaves the row
   private and its staging source retained; a repeated successful repair is a no-op.
 
@@ -869,8 +896,10 @@ Implementation and proof required:
    Quality assessment must never turn a storage race into `missing_video_file`.
 3. Cleanup must not delete any source, extracted video, audio or enhanced audio
    referenced by queued, active or retryable storage, quality or speaker work.
-4. Preserve create-only/hash-verified idempotence. A retry against identical bytes
-   is success; different existing bytes remain a guarded conflict.
+4. Preserve create-only idempotence. A retry against an existing destination uses
+   the M11 conflict-only hash comparison: identical bytes are success and
+   different bytes remain a guarded conflict. A new destination uses exact-size
+   verification without a routine hash pass.
 5. Follow the existing historic queue conventions: timeout below `retry_after`,
    bounded backoff, explicit `failed()` handling and operation-bound tests covering
    delayed storage, retry, failure, promotion and cleanup ordering.
@@ -968,8 +997,10 @@ Before bulk:
    globally configured later. Keep the existing `HistoricStagingUrlGuard` call;
    it is the private-staging guard this depends on.
 4. Extend `HistoricAssetPromotion` to song assets: promote release-eligible and
-   review-held clips create-only into private quarantine, verify size/hash and
-   database linkage, then reclaim only the verified duplicate working copy.
+   review-held clips create-only into private quarantine, verify exact size and
+   database linkage, then reclaim only the verified duplicate working copy. Hash
+   both sides only when an already-existing destination needs to be classified as
+   an identical replay or a conflict, following M11.
    `PrepareSectionPublicationCandidates` already runs before
    `PromoteHistoricAssets` in the livestream chain, so the assets exist by the
    time promotion runs and no chain reordering is required.
@@ -1380,6 +1411,251 @@ Implementation and proof required:
 5. Repair sermon 896 through the existing recovery path in the operator sequence;
    no separate command is needed.
 
+#### Finding M11 — remove routine hash I/O from processing passes
+
+The command no longer verifies the whole corpus, but a selected single-file item
+is still read four times for SHA-256 before or around the copy that staging
+actually needs:
+
+1. the import loop calls `assertApprovedSourceFilesAreUnchanged()`;
+2. `dispatchItemWithinStagingContext()` immediately calls it again without an
+   asynchronous or trust boundary between the two;
+3. `historicImportMetadata()` hashes every source again for provenance; and
+4. `UnifiedMediaProcessor::computeFileHash()` hashes the `UploadedFile` even
+   though the historic lane supplies its own manifest-item `dedup_key`.
+
+The subsequent `storeAs()` is a fifth full source traversal because it performs
+the necessary copy. Concatenated items repeat the integrity assertion once more
+before FFmpeg, and FFmpeg then necessarily reads the inputs. On a 32.8 GiB
+canary this turns a bounded dispatch into well over 100 GiB of avoidable reads;
+on the roughly 1 TiB corpus it can add several terabytes of I/O. Repeated hashes
+also do not prove the staged copy: every comparison happens before the ordinary
+copy completes.
+
+**Decision (2026-08-31): accept metadata-and-copy verification for this bounded
+one-shot import.** Decision 9 records the risk acceptance. Implement it exactly
+as follows:
+
+1. Keep manifest creation unchanged. The already-frozen SHA-256 values remain
+   approval/provenance evidence and still participate in the manifest and plan
+   hashes. Do not regenerate the manifest merely because runtime verification is
+   being removed.
+2. Keep `HistoricVideoCurationManifest::plan(... verifySourceContents: false)`.
+   For every manifest member it must still reject a missing root, path escape,
+   symlink, non-file and byte-size mismatch without opening unselected contents.
+3. Replace `assertApprovedSourceFilesAreUnchanged()` with a metadata-only selected
+   source check: approved relative path, root containment, no symlink in any path
+   component, regular readable file and exact manifest byte size. Delete the
+   duplicate calls and `sourceFileSha256()`; do not leave a dormant flag that can
+   restore them.
+4. Do not add a pre-copy in front of `VideoStorageService::storeUploadedVideo()`:
+   its existing `storeAs()` is already the necessary source-to-staging traversal,
+   and wrapping it with another staging upload would copy the bytes twice. For a
+   single-source item, move or narrow that existing storage boundary so the
+   `storeAs()` write is closed, reports success, and leaves an exact-size file in
+   the operation's unique staging path **before** `ProcessingInitiator` creates a
+   log or any job is enqueued. A read error, disappeared mount, short copy or long
+   copy is `aborted_stale_mount`; delete only the incomplete unique staging
+   destination. Never modify or delete the archive source.
+5. Run every worker from that operation-owned staged file, never the removable
+   archive path. For a concatenated item, copy each archive segment exactly once
+   to operation input staging, concatenate only those staged segments, then pass
+   the derivative through a narrowly guarded "adopt already-staged historic
+   derivative" path instead of letting `storeAs()` copy it again. Adoption must
+   require the active operation context, an allow-listed path beneath that
+   operation, the exact manifest item/dedup identity, a regular non-symlink file
+   and the expected derivative byte size. It is unavailable to ordinary uploads.
+   FFmpeg output size/decodability remains ordinary processing validation, not
+   source approval.
+6. Stop calculating a generic `file_hash` for historic uploads. The historic
+   manifest-item key remains the exact deduplication identity, and
+   `media_processing_logs.file_hash` is already nullable. Add a narrowly guarded
+   processor option that may skip `computeFileHash()` only when all three are
+   present: an operation-bound historic staging context, an explicit historic
+   manifest-item `dedup_key`, and approved source metadata. Ordinary uploads keep
+   their current hash/dedup behaviour.
+7. `historic_import.sources` must remain truthful without opening the file.
+   Populate path, approved size and approved SHA-256 from `source_files`, retain
+   observed `mtime` only as descriptive metadata, and add
+   `sha256_basis = approved_manifest_not_reverified_at_dispatch`. Do not present
+   the frozen value as an observed runtime hash. A concatenated derivative may
+   leave `file_hash` null; its stable processing identity is still the manifest
+   item key.
+8. For ordinary promotion into a new quarantine path, replace routine source and
+   destination hashing with create-only copy plus exact source/destination byte
+   sizes. Recheck destination existence/size after the database binding and before
+   deleting staging. If the destination already exists, first compare size; only
+   then hash both sides to distinguish an identical idempotent replay from a
+   same-size conflict. A mismatch fails closed and retains staging. Do not weaken
+   the path allow-list, operation binding, private state or create-only rule.
+9. Leave authoritative Bundle A export/import, cross-machine asset transfer and
+   release-ledger hashing unchanged. Their trust boundary and later transport
+   purpose are distinct from processing-pass throughput.
+10. Preserve the archive corpus without mutation until IC8 closeout. This is the
+    recovery source for the explicitly accepted same-size silent-corruption risk;
+    do not pair the reduced verification with source deletion.
+
+Focused proof must replace, not merely delete, the old integrity assertions:
+
+- a selected same-size content mutation now proceeds, documenting the accepted
+  risk, while wrong size, symlink, path escape and unreadable/copy-failing sources
+  still create no processing state;
+- an instrumented selected single source is opened for content only by the
+  existing storage service's one source-to-staging copy, with no pre-copy, second
+  `storeAs()` or hash traversal; an unselected source is never opened;
+- each concat segment is copied from the archive once, the concat derivative is
+  adopted without a second copy, and the adoption guard rejects an ordinary
+  upload, wrong operation/path, symlink, wrong item key and wrong size;
+- processing state is not created until the operation-owned staged path exists at
+  exact size, and that staged path is the only path workers receive;
+- historic provenance uses the frozen manifest value with the explicit basis,
+  `file_hash` may be null, and an identical redispatch still reuses the same run;
+- ordinary uploads still calculate `file_hash` and retain their existing dedup;
+- new-destination promotion uses size verification only; an identical existing
+  destination is an idempotent no-op, a different same-size destination is a
+  conflict, and a failed/short copy retains staging;
+- Bundle A and cross-machine transfer hash tests remain unchanged.
+
+#### Finding M12 — make pass performance measurable and concurrency truthful
+
+The canary retained enough raw evidence to diagnose performance but did not
+produce the report Phase 7 required. `MediaProcessingLog` stores run
+`started_at`/`completed_at`; `SermonProcessingStep` stores canonical step
+`started_at`/`completed_at`; structured logs retain API response times and memory.
+The surviving evidence shows local Whisper at roughly 25–28x real time, while a
+single FFmpeg worker had six jobs queued and Whisper/LLM/orchestration were idle.
+The visible bottleneck is therefore FFmpeg/CPU scheduling, not transcription.
+
+Two implementation defects obscure that result:
+
+- `--parallel` changes only staging-headroom arithmetic. It does not start workers
+  or control execution; real widths come from `HISTORIC_MEDIA_WORKERS_FFMPEG`,
+  `_WHISPER`, `_LLM` and `_ORCHESTRATION`, all currently one.
+- `HistoricProcessingFingerprint::forStagingContext()` is rebuilt for every
+  dispatch, repeatedly hashing the FFmpeg/FFprobe binaries and starting both
+  `-version` processes even though the fingerprint is invariant for a pass.
+
+Implement retained measurement and calibration in this order:
+
+1. Extend `historic-import:video-pass-status` with `--performance` and an optional
+   create-only `--performance-report=<absolute-json-path>`. Reuse the command's
+   existing IC8 deletion trigger; do not create another one-shot command. Put the
+   calculation in a focused `HistoricVideoPassPerformance` service so console
+   formatting is not the source of truth.
+2. Select runs only through the exact operation plus `--only` manifest keys. For
+   each run report item key, processing id, terminal disposition, attempt count,
+   source bytes, media/content seconds where known, `created_at`→`started_at`
+   queue delay and `started_at`→`completed_at` elapsed time. Missing or
+   non-terminal timestamps are `null`/`incomplete`, never zero.
+3. Before using a fresh pass as a calibration, persist canonical step timings for
+   every mapped high-cost job that currently omits them: `GenerateRmsLog`,
+   `AnalyzeSegments`, `ExtractAudioFromVideo` and `GenerateThumbnail`. Follow the
+   existing `SermonProcessingStep` transition conventions: record start before
+   the expensive call, terminal completion on success, and an explicit failed or
+   skipped terminal disposition on every exit path. A retry may replace the
+   canonical timestamps, matching current semantics; do not claim attempt-level
+   history. Add focused job tests for success, failure and skip so a future job
+   cannot disappear from performance evidence silently.
+4. For each canonical processing step report sample count, completed/failed/
+   skipped count, p50, nearest-rank p95 and maximum active duration. Also report
+   the gap from the preceding completed step to the next started step as
+   queue/wait time. Add a fail-explicit step-to-stage mapping in
+   `HistoricProcessingThroughput` for every step emitted by the historic
+   pipeline; an unknown step is reported as `unknown`, never silently assigned to
+   orchestration. For the old operation-3 retrospective, mark the four formerly
+   uninstrumented jobs as missing coverage; run wall time is still valid, but no
+   FFmpeg active-duration percentile may be inferred from absent rows.
+5. At pass level report earliest start, latest terminal completion, wall time,
+   items/hour, source-GiB/hour, content-hours/wall-hour, maximum overlapping runs,
+   maximum overlapping step intervals per stage, configured worker widths, runs
+   missing timings and runs with `attempt_count > 1`. Emit both `all_runs` and a
+   `clean_first_attempt` aggregate; retries overwrite canonical step timestamps,
+   so the report must state that it is not an attempt-history ledger.
+6. Keep model/token/request counts and API response-time summaries alongside the
+   timing report. Use durable database evidence for acceptance; structured logs
+   may enrich yesterday's retrospective but cannot be the only source for the
+   next pass because Horizon completed-job detail expires quickly.
+7. Remove `--parallel` from the import signature and remove the unused importer
+   parameter. `HistoricStagingHeadroom` must derive concurrent FFmpeg working-copy
+   allowance from `media-processing.historic_import.stages.ffmpeg.workers`, the
+   configuration that defines the worker pool. Its pre-copy requirement is the
+   minimum-free floor plus bytes for selected inputs not already staged plus the
+   concurrent transient allowance. Until measured calibration replaces the
+   bootstrap estimate, the allowance may remain twice the sum of the largest N
+   FFmpeg working sets, where N is the configured FFmpeg width. Report retained
+   M9 review-source bytes, but do not add them again: current `available_bytes`
+   already reflects them and double-counting would understate capacity. Resolving
+   pending/idempotent keys before headroom is optional; counting them is a safe
+   conservative overestimate. Print all four configured stage widths and every
+   formula term in preflight. A command-line number can no longer claim
+   concurrency that does not exist.
+8. Separate byte-affecting identity from execution tuning. Configured worker
+   widths and queue-routing hashes belong in
+   `processing_metadata.historic_import.execution_profile`; they affect headroom
+   and performance interpretation but must not change the durable processing
+   fingerprint or Bundle A output equivalence. Implement backward compatibility
+   explicitly in `HistoricProcessingFingerprint`: add one canonical normalization
+   method that removes legacy `throughput`; have new `forStagingContext()` output
+   the width-independent form; allow `assertPortable()` to accept `throughput`
+   only on the existing legacy schema/version and normalize it before comparison;
+   and make `assertMatchesCurrentConfiguration()` compare normalized durable
+   fingerprints. Do not silently drop any other unknown key.
+9. Apply the same normalization in
+   `HistoricProcessingResultBundleExporter::persistedProcessingFingerprint()`:
+   normalize every persisted legacy/new value before equality, then write one
+   canonical width-independent fingerprint to Bundle A. Preserve each run's
+   separate execution profile in reporting/evidence. A focused mixed-corpus test
+   must export a legacy width-one run and a new width-two run together while
+   proving their execution profiles retain the different widths; a genuinely
+   byte-affecting fingerprint difference must still fail export.
+10. Compute the durable processing fingerprint and execution profile once at the
+   start of one importer pass and pass those immutable arrays into every item's
+   metadata. This avoids repeatedly hashing FFmpeg/FFprobe binaries and launching
+   their `-version` processes. Do not add a process-wide or persistent cache: a
+   new command/service instance after configuration or binary changes must
+   recompute both. `assertMatchesCurrentConfiguration()` keeps its independent
+   normalized comparison behaviour.
+11. Reconstruct the one-worker baseline for operation 3 from retained DB timestamps
+   and `storage/logs/laravel.log`, saving the JSON report under `storage/scratch`.
+   Mark mount-failed, retried and manually re-extracted runs separately; do not
+   use their end-to-end elapsed values as clean throughput samples. State the
+   historic FFmpeg-step instrumentation gap in the report rather than filling it
+   from log guesses.
+12. After all correctness/custody blockers are fixed and the identical 14-key
+   canary proves a zero-work replay, run a four-identity **fresh calibration pass**
+   from the untouched approved pool with two FFmpeg workers and one worker in each
+   other stage. An identical canary cannot measure two-worker throughput because
+   correct deduplication makes it a no-op. Select at least one high-bitrate
+   re-encode, one ordinary stream-copy source, one large source and one modern MKV;
+   this work belongs to the same cumulative operation and is not throwaway.
+13. Before that pass, set `HISTORIC_MEDIA_WORKERS_FFMPEG=2` consistently for the
+    dispatcher and worker runtime, recreate/restart the historic workers, verify
+    two actual FFmpeg worker processes, retain the new execution profile, and
+    require the formula from step 7 to admit all selected input copies and two
+    concurrent FFmpeg working sets above the free-space floor.
+14. Keep width two only if the retained report shows observed FFmpeg overlap of
+    two and at least a 25% improvement in either clean content-hours/wall-hour or
+    clean FFmpeg queue-wait p95, while individual FFmpeg active-duration p95 is
+    not materially worse, failures/retries do not increase, no mount instability
+    or later-stage starvation appears, and measured peak working bytes stay
+    within the admitted envelope. Four samples make nearest-rank p95 equal the
+    maximum; label it accordingly and treat a noisy or incomplete comparison as
+    inconclusive, returning width to one. Retain the execution-profile decision;
+    it is not a durable-output fingerprint change. Do not
+    widen Whisper: the canary already shows it far faster than real time and its
+    local service is intentionally serialized around the single GPU. Widen LLM or
+    orchestration only if a later retained report identifies them as the queue.
+
+Focused proof: percentile edge cases (including four-sample nearest-rank p95) and
+missing timestamps; operation/item scope; retry separation; success/failure/skip
+step instrumentation; stage mapping, queue wait and overlap calculation; JSON
+create-only output; selected-input bytes and configured widths used by the
+headroom formula without double-counting retained bytes; removal of `--parallel`;
+a multi-item import computes binary evidence once; a fresh importer recomputes
+it; changing FFmpeg width changes headroom and execution profile but not durable
+fingerprint; mixed legacy/new widths export together; and a byte-affecting
+fingerprint mismatch still fails closed.
+
 #### Finding M8 — current canary state still needs exact reconciliation
 
 The post-evaluation status remains 11 completed, one manual review, one failed and
@@ -1432,7 +1708,9 @@ Start from these existing seams; do not create a parallel historic pipeline:
 | M5a transcript-lyrics deletion | `app/Jobs/MatchSongsFromTranscript.php`, `tests/Feature/Jobs/MatchSongsFromTranscriptTest.php` | Exact lyric-like service transcript remains unmatched after title/OCR failure; existing title-hint and OCR matches remain unchanged; no live `lyrics` source writer remains. |
 | M7 talk review | sermon section publication handler, section candidate preparation and the existing approval/re-extraction path | Inclusive ambiguous tail remains private; reviewed recut is exact and idempotent. |
 | M10 historic sermon quarantine | `app/Services/Sermon/SermonCreationService.php`, `app/Jobs/SubmitToProcessing.php`, `app/Services/HistoricMedia/HistoricAssetPromotion.php` | Stranded historic run stays quarantined and disk-bound; ordinary livestream still publishes; promotion replay idempotent over pre- and post-change rows. |
-| M9 review-source retention | `app/Jobs/CleanupTemporaryFiles.php`, `app/Models/MediaProcessingLog.php` (`temporaryFilePaths()`), `app/Services/HistoricMedia/HistoricVideoPassMeasures.php`, `HistoricStagingHeadroom`, the reclamation sweep and `sermons:re-extract` | Unflagged run cleans up as today; each flagged shape retains its source; resolution makes it reclaimable and the sweep is idempotent; retained bytes appear in measures and headroom. |
+| M9 review-source retention | `app/Jobs/CleanupTemporaryFiles.php`, `app/Models/MediaProcessingLog.php` (`temporaryFilePaths()`), `app/Services/HistoricMedia/HistoricVideoPassMeasures.php`, `HistoricStagingHeadroom`, the reclamation sweep and `sermons:re-extract` | Unflagged run cleans up as today; each flagged shape retains its source; resolution makes it reclaimable and the sweep is idempotent; retained bytes appear in measures and alongside headroom evidence without being added twice to current free-space use. |
+| M11 proportionate integrity | `app/Services/Media/Video/HistoricVideoImporter.php`, `app/Services/Processing/UnifiedMediaProcessor.php`, `app/Services/Media/Video/VideoStorageService.php`, `app/Services/HistoricMedia/HistoricAssetPromotion.php`, `app/Services/HistoricMedia/HistoricProcessingResultAssetTransfer.php` | One selected-source content traversal for staging copy, no routine historic hash pass, exact path/size/copy failures, null historic `file_hash`, truthful approved-hash provenance, conflict-only hashing, ordinary-upload and Bundle A behaviour unchanged. |
+| M12 performance and concurrency | `app/Console/Commands/HistoricVideoPassStatusCommand.php`, new focused `app/Services/HistoricMedia/HistoricVideoPassPerformance.php`, `app/Jobs/GenerateRmsLog.php`, `AnalyzeSegments`, `ExtractAudioFromVideo`, `GenerateThumbnail`, `app/Services/HistoricMedia/HistoricProcessingThroughput.php`, `HistoricStagingHeadroom`, `HistoricProcessingFingerprint`, `HistoricProcessingResultBundleExporter`, importer metadata construction and historic worker configuration | Scoped run/step p50/p95, queue-wait and overlap report; explicit missing/retry treatment; success/failure/skip timing for high-cost jobs; create-only JSON; selected bytes and configured widths drive headroom without retained-byte double count; no `--parallel`; one pass-scoped fingerprint/profile computation; legacy-width normalization and mixed-width export; recorded one-versus-two-FFmpeg calibration. |
 
 Inspect sibling tests before adding new ones. Keep PHPUnit `#[Test]` style and the
 repository's existing historic operation factories/helpers. A reported defect
@@ -1441,7 +1719,7 @@ duplicate admin suites named in the repository do-not-invest list.
 
 #### Required operator sequence
 
-1. Implement M1–M7, M9 and M10 with focused regression coverage. Run PHPStan, Pint
+1. Implement M1–M7 and M9–M12 with focused regression coverage. Run PHPStan, Pint
    and the full parallel suite. Do not deploy only the row-repair commands while
    the forward pipeline can recreate the same defects. M9 gates M5 and M7: do not
    ship a review hold whose media the same chain then deletes.
@@ -1452,9 +1730,15 @@ duplicate admin suites named in the repository do-not-invest list.
    only. M1, M3 and M4 are
    specified to the level of exact columns, keys, commands and test files and may
    be picked up as they stand. M9's retention predicate depends on M5's
-   material-risk definition, so settle M5 first.
+   material-risk definition, so settle M5 first. M11 deliberately changes the
+   earlier hash-verification acceptance tests; update them to the recorded risk
+   decision rather than preserving contradictory assertions. M12 must land before
+   the next processing pass so its evidence is retained rather than reconstructed
+   from chat again.
 2. Deploy that exact tree and restart every historic worker so the dispatcher,
-   jobs, nested-work tracking and repair commands share one fingerprint.
+   jobs, nested-work tracking and repair commands share one byte-affecting build/
+   model fingerprint. Record the worker widths and queue routing separately in
+   the pass execution profile.
 3. From `historic-import:video-pass-status`, retain the exact processing ID for
    `2024-03-03-morning`. Dry-run the status again, then run
    `historic-import:recover-processing-tail <processing-id> --operation=historic-60b16730090144bd307984abf538a7d7`.
@@ -1473,7 +1757,8 @@ duplicate admin suites named in the repository do-not-invest list.
    sermon-analysis request was made.
 6. Run the dry-run-first song-custody repair for the exact 23 canary `SongVideo`
    rows and every held canary candidate. Verify private state, operation and disk
-   ownership, destination hashes and absence of verified duplicate staging copies.
+   ownership, destination sizes and absence of duplicate staging copies. Hash only
+   an already-existing destination to resolve an idempotent replay or conflict.
 7. Split the 21 pilot processing IDs by their exact owning operation (2 or 3).
    For each operation run `historic-import:repair-video-pilot-custody` with every
    exact `--processing-id`, retain the dry-run table, then repeat with
@@ -1484,34 +1769,42 @@ duplicate admin suites named in the repository do-not-invest list.
    Export the path census for every non-zero byte: owned active/retryable work,
    named operation artifact, platform sidecar or genuine orphan. Do not delete a
    path merely because the earlier unscoped report called it residue.
-9. Record the acceptance evidence still absent from the first result: per-identity
+9. Run `historic-import:video-pass-status --performance` and retain its create-only
+   JSON report. Record the acceptance evidence still absent from the first result: per-identity
    title/reference/duration/series/speaker audit, projection and song eligibility,
    model/token/request counts, neutral/unobservable transcript rate, elapsed and
-   p95 duration, observed worker concurrency, and the resulting 12- or 24-hour
-   resource envelope. Record the M5 canary sections as reviewed, not silently
-   accepted because their song identities were correct.
+   p50/p95 duration, queue wait, observed/configured worker concurrency, retry and
+   missing-timing counts, and the resulting 12- or 24-hour resource envelope.
+   Record the M5 canary sections as reviewed, not silently accepted because their
+   song identities were correct.
 10. Dispatch the identical frozen 14-key selection. It passes only if it creates no
    processing identity, provider call, asset or notification, all 14 identities
    retain truthful terminal dispositions, observed media durations remain correct,
    all sermon/song assets are private and operation-owned, inclusive ambiguous
    sermon bridges remain automatic, every material-risk boundary remains
-   reviewable, and custody residue is zero or exactly enumerated. Only then may
-   Phase 8 start.
+   reviewable, and custody residue is zero or exactly enumerated.
+11. After that no-op proof, run M12's four-identity fresh calibration with two
+   FFmpeg workers. Retain or revert width two from the recorded 25%/failure/disk
+   gates, record the resulting execution profile after any revert, and use the
+   accepted width plus measured resource envelope to size the first Phase 8 pass.
+   Worker width must not regenerate or split the durable-output fingerprint. Only
+   then may Phase 8 start.
 
 ### Phase 8 — Process the remainder as a closed pass loop
 
 For each pass:
 
-1. Preflight the mount, selected-item hashes, operation-bound host disk evidence, workers, models, provider project limit, manifest keys and the measured byte/time envelope. Do not hash unselected future items.
-2. Verify and durably stage only those immutable keys, enqueue them, record their processing IDs and let the dispatcher exit.
+1. Preflight the mount, selected-item path/size metadata, operation-bound host disk evidence, actual and configured worker widths, models, provider project limit, manifest keys and the measured byte/time envelope. Do not content-read unselected future items and do not re-hash selected ones.
+2. Metadata-check, copy and destination-size-verify only those immutable keys, enqueue them, record their processing IDs and let the dispatcher exit.
 3. Read pass status from the database and monitor terminal outcomes, provider request/token anomalies, drive health and disk watermark.
 4. Stop new dispatch immediately for mount instability, unexpected provider-call growth, unexplained duplicates, destination mismatch or recurring systemic failure. Gracefully stop workers only when already-running jobs themselves must be halted.
 5. Reconcile services, sermons, sections, songs and review residue.
 6. Verify completed assets in permanent private quarantine and their database/operation ownership.
 7. Clean only verified temporary copies no active, queued or retryable run references.
 8. Record peak working bytes, staging residue and remaining manifest membership.
-9. Re-census the cumulative graph for diagnostics; do not treat a partial-pass census as final convergence.
-10. Start the next pass only after the prior pass has truthful terminal dispositions and bounded residue.
+9. Retain the pass performance JSON: clean/all-run elapsed p50/p95, per-stage active and queue-wait p50/p95, observed/configured concurrency, retry/missing-timing counts and throughput per wall-hour.
+10. Re-census the cumulative graph for diagnostics; do not treat a partial-pass census as final convergence.
+11. Start the next pass only after the prior pass has truthful terminal dispositions, bounded residue and a measured envelope supporting the next membership.
 
 The pass report must name every non-zero residue. An empty queue is not evidence of successful completion. Pass closure is operational only: all evidence remains active in the same cumulative corpus for later cross-source convergence.
 
@@ -1549,7 +1842,8 @@ The remainder may start only when all of these are true:
 - [ ] Sermon video storage, quality, promotion and cleanup are one truthfully
   ordered operation-owned sequence; M2 remains outstanding.
 - [ ] Historic song videos are operation-bound, quarantined, disk-identifiable and
-  create-only/hash-verified before staging cleanup; M4 remains outstanding.
+  create-only/size-verified before staging cleanup, with conflict-only hashing for
+  an existing destination; M4 and M11 remain outstanding.
 - [ ] Automatically published song clips carry recorded boundary evidence and the
   material-risk cases route to review; tighter interval derivation is deferred
   until after bulk by decision, so it is not a gate. M5's pre-bulk half remains
@@ -1565,14 +1859,24 @@ The remainder may start only when all of these are true:
 - [ ] Historic sermons are created quarantined and disk-bound by the direct lane,
   not demoted at promotion; M10 remains outstanding.
 - [ ] A run that leaves anything flagged for review retains its source until the
-  last obligation is resolved, the retained bytes are measured and counted
-  against headroom, and a recut can run without restaging; M9 remains
+  last obligation is resolved, the retained bytes are measured and visible beside
+  headroom evidence without double-counting current disk use, and a recut can run
+  without restaging; M9 remains
   outstanding.
 - [x] Production and command paths no longer require, read or write the internal cost cap/ledger; inert schema deletion is assigned to IC8 closeout, while model/token/request telemetry, retry controls and the provider-side project limit remain.
 - [x] Unmeasurable staging capacity fails closed unless sufficient operation-bound host evidence is supplied.
-- [x] A content-read I/O failure aborts further dispatch as a stale-mount event.
+- [x] A source read/copy I/O failure aborts further dispatch as a stale-mount event.
 - [x] Banked pilot analysis repairs the completed pilot records with zero provider calls and is idempotent.
-- [x] The dispatcher verifies and durably stages selected sources, records processing IDs, enqueues and exits; no worker depends on the removable source mount and no whole-corpus verification remains.
+- [ ] The dispatcher metadata-checks, copies and destination-size-verifies selected
+  sources with one content traversal, records processing IDs, enqueues and exits;
+  no worker depends on the removable source mount and no routine processing-pass
+  hash remains. M11 supersedes the earlier completed hash-verification gate.
+- [ ] The database-owned performance report retains scoped run/step p50/p95,
+  queue wait, retry/missing-timing and observed/configured concurrency evidence;
+  configured widths drive headroom, and the dead `--parallel` interface is gone.
+- [ ] Durable-output fingerprints are width-independent, execution profiles retain
+  queue widths separately, and mixed width-one/width-two runs remain exportable as
+  one output-equivalent cumulative corpus.
 - [ ] A fresh untouched canary passes all acceptance criteria.
 - [ ] The canary proves direct private promotion and bounded temporary cleanup without fragmenting the cumulative evidence graph.
 - [ ] The canary's measured byte/time envelope, not an identity-count rule, sizes the first bulk pass.
