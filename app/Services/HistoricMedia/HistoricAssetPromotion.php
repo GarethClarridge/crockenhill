@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services\HistoricMedia;
 
 use App\Enums\SermonPublicationState;
+use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\Import\HistoricSermonPublicationService;
 use App\Services\Sermon\SermonPromotionAssets;
@@ -60,6 +62,7 @@ final class HistoricAssetPromotion
      * @return array{
      *     sermons: int,
      *     song_videos: int,
+     *     held_section_candidates: int,
      *     assets_promoted: int,
      *     assets_already_promoted: int,
      *     promoted_bytes: int,
@@ -74,6 +77,7 @@ final class HistoricAssetPromotion
         $totals = [
             'sermons' => 0,
             'song_videos' => 0,
+            'held_section_candidates' => 0,
             'assets_promoted' => 0,
             'assets_already_promoted' => 0,
             'promoted_bytes' => 0,
@@ -115,6 +119,16 @@ final class HistoricAssetPromotion
             $totals['reclaimed_bytes'] += $result['reclaimed_bytes'];
         }
 
+        foreach ($this->heldSectionCandidatesForRun($log) as $section) {
+            $result = $this->promoteHeldSectionCandidate($section, $log);
+
+            $totals['held_section_candidates']++;
+            $totals['assets_promoted'] += $result['assets_promoted'];
+            $totals['assets_already_promoted'] += $result['assets_already_promoted'];
+            $totals['promoted_bytes'] += $result['promoted_bytes'];
+            $totals['reclaimed_bytes'] += $result['reclaimed_bytes'];
+        }
+
         return $totals;
     }
 
@@ -128,6 +142,7 @@ final class HistoricAssetPromotion
      * @return array{
      *     sermons: int,
      *     song_videos: int,
+     *     held_section_candidates: int,
      *     assets_promoted: int,
      *     assets_already_promoted: int,
      *     promoted_bytes: int,
@@ -142,6 +157,7 @@ final class HistoricAssetPromotion
         $totals = [
             'sermons' => 0,
             'song_videos' => 0,
+            'held_section_candidates' => 0,
             'assets_promoted' => 0,
             'assets_already_promoted' => 0,
             'promoted_bytes' => 0,
@@ -157,6 +173,16 @@ final class HistoricAssetPromotion
             $result = $this->promoteSongVideo($songVideo, $log);
 
             $totals['song_videos']++;
+            $totals['assets_promoted'] += $result['assets_promoted'];
+            $totals['assets_already_promoted'] += $result['assets_already_promoted'];
+            $totals['promoted_bytes'] += $result['promoted_bytes'];
+            $totals['reclaimed_bytes'] += $result['reclaimed_bytes'];
+        }
+
+        foreach ($this->heldSectionCandidatesForRun($log) as $section) {
+            $result = $this->promoteHeldSectionCandidate($section, $log);
+
+            $totals['held_section_candidates']++;
             $totals['assets_promoted'] += $result['assets_promoted'];
             $totals['assets_already_promoted'] += $result['assets_already_promoted'];
             $totals['promoted_bytes'] += $result['promoted_bytes'];
@@ -398,6 +424,157 @@ final class HistoricAssetPromotion
         });
 
         $sermon->refresh();
+    }
+
+    /**
+     * Delete only the exact paths just verified at their destination, and only
+     * from the staging disk.
+     *
+     * There is no path-pattern sweep here on purpose: the set deleted is the set
+     * proven present in quarantine moments earlier, so cleanup cannot reach a
+     * source-drive file, a quarantine asset or a public one.
+     *
+     * @param  list<array{kind: string, path: string, size: int, roles: list<string>}>  $promoted
+     */
+    /**
+     * Candidates a reviewer must still decide on, whose bytes are nonetheless
+     * durable output of this run.
+     *
+     * A held candidate has no `SongVideo` row -- that row is created at
+     * publication -- so enumerating song videos alone leaves these assets on the
+     * working volume with nothing recording where they live. They are not
+     * publishable, but they are not scratch either: the reviewer needs them, and
+     * until they are promoted they can be neither attributed during a custody
+     * census nor reclaimed. Promotion moves the bytes and records the disk; it
+     * never touches `publication_status`, so the approval gate is untouched.
+     *
+     * @return Collection<int, ServiceSection>
+     */
+    private function heldSectionCandidatesForRun(MediaProcessingLog $log): Collection
+    {
+        return ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
+            ->where(function (Builder $query): void {
+                $query->whereNotNull('extracted_video_path')
+                    ->orWhereNotNull('extracted_audio_path');
+            })
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * @return array{
+     *     assets_promoted: int,
+     *     assets_already_promoted: int,
+     *     promoted_bytes: int,
+     *     reclaimed_bytes: int
+     * }
+     */
+    private function promoteHeldSectionCandidate(ServiceSection $section, MediaProcessingLog $log): array
+    {
+        $quarantineName = $this->transfer->targetDiskName();
+        $staging = Storage::disk($this->staging->stagingDisk());
+        $quarantine = Storage::disk($quarantineName);
+        $stagingName = $this->staging->stagingDisk();
+
+        if (filled($section->asset_disk)
+            && ! in_array($section->asset_disk, [$stagingName, $quarantineName], true)) {
+            throw new RuntimeException(
+                "Service section {$section->getKey()} candidate media is already owned by disk {$section->asset_disk}."
+            );
+        }
+
+        $pending = [];
+        $destinations = [];
+        $alreadyPromoted = 0;
+
+        foreach ([$section->extracted_video_path, $section->extracted_audio_path] as $path) {
+            if (! is_string($path) || trim($path) === '') {
+                continue;
+            }
+
+            $path = trim($path);
+
+            if ($staging->exists($path)) {
+                $pending[] = [
+                    'kind' => 'section_candidate',
+                    'path' => $path,
+                    'size' => $staging->size($path),
+                    'roles' => [$path],
+                ];
+                $destinations[$path] = $path;
+
+                continue;
+            }
+
+            if ($quarantine->exists($path)) {
+                if ($section->asset_disk !== $quarantineName) {
+                    throw new RuntimeException(
+                        "Service section {$section->getKey()} has quarantine bytes without a verified staging source."
+                    );
+                }
+
+                $alreadyPromoted++;
+
+                continue;
+            }
+
+            throw new RuntimeException(
+                "Service section {$section->getKey()} references candidate asset {$path}, which is on neither staging nor quarantine."
+            );
+        }
+
+        if ($pending !== []) {
+            $this->transfer->copyPipelineAssetsToDestinations($pending, $destinations);
+        }
+
+        $this->bindSectionCandidateToQuarantine($section, $quarantineName, $stagingName);
+
+        if ($pending !== []) {
+            $this->transfer->verifyPipelineDestinations($pending, $destinations);
+        }
+
+        return [
+            'assets_promoted' => count($pending),
+            'assets_already_promoted' => $alreadyPromoted,
+            'promoted_bytes' => array_sum(array_column($pending, 'size')),
+            'reclaimed_bytes' => $this->removeWorkingCopies($staging, $pending),
+        ];
+    }
+
+    /**
+     * Record the disk now holding the candidate media.
+     *
+     * Only `asset_disk` moves. `publication_status` stays `PendingApproval`
+     * because promotion is a custody transition, not a review decision.
+     */
+    private function bindSectionCandidateToQuarantine(
+        ServiceSection $section,
+        string $quarantine,
+        string $staging,
+    ): void {
+        DB::transaction(function () use ($section, $quarantine, $staging): void {
+            $locked = ServiceSection::query()->whereKey($section->getKey())->lockForUpdate()->first();
+
+            if (! $locked instanceof ServiceSection) {
+                throw new RuntimeException("Service section {$section->getKey()} disappeared while being promoted.");
+            }
+
+            if (filled($locked->asset_disk) && ! in_array($locked->asset_disk, [$staging, $quarantine], true)) {
+                throw new RuntimeException(
+                    "Service section {$locked->getKey()} candidate media is already owned by disk {$locked->asset_disk}."
+                );
+            }
+
+            if ($locked->asset_disk === $quarantine) {
+                return;
+            }
+
+            $locked->forceFill(['asset_disk' => $quarantine])->save();
+        });
+
+        $section->refresh();
     }
 
     /**

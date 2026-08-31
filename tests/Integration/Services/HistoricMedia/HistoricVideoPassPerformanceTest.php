@@ -24,6 +24,80 @@ class HistoricVideoPassPerformanceTest extends TestCase
     private const GIB = 1024 ** 3;
 
     #[Test]
+    public function it_reports_worker_widths_from_persisted_profiles_not_current_configuration(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+
+        $this->createRun(
+            $operation, 'item-one', 'run-width-two', ProcessingStatus::Completed, 1,
+            '2026-08-31 12:00:00.000000', '2026-08-31 12:00:10.000000', '2026-08-31 12:00:20.000000',
+            ['historic_import' => ['execution_profile' => [
+                'ffmpeg' => ['routing_fingerprint' => str_repeat('a', 64), 'worker_width' => 2],
+            ]]],
+            self::GIB,
+        );
+
+        // The machine has since been reverted to one FFmpeg worker.
+        config(['media-processing.historic_import.stages.ffmpeg.workers' => 1]);
+
+        $report = app(HistoricVideoPassPerformance::class)->report($operation, ['item-one']);
+
+        $this->assertSame('uniform', $report['observed_worker_widths']['ffmpeg']['status']);
+        $this->assertSame(2, $report['observed_worker_widths']['ffmpeg']['value']);
+        $this->assertSame(1, $report['observed_worker_widths']['ffmpeg']['runs_with_profile']);
+        $this->assertSame(0, $report['observed_worker_widths']['ffmpeg']['runs_missing_profile']);
+
+        // Current configuration is still reported, but separately.
+        $this->assertSame(1, $report['current_configured_worker_widths']['ffmpeg']);
+    }
+
+    #[Test]
+    public function it_reports_mixed_and_missing_worker_widths_explicitly(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+
+        $this->createRun(
+            $operation, 'item-one', 'run-width-one', ProcessingStatus::Completed, 1,
+            '2026-08-31 12:00:00.000000', '2026-08-31 12:00:10.000000', '2026-08-31 12:00:20.000000',
+            ['historic_import' => ['execution_profile' => [
+                'ffmpeg' => ['routing_fingerprint' => str_repeat('a', 64), 'worker_width' => 1],
+            ]]],
+            self::GIB,
+        );
+        $this->createRun(
+            $operation, 'item-two', 'run-width-two', ProcessingStatus::Completed, 1,
+            '2026-08-31 12:01:00.000000', '2026-08-31 12:01:10.000000', '2026-08-31 12:01:20.000000',
+            ['historic_import' => ['execution_profile' => [
+                'ffmpeg' => ['routing_fingerprint' => str_repeat('a', 64), 'worker_width' => 2],
+            ]]],
+            self::GIB,
+        );
+        $this->createRun(
+            $operation, 'item-three', 'run-no-profile', ProcessingStatus::Completed, 1,
+            '2026-08-31 12:02:00.000000', '2026-08-31 12:02:10.000000', '2026-08-31 12:02:20.000000',
+            [],
+            self::GIB,
+        );
+
+        $report = app(HistoricVideoPassPerformance::class)
+            ->report($operation, ['item-one', 'item-two', 'item-three']);
+
+        // No single number is true of this selection, and it must not pretend otherwise.
+        $ffmpeg = $report['observed_worker_widths']['ffmpeg'];
+        $this->assertSame('mixed', $ffmpeg['status']);
+        $this->assertNull($ffmpeg['value']);
+        $this->assertSame([1, 2], $ffmpeg['values']);
+        $this->assertSame(2, $ffmpeg['runs_with_profile']);
+        $this->assertSame(1, $ffmpeg['runs_missing_profile']);
+
+        // A stage no run recorded is unknown, never silently the configured value.
+        $whisper = $report['observed_worker_widths']['whisper'];
+        $this->assertSame('missing', $whisper['status']);
+        $this->assertNull($whisper['value']);
+        $this->assertSame(3, $whisper['runs_missing_profile']);
+    }
+
+    #[Test]
     public function it_reports_scoped_run_timings_retries_clean_samples_and_missing_coverage(): void
     {
         $operation = $this->createHistoricImportOperation();
@@ -129,7 +203,11 @@ class HistoricVideoPassPerformanceTest extends TestCase
         $this->assertSame(1, $report['stages']['max_overlapping_step_intervals']['unknown']);
         $this->assertSame(
             ['ffmpeg', 'whisper', 'llm', 'orchestration'],
-            array_keys($report['configured_worker_widths']),
+            array_keys($report['current_configured_worker_widths']),
+        );
+        $this->assertSame(
+            ['ffmpeg', 'whisper', 'llm', 'orchestration'],
+            array_keys($report['observed_worker_widths']),
         );
         $this->assertSame(2, $report['usage']['api_response_time_summary_ms']['count']);
     }

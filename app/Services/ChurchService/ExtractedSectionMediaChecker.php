@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Models\ServiceSection;
-use App\Support\MediaAssetPath;
 use Illuminate\Support\Facades\Storage;
 
 class ExtractedSectionMediaChecker
@@ -23,7 +22,7 @@ class ExtractedSectionMediaChecker
             return false;
         }
 
-        $disk = Storage::disk(MediaAssetPath::disk());
+        $disk = Storage::disk($section->extractedAssetDisk());
 
         return $disk->exists($videoPath) && $disk->exists($audioPath);
     }

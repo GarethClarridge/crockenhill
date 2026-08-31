@@ -89,7 +89,7 @@ class RepairHistoricVideoSongCustodyCommandTest extends TestCase
     }
 
     #[Test]
-    public function it_binds_and_promotes_song_rows_but_retains_held_candidates_for_review(): void
+    public function it_binds_song_rows_and_gives_held_candidates_custody_without_releasing_them(): void
     {
         [$operation, $log, $songVideo, $heldSection] = $this->historicSongRun(includeHeld: true);
 
@@ -100,7 +100,7 @@ class RepairHistoricVideoSongCustodyCommandTest extends TestCase
             '--yes' => true,
         ])
             ->expectsOutputToContain('Promoted 1 song video(s)')
-            ->expectsOutputToContain('Held candidates retained for review: 1.')
+            ->expectsOutputToContain('Held candidates retained for review: 1')
             ->assertSuccessful();
 
         $songVideo->refresh();
@@ -108,10 +108,16 @@ class RepairHistoricVideoSongCustodyCommandTest extends TestCase
         self::assertSame('historic_quarantine', $songVideo->asset_disk);
         self::assertSame($operation->id, $songVideo->historic_import_operation_id);
         self::assertNotNull($heldSection);
+
+        // The held clip gains durable custody without crossing the review gate.
+        $heldSection->refresh();
+        self::assertSame('historic_quarantine', $heldSection->asset_disk);
+        self::assertSame(ServiceSectionPublicationStatus::PendingApproval, $heldSection->publication_status);
+
         Storage::disk('historic_staging')->assertMissing($this->stagedPath($log, $songVideo->video_file_path));
-        Storage::disk('historic_staging')->assertExists($this->stagedPath($log, $heldSection->extracted_video_path));
+        Storage::disk('historic_staging')->assertMissing($this->stagedPath($log, $heldSection->extracted_video_path));
         Storage::disk('historic_quarantine')->assertExists($songVideo->video_file_path);
-        Storage::disk('historic_quarantine')->assertMissing($heldSection->extracted_video_path);
+        Storage::disk('historic_quarantine')->assertExists($heldSection->extracted_video_path);
     }
 
     #[Test]
@@ -188,7 +194,7 @@ class RepairHistoricVideoSongCustodyCommandTest extends TestCase
     }
 
     #[Test]
-    public function it_reports_a_held_only_run_without_promoting_or_creating_song_custody(): void
+    public function it_gives_a_held_only_run_durable_custody_without_creating_song_rows(): void
     {
         [$operation, $log, $songVideo, $heldSection] = $this->historicSongRun(
             includeSongVideo: false,
@@ -201,13 +207,46 @@ class RepairHistoricVideoSongCustodyCommandTest extends TestCase
             '--apply' => true,
             '--yes' => true,
         ])
-            ->expectsOutputToContain('Held candidates retained for review: 1')
+            ->expectsOutputToContain('promoted into quarantine: 1')
             ->assertSuccessful();
 
         self::assertNull($songVideo);
         self::assertNotNull($heldSection);
-        Storage::disk('historic_staging')->assertExists($this->stagedPath($log, $heldSection->extracted_video_path));
-        Storage::disk('historic_quarantine')->assertMissing($heldSection->extracted_video_path);
+
+        // Custody moves; the review gate does not.
+        $heldSection->refresh();
+        self::assertSame('historic_quarantine', $heldSection->asset_disk);
+        self::assertSame(ServiceSectionPublicationStatus::PendingApproval, $heldSection->publication_status);
+        self::assertSame(0, SongVideo::query()->count());
+
+        Storage::disk('historic_quarantine')->assertExists($heldSection->extracted_video_path);
+        Storage::disk('historic_staging')->assertMissing($this->stagedPath($log, $heldSection->extracted_video_path));
+    }
+
+    #[Test]
+    public function promoting_a_held_candidate_is_an_idempotent_replay(): void
+    {
+        [$operation, $log, , $heldSection] = $this->historicSongRun(
+            includeSongVideo: false,
+            includeHeld: true,
+        );
+
+        $arguments = [
+            '--operation' => $operation->operation_id,
+            '--processing-id' => [$log->processing_id],
+            '--apply' => true,
+            '--yes' => true,
+        ];
+
+        $this->artisan('historic-import:repair-video-song-custody', $arguments)->assertSuccessful();
+        $this->artisan('historic-import:repair-video-song-custody', $arguments)
+            ->expectsOutputToContain('promoted into quarantine: 1')
+            ->assertSuccessful();
+
+        self::assertNotNull($heldSection);
+        $heldSection->refresh();
+        self::assertSame('historic_quarantine', $heldSection->asset_disk);
+        Storage::disk('historic_quarantine')->assertExists($heldSection->extracted_video_path);
     }
 
     /**

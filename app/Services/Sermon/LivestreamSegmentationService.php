@@ -12,6 +12,7 @@ use App\Enums\SermonService;
 use App\Models\HistoricImportOperation;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
+use App\Services\Media\MediaCodecFingerprint;
 use App\Services\Media\Video\VideoSegmentationService;
 use App\Services\Media\Video\VideoStorageService;
 use App\Services\Processing\ProcessingInitiator;
@@ -109,6 +110,8 @@ class LivestreamSegmentationService
 
             $metadata = $this->segmentationService->getVideoMetadata($fullPath);
 
+            $processingMetadata = $this->withStagedCodecFingerprint($processingMetadata, $fullPath);
+
             $additionalLogData = [
                 'source_file_path' => $tempPath,
                 'file_size' => $uploadResult['file_size'],
@@ -166,6 +169,33 @@ class LivestreamSegmentationService
 
             throw $e;
         }
+    }
+
+    /** @param array<string, mixed>|null $historicImport */
+    /**
+     * Fill a deferred historic codec fingerprint from the staged copy.
+     *
+     * The importer leaves this to us for a single-source dispatch so the pass
+     * never opens the removable archive just to describe streams. By this point
+     * the source-to-staging copy is closed and size-verified, so the staged file
+     * is the same bytes and is the cheap one to read.
+     *
+     * @param  array<string, mixed>  $processingMetadata
+     * @return array<string, mixed>
+     */
+    private function withStagedCodecFingerprint(array $processingMetadata, string $stagedFullPath): array
+    {
+        $historicImport = $processingMetadata['historic_import'] ?? null;
+
+        if (! is_array($historicImport)
+            || ($historicImport['codec_fingerprint_source'] ?? null) !== 'staged_copy') {
+            return $processingMetadata;
+        }
+
+        $historicImport['codec_fingerprint'] = app(MediaCodecFingerprint::class)->for($stagedFullPath);
+        $processingMetadata['historic_import'] = $historicImport;
+
+        return $processingMetadata;
     }
 
     /** @param array<string, mixed>|null $historicImport */

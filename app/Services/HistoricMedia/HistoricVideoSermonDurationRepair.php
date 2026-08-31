@@ -36,6 +36,7 @@ final class HistoricVideoSermonDurationRepair
      *     sermon: Sermon,
      *     current_duration: float|null,
      *     repaired_duration: float,
+     *     duration_source: 'banked'|'measured',
      *     disposition: 'pending'|'already_repaired'
      * }>
      */
@@ -66,7 +67,8 @@ final class HistoricVideoSermonDurationRepair
 
             $this->assertRunOwnership($run, $operation);
             $sermon = $this->sermonForRun($run, $operation);
-            $duration = $this->observedDuration($run, $sermon);
+            $measurement = $this->measureObservedDuration($run, $sermon);
+            $duration = $measurement['duration'];
 
             $currentDuration = $sermon->duration === null ? null : (float) $sermon->duration;
 
@@ -75,6 +77,7 @@ final class HistoricVideoSermonDurationRepair
                 'sermon' => $sermon,
                 'current_duration' => $currentDuration,
                 'repaired_duration' => $duration,
+                'duration_source' => $measurement['source'],
                 'disposition' => $currentDuration !== null && abs($currentDuration - $duration) < 0.001
                     ? 'already_repaired'
                     : 'pending',
@@ -90,6 +93,7 @@ final class HistoricVideoSermonDurationRepair
      *     sermon: Sermon,
      *     current_duration: float|null,
      *     repaired_duration: float,
+     *     duration_source: 'banked'|'measured',
      *     disposition: 'pending'|'already_repaired'
      * }>  $entries
      * @return array{repaired: int, already_repaired: int}
@@ -127,7 +131,13 @@ final class HistoricVideoSermonDurationRepair
                 }
 
                 $this->assertSermonOwnership($sermon, $operation);
-                $repairedDuration = $this->observedDuration($run, $sermon);
+
+                $measurement = $this->measureObservedDuration($run, $sermon);
+                $repairedDuration = $measurement['duration'];
+
+                if ($measurement['source'] === 'measured') {
+                    $this->bankObservedDuration($run, $repairedDuration);
+                }
 
                 if ($sermon->duration !== null
                     && abs((float) $sermon->duration - $repairedDuration) < 0.001) {
@@ -154,23 +164,40 @@ final class HistoricVideoSermonDurationRepair
      * asset the run produced and banked at the same key. Measuring the promoted
      * video is what "repair from verified assets" means: it costs one FFprobe
      * and no re-extraction, no provider call and no new analysis.
+     *
+     * This is read-only. `source` tells the caller whether the value was already
+     * banked or has just been measured and still needs banking, which is what
+     * keeps a dry run free of durable writes.
+     *
+     * @return array{duration: float, source: 'banked'|'measured'}
      */
-    private function observedDuration(MediaProcessingLog $run, Sermon $sermon): float
+    private function measureObservedDuration(MediaProcessingLog $run, Sermon $sermon): array
     {
         $observed = $run->observedSermonMediaDuration();
 
         if ($observed !== null && $observed > 0) {
-            return $observed;
+            return ['duration' => $observed, 'source' => 'banked'];
         }
 
-        $observed = $this->durationProbe->durationOf($this->sermonVideoAbsolutePath($sermon));
+        return [
+            'duration' => $this->durationProbe->durationOf($this->sermonVideoAbsolutePath($sermon)),
+            'source' => 'measured',
+        ];
+    }
 
+    /**
+     * Persist a fresh measurement so a later replay is a no-op.
+     *
+     * Only {@see self::apply()} calls this, from inside its locked transaction.
+     * A dry run that banked its measurement would be a default-safe command
+     * writing durable metadata and then reporting that nothing changed.
+     */
+    private function bankObservedDuration(MediaProcessingLog $run, float $observed): void
+    {
         $metadata = $run->processing_metadata?->toArray() ?? [];
         $metadata['trim'] = is_array($metadata['trim'] ?? null) ? $metadata['trim'] : [];
         $metadata['trim']['observed_duration'] = $observed;
         $run->forceFill(['processing_metadata' => $metadata])->save();
-
-        return $observed;
     }
 
     private function sermonVideoAbsolutePath(Sermon $sermon): string

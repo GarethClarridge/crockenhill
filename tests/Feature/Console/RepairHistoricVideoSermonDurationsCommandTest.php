@@ -232,6 +232,35 @@ class RepairHistoricVideoSermonDurationsCommandTest extends TestCase
         self::assertSame(3600.0, (float) $sermon->fresh()->duration);
     }
 
+    #[Test]
+    public function a_dry_run_measures_a_legacy_asset_without_banking_the_measurement(): void
+    {
+        Storage::fake('historic_quarantine');
+        Storage::disk('historic_quarantine')->put('sermons/video/historic.mp4', 'promoted-video');
+
+        [$operation, $log, $sermon] = $this->historicRun();
+
+        $metadata = $log->processing_metadata?->toArray() ?? [];
+        unset($metadata['trim']['observed_duration']);
+        $log->forceFill(['processing_metadata' => $metadata])->save();
+        $sermon->forceFill(['video_file_path' => 'sermons/video/historic.mp4'])->save();
+
+        $this->bindProbe(1425.5);
+
+        $this->artisan('historic-import:repair-video-sermon-durations', [
+            '--operation' => $operation->operation_id,
+            '--processing-id' => [$log->processing_id],
+        ])
+            ->expectsOutputToContain('measured')
+            ->expectsOutputToContain('DRY RUN')
+            ->assertSuccessful();
+
+        // A default-safe command must not write durable metadata and then report
+        // that nothing changed.
+        self::assertNull($log->fresh()?->observedSermonMediaDuration());
+        self::assertSame(3600.0, (float) $sermon->fresh()->duration);
+    }
+
     /** @return array{0: HistoricImportOperation, 1: MediaProcessingLog, 2: Sermon} */
     private function historicRun(): array
     {

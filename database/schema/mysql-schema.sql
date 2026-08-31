@@ -1350,6 +1350,7 @@ CREATE TABLE `service_sections` (
   `published_at` timestamp NULL DEFAULT NULL,
   `extracted_video_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `extracted_audio_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `asset_disk` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `extracted_at` timestamp NULL DEFAULT NULL,
   `unpublished_expires_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
@@ -1498,7 +1499,7 @@ CREATE TABLE `song_videos` (
   `recorded_date` date DEFAULT NULL,
   `is_featured` tinyint(1) NOT NULL DEFAULT '0',
   `publication_state` varchar(24) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'published',
-  `asset_disk` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `asset_disk` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `historic_import_operation_id` bigint unsigned DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -1866,3 +1867,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_13_093747_creat
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_13_193205_add_publication_quarantine_to_song_usage_reports_table',90);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_132413_add_title_provenance_to_sermons_table',91);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_140000_add_asset_disk_to_song_videos_table',92);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_211617_add_asset_disk_to_service_sections_table',93);

@@ -65,6 +65,7 @@ final class HistoricVideoPassPerformance
 
         $stepSummaries = $this->stepSummaries($runReports);
         $configuredWorkerWidths = $this->throughput->configuredWidths();
+        $observedWorkerWidths = $this->observedWorkerWidths($runReports, array_keys($configuredWorkerWidths));
         $allRuns = $this->aggregate($runReports, 'all_runs');
         $cleanRuns = array_values(array_filter(
             $runReports,
@@ -84,10 +85,19 @@ final class HistoricVideoPassPerformance
             'steps' => $stepSummaries,
             'step_summary' => $stepSummaries,
             'stages' => [
-                'configured_worker_widths' => $configuredWorkerWidths,
+                /**
+                 * What the selected runs actually ran with, from the execution
+                 * profile persisted with each one. This is the number a
+                 * retrospective must quote: current configuration describes the
+                 * machine now, not the pass being reported, and widths get
+                 * changed and reverted between passes.
+                 */
+                'observed_worker_widths' => $observedWorkerWidths,
+                'current_configured_worker_widths' => $configuredWorkerWidths,
                 'max_overlapping_step_intervals' => $this->stageOverlap($runReports),
             ],
-            'configured_worker_widths' => $configuredWorkerWidths,
+            'observed_worker_widths' => $observedWorkerWidths,
+            'current_configured_worker_widths' => $configuredWorkerWidths,
             'all_runs' => $allRuns,
             'clean_first_attempt' => $cleanFirstAttempt,
             'usage' => $this->usageSummary($operation, $itemKeys, $runReports),
@@ -566,6 +576,67 @@ final class HistoricVideoPassPerformance
         }
 
         return $maximum;
+    }
+
+    /**
+     * Per-stage worker width as recorded on the selected runs.
+     *
+     * Reported from persisted execution profiles rather than current
+     * configuration, because a report that reads configuration attributes
+     * today's widths to work that ran under yesterday's -- and the calibration
+     * this report exists to support is precisely a width change that gets kept
+     * or reverted afterwards.
+     *
+     * `status` is explicit rather than collapsed to a number: `uniform` when
+     * every profile agrees, `mixed` when the selection spans more than one width
+     * (so no single figure is true of it), and `missing` when no selected run
+     * carried a profile at all. `runs_missing_profile` stays visible even when
+     * the profiles that do exist agree, so a partly-instrumented selection can
+     * never read as fully known.
+     *
+     * @param  list<array<string, mixed>>  $runReports
+     * @param  list<string>  $stages
+     * @return array<string, array{status: 'uniform'|'mixed'|'missing', value: int|null, values: list<int>, runs_with_profile: int, runs_missing_profile: int}>
+     */
+    private function observedWorkerWidths(array $runReports, array $stages): array
+    {
+        $observed = [];
+
+        foreach ($stages as $stage) {
+            $values = [];
+            $withProfile = 0;
+            $missingProfile = 0;
+
+            foreach ($runReports as $run) {
+                $width = data_get($run, "execution_profile.{$stage}.worker_width");
+
+                if (! is_int($width)) {
+                    $missingProfile++;
+
+                    continue;
+                }
+
+                $withProfile++;
+                $values[$width] = $width;
+            }
+
+            $values = array_values($values);
+            sort($values);
+
+            $observed[$stage] = [
+                'status' => match (true) {
+                    $values === [] => 'missing',
+                    count($values) > 1 => 'mixed',
+                    default => 'uniform',
+                },
+                'value' => count($values) === 1 ? $values[0] : null,
+                'values' => $values,
+                'runs_with_profile' => $withProfile,
+                'runs_missing_profile' => $missingProfile,
+            ];
+        }
+
+        return $observed;
     }
 
     /**

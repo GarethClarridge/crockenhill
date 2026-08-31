@@ -598,7 +598,14 @@ class HistoricNormalOutputContract
                     'extracted_video_path' => $this->field('nullable', 'portable', 'asset_path'),
                     'extracted_audio_path' => $this->field('nullable', 'portable', 'asset_path'),
                 ],
-                excluded: ['id', 'created_at', 'updated_at'],
+                /**
+                 * `asset_disk` is destination-owned, like its counterparts on
+                 * `sermons` and `song_videos`: every apply lands on the
+                 * destination's own private disk, so carrying the source's disk
+                 * name would let an exported bundle name storage that does not
+                 * exist there. The candidate's paths stay portable.
+                 */
+                excluded: ['id', 'created_at', 'updated_at', 'asset_disk'],
             ),
             'song_videos' => $this->table(
                 required: ['video_file_path', 'is_featured'],

@@ -15,6 +15,7 @@ use App\Models\Sermon;
 use App\Services\HistoricMedia\HistoricProcessingFingerprint;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingGuard;
+use App\Services\Media\MediaCodecFingerprint;
 use App\Services\Media\TempDiskSpace;
 use App\Services\Media\Video\HistoricVideoCurationManifest;
 use App\Services\Media\Video\HistoricVideoImporter;
@@ -188,6 +189,7 @@ class HistoricVideoImporterTest extends TestCase
         $this->assertSame(hash_file('sha256', $path), $capturedMetadata['sources'][0]['sha256']);
         $this->assertSame('approved_manifest_not_reverified_at_dispatch', $capturedMetadata['sha256_basis']);
         $this->assertArrayHasKey('codec_fingerprint', $capturedMetadata);
+        $this->assertSame('staged_copy', $capturedMetadata['codec_fingerprint_source']);
         $this->assertArrayHasKey('imported_at', $capturedMetadata);
         $this->assertSame(hash('sha256', $this->temporaryDirectory), $capturedMetadata['manifest_hash']);
         $this->assertSame(hash('sha256', $this->temporaryDirectory.'|plan'), $capturedMetadata['plan_hash']);
@@ -197,6 +199,60 @@ class HistoricVideoImporterTest extends TestCase
         $this->assertTrue($capturedSkipFileHash);
         $this->assertIsArray($capturedFingerprint);
         $this->assertSame($capturedMetadata['manifest_hash'], $capturedFingerprint['source_manifest_hash']);
+    }
+
+    #[Test]
+    public function a_single_source_dispatch_never_probes_the_archive_for_codec_provenance(): void
+    {
+        $path = $this->temporaryDirectory.'/2022-01-16 18-38-15.mkv';
+        $this->createFakeVideo($path);
+        $probedPaths = [];
+        $capturedMetadata = null;
+
+        $this->app->bind(
+            MediaCodecFingerprint::class,
+            function () use (&$probedPaths): MediaCodecFingerprint {
+                return new class($probedPaths) extends MediaCodecFingerprint
+                {
+                    /** @param list<string> $probedPaths */
+                    public function __construct(private array &$probedPaths) {}
+
+                    public function for(string $absolutePath): ?string
+                    {
+                        $this->probedPaths[] = $absolutePath;
+
+                        return 'h264:aac:1920x1080:25/1:48000';
+                    }
+                };
+            },
+        );
+
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->once()
+            ->withArgs(function (string $type, mixed $file, ?string $clientFileDate, array $options) use (&$capturedMetadata): bool {
+                $capturedMetadata = $options['processing_metadata']['historic_import'] ?? null;
+
+                return $type === 'livestream';
+            })
+            ->andReturnUsing(function (): ProcessingResult {
+                $processingId = 'historic-'.uniqid();
+                MediaProcessingLog::factory()->livestream()->completed()->create([
+                    'processing_id' => $processingId,
+                ]);
+
+                return ProcessingResult::success($processingId, 'ok');
+            });
+
+        $this->runImportWithApprovedItem($processor, $path, '2022-01-16 18-38-15.mkv', null);
+
+        // The dispatcher must not open the removable archive to describe streams;
+        // the fingerprint is deferred to the operation's staged copy, which the
+        // storage boundary has to read anyway.
+        $this->assertSame([], $probedPaths);
+        $this->assertIsArray($capturedMetadata);
+        $this->assertSame('staged_copy', $capturedMetadata['codec_fingerprint_source']);
+        $this->assertNull($capturedMetadata['codec_fingerprint']);
     }
 
     #[Test]

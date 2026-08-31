@@ -115,6 +115,54 @@ three defects and three inaccuracies, all now fixed:
   truthfully; behaviour is unchanged, and the format tag stays put deliberately
   because bumping it would mark every processed run stale for no byte-level gain.
 
+#### Second review pass, 2026-08-31 — four acceptance gaps closed
+
+A second review found four material gaps against the plan's own acceptance
+criteria, none of which the existing tests exercised:
+
+- **[P1] M4 promoted song videos but not review-held clips.** Promotion
+  enumerated `SongVideo` rows only, so the nine canary held candidates stayed on
+  the working volume with nothing recording where they live — neither
+  attributable in a custody census nor reclaimable, which is the whole point of
+  M4 item 4's "release-eligible **and** review-held". `HistoricAssetPromotion`
+  now promotes held `ServiceSection` candidates too, through the same
+  create-only copy, size verification and staging reclaim. A new
+  `service_sections.asset_disk` mirrors the `sermons`/`song_videos` columns and
+  `ServiceSection::extractedAssetDisk()` — already the single resolution seam —
+  prefers it. **`publication_status` is untouched**: promotion is a custody
+  transition, not a review decision, so the approval gate is exactly as strict as
+  before. The custody repair now also selects runs that hold candidates without
+  any pending song video, which it previously skipped entirely.
+- **[P1] M1's dry run mutated durable metadata.** `inspect()` measured a legacy
+  asset and immediately saved `trim.observed_duration`, before the command had
+  even looked at `--apply` — a default-safe command writing durable state and
+  then reporting that nothing changed. Measurement and banking are now split:
+  inspection is read-only and reports the value's source (`banked` or
+  `measured`), and only `apply()` banks, inside its locked transaction.
+- **[P2] M11 still opened each selected single source before its staging copy.**
+  `historicImportMetadata()` FFprobed the archive path for `codec_fingerprint`,
+  and MIME detection then read the original `UploadedFile` again — failing the
+  plan's "one content open: the source-to-staging copy" proof and paying that I/O
+  on the removable drive. The codec fingerprint is now deferred: the importer
+  marks it `codec_fingerprint_source = staged_copy` and
+  `LivestreamSegmentationService` fills it from the staged file once that copy is
+  closed and size-verified. MIME for a historic dispatch comes from the staged
+  copy too. Concat still probes its sources, correctly — comparing codecs is what
+  decides whether a lossless concat is even possible.
+- **[P2] M12 attributed current worker widths to completed runs.** The report
+  read `configuredWidths()` from live configuration, so a retrospective produced
+  after changing or reverting widths described the machine rather than the pass.
+  It now summarises the execution profiles persisted with the selected runs as
+  `observed_worker_widths`, with explicit `uniform`/`mixed`/`missing` status,
+  the distinct values seen, and a `runs_missing_profile` count that stays visible
+  even when the profiles that exist agree. Current configuration is still
+  reported, separately and labelled as such.
+
+`service_sections.asset_disk` is excluded from `HistoricNormalOutputContract`
+for the same reason as its counterparts — the audience boundary and storage
+layout are destination decisions — which the contract's own schema-coverage test
+required to be stated explicitly.
+
 One review finding was withdrawn on evidence: FFprobing
 `Storage::disk($tempDisk)->path(...)` in `ExtractSermon` is not an S3 hazard,
 because `VideoExtractionService` already writes its output through the same call.

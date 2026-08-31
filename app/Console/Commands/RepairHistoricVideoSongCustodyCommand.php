@@ -65,7 +65,8 @@ class RepairHistoricVideoSongCustodyCommand extends Command
 
             if ($totals['repaired'] === 0) {
                 $this->info('All selected song videos are already repaired; no changes were written.');
-                $this->line("Held candidates retained for review: {$totals['held_candidates']}.");
+                $this->line("Held candidates retained for review: {$totals['held_candidates']}"
+                ." (promoted into quarantine: {$totals['held_section_candidates_promoted']}).");
 
                 return self::SUCCESS;
             }
@@ -77,7 +78,8 @@ class RepairHistoricVideoSongCustodyCommand extends Command
                 $totals['promoted_bytes'],
                 $totals['reclaimed_bytes'],
             ));
-            $this->line("Held candidates retained for review: {$totals['held_candidates']}.");
+            $this->line("Held candidates retained for review: {$totals['held_candidates']}"
+                ." (promoted into quarantine: {$totals['held_section_candidates_promoted']}).");
 
             if ($totals['already_repaired'] > 0) {
                 $this->line("Already repaired: {$totals['already_repaired']}");

@@ -106,8 +106,10 @@ class HistoricVideoPassStatusCommand extends Command
         $allRuns = $report['all_runs'];
         /** @var array<string, mixed> $cleanFirstAttempt */
         $cleanFirstAttempt = $report['clean_first_attempt'];
-        /** @var array<string, int> $widths */
-        $widths = $report['configured_worker_widths'];
+        /** @var array<string, int> $configuredWidths */
+        $configuredWidths = $report['current_configured_worker_widths'];
+        /** @var array<string, array<string, mixed>> $observedWidths */
+        $observedWidths = $report['observed_worker_widths'];
 
         $this->newLine();
         $this->line('Database-owned historic-video performance — canonical run and step timestamps.');
@@ -118,13 +120,24 @@ class HistoricVideoPassStatusCommand extends Command
                 $this->performanceAggregateRow('clean_first_attempt', $cleanFirstAttempt),
             ],
         );
-        $this->line(sprintf(
-            'Configured stage workers: ffmpeg=%d, whisper=%d, llm=%d, orchestration=%d.',
-            $widths['ffmpeg'],
-            $widths['whisper'],
-            $widths['llm'],
-            $widths['orchestration'],
-        ));
+        $this->table(
+            ['Stage', 'Observed width', 'Runs with profile', 'Runs missing profile', 'Currently configured'],
+            array_map(
+                static fn (string $stage): array => [
+                    $stage,
+                    match ($observedWidths[$stage]['status']) {
+                        'uniform' => (string) $observedWidths[$stage]['value'],
+                        'mixed' => 'mixed ('.implode(', ', $observedWidths[$stage]['values']).')',
+                        default => 'unknown',
+                    },
+                    (string) $observedWidths[$stage]['runs_with_profile'],
+                    (string) $observedWidths[$stage]['runs_missing_profile'],
+                    (string) ($configuredWidths[$stage] ?? '?'),
+                ],
+                array_keys($observedWidths),
+            ),
+        );
+        $this->line('Observed widths come from the execution profile persisted with each selected run; the configured column is this machine now and does not describe completed work.');
         $this->line(sprintf(
             'Run evidence: %d missing timing run(s); %d run(s) with retries. The clean aggregate excludes retries, re-extractions, manual review and mount-failed runs.',
             $allRuns['runs_missing_timing_count'],

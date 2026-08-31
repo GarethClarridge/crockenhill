@@ -158,6 +158,7 @@ final class HistoricVideoSongCustodyRepair
      *     repaired: int,
      *     already_repaired: int,
      *     held_candidates: int,
+     *     held_section_candidates_promoted: int,
      *     assets_promoted: int,
      *     assets_already_promoted: int,
      *     promoted_bytes: int,
@@ -195,6 +196,7 @@ final class HistoricVideoSongCustodyRepair
      *     repaired: int,
      *     already_repaired: int,
      *     held_candidates: int,
+     *     held_section_candidates_promoted: int,
      *     assets_promoted: int,
      *     assets_already_promoted: int,
      *     promoted_bytes: int,
@@ -248,13 +250,25 @@ final class HistoricVideoSongCustodyRepair
                 $entries,
             )),
             'held_candidates' => array_sum(array_column($entries, 'held_candidate_count')),
+            'held_section_candidates_promoted' => 0,
             'assets_promoted' => 0,
             'assets_already_promoted' => 0,
             'promoted_bytes' => 0,
             'reclaimed_bytes' => 0,
         ];
 
-        foreach ($pendingEntries as $entry) {
+        /**
+         * A run can hold review-held candidate media without owning a single
+         * unpromoted song video, so selecting on pending song videos alone would
+         * leave exactly the held clips this repair exists to give custody to.
+         */
+        $promotableEntries = array_values(array_filter(
+            $entries,
+            static fn (array $entry): bool => $entry['pending_song_videos'] !== []
+                || $entry['held_candidate_count'] > 0,
+        ));
+
+        foreach ($promotableEntries as $entry) {
             $run = $entry['log']->fresh();
 
             if (! $run instanceof MediaProcessingLog) {
@@ -263,6 +277,7 @@ final class HistoricVideoSongCustodyRepair
 
             $this->assertRunBelongsToOperation($run, $operation);
             $result = $this->promotion->promoteSongVideos($run);
+            $totals['held_section_candidates_promoted'] += $result['held_section_candidates'];
             $totals['assets_promoted'] += $result['assets_promoted'];
             $totals['assets_already_promoted'] += $result['assets_already_promoted'];
             $totals['promoted_bytes'] += $result['promoted_bytes'];
@@ -380,16 +395,22 @@ final class HistoricVideoSongCustodyRepair
             ->all());
 
         $staging = Storage::disk($this->staging->stagingDisk());
+        $quarantine = Storage::disk($this->transfer->targetDiskName());
 
+        /**
+         * Quarantine counts as present. A candidate promoted by an earlier run of
+         * this repair has legitimately left staging, and demanding it be there
+         * would make the second invocation fail on its own successful work.
+         */
         foreach ($sections as $section) {
             foreach ([$section->extracted_video_path, $section->extracted_audio_path] as $path) {
                 if (! is_string($path) || $path === '') {
                     continue;
                 }
 
-                if (Path::isUnsafe($path) || ! $staging->exists($path)) {
+                if (Path::isUnsafe($path) || (! $staging->exists($path) && ! $quarantine->exists($path))) {
                     throw new RuntimeException(
-                        "Held section {$section->id} candidate {$path} is missing from historic staging."
+                        "Held section {$section->id} candidate {$path} is missing from historic staging and quarantine."
                     );
                 }
             }
@@ -481,7 +502,17 @@ final class HistoricVideoSongCustodyRepair
         }
     }
 
-    /** @param list<ServiceSection> $sections */
+    /**
+     * Held-candidate bytes *still occupying the working volume*.
+     *
+     * A candidate already promoted into quarantine contributes nothing here: it
+     * no longer competes for the staging capacity this measure exists to report,
+     * and reading its size from a disk it has left would make an idempotent
+     * replay throw. A path on neither disk is left to the promotion step, which
+     * fails closed on it by name.
+     *
+     * @param  list<ServiceSection>  $sections
+     */
     private function heldCandidateBytes(array $sections): int
     {
         $staging = Storage::disk($this->staging->stagingDisk());
@@ -495,7 +526,10 @@ final class HistoricVideoSongCustodyRepair
                 }
 
                 $paths[$path] = true;
-                $bytes += $staging->size($path);
+
+                if ($staging->exists($path)) {
+                    $bytes += $staging->size($path);
+                }
             }
         }
 

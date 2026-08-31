@@ -73,7 +73,7 @@ class VideoStorageService
                 'full_path' => $fullPath,
                 'original_filename' => $file->getClientOriginalName(),
                 'file_size' => $fileSize,
-                'mime_type' => $file->getMimeType(),
+                'mime_type' => $this->mimeType($file, $fullPath, $expectedSize !== null),
             ];
 
         } catch (Throwable $e) {
@@ -184,7 +184,7 @@ class VideoStorageService
             'full_path' => $realPath,
             'original_filename' => $file->getClientOriginalName(),
             'file_size' => $storedSize,
-            'mime_type' => $file->getMimeType(),
+            'mime_type' => $this->mimeType($file, $realPath, true),
         ];
     }
 
@@ -314,6 +314,27 @@ class VideoStorageService
 
         return Storage::disk($tempDisk)->exists($sourceFilePath)
             || file_exists($sourceFilePath);
+    }
+
+    /**
+     * The stored file's MIME type.
+     *
+     * A historic dispatch reads it from the staged copy, not the UploadedFile:
+     * that file is the archive original on a removable drive, and detection
+     * opens it. The staged copy is byte-identical (its size is verified against
+     * the approved manifest before this returns), so the answer is the same and
+     * the archive is read exactly once, by the copy itself. Ordinary uploads keep
+     * reading the upload, which is already local scratch.
+     */
+    private function mimeType(UploadedFile $file, string $storedFullPath, bool $preferStoredCopy): ?string
+    {
+        if (! $preferStoredCopy) {
+            return $file->getMimeType();
+        }
+
+        $detected = @mime_content_type($storedFullPath);
+
+        return $detected === false ? $file->getMimeType() : $detected;
     }
 
     private function tempDisk(): string

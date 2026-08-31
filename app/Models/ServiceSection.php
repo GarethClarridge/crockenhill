@@ -45,6 +45,7 @@ use Illuminate\Validation\Rule;
  * @property int|null $published_sermon_id
  * @property string|null $extracted_video_path
  * @property string|null $extracted_audio_path
+ * @property string|null $asset_disk
  * @property Carbon|null $published_at
  * @property Carbon|null $extracted_at
  * @property Carbon|null $unpublished_expires_at
@@ -93,6 +94,7 @@ class ServiceSection extends Model
         'published_at',
         'extracted_video_path',
         'extracted_audio_path',
+        'asset_disk',
         'extracted_at',
         'unpublished_expires_at',
     ];
@@ -225,9 +227,18 @@ class ServiceSection extends Model
         return hash('sha256', (string) json_encode($this->classificationSignaturePayload()));
     }
 
+    /**
+     * The disk holding this section's extracted candidate media.
+     *
+     * A promoted historic candidate records its own disk, because the globally
+     * configured media disk is rebound during a historic batch and moves on
+     * afterwards -- so resolving through configuration would look for quarantined
+     * bytes wherever the *current* run happens to point. Rows with no recorded
+     * disk keep resolving through configuration exactly as before.
+     */
     public function extractedAssetDisk(): string
     {
-        return MediaAssetPath::disk();
+        return filled($this->asset_disk) ? (string) $this->asset_disk : MediaAssetPath::disk();
     }
 
     public function hasConfirmedSongMatch(): bool
@@ -311,6 +322,7 @@ class ServiceSection extends Model
             'published_sermon_id' => ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:sermons,id'],
             'extracted_video_path' => ['nullable', 'string', 'max:255'],
             'extracted_audio_path' => ['nullable', 'string', 'max:255'],
+            'asset_disk' => ['nullable', 'string', 'max:255'],
         ];
     }
 

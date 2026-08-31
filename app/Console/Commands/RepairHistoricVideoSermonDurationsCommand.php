@@ -40,15 +40,18 @@ class RepairHistoricVideoSermonDurationsCommand extends Command
             $entries = $repair->inspect($operation, $processingIds);
 
             $this->table(
-                ['Processing ID', 'Sermon', 'Current', 'Repaired', 'Disposition'],
+                ['Processing ID', 'Sermon', 'Current', 'Repaired', 'Source', 'Disposition'],
                 array_map(static fn (array $entry): array => [
                     $entry['processing_id'],
                     (string) $entry['sermon']->id,
                     $entry['current_duration'] === null ? 'null' : (string) $entry['current_duration'],
                     (string) $entry['repaired_duration'],
+                    $entry['duration_source'],
                     $entry['disposition'],
                 ], $entries),
             );
+
+            $this->line('Source "measured" means the run predates observed duration and the value was read from its durable asset; --apply banks it so a replay is a no-op.');
 
             if (! $apply) {
                 $this->warn('DRY RUN: no sermon metadata was changed. Re-run with --apply --yes for this exact selection.');

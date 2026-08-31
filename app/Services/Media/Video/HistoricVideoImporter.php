@@ -19,8 +19,10 @@ use App\Services\ChurchService\SourceAdapters\LivestreamSourceAdapter;
 use App\Services\HistoricMedia\HistoricProcessingFingerprint;
 use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Services\Media\MediaCodecFingerprint;
 use App\Services\Media\TempDiskSpace;
 use App\Services\Processing\UnifiedMediaProcessor;
+use App\Services\Sermon\LivestreamSegmentationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -1026,7 +1028,7 @@ class HistoricVideoImporter
                     'skip_file_hash' => true,
                     'processing_metadata' => $this->historicImportMetadata(
                         $item,
-                        $path,
+                        null,
                         'none',
                         $stagingContext,
                         $jobKey,
@@ -1180,50 +1182,13 @@ class HistoricVideoImporter
     /**
      * @return string|null A normalized fingerprint of video_codec:audio_codec:resolution:fps:sample_rate
      */
-    private function probeCodecInfo(string $path): ?string
+    private function probeCodecInfo(?string $path): ?string
     {
-        $ffprobePath = config('media-processing.ffmpeg.ffprobe_path', '/usr/bin/ffprobe');
-        $cmd = escapeshellarg($ffprobePath)
-            .' -v quiet -print_format json -show_streams '
-            .escapeshellarg($path);
-
-        $output = shell_exec($cmd);
-
-        if (! is_string($output)) {
+        if ($path === null) {
             return null;
         }
 
-        /** @var array{streams?: list<array{codec_type?: string, codec_name?: string, width?: int, height?: int, r_frame_rate?: string, sample_rate?: string}>}|null $data */
-        $data = json_decode($output, true);
-
-        if (! is_array($data)) {
-            return null;
-        }
-
-        $videoCodec = null;
-        $audioCodec = null;
-        $resolution = null;
-        $fps = null;
-        $sampleRate = null;
-
-        foreach ($data['streams'] ?? [] as $stream) {
-            $codecType = $stream['codec_type'] ?? null;
-
-            if ($codecType === 'video' && $videoCodec === null) {
-                $videoCodec = $stream['codec_name'] ?? null;
-                $resolution = isset($stream['width'], $stream['height'])
-                    ? "{$stream['width']}x{$stream['height']}"
-                    : null;
-                $fps = $stream['r_frame_rate'] ?? null;
-            }
-
-            if ($codecType === 'audio' && $audioCodec === null) {
-                $audioCodec = $stream['codec_name'] ?? null;
-                $sampleRate = $stream['sample_rate'] ?? null;
-            }
-        }
-
-        return "{$videoCodec}:{$audioCodec}:{$resolution}:{$fps}:{$sampleRate}";
+        return app(MediaCodecFingerprint::class)->for($path);
     }
 
     /**
@@ -1811,7 +1776,7 @@ class HistoricVideoImporter
      */
     private function historicImportMetadata(
         array $item,
-        string $path,
+        ?string $path,
         string $concatenation = 'none',
         ?HistoricStagingContext $stagingContext = null,
         ?string $jobKey = null,
@@ -1828,6 +1793,13 @@ class HistoricVideoImporter
             'sources' => $sources,
             'concatenation' => $concatenation,
             'codec_fingerprint' => $this->probeCodecInfo($path),
+            /**
+             * A null path means the fingerprint is deferred to the operation's
+             * staged copy, so this dispatch never opens the archive for it.
+             * {@see LivestreamSegmentationService} fills it
+             * once that copy is closed.
+             */
+            'codec_fingerprint_source' => $path === null ? 'staged_copy' : 'archive_source',
             'drive_volume' => $this->driveVolume($item['files'][0]),
             'imported_at' => now()->toISOString(),
             'editorial_facts' => is_array($item['editorial_facts'] ?? null)
