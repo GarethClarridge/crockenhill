@@ -9,6 +9,7 @@ use App\Mail\ManualReviewRequired;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Media\Video\VideoStorageService;
 use App\Services\Processing\StorageAdapterHelper;
@@ -1135,7 +1136,10 @@ class ExtractSermonTest extends TestCase
             app(StorageAdapterHelper::class),
             app(SermonExtractionPlanResolver::class),
             app(SermonCandidateConfidenceService::class),
-            $ffprobe ?? $this->probeWithDuration(1800.0),
+            new ExtractedMediaDurationProbe(
+                app(StorageAdapterHelper::class),
+                $ffprobe ?? $this->probeWithDuration(1800.0),
+            ),
         );
     }
 

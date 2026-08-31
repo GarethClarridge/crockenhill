@@ -69,6 +69,62 @@ The pilot's livestream projection synchronises canonical service items before in
 | 7 — Fresh canary | Run and media evaluation complete; further remediation required | Operation 3 was dispatched and resumed after a stale-mount abort. The first duration, stranded-tail, custody-measurement and pilot-custody fixes are implemented and tested, but the output audit found fresh-sermon duration, untracked video-storage, filename-title, song-boundary and song-custody defects. The operation-bound repairs and identical-canary proof have not been run. |
 | 8–9 | Not started | The remainder and public-release phases remain gated on a clean Phase 7 acceptance. |
 
+#### Phase 7 remediation implemented, 2026-08-31
+
+M1–M6 and M10–M12 are implemented with focused coverage; PHPStan, Pint, the full
+parallel suite and Dusk are green. A review of that work against this plan found
+three defects and three inaccuracies, all now fixed:
+
+- **`CleanupTemporaryFiles` failed a run on a tolerated speaker failure.** The M2
+  guard read a `failed` `identifying_speaker` step as terminal unsettled work and
+  called `markAsFailed` on the whole run. `IdentifySpeaker` records that state
+  deliberately and continues — a deterministic failure is non-blocking and falls
+  back to `Visiting Speaker` — so a run that produced good media would end
+  `failed` *with cleanup skipped*, retaining exactly the staging bytes the guard
+  exists to protect. The guard now blocks only on genuinely active work
+  (`pending`/`started`/`processing`); a failed step has released its inputs.
+  Regression: `it_cleans_up_after_a_non_blocking_historic_speaker_failure`.
+- **The M1 canary repair could not run.** `HistoricVideoSermonDurationRepair` now
+  reads `trim.observed_duration`, which only `ExtractSermon` writes, so every row
+  the repair exists to fix — extracted before that key existed — failed closed on
+  "no positive observed extraction duration". It now measures the durable
+  promoted asset through the shared probe and banks the result at the same key,
+  which is what step 6's "repair from verified assets" asks for: one FFprobe, no
+  re-extraction and no new analysis. A missing or unreadable asset still fails
+  closed.
+- **The M3 canary repair had no mechanism.** Provenance is deliberately not
+  backfilled, so 898 and 899 remain null, and their titles are precisely the
+  shapes `PlaceholderSermonTitle` refuses — meaning banked analysis kept refusing
+  them and nothing could set `Generated`. New command
+  `historic-import:repair-video-sermon-title-provenance`
+  (`RepairHistoricVideoSermonTitleProvenanceRepair`), matching the option surface
+  of the two existing repair commands, *proves* provenance by recomputing the
+  filename-derived title from the run's original filename, date and service slot
+  and recording `Generated` only on an exact match. Anything else is refused and
+  left null, because a non-null title is not editorial authority merely because
+  it exists.
+- The title-replacement policy moved to `Sermon::titleMayBeReplacedByAnalysis()`;
+  it was duplicated verbatim in the live and banked writers, which could have
+  drifted into disagreeing about which titles are safe to replace.
+- `song_videos.asset_disk` was missing from the committed schema dump. Rebuilt by
+  the documented procedure (committed dump + pending migrations only, never the
+  drifted dev DB); the diff is that one column plus its migration row.
+- `HistoricProcessingFingerprint::LEGACY_FORMAT` implied a version gate it does
+  not implement — the format tag is unchanged, so tolerating `throughput` is a
+  property of that field, not of an older schema. Renamed and documented
+  truthfully; behaviour is unchanged, and the format tag stays put deliberately
+  because bumping it would mark every processed run stale for no byte-level gain.
+
+One review finding was withdrawn on evidence: FFprobing
+`Storage::disk($tempDisk)->path(...)` in `ExtractSermon` is not an S3 hazard,
+because `VideoExtractionService` already writes its output through the same call.
+The whole extraction path requires a local-path-capable temp disk, `temp_disk`
+defaults to `local`, and an unreadable path fails closed with a clear message.
+
+Still outstanding, and all operator work: M12 items 11–14 (the operation-3
+retrospective report and the four-identity two-worker calibration pass), and the
+operator sequence below.
+
 ### Phase 0 outcome
 
 The first capture's three failures were each a defect in the capture, not in the
@@ -1752,8 +1808,12 @@ duplicate admin suites named in the repository do-not-invest list.
    once per exact ID set, review the dry-run table, then repeat with `--apply --yes`.
    Metadata must equal FFprobe within 1.5 seconds; any larger difference remains a
    blocker.
-5. Apply the provenance-bound title repair to 898 and 899, and the bounded speaker
-   replay to their exact banked audio. Prove curated fields are unchanged and no
+5. Apply the provenance-bound title repair to 898 and 899 with
+   `historic-import:repair-video-sermon-title-provenance --operation=historic-60b16730090144bd307984abf538a7d7 --processing-id=<id>`,
+   reviewing the dry-run table before `--apply --yes`: it records `Generated`
+   only where the stored title exactly reproduces from the run's filename, and
+   refuses everything else. Replaying banked analysis afterwards is what actually
+   changes the titles. Then run the bounded speaker replay to their exact banked audio. Prove curated fields are unchanged and no
    sermon-analysis request was made.
 6. Run the dry-run-first song-custody repair for the exact 23 canary `SongVideo`
    rows and every held canary candidate. Verify private state, operation and disk

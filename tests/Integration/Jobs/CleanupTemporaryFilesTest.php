@@ -380,4 +380,33 @@ class CleanupTemporaryFilesTest extends TestCase
         $this->assertSame('completed', $log->status->value);
         Queue::assertNotPushed(CleanupTemporaryFiles::class);
     }
+
+    #[Test]
+    public function it_cleans_up_after_a_non_blocking_historic_speaker_failure(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'historic_import_operation_id' => $operation->id,
+            'source_file_path' => 'temp/source-video.mp4',
+        ]);
+
+        // IdentifySpeaker records a deterministic failure and lets the chain
+        // continue, so the working copies it used are released, not in flight.
+        SermonProcessingStep::factory()->create([
+            'processing_id' => $log->processing_id,
+            'step' => 'identifying_speaker',
+            'status' => ProcessingStatus::Failed,
+        ]);
+
+        Queue::fake();
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage->expects($this->once())->method('cleanupTemporaryFiles');
+
+        (new CleanupTemporaryFiles($log))->handle($mockStorage);
+
+        $log->refresh();
+        $this->assertSame('completed', $log->status->value);
+        Queue::assertNotPushed(CleanupTemporaryFiles::class);
+    }
 }

@@ -1204,7 +1204,7 @@ CREATE TABLE `sermons` (
   `duration` double DEFAULT NULL,
   `filetype` varchar(8) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'mp3',
   `title` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
-  `title_provenance` varchar(20) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `title_provenance` varchar(20) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `slug` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   `reference` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL COMMENT 'Denormalized scripture reference cache for display/search compatibility. scripture_passage_id is the canonical normalized identity when present.',
   `scripture_passage_id` bigint unsigned DEFAULT NULL COMMENT 'Canonical normalized scripture identity for the published sermon. The reference text column is a synchronized cache.',
@@ -1469,7 +1469,7 @@ CREATE TABLE `song_usage_reports` (
   `source_row` int unsigned NOT NULL,
   `source_fingerprint` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `metadata` json DEFAULT NULL,
-  `publication_state` varchar(24) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'quarantined',
+  `publication_state` varchar(24) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'quarantined',
   `historic_import_operation_id` bigint unsigned DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -1498,6 +1498,7 @@ CREATE TABLE `song_videos` (
   `recorded_date` date DEFAULT NULL,
   `is_featured` tinyint(1) NOT NULL DEFAULT '0',
   `publication_state` varchar(24) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'published',
+  `asset_disk` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `historic_import_operation_id` bigint unsigned DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -1864,3 +1865,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_13_092457_add_d
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_13_093747_create_historic_import_release_ledger_tables',89);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_13_193205_add_publication_quarantine_to_song_usage_reports_table',90);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_132413_add_title_provenance_to_sermons_table',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_140000_add_asset_disk_to_song_videos_table',92);

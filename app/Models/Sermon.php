@@ -15,10 +15,13 @@ use App\Enums\SermonSourceType;
 use App\Enums\SermonTitleProvenance;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
+use App\Jobs\ProcessTranscriptWithAI;
 use App\Models\Builders\SermonBuilder;
 use App\Rules\NotEmptyString;
 use App\Rules\SermonPointElement;
+use App\Services\Sermon\HistoricBankedSermonAnalysisReplay;
 use App\Sitemap\SermonSitemapPresenter;
+use App\Support\PlaceholderSermonTitle;
 use App\Support\SermonProcessingState;
 use Database\Factories\SermonFactory;
 use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
@@ -548,6 +551,31 @@ class Sermon extends Model implements Sitemapable
     public function hasVideo(): bool
     {
         return filled($this->video_file_path);
+    }
+
+    /**
+     * Whether sermon analysis may replace this title.
+     *
+     * Provenance is the authority. `Generated` is the pipeline's own filename or
+     * service-slot fallback and exists to be improved on. `AiAnalysis` and
+     * `Curated` are settled and must never be overwritten. Null predates the
+     * provenance column and means *unknown*, not generated, so it routes to the
+     * legacy `PlaceholderSermonTitle` recogniser, which is deliberately narrow:
+     * it would rather leave a filename title in place than overwrite a real one.
+     *
+     * This lives on the model because both writers -- the live
+     * {@see ProcessTranscriptWithAI} and the banked
+     * {@see HistoricBankedSermonAnalysisReplay} -- must
+     * apply exactly the same rule; two copies could drift into disagreeing about
+     * which titles are safe to replace.
+     */
+    public function titleMayBeReplacedByAnalysis(): bool
+    {
+        return match ($this->title_provenance) {
+            SermonTitleProvenance::Generated => true,
+            null => PlaceholderSermonTitle::matches((string) $this->title),
+            default => false,
+        };
     }
 
     public function videoQualityStatus(): SermonVideoQualityStatus

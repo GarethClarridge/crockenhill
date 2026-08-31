@@ -7,7 +7,6 @@ namespace App\Services\Sermon;
 use App\Enums\SermonTitleProvenance;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Support\PlaceholderSermonTitle;
 use Illuminate\Support\Facades\Log;
 
 class HistoricBankedSermonAnalysisReplay
@@ -37,7 +36,7 @@ class HistoricBankedSermonAnalysisReplay
         $changed = [];
         $refused = [];
 
-        if ($this->canReplaceTitle($sermon)) {
+        if ($sermon->titleMayBeReplacedByAnalysis()) {
             $titleChanged = $analysis->title !== $sermon->title;
 
             if ($titleChanged) {
@@ -108,15 +107,6 @@ class HistoricBankedSermonAnalysisReplay
         ]);
 
         return ['changed' => $changed, 'refused' => $refused];
-    }
-
-    private function canReplaceTitle(Sermon $sermon): bool
-    {
-        return match ($sermon->title_provenance) {
-            SermonTitleProvenance::Generated => true,
-            null => PlaceholderSermonTitle::matches($sermon->title),
-            default => false,
-        };
     }
 
     private function duration(MediaProcessingLog $processingLog): ?float

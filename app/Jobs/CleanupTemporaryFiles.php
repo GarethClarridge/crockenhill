@@ -205,21 +205,29 @@ class CleanupTemporaryFiles implements ShouldQueue
             ];
         }
 
-        $unsettledStep = SermonProcessingStep::query()
+        /**
+         * Only work that is still running can be orphaned by deleting its inputs.
+         * A failed step has released them: IdentifySpeaker in particular treats a
+         * deterministic failure as non-blocking on purpose -- it records the step
+         * failed, falls back to `Visiting Speaker` and lets the chain continue --
+         * so reading that row as unsettled would turn a tolerated soft failure
+         * into a hard run failure and strand the working copies it was meant to
+         * protect.
+         */
+        $activeStep = SermonProcessingStep::query()
             ->where('processing_id', $this->processingLog->processing_id)
             ->whereIn('step', ['assessing_video_quality', 'identifying_speaker'])
             ->whereIn('status', [
                 ProcessingStatus::Pending->value,
                 ProcessingStatus::Started->value,
                 ProcessingStatus::Processing->value,
-                ProcessingStatus::Failed->value,
             ])
             ->first();
 
-        if ($unsettledStep instanceof SermonProcessingStep) {
+        if ($activeStep instanceof SermonProcessingStep) {
             return [
-                'description' => $unsettledStep->step.' (state: '.$unsettledStep->status->value.')',
-                'terminal' => $unsettledStep->status === ProcessingStatus::Failed,
+                'description' => $activeStep->step.' (state: '.$activeStep->status->value.')',
+                'terminal' => false,
             ];
         }
 

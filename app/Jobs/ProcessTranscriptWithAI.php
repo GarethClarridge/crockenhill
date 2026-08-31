@@ -115,7 +115,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             $id3Title = $id3Metadata?->title;
             $hasValidId3Title = filled($id3Title) && ! $this->looksLikeFilename($id3Title);
 
-            if (! $hasValidId3Title && $this->canReplaceTitle($sermon)) {
+            if (! $hasValidId3Title && $sermon->titleMayBeReplacedByAnalysis()) {
                 $updateData['title'] = $analysis->title;
                 $updateData['title_provenance'] = SermonTitleProvenance::AiAnalysis;
 
@@ -201,7 +201,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                     // A generated title must not be replaced by a fallback that
                     // yields nothing better ("17 55").
                     if (! $hasValidId3Title
-                        && $this->canReplaceTitle($sermon)
+                        && $sermon->titleMayBeReplacedByAnalysis()
                         && ! $this->looksLikeFilename($fallbackAnalysis->title)
                     ) {
                         $this->applyAiSlug($sermon, $fallbackAnalysis->title, $updateData);
@@ -379,15 +379,6 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
     private function looksLikeFilename(string $title): bool
     {
         return PlaceholderSermonTitle::matches($title);
-    }
-
-    private function canReplaceTitle(Sermon $sermon): bool
-    {
-        return match ($sermon->title_provenance) {
-            SermonTitleProvenance::Generated => true,
-            null => PlaceholderSermonTitle::matches($sermon->title),
-            default => false,
-        };
     }
 
     protected function onJobFailure(\Throwable $exception): void

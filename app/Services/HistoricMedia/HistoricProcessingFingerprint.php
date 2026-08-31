@@ -16,7 +16,15 @@ use Symfony\Component\Process\Process;
  */
 final class HistoricProcessingFingerprint
 {
-    private const LEGACY_FORMAT = 'crockenhill.historic-media-processing.v1';
+    /**
+     * The durable fingerprint's schema tag.
+     *
+     * Deliberately unchanged when `throughput` was dropped: removing a field
+     * that never affected the bytes does not change what the fingerprint
+     * describes, and bumping it would mark every already-processed run stale and
+     * force a reprocess of the corpus to buy nothing.
+     */
+    private const FINGERPRINT_FORMAT = 'crockenhill.historic-media-processing.v1';
 
     /**
      * The complete set of inputs that determine the durable media output, and
@@ -43,7 +51,7 @@ final class HistoricProcessingFingerprint
     public function forStagingContext(HistoricStagingContext $context): array
     {
         return [
-            'format' => self::LEGACY_FORMAT,
+            'format' => self::FINGERPRINT_FORMAT,
             'source_manifest_hash' => $context->manifestHash,
             'transcription' => [
                 'service' => config('media-processing.transcription.service'),
@@ -89,10 +97,17 @@ final class HistoricProcessingFingerprint
     /**
      * Return the one canonical durable fingerprint representation.
      *
-     * The first historic schema recorded queue widths under throughput. That
-     * field was execution evidence, not a byte-affecting input, so it is
-     * accepted only on that known legacy format and removed before comparison
-     * or export. Every other unknown key remains a hard failure.
+     * Earlier runs recorded queue widths under `throughput`. That field was
+     * execution evidence, not a byte-affecting input, so it is tolerated on a
+     * recognised fingerprint and stripped before comparison or export; where it
+     * appears on an unrecognised `format` the value cannot be interpreted at all
+     * and is refused. Every other unknown key remains a hard failure, which is
+     * what keeps this a normalisation of one known field rather than a general
+     * licence to ignore fields.
+     *
+     * Note this is not a version gate: the format tag is unchanged, so tolerating
+     * `throughput` is a property of the field, not of an older schema. The
+     * narrowing that matters is the allowlist below.
      *
      * @param  array<string, mixed>  $fingerprint
      * @return array<string, mixed>
@@ -100,9 +115,9 @@ final class HistoricProcessingFingerprint
     public function normalize(array $fingerprint): array
     {
         if (array_key_exists('throughput', $fingerprint)) {
-            if (($fingerprint['format'] ?? null) !== self::LEGACY_FORMAT) {
+            if (($fingerprint['format'] ?? null) !== self::FINGERPRINT_FORMAT) {
                 throw new RuntimeException(
-                    'Historic processing fingerprint may carry legacy throughput only on the existing v1 schema.'
+                    'Historic processing fingerprint may carry legacy throughput only on a recognised fingerprint format.'
                 );
             }
 

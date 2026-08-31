@@ -7,26 +7,43 @@ namespace App\Services\HistoricMedia;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonPublicationState;
+use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
+use App\Enums\SermonTitleProvenance;
+use App\Enums\TitleGenerationStrategy;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\Media\ExtractedMediaDurationProbe;
+use App\Services\Sermon\SermonCreationService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
- * Repair stale sermon durations after a historic re-extraction has already
- * completed and its source working copy has been reclaimed.
+ * Establish title provenance for historic sermons created before the
+ * `sermons.title_provenance` column existed.
  *
- * Deletion trigger: Delete after IC8 closeout once the Phase 7 duration repair
- * and its retained evidence are complete.
+ * Those rows are deliberately left null by the migration, and null routes to the
+ * legacy `PlaceholderSermonTitle` recogniser. That is right for most of them, but
+ * it strands the exact rows the provenance column was introduced for: a title the
+ * pipeline generated from a filename that the recogniser cannot safely match
+ * ("Sunday 23 January 2022 101", "Carols By Candlelight 19 December 2021"). Those
+ * keep refusing good banked analysis forever.
+ *
+ * Provenance is *proved*, never assumed. The generated title is a pure function
+ * of the run's original filename, service date and service slot, so this
+ * recomputes it and writes `Generated` only where the recomputed value is exactly
+ * the stored one. Anything else — an editor's title, an AI title already applied,
+ * a filename that no longer reproduces — is refused and left null, because a
+ * non-null title is not editorial authority merely because it exists, and a wrong
+ * `Generated` here would license overwriting a curated title.
+ *
+ * Deletion trigger: Delete after IC8 closeout once the Phase 7 title repair and
+ * its retained evidence are complete.
  */
-final class HistoricVideoSermonDurationRepair
+final class HistoricVideoSermonTitleProvenanceRepair
 {
     public function __construct(
-        private readonly ExtractedMediaDurationProbe $durationProbe,
+        private readonly SermonCreationService $sermonCreationService,
     ) {}
 
     /**
@@ -34,9 +51,10 @@ final class HistoricVideoSermonDurationRepair
      * @return list<array{
      *     processing_id: string,
      *     sermon: Sermon,
-     *     current_duration: float|null,
-     *     repaired_duration: float,
-     *     disposition: 'pending'|'already_repaired'
+     *     current_title: string,
+     *     generated_title: string,
+     *     current_provenance: string,
+     *     disposition: 'pending'|'already_recorded'|'refused'
      * }>
      */
     public function inspect(HistoricImportOperation $operation, array $processingIds): array
@@ -66,18 +84,15 @@ final class HistoricVideoSermonDurationRepair
 
             $this->assertRunOwnership($run, $operation);
             $sermon = $this->sermonForRun($run, $operation);
-            $duration = $this->observedDuration($run, $sermon);
-
-            $currentDuration = $sermon->duration === null ? null : (float) $sermon->duration;
+            $generatedTitle = $this->generatedTitleFor($run, $sermon);
 
             $entries[] = [
                 'processing_id' => $processingId,
                 'sermon' => $sermon,
-                'current_duration' => $currentDuration,
-                'repaired_duration' => $duration,
-                'disposition' => $currentDuration !== null && abs($currentDuration - $duration) < 0.001
-                    ? 'already_repaired'
-                    : 'pending',
+                'current_title' => (string) $sermon->title,
+                'generated_title' => $generatedTitle,
+                'current_provenance' => $sermon->title_provenance->value ?? 'null',
+                'disposition' => $this->disposition($sermon, $generatedTitle),
             ];
         }
 
@@ -88,17 +103,19 @@ final class HistoricVideoSermonDurationRepair
      * @param  list<array{
      *     processing_id: string,
      *     sermon: Sermon,
-     *     current_duration: float|null,
-     *     repaired_duration: float,
-     *     disposition: 'pending'|'already_repaired'
+     *     current_title: string,
+     *     generated_title: string,
+     *     current_provenance: string,
+     *     disposition: 'pending'|'already_recorded'|'refused'
      * }>  $entries
-     * @return array{repaired: int, already_repaired: int}
+     * @return array{recorded: int, already_recorded: int, refused: int}
      */
     public function apply(HistoricImportOperation $operation, array $entries): array
     {
         return DB::transaction(function () use ($operation, $entries): array {
-            $repaired = 0;
-            $alreadyRepaired = 0;
+            $recorded = 0;
+            $alreadyRecorded = 0;
+            $refused = 0;
 
             foreach ($entries as $entry) {
                 $run = MediaProcessingLog::query()
@@ -107,7 +124,7 @@ final class HistoricVideoSermonDurationRepair
                     ->first();
 
                 if (! $run instanceof MediaProcessingLog) {
-                    throw new RuntimeException("Processing run {$entry['processing_id']} disappeared before duration repair.");
+                    throw new RuntimeException("Processing run {$entry['processing_id']} disappeared before title provenance repair.");
                 }
 
                 $this->assertRunOwnership($run, $operation);
@@ -115,11 +132,7 @@ final class HistoricVideoSermonDurationRepair
                 $sermon = Sermon::query()->whereKey($entry['sermon']->id)->lockForUpdate()->first();
 
                 if (! $sermon instanceof Sermon) {
-                    throw new RuntimeException("Sermon {$entry['sermon']->id} disappeared before duration repair.");
-                }
-
-                if ($run->sermon_id !== null && $run->sermon_id !== $sermon->id) {
-                    throw new RuntimeException("Processing run {$run->processing_id} has an inconsistent sermon link.");
+                    throw new RuntimeException("Sermon {$entry['sermon']->id} disappeared before title provenance repair.");
                 }
 
                 if ($sermon->livestream_processing_id !== $run->processing_id) {
@@ -127,67 +140,64 @@ final class HistoricVideoSermonDurationRepair
                 }
 
                 $this->assertSermonOwnership($sermon, $operation);
-                $repairedDuration = $this->observedDuration($run, $sermon);
 
-                if ($sermon->duration !== null
-                    && abs((float) $sermon->duration - $repairedDuration) < 0.001) {
-                    $alreadyRepaired++;
+                $generatedTitle = $this->generatedTitleFor($run, $sermon);
 
-                    continue;
-                }
-
-                $sermon->forceFill(['duration' => $repairedDuration])->save();
-                $repaired++;
+                match ($this->disposition($sermon, $generatedTitle)) {
+                    'already_recorded' => $alreadyRecorded++,
+                    'refused' => $refused++,
+                    'pending' => (function () use ($sermon, &$recorded): void {
+                        $sermon->forceFill(['title_provenance' => SermonTitleProvenance::Generated])->save();
+                        $recorded++;
+                    })(),
+                };
             }
 
-            return ['repaired' => $repaired, 'already_repaired' => $alreadyRepaired];
+            return ['recorded' => $recorded, 'already_recorded' => $alreadyRecorded, 'refused' => $refused];
         });
     }
 
     /**
-     * The playable duration of the media this run actually emitted.
-     *
-     * A run extracted after observed duration was introduced banked the FFprobe
-     * result at `trim.observed_duration`, and that value is used as-is. A run
-     * that predates it banked only the planned segment sum, which is the number
-     * this repair exists to replace, so the answer is measured from the durable
-     * asset the run produced and banked at the same key. Measuring the promoted
-     * video is what "repair from verified assets" means: it costs one FFprobe
-     * and no re-extraction, no provider call and no new analysis.
+     * @return 'pending'|'already_recorded'|'refused'
      */
-    private function observedDuration(MediaProcessingLog $run, Sermon $sermon): float
+    private function disposition(Sermon $sermon, string $generatedTitle): string
     {
-        $observed = $run->observedSermonMediaDuration();
-
-        if ($observed !== null && $observed > 0) {
-            return $observed;
+        if ($sermon->title_provenance === SermonTitleProvenance::Generated) {
+            return 'already_recorded';
         }
 
-        $observed = $this->durationProbe->durationOf($this->sermonVideoAbsolutePath($sermon));
+        if ($sermon->title_provenance !== null) {
+            return 'refused';
+        }
 
-        $metadata = $run->processing_metadata?->toArray() ?? [];
-        $metadata['trim'] = is_array($metadata['trim'] ?? null) ? $metadata['trim'] : [];
-        $metadata['trim']['observed_duration'] = $observed;
-        $run->forceFill(['processing_metadata' => $metadata])->save();
-
-        return $observed;
+        return (string) $sermon->title === $generatedTitle ? 'pending' : 'refused';
     }
 
-    private function sermonVideoAbsolutePath(Sermon $sermon): string
+    /**
+     * Recompute the title the pipeline's filename fallback would produce today.
+     *
+     * `FilenameOnly` is the same derivation `AiWithFallback` reaches once ID3 and
+     * AI analysis are both absent, which is exactly the state these rows were
+     * created in, so an exact match is proof rather than resemblance.
+     */
+    private function generatedTitleFor(MediaProcessingLog $run, Sermon $sermon): string
     {
-        $path = $sermon->video_file_path;
+        $context = [
+            'filename' => (string) $run->original_filename,
+            'processing_log' => $run,
+            'date' => $sermon->date->toDateString(),
+        ];
 
-        if (! is_string($path) || $path === '') {
-            throw new RuntimeException("Sermon {$sermon->id} has no video asset to measure.");
+        // The slot only participates when the row has one; the generator derives
+        // it from the run otherwise, exactly as it did at creation.
+        if ($sermon->service instanceof SermonService) {
+            $context['service'] = $sermon->service;
         }
 
-        $disk = Storage::disk((string) $sermon->asset_disk);
-
-        if (! $disk->exists($path)) {
-            throw new RuntimeException("Sermon {$sermon->id} video asset is missing from disk {$sermon->asset_disk}: {$path}");
-        }
-
-        return $disk->path($path);
+        return $this->sermonCreationService->generateTitle(
+            TitleGenerationStrategy::FilenameOnly,
+            $context,
+        );
     }
 
     private function assertRunOwnership(MediaProcessingLog $run, HistoricImportOperation $operation): void

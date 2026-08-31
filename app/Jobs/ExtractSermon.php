@@ -8,6 +8,7 @@ use App\Data\LivestreamSegment;
 use App\Enums\LivestreamSegmentClassification;
 use App\Mail\ManualReviewRequired;
 use App\Models\MediaProcessingLog;
+use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Media\Video\VideoStorageService;
 use App\Services\Processing\ProcessingNotificationRouter;
@@ -16,7 +17,6 @@ use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Traits\DetectsStorageType;
-use FFMpeg\FFProbe;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -43,7 +43,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
         StorageAdapterHelper $storageHelper,
         SermonExtractionPlanResolver $planResolver,
         SermonCandidateConfidenceService $sermonConfidenceService,
-        ?FFProbe $ffprobe = null,
+        ExtractedMediaDurationProbe $durationProbe,
     ): void {
         try {
             $processingLog = $this->processingLog->fresh();
@@ -171,11 +171,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 }
 
                 $sermonAudioPath = $audioExtractionResult['audio_path'];
-                $observedDuration = $this->probeObservedDuration(
-                    $sermonVideoAbsolutePath,
-                    $storageHelper,
-                    $ffprobe,
-                );
+                $observedDuration = $durationProbe->durationOf($sermonVideoAbsolutePath);
             } finally {
                 // Clean up temporary S3 download file if we created one
                 if ($isS3TempDisk) {
@@ -344,40 +340,6 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
 
         if ($duration <= 0.0) {
             throw new \Exception('Invalid extraction plan duration');
-        }
-
-        return $duration;
-    }
-
-    private function probeObservedDuration(
-        string $videoPath,
-        StorageAdapterHelper $storageHelper,
-        ?FFProbe $ffprobe,
-    ): float {
-        $ffprobe ??= $storageHelper->createFFMpeg()?->getFFProbe();
-
-        if (! $ffprobe instanceof FFProbe) {
-            throw new \RuntimeException('FFprobe is unavailable for the extracted sermon video.');
-        }
-
-        try {
-            $durationValue = $ffprobe->format($videoPath)->get('duration');
-        } catch (\Throwable $exception) {
-            throw new \RuntimeException(
-                "Unable to read the extracted sermon video duration: {$videoPath}",
-                0,
-                $exception
-            );
-        }
-
-        if (! is_numeric($durationValue)) {
-            throw new \RuntimeException("FFprobe returned an unreadable duration for the extracted sermon video: {$videoPath}");
-        }
-
-        $duration = (float) $durationValue;
-
-        if (! is_finite($duration) || $duration <= 0.0) {
-            throw new \RuntimeException("The extracted sermon video must have a positive duration: {$videoPath}");
         }
 
         return $duration;
