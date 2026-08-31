@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Song;
 
+use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
@@ -32,7 +33,7 @@ class SongVideoService
      */
     public function getVideoUrl(SongVideo $video): string
     {
-        $disk = $this->sermonDisk();
+        $disk = $this->assetDisk($video);
         HistoricStagingUrlGuard::assertAllowed($disk);
 
         return Storage::disk($disk)->url($video->video_file_path);
@@ -98,7 +99,7 @@ class SongVideoService
     {
         $sectionId = $video->service_section_id;
 
-        Storage::disk($this->sermonDisk())->delete($video->video_file_path);
+        Storage::disk($this->assetDisk($video))->delete($video->video_file_path);
         $video->delete();
 
         if ($sectionId !== null) {
@@ -152,7 +153,7 @@ class SongVideoService
         $processingLog = $section->processingLog;
         $churchService = $processingLog->churchService;
 
-        return SongVideo::query()->create([
+        $attributes = [
             'song_id' => $item->song_id,
             'service_section_id' => $section->id,
             'church_service_id' => $processingLog->church_service_id,
@@ -160,7 +161,15 @@ class SongVideoService
             'duration' => $section->duration,
             'recorded_date' => $churchService?->date,
             'is_featured' => false,
-        ]);
+        ];
+
+        if ($processingLog->historic_import_operation_id !== null) {
+            $attributes['publication_state'] = SermonPublicationState::Quarantined;
+            $attributes['asset_disk'] = $this->sermonDisk();
+            $attributes['historic_import_operation_id'] = $processingLog->historic_import_operation_id;
+        }
+
+        return SongVideo::query()->create($attributes);
     }
 
     private function resetLinkedSectionForReExtraction(int $sectionId): void
@@ -183,5 +192,10 @@ class SongVideoService
     private function sermonDisk(): string
     {
         return (string) config('media-processing.storage.sermon_disk', config('filesystems.default', 'local'));
+    }
+
+    private function assetDisk(SongVideo $video): string
+    {
+        return filled($video->asset_disk) ? (string) $video->asset_disk : $this->sermonDisk();
     }
 }

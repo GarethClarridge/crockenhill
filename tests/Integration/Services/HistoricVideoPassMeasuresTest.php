@@ -6,9 +6,14 @@ namespace Tests\Integration\Services;
 
 use App\Data\HistoricStagingContext;
 use App\Enums\ProcessingStatus;
+use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionType;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Models\ServiceSection;
+use App\Models\Song;
+use App\Models\SongVideo;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\HistoricMedia\HistoricVideoPassMeasures;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -192,6 +197,49 @@ class HistoricVideoPassMeasuresTest extends TestCase
         $this->assertSame(47, $measures['staging_retained_bytes']);
         $this->assertSame(40, $measures['staging_accounted_bytes']);
         $this->assertSame(7, $measures['unexplained_residue_bytes']);
+    }
+
+    #[Test]
+    public function it_accounts_for_song_video_bytes_and_review_held_section_candidates(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $context = $this->stagingContextFor($operation);
+        $log = $this->runWithPromotion($operation, null, stagingContext: $context);
+
+        $songSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'extracted_video_path' => null,
+        ]);
+        $songVideo = SongVideo::factory()->create([
+            'song_id' => Song::factory(),
+            'service_section_id' => $songSection->id,
+            'video_file_path' => 'sermons/songs/7/song.mp4',
+        ]);
+
+        $heldSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+            'extracted_video_path' => 'section-publications/held/video.mp4',
+            'extracted_audio_path' => null,
+        ]);
+
+        Storage::disk('historic_staging')->put(
+            "{$context->batchRoot}/{$songVideo->video_file_path}",
+            str_repeat('s', 17),
+        );
+        Storage::disk('historic_staging')->put(
+            "{$context->batchRoot}/{$heldSection->extracted_video_path}",
+            str_repeat('h', 23),
+        );
+
+        $measures = app(HistoricVideoPassMeasures::class)->report($operation);
+
+        $this->assertSame(40, $measures['staging_retained_bytes']);
+        $this->assertSame(40, $measures['staging_accounted_bytes']);
+        $this->assertSame(0, $measures['unexplained_residue_bytes']);
     }
 
     /**

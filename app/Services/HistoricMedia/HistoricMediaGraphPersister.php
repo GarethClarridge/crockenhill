@@ -909,6 +909,7 @@ class HistoricMediaGraphPersister
                 // bytes are on the private disk, and a later recorded_date
                 // would otherwise make this the song's public video.
                 'publication_state' => SermonPublicationState::Quarantined,
+                'asset_disk' => $this->assets->targetDiskName(),
                 'historic_import_operation_id' => $plan->historicImportOperationId,
             ]);
         }

@@ -24,6 +24,7 @@ use Illuminate\Validation\Rule;
  * @property Carbon|null $recorded_date
  * @property bool $is_featured
  * @property SermonPublicationState $publication_state
+ * @property string|null $asset_disk
  * @property int|null $historic_import_operation_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -58,6 +59,7 @@ class SongVideo extends Model
         'recorded_date',
         'is_featured',
         'publication_state',
+        'asset_disk',
         'historic_import_operation_id',
     ];
 

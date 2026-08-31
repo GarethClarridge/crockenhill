@@ -609,8 +609,8 @@ class HistoricNormalOutputContract
                     'church_service_id' => $this->field('nullable', 'deterministically_rebuilt', 'local_foreign_key'),
                     'video_file_path' => $this->field('required', 'portable', 'asset_path'),
                 ],
-                // Destination-owned audience state, for the same reason as sermons.
-                excluded: ['id', 'created_at', 'updated_at', 'publication_state', 'historic_import_operation_id'],
+                // Destination-owned audience and custody state, for the same reason as sermons.
+                excluded: ['id', 'created_at', 'updated_at', 'publication_state', 'asset_disk', 'historic_import_operation_id'],
             ),
         ];
     }

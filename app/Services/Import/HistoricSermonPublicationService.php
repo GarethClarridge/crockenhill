@@ -13,7 +13,6 @@ use App\Models\HistoricImportReleaseAttempt;
 use App\Models\Sermon;
 use App\Models\SongUsageReport;
 use App\Models\SongVideo;
-use App\Services\Song\SongVideoService;
 use App\Support\CanonicalJson;
 use App\Support\Path;
 use Illuminate\Database\QueryException;
@@ -92,11 +91,11 @@ class HistoricSermonPublicationService
     /**
      * Release an exact, enumerated batch of quarantined historic records.
      *
-     * Song videos travel with the sermons deliberately. `SongVideo` has no
-     * per-record disk and {@see SongVideoService::getVideoUrl()} always builds a
-     * sermon-disk URL, so a song video whose state flips without its bytes
-     * moving would advertise a public URL for a file that only exists on the
-     * private quarantine disk.
+     * Song videos travel with the sermons deliberately. Their recorded disk is
+     * the source of truth for both release and URL resolution; legacy rows with
+     * no disk fall back to the historic quarantine disk. A row whose state flips
+     * without its bytes moving would otherwise advertise a public URL for a
+     * file that only exists on private storage.
      *
      * Date-only song usage reports travel with them too, but they own no bytes: the hymn lane
      * writes database evidence only, so releasing one is a state flip with no destination to
@@ -158,8 +157,16 @@ class HistoricSermonPublicationService
             $sermonPaths[$sermon->id] = $this->assetPaths($sermon);
         }
 
-        if ($songVideos !== []) {
-            $this->assertDistinctDisks($quarantineDiskName, $targetDiskName);
+        foreach ($songVideos as $songVideo) {
+            $sourceDiskName = $this->songVideoDisk($songVideo, $quarantineDiskName);
+
+            if ($sourceDiskName !== $quarantineDiskName) {
+                throw new RuntimeException(
+                    "Historic song video {$songVideo->id} is not bound to the private quarantine disk."
+                );
+            }
+
+            $this->assertDistinctDisks($sourceDiskName, $targetDiskName);
         }
 
         $this->claimDestinationsOnce(
@@ -356,7 +363,7 @@ class HistoricSermonPublicationService
             $claims[] = [
                 'record_type' => HistoricImportReleaseAsset::TypeSongVideo,
                 'record_id' => $songVideo->id,
-                'source_disk' => $quarantineDiskName,
+                'source_disk' => $this->songVideoDisk($songVideo, $quarantineDiskName),
                 'path' => (string) $songVideo->video_file_path,
             ];
         }
@@ -688,19 +695,24 @@ class HistoricSermonPublicationService
         }
 
         foreach ($songVideos as $songVideo) {
+            $sourceDiskName = $this->songVideoDisk($songVideo, $quarantineDiskName);
             $locked = SongVideo::query()->whereKey($songVideo->id)->lockForUpdate()->firstOrFail();
 
             if ($locked->historic_import_operation_id !== $operation->id
-                || $locked->publication_state !== SermonPublicationState::Quarantined) {
+                || $locked->publication_state !== SermonPublicationState::Quarantined
+                || $this->songVideoDisk($locked, $quarantineDiskName) !== $sourceDiskName) {
                 throw new RuntimeException('Historic song video release binding changed before commit.');
             }
 
-            $locked->forceFill(['publication_state' => SermonPublicationState::Published])->save();
+            $locked->forceFill([
+                'publication_state' => SermonPublicationState::Published,
+                'asset_disk' => $targetDiskName,
+            ])->save();
 
             $this->journal->append($operation, 'song_video_released', [
                 'song_video_id' => $locked->id,
                 'attempt_id' => $attempt->attempt_id,
-                'source_disk' => $quarantineDiskName,
+                'source_disk' => $sourceDiskName,
                 'target_disk' => $targetDiskName,
                 'asset_paths' => [$locked->video_file_path],
             ]);
@@ -864,6 +876,11 @@ class HistoricSermonPublicationService
         if ($sourceDiskName === '' || $targetDiskName === '' || $sourceDiskName === $targetDiskName) {
             throw new RuntimeException('Historic release requires distinct private and public media disks.');
         }
+    }
+
+    private function songVideoDisk(SongVideo $songVideo, string $fallback): string
+    {
+        return filled($songVideo->asset_disk) ? (string) $songVideo->asset_disk : $fallback;
     }
 
     /**

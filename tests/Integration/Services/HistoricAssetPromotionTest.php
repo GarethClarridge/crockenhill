@@ -7,11 +7,17 @@ namespace Tests\Integration\Services;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonPublicationState;
+use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionSongMatchType;
+use App\Enums\ServiceSectionType;
 use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\StoreSermonVideo;
 use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Models\ServiceSection;
+use App\Models\Song;
+use App\Models\SongVideo;
 use App\Services\HistoricMedia\HistoricAssetPromotion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -195,6 +201,126 @@ class HistoricAssetPromotionTest extends TestCase
     }
 
     #[Test]
+    public function it_promotes_historic_song_videos_and_binds_their_custody(): void
+    {
+        [$log, $sermon] = $this->historicRun();
+        $this->stage('sermons/video/pilot.mp4', 'video bytes');
+        $songVideo = $this->songVideoForRun($log);
+        $this->stage($songVideo->video_file_path, 'song video bytes');
+
+        $totals = app(HistoricAssetPromotion::class)->promoteRun($log);
+
+        Storage::disk('historic_quarantine')->assertExists($songVideo->video_file_path);
+        Storage::disk('historic_staging')->assertMissing($songVideo->video_file_path);
+        $songVideo->refresh();
+
+        $this->assertSame(1, $totals['song_videos']);
+        $this->assertSame(2, $totals['assets_promoted']);
+        $this->assertSame(SermonPublicationState::Quarantined, $songVideo->publication_state);
+        $this->assertSame('historic_quarantine', $songVideo->asset_disk);
+        $this->assertSame($log->historic_import_operation_id, $songVideo->historic_import_operation_id);
+        $this->assertSame(SermonPublicationState::Quarantined, $sermon->fresh()->publication_state);
+    }
+
+    #[Test]
+    public function it_refuses_a_same_size_song_destination_conflict_and_retains_staging(): void
+    {
+        [$log] = $this->historicRun();
+        $songVideo = $this->songVideoForRun($log);
+        $this->stage($songVideo->video_file_path, 'song-a');
+        Storage::disk('historic_quarantine')->put($songVideo->video_file_path, 'song-b');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('differs from existing destination');
+
+        try {
+            app(HistoricAssetPromotion::class)->promoteSongVideos($log);
+        } finally {
+            Storage::disk('historic_staging')->assertExists($songVideo->video_file_path);
+            Storage::disk('historic_quarantine')->assertExists($songVideo->video_file_path);
+            $this->assertSame('song-b', Storage::disk('historic_quarantine')->get($songVideo->video_file_path));
+        }
+    }
+
+    #[Test]
+    public function it_accepts_an_identical_song_destination_replay_and_reclaims_staging(): void
+    {
+        [$log] = $this->historicRun();
+        $songVideo = $this->songVideoForRun($log);
+        $this->stage($songVideo->video_file_path, 'song-a');
+        Storage::disk('historic_quarantine')->put($songVideo->video_file_path, 'song-a');
+
+        $totals = app(HistoricAssetPromotion::class)->promoteSongVideos($log);
+
+        $this->assertSame(1, $totals['song_videos']);
+        $this->assertSame(1, $totals['assets_promoted']);
+        $this->assertSame(0, $totals['assets_already_promoted']);
+        $this->assertSame(strlen('song-a'), $totals['promoted_bytes']);
+        $this->assertSame(strlen('song-a'), $totals['reclaimed_bytes']);
+        Storage::disk('historic_staging')->assertMissing($songVideo->video_file_path);
+        Storage::disk('historic_quarantine')->assertExists($songVideo->video_file_path);
+        $songVideo->refresh();
+        $this->assertSame(SermonPublicationState::Quarantined, $songVideo->publication_state);
+        $this->assertSame('historic_quarantine', $songVideo->asset_disk);
+    }
+
+    #[Test]
+    public function it_retains_a_song_staging_copy_when_reclaim_fails(): void
+    {
+        [$log] = $this->historicRun();
+        $songVideo = $this->songVideoForRun($log);
+        $this->stage($songVideo->video_file_path, 'song-a');
+
+        $realStaging = Storage::disk('historic_staging');
+        $realQuarantine = Storage::disk('historic_quarantine');
+        $staging = Mockery::mock($realStaging);
+        $staging->shouldReceive('delete')
+            ->once()
+            ->with($songVideo->video_file_path)
+            ->andReturnFalse();
+        Storage::shouldReceive('disk')->with('historic_staging')->andReturn($staging);
+        Storage::shouldReceive('disk')->with('historic_quarantine')->andReturn($realQuarantine);
+
+        try {
+            app(HistoricAssetPromotion::class)->promoteSongVideos($log);
+            $this->fail('Song promotion should fail when its staging copy cannot be removed.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('could not be removed from staging', $exception->getMessage());
+            $this->assertTrue($realStaging->exists($songVideo->video_file_path));
+            $this->assertTrue($realQuarantine->exists($songVideo->video_file_path));
+            $this->assertSame(
+                SermonPublicationState::Quarantined,
+                $songVideo->fresh()->publication_state,
+            );
+        }
+    }
+
+    #[Test]
+    public function it_rejects_unbound_quarantine_bytes_without_a_staging_source(): void
+    {
+        [$log] = $this->historicRun();
+        $songVideo = $this->songVideoForRun($log);
+        Storage::disk('historic_quarantine')->put($songVideo->video_file_path, 'song-a');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('without a verified staging source');
+
+        app(HistoricAssetPromotion::class)->promoteSongVideos($log);
+    }
+
+    #[Test]
+    public function it_refuses_a_song_video_when_its_asset_is_missing_from_both_disks(): void
+    {
+        [$log] = $this->historicRun();
+        $songVideo = $this->songVideoForRun($log);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('is on neither staging nor quarantine');
+
+        app(HistoricAssetPromotion::class)->promoteSongVideos($log);
+    }
+
+    #[Test]
     public function it_refuses_when_a_referenced_asset_exists_on_neither_disk(): void
     {
         [$log] = $this->historicRun();
@@ -274,5 +400,25 @@ class HistoricAssetPromotionTest extends TestCase
         if (str_starts_with($path, 'transcripts/')) {
             $sermon->forceFill(['transcript_file_path' => $path])->save();
         }
+    }
+
+    private function songVideoForRun(MediaProcessingLog $log): SongVideo
+    {
+        $song = Song::factory()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+        ]);
+
+        return SongVideo::factory()->create([
+            'song_id' => $song->id,
+            'service_section_id' => $section->id,
+            'video_file_path' => 'sermons/songs/'.$song->id.'/'.$section->id.'.mp4',
+            'publication_state' => SermonPublicationState::Published,
+            'asset_disk' => null,
+            'historic_import_operation_id' => null,
+        ]);
     }
 }

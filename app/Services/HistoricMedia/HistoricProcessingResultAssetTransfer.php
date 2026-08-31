@@ -75,9 +75,12 @@ class HistoricProcessingResultAssetTransfer
     }
 
     /**
-     * Direct pipeline output already has its canonical relative path. Its
-     * operation ownership is persisted on the sermon when promotion binds the
-     * record, rather than encoded into a second path namespace.
+     * Copy direct pipeline output with the pass-through verification budget.
+     *
+     * The source and a new destination are checked by exact byte size. An
+     * already-existing destination is the only case that reads both sides for
+     * a hash comparison, which distinguishes an identical replay from a
+     * same-size conflict without adding a routine hash traversal to promotion.
      *
      * @param  list<array<string, mixed>>  $assets
      * @param  array<string, string>  $destinations
@@ -85,7 +88,34 @@ class HistoricProcessingResultAssetTransfer
      */
     public function copyPipelineAssetsToDestinations(array $assets, array $destinations): array
     {
-        return $this->copy($assets, $destinations, requireOperationOwnedPaths: false);
+        return $this->copyPipeline($assets, $destinations);
+    }
+
+    /**
+     * Recheck direct pipeline destinations after their database rows have been
+     * bound, before the verified staging copies may be reclaimed.
+     *
+     * @param  list<array<string, mixed>>  $assets
+     * @param  array<string, string>  $destinations
+     */
+    public function verifyPipelineDestinations(array $assets, array $destinations): void
+    {
+        $target = Storage::disk($this->targetDiskName());
+
+        foreach ($assets as $asset) {
+            $size = $this->pipelineSize($asset);
+
+            foreach ($this->roles($asset) as $role) {
+                $path = $destinations[$role] ?? null;
+
+                if (! is_string($path)) {
+                    throw new RuntimeException("No production path was allocated for asset role {$role}.");
+                }
+
+                $this->guardPath($path);
+                $this->verifyPipelineDestinationAtPath($target, $path, $size);
+            }
+        }
     }
 
     /**
@@ -143,6 +173,76 @@ class HistoricProcessingResultAssetTransfer
             }
         } catch (\Throwable $exception) {
             $this->cleanup($created);
+
+            throw $exception;
+        }
+
+        return array_values(array_unique($created));
+    }
+
+    /**
+     * Direct pipeline copies use their canonical relative paths and database
+     * operation binding instead of Bundle A's operation-owned destination key.
+     *
+     * @param  list<array<string, mixed>>  $assets
+     * @param  array<string, string>  $destinations
+     * @return list<string>
+     */
+    private function copyPipeline(array $assets, array $destinations): array
+    {
+        $source = $this->stagingDisk();
+        $target = Storage::disk($this->targetDiskName());
+        $created = [];
+
+        try {
+            foreach ($assets as $asset) {
+                $sourcePath = $this->pipelinePath($asset);
+                $size = $this->pipelineSize($asset);
+                $this->guardPath($sourcePath);
+                $this->verifyPipelineSourceAtPath($source, $sourcePath, $size);
+
+                foreach ($this->roles($asset) as $role) {
+                    $targetPath = $destinations[$role] ?? null;
+
+                    if (! is_string($targetPath)) {
+                        throw new RuntimeException("No production path was allocated for asset role {$role}.");
+                    }
+
+                    $this->guardPath($targetPath);
+
+                    if ($target->exists($targetPath)) {
+                        $this->verifyExistingPipelineDestination(
+                            $source,
+                            $sourcePath,
+                            $target,
+                            $targetPath,
+                            $size,
+                        );
+
+                        continue;
+                    }
+
+                    $stream = $source->readStream($sourcePath);
+
+                    if (! is_resource($stream)) {
+                        throw new RuntimeException("Unable to open verified asset {$sourcePath} for copying.");
+                    }
+
+                    try {
+                        $created[] = $targetPath;
+
+                        if (! $target->writeStream($targetPath, $stream)) {
+                            throw new RuntimeException("Unable to copy verified asset {$sourcePath} to {$targetPath}.");
+                        }
+                    } finally {
+                        fclose($stream);
+                    }
+
+                    $this->verifyPipelineDestinationAtPath($target, $targetPath, $size);
+                }
+            }
+        } catch (\Throwable $exception) {
+            $this->cleanupPipelineDestinations($created);
 
             throw $exception;
         }
@@ -248,6 +348,87 @@ class HistoricProcessingResultAssetTransfer
     private function verify(FilesystemAdapter $disk, array $asset): void
     {
         $this->verifyAtPath($disk, $asset['path'], $asset);
+    }
+
+    /** @param array<string, mixed> $asset */
+    private function pipelinePath(array $asset): string
+    {
+        $path = $asset['path'] ?? null;
+
+        if (! is_string($path) || $path === '') {
+            throw new RuntimeException('Historic pipeline asset has no path.');
+        }
+
+        return $path;
+    }
+
+    /** @param array<string, mixed> $asset */
+    private function pipelineSize(array $asset): int
+    {
+        $size = $asset['size'] ?? null;
+
+        if (! is_int($size) || $size < 0) {
+            throw new RuntimeException('Historic pipeline asset has no valid byte size.');
+        }
+
+        return $size;
+    }
+
+    private function verifyPipelineSourceAtPath(
+        FilesystemAdapter $disk,
+        string $path,
+        int $size,
+    ): void {
+        if (! $disk->exists($path)) {
+            throw new RuntimeException("Historic pipeline asset is missing: {$path}.");
+        }
+
+        if ($disk->size($path) !== $size) {
+            throw new RuntimeException("Historic pipeline asset {$path} has an unexpected byte size.");
+        }
+    }
+
+    private function verifyExistingPipelineDestination(
+        FilesystemAdapter $source,
+        string $sourcePath,
+        FilesystemAdapter $target,
+        string $targetPath,
+        int $size,
+    ): void {
+        if ($target->size($targetPath) !== $size) {
+            throw new RuntimeException("Historic pipeline destination {$targetPath} differs in byte size.");
+        }
+
+        if (! hash_equals($this->hash($source, $sourcePath), $this->hash($target, $targetPath))) {
+            throw new RuntimeException(
+                "Historic pipeline asset {$sourcePath} differs from existing destination {$targetPath}."
+            );
+        }
+    }
+
+    private function verifyPipelineDestinationAtPath(
+        FilesystemAdapter $disk,
+        string $path,
+        int $size,
+    ): void {
+        if (! $disk->exists($path)) {
+            throw new RuntimeException("Historic pipeline destination is missing: {$path}.");
+        }
+
+        if ($disk->size($path) !== $size) {
+            throw new RuntimeException("Historic pipeline destination {$path} has an unexpected byte size.");
+        }
+    }
+
+    /** @param list<string> $paths */
+    private function cleanupPipelineDestinations(array $paths): void
+    {
+        $target = Storage::disk($this->targetDiskName());
+
+        foreach ($paths as $path) {
+            $this->guardPath($path);
+            $target->delete($path);
+        }
     }
 
     /** @param array<string, mixed> $asset */

@@ -102,7 +102,7 @@ class PromoteHistoricAssets extends ProcessingJob implements ShouldQueue
 
         $this->logStepComplete(
             'promoting_historic_assets',
-            "Promoted {$totals['assets_promoted']} asset(s) across {$totals['sermons']} sermon(s) to private quarantine",
+            "Promoted {$totals['assets_promoted']} asset(s) across {$totals['sermons']} sermon(s) and {$totals['song_videos']} song video(s) to private quarantine",
         );
 
         Log::info('Historic assets promoted to private quarantine', [
@@ -120,6 +120,7 @@ class PromoteHistoricAssets extends ProcessingJob implements ShouldQueue
      *
      * @param  array{
      *     sermons: int,
+     *     song_videos: int,
      *     assets_promoted: int,
      *     assets_already_promoted: int,
      *     promoted_bytes: int,

@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Services\HistoricMedia;
 
 use App\Data\HistoricStagingContext;
+use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Models\ServiceSection;
+use App\Models\SongVideo;
 use App\Services\Sermon\SermonPromotionAssets;
 use App\Support\Path;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -273,7 +277,10 @@ class HistoricVideoPassMeasures
             return array_sum($sizes);
         }
 
-        return $this->bytesAtPaths($sizes, $this->sermonAssetPaths($runs, $stagingContext));
+        return $this->bytesAtPaths($sizes, array_values(array_unique(array_merge(
+            $this->sermonAssetPaths($runs, $stagingContext),
+            $this->songVideoPaths($runs),
+        ))));
     }
 
     /**
@@ -306,6 +313,14 @@ class HistoricVideoPassMeasures
             }
 
             foreach ($this->sermonAssetPaths(collect([$run]), $stagingContext) as $path) {
+                $paths[] = $path;
+            }
+
+            foreach ($this->songVideoStagingPaths(collect([$run]), $stagingContext) as $path) {
+                $paths[] = $path;
+            }
+
+            foreach ($this->sectionCandidateStagingPaths(collect([$run]), $stagingContext) as $path) {
                 $paths[] = $path;
             }
         }
@@ -387,6 +402,110 @@ class HistoricVideoPassMeasures
                     if ($normalizedPath !== null) {
                         $paths[] = $normalizedPath;
                     }
+                }
+            }
+        }
+
+        return array_values(array_unique($paths));
+    }
+
+    /**
+     * Song video rows are linked to a run through their service section. Their
+     * stored paths are already relative to the quarantine disk when promoted,
+     * so this raw form is also what the selected quarantine measure needs.
+     *
+     * @param  Collection<int, MediaProcessingLog>  $runs
+     * @return list<string>
+     */
+    private function songVideoPaths(Collection $runs): array
+    {
+        $runIds = array_values(array_filter(
+            $runs->pluck('id')->all(),
+            static fn (mixed $id): bool => is_int($id),
+        ));
+
+        if ($runIds === []) {
+            return [];
+        }
+
+        $uniquePaths = [];
+
+        foreach (SongVideo::query()
+            ->whereHas('serviceSection', function (Builder $query) use ($runIds): void {
+                $query->whereIn('media_processing_log_id', $runIds);
+            })
+            ->pluck('video_file_path') as $path) {
+            if (is_string($path) && $path !== '') {
+                $uniquePaths[$path] = true;
+            }
+        }
+
+        return array_keys($uniquePaths);
+    }
+
+    /**
+     * @param  Collection<int, MediaProcessingLog>  $runs
+     * @return list<string>
+     */
+    private function songVideoStagingPaths(
+        Collection $runs,
+        HistoricStagingContext $stagingContext,
+    ): array {
+        $paths = [];
+
+        foreach ($this->songVideoPaths($runs) as $path) {
+            $normalizedPath = $this->pathWithinActiveStaging($path, $stagingContext);
+
+            if ($normalizedPath !== null) {
+                $paths[] = $normalizedPath;
+            }
+        }
+
+        return array_values(array_unique($paths));
+    }
+
+    /**
+     * A pending song or children's-talk section owns its extracted candidate
+     * until the review obligation is resolved. Include every section candidate
+     * here because a retained path can be shared with a SongVideo or with a
+     * published section and the byte measure must not count it twice.
+     *
+     * @param  Collection<int, MediaProcessingLog>  $runs
+     * @return list<string>
+     */
+    private function sectionCandidateStagingPaths(
+        Collection $runs,
+        HistoricStagingContext $stagingContext,
+    ): array {
+        $runIds = array_values(array_filter(
+            $runs->pluck('id')->all(),
+            static fn (mixed $id): bool => is_int($id),
+        ));
+
+        if ($runIds === []) {
+            return [];
+        }
+
+        $paths = [];
+        $sections = ServiceSection::query()
+            ->whereIn('media_processing_log_id', $runIds)
+            ->where('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
+            ->where(function (Builder $query): void {
+                $query->whereNotNull('extracted_video_path')
+                    ->orWhereNotNull('extracted_audio_path');
+            })
+            ->get(['extracted_video_path', 'extracted_audio_path', 'publication_status']);
+
+        foreach ($sections as $section) {
+            foreach ([$section->extracted_video_path, $section->extracted_audio_path] as $path) {
+                if (! is_string($path) || $path === '') {
+                    continue;
+                }
+
+                $normalizedPath = $this->pathWithinActiveStaging($path, $stagingContext);
+
+                if ($normalizedPath !== null) {
+                    $paths[] = $normalizedPath;
                 }
             }
         }

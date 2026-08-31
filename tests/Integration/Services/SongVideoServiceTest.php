@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
@@ -18,10 +19,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
 class SongVideoServiceTest extends TestCase
 {
+    use CreatesHistoricImportOperations;
     use RefreshDatabase;
 
     private SongVideoService $service;
@@ -227,5 +230,76 @@ class SongVideoServiceTest extends TestCase
         $this->assertEquals($section->duration, $video->duration);
         $this->assertEquals('2026-03-15', $video->recorded_date->toDateString());
         $this->assertFalse($video->is_featured);
+    }
+
+    #[Test]
+    public function historic_extraction_creates_a_private_operation_bound_video(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        config()->set('media-processing.storage.sermon_disk', 'historic_staging');
+
+        $churchService = ChurchService::factory()->create(['date' => '2026-03-15']);
+        $song = Song::factory()->create();
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'song_id' => $song->id,
+        ]);
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'historic_import_operation_id' => $operation->id,
+        ]);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+        ]);
+
+        $video = $this->service->createFromExtraction($section, 'sermons/songs/'.$song->id.'/'.$section->id.'.mp4');
+
+        $this->assertSame(SermonPublicationState::Quarantined, $video->publication_state);
+        $this->assertSame('historic_staging', $video->asset_disk);
+        $this->assertSame($operation->id, $video->historic_import_operation_id);
+    }
+
+    #[Test]
+    public function it_resolves_a_recorded_asset_disk_after_global_storage_changes(): void
+    {
+        Storage::fake('recorded_media');
+        Storage::fake('public');
+        config()->set('media-processing.storage.sermon_disk', 'public');
+        $recordedDisk = Storage::disk('recorded_media');
+        Storage::shouldReceive('disk')->with('recorded_media')->once()->andReturn($recordedDisk);
+
+        $path = 'sermons/songs/1/recorded.mp4';
+        $video = SongVideo::factory()->create([
+            'video_file_path' => $path,
+            'asset_disk' => 'recorded_media',
+        ]);
+
+        $url = $this->service->getVideoUrl($video);
+
+        $this->assertStringContainsString($path, $url);
+    }
+
+    #[Test]
+    public function it_deletes_a_video_from_its_recorded_asset_disk(): void
+    {
+        Storage::fake('recorded_media');
+        Storage::fake('public');
+        config()->set('media-processing.storage.sermon_disk', 'public');
+
+        $path = 'sermons/songs/1/recorded.mp4';
+        Storage::disk('recorded_media')->put($path, 'video-content');
+        $video = SongVideo::factory()->create([
+            'video_file_path' => $path,
+            'asset_disk' => 'recorded_media',
+        ]);
+
+        $this->service->deleteVideo($video);
+
+        Storage::disk('recorded_media')->assertMissing($path);
+        $this->assertDatabaseMissing('song_videos', ['id' => $video->id]);
     }
 }

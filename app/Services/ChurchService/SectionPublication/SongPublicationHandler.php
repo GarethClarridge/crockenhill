@@ -222,7 +222,11 @@ class SongPublicationHandler implements SectionPublicationHandler
             return;
         }
 
-        Storage::disk($this->sermonDisk())->delete($songVideo->video_file_path);
+        $disk = filled($songVideo->asset_disk)
+            ? (string) $songVideo->asset_disk
+            : $this->sermonDisk();
+
+        Storage::disk($disk)->delete($songVideo->video_file_path);
         $songVideo->delete();
 
         Log::info('SongPublicationHandler: cleaned up SongVideo for removed section', $this->sanitizeArrayForLog([

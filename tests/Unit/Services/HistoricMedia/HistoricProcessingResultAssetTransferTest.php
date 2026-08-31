@@ -210,6 +210,72 @@ class HistoricProcessingResultAssetTransferTest extends TestCase
     }
 
     #[Test]
+    public function direct_pipeline_copy_uses_exact_sizes_for_new_destinations(): void
+    {
+        Storage::disk('historic_staging')->put('sermons/songs/7/1.mp4', 'song video');
+
+        $created = app(HistoricProcessingResultAssetTransfer::class)->copyPipelineAssetsToDestinations([[
+            'path' => 'sermons/songs/7/1.mp4',
+            'size' => strlen('song video'),
+            'kind' => 'song_video',
+            'roles' => ['song_video'],
+        ]], ['song_video' => 'sermons/songs/7/1.mp4']);
+
+        $this->assertSame(['sermons/songs/7/1.mp4'], $created);
+        Storage::disk('local')->assertExists('sermons/songs/7/1.mp4');
+    }
+
+    #[Test]
+    public function direct_pipeline_copy_hashes_only_an_existing_destination_to_classify_conflict(): void
+    {
+        Storage::disk('historic_staging')->put('sermons/songs/7/1.mp4', 'song-a');
+        Storage::disk('local')->put('sermons/songs/7/1.mp4', 'song-b');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('differs from existing destination');
+
+        app(HistoricProcessingResultAssetTransfer::class)->copyPipelineAssetsToDestinations([[
+            'path' => 'sermons/songs/7/1.mp4',
+            'size' => 6,
+            'kind' => 'song_video',
+            'roles' => ['song_video'],
+        ]], ['song_video' => 'sermons/songs/7/1.mp4']);
+    }
+
+    #[Test]
+    public function direct_pipeline_copy_removes_only_new_destinations_after_a_partial_failure(): void
+    {
+        Storage::disk('historic_staging')->put('sermons/songs/7/1.mp4', 'song-a');
+        Storage::disk('historic_staging')->put('sermons/songs/7/2.mp4', 'too short');
+
+        $this->expectException(RuntimeException::class);
+
+        try {
+            app(HistoricProcessingResultAssetTransfer::class)->copyPipelineAssetsToDestinations([
+                [
+                    'path' => 'sermons/songs/7/1.mp4',
+                    'size' => 6,
+                    'kind' => 'song_video',
+                    'roles' => ['first'],
+                ],
+                [
+                    'path' => 'sermons/songs/7/2.mp4',
+                    'size' => 999,
+                    'kind' => 'song_video',
+                    'roles' => ['second'],
+                ],
+            ], [
+                'first' => 'sermons/songs/7/1.mp4',
+                'second' => 'sermons/songs/7/2.mp4',
+            ]);
+        } finally {
+            Storage::disk('local')->assertMissing('sermons/songs/7/1.mp4');
+            Storage::disk('local')->assertMissing('sermons/songs/7/2.mp4');
+            Storage::disk('historic_staging')->assertExists('sermons/songs/7/1.mp4');
+        }
+    }
+
+    #[Test]
     public function it_rejects_a_staged_path_that_escapes_the_staging_root(): void
     {
         $this->expectException(RuntimeException::class);
