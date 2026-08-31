@@ -136,10 +136,23 @@ class HistoricImportReleaseCandidateBaselineTest extends TestCase
             'crockenhill-historic-import-approval',
             'crockenhill-historic-release-authorisation',
         ];
-        $tracked = array_filter(explode("\n", (string) shell_exec('cd '.escapeshellarg(base_path()).' && git ls-files "*.json"')));
+        // `safe.directory` is passed per-invocation because a bind-mounted
+        // checkout can report a different owner than the running user -- under
+        // `--parallel` this repository stats as root-owned inside the worker --
+        // and git then refuses to read it at all. Scoping the exception to this
+        // one command avoids mutating the developer's global git config.
+        exec(
+            'cd '.escapeshellarg(base_path())
+            .' && git -c '.escapeshellarg('safe.directory='.base_path()).' ls-files "*.json" 2>/dev/null',
+            $tracked,
+            $exitCode,
+        );
 
-        // Without this the scan would silently cover nothing if git were
-        // unavailable, and a committed authorisation would pass unnoticed.
+        // Both guards exist so the scan can never silently cover nothing: the
+        // first catches git being unusable, the second catches it returning an
+        // empty list. Without them a committed authorisation would pass
+        // unnoticed.
+        $this->assertSame(0, $exitCode, 'The committed-artifact scan could not list tracked files with git.');
         $this->assertNotEmpty($tracked, 'The committed-artifact scan found no tracked JSON files to check.');
 
         foreach ($tracked as $relative) {
