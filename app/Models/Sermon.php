@@ -12,6 +12,7 @@ use App\Enums\SermonContentType;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
+use App\Enums\SermonTitleProvenance;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
 use App\Models\Builders\SermonBuilder;
@@ -59,6 +60,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?string $audio_file_path
  * @property string $filetype
  * @property string $title
+ * @property ?SermonTitleProvenance $title_provenance
  * @property string $slug
  * @property ?string $reference
  * @property string $preacher
@@ -130,6 +132,7 @@ class Sermon extends Model implements Sitemapable
         'asset_disk',
         'historic_import_operation_id',
         'slug',
+        'title_provenance',
         'series',
         'reference',
         'preacher',
@@ -174,6 +177,7 @@ class Sermon extends Model implements Sitemapable
             'service' => SermonService::class,
             'content_type' => SermonContentType::class,
             'publication_state' => SermonPublicationState::class,
+            'title_provenance' => SermonTitleProvenance::class,
             'segment_start_time' => 'float',
             'segment_end_time' => 'float',
             'thumbnail_generated_at' => 'datetime',

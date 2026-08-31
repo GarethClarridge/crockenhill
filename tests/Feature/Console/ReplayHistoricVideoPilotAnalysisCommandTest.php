@@ -7,6 +7,7 @@ namespace Tests\Feature\Console;
 use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use App\Enums\ProcessingStatus;
+use App\Enums\SermonTitleProvenance;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -24,8 +25,9 @@ class ReplayHistoricVideoPilotAnalysisCommandTest extends TestCase
     {
         $operation = $this->createHistoricImportOperation();
         $sermon = Sermon::factory()->create([
-            'title' => 'Morning',
-            'slug' => 'morning',
+            'title' => 'Sunday 23 January 2022 101',
+            'slug' => 'sunday-23-january-2022-101',
+            'title_provenance' => SermonTitleProvenance::Generated,
             'reference' => null,
             'series' => null,
             'duration' => null,
@@ -62,6 +64,7 @@ class ReplayHistoricVideoPilotAnalysisCommandTest extends TestCase
         $sermon->refresh();
         self::assertSame('Living Hope', $sermon->title);
         self::assertSame('living-hope', $sermon->slug);
+        self::assertSame(SermonTitleProvenance::AiAnalysis, $sermon->title_provenance);
         self::assertSame('1 Peter 1:3-9', $sermon->reference);
         self::assertSame('1 Peter', $sermon->series);
         self::assertSame(1_800.0, $sermon->duration);

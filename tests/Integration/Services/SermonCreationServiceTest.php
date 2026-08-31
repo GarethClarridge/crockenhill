@@ -9,6 +9,7 @@ use App\Enums\PreacherSource;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
+use App\Enums\SermonTitleProvenance;
 use App\Enums\TitleGenerationStrategy;
 use App\Exceptions\SermonRichnessDowngradeException;
 use App\Models\MediaProcessingLog;
@@ -417,6 +418,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('Prayer Series', $sermon->series);
         $this->assertEquals('Matthew 6:5-15', $sermon->reference);
         $this->assertEquals(SermonSourceType::AudioUpload, $sermon->source_type);
+        $this->assertSame(SermonTitleProvenance::AiAnalysis, $sermon->title_provenance);
         $this->assertNotNull($sermon->points);
     }
 
@@ -484,6 +486,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('Bryan Martin', $sermon->preacher);
         $this->assertEquals("The Pastor's Role", $sermon->series);
         $this->assertEquals('2 Timothy 3:14-4:5', $sermon->reference);
+        $this->assertSame(SermonTitleProvenance::Curated, $sermon->title_provenance);
     }
 
     #[Test]
@@ -510,6 +513,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('video/test.mp4', $sermon->video_file_path);
         $this->assertEquals(SermonService::Evening, $sermon->service);
         $this->assertEquals(SermonSourceType::VideoUpload, $sermon->source_type);
+        $this->assertSame(SermonTitleProvenance::AiAnalysis, $sermon->title_provenance);
     }
 
     #[Test]
@@ -543,6 +547,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('test-processing-id', $sermon->livestream_processing_id);
         $this->assertEquals('2022-01-16', $sermon->date->toDateString());
         $this->assertEquals(SermonService::Evening, $sermon->service);
+        $this->assertSame(SermonTitleProvenance::Generated, $sermon->title_provenance);
 
         /**
          * Every historic-video pilot sermon was created with a null duration
@@ -1056,6 +1061,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertSame('Alan Brown', $sermon->preacher);
         $this->assertSame(PreacherSource::Manual, $sermon->preacher_source);
         $this->assertFalse($sermon->needs_preacher_review);
+        $this->assertSame(SermonTitleProvenance::Curated, $sermon->title_provenance);
     }
 
     #[Test]

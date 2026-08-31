@@ -11,6 +11,7 @@ use App\Enums\SermonContentType;
 use App\Enums\SermonRichnessLevel;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
+use App\Enums\SermonTitleProvenance;
 use App\Enums\SermonUpsertAction;
 use App\Enums\TitleGenerationStrategy;
 use App\Exceptions\SermonRichnessDowngradeException;
@@ -18,6 +19,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Services\Preacher\PreacherResolutionService;
+use App\Support\PlaceholderSermonTitle;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -435,7 +437,57 @@ class SermonCreationService
         string $sermonDate,
         SermonService $service,
     ): Sermon {
-        $title = $options->curatedFacts()->title ?? $this->generateTitle(
+        $titleResolution = $this->resolveTitle($processingLog, $options, $sermonDate, $service);
+        $title = $titleResolution['title'];
+
+        $slug = $this->generateUniqueSlug($title);
+
+        $preacher = $this->resolvePreacherAssignment($options);
+
+        $sermonData = $this->buildSermonData(
+            $options,
+            $title,
+            $titleResolution['provenance'],
+            $slug,
+            $sermonDate,
+            $service,
+            $preacher,
+        );
+
+        return Sermon::query()->create($sermonData);
+    }
+
+    /**
+     * Resolve the title and record the source that supplied the resolved value.
+     *
+     * The requested strategy alone is insufficient: AiWithFallback may resolve
+     * to an ID3 title, an AI title, or a filename fallback.
+     *
+     * @return array{title: string, provenance: SermonTitleProvenance}
+     */
+    private function resolveTitle(
+        MediaProcessingLog $processingLog,
+        SermonCreationOptions $options,
+        string $sermonDate,
+        SermonService $service,
+    ): array {
+        $curatedTitle = $options->curatedFacts()?->title;
+
+        if (filled($curatedTitle)) {
+            return [
+                'title' => $curatedTitle,
+                'provenance' => SermonTitleProvenance::Curated,
+            ];
+        }
+
+        if (filled($options->customTitle)) {
+            return [
+                'title' => $options->customTitle,
+                'provenance' => SermonTitleProvenance::Curated,
+            ];
+        }
+
+        $title = $this->generateTitle(
             $options->titleStrategy,
             [
                 'ai_analysis' => $options->aiAnalysis,
@@ -448,13 +500,31 @@ class SermonCreationService
             ]
         );
 
-        $slug = $this->generateUniqueSlug($title);
+        return [
+            'title' => $title,
+            'provenance' => $this->titleProvenance($options, $title),
+        ];
+    }
 
-        $preacher = $this->resolvePreacherAssignment($options);
+    private function titleProvenance(
+        SermonCreationOptions $options,
+        string $resolvedTitle,
+    ): SermonTitleProvenance {
+        if ($options->titleStrategy !== TitleGenerationStrategy::AiWithFallback) {
+            return SermonTitleProvenance::Generated;
+        }
 
-        $sermonData = $this->buildSermonData($options, $title, $slug, $sermonDate, $service, $preacher);
+        if (filled($options->id3Title)) {
+            return PlaceholderSermonTitle::matches($resolvedTitle)
+                ? SermonTitleProvenance::Generated
+                : SermonTitleProvenance::Curated;
+        }
 
-        return Sermon::query()->create($sermonData);
+        if (filled($options->aiAnalysis['title'] ?? null)) {
+            return SermonTitleProvenance::AiAnalysis;
+        }
+
+        return SermonTitleProvenance::Generated;
     }
 
     /**
@@ -472,6 +542,7 @@ class SermonCreationService
     private function buildSermonData(
         SermonCreationOptions $options,
         string $title,
+        SermonTitleProvenance $titleProvenance,
         string $slug,
         string $sermonDate,
         SermonService $service,
@@ -485,6 +556,7 @@ class SermonCreationService
             'service' => $service,
             'content_type' => $options->contentType,
             'slug' => $slug,
+            'title_provenance' => $titleProvenance,
             'preacher' => $preacher['preacher_model']->name,
             'preacher_id' => $preacher['preacher_model']->id,
             'preacher_source' => $preacher['preacher_source'],

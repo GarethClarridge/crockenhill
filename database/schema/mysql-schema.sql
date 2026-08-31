@@ -1204,6 +1204,7 @@ CREATE TABLE `sermons` (
   `duration` double DEFAULT NULL,
   `filetype` varchar(8) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'mp3',
   `title` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
+  `title_provenance` varchar(20) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `slug` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   `reference` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL COMMENT 'Denormalized scripture reference cache for display/search compatibility. scripture_passage_id is the canonical normalized identity when present.',
   `scripture_passage_id` bigint unsigned DEFAULT NULL COMMENT 'Canonical normalized scripture identity for the published sermon. The reference text column is a synchronized cache.',
@@ -1862,3 +1863,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_10_090000_add_p
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_13_092457_add_dispatch_lease_to_import_deferred_inbound_emails_table',89);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_13_093747_create_historic_import_release_ledger_tables',89);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_13_193205_add_publication_quarantine_to_song_usage_reports_table',90);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_132413_add_title_provenance_to_sermons_table',91);

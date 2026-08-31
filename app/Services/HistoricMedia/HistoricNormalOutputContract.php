@@ -513,17 +513,18 @@ class HistoricNormalOutputContract
                     'preacher_id' => $this->field('nullable', 'deterministically_rebuilt', 'natural_key'),
                 ],
                 /**
-                 * `publication_state`, `asset_disk` and
-                 * `historic_import_operation_id` are deliberately outside the
+                 * `publication_state`, `asset_disk`, `historic_import_operation_id`
+                 * and `title_provenance` are deliberately outside the
                  * portable contract. The audience boundary is a destination
                  * decision: every apply lands quarantined on the destination's
                  * own private disk and is released by a separately authorised
-                 * step. Carrying them would let an exported bundle dictate what
-                 * the destination publishes.
+                 * step. Title provenance is local operational state; the title
+                 * itself remains portable. Carrying these fields would let an
+                 * exported bundle dictate destination-owned state.
                  */
                 excluded: [
                     'id', 'scripture_passage_id', 'download_count', 'created_at', 'updated_at',
-                    'publication_state', 'asset_disk', 'historic_import_operation_id',
+                    'publication_state', 'asset_disk', 'historic_import_operation_id', 'title_provenance',
                 ],
             ),
             'media_processing_logs' => $this->table(

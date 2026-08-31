@@ -6,6 +6,7 @@ namespace Tests\Integration\Jobs;
 
 use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
+use App\Enums\SermonTitleProvenance;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -76,6 +77,7 @@ class ProcessTranscriptWithAITest extends TestCase
 
         $sermon->refresh();
         $this->assertEquals('The Good Shepherd', $sermon->title);
+        $this->assertSame(SermonTitleProvenance::AiAnalysis, $sermon->title_provenance);
         $this->assertEquals('John 10:1-18', $sermon->reference);
         $this->assertEquals('A sermon about Jesus as the Good Shepherd.', $sermon->summary);
 
@@ -119,6 +121,101 @@ class ProcessTranscriptWithAITest extends TestCase
         $sermon->refresh();
         $this->assertSame('Jesus is enough', $sermon->title);
         $this->assertSame('jesus-is-enough', $sermon->slug);
+        $this->assertSame(SermonTitleProvenance::AiAnalysis, $sermon->title_provenance);
+    }
+
+    #[Test]
+    public function it_replaces_known_generated_canary_filename_titles(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $cases = [
+            [
+                'title' => 'Sunday 23 January 2022 101',
+                'slug' => 'sunday-23-january-2022-101',
+                'analysis_title' => 'Praying for our daily needs',
+            ],
+            [
+                'title' => 'Carols By Candlelight 19 December 2021',
+                'slug' => 'carols-by-candlelight-19-december-2021',
+                'analysis_title' => 'God’s indescribable gift',
+            ],
+        ];
+
+        $sermons = [];
+        $logs = [];
+
+        foreach ($cases as $case) {
+            $sermon = Sermon::factory()->create([
+                'title' => $case['title'],
+                'slug' => $case['slug'],
+                'title_provenance' => SermonTitleProvenance::Generated,
+            ]);
+            $sermons[] = $sermon;
+            $logs[] = MediaProcessingLog::factory()->audio()->processing()->create([
+                'sermon_id' => $sermon->id,
+                'transcript_file_path' => 'transcripts/1/transcript.txt',
+            ]);
+        }
+
+        $analysisService = $this->createMock(SermonAnalysisInterface::class);
+        $analysisService->expects($this->exactly(2))
+            ->method('analyzeSermon')
+            ->willReturnOnConsecutiveCalls(
+                $this->createAnalysis($cases[0]['analysis_title']),
+                $this->createAnalysis($cases[1]['analysis_title']),
+            );
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        foreach ($logs as $log) {
+            (new ProcessTranscriptWithAI($log))->handle(
+                $analysisService,
+                $this->app->make(SermonRepository::class),
+            );
+        }
+
+        foreach ($cases as $index => $case) {
+            $sermons[$index]->refresh();
+
+            $this->assertSame($case['analysis_title'], $sermons[$index]->title);
+            $this->assertSame(SermonTitleProvenance::AiAnalysis, $sermons[$index]->title_provenance);
+        }
+    }
+
+    #[Test]
+    public function it_does_not_replace_a_curated_date_title_that_matches_the_legacy_recogniser(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create([
+            'title' => 'Sunday 3Rd May 2026',
+            'slug' => 'sunday-3rd-may-2026',
+            'title_provenance' => SermonTitleProvenance::Curated,
+        ]);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+        ]);
+
+        $analysisService = $this->createMock(SermonAnalysisInterface::class);
+        $analysisService->expects($this->once())
+            ->method('analyzeSermon')
+            ->willReturn($this->createAnalysis('A Proper Sermon Title'));
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        (new ProcessTranscriptWithAI($log))->handle(
+            $analysisService,
+            $this->app->make(SermonRepository::class),
+        );
+
+        $sermon->refresh();
+        $this->assertSame('Sunday 3Rd May 2026', $sermon->title);
+        $this->assertSame('sunday-3rd-may-2026', $sermon->slug);
+        $this->assertSame(SermonTitleProvenance::Curated, $sermon->title_provenance);
     }
 
     #[Test]
@@ -389,6 +486,7 @@ class ProcessTranscriptWithAITest extends TestCase
         $sermon->refresh();
         $this->assertEquals('Draw Near By The Blood Of Jesus', $sermon->title);
         $this->assertEquals('draw-near-by-the-blood-of-jesus', $sermon->slug);
+        $this->assertNull($sermon->title_provenance);
     }
 
     #[Test]
@@ -650,6 +748,7 @@ class ProcessTranscriptWithAITest extends TestCase
 
         $sermon->refresh();
         $this->assertEquals('A Proper Sermon Title', $sermon->title);
+        $this->assertSame(SermonTitleProvenance::AiAnalysis, $sermon->title_provenance);
     }
 
     #[Test]
@@ -689,7 +788,10 @@ class ProcessTranscriptWithAITest extends TestCase
         // A livestream named "Sunday 3rd May 2026.mp4" title-cases into a
         // date-only placeholder — not a curated title, so the AI title wins
         // (every sermon in the 2026-07-10 test-set-2 batch kept its filename).
-        $sermon = Sermon::factory()->create(['title' => 'Sunday 3Rd May 2026']);
+        $sermon = Sermon::factory()->create([
+            'title' => 'Sunday 3Rd May 2026',
+            'title_provenance' => null,
+        ]);
         $log = MediaProcessingLog::factory()->audio()->processing()->create([
             'sermon_id' => $sermon->id,
             'transcript_file_path' => 'transcripts/1/transcript.txt',
@@ -709,6 +811,7 @@ class ProcessTranscriptWithAITest extends TestCase
 
         $sermon->refresh();
         $this->assertEquals('A Proper Sermon Title', $sermon->title);
+        $this->assertSame(SermonTitleProvenance::AiAnalysis, $sermon->title_provenance);
     }
 
     #[Test]
