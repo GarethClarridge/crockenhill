@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\MediaType;
@@ -151,10 +150,6 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
 
                         continue;
                     }
-                }
-
-                if ($this->matchSectionFromServiceTranscript($section, $lyricsMatchingService)) {
-                    $matchedCount++;
                 }
             }
         } finally {
@@ -354,25 +349,6 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         return $ocrTexts;
     }
 
-    private function matchSectionFromServiceTranscript(ServiceSection $section, SongLyricsMatchingService $lyricsMatchingService): bool
-    {
-        $transcript = $this->loadServiceTranscript();
-        if (! $transcript instanceof ChurchServiceTranscript) {
-            return false;
-        }
-
-        $text = $transcript->sliceText((float) $section->start_time, (float) $section->end_time);
-        $result = $lyricsMatchingService->matchFromLyrics($text);
-
-        if ($result['song_id'] === null) {
-            return false;
-        }
-
-        $this->applyMatch($section, $result['song_id'], (string) $result['matched_title'], $result['confidence'], 'lyrics');
-
-        return true;
-    }
-
     /**
      * Persist a song match onto the section and its linked ChurchServiceItem.
      */
@@ -524,31 +500,5 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         }
 
         return $sourceFilePath;
-    }
-
-    private function loadServiceTranscript(): ?ChurchServiceTranscript
-    {
-        try {
-            $path = $this->processingLog->serviceTranscriptPath();
-            $disk = is_string($path) && str_starts_with($path, 'service-transcripts/')
-                ? (string) config('media-processing.storage.transcript_disk', 'local')
-                : (string) config('media-processing.storage.temp_disk', 'local');
-
-            if ($path === null || ! Storage::disk($disk)->exists($path)) {
-                return null;
-            }
-
-            /** @var array<string, mixed> $data */
-            $data = json_decode((string) Storage::disk($disk)->get($path), true, 512, JSON_THROW_ON_ERROR);
-
-            return ChurchServiceTranscript::fromArray($data);
-        } catch (\Throwable $throwable) {
-            Log::warning('MatchSongsFromTranscript: full-service transcript unavailable', [
-                'processing_id' => $this->processingLog->processing_id,
-                'error' => $throwable->getMessage(),
-            ]);
-        }
-
-        return null;
     }
 }

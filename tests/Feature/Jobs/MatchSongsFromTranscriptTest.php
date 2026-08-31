@@ -594,12 +594,14 @@ class MatchSongsFromTranscriptTest extends TestCase
         $this->assertSame($song->id, $match['song_id']);
     }
 
-    // ---- Song opening transcription ----
+    // ---- Transcript-to-lyrics fallback removal ----
 
     #[Test]
-    public function it_matches_an_unmatched_section_from_the_full_service_transcript(): void
+    public function it_leaves_a_lyric_like_service_transcript_unmatched_when_title_hint_and_ocr_fail(): void
     {
-        $song = Song::factory()->create([
+        Config::set('media-processing.song_matching.ocr_enabled', false);
+
+        Song::factory()->create([
             'title' => 'To God Be the Glory',
             'canonical_key' => 'to god be the glory',
             'lyrics_plain' => 'To God be the glory great things he hath done so loved he the world that he gave us his son',
@@ -638,8 +640,10 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame($song->id, $section->metadata['transcript_song_match']['song_id'] ?? null);
-        $this->assertSame('lyrics', $section->metadata['transcript_song_match']['match_source'] ?? null);
+        $this->assertSame(ServiceSectionSongMatchType::Unmatched, $section->song_match_type);
+        $this->assertArrayNotHasKey('transcript_song_match', $section->metadata->toArray());
+        $this->assertContains('unmatched_song_section', $section->metadata['review_flags'] ?? []);
+        $this->assertTrue($section->needs_manual_review);
     }
 
     #[Test]
