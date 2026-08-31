@@ -76,7 +76,29 @@ class LivestreamSegmentationService
                 throw new Exception('Insufficient storage space for processing');
             }
 
-            $uploadResult = $this->storageService->storeUploadedVideo($videoFile);
+            $historicImport = $processingMetadata['historic_import'] ?? null;
+            $stagedDerivative = is_array($historicImport)
+                ? ($historicImport['staged_derivative'] ?? null)
+                : null;
+
+            if (is_array($historicImport) && array_key_exists('staged_derivative', $historicImport)) {
+                if (! is_array($stagedDerivative)) {
+                    throw new RuntimeException('Historic derivative adoption metadata is invalid.');
+                }
+
+                $uploadResult = $this->storageService->adoptHistoricStagedVideo(
+                    $videoFile,
+                    $stagedDerivative,
+                    $historicImport,
+                    $dedupKey ?? '',
+                );
+            } else {
+                $expectedHistoricSourceSize = $this->approvedHistoricSourceSize($historicImport);
+                $uploadResult = $expectedHistoricSourceSize === null
+                    ? $this->storageService->storeUploadedVideo($videoFile)
+                    : $this->storageService->storeUploadedVideo($videoFile, $expectedHistoricSourceSize);
+            }
+
             $fullPath = $uploadResult['full_path'];
             $tempPath = $uploadResult['temp_path'];
             $originalFilename = $uploadResult['original_filename'];
@@ -144,6 +166,24 @@ class LivestreamSegmentationService
 
             throw $e;
         }
+    }
+
+    /** @param array<string, mixed>|null $historicImport */
+    private function approvedHistoricSourceSize(?array $historicImport): ?int
+    {
+        if (($historicImport['sha256_basis'] ?? null) !== 'approved_manifest_not_reverified_at_dispatch') {
+            return null;
+        }
+
+        $sources = $historicImport['sources'] ?? null;
+
+        if (! is_array($sources) || count($sources) !== 1 || ! array_is_list($sources)) {
+            return null;
+        }
+
+        $size = $sources[0]['size'] ?? null;
+
+        return is_int($size) && $size >= 0 ? $size : null;
     }
 
     /**

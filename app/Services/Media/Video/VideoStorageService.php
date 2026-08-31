@@ -4,19 +4,30 @@ declare(strict_types=1);
 
 namespace App\Services\Media\Video;
 
+use App\Data\HistoricStagingContext;
+use App\Exceptions\HistoricSourceMountException;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\TempDiskSpace;
 use App\Support\Path;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Throwable;
 
 class VideoStorageService
 {
+    private const HISTORIC_DERIVATIVE_PREFIX = 'temp/historic-import/';
+
+    public function __construct(
+        private readonly HistoricStagingContextRegistry $stagingContextRegistry,
+    ) {}
+
     /**
      * Store an uploaded video file temporarily for processing.
      *
      * @param  UploadedFile  $file  The uploaded video file
+     * @param  int|null  $expectedSize  Approved historic source size, when the copy must be checked
      * @return array{
      *     temp_path: string,
      *     full_path: string,
@@ -27,34 +38,56 @@ class VideoStorageService
      *
      * @throws \RuntimeException If the file cannot be stored on the temp disk
      */
-    public function storeUploadedVideo(UploadedFile $file): array
+    public function storeUploadedVideo(UploadedFile $file, ?int $expectedSize = null): array
     {
-        try {
-            $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
-            $tempPath = 'livestream/temp/'.$filename;
+        $disk = $this->tempDisk();
+        $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
+        $tempPath = 'livestream/temp/'.$filename;
 
-            $storedPath = $file->storeAs('livestream/temp', $filename, $this->tempDisk());
+        try {
+            $storedPath = $file->storeAs('livestream/temp', $filename, $disk);
             if ($storedPath === false) {
                 throw new \RuntimeException('Failed to store uploaded video on temp disk.');
             }
 
-            $fullPath = Storage::disk($this->tempDisk())->path($storedPath);
+            $fullPath = Storage::disk($disk)->path($storedPath);
+            $storedSize = $this->exactFileSize($fullPath);
+
+            if ($expectedSize !== null && $storedSize !== $expectedSize) {
+                throw new HistoricSourceMountException(
+                    "Historic video source copy did not produce the approved byte size: {$storedPath}."
+                );
+            }
+
+            $fileSize = $expectedSize ?? $file->getSize();
+            $fileSize = is_int($fileSize) ? $fileSize : 0;
 
             Log::info('Video uploaded and stored temporarily', [
                 'original_name' => $file->getClientOriginalName(),
                 'stored_path' => $storedPath,
-                'file_size' => $file->getSize(),
+                'file_size' => $fileSize,
             ]);
 
             return [
                 'temp_path' => $storedPath,
                 'full_path' => $fullPath,
                 'original_filename' => $file->getClientOriginalName(),
-                'file_size' => $file->getSize(),
+                'file_size' => $fileSize,
                 'mime_type' => $file->getMimeType(),
             ];
 
-        } catch (\Exception $e) {
+        } catch (Throwable $e) {
+            if ($expectedSize !== null) {
+                $this->deleteUniqueStoredPath($disk, $tempPath);
+
+                if (! $e instanceof HistoricSourceMountException) {
+                    $e = new HistoricSourceMountException(
+                        'Historic video source could not be copied to the operation staging area.',
+                        previous: $e,
+                    );
+                }
+            }
+
             Log::error('Failed to store uploaded video', [
                 'error' => $e->getMessage(),
                 'original_name' => $file->getClientOriginalName(),
@@ -62,6 +95,97 @@ class VideoStorageService
 
             throw $e;
         }
+    }
+
+    /**
+     * Adopt a derivative that was already written inside the active historic operation staging
+     * root. Ordinary uploads cannot use this path: every identity and path binding is checked
+     * before the processing log is created, and no second source-to-staging copy is performed.
+     *
+     * @param  array<string, mixed>  $derivative
+     * @param  array<string, mixed>  $historicImport
+     * @return array{
+     *     temp_path: string,
+     *     full_path: string,
+     *     original_filename: string,
+     *     file_size: int,
+     *     mime_type: string|null
+     * }
+     */
+    public function adoptHistoricStagedVideo(
+        UploadedFile $file,
+        array $derivative,
+        array $historicImport,
+        string $dedupKey,
+    ): array {
+        $context = $this->stagingContextRegistry->activeContext();
+        $operationId = $historicImport['operation_id'] ?? null;
+        $manifestItemKey = $historicImport['manifest_item_key'] ?? null;
+        $stagedPath = $derivative['path'] ?? null;
+        $expectedSize = $derivative['size'] ?? null;
+        $sources = array_key_exists('sources', $historicImport) ? $historicImport['sources'] : null;
+
+        if (
+            ! $context instanceof HistoricStagingContext
+            || $dedupKey === ''
+            || ! is_string($operationId)
+            || $operationId === ''
+            || ! is_string($manifestItemKey)
+            || $manifestItemKey === ''
+            || ! is_string($stagedPath)
+            || ! is_int($expectedSize)
+            || $expectedSize < 0
+            || ($historicImport['staging_context'] ?? null) !== $context->toArray()
+            || ($historicImport['job_key'] ?? null) !== $dedupKey
+            || ($historicImport['sha256_basis'] ?? null) !== 'approved_manifest_not_reverified_at_dispatch'
+            || ! is_array($sources)
+            || ! array_is_list($sources)
+            || $sources === []
+            || ! $this->hasApprovedSourceMetadata($sources)
+            || ($derivative['operation_id'] ?? null) !== $operationId
+            || ($derivative['manifest_item_key'] ?? null) !== $manifestItemKey
+            || ($derivative['dedup_key'] ?? null) !== $dedupKey
+        ) {
+            throw new \RuntimeException('Historic derivative adoption is not bound to the active operation identity.');
+        }
+
+        if ($context->stagingDisk !== $this->tempDisk()
+            || Path::isUnsafe($stagedPath)
+            || ! str_starts_with($stagedPath, self::HISTORIC_DERIVATIVE_PREFIX)) {
+            throw new \RuntimeException('Historic derivative path is outside the operation staging allow-list.');
+        }
+
+        $disk = Storage::disk($context->stagingDisk);
+        $fullPath = $disk->path($stagedPath);
+        $root = $disk->path('');
+        $realRoot = realpath($root);
+        $realPath = realpath($fullPath);
+        $filePath = $file->getRealPath();
+
+        if (
+            ! is_string($realRoot)
+            || ! is_string($realPath)
+            || ! is_string($filePath)
+            || ! $this->isWithinRoot($realPath, $realRoot)
+            || $this->containsSymlink($root, $stagedPath)
+            || realpath($filePath) !== $realPath
+        ) {
+            throw new \RuntimeException('Historic derivative is not a regular file in the operation staging root.');
+        }
+
+        $storedSize = $this->exactFileSize($realPath);
+
+        if ($storedSize !== $expectedSize) {
+            throw new \RuntimeException('Historic derivative does not have its approved byte size.');
+        }
+
+        return [
+            'temp_path' => $stagedPath,
+            'full_path' => $realPath,
+            'original_filename' => $file->getClientOriginalName(),
+            'file_size' => $storedSize,
+            'mime_type' => $file->getMimeType(),
+        ];
     }
 
     /**
@@ -195,5 +319,82 @@ class VideoStorageService
     private function tempDisk(): string
     {
         return (string) config('media-processing.storage.temp_disk', 'local');
+    }
+
+    private function exactFileSize(string $path): ?int
+    {
+        clearstatcache(true, $path);
+
+        if (! is_file($path) || is_link($path) || ! is_readable($path)) {
+            return null;
+        }
+
+        $size = filesize($path);
+
+        return is_int($size) ? $size : null;
+    }
+
+    /**
+     * @param  array<mixed>  $sources
+     */
+    private function hasApprovedSourceMetadata(array $sources): bool
+    {
+        foreach ($sources as $source) {
+            if (
+                ! is_array($source)
+                || ! is_string($source['path'] ?? null)
+                || $source['path'] === ''
+                || str_starts_with($source['path'], '/')
+                || str_contains($source['path'], '\\')
+                || in_array('..', explode('/', $source['path']), true)
+                || ! is_int($source['size'] ?? null)
+                || $source['size'] < 0
+                || ! is_string($source['sha256'] ?? null)
+                || preg_match('/\\A[0-9a-f]{64}\\z/', $source['sha256']) !== 1
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function deleteUniqueStoredPath(string $disk, string $path): void
+    {
+        try {
+            Storage::disk($disk)->delete($path);
+        } catch (Throwable $cleanupException) {
+            Log::warning('Failed to delete incomplete historic staging copy', [
+                'path' => $path,
+                'disk' => $disk,
+                'error' => $cleanupException->getMessage(),
+            ]);
+        }
+    }
+
+    private function containsSymlink(string $root, string $relativePath): bool
+    {
+        if (is_link($root)) {
+            return true;
+        }
+
+        $path = rtrim($root, DIRECTORY_SEPARATOR);
+
+        foreach (explode('/', $relativePath) as $segment) {
+            $path .= DIRECTORY_SEPARATOR.$segment;
+
+            if (is_link($path)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isWithinRoot(string $path, string $root): bool
+    {
+        $root = rtrim($root, DIRECTORY_SEPARATOR);
+
+        return $path === $root || str_starts_with($path, $root.DIRECTORY_SEPARATOR);
     }
 }

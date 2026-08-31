@@ -9,6 +9,7 @@ use App\Enums\HistoricVideoCorroborationGrade;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
+use App\Exceptions\HistoricSourceMountException;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\HistoricMedia\HistoricProcessingFingerprint;
@@ -18,19 +19,24 @@ use App\Services\Media\TempDiskSpace;
 use App\Services\Media\Video\HistoricVideoCurationManifest;
 use App\Services\Media\Video\HistoricVideoImporter;
 use App\Services\Media\Video\HistoricVideoReencodeConcatenator;
+use App\Services\Media\Video\VideoStorageService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
 class HistoricVideoImporterTest extends TestCase
 {
+    use CreatesHistoricImportOperations;
     use RefreshDatabase;
 
     private string $temporaryDirectory;
@@ -152,14 +158,16 @@ class HistoricVideoImporterTest extends TestCase
         $capturedMetadata = null;
         $capturedDedupKey = null;
         $capturedFingerprint = null;
+        $capturedSkipFileHash = null;
 
         $processor = $this->mock(UnifiedMediaProcessor::class);
         $processor->shouldReceive('process')
             ->once()
-            ->withArgs(function (string $type, mixed $file, ?string $clientFileDate, array $options) use (&$capturedMetadata, &$capturedDedupKey, &$capturedFingerprint): bool {
+            ->withArgs(function (string $type, mixed $file, ?string $clientFileDate, array $options) use (&$capturedMetadata, &$capturedDedupKey, &$capturedFingerprint, &$capturedSkipFileHash): bool {
                 $capturedMetadata = $options['processing_metadata']['historic_import'] ?? null;
                 $capturedDedupKey = $options['dedup_key'] ?? null;
                 $capturedFingerprint = $options['processing_metadata']['processing_fingerprint'] ?? null;
+                $capturedSkipFileHash = $options['skip_file_hash'] ?? null;
 
                 return $type === 'livestream' && $clientFileDate !== null;
             })
@@ -172,12 +180,13 @@ class HistoricVideoImporterTest extends TestCase
                 return ProcessingResult::success($processingId, 'ok');
             });
 
-        $this->runImportWithProcessor($processor);
+        $this->runImportWithApprovedItem($processor, $path, '2022-01-16 18-38-15.mkv', null);
 
         $this->assertIsArray($capturedMetadata);
         $this->assertSame('livestream', $capturedMetadata['tag']);
-        $this->assertSame($path, $capturedMetadata['sources'][0]['path']);
+        $this->assertSame('2022-01-16 18-38-15.mkv', $capturedMetadata['sources'][0]['path']);
         $this->assertSame(hash_file('sha256', $path), $capturedMetadata['sources'][0]['sha256']);
+        $this->assertSame('approved_manifest_not_reverified_at_dispatch', $capturedMetadata['sha256_basis']);
         $this->assertArrayHasKey('codec_fingerprint', $capturedMetadata);
         $this->assertArrayHasKey('imported_at', $capturedMetadata);
         $this->assertSame(hash('sha256', $this->temporaryDirectory), $capturedMetadata['manifest_hash']);
@@ -185,6 +194,7 @@ class HistoricVideoImporterTest extends TestCase
         $this->assertArrayHasKey('staging_context', $capturedMetadata);
         $this->assertMatchesRegularExpression('/\A[0-9a-f]{64}\z/', $capturedMetadata['job_key']);
         $this->assertSame($capturedMetadata['job_key'], $capturedDedupKey);
+        $this->assertTrue($capturedSkipFileHash);
         $this->assertIsArray($capturedFingerprint);
         $this->assertSame($capturedMetadata['manifest_hash'], $capturedFingerprint['source_manifest_hash']);
     }
@@ -213,6 +223,7 @@ class HistoricVideoImporterTest extends TestCase
             app(HistoricStagingContextRegistry::class),
             app(HistoricProcessingFingerprint::class),
             app(HistoricVideoReencodeConcatenator::class),
+            app(VideoStorageService::class),
         ))->import(
             directory: $this->temporaryDirectory,
             dryRun: false,
@@ -253,6 +264,170 @@ class HistoricVideoImporterTest extends TestCase
         $this->assertSame(0, $metrics['dispatched']);
         $this->assertSame('source_integrity_failed', $report['items'][0]['decision']);
         $this->assertDatabaseCount('media_processing_logs', 0);
+    }
+
+    /**
+     * M11 deliberately accepts this bounded risk: the immutable manifest hash remains the
+     * approval evidence, while the source-to-staging copy is checked by exact byte size.
+     */
+    #[Test]
+    public function an_approved_same_size_source_mutation_is_dispatched(): void
+    {
+        $relativePath = '2022-01-16 18-38-15.mkv';
+        $path = $this->temporaryDirectory.'/'.$relativePath;
+        $this->createFakeVideo($path);
+        $approvedHash = hash_file('sha256', $path);
+        $approvedSize = filesize($path);
+        $this->assertIsString($approvedHash);
+        $this->assertIsInt($approvedSize);
+
+        file_put_contents($path, str_repeat('c', $approvedSize));
+        clearstatcache(true, $path);
+        $this->assertSame($approvedSize, filesize($path));
+
+        $metrics = $this->runImportWithProcessor(
+            $this->mockProcessorSuccess(),
+            approvedWorkItems: [[
+                'manifest_item_key' => 'same-size-mutation',
+                'tag' => 'livestream',
+                'label' => $relativePath,
+                'files' => [$path],
+                'source_files' => [[
+                    'relative_path' => $relativePath,
+                    'sha256' => $approvedHash,
+                    'byte_size' => $approvedSize,
+                ]],
+                'date' => Carbon::parse('2022-01-16'),
+                'service' => SermonService::Evening,
+                'client_file_date' => '2022-01-16 18:38:15',
+                'bytes' => $approvedSize,
+                'manifest_concatenation' => 'separate',
+            ]],
+        );
+
+        $this->assertSame(1, $metrics['dispatched']);
+        $this->assertSame(0, $metrics['errors']);
+        $this->assertDatabaseCount('media_processing_logs', 0);
+    }
+
+    #[Test]
+    public function concat_inputs_are_staged_once_and_ffmpeg_receives_only_staged_paths(): void
+    {
+        $firstPath = $this->temporaryDirectory.'/2022-01-16 18-38-15-part-1.mkv';
+        $secondPath = $this->temporaryDirectory.'/2022-01-16 18-38-15-part-2.mkv';
+        $this->createFakeVideo($firstPath, 1024);
+        $this->createFakeVideo($secondPath, 2048);
+        $firstSize = filesize($firstPath);
+        $secondSize = filesize($secondPath);
+        $firstHash = hash_file('sha256', $firstPath);
+        $secondHash = hash_file('sha256', $secondPath);
+        $this->assertIsInt($firstSize);
+        $this->assertIsInt($secondSize);
+        $this->assertIsString($firstHash);
+        $this->assertIsString($secondHash);
+
+        $storage = Mockery::mock(VideoStorageService::class);
+        $storedPaths = [];
+        $storage->shouldReceive('storeUploadedVideo')
+            ->twice()
+            ->andReturnUsing(function (mixed $file, ?int $expectedSize = null) use (&$storedPaths): array {
+                $index = count($storedPaths) + 1;
+                $path = "livestream/temp/staged-{$index}.mkv";
+                Storage::disk('historic_staging')->makeDirectory(dirname($path));
+                $fullPath = Storage::disk('historic_staging')->path($path);
+                file_put_contents($fullPath, str_repeat('s', $expectedSize ?? 1));
+                $storedPaths[] = $fullPath;
+
+                return [
+                    'temp_path' => $path,
+                    'full_path' => $fullPath,
+                    'original_filename' => basename($file->getClientOriginalName()),
+                    'file_size' => $expectedSize ?? 1,
+                    'mime_type' => 'video/x-matroska',
+                ];
+            });
+        $storage->shouldReceive('cleanupTemporaryFiles')
+            ->once()
+            ->with(Mockery::on(static fn (array $paths): bool => $paths === [
+                'livestream/temp/staged-1.mkv',
+                'livestream/temp/staged-2.mkv',
+            ]));
+
+        $reencode = Mockery::mock(HistoricVideoReencodeConcatenator::class);
+        $reencode->shouldReceive('concatenate')
+            ->once()
+            ->withArgs(function (array $files, string $outputPath) use (&$storedPaths, $firstPath, $secondPath): bool {
+                $this->assertSame($storedPaths, $files);
+                $this->assertNotSame([$firstPath, $secondPath], $files);
+                file_put_contents($outputPath, 'concat-output');
+
+                return true;
+            });
+
+        $processor = Mockery::mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->once()
+            ->withArgs(function (string $type, UploadedFile $file, ?string $clientFileDate, array $options): bool {
+                $derivative = $options['processing_metadata']['historic_import']['staged_derivative'] ?? null;
+
+                return $type === 'livestream'
+                    && $clientFileDate !== null
+                    && (($derivative['path'] ?? null) !== null)
+                    && $options['skip_file_hash'] === true
+                    && $file->getRealPath() !== false;
+            })
+            ->andReturn(ProcessingResult::success('concat-processing', 'ok'));
+
+        $context = app(HistoricStagingGuard::class)->contextForApprovedPlan(
+            str_repeat('a', 64),
+            str_repeat('b', 64),
+        );
+        $operation = $this->createHistoricImportOperation();
+        $item = [
+            'manifest_item_key' => 'concat-item',
+            'tag' => 'concat',
+            'label' => 'concat-item',
+            'files' => [$firstPath, $secondPath],
+            'source_files' => [
+                ['relative_path' => basename($firstPath), 'sha256' => $firstHash, 'byte_size' => $firstSize],
+                ['relative_path' => basename($secondPath), 'sha256' => $secondHash, 'byte_size' => $secondSize],
+            ],
+            'date' => Carbon::parse('2022-01-16'),
+            'service' => SermonService::Evening,
+            'client_file_date' => '2022-01-16 18:38:15',
+            'bytes' => $firstSize + $secondSize,
+            'manifest_concatenation' => 'reencoded',
+        ];
+
+        $importer = new HistoricVideoImporter(
+            $processor,
+            app(HistoricStagingContextRegistry::class),
+            app(HistoricProcessingFingerprint::class),
+            $reencode,
+            $storage,
+        );
+
+        $metrics = $importer->import(
+            directory: $this->temporaryDirectory,
+            dryRun: false,
+            delay: 0,
+            force: false,
+            minSizeMb: 1,
+            includeUnclassified: false,
+            defaultYear: null,
+            noConcat: false,
+            reEncodeMismatched: false,
+            tempDiskMinFreeGb: 0,
+            parallel: 1,
+            pollIntervalSeconds: 1,
+            perFileTimeoutSeconds: 1,
+            limit: 0,
+            approvedWorkItems: [$item],
+            stagingContext: $context,
+            operation: $operation,
+        );
+
+        $this->assertSame(1, $metrics['dispatched']);
     }
 
     #[Test]
@@ -1181,7 +1356,6 @@ class HistoricVideoImporterTest extends TestCase
         bool $force = false,
         ?string $reportPath = null,
         ?array $approvedWorkItems = null,
-        bool $failSourceContentRead = false,
     ): array {
         $stagingGuard = app(HistoricStagingGuard::class);
         $stagingContext = $dryRun
@@ -1190,19 +1364,12 @@ class HistoricVideoImporterTest extends TestCase
                 hash('sha256', $this->temporaryDirectory),
                 hash('sha256', $this->temporaryDirectory.'|plan'),
             );
-        $importer = $failSourceContentRead
-            ? new class($processor, app(HistoricStagingContextRegistry::class), app(HistoricProcessingFingerprint::class), app(HistoricVideoReencodeConcatenator::class)) extends HistoricVideoImporter
-            {
-                protected function sourceFileSha256(string $path): ?string
-                {
-                    return null;
-                }
-            }
-        : new HistoricVideoImporter(
+        $importer = new HistoricVideoImporter(
             $processor,
             app(HistoricStagingContextRegistry::class),
             app(HistoricProcessingFingerprint::class),
             app(HistoricVideoReencodeConcatenator::class),
+            app(VideoStorageService::class),
         );
 
         return $importer->import(
@@ -1290,7 +1457,7 @@ class HistoricVideoImporterTest extends TestCase
     }
 
     #[Test]
-    public function it_stops_dispatching_when_a_present_source_fails_while_its_contents_are_read(): void
+    public function it_stops_dispatching_when_a_present_source_copy_fails(): void
     {
         $path = $this->temporaryDirectory.'/2022-01-23 - Evening Service.mp4';
         $this->createFakeVideo($path);
@@ -1299,8 +1466,13 @@ class HistoricVideoImporterTest extends TestCase
         $this->assertIsInt($size);
         $this->assertIsString($hash);
 
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->once()
+            ->andThrow(new HistoricSourceMountException('source copy failed'));
+
         $metrics = $this->runImportWithProcessor(
-            $this->mockProcessorSuccess(),
+            $processor,
             approvedWorkItems: [[
                 'manifest_item_key' => 'item-content-read-failure',
                 'tag' => 'livestream',
@@ -1317,7 +1489,6 @@ class HistoricVideoImporterTest extends TestCase
                 'bytes' => $size,
                 'manifest_concatenation' => 'separate',
             ]],
-            failSourceContentRead: true,
         );
 
         $this->assertTrue($metrics['aborted_stale_mount']);

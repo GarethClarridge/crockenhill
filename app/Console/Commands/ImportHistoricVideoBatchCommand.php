@@ -123,9 +123,8 @@ class ImportHistoricVideoBatchCommand extends Command
                  * narrowed anything, which a bounded pass must never pay. Existence, symlink,
                  * root-containment and byte-size checks still run for every manifest entry, the
                  * manifest and plan hashes are unchanged either way, and
-                 * {@see HistoricVideoImporter} re-checks size and
-                 * SHA-256 per file immediately before FFmpeg consumes it, so no dispatched byte
-                 * goes unverified.
+                 * {@see HistoricVideoImporter} checks selected source metadata before the existing
+                 * staging copy verifies its exact destination size.
                  */
                 $plan = $curationManifest->plan(
                     $directory,
@@ -138,7 +137,7 @@ class ImportHistoricVideoBatchCommand extends Command
                 return self::FAILURE;
             }
 
-            $this->line('Corpus contents are not re-read; every dispatched file is verified before FFmpeg consumes it.');
+            $this->line('Corpus contents are not re-read; selected sources are metadata-checked and their staging copies are size-verified before processing.');
 
             $approvedWorkItems = $plan->workItems;
             $defaultYear = null;

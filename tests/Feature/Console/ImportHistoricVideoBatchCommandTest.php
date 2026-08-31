@@ -704,7 +704,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             ->andReturn($this->importMetrics());
 
         $this->artisan('sermons:import-historic-videos', $arguments)
-            ->expectsOutputToContain('Corpus contents are not re-read; every dispatched file is verified before FFmpeg consumes it.');
+            ->expectsOutputToContain('Corpus contents are not re-read; selected sources are metadata-checked and their staging copies are size-verified before processing.');
     }
 
     #[Test]

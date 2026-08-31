@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Exceptions\HistoricSourceMountException;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\Video\VideoStorageService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
@@ -23,7 +26,7 @@ class VideoStorageServiceTest extends TestCase
 
         Storage::fake('local_temp');
 
-        $this->service = new VideoStorageService;
+        $this->service = new VideoStorageService(app(HistoricStagingContextRegistry::class));
     }
 
     #[Test]
@@ -40,6 +43,104 @@ class VideoStorageServiceTest extends TestCase
         $this->assertContains($result['mime_type'], ['video/mp4', 'application/mp4']);
 
         Storage::disk('local_temp')->assertExists($result['temp_path']);
+    }
+
+    #[Test]
+    public function it_verifies_an_approved_historic_copy_by_destination_size(): void
+    {
+        $file = UploadedFile::fake()->createWithContent('historic-video.mp4', str_repeat('x', 1024));
+
+        $result = $this->service->storeUploadedVideo($file, 1024);
+
+        $this->assertSame(1024, $result['file_size']);
+        Storage::disk('local_temp')->assertExists($result['temp_path']);
+    }
+
+    #[Test]
+    public function an_approved_copy_with_the_wrong_size_is_a_stale_mount_and_is_removed(): void
+    {
+        $file = UploadedFile::fake()->createWithContent('historic-video.mp4', str_repeat('x', 1024));
+
+        $this->expectException(HistoricSourceMountException::class);
+
+        try {
+            $this->service->storeUploadedVideo($file, 1025);
+        } finally {
+            $this->assertSame([], Storage::disk('local_temp')->allFiles('livestream/temp'));
+        }
+    }
+
+    #[Test]
+    public function it_adopts_a_verified_historic_derivative_without_copying_it_again(): void
+    {
+        Config::set([
+            'media-processing.storage.historic_staging_disk' => 'historic_staging',
+            'media-processing.storage.historic_quarantine_disk' => 'historic_quarantine',
+            'media-processing.storage.sermon_disk' => 'historic_staging',
+            'media-processing.storage.transcript_disk' => 'historic_staging',
+        ]);
+        Storage::fake('historic_staging');
+
+        $registry = app(HistoricStagingContextRegistry::class);
+        $context = app(HistoricStagingGuard::class)->contextForApprovedPlan(
+            str_repeat('a', 64),
+            str_repeat('b', 64),
+        );
+        $stagedPath = 'temp/historic-import/derivative.mkv';
+        $dedupKey = str_repeat('c', 64);
+
+        $registry->within($context, function () use ($context, $stagedPath, $dedupKey): void {
+            Storage::disk('historic_staging')->put($stagedPath, 'derivative');
+            $fullPath = Storage::disk('historic_staging')->path($stagedPath);
+            $file = new UploadedFile($fullPath, 'derivative.mkv', 'video/x-matroska', null, true);
+            $historicImport = [
+                'operation_id' => 'historic-operation',
+                'manifest_item_key' => 'item-1',
+                'job_key' => $dedupKey,
+                'sha256_basis' => 'approved_manifest_not_reverified_at_dispatch',
+                'sources' => [[
+                    'path' => 'source.mkv',
+                    'size' => 10,
+                    'mtime' => null,
+                    'sha256' => str_repeat('d', 64),
+                ]],
+                'staging_context' => $context->toArray(),
+            ];
+
+            $result = $this->service->adoptHistoricStagedVideo(
+                $file,
+                [
+                    'path' => $stagedPath,
+                    'size' => 10,
+                    'manifest_item_key' => 'item-1',
+                    'dedup_key' => $dedupKey,
+                    'operation_id' => 'historic-operation',
+                ],
+                $historicImport,
+                $dedupKey,
+            );
+
+            $this->assertSame($stagedPath, $result['temp_path']);
+            $this->assertSame($fullPath, $result['full_path']);
+            $this->assertSame(10, $result['file_size']);
+            Storage::disk('historic_staging')->assertExists($stagedPath);
+        });
+    }
+
+    #[Test]
+    public function ordinary_uploads_cannot_adopt_a_historic_derivative(): void
+    {
+        $file = UploadedFile::fake()->create('video.mp4', 1, 'video/mp4');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Historic derivative adoption is not bound');
+
+        $this->service->adoptHistoricStagedVideo(
+            $file,
+            [],
+            [],
+            'dedup-key',
+        );
     }
 
     #[Test]

@@ -50,6 +50,7 @@ use Illuminate\Support\Str;
  *     bytes_processed: int,
  *     bytes_skipped: int
  * }
+ * @phpstan-type StagedFile array{temp_path:string,full_path:string,original_filename:string,file_size:int,mime_type:string|null}
  */
 class HistoricVideoImporter
 {
@@ -70,6 +71,7 @@ class HistoricVideoImporter
         private readonly HistoricStagingContextRegistry $stagingContextRegistry,
         private readonly HistoricProcessingFingerprint $fingerprints,
         private readonly HistoricVideoReencodeConcatenator $reencodeConcatenator,
+        private readonly VideoStorageService $videoStorageService,
     ) {}
 
     /**
@@ -369,7 +371,7 @@ class HistoricVideoImporter
 
             if (! $dryRun) {
                 try {
-                    $this->assertApprovedSourceFilesAreUnchanged($item);
+                    $this->assertApprovedSourceMetadata($item);
                 } catch (HistoricSourceMountException $exception) {
                     $metrics['aborted_stale_mount'] = true;
                     $decisions[$decisionIndex] = [
@@ -903,7 +905,6 @@ class HistoricVideoImporter
         HistoricStagingContext $stagingContext,
         ?HistoricImportOperation $operation,
     ): array {
-        $this->assertApprovedSourceFilesAreUnchanged($item);
         $files = $item['files'];
 
         if (isset($item['manifest_concatenation'])) {
@@ -911,15 +912,29 @@ class HistoricVideoImporter
                 return $this->dispatchFiles($item, $files, $stagingContext, $operation);
             }
 
-            return [match ($item['manifest_concatenation']) {
-                'lossless' => $this->concatLossless($item, $stagingContext, $operation),
-                'reencoded' => $this->concatWithReencode($item, $stagingContext, $operation),
-                default => ['tag' => 'error', 'processing_id' => '', 'detail' => 'invalid manifest concatenation decision'],
-            }];
+            if (! in_array($item['manifest_concatenation'], ['lossless', 'reencoded'], true)) {
+                return [['tag' => 'error', 'processing_id' => '', 'detail' => 'invalid manifest concatenation decision']];
+            }
+
+            $stagedFiles = $this->stageSourceFiles($item);
+
+            try {
+                return [$item['manifest_concatenation'] === 'lossless'
+                    ? $this->concatLossless($item, $stagedFiles, $stagingContext, $operation)
+                    : $this->concatWithReencode($item, $stagedFiles, $stagingContext, $operation)];
+            } finally {
+                $this->cleanupStagedFiles($stagedFiles);
+            }
         }
 
         if (count($files) > 1 && ! $noConcat) {
-            return [$this->dispatchMultiSegment($item, $reEncodeMismatched, $stagingContext, $operation)];
+            $stagedFiles = $this->stageSourceFiles($item);
+
+            try {
+                return [$this->dispatchMultiSegment($item, $stagedFiles, $reEncodeMismatched, $stagingContext, $operation)];
+            } finally {
+                $this->cleanupStagedFiles($stagedFiles);
+            }
         }
 
         // With --no-concat, dispatch every segment individually so none are silently dropped.
@@ -955,6 +970,7 @@ class HistoricVideoImporter
                 clientFileDate: $item['client_file_date'] !== '' ? $item['client_file_date'] : null,
                 options: [
                     'dedup_key' => $jobKey,
+                    'skip_file_hash' => true,
                     'processing_metadata' => $this->historicImportMetadata($item, $path, 'none', $stagingContext, $jobKey, $operation),
                 ],
                 serviceOverride: $item['service'],
@@ -973,25 +989,86 @@ class HistoricVideoImporter
 
     /**
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
+     * @param  list<StagedFile>  $stagedFiles
      * @return array{tag: string, processing_id: string, detail: string|null}
      */
     private function dispatchMultiSegment(
         array $item,
+        array $stagedFiles,
         bool $reEncodeMismatched,
         HistoricStagingContext $stagingContext,
         ?HistoricImportOperation $operation,
     ): array {
-        $files = $item['files'];
+        $files = $this->stagedFullPaths($stagedFiles);
 
         if (! $this->codecsMatch($files)) {
             if (! $reEncodeMismatched) {
                 return ['tag' => 'error', 'processing_id' => '', 'detail' => 'codec mismatch in segment group (use --reencode-mismatched to override)'];
             }
 
-            return $this->concatWithReencode($item, $stagingContext, $operation);
+            return $this->concatWithReencode($item, $stagedFiles, $stagingContext, $operation);
         }
 
-        return $this->concatLossless($item, $stagingContext, $operation);
+        return $this->concatLossless($item, $stagedFiles, $stagingContext, $operation);
+    }
+
+    /**
+     * Copy concat inputs once into the operation-owned staging root. The processor never receives
+     * an archive path, and a failed copy removes only the unique working copies created here.
+     *
+     * @param  array{files:list<string>,source_files?:list<array{relative_path:string,sha256:string,byte_size:int}>}  $item
+     * @return list<array{temp_path:string,full_path:string,original_filename:string,file_size:int,mime_type:string|null}>
+     */
+    private function stageSourceFiles(array $item): array
+    {
+        $stagedFiles = [];
+
+        try {
+            foreach ($item['files'] as $offset => $path) {
+                $file = new UploadedFile($path, basename($path), null, null, true);
+                $expectedSize = $this->approvedSourceSize($item, $offset);
+
+                $stagedFiles[] = $expectedSize === null
+                    ? $this->videoStorageService->storeUploadedVideo($file)
+                    : $this->videoStorageService->storeUploadedVideo($file, $expectedSize);
+            }
+        } catch (\Throwable $exception) {
+            $this->cleanupStagedFiles($stagedFiles);
+
+            throw $exception;
+        }
+
+        return $stagedFiles;
+    }
+
+    /** @param  array<string, mixed>  $item */
+    private function approvedSourceSize(array $item, int $offset): ?int
+    {
+        $source = $item['source_files'][$offset] ?? null;
+        $size = is_array($source) ? ($source['byte_size'] ?? null) : null;
+
+        return is_int($size) && $size >= 0 ? $size : null;
+    }
+
+    /** @param list<StagedFile> $stagedFiles */
+    private function cleanupStagedFiles(array $stagedFiles): void
+    {
+        $this->videoStorageService->cleanupTemporaryFiles(array_values(array_filter(
+            array_map(static fn (array $staged): string => $staged['temp_path'], $stagedFiles),
+            static fn (string $path): bool => $path !== '',
+        )));
+    }
+
+    /**
+     * @param  list<StagedFile>  $stagedFiles
+     * @return list<string>
+     */
+    private function stagedFullPaths(array $stagedFiles): array
+    {
+        return array_map(
+            static fn (array $staged): string => $staged['full_path'],
+            $stagedFiles,
+        );
     }
 
     /**
@@ -1071,15 +1148,16 @@ class HistoricVideoImporter
 
     /**
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
+     * @param  list<StagedFile>  $stagedFiles
      * @return array{tag: string, processing_id: string, detail: string|null}
      */
     private function concatLossless(
         array $item,
+        array $stagedFiles,
         HistoricStagingContext $stagingContext,
         ?HistoricImportOperation $operation,
     ): array {
-        $this->assertApprovedSourceFilesAreUnchanged($item);
-        $concatPath = $this->buildConcatFile($item['files']);
+        $concatPath = $this->buildConcatFile($this->stagedFullPaths($stagedFiles));
 
         if ($concatPath === null) {
             return ['tag' => 'error', 'processing_id' => '', 'detail' => 'failed to build FFmpeg concat list'];
@@ -1099,14 +1177,22 @@ class HistoricVideoImporter
         Storage::disk($this->historicTempDisk())->delete($concatPath['relative_path']);
 
         if ($returnCode !== 0) {
+            Storage::disk($this->historicTempDisk())->delete($outputRelativePath);
+
             return ['tag' => 'error', 'processing_id' => '', 'detail' => 'FFmpeg concat failed: '.implode(' ', array_slice($cmdOutput, -3))];
         }
 
-        $result = $this->dispatchConcatFile($outputPath, $item, 'lossless', $stagingContext, $operation);
+        try {
+            $result = $this->dispatchConcatFile($outputPath, $outputRelativePath, $item, 'lossless', $stagingContext, $operation);
+        } catch (\Throwable $exception) {
+            Storage::disk($this->historicTempDisk())->delete($outputRelativePath);
 
-        Storage::disk($this->historicTempDisk())->delete($outputRelativePath);
+            throw $exception;
+        }
 
         if (! $result->success) {
+            Storage::disk($this->historicTempDisk())->delete($outputRelativePath);
+
             return ['tag' => 'error', 'processing_id' => '', 'detail' => $result->message];
         }
 
@@ -1115,29 +1201,41 @@ class HistoricVideoImporter
 
     /**
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
+     * @param  list<StagedFile>  $stagedFiles
      * @return array{tag: string, processing_id: string, detail: string|null}
      */
     private function concatWithReencode(
         array $item,
+        array $stagedFiles,
         HistoricStagingContext $stagingContext,
         ?HistoricImportOperation $operation,
     ): array {
-        $this->assertApprovedSourceFilesAreUnchanged($item);
         $this->ensureTempDir();
 
         $outputRelativePath = self::TEMP_DIR.'/'.Str::uuid().'.mp4';
         $outputPath = Storage::disk($this->historicTempDisk())->path($outputRelativePath);
         try {
-            $this->reencodeConcatenator->concatenate($item['files'], $outputPath);
+            $this->reencodeConcatenator->concatenate(
+                $this->stagedFullPaths($stagedFiles),
+                $outputPath,
+            );
         } catch (\RuntimeException $exception) {
+            Storage::disk($this->historicTempDisk())->delete($outputRelativePath);
+
             return ['tag' => 'error', 'processing_id' => '', 'detail' => $exception->getMessage()];
         }
 
-        $result = $this->dispatchConcatFile($outputPath, $item, 're-encoded', $stagingContext, $operation);
+        try {
+            $result = $this->dispatchConcatFile($outputPath, $outputRelativePath, $item, 're-encoded', $stagingContext, $operation);
+        } catch (\Throwable $exception) {
+            Storage::disk($this->historicTempDisk())->delete($outputRelativePath);
 
-        Storage::disk($this->historicTempDisk())->delete($outputRelativePath);
+            throw $exception;
+        }
 
         if (! $result->success) {
+            Storage::disk($this->historicTempDisk())->delete($outputRelativePath);
+
             return ['tag' => 'error', 'processing_id' => '', 'detail' => $result->message];
         }
 
@@ -1150,6 +1248,7 @@ class HistoricVideoImporter
      */
     private function dispatchConcatFile(
         string $outputPath,
+        string $outputRelativePath,
         array $item,
         string $concatenation,
         HistoricStagingContext $stagingContext,
@@ -1157,6 +1256,11 @@ class HistoricVideoImporter
     ): ProcessingResult {
         $filename = $item['date']->format('Y-m-d').' '.$item['service']->value.'.mkv';
         $file = new UploadedFile($outputPath, $filename, null, null, true);
+        $outputSize = $this->exactFileSize($outputPath);
+
+        if ($outputSize === null) {
+            throw new \RuntimeException('Historic concat derivative is missing or unreadable.');
+        }
 
         /**
          * A concatenated item produces exactly one run, so its key is the item's
@@ -1171,7 +1275,22 @@ class HistoricVideoImporter
             clientFileDate: $item['client_file_date'] !== '' ? $item['client_file_date'] : null,
             options: [
                 'dedup_key' => $jobKey,
-                'processing_metadata' => $this->historicImportMetadata($item, $outputPath, $concatenation, $stagingContext, $jobKey, $operation),
+                'skip_file_hash' => true,
+                'processing_metadata' => $this->historicImportMetadata(
+                    $item,
+                    $outputPath,
+                    $concatenation,
+                    $stagingContext,
+                    $jobKey,
+                    $operation,
+                    stagedDerivative: [
+                        'path' => $outputRelativePath,
+                        'size' => $outputSize,
+                        'manifest_item_key' => $this->manifestItemKey($item),
+                        'dedup_key' => $jobKey,
+                        'operation_id' => $operation?->operation_id,
+                    ],
+                ),
             ],
             serviceOverride: $item['service'],
             serviceDateOverride: $item['date']->toDateString(),
@@ -1201,28 +1320,71 @@ class HistoricVideoImporter
         Storage::disk($this->historicTempDisk())->makeDirectory(self::TEMP_DIR);
     }
 
-    /**
-     * A manifest plan deliberately contains portable relative paths and hashes.
-     * Reconstruct the approved root from the dispatched path and verify every
-     * segment immediately before a processor or FFmpeg can consume it.
-     *
-     * @param  array{files:list<string>,source_files?:list<array{relative_path:string,sha256:string,byte_size:int}>}  $item
-     */
-    private function assertApprovedSourceFilesAreUnchanged(array $item): void
+    private function exactFileSize(string $path): ?int
     {
-        $sourceFiles = $item['source_files'] ?? [];
+        clearstatcache(true, $path);
 
-        if ($sourceFiles === []) {
+        if (! is_file($path) || is_link($path) || ! is_readable($path)) {
+            return null;
+        }
+
+        $size = filesize($path);
+
+        return is_int($size) ? $size : null;
+    }
+
+    /**
+     * A manifest plan deliberately contains portable relative paths, sizes and hashes. Reconstruct
+     * the approved root from the dispatched path and check the selected source's metadata before a
+     * processor or FFmpeg can consume it. The frozen hash is provenance evidence, not a dispatch
+     * read; the staging copy is the one content traversal for this pass.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function assertApprovedSourceMetadata(array $item): void
+    {
+        $sourceFiles = $item['source_files'] ?? null;
+
+        if (! is_array($sourceFiles) || $sourceFiles === []) {
             return;
         }
 
-        if (count($sourceFiles) !== count($item['files'])) {
+        $files = $item['files'] ?? null;
+
+        if (
+            ! is_array($files)
+            || ! array_is_list($sourceFiles)
+            || ! array_is_list($files)
+            || count($sourceFiles) !== count($files)
+        ) {
             throw new HistoricSourceIntegrityException('Historic video work item does not bind every dispatched file to approved source evidence.');
         }
 
         foreach ($sourceFiles as $offset => $source) {
+            if (
+                ! is_array($source)
+                || ! is_string($source['relative_path'] ?? null)
+                || ! is_string($source['sha256'] ?? null)
+                || preg_match('/\A[0-9a-f]{64}\z/', $source['sha256']) !== 1
+                || ! is_int($source['byte_size'] ?? null)
+                || $source['byte_size'] < 0
+            ) {
+                throw new HistoricSourceIntegrityException('Historic video source evidence is incomplete.');
+            }
+
             $relativePath = $source['relative_path'];
-            $path = $item['files'][$offset];
+            $path = $files[$offset] ?? null;
+
+            if (
+                $relativePath === ''
+                || str_starts_with($relativePath, '/')
+                || str_contains($relativePath, '\\')
+                || in_array('..', explode('/', $relativePath), true)
+                || ! is_string($path)
+            ) {
+                throw new HistoricSourceIntegrityException('Historic video source path is not the approved relative path.');
+            }
+
             $suffix = DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
 
             if (! str_ends_with($path, $suffix)) {
@@ -1231,23 +1393,45 @@ class HistoricVideoImporter
 
             $root = substr($path, 0, -strlen($suffix));
 
-            if ($root === '' || $this->containsSourceSymlink($root, $relativePath)) {
+            if (
+                $root === ''
+                || $this->containsSourceSymlink($root, $relativePath)
+            ) {
                 throw new HistoricSourceIntegrityException("Historic video source integrity failure: {$relativePath}");
             }
 
-            if (! is_dir($root) || ! is_file($path)) {
+            if (! is_dir($root)) {
                 throw new HistoricSourceMountException("Historic video source is no longer available: {$relativePath}");
+            }
+
+            $resolvedRoot = realpath($root);
+
+            if (! is_string($resolvedRoot)) {
+                throw new HistoricSourceMountException("Historic video source root could not be read: {$relativePath}");
+            }
+
+            if ($resolvedRoot !== $root) {
+                throw new HistoricSourceIntegrityException("Historic video source integrity failure: {$relativePath}");
+            }
+
+            if (! is_file($path) || ! is_readable($path)) {
+                throw new HistoricSourceMountException("Historic video source is no longer available: {$relativePath}");
+            }
+
+            $resolvedPath = realpath($path);
+
+            if (! is_string($resolvedPath) || ! $this->isWithinRoot($resolvedPath, $resolvedRoot)) {
+                throw new HistoricSourceIntegrityException("Historic video source escapes its approved root: {$relativePath}");
             }
 
             clearstatcache(true, $path);
             $size = filesize($path);
-            $hash = $this->sourceFileSha256($path);
 
-            if ($size === false || $hash === null) {
+            if ($size === false) {
                 throw new HistoricSourceMountException("Historic video source could not be read: {$relativePath}");
             }
 
-            if ($size !== $source['byte_size'] || ! hash_equals($source['sha256'], $hash)) {
+            if ($size !== $source['byte_size']) {
                 throw new HistoricSourceIntegrityException("Historic video source changed after approval: {$relativePath}");
             }
         }
@@ -1255,7 +1439,11 @@ class HistoricVideoImporter
 
     private function containsSourceSymlink(string $root, string $relativePath): bool
     {
-        $path = $root;
+        if (is_link($root)) {
+            return true;
+        }
+
+        $path = rtrim($root, DIRECTORY_SEPARATOR);
 
         foreach (explode('/', $relativePath) as $segment) {
             $path .= DIRECTORY_SEPARATOR.$segment;
@@ -1268,11 +1456,11 @@ class HistoricVideoImporter
         return false;
     }
 
-    protected function sourceFileSha256(string $path): ?string
+    private function isWithinRoot(string $path, string $root): bool
     {
-        $hash = hash_file('sha256', $path);
+        $root = rtrim($root, DIRECTORY_SEPARATOR);
 
-        return is_string($hash) ? $hash : null;
+        return $path === $root || str_starts_with($path, $root.DIRECTORY_SEPARATOR);
     }
 
     /**
@@ -1504,6 +1692,7 @@ class HistoricVideoImporter
      * @param  'none'|'lossless'|'re-encoded'  $concatenation  How the dispatched file was produced
      * @param  string|null  $jobKey  The dedup key this dispatch actually used; recorded so the
      *                               orchestrator derives chain identity from the same value
+     * @param  array<string, mixed>|null  $stagedDerivative  Operation-owned concat output to adopt
      * @return array<string, mixed>
      */
     private function historicImportMetadata(
@@ -1513,16 +1702,9 @@ class HistoricVideoImporter
         ?HistoricStagingContext $stagingContext = null,
         ?string $jobKey = null,
         ?HistoricImportOperation $operation = null,
+        ?array $stagedDerivative = null,
     ): array {
-        $sources = array_map(
-            static fn (string $sourcePath): array => [
-                'path' => $sourcePath,
-                'size' => (int) (filesize($sourcePath) ?: 0),
-                'mtime' => (int) (filemtime($sourcePath) ?: 0),
-                'sha256' => hash_file('sha256', $sourcePath) ?: null,
-            ],
-            $item['files'],
-        );
+        $sources = $this->historicSourceMetadata($item);
 
         $historicImport = [
             'tag' => $item['tag'],
@@ -1537,6 +1719,10 @@ class HistoricVideoImporter
                 : null,
         ];
 
+        if ($this->hasApprovedSourceMetadata($item)) {
+            $historicImport['sha256_basis'] = 'approved_manifest_not_reverified_at_dispatch';
+        }
+
         if (! $stagingContext instanceof HistoricStagingContext || $jobKey === null) {
             return ['historic_import' => $historicImport];
         }
@@ -1547,6 +1733,10 @@ class HistoricVideoImporter
         $historicImport['staging_context'] = $stagingContext->toArray();
         $historicImport['job_key'] = $jobKey;
         $historicImport['operation_id'] = $operation?->operation_id;
+
+        if ($stagedDerivative !== null) {
+            $historicImport['staged_derivative'] = $stagedDerivative;
+        }
 
         /**
          * The grade travels with the recording so the projector can decide what it is entitled to
@@ -1569,6 +1759,71 @@ class HistoricVideoImporter
             'historic_import' => $historicImport,
             'processing_fingerprint' => $this->fingerprints->forStagingContext($stagingContext),
         ];
+    }
+
+    /**
+     * @param  array{files:list<string>,source_files?:list<array{relative_path:string,sha256:string,byte_size:int}>}  $item
+     * @return list<array{path:string,size:int,mtime:int|null,sha256:string|null}>
+     */
+    private function historicSourceMetadata(array $item): array
+    {
+        $sourceFiles = $item['source_files'] ?? [];
+        $hasApprovedMetadata = $this->hasApprovedSourceMetadata($item);
+
+        return array_map(
+            function (string $sourcePath, int $offset) use ($sourceFiles, $hasApprovedMetadata): array {
+                clearstatcache(true, $sourcePath);
+                $mtime = filemtime($sourcePath);
+
+                if ($hasApprovedMetadata) {
+                    $source = $sourceFiles[$offset];
+
+                    return [
+                        'path' => $source['relative_path'],
+                        'size' => $source['byte_size'],
+                        'mtime' => is_int($mtime) ? $mtime : null,
+                        'sha256' => $source['sha256'],
+                    ];
+                }
+
+                $size = filesize($sourcePath);
+
+                return [
+                    'path' => $sourcePath,
+                    'size' => is_int($size) ? $size : 0,
+                    'mtime' => is_int($mtime) ? $mtime : null,
+                    'sha256' => null,
+                ];
+            },
+            $item['files'],
+            array_keys($item['files']),
+        );
+    }
+
+    /** @param array<string, mixed> $item */
+    private function hasApprovedSourceMetadata(array $item): bool
+    {
+        $sourceFiles = $item['source_files'] ?? null;
+        $files = $item['files'] ?? null;
+
+        if (! is_array($sourceFiles) || ! is_array($files) || count($sourceFiles) !== count($files) || $sourceFiles === []) {
+            return false;
+        }
+
+        foreach ($sourceFiles as $source) {
+            if (
+                ! is_array($source)
+                || ! is_string($source['relative_path'] ?? null)
+                || ! is_string($source['sha256'] ?? null)
+                || preg_match('/\A[0-9a-f]{64}\z/', $source['sha256']) !== 1
+                || ! is_int($source['byte_size'] ?? null)
+                || $source['byte_size'] < 0
+            ) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

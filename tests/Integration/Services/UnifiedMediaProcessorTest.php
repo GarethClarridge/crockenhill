@@ -11,6 +11,8 @@ use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\User;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Processing\MediaValidationService;
 use App\Services\Processing\MetadataExtractionService;
 use App\Services\Processing\ProcessingInitiator;
@@ -24,6 +26,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -64,6 +67,7 @@ class UnifiedMediaProcessorTest extends TestCase
             $this->mediaValidation,
             app(ProcessingRunOrchestrator::class),
             app(GetMediaProcessingStatus::class),
+            app(HistoricStagingContextRegistry::class),
         );
     }
 
@@ -171,6 +175,59 @@ class UnifiedMediaProcessorTest extends TestCase
 
         $this->assertTrue($result->success);
         $this->assertEquals('livestream-123', $result->processingId);
+    }
+
+    #[Test]
+    public function an_approved_historic_dispatch_skips_the_generic_file_hash(): void
+    {
+        Config::set([
+            'media-processing.storage.historic_staging_disk' => 'historic_staging',
+            'media-processing.storage.sermon_disk' => 'historic_staging',
+            'media-processing.storage.transcript_disk' => 'historic_staging',
+        ]);
+        Storage::fake('historic_staging');
+
+        $context = app(HistoricStagingGuard::class)->contextForApprovedPlan(
+            str_repeat('a', 64),
+            str_repeat('b', 64),
+        );
+        $dedupKey = str_repeat('c', 64);
+        $processingMetadata = [
+            'historic_import' => [
+                'operation_id' => 'historic-operation',
+                'manifest_item_key' => 'item-1',
+                'job_key' => $dedupKey,
+                'sha256_basis' => 'approved_manifest_not_reverified_at_dispatch',
+                'staging_context' => $context->toArray(),
+                'sources' => [[
+                    'path' => '2022-01-16 18-38-15.mkv',
+                    'size' => 100,
+                    'sha256' => str_repeat('d', 64),
+                ]],
+            ],
+        ];
+        $file = UploadedFile::fake()->create('historic-video.mkv', 1, 'video/x-matroska');
+        $expectedResult = ProcessingResult::success('historic-processing', 'ok');
+
+        $this->livestreamService
+            ->expects($this->once())
+            ->method('startProcessing')
+            ->with($file, null, null, $dedupKey, null, null, $processingMetadata)
+            ->willReturn($expectedResult);
+
+        app(HistoricStagingContextRegistry::class)->within($context, function () use ($file, $dedupKey, $processingMetadata): void {
+            $result = $this->processor->process(
+                type: 'livestream',
+                file: $file,
+                options: [
+                    'dedup_key' => $dedupKey,
+                    'skip_file_hash' => true,
+                    'processing_metadata' => $processingMetadata,
+                ],
+            );
+
+            $this->assertSame('historic-processing', $result->processingId);
+        });
     }
 
     #[Test]

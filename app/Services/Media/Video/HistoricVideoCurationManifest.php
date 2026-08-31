@@ -30,15 +30,16 @@ class HistoricVideoCurationManifest
      *
      * `$verifySourceContents` exists because that content check reads the whole included corpus —
      * roughly 1.0 TB, about three hours — and it is redundant for any file this pass will actually
-     * dispatch: {@see HistoricVideoImporter} re-checks size and SHA-256
-     * per file immediately before FFmpeg consumes it, and refuses the item otherwise. Its unique
-     * coverage is the files a bounded pass does *not* dispatch, which is fail-fast evidence worth
-     * three hours before a definitive run and pure cost while iterating towards one.
+     * dispatch: {@see HistoricVideoImporter} re-checks path and size metadata before the existing
+     * staging copy verifies its exact destination size. Its unique coverage is the files a bounded
+     * pass does *not* dispatch, which is fail-fast evidence worth three hours before a definitive
+     * run and pure cost while iterating towards one.
      *
      * Skipping it never weakens the plan's identity: `manifestHash` and `planHash` are derived from
      * the manifest's *declared* metadata, so both hashes are byte-identical either way. What a
      * caller gives up is the stronger claim that holding a plan hash proves the whole corpus was
-     * intact at plan time. Existence, symlink, root-containment and byte-size checks always run.
+     * intact at plan time. Existence, symlink, root-containment and byte-size checks always run;
+     * the selected dispatch later verifies its metadata and staging copy without re-hashing it.
      */
     public function plan(
         string $rawDirectory,
@@ -586,9 +587,9 @@ class HistoricVideoCurationManifest
      * The cheap checks are unconditional; only the whole-file read is gated.
      *
      * `filesize()` is a stat call, so refusing a missing, truncated, replaced or re-encoded source
-     * costs nothing and stays on every path. Reading the file to compare SHA-256 is the three-hour
-     * pass, and what it uniquely catches beyond the size check is same-length corruption — which
-     * the importer's pre-FFmpeg gate catches anyway for every file actually dispatched.
+     * costs nothing and stays on every path. Reading the file to compare SHA-256 is the optional
+     * whole-corpus pass; selected dispatches retain the frozen value as provenance and verify the
+     * source-to-staging copy by exact size.
      *
      * @param  array{relative_path:string,sha256:string,byte_size:int}  $file
      */

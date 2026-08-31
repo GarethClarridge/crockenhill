@@ -80,6 +80,11 @@ class HistoricStagingContextRegistry
         return $this->context instanceof HistoricStagingContext;
     }
 
+    public function activeContext(): ?HistoricStagingContext
+    {
+        return $this->context;
+    }
+
     public function deactivate(): void
     {
         if ($this->depth > 0) {

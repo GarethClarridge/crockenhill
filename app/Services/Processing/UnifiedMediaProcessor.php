@@ -14,6 +14,7 @@ use App\Enums\MediaType;
 use App\Enums\SermonService;
 use App\Exceptions\InvalidFileException;
 use App\Models\MediaProcessingLog;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Sermon\LivestreamSegmentationService;
 use App\Traits\SanitizesLogData;
 use Illuminate\Contracts\Container\BindingResolutionException;
@@ -39,6 +40,7 @@ class UnifiedMediaProcessor
         private readonly MediaValidationService $mediaValidation,
         private readonly ProcessingRunOrchestrator $processingRunOrchestrator,
         private readonly GetMediaProcessingStatus $getMediaProcessingStatus,
+        private readonly HistoricStagingContextRegistry $stagingContextRegistry,
     ) {}
 
     /**
@@ -50,7 +52,7 @@ class UnifiedMediaProcessor
      * @param  string  $type  The media type string (audio, video, livestream)
      * @param  UploadedFile  $file  The uploaded media file
      * @param  string|null  $clientFileDate  Optional date provided by the client
-     * @param  array{auto_trim?: bool, video_processing_mode?: string, processing_metadata?: array<string, mixed>, dedup_key?: string}  $options  Processing configuration
+     * @param  array{auto_trim?: bool, video_processing_mode?: string, processing_metadata?: array<string, mixed>, dedup_key?: string, skip_file_hash?: bool}  $options  Processing configuration
      * @param  SermonService|null  $serviceOverride  Operator-selected service; when set, overrides automatic detection
      * @param  string|null  $serviceDateOverride  Server-derived service date; when set, overrides inferred recording dates
      * @return ProcessingResult The result of the initiation attempt
@@ -97,7 +99,9 @@ class UnifiedMediaProcessor
             );
         }
 
-        $fileHash = $this->computeFileHash($file);
+        $fileHash = $this->shouldSkipHistoricFileHash($mediaType, $options)
+            ? null
+            : $this->computeFileHash($file);
         $videoMode = VideoProcessingOptions::resolveMode($options);
         $ownerUserId = $this->authenticatedOwnerUserId();
         $dedupKey = is_string($options['dedup_key'] ?? null)
@@ -339,6 +343,72 @@ class UnifiedMediaProcessor
         $hash = hash_file('sha256', $realPath);
 
         return $hash !== false ? $hash : null;
+    }
+
+    /**
+     * Historic dispatches already carry a frozen manifest identity and use an operation-scoped
+     * staging root. Only the importer may request the optimisation, and only while that exact
+     * staging context is active with approved source metadata attached.
+     *
+     * @param  array<string, mixed>  $options
+     */
+    private function shouldSkipHistoricFileHash(MediaType $mediaType, array $options): bool
+    {
+        if ($mediaType !== MediaType::Livestream || ($options['skip_file_hash'] ?? false) !== true) {
+            return false;
+        }
+
+        $dedupKey = $options['dedup_key'] ?? null;
+        $processingMetadata = $options['processing_metadata'] ?? null;
+        $historicImport = is_array($processingMetadata)
+            ? ($processingMetadata['historic_import'] ?? null)
+            : null;
+
+        if (! is_string($dedupKey) || $dedupKey === '' || ! is_array($historicImport)) {
+            return false;
+        }
+
+        $operationId = $historicImport['operation_id'] ?? null;
+        $manifestItemKey = $historicImport['manifest_item_key'] ?? null;
+        $stagingContext = $historicImport['staging_context'] ?? null;
+        $sources = $historicImport['sources'] ?? null;
+
+        if (
+            ! is_string($operationId)
+            || $operationId === ''
+            || ! is_string($manifestItemKey)
+            || $manifestItemKey === ''
+            || ($historicImport['job_key'] ?? null) !== $dedupKey
+            || ($historicImport['sha256_basis'] ?? null) !== 'approved_manifest_not_reverified_at_dispatch'
+            || ! is_array($stagingContext)
+            || ! is_array($sources)
+            || ! array_is_list($sources)
+            || $sources === []
+        ) {
+            return false;
+        }
+
+        foreach ($sources as $source) {
+            if (
+                ! is_array($source)
+                || ! is_string($source['path'] ?? null)
+                || $source['path'] === ''
+                || str_starts_with($source['path'], '/')
+                || str_contains($source['path'], '\\')
+                || in_array('..', explode('/', $source['path']), true)
+                || ! is_int($source['size'] ?? null)
+                || $source['size'] < 0
+                || ! is_string($source['sha256'] ?? null)
+                || preg_match('/\A[0-9a-f]{64}\z/', $source['sha256']) !== 1
+            ) {
+                return false;
+            }
+        }
+
+        $activeContext = $this->stagingContextRegistry->activeContext();
+
+        return $activeContext !== null
+            && $activeContext->toArray() === $stagingContext;
     }
 
     private function buildDedupKey(string $fileHash, MediaType $mediaType, string $videoMode, ?int $ownerUserId): string
